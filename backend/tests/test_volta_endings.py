@@ -30,7 +30,7 @@ def repeat(direction, times=None):
     return f'<barline location="{location}"><repeat direction="{direction}"{count}/></barline>'
 
 
-def close_repeat(number, times=2):
+def close_repeat(number, times=None):
     count = f' times="{times}"' if times is not None else ""
     return f'<barline location="right"><ending number="{number}" type="stop"/><repeat direction="backward"{count}/></barline>'
 
@@ -74,7 +74,7 @@ def volta(
         measure(
             1,
             ending("1" if times == 2 else "1,2", "start") + back_tempo,
-            endpoint_tempo + close_repeat("1" if times == 2 else "1,2", times),
+            endpoint_tempo + close_repeat("1" if times == 2 else "1,2"),
         ),
         measure(2, ending(str(times), "start") + exit_tempo, ending(str(times), close)),
     ]
@@ -90,6 +90,24 @@ def test_simple_volta_selects_occurrences_by_pass(times, order):
     assert [o.visit for o in projection.occurrences] == (
         [1, 1, 2, 1] if times == 2 else [1, 1, 2, 2, 3, 1]
     )
+
+
+@pytest.mark.parametrize("plays", [2, 3])
+def test_official_style_volta_derives_pass_count_without_repeat_times(plays):
+    back = "1" if plays == 2 else "1,2"
+    xml = score(
+        [
+            measure(0, repeat("forward")),
+            measure(1),
+            measure(2, ending(back, "start"), close_repeat(back, None)),
+            measure(3, ending(str(plays), "start"), ending(str(plays), "discontinue")),
+        ]
+    )
+    model = parse_score_semantics(admit_musicxml_document(xml.encode()))
+    assert [o.measure_index for o in project_performance_occurrences(model).occurrences] == (
+        [0, 1, 2] * (plays - 1) + [0, 1, 3]
+    )
+    assert model.repeats[-1].times is None
 
 
 @pytest.mark.parametrize("reset,expected", [(False, 10200), (True, 11400)])
@@ -130,7 +148,7 @@ def test_malformed_ending_number_is_a_fact_lexical_error(raw):
 @pytest.mark.parametrize("implicit", [False, True])
 @pytest.mark.parametrize("close", ["stop", "discontinue"])
 def test_first_repeat_default_count_and_implicit_origin_with_volta(implicit, close):
-    xml = score(volta(implicit=implicit, close=close)).replace(' times="2"', "")
+    xml = score(volta(implicit=implicit, close=close))
     assert [
         o.measure_index
         for o in project_performance_occurrences(parse_score_semantics(xml)).occurrences
@@ -210,9 +228,42 @@ def test_later_part_can_supply_the_complete_volta_program():
     ]
 
 
+@pytest.mark.parametrize("times", [2, 3, 4])
+def test_repeat_times_on_ending_is_preserved_but_not_executed(times):
+    xml = score(volta(times=3)).replace(
+        '<repeat direction="backward"/>', f'<repeat direction="backward" times="{times}"/>'
+    )
+    model = parse_score_semantics(admit_musicxml_document(xml.encode()))
+    assert model.repeats[-1].times == times
+    with pytest.raises(PerformanceNavigationError, match="repeat_times_with_ending"):
+        project_performance_occurrences(model)
+
+
+def test_parts_cannot_agree_by_replacing_source_times_with_inferred_volta_count():
+    first = volta(times=3)
+    second = [
+        m.replace('<repeat direction="backward"/>', '<repeat direction="backward" times="3"/>')
+        for m in first
+    ]
+    model = parse_score_semantics(admit_musicxml_document(score(first, second).encode()))
+    assert [r.times for r in model.repeats if r.direction == "backward"] == [None, 3]
+    with pytest.raises(PerformanceNavigationError, match="conflicting_part_navigation"):
+        project_performance_occurrences(model)
+
+
 @pytest.mark.parametrize(
     "back,final,times",
-    [("", "2", 2), ("   ", "2", 2), ("1", "3", 2), ("1,2", "2", 2), ("1", "3", 3), ("1,3", "2", 3)],
+    [
+        ("", "2", 2),
+        ("   ", "2", 2),
+        ("1", "3", 2),
+        ("1,2", "2", 2),
+        ("1", "3", 3),
+        ("1,3", "2", 3),
+        ("1,3", "4", 3),
+        ("1", "2,3", 2),
+        ("1", "1", 2),
+    ],
 )
 def test_unknown_or_incomplete_or_overlapping_pass_coverage_is_not_guessed(back, final, times):
     xml = score(volta(times=times))
@@ -349,12 +400,13 @@ def test_real_verovio_simple_volta_conformance(times):
         [
             measure(0, repeat("forward")),
             measure(1),
-            measure(2, ending(back, "start"), close_repeat(back, times)),
+            measure(2, ending(back, "start"), close_repeat(back)),
             measure(3, ending(str(times), "start"), ending(str(times), "discontinue")),
         ]
     )
     model = parse_score_semantics(xml)
     toolkit = verovio.toolkit()
+    assert model.repeats[-1].times is None
     toolkit.setOptions({"inputFrom": "xml"})
     assert toolkit.loadData(xml)
     toolkit.renderToMIDI()

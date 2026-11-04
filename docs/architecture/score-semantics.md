@@ -91,8 +91,9 @@ fact takes effect. Metadata integrates exact Fraction durations to final millise
 ## Written and performance axes
 
 `WrittenRepeat` records part, written measure index, barline location, direction,
-backward total plays and optional `after_jump`. Forward facts have no play count;
-backward facts default to two total plays. Missing barline location means right.
+optional source `times` and `after_jump` attributes. Absent backward `times` remains
+`None`; forward facts have `times=None`. Effective play counts belong to performance
+projection. Missing barline location means right.
 `WrittenEnding` retains part, measure, barline location, type, `raw_number` and
 normalized `passes`. Passes are a sorted tuple of positive integers; `1,2` and
 `1, 2` represent the same set. A blank number has `passes=None`, preserving unknown

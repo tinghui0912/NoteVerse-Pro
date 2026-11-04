@@ -317,8 +317,8 @@ def parse_score_semantics(content: bytes | str) -> CanonicalScoreSemanticModel:
                         if direction not in {"forward", "backward"}:
                             raise MusicXMLSemanticError("invalid_repeat_direction")
                         times = (
-                            _positive_integer(repeat.get("times", "2"), "invalid_repeat_times")
-                            if direction == "backward"
+                            _positive_integer(repeat.attrib["times"], "invalid_repeat_times")
+                            if direction == "backward" and "times" in repeat.attrib
                             else None
                         )
                         after_jump = repeat.get("after-jump")

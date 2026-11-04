@@ -42,7 +42,8 @@ recompute measure ownership or occurrence offset arithmetic.
 
 Linear scores visit each written measure once. Simple repeats require a forward
 repeat on a left barline and a backward repeat on a right barline. A backward
-repeat's `times` is total plays: absent means two; `times="3"` means three.
+repeat outside an ending uses `times` as total plays: performance projection applies
+two when the attribute is absent; `times="3"` means three.
 The first unmatched backward repeat can use measure zero as its implicit start.
 After a closed repeat, an unmatched backward repeat is ambiguous and rejected.
 Sequential explicit repeat pairs are supported. Nested, overlapping, duplicate,
@@ -63,8 +64,12 @@ Unclosed, nested, overlapping, duplicate or disagreeing spans fail closed.
 
 A supported repeat context has common measures, one repeat-back ending terminating
 at its backward repeat, and one immediately following final exit ending. For total
-plays N, repeat-back passes must be exactly `{1, ..., N-1}` and final exit passes
-exactly `{N}`. This includes `{1}/{2}` and `{1,2}/{3}`. Each non-final pass visits
+plays N, the final exit must name exactly one pass `{N}`, with N at least two, and
+repeat-back passes must be exactly `{1, ..., N-1}`. Total plays derive from this
+ending coverage, including `{1}/{2}` and `{1,2}/{3}`, without `repeat@times`.
+A closing repeat carrying `times` is preserved in written notation but rejected
+by performance projection as `repeat_times_with_ending`, even when it agrees with N.
+Each non-final pass visits
 common measures and the repeat-back span; the final pass visits common measures
 and the final exit span, then continues after the group. Occurrence visit counts
 follow actual visits. Explicit and first-context implicit-origin repeats and

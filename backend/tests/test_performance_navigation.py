@@ -90,7 +90,7 @@ def test_simple_repeat_total_plays_and_visits(times, plays, explicit_start):
         map(Fraction, range(0, plays * 8, 4))
     )
     assert result.end == plays * 8
-    assert model.repeats[-1].times == plays
+    assert model.repeats[-1].times == times
     if explicit_start:
         assert model.repeats[0].times is None
         assert model.repeats[0].location == "left"
@@ -314,7 +314,7 @@ def test_written_repeat_preserves_default_location_count_and_after_jump():
     )
     assert [(r.location, r.direction, r.times, r.after_jump) for r in model.repeats] == [
         ("left", "forward", None, None),
-        ("right", "backward", 2, False),
+        ("right", "backward", None, False),
     ]
     with pytest.raises(PerformanceNavigationError):
         project_performance_occurrences(model)

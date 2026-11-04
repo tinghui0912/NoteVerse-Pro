@@ -140,28 +140,33 @@ def _normalize_ending_spans(markers: Sequence[WrittenEnding]) -> tuple[EndingSpa
 
 
 def _associate_endings(
-    contexts: Sequence[_RepeatContext], spans: Sequence[EndingSpan]
+    repeat_ranges: Sequence[tuple[int, int, int | None]], spans: Sequence[EndingSpan]
 ) -> tuple[_RepeatContext, ...]:
     associated = []
     span_index = 0
     previous_end = -1
-    for context in contexts:
-        if context.start <= previous_end:
+    for start, end, times in repeat_ranges:
+        if start <= previous_end:
             raise PerformanceNavigationError("overlapping_repeat_contexts")
-        if span_index < len(spans) and spans[span_index].start_measure_index <= context.end:
+        if span_index < len(spans) and spans[span_index].start_measure_index <= end:
             back = spans[span_index]
             final = spans[span_index + 1] if span_index + 1 < len(spans) else None
             if (
-                back.start_measure_index < context.start
-                or back.end_measure_index != context.end
+                back.start_measure_index < start
+                or back.end_measure_index != end
                 or final is None
-                or final.start_measure_index != context.end + 1
-                or back.passes != tuple(range(1, context.total_plays))
-                or final.passes != (context.total_plays,)
+                or final.start_measure_index != end + 1
+                or len(final.passes) != 1
+                or final.passes[0] < 2
+                or back.passes != tuple(range(1, final.passes[0]))
             ):
                 raise PerformanceNavigationError("unsupported_ending_group")
-            context = _RepeatContext(context.start, context.end, context.total_plays, back, final)
+            if times is not None:
+                raise PerformanceNavigationError("repeat_times_with_ending")
+            context = _RepeatContext(start, end, final.passes[0], back, final)
             span_index += 2
+        else:
+            context = _RepeatContext(start, end, times if times is not None else 2)
         associated.append(context)
         previous_end = context.continuation - 1
     if span_index != len(spans):
@@ -207,7 +212,7 @@ def project_performance_occurrences(model: CanonicalScoreSemanticModel) -> Perfo
             raise PerformanceNavigationError("ambiguous_repeat_boundary")
         boundaries[slot] = (times, after_jump)
 
-    contexts = []
+    repeat_ranges = []
     repeat_start: int | None = None
     closed_repeat = False
     for measure in model.measures:
@@ -222,14 +227,13 @@ def project_performance_occurrences(model: CanonicalScoreSemanticModel) -> Perfo
                     raise PerformanceNavigationError("ambiguous_implicit_repeat_start")
                 repeat_start = 0
             times = boundaries[(index, "backward")][0]
-            assert times is not None  # Written backward facts carry effective total plays.
-            contexts.append(_RepeatContext(repeat_start, index, times))
+            repeat_ranges.append((repeat_start, index, times))
             repeat_start = None
             closed_repeat = True
     if repeat_start is not None:
         raise PerformanceNavigationError("unclosed_repeat")
 
-    by_start = {c.start: c for c in _associate_endings(contexts, ending_spans)}
+    by_start = {c.start: c for c in _associate_endings(repeat_ranges, ending_spans)}
     order: list[int] = []
     index = 0
     while index < len(model.measures):
