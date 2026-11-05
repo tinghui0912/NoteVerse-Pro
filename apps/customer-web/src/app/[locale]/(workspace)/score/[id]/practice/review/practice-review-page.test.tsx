@@ -353,7 +353,7 @@ describe('PracticeReviewPage', () => {
     saveMutationMock.mutateAsync.mockReset();
     videoExportMocks.exportVideo.mockReset();
     videoExportMocks.exportVideo.mockResolvedValue({
-      blob: new Blob(['video-export'], { type: 'video/webm' }),
+      media: ownedMediaFixture(new Blob(['video-export'], { type: 'video/webm' })),
       mimeType: 'video/webm',
       durationMs: 3000,
     });
@@ -885,7 +885,7 @@ describe('PracticeReviewPage', () => {
     const capture = recordingSinkFixture(); await capture.sink.append(new Blob(['raw video'])); const media = await capture.sink.seal('video/webm');
     provideReview(createVideoCompletion({ videoBlob: media.blob, media }));
     await media.release();
-    let resolve!: (output: { blob: Blob; mimeType: string; durationMs: number }) => void, reject!: (error: Error) => void;
+    let resolve!: (output: import('@/lib/practice/video-export/export').VideoExportResult) => void, reject!: (error: Error) => void;
     videoExportMocks.exportVideo.mockImplementation(() => new Promise((yes, no) => { resolve = yes; reject = no; }));
     const view = render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
     fireEvent.click(screen.getByTestId('open-video-export-studio'));
@@ -896,7 +896,7 @@ describe('PracticeReviewPage', () => {
     const signal = videoExportMocks.exportVideo.mock.calls[0][0].signal as AbortSignal;
     expect(signal.aborted).toBe(true);
     await act(async () => {
-      if (outcome === 'success') resolve({ blob: new Blob(['output'], { type: 'video/webm' }), mimeType: 'video/webm', durationMs: 100 });
+      if (outcome === 'success') resolve({ media: ownedMediaFixture(new Blob(['output'], { type: 'video/webm' })), mimeType: 'video/webm', durationMs: 100 });
       else reject(outcome === 'abort' ? new DOMException('cancelled', 'AbortError') : new Error('encoder failed'));
     });
     await waitFor(() => expect(capture.exists()).toBe(false)); expect(capture.remove).toHaveBeenCalledOnce();
@@ -904,7 +904,7 @@ describe('PracticeReviewPage', () => {
 
   it('prevents parallel score-video exports and aborts the active export when cancelled', async () => {
     const resolveExportRef: Array<
-      (value: { blob: Blob; mimeType: string; durationMs: number }) => void
+      (value: import('@/lib/practice/video-export/export').VideoExportResult) => void
     > = [];
     videoExportMocks.exportVideo.mockImplementation(
       (_options: { signal: AbortSignal; onProgress?: (progress: { ratio: number }) => void }) => {
@@ -932,7 +932,7 @@ describe('PracticeReviewPage', () => {
     expect(signal.aborted).toBe(true);
 
     resolveExportRef[0]?.({
-      blob: new Blob(['video-export'], { type: 'video/webm' }),
+      media: ownedMediaFixture(new Blob(['video-export'], { type: 'video/webm' })),
       mimeType: 'video/webm',
       durationMs: 3000,
     });

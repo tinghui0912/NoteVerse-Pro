@@ -1,3 +1,4 @@
+import { videoExportOutputFiles } from './support/video-export-output';
 import { resolvePracticeScope } from '../../src/lib/practice/planning/scope';
 import { resolvePracticeTempoPlan } from '../../src/lib/practice/planning/tempo';
 import type { LibraryFolderTreeRead, PerformanceTakeRead, PerformanceTakeUploadReservationRequest } from "../../src/generated/api/types.gen";
@@ -1899,9 +1900,11 @@ test('one complete Setup admission survives Score deletion through Practice, Rev
   await expect(page.getByTestId('generate-video-export')).toBeEnabled();
   const download=page.waitForEvent('download');
   await page.getByTestId('generate-video-export').click();
+  await expect.poll(() => videoExportOutputFiles(page)).not.toEqual([]);
   const exported=await download;
   expect(await exported.failure()).toBeNull();
   await expect(page.getByTestId('video-export-success')).toBeVisible();
+  await expect.poll(() => videoExportOutputFiles(page)).toEqual([]);
   expect(exportWrites).toEqual([]);
   await expect(page.locator('.practice-summary-note-unsupported')).toHaveCount(3);
   expect(sourceRequests).toHaveLength(1);expect(scoreRequests).toHaveLength(admittedScoreReads);

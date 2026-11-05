@@ -1,3 +1,4 @@
+import { videoExportOutputFiles, installVideoExportOutputBarrier } from './support/video-export-output';
 import { expect, test, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { take, artifact } from '../../src/lib/practice/video-export/__fixtures__/saved-take';
@@ -22,6 +23,7 @@ async function temporaryMediaFiles(page:Page) {
 
 for (const sourceState of ['LIVE', 'DELETED', 'MISMATCH'] as const) {
   test(`saved Take ${sourceState}: raw playback/download are independent of optional exact score export`, async ({ page }) => {
+    await installVideoExportOutputBarrier(page);
     await mockAuthenticatedSession(page);
     await mockRealtimeEvents(page);
     await page.goto('/en');
@@ -85,13 +87,27 @@ for (const sourceState of ['LIVE', 'DELETED', 'MISMATCH'] as const) {
       expect(await temporaryMediaFiles(page)).toHaveLength(1);
       const composed=page.waitForEvent('download');
       await page.getByTestId('generate-video-export').click();
+      await expect.poll(() => videoExportOutputFiles(page)).not.toEqual([]);
+      expect((await temporaryMediaFiles(page)).filter(name => !name.endsWith('.crswap'))).toHaveLength(1);
       expect(await(await composed).failure()).toBeNull();
       await expect(page.getByTestId('video-export-success')).toBeVisible();
-      // A second export owns the same backing bytes while route teardown cancels it.
+      await expect.poll(() => videoExportOutputFiles(page)).toEqual([]);
+      // Cancellation retires a separate derivative without retiring the saved source.
       await page.getByTestId('generate-video-export').click();
-      await expect(page.getByTestId('video-export-progress')).toBeVisible();
+      await expect.poll(() => videoExportOutputFiles(page)).not.toEqual([]);
+      await page.getByRole('button', { name: 'Cancel Export', exact: true }).click();
+      await expect.poll(() => videoExportOutputFiles(page)).toEqual([]);
+      await expect(page.getByTestId('generate-video-export')).toBeEnabled();
+      expect((await temporaryMediaFiles(page)).filter(name => !name.endsWith('.crswap'))).toHaveLength(1);
+      // Hold real IO so route retirement must preserve the input lease until output cleanup settles.
+      await page.evaluate(() => (window as unknown as { __videoOutput: { arm(): void } }).__videoOutput.arm());
+      await page.getByTestId('generate-video-export').click();
+      await expect.poll(() => page.evaluate(() => (window as unknown as { __videoOutput: { pending: boolean } }).__videoOutput.pending)).toBe(true);
       await page.getByRole('button',{name:'Back to My Performances',exact:true}).click();
       await expect(page).toHaveURL(/\/my-performances$/);
+      expect((await temporaryMediaFiles(page)).filter(name => !name.endsWith('.crswap'))).toHaveLength(1);
+      await page.evaluate(() => (window as unknown as { __videoOutput: { release(): void } }).__videoOutput.release());
+      await expect.poll(() => videoExportOutputFiles(page)).toEqual([]);
       await expect.poll(()=>temporaryMediaFiles(page)).toEqual([]);
     } else {
       await expect(page.getByText('The exact score source is no longer available for score-based video export. Your original recording remains available.')).toBeVisible();

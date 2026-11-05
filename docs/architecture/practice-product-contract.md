@@ -1190,7 +1190,26 @@ Take remains durable authority; temporary local media is neither a cache nor a
 cross-reload session. Ordinary server playback URLs retain their independent contract.
 
 Archive remains explicit Review Save of raw Capture bytes into PerformanceTake.
-VideoExport output encoding has its own lifetime and output memory strategy.
+VideoExport source media is an OwnedMediaHandle retained by Studio for the whole
+export operation. Encoded output chunks are incrementally appended in MediaRecorder
+event order to `noteverse-video-export-output`, using a finite 1000ms timeslice.
+The operation never retains the complete encoded output in a JS chunk array.
+Stop drains all accepted writes before seal. The shared OPFS primitive validates
+exact byte accounting; seal uses the selected recorder MIME. Empty output fails closed.
+
+VideoExport returns `{ media: OwnedMediaHandle, mimeType, durationMs }` for a new
+file-backed derivative. The caller owns that reference until download handoff is
+complete. Studio calls downloadOwnedMedia, which retains its own download lease,
+then releases the result owner in finally, independently from its input-media lease.
+Cancellation, encoding/write failure and unpublished sealed output retire their
+partial or final storage before failure returns. Missing OPFS/Web Locks/writer
+support fails unavailable without a memory fallback.
+
+Output files use per-file lifetime Web Locks and the shared orphan/sidecar recovery
+mechanism. Final-owner release removes the output file; later initialization may
+reclaim unlocked crash orphans while protecting another tab's active output.
+These files are temporary browser-generated derivatives, not PerformanceTake
+persistence, an offline cache or reload-recoverable export state.
 No Capture bytes are streamed to the server while the user plays.
 
 Explicit tempo interpretation and the cross-runtime missing-tempo policy belong to

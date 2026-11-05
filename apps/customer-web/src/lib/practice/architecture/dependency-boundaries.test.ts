@@ -123,7 +123,7 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
     if (['react', 'next-intl'].includes(edge.specifier)) return source === 'video-export/preview.tsx';
     if (edge.target === normalize(path.join(sourceRoot, 'lib/api/performance-takes.ts'))) return source === 'video-export/saved-take-adapter.ts' && edge.typeOnly;
     return Boolean(target && (target.startsWith('video-export/') || ['score/', 'session/', 'planning/'].some(owner => target.startsWith(owner))
-      || ['recording/owned-media.ts', 'recording/recording-artifact.ts', 'recording/recording-timebase.ts', 'recording/recording-sink.ts', 'score-view/verovio-adapter.ts',
+      || ['recording/owned-media.ts', 'recording/opfs-owned-media-file.ts', 'recording/recording-artifact.ts', 'recording/recording-timebase.ts', 'recording/recording-sink.ts', 'score-view/verovio-adapter.ts',
         'score-view/playhead-cursor.ts', 'score-view/scope-timing.ts', 'score-view/decorations.ts', 'score-view/cursor-scope.ts'].includes(target)));
   }
   const owner = domain(source);
@@ -149,6 +149,8 @@ describe('Practice bounded domain dependencies', () => {
     for(const [file,edges] of sourceGraph) {
       if(file.startsWith(normalize(path.join(sourceRoot,'lib/api'))+'/'))
         for(const edge of edges) expect(edge.target?.startsWith(normalize(path.join(practiceRoot,'recording'))+'/'),`${file}: ${edge.specifier}`).toBeFalsy();
+      if(relative(file).startsWith('recording/'))
+        for(const edge of edges) expect(edge.target && relative(edge.target).startsWith('video-export/'),`${file}: ${edge.specifier}`).toBeFalsy();
       if(relative(file)==='recording/owned-media.ts')
         for(const edge of edges) expect(edge.target?.startsWith(normalize(practiceRoot)+'/'),`${file}: ${edge.specifier}`).toBeFalsy();
     }

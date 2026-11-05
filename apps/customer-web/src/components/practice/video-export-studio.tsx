@@ -1,5 +1,5 @@
 'use client';
-import { releaseOwnedMedia } from '@/lib/practice/recording/owned-media';
+import { releaseOwnedMedia, type OwnedMediaHandle } from '@/lib/practice/recording/owned-media';
 
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -27,6 +27,7 @@ import {
 } from '@/lib/practice/video-export/export';
 import type { PracticeVerovioAdapter } from '@/lib/practice/score-view/verovio-adapter';
 import type { VideoExportSession } from '@/lib/practice/video-export/session';
+import { downloadOwnedMedia } from '@/lib/practice/recording/download-owned-media';
 
 const FLOATING_VIDEO_EXPORT_TEMPLATE_ENABLED = process.env.NODE_ENV !== 'production';
 
@@ -262,32 +263,36 @@ export function VideoExportStudio({
       return;
     }
 
-    const mediaLease = session.video.media.retain();
+    const sourceMediaLease = session.video.media.retain();
+    let outputMediaOwner: OwnedMediaHandle | null = null;
     const abortController = new AbortController();
     splitExportAbortRef.current = abortController;
-    setSplitExportStatus('exporting');
-    onExportingChange?.(true);
-    setSplitExportProgress(0);
-    setSplitExportError(null);
-
     try {
+      setSplitExportStatus('exporting');
+      onExportingChange?.(true);
+      setSplitExportProgress(0);
+      setSplitExportError(null);
+
       const result = await exportVideo({
-        session: {...session,video:{...session.video,media:mediaLease}},
+        session: {
+          ...session,
+          video: { ...session.video, media: sourceMediaLease },
+        },
         scoreContainer,
         adapter,
-        scoreEndTick, ticksPerQuarter,
+        scoreEndTick,
+        ticksPerQuarter,
         signal: abortController.signal,
         onProgress: (progress) => setSplitExportProgress(progress.ratio),
         config: videoExportConfig,
       });
-      const url = URL.createObjectURL(result.blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = `performance-score-video-${Date.now()}.${extensionForMime(result.mimeType)}`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+      outputMediaOwner = result.media;
+      abortController.signal.throwIfAborted();
+      await downloadOwnedMedia(
+        outputMediaOwner,
+        `performance-score-video-${Date.now()}.${extensionForMime(result.mimeType)}`,
+      );
+      abortController.signal.throwIfAborted();
       setSplitExportProgress(1);
       setSplitExportStatus('success');
     } catch (cause) {
@@ -297,9 +302,14 @@ export function VideoExportStudio({
         return;
       }
       setSplitExportStatus('error');
-      setSplitExportError(cause instanceof Error ? cause.message : t('exportScoreVideoFailedDesc'));
+      setSplitExportError(
+        cause instanceof Error
+          ? cause.message
+          : t('exportScoreVideoFailedDesc'),
+      );
     } finally {
-      await releaseOwnedMedia(mediaLease);
+      if (outputMediaOwner) await releaseOwnedMedia(outputMediaOwner);
+      await releaseOwnedMedia(sourceMediaLease);
       splitExportAbortRef.current = null;
       onExportingChange?.(false);
     }
@@ -307,7 +317,8 @@ export function VideoExportStudio({
     adapter,
     readiness.ok,
     scoreContainer,
-    scoreEndTick, ticksPerQuarter,
+    scoreEndTick,
+    ticksPerQuarter,
     videoExportConfig,
     splitExportStatus,
     t,
