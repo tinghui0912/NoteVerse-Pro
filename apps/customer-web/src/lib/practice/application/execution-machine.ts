@@ -23,6 +23,26 @@ type ReleaseDestination =
   | Readonly<{ kind: "READY" }>
   | Readonly<{ kind: "DISPOSED" }>
   | Restart;
+type ReleasingExecution = Readonly<{
+  tag: "RELEASING";
+  execution: AcceptedExecution;
+  destination: ReleaseDestination;
+}> &
+  (
+    | Readonly<{
+        reason: "END";
+        phase: "RETIRING";
+        naturalCompletion: Readonly<{
+          session: ExecutionCompletion;
+          observation: ExecutionObservation;
+        }> | null;
+      }>
+    | Readonly<{
+        reason: "END" | "REPLACEMENT" | "RETRY" | "DISPOSE";
+        phase: "DISPOSING";
+        retirementFailure: ExecutionFailure | null;
+      }>
+  );
 export type PracticeExecutionActorState = Context &
   (
     | Readonly<{ tag: "READY" }>
@@ -32,11 +52,7 @@ export type PracticeExecutionActorState = Context &
         execution: AcceptedExecution;
       }>
     | Readonly<{ tag: "RUNNING" | "COMPLETED"; execution: AcceptedExecution }>
-    | Readonly<{
-        tag: "RELEASING";
-        execution: AcceptedExecution;
-        destination: ReleaseDestination;
-      }>
+    | ReleasingExecution
     | Readonly<{
         tag: "ERROR";
         error:
@@ -61,14 +77,19 @@ export type PracticeExecutionEvent =
         | "START_REQUESTED"
         | "END_REQUESTED"
         | "RETRY_REQUESTED"
+        | "TEARDOWN_REQUESTED"
         | "DISPOSE_REQUESTED";
     }>
   | Readonly<{
-      type: "PREPARATION_READY" | "START_SUCCEEDED" | "RELEASE_SUCCEEDED";
+      type:
+        | "PREPARATION_READY"
+        | "START_SUCCEEDED"
+        | "RETIREMENT_SUCCEEDED"
+        | "RELEASE_SUCCEEDED";
       executionId: ExecutionId;
     }>
   | Readonly<{
-      type: "START_FAILED" | "RELEASE_FAILED";
+      type: "START_FAILED" | "RETIREMENT_FAILED" | "RELEASE_FAILED";
       executionId: ExecutionId;
       failure: ExecutionFailure;
     }>
@@ -88,7 +109,10 @@ export type ExecutionEffect =
       kind: "PREPARE" | "START_CONTROLLER";
       execution: AcceptedExecution;
     }>
-  | Readonly<{ kind: "RELEASE"; execution: AcceptedExecution }>
+  | Readonly<{
+      kind: "RETIRE_CONTROLLER" | "DISPOSE_CONTROLLER";
+      execution: AcceptedExecution;
+    }>
   | Readonly<{
       kind: "NOTIFY_COMPLETION";
       executionId: ExecutionId;
@@ -138,10 +162,79 @@ function release(
   state: PracticeExecutionActorState,
   execution: AcceptedExecution,
   destination: ReleaseDestination,
+  reason: ReleasingExecution["reason"],
+): ExecutionTransition {
+  const retirement =
+    reason === "END" && (state.tag === "STARTING" || state.tag === "RUNNING");
+  return {
+    state: retirement
+      ? {
+          ...context(state),
+          tag: "RELEASING",
+          execution,
+          destination,
+          reason: "END",
+          phase: "RETIRING",
+          naturalCompletion: null,
+        }
+      : {
+          ...context(state),
+          tag: "RELEASING",
+          execution,
+          destination,
+          reason,
+          phase: "DISPOSING",
+          retirementFailure: null,
+        },
+    effects: [
+      {
+        kind: retirement ? "RETIRE_CONTROLLER" : "DISPOSE_CONTROLLER",
+        execution,
+      },
+    ],
+  };
+}
+function hardRelease(
+  state: Context & ReleasingExecution,
+  reason: "REPLACEMENT" | "DISPOSE",
+  destination: ReleaseDestination,
 ): ExecutionTransition {
   return {
-    state: { ...context(state), tag: "RELEASING", execution, destination },
-    effects: [{ kind: "RELEASE", execution }],
+    state: {
+      ...context(state),
+      tag: "RELEASING",
+      execution: state.execution,
+      destination,
+      reason,
+      phase: "DISPOSING",
+      retirementFailure:
+        state.phase === "DISPOSING" ? state.retirementFailure : null,
+    },
+    effects:
+      state.phase === "RETIRING"
+        ? [{ kind: "DISPOSE_CONTROLLER", execution: state.execution }]
+        : [],
+  };
+}
+function completed(
+  state: PracticeExecutionActorState,
+  execution: AcceptedExecution,
+  session: ExecutionCompletion,
+  observation: ExecutionObservation,
+): ExecutionTransition {
+  return {
+    state: {
+      ...context(state),
+      tag: "COMPLETED",
+      execution: { ...execution, observation },
+    },
+    effects: [
+      {
+        kind: "NOTIFY_COMPLETION",
+        executionId: execution.executionId,
+        session,
+      },
+    ],
   };
 }
 function begin(
@@ -178,9 +271,11 @@ export function transitionExecution(
         state.candidate.composition === event.composition
       )
         return unchanged;
+      // Start readiness may change while the accepted source remains valid (for example an inference lease).
       const replacement =
-        state.candidate.composition !== null &&
-        state.candidate.composition !== event.composition;
+        !event.plan ||
+        (state.candidate.composition !== null &&
+          state.candidate.composition !== event.composition);
       const next = {
         ...state,
         candidate: {
@@ -190,16 +285,13 @@ export function transitionExecution(
         },
       };
       if (replacement && execution)
-        return release(next, execution, { kind: "READY" });
+        return release(next, execution, { kind: "READY" }, "REPLACEMENT");
       if (
         replacement &&
         next.tag === "RELEASING" &&
         next.destination.kind !== "DISPOSED"
       ) {
-        return {
-          state: { ...next, destination: { kind: "READY" } },
-          effects: [],
-        };
+        return hardRelease(next, "REPLACEMENT", { kind: "READY" });
       }
       return { state: next, effects: [] };
     }
@@ -217,6 +309,8 @@ export function transitionExecution(
           accepted(state, candidate.plan, candidate.composition),
         );
       if (state.tag === "RELEASING" && state.destination.kind === "READY") {
+        if (state.phase === "RETIRING" && state.naturalCompletion)
+          return unchanged;
         return {
           state: {
             ...state,
@@ -289,26 +383,53 @@ export function transitionExecution(
       return unchanged;
     }
     case "NATURAL_COMPLETION": {
+      const retiring =
+        state.tag === "RELEASING" &&
+        state.reason === "END" &&
+        state.phase === "RETIRING"
+          ? state
+          : null;
+      const completionExecution = retiring?.execution ?? execution;
       if (
-        !execution ||
-        execution.executionId !== event.executionId ||
+        !completionExecution ||
+        completionExecution.executionId !== event.executionId ||
+        retiring?.naturalCompletion ||
         state.tag === "COMPLETED" ||
         state.tag === "ERROR" ||
         event.session.completionReason !== "SCOPE_COMPLETED" ||
-        execution.plan.mode !== event.observation.mode
+        completionExecution.plan.mode !== event.observation.mode
       )
         return unchanged;
       if (
         event.observation.mode === "CONTINUOUS_PLAY" &&
         !event.observation.completion
       ) {
+        if (retiring)
+          return {
+            state: {
+              ...context(state),
+              tag: "RELEASING",
+              execution: retiring.execution,
+              destination: retiring.destination,
+              reason: "END",
+              phase: "DISPOSING",
+              retirementFailure: {
+                mode: "CONTINUOUS_PLAY",
+                code: "ANALYSIS_FAILED",
+                cause: "CONTINUOUS_COMPLETION_UNAVAILABLE",
+              },
+            },
+            effects: [
+              { kind: "DISPOSE_CONTROLLER", execution: retiring.execution },
+            ],
+          };
         return {
           state: {
             ...context(state),
             tag: "ERROR",
             error: {
               kind: "EXECUTION",
-              execution,
+              execution: completionExecution,
               failure: {
                 mode: "CONTINUOUS_PLAY",
                 code: "ANALYSIS_FAILED",
@@ -319,23 +440,27 @@ export function transitionExecution(
           effects: [],
         };
       }
-      return {
-        state: {
-          ...context(state),
-          tag: "COMPLETED",
-          execution: { ...execution, observation: event.observation },
-        },
-        effects: [
-          {
-            kind: "NOTIFY_COMPLETION",
-            executionId: event.executionId,
-            session: event.session,
+      if (retiring)
+        return {
+          state: {
+            ...retiring,
+            naturalCompletion: {
+              session: event.session,
+              observation: event.observation,
+            },
           },
-        ],
-      };
+          effects: [],
+        };
+      return completed(
+        state,
+        completionExecution,
+        event.session,
+        event.observation,
+      );
     }
     case "END_REQUESTED":
-      if (execution) return release(state, execution, { kind: "READY" });
+      if (state.tag === "COMPLETED") return unchanged;
+      if (execution) return release(state, execution, { kind: "READY" }, "END");
       if (state.tag === "RELEASING" && state.destination.kind === "RESTART")
         return {
           state: { ...state, destination: { kind: "READY" } },
@@ -358,15 +483,22 @@ export function transitionExecution(
         { ...state, nextExecutionId: state.nextExecutionId + 1 },
         state.execution,
         { kind: "RESTART", execution: retry },
+        "RETRY",
       );
     }
+    case "TEARDOWN_REQUESTED":
+      if (execution)
+        return release(state, execution, { kind: "READY" }, "DISPOSE");
+      if (state.tag === "RELEASING" && state.destination.kind !== "DISPOSED")
+        return hardRelease(state, "DISPOSE", { kind: "READY" });
+      return unchanged;
     case "DISPOSE_REQUESTED":
-      if (execution) return release(state, execution, { kind: "DISPOSED" });
+      if (execution)
+        return release(state, execution, { kind: "DISPOSED" }, "DISPOSE");
       if (state.tag === "RELEASING")
-        return {
-          state: { ...state, destination: { kind: "DISPOSED" } },
-          effects: [],
-        };
+        return state.destination.kind === "DISPOSED"
+          ? unchanged
+          : hardRelease(state, "DISPOSE", { kind: "DISPOSED" });
       return {
         state: {
           ...context(state),
@@ -375,15 +507,58 @@ export function transitionExecution(
         },
         effects: [],
       };
+    case "RETIREMENT_SUCCEEDED":
+    case "RETIREMENT_FAILED": {
+      if (
+        state.tag !== "RELEASING" ||
+        state.phase !== "RETIRING" ||
+        state.execution.executionId !== event.executionId
+      )
+        return unchanged;
+      if (event.type === "RETIREMENT_SUCCEEDED" && state.naturalCompletion)
+        return completed(
+          state,
+          state.execution,
+          state.naturalCompletion.session,
+          state.naturalCompletion.observation,
+        );
+      return {
+        state: {
+          ...context(state),
+          tag: "RELEASING",
+          execution: state.execution,
+          destination: state.destination,
+          reason: "END",
+          phase: "DISPOSING",
+          retirementFailure:
+            event.type === "RETIREMENT_FAILED" ? event.failure : null,
+        },
+        effects: [{ kind: "DISPOSE_CONTROLLER", execution: state.execution }],
+      };
+    }
     case "RELEASE_SUCCEEDED": {
       if (
         state.tag !== "RELEASING" ||
+        state.phase !== "DISPOSING" ||
         state.execution.executionId !== event.executionId
       )
         return unchanged;
       if (state.destination.kind === "DISPOSED")
         return {
-          state: { ...context(state), tag: "DISPOSED", failure: null },
+          state: {
+            ...context(state),
+            tag: "DISPOSED",
+            failure: state.retirementFailure,
+          },
+          effects: [],
+        };
+      if (state.retirementFailure)
+        return {
+          state: {
+            ...context(state),
+            tag: "ERROR",
+            error: { kind: "RELEASE", failure: state.retirementFailure },
+          },
           effects: [],
         };
       if (
@@ -397,6 +572,7 @@ export function transitionExecution(
     case "RELEASE_FAILED":
       if (
         state.tag !== "RELEASING" ||
+        state.phase !== "DISPOSING" ||
         state.execution.executionId !== event.executionId
       )
         return unchanged;

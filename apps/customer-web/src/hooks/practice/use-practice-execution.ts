@@ -39,7 +39,7 @@ export function usePracticeExecution(
     ++currentLifetime.generation;
     return () => {
       const retiring = ++currentLifetime.generation;
-      void actor.end();
+      void actor.releaseForTeardown();
       queueMicrotask(() => {
         if (retiring === currentLifetime.generation) void actor.dispose();
       });

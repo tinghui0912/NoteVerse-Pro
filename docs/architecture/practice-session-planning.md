@@ -73,8 +73,10 @@ Metronome enable/disable remains a live command on the same session.
 
 Both STEP and Continuous require user Start. STEP starts learning input acceptance
 without count-in or a performance clock and may wait indefinitely for the first note.
-Continuous starts its count-in and canonical transport. End detaches presentation,
-fences callbacks, abandons/disposes the selected controller, and returns READY.
+Continuous starts its count-in and canonical transport. End immediately fences ordinary
+observations and asks the selected controller to retire gracefully. End before the
+formal scope-completion latch abandons and returns READY after hard disposal.
+An already-latched natural completion finishes its cleanup and reaches COMPLETED.
 Matching admission, exact Source, root health and engine lifecycle control the next Start.
 Intervention End creates no independent readiness state.
 
@@ -94,18 +96,26 @@ release outcomes return as identity-scoped events. Stale outcomes are ignored by
 the pure reducer. Public views are pure projections of accepted state and its latest
 leaf observation, without reading controller handles.
 
-The actor runs preparation, construction/start, release and completion-notification
+The actor runs preparation, construction/start, retirement, disposal and completion-notification
 effects. Its single opaque runtime handle owns the controller, subscription detach
-and preparation acknowledgement. End fences the state and detaches immediately,
-then waits for abandon, dispose and late preparation to all settle. A new execution
-cannot be constructed before RELEASE_SUCCEEDED. RELEASE_FAILED blocks Start.
-Composition replacement releases the current execution without automatic Start.
+and preparation acknowledgement. RELEASING owns an explicit reason (END, REPLACEMENT,
+RETRY or DISPOSE) and phase (RETIRING or DISPOSING). END first waits for leaf abandon
+and late preparation. Only a matching formal SCOPE_COMPLETED event can cross that
+retirement fence; ordinary updates and Start results remain fenced. A natural outcome
+reaches COMPLETED after retirement settlement, with one notification and without
+hard-disposing its retained completion owner. An abandonment outcome proceeds to
+hard disposal. A new execution cannot be constructed before complete release.
+Release failure blocks Start. Composition/admission replacement and route teardown
+hard-dispose without accepting late completion or automatically starting a replacement.
+Losing the admitted source projection revokes ownership. Temporary Start-readiness
+changes, including a leased inference engine, do not revoke an already accepted plan.
 Natural SCOPE_COMPLETED transitions before one completion notification; Continuous
 also requires its atomic result/recording payload. STOPPED_BY_USER is abandonment.
 
 The React bridge subscribes, forwards commands and supplies candidate admission.
-Its effect-lifetime fencing handles StrictMode remounts without permanently disposing
-a live actor. Device acquisition and mode-specific progression remain outside the actor.
+Its cleanup hard-fences the leaf immediately; an effect-lifetime microtask permanently
+disposes the actor only for an actual unmount, preserving StrictMode remounts.
+Device acquisition and mode-specific progression remain outside the actor.
 
 STEP and Continuous controllers retain their distinct domain and pipeline owners.
 They consume admitted plans, browser roots and the read-only root-health port.

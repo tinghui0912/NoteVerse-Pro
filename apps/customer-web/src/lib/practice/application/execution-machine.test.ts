@@ -71,6 +71,208 @@ const releaseFailure = {
 } as const;
 
 describe("Practice execution ownership machine", () => {
+  it("End retirement fences ordinary observations while capturing one matching formal completion", () => {
+    const active = running(),
+      executionId = id(active);
+    const retiring = transitionExecution(active, { type: "END_REQUESTED" });
+    expect(retiring.state).toMatchObject({
+      tag: "RELEASING",
+      reason: "END",
+      phase: "RETIRING",
+      naturalCompletion: null,
+    });
+    expect(retiring.effects.map((effect) => effect.kind)).toEqual([
+      "RETIRE_CONTROLLER",
+    ]);
+    expect(
+      next(retiring.state, {
+        type: "CONTROLLER_CHANGED",
+        executionId,
+        observation: stepObservation,
+      }),
+    ).toBe(retiring.state);
+    expect(next(retiring.state, { type: "START_SUCCEEDED", executionId })).toBe(
+      retiring.state,
+    );
+    const event = {
+      type: "NATURAL_COMPLETION",
+      executionId,
+      session,
+      observation: stepObservation,
+    } as const;
+    expect(
+      next(retiring.state, { ...event, executionId: executionId + 1 }),
+    ).toBe(retiring.state);
+    const captured = transitionExecution(retiring.state, event);
+    expect(captured.effects).toEqual([]);
+    expect(next(captured.state, event)).toBe(captured.state);
+    expect(next(captured.state, { type: "RETRY_REQUESTED" })).toBe(
+      captured.state,
+    );
+    const complete = transitionExecution(captured.state, {
+      type: "RETIREMENT_SUCCEEDED",
+      executionId,
+    });
+    expect(complete.state.tag).toBe("COMPLETED");
+    expect(complete.effects.map((effect) => effect.kind)).toEqual([
+      "NOTIFY_COMPLETION",
+    ]);
+    expect(next(complete.state, event)).toBe(complete.state);
+    expect(
+      next(complete.state, { type: "RETIREMENT_SUCCEEDED", executionId }),
+    ).toBe(complete.state);
+  });
+  it.each(["REPLACEMENT", "ADMISSION", "DISPOSE"] as const)(
+    "%s prevents late completion from crossing a hard retirement fence",
+    (reason) => {
+      const active = running(),
+        executionId = id(active);
+      let state = next(active, { type: "END_REQUESTED" });
+      state =
+        reason === "DISPOSE"
+          ? next(state, { type: "DISPOSE_REQUESTED" })
+          : next(state, {
+              type: "CANDIDATE_CHANGED",
+              plan: reason === "ADMISSION" ? null : plan,
+              composition:
+                reason === "REPLACEMENT" ? "other" : "score/revision",
+              admitted: reason === "REPLACEMENT",
+            });
+      expect(state).toMatchObject({
+        tag: "RELEASING",
+        phase: "DISPOSING",
+        reason: reason === "DISPOSE" ? "DISPOSE" : "REPLACEMENT",
+      });
+      expect(
+        next(state, {
+          type: "NATURAL_COMPLETION",
+          executionId,
+          session,
+          observation: stepObservation,
+        }),
+      ).toBe(state);
+      expect(next(state, { type: "RETIREMENT_SUCCEEDED", executionId })).toBe(
+        state,
+      );
+    },
+  );
+  it("hard teardown supersedes a remembered completion before retirement settlement", () => {
+    const active = running(),
+      executionId = id(active);
+    const captured = next(next(active, { type: "END_REQUESTED" }), {
+      type: "NATURAL_COMPLETION",
+      executionId,
+      session,
+      observation: stepObservation,
+    });
+    const hard = transitionExecution(captured, { type: "DISPOSE_REQUESTED" });
+    expect(hard.effects.map((effect) => effect.kind)).toEqual([
+      "DISPOSE_CONTROLLER",
+    ]);
+    expect(
+      next(hard.state, { type: "RETIREMENT_SUCCEEDED", executionId }),
+    ).toBe(hard.state);
+    expect(
+      next(hard.state, { type: "RELEASE_SUCCEEDED", executionId }).tag,
+    ).toBe("DISPOSED");
+  });
+  it("temporary Start-readiness loss does not revoke an accepted execution or its End retirement", () => {
+    let state = running();
+    const executionId = id(state);
+    state = candidate(state, plan, "score/revision", false);
+    expect(state.tag).toBe("RUNNING");
+    state = next(state, { type: "END_REQUESTED" });
+    state = candidate(state, plan, "score/revision", false);
+    expect(state).toMatchObject({
+      tag: "RELEASING",
+      reason: "END",
+      phase: "RETIRING",
+    });
+    state = next(state, {
+      type: "NATURAL_COMPLETION",
+      executionId,
+      session,
+      observation: stepObservation,
+    });
+    expect(next(state, { type: "RETIREMENT_SUCCEEDED", executionId }).tag).toBe(
+      "COMPLETED",
+    );
+  });
+  it("React lifetime teardown hard-fences without permanently disposing a remountable actor", () => {
+    const active = running(),
+      executionId = id(active);
+    const released = transitionExecution(
+      next(active, { type: "END_REQUESTED" }),
+      { type: "TEARDOWN_REQUESTED" },
+    );
+    expect(released.state).toMatchObject({
+      tag: "RELEASING",
+      reason: "DISPOSE",
+      phase: "DISPOSING",
+      destination: { kind: "READY" },
+    });
+    expect(released.effects.map((effect) => effect.kind)).toEqual([
+      "DISPOSE_CONTROLLER",
+    ]);
+    expect(
+      next(released.state, {
+        type: "NATURAL_COMPLETION",
+        executionId,
+        session,
+        observation: stepObservation,
+      }),
+    ).toBe(released.state);
+    expect(
+      next(released.state, { type: "RELEASE_SUCCEEDED", executionId }).tag,
+    ).toBe("READY");
+  });
+  it("natural completion cancels a queued Start rather than silently starting a new attempt", () => {
+    const active = running(),
+      executionId = id(active);
+    const queued = next(next(active, { type: "END_REQUESTED" }), {
+      type: "START_REQUESTED",
+    });
+    const captured = next(queued, {
+      type: "NATURAL_COMPLETION",
+      executionId,
+      session,
+      observation: stepObservation,
+    });
+    const result = transitionExecution(captured, {
+      type: "RETIREMENT_SUCCEEDED",
+      executionId,
+    });
+    expect(result.state.tag).toBe("COMPLETED");
+    expect(ownedExecution(result.state)?.plan).toBe(plan);
+    expect(result.effects.map((effect) => effect.kind)).toEqual([
+      "NOTIFY_COMPLETION",
+    ]);
+  });
+  it("retirement failure still waits hard disposal before exposing a stable release error", () => {
+    const active = running(),
+      executionId = id(active);
+    const failed = transitionExecution(
+      next(active, { type: "END_REQUESTED" }),
+      { type: "RETIREMENT_FAILED", executionId, failure: releaseFailure },
+    );
+    expect(failed.state).toMatchObject({
+      tag: "RELEASING",
+      phase: "DISPOSING",
+      retirementFailure: releaseFailure,
+    });
+    expect(failed.effects.map((effect) => effect.kind)).toEqual([
+      "DISPOSE_CONTROLLER",
+    ]);
+    const result = next(failed.state, {
+      type: "RELEASE_SUCCEEDED",
+      executionId,
+    });
+    expect(result).toMatchObject({
+      tag: "ERROR",
+      error: { kind: "RELEASE", failure: releaseFailure },
+    });
+    expect(next(result, { type: "START_REQUESTED" })).toBe(result);
+  });
   it("requires an admitted candidate and emits exactly one prepare/construct sequence for double Start", () => {
     expect(next(initialExecutionState(), { type: "START_REQUESTED" })).toEqual(
       initialExecutionState(),
@@ -113,14 +315,21 @@ describe("Practice execution ownership machine", () => {
           executionId: id(active),
           observation: stepObservation,
         },
-        {
-          type: "NATURAL_COMPLETION",
-          executionId: id(active),
-          session,
-          observation: stepObservation,
-        },
       ] as const)
         expect(next(state, event)).toBe(state);
+      const retired = transitionExecution(state, {
+        type: "RETIREMENT_SUCCEEDED",
+        executionId: id(active),
+      });
+      expect(retired.state).toMatchObject({
+        tag: "RELEASING",
+        reason: "END",
+        phase: "DISPOSING",
+      });
+      expect(retired.effects.map((effect) => effect.kind)).toEqual([
+        "DISPOSE_CONTROLLER",
+      ]);
+      state = retired.state;
       state = next(state, {
         type: "RELEASE_SUCCEEDED",
         executionId: id(active),
@@ -217,16 +426,31 @@ describe("Practice execution ownership machine", () => {
         session,
         observation: stepObservation,
       } as const;
-      if (order === "END_FIRST")
-        expect(
-          transitionExecution(next(active, { type: "END_REQUESTED" }), event)
-            .effects,
-        ).toEqual([]);
-      else {
+      if (order === "END_FIRST") {
+        const retiring = transitionExecution(
+          next(active, { type: "END_REQUESTED" }),
+          event,
+        );
+        expect(retiring.state).toMatchObject({
+          tag: "RELEASING",
+          reason: "END",
+          phase: "RETIRING",
+          naturalCompletion: { session },
+        });
+        expect(retiring.effects).toEqual([]);
+        const settled = transitionExecution(retiring.state, {
+          type: "RETIREMENT_SUCCEEDED",
+          executionId,
+        });
+        expect(settled.state.tag).toBe("COMPLETED");
+        expect(settled.effects.map((effect) => effect.kind)).toEqual([
+          "NOTIFY_COMPLETION",
+        ]);
+      } else {
         const result = transitionExecution(active, event);
         expect(result.state.tag).toBe("COMPLETED");
         expect(next(result.state, { type: "END_REQUESTED" }).tag).toBe(
-          "RELEASING",
+          "COMPLETED",
         );
       }
     },
@@ -285,7 +509,7 @@ describe("Practice execution ownership machine", () => {
       );
     const retry = transitionExecution(changed, { type: "RETRY_REQUESTED" });
     expect(retry.state.tag).toBe("RELEASING");
-    expect(retry.effects.map((e) => e.kind)).toEqual(["RELEASE"]);
+    expect(retry.effects.map((e) => e.kind)).toEqual(["DISPOSE_CONTROLLER"]);
     const restarted = transitionExecution(retry.state, {
       type: "RELEASE_SUCCEEDED",
       executionId: id(done),
@@ -330,7 +554,10 @@ describe("Practice execution ownership machine", () => {
   });
   it("release failure discards queued Start and cannot be cleared by Start/End/candidate changes", () => {
     const active = running(),
-      releasing = next(active, { type: "END_REQUESTED" });
+      releasing = next(next(active, { type: "END_REQUESTED" }), {
+        type: "RETIREMENT_SUCCEEDED",
+        executionId: id(active),
+      });
     const queued = next(releasing, { type: "START_REQUESTED" });
     const failed = next(queued, {
       type: "RELEASE_FAILED",

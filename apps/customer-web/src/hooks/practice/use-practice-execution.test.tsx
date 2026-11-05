@@ -255,3 +255,49 @@ it("real Continuous completion publishes one handoff through the actor and Retry
   expect(r.health.listenerCount()).toBe(1);
   unmount();
 });
+
+it("unmount hard-fences real Continuous FINALIZING before a late completion can hand off", async () => {
+  const r = rig(),
+    started = vi.spyOn(ContinuousPracticeController.prototype, "start");
+  let resolve!: () => void, sealed!: () => void;
+  const gate = new Promise<void>((done) => {
+      resolve = done;
+    }),
+    materialized = new Promise<void>((done) => {
+      sealed = done;
+    });
+  const finalize = PerformanceRecorder.prototype.finalize;
+  vi.spyOn(PerformanceRecorder.prototype, "finalize").mockImplementationOnce(
+    async function (this: PerformanceRecorder) {
+      const result = await finalize.call(this);
+      sealed();
+      await gate;
+      return result;
+    },
+  );
+  const { result, unmount } = renderHook(
+    () =>
+      usePracticeExecution({
+        ...r.options,
+        plan: continuousPracticePlan(artifact),
+      }),
+    { wrapper: StrictMode },
+  );
+  await act(async () => {
+    await result.current.start();
+  });
+  const controller = started.mock.contexts[0] as ContinuousPracticeController;
+  act(() => {
+    r.clock.advance(60000);
+    controller.refresh();
+  });
+  await materialized;
+  expect(controller.snapshot().session).toBe("FINALIZING");
+  const dispose = vi.spyOn(controller, "dispose");
+  unmount();
+  expect(dispose).toHaveBeenCalledOnce();
+  resolve();
+  await controller.dispose();
+  expect(r.completion).not.toHaveBeenCalled();
+  expect(r.health.listenerCount()).toBe(0);
+});

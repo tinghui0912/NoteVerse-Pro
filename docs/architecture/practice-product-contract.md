@@ -105,7 +105,8 @@ recording clones, inference leases, metronomes and timebases. Cleanup releases t
 attempt resources without stopping borrowed roots.
 
 Both modes require explicit Practice Start. READY has no attempt controller. STEP has
-no count-in; Continuous owns canonical count-in/transport. End returns READY. Natural
+no count-in; Continuous owns canonical count-in/transport. End before formal scope
+completion returns READY; a formally latched natural completion wins later End. Natural
 completion offers explicit Try Again on the same binding when current admission permits.
 Metronome remains live; scope/range/tempo are locked during an active attempt. Recording
 indicators appear only after actual recorder start and freeze with paused transport.
@@ -277,8 +278,15 @@ Controller observations and async outcomes enter as executionId-scoped events.
 Stale events cannot replace an accepted execution. Public views project accepted
 state and leaf observations without accessing a controller.
 
-End fences immediately and detaches before awaiting complete release. All abandon,
-dispose and late preparation work must settle before another controller can be
+End fences ordinary observations immediately and detaches before graceful leaf
+retirement. RELEASING records END/REPLACEMENT/RETRY/DISPOSE and RETIRING/DISPOSING.
+Only END retirement accepts a matching formal SCOPE_COMPLETED event while waiting
+for leaf abandon and late preparation. Retirement settlement with accepted completion
+publishes COMPLETED once and retains its media owner; it does not hard-dispose that
+completion. Without natural completion, disposal finishes before READY. Route teardown
+and composition/admission replacement hard-dispose and reject late completion.
+Temporary Start-readiness changes do not replace an accepted source or execution.
+All retirement, disposal and late preparation work must settle before another controller can be
 constructed. Release failure blocks Start. Retry is accepted only after natural
 completion and reuses the exact executed plan after release; it requires current
 admission and matching composition. Composition replacement releases without auto-start.

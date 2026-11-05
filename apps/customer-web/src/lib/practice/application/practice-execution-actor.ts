@@ -102,6 +102,7 @@ type RuntimeHandle = {
   adapter: Controller;
   detach(): void;
   preparation: Promise<void>;
+  retirement?: Promise<void>;
 };
 type Waiter = Readonly<{
   promise: Promise<void>;
@@ -181,6 +182,13 @@ export class PracticeExecutionActor {
     );
     this.listeners.clear();
     return release;
+  }
+  /** Immediately hard-fence a React lifetime; a remount may reuse the actor after release. */
+  releaseForTeardown(): Promise<void> {
+    this.completionListener = undefined;
+    return this.command({ type: "TEARDOWN_REQUESTED" }, () =>
+      this.releaseAcknowledgement(),
+    );
   }
   private startAcknowledgement(): Promise<void> {
     const id =
@@ -278,8 +286,11 @@ export class PracticeExecutionActor {
       case "START_CONTROLLER":
         this.constructAndStart(effect.execution);
         break;
-      case "RELEASE":
-        this.release(effect.execution);
+      case "RETIRE_CONTROLLER":
+        this.retire(effect.execution);
+        break;
+      case "DISPOSE_CONTROLLER":
+        this.hardDispose(effect.execution);
         break;
       case "NOTIFY_COMPLETION":
         this.completionListener?.(effect.session);
@@ -374,26 +385,54 @@ export class PracticeExecutionActor {
       });
     }
   }
-  private release(execution: AcceptedExecution): void {
-    const handle = this.handle;
-    // The machine fences first; detach and both release requests happen synchronously.
-    this.handle = null;
+  private retire(execution: AcceptedExecution): void {
+    const handle =
+      this.handle?.executionId === execution.executionId ? this.handle : null;
     const operations: Promise<unknown>[] = [];
-    const request = (action: () => unknown) => {
-      try {
-        operations.push(Promise.resolve(action()));
-      } catch (cause) {
-        operations.push(Promise.reject(cause));
-      }
-    };
     if (handle) {
-      request(() => handle.detach());
-      request(() => handle.adapter.controller.abandon());
-      request(() => handle.adapter.controller.dispose());
+      operations.push(this.requestDetach(handle));
+      operations.push(
+        requestOperation(() => handle.adapter.controller.abandon()),
+      );
       operations.push(handle.preparation);
     }
-    // Wait for every operation, including late Start, even when one cleanup rejects early.
-    void Promise.allSettled(operations)
+    const retirement = this.settleRelease(
+      execution,
+      handle,
+      operations,
+      "RETIREMENT",
+    );
+    // A completed leaf retains its completion owner until Review handoff / explicit hard release.
+    if (handle) handle.retirement = retirement;
+  }
+  private hardDispose(execution: AcceptedExecution): void {
+    const handle =
+      this.handle?.executionId === execution.executionId ? this.handle : null;
+    if (handle) this.handle = null;
+    const operations: Promise<unknown>[] = [];
+    if (handle) {
+      operations.push(this.requestDetach(handle));
+      operations.push(
+        requestOperation(() => handle.adapter.controller.dispose()),
+      );
+      operations.push(handle.preparation);
+      if (handle.retirement) operations.push(handle.retirement);
+    }
+    void this.settleRelease(execution, handle, operations, "RELEASE");
+  }
+  private requestDetach(handle: RuntimeHandle): Promise<unknown> {
+    const detach = handle.detach;
+    handle.detach = () => {};
+    return requestOperation(detach);
+  }
+  private settleRelease(
+    execution: AcceptedExecution,
+    handle: RuntimeHandle | null,
+    operations: Promise<unknown>[],
+    phase: "RETIREMENT" | "RELEASE",
+  ): Promise<void> {
+    // Every phase settles all its work, including late preparation, before the machine proceeds.
+    return Promise.allSettled(operations)
       .then((results) => {
         const rejection = results.find(
           (result) => result.status === "rejected",
@@ -408,13 +447,16 @@ export class PracticeExecutionActor {
             throw new Error(observation.error);
         }
         this.dispatch({
-          type: "RELEASE_SUCCEEDED",
+          type:
+            phase === "RETIREMENT"
+              ? "RETIREMENT_SUCCEEDED"
+              : "RELEASE_SUCCEEDED",
           executionId: execution.executionId,
         });
       })
       .catch((cause) =>
         this.dispatch({
-          type: "RELEASE_FAILED",
+          type: phase === "RETIREMENT" ? "RETIREMENT_FAILED" : "RELEASE_FAILED",
           executionId: execution.executionId,
           failure:
             execution.plan.mode === "STEP_BY_STEP"
@@ -469,6 +511,13 @@ export class PracticeExecutionActor {
       adapter?.mode === "CONTINUOUS_PLAY" &&
       adapter.controller.continueAfterRecovery()
     );
+  }
+}
+function requestOperation(action: () => unknown): Promise<unknown> {
+  try {
+    return Promise.resolve(action());
+  } catch (cause) {
+    return Promise.reject(cause);
   }
 }
 function startFailure(plan: PracticePlan, cause: unknown): ExecutionFailure {

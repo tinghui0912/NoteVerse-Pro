@@ -43,6 +43,7 @@ function rig(mode: "STEP_BY_STEP" | "CONTINUOUS_PLAY" = "STEP_BY_STEP") {
       emit(): void;
       complete(): void;
       stale(): void;
+      staleObservation(): void;
       disposeGate: ReturnType<typeof deferred> | null;
       startGate: ReturnType<typeof deferred> | null;
     }[] = [];
@@ -78,6 +79,7 @@ function rig(mode: "STEP_BY_STEP" | "CONTINUOUS_PLAY" = "STEP_BY_STEP") {
         savedCallbacks.forEach((f) => f());
         options.onNaturalCompletion?.(sessionSnapshot as never);
       },
+      staleObservation: () => savedCallbacks.forEach((f) => f()),
       disposeGate: null as ReturnType<typeof deferred> | null,
       startGate: null as ReturnType<typeof deferred> | null,
     };
@@ -101,7 +103,9 @@ function rig(mode: "STEP_BY_STEP" | "CONTINUOUS_PLAY" = "STEP_BY_STEP") {
         session = "DISPOSED";
         await item.disposeGate?.promise;
       }),
-      abandon: vi.fn(async () => {}),
+      abandon: vi.fn(async () => {
+        detachHealth?.();
+      }),
       subscribe: vi.fn((f: () => void) => {
         subscribers.add(f);
         savedCallbacks.push(f);
@@ -303,7 +307,7 @@ it("release serialization fences Start pending + End + new Start and all stale c
   await tick();
   expect(r.created).toHaveLength(1);
   expect(r.health.listenerCount()).toBe(0);
-  old.stale();
+  old.staleObservation();
   expect(completion).not.toHaveBeenCalled();
   old.disposeGate.resolve();
   await tick();
@@ -377,7 +381,7 @@ it("an immediate End cancels Start before construction and invalid admission can
   expect(r.created).toHaveLength(0);
   await r.actor.dispose();
 });
-it("completion belongs only to the current Continuous attempt and stale callbacks cannot restore it after End", async () => {
+it("accepted Continuous completion survives End and only Retry creates a new execution", async () => {
   const r = rig("CONTINUOUS_PLAY");
   expect(r.actor.snapshot().completion).toBeNull();
   await r.actor.start();
@@ -388,10 +392,10 @@ it("completion belongs only to the current Continuous attempt and stale callback
   r.actor.setCandidate(r.plan, true, "score/revision");
   expect(r.actor.snapshot().completion).toBe(payload);
   await r.actor.end();
-  expect(r.actor.snapshot().completion).toBeNull();
+  expect(r.actor.snapshot().completion).toBe(payload);
   first.stale();
-  expect(r.actor.snapshot().completion).toBeNull();
-  await r.actor.start();
+  expect(r.actor.snapshot().completion).toBe(payload);
+  await r.actor.retry();
   expect(r.actor.snapshot().completion).toBeNull();
   first.stale();
   expect(r.actor.snapshot().completion).toBeNull();
@@ -621,7 +625,7 @@ it("release failure waits every late preparation and cleanup before reporting ER
   });
   await r.actor.dispose();
 });
-it("completion listener observes COMPLETED before its exactly-once callback and End immediately fences later completion", async () => {
+it("completion listener observes COMPLETED before its exactly-once callback and a later End preserves it", async () => {
   const r = rig(),
     listener = vi.fn(() =>
       expect(r.actor.snapshot().lifecycle).toBe("COMPLETED"),
@@ -634,7 +638,7 @@ it("completion listener observes COMPLETED before its exactly-once callback and 
   expect(listener).toHaveBeenCalledOnce();
   const end = r.actor.end();
   previous.stale();
-  expect(r.actor.snapshot().executedPlan).toBeNull();
+  expect(r.actor.snapshot().executedPlan).toBe(r.plan);
   await end;
   expect(listener).toHaveBeenCalledOnce();
   await r.actor.dispose();
@@ -698,7 +702,7 @@ it("candidate-only rerenders do not republish an unchanged active execution view
   await r.actor.dispose();
 });
 
-it("End requested reentrantly by a subscriber acknowledges complete release, including pending dispose", async () => {
+it("hard disposal requested reentrantly by a subscriber acknowledges complete release, including pending dispose", async () => {
   const r = rig();
   await r.actor.start();
   const previous = r.created[0];
@@ -707,7 +711,7 @@ it("End requested reentrantly by a subscriber acknowledges complete release, inc
     released = false;
   const detach = r.actor.subscribe(() => {
     if (r.actor.snapshot().lifecycle === "COMPLETED")
-      ending = r.actor.end().then(() => {
+      ending = r.actor.dispose().then(() => {
         released = true;
       });
   });

@@ -1179,6 +1179,70 @@ async function observeNativeRecorders(page: Page) {
     };
   });
 }
+
+/** Holds delivery of the native stop outcome; the real recorder and OPFS still realize media. */
+async function controlNativeRecorderSettlement(page: Page) {
+  await page.addInitScript(() => {
+    const NativeRecorder = window.MediaRecorder;
+    const descriptor = Object.getOwnPropertyDescriptor(NativeRecorder.prototype, 'onstop')!;
+    const pending: (() => void)[] = [];
+    const control = { hold: false, get pending() { return pending.length; }, release() {
+      control.hold = false; for (const deliver of pending.splice(0)) deliver();
+    } };
+    (window as unknown as { __practiceRecorderSettlement: typeof control }).__practiceRecorderSettlement = control;
+    window.MediaRecorder = class extends NativeRecorder {
+      constructor(stream: MediaStream, options?: MediaRecorderOptions) {
+        super(stream, options);
+        let handler: MediaRecorder['onstop'] = null;
+        Object.defineProperty(this, 'onstop', {
+          get: () => handler,
+          set: (value: MediaRecorder['onstop']) => {
+            handler = value;
+            descriptor.set!.call(this, value ? (event: Event) => {
+              const deliver = () => value.call(this, event);
+              if (control.hold) pending.push(deliver); else deliver();
+            } : null);
+          },
+        });
+      }
+    };
+  });
+}
+
+for (const retirement of ['End', 'route teardown'] as const) test(`${retirement} during native recorder finalization preserves its retirement contract`, async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
+  await controlNativeRecorderSettlement(page);
+  await setupContinuousPracticeMocks(page);
+  await openPreparedPractice(page, scoreId, revisionId);
+  await configurePractice(page, 'CONTINUOUS', 'MIDI', 'AUDIO');
+  await page.clock.pauseAt(new Date('2026-01-01T01:00:00Z'));
+  await page.getByRole('button', { name: '开始', exact: true }).click();
+  await finishContinuousCountIn(page, 2000);
+  await expect(page.getByTestId('recording-indicator')).toBeVisible();
+  await page.evaluate(() => { (window as unknown as { __practiceRecorderSettlement: { hold: boolean } }).__practiceRecorderSettlement.hold = true; });
+  await page.clock.runFor(2200);
+  // Recorder freeze follows the formal natural terminal latch; settlement remains deferred.
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __practiceRecorderSettlement: { pending: number } }).__practiceRecorderSettlement.pending)).toBe(1);
+  await expect(page.getByRole('button', { name: '查看报告', exact: true })).toHaveCount(0);
+  if (retirement === 'End') await page.getByRole('button', { name: '结束', exact: true }).click();
+  else {
+    await page.getByRole('button', { name: '返回练习设置', exact: true }).click();
+    await expect(page).toHaveURL(/\/practice\/setup\?/);
+  }
+  await page.evaluate(() => (window as unknown as { __practiceRecorderSettlement: { release(): void } }).__practiceRecorderSettlement.release());
+  await page.clock.resume();
+  if (retirement === 'End') {
+    await expect(page.getByRole('button', { name: '查看报告', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: '查看报告', exact: true }).click();
+    await page.waitForURL(`**/score/${scoreId}/practice/review`);
+    await expect(page.getByRole('button', { name: '回放', exact: true })).toBeVisible();
+    await expect(page.getByText('本次录音不可用', { exact: true })).toHaveCount(0);
+  } else {
+    await expect(page.getByRole('button', { name: '查看报告', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: /演奏已完成|练习已完成/ })).toHaveCount(0);
+    await expect(page).toHaveURL(/\/practice\/setup\?/);
+  }
+});
 async function interruptRecordingTrack(page: Page, kind: 'audio' | 'video') {
   return page.evaluate(kind => {
     const recorders = (window as unknown as { __nativePracticeRecorders: MediaRecorder[] }).__nativePracticeRecorders;
