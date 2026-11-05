@@ -10,7 +10,8 @@ import { VerovioScoreAdapter } from '@/lib/score/verovio';
 import { VerovioScorePreviewController } from '@/lib/score-preview/verovio-score-preview-controller';
 import { createScorePerformanceTimeline } from '@/lib/score/performance/timeline';
 import type { ScorePlaybackNote } from '@/lib/score/performance/timeline';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, ApiError } from '@/lib/api-client';
+import { writtenRealizationSources } from '../support/written-realization-sources';
 import { decodePerformancePlan } from '@/lib/score/performance/plan';
 import { linearPlan, rational } from '../support/performance-plan';
 import {
@@ -168,6 +169,45 @@ class ReloadAdapter extends StubAdapter {
 }
 
 describe('Score Preview reload failure', () => {
+  it.each(['microtonal', 'directionDynamics', 'multipleInstruments'] as const)(
+    'a playback source capability 422 rejects %s before renderer load and clears the score',
+    async (source) => {
+      const adapter = new ReloadAdapter();
+      const audio = new StubAudioEngine();
+      const container = document.createElement('div');
+      const controller = new VerovioScorePreviewController({
+        container,
+        adapter,
+        audioEngine: audio,
+      });
+      try {
+        await controller.loadScore('<initial/>');
+        const load = vi.spyOn(adapter, 'loadMusicXml');
+        const prepare = vi.spyOn(audio, 'prepare');
+        const error = new ApiError(
+          422,
+          'score_playback_failed',
+          'score_playback_failed'
+        );
+        vi.mocked(apiClient.post).mockRejectedValueOnce(error);
+        await expect(
+          controller.loadScore(writtenRealizationSources[source])
+        ).rejects.toBe(error);
+        expect(load).not.toHaveBeenCalled();
+        expect(prepare).not.toHaveBeenCalled();
+        expect(container.childElementCount).toBe(0);
+        expect(adapter.currentXml).toBe('');
+        expect(controller.getPlaybackSnapshot()).toMatchObject({
+          state: 'IDLE',
+          duration: 0,
+          totalSteps: 0,
+        });
+        await expect(controller.play()).rejects.toThrow('not ready');
+      } finally {
+        controller.dispose();
+      }
+    }
+  );
   it.each(['resolve', 'reject'])(
     'does not clear a newer score after a superseded request later %ss',
     async (outcome) => {

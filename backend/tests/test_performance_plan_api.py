@@ -14,6 +14,7 @@ from app.processing.musicxml.admission import admit_musicxml_document
 from app.score_semantics.musicxml_score import parse_score_semantics
 from app.score_semantics.performance_plan import build_performance_plan
 from tests.support.canonical_musicxml import measure, score, sound
+from tests.support.written_realization_sources import SOURCES, LOSSY_SOURCES
 
 PATH = "/api/v1/playback/performance-plan"
 
@@ -125,3 +126,21 @@ def test_missing_tempo_response_has_initial_state_and_no_tempo_fact(client):
     assert body["initial_tempo_bpm"] == {"numerator": 80, "denominator": 1}
     assert body["tempo_events"] == []
     assert body["musicxml"] == xml
+
+
+@pytest.mark.parametrize("xml,reason", LOSSY_SOURCES, ids=[r for _, r in LOSSY_SOURCES])
+def test_renderer_loss_is_a_playback_capability_error_not_source_invalidity(client, xml, reason):
+    assert parse_score_semantics(admit_musicxml_document(xml.encode())).end == 4
+    response = client.post(PATH, json={"musicxml": xml})
+    assert response.status_code == 422
+    assert response.json()["public_code"] == "score_playback_failed"
+    with pytest.raises(ValidationException) as exc:
+        compile_performance_plan(xml)
+    assert exc.value.details == {"reason": reason}
+
+
+@pytest.mark.parametrize("name", ["piano", "duet", "dynamics", "pedal"])
+def test_faithful_realization_sources_remain_available_without_storage_or_auth(client, name):
+    response = client.post(PATH, json={"musicxml": SOURCES[name]})
+    assert response.status_code == 200
+    assert response.json()["musicxml"] == SOURCES[name]

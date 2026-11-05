@@ -1,6 +1,7 @@
 """Source applicability, admission equivalence and consumer capability limits."""
 
 from copy import deepcopy
+import base64
 from fractions import Fraction
 import xml.etree.ElementTree as ET
 
@@ -263,7 +264,7 @@ def test_valid_sound_children_keep_order_before_owned_or_inherited_offset(
         assert all(e.tag.startswith("{" + namespace + "}") for e in root.iter())
 
 
-def test_real_verovio_receives_ungated_materialized_tempo_at_the_canonical_point():
+def test_real_verovio_loads_materialized_sound_children_but_playback_enforces_source_fidelity():
     content = score(
         f'<direction>{METRO}<offset sound="yes">2</offset><sound dynamics="70" time-only="2"><play><mute>on</mute></play></sound></direction>'
     )
@@ -273,6 +274,18 @@ def test_real_verovio_receives_ungated_materialized_tempo_at_the_canonical_point
     toolkit = verovio.toolkit()
     toolkit.setOptions({"inputFrom": "xml", "expandNever": True})
     assert toolkit.loadData(trusted.decode())
-    toolkit.renderToMIDI()
+    assert base64.b64decode(toolkit.renderToMIDI()).startswith(b"MThd")
+    with pytest.raises(RuntimeError, match="unsupported_verovio_sound_dynamics"):
+        VerovioMidiCompiler().compile(trusted)
+
+
+def test_real_verovio_receives_ungated_materialized_tempo_at_the_canonical_point():
+    # Applicability on an otherwise empty sound is not an audible state request.
+    content = score(
+        f'<direction>{METRO}<offset sound="yes">2</offset><sound time-only="2"/></direction>'
+    )
+    trusted = admit_musicxml_document(content)
+    model = parse_score_semantics(trusted)
+    assert (model.tempos[0].position, model.tempos[0].time_only) == (2, None)
     tempos = conductor_events(VerovioMidiCompiler().compile(trusted).content)
     assert tempos == [(Fraction(0), Fraction(80)), (Fraction(2), Fraction(100))]

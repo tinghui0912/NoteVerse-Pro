@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 from app.shared.constants import ErrorCode
 from app.processing.musicxml.admission import admit_musicxml_document
+from app.processing.musicxml.verovio_written_realization import validate_verovio_written_realization
 from app.score_semantics.musicxml_score import parse_score_semantics
 from app.score_semantics.performance_plan import build_performance_plan
 from .standard_midi import parse_standard_midi, serialize_standard_midi
@@ -27,7 +28,9 @@ class VerovioMidiCompiler:
     def compile(self, content: bytes) -> CompiledMidi:
         admitted = admit_musicxml_document(content)
         try:
-            plan = build_performance_plan(parse_score_semantics(admitted))
+            model = parse_score_semantics(admitted)
+            validate_verovio_written_realization(admitted, model)
+            plan = build_performance_plan(model)
         except ValueError as exc:
             raise RuntimeError(f"{ErrorCode.SCORE_PLAYBACK_FAILED}: {exc}") from exc
         try:

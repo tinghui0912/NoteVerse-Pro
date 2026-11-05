@@ -2,6 +2,10 @@
 
 from app.core.exceptions import ValidationException
 from app.processing.musicxml.admission import admit_musicxml_document
+from app.processing.musicxml.verovio_written_realization import (
+    VerovioWrittenRealizationError,
+    validate_verovio_written_realization,
+)
 from app.score_semantics.musicxml_score import parse_score_semantics
 from app.score_semantics.performance_navigation import PerformanceNavigationError
 from app.score_semantics.performance_plan import build_performance_plan
@@ -19,8 +23,9 @@ def compile_performance_plan(musicxml: str) -> PerformancePlanRead:
     admitted = admit_musicxml_document(musicxml.encode("utf-8"))
     model = parse_score_semantics(admitted)
     try:
+        validate_verovio_written_realization(admitted, model)
         plan = build_performance_plan(model)
-    except PerformanceNavigationError as error:
+    except (PerformanceNavigationError, VerovioWrittenRealizationError) as error:
         raise ValidationException(
             ErrorCode.SCORE_PLAYBACK_FAILED, details={"reason": str(error)}
         ) from error

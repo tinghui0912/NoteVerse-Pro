@@ -358,7 +358,8 @@ at final serialization.
 
 `POST /api/v1/playback/performance-plan` accepts `{musicxml: string}` without score
 identity, authentication or database/storage access. It admits the supplied
-document, parses written semantics, builds the plan and returns the exact admitted
+document, parses written semantics, validates the Verovio Written Realization
+Contract, builds the plan and returns the exact admitted
 UTF-8 MusicXML with `performance_end`, `initial_tempo_bpm`, `occurrences` and `tempo_events`.
 Tempo events name their coordinate `performance_position`. All rational values use integer `{numerator, denominator}` pairs with positive
 denominators; no rounding or transient version field enters transport. OpenAPI
@@ -366,6 +367,37 @@ owns this DTO and generates the customer-web types. Source-invalid input uses
 the existing 422 `revision_content_invalid` policy; unsupported performance uses
 422 `score_playback_failed`, with the domain reason retained in the application
 exception. No renderer fallback, persistence or plan cache is involved.
+
+## Written realization capability
+
+`CanonicalScoreSemanticModel` owns written semantics and
+`CanonicalPerformancePlan` owns performance chronology. The Verovio Written
+Realization Contract in `processing/musicxml/verovio_written_realization.py`
+defines the source subset that the pinned renderer can realize without silent
+audible semantic loss. Both the performance-plan application service and backend
+MIDI compiler validate that same contract before building a consumer plan or
+invoking Verovio. Unsupported realization raises a typed capability error with a
+stable reason; the HTTP boundary returns 422 `score_playback_failed` and retains
+the reason in its application exception. Canonical admission, storage and written
+metadata do not depend on this renderer capability. The pure plan and transport
+contain no renderer capability flags.
+
+The source contract permits semitone pitches, static part instruments (including
+different instruments in different parts), per-note dynamics, presentation-only
+dynamics and direction pedal notation. Non-semitone note/key alterations,
+sound-owned dynamics, sound instrument updates and note instrument references
+outside the part's static origin instrument fail closed. Unused instrument
+definitions are metadata and do not constitute an instrument change. Source
+sound pizzicato, spatial/pedal controls, play/swing and origin MIDI instrument
+bank/volume/spatial controls are outside the supported realization subset.
+
+The Browser applies two narrower checks after this shared source contract:
+written MIDI must fit its note/instrument realization model, and requested
+instruments must have shipped local soundfont assets. Direction pedal can produce
+CC64 that backend MIDI preserves; the Browser note model rejects that controller
+state. Static violin is supported by the shared contract and backend realization,
+while local Browser audio rejects it when no violin asset is shipped. These
+consumer capabilities do not change canonical source or chronology semantics.
 
 Browser Score Preview first compiles caller-supplied XML through the stateless
 performance-plan HTTP endpoint. It loads the returned admitted `musicxml` into

@@ -81,6 +81,9 @@ Invalid explicit notation or custom BPM never becomes a default tempo.
   state initialized at performance origin. A repeat jump retains the active tempo;
   an explicit marking changes it again whenever encountered on a repeated visit.
 - Backend playback admits one canonical document and builds `CanonicalPerformancePlan`.
+  The shared [Verovio Written Realization Contract](performance-navigation.md#written-realization-capability)
+  validates source fidelity before plan compilation and renderer invocation; it
+  is independent of tempo chronology and metadata extraction.
   Verovio with `expandNever=true` provides written-axis MIDI realization only.
   NoteVerse projects notes, channel state and timeline metadata through canonical occurrences,
   while origin structural descriptors remain once per original track. Channel

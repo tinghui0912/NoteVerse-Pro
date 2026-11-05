@@ -7,6 +7,17 @@ import sys
 ROOT = Path(__file__).resolve().parents[1] / "app"
 
 
+def test_renderer_source_capability_depends_only_on_written_semantics_and_stdlib():
+    path = ROOT / "processing/musicxml/verovio_written_realization.py"
+    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        if isinstance(node, ast.ImportFrom):
+            assert node.module == "app.score_semantics.musicxml_score" or (
+                node.module.split(".")[0] in sys.stdlib_module_names
+            )
+        elif isinstance(node, ast.Import):
+            assert all(a.name.split(".")[0] in sys.stdlib_module_names for a in node.names)
+
+
 def test_score_semantics_has_only_standard_library_and_local_semantic_dependencies():
     for path in (ROOT / "score_semantics").glob("*.py"):
         tree = ast.parse(path.read_text(encoding="utf-8"))
