@@ -1,0 +1,255 @@
+{
+  "source": "https://raw.githubusercontent.com/w3c/musicxml/v4.0/schema/musicxml.xsd",
+  "sha256": "bfe37ed25a9ec00e6f2591d53df260b84efe12aed209ba3ac0a76f9287665a99",
+  "surfaces": {
+    "sound": {
+      "attributes": [
+        "coda",
+        "dacapo",
+        "dalsegno",
+        "damper-pedal",
+        "divisions",
+        "dynamics",
+        "elevation",
+        "fine",
+        "forward-repeat",
+        "id",
+        "pan",
+        "pizzicato",
+        "segno",
+        "soft-pedal",
+        "sostenuto-pedal",
+        "tempo",
+        "time-only",
+        "tocoda"
+      ],
+      "children": [
+        "instrument-change",
+        "midi-device",
+        "midi-instrument",
+        "offset",
+        "play",
+        "swing"
+      ]
+    },
+    "midi-instrument": {
+      "attributes": ["id"],
+      "children": [
+        "elevation",
+        "midi-bank",
+        "midi-channel",
+        "midi-name",
+        "midi-program",
+        "midi-unpitched",
+        "pan",
+        "volume"
+      ]
+    },
+    "score-instrument": {
+      "attributes": ["id"],
+      "children": [
+        "ensemble",
+        "instrument-abbreviation",
+        "instrument-name",
+        "instrument-sound",
+        "solo",
+        "virtual-instrument"
+      ]
+    },
+    "note": {
+      "attributes": [
+        "attack",
+        "color",
+        "default-x",
+        "default-y",
+        "dynamics",
+        "end-dynamics",
+        "font-family",
+        "font-size",
+        "font-style",
+        "font-weight",
+        "id",
+        "pizzicato",
+        "print-dot",
+        "print-leger",
+        "print-lyric",
+        "print-object",
+        "print-spacing",
+        "relative-x",
+        "relative-y",
+        "release",
+        "time-only"
+      ],
+      "children": [
+        "accidental",
+        "beam",
+        "chord",
+        "cue",
+        "dot",
+        "duration",
+        "footnote",
+        "grace",
+        "instrument",
+        "level",
+        "listen",
+        "lyric",
+        "notations",
+        "notehead",
+        "notehead-text",
+        "pitch",
+        "play",
+        "rest",
+        "staff",
+        "stem",
+        "tie",
+        "time-modification",
+        "type",
+        "unpitched",
+        "voice"
+      ]
+    },
+    "notations": {
+      "attributes": ["id", "print-object"],
+      "children": [
+        "accidental-mark",
+        "arpeggiate",
+        "articulations",
+        "dynamics",
+        "fermata",
+        "footnote",
+        "glissando",
+        "level",
+        "non-arpeggiate",
+        "ornaments",
+        "other-notation",
+        "slide",
+        "slur",
+        "technical",
+        "tied",
+        "tuplet"
+      ]
+    },
+    "technical": {
+      "attributes": ["id"],
+      "children": [
+        "arrow",
+        "bend",
+        "brass-bend",
+        "double-tongue",
+        "down-bow",
+        "fingering",
+        "fingernails",
+        "flip",
+        "fret",
+        "golpe",
+        "half-muted",
+        "hammer-on",
+        "handbell",
+        "harmon-mute",
+        "harmonic",
+        "heel",
+        "hole",
+        "open",
+        "open-string",
+        "other-technical",
+        "pluck",
+        "pull-off",
+        "smear",
+        "snap-pizzicato",
+        "stopped",
+        "string",
+        "tap",
+        "thumb-position",
+        "toe",
+        "triple-tongue",
+        "up-bow"
+      ]
+    },
+    "direction": {
+      "attributes": ["directive", "id", "placement", "system"],
+      "children": [
+        "direction-type",
+        "footnote",
+        "level",
+        "listening",
+        "offset",
+        "sound",
+        "staff",
+        "voice"
+      ]
+    },
+    "direction-type": {
+      "attributes": ["id"],
+      "children": [
+        "accordion-registration",
+        "bracket",
+        "coda",
+        "damp",
+        "damp-all",
+        "dashes",
+        "dynamics",
+        "eyeglasses",
+        "harp-pedals",
+        "image",
+        "metronome",
+        "octave-shift",
+        "other-direction",
+        "pedal",
+        "percussion",
+        "principal-voice",
+        "rehearsal",
+        "scordatura",
+        "segno",
+        "staff-divide",
+        "string-mute",
+        "symbol",
+        "wedge",
+        "words"
+      ]
+    },
+    "attributes": {
+      "attributes": [
+        "color",
+        "default-x",
+        "default-y",
+        "font-family",
+        "font-size",
+        "font-style",
+        "font-weight",
+        "relative-x",
+        "relative-y",
+        "{http://www.w3.org/XML/1998/namespace}lang"
+      ],
+      "children": [
+        "clef",
+        "directive",
+        "divisions",
+        "footnote",
+        "for-part",
+        "instruments",
+        "key",
+        "level",
+        "measure-style",
+        "part-symbol",
+        "staff-details",
+        "staves",
+        "time",
+        "transpose"
+      ]
+    },
+    "barline": {
+      "attributes": ["coda", "divisions", "id", "location", "segno"],
+      "children": [
+        "bar-style",
+        "coda",
+        "ending",
+        "fermata",
+        "footnote",
+        "level",
+        "repeat",
+        "segno",
+        "wavy-line"
+      ]
+    }
+  }
+}

@@ -14,7 +14,7 @@ from app.processing.musicxml.admission import admit_musicxml_document
 from app.score_semantics.musicxml_score import parse_score_semantics
 from app.score_semantics.performance_plan import build_performance_plan
 from tests.support.canonical_musicxml import measure, score, sound
-from tests.support.written_realization_sources import SOURCES, LOSSY_SOURCES
+from tests.support.written_realization_sources import SOURCES, LOSSY_SOURCES, PROFILE_SOURCES
 
 PATH = "/api/v1/playback/performance-plan"
 
@@ -144,3 +144,28 @@ def test_faithful_realization_sources_remain_available_without_storage_or_auth(c
     response = client.post(PATH, json={"musicxml": SOURCES[name]})
     assert response.status_code == 200
     assert response.json()["musicxml"] == SOURCES[name]
+
+
+@pytest.mark.parametrize("name,case", PROFILE_SOURCES.items(), ids=PROFILE_SOURCES)
+def test_playable_plan_http_boundary_applies_the_closed_source_profile(client, name, case):
+    xml = case["musicxml"]
+    admitted = admit_musicxml_document(xml.encode())
+    assert parse_score_semantics(admitted).end > 0
+    response = client.post(PATH, json={"musicxml": xml})
+    if case["reason"]:
+        assert response.status_code == 422
+        assert response.json()["public_code"] == "score_playback_failed"
+        with pytest.raises(ValidationException) as exc:
+            compile_performance_plan(xml)
+        assert exc.value.details == {"reason": case["reason"]}
+    else:
+        assert response.status_code == 200
+        assert response.json()["musicxml"].encode() == admitted
+
+
+def test_unclassified_source_extension_has_a_playback_capability_error(client):
+    xml = SOURCES["piano"].replace('<note id="n0"', '<sound future-gain="2"/><note id="n0"')
+    assert parse_score_semantics(admit_musicxml_document(xml.encode())).end == 4
+    response = client.post(PATH, json={"musicxml": xml})
+    assert response.status_code == 422
+    assert response.json()["public_code"] == "score_playback_failed"

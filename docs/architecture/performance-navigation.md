@@ -372,9 +372,18 @@ exception. No renderer fallback, persistence or plan cache is involved.
 
 `CanonicalScoreSemanticModel` owns written semantics and
 `CanonicalPerformancePlan` owns performance chronology. The Verovio Written
-Realization Contract in `processing/musicxml/verovio_written_realization.py`
-defines the source subset that the pinned renderer can realize without silent
-audible semantic loss. Both the performance-plan application service and backend
+Realization Profile in `processing/musicxml/verovio_written_realization.py`
+defines an explicit playback source subset. Its centralized surfaces classify
+fields as `SUPPORTED`, `PRESENTATION_ONLY`, or `UNSUPPORTED_PLAYBACK`. Unknown
+attributes, children and assignment forms on structural/playback surfaces fail
+closed as `unsupported_verovio_playback_profile`; acceptance does not depend on
+whether a field happens to be recognized by the renderer. The profile is a
+consumer capability, not an XSD validator or a second sounding engine.
+Presentation text/layout also has an explicit vocabulary; it cannot conceal
+playback constructs or introduce unchecked extension fields.
+The closed vocabulary accepts unversioned input and known MusicXML source editions
+through 4.0. An unrecognized source edition requires an explicit profile decision.
+Both the performance-plan application service and backend
 MIDI compiler validate that same contract before building a consumer plan or
 invoking Verovio. Unsupported realization raises a typed capability error with a
 stable reason; the HTTP boundary returns 422 `score_playback_failed` and retains
@@ -382,14 +391,46 @@ the reason in its application exception. Canonical admission, storage and writte
 metadata do not depend on this renderer capability. The pure plan and transport
 contain no renderer capability flags.
 
-The source contract permits semitone pitches, static part instruments (including
-different instruments in different parts), per-note dynamics, presentation-only
-dynamics and direction pedal notation. Non-semitone note/key alterations,
-sound-owned dynamics, sound instrument updates and note instrument references
-outside the part's static origin instrument fail closed. Unused instrument
-definitions are metadata and do not constitute an instrument change. Source
-sound pizzicato, spatial/pedal controls, play/swing and origin MIDI instrument
-bank/volume/spatial controls are outside the supported realization subset.
+The application `compile_performance_plan()` compiles a playable transport plan:
+admission, renderer-profile validation, pure canonical compilation, and DTO
+projection. The renderer-independent domain entry point remains
+`score_semantics.performance_plan.build_performance_plan()`.
+
+The source vocabulary follows the [MusicXML sound surface](https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/sound/)
+and [instrument surface](https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/midi-instrument/):
+
+| Surface | Supported | Presentation only | Unsupported playback |
+| --- | --- | --- | --- |
+| Sound attributes | `tempo`, canonical navigation attributes, `time-only`, `forward-repeat`; `divisions` as a positive segno/coda destination hint | `id` | `dynamics`, `pizzicato`, pan/elevation and pedal controls |
+| Sound children | Canonically positioned `offset` | — | `instrument-change`, `midi-device`, dynamic `midi-instrument`, `play`, `swing` |
+| Static MIDI instrument | One origin `midi-channel` and `midi-program` | — | `midi-name`, bank, unpitched mapping, volume, pan/elevation |
+| Score instrument | One effective static assignment per part | Name, abbreviation, solo/ensemble; `instrument-sound` only with an explicit GM program | Active `virtual-instrument`, sound taxonomy without an explicit program, time-varying assignment |
+
+Sound `divisions` does not replace attributes/divisions or change the canonical
+written grid. MIDI device/port routing is outside the internal synthesis profile.
+An explicit GM program determines sound identity; descriptive instrument metadata
+does not override it. Known unreferenced instrument definitions remain descriptive
+only when they do not change effective assignment. Unknown fields in those
+definitions still fail closed. Different static instruments in different parts,
+semitone pitches, note-level dynamics and direction pedal start/stop are supported.
+Non-semitone note/key alterations are unsupported.
+
+One unnumbered integer-semitone transpose at each part's written origin is
+supported, including chromatic, diatonic/chromatic and octave-change forms.
+Mid-score changes, staff-specific transpose, doubling, fractional transposition
+and pitches outside MIDI range are unsupported. Canonical transpose positions
+gate this subset; no transpose execution state is added to the domain plan.
+Unpitched realization and grace realization are outside the current profile.
+
+Articulations, ornaments (including tremolo), arpeggiation/non-arpeggiation,
+fermata, slurs/glissandi and effectful technical notation request expression that
+this profile does not execute and are unsupported. Visual dynamics, words,
+engraving, lyrics, fingering/string/fret indications and tuplet glyphs are
+presentation-only; they request no automatic audible interpretation. Actual
+duration, pitch and sound ties remain owned written facts. Notated ties must
+accompany their canonical sound ties. Note attack/release/end-dynamics,
+note-level pass gating and playback techniques are unsupported. This classification
+does not delegate expressive policy to the renderer.
 
 The Browser applies two narrower checks after this shared source contract:
 written MIDI must fit its note/instrument realization model, and requested

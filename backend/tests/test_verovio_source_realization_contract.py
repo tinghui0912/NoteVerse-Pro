@@ -14,6 +14,7 @@ from tests.support.written_realization_sources import (
     SWING_SOURCE,
     with_sound,
     with_origin_instrument_state,
+    PROFILE_SOURCES,
 )
 
 
@@ -64,3 +65,31 @@ def test_sound_swing_does_not_shift_eighth_note_onsets():
     assert [
         e.position for t in written.tracks for e in t if e.status & 240 == 144 and e.data[1]
     ] == [Fraction(0), Fraction(1, 2)]
+
+
+@pytest.mark.parametrize("name,case", PROFILE_SOURCES.items(), ids=PROFILE_SOURCES)
+def test_python_profile_realization_has_the_shared_wasm_trace(name, case):
+    toolkit = verovio.toolkit()
+    assert toolkit.getVersion().startswith("6.3.0")
+    assert toolkit.setOptions({"inputFrom": "xml", "expandNever": True})
+    assert toolkit.loadData(case["musicxml"])
+    written = parse_standard_midi(base64.b64decode(toolkit.renderToMIDI()))
+    assert {
+        "ppq": written.ppq,
+        "trackCount": len(written.tracks),
+        "channelEvents": [
+            [i, int(e.position * written.ppq), e.status, list(e.data)]
+            for i, track in enumerate(written.tracks)
+            for e in track
+            if e.status < 240
+        ],
+        "routingMeta": [
+            [i, int(e.position * written.ppq), e.meta_type, list(e.data)]
+            for i, track in enumerate(written.tracks)
+            for e in track
+            if e.meta_type in (9, 32, 33)
+        ],
+    } == case["expected"]
+    assert [[e["qstamp"], e["on"]] for e in toolkit.renderToTimemap() if e.get("on")] == case[
+        "visualOnsets"
+    ]

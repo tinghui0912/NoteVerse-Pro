@@ -7,6 +7,10 @@ SOURCES: dict[str, str] = json.loads(
     (Path(__file__).resolve().parents[1] / "fixtures/verovio-written-realization.json").read_text()
 )
 
+PROFILE_SOURCES = json.loads(
+    (Path(__file__).resolve().parents[1] / "fixtures/verovio-playback-profile.json").read_text()
+)
+
 MICROTONAL_KEY = SOURCES["piano"].replace(
     "</divisions>",
     "</divisions><key><key-step>C</key-step><key-alter>0.5</key-alter>"

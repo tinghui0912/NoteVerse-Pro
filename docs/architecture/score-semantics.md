@@ -206,6 +206,11 @@ the performance capability boundary. Browser Score Preview and backend playback 
 provides written-axis realization with `expandNever`: backend projects MIDI
 events for FluidSynth, and Browser projects written notes and Timemap IDs for
 audio scheduling and cursor time. The plan alone owns performance chronology.
+Canonical written admission is broader than the explicit
+[playback source profile](performance-navigation.md#written-realization-capability).
+Playback consumers validate that profile before renderer realization; unknown
+playback-bearing source fields fail closed. This does not restrict pure written
+facts, metadata, or canonical plan construction.
 
 ## Boundaries
 

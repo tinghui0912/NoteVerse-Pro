@@ -1,0 +1,311 @@
+{
+  "chromaticTranspose": {
+    "musicxml": "<score-partwise version=\"4.0\"><part-list><score-part id=\"P1\"><part-name>P1</part-name><score-instrument id=\"P1I1\"><instrument-name>Piano</instrument-name></score-instrument><midi-instrument id=\"P1I1\"><midi-channel>1</midi-channel><midi-program>1</midi-program></midi-instrument></score-part></part-list><part id=\"P1\"><measure number=\"1\"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><transpose><chromatic>-2</chromatic></transpose></attributes><note id=\"n0\"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>half</type></note><note id=\"n1\"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>half</type></note></measure></part></score-partwise>",
+    "expected": {
+      "ppq": 120,
+      "trackCount": 2,
+      "channelEvents": [
+        [1, 0, 192, [0]],
+        [1, 0, 144, [58, 90]],
+        [1, 239, 144, [58, 0]],
+        [1, 240, 144, [58, 90]],
+        [1, 479, 144, [58, 0]]
+      ],
+      "routingMeta": []
+    },
+    "visualOnsets": [
+      [0, ["n0"]],
+      [2, ["n1"]]
+    ],
+    "reason": ""
+  },
+  "bbTranspose": {
+    "musicxml": "<score-partwise version=\"4.0\"><part-list><score-part id=\"P1\"><part-name>P1</part-name><score-instrument id=\"P1I1\"><instrument-name>Piano</instrument-name></score-instrument><midi-instrument id=\"P1I1\"><midi-channel>1</midi-channel><midi-program>1</midi-program></midi-instrument></score-part></part-list><part id=\"P1\"><measure number=\"1\"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><transpose><diatonic>-1</diatonic><chromatic>-2</chromatic></transpose></attributes><note id=\"n0\"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>half</type></note><note id=\"n1\"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>half</type></note></measure></part></score-partwise>",
+    "expected": {
+      "ppq": 120,
+      "trackCount": 2,
+      "channelEvents": [
+        [1, 0, 192, [0]],
+        [1, 0, 144, [58, 90]],
+        [1, 239, 144, [58, 0]],
+        [1, 240, 144, [58, 90]],
+        [1, 479, 144, [58, 0]]
+      ],
+      "routingMeta": []
+    },
+    "visualOnsets": [
+      [0, ["n0"]],
+      [2, ["n1"]]
+    ],
+    "reason": ""
+  },
+  "transposeChange": {
+    "musicxml": "<score-partwise version=\"4.0\"><part-list><score-part id=\"P1\"><part-name>P1</part-name><score-instrument id=\"P1I1\"><instrument-name>Piano</instrument-name></score-instrument><midi-instrument id=\"P1I1\"><midi-channel>1</midi-channel><midi-program>1</midi-program></midi-instrument></score-part></part-list><part id=\"P1\"><measure number=\"1\"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><transpose><diatonic>-1</diatonic><chromatic>-2</chromatic></transpose></attributes><note id=\"n0\"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>half</type></note><note id=\"n1\"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>half</type></note></measure><measure number=\"2\"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><transpose><chromatic>0</chromatic></transpose></attributes><note id=\"n2\"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>half</type></note><note id=\"n3\"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>half</type></note></measure></part></score-partwise>",
+    "expected": {
+      "ppq": 120,
+      "trackCount": 2,
+      "channelEvents": [
+        [1, 0, 192, [0]],
+        [1, 0, 144, [58, 90]],
+        [1, 239, 144, [58, 0]],
+        [1, 240, 144, [58, 90]],
+        [1, 479, 144, [58, 0]],
+        [1, 480, 144, [58, 90]],
+        [1, 719, 144, [58, 0]],
+        [1, 720, 144, [58, 90]],
+        [1, 959, 144, [58, 0]]
+      ],
+      "routingMeta": []
+    },
+    "visualOnsets": [
+      [0, ["n0"]],
+      [2, ["n1"]],
+      [4, ["n2"]],
+      [6, ["n3"]]
+    ],
+    "reason": "unsupported_verovio_transposition"
+  },
+  "unpitched": {
+    "musicxml": "<score-partwise version=\"4.0\"><part-list><score-part id=\"P1\"><part-name>P1</part-name><score-instrument id=\"P1I1\"><instrument-name>Piano</instrument-name></score-instrument><midi-instrument id=\"P1I1\"><midi-channel>10</midi-channel><midi-program>1</midi-program><midi-unpitched>39</midi-unpitched></midi-instrument></score-part></part-list><part id=\"P1\"><measure number=\"1\"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><note id=\"n0\"><unpitched><display-step>C</display-step><display-octave>4</display-octave></unpitched><duration>2</duration><type>half</type></note><note id=\"n1\"><unpitched><display-step>C</display-step><display-octave>4</display-octave></unpitched><duration>2</duration><type>half</type></note></measure></part></score-partwise>",
+    "expected": {
+      "ppq": 120,
+      "trackCount": 2,
+      "channelEvents": [
+        [1, 0, 201, [0]],
+        [1, 0, 153, [0, 90]],
+        [1, 239, 153, [0, 0]],
+        [1, 240, 153, [0, 90]],
+        [1, 479, 153, [0, 0]]
+      ],
+      "routingMeta": []
+    },
+    "visualOnsets": [
+      [0, ["n0"]],
+      [2, ["n1"]]
+    ],
+    "reason": "unsupported_verovio_unpitched_realization"
+  },
+  "graceSlashed": {
+    "musicxml": "<score-partwise version=\"4.0\"><part-list><score-part id=\"P1\"><part-name>P1</part-name><score-instrument id=\"P1I1\"><instrument-name>Piano</instrument-name></score-instrument><midi-instrument id=\"P1I1\"><midi-channel>1</midi-channel><midi-program>1</midi-program></midi-instrument></score-part></part-list><part id=\"P1\"><measure number=\"1\"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><note id=\"g\"><grace slash=\"yes\"/><pitch><step>D</step><octave>4</octave></pitch><type>eighth</type></note><note id=\"n0\"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>half</type></note><note id=\"n1\"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>half</type></note></measure></part></score-partwise>",
+    "expected": {
+      "ppq": 120,
+      "trackCount": 2,
+      "channelEvents": [
+        [1, 0, 192, [0]],
+        [1, 0, 144, [62, 90]],
+        [1, 6, 144, [62, 0]],
+        [1, 7, 144, [60, 90]],
+        [1, 239, 144, [60, 0]],
+        [1, 240, 144, [60, 90]],
+        [1, 479, 144, [60, 0]]
+      ],
+      "routingMeta": []
+    },
+    "visualOnsets": [
+      [0, ["g"]],
+      [0.05859375, ["n0"]],
+      [2, ["n1"]]
+    ],
+    "reason": "unsupported_verovio_grace_realization"
+  },
+  "gracePlain": {
+    "musicxml": "<score-partwise version=\"4.0\"><part-list><score-part id=\"P1\"><part-name>P1</part-name><score-instrument id=\"P1I1\"><instrument-name>Piano</instrument-name></score-instrument><midi-instrument id=\"P1I1\"><midi-channel>1</midi-channel><midi-program>1</midi-program></midi-instrument></score-part></part-list><part id=\"P1\"><measure number=\"1\"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><note id=\"g\"><grace slash=\"no\"/><pitch><step>D</step><octave>4</octave></pitch><type>eighth</type></note><note id=\"n0\"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>half</type></note><note id=\"n1\"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>half</type></note></measure></part></score-partwise>",
+    "expected": {
+      "ppq": 120,
+      "trackCount": 2,
+      "channelEvents": [
+        [1, 0, 192, [0]],
+        [1, 0, 144, [62, 90]],
+        [1, 119, 144, [62, 0]],
+        [1, 120, 144, [60, 90]],
+        [1, 239, 144, [60, 0]],
+        [1, 240, 144, [60, 90]],
+        [1, 479, 144, [60, 0]]
+      ],
+      "routingMeta": []
+    },
+    "visualOnsets": [
+      [0, ["g"]],
+      [1, ["n0"]],
+      [2, ["n1"]]
+    ],
+    "reason": "unsupported_verovio_grace_realization"
+  },
+  "soundDivisions": {
+    "musicxml": "<score-partwise version=\"4.0\"><part-list><score-part id=\"P1\"><part-name>P1</part-name><score-instrument id=\"P1I1\"><instrument-name>Piano</instrument-name></score-instrument><midi-instrument id=\"P1I1\"><midi-channel>1</midi-channel><midi-program>1</midi-program></midi-instrument></score-part></part-list><part id=\"P1\"><measure number=\"1\"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><sound segno=\"S1\" divisions=\"3\"/><note id=\"n0\"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>half</type></note><note id=\"n1\"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>half</type></note></measure></part></score-partwise>",
+    "expected": {
+      "ppq": 120,
+      "trackCount": 2,
+      "channelEvents": [
+        [1, 0, 192, [0]],
+        [1, 0, 144, [60, 90]],
+        [1, 239, 144, [60, 0]],
+        [1, 240, 144, [60, 90]],
+        [1, 479, 144, [60, 0]]
+      ],
+      "routingMeta": []
+    },
+    "visualOnsets": [
+      [0, ["n0"]],
+      [2, ["n1"]]
+    ],
+    "reason": ""
+  },
+  "soundDevice": {
+    "musicxml": "<score-partwise version=\"4.0\"><part-list><score-part id=\"P1\"><part-name>P1</part-name><score-instrument id=\"P1I1\"><instrument-name>Piano</instrument-name></score-instrument><midi-instrument id=\"P1I1\"><midi-channel>1</midi-channel><midi-program>1</midi-program></midi-instrument></score-part></part-list><part id=\"P1\"><measure number=\"1\"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><sound><midi-device id=\"P1I1\" port=\"2\">External Synth</midi-device></sound><note id=\"n0\"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>half</type></note><note id=\"n1\"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>half</type></note></measure></part></score-partwise>",
+    "expected": {
+      "ppq": 120,
+      "trackCount": 2,
+      "channelEvents": [
+        [1, 0, 192, [0]],
+        [1, 0, 144, [60, 90]],
+        [1, 239, 144, [60, 0]],
+        [1, 240, 144, [60, 90]],
+        [1, 479, 144, [60, 0]]
+      ],
+      "routingMeta": []
+    },
+    "visualOnsets": [
+      [0, ["n0"]],
+      [2, ["n1"]]
+    ],
+    "reason": "unsupported_verovio_playback_profile"
+  },
+  "partDevice": {
+    "musicxml": "<score-partwise version=\"4.0\"><part-list><score-part id=\"P1\"><part-name>P1</part-name><score-instrument id=\"P1I1\"><instrument-name>Piano</instrument-name></score-instrument><midi-device id=\"P1I1\" port=\"2\">External Synth</midi-device><midi-instrument id=\"P1I1\"><midi-channel>1</midi-channel><midi-program>1</midi-program></midi-instrument></score-part></part-list><part id=\"P1\"><measure number=\"1\"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><note id=\"n0\"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>half</type></note><note id=\"n1\"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>half</type></note></measure></part></score-partwise>",
+    "expected": {
+      "ppq": 120,
+      "trackCount": 2,
+      "channelEvents": [
+        [1, 0, 192, [0]],
+        [1, 0, 144, [60, 90]],
+        [1, 239, 144, [60, 0]],
+        [1, 240, 144, [60, 90]],
+        [1, 479, 144, [60, 0]]
+      ],
+      "routingMeta": []
+    },
+    "visualOnsets": [
+      [0, ["n0"]],
+      [2, ["n1"]]
+    ],
+    "reason": "unsupported_verovio_playback_profile"
+  },
+  "instrumentSoundWithProgram": {
+    "musicxml": "<score-partwise version=\"4.0\"><part-list><score-part id=\"P1\"><part-name>P1</part-name><score-instrument id=\"P1I1\"><instrument-name>Piano</instrument-name><instrument-sound>strings.violin</instrument-sound><solo/></score-instrument><midi-instrument id=\"P1I1\"><midi-channel>1</midi-channel><midi-program>1</midi-program></midi-instrument></score-part></part-list><part id=\"P1\"><measure number=\"1\"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><note id=\"n0\"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>half</type></note><note id=\"n1\"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>half</type></note></measure></part></score-partwise>",
+    "expected": {
+      "ppq": 120,
+      "trackCount": 2,
+      "channelEvents": [
+        [1, 0, 192, [0]],
+        [1, 0, 144, [60, 90]],
+        [1, 239, 144, [60, 0]],
+        [1, 240, 144, [60, 90]],
+        [1, 479, 144, [60, 0]]
+      ],
+      "routingMeta": []
+    },
+    "visualOnsets": [
+      [0, ["n0"]],
+      [2, ["n1"]]
+    ],
+    "reason": ""
+  },
+  "instrumentSoundWithoutProgram": {
+    "musicxml": "<score-partwise version=\"4.0\"><part-list><score-part id=\"P1\"><part-name>P1</part-name><score-instrument id=\"P1I1\"><instrument-name>Piano</instrument-name><instrument-sound>strings.violin</instrument-sound><solo/></score-instrument><midi-instrument id=\"P1I1\"><midi-channel>1</midi-channel></midi-instrument></score-part></part-list><part id=\"P1\"><measure number=\"1\"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><note id=\"n0\"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>half</type></note><note id=\"n1\"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>half</type></note></measure></part></score-partwise>",
+    "expected": {
+      "ppq": 120,
+      "trackCount": 2,
+      "channelEvents": [
+        [1, 0, 144, [60, 90]],
+        [1, 239, 144, [60, 0]],
+        [1, 240, 144, [60, 90]],
+        [1, 479, 144, [60, 0]]
+      ],
+      "routingMeta": []
+    },
+    "visualOnsets": [
+      [0, ["n0"]],
+      [2, ["n1"]]
+    ],
+    "reason": "unsupported_verovio_instrument_assignment"
+  },
+  "virtualInstrument": {
+    "musicxml": "<score-partwise version=\"4.0\"><part-list><score-part id=\"P1\"><part-name>P1</part-name><score-instrument id=\"P1I1\"><instrument-name>Piano</instrument-name><virtual-instrument><virtual-library>Custom</virtual-library><virtual-name>Violin</virtual-name></virtual-instrument></score-instrument><midi-instrument id=\"P1I1\"><midi-channel>1</midi-channel><midi-program>1</midi-program></midi-instrument></score-part></part-list><part id=\"P1\"><measure number=\"1\"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><note id=\"n0\"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>half</type></note><note id=\"n1\"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>half</type></note></measure></part></score-partwise>",
+    "expected": {
+      "ppq": 120,
+      "trackCount": 2,
+      "channelEvents": [
+        [1, 0, 192, [0]],
+        [1, 0, 144, [60, 90]],
+        [1, 239, 144, [60, 0]],
+        [1, 240, 144, [60, 90]],
+        [1, 479, 144, [60, 0]]
+      ],
+      "routingMeta": []
+    },
+    "visualOnsets": [
+      [0, ["n0"]],
+      [2, ["n1"]]
+    ],
+    "reason": "unsupported_verovio_instrument_assignment"
+  },
+  "unpitchedInstrument": {
+    "musicxml": "<score-partwise version=\"4.0\"><part-list><score-part id=\"P1\"><part-name>P1</part-name><score-instrument id=\"P1I1\"><instrument-name>Piano</instrument-name></score-instrument><midi-instrument id=\"P1I1\"><midi-channel>10</midi-channel><midi-program>1</midi-program><midi-unpitched>39</midi-unpitched></midi-instrument></score-part></part-list><part id=\"P1\"><measure number=\"1\"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><note id=\"n0\"><unpitched><display-step>C</display-step><display-octave>4</display-octave></unpitched><duration>2</duration><instrument id=\"P1I1\"/><type>half</type></note><note id=\"n1\"><unpitched><display-step>C</display-step><display-octave>4</display-octave></unpitched><duration>2</duration><instrument id=\"P1I1\"/><type>half</type></note></measure></part></score-partwise>",
+    "expected": {
+      "ppq": 120,
+      "trackCount": 2,
+      "channelEvents": [
+        [1, 0, 201, [0]],
+        [1, 0, 153, [0, 90]],
+        [1, 239, 153, [0, 0]],
+        [1, 240, 153, [0, 90]],
+        [1, 479, 153, [0, 0]]
+      ],
+      "routingMeta": []
+    },
+    "visualOnsets": [
+      [0, ["n0"]],
+      [2, ["n1"]]
+    ],
+    "reason": "unsupported_verovio_unpitched_realization"
+  },
+  "octaveTranspose": {
+    "musicxml": "<score-partwise version=\"4.0\"><part-list><score-part id=\"P1\"><part-name>P1</part-name><score-instrument id=\"P1I1\"><instrument-name>Piano</instrument-name></score-instrument><midi-instrument id=\"P1I1\"><midi-channel>1</midi-channel><midi-program>1</midi-program></midi-instrument></score-part></part-list><part id=\"P1\"><measure number=\"1\"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><transpose><chromatic>0</chromatic><octave-change>-1</octave-change></transpose></attributes><note id=\"n0\"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>half</type></note><note id=\"n1\"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>half</type></note></measure></part></score-partwise>",
+    "expected": {
+      "ppq": 120,
+      "trackCount": 2,
+      "channelEvents": [
+        [1, 0, 192, [0]],
+        [1, 0, 144, [48, 90]],
+        [1, 239, 144, [48, 0]],
+        [1, 240, 144, [48, 90]],
+        [1, 479, 144, [48, 0]]
+      ],
+      "routingMeta": []
+    },
+    "visualOnsets": [
+      [0, ["n0"]],
+      [2, ["n1"]]
+    ],
+    "reason": ""
+  },
+  "tiedNotes": {
+    "musicxml": "<score-partwise version=\"4.0\"><part-list><score-part id=\"P1\"><part-name>P1</part-name><score-instrument id=\"P1I1\"><instrument-name>Piano</instrument-name></score-instrument><midi-instrument id=\"P1I1\"><midi-channel>1</midi-channel><midi-program>1</midi-program></midi-instrument></score-part></part-list><part id=\"P1\"><measure number=\"1\"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><note id=\"n0\"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><tie type=\"start\"/><type>half</type><notations><tied type=\"start\"/></notations></note><note id=\"n1\"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><tie type=\"stop\"/><type>half</type><notations><tied type=\"stop\"/></notations></note></measure></part></score-partwise>",
+    "reason": "",
+    "expected": {
+      "ppq": 120,
+      "trackCount": 2,
+      "channelEvents": [
+        [1, 0, 192, [0]],
+        [1, 0, 144, [60, 90]],
+        [1, 479, 144, [60, 0]]
+      ],
+      "routingMeta": []
+    },
+    "visualOnsets": [
+      [0, ["n0"]],
+      [2, ["n1"]]
+    ]
+  }
+}

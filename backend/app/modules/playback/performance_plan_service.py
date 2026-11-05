@@ -1,4 +1,8 @@
-"""Stateless canonical document admission, compilation and transport projection."""
+"""Stateless playable-plan application service with renderer source admission.
+
+Pure renderer-independent chronology is built by score_semantics.performance_plan;
+this service compiles a playback-consumer plan and its admitted transport source.
+"""
 
 from app.core.exceptions import ValidationException
 from app.processing.musicxml.admission import admit_musicxml_document
