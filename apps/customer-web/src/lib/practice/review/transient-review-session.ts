@@ -1,4 +1,4 @@
-import { releaseRecordingMedia } from '@/lib/practice/recording/recording-media-resource';
+import { releaseOwnedMedia } from '@/lib/practice/recording/owned-media';
 import type { ContinuousPracticeCompletion } from '@/lib/practice/continuous/completion';
 import type { AdmittedPracticeSource } from '@/lib/practice/source/admitted-practice-source';
 import { assertContinuousPerformanceResult } from '@/lib/practice/result/continuous-performance-result';
@@ -18,10 +18,10 @@ export function createTransientReviewSession(completion: ContinuousPracticeCompl
     throw new Error('Transient Review source identity or notation invalid.');
   }
   const recording = completion.recording.status === 'READY'
-    ? Object.freeze({ ...completion.recording, resource: completion.recording.resource.retain() }) : completion.recording;
+    ? Object.freeze({ ...completion.recording, media: completion.recording.media.retain() }) : completion.recording;
   return Object.freeze({ result, recording, artifact: source.artifact, musicXml: source.musicXml });
 }
 
 export async function releaseTransientReviewSession(session: TransientReviewSession | null): Promise<void> {
-  if (session?.recording.status === 'READY') await releaseRecordingMedia(session.recording.resource);
+  if (session?.recording.status === 'READY') await releaseOwnedMedia(session.recording.media);
 }

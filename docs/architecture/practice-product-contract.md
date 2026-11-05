@@ -1139,7 +1139,14 @@ media download returns those raw bytes. VideoExport composes a separate browser-
 score/video derivative using its own output format policy; PerformanceTake does not
 archive that composed output.
 
-## Transient Capture Storage and Ownership
+## Local Performance Media Storage and Ownership
+
+All locally materialized performance media uses `OwnedMediaHandle`: one handle owns
+one reference, its Blob view and its byte size. Retain returns an independently
+releasable handle. Release is idempotent, and the final reference retires the backing
+storage once. A retired handle cannot acquire another reference. MIME belongs to the
+recording or Take metadata. Replay, raw download and VideoExport consume the same
+media contract regardless of source.
 
 Production Capture requires OPFS and Web Locks. Selected AUDIO/VIDEO preparation
 probes MediaRecorder and opens, writes, seals and removes a small temporary file.
@@ -1161,8 +1168,9 @@ retaining a separate owner and never copies media bytes. Controller retirement
 releases its completion owner; clearing, replacing or leaving Review releases the
 Review owner. Save, original raw download and current-completion VideoExport retain
 independent temporary leases and release in finally. Original download revokes its
-object URL before release. The last owner removes the OPFS file. Saved Take export
-uses its downloaded archive Blob and has no Capture resource owner.
+object URL before release. Replay holds its own lease until its element URL is revoked.
+VideoExportStudio holds one operation lease for both current and saved sessions,
+including cancellation and route exit. The last owner removes the OPFS file.
 
 Preparation storage failures are recording preparation facts. Active write failure
 is a recording-only RESTART_REQUIRED intervention; Continue without recording retires
@@ -1177,10 +1185,23 @@ lock succeeds. Other tabs' live captures are protected; crashed owners lose thei
 locks and their files become reclaimable. No age heuristic or cross-namespace sweep
 is used. OPFS is temporary storage, not Review recovery: reload still expires Review.
 
+Saved Take score-video export streams its authenticated HTTP response directly into
+temporary OPFS, writing each chunk before reading the next. It never buffers the whole
+source media in JavaScript heap. Content-Length, when present, must agree with durable
+Take size; the final written byte count must match that size, and response MIME must
+be compatible with Take metadata. There is no arbitrary frontend saved-media size ceiling.
+Missing streaming/OPFS support fails local materialization without a memory fallback.
+
+Downloaded bytes use the separate `noteverse-performance-take-media` namespace and
+per-file lifetime locks. Last release removes a completed file; abort or failure removes
+partial bytes. Initialization reclaims unlocked orphans while preserving other tabs'
+held files. The page owns one downloaded handle and releases stale results immediately.
+Take remains durable authority; temporary local media is neither a cache nor a
+cross-reload session. Ordinary server playback URLs retain their independent contract.
+
 Archive remains explicit Review Save of raw Capture bytes into PerformanceTake.
-VideoExport output encoding and saved Take download buffering have separate lifetimes
-and retain their existing memory strategies. No Capture bytes are streamed to the
-server while the user plays.
+VideoExport output encoding has its own lifetime and output memory strategy.
+No Capture bytes are streamed to the server while the user plays.
 
 Explicit tempo interpretation and the cross-runtime missing-tempo policy belong to
 [Score tempo semantics](score-tempo.md).

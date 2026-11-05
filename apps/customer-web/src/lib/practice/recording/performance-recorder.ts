@@ -1,4 +1,4 @@
-import { releaseRecordingMedia } from '@/lib/practice/recording/recording-media-resource';
+import { releaseOwnedMedia } from '@/lib/practice/recording/owned-media';
 import { createPerformanceRecording, type PerformanceRecording } from './recording-artifact';
 import type { RecordingActiveSegment } from './recording-timebase';
 
@@ -325,17 +325,17 @@ export class PerformanceRecorder {
     try {
       if (this.disposed) throw new RecordingFailure('RECORDING_DISCARDED');
       if (this.unavailableReason) {
-        this.sink = null; await releaseRecordingMedia(media.resource);
+        this.sink = null; await releaseOwnedMedia(media);
         return createPerformanceRecording({ status: 'UNAVAILABLE', reason: this.unavailableReason });
       }
       const recording = createPerformanceRecording({
-        status: 'READY', kind: this.mediaKind, blob: media.blob, resource: media.resource,
+        status: 'READY', kind: this.mediaKind, media,
         mimeType, durationMs: Math.max(0, Math.round(this.timebase.nominalMediaDurationMs)), timebase: this.timebase,
       });
       this.sink = null; // The returned completion now owns the sealed file's first reference.
       this.state = 'READY';
       return recording;
-    } catch (error) { await releaseRecordingMedia(media.resource); throw error; }
+    } catch (error) { await releaseOwnedMedia(media); throw error; }
   }
 
   stopAndCleanup(): Promise<void> {

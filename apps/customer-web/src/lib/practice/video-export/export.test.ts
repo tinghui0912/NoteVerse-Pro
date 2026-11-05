@@ -1,3 +1,4 @@
+import { ownedMediaFixture } from '@/lib/practice/__fixtures__/recording-sink';
 // @vitest-environment jsdom
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -40,7 +41,7 @@ function createSession(
     },
     video: {
       status: 'READY',
-      blob: new Blob(['video'], { type: 'video/webm' }),
+      media: ownedMediaFixture(new Blob(['video'], { type: 'video/webm' })),
       mimeType: 'video/webm',
       durationMs: 6000,
     },

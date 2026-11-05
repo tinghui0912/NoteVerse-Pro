@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import type { RecordingStoragePlatform } from '../recording/opfs-recording-sink';
+import type { OpfsMediaStoragePlatform } from '../recording/opfs-owned-media-file';
 
 export function opfsStoreFixture() {
   const files = new Map<string, Blob[]>();
@@ -32,7 +32,7 @@ export function opfsStoreFixture() {
     try { return await callback({ name, mode: 'exclusive' } as Lock); }
     finally { held.delete(name); }
   });
-  const platform: RecordingStoragePlatform = {
+  const platform: OpfsMediaStoragePlatform = {
     root: async () => directory,
     randomId: () => `capture-${++identity}`,
     locks: { request } as unknown as LockManager,

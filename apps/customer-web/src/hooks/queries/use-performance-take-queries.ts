@@ -1,7 +1,7 @@
 'use client';
 
-import { releaseRecordingMedia } from '@/lib/practice/recording/recording-media-resource';
-import type { RecordingMediaResource } from '@/lib/practice/recording/recording-sink';
+import { releaseOwnedMedia } from '@/lib/practice/recording/owned-media';
+import type { OwnedMediaHandle } from '@/lib/practice/recording/owned-media';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -65,8 +65,7 @@ export interface SavePerformanceTakeInput {
   clientRequestId: string;
   ticksPerQuarter: number;
   mediaKind: CaptureMediaKind;
-  mediaBlob: Blob;
-  mediaResource: RecordingMediaResource;
+  media: OwnedMediaHandle;
   mimeType: string;
   durationMs: number;
   scope:
@@ -98,7 +97,7 @@ export function useSavePerformanceTake() {
         },
         media: {
           kind: input.mediaKind,
-          byte_size: input.mediaBlob.size,
+          byte_size: input.media.byteSize,
           mime_type: normalizeCaptureMime(input.mimeType),
           duration_ms: input.durationMs,
         },
@@ -144,7 +143,7 @@ export function useSavePerformanceTake() {
             target.url,
             target.method,
             target.headers,
-            input.mediaBlob
+            input.media.blob
           );
         } catch (error) {
           try {
@@ -174,11 +173,11 @@ export function useSavePerformanceTake() {
   return {
     async mutateAsync(input: SavePerformanceTakeInput) {
       // Retain synchronously with the command, before React Query can schedule transport.
-      const lease = input.mediaResource.retain();
+      const lease = input.media.retain();
       try {
-        return await mutation.mutateAsync(input);
+        return await mutation.mutateAsync({...input,media:lease});
       } finally {
-        await releaseRecordingMedia(lease);
+        await releaseOwnedMedia(lease);
       }
     },
   };

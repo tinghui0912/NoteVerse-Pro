@@ -1,3 +1,5 @@
+import { ownedMediaFixture } from '@/lib/practice/__fixtures__/recording-sink';
+import { createOwnedMedia } from '@/lib/practice/recording/owned-media';
 // @vitest-environment jsdom
 
 import { act, fireEvent, render, screen } from '@testing-library/react';
@@ -9,6 +11,18 @@ import practiceMessages from '../../../messages/en/practice.json';
 import { PerformanceReplayPlayer } from './performance-replay-player';
 
 describe('PerformanceReplayPlayer', () => {
+  it('keeps its backing bytes alive until the media element URL is revoked',async()=>{
+    const order:string[]=[],media=createOwnedMedia(new Blob(['raw']),async()=>{order.push('remove');});
+    vi.spyOn(URL,'createObjectURL').mockReturnValue('blob:owned');
+    vi.spyOn(URL,'revokeObjectURL').mockImplementation(()=>{order.push('revoke');});
+    vi.spyOn(HTMLMediaElement.prototype,'load').mockImplementation(()=>{});
+    vi.spyOn(HTMLMediaElement.prototype,'pause').mockImplementation(()=>{});
+    const view=render(<NextIntlClientProvider locale="en" messages={{practice:practiceMessages}}>
+      <PerformanceReplayPlayer replay={{kind:'VIDEO_RECORDING',media,contentType:'video/webm',durationMs:100}}/>
+    </NextIntlClientProvider>);
+    await media.release();expect(order).toEqual([]);view.unmount();await Promise.resolve();
+    expect(order).toEqual(['revoke','remove']);
+  });
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -25,7 +39,7 @@ describe('PerformanceReplayPlayer', () => {
         <PerformanceReplayPlayer
           replay={{
             kind: 'AUDIO_RECORDING',
-            blob,
+            media: ownedMediaFixture(blob),
             contentType: 'audio/webm',
             byteSize: blob.size,
             durationMs: 100,
@@ -52,7 +66,7 @@ describe('PerformanceReplayPlayer', () => {
         <PerformanceReplayPlayer
           replay={{
             kind: 'AUDIO_RECORDING',
-            blob,
+            media: ownedMediaFixture(blob),
             contentType: 'audio/webm',
             byteSize: blob.size,
             durationMs: 100,
@@ -80,7 +94,7 @@ describe('PerformanceReplayPlayer', () => {
         <PerformanceReplayPlayer
           replay={{
             kind: 'AUDIO_RECORDING',
-            blob,
+            media: ownedMediaFixture(blob),
             contentType: 'audio/webm',
             byteSize: blob.size,
             durationMs: 1000,
@@ -116,7 +130,7 @@ describe('PerformanceReplayPlayer', () => {
         <PerformanceReplayPlayer
           replay={{
             kind: 'AUDIO_RECORDING',
-            blob,
+            media: ownedMediaFixture(blob),
             contentType: 'audio/webm',
             byteSize: blob.size,
             durationMs: 1000,
@@ -155,7 +169,7 @@ describe('PerformanceReplayPlayer', () => {
         <PerformanceReplayPlayer
           replay={{
             kind: 'AUDIO_RECORDING',
-            blob,
+            media: ownedMediaFixture(blob),
             contentType: 'audio/webm',
             byteSize: blob.size,
             durationMs: 1000,
@@ -196,7 +210,7 @@ describe('PerformanceReplayPlayer', () => {
         <PerformanceReplayPlayer
           replay={{
             kind: 'AUDIO_RECORDING',
-            blob,
+            media: ownedMediaFixture(blob),
             contentType: 'audio/webm',
             byteSize: blob.size,
             durationMs: 1000,
@@ -244,7 +258,7 @@ describe('PerformanceReplayPlayer', () => {
         <PerformanceReplayPlayer
           replay={{
             kind: 'AUDIO_RECORDING',
-            blob,
+            media: ownedMediaFixture(blob),
             contentType: 'audio/webm',
             byteSize: blob.size,
             durationMs: 1000,
@@ -293,7 +307,7 @@ describe('PerformanceReplayPlayer', () => {
         <PerformanceReplayPlayer
           replay={{
             kind: 'AUDIO_RECORDING',
-            blob,
+            media: ownedMediaFixture(blob),
             contentType: 'audio/webm',
             byteSize: blob.size,
             durationMs: 1000,
@@ -338,7 +352,7 @@ describe('PerformanceReplayPlayer', () => {
         <PerformanceReplayPlayer
           replay={{
             kind: 'VIDEO_RECORDING',
-            blob,
+            media: ownedMediaFixture(blob),
             contentType: 'video/webm',
             byteSize: blob.size,
             durationMs: 1000,
@@ -369,6 +383,7 @@ describe('PerformanceReplayPlayer', () => {
 
   it('does not reload video when the parent rerenders from the first play event', () => {
     const blob = new Blob(['video'], { type: 'video/webm' });
+    const media = ownedMediaFixture(blob);
     const load = vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => {});
     vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
     vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
@@ -384,7 +399,7 @@ describe('PerformanceReplayPlayer', () => {
         <PerformanceReplayPlayer
           replay={{
             kind: 'VIDEO_RECORDING',
-            blob,
+            media,
             contentType: 'video/webm',
             byteSize: blob.size,
             durationMs: 1000,

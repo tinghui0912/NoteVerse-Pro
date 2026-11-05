@@ -10,8 +10,6 @@ import type {
   PerformanceTakeTempoPlan,
 } from '@/generated/api/types.gen';
 
-const MAX_PERFORMANCE_TAKE_MEDIA_BYTES = 100 * 1024 * 1024;
-
 export type {
   PerformanceTakeDeleteResponse,
   PerformanceTakeListResponse,
@@ -53,76 +51,13 @@ export const performanceTakesApi = {
       undefined,
       { signal }
     ),
-  downloadMediaBlob: (
-    takeId: string,
-    options?: {
-      signal?: AbortSignal;
-      onProgress?: (loadedBytes: number, totalBytes: number | null) => void;
-    }
-  ) => downloadPerformanceTakeMediaBlob(takeId, options),
-
   deleteTake: (takeId: string) =>
     apiClient.delete<ApiResponse<PerformanceTakeDeleteResponse>>(`/performance-takes/${takeId}`),
 };
 
-export async function downloadPerformanceTakeMediaBlob(
-  takeId: string,
-  options?: {
-    signal?: AbortSignal;
-    onProgress?: (loadedBytes: number, totalBytes: number | null) => void;
-  }
-): Promise<Blob> {
-  const response = await apiClient.getRaw(
-    `/performance-takes/${encodeURIComponent(takeId)}/media`,
-    undefined,
-    { signal: options?.signal }
-  );
-  const contentLength = response.headers.get('content-length');
-  const total = contentLength ? Number(contentLength) : Number.NaN;
-  const totalBytes =
-    Number.isFinite(total) && total > 0 && total <= MAX_PERFORMANCE_TAKE_MEDIA_BYTES
-      ? total
-      : null;
-  if (Number.isFinite(total) && total > MAX_PERFORMANCE_TAKE_MEDIA_BYTES) {
-    throw new Error('historical_media_too_large');
-  }
-  if (!response.body) {
-    const blob = await response.blob();
-    if (blob.size > MAX_PERFORMANCE_TAKE_MEDIA_BYTES) {
-      throw new Error('historical_media_too_large');
-    }
-    options?.onProgress?.(blob.size, totalBytes ?? blob.size);
-    return blob;
-  }
-
-  const reader = response.body.getReader();
-  const chunks: BlobPart[] = [];
-  let loaded = 0;
-  let completed = false;
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (!value) continue;
-      if (loaded + value.byteLength > MAX_PERFORMANCE_TAKE_MEDIA_BYTES) {
-        throw new Error('historical_media_too_large');
-      }
-      chunks.push(value);
-      loaded += value.byteLength;
-      options?.onProgress?.(loaded, totalBytes);
-    }
-    completed = true;
-  } finally {
-    if (!completed) {
-      await reader.cancel().catch(() => undefined);
-    }
-    reader.releaseLock();
-  }
-  const blob = new Blob(chunks, {
-    type: response.headers.get('content-type') ?? 'application/octet-stream',
-  });
-  options?.onProgress?.(loaded, totalBytes);
-  return blob;
+/** Authenticated transport only; byte materialization belongs to the consumer. */
+export function openPerformanceTakeMedia(takeId: string, signal?: AbortSignal): Promise<Response> {
+  return apiClient.getRaw(`/performance-takes/${encodeURIComponent(takeId)}/media`, undefined, {signal});
 }
 
 export async function uploadMediaToSignedUrl(

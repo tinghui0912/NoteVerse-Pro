@@ -120,9 +120,9 @@ describe('PerformanceRecorder', () => {
         expect(result.status).toBe('READY');
         if (result.status !== 'READY') throw new Error('Expected capture');
         expect(result.mimeType).toBe(mimeType);
-        expect(result.blob.type).toBe(mimeType);
+        expect(result.media.blob.type).toBe(mimeType);
         expect(normalizeCaptureMime(result.mimeType)).toBe(mimeType.split(';')[0]);
-        expect(await result.blob.text()).toBe('final');
+        expect(await result.media.blob.text()).toBe('final');
       } else {
         expect(result).toMatchObject({ status: 'UNAVAILABLE', reason: expect.stringContaining('RECORDER_UNSUPPORTED') });
       }
@@ -142,9 +142,9 @@ describe('PerformanceRecorder', () => {
     await Promise.resolve(); expect(finished).toBe(false); expect(f.close).not.toHaveBeenCalled();
     write(); const recording = await pending;
     expect(recording.status).toBe('READY'); if (recording.status !== 'READY') throw new Error('Expected recording');
-    expect(await recording.blob.text()).toBe('final'); expect(recording.blob.size).toBe(5);
+    expect(await recording.media.blob.text()).toBe('final'); expect(recording.media.blob.size).toBe(5);
     await recorder.stopAndCleanup(); expect(f.files.size).toBe(1);
-    await recording.resource.release(); expect(f.files.size).toBe(0);
+    await recording.media.release(); expect(f.files.size).toBe(0);
   });
 
   it.each(['error', 'dispose'] as const)('retires a sealed file when %s occurs while final writes are pending', async ending => {
@@ -366,7 +366,7 @@ describe('PerformanceRecorder', () => {
     if (result.status === 'READY') {
       expect(result.kind).toBe('AUDIO');
       expect(result.durationMs).toBe(1200);
-      expect(result.blob.size).toBeGreaterThan(0);
+      expect(result.media.blob.size).toBeGreaterThan(0);
       expect(Object.isFrozen(result)).toBe(true); expect(Object.isFrozen(result.timebase)).toBe(true);
       expect(Object.isFrozen(result.timebase.activeSegments)).toBe(true); expect(Object.isFrozen(result.timebase.activeSegments[0])).toBe(true);
     }

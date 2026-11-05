@@ -1,5 +1,5 @@
 'use client';
-import { releaseRecordingMedia } from '@/lib/practice/recording/recording-media-resource';
+import { releaseOwnedMedia } from '@/lib/practice/recording/owned-media';
 
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -262,7 +262,7 @@ export function VideoExportStudio({
       return;
     }
 
-    const mediaLease = session.captureResource?.retain();
+    const mediaLease = session.video.media.retain();
     const abortController = new AbortController();
     splitExportAbortRef.current = abortController;
     setSplitExportStatus('exporting');
@@ -272,7 +272,7 @@ export function VideoExportStudio({
 
     try {
       const result = await exportVideo({
-        session,
+        session: {...session,video:{...session.video,media:mediaLease}},
         scoreContainer,
         adapter,
         scoreEndTick, ticksPerQuarter,
@@ -299,7 +299,7 @@ export function VideoExportStudio({
       setSplitExportStatus('error');
       setSplitExportError(cause instanceof Error ? cause.message : t('exportScoreVideoFailedDesc'));
     } finally {
-      if (mediaLease) await releaseRecordingMedia(mediaLease);
+      await releaseOwnedMedia(mediaLease);
       splitExportAbortRef.current = null;
       onExportingChange?.(false);
     }

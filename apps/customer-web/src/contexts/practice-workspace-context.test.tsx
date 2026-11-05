@@ -97,14 +97,14 @@ it.each(['clear', 'route', 'provider', 'new-preparation'] as const)('releases th
   const prepared = await r.prepare(); act(() => { r.current.commitPreparedPractice(prepared.value, prepared.transaction); });
   const capture = recordingSinkFixture(); await capture.sink.append(new Blob(['raw capture'])); const media = await capture.sink.seal('audio/webm');
   const result = { ...canonicalContinuousResultFixture(), scoreId: 's', revisionId: 'r' };
-  const recording = { status: 'READY' as const, kind: 'AUDIO' as const, blob: media.blob, resource: media.resource,
+  const recording = { status: 'READY' as const, kind: 'AUDIO' as const, media,
     mimeType: 'audio/webm', durationMs: 10000, timebase: { nominalMediaDurationMs: 10000,
       activeSegments: [{ perfStartMs: 0, perfEndMs: 10000, mediaStartMs: 0, mediaEndMs: 10000 }] } };
   expect(() => r.current.handoffToReview({ result: { ...result, sourceId: 'wrong' }, recording })).toThrow();
   act(() => { r.current.handoffToReview({ result, recording }); });
   expect(prepared.value.binding.snapshot().state).toBe('CLOSED');
-  await media.resource.release(); expect(capture.exists()).toBe(true);
-  expect(r.current.reviewSession?.recording.status === 'READY' && r.current.reviewSession.recording.blob).toBe(media.blob);
+  await media.release(); expect(capture.exists()).toBe(true);
+  expect(r.current.reviewSession?.recording.status === 'READY' && r.current.reviewSession.recording.media.blob).toBe(media.blob);
   route.path = '/score/s/practice/review'; r.view.rerender(r.tree()); await act(async () => {});
   if (ending === 'clear') await act(async () => { await r.current.clearReviewSession(); await r.current.clearReviewSession(); });
   if (ending === 'route') { route.path = '/score/s/practice'; r.view.rerender(r.tree()); }

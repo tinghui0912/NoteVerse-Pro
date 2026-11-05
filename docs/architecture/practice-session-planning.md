@@ -352,10 +352,16 @@ strongest recoverability and the single canonical pause. ResourceBinding never i
 context, capture, analysis or recorder failures as physical root loss.
 
 Recording storage has a separate lifetime: an OPFS RecordingSink serializes raw
-MediaRecorder writes, and READY media carries an explicit reference owner. Controller
+MediaRecorder writes, and READY media carries one `OwnedMediaHandle`. Controller
 retirement, Review handoff and asynchronous media consumers retain/release that owner
 without changing borrowed physical roots or the performance timebase. Storage write
 failure is a recording-only hard intervention, not acoustic failure or root loss.
+Saved Take media streams into a separate temporary OPFS namespace and yields the
+same handle contract. Review/replay, raw download, save and VideoExport hold explicit
+leases; the last reference removes backing storage. VideoExportSession carries
+`video.media` for both current and saved media, and the studio retains it for every
+export operation. Downloaded Take bytes are not buffered wholesale in JavaScript heap
+and have no arbitrary frontend size ceiling.
 
 ## Metronome Plan, Runtime and Audio
 

@@ -1,3 +1,4 @@
+import type { OwnedMediaHandle } from '@/lib/practice/recording/owned-media';
 import { scoreTick, ticksPerQuarter } from '@/lib/practice/score/score-time';
 import type {
   PerformanceTakeRead,
@@ -59,7 +60,7 @@ export function hasSavedTakeVideoExportMetadata(
 
 export function createVideoExportSessionFromSavedTake(
   take: PerformanceTakeRead,
-  videoBlob: Blob,
+  media: OwnedMediaHandle,
   source: { sourceId: string; artifact: PracticeScoreArtifact }
 ): SavedTakeEligibility {
   const { artifact } = source;
@@ -69,7 +70,7 @@ export function createVideoExportSessionFromSavedTake(
   if (take.media_kind !== 'VIDEO') {
     return { status: 'unsupported', reason: 'video_required' };
   }
-  if (!videoBlob.size) {
+  if (!media.byteSize) {
     return { status: 'temporarily_unavailable', reason: 'empty_media' };
   }
   if (
@@ -169,7 +170,7 @@ export function createVideoExportSessionFromSavedTake(
         video: {
           status: 'READY',
           kind: 'VIDEO',
-          blob: videoBlob,
+          media,
           mimeType: take.media_mime_type,
           durationMs: take.duration_ms,
         },

@@ -1,3 +1,4 @@
+import { ownedMediaFixture } from '@/lib/practice/__fixtures__/recording-sink';
 // @vitest-environment jsdom
 
 import { render as renderComponent, waitFor } from '@testing-library/react';
@@ -51,7 +52,7 @@ const session: VideoExportSession = {
   video: {
     status: 'READY',
     kind: 'VIDEO',
-    blob: new Blob(['video'], { type: 'video/webm' }),
+    media: ownedMediaFixture(new Blob(['video'], { type: 'video/webm' })),
     mimeType: 'video/webm',
     durationMs: 4000,
   },

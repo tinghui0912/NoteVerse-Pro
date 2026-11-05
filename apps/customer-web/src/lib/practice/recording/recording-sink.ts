@@ -1,20 +1,9 @@
-/** Each handle owns one reference; release is idempotent for that handle. */
-export interface RecordingMediaResource {
-  retain(): RecordingMediaResource;
-  release(): Promise<void>;
-}
-
-export type SealedRecordingMedia = Readonly<{
-  blob: Blob;
-  byteSize: number;
-  resource: RecordingMediaResource;
-}>;
+import type { OwnedMediaHandle } from './owned-media';
 
 export interface RecordingSink {
   readonly byteSize: number;
   append(chunk: Blob): Promise<void>;
-  seal(mimeType: string): Promise<SealedRecordingMedia>;
+  seal(mimeType: string): Promise<OwnedMediaHandle>;
   abort(): Promise<void>;
 }
-
 export type RecordingSinkFactory = (signal?: AbortSignal) => Promise<RecordingSink>;

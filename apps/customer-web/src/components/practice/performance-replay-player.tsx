@@ -1,4 +1,5 @@
 'use client';
+import { releaseOwnedMedia } from '@/lib/practice/recording/owned-media';
 
 import { Pause, Play } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -74,7 +75,7 @@ function AudioPerformanceReplayPlayer({
   actions?: ReactNode;
 }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const mediaSource = replay.url ?? replay.blob;
+  const mediaSource = replay.url ?? replay.media?.blob;
   const autoStartedSourceRef = useRef<Blob | string | null>(null);
   const pendingAutoPlaySourceRef = useRef<Blob | string | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -164,7 +165,8 @@ function AudioPerformanceReplayPlayer({
     if (!audio) {
       return undefined;
     }
-    const audioUrl = replay.url ? replay.url : (replay.blob ? URL.createObjectURL(replay.blob) : '');
+    const lease = replay.media?.retain();
+    const audioUrl = replay.url ? replay.url : (lease ? URL.createObjectURL(lease.blob) : '');
     if (!audioUrl) return undefined;
 
     audio.src = audioUrl;
@@ -177,9 +179,10 @@ function AudioPerformanceReplayPlayer({
       if (!replay.url && audioUrl) {
         URL.revokeObjectURL(audioUrl);
       }
+      if (lease) void releaseOwnedMedia(lease);
       onReplayTimeChangeRef.current?.(null);
     };
-  }, [replay.blob, replay.url, stopRenderTicker]);
+  }, [replay.media, replay.url, stopRenderTicker]);
 
   const startAudioPlayback = useCallback(() => {
     const audio = audioRef.current;
@@ -314,7 +317,7 @@ function VideoPerformanceReplayPlayer({
   actions?: ReactNode;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const mediaSource = replay.url ?? replay.blob;
+  const mediaSource = replay.url ?? replay.media?.blob;
   const autoStartedSourceRef = useRef<Blob | string | null>(null);
   const pendingAutoPlaySourceRef = useRef<Blob | string | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -411,7 +414,8 @@ function VideoPerformanceReplayPlayer({
     if (!video) {
       return undefined;
     }
-    const videoUrl = replay.url ? replay.url : (replay.blob ? URL.createObjectURL(replay.blob) : '');
+    const lease = replay.media?.retain();
+    const videoUrl = replay.url ? replay.url : (lease ? URL.createObjectURL(lease.blob) : '');
     if (!videoUrl) return undefined;
 
     video.src = videoUrl;
@@ -424,9 +428,10 @@ function VideoPerformanceReplayPlayer({
       if (!replay.url && videoUrl) {
         URL.revokeObjectURL(videoUrl);
       }
+      if (lease) void releaseOwnedMedia(lease);
       onReplayTimeChangeRef.current?.(null);
     };
-  }, [replay.blob, replay.url, stopRenderTicker]);
+  }, [replay.media, replay.url, stopRenderTicker]);
 
   const startVideoPlayback = useCallback(() => {
     const video = videoRef.current;

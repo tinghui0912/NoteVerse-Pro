@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import {
   recordingSinkFixture,
-  recordingResourceFixture,
+  ownedMediaFixture,
 } from '@/lib/practice/__fixtures__/recording-sink';
 
 import React, { type ReactNode } from 'react';
@@ -58,11 +58,10 @@ const recordingTimebase: RecordingTimebase = {
 function createInput() {
   return {
     ticksPerQuarter: 1,
-    mediaResource: recordingResourceFixture(),
     sourceId: 'source-1',
     clientRequestId: 'request-1',
     mediaKind: 'AUDIO' as const,
-    mediaBlob: new Blob(['RIFF....WAVE'], { type: 'audio/wav' }),
+    media: ownedMediaFixture(new Blob(['RIFF....WAVE'], { type: 'audio/wav' })),
     mimeType: 'audio/wav',
     durationMs: 1000,
     scope: {
@@ -109,7 +108,7 @@ function reservation(
       source: { source_id: 'source-1' },
       media: {
         kind: input.mediaKind,
-        byte_size: input.mediaBlob.size,
+        byte_size: input.media.byteSize,
         mime_type: input.mimeType,
         duration_ms: input.durationMs,
       },
@@ -180,11 +179,11 @@ describe('useSavePerformanceTake', () => {
       act(() => {
         pending = result.current.mutateAsync({
           ...createInput(),
-          mediaBlob: media.blob,
-          mediaResource: media.resource,
+          media,
+
         });
       });
-      await media.resource.release();
+      await media.release();
       expect(capture.exists()).toBe(true);
       await vi.waitFor(() => expect(uploadMediaToSignedUrl).toHaveBeenCalled());
       await act(async () => {
@@ -208,7 +207,7 @@ describe('useSavePerformanceTake', () => {
       '/uploads/staging.wav',
       'PUT',
       { 'content-type': 'audio/wav' },
-      createInput().mediaBlob
+      createInput().media.blob
     );
     expect(performanceTakesApi.finalizeTake).toHaveBeenCalledExactlyOnceWith(
       'upload-reservation-1'
@@ -223,7 +222,7 @@ describe('useSavePerformanceTake', () => {
       ...createInput(),
       mediaKind: 'VIDEO' as const,
       mimeType: raw.type,
-      mediaBlob: raw,
+      media: ownedMediaFixture(raw),
     };
     const reserved = reservation();
     reserved.metadata.media = {

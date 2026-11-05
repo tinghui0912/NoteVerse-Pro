@@ -39,7 +39,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { usePracticeWorkspace } from '@/contexts/practice-workspace-context';
-import { downloadRecordingMedia } from '@/lib/practice/recording/download-recording-media';
+import { downloadOwnedMedia } from '@/lib/practice/recording/download-owned-media';
 import { captureMediaExtension } from '@/lib/practice/recording/media-policy';
 import { useSavePerformanceTake } from '@/hooks/queries/use-performance-take-queries';
 import { PerformancePlayheadController } from '@/lib/practice/score-view/performance-playhead-controller';
@@ -235,8 +235,7 @@ export default function PracticeReviewPage({
     if (recording?.status === 'READY') {
       return {
         kind: recording.kind,
-        blob: recording.blob,
-        resource: recording.resource,
+        media: recording.media,
         mimeType: recording.mimeType,
         durationMs: recording.durationMs,
         timebase: recording.timebase,
@@ -254,11 +253,11 @@ export default function PracticeReviewPage({
     if (
       recording?.status !== 'READY' ||
       recording.kind !== 'VIDEO' ||
-      recording.blob.size <= 0
+      recording.media.blob.size <= 0
     ) {
       return;
     }
-    await downloadRecordingMedia(recording, `performance-video-${Date.now()}.${captureMediaExtension(recording.mimeType)}`);
+    await downloadOwnedMedia(recording.media, `performance-video-${Date.now()}.${captureMediaExtension(recording.mimeType)}`);
     setHasExportedOriginalMedia(true);
   }, [recording]);
 
@@ -274,7 +273,7 @@ export default function PracticeReviewPage({
     if (!clientRequestIdRef.current) {
       clientRequestIdRef.current = `take-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     }
-    if (saveMedia.blob.size > MAX_TAKE_MEDIA_BYTES) {
+    if (saveMedia.media.byteSize > MAX_TAKE_MEDIA_BYTES) {
       setSaveRecordingStatus('error');
       setSaveRecordingErrorMessage(t('saveRecordingMediaTooLarge'));
       return;
@@ -288,8 +287,7 @@ export default function PracticeReviewPage({
         ticksPerQuarter: artifact!.ticksPerQuarter,
         clientRequestId: clientRequestIdRef.current ?? '',
         mediaKind: saveMedia.kind,
-        mediaBlob: saveMedia.blob,
-        mediaResource: saveMedia.resource,
+        media: saveMedia.media,
         mimeType: saveMedia.mimeType,
         durationMs: saveMedia.durationMs,
         scope:

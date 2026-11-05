@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { take, artifact } from '../../src/lib/practice/video-export/__fixtures__/saved-take';
 import { mockAuthenticatedSession, mockRealtimeEvents } from './support/api-mocks';
@@ -8,6 +8,17 @@ const musicXml = `<?xml version="1.0" encoding="utf-8"?>
 <part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes>
 <note id="note-1"><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><type>whole</type></note></measure>
 <measure number="2"><note id="note-2"><pitch><step>C</step><octave>4</octave></pitch><duration>12</duration><type>whole</type></note></measure></part></score-partwise>`;
+
+async function temporaryMediaFiles(page:Page) {
+  return page.evaluate(async()=>{
+    try {
+      const directory=await(await navigator.storage.getDirectory()).getDirectoryHandle('noteverse-performance-take-media');
+      const names:string[]=[];
+      for await(const entry of (directory as unknown as {values():AsyncIterable<{name:string}>}).values())names.push(entry.name);
+      return names;
+    }catch(error){if(error instanceof DOMException&&error.name==='NotFoundError')return [];throw error;}
+  });
+}
 
 for (const sourceState of ['LIVE', 'DELETED', 'MISMATCH'] as const) {
   test(`saved Take ${sourceState}: raw playback/download are independent of optional exact score export`, async ({ page }) => {
@@ -20,18 +31,22 @@ for (const sourceState of ['LIVE', 'DELETED', 'MISMATCH'] as const) {
       canvas.width = 320; canvas.height = 180;
       const context = canvas.getContext('2d')!;
       const stream = canvas.captureStream(30);
+      const audio = new AudioContext(), oscillator = audio.createOscillator(), output = audio.createMediaStreamDestination();
+      oscillator.connect(output); oscillator.start(); await audio.resume();
+      for(const track of output.stream.getAudioTracks())stream.addTrack(track);
       const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8' });
       const chunks: Blob[] = [];
       const stopped = new Promise<void>(resolve => { recorder.onstop = () => resolve(); });
       recorder.ondataavailable = event => { if (event.data.size) chunks.push(event.data); };
       recorder.start();
-      for (let frame = 0; frame < 60; frame++) {
+      const start=performance.now();
+      for (let frame = 0; performance.now()-start < 2000; frame++) {
         context.fillStyle = frame % 2 ? '#123456' : '#abcdef';
         context.fillRect(0, 0, canvas.width, canvas.height);
         await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
       }
       recorder.stop(); await stopped;
-      stream.getTracks().forEach(track => track.stop());
+      stream.getTracks().forEach(track => track.stop()); await audio.close();
       return Array.from(new Uint8Array(await new Blob(chunks).arrayBuffer()));
     });
     const media = Buffer.from(bytes);
@@ -56,6 +71,8 @@ for (const sourceState of ['LIVE', 'DELETED', 'MISMATCH'] as const) {
     await page.goto('/en/my-performances/take-1/video-export');
     const video = page.locator('video');
     await expect(video).toBeVisible();
+    await expect(video).toHaveAttribute('src', /^blob:/);
+    await expect.poll(()=>video.evaluate(element=>(element as HTMLVideoElement).readyState)).toBeGreaterThanOrEqual(1);
     await video.evaluate(element => (element as HTMLVideoElement).play());
     await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).currentTime)).toBeGreaterThan(0);
     await video.evaluate(element => (element as HTMLVideoElement).pause());
@@ -65,6 +82,17 @@ for (const sourceState of ['LIVE', 'DELETED', 'MISMATCH'] as const) {
     expect(await readFile((await raw.path())!)).toEqual(media);
     if (sourceState === 'LIVE') {
       await expect(page.getByTestId('generate-video-export')).toBeEnabled();
+      expect(await temporaryMediaFiles(page)).toHaveLength(1);
+      const composed=page.waitForEvent('download');
+      await page.getByTestId('generate-video-export').click();
+      expect(await(await composed).failure()).toBeNull();
+      await expect(page.getByTestId('video-export-success')).toBeVisible();
+      // A second export owns the same backing bytes while route teardown cancels it.
+      await page.getByTestId('generate-video-export').click();
+      await expect(page.getByTestId('video-export-progress')).toBeVisible();
+      await page.getByRole('button',{name:'Back to My Performances',exact:true}).click();
+      await expect(page).toHaveURL(/\/my-performances$/);
+      await expect.poll(()=>temporaryMediaFiles(page)).toEqual([]);
     } else {
       await expect(page.getByText('The exact score source is no longer available for score-based video export. Your original recording remains available.')).toBeVisible();
       await expect(page.getByTestId('generate-video-export')).toHaveCount(0);
@@ -79,3 +107,36 @@ for (const sourceState of ['LIVE', 'DELETED', 'MISMATCH'] as const) {
     expect(exportWrites).toEqual([]);
   });
 }
+
+test('route exit during saved-media streaming aborts the writer and removes its partial OPFS file',async({page})=>{
+  await mockAuthenticatedSession(page);await mockRealtimeEvents(page);
+  await page.addInitScript(()=>{
+    let release!:()=>void;
+    const gate=new Promise<void>(resolve=>{release=resolve;});
+    (window as unknown as {__savedMediaWrite:{pending:boolean;release():void}}).__savedMediaWrite={pending:false,release};
+    const create=FileSystemFileHandle.prototype.createWritable;
+    FileSystemFileHandle.prototype.createWritable=async function(options){
+      const writer=await create.call(this,options),write=writer.write.bind(writer);
+      writer.write=async chunk=>{
+        if(chunk instanceof Uint8Array){
+          (window as unknown as {__savedMediaWrite:{pending:boolean}}).__savedMediaWrite.pending=true;
+          await gate;
+        }
+        return write(chunk);
+      };
+      return writer;
+    };
+  });
+  const bytes=Buffer.from('pending temporary bytes');
+  await page.route('**/api/v1/performance-takes/take-1',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({data:{...take,media_byte_size:bytes.length}})}));
+  await page.route('**/api/v1/performance-takes/take-1/media',route=>route.fulfill({status:200,contentType:'video/webm',body:bytes}));
+  await page.route('**/api/v1/practice/sources/source-1*',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({data:{source_id:take.source_id,artifact,notation:{musicxml:musicXml,mime_type:'application/vnd.recordare.musicxml+xml'}}})}));
+  await page.goto('/en/my-performances/take-1/video-export');
+  await expect.poll(()=>page.evaluate(()=>(window as unknown as {__savedMediaWrite:{pending:boolean}}).__savedMediaWrite.pending)).toBe(true);
+  expect((await temporaryMediaFiles(page)).filter(name=>!name.endsWith('.crswap'))).toHaveLength(1);
+  // Native client navigation preserves this document so the deferred writer can settle after unmount.
+  await page.getByRole('link',{name:'My Library',exact:true}).click();
+  await expect(page).toHaveURL(/\/library$/);
+  await page.evaluate(()=>(window as unknown as {__savedMediaWrite:{release():void}}).__savedMediaWrite.release());
+  await expect.poll(()=>temporaryMediaFiles(page)).toEqual([]);
+});

@@ -89,7 +89,7 @@ export function getVideoExportReadiness({
   if (!session?.video || session.video.status !== 'READY') {
     return { ok: false, reason: 'video_not_ready' };
   }
-  if (session.video.blob.size <= 0) {
+  if (session.video.media.blob.size <= 0) {
     return { ok: false, reason: 'empty_video' };
   }
   if (!isScoreIdentityConfirmed) {
@@ -154,7 +154,7 @@ export async function exportVideo({
   }
 
   const video = document.createElement('video');
-  const objectUrl = URL.createObjectURL(session.video.blob);
+  const objectUrl = URL.createObjectURL(session.video.media.blob);
   let audioContext: AudioContext | null = null;
   let canvasStream: MediaStream | null = null;
   let outputStream: MediaStream | null = null;

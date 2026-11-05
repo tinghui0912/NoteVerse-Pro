@@ -1,9 +1,9 @@
 import { vi } from 'vitest';
-import type { RecordingSink, RecordingSinkFactory, SealedRecordingMedia } from '../recording/recording-sink';
-import { createRecordingMediaResource } from '../recording/recording-media-resource';
+import type { RecordingSink, RecordingSinkFactory } from '../recording/recording-sink';
+import { createOwnedMedia } from '../recording/owned-media';
 
-export function recordingResourceFixture() {
-  return createRecordingMediaResource(async () => {});
+export function ownedMediaFixture(blob = new Blob(['media'])) {
+  return createOwnedMedia(blob, async () => {});
 }
 
 /** Memory exists only in this injected deterministic test double. */
@@ -16,8 +16,7 @@ export function recordingSinkFixture() {
   const sink: RecordingSink = {
     get byteSize() { return bytes; },
     append: vi.fn(async chunk => { chunks.push(chunk); bytes += chunk.size; }),
-    seal: vi.fn(async mimeType => { sealed = true; return { blob: new Blob(chunks, { type: mimeType }), byteSize: bytes,
-      resource: createRecordingMediaResource(remove) } satisfies SealedRecordingMedia; }),
+    seal: vi.fn(async mimeType => { sealed = true; return createOwnedMedia(new Blob(chunks, { type: mimeType }), remove); }),
     abort: vi.fn(async () => { if (!sealed) await remove(); }),
   };
   return { sink, remove, exists: () => live, open: vi.fn(async () => sink) };

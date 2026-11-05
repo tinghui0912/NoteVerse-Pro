@@ -1,3 +1,4 @@
+import { ownedMediaFixture } from '@/lib/practice/__fixtures__/recording-sink';
 import { describe, expect, it } from 'vitest';
 
 import { PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION, type PracticeScoreArtifact } from '@/lib/practice/score/artifact';
@@ -46,7 +47,7 @@ function session(allowedNoteIds: string[]): VideoExportSession {
     video: {
       status: 'READY',
       kind: 'VIDEO',
-      blob: new Blob(['video'], { type: 'video/webm' }),
+      media: ownedMediaFixture(new Blob(['video'], { type: 'video/webm' })),
       mimeType: 'video/webm',
       durationMs: 2500,
     },

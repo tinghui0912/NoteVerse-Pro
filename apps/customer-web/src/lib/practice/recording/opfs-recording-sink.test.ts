@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { releaseRecordingMedia } from './recording-media-resource';
+import { releaseOwnedMedia } from './owned-media';
 import { openOpfsRecordingSink } from './opfs-recording-sink';
 import { opfsStoreFixture } from '../__fixtures__/opfs-store';
 import { reportUnexpectedClientError } from '@/lib/observability';
@@ -27,8 +27,8 @@ it('creates unique names in its dedicated namespace and writes Blobs incremental
   expect(media.blob.type).toBe('video/mp4');
   expect(sink.byteSize).toBe(11); expect(media.byteSize).toBe(media.blob.size);
   expect(f.close).toHaveBeenCalledOnce(); expect(f.files.size).toBe(1);
-  const lease = media.resource.retain();
-  await media.resource.release(); await media.resource.release();
+  const lease = media.retain();
+  await media.release(); await media.release();
   expect(f.files.size).toBe(1); expect(await media.blob.text()).toBe('firstsecond');
   await lease.release(); await lease.release(); expect(f.files.size).toBe(0); expect(f.remove).toHaveBeenCalledOnce();
   expect(() => lease.retain()).toThrow('retired');
@@ -56,7 +56,7 @@ it('reports sealed-media deletion failure without rejecting completed ownership 
   const f = opfsStoreFixture(), sink = await openOpfsRecordingSink(undefined, f.platform);
   await sink.append(new Blob(['raw'])); const media = await sink.seal('audio/webm');
   f.remove.mockRejectedValueOnce(new Error('delete denied'));
-  await expect(releaseRecordingMedia(media.resource)).resolves.toBeUndefined();
+  await expect(releaseOwnedMedia(media)).resolves.toBeUndefined();
   expect(reportUnexpectedClientError).toHaveBeenCalled(); expect(f.files.size).toBe(1); expect(f.held.size).toBe(0);
   const next = await openOpfsRecordingSink(undefined, f.platform); await next.abort(); expect(f.files.size).toBe(0);
 });
@@ -67,7 +67,7 @@ it('reclaims a crashed owner while preserving another context holding a live med
   f.files.set('crashed-owner', [new Blob(['orphan'])]);
   const next = await openOpfsRecordingSink(undefined, f.platform);
   expect(f.files.has('crashed-owner')).toBe(false); expect(f.files.has('capture-1')).toBe(true);
-  expect(f.files.has('capture-2')).toBe(true); await next.abort(); await media.resource.release();
+  expect(f.files.has('capture-2')).toBe(true); await next.abort(); await media.release();
   expect(f.files.size).toBe(0); expect(f.held.size).toBe(0);
 });
 

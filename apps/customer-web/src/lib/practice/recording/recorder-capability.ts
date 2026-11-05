@@ -3,7 +3,8 @@ import { recordingBrowserFailure } from '@/lib/practice/failure/browser-failures
 import type { PracticeRecordingMode } from './recording-mode';
 import { isArchiveableCaptureMime, VIDEO_CAPTURE_MIME_CANDIDATES } from './media-policy';
 import { openOpfsRecordingSink } from './opfs-recording-sink';
-import type { RecordingSinkFactory, SealedRecordingMedia } from './recording-sink';
+import type { OwnedMediaHandle } from './owned-media';
+import type { RecordingSinkFactory } from './recording-sink';
 
 export function recordingOptions(mode: Exclude<PracticeRecordingMode, 'OFF'>): MediaRecorderOptions | undefined {
   if (typeof MediaRecorder === 'undefined') throw new RecordingFailure('MEDIA_RECORDER_UNSUPPORTED');
@@ -44,7 +45,7 @@ export async function probeRecording(mode: Exclude<PracticeRecordingMode, 'OFF'>
   });
   signal.throwIfAborted();
   const sink = await openSink(signal);
-  let media: SealedRecordingMedia | null = null;
+  let media: OwnedMediaHandle | null = null;
   let retirement: Promise<void> | null = null;
   const cancel = () => { retirement = sink.abort(); retirement.catch(() => {}); };
   signal.addEventListener('abort', cancel, { once: true });
@@ -61,7 +62,7 @@ export async function probeRecording(mode: Exclude<PracticeRecordingMode, 'OFF'>
   } finally {
     signal.removeEventListener('abort', cancel);
     try {
-      if (media) await media.resource.release(); else await (retirement ?? sink.abort());
+      if (media) await media.release(); else await (retirement ?? sink.abort());
     } catch (cause) {
       if (signal.aborted) throw signal.reason;
       throw new RecordingFailure('RECORDING_STORAGE_FAILED', { cause });

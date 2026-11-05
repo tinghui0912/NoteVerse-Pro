@@ -1,24 +1,25 @@
+import type { OwnedMediaHandle } from "./owned-media";
 type PerformanceReplayTimebase = {
   version: 1;
   speedRatio: number;
 };
 
+type ReplaySource =
+  | { media: OwnedMediaHandle; url?: never }
+  | { url: string; media?: never };
+
 export type PlayablePerformanceReplay =
-  | {
-      kind: 'AUDIO_RECORDING';
-      blob?: Blob;
-      url?: string;
+  | (ReplaySource & {
+      kind: "AUDIO_RECORDING";
       contentType: string;
       byteSize?: number;
       durationMs: number;
       timebase?: PerformanceReplayTimebase;
-    }
-  | {
-      kind: 'VIDEO_RECORDING';
-      blob?: Blob;
-      url?: string;
+    })
+  | (ReplaySource & {
+      kind: "VIDEO_RECORDING";
       contentType: string;
       byteSize?: number;
       durationMs: number;
       timebase?: PerformanceReplayTimebase;
-};
+    });

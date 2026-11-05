@@ -7,8 +7,8 @@ import { resolveScopeTiming } from '@/lib/practice/score-view/scope-timing';
 
 export function reviewReplay(recording: PerformanceRecording | null): PlayablePerformanceReplay | null {
   if (recording?.status !== 'READY') return null;
-  return { kind: recording.kind === 'VIDEO' ? 'VIDEO_RECORDING' : 'AUDIO_RECORDING', blob: recording.blob,
-    contentType: recording.mimeType, byteSize: recording.blob.size, durationMs: recording.durationMs };
+  return { kind: recording.kind === 'VIDEO' ? 'VIDEO_RECORDING' : 'AUDIO_RECORDING', media: recording.media,
+    contentType: recording.mimeType, byteSize: recording.media.byteSize, durationMs: recording.durationMs };
 }
 
 export function reviewReplayScoreTick({ recording, mediaTimeMs, actualMediaDurationMs, scope, tempoPlan, scoreEndTick, ticksPerQuarter }: {

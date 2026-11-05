@@ -1,4 +1,4 @@
-import { releaseRecordingMedia } from "@/lib/practice/recording/recording-media-resource";
+import { releaseOwnedMedia } from "@/lib/practice/recording/owned-media";
 import type { PerformanceRecording } from "@/lib/practice/recording/recording-artifact";
 import { MetronomeRuntime } from "@/lib/practice/metronome/metronome-runtime";
 import {
@@ -456,8 +456,8 @@ export class ContinuousPracticeController {
         break;
       case "RELEASE_COMPLETION":
         if (effect.completion.recording.status === "READY")
-          this.operations.mediaRetirement = releaseRecordingMedia(
-            effect.completion.recording.resource,
+          this.operations.mediaRetirement = releaseOwnedMedia(
+            effect.completion.recording.media,
           );
         break;
       case "SET_METRONOME":
@@ -872,7 +872,7 @@ export class ContinuousPracticeController {
       finalizedRecording = recording;
       if (!this.finalizing(operationId)) {
         if (recording.status === "READY")
-          await releaseRecordingMedia(recording.resource);
+          await releaseOwnedMedia(recording.media);
         return;
       }
       const session = this.runtime.session!,
@@ -901,7 +901,7 @@ export class ContinuousPracticeController {
       });
     } catch (cause) {
       if (finalizedRecording?.status === "READY")
-        await releaseRecordingMedia(finalizedRecording.resource);
+        await releaseOwnedMedia(finalizedRecording.media);
       this.dispatch({
         type: "FINALIZATION_FAILED",
         operationId,

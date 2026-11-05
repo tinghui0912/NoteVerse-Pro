@@ -1,4 +1,4 @@
-import { recordingSinkFixture, recordingResourceFixture } from '@/lib/practice/__fixtures__/recording-sink';
+import { recordingSinkFixture, ownedMediaFixture } from '@/lib/practice/__fixtures__/recording-sink';
 import { releaseTransientReviewSession, createTransientReviewSession, type TransientReviewSession } from '@/lib/practice/review/transient-review-session';
 import type { ContinuousPracticeCompletion } from '@/lib/practice/continuous/completion';
 import { continuousResultFixture } from '@/lib/practice/__fixtures__/continuous-result';
@@ -439,10 +439,10 @@ describe('PracticeReviewPage', () => {
           },
         ]),
         completedAt: '2026-09-20T12:00:00.000Z'
-      }), recording: { resource: recordingResourceFixture(),
+      }), recording: {
         status: 'READY',
         kind: 'AUDIO',
-        blob: new Blob(['audio-bytes'], { type: 'audio/webm' }),
+        media: ownedMediaFixture(new Blob(['audio-bytes'], { type: 'audio/webm' })),
         mimeType: 'audio/webm',
         durationMs: 9600,
         timebase: {
@@ -565,10 +565,10 @@ describe('PracticeReviewPage', () => {
           },
         ], inputSource),
         completedAt: '2026-09-20T12:00:00.000Z'
-      }), recording: { resource: recordingResourceFixture(),
+      }), recording: {
         status: 'READY',
         kind: 'AUDIO',
-        blob: new Blob(['audio-bytes'], { type: 'audio/webm' }),
+        media: ownedMediaFixture(new Blob(['audio-bytes'], { type: 'audio/webm' })),
         mimeType: 'audio/webm',
         durationMs: 10000,
         timebase: {
@@ -614,7 +614,7 @@ describe('PracticeReviewPage', () => {
       inputSource: 'MICROPHONE', activeElapsedMs: 3000,
       evaluation: { status: 'UNAVAILABLE', inputSource: 'MICROPHONE', assignmentPolicyId: 'CONTINUOUS_EXACT_PIANO_KEY_ORDERED_ASSIGNMENT_FINALITY_V5', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' },
       completedAt: '2026-09-20T12:00:00.000Z' });
-    provideReview({ result, recording: { resource: recordingResourceFixture(), status: 'READY', kind: 'AUDIO', blob: new Blob(['audio'], { type: 'audio/webm' }),
+    provideReview({ result, recording: {  status: 'READY', kind: 'AUDIO', media: ownedMediaFixture(new Blob(['audio'], { type: 'audio/webm' })),
       mimeType: 'audio/webm', durationMs: 3000, timebase: { activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }], nominalMediaDurationMs: 3000 } } });
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
     expect(screen.getByText('本次演奏的识别分析不可用，仍可回放录制。')).toBeDefined();
@@ -681,10 +681,10 @@ describe('PracticeReviewPage', () => {
         activeElapsedMs: 3000,
         evaluation: completeEvaluation([], 'MIDI'),
         completedAt: '2026-09-20T12:00:00.000Z'
-      }), recording: { resource: recordingResourceFixture(),
+      }), recording: {
         status: 'READY',
         kind: 'AUDIO',
-        blob: new Blob(['audio'], { type: 'audio/webm' }),
+        media: ownedMediaFixture(new Blob(['audio'], { type: 'audio/webm' })),
         mimeType: 'audio/webm',
         durationMs: 3000,
         timebase: {
@@ -710,7 +710,7 @@ describe('PracticeReviewPage', () => {
     expect(saveCall.sourceId).toBe('source-fixture');
     expect(saveCall.scope).toMatchObject({ kind: 'FULL' });
     expect(saveCall.mediaKind).toBe('AUDIO');
-    expect(saveCall.mediaBlob).toBeDefined();
+    expect(saveCall.media.blob).toBeDefined();
     for (const key of ['result', 'evaluation', 'metrics', 'assignment', 'interpretation', 'provenance']) expect(saveCall).not.toHaveProperty(key);
 
     // After resolution, shows "已保存" and "查看我的演奏"
@@ -746,10 +746,10 @@ describe('PracticeReviewPage', () => {
         activeElapsedMs: 3000,
         evaluation: completeEvaluation(),
         completedAt: '2026-09-20T12:00:00.000Z'
-      }), recording: { resource: recordingResourceFixture(),
+      }), recording: {
         status: 'READY',
         kind: 'VIDEO',
-        blob: videoBlob,
+        media: ownedMediaFixture(videoBlob),
         mimeType: 'video/webm',
         durationMs: 3000,
         timebase: {
@@ -770,7 +770,7 @@ describe('PracticeReviewPage', () => {
     fireEvent.click(screen.getByRole('button', { name: '保存录制' }));
     const saveCall = saveMutationMock.mutateAsync.mock.calls[0][0];
     expect(saveCall.mediaKind).toBe('VIDEO');
-    expect(saveCall.mediaBlob).toBe(videoBlob);
+    expect(saveCall.media.blob).toBe(videoBlob);
     expect(saveCall.mimeType).toBe('video/webm');
 
     await screen.findByText('已保存');
@@ -821,8 +821,8 @@ describe('PracticeReviewPage', () => {
 
   it.each(['success', 'error', 'abort'] as const)('keeps its source after Review clear until VideoExport %s settles', async outcome => {
     const capture = recordingSinkFixture(); await capture.sink.append(new Blob(['raw video'])); const media = await capture.sink.seal('video/webm');
-    provideReview(createVideoCompletion({ videoBlob: media.blob, resource: media.resource }));
-    await media.resource.release();
+    provideReview(createVideoCompletion({ videoBlob: media.blob, media }));
+    await media.release();
     let resolve!: (output: { blob: Blob; mimeType: string; durationMs: number }) => void, reject!: (error: Error) => void;
     videoExportMocks.exportVideo.mockImplementation(() => new Promise((yes, no) => { resolve = yes; reject = no; }));
     const view = render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
@@ -932,7 +932,7 @@ describe('PracticeReviewPage', () => {
     await waitFor(() => expect(saveMutationMock.mutateAsync).toHaveBeenCalledOnce());
     const saved = saveMutationMock.mutateAsync.mock.calls[0][0];
     expect(saved).toMatchObject({ mediaKind: 'VIDEO', mimeType: 'video/mp4' });
-    expect(saved.mediaBlob).toBe(rawMp4);
+    expect(saved.media.blob).toBe(rawMp4);
     expect(URL.createObjectURL).toHaveBeenCalledWith(rawMp4);
     expect((download.mock.instances[0] as HTMLAnchorElement).download).toMatch(/\.mp4$/);
     download.mockRestore();
@@ -1000,11 +1000,11 @@ describe('PracticeReviewPage', () => {
 function createVideoCompletion({
   videoBlob = new Blob(['video'], { type: 'video/webm' }),
   mimeType = videoBlob.type || 'video/webm',
-  resource = recordingResourceFixture(),
+  media,
 }: {
   videoBlob?: Blob;
   mimeType?: string;
-  resource?: import('@/lib/practice/recording/recording-sink').RecordingMediaResource;
+  media?: import('@/lib/practice/recording/owned-media').OwnedMediaHandle;
 } = {}): ContinuousPracticeCompletion {
   return {
     result: continuousResultFixture({ sourceId: 'source-fixture',
@@ -1021,10 +1021,10 @@ function createVideoCompletion({
       activeElapsedMs: 3000,
       evaluation: completeEvaluation(),
       completedAt: '2026-09-20T12:00:00.000Z'
-    }), recording: { resource,
+    }), recording: {
       status: 'READY',
       kind: 'VIDEO',
-      blob: videoBlob,
+      media: media ?? ownedMediaFixture(videoBlob),
       mimeType,
       durationMs: 3000,
       timebase: {
