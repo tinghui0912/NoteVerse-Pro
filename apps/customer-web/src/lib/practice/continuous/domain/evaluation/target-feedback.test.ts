@@ -44,7 +44,7 @@ it('MIDI and microphone produce identical immutable settled target feedback with
 });
 
 it.each(['MIDI', 'MICROPHONE'] as const)('%s progression and live reads do not materialize an artifact snapshot or evidence ledger', inputSource => {
-  const session = new ContinuousEvaluationSession({ artifact: artifactJson as PracticeScoreArtifact, scope: continuousSessionPlan(artifactJson as PracticeScoreArtifact, { scope: { kind: 'FULL' } }).scope, sessionDomainId: 'live', inputSource, timeline: { beatToTimeMs: beat => beat * 500 } });
+  const session = new ContinuousEvaluationSession({ artifact: artifactJson as PracticeScoreArtifact, scope: continuousSessionPlan(artifactJson as PracticeScoreArtifact, { scope: { kind: 'FULL' } }).scope, sessionDomainId: 'live', inputSource, timeline: { tickToTimeMs: tick => tick * 500 } });
   const snapshot = vi.spyOn(ContinuousAssignmentFinalizer.prototype, 'snapshot').mockImplementation(() => { throw Error('FULL_ASSIGNMENT_READ'); });
   const values = vi.spyOn(ContinuousEvidenceStore.prototype, 'values').mockImplementation(() => { throw Error('RAW_EVIDENCE_READ'); });
   try {

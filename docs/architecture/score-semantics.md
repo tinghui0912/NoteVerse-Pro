@@ -189,9 +189,11 @@ never executes them.
 
 ### Consumer projections
 
-Practice projects those written positions, canonicalizing only at its six-decimal
-artifact boundary. Its Verovio toolkit uses `expandNever: true`, so renderer and
-artifact share the written axis. The [performance navigation owner](performance-navigation.md)
+Practice projects exact written Fractions onto a source-local integer tick grid.
+Its artifact, scope, tempo positions and metronome use `ScoreTick` with
+`ticksPerQuarter`; only runtime/UI time conversion uses floating-point values.
+Its Verovio toolkit uses `expandNever: true`, and cursor timing uses artifact ticks
+and written render identities. The [performance navigation owner](performance-navigation.md)
 projects linear playback, simple non-nested barline repeats, supported whole-measure
 volta groups and one exact D.C./D.S. with optional Fine or one named To Coda transfer
 into visited measure intervals.

@@ -18,13 +18,13 @@ class AdvancingReadClock extends ManualClock {
   }
 }
 
-function setup(origin = 0, countInBeats = 0, scoreEndBeat = 1000000, clock = new ManualClock(origin)) {
+function setup(origin = 0, countInTicks = 0, scoreEndTick = 1000000, clock = new ManualClock(origin)) {
   const base = structuredClone(fixture) as PracticeScoreArtifact;
-  base.events.at(-1)!.durationBeats = scoreEndBeat - base.events.at(-1)!.onsetBeat;
-  base.moments.at(-1)!.canonicalEndBeat = scoreEndBeat;
+  base.events.at(-1)!.durationTicks = scoreEndTick - base.events.at(-1)!.onsetTick;
+  base.moments.at(-1)!.canonicalEndTick = scoreEndTick;
   const artifact: PracticeScoreArtifact = { ...base,
-    scoreEndBeat, scoreTempoSegments: [{ startBeat: 0, bpm: 120 }] };
-  const runtime = new PerformanceClockRuntime({ artifact, scope: continuousSessionPlan(artifact, { scope: { kind: 'FULL' } }).scope, clock, countInBeats, timebase: new PracticeTimebase({ domainId: 'numeric-identity-test', runtimeOriginMs: origin }), tempoPlan: resolvePracticeTempoPlan(artifact, { mode: 'CUSTOM_FIXED_BPM', bpm: 120 }) });
+    scoreEndTick, scoreTempoSegments: [{ startTick: 0, bpm: 120 }] };
+  const runtime = new PerformanceClockRuntime({ artifact, scope: continuousSessionPlan(artifact, { scope: { kind: 'FULL' } }).scope, clock, countInTicks: countInTicks * artifact.ticksPerQuarter, timebase: new PracticeTimebase({ domainId: 'numeric-identity-test', runtimeOriginMs: origin }), tempoPlan: resolvePracticeTempoPlan(artifact, { mode: 'CUSTOM_FIXED_BPM', bpm: 120 }) });
   return { clock, runtime };
 }
 
@@ -190,7 +190,7 @@ describe('PerformanceClock segment numeric identity', () => {
   });
 
   it('natural completion inverse mapping uses the local active delta', () => {
-    const { clock, runtime } = setup(0, 0, 12); runtime.start();
+    const { clock, runtime } = setup(0, 0, 24); runtime.start();
     clock.set(3610.7029478458053); const paused = runtime.pause();
     clock.set(5622.131519274377); const countdown = runtime.resume();
     const expectedTerminalSessionMs = clock.nowMs() + countdown.countInTotalMs + (runtime.scopeDurationMs() - paused.performanceTimeMs);

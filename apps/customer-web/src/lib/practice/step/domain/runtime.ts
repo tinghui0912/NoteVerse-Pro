@@ -155,7 +155,7 @@ export class StepPracticeRuntime {
   }
   setMetronomeEnabled(enabled: boolean): void { this.metronomeEnabled = enabled; }
   get currentStepIndex(): number { return this.currentIndex; }
-  get currentOnsetBeat(): number { return this.artifact.moments[this.currentIndex]?.onsetBeat ?? this.resolvedScope.terminalBeat; }
+  get currentOnsetTick(): number { return this.artifact.moments[this.currentIndex]?.onsetTick ?? this.resolvedScope.terminalTick; }
   get isCompleted(): boolean { return this.completed; }
   get state(): StepRuntimeStatus { return this.status; }
   get canAcceptAttempt(): boolean {

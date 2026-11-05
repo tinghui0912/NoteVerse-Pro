@@ -316,7 +316,7 @@ failure is a recording-only hard intervention, not acoustic failure or root loss
 `PracticeSessionPlan.metronomePlan` is the immutable musical projection owned by
 session planning. It contains STEP/CONTINUOUS mode, meter segments, resolved tempo,
 finite timeline end, scope start/end and initial enabled state. Meter timing is
-nonempty, explicitly MUSICXML-sourced and starts at beat 0. Missing initial meter
+nonempty, explicitly MUSICXML-sourced and starts at tick 0. Missing initial meter
 fails admission; planning and runtime perform no meter repair. Runtime receives no
 Artifact and performs no semantic scope/tempo resolution. A candidate initial-enable
 change reuses the same resolved scope and tempo.
@@ -330,7 +330,8 @@ disposal clear the interval; disposed callbacks cannot restart scheduling.
 STEP commands the current target onset and has no count-in. Its meter grid follows
 that target; repeated pulses keep the BPM at the target until the target changes.
 Continuous commands `continuousMetronomeSyncPoint` from its canonical transport:
-COUNT_IN carries exact remaining phase and RUNNING carries the current musical beat.
+COUNT_IN carries the remaining countdown and a frozen timeline-time anchor; RUNNING
+carries elapsed timeline milliseconds. The planner selects integer pulse ticks.
 Metronome mirrors those coordinates without owning another count-in policy or clock.
 Live enable resynchronizes against the current mode context; disable silences future
 click scheduling. Both commands preserve the attempt, scope, tempo and progression.
@@ -346,14 +347,14 @@ analysis, recording or critical attempt-cleanup failures.
 
 ## Meter and Count-In policy
 
-The artifact supplies admitted meter facts: `startBeat`, `numerator`, `denominator`.
-The pure score-domain measure-duration helper derives quarter beats using canonical
-six-decimal rounding. `kernel/count-in.ts` owns the execution policy: a full active
+The artifact supplies admitted meter facts: `startTick`, `numerator`, `denominator`.
+The pure score-time helper derives exact measure duration ticks using the artifact
+timebase. `kernel/count-in.ts` owns the execution policy: a full active
 measure supplies Count-In duration, and its numerator supplies the number of pulses.
 Thus 3/4 gives 3 beats/3 pulses, 6/8 gives 3 beats/6 pulses, and 2/2 gives 4 beats/2
 pulses. Count-In pulses are not part of the score artifact or source identity.
 
-Metronome pulse-grid policy uses a step of `4 / denominator`, with downbeats and pulse
+Metronome pulse-grid policy uses a step of `4 * ticksPerQuarter / denominator`, with downbeats and pulse
 indices derived from the same admitted meter and measure-duration helper. Invalid
 meter invariants fail closed. Continuous PerformanceClock owns the actual countdown;
 MetronomeRuntime consumes its live sync point. STEP has no Count-In.
@@ -372,8 +373,8 @@ Source authorization and retention belong to [Practice Source](practice-source.m
 Browser planning owns live execution truth. A save submits the admitted sourceId,
 FULL or RANGE moment selection, tempo selection and media/recording evidence.
 `app/modules/practice/planning/score_plan.py` owns pure server planning from the
-verified exact Source artifact. FULL spans the first moment onset to scoreEndBeat;
-RANGE spans its selected start onset to its selected end canonicalEndBeat.
+verified exact Source artifact. FULL spans the first moment onset to scoreEndTick;
+RANGE spans its selected start onset to its selected end canonicalEndTick.
 
 The server resolves a score-wide tempo plan: missing initial MusicXML tempo uses
 PRODUCT_DEFAULT 80 quarter-note BPM; explicit segments remain MUSICXML. CUSTOM_FIXED_BPM accepts
@@ -413,3 +414,16 @@ Export creates no server asset and grants no sharing access.
 
 Explicit tempo interpretation and the cross-runtime missing-tempo policy belong to
 [Score tempo semantics](score-tempo.md).
+
+## Exact score coordinates
+
+Artifacts, scope endpoints, tempo-segment positions, metronome pulses and session
+planning use `ScoreTick` on the artifact's `ticksPerQuarter` grid. Group IDs remain
+the user selection identity. FULL ends at `scoreEndTick`; RANGE ends at the final
+selected moment's `canonicalEndTick`.
+
+`PracticeTempoTimeline.tickToTimeMs()` converts integer tick deltas to runtime
+milliseconds using `tickDelta / ticksPerQuarter * 60000 / bpm`. Its inverse selects
+the last integer tick reached. Continuous metronome resume uses elapsed timeline
+milliseconds to retain wall-clock phase and chooses its next pulse on the integer
+meter grid. Floating values at runtime/UI boundaries never define score identity.

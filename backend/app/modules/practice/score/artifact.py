@@ -24,6 +24,7 @@ def practice_score_artifact_from_timeline(
     assert_practice_timeline(timeline)
     payload: dict[str, Any] = {
         "schemaVersion": PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION,
+        "ticksPerQuarter": timeline.ticks_per_quarter,
         "scoreId": score_id,
         "revisionId": revision_id,
         "artifactId": "",
@@ -32,7 +33,7 @@ def practice_score_artifact_from_timeline(
         "moments": [_camel_dataclass(moment) for moment in timeline.moments],
         "meterSegments": [_meter_segment(segment) for segment in timeline.meter_segments],
         "scoreTempoSegments": [_tempo_segment(segment) for segment in score_tempo_segments],
-        "scoreEndBeat": timeline.end_beat,
+        "scoreEndTick": timeline.score_end_tick,
     }
     payload["artifactId"] = _artifact_id(payload)
     return payload
@@ -85,7 +86,7 @@ def _camel_dataclass(item: Any) -> Any:
 
 def _meter_segment(segment) -> dict[str, Any]:
     return {
-        "startBeat": segment.start_beat,
+        "startTick": segment.start_tick,
         "numerator": segment.numerator,
         "denominator": segment.denominator,
     }
@@ -93,7 +94,7 @@ def _meter_segment(segment) -> dict[str, Any]:
 
 def _tempo_segment(segment: PracticeTempoSegment) -> dict[str, Any]:
     return {
-        "startBeat": segment.start_beat,
+        "startTick": segment.start_tick,
         "bpm": segment.bpm,
     }
 

@@ -50,7 +50,7 @@ import {
 import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
 import { PracticeVerovioAdapter } from '@/lib/practice/score-view/verovio-adapter';
 import { resolveReviewScoreState } from '@/lib/practice/review/review-score-state';
-import { reviewReplay, reviewReplayMusicalBeat } from '@/lib/practice/review/review-replay';
+import { reviewReplay, reviewReplayScoreTick } from '@/lib/practice/review/review-replay';
 import { reviewViewModel } from '@/lib/practice/review/review-view-model';
 import { VideoExportStudio } from '@/components/practice/video-export-studio';
 import { createVideoExportSessionFromCompletion } from '@/lib/practice/video-export/current-completion-adapter';
@@ -68,7 +68,7 @@ function toPerformanceTakeTempoPlan(plan: ResolvedPracticeTempoPlan): Performanc
   return {
     selection: plan.selection,
     segments: plan.segments.map((segment) => ({
-      startBeat: segment.startBeat,
+      startTick: segment.startTick,
       bpm: segment.bpm,
       source: segment.source,
     })),
@@ -101,7 +101,7 @@ export default function PracticeReviewPage({
     return createVideoExportSessionFromCompletion(reviewSession);
   }, [reviewSession, scoreState]);
 
-  const adapter = useMemo(() => new PracticeVerovioAdapter(), []);
+  const adapter = useMemo(() => new PracticeVerovioAdapter(artifact), [artifact]);
   const adapterFactory = useCallback(() => adapter, [adapter]);
   const playheadController = useMemo(() => new PerformancePlayheadController(), []);
   const annotationController = useMemo(() => new EvaluationAnnotationController(), []);
@@ -172,14 +172,14 @@ export default function PracticeReviewPage({
         playheadController.clear(container);
         return;
       }
-      const musicalBeat = reviewReplayMusicalBeat({ recording, mediaTimeMs: replayTimeMs,
+      const scoreTick = reviewReplayScoreTick({ recording, mediaTimeMs: replayTimeMs,
         actualMediaDurationMs, scope: result.scope, tempoPlan: result.tempoPlan,
-        scoreEndBeat: artifact?.scoreEndBeat ?? result.scope.terminalBeat });
-      if (musicalBeat === null) { playheadController.clear(container); return; }
+        scoreEndTick: artifact?.scoreEndTick ?? result.scope.terminalTick, ticksPerQuarter: artifact!.ticksPerQuarter });
+      if (scoreTick === null) { playheadController.clear(container); return; }
       playheadController.apply(
         container,
         adapter,
-        musicalBeat,
+        scoreTick,
         scoreState.scope
       );
     },
@@ -295,15 +295,15 @@ export default function PracticeReviewPage({
           result.scope.kind === 'RANGE'
             ? {
                 kind: 'RANGE',
-                startBeat: result.scope.startBeat,
-                terminalBeat: result.scope.terminalBeat,
+                startTick: result.scope.startTick,
+                terminalTick: result.scope.terminalTick,
                 startGroupId: result.scope.startGroupId,
                 endGroupId: result.scope.endGroupId,
               }
             : {
                 kind: 'FULL',
-                startBeat: result.scope.startBeat,
-                terminalBeat: result.scope.terminalBeat,
+                startTick: result.scope.startTick,
+                terminalTick: result.scope.terminalTick,
               },
         tempoPlan: toPerformanceTakeTempoPlan(result.tempoPlan),
         recordingTimebase: { nominalMediaDurationMs: saveMedia.timebase.nominalMediaDurationMs,
@@ -381,7 +381,7 @@ export default function PracticeReviewPage({
   const view = reviewViewModel(result);
   const tempoText = view.tempo.kind === 'SCORE' ? t('tempoScoreMode') : `${view.tempo.bpm} BPM`;
   const scopeText = `${t(view.scope.label)} (${t('takeScopeBeats', {
-    start: view.scope.startBeat, end: view.scope.terminalBeat,
+    start: view.scope.startTick / artifact!.ticksPerQuarter, end: view.scope.terminalTick / artifact!.ticksPerQuarter,
   })})`;
   const inputSourceText = t(view.inputSourceLabel);
   const completedTime = format.dateTime(new Date(result.completedAt), {
@@ -627,7 +627,7 @@ export default function PracticeReviewPage({
           session={videoExportSession}
           scoreContainer={scoreContainer}
           adapter={adapter}
-          scoreEndBeat={artifact?.scoreEndBeat ?? result.scope.terminalBeat}
+          scoreEndTick={artifact?.scoreEndTick ?? result.scope.terminalTick} ticksPerQuarter={artifact!.ticksPerQuarter}
           isScoreIdentityConfirmed={isScoreIdentityConfirmed}
           xmlContent={xmlContent}
           mediaTimeMs={videoExportPreviewTimeMs}

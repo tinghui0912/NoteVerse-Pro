@@ -114,7 +114,7 @@ export class StepPracticeController {
       this.detachRootHealth = this.options.rootHealth.subscribe(snapshot => { if (subscribed) this.rootHealthChanged(snapshot); });
       subscribed = true; this.rootHealthChanged(this.options.rootHealth.snapshot());
       this.updateTarget();
-      this.metronome?.start(this.runtime!.currentOnsetBeat); this.emit();
+      this.metronome?.start(this.runtime!.currentOnsetTick); this.emit();
     } catch (error) {
       if (generation !== this.generation) return;
       this.failureCause = error;
@@ -227,7 +227,7 @@ export class StepPracticeController {
     });
     return this.completionTask;
   }
-  private updateTarget(): void { if (this.runtime && !this.runtime.isCompleted) this.metronome?.setStepContext(this.runtime.currentOnsetBeat); }
+  private updateTarget(): void { if (this.runtime && !this.runtime.isCompleted) this.metronome?.setStepContext(this.runtime.currentOnsetTick); }
   private commitPostVerdict(): void {
     const step = this.runtime?.snapshot().step;
     if (this.state !== 'ACTIVE' || this.error || !this.runtime || !step?.inputAvailable

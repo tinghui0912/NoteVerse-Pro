@@ -1,4 +1,8 @@
-import { PracticeScoreArtifact, roundBeat, TempoSegment } from '@/lib/practice/kernel/artifact';
+import { scoreTick, ticksPerQuarter as requireResolution } from './score-time';
+import {
+  PracticeScoreArtifact,
+  TempoSegment,
+} from '@/lib/practice/kernel/artifact';
 
 import { DEFAULT_SCORE_TEMPO_BPM } from '@/lib/score/tempo-policy';
 export const MIN_PRACTICE_TEMPO_BPM = 40;
@@ -8,10 +12,13 @@ export type PracticeTempoSelection =
   | { mode: 'SCORE' }
   | { mode: 'CUSTOM_FIXED_BPM'; bpm: number };
 
-export type PracticeTempoSegmentSource = 'MUSICXML' | 'PRODUCT_DEFAULT' | 'CUSTOM';
+export type PracticeTempoSegmentSource =
+  | 'MUSICXML'
+  | 'PRODUCT_DEFAULT'
+  | 'CUSTOM';
 
 export interface ResolvedPracticeTempoSegment {
-  readonly startBeat: number;
+  readonly startTick: number;
   readonly bpm: number;
   readonly source: PracticeTempoSegmentSource;
 }
@@ -22,14 +29,21 @@ export interface ResolvedPracticeTempoPlan {
 }
 
 export function isCustomTempoValid(bpm: number): boolean {
-  return Number.isFinite(bpm) && bpm >= MIN_PRACTICE_TEMPO_BPM && bpm <= MAX_PRACTICE_TEMPO_BPM;
+  return (
+    Number.isFinite(bpm) &&
+    bpm >= MIN_PRACTICE_TEMPO_BPM &&
+    bpm <= MAX_PRACTICE_TEMPO_BPM
+  );
 }
 
 export function clampCustomTempo(bpm: number): number {
   if (!Number.isFinite(bpm)) {
     throw new Error('Custom tempo editing requires a finite number.');
   }
-  return Math.min(MAX_PRACTICE_TEMPO_BPM, Math.max(MIN_PRACTICE_TEMPO_BPM, Math.round(bpm)));
+  return Math.min(
+    MAX_PRACTICE_TEMPO_BPM,
+    Math.max(MIN_PRACTICE_TEMPO_BPM, Math.round(bpm))
+  );
 }
 
 export type ScoreTempoInput =
@@ -39,7 +53,9 @@ export type ScoreTempoInput =
   | null
   | undefined;
 
-function extractTempoSegments(input: ScoreTempoInput): readonly TempoSegment[] | undefined {
+function extractTempoSegments(
+  input: ScoreTempoInput
+): readonly TempoSegment[] | undefined {
   if (!input) return undefined;
   if (Array.isArray(input)) return input;
   if ('scoreTempoSegments' in input) return input.scoreTempoSegments;
@@ -52,7 +68,7 @@ export function hasExplicitScoreTempo(input: ScoreTempoInput): boolean {
 }
 
 export function initialScoreTempoBpm(input: ScoreTempoInput): number {
-  return effectiveScoreTempoAtBeat(input, 0).bpm;
+  return effectiveScoreTempoAtTick(input, 0).bpm;
 }
 
 export function hasScoreTempoChanges(input: ScoreTempoInput): boolean {
@@ -64,16 +80,17 @@ export interface EffectiveScoreTempoInfo {
   readonly bpm: number;
   readonly source: 'MUSICXML' | 'PRODUCT_DEFAULT';
   readonly hasSubsequentScoreTempoChanges: boolean;
-  readonly nextScoreTempoBeat?: number;
+  readonly nextScoreTempoTick?: number;
   readonly isDefault: boolean;
   readonly hasSubsequentChanges: boolean;
-  readonly explicitStartBeat?: number;
+  readonly explicitStartTick?: number;
 }
 
-export function effectiveScoreTempoAtBeat(
+export function effectiveScoreTempoAtTick(
   input: ScoreTempoInput,
-  scopeStartBeat = 0
+  scopeStartTick = 0
 ): EffectiveScoreTempoInfo {
+  const targetTick = scoreTick(scopeStartTick);
   const segments = extractTempoSegments(input);
   if (!segments || segments.length === 0) {
     return {
@@ -85,22 +102,21 @@ export function effectiveScoreTempoAtBeat(
     };
   }
 
-  const sorted = [...segments].sort((a, b) => a.startBeat - b.startBeat);
-  const targetBeat = roundBeat(Math.max(0, scopeStartBeat));
+  const sorted = [...segments].sort((a, b) => a.startTick - b.startTick);
 
-  const atOrBefore = sorted.filter((s) => roundBeat(s.startBeat) <= targetBeat);
-  const subsequent = sorted.filter((s) => roundBeat(s.startBeat) > targetBeat);
+  const atOrBefore = sorted.filter((s) => s.startTick <= targetTick);
+  const subsequent = sorted.filter((s) => s.startTick > targetTick);
 
   if (atOrBefore.length === 0) {
-    // Explicit tempo markings exist, but the first one starts after scopeStartBeat
+    // Explicit tempo markings exist, but the first one starts after scopeStartTick
     return {
       bpm: DEFAULT_SCORE_TEMPO_BPM,
       source: 'PRODUCT_DEFAULT',
       hasSubsequentScoreTempoChanges: true,
-      nextScoreTempoBeat: sorted[0].startBeat,
+      nextScoreTempoTick: sorted[0].startTick,
       isDefault: true,
       hasSubsequentChanges: true,
-      explicitStartBeat: sorted[0].startBeat,
+      explicitStartTick: sorted[0].startTick,
     };
   }
 
@@ -109,10 +125,10 @@ export function effectiveScoreTempoAtBeat(
     bpm: activeSegment.bpm,
     source: 'MUSICXML',
     hasSubsequentScoreTempoChanges: subsequent.length > 0,
-    nextScoreTempoBeat: subsequent[0]?.startBeat,
+    nextScoreTempoTick: subsequent[0]?.startTick,
     isDefault: false,
     hasSubsequentChanges: subsequent.length > 0,
-    explicitStartBeat: activeSegment.startBeat,
+    explicitStartTick: activeSegment.startTick,
   };
 }
 
@@ -122,7 +138,11 @@ export function resolvePracticeTempoPlan(
 ): ResolvedPracticeTempoPlan {
   if (tempoSelection.mode === 'CUSTOM_FIXED_BPM') {
     const rawBpm = tempoSelection.bpm;
-    if (!Number.isFinite(rawBpm) || rawBpm < MIN_PRACTICE_TEMPO_BPM || rawBpm > MAX_PRACTICE_TEMPO_BPM) {
+    if (
+      !Number.isFinite(rawBpm) ||
+      rawBpm < MIN_PRACTICE_TEMPO_BPM ||
+      rawBpm > MAX_PRACTICE_TEMPO_BPM
+    ) {
       throw new Error(
         `Custom practice tempo must be between ${MIN_PRACTICE_TEMPO_BPM} and ${MAX_PRACTICE_TEMPO_BPM} BPM, received ${rawBpm}.`
       );
@@ -130,7 +150,7 @@ export function resolvePracticeTempoPlan(
     const bpm = Math.round(rawBpm);
     return {
       selection: tempoSelection,
-      segments: [{ startBeat: 0, bpm, source: 'CUSTOM' }],
+      segments: [{ startTick: 0, bpm, source: 'CUSTOM' }],
     };
   }
 
@@ -138,149 +158,175 @@ export function resolvePracticeTempoPlan(
   if (!rawSegments || rawSegments.length === 0) {
     return {
       selection: tempoSelection,
-      segments: [{ startBeat: 0, bpm: DEFAULT_SCORE_TEMPO_BPM, source: 'PRODUCT_DEFAULT' }],
+      segments: [
+        {
+          startTick: 0,
+          bpm: DEFAULT_SCORE_TEMPO_BPM,
+          source: 'PRODUCT_DEFAULT',
+        },
+      ],
     };
   }
 
-  if (rawSegments.some(s => !Number.isFinite(s.startBeat) || s.startBeat < 0 || !Number.isFinite(s.bpm) || s.bpm <= 0)) {
+  if (
+    rawSegments.some(
+      (s) =>
+        !Number.isSafeInteger(s.startTick) ||
+        s.startTick < 0 ||
+        !Number.isFinite(s.bpm) ||
+        s.bpm <= 0
+    )
+  ) {
     throw new Error('Invalid explicit score tempo.');
   }
-  const sortedSegments = [...rawSegments].sort((a, b) => a.startBeat - b.startBeat);
+  const sortedSegments = [...rawSegments].sort(
+    (a, b) => a.startTick - b.startTick
+  );
   const first = sortedSegments[0];
 
-  if (roundBeat(first.startBeat) > 0) {
+  if (first.startTick > 0) {
     return {
       selection: tempoSelection,
       segments: [
-        { startBeat: 0, bpm: DEFAULT_SCORE_TEMPO_BPM, source: 'PRODUCT_DEFAULT' },
-        ...sortedSegments.map((s) => ({ startBeat: s.startBeat, bpm: s.bpm, source: 'MUSICXML' as const })),
+        {
+          startTick: 0,
+          bpm: DEFAULT_SCORE_TEMPO_BPM,
+          source: 'PRODUCT_DEFAULT',
+        },
+        ...sortedSegments.map((s) => ({
+          startTick: s.startTick,
+          bpm: s.bpm,
+          source: 'MUSICXML' as const,
+        })),
       ],
     };
   }
 
   return {
     selection: tempoSelection,
-    segments: sortedSegments.map((s) => ({ startBeat: s.startBeat, bpm: s.bpm, source: 'MUSICXML' as const })),
+    segments: sortedSegments.map((s) => ({
+      startTick: s.startTick,
+      bpm: s.bpm,
+      source: 'MUSICXML' as const,
+    })),
   };
 }
 
 export type TimelineSegment = {
-  readonly startBeat: number;
-  readonly endBeat: number;
+  readonly startTick: number;
+  readonly endTick: number;
   readonly startTimeMs: number;
   readonly endTimeMs: number;
   readonly bpm: number;
 };
 
-export function beatsToMs(beats: number, bpm: number): number {
-  return (beats * 60_000) / bpm;
-}
-
-function msToBeats(milliseconds: number, bpm: number): number {
-  return (milliseconds * bpm) / 60_000;
+/** Runtime time conversion boundary; the returned milliseconds never define score identity. */
+export function ticksToMs(
+  ticks: number,
+  bpm: number,
+  resolution: number
+): number {
+  scoreTick(ticks);
+  requireResolution(resolution);
+  if (!Number.isFinite(bpm) || bpm <= 0)
+    throw new Error('Invalid Practice tempo.');
+  const milliseconds = ((ticks / resolution) * 60_000) / bpm;
+  if (!Number.isFinite(milliseconds))
+    throw new Error('Unrepresentable Practice runtime duration.');
+  return milliseconds;
 }
 
 export class PracticeTempoTimeline {
-  readonly endBeat: number;
+  readonly endTick: number;
+  readonly ticksPerQuarter: number;
   readonly plan: ResolvedPracticeTempoPlan;
   private readonly segments: readonly TimelineSegment[];
 
-  constructor(plan: ResolvedPracticeTempoPlan, scoreEndBeat: number) {
-    if (!plan || !Array.isArray(plan.segments) || plan.segments.length === 0) {
-      throw new Error('PracticeTempoTimeline requires a valid ResolvedPracticeTempoPlan with segments.');
-    }
+  constructor(
+    plan: ResolvedPracticeTempoPlan,
+    scoreEndTick: number,
+    resolution: number
+  ) {
+    this.endTick = scoreTick(scoreEndTick);
+    this.ticksPerQuarter = requireResolution(resolution);
     this.plan = plan;
-    this.endBeat = Math.max(0, scoreEndBeat);
-    this.segments = buildTimelineSegments(this.endBeat, plan.segments);
-  }
-
-  beatToTimeMs(beat: number): number {
-    if (this.segments.length === 0) {
-      return 0;
+    if (!plan?.segments.length)
+      throw new Error('Practice tempo segments required.');
+    let previous = -1;
+    for (const segment of plan.segments) {
+      scoreTick(segment.startTick);
+      if (
+        segment.startTick <= previous ||
+        !Number.isFinite(segment.bpm) ||
+        segment.bpm <= 0
+      )
+        throw new Error('Invalid explicit tempo timeline segment.');
+      previous = segment.startTick;
     }
-    const bounded = Math.min(Math.max(beat, 0), this.endBeat);
-    const segment = this.segmentForBeat(bounded);
-    return segment.startTimeMs + beatsToMs(bounded - segment.startBeat, segment.bpm);
+    if (plan.segments[0].startTick !== 0)
+      throw new Error('Practice tempo requires tick 0.');
+    let time = 0;
+    this.segments = plan.segments.flatMap((tempo, index) => {
+      const startTick = Math.min(tempo.startTick, this.endTick);
+      const endTick = Math.min(
+        plan.segments[index + 1]?.startTick ?? this.endTick,
+        this.endTick
+      );
+      if (endTick <= startTick) return [];
+      const startTimeMs = time;
+      time += ticksToMs(endTick - startTick, tempo.bpm, this.ticksPerQuarter);
+      if (!Number.isFinite(time))
+        throw new Error('Unrepresentable Practice runtime duration.');
+      return [
+        { startTick, endTick, startTimeMs, endTimeMs: time, bpm: tempo.bpm },
+      ];
+    });
   }
 
-  timeMsToBeat(timeMs: number): number {
-    if (this.segments.length === 0) {
-      return 0;
+  tickToTimeMs(tick: number): number {
+    const bounded = Math.min(scoreTick(tick), this.endTick);
+    const segment =
+      this.segments.find(
+        (s) => s.startTick <= bounded && bounded < s.endTick
+      ) ?? this.segments.at(-1);
+    return segment
+      ? segment.startTimeMs +
+          ticksToMs(
+            bounded - segment.startTick,
+            segment.bpm,
+            this.ticksPerQuarter
+          )
+      : 0;
+  }
+
+  /** Greatest integral grid tick reached at this wall-clock instant, for cursor selection. */
+  timeMsToTick(timeMs: number): number {
+    if (!Number.isFinite(timeMs))
+      throw new Error('Invalid Practice runtime time.');
+    const bounded = Math.min(Math.max(timeMs, 0), this.durationMs);
+    let low = 0,
+      high = this.endTick;
+    while (low < high) {
+      const middle = Number((BigInt(low) + BigInt(high) + 1n) / 2n);
+      if (this.tickToTimeMs(middle) <= bounded) low = middle;
+      else high = middle - 1;
     }
-    const durationMs = this.segments[this.segments.length - 1]?.endTimeMs ?? 0;
-    const bounded = Math.min(Math.max(timeMs, 0), durationMs);
-    const segment = this.segmentForTimeMs(bounded);
-    return roundBeat(segment.startBeat + msToBeats(bounded - segment.startTimeMs, segment.bpm));
+    return low;
   }
 
-  bpmAtBeat(beat: number): number {
-    if (this.segments.length === 0) {
-      throw new Error('Cannot determine BPM: tempo timeline has no segments.');
+  bpmAtTick(tick: number): number {
+    const bounded = Math.min(scoreTick(tick), this.endTick);
+    let bpm = this.plan.segments[0].bpm;
+    for (const segment of this.plan.segments) {
+      if (segment.startTick > bounded) break;
+      bpm = segment.bpm;
     }
-    return this.segmentForBeat(Math.min(Math.max(beat, 0), this.endBeat)).bpm;
+    return bpm;
   }
-
   get durationMs(): number {
-    return this.segments[this.segments.length - 1]?.endTimeMs ?? 0;
+    return this.segments.at(-1)?.endTimeMs ?? 0;
   }
-
   getSegments(): readonly TimelineSegment[] {
     return this.segments;
   }
-
-  private segmentForBeat(beat: number): TimelineSegment {
-    return (
-      this.segments.find((segment) => segment.startBeat <= beat && beat < segment.endBeat) ??
-      this.segments[this.segments.length - 1]
-    );
-  }
-
-  private segmentForTimeMs(timeMs: number): TimelineSegment {
-    return (
-      this.segments.find((segment) => segment.startTimeMs <= timeMs && timeMs < segment.endTimeMs) ??
-      this.segments[this.segments.length - 1]
-    );
-  }
-}
-
-function buildTimelineSegments(
-  endBeat: number,
-  tempoSegments: readonly (TempoSegment | ResolvedPracticeTempoSegment)[]
-): TimelineSegment[] {
-  if (endBeat <= 0) {
-    return [];
-  }
-  if (!tempoSegments || tempoSegments.length === 0) {
-    throw new Error('Practice tempo timeline segments cannot be built without tempo segments.');
-  }
-  const byBeat = new Map<number, { startBeat: number; bpm: number }>();
-  for (const segment of tempoSegments) {
-    if (
-      Number.isFinite(segment.startBeat) &&
-      segment.startBeat >= 0 &&
-      Number.isFinite(segment.bpm) &&
-      segment.bpm > 0
-    ) {
-      byBeat.set(roundBeat(segment.startBeat), { startBeat: roundBeat(segment.startBeat), bpm: segment.bpm });
-    } else {
-      throw new Error('Invalid explicit tempo timeline segment.');
-    }
-  }
-  if (!byBeat.has(0)) {
-    throw new Error('Practice tempo timeline segments must contain beat 0.');
-  }
-  const normalized = Array.from(byBeat.values()).sort((a, b) => a.startBeat - b.startBeat);
-  let currentTimeMs = 0;
-  return normalized.flatMap((tempo, index) => {
-    const nextStart = normalized[index + 1]?.startBeat ?? endBeat;
-    const startBeat = Math.min(Math.max(tempo.startBeat, 0), endBeat);
-    const end = Math.min(Math.max(nextStart, startBeat), endBeat);
-    if (end <= startBeat) {
-      return [];
-    }
-    const startTimeMs = currentTimeMs;
-    const endTimeMs = startTimeMs + beatsToMs(end - startBeat, tempo.bpm);
-    currentTimeMs = endTimeMs;
-    return [{ startBeat, endBeat: end, startTimeMs, endTimeMs, bpm: tempo.bpm }];
-  });
 }

@@ -137,7 +137,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
     },
   });
   const displayPlan = execution.executedPlan ?? plan;
-  const scopeStartBeat = displayPlan?.scope.startBeat ?? 0;
+  const scopeStartTick = displayPlan?.scope.startTick ?? 0;
   const displayRangeRenderNoteIds = execution.executedPlan?.scope.kind === 'RANGE'
     ? expectedGroups.slice(execution.executedPlan.scope.startIndex, execution.executedPlan.scope.endIndex + 1).flatMap(group => group.renderNoteIds)
     : execution.executedPlan ? [] : selectedRangeRenderNoteIds;
@@ -224,7 +224,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
       canSelectRange: !isActive,
       tempoSelection: displayPlan?.tempoPlan.selection ?? tempoSelection,
       scoreTempoSegments: artifact?.scoreTempoSegments,
-      scopeStartBeat,
+      scopeStartTick,
       tempoLocked: isActive,
       onTempoSelectionChange: setTempoSelection,
       metronomeEnabled,
@@ -284,7 +284,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
             <main className="min-w-0 xl:flex xl:h-full xl:min-h-0 xl:flex-1 xl:flex-col">
               <div className="relative flex min-h-[38rem] flex-col pb-28 xl:h-full xl:min-h-0 xl:flex-1">
                 <ClientOnly>
-                  <PracticeScoreViewer
+                  <PracticeScoreViewer artifact={artifact}
                     className="rounded-none border-0 shadow-none xl:min-h-0 xl:flex-1"
                     sessionStatus={practiceSessionStatus}
                     xmlContent={xmlContent}
@@ -292,7 +292,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
                     lifecycle={execution.lifecycle}
                     sessionMode={configuration.mode}
                     activeStepGroup={execution.activeStepGroup}
-                    performanceMusicalBeat={execution.performanceClock?.musicalBeat ?? null}
+                    performanceScoreTick={execution.performanceClock?.scoreTick ?? null}
                     performanceEvaluation={execution.performanceEvaluation}
                     showContinuousFeedback={profile.continuous.liveFeedbackEnabled}
                     performanceScope={
@@ -300,14 +300,14 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
                         ? range.hasRangeSelection
                           ? {
                               kind: 'RANGE' as const,
-                              startBeat: execution.performanceClock.scopeStartBeat,
-                              terminalBeat: execution.performanceClock.scopeTerminalBeat,
+                              startTick: execution.performanceClock.scopeStartTick,
+                              terminalTick: execution.performanceClock.scopeTerminalTick,
                               allowedNoteIds: displayRangeRenderNoteIds,
                             }
                           : {
                               kind: 'FULL' as const,
-                              startBeat: execution.performanceClock.scopeStartBeat,
-                              terminalBeat: execution.performanceClock.scopeTerminalBeat,
+                              startTick: execution.performanceClock.scopeStartTick,
+                              terminalTick: execution.performanceClock.scopeTerminalTick,
                             }
                         : null
                     }

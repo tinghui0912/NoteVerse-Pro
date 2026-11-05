@@ -7,13 +7,13 @@ export type ScopeTiming = {
 };
 
 export function resolveScopeTiming(
-  scope: Pick<{ startBeat: number; terminalBeat: number }, 'startBeat' | 'terminalBeat'>,
+  scope: Pick<{ startTick: number; terminalTick: number }, 'startTick' | 'terminalTick'>,
   tempoPlan: ResolvedPracticeTempoPlan,
-  scoreEndBeat: number
+  scoreEndTick: number, ticksPerQuarter: number
 ): ScopeTiming {
-  const timeline = new PracticeTempoTimeline(tempoPlan, scoreEndBeat);
-  const scopeStartMs = timeline.beatToTimeMs(scope.startBeat);
-  const scopeTerminalMs = timeline.beatToTimeMs(scope.terminalBeat);
+  const timeline = new PracticeTempoTimeline(tempoPlan, scoreEndTick, ticksPerQuarter);
+  const scopeStartMs = timeline.tickToTimeMs(scope.startTick);
+  const scopeTerminalMs = timeline.tickToTimeMs(scope.terminalTick);
   return {
     scopeStartMs,
     scopeTerminalMs,

@@ -9,8 +9,8 @@ function walk(node:ts.Node,visit:(node:ts.Node)=>void){visit(node);ts.forEachChi
 it('the session planner resolves one immutable metronome projection from admitted timing',()=>{
   const text=read('planning/session-plan.ts');expect(text).toContain('metronomePlan: ResolvedMetronomePlan');
   expect(text).toContain('metronomePlan: resolveMetronomePlan(');
-  for(const projection of ['current.artifact.meterSegments','current.artifact.scoreEndBeat','current.scope.startBeat',
-    'current.scope.terminalBeat','current.tempoPlan','intent.metronomeEnabled'])expect(text).toContain(projection);
+  for(const projection of ['current.artifact.meterSegments','current.artifact.scoreEndTick','current.scope.startTick',
+    'current.scope.terminalTick','current.tempoPlan','intent.metronomeEnabled'])expect(text).toContain(projection);
 });
 it.each(['step/step-practice-controller.ts','continuous/continuous-practice-controller.ts'])('%s composes resolved plan and browser audio; sync commands remain local',file=>{
   const source=tree(file);let constructors=0;

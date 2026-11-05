@@ -52,16 +52,16 @@ describe('StepPlayheadController', () => {
 
     const group1: PracticeMomentView = {
       groupId: 'g1',
-      onsetBeat: 1,
-      canonicalEndBeat: 2,
+      onsetTick: 1,
+      canonicalEndTick: 2,
       renderNoteIds: ['n1'],
       measureNumbers: ['1'],
     };
 
     const group2: PracticeMomentView = {
       groupId: 'g2',
-      onsetBeat: 2,
-      canonicalEndBeat: 3,
+      onsetTick: 2,
+      canonicalEndTick: 3,
       renderNoteIds: ['n2'],
       measureNumbers: ['1'],
     };

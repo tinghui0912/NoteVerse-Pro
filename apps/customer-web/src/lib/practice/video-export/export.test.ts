@@ -27,15 +27,15 @@ function createSession(
     },
     scope: {
       kind: 'RANGE',
-      startBeat: 4,
-      terminalBeat: 16,
+      startTick: 4,
+      terminalTick: 16,
       allowedNoteIds: ['note-page-1', 'note-page-2'],
     },
     tempoPlan: {
       selection: { mode: 'SCORE' },
       segments: [
-        { startBeat: 0, bpm: 120, source: 'MUSICXML' },
-        { startBeat: 8, bpm: 60, source: 'MUSICXML' },
+        { startTick: 0, bpm: 120, source: 'MUSICXML' },
+        { startTick: 8, bpm: 60, source: 'MUSICXML' },
       ],
     },
     video: {
@@ -57,14 +57,14 @@ function createSession(
 
 function createAdapter() {
   return {
-    getCursorTimelineEntryForBeatRange: vi.fn(
-      (beat: number, startBeat: number, terminalBeat: number) => {
-        if (beat < startBeat || beat > terminalBeat) return null;
-        const noteId = beat >= 8 ? 'note-page-2' : 'note-page-1';
+    getCursorTimelineEntryForTickRange: vi.fn(
+      (tick: number, startTick: number, terminalTick: number) => {
+        if (tick < startTick || tick > terminalTick) return null;
+        const noteId = tick >= 8 ? 'note-page-2' : 'note-page-1';
         return {
           index: 0,
-          beat,
-          endBeat: beat + 1,
+          tick,
+          endTick: tick + 1,
           noteIds: [noteId],
         };
       }
@@ -249,10 +249,10 @@ describe('video-export video export helpers', () => {
       session,
       adapter,
       mediaTimeMs: 1000,
-      scoreEndBeat: 24,
+      scoreEndTick: 24, ticksPerQuarter: 1,
     });
     expect(firstSegment?.perfTimeMs).toBe(1000);
-    expect(firstSegment?.musicalBeat).toBe(6);
+    expect(firstSegment?.scoreTick).toBe(6);
     expect(firstSegment?.pageNumber).toBe(1);
     expect(firstSegment?.noteIds).toEqual(['note-page-1']);
 
@@ -260,10 +260,10 @@ describe('video-export video export helpers', () => {
       session,
       adapter,
       mediaTimeMs: 4000,
-      scoreEndBeat: 24,
+      scoreEndTick: 24, ticksPerQuarter: 1,
     });
     expect(afterPause?.perfTimeMs).toBe(6000);
-    expect(afterPause?.musicalBeat).toBe(12);
+    expect(afterPause?.scoreTick).toBe(12);
     expect(afterPause?.pageNumber).toBe(2);
     expect(afterPause?.noteIds).toEqual(['note-page-2']);
   });
@@ -277,7 +277,7 @@ describe('video-export video export helpers', () => {
       adapter,
       mediaTimeMs: 5000,
       actualMediaDurationMs: 10000,
-      scoreEndBeat: 24,
+      scoreEndTick: 24, ticksPerQuarter: 1,
     });
 
     expect(frame?.perfTimeMs).toBe(3000);
@@ -605,11 +605,11 @@ describe('video-export video export helpers', () => {
     Object.defineProperty(video, 'videoHeight', { configurable: true, value: 480 });
 
     const adapter = {
-      getCursorTimelineEntryForBeatRange: vi.fn((beat: number) => ({
+      getCursorTimelineEntryForTickRange: vi.fn((tick: number) => ({
         index: 0,
-        beat,
-        endBeat: beat + 1,
-        noteIds: [beat % 2 === 0 ? 'note-a' : 'note-b'],
+        tick,
+        endTick: tick + 1,
+        noteIds: [tick % 2 === 0 ? 'note-a' : 'note-b'],
       })),
       getPageWithElement: vi.fn(() => 1),
     };
@@ -620,12 +620,12 @@ describe('video-export video export helpers', () => {
       },
       tempoPlan: {
         selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 60 },
-        segments: [{ startBeat: 0, bpm: 60, source: 'CUSTOM' }],
+        segments: [{ startTick: 0, bpm: 60, source: 'CUSTOM' }],
       },
       scope: {
         kind: 'FULL',
-        startBeat: 0,
-        terminalBeat: 8,
+        startTick: 0,
+        terminalTick: 8,
       },
     });
 
@@ -636,7 +636,7 @@ describe('video-export video export helpers', () => {
         video,
         session,
         adapter: adapter as never,
-        scoreEndBeat: 8,
+        scoreEndTick: 8, ticksPerQuarter: 1,
         frameState: { scorePages: cache, stagingCanvas, stagingCtx },
       });
     }
@@ -656,10 +656,10 @@ describe('video-export video export helpers', () => {
     Object.defineProperty(video, 'videoHeight', { configurable: true, value: 480 });
     Object.defineProperty(video, 'currentTime', { configurable: true, value: 1 });
     const adapter = {
-      getCursorTimelineEntryForBeatRange: vi.fn((beat: number) => ({
+      getCursorTimelineEntryForTickRange: vi.fn((tick: number) => ({
         index: 0,
-        beat,
-        endBeat: beat + 1,
+        tick,
+        endTick: tick + 1,
         noteIds: ['note-a'],
       })),
       getPageWithElement: vi.fn(() => 1),
@@ -670,7 +670,7 @@ describe('video-export video export helpers', () => {
       video,
       session: createSession(),
       adapter: adapter as never,
-      scoreEndBeat: 24,
+      scoreEndTick: 24, ticksPerQuarter: 1,
       frameState: { scorePages: cache, stagingCanvas, stagingCtx },
     });
 
@@ -693,10 +693,10 @@ describe('video-export video export helpers', () => {
     Object.defineProperty(video, 'videoHeight', { configurable: true, value: 480 });
     Object.defineProperty(video, 'currentTime', { configurable: true, value: 1 });
     const adapter = {
-      getCursorTimelineEntryForBeatRange: vi.fn(() => ({
+      getCursorTimelineEntryForTickRange: vi.fn(() => ({
         index: 0,
-        beat: 4,
-        endBeat: 5,
+        tick: 4,
+        endTick: 5,
         noteIds: ['note-a'],
       })),
       getPageWithElement: vi.fn(() => 1),
@@ -708,7 +708,7 @@ describe('video-export video export helpers', () => {
       video,
       session: createSession(),
       adapter: adapter as never,
-      scoreEndBeat: 24,
+      scoreEndTick: 24, ticksPerQuarter: 1,
       frameState,
     });
 
@@ -720,7 +720,7 @@ describe('video-export video export helpers', () => {
         video,
         session: createSession(),
         adapter: adapter as never,
-        scoreEndBeat: 24,
+        scoreEndTick: 24, ticksPerQuarter: 1,
         frameState,
       })).resolves.toBeUndefined();
     expect(loadImage).toHaveBeenCalledTimes(2);
@@ -759,7 +759,7 @@ describe('video-export video export helpers', () => {
       playbackTimeline: {
         resolve: () => ({
           perfTimeMs: 1000,
-          musicalBeat: 4,
+          scoreTick: 4,
           pageNumber: 1,
           noteIds: ['note-a'],
         }),
@@ -804,7 +804,7 @@ describe('video-export video export helpers', () => {
       playbackTimeline: {
         resolve: () => ({
           perfTimeMs: 1000,
-          musicalBeat: 4,
+          scoreTick: 4,
           pageNumber: 1,
           noteIds: ['note-a'],
         }),
@@ -874,10 +874,10 @@ describe('video-export video export helpers', () => {
     Object.defineProperty(video, 'videoHeight', { configurable: true, value: 480 });
     Object.defineProperty(video, 'currentTime', { configurable: true, value: 1 });
     const adapter = {
-      getCursorTimelineEntryForBeatRange: vi.fn((beat: number) => ({
+      getCursorTimelineEntryForTickRange: vi.fn((tick: number) => ({
         index: 0,
-        beat,
-        endBeat: beat + 1,
+        tick,
+        endTick: tick + 1,
         noteIds: ['note-a'],
       })),
       getPageWithElement: vi.fn(() => 1),
@@ -888,7 +888,7 @@ describe('video-export video export helpers', () => {
         video,
         session: createSession(),
         adapter: adapter as never,
-        scoreEndBeat: 24,
+        scoreEndTick: 24, ticksPerQuarter: 1,
         frameState: { scorePages: cache, stagingCanvas, stagingCtx },
       })).rejects.toThrow('video_export_failed:playback_event_geometry_unavailable');
   });
@@ -949,15 +949,15 @@ describe('video-export video export helpers', () => {
         video,
         session: createSession(),
         adapter: {
-          getCursorTimelineEntryForBeatRange: vi.fn((beat: number) => ({
+          getCursorTimelineEntryForTickRange: vi.fn((tick: number) => ({
             index: 0,
-            beat,
-            endBeat: beat + 1,
+            tick,
+            endTick: tick + 1,
             noteIds: ['note-a'],
           })),
           getPageWithElement: vi.fn(() => 1),
         } as never,
-        scoreEndBeat: 24,
+        scoreEndTick: 24, ticksPerQuarter: 1,
         frameState: { scorePages: cache, stagingCanvas, stagingCtx },
       })).resolves.toBeUndefined();
   });
@@ -1039,15 +1039,15 @@ describe('video-export video export helpers', () => {
         video,
         session: createSession(),
         adapter: {
-          getCursorTimelineEntryForBeatRange: vi.fn((beat: number) => ({
+          getCursorTimelineEntryForTickRange: vi.fn((tick: number) => ({
             index: 0,
-            beat,
-            endBeat: beat + 1,
+            tick,
+            endTick: tick + 1,
             noteIds: ['note-a'],
           })),
           getPageWithElement: vi.fn(() => 1),
         } as never,
-        scoreEndBeat: 24,
+        scoreEndTick: 24, ticksPerQuarter: 1,
         frameState: { scorePages: cache, stagingCanvas, stagingCtx },
       })).resolves.toBeUndefined();
   });

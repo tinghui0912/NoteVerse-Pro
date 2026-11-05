@@ -1,5 +1,7 @@
 """Immutable compiled-domain fixtures for pure timeline projection tests."""
 
+from app.modules.practice.score.time import PracticeScoreTimebase
+
 from app.modules.practice.score.domain import (
     CompiledPracticeNote,
     CompiledPracticeScore,
@@ -10,8 +12,8 @@ from app.modules.practice.score.domain import (
 def compiled_note(
     *,
     render_note_id: str,
-    onset_beat: float,
-    duration_beats: float,
+    onset_tick: int,
+    duration_ticks: int,
     piano_key: int,
     semantic_locator: str,
     measure_number: str = "1",
@@ -21,8 +23,8 @@ def compiled_note(
 ) -> CompiledPracticeNote:
     return CompiledPracticeNote(
         render_note_id,
-        onset_beat,
-        duration_beats,
+        onset_tick,
+        duration_ticks,
         piano_key,
         measure_number,
         staff_id,
@@ -35,7 +37,13 @@ def compiled_note(
 def compiled_score(
     *notes: CompiledPracticeNote,
     meter_segments: tuple[PracticeMeterSegment, ...] = (PracticeMeterSegment(0, 4, 4),),
+    ticks_per_quarter: int = 1,
 ) -> CompiledPracticeScore:
     return CompiledPracticeScore(
-        notes=notes, meter_segments=meter_segments, tempo_segments=(), measures=()
+        notes=notes,
+        meter_segments=meter_segments,
+        tempo_segments=(),
+        measures=(),
+        timebase=PracticeScoreTimebase(ticks_per_quarter),
+        score_end_tick=max((n.onset_tick + n.duration_ticks for n in notes), default=0),
     )

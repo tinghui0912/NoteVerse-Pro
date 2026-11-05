@@ -324,8 +324,8 @@ it('executes planned metronome geometry and preserves an active gesture across a
     const options = Reflect.get(s.metronome.start.mock.instances[0] as object, 'plan');
     expect(options).toBe(Reflect.get(s.controller, 'options').plan.metronomePlan);
     expect(options.tempoPlan).toBe(before.tempoPlan);
-    expect(options.scopeStartBeat).toBe(before.scope.startBeat);
-    expect(options.scopeEndBeat).toBe(before.scope.terminalBeat);
+    expect(options.scopeStartTick).toBe(before.scope.startTick);
+    expect(options.scopeEndTick).toBe(before.scope.terminalTick);
     expect(scope).not.toHaveBeenCalled(); expect(tempo).not.toHaveBeenCalled();
   } finally { await s.controller.dispose(); scope.mockRestore(); tempo.mockRestore(); }
 });

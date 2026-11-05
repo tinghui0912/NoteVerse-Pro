@@ -127,8 +127,8 @@ async def test_snapshot_replay_finalize_and_take_reads_survive_source_gc(postgre
                 "source_artifact_id",
                 "score_title_snapshot",
                 "tempo_plan",
-                "scope_start_beat",
-                "scope_terminal_beat",
+                "scope_start_tick",
+                "scope_terminal_tick",
             )
         }
         storage.put_bytes(key=row.staging_object_key, content=MEDIA, content_type="audio/webm")

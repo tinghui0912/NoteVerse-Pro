@@ -18,8 +18,8 @@ from ..domain import (
     CompiledPracticeMeasure,
     PracticeMeterSegment,
     PracticeTempoSegment,
-    canonical_beat,
 )
+from ..time import PracticeScoreTimebase
 from ..piano_key import PracticeScoreInvalidError, practice_piano_key
 
 PITCH_STEPS = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
@@ -42,15 +42,6 @@ def project_practice_score(model: CanonicalScoreSemanticModel) -> CompiledPracti
         invalid("Transposing notation is unsupported for Practice.")
     if any(n.is_grace for n in model.notes):
         invalid("Zero-time grace notation is unsupported for Practice.")
-    exported_positions: dict[float, Fraction] = {}
-
-    def beat(position: Fraction) -> float:
-        result = canonical_beat(position)
-        if result in exported_positions and exported_positions[result] != position:
-            invalid("Distinct score positions collapse at canonical beat precision.")
-        exported_positions[result] = position
-        return result
-
     meters: dict[Fraction, tuple[int, int]] = {}
     active_parts: dict[int, tuple[int, int]] = {}
     for position, facts in groupby(
@@ -72,11 +63,24 @@ def project_practice_score(model: CanonicalScoreSemanticModel) -> CompiledPracti
         meters[position] = compatible.pop()
     if not meters or min(meters) != 0:
         invalid("Practice requires explicit initial meter timing.")
+    required = [model.end]
+    required.extend(value for m in model.measures for value in (m.start, m.end))
+    required.extend(
+        value
+        for n in model.notes
+        if not n.is_rest
+        for value in (n.position, n.duration, n.position + n.duration)
+    )
+    required.extend(t.position for t in model.tempos)
+    for position, (numerator, denominator) in meters.items():
+        required.extend((position, Fraction(numerator * 4, denominator), Fraction(4, denominator)))
+    timebase = PracticeScoreTimebase.derive(required)
+    tick = timebase.to_tick
     meter_segments = tuple(
-        PracticeMeterSegment(beat(position), *value) for position, value in sorted(meters.items())
+        PracticeMeterSegment(tick(position), *value) for position, value in sorted(meters.items())
     )
     for meter_segment in meter_segments:
-        _ = meter_segment.measure_duration_beats
+        meter_segment.measure_duration_ticks(timebase.ticks_per_quarter)
 
     notes: list[CompiledPracticeNote] = []
     used_ids: set[str] = set()
@@ -98,10 +102,10 @@ def project_practice_score(model: CanonicalScoreSemanticModel) -> CompiledPracti
             t not in {"start", "stop"} for t in note.ties
         ):
             invalid("Unsupported Practice tie facts.")
-        onset = beat(note.position)
-        duration = canonical_beat(beat(note.position + note.duration) - onset)
+        onset = tick(note.position)
+        duration = tick(note.duration)
         if duration <= 0:
-            invalid("Note duration is below canonical beat precision.")
+            invalid("Practice requires positive note duration.")
         notes.append(
             CompiledPracticeNote(
                 note.source_id,
@@ -119,14 +123,16 @@ def project_practice_score(model: CanonicalScoreSemanticModel) -> CompiledPracti
         )
     tempos = {t.position: t.quarter_bpm for t in model.tempos}
     tempo_segments = tuple(
-        PracticeTempoSegment(beat(position), finite_float(bpm))
+        PracticeTempoSegment(tick(position), finite_float(bpm))
         for position, bpm in sorted(tempos.items())
     )
     measures = tuple(
-        CompiledPracticeMeasure(m.index, beat(m.start), beat(m.end), m.uses_meter_duration)
+        CompiledPracticeMeasure(m.index, tick(m.start), tick(m.end), m.uses_meter_duration)
         for m in model.measures
     )
-    return CompiledPracticeScore(tuple(notes), meter_segments, tempo_segments, measures)
+    return CompiledPracticeScore(
+        tuple(notes), meter_segments, tempo_segments, measures, timebase, tick(model.end)
+    )
 
 
 def finite_float(value: Fraction) -> float:

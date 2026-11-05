@@ -29,7 +29,7 @@ describe('production timing policy characterization', () => {
   });
   it.each(tempoGrid)('maps beat spacing through the real tempo timeline at %i BPM', bpm => {
     const timeline = fixedTimeline(bpm);
-    const duration = timeline.beatToTimeMs(5) - timeline.beatToTimeMs(4);
+    const duration = timeline.tickToTimeMs(1500) - timeline.tickToTimeMs(1200);
     expect(duration).toBeCloseTo(60_000 / bpm, 8);
     for (const spacing of spacingGrid) {
       const strikes = expectedPattern(timeline, [[60], [60]], spacing);

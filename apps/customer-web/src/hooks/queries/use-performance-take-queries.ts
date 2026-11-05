@@ -66,13 +66,13 @@ export interface SavePerformanceTakeInput {
   scope:
     | {
         kind: 'FULL';
-        startBeat: number;
-        terminalBeat: number;
+        startTick: number;
+        terminalTick: number;
       }
     | {
         kind: 'RANGE';
-        startBeat: number;
-        terminalBeat: number;
+        startTick: number;
+        terminalTick: number;
         startGroupId: string;
         endGroupId: string;
       };
@@ -173,7 +173,7 @@ function tempoMatchesExecution(
   return actual.segments.length === expected.segments.length &&
     actual.segments.every((segment, index) => {
       const executed = expected.segments[index];
-      return segment?.startBeat === executed.startBeat &&
+      return segment?.startTick === executed.startTick &&
         segment.bpm === executed.bpm && segment.source === executed.source;
     });
 }
@@ -184,8 +184,8 @@ function reservationMatchesExecution(
 ): boolean {
   const scope = reservation.resolved_scope;
   return reservation.metadata?.source?.source_id === input.sourceId && Boolean(scope) &&
-    scope.kind === input.scope.kind && scope.start_beat === input.scope.startBeat &&
-    scope.terminal_beat === input.scope.terminalBeat &&
+    scope.kind === input.scope.kind && scope.start_tick === input.scope.startTick &&
+    scope.terminal_tick === input.scope.terminalTick &&
     (input.scope.kind !== 'RANGE' || (scope.kind === 'RANGE' &&
       scope.start_group_id === input.scope.startGroupId && scope.end_group_id === input.scope.endGroupId)) &&
     tempoMatchesExecution(reservation.resolved_tempo_plan, input.tempoPlan);
@@ -197,7 +197,7 @@ function assertTakeMatchesExecution(
 ): asserts take is PerformanceTakeRead {
   if (
     !take || take.source_id !== input.sourceId || take.scope_type !== input.scope.kind ||
-    take.scope_start_beat !== input.scope.startBeat || take.scope_terminal_beat !== input.scope.terminalBeat ||
+    take.scope_start_tick !== input.scope.startTick || take.scope_terminal_tick !== input.scope.terminalTick ||
     (input.scope.kind === 'RANGE' && (take.scope_start_group_id !== input.scope.startGroupId ||
       take.scope_end_group_id !== input.scope.endGroupId)) ||
     !tempoMatchesExecution(take.tempo_plan, input.tempoPlan)

@@ -35,7 +35,6 @@ from app.storage.base import FileStorage
 from app.utils.timezone import utc_now_naive
 
 
-
 def _status_value(status: object) -> str:
     value = getattr(status, "value", status)
     return str(value)
@@ -119,8 +118,8 @@ class PerformanceTakeService:
             media_byte_size=take.media_byte_size,
             duration_ms=take.duration_ms,
             scope_type=scope_type,
-            scope_start_beat=take.scope_start_beat,
-            scope_terminal_beat=take.scope_terminal_beat,
+            scope_start_tick=take.scope_start_tick,
+            scope_terminal_tick=take.scope_terminal_tick,
             scope_start_group_id=take.scope_start_group_id,
             scope_end_group_id=take.scope_end_group_id,
             deletion_status=deletion_status,
@@ -213,9 +212,7 @@ class PerformanceTakeService:
         )
         can_open_score = await self._can_open_score(db, user_id, score)
 
-        return self._to_read_dto(
-            take, score=score, can_open_score=can_open_score
-        )
+        return self._to_read_dto(take, score=score, can_open_score=can_open_score)
 
     async def get_playback_url(
         self,

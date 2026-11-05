@@ -59,15 +59,15 @@ export function assertContinuousPerformanceResult(value: unknown): asserts value
   const scope = result.scope;
   if (!scope || !['FULL', 'RANGE'].includes(scope.kind) || !Number.isSafeInteger(scope.startIndex) || scope.startIndex < 0
     || !Number.isSafeInteger(scope.endIndex) || scope.endIndex < scope.startIndex
-    || !Number.isFinite(scope.startBeat) || scope.startBeat < 0 || !Number.isFinite(scope.terminalBeat) || scope.terminalBeat < scope.startBeat
+    || !Number.isSafeInteger(scope.startTick) || scope.startTick < 0 || !Number.isSafeInteger(scope.terminalTick) || scope.terminalTick < scope.startTick
     || scope.kind === 'RANGE' && (!scope.startGroupId || !scope.endGroupId)) throw new Error('Continuous result scope is invalid.');
   const plan = result.tempoPlan;
   if (!plan || !['SCORE', 'CUSTOM_FIXED_BPM'].includes(plan.selection?.mode)
     || plan.selection.mode === 'CUSTOM_FIXED_BPM' && (!Number.isFinite(plan.selection.bpm) || plan.selection.bpm <= 0)
-    || !Array.isArray(plan.segments) || !plan.segments.length || plan.segments[0].startBeat !== 0
-    || plan.segments.some((segment, index) => !Number.isFinite(segment.startBeat) || segment.startBeat < 0
+    || !Array.isArray(plan.segments) || !plan.segments.length || plan.segments[0].startTick !== 0
+    || plan.segments.some((segment, index) => !Number.isSafeInteger(segment.startTick) || segment.startTick < 0
       || !Number.isFinite(segment.bpm) || segment.bpm <= 0 || !['MUSICXML', 'PRODUCT_DEFAULT', 'CUSTOM'].includes(segment.source)
-      || index > 0 && segment.startBeat <= plan.segments[index - 1].startBeat)) throw new Error('Continuous result tempo is invalid.');
+      || index > 0 && segment.startTick <= plan.segments[index - 1].startTick)) throw new Error('Continuous result tempo is invalid.');
   assertCompletedEvaluation(result.evaluation, result.inputSource);
   assertNaturalResultCompletion(result.evaluation);
   if (result.evaluation.status === 'COMPLETE' && result.evaluation.assignment.sessionDomainId !== result.localSessionId) {

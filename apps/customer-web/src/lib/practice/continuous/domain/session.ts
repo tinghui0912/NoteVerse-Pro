@@ -14,7 +14,7 @@ export type LocalPerformanceSessionSnapshot = LocalPracticeSessionBase & {
     stateBeforePause: 'READY' | 'COUNT_IN' | 'RUNNING' | 'PAUSED' | 'ENDED';
     activeElapsedMs: number;
     countInMs: number;
-    countInBeats: number;
+    countInTicks: number;
     countInPulses: number;
   };
 };

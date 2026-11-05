@@ -4,10 +4,10 @@ from typing import Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.modules.practice.score.time import MAX_JSON_SAFE_INTEGER
 from app.modules.practice.score.timeline import assert_practice_timeline
 from app.modules.practice.score.piano_key import PracticePianoKey
 from app.modules.practice.score.domain import (
-    MAX_JSON_SAFE_INTEGER,
     PracticeScoreTimeline,
     PracticeScoreNote,
     PracticeScoreEvent,
@@ -34,8 +34,8 @@ class PracticeScoreNoteRead(StrictPracticeSourceModel):
 
 class PracticeScoreEventRead(StrictPracticeSourceModel):
     eventId: str
-    onsetBeat: float
-    durationBeats: float
+    onsetTick: int = Field(ge=0, le=MAX_JSON_SAFE_INTEGER)
+    durationTicks: int = Field(ge=0, le=MAX_JSON_SAFE_INTEGER)
 
 
 class PracticeScoreAttackRead(StrictPracticeSourceModel):
@@ -46,20 +46,20 @@ class PracticeScoreAttackRead(StrictPracticeSourceModel):
 
 class PracticeScoreMomentRead(StrictPracticeSourceModel):
     groupId: str
-    onsetBeat: float
-    canonicalEndBeat: float
+    onsetTick: int = Field(ge=0, le=MAX_JSON_SAFE_INTEGER)
+    canonicalEndTick: int = Field(ge=0, le=MAX_JSON_SAFE_INTEGER)
     attacks: list[PracticeScoreAttackRead]
     continuationNoteIds: list[str]
 
 
 class PracticeScoreMeterSegmentRead(StrictPracticeSourceModel):
-    startBeat: float
+    startTick: int = Field(ge=0, le=MAX_JSON_SAFE_INTEGER)
     numerator: int = Field(gt=0, le=MAX_JSON_SAFE_INTEGER)
     denominator: int = Field(gt=0, le=MAX_JSON_SAFE_INTEGER)
 
 
 class PracticeScoreTempoSegmentRead(StrictPracticeSourceModel):
-    startBeat: float
+    startTick: int = Field(ge=0, le=MAX_JSON_SAFE_INTEGER)
     bpm: float
 
 
@@ -73,7 +73,8 @@ class PracticeScoreArtifactRead(StrictPracticeSourceModel):
     moments: list[PracticeScoreMomentRead]
     meterSegments: list[PracticeScoreMeterSegmentRead] = Field(min_length=1)
     scoreTempoSegments: list[PracticeScoreTempoSegmentRead]
-    scoreEndBeat: float
+    ticksPerQuarter: int = Field(gt=0, le=MAX_JSON_SAFE_INTEGER)
+    scoreEndTick: int = Field(ge=0, le=MAX_JSON_SAFE_INTEGER)
 
     @model_validator(mode="after")
     def canonical_ownership(self) -> Self:
@@ -93,13 +94,13 @@ class PracticeScoreArtifactRead(StrictPracticeSourceModel):
                 for n in self.notes
             ),
             events=tuple(
-                PracticeScoreEvent(e.eventId, e.onsetBeat, e.durationBeats) for e in self.events
+                PracticeScoreEvent(e.eventId, e.onsetTick, e.durationTicks) for e in self.events
             ),
             moments=tuple(
                 PracticeMoment(
                     m.groupId,
-                    m.onsetBeat,
-                    m.canonicalEndBeat,
+                    m.onsetTick,
+                    m.canonicalEndTick,
                     tuple(
                         PracticeAttack(a.attackId, a.pianoKey, tuple(a.noteIds)) for a in m.attacks
                     ),
@@ -107,20 +108,26 @@ class PracticeScoreArtifactRead(StrictPracticeSourceModel):
                 )
                 for m in self.moments
             ),
-            end_beat=self.scoreEndBeat,
+            score_end_tick=self.scoreEndTick,
+            ticks_per_quarter=self.ticksPerQuarter,
             meter_segments=tuple(
-                PracticeMeterSegment(m.startBeat, m.numerator, m.denominator)
+                PracticeMeterSegment(m.startTick, m.numerator, m.denominator)
                 for m in self.meterSegments
             ),
         )
         assert_practice_timeline(timeline)
         if not self.scoreId or not self.revisionId or not self.artifactId:
             raise ValueError("Missing Practice artifact identity.")
-        previous = -1.0
+        previous = -1
         for tempo in self.scoreTempoSegments:
-            if tempo.startBeat < 0 or tempo.startBeat <= previous or tempo.bpm <= 0:
+            if (
+                tempo.startTick > self.scoreEndTick
+                or tempo.startTick < 0
+                or tempo.startTick <= previous
+                or tempo.bpm <= 0
+            ):
                 raise ValueError("Invalid score tempo chronology.")
-            previous = tempo.startBeat
+            previous = tempo.startTick
         return self
 
 

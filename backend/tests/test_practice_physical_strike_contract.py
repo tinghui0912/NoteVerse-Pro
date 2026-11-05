@@ -108,11 +108,11 @@ def test_canonical_graph_rejects_corruption_without_repair(kind):
     elif kind == "duplicate-moment":
         value["moments"][1]["groupId"] = value["moments"][0]["groupId"]
     elif kind == "chronology":
-        value["events"][0]["onsetBeat"] = 99
+        value["events"][0]["onsetTick"] = 99
     elif kind == "endpoint":
-        value["moments"][0]["canonicalEndBeat"] += 1
+        value["moments"][0]["canonicalEndTick"] += 1
     elif kind == "nan-endpoint":
-        value["moments"][0]["canonicalEndBeat"] = float("nan")
+        value["moments"][0]["canonicalEndTick"] = float("nan")
     elif kind == "duplicate-reference":
         a["noteIds"].append(a["noteIds"][0])
     elif kind == "dangling-event":

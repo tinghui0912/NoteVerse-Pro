@@ -3021,17 +3021,17 @@ export type PerformanceTakeRead = {
      */
     scope_end_group_id?: string | null;
     /**
-     * Scope Start Beat
-     */
-    scope_start_beat: number;
-    /**
      * Scope Start Group Id
      */
     scope_start_group_id?: string | null;
     /**
-     * Scope Terminal Beat
+     * Scope Start Tick
      */
-    scope_terminal_beat: number;
+    scope_start_tick: number;
+    /**
+     * Scope Terminal Tick
+     */
+    scope_terminal_tick: number;
     /**
      * Scope Type
      */
@@ -3072,13 +3072,13 @@ export type PerformanceTakeResolvedFullScope = {
      */
     kind: 'FULL';
     /**
-     * Start Beat
+     * Start Tick
      */
-    start_beat: number;
+    start_tick: number;
     /**
-     * Terminal Beat
+     * Terminal Tick
      */
-    terminal_beat: number;
+    terminal_tick: number;
 };
 
 /**
@@ -3094,17 +3094,17 @@ export type PerformanceTakeResolvedRangeScope = {
      */
     kind: 'RANGE';
     /**
-     * Start Beat
-     */
-    start_beat: number;
-    /**
      * Start Group Id
      */
     start_group_id: string;
     /**
-     * Terminal Beat
+     * Start Tick
      */
-    terminal_beat: number;
+    start_tick: number;
+    /**
+     * Terminal Tick
+     */
+    terminal_tick: number;
 };
 
 /**
@@ -3148,9 +3148,9 @@ export type PerformanceTakeTempoPlanSegment = {
      */
     source: string;
     /**
-     * Startbeat
+     * Starttick
      */
-    startBeat: number;
+    startTick: number;
 };
 
 /**
@@ -3346,9 +3346,9 @@ export type PracticeScoreArtifactRead = {
      */
     schemaVersion: 1;
     /**
-     * Scoreendbeat
+     * Scoreendtick
      */
-    scoreEndBeat: number;
+    scoreEndTick: number;
     /**
      * Scoreid
      */
@@ -3357,6 +3357,10 @@ export type PracticeScoreArtifactRead = {
      * Scoretemposegments
      */
     scoreTempoSegments: Array<PracticeScoreTempoSegmentRead>;
+    /**
+     * Ticksperquarter
+     */
+    ticksPerQuarter: number;
 };
 
 /**
@@ -3382,17 +3386,17 @@ export type PracticeScoreAttackRead = {
  */
 export type PracticeScoreEventRead = {
     /**
-     * Durationbeats
+     * Durationticks
      */
-    durationBeats: number;
+    durationTicks: number;
     /**
      * Eventid
      */
     eventId: string;
     /**
-     * Onsetbeat
+     * Onsettick
      */
-    onsetBeat: number;
+    onsetTick: number;
 };
 
 /**
@@ -3408,9 +3412,9 @@ export type PracticeScoreMeterSegmentRead = {
      */
     numerator: number;
     /**
-     * Startbeat
+     * Starttick
      */
-    startBeat: number;
+    startTick: number;
 };
 
 /**
@@ -3422,9 +3426,9 @@ export type PracticeScoreMomentRead = {
      */
     attacks: Array<PracticeScoreAttackRead>;
     /**
-     * Canonicalendbeat
+     * Canonicalendtick
      */
-    canonicalEndBeat: number;
+    canonicalEndTick: number;
     /**
      * Continuationnoteids
      */
@@ -3434,9 +3438,9 @@ export type PracticeScoreMomentRead = {
      */
     groupId: string;
     /**
-     * Onsetbeat
+     * Onsettick
      */
-    onsetBeat: number;
+    onsetTick: number;
 };
 
 /**
@@ -3486,9 +3490,9 @@ export type PracticeScoreTempoSegmentRead = {
      */
     bpm: number;
     /**
-     * Startbeat
+     * Starttick
      */
-    startBeat: number;
+    startTick: number;
 };
 
 /**

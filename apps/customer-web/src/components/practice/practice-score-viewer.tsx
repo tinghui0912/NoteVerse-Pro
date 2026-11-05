@@ -1,4 +1,5 @@
 'use client';
+import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -29,12 +30,13 @@ import type { PracticeExecutionLifecycle } from '@/lib/practice/application/prac
 type PracticeScoreViewerProps = {
   className?: string;
   sessionStatus?: ReactNode;
+  artifact: PracticeScoreArtifact | null;
   xmlContent: string | null;
   isLoadingXml: boolean;
   lifecycle: PracticeExecutionLifecycle;
   sessionMode: PracticeMode;
   activeStepGroup?: PracticeMomentView | null;
-  performanceMusicalBeat?: number | null;
+  performanceScoreTick?: number | null;
   performanceScope?: CursorScope | null;
   performanceEvaluation?: ContinuousTargetFeedback | null;
   showContinuousFeedback?: boolean;
@@ -46,11 +48,12 @@ export function PracticeScoreViewer({
   className,
   sessionStatus = null,
   xmlContent,
+  artifact,
   isLoadingXml,
   lifecycle,
   sessionMode,
   activeStepGroup = null,
-  performanceMusicalBeat = null,
+  performanceScoreTick = null,
   performanceScope = null,
   performanceEvaluation = null,
   showContinuousFeedback = false,
@@ -59,7 +62,7 @@ export function PracticeScoreViewer({
 }: PracticeScoreViewerProps) {
   const isMobile = useIsMobile();
   const tPractice = useTranslations('practice');
-  const adapter = useMemo(() => new PracticeVerovioAdapter(), []);
+  const adapter = useMemo(() => new PracticeVerovioAdapter(artifact), [artifact]);
   const adapterFactory = useCallback(() => adapter, [adapter]);
   const stepPlayheadController = useMemo(() => new StepPlayheadController(), []);
   const performancePlayheadController = useMemo(() => new PerformancePlayheadController(), []);
@@ -153,7 +156,7 @@ export function PracticeScoreViewer({
     if (
       !container ||
       sessionMode !== 'CONTINUOUS_PLAY' ||
-      performanceMusicalBeat === null ||
+      performanceScoreTick === null ||
       !xmlContent ||
       renderRevision === 0 ||
       (lifecycle !== 'ACTIVE' && lifecycle !== 'PAUSED')
@@ -172,12 +175,12 @@ export function PracticeScoreViewer({
     performancePlayheadController.apply(
       container,
       adapter,
-      performanceMusicalBeat,
+      performanceScoreTick,
       scope
     );
   }, [
     adapter,
-    performanceMusicalBeat,
+    performanceScoreTick,
     performanceScope,
     performancePlayheadController,
     lifecycle,

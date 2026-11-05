@@ -1,19 +1,21 @@
 import {
-  readNumericTimemapValue,
-  VerovioScoreAdapter,
-} from '@/lib/score/verovio';
+  assertPracticeScoreArtifact,
+  type PracticeScoreArtifact,
+} from '@/lib/practice/kernel/artifact';
+import { scoreTick } from '@/lib/practice/kernel/score-time';
+import { VerovioScoreAdapter } from '@/lib/score/verovio';
 
 export type PracticeVisualTimelineEntry = {
   index: number;
-  beat: number;
-  endBeat: number;
+  tick: number;
+  endTick: number;
   noteIds: string[];
   eventId?: string;
   groupId?: string;
 };
 
 export type PracticeDisplayAnchor = {
-  beat: number;
+  tick: number;
   event_id?: string | null;
   group_id?: string | null;
   render_note_ids?: string[];
@@ -21,10 +23,23 @@ export type PracticeDisplayAnchor = {
 
 export class PracticeVerovioAdapter extends VerovioScoreAdapter {
   private visualTimeline: PracticeVisualTimelineEntry[] = [];
+  constructor(
+    private readonly artifact: PracticeScoreArtifact | null,
+    factory?: ConstructorParameters<typeof VerovioScoreAdapter>[0]
+  ) {
+    super(factory);
+  }
 
   override async loadMusicXml(xml: string) {
-    await super.loadMusicXml(xml, { renderMidi: true, prepareGenericRenderIds: false, toolkitOptions: { expandNever: true } });
-    this.visualTimeline = this.buildVisualTimeline(this.renderTimemap());
+    if (!this.artifact)
+      throw new Error('Practice artifact required for written rendering.');
+    assertPracticeScoreArtifact(this.artifact);
+    await super.loadMusicXml(xml, {
+      renderMidi: false,
+      prepareGenericRenderIds: false,
+      toolkitOptions: { expandNever: true },
+    });
+    this.visualTimeline = this.buildVisualTimeline(this.artifact);
   }
 
   override dispose() {
@@ -32,15 +47,17 @@ export class PracticeVerovioAdapter extends VerovioScoreAdapter {
     super.dispose();
   }
 
-  getTimelineEntryForBeat(beat: number): PracticeVisualTimelineEntry | null {
-    if (!Number.isFinite(beat) || this.visualTimeline.length === 0) {
+  getTimelineEntryForTick(tick: number): PracticeVisualTimelineEntry | null {
+    if (!Number.isSafeInteger(tick) || this.visualTimeline.length === 0) {
       return null;
     }
 
     let bestEntry = this.visualTimeline[0] ?? null;
-    let bestDistance = bestEntry ? Math.abs(bestEntry.beat - beat) : Number.POSITIVE_INFINITY;
+    let bestDistance = bestEntry
+      ? Math.abs(bestEntry.tick - tick)
+      : Number.POSITIVE_INFINITY;
     for (const entry of this.visualTimeline) {
-      const distance = Math.abs(entry.beat - beat);
+      const distance = Math.abs(entry.tick - tick);
       if (distance < bestDistance) {
         bestEntry = entry;
         bestDistance = distance;
@@ -49,31 +66,30 @@ export class PracticeVerovioAdapter extends VerovioScoreAdapter {
     return bestEntry;
   }
 
-  getCursorTimelineEntryForBeatRange(
-    beat: number,
-    startBeat: number,
-    terminalBeat: number,
+  getCursorTimelineEntryForTickRange(
+    tick: number,
+    startTick: number,
+    terminalTick: number,
     allowedNoteIds: readonly string[] = []
   ): PracticeVisualTimelineEntry | null {
     if (
-      !Number.isFinite(beat) ||
-      !Number.isFinite(startBeat) ||
-      !Number.isFinite(terminalBeat) ||
-      terminalBeat < startBeat
+      !Number.isSafeInteger(tick) ||
+      !Number.isSafeInteger(startTick) ||
+      !Number.isSafeInteger(terminalTick) ||
+      terminalTick < startTick
     ) {
       return null;
     }
 
-    const beatEpsilon = 0.001;
-    const boundedBeat = Math.min(Math.max(beat, startBeat), terminalBeat);
+    const boundedTick = Math.min(Math.max(tick, startTick), terminalTick);
     const allowed = allowedNoteIds.length > 0 ? new Set(allowedNoteIds) : null;
     let cursorEntry: PracticeVisualTimelineEntry | null = null;
 
     for (const entry of this.visualTimeline) {
-      if (entry.beat < startBeat - beatEpsilon) {
+      if (entry.tick < startTick) {
         continue;
       }
-      if (entry.beat > terminalBeat + beatEpsilon || entry.beat > boundedBeat + beatEpsilon) {
+      if (entry.tick > terminalTick || entry.tick > boundedTick) {
         break;
       }
 
@@ -92,30 +108,38 @@ export class PracticeVerovioAdapter extends VerovioScoreAdapter {
     return cursorEntry;
   }
 
-  getNextTimelineEntryAfterBeat(beat: number): PracticeVisualTimelineEntry | null {
-    if (!Number.isFinite(beat) || this.visualTimeline.length === 0) {
+  getNextTimelineEntryAfterTick(
+    tick: number
+  ): PracticeVisualTimelineEntry | null {
+    if (!Number.isSafeInteger(tick) || this.visualTimeline.length === 0) {
       return null;
     }
 
-    const beatEpsilon = 0.001;
     return (
-      this.visualTimeline.find((entry) => entry.beat > beat + beatEpsilon) ??
+      this.visualTimeline.find((entry) => entry.tick > tick) ??
       this.visualTimeline[this.visualTimeline.length - 1] ??
       null
     );
   }
 
   getTimelineEntryByIndex(index: number): PracticeVisualTimelineEntry | null {
-    if (!Number.isInteger(index) || index < 0 || index >= this.visualTimeline.length) {
+    if (
+      !Number.isInteger(index) ||
+      index < 0 ||
+      index >= this.visualTimeline.length
+    ) {
       return null;
     }
     return this.visualTimeline[index] ?? null;
   }
 
-  getTimelineEntryForDisplayAnchor(anchor: PracticeDisplayAnchor): PracticeVisualTimelineEntry | null {
+  getTimelineEntryForDisplayAnchor(
+    anchor: PracticeDisplayAnchor
+  ): PracticeVisualTimelineEntry | null {
+    scoreTick(anchor.tick);
     const baseEntry =
-      this.getTimelineEntryForBeat(anchor.beat) ??
-      this.getNextTimelineEntryAfterBeat(anchor.beat);
+      this.getTimelineEntryForTick(anchor.tick) ??
+      this.getNextTimelineEntryAfterTick(anchor.tick);
     if (!baseEntry) {
       return null;
     }
@@ -123,54 +147,44 @@ export class PracticeVerovioAdapter extends VerovioScoreAdapter {
     const renderNoteIds = anchor.render_note_ids?.filter(Boolean) ?? [];
     return {
       ...baseEntry,
-      beat: anchor.beat,
+      tick: anchor.tick,
       eventId: anchor.event_id ?? undefined,
       groupId: anchor.group_id ?? undefined,
-      noteIds: renderNoteIds.length > 0 ? Array.from(new Set(renderNoteIds)) : baseEntry.noteIds,
+      noteIds:
+        renderNoteIds.length > 0
+          ? Array.from(new Set(renderNoteIds))
+          : baseEntry.noteIds,
     };
   }
 
-  private buildVisualTimeline(timemap: Array<Record<string, unknown>>) {
-    const noteStarts = new Map<string, number>();
-    const groupedByBeat = new Map<number, { endBeat: number; noteIds: string[] }>();
-
-    for (const entry of timemap) {
-      const beat = readNumericTimemapValue(entry, ['qstamp', 'beat']);
-      if (beat === null) {
-        continue;
-      }
-
-      const roundedBeat = Math.round(beat * 1000) / 1000;
-      const onIds = Array.isArray(entry.on)
-        ? entry.on.filter((value): value is string => typeof value === 'string')
-        : [];
-      const offIds = Array.isArray(entry.off)
-        ? entry.off.filter((value): value is string => typeof value === 'string')
-        : [];
-
-      for (const noteId of onIds) {
-        noteStarts.set(noteId, roundedBeat);
-      }
-      for (const noteId of offIds) {
-        const startBeat = noteStarts.get(noteId);
-        if (startBeat === undefined || roundedBeat <= startBeat) {
-          continue;
-        }
-        const current = groupedByBeat.get(startBeat) ?? { endBeat: startBeat, noteIds: [] };
-        groupedByBeat.set(startBeat, {
-          endBeat: Math.max(current.endBeat, roundedBeat),
-          noteIds: [...current.noteIds, noteId],
-        });
-      }
+  private buildVisualTimeline(
+    artifact: PracticeScoreArtifact
+  ): PracticeVisualTimelineEntry[] {
+    const events = new Map(
+      artifact.events.map((event) => [event.eventId, event])
+    );
+    const groups = new Map<number, { endTick: number; noteIds: string[] }>();
+    for (const note of artifact.notes) {
+      const event = events.get(note.eventId);
+      if (!event) throw new Error('Missing Practice notation event.');
+      const group = groups.get(event.onsetTick) ?? {
+        endTick: event.onsetTick,
+        noteIds: [],
+      };
+      group.endTick = Math.max(
+        group.endTick,
+        event.onsetTick + event.durationTicks
+      );
+      group.noteIds.push(note.renderNoteId);
+      groups.set(event.onsetTick, group);
     }
-
-    return Array.from(groupedByBeat.entries())
-      .sort(([leftBeat], [rightBeat]) => leftBeat - rightBeat)
-      .map(([beat, group], index) => ({
+    return [...groups]
+      .sort(([a], [b]) => a - b)
+      .map(([tick, group], index) => ({
         index,
-        beat,
-        endBeat: group.endBeat,
-        noteIds: Array.from(new Set(group.noteIds)),
+        tick,
+        endTick: group.endTick,
+        noteIds: [...new Set(group.noteIds)],
       }));
   }
 }

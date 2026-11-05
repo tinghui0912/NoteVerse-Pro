@@ -153,7 +153,7 @@ def test_canonical_practice_and_metadata_share_sound_playback_position(notation,
     assert [(t.position, t.quarter_bpm) for t in parse_score_semantics(xml).tempos] == [
         (Fraction(position), Fraction(60))
     ]
-    assert [(t.start_beat, t.bpm) for t in compile_practice_score(xml).tempo_segments] == [
+    assert [(t.start_tick, t.bpm) for t in compile_practice_score(xml).tempo_segments] == [
         (position, 60)
     ]
     metadata = extract_musicxml_metadata(xml)
@@ -208,7 +208,7 @@ def test_offset_position_agrees_in_practice_metadata_and_duration(before, offset
         + rest(after)
     )
     compiled = compile_practice_score(xml)
-    assert [(t.start_beat, t.bpm) for t in compiled.tempo_segments] == [(2, 60)]
+    assert [(t.start_tick, t.bpm) for t in compiled.tempo_segments] == [(2, 60)]
     metadata = extract_musicxml_metadata(xml)
     assert metadata.tempo_events == [{"part": 1, "measure": "1", "offset_quarters": 2, "bpm": 60}]
     assert metadata.playback_duration_ms == 3500  # 2 quarters at 80, then 2 at 60.
@@ -218,7 +218,7 @@ def test_missing_and_late_tempo_do_not_backfill_the_initial_default():
     assert extract_musicxml_metadata(score(rest(8))).playback_duration_ms == 3000
     xml = score(rest(4) + "<direction>" + metronome(rate="90") + "</direction>" + rest(4))
     assert extract_musicxml_metadata(xml).playback_duration_ms == 2833
-    assert [(t.start_beat, t.bpm) for t in compile_practice_score(xml).tempo_segments] == [(2, 90)]
+    assert [(t.start_tick, t.bpm) for t in compile_practice_score(xml).tempo_segments] == [(2, 90)]
 
 
 @pytest.mark.parametrize("value", ["0", "-1", "NaN", "Infinity", "bad"])

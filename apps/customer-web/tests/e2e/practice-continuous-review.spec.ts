@@ -48,16 +48,16 @@ const sampleMusicXml = `<?xml version="1.0" encoding="UTF-8"?>
 </score-partwise>`;
 
 const testArtifact: PracticeScoreArtifact = {
-  schemaVersion: 1,
+  schemaVersion: 1, ticksPerQuarter: 1,
   artifactId: 'practice-score-artifact:continuous-test', scoreId, revisionId,
-   scoreEndBeat: 4,
+   scoreEndTick: 4,
   notes: [60, 62, 64].map((pianoKey, i) => ({ noteId: `note-${i}`, eventId: `e-${i}`, pianoKey,
     renderNoteId: ['note-c4', 'note-d4', 'note-e4'][i], measureNumber: '1', staffId: '1', voiceId: '1', tieTypes: [] })),
-  events: [0,1,2].map(i => ({ eventId: `e-${i}`, onsetBeat: i, durationBeats: i === 2 ? 2 : 1 })),
-  moments: [60,62,64].map((pianoKey,i) => ({ groupId: `group-${i}`, onsetBeat: i, canonicalEndBeat: i === 2 ? 4 : i+1,
+  events: [0,1,2].map(i => ({ eventId: `e-${i}`, onsetTick: i, durationTicks: i === 2 ? 2 : 1 })),
+  moments: [60,62,64].map((pianoKey,i) => ({ groupId: `group-${i}`, onsetTick: i, canonicalEndTick: i === 2 ? 4 : i+1,
     attacks: [{ attackId: `strike-${i}`, pianoKey, noteIds: [`note-${i}`] }], continuationNoteIds: [] })),
-  meterSegments: [{ startBeat: 0, numerator: 4, denominator: 4,   }],
-  scoreTempoSegments: [{ startBeat: 0, bpm: 120 }],
+  meterSegments: [{ startTick: 0, numerator: 4, denominator: 4,   }],
+  scoreTempoSegments: [{ startTick: 0, bpm: 120 }],
 };
 
 function apiResponse(data: unknown) {
@@ -112,7 +112,7 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
   await mockRealtimeEvents(page);
 
   await page.route('**/api/v1/model-assets/practice-acoustic-robust-browser-v1/access', route => route.fulfill({
-    contentType: 'application/json', body: apiResponse({ schemaVersion: 1, assetId: 'practice-acoustic-robust-browser', assetVersion: 'v1',
+    contentType: 'application/json', body: apiResponse({ schemaVersion: 1, ticksPerQuarter: 1, assetId: 'practice-acoustic-robust-browser', assetVersion: 'v1',
       expectedByteSize: 98689283, sha256: '4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3', mediaType: 'application/octet-stream',
       downloadUrl: 'https://example.test/controlled-model', downloadUrlExpiresAt: new Date(Date.now() + 3600000).toISOString() }),
   }));
@@ -354,7 +354,7 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
       ? { kind: 'FULL' }
       : { kind: 'RANGE', startGroupId: request.scope.start_group_id, endGroupId: request.scope.end_group_id });
     return {
-      resolved_scope: { kind: scope.kind, start_beat: scope.startBeat, terminal_beat: scope.terminalBeat,
+      resolved_scope: { kind: scope.kind, start_tick: scope.startTick, terminal_tick: scope.terminalTick,
         ...(scope.kind === 'RANGE' ? { start_group_id: scope.startGroupId, end_group_id: scope.endGroupId } : {}) },
       resolved_tempo_plan: resolvePracticeTempoPlan(testArtifact, request.tempo_selection),
     };
@@ -374,7 +374,7 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
     saveProtocol.request = reservedRequest;
     saveProtocol.events.push('RESERVATION');
     const accepted = acceptedPlan(reservedRequest);
-    if (options.reservationMismatch === 'SCOPE') accepted.resolved_scope.terminal_beat += 1;
+    if (options.reservationMismatch === 'SCOPE') accepted.resolved_scope.terminal_tick += 1;
     if (options.reservationMismatch === 'TEMPO') {
       accepted.resolved_tempo_plan = { ...accepted.resolved_tempo_plan,
         segments: accepted.resolved_tempo_plan.segments.map((segment, index) => index === 0 ? { ...segment, bpm: segment.bpm + 1 } : segment) };
@@ -398,8 +398,8 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
       take_id: 'take-e2e-1', source_id: source.source_id, source_score_id: testArtifact.scoreId, source_revision_id: testArtifact.revisionId,
       source_artifact_id: testArtifact.artifactId, score_title_snapshot: 'Continuous Review Score',
       media_kind: media.kind, media_mime_type: media.mime_type, media_byte_size: media.byte_size,
-      duration_ms: media.duration_ms, scope_type: scope.kind, scope_start_beat: resolved_scope.start_beat,
-      scope_terminal_beat: resolved_scope.terminal_beat,
+      duration_ms: media.duration_ms, scope_type: scope.kind, scope_start_tick: resolved_scope.start_tick,
+      scope_terminal_tick: resolved_scope.terminal_tick,
       scope_start_group_id: scope.kind === 'RANGE' ? scope.start_group_id : null,
       scope_end_group_id: scope.kind === 'RANGE' ? scope.end_group_id : null,
       tempo_plan: { selection: resolved_tempo_plan.selection, segments: resolved_tempo_plan.segments.map(segment => ({ ...segment })) }, recording_timebase, created_at: '2026-09-20T12:00:00Z',

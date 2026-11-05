@@ -8,17 +8,17 @@ export type ResolveVideoExportPlaybackPositionInput = {
   session: VideoExportSession;
   adapter: Pick<
     PracticeVerovioAdapter,
-    'getCursorTimelineEntryForBeatRange' | 'getPageWithElement'
+    'getCursorTimelineEntryForTickRange' | 'getPageWithElement'
   >;
   pageNumberResolver?: (noteIds: readonly string[]) => number | null;
   mediaTimeMs: number;
   actualMediaDurationMs?: number | null;
-  scoreEndBeat: number;
+  scoreEndTick: number; ticksPerQuarter: number;
 };
 
 export type VideoExportPlaybackPosition = {
   perfTimeMs: number;
-  musicalBeat: number;
+  scoreTick: number;
   pageNumber: number;
   noteIds: string[];
 };
@@ -29,7 +29,7 @@ export function resolveVideoExportPlaybackPosition({
   pageNumberResolver,
   mediaTimeMs,
   actualMediaDurationMs,
-  scoreEndBeat,
+  scoreEndTick, ticksPerQuarter,
 }: ResolveVideoExportPlaybackPositionInput): VideoExportPlaybackPosition | null {
   const perfTimeMs = mediaTimeToPerformanceTimeMs(
     mediaTimeMs,
@@ -40,13 +40,13 @@ export function resolveVideoExportPlaybackPosition({
     return null;
   }
 
-  const timeline = new PracticeTempoTimeline(session.tempoPlan, scoreEndBeat);
-  const scopeStartMs = resolveScopeTiming(session.scope, session.tempoPlan, scoreEndBeat).scopeStartMs;
-  const musicalBeat = timeline.timeMsToBeat(scopeStartMs + perfTimeMs);
-  const entry = adapter.getCursorTimelineEntryForBeatRange(
-    musicalBeat,
-    session.scope.startBeat,
-    session.scope.terminalBeat,
+  const timeline = new PracticeTempoTimeline(session.tempoPlan, scoreEndTick, ticksPerQuarter);
+  const scopeStartMs = resolveScopeTiming(session.scope, session.tempoPlan, scoreEndTick, ticksPerQuarter).scopeStartMs;
+  const scoreTick = timeline.timeMsToTick(scopeStartMs + perfTimeMs);
+  const entry = adapter.getCursorTimelineEntryForTickRange(
+    scoreTick,
+    session.scope.startTick,
+    session.scope.terminalTick,
     session.scope.kind === 'RANGE' ? session.scope.allowedNoteIds : undefined
   );
   if (!entry || entry.noteIds.length === 0) {
@@ -66,7 +66,7 @@ export function resolveVideoExportPlaybackPosition({
 
   return {
     perfTimeMs,
-    musicalBeat,
+    scoreTick,
     pageNumber,
     noteIds: entry.noteIds,
   };

@@ -38,7 +38,7 @@ export type ContinuousControllerOptions = Readonly<{
   rootHealth: PracticeRootHealthPort;
   startupTimings?: PracticeStartupTimings;
   plan: ContinuousPracticeSessionPlan;
-  countInBeats?: number;
+  countInTicks?: number;
   onNaturalCompletion?(snapshot: LocalPerformanceSessionSnapshot): void;
 }>;
 export type ContinuousControllerState = 'IDLE' | 'PREPARING' | 'ACTIVE' | 'FINALIZING' | 'COMPLETE' | 'FAILED_BEFORE_START' | 'FAILED' | 'ABANDONED' | 'DISPOSED';
@@ -150,7 +150,7 @@ export class ContinuousPracticeController {
             } }
           : { inputSource: 'MICROPHONE' as const }), artifact: this.options.plan.artifact, scope: this.options.plan.scope,
         sourceId: this.options.plan.sourceId, tempoPlan: this.options.plan.tempoPlan, clock: this.renderClock ?? this.platform.midiClock,
-        localSessionId: createLocalSessionId(), countInBeats: this.options.countInBeats, metronomeEnabled: this.enabled });
+        localSessionId: createLocalSessionId(), countInTicks: this.options.countInTicks, metronomeEnabled: this.enabled });
       const session = this.session;
       if (this.microphone) {
         await this.microphone.connect({ context: this.context!, stream: this.rootStream!, sessionDomainId: session.timebase.domainId,

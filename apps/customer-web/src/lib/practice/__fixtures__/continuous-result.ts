@@ -19,7 +19,7 @@ import { resolvePracticeTempoPlan } from '@/lib/practice/kernel/tempo';
 
 export function canonicalContinuousResultFixture(inputSource: 'MIDI' | 'MICROPHONE' = 'MIDI', rate: 44100 | 48000 = 48000, available = true): ContinuousPerformanceResult {
   const artifact = artifactJson as PracticeScoreArtifact, scope = { kind: 'FULL' } as const, localSessionId = 'result-fixture';
-  const session = new ContinuousEvaluationSession({ artifact, scope: continuousSessionPlan(artifact, { scope: scope }).scope, inputSource, sessionDomainId: localSessionId, timeline: { beatToTimeMs: beat => beat * 500 } });
+  const session = new ContinuousEvaluationSession({ artifact, scope: continuousSessionPlan(artifact, { scope: scope }).scope, inputSource, sessionDomainId: localSessionId, timeline: { tickToTimeMs: tick => tick * 500 } });
   session.publish({ publicationId: 'coverage', sessionDomainId: localSessionId, analyzedThroughPerformanceMs: 10000, availabilitySessionTimeMs: 10000, observations: [] });
   session.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 10000, availabilitySessionTimeMs: 10000 });
   return createContinuousPerformanceResult({ sourceId: 'source-fixture', artifact, scope: continuousSessionPlan(artifact, { scope: scope }).scope, localSessionId, inputSource, activeElapsedMs: 10000, tempoPlan: resolvePracticeTempoPlan(artifact, { mode: 'SCORE' }), evaluation: available ? session.completedEvaluation() : unavailableContinuousEvaluation(inputSource, 'CONTINUOUS_ANALYSIS_UNAVAILABLE'), evidenceProvenance: inputSource === 'MIDI' ? midiEvidenceProvenance(CONTINUOUS_MIDI_EVIDENCE_POLICY_ID) : microphoneEvidenceProvenance(rate), completedAt: '2026-10-26T00:00:00.000Z' });

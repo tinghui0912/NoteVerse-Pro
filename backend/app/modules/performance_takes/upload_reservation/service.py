@@ -245,8 +245,8 @@ class PerformanceTakeUploadService:
     def _reservation_resolved_scope(reservation: PerformanceTakeUploadReservation) -> dict:
         scope = {
             "kind": reservation.scope_type,
-            "start_beat": reservation.scope_start_beat,
-            "terminal_beat": reservation.scope_terminal_beat,
+            "start_tick": reservation.scope_start_tick,
+            "terminal_tick": reservation.scope_terminal_tick,
         }
         if reservation.scope_type == "RANGE":
             scope.update(
@@ -537,14 +537,15 @@ class PerformanceTakeUploadService:
         artifact = authorized_source.source.artifact.value
         score = PracticePlanningScore(
             tuple(
-                PlanningMoment(moment["groupId"], moment["onsetBeat"], moment["canonicalEndBeat"])
+                PlanningMoment(moment["groupId"], moment["onsetTick"], moment["canonicalEndTick"])
                 for moment in artifact["moments"]
             ),
-            artifact["scoreEndBeat"],
+            artifact["scoreEndTick"],
             tuple(
-                PracticeTempoSegment(segment["startBeat"], segment["bpm"])
+                PracticeTempoSegment(segment["startTick"], segment["bpm"])
                 for segment in artifact["scoreTempoSegments"]
             ),
+            artifact["ticksPerQuarter"],
         )
         scope_selection = (
             FullScopeSelection()
@@ -564,7 +565,7 @@ class PerformanceTakeUploadService:
             {
                 "selection": asdict(plan.tempo_plan.selection),
                 "segments": [
-                    {"startBeat": segment.start_beat, "bpm": segment.bpm, "source": segment.source}
+                    {"startTick": segment.start_tick, "bpm": segment.bpm, "source": segment.source}
                     for segment in plan.tempo_plan.segments
                 ],
             }
@@ -600,8 +601,8 @@ class PerformanceTakeUploadService:
             source_artifact_id=source_ref.artifact_id,
             score_title_snapshot=authorized_source.score_title,
             scope_type=plan.scope.kind,
-            scope_start_beat=plan.scope.start_beat,
-            scope_terminal_beat=plan.scope.terminal_beat,
+            scope_start_tick=plan.scope.start_tick,
+            scope_terminal_tick=plan.scope.terminal_tick,
             scope_start_group_id=plan.scope.start_group_id,
             scope_end_group_id=plan.scope.end_group_id,
             tempo_plan=_json_snapshot(tempo_plan),
@@ -757,8 +758,8 @@ class PerformanceTakeUploadService:
             "finalizing_object_key": reservation.finalizing_object_key,
             "duration_ms": reservation.duration_ms,
             "scope_type": reservation.scope_type,
-            "scope_start_beat": reservation.scope_start_beat,
-            "scope_terminal_beat": reservation.scope_terminal_beat,
+            "scope_start_tick": reservation.scope_start_tick,
+            "scope_terminal_tick": reservation.scope_terminal_tick,
             "scope_start_group_id": reservation.scope_start_group_id,
             "scope_end_group_id": reservation.scope_end_group_id,
             "tempo_plan": reservation.tempo_plan,
@@ -985,8 +986,8 @@ class PerformanceTakeUploadService:
             storage_backend=reservation_snapshot["storage_backend"],
             duration_ms=reservation_snapshot["duration_ms"],
             scope_type=reservation_snapshot["scope_type"],
-            scope_start_beat=reservation_snapshot["scope_start_beat"],
-            scope_terminal_beat=reservation_snapshot["scope_terminal_beat"],
+            scope_start_tick=reservation_snapshot["scope_start_tick"],
+            scope_terminal_tick=reservation_snapshot["scope_terminal_tick"],
             scope_start_group_id=reservation_snapshot["scope_start_group_id"],
             scope_end_group_id=reservation_snapshot["scope_end_group_id"],
             deletion_status=PerformanceTakeDeletionStatus.ACTIVE.value,

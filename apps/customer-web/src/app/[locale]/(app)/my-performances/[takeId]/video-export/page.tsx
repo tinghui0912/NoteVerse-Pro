@@ -99,7 +99,7 @@ export default function SavedPerformanceVideoExportPage() {
   const [mediaTimeMs, setMediaTimeMs] = useState(0);
   const [scoreContainer, setScoreContainer] = useState<HTMLDivElement | null>(null);
   const [isReplayPlaying, setIsReplayPlaying] = useState(false);
-  const adapter = useMemo(() => new PracticeVerovioAdapter(), []);
+  const adapter = useMemo(() => new PracticeVerovioAdapter(artifact), [artifact]);
   const adapterFactory = useCallback(() => adapter, [adapter]);
 
   useEffect(() => {
@@ -326,7 +326,7 @@ export default function SavedPerformanceVideoExportPage() {
         session={session}
         scoreContainer={scoreContainer}
         adapter={adapter}
-        scoreEndBeat={artifact.scoreEndBeat}
+        scoreEndTick={artifact.scoreEndTick} ticksPerQuarter={artifact.ticksPerQuarter}
         isScoreIdentityConfirmed={isSourceReady}
         xmlContent={xmlContent}
         mediaTimeMs={mediaTimeMs}

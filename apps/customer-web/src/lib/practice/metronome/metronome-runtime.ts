@@ -14,7 +14,7 @@ export class MetronomeRuntime {
   private static readonly LOOKAHEAD_MS = 25;
   private static readonly SCHEDULE_AHEAD_SEC = 0.1;
   constructor(private readonly plan: ResolvedMetronomePlan, private readonly audio: MetronomeAudioPort) {
-    this.timeline = new PracticeTempoTimeline(plan.tempoPlan, plan.timelineEndBeat);
+    this.timeline = new PracticeTempoTimeline(plan.tempoPlan, plan.timelineEndTick, plan.ticksPerQuarter);
     this.isEnabled = plan.initiallyEnabled;
   }
   get enabled(): boolean { return this.isEnabled; }
@@ -25,9 +25,9 @@ export class MetronomeRuntime {
     this.isEnabled = enabled;
     if (enabled && this.isRunning) { this.activate(); this.tick(); }
   }
-  setStepContext(targetOnsetBeat: number): void {
+  setStepContext(targetOnsetTick: number): void {
     if (this.disposed || this.plan.mode !== 'STEP') return;
-    this.cursor = MetronomePulsePlanner.createStepCursor(targetOnsetBeat, this.plan, this.timeline, this.audio.nowMs() + 50);
+    this.cursor = MetronomePulsePlanner.createStepCursor(targetOnsetTick, this.plan, this.timeline, this.audio.nowMs() + 50);
   }
   syncContinuous(syncPoint: ContinuousMetronomeSyncPoint): void {
     if (this.disposed || this.plan.mode !== 'CONTINUOUS') return;
@@ -65,7 +65,7 @@ export class MetronomeRuntime {
     if (this.disposed || !this.isRunning || !this.cursor) return;
     const { pulses, nextCursor } = MetronomePulsePlanner.planNextPulses(this.cursor,
       this.audio.nowMs() + MetronomeRuntime.SCHEDULE_AHEAD_SEC * 1000,
-      { artifact: this.plan, timeline: this.timeline, scopeEndBeat: this.plan.scopeEndBeat });
+      { artifact: this.plan, timeline: this.timeline, scopeEndTick: this.plan.scopeEndTick });
     for (const pulse of pulses) if (this.isEnabled) {
       try { this.audio.scheduleClick({ atMs: pulse.timeMs, accent: pulse.isDownbeat }); } catch { /* Optional click fault. */ }
     }

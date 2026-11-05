@@ -6,28 +6,28 @@ import type { PracticeVerovioAdapter, PracticeVisualTimelineEntry } from './vero
 
 function makeAdapter(entries: PracticeVisualTimelineEntry[]) {
   return {
-    getTimelineEntryForBeat: (beat: number) =>
+    getTimelineEntryForTick: (tick: number) =>
       entries.reduce<PracticeVisualTimelineEntry | null>((bestEntry, entry) => {
         if (bestEntry === null) {
           return entry;
         }
-        return Math.abs(entry.beat - beat) < Math.abs(bestEntry.beat - beat)
+        return Math.abs(entry.tick - tick) < Math.abs(bestEntry.tick - tick)
           ? entry
           : bestEntry;
       }, null),
-    getCursorTimelineEntryForBeatRange: (
-      beat: number,
-      startBeat: number,
-      terminalBeat: number,
+    getCursorTimelineEntryForTickRange: (
+      tick: number,
+      startTick: number,
+      terminalTick: number,
       allowedNoteIds: readonly string[] = []
     ) => {
-      const boundedBeat = Math.min(Math.max(beat, startBeat), terminalBeat);
+      const boundedTick = Math.min(Math.max(tick, startTick), terminalTick);
       const allowed = allowedNoteIds.length > 0 ? new Set(allowedNoteIds) : null;
       return entries.reduce<PracticeVisualTimelineEntry | null>((bestEntry, entry) => {
         if (
-          entry.beat < startBeat - 0.001 ||
-          entry.beat > terminalBeat + 0.001 ||
-          entry.beat > boundedBeat + 0.001
+          entry.tick < startTick - 0.001 ||
+          entry.tick > terminalTick + 0.001 ||
+          entry.tick > boundedTick + 0.001
         ) {
           return bestEntry;
         }
@@ -41,7 +41,7 @@ function makeAdapter(entries: PracticeVisualTimelineEntry[]) {
         if (bestEntry === null) {
           return candidate;
         }
-        return candidate.beat >= bestEntry.beat ? candidate : bestEntry;
+        return candidate.tick >= bestEntry.tick ? candidate : bestEntry;
       }, null);
     },
     getPageWithElement: () => 1,
@@ -78,20 +78,20 @@ function makeContainer() {
 
 describe('PerformancePlayheadController', () => {
   const entries: PracticeVisualTimelineEntry[] = [
-    { index: 0, beat: 1, endBeat: 2, noteIds: ['n1'] },
-    { index: 1, beat: 2, endBeat: 3, noteIds: ['n2'] },
-    { index: 2, beat: 3, endBeat: 4, noteIds: ['n3'] },
+    { index: 0, tick: 1, endTick: 2, noteIds: ['n1'] },
+    { index: 1, tick: 2, endTick: 3, noteIds: ['n2'] },
+    { index: 2, tick: 3, endTick: 4, noteIds: ['n3'] },
   ];
 
-  it('moves one background cursor for the given musical beat without coloring notes', () => {
+  it('moves one background cursor for the given musical tick without coloring notes', () => {
     const controller = new PerformancePlayheadController();
     const container = makeContainer();
     const adapter = makeAdapter(entries);
 
     controller.apply(container, adapter, 2, {
       kind: 'FULL',
-      startBeat: 1,
-      terminalBeat: 4,
+      startTick: 1,
+      terminalTick: 4,
     });
 
     expect(container.querySelector('[data-practice-playhead-cursor]')).not.toBeNull();
@@ -99,39 +99,39 @@ describe('PerformancePlayheadController', () => {
     expect(container.querySelector('[data-id="n1"]')).not.toHaveClass('practice-note-active');
   });
 
-  it('clears decorations when musical beat is null', () => {
+  it('clears decorations when musical tick is null', () => {
     const controller = new PerformancePlayheadController();
     const container = makeContainer();
     const adapter = makeAdapter(entries);
 
     controller.apply(container, adapter, 2, {
       kind: 'FULL',
-      startBeat: 1,
-      terminalBeat: 4,
+      startTick: 1,
+      terminalTick: 4,
     });
     expect(container.querySelector('[data-practice-playhead-cursor]')).not.toBeNull();
 
     controller.apply(container, adapter, null, {
       kind: 'FULL',
-      startBeat: 1,
-      terminalBeat: 4,
+      startTick: 1,
+      terminalTick: 4,
     });
     expect(container.querySelector('[data-practice-playhead-cursor]')).toBeNull();
   });
 
-  it('scopes cursor to beat range and selected note IDs', () => {
+  it('scopes cursor to tick range and selected note IDs', () => {
     const controller = new PerformancePlayheadController();
     const container = makeContainer();
     const adapter = makeAdapter(entries);
 
     controller.apply(container, adapter, 3, {
       kind: 'RANGE',
-      startBeat: 1,
-      terminalBeat: 2,
+      startTick: 1,
+      terminalTick: 2,
       allowedNoteIds: ['n1', 'n2'],
     });
 
-    // Bounded beat is 2, so n2 is active, not n3
+    // Bounded tick is 2, so n2 is active, not n3
     expect(container.querySelector('[data-practice-playhead-cursor]')).not.toBeNull();
     expect(container.querySelector('[data-id="n2"]')).not.toHaveClass('practice-note-active');
     expect(container.querySelector('[data-id="n3"]')).not.toHaveClass('practice-note-active');
@@ -144,8 +144,8 @@ describe('PerformancePlayheadController', () => {
 
     controller.apply(container, adapter, 2, {
       kind: 'RANGE',
-      startBeat: 1,
-      terminalBeat: 4,
+      startTick: 1,
+      terminalTick: 4,
       allowedNoteIds: [],
     });
 

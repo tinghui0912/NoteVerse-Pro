@@ -37,10 +37,10 @@ import { captureReplayVideoFrame } from './preview';
 const session: VideoExportSession = {
   sessionId: 'session-1', sourceId: 'source-1',
   scoreIdentity: { scoreId: 'score-1', revisionId: 'revision-1', artifactId: 'artifact-1' },
-  scope: { kind: 'FULL', startBeat: 0, terminalBeat: 16 },
+  scope: { kind: 'FULL', startTick: 0, terminalTick: 16 },
   tempoPlan: {
     selection: { mode: 'SCORE' },
-    segments: [{ startBeat: 0, bpm: 96, source: 'MUSICXML' }],
+    segments: [{ startTick: 0, bpm: 96, source: 'MUSICXML' }],
   },
   recordingTimebase: {
     nominalMediaDurationMs: 4000,
@@ -70,7 +70,7 @@ describe('VideoExportPreview', () => {
     const { getByText, getByLabelText, container } = renderComponent(
       <NextIntlClientProvider locale={locale} messages={{ practice: messages }}>
         <VideoExportPreview session={session} scoreContainer={document.createElement('div')}
-          adapter={{} as never} scoreEndBeat={16} mediaTimeMs={0}
+          adapter={{} as never} scoreEndTick={16} ticksPerQuarter={1} mediaTimeMs={0}
           config={{ orientation: 'landscape', presentation: { kind: 'split' } }} replayVideo={null} />
       </NextIntlClientProvider>
     );
@@ -85,7 +85,7 @@ describe('VideoExportPreview', () => {
     const { getByText, getByRole, container } = renderComponent(
       <NextIntlClientProvider locale={locale} messages={{ practice: messages }}>
         <VideoExportPreview session={session} scoreContainer={document.createElement('div')}
-          adapter={{} as never} scoreEndBeat={16} mediaTimeMs={0}
+          adapter={{} as never} scoreEndTick={16} ticksPerQuarter={1} mediaTimeMs={0}
           config={{ orientation: 'landscape', presentation: { kind: 'split' } }} replayVideo={null} />
       </NextIntlClientProvider>
     );
@@ -113,7 +113,7 @@ describe('VideoExportPreview', () => {
         session={session}
         scoreContainer={scoreContainer}
         adapter={{} as never}
-        scoreEndBeat={16}
+        scoreEndTick={16} ticksPerQuarter={1}
         mediaTimeMs={1250}
         config={{ orientation: 'landscape', presentation: { kind: 'split' } }}
         replayVideo={video}
@@ -130,7 +130,7 @@ describe('VideoExportPreview', () => {
         session={session}
         scoreContainer={scoreContainer}
         adapter={{} as never}
-        scoreEndBeat={16}
+        scoreEndTick={16} ticksPerQuarter={1}
         mediaTimeMs={1250}
         config={{ orientation: 'portrait', presentation: { kind: 'split' } }}
         replayVideo={video}
@@ -160,7 +160,7 @@ describe('VideoExportPreview', () => {
         session={session}
         scoreContainer={scoreContainer}
         adapter={{} as never}
-        scoreEndBeat={16}
+        scoreEndTick={16} ticksPerQuarter={1}
         mediaTimeMs={1250}
         config={{
           orientation: 'portrait',
@@ -220,7 +220,7 @@ describe('VideoExportPreview', () => {
         session={session}
         scoreContainer={document.createElement('div')}
         adapter={{} as never}
-        scoreEndBeat={16}
+        scoreEndTick={16} ticksPerQuarter={1}
         mediaTimeMs={1000}
         config={{ orientation: 'landscape', presentation: { kind: 'split' } }}
         replayVideo={video}

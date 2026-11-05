@@ -10,7 +10,6 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     Enum as SAEnum,
-    Float,
     ForeignKey,
     Index,
     Integer,
@@ -38,7 +37,9 @@ class PerformanceTakeDeletionStatus(str, enum.Enum):
 class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "performance_takes"
     __table_args__ = (
-        CheckConstraint("deletion_status IN ('ACTIVE','DELETING')", name="ck_performance_takes_deletion_status"),
+        CheckConstraint(
+            "deletion_status IN ('ACTIVE','DELETING')", name="ck_performance_takes_deletion_status"
+        ),
         CheckConstraint("scope_type IN ('FULL','RANGE')", name="ck_performance_takes_scope_type"),
         CheckConstraint("media_kind IN ('AUDIO','VIDEO')", name="ck_performance_takes_media_kind"),
         UniqueConstraint("upload_reservation_id", name="uq_performance_takes_upload_reservation"),
@@ -98,8 +99,8 @@ class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
     scope_type: str = Field(
         sa_column=Column(String(16), nullable=False),
     )
-    scope_start_beat: float = Field(sa_column=Column(Float, nullable=False))
-    scope_terminal_beat: float = Field(sa_column=Column(Float, nullable=False))
+    scope_start_tick: int = Field(sa_column=Column(BigInteger, nullable=False))
+    scope_terminal_tick: int = Field(sa_column=Column(BigInteger, nullable=False))
     scope_start_group_id: Optional[str] = Field(
         default=None,
         sa_column=Column(String(128), nullable=True),

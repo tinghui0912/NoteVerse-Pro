@@ -5988,10 +5988,6 @@
             ],
             "title": "Scope End Group Id"
           },
-          "scope_start_beat": {
-            "title": "Scope Start Beat",
-            "type": "number"
-          },
           "scope_start_group_id": {
             "anyOf": [
               {
@@ -6003,9 +5999,17 @@
             ],
             "title": "Scope Start Group Id"
           },
-          "scope_terminal_beat": {
-            "title": "Scope Terminal Beat",
-            "type": "number"
+          "scope_start_tick": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Scope Start Tick",
+            "type": "integer"
+          },
+          "scope_terminal_tick": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 9007199254740991.0,
+            "title": "Scope Terminal Tick",
+            "type": "integer"
           },
           "scope_type": {
             "title": "Scope Type",
@@ -6052,8 +6056,8 @@
           "media_byte_size",
           "duration_ms",
           "scope_type",
-          "scope_start_beat",
-          "scope_terminal_beat",
+          "scope_start_tick",
+          "scope_terminal_tick",
           "tempo_plan",
           "recording_timebase",
           "created_at"
@@ -6069,21 +6073,23 @@
             "title": "Kind",
             "type": "string"
           },
-          "start_beat": {
+          "start_tick": {
+            "maximum": 9007199254740991.0,
             "minimum": 0.0,
-            "title": "Start Beat",
-            "type": "number"
+            "title": "Start Tick",
+            "type": "integer"
           },
-          "terminal_beat": {
+          "terminal_tick": {
             "exclusiveMinimum": 0.0,
-            "title": "Terminal Beat",
-            "type": "number"
+            "maximum": 9007199254740991.0,
+            "title": "Terminal Tick",
+            "type": "integer"
           }
         },
         "required": [
           "kind",
-          "start_beat",
-          "terminal_beat"
+          "start_tick",
+          "terminal_tick"
         ],
         "title": "PerformanceTakeResolvedFullScope",
         "type": "object"
@@ -6102,27 +6108,29 @@
             "title": "Kind",
             "type": "string"
           },
-          "start_beat": {
-            "minimum": 0.0,
-            "title": "Start Beat",
-            "type": "number"
-          },
           "start_group_id": {
             "maxLength": 128,
             "minLength": 1,
             "title": "Start Group Id",
             "type": "string"
           },
-          "terminal_beat": {
+          "start_tick": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Start Tick",
+            "type": "integer"
+          },
+          "terminal_tick": {
             "exclusiveMinimum": 0.0,
-            "title": "Terminal Beat",
-            "type": "number"
+            "maximum": 9007199254740991.0,
+            "title": "Terminal Tick",
+            "type": "integer"
           }
         },
         "required": [
           "kind",
-          "start_beat",
-          "terminal_beat",
+          "start_tick",
+          "terminal_tick",
           "start_group_id",
           "end_group_id"
         ],
@@ -6195,14 +6203,15 @@
             "title": "Source",
             "type": "string"
           },
-          "startBeat": {
+          "startTick": {
+            "maximum": 9007199254740991.0,
             "minimum": 0.0,
-            "title": "Startbeat",
-            "type": "number"
+            "title": "Starttick",
+            "type": "integer"
           }
         },
         "required": [
-          "startBeat",
+          "startTick",
           "bpm",
           "source"
         ],
@@ -6563,9 +6572,11 @@
             "title": "Schemaversion",
             "type": "integer"
           },
-          "scoreEndBeat": {
-            "title": "Scoreendbeat",
-            "type": "number"
+          "scoreEndTick": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Scoreendtick",
+            "type": "integer"
           },
           "scoreId": {
             "title": "Scoreid",
@@ -6577,6 +6588,12 @@
             },
             "title": "Scoretemposegments",
             "type": "array"
+          },
+          "ticksPerQuarter": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 9007199254740991.0,
+            "title": "Ticksperquarter",
+            "type": "integer"
           }
         },
         "required": [
@@ -6589,7 +6606,8 @@
           "moments",
           "meterSegments",
           "scoreTempoSegments",
-          "scoreEndBeat"
+          "ticksPerQuarter",
+          "scoreEndTick"
         ],
         "title": "PracticeScoreArtifactRead",
         "type": "object"
@@ -6626,23 +6644,27 @@
       "PracticeScoreEventRead": {
         "additionalProperties": false,
         "properties": {
-          "durationBeats": {
-            "title": "Durationbeats",
-            "type": "number"
+          "durationTicks": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Durationticks",
+            "type": "integer"
           },
           "eventId": {
             "title": "Eventid",
             "type": "string"
           },
-          "onsetBeat": {
-            "title": "Onsetbeat",
-            "type": "number"
+          "onsetTick": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Onsettick",
+            "type": "integer"
           }
         },
         "required": [
           "eventId",
-          "onsetBeat",
-          "durationBeats"
+          "onsetTick",
+          "durationTicks"
         ],
         "title": "PracticeScoreEventRead",
         "type": "object"
@@ -6662,13 +6684,15 @@
             "title": "Numerator",
             "type": "integer"
           },
-          "startBeat": {
-            "title": "Startbeat",
-            "type": "number"
+          "startTick": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Starttick",
+            "type": "integer"
           }
         },
         "required": [
-          "startBeat",
+          "startTick",
           "numerator",
           "denominator"
         ],
@@ -6685,9 +6709,11 @@
             "title": "Attacks",
             "type": "array"
           },
-          "canonicalEndBeat": {
-            "title": "Canonicalendbeat",
-            "type": "number"
+          "canonicalEndTick": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Canonicalendtick",
+            "type": "integer"
           },
           "continuationNoteIds": {
             "items": {
@@ -6700,15 +6726,17 @@
             "title": "Groupid",
             "type": "string"
           },
-          "onsetBeat": {
-            "title": "Onsetbeat",
-            "type": "number"
+          "onsetTick": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Onsettick",
+            "type": "integer"
           }
         },
         "required": [
           "groupId",
-          "onsetBeat",
-          "canonicalEndBeat",
+          "onsetTick",
+          "canonicalEndTick",
           "attacks",
           "continuationNoteIds"
         ],
@@ -6780,13 +6808,15 @@
             "title": "Bpm",
             "type": "number"
           },
-          "startBeat": {
-            "title": "Startbeat",
-            "type": "number"
+          "startTick": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Starttick",
+            "type": "integer"
           }
         },
         "required": [
-          "startBeat",
+          "startTick",
           "bpm"
         ],
         "title": "PracticeScoreTempoSegmentRead",

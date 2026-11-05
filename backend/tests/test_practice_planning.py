@@ -28,11 +28,12 @@ def resolve(case):
     facts, scope, tempo = case["score"], case["scope"], case["tempoSelection"]
     score = PracticePlanningScore(
         tuple(
-            PlanningMoment(m["groupId"], m["onsetBeat"], m["canonicalEndBeat"])
+            PlanningMoment(m["groupId"], m["onsetTick"], m["canonicalEndTick"])
             for m in facts["moments"]
         ),
-        facts["scoreEndBeat"],
-        tuple(PracticeTempoSegment(t["startBeat"], t["bpm"]) for t in facts["scoreTempoSegments"]),
+        facts["scoreEndTick"],
+        tuple(PracticeTempoSegment(t["startTick"], t["bpm"]) for t in facts["scoreTempoSegments"]),
+        facts["ticksPerQuarter"],
     )
     return resolve_practice_score_plan(
         score,
@@ -53,8 +54,8 @@ def test_shared_score_planning_contract(case):
     plan = resolve(case)
     scope = {
         "kind": plan.scope.kind,
-        "startBeat": plan.scope.start_beat,
-        "terminalBeat": plan.scope.terminal_beat,
+        "startTick": plan.scope.start_tick,
+        "terminalTick": plan.scope.terminal_tick,
     }
     if plan.scope.kind == "RANGE":
         scope.update(startGroupId=plan.scope.start_group_id, endGroupId=plan.scope.end_group_id)
@@ -63,7 +64,7 @@ def test_shared_score_planning_contract(case):
         "tempoPlan": {
             "selection": asdict(plan.tempo_plan.selection),
             "segments": [
-                {"startBeat": t.start_beat, "bpm": t.bpm, "source": t.source}
+                {"startTick": t.start_tick, "bpm": t.bpm, "source": t.source}
                 for t in plan.tempo_plan.segments
             ],
         },
@@ -79,6 +80,6 @@ def test_custom_selection_requires_a_finite_numeric_product_value(bpm):
 def test_resolved_planning_values_are_immutable():
     plan = resolve(CASES[0])
     with pytest.raises(FrozenInstanceError):
-        plan.scope.start_beat = 999
+        plan.scope.start_tick = 999
     with pytest.raises(FrozenInstanceError):
         plan.tempo_plan.segments[0].bpm = 1

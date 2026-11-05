@@ -375,7 +375,7 @@ def test_complete_written_spans_are_independent_of_visited_occurrences():
 def test_practice_keeps_written_notes_once_without_selecting_volta_branches():
     compiled = compile_practice_score(score(volta()))
     assert len(compiled.notes) == 3
-    assert [m.start_beat for m in compiled.measures] == [0, 4, 8]
+    assert [m.start_tick for m in compiled.measures] == [0, 4, 8]
 
 
 @pytest.mark.parametrize("navigation", ['dacapo="yes"', 'dalsegno="s"'])

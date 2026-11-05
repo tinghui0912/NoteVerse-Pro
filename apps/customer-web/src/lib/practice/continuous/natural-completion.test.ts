@@ -14,7 +14,7 @@ const artifact = fixture as PracticeScoreArtifact;
 describe.each(['MIDI', 'MICROPHONE'] as const)('%s natural completion composition', inputSource => {
   function setup() {
     const clock = new ManualClock(0);
-    const configuration = { ...continuousSessionPlan(artifact), clock, countInBeats: 0 };
+    const configuration = { ...continuousSessionPlan(artifact), clock, countInTicks: 0 };
     const session = new ContinuousPracticeSession(inputSource === 'MIDI'
       ? { ...configuration, inputSource, createClockEvidence: id => new ContinuousMidiEvidence(id) }
       : { ...configuration, inputSource });

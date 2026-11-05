@@ -37,7 +37,7 @@ export function VideoExportPreview({
   session,
   scoreContainer,
   adapter,
-  scoreEndBeat,
+  scoreEndTick, ticksPerQuarter,
   mediaTimeMs,
   config,
   isReplayPlaying = false,
@@ -47,7 +47,7 @@ export function VideoExportPreview({
   session: VideoExportSession;
   scoreContainer: HTMLElement | null;
   adapter: PracticeVerovioAdapter;
-  scoreEndBeat: number;
+  scoreEndTick: number; ticksPerQuarter: number;
   mediaTimeMs: number;
   config: VideoExportConfig;
   isReplayPlaying?: boolean;
@@ -156,7 +156,7 @@ export function VideoExportPreview({
                     Number.isFinite(sourceVideo.duration) && sourceVideo.duration > 0
                       ? sourceVideo.duration * 1000
                       : session.video.durationMs,
-                  scoreEndBeat,
+                  scoreEndTick, ticksPerQuarter,
                 }),
             },
             sourceVideoFrame: frozenSource.canvas,
@@ -191,7 +191,7 @@ export function VideoExportPreview({
     } finally {
       activeRenderRef.current = false;
     }
-  }, [adapter, commitStagingFrame, session, onFrameCommitted, replayVideo, scoreEndBeat, t]);
+  }, [adapter, commitStagingFrame, session, onFrameCommitted, replayVideo, scoreEndTick, ticksPerQuarter, t]);
 
   const enqueuePreview = useCallback(
     (nextTimeMs: number) => {

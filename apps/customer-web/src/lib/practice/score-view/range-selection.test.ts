@@ -13,22 +13,22 @@ import {
 const groups: PracticeMomentView[] = [
   {
     groupId: 'g1',
-    onsetBeat: 1,
-    canonicalEndBeat: 2,
+    onsetTick: 1,
+    canonicalEndTick: 2,
     renderNoteIds: ['n1'],
     measureNumbers: ['1'],
   },
   {
     groupId: 'g2',
-    onsetBeat: 2,
-    canonicalEndBeat: 3,
+    onsetTick: 2,
+    canonicalEndTick: 3,
     renderNoteIds: ['n2', 'n3'],
     measureNumbers: ['1'],
   },
   {
     groupId: 'g3',
-    onsetBeat: 3,
-    canonicalEndBeat: 4,
+    onsetTick: 3,
+    canonicalEndTick: 4,
     renderNoteIds: ['n4'],
     measureNumbers: ['2'],
   },

@@ -1,25 +1,15 @@
-"""Immutable canonical Practice score facts. One score beat is one quarter note."""
+"""Immutable Practice facts on one exact source-local integer score axis."""
 
 from __future__ import annotations
 from dataclasses import dataclass
-import math
-from typing import SupportsFloat
 from .piano_key import PracticeScoreInvalidError
-
-
-def canonical_beat(value: SupportsFloat) -> float:
-    try:
-        result = round(float(value), 6)
-    except (ValueError, OverflowError) as cause:
-        raise PracticeScoreInvalidError("Unrepresentable Practice beat position.") from cause
-    if not math.isfinite(result):
-        raise PracticeScoreInvalidError("Nonfinite Practice beat position.")
-    return result
-
-
-ScoreBeat = float
-# Exact integer range shared by canonical JSON and the browser Number domain.
-MAX_JSON_SAFE_INTEGER = 2**53 - 1
+from .time import (
+    MAX_JSON_SAFE_INTEGER,
+    ScoreTick,
+    TicksPerQuarter,
+    PracticeScoreTimebase,
+    score_tick,
+)
 
 
 @dataclass(frozen=True)
@@ -37,8 +27,8 @@ class PracticeScoreNote:
 @dataclass(frozen=True)
 class PracticeScoreEvent:
     event_id: str
-    onset_beat: ScoreBeat
-    duration_beats: ScoreBeat
+    onset_tick: ScoreTick
+    duration_ticks: ScoreTick
 
 
 @dataclass(frozen=True)
@@ -51,15 +41,15 @@ class PracticeAttack:
 @dataclass(frozen=True)
 class PracticeMoment:
     group_id: str
-    onset_beat: ScoreBeat
-    canonical_end_beat: ScoreBeat
+    onset_tick: ScoreTick
+    canonical_end_tick: ScoreTick
     attacks: tuple[PracticeAttack, ...]
     continuation_note_ids: tuple[str, ...]
 
 
 @dataclass(frozen=True)
 class PracticeMeterSegment:
-    start_beat: ScoreBeat
+    start_tick: ScoreTick
     numerator: int
     denominator: int
 
@@ -70,22 +60,17 @@ class PracticeMeterSegment:
                     "Practice meter facts require positive JSON-safe integers."
                 )
 
-    @property
-    def measure_duration_beats(self) -> ScoreBeat:
-        try:
-            duration = canonical_beat(self.numerator * 4.0 / self.denominator)
-        except (OverflowError, ZeroDivisionError) as error:
-            raise PracticeScoreInvalidError("Invalid Practice meter duration.") from error
-        if not math.isfinite(duration) or duration <= 0:
-            raise PracticeScoreInvalidError("Invalid Practice meter duration.")
-        return duration
+    def measure_duration_ticks(self, resolution: TicksPerQuarter) -> ScoreTick:
+        return PracticeScoreTimebase(resolution).meter_duration_ticks(
+            self.numerator, self.denominator
+        )
 
 
 @dataclass(frozen=True)
 class CompiledPracticeNote:
     render_note_id: str
-    onset_beat: ScoreBeat
-    duration_beats: ScoreBeat
+    onset_tick: ScoreTick
+    duration_ticks: ScoreTick
     piano_key: int
     measure_number: str
     staff_id: str
@@ -96,15 +81,15 @@ class CompiledPracticeNote:
 
 @dataclass(frozen=True)
 class PracticeTempoSegment:
-    start_beat: ScoreBeat
+    start_tick: ScoreTick
     bpm: float
 
 
 @dataclass(frozen=True)
 class CompiledPracticeMeasure:
     index: int
-    start_beat: ScoreBeat
-    end_beat: ScoreBeat
+    start_tick: ScoreTick
+    end_tick: ScoreTick
     uses_meter_duration: bool
 
 
@@ -114,6 +99,8 @@ class CompiledPracticeScore:
     meter_segments: tuple[PracticeMeterSegment, ...]
     tempo_segments: tuple[PracticeTempoSegment, ...]
     measures: tuple[CompiledPracticeMeasure, ...]
+    timebase: PracticeScoreTimebase
+    score_end_tick: ScoreTick
 
 
 @dataclass(frozen=True)
@@ -121,19 +108,20 @@ class PracticeScoreTimeline:
     notes: tuple[PracticeScoreNote, ...]
     events: tuple[PracticeScoreEvent, ...]
     moments: tuple[PracticeMoment, ...]
-    end_beat: ScoreBeat
+    score_end_tick: ScoreTick
+    ticks_per_quarter: TicksPerQuarter
     meter_segments: tuple[PracticeMeterSegment, ...]
 
     @property
-    def playable_onset_beats(self) -> tuple[ScoreBeat, ...]:
-        return tuple(moment.onset_beat for moment in self.moments)
+    def playable_onset_ticks(self) -> tuple[ScoreTick, ...]:
+        return tuple(moment.onset_tick for moment in self.moments)
 
-    def meter_at(self, beat: ScoreBeat) -> PracticeMeterSegment:
-        if not self.meter_segments or self.meter_segments[0].start_beat != 0:
+    def meter_at(self, tick: ScoreTick) -> PracticeMeterSegment:
+        if not self.meter_segments or self.meter_segments[0].start_tick != 0:
             raise PracticeScoreInvalidError("Practice requires explicit initial meter timing.")
         active = self.meter_segments[0]
         for segment in self.meter_segments:
-            if segment.start_beat > max(0.0, float(beat)):
+            if segment.start_tick > score_tick(tick):
                 break
             active = segment
         return active

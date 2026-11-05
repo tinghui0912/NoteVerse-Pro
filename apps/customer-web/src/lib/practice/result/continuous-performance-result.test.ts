@@ -11,7 +11,7 @@ const clone = () => JSON.parse(JSON.stringify(canonicalContinuousResultFixture()
 
 function resultWithRetainedEvidence() {
   const base = canonicalContinuousResultFixture();
-  const evaluator = new ContinuousEvaluationSession({ artifact: artifact as PracticeScoreArtifact, inputSource: 'MIDI', scope: continuousSessionPlan(artifact as PracticeScoreArtifact, { scope: { kind: 'FULL' } }).scope, sessionDomainId: base.localSessionId, timeline: { beatToTimeMs: beat => beat * 500 } });
+  const evaluator = new ContinuousEvaluationSession({ artifact: artifact as PracticeScoreArtifact, inputSource: 'MIDI', scope: continuousSessionPlan(artifact as PracticeScoreArtifact, { scope: { kind: 'FULL' } }).scope, sessionDomainId: base.localSessionId, timeline: { tickToTimeMs: tick => tick * 500 } });
   evaluator.publish({ publicationId: 'evidence', sessionDomainId: base.localSessionId, analyzedThroughPerformanceMs: 10000, availabilitySessionTimeMs: 3000,
     observations: [{ observationId: 'matched', pianoKey: 60, performanceTimeMs: 0, confidence: 1, source: 'MIDI',
       provenance: { sourceDomainId: 'capture', sourceSampleRateHz: 48000, sourceEventSample: 0 } },
@@ -76,7 +76,7 @@ describe('immutable Continuous product result', () => {
     const base = canonicalContinuousResultFixture(inputSource);
     const parsed = JSON.parse(JSON.stringify(base)); parsed.evaluation.assignment.completion.reason = 'STOPPED_BY_USER';
     expect(() => assertContinuousPerformanceResult(parsed)).toThrow('natural scope completion');
-    const evaluator = new ContinuousEvaluationSession({ artifact: artifact as PracticeScoreArtifact, inputSource, scope: continuousSessionPlan(artifact as PracticeScoreArtifact, { scope: { kind: 'FULL' } }).scope, sessionDomainId: base.localSessionId, timeline: { beatToTimeMs: beat => beat * 500 } });
+    const evaluator = new ContinuousEvaluationSession({ artifact: artifact as PracticeScoreArtifact, inputSource, scope: continuousSessionPlan(artifact as PracticeScoreArtifact, { scope: { kind: 'FULL' } }).scope, sessionDomainId: base.localSessionId, timeline: { tickToTimeMs: tick => tick * 500 } });
     evaluator.publish({ publicationId: 'coverage', sessionDomainId: base.localSessionId, analyzedThroughPerformanceMs: 10000, availabilitySessionTimeMs: 3000, observations: [] });
     evaluator.complete({ reason: 'STOPPED_BY_USER', performanceTimeMs: 10000, availabilitySessionTimeMs: 3000 });
     const evaluation = evaluator.completedEvaluation();
@@ -124,7 +124,7 @@ describe('immutable Continuous product result', () => {
   });
   it.each(['MIDI', 'MICROPHONE'] as const)('%s result retains assigned observations and capture provenance through JSON', inputSource => {
     const base = canonicalContinuousResultFixture(inputSource), localSessionId = 'evidence-result';
-    const evaluator = new ContinuousEvaluationSession({ artifact: artifact as PracticeScoreArtifact, inputSource, scope: continuousSessionPlan(artifact as PracticeScoreArtifact, { scope: { kind: 'FULL' } }).scope, sessionDomainId: localSessionId, timeline: { beatToTimeMs: beat => beat * 500 } });
+    const evaluator = new ContinuousEvaluationSession({ artifact: artifact as PracticeScoreArtifact, inputSource, scope: continuousSessionPlan(artifact as PracticeScoreArtifact, { scope: { kind: 'FULL' } }).scope, sessionDomainId: localSessionId, timeline: { tickToTimeMs: tick => tick * 500 } });
     const observation = { observationId: 'observed-C4', pianoKey: 60, performanceTimeMs: 0, confidence: .42,
       source: inputSource === 'MIDI' ? 'MIDI' as const : 'ACOUSTIC' as const,
       ...(inputSource === 'MICROPHONE' ? { provenance: { sourceDomainId: 'capture', sourceEventSample: 2400, sourceSampleRateHz: 48000 } } : {}) };

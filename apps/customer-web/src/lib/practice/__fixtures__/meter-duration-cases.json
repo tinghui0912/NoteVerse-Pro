@@ -2,36 +2,43 @@
   {
     "numerator": 3,
     "denominator": 4,
-    "durationBeats": 3
+    "durationTicks": 3,
+    "ticksPerQuarter": 1
   },
   {
     "numerator": 6,
     "denominator": 8,
-    "durationBeats": 3
+    "durationTicks": 6,
+    "ticksPerQuarter": 2
   },
   {
     "numerator": 2,
     "denominator": 2,
-    "durationBeats": 4
+    "durationTicks": 4,
+    "ticksPerQuarter": 1
   },
   {
     "numerator": 1,
     "denominator": 3,
-    "durationBeats": 1.333333
+    "durationTicks": 4,
+    "ticksPerQuarter": 3
   },
   {
     "numerator": 1,
     "denominator": 512,
-    "durationBeats": 0.007812
+    "durationTicks": 1,
+    "ticksPerQuarter": 128
   },
   {
     "numerator": 3,
     "denominator": 512,
-    "durationBeats": 0.023438
+    "durationTicks": 3,
+    "ticksPerQuarter": 128
   },
   {
     "numerator": 1,
     "denominator": 8192,
-    "durationBeats": 0.000488
+    "durationTicks": 1,
+    "ticksPerQuarter": 2048
   }
 ]

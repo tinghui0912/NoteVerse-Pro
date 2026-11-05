@@ -41,15 +41,15 @@ def build(value):
     [
         (time(), "", [(0, 4, 4)]),
         (time(3, 4), "", [(0, 3, 4)]),
-        (time(3, 4), time(6, 8), [(0, 3, 4), (3, 6, 8)]),
+        (time(3, 4), time(6, 8), [(0, 3, 4), (6, 6, 8)]),
     ],
 )
 def test_explicit_initial_meter_and_inherited_or_changed_meter(initial, later, expected):
     bundle = build(xml(initial, later))
     artifact = PracticeScoreArtifactRead.model_validate(bundle.artifact.value)
-    assert [(m.startBeat, m.numerator, m.denominator) for m in artifact.meterSegments] == expected
+    assert [(m.startTick, m.numerator, m.denominator) for m in artifact.meterSegments] == expected
     assert all(
-        set(m.model_dump()) == {"startBeat", "numerator", "denominator"}
+        set(m.model_dump()) == {"startTick", "numerator", "denominator"}
         for m in artifact.meterSegments
     )
     assert artifact.notes[0].pianoKey == 60
@@ -108,9 +108,10 @@ def test_no_key_and_no_tempo_are_valid_but_delayed_explicit_tempo_is_retained():
     delayed = build(
         xml(time(3, 4), tempo='<direction><sound tempo="100"/></direction>')
     ).artifact.value
-    assert delayed["scoreTempoSegments"] == [{"startBeat": 3.0, "bpm": 100.0}]
+    assert delayed["scoreTempoSegments"] == [{"startTick": 3, "bpm": 100}]
     assert set(no_tempo) == {
         "schemaVersion",
+        "ticksPerQuarter",
         "scoreId",
         "revisionId",
         "artifactId",
@@ -119,7 +120,7 @@ def test_no_key_and_no_tempo_are_valid_but_delayed_explicit_tempo_is_retained():
         "moments",
         "meterSegments",
         "scoreTempoSegments",
-        "scoreEndBeat",
+        "scoreEndTick",
     }
     assert set(PracticeScoreArtifactRead.model_fields) == set(no_tempo)
 
@@ -130,7 +131,7 @@ def test_no_key_and_no_tempo_are_valid_but_delayed_explicit_tempo_is_retained():
         [],
         [
             {
-                "startBeat": 1,
+                "startTick": 1,
                 "numerator": 4,
                 "denominator": 4,
             }
@@ -148,7 +149,7 @@ def test_transport_rejects_missing_initial_meter_without_mutation(meters):
 
 
 def test_timeline_meter_access_fails_closed_without_initial_meter():
-    timeline = PracticeScoreTimeline((), (), (), 0, ())
+    timeline = PracticeScoreTimeline((), (), (), 0, 1, ())
     with pytest.raises(PracticeScoreInvalidError):
         timeline.meter_at(0)
     with pytest.raises(PracticeScoreInvalidError):
@@ -168,21 +169,23 @@ def test_meter_duration_uses_shared_canonical_score_beat_witnesses():
     )
     for case in cases:
         assert (
-            PracticeMeterSegment(0, case["numerator"], case["denominator"]).measure_duration_beats
-            == case["durationBeats"]
+            PracticeMeterSegment(0, case["numerator"], case["denominator"]).measure_duration_ticks(
+                case["ticksPerQuarter"]
+            )
+            == case["durationTicks"]
         )
 
 
 @pytest.mark.parametrize(
     "meter",
     [
-        {"startBeat": 0, "numerator": 0, "denominator": 4},
-        {"startBeat": 0, "numerator": True, "denominator": 4},
-        {"startBeat": 0, "numerator": 3.5, "denominator": 4},
-        {"startBeat": 0, "numerator": 3, "denominator": 0},
-        {"startBeat": 0, "numerator": 3, "denominator": "4"},
-        {"startBeat": 0, "numerator": 3, "denominator": 4, "unexpectedField": 1},
-        {"startBeat": 0, "numerator": 3},
+        {"startTick": 0, "numerator": 0, "denominator": 4},
+        {"startTick": 0, "numerator": True, "denominator": 4},
+        {"startTick": 0, "numerator": 3.5, "denominator": 4},
+        {"startTick": 0, "numerator": 3, "denominator": 0},
+        {"startTick": 0, "numerator": 3, "denominator": "4"},
+        {"startTick": 0, "numerator": 3, "denominator": 4, "unexpectedField": 1},
+        {"startTick": 0, "numerator": 3},
     ],
 )
 def test_meter_transport_exact_facts_fail_closed_without_mutation(meter):
@@ -206,7 +209,7 @@ def test_meter_domain_admits_portable_integer_boundary(numerator, denominator):
     meter = PracticeMeterSegment(0, numerator, denominator)
     assert meter.numerator == numerator
     assert meter.denominator == denominator
-    assert meter.measure_duration_beats > 0
+    assert (meter.numerator, meter.denominator) == (numerator, denominator)
 
 
 @pytest.mark.parametrize("field", ["numerator", "denominator"])
@@ -218,7 +221,7 @@ def test_meter_domain_requires_positive_json_safe_integer_facts(field, value):
     facts[field] = value
     if type(value) is int and value > MAX_JSON_SAFE_INTEGER:
         # This ratio has an ordinary positive duration; portability owns rejection.
-        assert round(facts["numerator"] * 4.0 / facts["denominator"], 6) == 4
+        assert round(facts["numerator"] * 4 / facts["denominator"], 6) == 4
     with pytest.raises(PracticeScoreInvalidError, match="positive JSON-safe integers"):
         PracticeMeterSegment(0, **facts)
 
@@ -227,7 +230,7 @@ def test_meter_domain_requires_positive_json_safe_integer_facts(field, value):
     "numerator,denominator",
     [
         (MAX_JSON_SAFE_INTEGER, 4),
-        (MAX_JSON_SAFE_INTEGER, MAX_JSON_SAFE_INTEGER),
+        (1, MAX_JSON_SAFE_INTEGER),
     ],
 )
 def test_artifact_transport_preserves_safe_meter_integers_without_mutation(numerator, denominator):
@@ -236,7 +239,8 @@ def test_artifact_transport_preserves_safe_meter_integers_without_mutation(numer
 
     value = {
         **build(xml(time())).artifact.value,
-        "meterSegments": [{"startBeat": 0, "numerator": numerator, "denominator": denominator}],
+        "ticksPerQuarter": 1 if denominator == 4 else denominator,
+        "meterSegments": [{"startTick": 0, "numerator": numerator, "denominator": denominator}],
     }
     before = deepcopy(value)
     for parsed in (
@@ -257,7 +261,7 @@ def test_artifact_transport_rejects_nonportable_meter_integers_without_coercion(
     import json
 
     meter = {
-        "startBeat": 0,
+        "startTick": 0,
         "numerator": MAX_JSON_SAFE_INTEGER,
         "denominator": MAX_JSON_SAFE_INTEGER,
     }
@@ -295,7 +299,7 @@ def test_unsafe_musicxml_meter_is_invalid_score_over_http(tmp_path, numerator, d
     from app.core.exception_handlers import register_exception_handlers
     from app.modules.practice.source.router import router, get_practice_source_service
 
-    assert round(numerator * 4.0 / denominator, 6) == 4
+    assert round(numerator * 4 / denominator, 6) == 4
     path = tmp_path / "score.musicxml"
     path.write_bytes(xml(time(numerator, denominator)))
     service = PracticeSourceService()

@@ -16,14 +16,14 @@ import {
   MAX_PRACTICE_TEMPO_BPM,
   MIN_PRACTICE_TEMPO_BPM,
   clampCustomTempo,
-  effectiveScoreTempoAtBeat,
+  effectiveScoreTempoAtTick,
   type PracticeTempoSelection,
 } from '@/lib/practice/kernel/tempo';
 
 export type PracticeTempoPopoverProps = {
   tempoSelection: PracticeTempoSelection;
   scoreTempoSegments?: readonly TempoSegment[];
-  scopeStartBeat?: number;
+  scopeStartTick?: number;
   tempoLocked?: boolean;
   onTempoSelectionChange: (selection: PracticeTempoSelection) => void;
   metronomeEnabled?: boolean;
@@ -34,7 +34,7 @@ export type PracticeTempoPopoverProps = {
 export function PracticeTempoPopover({
   tempoSelection,
   scoreTempoSegments = [],
-  scopeStartBeat = 0,
+  scopeStartTick = 0,
   tempoLocked = false,
   onTempoSelectionChange,
   metronomeEnabled = false,
@@ -43,7 +43,7 @@ export function PracticeTempoPopover({
 }: PracticeTempoPopoverProps) {
   const t = useTranslations('practice');
 
-  const effectiveTempo = effectiveScoreTempoAtBeat(scoreTempoSegments, scopeStartBeat);
+  const effectiveTempo = effectiveScoreTempoAtTick(scoreTempoSegments, scopeStartTick);
   const initialBpm = effectiveTempo.bpm;
   const hasExplicit = effectiveTempo.source === 'MUSICXML';
   const isDefaultWithLaterChanges =

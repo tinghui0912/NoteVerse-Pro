@@ -11,14 +11,14 @@ export function reviewReplay(recording: PerformanceRecording | null): PlayablePe
     contentType: recording.mimeType, byteSize: recording.blob.size, durationMs: recording.durationMs };
 }
 
-export function reviewReplayMusicalBeat({ recording, mediaTimeMs, actualMediaDurationMs, scope, tempoPlan, scoreEndBeat }: {
+export function reviewReplayScoreTick({ recording, mediaTimeMs, actualMediaDurationMs, scope, tempoPlan, scoreEndTick, ticksPerQuarter }: {
   recording: PerformanceRecording | null; mediaTimeMs: number | null; actualMediaDurationMs?: number | null;
-  scope: ResolvedPracticeScope; tempoPlan: ResolvedPracticeTempoPlan; scoreEndBeat: number;
+  scope: ResolvedPracticeScope; tempoPlan: ResolvedPracticeTempoPlan; scoreEndTick: number; ticksPerQuarter: number;
 }): number | null {
   if (mediaTimeMs === null || recording?.status !== 'READY') return null;
   const performanceTimeMs = mediaTimeToPerformanceTimeMs(mediaTimeMs, recording.timebase, actualMediaDurationMs);
   if (performanceTimeMs === null) return null;
-  const timeline = new PracticeTempoTimeline(tempoPlan, scoreEndBeat);
-  const scopeStartMs = resolveScopeTiming(scope, tempoPlan, scoreEndBeat).scopeStartMs;
-  return timeline.timeMsToBeat(scopeStartMs + performanceTimeMs);
+  const timeline = new PracticeTempoTimeline(tempoPlan, scoreEndTick, ticksPerQuarter);
+  const scopeStartMs = resolveScopeTiming(scope, tempoPlan, scoreEndTick, ticksPerQuarter).scopeStartMs;
+  return timeline.timeMsToTick(scopeStartMs + performanceTimeMs);
 }

@@ -41,16 +41,16 @@ const selectableMusicXml = `<?xml version="1.0" encoding="UTF-8"?>
 </score-partwise>`;
 
 const smokeArtifact: PracticeScoreArtifact = {
-  schemaVersion: 1,
+  schemaVersion: 1, ticksPerQuarter: 1,
   artifactId: 'practice-score-artifact:smoke-test', scoreId, revisionId,
-   scoreEndBeat: 4,
+   scoreEndTick: 4,
   notes: [60, 62, 64].map((pianoKey, i) => ({ noteId: `note-${i}`, eventId: `e-${i}`, pianoKey,
     renderNoteId: ['select-start-note', 'middle-note', 'select-end-note'][i], measureNumber: '1', staffId: '1', voiceId: '1', tieTypes: [] })),
-  events: [0,1,2].map(i => ({ eventId: `e-${i}`, onsetBeat: i, durationBeats: i === 2 ? 2 : 1 })),
-  moments: [60,62,64].map((pianoKey,i) => ({ groupId: `group-${i}`, onsetBeat: i, canonicalEndBeat: i === 2 ? 4 : i+1,
+  events: [0,1,2].map(i => ({ eventId: `e-${i}`, onsetTick: i, durationTicks: i === 2 ? 2 : 1 })),
+  moments: [60,62,64].map((pianoKey,i) => ({ groupId: `group-${i}`, onsetTick: i, canonicalEndTick: i === 2 ? 4 : i+1,
     attacks: [{ attackId: `strike-${i}`, pianoKey, noteIds: [`note-${i}`] }], continuationNoteIds: [] })),
-  meterSegments: [{ startBeat: 0, numerator: 4, denominator: 4,   }],
-  scoreTempoSegments: [{ startBeat: 0, bpm: 100 }, { startBeat: 2, bpm: 90 }],
+  meterSegments: [{ startTick: 0, numerator: 4, denominator: 4,   }],
+  scoreTempoSegments: [{ startTick: 0, bpm: 100 }, { startTick: 2, bpm: 90 }],
 };
 
 function apiResponse(data: unknown) {
@@ -239,7 +239,7 @@ async function setupPracticeMocks(
       status: 200,
       contentType: 'application/json',
       body: apiResponse({
-        schemaVersion: 1,
+        schemaVersion: 1, ticksPerQuarter: 1,
         assetId: 'practice-acoustic-robust-browser',
         assetVersion: 'v1',
         expectedByteSize: 98_689_283,
@@ -532,11 +532,11 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     // Artifact where explicit tempo only appears at beat 2.0 (positive-first: beat 0 has no explicit tempo)
     const leadingRestArtifact = {
       ...smokeArtifact,
-      scoreTempoSegments: [{ startBeat: 2.0, bpm: 90.0 }],
-       scoreEndBeat: 3,
+      scoreTempoSegments: [{ startTick: 2.0, bpm: 90.0 }],
+       scoreEndTick: 3,
       notes: smokeArtifact.notes.slice(0,1),
-      events: [{ ...smokeArtifact.events[0], onsetBeat: 2 }],
-      moments: [{ ...smokeArtifact.moments[0], onsetBeat: 2, canonicalEndBeat: 3 }],
+      events: [{ ...smokeArtifact.events[0], onsetTick: 2 }],
+      moments: [{ ...smokeArtifact.moments[0], onsetTick: 2, canonicalEndTick: 3 }],
     };
 
     await setupPracticeMocks(page, leadingRestArtifact);
@@ -547,8 +547,8 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await expect(tempoButton).toBeVisible();
     await tempoButton.click();
 
-    // Since startBeat of full-piece is 2.0 (where MusicXML tempo 90 exists):
-    // effectiveScoreTempoAtBeat(leadingRestArtifact, 2.0) resolves to MUSICXML at 90 BPM
+    // Since startTick of full-piece is 2.0 (where MusicXML tempo 90 exists):
+    // effectiveScoreTempoAtTick(leadingRestArtifact, 2.0) resolves to MUSICXML at 90 BPM
     await expect(page.getByText(/90 BPM/).first()).toBeVisible();
 
     expect(disallowedRequests).toEqual([]);

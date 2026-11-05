@@ -295,7 +295,7 @@ describe('Practice bounded domain dependencies', () => {
     for (const owner of ['planning/session-plan.ts', 'kernel/scope.ts', 'step/domain/runtime.ts', 'continuous/domain/performance-clock.ts',
       'continuous/domain/evaluation/expected-strikes.ts', 'score-view/cursor-scope.ts']) {
       const artifact = imports(path.join(practiceRoot, owner)).find(edge => edge.target?.endsWith('/kernel/artifact.ts'));
-      expect(artifact?.bindings.every(name => ['PracticeScoreArtifact', 'roundBeat', 'notesForIds', 'attackNoteIds'].includes(name))).toBe(true);
+      expect(artifact?.bindings.every(name => ['PracticeScoreArtifact', 'measureDurationTicks', 'notesForIds', 'attackNoteIds'].includes(name))).toBe(true);
     }
     const source = imports(path.join(practiceRoot, 'source/source-envelope.ts'));
     expect(source.find(edge => edge.target?.endsWith('/kernel/artifact.ts'))?.bindings).toEqual(['parsePracticeScoreArtifact', 'PracticeScoreContractError']);

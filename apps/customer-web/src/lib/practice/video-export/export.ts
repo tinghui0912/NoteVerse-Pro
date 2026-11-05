@@ -51,7 +51,7 @@ export type VideoExportOptions = {
   session: VideoExportSession;
   scoreContainer: HTMLElement;
   adapter: PracticeVerovioAdapter;
-  scoreEndBeat: number;
+  scoreEndTick: number; ticksPerQuarter: number;
   signal?: AbortSignal;
   onProgress?: (progress: VideoExportProgress) => void;
   config?: VideoExportConfig;
@@ -125,7 +125,7 @@ export async function exportVideo({
   session,
   scoreContainer,
   adapter,
-  scoreEndBeat,
+  scoreEndTick, ticksPerQuarter,
   signal,
   onProgress,
   config = { orientation: 'landscape', presentation: { kind: 'split' } },
@@ -194,7 +194,7 @@ export async function exportVideo({
       video,
       session,
       adapter,
-      scoreEndBeat,
+      scoreEndTick, ticksPerQuarter,
       frameState,
       config,
     });
@@ -203,7 +203,7 @@ export async function exportVideo({
       video,
       session,
       adapter,
-      scoreEndBeat,
+      scoreEndTick, ticksPerQuarter,
       scorePages,
     });
 
@@ -290,7 +290,7 @@ export async function exportVideo({
             video,
             session,
             adapter,
-            scoreEndBeat,
+            scoreEndTick, ticksPerQuarter,
             frameState,
             config,
           });
@@ -314,7 +314,7 @@ export async function exportVideo({
           video,
           session,
           adapter,
-          scoreEndBeat,
+          scoreEndTick, ticksPerQuarter,
           frameState,
           config,
         });
@@ -328,7 +328,7 @@ export async function exportVideo({
           video,
           session,
           adapter,
-          scoreEndBeat,
+          scoreEndTick, ticksPerQuarter,
           scorePages: frameState.scorePages,
         }).catch(() => undefined);
       } catch (err) {
@@ -373,14 +373,14 @@ async function prefetchUpcomingEventImage({
   video,
   session,
   adapter,
-  scoreEndBeat,
+  scoreEndTick, ticksPerQuarter,
   scorePages,
 }: {
   mediaTimeMs: number;
   video: HTMLVideoElement;
   session: VideoExportSession;
   adapter: PracticeVerovioAdapter;
-  scoreEndBeat: number;
+  scoreEndTick: number; ticksPerQuarter: number;
   scorePages: ScorePageCache;
 }) {
   const position = resolveVideoExportPlaybackPosition({
@@ -389,7 +389,7 @@ async function prefetchUpcomingEventImage({
     pageNumberResolver: (noteIds) => findStablePageNumber(noteIds, scorePages),
     mediaTimeMs,
     actualMediaDurationMs: safeDurationMs(video),
-    scoreEndBeat,
+    scoreEndTick, ticksPerQuarter,
   });
   if (!position) return;
   const page = scorePages.get(position.pageNumber);
@@ -404,7 +404,7 @@ export async function drawExportFrame({
   video,
   session,
   adapter,
-  scoreEndBeat,
+  scoreEndTick, ticksPerQuarter,
   frameState,
   config = { orientation: 'landscape', presentation: { kind: 'split' } },
 }: {
@@ -412,7 +412,7 @@ export async function drawExportFrame({
   video: HTMLVideoElement;
   session: VideoExportSession;
   adapter: PracticeVerovioAdapter;
-  scoreEndBeat: number;
+  scoreEndTick: number; ticksPerQuarter: number;
   frameState: FrameRenderState;
   config?: VideoExportConfig;
 }): Promise<void> {
@@ -429,7 +429,7 @@ export async function drawExportFrame({
         mediaTimeMs,
         actualMediaDurationMs:
           session.video.actualMediaDurationMs ?? safeDurationMs(video),
-        scoreEndBeat,
+        scoreEndTick, ticksPerQuarter,
       }),
     },
     sourceVideoFrame: video,

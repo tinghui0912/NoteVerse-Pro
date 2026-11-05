@@ -15,7 +15,7 @@ describe('STEP runtime target and session contracts', () => {
     const empty = cloneArtifact({
       artifactId: 'empty-artifact',
 
-      scoreEndBeat: 0,
+      scoreEndTick: 0,
       notes: [],
       events: [],
       moments: [],
@@ -31,7 +31,7 @@ describe('STEP runtime target and session contracts', () => {
 
     const stepRuntime = new StepPracticeRuntime({ ...stepSessionPlan(art, { scope: { kind: 'FULL' }, inputSource: 'MIDI', metronomeEnabled: false }), clock, metronomeEnabled: false });
     expect(stepRuntime.snapshot().metronomeEnabled).toBe(false);
-    expect(stepRuntime.currentOnsetBeat).toBe(0);
+    expect(stepRuntime.currentOnsetTick).toBe(0);
 
     stepRuntime.setMetronomeEnabled(true);
     expect(stepRuntime.snapshot().metronomeEnabled).toBe(true);
@@ -66,7 +66,7 @@ describe('STEP runtime target and session contracts', () => {
     // StepPracticeRuntime initialized without explicit scope (full piece):
     const clock = new ManualClock(0);
     const stepRuntime = new StepPracticeRuntime({ ...stepSessionPlan(leadingRestArtifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), clock });
-    expect(stepRuntime.currentOnsetBeat).toBe(2.0);
+    expect(stepRuntime.currentOnsetTick).toBe(2.0);
     expect(stepRuntime.currentTarget()?.stepId).toBe('g-rest-1');
 
   });

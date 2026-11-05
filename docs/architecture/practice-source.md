@@ -226,7 +226,7 @@ remains the full score admission authority. See [failure boundaries](practice-fa
 
 ## Score Admission
 
-The [Practice score compiler](practice-score-compiler.md) owns quarter-note chronology,
+The [Practice score compiler](practice-score-compiler.md) owns exact integer written-score coordinates,
 explicit initial meter admission and physical note placement. The builder consumes
 its compiled facts for meter, tempo and artifact projections. Deterministic invalid
 score input maps to HTTP 422 `practice_score_invalid` at the Source service boundary.

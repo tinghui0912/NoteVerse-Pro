@@ -8,33 +8,33 @@ import { PracticeVerovioAdapter } from './verovio-adapter';
 
 function artifact(): PracticeScoreArtifact {
   const groups = [
-    { groupId: 'A', onsetBeat: 2, canonicalEndBeat: 4.5, renderNoteIds: ['nA'] },
-    { groupId: 'B', onsetBeat: 3, canonicalEndBeat: 4.5, renderNoteIds: ['nB'] },
-    { groupId: 'C', onsetBeat: 4, canonicalEndBeat: 4.25, renderNoteIds: ['nC'] },
+    { groupId: 'A', onsetTick: 200, canonicalEndTick: 450, renderNoteIds: ['nA'] },
+    { groupId: 'B', onsetTick: 300, canonicalEndTick: 450, renderNoteIds: ['nB'] },
+    { groupId: 'C', onsetTick: 400, canonicalEndTick: 425, renderNoteIds: ['nC'] },
   ];
   return {
-    schemaVersion: PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION,
+    schemaVersion: PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION, ticksPerQuarter: 100,
     scoreId: 'score',
     revisionId: 'revision',
     artifactId: 'artifact',
     notes: groups.map(g => ({ noteId: g.groupId, eventId: g.groupId, pianoKey: 60, renderNoteId: g.renderNoteIds[0], measureNumber: '1', staffId: '1', voiceId: '1', tieTypes: [] })),
-    events: groups.map(g => ({ eventId: g.groupId, onsetBeat: g.onsetBeat, durationBeats: g.canonicalEndBeat - g.onsetBeat })),
-    moments: groups.map(g => ({ groupId: g.groupId, onsetBeat: g.onsetBeat, canonicalEndBeat: g.canonicalEndBeat, attacks: [{ attackId: g.groupId, pianoKey: 60, noteIds: [g.groupId] }], continuationNoteIds: [] })),
-    meterSegments: [],
-    scoreTempoSegments: [{ startBeat: 0, bpm: 60 }],
+    events: groups.map(g => ({ eventId: g.groupId, onsetTick: g.onsetTick, durationTicks: g.canonicalEndTick - g.onsetTick })),
+    moments: groups.map(g => ({ groupId: g.groupId, onsetTick: g.onsetTick, canonicalEndTick: g.canonicalEndTick, attacks: [{ attackId: g.groupId, pianoKey: 60, noteIds: [g.groupId] }], continuationNoteIds: [] })),
+    meterSegments: [{startTick:0,numerator:4,denominator:4}],
+    scoreTempoSegments: [{ startTick: 0, bpm: 60 }],
 
-    scoreEndBeat: 4.5,
+    scoreEndTick: 450,
   };
 }
 
 function adapter() {
-  const instance = new PracticeVerovioAdapter();
+  const instance = new PracticeVerovioAdapter(artifact());
   (instance as unknown as {
-    visualTimeline: Array<{ index: number; beat: number; endBeat: number; noteIds: string[] }>;
+    visualTimeline: Array<{ index: number; tick: number; endTick: number; noteIds: string[] }>;
   }).visualTimeline = [
-      { index: 0, beat: 2, endBeat: 4.5, noteIds: ['nA'] },
-      { index: 1, beat: 3, endBeat: 4.5, noteIds: ['nB'] },
-      { index: 2, beat: 4, endBeat: 4.25, noteIds: ['nC'] },
+      { index: 0, tick: 200, endTick: 450, noteIds: ['nA'] },
+      { index: 1, tick: 300, endTick: 450, noteIds: ['nB'] },
+      { index: 2, tick: 400, endTick: 425, noteIds: ['nC'] },
     ];
   return instance;
 }
@@ -51,14 +51,14 @@ function session(allowedNoteIds: string[]): VideoExportSession {
       durationMs: 2500,
     },
     scope: {
-      startBeat: 2,
-      terminalBeat: 4.5,
+      startTick: 200,
+      terminalTick: 450,
       kind: 'RANGE',
       allowedNoteIds,
     },
     tempoPlan: {
       selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 60 },
-      segments: [{ startBeat: 0, bpm: 60, source: 'CUSTOM' }],
+      segments: [{ startTick: 0, bpm: 60, source: 'CUSTOM' }],
     },
     recordingTimebase: {
       nominalMediaDurationMs: 2500,
@@ -70,11 +70,11 @@ function session(allowedNoteIds: string[]): VideoExportSession {
 describe('cursor selection scope', () => {
   it('keeps a long final sustain on its selected group instead of later attacks', () => {
     const scoreAdapter = adapter();
-    for (const beat of [2, 3, 4, 4.49]) {
-      const entry = scoreAdapter.getCursorTimelineEntryForBeatRange(
-        beat,
-        2,
-        4.5,
+    for (const tick of [200, 300, 400, 449]) {
+      const entry = scoreAdapter.getCursorTimelineEntryForTickRange(
+        tick,
+        200,
+        450,
         ['nA']
       );
       expect(entry?.noteIds).toEqual(['nA']);
@@ -82,12 +82,12 @@ describe('cursor selection scope', () => {
   });
 
   it('allows A to B range but not later C during the terminal tail', () => {
-    const entry = adapter().getCursorTimelineEntryForBeatRange(4.49, 2, 4.5, ['nA', 'nB']);
+    const entry = adapter().getCursorTimelineEntryForTickRange(449, 200, 450, ['nA', 'nB']);
     expect(entry?.noteIds).toEqual(['nB']);
   });
 
   it('preserves full-piece behavior when no cursor selection is supplied', () => {
-    const entry = adapter().getCursorTimelineEntryForBeatRange(4, 2, 4.5);
+    const entry = adapter().getCursorTimelineEntryForTickRange(400, 200, 450);
     expect(entry?.noteIds).toEqual(['nC']);
   });
 
@@ -97,8 +97,8 @@ describe('cursor selection scope', () => {
         kind: 'RANGE',
         startIndex: 0,
         endIndex: 1,
-        startBeat: 2,
-        terminalBeat: 4.5,
+        startTick: 200,
+        terminalTick: 450,
         startGroupId: 'A',
         endGroupId: 'B',
       })
@@ -109,12 +109,12 @@ describe('cursor selection scope', () => {
     const frame = resolveVideoExportPlaybackPosition({
       session: session(['nA']),
       adapter: {
-        getCursorTimelineEntryForBeatRange: adapter().getCursorTimelineEntryForBeatRange.bind(adapter()),
+        getCursorTimelineEntryForTickRange: adapter().getCursorTimelineEntryForTickRange.bind(adapter()),
         getPageWithElement: () => 1,
       },
       mediaTimeMs: 2000,
       actualMediaDurationMs: 2500,
-      scoreEndBeat: 4.5,
+      scoreEndTick: 450, ticksPerQuarter: 100,
     });
     expect(frame?.noteIds).toEqual(['nA']);
   });

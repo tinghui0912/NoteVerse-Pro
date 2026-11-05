@@ -1,18 +1,20 @@
-import { measureDurationBeats, type MeterSegment, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { scoreTick } from './score-time';
+import { measureDurationTicks, type MeterSegment, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 
 export type CountInContract = {
-  durationBeats: number;
+  durationTicks: number;
   pulses: number;
   numerator: number;
   denominator: number;
 };
 
-function meterAt(artifact: PracticeScoreArtifact, beat: number): MeterSegment {
+function meterAt(artifact: PracticeScoreArtifact, tick: number): MeterSegment {
+  scoreTick(tick);
   const segments = artifact.meterSegments;
-  if (!segments.length || segments[0].startBeat !== 0) throw new Error('Admitted initial meter timing required.');
+  if (!segments.length || segments[0].startTick !== 0) throw new Error('Admitted initial meter timing required.');
   let active = segments[0];
   for (const segment of segments) {
-    if (segment.startBeat > beat) {
+    if (segment.startTick > tick) {
       break;
     }
     active = segment;
@@ -21,10 +23,10 @@ function meterAt(artifact: PracticeScoreArtifact, beat: number): MeterSegment {
 }
 
 /** Current Count-In policy uses one pulse per denominator unit. */
-export function countInContractAt(artifact: PracticeScoreArtifact, beat: number): CountInContract {
-  const meter = meterAt(artifact, beat);
+export function countInContractAt(artifact: PracticeScoreArtifact, tick: number): CountInContract {
+  const meter = meterAt(artifact, tick);
   return {
-    durationBeats: measureDurationBeats(meter),
+    durationTicks: measureDurationTicks(meter, artifact.ticksPerQuarter),
     pulses: meter.numerator,
     numerator: meter.numerator,
     denominator: meter.denominator,

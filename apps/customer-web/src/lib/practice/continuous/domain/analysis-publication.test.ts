@@ -12,7 +12,7 @@ describe('Continuous analysis publication admission', () => {
 
   it('keeps completion separate from future asynchronous analysis frontier', () => {
     const clock = new ManualClock(0);
-    const session = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), tempoPlan: defaultTempoPlan, clock, countInBeats: 0 });
+    const session = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), tempoPlan: defaultTempoPlan, clock, countInTicks: 0 });
     session.start();
     clock.advance(1000);
     session.end('STOPPED_BY_USER');
@@ -30,7 +30,7 @@ describe('Continuous analysis publication admission', () => {
   });
 
   it('rejects analysis publications before performance evidence time exists', () => {
-    const ready = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), tempoPlan: defaultTempoPlan, clock: new ManualClock(0), countInBeats: 0 });
+    const ready = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), tempoPlan: defaultTempoPlan, clock: new ManualClock(0), countInTicks: 0 });
     const readyBefore = ready.evaluationSnapshot;
     expect(() => ready.publishAnalysis({
       publicationId: 'publication-33169', sessionDomainId: ready.timebase.domainId,
@@ -42,7 +42,7 @@ describe('Continuous analysis publication admission', () => {
     })).toThrow(/requires captured performance evidence time/);
     expect(ready.evaluationSnapshot).toEqual(readyBefore);
 
-    const countIn = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), tempoPlan: defaultTempoPlan, clock: new ManualClock(0), countInBeats: 1 });
+    const countIn = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), tempoPlan: defaultTempoPlan, clock: new ManualClock(0), countInTicks: 1 });
     countIn.start();
     const countInBefore = countIn.evaluationSnapshot;
     expect(countIn.snapshot().state).toBe('COUNT_IN');
@@ -59,7 +59,7 @@ describe('Continuous analysis publication admission', () => {
 
   it('rejects analysis publication beyond current running performance time without mutation', () => {
     const clock = new ManualClock(0);
-    const session = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), tempoPlan: defaultTempoPlan, clock, countInBeats: 0 });
+    const session = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), tempoPlan: defaultTempoPlan, clock, countInTicks: 0 });
     session.start();
     clock.advance(1000);
     const before = session.evaluationSnapshot;
@@ -77,7 +77,7 @@ describe('Continuous analysis publication admission', () => {
 
   it('rejects analysis publication beyond paused and stopped performance time', () => {
     const pausedClock = new ManualClock(0);
-    const paused = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), tempoPlan: defaultTempoPlan, clock: pausedClock, countInBeats: 0 });
+    const paused = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), tempoPlan: defaultTempoPlan, clock: pausedClock, countInTicks: 0 });
     paused.start();
     pausedClock.advance(1000);
     paused.pause();
@@ -94,7 +94,7 @@ describe('Continuous analysis publication admission', () => {
     expect(paused.evaluationSnapshot).toEqual(pausedBefore);
 
     const stoppedClock = new ManualClock(0);
-    const stopped = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), tempoPlan: defaultTempoPlan, clock: stoppedClock, countInBeats: 0 });
+    const stopped = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), tempoPlan: defaultTempoPlan, clock: stoppedClock, countInTicks: 0 });
     stopped.start();
     stoppedClock.advance(1000);
     stopped.end('STOPPED_BY_USER');
@@ -116,7 +116,7 @@ describe('Continuous analysis publication admission', () => {
         kind: 'RANGE',
         startGroupId: artifact.moments[0].groupId,
         endGroupId: artifact.moments[0].groupId,
-      }, inputSource: 'MICROPHONE' }), tempoPlan: defaultTempoPlan, clock: rangeClock, countInBeats: 0 });
+      }, inputSource: 'MICROPHONE' }), tempoPlan: defaultTempoPlan, clock: rangeClock, countInTicks: 0 });
     range.start();
     rangeClock.advance(10_000);
     expect(range.advanceToNow().completionReason).toBe('SCOPE_COMPLETED');
@@ -133,7 +133,7 @@ describe('Continuous analysis publication admission', () => {
 
   it('rejects post-terminal analysis publication that moves the performance frontier backwards', () => {
     const clock = new ManualClock(0);
-    const session = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), tempoPlan: defaultTempoPlan, clock, countInBeats: 0 });
+    const session = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), tempoPlan: defaultTempoPlan, clock, countInTicks: 0 });
     session.start();
     clock.advance(1000);
     session.end('STOPPED_BY_USER');
@@ -161,9 +161,9 @@ describe('Continuous analysis publication admission', () => {
 
   it('rejects cross-session analysis publication without mutating evaluation', () => {
     const clockA = new ManualClock(0);
-    const sessionA = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), tempoPlan: defaultTempoPlan, clock: clockA, countInBeats: 0, localSessionId: 'analysis-session-a' });
+    const sessionA = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), tempoPlan: defaultTempoPlan, clock: clockA, countInTicks: 0, localSessionId: 'analysis-session-a' });
     const clockB = new ManualClock(0);
-    const sessionB = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), tempoPlan: defaultTempoPlan, clock: clockB, countInBeats: 0, localSessionId: 'analysis-session-b' });
+    const sessionB = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), tempoPlan: defaultTempoPlan, clock: clockB, countInTicks: 0, localSessionId: 'analysis-session-b' });
     sessionA.start();
     sessionB.start();
     clockB.advance(1000);
@@ -188,7 +188,7 @@ describe('Continuous analysis publication admission', () => {
 
   it('rejects a publication from the wrong performance domain before advancing analysis', () => {
     const clock = new ManualClock(0);
-    const session = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), tempoPlan: defaultTempoPlan, clock, countInBeats: 0, localSessionId: 'analysis-session' });
+    const session = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), tempoPlan: defaultTempoPlan, clock, countInTicks: 0, localSessionId: 'analysis-session' });
     session.start();
     clock.advance(1000);
     const before = session.evaluationSnapshot;
@@ -212,7 +212,7 @@ describe('Continuous analysis publication admission', () => {
 
   it('rejects invalid analysis frontiers atomically before observing attacks', () => {
     const clock = new ManualClock(0);
-    const session = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), tempoPlan: defaultTempoPlan, clock, countInBeats: 0, localSessionId: 'analysis-session' });
+    const session = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), tempoPlan: defaultTempoPlan, clock, countInTicks: 0, localSessionId: 'analysis-session' });
     session.start();
     clock.advance(1000);
     const before = session.evaluationSnapshot;
@@ -239,7 +239,7 @@ type AnalysisAttackFixture = { captureTime: SessionTime; pianoKey: PracticePiano
 
 it('rejects a mixed valid/invalid observation batch atomically', () => {
   const clock = new ManualClock(0);
-  const session = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), tempoPlan: defaultTempoPlan, clock, countInBeats: 0, localSessionId: 'analysis-session' });
+  const session = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), tempoPlan: defaultTempoPlan, clock, countInTicks: 0, localSessionId: 'analysis-session' });
   session.start();
   clock.advance(1000);
   const before = session.evaluationSnapshot;

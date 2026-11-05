@@ -9,8 +9,8 @@ export function reviewViewModel(result: ContinuousPerformanceResult) {
       : { kind: 'SCORE' as const },
     scope: {
       label: result.scope.kind === 'RANGE' ? 'scopeSection' as const : 'scopeFull' as const,
-      startBeat: result.scope.startBeat,
-      terminalBeat: result.scope.terminalBeat,
+      startTick: result.scope.startTick,
+      terminalTick: result.scope.terminalTick,
     },
     inputSourceLabel: result.inputSource === 'MICROPHONE' ? 'inputSourceMic' as const : 'inputSourceMidi' as const,
   };

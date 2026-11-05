@@ -101,13 +101,14 @@ function environment(rate = 48000, root = stream(), blockSamples = 128, recordin
     }
     await vi.advanceTimersByTimeAsync(10);
   }
-  function create(inputSource: 'MIDI' | 'MICROPHONE' = 'MICROPHONE', countInBeats = 0, recordingMode: 'OFF' | 'AUDIO' | 'VIDEO' = 'OFF', onNaturalCompletion = vi.fn(), cameraStream?: MediaStream, scoreEndBeat = 2.4, meterDenominator = 4) {
+  function create(inputSource: 'MIDI' | 'MICROPHONE' = 'MICROPHONE', countInTicks = 0, recordingMode: 'OFF' | 'AUDIO' | 'VIDEO' = 'OFF', onNaturalCompletion = vi.fn(), cameraStream?: MediaStream, scoreEndTick = 768, meterDenominator = 4) {
     const base = artifactWithKeys([[60]]);
-    base.events[0].durationBeats = scoreEndBeat; base.moments[0].canonicalEndBeat = scoreEndBeat;
-    const artifact: PracticeScoreArtifact = { ...base, scoreEndBeat,
-      ...(meterDenominator === 4 ? {} : { meterSegments: [{ startBeat: 0, numerator: 1, denominator: meterDenominator,   }] }),
+    base.ticksPerQuarter = 320;
+    base.events[0].durationTicks = scoreEndTick; base.moments[0].canonicalEndTick = scoreEndTick;
+    const artifact: PracticeScoreArtifact = { ...base, scoreEndTick,
+      ...(meterDenominator === 4 ? {} : { meterSegments: [{ startTick: 0, numerator: 1, denominator: meterDenominator,   }] }),
     };
-    controller = new ContinuousPracticeController({ rootHealth: health.port, plan: continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: inputSource, tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 }, recordingMode: recordingMode }), countInBeats, onNaturalCompletion, devices: borrowedDevices(root.media, recordingRoot, cameraStream ?? null) }, platform);
+    controller = new ContinuousPracticeController({ rootHealth: health.port, plan: continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: inputSource, tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 }, recordingMode: recordingMode }), countInTicks, onNaturalCompletion, devices: borrowedDevices(root.media, recordingRoot, cameraStream ?? null) }, platform);
     return controller;
   }
   return { health, create, platform, root, context, clock, worker, meter, feed, failure: () => fail?.(new Error('TEST_WORKER_FAILURE')),
@@ -206,7 +207,7 @@ describe('Continuous application owner', () => {
     });
     await lease.open(); const f = environment();
     const controller = new ContinuousPracticeController({ devices: lease.snapshot().roots, rootHealth: lease.rootHealth,
-      plan: continuousSessionPlan(artifactWithKeys([[60]]), { recordingMode: 'VIDEO' }), countInBeats: 0 }, f.platform);
+      plan: continuousSessionPlan(artifactWithKeys([[60]]), { recordingMode: 'VIDEO' }), countInTicks: 0 }, f.platform);
     try {
       await controller.start(); expect(listen.mock.calls.map(([event]) => event)).toEqual(['mute', 'unmute', 'ended']);
       microphone.audio.muted = true; microphone.audio.dispatchEvent(new Event('mute'));
@@ -405,7 +406,7 @@ describe('Continuous application owner', () => {
     const getUserMedia = vi.fn(async () => { throw new DOMException('private browser detail', 'NotAllowedError'); });
     vi.stubGlobal('navigator', { mediaDevices: { getUserMedia } });
     const callback = vi.fn();
-    const f = environment(); f.root.audio.stop(); const controller = f.create('MIDI', 4, 'AUDIO', callback);
+    const f = environment(); f.root.audio.stop(); const controller = f.create('MIDI', 1280, 'AUDIO', callback);
     try {
       await controller.start();
       expect(controller.snapshot()).toMatchObject({ session: 'FAILED_BEFORE_START', transport: null,
@@ -475,7 +476,7 @@ describe('Continuous application owner', () => {
   });
   it('count-in interruption pauses the canonical clock; End discards and late faults cannot revive it', async () => {
     const recording = stream(); vi.stubGlobal('navigator', { mediaDevices: { getUserMedia: async () => recording.media } });
-    const f = environment(), callback = vi.fn(), controller = f.create('MIDI', 4, 'AUDIO', callback);
+    const f = environment(), callback = vi.fn(), controller = f.create('MIDI', 1280, 'AUDIO', callback);
     await controller.start(); f.root.copies.at(-1)!.audio.stop(); expect(controller.snapshot().transport?.state).toBe('PAUSED');
     expect(controller.snapshot().resourceIntervention).not.toBeNull();
     await controller.abandon(); await controller.dispose(); f.root.copies.at(-1)!.audio.dispatchEvent(new Event('mute'));
@@ -506,7 +507,7 @@ describe('Continuous application owner', () => {
     it(input + ' VIDEO rejects a preview track that died before admission without acoustic misclassification', async () => {
       const f = environment(), camera = stream(true), callback = vi.fn();
       camera.media.getTracks().find(track => track.kind === kind)!.stop();
-      const controller = f.create(input, 4, 'VIDEO', callback, camera.media);
+      const controller = f.create(input, 1280, 'VIDEO', callback, camera.media);
       await controller.start();
       // Recording audio always comes from its dedicated audio root, never camera audio.
       if (kind === 'audio') {
@@ -534,7 +535,7 @@ describe('Continuous application owner', () => {
     await engine.prepare('/model');
     f.platform.acquireInference = signal => engine.acquire(signal);
     vi.stubGlobal('MediaRecorder', class { constructor() { throw new Error('private initialization detail'); } });
-    const controller = f.create('MICROPHONE', 4, 'AUDIO'); await controller.start();
+    const controller = f.create('MICROPHONE', 1280, 'AUDIO'); await controller.start();
     expect(controller.snapshot()).toMatchObject({ session: 'FAILED_BEFORE_START', transport: null,
       completed: null, evaluation: null, analysisError: null, inputError: 'RECORDING_PREPARATION_FAILED' });
     expect(f.root.audio.stop).not.toHaveBeenCalled(); expect(f.context.close).toHaveBeenCalledOnce();
@@ -552,7 +553,7 @@ describe('Continuous application owner', () => {
     f.platform.createMetronomeAudio = vi.fn(() => {
       recordingStream!.getVideoTracks()[0].stop(); return metronomeAudioFixture();
     });
-    const controller = f.create('MIDI', 4, 'VIDEO', callback, camera.media);
+    const controller = f.create('MIDI', 1280, 'VIDEO', callback, camera.media);
     await controller.start();
     expect(controller.snapshot()).toMatchObject({ session: 'FAILED_BEFORE_START', transport: null,
       evaluation: null, completed: null, analysisError: null, inputError: 'RECORDING_PREPARATION_FAILED' });
@@ -617,7 +618,7 @@ describe('Continuous application owner', () => {
     await controller.abandon(); await controller.dispose();
   });
   for (const rate of [44100, 48000]) it(`microphone count-in and natural terminal at ${rate}`, async () => {
-    const f = environment(rate), callback = vi.fn(), controller = f.create('MICROPHONE', 1, 'OFF', callback); await controller.start();
+    const f = environment(rate), callback = vi.fn(), controller = f.create('MICROPHONE', 320, 'OFF', callback); await controller.start();
     expect(controller.snapshot().transport?.state).toBe('COUNT_IN');
     expect(f.bridge().runtime.snapshot().counts.segmentsStarted).toBe(0);
     await f.feed(2100);
@@ -634,7 +635,7 @@ describe('Continuous application owner', () => {
     await controller.dispose();
   });
   it('cancels count-in BEGIN on pause, then replaces it on resume', async () => {
-    const f = environment(), controller = f.create('MICROPHONE', 1); await controller.start();
+    const f = environment(), controller = f.create('MICROPHONE', 320); await controller.start();
     await f.feed(200); controller.pause(); await f.feed(700);
     expect(f.bridge().runtime.snapshot().counts.segmentsStarted).toBe(0);
     expect(controller.snapshot().transport?.state).toBe('PAUSED'); controller.resume(); await f.feed(controller.snapshot().transport!.countInRemainingMs); await f.feed(1800);
@@ -642,7 +643,7 @@ describe('Continuous application owner', () => {
     expect(f.bridge().snapshot().boundaryDiagnostics.filter(d => d.action === 'CANCELLED').length).toBe(2); await controller.dispose();
   });
   it('preserves a logically reached BEGIN whose source message has not arrived at Pause', async () => {
-    const f = environment(), controller = f.create('MICROPHONE', 1); await controller.start();
+    const f = environment(), controller = f.create('MICROPHONE', 320); await controller.start();
     await f.feed(480); f.context.currentTime += .030; controller.pause();
     expect(controller.snapshot().transport?.state).toBe('PAUSED'); await f.feed(200);
     expect(controller.snapshot().analysis).toBe('PAUSED'); expect(f.bridge().runtime.snapshot().counts.segmentsStarted).toBe(1);
@@ -668,7 +669,7 @@ describe('Continuous application owner', () => {
     expect(controller.snapshot().completed).toBeNull(); await controller.dispose();
   });
   it('abandonment during count-in cancels boundaries and creates no completion', async () => {
-    const f = environment(), controller = f.create('MICROPHONE', 1); await controller.start();
+    const f = environment(), controller = f.create('MICROPHONE', 320); await controller.start();
     const promise = controller.abandon(); await f.feed(50); await promise;
     expect(f.bridge().runtime.snapshot().counts.windowsStarted).toBe(0);
     expect(f.bridge().runtime.snapshot().analyzedThroughPerformanceMs).toBe(-Infinity);
@@ -676,7 +677,7 @@ describe('Continuous application owner', () => {
     await controller.dispose();
   });
   for (const paused of [false, true]) it(`terminal analysis failure pauses exactly once and respects ${paused ? 'USER' : 'INTERVENTION'} origin`, async () => {
-    const f = environment(), complete = vi.fn(), controller = f.create('MICROPHONE', 0, 'AUDIO', complete, undefined, 8);
+    const f = environment(), complete = vi.fn(), controller = f.create('MICROPHONE', 0, 'AUDIO', complete, undefined, 2560);
     await controller.start(); await f.feed(2200);
     expect(controller.snapshot().evaluation?.targets.length).toBeGreaterThan(0);
     const releaseAnalysis = vi.spyOn(ContinuousMicrophoneInput.prototype, 'dispose');
@@ -777,7 +778,7 @@ describe('Continuous application owner', () => {
   for (const incident of ['analysis','recording'] as const) it(`page teardown during ${incident} intervention discards without completion or stale revival`,async()=>{
     const f=environment(),done=vi.fn();let staleFailure:((error:Error)=>void)|undefined;
     const attach=f.worker.onFailure!;f.worker.onFailure=listener=>{staleFailure=listener;return attach(listener);};
-    const controller=f.create('MICROPHONE',0,'AUDIO',done);await controller.start();await f.feed(100);
+    const controller=f.create('MICROPHONE', 0,'AUDIO',done);await controller.start();await f.feed(100);
     if(incident==='analysis')f.failure();else{const clone=f.root.copies[1];clone.audio.muted=true;clone.audio.dispatchEvent(new Event('mute'));}
     expect(controller.snapshot().session).toBe('ACTIVE');expect(controller.snapshot().transport?.state).toBe('PAUSED');
     expect(incident==='analysis'?controller.snapshot().analysisIntervention:controller.snapshot().resourceIntervention).not.toBeNull();
@@ -897,7 +898,7 @@ for (const transport of ['COUNT_IN', 'RUNNING', 'PAUSED'] as const) {
     const recorder = new PerformanceRecorder(mode, capture.open);
     const finalize = vi.spyOn(recorder, 'finalize');
     f.platform.createRecorder = () => recorder;
-    const controller = f.create(source, transport === 'COUNT_IN' ? 1 : 0, mode, callback, camera.media);
+    const controller = f.create(source, transport === 'COUNT_IN' ? 320 : 0, mode, callback, camera.media);
     await controller.start();
     if (mode !== 'OFF') expect(controller.snapshot().recording?.state).toBe(transport === 'COUNT_IN' ? 'NOT_STARTED' : 'RECORDING');
     if (transport === 'PAUSED') controller.pause();
@@ -1069,7 +1070,7 @@ it('controller refresh and repeated live snapshots never request the full assign
 // Resource characterization uses only public controller commands, real clock/source mapping,
 // current caps and complete 2048-sample transport blocks (no controller/session state injection).
 it('R01 admitted running microphone failure freezes retained performance while copied inputs await the worker', async () => {
-  const f = environment(48000, stream(), 2048), callback = vi.fn(), controller = f.create('MICROPHONE', 4, 'OFF', callback, undefined, 20);
+  const f = environment(48000, stream(), 2048), callback = vi.fn(), controller = f.create('MICROPHONE', 1280, 'OFF', callback, undefined, 6400);
   let release!: () => void; const gate = new Promise<void>(resolve => { release = resolve; });
   vi.mocked(f.worker.run).mockImplementation(async ({ window }) => { await gate; return { events: [], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: window.jobIndex + 1 }; });
   try {
@@ -1085,7 +1086,7 @@ it('R01 admitted running microphone failure freezes retained performance while c
 
 it('R02 schema-valid short resume count-ins plus full-block capture accept fifth source region before real tail exists', async () => {
   const f = environment(48000, stream(), 2048), callback = vi.fn();
-  const controller = f.create('MICROPHONE', 4 / 128, 'OFF', callback, undefined, 20, 128);
+  const controller = f.create('MICROPHONE', 10, 'OFF', callback, undefined, 6400, 128);
   try {
     await controller.start(); await f.feed(2048 / 48); // Consume the score-derived initial one-bar count-in.
     expect(controller.snapshot().transport?.state).toBe('RUNNING');
@@ -1117,7 +1118,7 @@ it('R02 schema-valid short resume count-ins plus full-block capture accept fifth
 
 it('R03 valid ninth-boundary fuse freezes, then explicit End releases it before a fresh healthy attempt', async () => {
   const f = environment(48000, stream(), 2048), callback = vi.fn();
-  const controller = f.create('MICROPHONE', 4 / 128, 'OFF', callback, undefined, 20, 128);
+  const controller = f.create('MICROPHONE', 10, 'OFF', callback, undefined, 6400, 128);
   try {
     await controller.start(); const source = f.bridge().snapshot().nextSourceSampleIndex;
     f.context.currentTime += .025625; controller.refresh(); // Canonical15.625ms initial bar +10ms RUNNING; no full PCM message consumed yet.
@@ -1188,7 +1189,7 @@ it('R03 valid ninth-boundary fuse freezes, then explicit End releases it before 
     expect(f.root.audio.readyState).toBe('live'); expect(f.root.audio.stop).not.toHaveBeenCalled();
     expect(callback).not.toHaveBeenCalled();
     // Reuse the healthy borrowed device, not any attempt-owned graph/session/lease.
-    const fresh = environment(48000, f.root, 2048), next = fresh.create('MICROPHONE', 4 / 128, 'OFF', callback, undefined, 20, 128);
+    const fresh = environment(48000, f.root, 2048), next = fresh.create('MICROPHONE', 10, 'OFF', callback, undefined, 6400, 128);
     try {
       await next.start();
       expect(next.engineeringSnapshot().sessionId).not.toBe(oldSession);
@@ -1290,7 +1291,7 @@ it('synchronous hard capture failure survives weaker clock health and recording 
 });
 
 it('R14 silent INFER after tailReady settles natural FINALIZING with healthy recording and UNAVAILABLE evaluation', async () => {
-  const f = environment(48000, stream(), 2048), callback = vi.fn(), controller = f.create('MICROPHONE', 4, 'AUDIO', callback);
+  const f = environment(48000, stream(), 2048), callback = vi.fn(), controller = f.create('MICROPHONE', 1280, 'AUDIO', callback);
   const { service, client } = workerRpcRig(), engine = new AcousticEngine(() => client);
   await engine.prepare('/model'); f.platform.acquireInference = signal => engine.acquire(signal); service.silent.add('INFER');
   try {

@@ -13,7 +13,7 @@ import type { CursorScope } from './cursor-scope';
 type PerformancePlayheadState = {
   activeNoteIds: string[];
   activePage: number | null;
-  displayedBeat: number | null;
+  displayedTick: number | null;
 };
 
 function extractPageNumber(node: Element | null): number | null {
@@ -30,7 +30,7 @@ export class PerformancePlayheadController {
   private state: PerformancePlayheadState = {
     activeNoteIds: [],
     activePage: null,
-    displayedBeat: null,
+    displayedTick: null,
   };
 
   clear(container: HTMLElement): void {
@@ -38,17 +38,17 @@ export class PerformancePlayheadController {
     this.state = {
       activeNoteIds: [],
       activePage: null,
-      displayedBeat: null,
+      displayedTick: null,
     };
   }
 
   apply(
     container: HTMLElement,
     adapter: PracticeVerovioAdapter,
-    musicalBeat: number | null,
+    scoreTick: number | null,
     scope: CursorScope
   ): void {
-    if (musicalBeat === null) {
+    if (scoreTick === null) {
       this.clearDecorations(container);
       return;
     }
@@ -60,17 +60,17 @@ export class PerformancePlayheadController {
     const previousPage = this.state.activePage;
     this.clearDecorations(container);
 
-    const entry = adapter.getCursorTimelineEntryForBeatRange(
-      musicalBeat,
-      scope.startBeat,
-      scope.terminalBeat,
+    const entry = adapter.getCursorTimelineEntryForTickRange(
+      scoreTick,
+      scope.startTick,
+      scope.terminalTick,
       scope.kind === 'RANGE' ? scope.allowedNoteIds : undefined
     );
 
     if (!entry) {
       return;
     }
-    this.state.displayedBeat = musicalBeat;
+    this.state.displayedTick = scoreTick;
 
     const noteIds = Array.from(new Set(entry.noteIds.filter(Boolean)));
     const { anchor } = applyPlayheadCursor(container, noteIds);

@@ -2,7 +2,7 @@ import { type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import { countInContractAt } from '@/lib/practice/kernel/count-in';
 import type { ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
 import type { LocalPracticeCompletionReason } from '@/lib/practice/kernel/session';
-import { beatsToMs, PracticeTempoTimeline, type ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
+import { ticksToMs, PracticeTempoTimeline, type ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
 import { PracticeTimebase, type LocalClock, type SessionTime } from '@/lib/practice/kernel/timebase';
 
 export type PerformanceRuntimeState = 'READY' | 'COUNT_IN' | 'RUNNING' | 'PAUSED' | 'ENDED';
@@ -11,27 +11,28 @@ export type PerformanceClockSnapshot = {
   state: PerformanceRuntimeState;
   countInKind: 'INITIAL' | 'RESUME' | null;
   nowMs: number;
-  musicalBeat: number;
+  scoreTick: number;
+  timelineTimeMs: number;
   performanceTimeMs: number;
   countInTotalMs: number;
   countInRemainingMs: number;
-  countInBeats: number;
+  countInTicks: number;
   countInPulses: number;
   countInPulse: number;
   scopeCompleted: boolean;
-  scopeStartBeat: number;
-  scopeTerminalBeat: number;
+  scopeStartTick: number;
+  scopeTerminalTick: number;
   completionReason: LocalPracticeCompletionReason | null;
 };
 
 export type PerformanceTransportSnapshot = {
   state: PerformanceRuntimeState;
   stateBeforePause: PerformanceRuntimeState;
-  scopeStartBeat: number;
-  scopeTerminalBeat: number;
+  scopeStartTick: number;
+  scopeTerminalTick: number;
   activeElapsedMs: number;
   countInMs: number;
-  countInBeats: number;
+  countInTicks: number;
   countInPulses: number;
 };
 
@@ -41,7 +42,7 @@ export type PerformanceClockRuntimeOptions = {
   scope: Readonly<ResolvedPracticeScope>;
   clock: LocalClock;
   timebase: PracticeTimebase;
-  countInBeats?: number;
+  countInTicks?: number;
 };
 
 type PerformanceScope = ResolvedPracticeScope & {
@@ -55,14 +56,14 @@ export class PerformanceClockRuntime {
   private readonly timeline: PracticeTempoTimeline;
   private readonly clock: LocalClock;
   private readonly scope: PerformanceScope;
-  private readonly countInBeats: number;
+  private readonly countInTicks: number;
   private readonly countInPulses: number;
   private readonly countInMs: number;
   private state: PerformanceRuntimeState = 'READY';
   private stateBeforePause: PerformanceRuntimeState = 'READY';
   private completionReason: LocalPracticeCompletionReason | null = null;
   private activeElapsedMs = 0;
-  private resumeCountdown: { startMs: number; durationMs: number; beats: number; pulses: number } | null = null;
+  private resumeCountdown: { startMs: number; durationMs: number; ticks: number; pulses: number } | null = null;
   private currentSegment: ClockSegment | null = null;
   private clockSegments: ClockSegment[] = [];
 
@@ -73,12 +74,12 @@ export class PerformanceClockRuntime {
     if (!tempoPlan || !Array.isArray(tempoPlan.segments) || tempoPlan.segments.length === 0) {
       throw new Error('PerformanceClockRuntime requires a valid ResolvedPracticeTempoPlan with segments.');
     }
-    this.timeline = new PracticeTempoTimeline(tempoPlan, this.artifact.scoreEndBeat);
+    this.timeline = new PracticeTempoTimeline(tempoPlan, this.artifact.scoreEndTick, this.artifact.ticksPerQuarter);
     this.scope = performanceScopeCoordinates(this.timeline, options.scope);
-    const countIn = countInContractAt(this.artifact, this.scope.startBeat);
-    this.countInBeats = options.countInBeats ?? countIn.durationBeats;
+    const countIn = countInContractAt(this.artifact, this.scope.startTick);
+    this.countInTicks = options.countInTicks ?? countIn.durationTicks;
     this.countInPulses = countIn.pulses;
-    this.countInMs = beatsToMs(this.countInBeats, this.timeline.bpmAtBeat(this.scope.startBeat));
+    this.countInMs = ticksToMs(this.countInTicks, this.timeline.bpmAtTick(this.scope.startTick), this.artifact.ticksPerQuarter);
     this.timebase = options.timebase;
   }
 
@@ -111,11 +112,11 @@ export class PerformanceClockRuntime {
       throw new Error('Performance clock can only resume from PAUSED.');
     }
     const nowMs = this.nowSessionMs();
-    const beat = this.musicalBeat(this.performanceElapsedMs(this.activeElapsedMs));
-    const contract = countInContractAt(this.artifact, beat);
+    const tick = this.scoreTick(this.performanceElapsedMs(this.activeElapsedMs));
+    const contract = countInContractAt(this.artifact, tick);
     this.activeElapsedMs = Math.max(this.countInMs, this.activeElapsedMs);
-    this.resumeCountdown = { startMs: nowMs, durationMs: beatsToMs(contract.durationBeats, this.timeline.bpmAtBeat(beat)),
-      beats: contract.durationBeats, pulses: contract.pulses };
+    this.resumeCountdown = { startMs: nowMs, durationMs: ticksToMs(contract.durationTicks, this.timeline.bpmAtTick(tick), this.artifact.ticksPerQuarter),
+      ticks: contract.durationTicks, pulses: contract.pulses };
     this.state = 'COUNT_IN';
     this.currentSegment = this.startClockSegmentAt('COUNT_IN', this.activeElapsedMs, nowMs);
     this.currentSegment.frozen = true;
@@ -161,16 +162,17 @@ export class PerformanceClockRuntime {
       state: this.state,
       countInKind: this.state === 'COUNT_IN' ? countdown ? 'RESUME' : 'INITIAL' : null,
       nowMs,
-      musicalBeat: this.musicalBeat(performanceTimeMs),
+      scoreTick: this.scoreTick(performanceTimeMs),
+      timelineTimeMs: this.scope.nominalStartTimeMs + performanceTimeMs,
       performanceTimeMs,
       countInTotalMs,
       countInRemainingMs,
-      countInBeats: countdown?.beats ?? this.countInBeats,
+      countInTicks: countdown?.ticks ?? this.countInTicks,
       countInPulses: pulses,
       countInPulse,
       scopeCompleted: this.completionReason === 'SCOPE_COMPLETED',
-      scopeStartBeat: this.scope.startBeat,
-      scopeTerminalBeat: this.scope.terminalBeat,
+      scopeStartTick: this.scope.startTick,
+      scopeTerminalTick: this.scope.terminalTick,
       completionReason: this.completionReason,
     };
   }
@@ -218,11 +220,11 @@ export class PerformanceClockRuntime {
     return {
       state: this.state,
       stateBeforePause: this.stateBeforePause,
-      scopeStartBeat: this.scope.startBeat,
-      scopeTerminalBeat: this.scope.terminalBeat,
+      scopeStartTick: this.scope.startTick,
+      scopeTerminalTick: this.scope.terminalTick,
       activeElapsedMs: this.activeElapsedAt(this.nowSessionMs()),
       countInMs: this.countInMs,
-      countInBeats: this.countInBeats,
+      countInTicks: this.countInTicks,
       countInPulses: this.countInPulses,
     };
   }
@@ -353,11 +355,11 @@ export class PerformanceClockRuntime {
     );
   }
 
-  private musicalBeat(performanceTimeMs: number): number {
+  private scoreTick(performanceTimeMs: number): number {
     if (performanceTimeMs >= this.scopeDurationMs()) {
-      return this.scope.terminalBeat;
+      return this.scope.terminalTick;
     }
-    return this.timeline.timeMsToBeat(this.scope.nominalStartTimeMs + performanceTimeMs);
+    return this.timeline.timeMsToTick(this.scope.nominalStartTimeMs + performanceTimeMs);
   }
 
   private nowSessionMs(): number {
@@ -379,7 +381,7 @@ function performanceScopeCoordinates(
 ): PerformanceScope {
   return {
     ...scope,
-    nominalStartTimeMs: timeline.beatToTimeMs(scope.startBeat),
-    nominalEndTimeMs: timeline.beatToTimeMs(scope.terminalBeat),
+    nominalStartTimeMs: timeline.tickToTimeMs(scope.startTick),
+    nominalEndTimeMs: timeline.tickToTimeMs(scope.terminalTick),
   };
 }

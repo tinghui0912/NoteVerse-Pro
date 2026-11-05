@@ -26,8 +26,8 @@ TempoPlanSelection = ScoreTempoPlanSelection | CustomFixedBpmTempoPlanSelection
 
 
 class PerformanceTakeTempoPlanSegment(StrictPerformanceTakeModel):
-    startBeat: float = Field(ge=0)
-    bpm: float = Field(gt=0)
+    startTick: int = Field(strict=True, ge=0, le=2**53 - 1)
+    bpm: float = Field(gt=0, allow_inf_nan=False)
     source: str = Field(pattern="^(MUSICXML|PRODUCT_DEFAULT|CUSTOM)$")
 
 
@@ -37,10 +37,10 @@ class PerformanceTakeTempoPlan(StrictPerformanceTakeModel):
 
     @model_validator(mode="after")
     def validate_segments(self) -> "PerformanceTakeTempoPlan":
-        if self.segments[0].startBeat != 0:
-            raise ValueError("tempo plan must start at beat zero")
+        if self.segments[0].startTick != 0:
+            raise ValueError("tempo plan must start at tick zero")
         for previous, current in zip(self.segments, self.segments[1:]):
-            if current.startBeat <= previous.startBeat:
+            if current.startTick <= previous.startTick:
                 raise ValueError("tempo plan segments must be strictly ordered")
         return self
 
@@ -103,14 +103,14 @@ class PerformanceTakeRangeScopeSelection(StrictPerformanceTakeModel):
 
 class PerformanceTakeResolvedFullScope(StrictPerformanceTakeModel):
     kind: Literal["FULL"]
-    start_beat: float = Field(ge=0)
-    terminal_beat: float = Field(gt=0)
+    start_tick: int = Field(strict=True, ge=0, le=2**53 - 1)
+    terminal_tick: int = Field(strict=True, gt=0, le=2**53 - 1)
 
 
 class PerformanceTakeResolvedRangeScope(StrictPerformanceTakeModel):
     kind: Literal["RANGE"]
-    start_beat: float = Field(ge=0)
-    terminal_beat: float = Field(gt=0)
+    start_tick: int = Field(strict=True, ge=0, le=2**53 - 1)
+    terminal_tick: int = Field(strict=True, gt=0, le=2**53 - 1)
     start_group_id: str = Field(min_length=1, max_length=128)
     end_group_id: str = Field(min_length=1, max_length=128)
 
@@ -163,8 +163,8 @@ class PerformanceTakeRead(StrictPerformanceTakeModel):
     media_byte_size: int
     duration_ms: int
     scope_type: str
-    scope_start_beat: float
-    scope_terminal_beat: float
+    scope_start_tick: int = Field(strict=True, ge=0, le=2**53 - 1)
+    scope_terminal_tick: int = Field(strict=True, gt=0, le=2**53 - 1)
     scope_start_group_id: Optional[str] = None
     scope_end_group_id: Optional[str] = None
     deletion_status: str = "ACTIVE"

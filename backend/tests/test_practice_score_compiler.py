@@ -56,27 +56,27 @@ def test_measure_boundary_is_shared_by_notes_meter_tempo_and_artifact(body, expe
     xml = score(attributes() + body, NEXT + note("next", "3"))
     prepared = prepare_musicxml_ids_for_practice(xml.decode()).encode()
     compiled = compile_practice_score(prepared)
-    assert [n.onset_beat for n in compiled.notes[:-1]] == first_onsets
-    assert compiled.measures[0].end_beat == expected
-    assert compiled.measures[1].start_beat == expected
+    assert [n.onset_tick for n in compiled.notes[:-1]] == first_onsets
+    assert compiled.measures[0].end_tick == expected
+    assert compiled.measures[1].start_tick == expected
     assert compiled.measures[0].uses_meter_duration == (body == "")
     assert (
-        compiled.notes[-1].onset_beat
-        == compiled.meter_segments[-1].start_beat
-        == compiled.tempo_segments[0].start_beat
+        compiled.notes[-1].onset_tick
+        == compiled.meter_segments[-1].start_tick
+        == compiled.tempo_segments[0].start_tick
         == expected
     )
     timeline = practice_timeline_from_compiled(compiled)
     next_note = next(n for n in timeline.notes if n.render_note_id == "next")
     assert (
-        next(e for e in timeline.events if e.event_id == next_note.event_id).onset_beat == expected
+        next(e for e in timeline.events if e.event_id == next_note.event_id).onset_tick == expected
     )
     bundle = PracticeSourceBuilder().build(score_id="s", revision_id="r", canonical_musicxml=xml)
     artifact = PracticeScoreArtifactRead.model_validate(bundle.artifact.value)
     assert (
-        artifact.moments[-1].onsetBeat
-        == artifact.meterSegments[-1].startBeat
-        == artifact.scoreTempoSegments[0].startBeat
+        artifact.moments[-1].onsetTick
+        == artifact.meterSegments[-1].startTick
+        == artifact.scoreTempoSegments[0].startTick
         == expected
     )
     render_ids = {e.get("id") for e in ET.fromstring(bundle.prepared_musicxml.data).iter("note")}
@@ -93,11 +93,11 @@ def test_divisions_changes_and_direction_offsets_share_quarter_note_axis():
         NEXT + note("d", "12"),
     )
     compiled = compile_practice_score(xml)
-    assert [n.onset_beat for n in compiled.notes] == [0, 3, 4, 6]
-    assert [n.duration_beats for n in compiled.notes] == [3, 1, 2, 3]
-    assert [m.start_beat for m in compiled.meter_segments] == [0, 3, 6]
-    assert [t.start_beat for t in compiled.tempo_segments] == [4, 6]
-    assert compiled.notes[2].onset_beat == compiled.tempo_segments[0].start_beat
+    assert [n.onset_tick for n in compiled.notes] == [0, 6, 8, 12]
+    assert [n.duration_ticks for n in compiled.notes] == [6, 2, 4, 6]
+    assert [m.start_tick for m in compiled.meter_segments] == [0, 6, 12]
+    assert [t.start_tick for t in compiled.tempo_segments] == [8, 12]
+    assert compiled.notes[2].onset_tick == compiled.tempo_segments[0].start_tick
 
 
 def test_rational_cursor_is_canonicalized_once_for_all_projections():
@@ -107,12 +107,12 @@ def test_rational_cursor_is_canonicalized_once_for_all_projections():
             NEXT + note("d", "3"),
         )
     )
-    assert [n.onset_beat for n in compiled.notes] == [0, 0.333333, 0.666667, 1]
+    assert [n.onset_tick for n in compiled.notes] == [0, 1, 2, 3]
     assert (
-        compiled.measures[1].start_beat
-        == compiled.meter_segments[-1].start_beat
-        == compiled.tempo_segments[0].start_beat
-        == 1
+        compiled.measures[1].start_tick
+        == compiled.meter_segments[-1].start_tick
+        == compiled.tempo_segments[0].start_tick
+        == 3
     )
 
 
@@ -126,10 +126,10 @@ def test_fractional_tie_endpoints_use_the_compiled_beat_axis():
         )
     )
     timeline = practice_timeline_from_compiled(compiled)
-    assert compiled.notes[1].onset_beat == 0.333333
-    assert compiled.notes[1].duration_beats == 0.333334
-    assert compiled.notes[2].onset_beat == 0.666667
-    assert timeline.moments[-1].canonical_end_beat == 1
+    assert compiled.notes[1].onset_tick == 1
+    assert compiled.notes[1].duration_ticks == 1
+    assert compiled.notes[2].onset_tick == 2
+    assert timeline.moments[-1].canonical_end_tick == 3
 
 
 def test_part_staff_identity_keeps_tie_ownership_local_to_the_part():
@@ -142,7 +142,7 @@ def test_part_staff_identity_keeps_tie_ownership_local_to_the_part():
     compiled = compile_practice_score(xml)
     assert len({n.staff_id for n in compiled.notes}) == 2
     timeline = practice_timeline_from_compiled(compiled)
-    assert timeline.moments[0].canonical_end_beat == 4
+    assert timeline.moments[0].canonical_end_tick == 4
 
 
 def test_inherited_meter_sound_and_dotted_direction_tempo():
@@ -155,7 +155,7 @@ def test_inherited_meter_sound_and_dotted_direction_tempo():
         )
     )
     assert len(compiled.meter_segments) == 1
-    assert [(t.start_beat, t.bpm) for t in compiled.tempo_segments] == [(0, 80), (3, 90)]
+    assert [(t.start_tick, t.bpm) for t in compiled.tempo_segments] == [(0, 80), (3, 90)]
 
 
 def test_multiple_parts_share_measure_extent_with_one_supported_meter_timeline():
@@ -163,8 +163,8 @@ def test_multiple_parts_share_measure_extent_with_one_supported_meter_timeline()
     two = attributes() + note("b", "2")
     xml = f'<score-partwise><part id="P1"><measure>{one}</measure><measure>{NEXT}{note("c")}</measure></part><part id="P2"><measure>{two}</measure><measure><attributes>{meter(3, 4)}</attributes>{note("d")}</measure></part></score-partwise>'
     compiled = compile_practice_score(xml)
-    assert [n.onset_beat for n in compiled.notes] == [0, 0, 4, 4]
-    assert compiled.tempo_segments[0].start_beat == compiled.meter_segments[-1].start_beat == 4
+    assert [n.onset_tick for n in compiled.notes] == [0, 0, 4, 4]
+    assert compiled.tempo_segments[0].start_tick == compiled.meter_segments[-1].start_tick == 4
     with pytest.raises(PracticeScoreInvalidError):
         compile_practice_score(xml.replace(two, two.replace(meter(), meter(3, 4))))
 
@@ -175,7 +175,7 @@ BAD = [
     attributes("1/2") + note(),
     attributes() + note(duration="NaN"),
     attributes() + note(duration="1_0"),
-    attributes("10000000") + note(duration="1"),
+    attributes("9007199254740992") + note(duration="1"),
     attributes() + note(duration="garbage"),
     attributes() + note(duration="-1"),
     attributes() + note(duration="0"),

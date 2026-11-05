@@ -32,11 +32,11 @@ it('resolves FULL and RANGE and SCORE and CUSTOM_FIXED_BPM', () => {
   const full = planPracticeSession(input, intent);
   const range = planPracticeSession(input, { ...intent, scope: { kind: 'RANGE', startGroupId: input.artifact.moments[1].groupId,
     endGroupId: input.artifact.moments[2].groupId }, tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 100 } });
-  expect(full.scope).toMatchObject({ startIndex: 0, endIndex: 4, terminalBeat: input.artifact.scoreEndBeat });
-  expect(range.scope).toMatchObject({ startIndex: 1, endIndex: 2, startBeat: input.artifact.moments[1].onsetBeat,
-    terminalBeat: input.artifact.moments[2].canonicalEndBeat });
+  expect(full.scope).toMatchObject({ startIndex: 0, endIndex: 4, terminalTick: input.artifact.scoreEndTick });
+  expect(range.scope).toMatchObject({ startIndex: 1, endIndex: 2, startTick: input.artifact.moments[1].onsetTick,
+    terminalTick: input.artifact.moments[2].canonicalEndTick });
   expect(full.tempoPlan.segments).toHaveLength(2);
-  expect(range.tempoPlan.segments).toEqual([{ startBeat: 0, bpm: 100, source: 'CUSTOM' }]);
+  expect(range.tempoPlan.segments).toEqual([{ startTick: 0, bpm: 100, source: 'CUSTOM' }]);
 });
 it.each(['', null, 123])('rejects invalid source id %s', sourceId => {
   expect(() => createPracticeSessionPlanner()({ ...source(), sourceId } as never, intent)).toThrow();
@@ -83,9 +83,9 @@ it('Continuous clock, evaluator, snapshot and natural Result consume executed re
     scope: { kind: 'RANGE', startGroupId: input.artifact.moments[1].groupId, endGroupId: input.artifact.moments[2].groupId },
     tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 100 } });
   const clock = new ManualClock();
-  const session = new ContinuousPracticeSession({ ...plan, inputSource: 'MIDI', clock, countInBeats: 0,
+  const session = new ContinuousPracticeSession({ ...plan, inputSource: 'MIDI', clock, countInTicks: 0,
     createClockEvidence: id => new ContinuousMidiEvidence(id) });
-  expect(session.start()).toMatchObject({ scopeStartBeat: plan.scope.startBeat, scopeTerminalBeat: plan.scope.terminalBeat });
+  expect(session.start()).toMatchObject({ scopeStartTick: plan.scope.startTick, scopeTerminalTick: plan.scope.terminalTick });
   expect(Reflect.get(session.clock, 'timeline').plan).toBe(plan.tempoPlan);
   expect(session.snapshotSession().scope).toBe(plan.scope); expect(session.snapshotSession().tempoPlan).toBe(plan.tempoPlan);
   expect(session.snapshotSession().sourceId).toBe(plan.sourceId);

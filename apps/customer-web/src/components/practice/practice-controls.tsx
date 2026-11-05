@@ -29,7 +29,7 @@ interface PracticeControlSurfaceProps {
   canSelectRange: boolean;
   tempoSelection?: PracticeTempoSelection;
   scoreTempoSegments?: readonly TempoSegment[];
-  scopeStartBeat?: number;
+  scopeStartTick?: number;
   tempoLocked?: boolean;
   onTempoSelectionChange?: (selection: PracticeTempoSelection) => void;
   metronomeEnabled?: boolean;
@@ -72,7 +72,7 @@ function PracticeControlSurface({
   canSelectRange,
   tempoSelection,
   scoreTempoSegments,
-  scopeStartBeat,
+  scopeStartTick,
   tempoLocked,
   onTempoSelectionChange,
   metronomeEnabled = false,
@@ -142,7 +142,7 @@ function PracticeControlSurface({
             <PracticeTempoPopover
               tempoSelection={tempoSelection}
               scoreTempoSegments={scoreTempoSegments}
-              scopeStartBeat={scopeStartBeat}
+              scopeStartTick={scopeStartTick}
               tempoLocked={tempoLocked ?? isActive}
               onTempoSelectionChange={onTempoSelectionChange}
               metronomeEnabled={metronomeEnabled}

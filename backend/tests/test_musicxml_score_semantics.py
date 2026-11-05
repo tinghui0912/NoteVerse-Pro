@@ -113,9 +113,11 @@ def test_cross_projection_written_witness(monkeypatch):
     ]
     practice = project_practice_score(model)
     assert practice == compile_practice_score(content)
-    assert [m.start_beat for m in practice.measures] == [float(m.start) for m in model.measures]
+    assert [m.start_tick for m in practice.measures] == [
+        practice.timebase.to_tick(m.start) for m in model.measures
+    ]
     assert len(practice.notes) == 8  # Written pitched notes, with no repeated occurrences.
-    assert [t.start_beat for t in practice.tempo_segments] == [2]
+    assert [t.start_tick for t in practice.tempo_segments] == [2]
     original = metadata._playback_duration_ms
 
     def witness(plan):
@@ -242,7 +244,7 @@ def test_negative_direction_offset_can_place_a_fact_in_the_previous_measure():
     )
     assert model.tempos[0].measure_index == 1
     assert model.tempos[0].position == Fraction(1)
-    assert project_practice_score(model).tempo_segments[0].start_beat == 1
+    assert project_practice_score(model).tempo_segments[0].start_tick == 1
     result = project_score_metadata(model)
     assert result.tempo_events == [{"part": 1, "measure": "2", "offset_quarters": -1, "bpm": 60}]
     assert result.playback_duration_ms == 3750  # 1 quarter at 80, then 3 at 60.

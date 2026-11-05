@@ -71,7 +71,7 @@ describe('video export session saved-take parsing', () => {
   });
 
   it.each([
-    { field: 'scope', patch: { scope_terminal_beat: take.scope_start_beat }, reason: 'scope_terminal_beat_invalid' },
+    { field: 'scope', patch: { scope_terminal_tick: take.scope_start_tick }, reason: 'scope_terminal_tick_invalid' },
     { field: 'tempo', patch: { tempo_plan: { ...take.tempo_plan, segments: [] } }, reason: 'tempo_plan_segments_missing' },
     { field: 'timebase', patch: { recording_timebase: { ...take.recording_timebase, activeSegments: [] } }, reason: 'recording_timebase_segments_missing' },
   ])('fails closed on invalid saved $field metadata at the adapter boundary', ({ patch, reason }) => {
@@ -94,9 +94,9 @@ describe('video export session saved-take parsing', () => {
     expect(() =>
       parseSavedTempoPlan({
         ...tempoPlan,
-        segments: [{ startBeat: 1, bpm: 96, source: 'MUSICXML' }],
+        segments: [{ startTick: 1, bpm: 96, source: 'MUSICXML' }],
       })
-    ).toThrow(/beat_zero/);
+    ).toThrow(/tick_zero/);
     expect(() =>
       parseSavedRecordingTimebase({
         ...recordingTimebase,
@@ -116,7 +116,7 @@ describe('video export session saved-take parsing', () => {
         {
           ...take,
           scope_type: 'RANGE',
-          scope_start_beat: 4,
+          scope_start_tick: 4,
           scope_start_group_id: 'group-1',
           scope_end_group_id: 'group-2',
         },
@@ -197,12 +197,12 @@ describe('video export session saved-take parsing', () => {
 });
 
 
-it('uses validated durable scope beats and tempo without replacing saved values', () => {
-  const persisted = { ...take, scope_terminal_beat: take.scope_terminal_beat - 0.0000001 };
+it('uses validated durable scope ticks and tempo without replacing saved integer values', () => {
+  const persisted = { ...take };
   const result = createVideoExportSessionFromSavedTake(persisted, new Blob(['video']), { sourceId: take.source_id, artifact });
   expect(result.status).toBe('supported');
   if (result.status === 'supported') {
-    expect(result.session.scope.terminalBeat).toBe(persisted.scope_terminal_beat);
+    expect(result.session.scope.terminalTick).toBe(persisted.scope_terminal_tick);
     expect(result.session.tempoPlan).toEqual(take.tempo_plan);
   }
 });

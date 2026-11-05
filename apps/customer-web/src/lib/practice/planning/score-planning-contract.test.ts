@@ -5,7 +5,7 @@ import type { PracticeScoreArtifact } from '../kernel/artifact';
 import { resolvePracticeScope, type PracticeScope } from '../kernel/scope';
 import { resolvePracticeTempoPlan, type PracticeTempoSelection } from '../kernel/tempo';
 
-type Case = { name: string; score: Pick<PracticeScoreArtifact, 'moments' | 'scoreEndBeat' | 'scoreTempoSegments'>;
+type Case = { name: string; score: Pick<PracticeScoreArtifact, 'moments' | 'scoreEndTick' | 'scoreTempoSegments'>;
   scope: PracticeScope; tempoSelection: PracticeTempoSelection; error?: 'scope' | 'tempo_selection'; expected?: unknown };
 const cases: Case[] = JSON.parse(readFileSync(path.resolve(process.cwd(), '../../contracts/practice/score-planning-cases.json'), 'utf8')).cases;
 
@@ -14,8 +14,8 @@ describe('shared server/browser score planning contract', () => {
     const artifact = row.score as PracticeScoreArtifact;
     const resolve = () => {
       const scope = resolvePracticeScope(artifact, row.scope);
-      const projection = scope.kind === 'FULL' ? { kind: scope.kind, startBeat: scope.startBeat, terminalBeat: scope.terminalBeat }
-        : { kind: scope.kind, startBeat: scope.startBeat, terminalBeat: scope.terminalBeat, startGroupId: scope.startGroupId, endGroupId: scope.endGroupId };
+      const projection = scope.kind === 'FULL' ? { kind: scope.kind, startTick: scope.startTick, terminalTick: scope.terminalTick }
+        : { kind: scope.kind, startTick: scope.startTick, terminalTick: scope.terminalTick, startGroupId: scope.startGroupId, endGroupId: scope.endGroupId };
       return { scope: projection, tempoPlan: resolvePracticeTempoPlan(artifact, row.tempoSelection) };
     };
     if (row.error) expect(resolve).toThrow();

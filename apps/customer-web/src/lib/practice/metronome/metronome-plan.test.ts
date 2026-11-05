@@ -8,8 +8,8 @@ it.each(['STEP','CONTINUOUS'] as const)('%s projects exact resolved timing and f
   const artifact=structuredClone(fixture) as PracticeScoreArtifact;
   const session=mode==='STEP'?stepSessionPlan(artifact,{metronomeEnabled:true}):continuousSessionPlan(artifact,{metronomeEnabled:true});
   const plan=session.metronomePlan;
-  expect(plan).toMatchObject({mode,initiallyEnabled:true,scopeStartBeat:session.scope.startBeat,
-    scopeEndBeat:session.scope.terminalBeat,timelineEndBeat:artifact.scoreEndBeat});
+  expect(plan).toMatchObject({mode,initiallyEnabled:true,scopeStartTick:session.scope.startTick,
+    scopeEndTick:session.scope.terminalTick,timelineEndTick:artifact.scoreEndTick});
   expect(plan.tempoPlan).toBe(session.tempoPlan);expect(plan.meterSegments).toEqual(artifact.meterSegments);
   expect(Object.isFrozen(plan)).toBe(true);expect(Object.isFrozen(plan.meterSegments)).toBe(true);
   expect(Object.isFrozen(plan.meterSegments[0])).toBe(true);expect(Object.isFrozen(plan.tempoPlan.segments)).toBe(true);
@@ -18,6 +18,6 @@ it.each(['STEP','CONTINUOUS'] as const)('%s projects exact resolved timing and f
 it('meter and finite terminal timing are required without repair',()=>{
   const base=stepSessionPlan(structuredClone(fixture) as PracticeScoreArtifact).metronomePlan;
   expect(() => resolveMetronomePlan({...base,meterSegments:[]})).toThrow('initial meter');
-  expect(() => resolveMetronomePlan({...base,meterSegments:[{...base.meterSegments[0],startBeat:1}]})).toThrow('initial meter');
-  for(const terminal of [undefined,NaN,Infinity,-1])expect(()=>resolveMetronomePlan({...base,timelineEndBeat:terminal} as never)).toThrow();
+  expect(() => resolveMetronomePlan({...base,meterSegments:[{...base.meterSegments[0],startTick:1}]})).toThrow('initial meter');
+  for(const terminal of [undefined,NaN,Infinity,-1])expect(()=>resolveMetronomePlan({...base,timelineEndTick:terminal} as never)).toThrow();
 });

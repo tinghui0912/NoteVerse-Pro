@@ -13,7 +13,7 @@ describe('PracticeTempoPopover', () => {
       <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
         <PracticeTempoPopover
           tempoSelection={{ mode: 'SCORE' }}
-          scoreTempoSegments={[{ startBeat: 0, bpm: 96 }]}
+          scoreTempoSegments={[{ startTick: 0, bpm: 96 }]}
           onTempoSelectionChange={vi.fn()}
         />
       </NextIntlClientProvider>
@@ -41,7 +41,7 @@ describe('PracticeTempoPopover', () => {
       <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
         <PracticeTempoPopover
           tempoSelection={{ mode: 'CUSTOM_FIXED_BPM', bpm: 72 }}
-          scoreTempoSegments={[{ startBeat: 0, bpm: 120 }]}
+          scoreTempoSegments={[{ startTick: 0, bpm: 120 }]}
           onTempoSelectionChange={vi.fn()}
         />
       </NextIntlClientProvider>
@@ -56,7 +56,7 @@ describe('PracticeTempoPopover', () => {
       <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
         <PracticeTempoPopover
           tempoSelection={{ mode: 'SCORE' }}
-          scoreTempoSegments={[{ startBeat: 0, bpm: 104 }]}
+          scoreTempoSegments={[{ startTick: 0, bpm: 104 }]}
           onTempoSelectionChange={onTempoSelectionChange}
         />
       </NextIntlClientProvider>
@@ -89,7 +89,7 @@ describe('PracticeTempoPopover', () => {
       <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
         <PracticeTempoPopover
           tempoSelection={{ mode: 'CUSTOM_FIXED_BPM', bpm: 100 }}
-          scoreTempoSegments={[{ startBeat: 0, bpm: 120 }]}
+          scoreTempoSegments={[{ startTick: 0, bpm: 120 }]}
           onTempoSelectionChange={onTempoSelectionChange}
         />
       </NextIntlClientProvider>
@@ -109,7 +109,7 @@ describe('PracticeTempoPopover', () => {
       <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
         <PracticeTempoPopover
           tempoSelection={{ mode: 'SCORE' }}
-          scoreTempoSegments={[{ startBeat: 0, bpm: 100 }]}
+          scoreTempoSegments={[{ startTick: 0, bpm: 100 }]}
           metronomeEnabled={false}
           onMetronomeEnabledChange={onMetronomeEnabledChange}
           onTempoSelectionChange={vi.fn()}
@@ -131,7 +131,7 @@ describe('PracticeTempoPopover', () => {
       <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
         <PracticeTempoPopover
           tempoSelection={{ mode: 'CUSTOM_FIXED_BPM', bpm: 90 }}
-          scoreTempoSegments={[{ startBeat: 0, bpm: 90 }]}
+          scoreTempoSegments={[{ startTick: 0, bpm: 90 }]}
           tempoLocked={true}
           metronomeEnabled={true}
           onMetronomeEnabledChange={onMetronomeEnabledChange}

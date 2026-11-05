@@ -7,25 +7,23 @@ and primitive types. The browser kernel validates untrusted transport into its o
 domain model; generated API DTOs describe the transport boundary.
 
 The exact root fields are `schemaVersion`, `scoreId`, `revisionId`, `artifactId`,
-`notes`, `events`, `moments`, `meterSegments`, `scoreTempoSegments`, and `scoreEndBeat`.
-Every meter segment contains exactly `startBeat`, `numerator`, and `denominator`.
-Meter numerator and denominator are positive JSON-safe integers (`1..9007199254740991`),
-so canonical JSON and browser Number represent each value exactly. These facts
-establish a nonempty timeline beginning at beat
-zero, with finite, nonnegative, strictly increasing segment positions. Derived
-measure duration must be finite and positive.
+`ticksPerQuarter`, `notes`, `events`, `moments`, `meterSegments`,
+`scoreTempoSegments`, and `scoreEndTick`. All score positions/durations are
+nonnegative JSON-safe integer ticks on one source-local grid. `ticksPerQuarter` is
+positive and JSON-safe. Meter segments contain `startTick`, `numerator`, and
+`denominator`; tempo segments contain `startTick` and finite positive `bpm`.
 
-Measure duration is `numerator * 4 / denominator`, normalized to canonical six-decimal
-score beats. Backend meter domain and the browser's pure `measureDurationBeats`
-helper own this derivation. Count-In pulse count and metronome pulse behavior are
-execution policy, described by [session planning](practice-session-planning.md).
-They are not serialized score facts.
+The meter timeline begins at tick zero. Measure duration is
+`numerator * 4 * ticksPerQuarter / denominator`; a denominator pulse is
+`4 * ticksPerQuarter / denominator`. Both must be exact positive integer ticks.
+Count-In and metronome execution policy is described by
+[session planning](practice-session-planning.md).
 
-`scoreEndBeat` is a validated denormalized summary equal to the canonical event
-chronology's maximum endpoint. `canonicalEndBeat` is the validated sounding endpoint
+`scoreEndTick` is the full written score extent, including trailing silence, and
+bounds every event and moment. `canonicalEndTick` is the exact sounding endpoint
 of a moment's attacks through the tie graph. Scope/runtime consumers use these
-summaries directly. The first canonical event is `events[0]`; the first Practice
-target is `moments[0]`, which can occur later than a continuation-only event.
+values directly. The first event is `events[0]`; the first Practice target is
+`moments[0]`, which can occur later than a continuation-only event.
 
 Practice readiness applies to the entire pinned revision. Every retained playable
 note, including continuation notes and notes outside a selected section, has an
@@ -38,8 +36,8 @@ explicit product domain independently of recognition models.
 | Owner | Facts |
 | --- | --- |
 | notes | noteId, eventId reference, pianoKey, renderNoteId, measureNumber, staffId, voiceId, tieTypes |
-| events | eventId, onsetBeat, durationBeats |
-| moments | groupId, onsetBeat, canonicalEndBeat, attacks, continuationNoteIds |
+| events | eventId, onsetTick, durationTicks |
+| moments | groupId, onsetTick, canonicalEndTick, attacks, continuationNoteIds |
 | physical attack | attackId, pianoKey, nonempty canonical noteIds at the same onset/key |
 
 A revision has one canonical notation graph and one chronological Practice moment
@@ -50,9 +48,8 @@ notes across voices or staves share that attack while retaining their notation I
 
 Moments cover attack onsets in order. Same-onset tie-stop notes are continuation
 references disjoint from attacks. Pure tie-only onsets remain in the note/event
-graph. canonicalEndBeat follows sounding attack-note ends through contiguous or
-overlapping same-key/staff/voice tie fragments with the established beat rounding.
-Finite negative pickup onsets are valid chronology.
+graph. canonicalEndTick follows sounding attack-note ends through contiguous or
+overlapping same-key/staff/voice tie fragments using exact integer coordinates. Pickup notation begins on the nonnegative written axis.
 
 Strict validation checks exact fields, identities, references, complete membership,
 physical-key consistency, ordering and endpoints. Duplicate IDs/render identities,
@@ -67,7 +64,7 @@ notes and are excluded from attack equality. Set plus numeric sort gives exact,
 duplicate/order-insensitive key-set comparison. MATCH advances once after rearm;
 MISMATCH stays on its target; Skip is a separate action.
 
-Continuous projects attackId to strikeId, maps moment.onsetBeat through the selected
+Continuous projects attackId to strikeId, maps moment.onsetTick through the selected
 tempo timeline relative to scope, and resolves attack noteIds to render IDs. A
 multi-voice unison creates one strike with every relevant notation render ID. A
 C4/E4 chord creates two strikes. Continuations create no additional strike.

@@ -21,15 +21,22 @@ export const patternFamilies = {
   CHORD_SUBSTITUTION: [[60, 64, 67]],
 } as const;
 
-export function fixedTimeline(bpm: number): PracticeTempoTimeline {
-  return new PracticeTempoTimeline({ selection: { mode: 'CUSTOM_FIXED_BPM', bpm },
-    segments: [{ startBeat: 0, bpm, source: 'CUSTOM' }] }, 32);
+/** Research input spacings are quarter quantities; production receives integral grid positions. */
+function researchQuarterTicks(quarters: number): number {
+  const ticks = quarters === 1 / 3 ? 100 : quarters * 300;
+  if (!Number.isSafeInteger(ticks)) throw new Error('RESEARCH_GRID_UNREPRESENTABLE');
+  return ticks;
 }
 
-export function expectedPattern(timeline: PracticeTempoTimeline, groups: readonly (readonly number[])[], spacingBeats: number, startBeat = 4): ContinuousExpectedStrike[] {
+export function fixedTimeline(bpm: number): PracticeTempoTimeline {
+  return new PracticeTempoTimeline({ selection: { mode: 'CUSTOM_FIXED_BPM', bpm },
+    segments: [{ startTick: 0, bpm, source: 'CUSTOM' }] }, 9600, 300);
+}
+
+export function expectedPattern(timeline: PracticeTempoTimeline, groups: readonly (readonly number[])[], spacingBeats: number, startQuarter = 4): ContinuousExpectedStrike[] {
   return groups.flatMap((pianoKeys, group) => pianoKeys.map(pianoKey => ({
     strikeId: `g${group}:${pianoKey}`, groupId: `g${group}`, pianoKey,
-    expectedPerformanceTimeMs: timeline.beatToTimeMs(startBeat + group * spacingBeats), renderNoteIds: [],
+    expectedPerformanceTimeMs: timeline.tickToTimeMs(researchQuarterTicks(startQuarter) + group * researchQuarterTicks(spacingBeats)), renderNoteIds: [],
   })));
 }
 
@@ -67,7 +74,7 @@ export function characterizeCase(input: CaseInput): SyntheticCase {
     previousByPitch.set(strike.pianoKey, strike);
   }
   const atBeat = input.atBeat ?? 4;
-  const beatDurationMs = timeline.beatToTimeMs(atBeat + 1) - timeline.beatToTimeMs(atBeat);
+  const beatDurationMs = timeline.tickToTimeMs(researchQuarterTicks(atBeat + 1)) - timeline.tickToTimeMs(researchQuarterTicks(atBeat));
   return {
     caseId: input.caseId, family: input.family, variant: input.variant, bpm: input.bpm, spacingBeats: input.spacingBeats,
     samePitchSpacingMs: samePitchGaps.length ? Math.min(...samePitchGaps.map(({ previous, next }) => next.expectedPerformanceTimeMs - previous.expectedPerformanceTimeMs)) : null,
@@ -160,12 +167,12 @@ export function tieCase(): SyntheticCase {
 
 export function transitionCases(): SyntheticCase[] {
   const timeline = new PracticeTempoTimeline({ selection: { mode: 'SCORE' }, segments: [
-    { startBeat: 0, bpm: 80, source: 'MUSICXML' }, { startBeat: 8, bpm: 160, source: 'MUSICXML' },
-  ] }, 16);
+    { startTick: 0, bpm: 80, source: 'MUSICXML' }, { startTick: 2400, bpm: 160, source: 'MUSICXML' },
+  ] }, 4800, 300);
   return [7, 8].map(beat => {
     const strikes = expectedPattern(timeline, [[60]], 1, beat);
     return characterizeCase({ caseId: `transition-${beat}`, family: 'TEMPO_TRANSITION', variant: 'TRANSITION_CONTROL',
-      timeline, strikes, bpm: timeline.bpmAtBeat(beat), spacingBeats: 1, atBeat: beat,
+      timeline, strikes, bpm: timeline.bpmAtTick(researchQuarterTicks(beat)), spacingBeats: 1, atBeat: beat,
       probes: [{ intendedStrikeId: strikes[0].strikeId, offsetMs: productionPolicy.assignmentWindowMs }] });
   });
 }

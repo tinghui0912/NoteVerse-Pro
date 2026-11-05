@@ -20,18 +20,18 @@ function unison(): PracticeScoreArtifact {
 }
 function strikes(artifact: PracticeScoreArtifact) {
   const plan = continuousSessionPlan(artifact);
-  return buildContinuousExpectedStrikesFromTimeline(artifact, new PracticeTempoTimeline(plan.tempoPlan, artifact.scoreEndBeat), plan.scope);
+  return buildContinuousExpectedStrikesFromTimeline(artifact, new PracticeTempoTimeline(plan.tempoPlan, artifact.scoreEndTick, artifact.ticksPerQuarter), plan.scope);
 }
 describe('one canonical Practice note graph and moment sequence', () => {
   it('accepts the deterministic producer fixture and exact canonical transport fields', () => {
     assertPracticeScoreArtifact(fixture);
-    expect(fixture.schemaVersion).toBe(1); expect(fixture.artifactId).toBe('practice-score-artifact:fc944718d72728b7');
+    expect(fixture.schemaVersion).toBe(1); expect(fixture.artifactId).toBe('practice-score-artifact:7d53bd7fed2ca43a');
     expect(fixture.notes).toHaveLength(7);
     expect(new Set(fixture.notes.map(n => n.noteId)).size).toBe(fixture.notes.length);
     expect(fixture.moments.map(m => m.attacks.map(a => a.pianoKey))).toEqual([[60],[60],[67],[69,72],[74]]);
-    expect(Object.keys(fixture.meterSegments[0]).sort()).toEqual(['startBeat','numerator','denominator'].sort());
+    expect(Object.keys(fixture.meterSegments[0]).sort()).toEqual(['startTick','numerator','denominator'].sort());
     expect(Object.keys(fixture).sort()).toEqual(['schemaVersion','scoreId','revisionId','artifactId','notes','events','moments',
-      'meterSegments','scoreTempoSegments','scoreEndBeat'].sort());
+      'meterSegments','scoreTempoSegments','scoreEndTick','ticksPerQuarter'].sort());
   });
   it('two unison notation identities produce one STEP attack and one Continuous strike carrying both render IDs', () => {
     const value = unison(), before = structuredClone(value);
@@ -67,7 +67,7 @@ describe('one canonical Practice note graph and moment sequence', () => {
   });
   it('FULL and RANGE use the same valid graph and canonical group identity', () => {
     expect(resolvePracticeScope(fixture, { kind: 'FULL' })).toMatchObject({ startIndex: 0, endIndex: 4 });
-    for (const moment of fixture.moments) expect(resolvePracticeScope(fixture, { kind: 'RANGE', startGroupId: moment.groupId, endGroupId: moment.groupId })).toMatchObject({ startBeat: moment.onsetBeat, terminalBeat: moment.canonicalEndBeat });
+    for (const moment of fixture.moments) expect(resolvePracticeScope(fixture, { kind: 'RANGE', startGroupId: moment.groupId, endGroupId: moment.groupId })).toMatchObject({ startTick: moment.onsetTick, terminalTick: moment.canonicalEndTick });
   });
 });
 
@@ -84,14 +84,14 @@ const corruptions: [string, Corrupt][] = [
   ['duplicate physical attack', v => { v.moments[0].attacks.push({ ...v.moments[0].attacks[0], attackId: 'second' }); }],
   ['dangling event', v => { v.notes[0].eventId = 'missing'; }],
   ['empty event', v => { v.events.splice(1, 0, { ...v.events[0], eventId: 'empty' }); }],
-  ['event/moment onset disagreement', v => { v.events[0].onsetBeat = -1; }],
+  ['event/moment onset disagreement', v => { v.events[0].onsetTick = -1; }],
   ['reordered chronology', v => { v.events.reverse(); }],
-  ['nonfinite event duration', v => { v.events[0].durationBeats = Infinity; }],
+  ['nonfinite event duration', v => { v.events[0].durationTicks = Infinity; }],
   ['duplicate moment', v => { v.moments[1].groupId = v.moments[0].groupId; }],
-  ['moment chronology', v => { v.moments[1].onsetBeat = .5; }],
+  ['moment chronology', v => { v.moments[1].onsetTick = .5; }],
   ['missing moment', v => { v.moments.pop(); }],
-  ['bad canonical endpoint', v => { v.moments[0].canonicalEndBeat += 1; }],
-  ['NaN endpoint', v => { v.moments[0].canonicalEndBeat = NaN; }],
+  ['bad canonical endpoint', v => { v.moments[0].canonicalEndTick += 1; }],
+  ['NaN endpoint', v => { v.moments[0].canonicalEndTick = NaN; }],
   ['empty attacks', v => { v.moments[0].attacks = []; }],
   ['missing continuation', v => { v.moments[3].continuationNoteIds = []; }],
   ['duplicate continuation', v => { v.moments[3].continuationNoteIds.push(v.moments[3].continuationNoteIds[0]); }],
@@ -100,7 +100,7 @@ const corruptions: [string, Corrupt][] = [
   ['bad tie grammar', v => { Object.assign(v.notes[0], { tieTypes: ['other'] }); }],
   ['unsupported schema version', v => { Object.assign(v, { schemaVersion: 999 }); }],
   ['unknown top-level field', v => { Object.assign(v, { unexpectedField: [] }); }],
-  ['invalid score extent', v => { v.scoreEndBeat += 1; }],
+  ['invalid score extent', v => { v.scoreEndTick = v.events[0].onsetTick; }],
   ['empty revision', v => { v.notes = []; v.events = []; v.moments = []; }],
 ];
 it.each(corruptions)('rejects %s without coercion, repair or mutation', (_label, corrupt) => {
@@ -114,25 +114,26 @@ it.each([20,109,60.5,NaN,Infinity,true,'60','C4'])('rejects a later unselected i
   expect(() => assertPracticeScoreArtifact(value)).toThrow();
 });
 
-it.each([{meterSegments:[]},{meterSegments:[{...fixture.meterSegments[0],startBeat:1}]}])('strict parser rejects missing initial meter without repair',({meterSegments})=>{
+it.each([{meterSegments:[]},{meterSegments:[{...fixture.meterSegments[0],startTick:1}]}])('strict parser rejects missing initial meter without repair',({meterSegments})=>{
   const value={...structuredClone(fixture),meterSegments},before=structuredClone(value);
   expect(()=>parsePracticeScoreArtifact(value)).toThrow(expect.objectContaining({code:'practice_score_invalid'}));
   expect(value).toEqual(before);
 });
 it('strict parser admits explicit initial meter and physical notation without tonal metadata',()=>{
   const value=structuredClone(fixture);expect(parsePracticeScoreArtifact(value)).toBe(value);
-  expect(value.meterSegments[0]).toEqual({startBeat:0,numerator:3,denominator:4});
+  expect(value.meterSegments[0]).toEqual({startTick:0,numerator:3,denominator:4});
   expect(Object.keys(value).sort()).toEqual(['schemaVersion','scoreId','revisionId','artifactId','notes','events','moments',
-    'meterSegments','scoreTempoSegments','scoreEndBeat'].sort());
+    'meterSegments','scoreTempoSegments','scoreEndTick','ticksPerQuarter'].sort());
 });
 
 
-it('validates tie-chain endpoints on the canonical score-beat axis', () => {
+it('validates tie-chain endpoints on the canonical score-tick axis', () => {
   const value = artifactWithKeys([[60], [60]]);
   value.notes[0].tieTypes = ['start']; value.notes[1].tieTypes = ['stop'];
-  value.events[0].onsetBeat = 0.1; value.events[0].durationBeats = 0.7;
-  value.events[1].onsetBeat = 0.8; value.events[1].durationBeats = 1;
-  value.moments.pop(); value.moments[0].onsetBeat = 0.1; value.moments[0].canonicalEndBeat = 1.8;
-  value.scoreEndBeat = 1.8;
+  value.ticksPerQuarter = 10;
+  value.events[0].onsetTick = 1; value.events[0].durationTicks = 7;
+  value.events[1].onsetTick = 8; value.events[1].durationTicks = 10;
+  value.moments.pop(); value.moments[0].onsetTick = 1; value.moments[0].canonicalEndTick = 18;
+  value.scoreEndTick = 18;
   expect(parsePracticeScoreArtifact(value)).toBe(value);
 });

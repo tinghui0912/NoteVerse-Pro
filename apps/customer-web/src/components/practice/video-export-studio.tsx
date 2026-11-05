@@ -137,7 +137,7 @@ export function VideoExportStudio({
   session,
   scoreContainer,
   adapter,
-  scoreEndBeat,
+  scoreEndTick, ticksPerQuarter,
   isScoreIdentityConfirmed,
   xmlContent,
   mediaTimeMs,
@@ -151,7 +151,7 @@ export function VideoExportStudio({
   session: VideoExportSession | null;
   scoreContainer: HTMLElement | null;
   adapter: PracticeVerovioAdapter;
-  scoreEndBeat: number;
+  scoreEndTick: number; ticksPerQuarter: number;
   isScoreIdentityConfirmed: boolean;
   xmlContent: string | null;
   mediaTimeMs: number;
@@ -275,7 +275,7 @@ export function VideoExportStudio({
         session,
         scoreContainer,
         adapter,
-        scoreEndBeat,
+        scoreEndTick, ticksPerQuarter,
         signal: abortController.signal,
         onProgress: (progress) => setSplitExportProgress(progress.ratio),
         config: videoExportConfig,
@@ -307,7 +307,7 @@ export function VideoExportStudio({
     adapter,
     readiness.ok,
     scoreContainer,
-    scoreEndBeat,
+    scoreEndTick, ticksPerQuarter,
     videoExportConfig,
     splitExportStatus,
     t,
@@ -523,7 +523,7 @@ export function VideoExportStudio({
             session={session}
             scoreContainer={scoreContainer}
             adapter={adapter}
-            scoreEndBeat={scoreEndBeat}
+            scoreEndTick={scoreEndTick} ticksPerQuarter={ticksPerQuarter}
             mediaTimeMs={mediaTimeMs}
             config={videoExportConfig}
             isReplayPlaying={isReplayPlaying}

@@ -9,7 +9,6 @@ from sqlalchemy import (
     Column,
     CheckConstraint,
     DateTime,
-    Float,
     ForeignKey,
     Index,
     Integer,
@@ -81,8 +80,8 @@ class PerformanceTakeUploadReservation(SQLModel, table=True):  # type: ignore[ca
     scope_type: str = Field(
         sa_column=Column(String(16), nullable=False),
     )
-    scope_start_beat: float = Field(sa_column=Column(Float, nullable=False))
-    scope_terminal_beat: float = Field(sa_column=Column(Float, nullable=False))
+    scope_start_tick: int = Field(sa_column=Column(BigInteger, nullable=False))
+    scope_terminal_tick: int = Field(sa_column=Column(BigInteger, nullable=False))
     scope_start_group_id: Optional[str] = Field(
         default=None,
         sa_column=Column(String(128), nullable=True),

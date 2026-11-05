@@ -11,7 +11,7 @@ type VideoExportFramePosition = {
   eventId?: string;
   pageNumber: number;
   noteIds: string[];
-  musicalBeat: number;
+  scoreTick: number;
   perfTimeMs: number;
 };
 

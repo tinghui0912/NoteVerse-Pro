@@ -63,7 +63,7 @@ export class ContinuousPracticeSession {
     const timebase = options.timebase ?? new PracticeTimebase({ domainId: this.localSessionId });
     this.clock = new PerformanceClockRuntime({
       artifact: options.artifact, scope: options.scope, tempoPlan: this.tempoPlan,
-      clock: options.clock, timebase, countInBeats: options.countInBeats,
+      clock: options.clock, timebase, countInTicks: options.countInTicks,
     });
     this.practiceScope = options.scope;
     this.metadataClock = options.metadataClock ?? { nowEpochMs: () => Date.now() };
@@ -79,7 +79,7 @@ export class ContinuousPracticeSession {
     }
     this.evaluator = new ContinuousEvaluationSession({
       artifact: options.artifact,
-      timeline: new PracticeTempoTimeline(this.tempoPlan, options.artifact.scoreEndBeat),
+      timeline: new PracticeTempoTimeline(this.tempoPlan, options.artifact.scoreEndTick, options.artifact.ticksPerQuarter),
       scope: options.scope,
       sessionDomainId: this.clock.timebase.domainId,
       inputSource: this.inputSource,
@@ -183,7 +183,7 @@ export class ContinuousPracticeSession {
       updatedAtMs: nowMs,
       performance: { state: timing.state, stateBeforePause: timing.stateBeforePause,
         activeElapsedMs: timing.activeElapsedMs, countInMs: timing.countInMs,
-        countInBeats: timing.countInBeats, countInPulses: timing.countInPulses },
+        countInTicks: timing.countInTicks, countInPulses: timing.countInPulses },
     };
   }
 

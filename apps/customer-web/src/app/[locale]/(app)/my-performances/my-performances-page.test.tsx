@@ -146,7 +146,7 @@ const mockPlaybackQuery = vi.hoisted(() => ({
 
 const tempoPlan: PerformanceTakeTempoPlan = {
   selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 },
-  segments: [{ startBeat: 0, bpm: 120, source: 'CUSTOM' }],
+  segments: [{ startTick: 0, bpm: 120, source: 'CUSTOM' }],
 };
 
 const recordingTimebase: RecordingTimebase = {
@@ -170,8 +170,8 @@ const fixture121Takes: PerformanceTakeRead[] = Array.from({ length: 121 }, (_, i
   media_byte_size: 1024 * (i + 1),
   duration_ms: 30000 + i * 1000,
   scope_type: i % 2 === 0 ? 'FULL' : 'RANGE',
-  scope_start_beat: i % 2 === 0 ? 0 : 4,
-  scope_terminal_beat: i % 2 === 0 ? 0 : 16,
+  scope_start_tick: i % 2 === 0 ? 0 : 4,
+  scope_terminal_tick: i % 2 === 0 ? 0 : 16,
   scope_start_group_id: i % 2 === 0 ? null : 'group-1',
   scope_end_group_id: i % 2 === 0 ? null : 'group-2',
   tempo_plan: tempoPlan,
@@ -359,8 +359,8 @@ describe('MyPerformancesPage', () => {
               media_byte_size: 1024,
               duration_ms: 60000,
               scope_type: 'FULL',
-              scope_start_beat: 0,
-              scope_terminal_beat: 0,
+              scope_start_tick: 0,
+              scope_terminal_tick: 0,
               source_revision_id: 'revision-1',
               source_artifact_id: 'artifact-1',
               linked_score_id: 'score-retained-source',
@@ -404,8 +404,8 @@ describe('MyPerformancesPage', () => {
               media_byte_size: 1024,
               duration_ms: 60000,
               scope_type: 'FULL',
-              scope_start_beat: 0,
-              scope_terminal_beat: 0,
+              scope_start_tick: 0,
+              scope_terminal_tick: 0,
               source_revision_id: 'revision-1',
               source_artifact_id: 'artifact-1',
               linked_score_id: null,
@@ -447,8 +447,8 @@ describe('MyPerformancesPage', () => {
               media_byte_size: 1024,
               duration_ms: 60000,
               scope_type: 'FULL',
-              scope_start_beat: 0,
-              scope_terminal_beat: 0,
+              scope_start_tick: 0,
+              scope_terminal_tick: 0,
               source_revision_id: 'revision-1',
               source_artifact_id: 'artifact-1',
               tempo_plan: tempoPlan,
@@ -499,8 +499,8 @@ describe('MyPerformancesPage', () => {
               media_byte_size: 2048,
               duration_ms: 60000,
               scope_type: 'FULL',
-              scope_start_beat: 0,
-              scope_terminal_beat: 16,
+              scope_start_tick: 0,
+              scope_terminal_tick: 16,
               source_revision_id: 'revision-1',
               source_artifact_id: 'artifact-1',
               tempo_plan: tempoPlan,
@@ -558,8 +558,8 @@ describe('MyPerformancesPage', () => {
               media_byte_size: 1024,
               duration_ms: 60000,
               scope_type: 'FULL',
-              scope_start_beat: 0,
-              scope_terminal_beat: 0,
+              scope_start_tick: 0,
+              scope_terminal_tick: 0,
               source_revision_id: 'revision-1',
               source_artifact_id: 'artifact-1',
               tempo_plan: tempoPlan,
@@ -627,8 +627,8 @@ describe('MyPerformancesPage', () => {
               media_byte_size: 1024,
               duration_ms: 60000,
               scope_type: 'FULL',
-              scope_start_beat: 0,
-              scope_terminal_beat: 0,
+              scope_start_tick: 0,
+              scope_terminal_tick: 0,
               source_revision_id: 'revision-1',
               source_artifact_id: 'artifact-1',
               tempo_plan: tempoPlan,
@@ -815,11 +815,11 @@ describe('MyPerformancesPage', () => {
       expect(screen.queryByTestId('performance-replay-player')).not.toBeInTheDocument();
     });
 
-    it('renders scope as beat range (takeScopeBeats) instead of measure/bar numbers', () => {
+    it('labels saved ranges without requiring a detached source timebase', () => {
       render(<MyPerformancesPage searchParams={pageParams('1')} />);
 
-      // Range item: scope_start_beat = 4, scope_terminal_beat = 16
-      expect(screen.getAllByText('选段演奏 (第 4 - 16 拍)').length).toBeGreaterThan(0);
+      // Range item: scope_start_tick = 4, scope_terminal_tick = 16
+      expect(screen.getAllByText('选段演奏').length).toBeGreaterThan(0);
       // Full item:
       expect(screen.getAllByText('全曲演奏').length).toBeGreaterThan(0);
     });

@@ -9,29 +9,29 @@ def mixed_compiled_score():
     return compiled_score(
         compiled_note(
             render_note_id="n1",
-            onset_beat=3.0,
-            duration_beats=0.25,
+            onset_tick=3,
+            duration_ticks=1,
             piano_key=81,
             semantic_locator="p1-m1-e1",
         ),
         compiled_note(
             render_note_id="n2",
-            onset_beat=4.0,
-            duration_beats=1.0,
+            onset_tick=4,
+            duration_ticks=1,
             piano_key=60,
             semantic_locator="p1-m1-e2",
         ),
         compiled_note(
             render_note_id="n3",
-            onset_beat=4.0,
-            duration_beats=1.0,
+            onset_tick=4,
+            duration_ticks=1,
             piano_key=64,
             semantic_locator="p1-m1-e3",
         ),
         compiled_note(
             render_note_id="n4",
-            onset_beat=4.0,
-            duration_beats=2.0,
+            onset_tick=4,
+            duration_ticks=2,
             piano_key=48,
             staff_id="2",
             voice_id="2",
@@ -39,8 +39,8 @@ def mixed_compiled_score():
         ),
         compiled_note(
             render_note_id="n5",
-            onset_beat=4.05,
-            duration_beats=0.5,
+            onset_tick=5,
+            duration_ticks=1,
             piano_key=67,
             semantic_locator="p1-m1-e5",
         ),
@@ -52,24 +52,24 @@ def semantic_identity_compiled_score(note_ids):
     return compiled_score(
         compiled_note(
             render_note_id=first_id,
-            onset_beat=1.0,
-            duration_beats=1.0,
+            onset_tick=1,
+            duration_ticks=1,
             piano_key=60,
             measure_number="Display-A",
             semantic_locator="p1-m1-e1",
         ),
         compiled_note(
             render_note_id=second_id,
-            onset_beat=1.0,
-            duration_beats=1.0,
+            onset_tick=1,
+            duration_ticks=1,
             piano_key=64,
             measure_number="Display-A",
             semantic_locator="p1-m1-e2",
         ),
         compiled_note(
             render_note_id=third_id,
-            onset_beat=2.0,
-            duration_beats=1.0,
+            onset_tick=2,
+            duration_ticks=1,
             piano_key=62,
             measure_number="Display-B",
             semantic_locator="p1-m2-e1",
@@ -80,19 +80,19 @@ def semantic_identity_compiled_score(note_ids):
 def test_practice_score_timeline_preserves_events_and_exact_onset_groups() -> None:
     timeline = practice_timeline_from_compiled(mixed_compiled_score())
 
-    assert timeline.events[0].onset_beat == 3.0
-    assert timeline.moments[0].onset_beat == 3.0
-    assert timeline.end_beat == 6.0
-    assert timeline.playable_onset_beats == (3.0, 4.0, 4.05)
+    assert timeline.events[0].onset_tick == 3
+    assert timeline.moments[0].onset_tick == 3
+    assert timeline.score_end_tick == 6
+    assert timeline.playable_onset_ticks == (3, 4, 5)
 
     first_event = timeline.events[0]
     first_notes = [n for n in timeline.notes if n.event_id == first_event.event_id]
-    assert first_event.onset_beat == 3.0
+    assert first_event.onset_tick == 3
     assert [n.piano_key for n in first_notes] == [81]
     assert [n.render_note_id for n in first_notes] == ["n1"]
     assert [n.measure_number for n in first_notes] == ["1"]
     assert [n.staff_id for n in first_notes] == ["1"]
-    simultaneous = next(m for m in timeline.moments if m.onset_beat == 4.0)
+    simultaneous = next(m for m in timeline.moments if m.onset_tick == 4)
     assert tuple(a.piano_key for a in simultaneous.attacks) == (60, 64, 48)
     assert set(render_ids(timeline, simultaneous)) == {"n2", "n3", "n4"}
     assert {
@@ -100,7 +100,7 @@ def test_practice_score_timeline_preserves_events_and_exact_onset_groups() -> No
         for n in timeline.notes
         if n.note_id in {i for a in simultaneous.attacks for i in a.note_ids}
     } == {"1", "2"}
-    near = next(m for m in timeline.moments if m.onset_beat == 4.05)
+    near = next(m for m in timeline.moments if m.onset_tick == 5)
     assert render_ids(timeline, near) == ("n5",)
 
 
@@ -109,15 +109,15 @@ def test_practice_moment_attacks_cover_simple_new_attacks() -> None:
         compiled_score(
             compiled_note(
                 render_note_id="n1",
-                onset_beat=1.0,
-                duration_beats=1.0,
+                onset_tick=1,
+                duration_ticks=1,
                 piano_key=60,
                 semantic_locator="p1-m1-e1",
             ),
             compiled_note(
                 render_note_id="n2",
-                onset_beat=2.0,
-                duration_beats=1.0,
+                onset_tick=2,
+                duration_ticks=1,
                 piano_key=62,
                 semantic_locator="p1-m1-e2",
             ),
@@ -139,15 +139,15 @@ def test_practice_moment_attacks_keep_same_pitch_without_tie_as_new_attack() -> 
         compiled_score(
             compiled_note(
                 render_note_id="n1",
-                onset_beat=1.0,
-                duration_beats=1.0,
+                onset_tick=1,
+                duration_ticks=1,
                 piano_key=60,
                 semantic_locator="p1-m1-e1",
             ),
             compiled_note(
                 render_note_id="n2",
-                onset_beat=2.0,
-                duration_beats=1.0,
+                onset_tick=2,
+                duration_ticks=1,
                 piano_key=60,
                 semantic_locator="p1-m1-e2",
             ),
@@ -169,29 +169,30 @@ def test_practice_score_timeline_preserves_active_meter_and_derived_duration() -
         compiled_score(
             compiled_note(
                 render_note_id="n1",
-                onset_beat=0.0,
-                duration_beats=1.0,
+                onset_tick=0,
+                duration_ticks=1,
                 piano_key=60,
                 semantic_locator="p1-m1-e1",
             ),
             compiled_note(
                 render_note_id="n2",
-                onset_beat=3.0,
-                duration_beats=1.0,
+                onset_tick=3,
+                duration_ticks=1,
                 piano_key=62,
                 semantic_locator="p1-m2-e1",
                 measure_number="2",
             ),
             meter_segments=(PracticeMeterSegment(0, 3, 4), PracticeMeterSegment(3, 6, 8)),
+            ticks_per_quarter=2,
         )
     )
 
-    first_meter = timeline.meter_at(0.0)
-    second_meter = timeline.meter_at(3.0)
+    first_meter = timeline.meter_at(0)
+    second_meter = timeline.meter_at(3)
     assert (first_meter.numerator, first_meter.denominator) == (3, 4)
     assert (second_meter.numerator, second_meter.denominator) == (6, 8)
-    assert timeline.meter_at(0.0).measure_duration_beats == 3.0
-    assert timeline.meter_at(3.0).measure_duration_beats == 3.0
+    assert timeline.meter_at(0).measure_duration_ticks(timeline.ticks_per_quarter) == 6
+    assert timeline.meter_at(3).measure_duration_ticks(timeline.ticks_per_quarter) == 6
 
 
 def test_practice_score_timeline_uses_revision_stable_group_ids() -> None:
@@ -250,16 +251,16 @@ def test_practice_score_timeline_does_not_prompt_tie_continuations() -> None:
         compiled_score(
             compiled_note(
                 render_note_id="n1",
-                onset_beat=3.0,
-                duration_beats=1.0,
+                onset_tick=3,
+                duration_ticks=1,
                 piano_key=60,
                 semantic_locator="p1-m1-e1",
                 tie_types=("start",),
             ),
             compiled_note(
                 render_note_id="n2",
-                onset_beat=4.0,
-                duration_beats=1.0,
+                onset_tick=4,
+                duration_ticks=1,
                 piano_key=60,
                 semantic_locator="p1-m2-e1",
                 measure_number="2",
@@ -268,14 +269,14 @@ def test_practice_score_timeline_does_not_prompt_tie_continuations() -> None:
         )
     )
 
-    assert timeline.playable_onset_beats == (3.0,)
-    assert tuple(group.onset_beat for group in timeline.moments) == (3.0,)
+    assert timeline.playable_onset_ticks == (3,)
+    assert tuple(group.onset_tick for group in timeline.moments) == (3,)
     tied_continuation = next(note for note in timeline.notes if note.render_note_id == "n2")
     assert tied_continuation.tie_types == ("stop",)
     assert "stop" in tied_continuation.tie_types
     group = timeline.moments[0]
-    assert moment_end(timeline, group.group_id) == 5.0
-    assert tuple(step.onset_beat for step in timeline.moments) == (3.0,)
+    assert moment_end(timeline, group.group_id) == 5
+    assert tuple(step.onset_tick for step in timeline.moments) == (3,)
     assert tuple(target.piano_key for target in timeline.moments[0].attacks) == (60,)
     assert timeline.moments[0].continuation_note_ids == ()
 
@@ -285,16 +286,16 @@ def test_practice_score_timeline_follows_multi_fragment_tie_chain_end() -> None:
         compiled_score(
             compiled_note(
                 render_note_id="n1",
-                onset_beat=3.0,
-                duration_beats=1.0,
+                onset_tick=3,
+                duration_ticks=1,
                 piano_key=60,
                 semantic_locator="p1-m1-e1",
                 tie_types=("start",),
             ),
             compiled_note(
                 render_note_id="n2",
-                onset_beat=4.0,
-                duration_beats=1.0,
+                onset_tick=4,
+                duration_ticks=1,
                 piano_key=60,
                 semantic_locator="p1-m2-e1",
                 measure_number="2",
@@ -302,8 +303,8 @@ def test_practice_score_timeline_follows_multi_fragment_tie_chain_end() -> None:
             ),
             compiled_note(
                 render_note_id="n3",
-                onset_beat=5.0,
-                duration_beats=1.5,
+                onset_tick=5,
+                duration_ticks=3,
                 piano_key=60,
                 semantic_locator="p1-m3-e1",
                 measure_number="3",
@@ -312,10 +313,10 @@ def test_practice_score_timeline_follows_multi_fragment_tie_chain_end() -> None:
         )
     )
 
-    assert tuple(group.onset_beat for group in timeline.moments) == (3.0,)
+    assert tuple(group.onset_tick for group in timeline.moments) == (3,)
     group = timeline.moments[0]
-    assert moment_end(timeline, group.group_id) == 6.5
-    assert tuple(step.onset_beat for step in timeline.moments) == (3.0,)
+    assert moment_end(timeline, group.group_id) == 8
+    assert tuple(step.onset_tick for step in timeline.moments) == (3,)
     assert tuple(target.piano_key for target in timeline.moments[0].attacks) == (60,)
     assert timeline.moments[0].continuation_note_ids == ()
 
@@ -325,8 +326,8 @@ def test_practice_score_timeline_keeps_new_onsets_in_mixed_tied_chord() -> None:
         compiled_score(
             compiled_note(
                 render_note_id="n1",
-                onset_beat=4.0,
-                duration_beats=1.0,
+                onset_tick=4,
+                duration_ticks=1,
                 piano_key=60,
                 semantic_locator="p1-m1-e1",
                 measure_number="2",
@@ -334,16 +335,16 @@ def test_practice_score_timeline_keeps_new_onsets_in_mixed_tied_chord() -> None:
             ),
             compiled_note(
                 render_note_id="n2",
-                onset_beat=4.0,
-                duration_beats=1.0,
+                onset_tick=4,
+                duration_ticks=1,
                 piano_key=64,
                 semantic_locator="p1-m1-e2",
                 measure_number="2",
             ),
             compiled_note(
                 render_note_id="n3",
-                onset_beat=4.0,
-                duration_beats=1.0,
+                onset_tick=4,
+                duration_ticks=1,
                 piano_key=67,
                 semantic_locator="p1-m1-e3",
                 measure_number="2",
@@ -351,12 +352,12 @@ def test_practice_score_timeline_keeps_new_onsets_in_mixed_tied_chord() -> None:
         )
     )
 
-    assert tuple(group.onset_beat for group in timeline.moments) == (4.0,)
+    assert tuple(group.onset_tick for group in timeline.moments) == (4,)
     group = timeline.moments[0]
     assert tuple(a.piano_key for a in group.attacks) == (64, 67)
     assert render_ids(timeline, group) == ("n2", "n3")
     step = timeline.moments[0]
-    assert step.onset_beat == 4.0
+    assert step.onset_tick == 4
     assert tuple(target.piano_key for target in step.attacks) == (64, 67)
     assert tuple(note.render_note_id for note in moment_notes(timeline, step)) == ("n2", "n3")
     assert tuple(
@@ -372,43 +373,43 @@ def test_practice_moment_attacks_keep_shared_pitch_rearticulation_in_chord() -> 
         compiled_score(
             compiled_note(
                 render_note_id="n1",
-                onset_beat=1.0,
-                duration_beats=1.0,
+                onset_tick=1,
+                duration_ticks=1,
                 piano_key=60,
                 semantic_locator="p1-m1-e1",
             ),
             compiled_note(
                 render_note_id="n2",
-                onset_beat=1.0,
-                duration_beats=1.0,
+                onset_tick=1,
+                duration_ticks=1,
                 piano_key=64,
                 semantic_locator="p1-m1-e2",
             ),
             compiled_note(
                 render_note_id="n3",
-                onset_beat=1.0,
-                duration_beats=1.0,
+                onset_tick=1,
+                duration_ticks=1,
                 piano_key=67,
                 semantic_locator="p1-m1-e3",
             ),
             compiled_note(
                 render_note_id="n4",
-                onset_beat=2.0,
-                duration_beats=1.0,
+                onset_tick=2,
+                duration_ticks=1,
                 piano_key=60,
                 semantic_locator="p1-m1-e4",
             ),
             compiled_note(
                 render_note_id="n5",
-                onset_beat=2.0,
-                duration_beats=1.0,
+                onset_tick=2,
+                duration_ticks=1,
                 piano_key=65,
                 semantic_locator="p1-m1-e5",
             ),
             compiled_note(
                 render_note_id="n6",
-                onset_beat=2.0,
-                duration_beats=1.0,
+                onset_tick=2,
+                duration_ticks=1,
                 piano_key=69,
                 semantic_locator="p1-m1-e6",
             ),
@@ -425,15 +426,15 @@ def test_practice_moment_attacks_consolidate_same_pitch_multi_voice_staff_target
         compiled_score(
             compiled_note(
                 render_note_id="n1",
-                onset_beat=4.0,
-                duration_beats=1.0,
+                onset_tick=4,
+                duration_ticks=1,
                 piano_key=60,
                 semantic_locator="p1-m1-e1",
             ),
             compiled_note(
                 render_note_id="n2",
-                onset_beat=4.0,
-                duration_beats=1.0,
+                onset_tick=4,
+                duration_ticks=1,
                 piano_key=60,
                 semantic_locator="p1-m1-e2",
                 staff_id="2",
@@ -461,7 +462,7 @@ def test_practice_moment_attacks_consolidate_same_pitch_multi_voice_staff_target
 def test_practice_moment_attacks_merge_multi_voice_staff_same_onset() -> None:
     timeline = practice_timeline_from_compiled(mixed_compiled_score())
 
-    step = next(item for item in timeline.moments if item.onset_beat == 4.0)
+    step = next(item for item in timeline.moments if item.onset_tick == 4)
     assert tuple(target.piano_key for target in step.attacks) == (60, 64, 48)
     assert {n.staff_id for n in moment_notes(timeline, step)} == {"1", "2"}
     assert {n.voice_id for n in moment_notes(timeline, step)} == {"1", "2"}
@@ -474,7 +475,7 @@ def render_ids(timeline, moment):
 
 
 def moment_end(timeline, group_id):
-    return next(m.canonical_end_beat for m in timeline.moments if m.group_id == group_id)
+    return next(m.canonical_end_tick for m in timeline.moments if m.group_id == group_id)
 
 
 def moment_notes(timeline, moment):

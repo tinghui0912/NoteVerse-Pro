@@ -3,7 +3,7 @@ import { notesForIds, type PracticeScoreArtifact } from '@/lib/practice/kernel/a
 import type { ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
 
 type ContinuousExpectedStrikeClock = {
-  beatToTimeMs(beat: number): number;
+  tickToTimeMs(tick: number): number;
 };
 
 export function buildContinuousExpectedStrikesFromTimeline(
@@ -11,11 +11,11 @@ export function buildContinuousExpectedStrikesFromTimeline(
   timeline: ContinuousExpectedStrikeClock,
   scope: ResolvedPracticeScope
 ): ContinuousExpectedStrike[] {
-  const scopeStartTimeMs = timeline.beatToTimeMs(scope.startBeat);
+  const scopeStartTimeMs = timeline.tickToTimeMs(scope.startTick);
   return artifact.moments
     .slice(scope.startIndex, scope.endIndex + 1)
     .flatMap((group) => {
-      const performanceTimeMs = timeline.beatToTimeMs(group.onsetBeat) - scopeStartTimeMs;
+      const performanceTimeMs = timeline.tickToTimeMs(group.onsetTick) - scopeStartTimeMs;
       return group.attacks.map((strike) => ({
         strikeId: strike.attackId,
         groupId: group.groupId,

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { artifactWithKeys } from '@/lib/practice/__fixtures__/piano-key-artifact';
 import { describe, expect, it, vi } from 'vitest';
 import { createVerovioToolkit } from '@/lib/score/verovio/toolkit';
 import { PracticeVerovioAdapter } from '@/lib/practice/score-view/verovio-adapter';
@@ -17,7 +18,9 @@ describe('Practice renderer written-axis contract', () => {
   it('Practice keeps the visual offset and the notation-order repeat axis in one toolkit', async () => {
     const toolkit = await createVerovioToolkit();
     const options = vi.spyOn(toolkit, 'setOptions');
-    const adapter = new PracticeVerovioAdapter(async () => toolkit);
+    const artifact = artifactWithKeys([[60],[62],[64],[65]]);
+    artifact.notes.forEach((n,i)=>n.renderNoteId=`n${i}`);
+    const adapter = new PracticeVerovioAdapter(artifact, async () => toolkit);
     const xml = score().replace(
       '</measure>',
       '<barline location="right"><repeat direction="backward"/></barline></measure>'
@@ -36,7 +39,7 @@ describe('Practice renderer written-axis contract', () => {
         adapter.renderTimemap().flatMap((event) => event.on ?? [])
       ).toEqual(['n0', 'n1', 'n2', 'n3']);
       expect(
-        [0, 1, 2, 3].map((beat) => adapter.getTimelineEntryForBeat(beat)?.beat)
+        [0, 1, 2, 3].map((beat) => adapter.getTimelineEntryForTick(beat)?.tick)
       ).toEqual([0, 1, 2, 3]);
     } finally {
       adapter.dispose();

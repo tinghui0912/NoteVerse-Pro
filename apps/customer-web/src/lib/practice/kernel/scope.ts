@@ -1,4 +1,4 @@
-import { roundBeat, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 
 export type PracticeScope =
   | { kind: 'FULL' }
@@ -13,8 +13,8 @@ export type ResolvedPracticeScope =
       kind: 'FULL';
       startIndex: number;
       endIndex: number;
-      startBeat: number;
-      terminalBeat: number;
+      startTick: number;
+      terminalTick: number;
     }
   | {
       kind: 'RANGE';
@@ -22,8 +22,8 @@ export type ResolvedPracticeScope =
       endGroupId: string;
       startIndex: number;
       endIndex: number;
-      startBeat: number;
-      terminalBeat: number;
+      startTick: number;
+      terminalTick: number;
     };
 
 export function resolvePracticeScope(
@@ -52,25 +52,25 @@ export function resolvePracticeScope(
       endGroupId: scope.endGroupId,
       startIndex,
       endIndex,
-      startBeat: startGroup.onsetBeat,
-      terminalBeat: entryGroupEndBeat(artifact, endGroup.groupId),
+      startTick: startGroup.onsetTick,
+      terminalTick: entryGroupEndTick(artifact, endGroup.groupId),
     };
   }
   return {
     kind: 'FULL',
     startIndex,
     endIndex,
-    startBeat: startGroup.onsetBeat,
-    terminalBeat: artifact.scoreEndBeat,
+    startTick: startGroup.onsetTick,
+    terminalTick: artifact.scoreEndTick,
   };
 }
 
-export function entryGroupEndBeat(artifact: PracticeScoreArtifact, groupId: string): number {
+export function entryGroupEndTick(artifact: PracticeScoreArtifact, groupId: string): number {
   const group = artifact.moments.find((candidate) => candidate.groupId === groupId);
   if (!group) {
     throw new Error(`Practice scope target not found: ${groupId}`);
   }
-  return roundBeat(group.canonicalEndBeat);
+  return (group.canonicalEndTick);
 }
 
 function groupIndex(artifact: PracticeScoreArtifact, groupId: string): number {

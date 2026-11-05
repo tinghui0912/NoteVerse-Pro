@@ -113,9 +113,9 @@ Invalid explicit notation or custom BPM never becomes a default tempo.
   the relative internal tempo changes. Engraving preparation retains original
   tempo, navigation and offset facts without synthesizing tempo playback aids.
   Verovio supplies engraving and written realization, not tempo chronology.
-- Practice uses its notation-order artifact quarter axis. Its own Verovio adapter
-  sets `expandNever: true` on that toolkit instance, so the visual cursor remains on
-  the written beat axis shared with the artifact. Score Preview projects written
+- Practice uses its integer written score axis and source-local `ticksPerQuarter`.
+  Its Verovio adapter sets `expandNever: true`, and visual cursor timing comes from
+  artifact event ticks and render-note identities. Score Preview projects written
   realization through the canonical plan for its performance axis.
 - CUSTOM_FIXED_BPM is validated against the finite Practice product range before
   rounding. UI editing clamping is separate from domain admission and rejects

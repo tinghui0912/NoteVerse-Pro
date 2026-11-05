@@ -184,13 +184,13 @@ vi.mock('@/hooks/queries/use-performance-take-queries', () => ({
 
 
 const createMockArtifact = (overrides: Record<string, unknown> = {}) => ({
-  schemaVersion: 1 as const, scoreId: 'score-123', revisionId: 'rev-1', artifactId: 'art-1',
-   scoreEndBeat: 20,
+  schemaVersion: 1 as const, ticksPerQuarter: 1, scoreId: 'score-123', revisionId: 'rev-1', artifactId: 'art-1',
+   scoreEndTick: 20,
   notes: Array.from({ length: 5 }, (_, i) => ({ noteId: `note-${i+1}`, eventId: `event-${i+1}`, pianoKey: 60, renderNoteId: `n-${i+1}`, measureNumber: '1', staffId: '', voiceId: '', tieTypes: [] })),
-  events: Array.from({ length: 5 }, (_, i) => ({ eventId: `event-${i+1}`, onsetBeat: i*4, durationBeats: 4 })),
-  moments: Array.from({ length: 5 }, (_, i) => ({ groupId: `g-${i+1}`, onsetBeat: i*4, canonicalEndBeat: (i+1)*4, attacks: [{ attackId: `strike-${i+1}`, pianoKey: 60, noteIds: [`note-${i+1}`] }], continuationNoteIds: [] })),
-  scoreTempoSegments: [{ startBeat: 0, bpm: 100 }],
-  meterSegments: [{ startBeat: 0, numerator: 4, denominator: 4,   }],
+  events: Array.from({ length: 5 }, (_, i) => ({ eventId: `event-${i+1}`, onsetTick: i*4, durationTicks: 4 })),
+  moments: Array.from({ length: 5 }, (_, i) => ({ groupId: `g-${i+1}`, onsetTick: i*4, canonicalEndTick: (i+1)*4, attacks: [{ attackId: `strike-${i+1}`, pianoKey: 60, noteIds: [`note-${i+1}`] }], continuationNoteIds: [] })),
+  scoreTempoSegments: [{ startTick: 0, bpm: 100 }],
+  meterSegments: [{ startTick: 0, numerator: 4, denominator: 4,   }],
   ...overrides,
 });
 
@@ -362,7 +362,7 @@ describe('PracticeReviewPage', () => {
       ...completion,
       result: { ...completion.result, scope: {
         kind: 'RANGE', startIndex: 1, endIndex: 1, startGroupId: 'g-2', endGroupId: 'g-2',
-        startBeat: 4, terminalBeat: 8,
+        startTick: 4, terminalTick: 8,
       } },
     });
 
@@ -387,8 +387,8 @@ describe('PracticeReviewPage', () => {
       result: continuousResultFixture({ sourceId: 'source-fixture',
         localSessionId: 'sess-1',
         scoreId: 'score-OTHER',
-        scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 8 },
-        tempoPlan: { selection: { mode: 'SCORE' }, segments: [{ startBeat: 0, bpm: 80, source: 'CUSTOM' }] },
+        scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startTick: 0, terminalTick: 8 },
+        tempoPlan: { selection: { mode: 'SCORE' }, segments: [{ startTick: 0, bpm: 80, source: 'CUSTOM' }] },
         inputSource: 'MICROPHONE',
         activeElapsedMs: 0,
         evaluation: completeEvaluation(),
@@ -409,10 +409,10 @@ describe('PracticeReviewPage', () => {
         scoreId: 'score-123',
         revisionId: 'rev-1',
         artifactId: 'art-1',
-        scope: { kind: 'FULL', startIndex: 0, endIndex: 3, startBeat: 0, terminalBeat: 16 },
+        scope: { kind: 'FULL', startIndex: 0, endIndex: 3, startTick: 0, terminalTick: 16 },
         tempoPlan: {
           selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 100 },
-          segments: [{ startBeat: 0, bpm: 100, source: 'CUSTOM' }],
+          segments: [{ startTick: 0, bpm: 100, source: 'CUSTOM' }],
         },
         inputSource: 'MICROPHONE',
         activeElapsedMs: 9600,
@@ -487,10 +487,10 @@ describe('PracticeReviewPage', () => {
         scoreId: 'score-123',
         revisionId: 'rev-1',
         artifactId: 'art-1',
-        scope: { kind: 'FULL', startIndex: 0, endIndex: 4, startBeat: 0, terminalBeat: 20 },
+        scope: { kind: 'FULL', startIndex: 0, endIndex: 4, startTick: 0, terminalTick: 20 },
         tempoPlan: {
           selection: { mode: 'SCORE' },
-          segments: [{ startBeat: 0, bpm: 80, source: 'MUSICXML' }],
+          segments: [{ startTick: 0, bpm: 80, source: 'MUSICXML' }],
         },
         inputSource,
         activeElapsedMs: 10000,
@@ -609,8 +609,8 @@ describe('PracticeReviewPage', () => {
 
   it('keeps replay and a clear notice when completed evaluation is unavailable, without aggregate cards', () => {
     const result = continuousResultFixture({ sourceId: 'source-fixture', localSessionId: 'unavailable', scoreId: 'score-123', revisionId: 'rev-1', artifactId: 'art-1',
-      scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
-      tempoPlan: { selection: { mode: 'SCORE' }, segments: [{ startBeat: 0, bpm: 80, source: 'MUSICXML' }] },
+      scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startTick: 0, terminalTick: 4 },
+      tempoPlan: { selection: { mode: 'SCORE' }, segments: [{ startTick: 0, bpm: 80, source: 'MUSICXML' }] },
       inputSource: 'MICROPHONE', activeElapsedMs: 3000,
       evaluation: { status: 'UNAVAILABLE', inputSource: 'MICROPHONE', assignmentPolicyId: 'CONTINUOUS_EXACT_PIANO_KEY_ORDERED_ASSIGNMENT_FINALITY_V5', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' },
       completedAt: '2026-09-20T12:00:00.000Z' });
@@ -629,10 +629,10 @@ describe('PracticeReviewPage', () => {
         scoreId: 'score-123',
         revisionId: 'rev-1',
         artifactId: 'art-1',
-        scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
+        scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startTick: 0, terminalTick: 4 },
         tempoPlan: {
           selection: { mode: 'SCORE' },
-          segments: [{ startBeat: 0, bpm: 80, source: 'CUSTOM' }],
+          segments: [{ startTick: 0, bpm: 80, source: 'CUSTOM' }],
         },
         inputSource: 'MIDI',
         activeElapsedMs: 3000,
@@ -672,10 +672,10 @@ describe('PracticeReviewPage', () => {
         scoreId: 'score-123',
         revisionId: 'rev-1',
         artifactId: 'art-1',
-        scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
+        scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startTick: 0, terminalTick: 4 },
         tempoPlan: {
           selection: { mode: 'SCORE' },
-          segments: [{ startBeat: 0, bpm: 80, source: 'CUSTOM' }],
+          segments: [{ startTick: 0, bpm: 80, source: 'CUSTOM' }],
         },
         inputSource: 'MIDI',
         activeElapsedMs: 3000,
@@ -737,10 +737,10 @@ describe('PracticeReviewPage', () => {
         scoreId: 'score-123',
         revisionId: 'rev-1',
         artifactId: 'art-1',
-        scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
+        scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startTick: 0, terminalTick: 4 },
         tempoPlan: {
           selection: { mode: 'SCORE' },
-          segments: [{ startBeat: 0, bpm: 80, source: 'CUSTOM' }],
+          segments: [{ startTick: 0, bpm: 80, source: 'CUSTOM' }],
         },
         inputSource: 'MICROPHONE',
         activeElapsedMs: 3000,
@@ -1012,10 +1012,10 @@ function createVideoCompletion({
       scoreId: 'score-123',
       revisionId: 'rev-1',
       artifactId: 'art-1',
-      scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
+      scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startTick: 0, terminalTick: 4 },
       tempoPlan: {
         selection: { mode: 'SCORE' },
-        segments: [{ startBeat: 0, bpm: 80, source: 'CUSTOM' }],
+        segments: [{ startTick: 0, bpm: 80, source: 'CUSTOM' }],
       },
       inputSource: 'MICROPHONE',
       activeElapsedMs: 3000,

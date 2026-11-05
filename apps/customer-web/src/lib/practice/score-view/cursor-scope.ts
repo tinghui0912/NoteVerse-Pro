@@ -9,13 +9,13 @@ import { resolvePracticeScope, type PracticeScope } from '@/lib/practice/kernel/
 export type CursorScope =
   | {
       kind: 'FULL';
-      startBeat: number;
-      terminalBeat: number;
+      startTick: number;
+      terminalTick: number;
     }
   | {
       kind: 'RANGE';
-      startBeat: number;
-      terminalBeat: number;
+      startTick: number;
+      terminalTick: number;
       allowedNoteIds: readonly string[];
     };
 
@@ -26,8 +26,8 @@ export function cursorScopeFromResolvedPracticeScope(
   if (scope.kind === 'FULL') {
     return {
       kind: 'FULL',
-      startBeat: scope.startBeat,
-      terminalBeat: scope.terminalBeat,
+      startTick: scope.startTick,
+      terminalTick: scope.terminalTick,
     };
   }
   if (allowedNoteIds.length === 0) {
@@ -35,8 +35,8 @@ export function cursorScopeFromResolvedPracticeScope(
   }
   return {
     kind: 'RANGE',
-    startBeat: scope.startBeat,
-    terminalBeat: scope.terminalBeat,
+    startTick: scope.startTick,
+    terminalTick: scope.terminalTick,
     allowedNoteIds,
   };
 }

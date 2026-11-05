@@ -47,8 +47,8 @@ export function createPracticeSessionPlanner() {
     }
     const truth = { resources, sourceId: source.sourceId, artifact: current.artifact, inputSource: intent.inputSource,
       scope: current.scope, tempoPlan: current.tempoPlan, metronomePlan: resolveMetronomePlan({ mode: intent.mode === 'STEP_BY_STEP' ? 'STEP' : 'CONTINUOUS',
-        meterSegments: current.artifact.meterSegments, tempoPlan: current.tempoPlan, timelineEndBeat: current.artifact.scoreEndBeat,
-        scopeStartBeat: current.scope.startBeat, scopeEndBeat: current.scope.terminalBeat, initiallyEnabled: intent.metronomeEnabled }) };
+        ticksPerQuarter: current.artifact.ticksPerQuarter, meterSegments: current.artifact.meterSegments, tempoPlan: current.tempoPlan, timelineEndTick: current.artifact.scoreEndTick,
+        scopeStartTick: current.scope.startTick, scopeEndTick: current.scope.terminalTick, initiallyEnabled: intent.metronomeEnabled }) };
     return intent.mode === 'STEP_BY_STEP'
       ? Object.freeze({ ...truth, mode: 'STEP_BY_STEP', recordingMode: 'OFF' })
       : Object.freeze({ ...truth, mode: 'CONTINUOUS_PLAY', recordingMode: intent.recordingMode });

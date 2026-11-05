@@ -17,10 +17,10 @@ it.each(['SCORE', 'CUSTOM_FIXED_BPM'] as const)('returns semantic %s tempo and n
   const view = reviewViewModel({
     ...result,
     tempoPlan: { ...result.tempoPlan, selection: mode === 'SCORE' ? { mode } : { mode, bpm: 96 } },
-    scope: { ...result.scope, kind: 'RANGE', startGroupId: 'start', endGroupId: 'end', startBeat: 4, terminalBeat: 8 },
+    scope: { ...result.scope, kind: 'RANGE', startGroupId: 'start', endGroupId: 'end', startTick: 4, terminalTick: 8 },
   });
   expect(view.tempo).toEqual(mode === 'SCORE' ? { kind: 'SCORE' } : { kind: 'CUSTOM_FIXED_BPM', bpm: 96 });
-  expect(view.scope).toEqual({ label: 'scopeSection', startBeat: 4, terminalBeat: 8 });
+  expect(view.scope).toEqual({ label: 'scopeSection', startTick: 4, terminalTick: 8 });
   expect(Object.keys(view).sort()).toEqual([
     'durationText', 'inputSourceLabel', 'scope', 'tempo',
   ]);
@@ -29,6 +29,6 @@ it.each(['SCORE', 'CUSTOM_FIXED_BPM'] as const)('returns semantic %s tempo and n
 it('exposes the full-scope translation key with its numeric bounds', () => {
   const result = canonicalContinuousResultFixture();
   expect(reviewViewModel(result).scope).toEqual({
-    label: 'scopeFull', startBeat: result.scope.startBeat, terminalBeat: result.scope.terminalBeat,
+    label: 'scopeFull', startTick: result.scope.startTick, terminalTick: result.scope.terminalTick,
   });
 });

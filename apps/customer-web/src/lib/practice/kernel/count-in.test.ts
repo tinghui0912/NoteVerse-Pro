@@ -9,18 +9,18 @@ function cloneArtifact(overrides: Partial<PracticeScoreArtifact> = {}): Practice
 describe('Meter-derived count-in', () => {
   it('derives count-in from active meter rather than a hardcoded four beats', () => {
     expect(countInContractAt(artifact, 0)).toEqual({
-      durationBeats: 3,
+      durationTicks: 6,
       pulses: 3,
       numerator: 3,
       denominator: 4,
     });
-    expect(countInContractAt(artifact, 3)).toEqual({
-      durationBeats: 3,
+    expect(countInContractAt(artifact, 6)).toEqual({
+      durationTicks: 6,
       pulses: 6,
       numerator: 6,
       denominator: 8,
     });
     expect(() => countInContractAt(cloneArtifact({ meterSegments: [] }), 0)).toThrow('initial meter');
-    expect(() => countInContractAt(cloneArtifact({ meterSegments: [{ ...artifact.meterSegments[0], startBeat: 1 }] }), 0)).toThrow('initial meter');
+    expect(() => countInContractAt(cloneArtifact({ meterSegments: [{ ...artifact.meterSegments[0], startTick: 1 }] }), 0)).toThrow('initial meter');
   });
 });

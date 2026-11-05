@@ -182,10 +182,7 @@ function PerformanceTakeCard({
   const scopeLabel = take.scope_type === 'FULL'
     ? t('scopeFull')
     : take.scope_type === 'RANGE'
-      ? `${t('scopeSection')} (${t('takeScopeBeats', {
-        start: take.scope_start_beat,
-        end: take.scope_terminal_beat,
-      })})`
+      ? t('scopeSection')
       : t('scopeUnavailable');
 
   const tempoLabel = getTempoLabel(take, t);

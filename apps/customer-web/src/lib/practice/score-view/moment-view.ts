@@ -2,12 +2,12 @@ import { attackNoteIds, notesForIds, type PracticeMoment, type PracticeScoreArti
 
 /** Read-only presentation values resolved from canonical moment note references. */
 export type PracticeMomentView = Readonly<{
-  groupId: string; onsetBeat: number; canonicalEndBeat: number;
+  groupId: string; onsetTick: number; canonicalEndTick: number;
   renderNoteIds: readonly string[]; measureNumbers: readonly string[];
 }>;
 export function projectPracticeMomentView(artifact: PracticeScoreArtifact, moment: PracticeMoment): PracticeMomentView {
   const notes = notesForIds(artifact, attackNoteIds(moment));
-  return Object.freeze({ groupId: moment.groupId, onsetBeat: moment.onsetBeat, canonicalEndBeat: moment.canonicalEndBeat,
+  return Object.freeze({ groupId: moment.groupId, onsetTick: moment.onsetTick, canonicalEndTick: moment.canonicalEndTick,
     renderNoteIds: Object.freeze(notes.map(note => note.renderNoteId)),
     measureNumbers: Object.freeze([...new Set(notes.map(note => note.measureNumber).filter(Boolean))]) });
 }

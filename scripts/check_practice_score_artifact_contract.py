@@ -11,7 +11,9 @@ from uuid import uuid4
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 BACKEND_ROOT = REPO_ROOT / "backend"
-CANONICAL_MUSICXML = BACKEND_ROOT / "tests/fixtures/musicxml/canonical-practice-score.musicxml"
+CANONICAL_MUSICXML = (
+    BACKEND_ROOT / "tests/fixtures/musicxml/canonical-practice-score.musicxml"
+)
 BROWSER_FIXTURE = (
     REPO_ROOT
     / "apps"
@@ -28,7 +30,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Compare the backend canonical PracticeScoreArtifact with the checked browser fixture."
     )
-    parser.add_argument("--fixture-path", "--fixture", type=Path, default=BROWSER_FIXTURE)
+    parser.add_argument(
+        "--fixture-path", "--fixture", type=Path, default=BROWSER_FIXTURE
+    )
     parser.add_argument(
         "--self-test-missing-fixture",
         action="store_true",
@@ -46,15 +50,21 @@ def main() -> int:
         return 1
 
     compare_fixture(args.fixture_path)
+    compare_fixture(
+        BROWSER_FIXTURE.with_name("exact-practice-score-artifact.json"),
+        CANONICAL_MUSICXML.with_name("exact-practice-score.musicxml"),
+    )
     print(f"canonical PracticeScoreArtifact fixture matches: {args.fixture_path}")
     return 0
 
 
-def compare_fixture(fixture_path: Path) -> None:
+def compare_fixture(fixture_path: Path, source: Path = CANONICAL_MUSICXML) -> None:
     if not fixture_path.exists():
-        raise FileNotFoundError(f"Required browser artifact fixture is missing: {fixture_path}")
+        raise FileNotFoundError(
+            f"Required browser artifact fixture is missing: {fixture_path}"
+        )
 
-    produced = _canonical_artifact()
+    produced = _canonical_artifact(source)
     expected = json.loads(fixture_path.read_text(encoding="utf-8-sig"))
     produced_normalized = _normalized_json(produced)
     expected_normalized = _normalized_json(expected)
@@ -68,16 +78,20 @@ def compare_fixture(fixture_path: Path) -> None:
                 lineterm="",
             )
         )
-        raise AssertionError(f"Canonical PracticeScoreArtifact fixture drifted:\n{diff}")
+        raise AssertionError(
+            f"Canonical PracticeScoreArtifact fixture drifted:\n{diff}"
+        )
 
 
-def _canonical_artifact() -> dict[str, Any]:
+def _canonical_artifact(source: Path = CANONICAL_MUSICXML) -> dict[str, Any]:
     sys.path.insert(0, str(BACKEND_ROOT))
     from app.modules.practice.score.compiler.musicxml import compile_practice_score
     from app.modules.practice.score.timeline import practice_timeline_from_compiled
-    from app.modules.practice.score.artifact import practice_score_artifact_from_timeline
+    from app.modules.practice.score.artifact import (
+        practice_score_artifact_from_timeline,
+    )
 
-    compiled = compile_practice_score(CANONICAL_MUSICXML.read_bytes())
+    compiled = compile_practice_score(source.read_bytes())
     timeline = practice_timeline_from_compiled(compiled)
 
     return practice_score_artifact_from_timeline(

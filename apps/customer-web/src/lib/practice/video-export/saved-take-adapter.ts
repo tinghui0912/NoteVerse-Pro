@@ -1,3 +1,4 @@
+import { scoreTick } from '@/lib/practice/kernel/score-time';
 import type {
   PerformanceTakeRead,
   RecordingTimebase,
@@ -28,15 +29,13 @@ export function hasSavedTakeVideoExportMetadata(take: PerformanceTakeRead): bool
     return false;
   }
   try {
-    const scopeStartBeat = requireFiniteNonNegative(
-      take.scope_start_beat,
-      'scope_start_beat'
+    const scopeStartTick = scoreTick(
+      take.scope_start_tick);
+    const scopeTerminalTick = requireFinitePositive(
+      take.scope_terminal_tick,
+      'scope_terminal_tick'
     );
-    const scopeTerminalBeat = requireFinitePositive(
-      take.scope_terminal_beat,
-      'scope_terminal_beat'
-    );
-    if (scopeTerminalBeat <= scopeStartBeat) {
+    if (scopeTerminalTick <= scopeStartTick) {
       return false;
     }
     parseSavedTempoPlan(take.tempo_plan);
@@ -77,16 +76,14 @@ export function createVideoExportSessionFromSavedTake(
   }
 
   try {
-    const scopeStartBeat = requireFiniteNonNegative(
-      take.scope_start_beat,
-      'scope_start_beat'
+    const scopeStartTick = scoreTick(
+      take.scope_start_tick);
+    const scopeTerminalTick = requireFinitePositive(
+      take.scope_terminal_tick,
+      'scope_terminal_tick'
     );
-    const scopeTerminalBeat = requireFinitePositive(
-      take.scope_terminal_beat,
-      'scope_terminal_beat'
-    );
-    if (scopeTerminalBeat <= scopeStartBeat) {
-      throw new Error('scope_terminal_beat_invalid');
+    if (scopeTerminalTick <= scopeStartTick) {
+      throw new Error('scope_terminal_tick_invalid');
     }
     const tempoPlan = parseSavedTempoPlan(take.tempo_plan);
     const recordingTimebase = parseSavedRecordingTimebase(take.recording_timebase);
@@ -108,8 +105,8 @@ export function createVideoExportSessionFromSavedTake(
         return { status: 'unsupported', reason: 'scope_identity_invalid' };
       }
       if (
-        Math.abs(startGroup.onsetBeat - scopeStartBeat) > 1e-6 ||
-        Math.abs(endGroup.canonicalEndBeat - scopeTerminalBeat) > 1e-6
+        startGroup.onsetTick !== scopeStartTick ||
+        endGroup.canonicalEndTick !== scopeTerminalTick
       ) {
         return { status: 'unsupported', reason: 'scope_identity_mismatch' };
       }
@@ -121,12 +118,12 @@ export function createVideoExportSessionFromSavedTake(
     } else {
       resolvedPracticeScope = resolvePracticeScope(artifact, { kind: 'FULL' });
     }
-    // The Source validates group identity; persisted Take beats remain the saved truth.
-    if (Math.abs(resolvedPracticeScope.startBeat - scopeStartBeat) > 1e-6 ||
-        Math.abs(resolvedPracticeScope.terminalBeat - scopeTerminalBeat) > 1e-6) {
+    // The Source validates group identity; persisted Take ticks remain the saved truth.
+    if (resolvedPracticeScope.startTick !== scopeStartTick ||
+        resolvedPracticeScope.terminalTick !== scopeTerminalTick) {
       return { status: 'unsupported', reason: 'scope_identity_mismatch' };
     }
-    resolvedPracticeScope = { ...resolvedPracticeScope, startBeat: scopeStartBeat, terminalBeat: scopeTerminalBeat };
+    resolvedPracticeScope = { ...resolvedPracticeScope, startTick: scopeStartTick, terminalTick: scopeTerminalTick };
     const resolvedScope = resolvePracticeScopeCursorNoteIds(
       artifact,
       resolvedPracticeScope
@@ -181,19 +178,19 @@ export function parseSavedTempoPlan(raw: PerformanceTakeTempoPlan | null | undef
     throw new Error('tempo_plan_segments_missing');
   }
   const segments = rawSegments.map((segment, index) => {
-    const startBeat = requireFiniteNonNegative(segment.startBeat, `tempo_segment_${index}_startBeat`);
+    const startTick = scoreTick(segment.startTick);
     const bpm = requireFinitePositive(segment.bpm, `tempo_segment_${index}_bpm`);
     const source = segment.source;
     if (source !== 'MUSICXML' && source !== 'PRODUCT_DEFAULT' && source !== 'CUSTOM') {
       throw new Error(`tempo_segment_${index}_source_invalid`);
     }
-    return { startBeat, bpm, source: source as PracticeTempoSegmentSource };
+    return { startTick, bpm, source: source as PracticeTempoSegmentSource };
   });
-  if (segments[0].startBeat !== 0) {
-    throw new Error('tempo_plan_must_start_at_beat_zero');
+  if (segments[0].startTick !== 0) {
+    throw new Error('tempo_plan_must_start_at_tick_zero');
   }
   for (let index = 1; index < segments.length; index += 1) {
-    if (segments[index].startBeat <= segments[index - 1].startBeat) {
+    if (segments[index].startTick <= segments[index - 1].startTick) {
       throw new Error('tempo_plan_segments_not_sorted');
     }
   }

@@ -26,10 +26,10 @@ def test_practice_score_artifact_matches_browser_fixture() -> None:
     )
 
     assert artifact["schemaVersion"] == 1
-    assert artifact["artifactId"] == "practice-score-artifact:fc944718d72728b7"
+    assert artifact["artifactId"] == "practice-score-artifact:7d53bd7fed2ca43a"
     assert artifact["scoreTempoSegments"] == [
-        {"startBeat": 0.0, "bpm": 120.0},
-        {"startBeat": 3.0, "bpm": 90.0},
+        {"startTick": 0, "bpm": 120},
+        {"startTick": 6, "bpm": 90},
     ]
     assert artifact["scoreId"] == "canonical-local-core-score"
     assert artifact["revisionId"] == "canonical-local-core-revision"
@@ -42,7 +42,7 @@ def test_practice_score_artifact_matches_browser_fixture() -> None:
         [69, 72],
         [74],
     ]
-    assert artifact["moments"][2]["canonicalEndBeat"] == 4.5
+    assert artifact["moments"][2]["canonicalEndTick"] == 9
     assert (
         next(
             n
@@ -53,12 +53,12 @@ def test_practice_score_artifact_matches_browser_fixture() -> None:
     )
     assert artifact["meterSegments"] == [
         {
-            "startBeat": 0.0,
+            "startTick": 0,
             "numerator": 3,
             "denominator": 4,
         },
         {
-            "startBeat": 3.0,
+            "startTick": 6,
             "numerator": 6,
             "denominator": 8,
         },
@@ -70,7 +70,7 @@ def test_empty_practice_score_artifact_is_not_practice_ready() -> None:
     from app.modules.practice.score.piano_key import PracticeScoreInvalidError
 
     timeline = PracticeScoreTimeline(
-        notes=(), events=(), moments=(), end_beat=0.0, meter_segments=()
+        notes=(), events=(), moments=(), score_end_tick=0, ticks_per_quarter=1, meter_segments=()
     )
     with pytest.raises(PracticeScoreInvalidError):
         practice_score_artifact_from_timeline(
@@ -129,8 +129,8 @@ def test_practice_tempo_segments_from_musicxml_multi_tempo(tmp_path: Path) -> No
         prepare_musicxml_ids_for_practice(xml_path.read_text())
     ).tempo_segments
     assert segments == (
-        PracticeTempoSegment(start_beat=0.0, bpm=120.0),
-        PracticeTempoSegment(start_beat=3.0, bpm=90.0),
+        PracticeTempoSegment(start_tick=0, bpm=120),
+        PracticeTempoSegment(start_tick=3, bpm=90),
     )
 
 
@@ -195,8 +195,8 @@ def test_practice_tempo_segments_metronome_beat_units(tmp_path: Path) -> None:
     ).tempo_segments
     # half at 60 = 120 bpm; dotted-quarter at 80 = 80 * 1.5 = 120 bpm
     assert segments == (
-        PracticeTempoSegment(start_beat=0.0, bpm=120.0),
-        PracticeTempoSegment(start_beat=2.0, bpm=120.0),
+        PracticeTempoSegment(start_tick=0, bpm=120),
+        PracticeTempoSegment(start_tick=2, bpm=120),
     )
 
 
@@ -223,7 +223,7 @@ def test_practice_tempo_segments_preserves_positive_first_tempo_beat(tmp_path: P
     segments = compile_practice_score(
         prepare_musicxml_ids_for_practice(xml_path.read_text())
     ).tempo_segments
-    assert segments == (PracticeTempoSegment(start_beat=4.0, bpm=100.0),)
+    assert segments == (PracticeTempoSegment(start_tick=4, bpm=100),)
 
 
 def test_practice_tempo_segments_missing_file_raises(tmp_path: Path) -> None:
@@ -250,7 +250,8 @@ def test_practice_score_artifact_requires_explicit_score_tempo_segments() -> Non
         events=(),
         notes=(),
         moments=(),
-        end_beat=0.0,
+        score_end_tick=0,
+        ticks_per_quarter=1,
         meter_segments=(),
     )
     with pytest.raises(TypeError):
@@ -311,7 +312,9 @@ def test_repeat_notation_artifact_matches_browser_alignment_fixture() -> None:
         score_tempo_segments=compiled.tempo_segments,
     )
     root = Path(os.environ.get("NOTEVERSE_REPO_ROOT", Path(__file__).resolve().parents[2]))
-    fixture = root / "apps/customer-web/tests/fixtures/musicxml/practice-simple-repeat.artifact.json"
+    fixture = (
+        root / "apps/customer-web/tests/fixtures/musicxml/practice-simple-repeat.artifact.json"
+    )
     assert artifact == json.loads(fixture.read_text())
-    assert [event["onsetBeat"] for event in artifact["events"]] == [0, 4, 8, 12]
-    assert artifact["scoreEndBeat"] == 16
+    assert [event["onsetTick"] for event in artifact["events"]] == [0, 4, 8, 12]
+    assert artifact["scoreEndTick"] == 16

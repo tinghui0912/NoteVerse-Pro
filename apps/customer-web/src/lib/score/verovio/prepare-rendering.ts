@@ -36,23 +36,3 @@ export function prepareMusicXmlForVerovioRendering(xml: string) {
 
   return serializeXml(xmlDoc);
 }
-
-export function readNumericTimemapValue(
-  entry: Record<string, unknown>,
-  keys: string[]
-) {
-  for (const key of keys) {
-    const value = entry[key];
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      return value;
-    }
-    if (typeof value === 'string') {
-      const parsed = Number.parseFloat(value);
-      if (Number.isFinite(parsed)) {
-        return parsed;
-      }
-    }
-  }
-
-  return null;
-}

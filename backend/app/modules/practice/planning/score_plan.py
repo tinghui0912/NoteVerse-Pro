@@ -6,7 +6,13 @@ from dataclasses import dataclass
 import math
 from typing import Literal
 
-from app.modules.practice.score.domain import PracticeTempoSegment, canonical_beat
+from app.modules.practice.score.domain import PracticeTempoSegment
+from app.modules.practice.score.time import (
+    ScoreTick,
+    TicksPerQuarter,
+    score_tick,
+    ticks_per_quarter,
+)
 
 from app.score_semantics.tempo_policy import DEFAULT_SCORE_TEMPO_BPM
 
@@ -23,15 +29,16 @@ class PracticePlanningError(ValueError):
 @dataclass(frozen=True)
 class PlanningMoment:
     group_id: str
-    onset_beat: float
-    canonical_end_beat: float
+    onset_tick: ScoreTick
+    canonical_end_tick: ScoreTick
 
 
 @dataclass(frozen=True)
 class PracticePlanningScore:
     moments: tuple[PlanningMoment, ...]
-    score_end_beat: float
+    score_end_tick: ScoreTick
     score_tempo_segments: tuple[PracticeTempoSegment, ...]
+    ticks_per_quarter: TicksPerQuarter
 
 
 @dataclass(frozen=True)
@@ -66,15 +73,15 @@ TempoSelection = ScoreTempoSelection | CustomTempoSelection
 @dataclass(frozen=True)
 class ResolvedPracticeScope:
     kind: Literal["FULL", "RANGE"]
-    start_beat: float
-    terminal_beat: float
+    start_tick: ScoreTick
+    terminal_tick: ScoreTick
     start_group_id: str | None = None
     end_group_id: str | None = None
 
 
 @dataclass(frozen=True)
 class ResolvedTempoSegment:
-    start_beat: float
+    start_tick: ScoreTick
     bpm: float
     source: Literal["MUSICXML", "PRODUCT_DEFAULT", "CUSTOM"]
 
@@ -97,7 +104,7 @@ def _resolve_scope(
     if not score.moments:
         raise PracticePlanningError("scope", "Scope requires a canonical Practice moment")
     if isinstance(selection, FullScopeSelection):
-        return ResolvedPracticeScope("FULL", score.moments[0].onset_beat, score.score_end_beat)
+        return ResolvedPracticeScope("FULL", score.moments[0].onset_tick, score.score_end_tick)
     if (
         not isinstance(selection, RangeScopeSelection)
         or not selection.start_group_id
@@ -111,8 +118,8 @@ def _resolve_scope(
         raise PracticePlanningError("scope", "Invalid canonical moment range")
     return ResolvedPracticeScope(
         "RANGE",
-        score.moments[start].onset_beat,
-        canonical_beat(score.moments[end].canonical_end_beat),
+        score.moments[start].onset_tick,
+        score.moments[end].canonical_end_tick,
         selection.start_group_id,
         selection.end_group_id,
     )
@@ -138,18 +145,18 @@ def _resolve_tempo(
     if not isinstance(selection, ScoreTempoSelection):
         raise PracticePlanningError("tempo_selection", "Invalid tempo selection")
     if any(
-        not math.isfinite(segment.start_beat)
-        or segment.start_beat < 0
+        type(segment.start_tick) is not int
+        or segment.start_tick < 0
         or not math.isfinite(segment.bpm)
         or segment.bpm <= 0
         for segment in score.score_tempo_segments
     ):
         raise PracticePlanningError("tempo_selection", "Invalid explicit score tempo")
     segments = tuple(
-        ResolvedTempoSegment(segment.start_beat, segment.bpm, "MUSICXML")
-        for segment in sorted(score.score_tempo_segments, key=lambda value: value.start_beat)
+        ResolvedTempoSegment(segment.start_tick, segment.bpm, "MUSICXML")
+        for segment in sorted(score.score_tempo_segments, key=lambda value: value.start_tick)
     )
-    if not segments or canonical_beat(segments[0].start_beat) > 0:
+    if not segments or segments[0].start_tick > 0:
         segments = (
             ResolvedTempoSegment(0, DEFAULT_SCORE_TEMPO_BPM, "PRODUCT_DEFAULT"),
             *segments,
@@ -160,4 +167,11 @@ def _resolve_tempo(
 def resolve_practice_score_plan(
     score: PracticePlanningScore, scope: ScopeSelection, tempo: TempoSelection
 ) -> PracticeScorePlan:
+    ticks_per_quarter(score.ticks_per_quarter)
+    score_tick(score.score_end_tick)
+    for moment in score.moments:
+        score_tick(moment.onset_tick)
+        score_tick(moment.canonical_end_tick)
+    for segment in score.score_tempo_segments:
+        score_tick(segment.start_tick)
     return PracticeScorePlan(_resolve_scope(score, scope), _resolve_tempo(score, tempo))

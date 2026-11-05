@@ -19,22 +19,28 @@ uses the exact prepared bytes also delivered as notation.
 
 ## Projection boundary
 
-One Practice beat is one quarter note. `domain.canonical_beat` rounds exported
-positions to six decimal places using nearest rounding with ties to even on the
-floating-point value. Distinct exact source positions must remain distinct at that
-precision. Note durations are the canonical difference between exported onset and
-endpoint and must remain positive. All XML divisions, note/rest/chord onsets,
-backup/forward movement, shared measure starts and positioned meter/tempo facts
-are supplied by canonical semantics, not recalculated by this projection.
+Practice uses an exact integer written score axis. `score/time.py` owns
+`ScoreTick`, `TicksPerQuarter` and immutable `PracticeScoreTimebase`. The compiler
+selects `ticksPerQuarter` as the LCM of required canonical Fraction denominators:
+note onsets, durations and ends; shared measure boundaries and score end; positioned
+meter/tempo facts; nominal measure durations and denominator-unit metronome pulses.
+Moment and tie-chain endpoints reuse these exact note endpoints.
+
+Every conversion is `Fraction * ticksPerQuarter` and must yield an integer.
+All coordinates and durations lie in `0..9007199254740991`; the timebase lies in
+`1..9007199254740991`. An unrepresentable grid or scaled extent fails with
+`PracticeScoreInvalidError`. BPM remains finite and positive and does not define
+score-coordinate identity. Canonical divisions, backup/forward movement and
+multi-part measure boundaries remain owned by canonical score semantics.
 
 Parts must have aligned written measure sequences. Practice requires one compatible
-score-wide meter timeline: an explicit initial simple meter at beat zero, with changes
+score-wide meter timeline: an explicit initial simple meter at tick zero, with changes
 at measure origins. Staff-scoped meter facts and divergent active part signatures are
 unsupported; identical part facts collapse into one timeline. The Practice projection
 imposes no additional key-representation restriction: valid canonical scoped/nontraditional
 keys are accepted when the other score facts are supported. Numerators and
 denominators are positive JSON-safe integers (`1..9007199254740991`), and the
-projected nominal duration must be finite and positive. Unmetered notation, composite
+projected nominal duration and pulse widths must be positive JSON-safe integer ticks. Unmetered notation, composite
 meter groupings, grace timing and transposing notation are unsupported for Practice.
 These are product support restrictions on canonical facts.
 

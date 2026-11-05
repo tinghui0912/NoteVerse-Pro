@@ -13,7 +13,7 @@ function cloneArtifact(overrides: Partial<PracticeScoreArtifact> = {}): Practice
 describe('Continuous transport clock', () => {
   it('maps only already-reached RUNNING coordinates, including count-ins and multiple pause segments, without advancing', () => {
     const clock = new ManualClock();
-    const runtime = new PerformanceClockRuntime({ artifact, tempoPlan: resolvePracticeTempoPlan(artifact, { mode: 'CUSTOM_FIXED_BPM', bpm: 120 }), scope: continuousSessionPlan(artifact, { scope: { kind: 'FULL' } }).scope, timebase: new PracticeTimebase({ domainId: 'inverse-clock' }), clock, countInBeats: 1 });
+    const runtime = new PerformanceClockRuntime({ artifact, tempoPlan: resolvePracticeTempoPlan(artifact, { mode: 'CUSTOM_FIXED_BPM', bpm: 120 }), scope: continuousSessionPlan(artifact, { scope: { kind: 'FULL' } }).scope, timebase: new PracticeTimebase({ domainId: 'inverse-clock' }), clock, countInTicks: 2 });
     runtime.start();
     expect(runtime.sessionTimeAtReachedPerformance(0)).toBeNull();
     clock.set(500);
@@ -40,25 +40,25 @@ describe('Continuous transport clock', () => {
     const clock = new ManualClock(0);
     // ContinuousPracticeSession initialized with resolved scope:
     const tempoPlan = resolvePracticeTempoPlan(leadingRestArtifact, { mode: 'SCORE' });
-    const perfRuntime = new PerformanceClockRuntime({ timebase: new PracticeTimebase({ domainId: 'clock-contract' }), artifact: leadingRestArtifact, tempoPlan, scope: continuousSessionPlan(leadingRestArtifact, { scope: { kind: 'FULL' } }).scope, clock, countInBeats: 4 });
+    const perfRuntime = new PerformanceClockRuntime({ timebase: new PracticeTimebase({ domainId: 'clock-contract' }), artifact: leadingRestArtifact, tempoPlan, scope: continuousSessionPlan(leadingRestArtifact, { scope: { kind: 'FULL' } }).scope, clock, countInTicks: 4 });
     perfRuntime.start();
     const snap = perfRuntime.advanceToNow();
     expect(snap.state).toBe('COUNT_IN');
-    expect(snap.scopeStartBeat).toBe(2.0);
-    // At beat 2.0, tempo is 100 BPM. 4 beats at 100 BPM = 2400ms.
+    expect(snap.scopeStartTick).toBe(2.0);
+    // At tick 2.0, tempo is 100 BPM. 4 beats at 100 BPM = 2400ms.
     expect(snap.countInTotalMs).toBe(2400);
 
     // Complete count-in:
     clock.advance(2401);
     expect(perfRuntime.advanceToNow().state).toBe('RUNNING');
-    expect(perfRuntime.advanceToNow().musicalBeat).toBeCloseTo(2.0, 1);
+    expect(perfRuntime.advanceToNow().scoreTick).toBeCloseTo(2.0, 1);
 
   });
 
   it('supports CONTINUOUS user end vs SCOPE_COMPLETED natural completion', () => {
     const clock = new ManualClock(0);
     const tempoPlan = resolvePracticeTempoPlan(artifact, { mode: 'SCORE' });
-    const runtime = new PerformanceClockRuntime({ timebase: new PracticeTimebase({ domainId: 'clock-contract' }), artifact, tempoPlan, scope: continuousSessionPlan(artifact, { scope: { kind: 'FULL' } }).scope, clock, countInBeats: 0 });
+    const runtime = new PerformanceClockRuntime({ timebase: new PracticeTimebase({ domainId: 'clock-contract' }), artifact, tempoPlan, scope: continuousSessionPlan(artifact, { scope: { kind: 'FULL' } }).scope, clock, countInTicks: 0 });
     runtime.start();
     expect(runtime.advanceToNow().state).toBe('RUNNING');
     expect(runtime.advanceToNow().scopeCompleted).toBe(false);
@@ -73,7 +73,7 @@ describe('Continuous transport clock', () => {
 
     // Natural scope completion
     const rangeClock = new ManualClock(0);
-    const naturalRuntime = new PerformanceClockRuntime({ timebase: new PracticeTimebase({ domainId: 'clock-contract' }), artifact, tempoPlan, clock: rangeClock, countInBeats: 0, scope: continuousSessionPlan(artifact, { scope: {
+    const naturalRuntime = new PerformanceClockRuntime({ timebase: new PracticeTimebase({ domainId: 'clock-contract' }), artifact, tempoPlan, clock: rangeClock, countInTicks: 0, scope: continuousSessionPlan(artifact, { scope: {
         kind: 'RANGE',
         startGroupId: artifact.moments[0].groupId,
         endGroupId: artifact.moments[0].groupId,
@@ -89,14 +89,14 @@ describe('Continuous transport clock', () => {
   it('provides deterministic countInPulse and handles multi-tempo segments correctly', () => {
     const multiTempoArtifact = cloneArtifact({
       scoreTempoSegments: [
-        { startBeat: 0, bpm: 120 },
-        { startBeat: 4, bpm: 60 },
+        { startTick: 0, bpm: 120 },
+        { startTick: 8, bpm: 60 },
       ],
     });
 
     const clock = new ManualClock(0);
     const tempoPlan = resolvePracticeTempoPlan(multiTempoArtifact, { mode: 'SCORE' });
-    const runtime = new PerformanceClockRuntime({ timebase: new PracticeTimebase({ domainId: 'clock-contract' }), artifact: multiTempoArtifact, tempoPlan, scope: continuousSessionPlan(multiTempoArtifact, { scope: { kind: 'FULL' } }).scope, clock, countInBeats: 3 });
+    const runtime = new PerformanceClockRuntime({ timebase: new PracticeTimebase({ domainId: 'clock-contract' }), artifact: multiTempoArtifact, tempoPlan, scope: continuousSessionPlan(multiTempoArtifact, { scope: { kind: 'FULL' } }).scope, clock, countInTicks: 6 });
 
     runtime.start();
     let snapshot = runtime.advanceToNow();
@@ -119,42 +119,42 @@ describe('Continuous transport clock', () => {
     expect(snapshot.state).toBe('RUNNING');
     expect(snapshot.performanceTimeMs).toBe(50);
 
-    // From beat 0 to 4 is at 120 BPM (500ms/beat). 4 beats = 2000ms performance time.
+    // From tick 0 to 4 is at 120 BPM (500ms/tick). 4 beats = 2000ms performance time.
     // Advance to performance time 2000ms (clock advances another 1950ms)
     clock.advance(1950);
     snapshot = runtime.advanceToNow();
     expect(snapshot.performanceTimeMs).toBe(2000);
-    expect(snapshot.musicalBeat).toBeCloseTo(4.0, 2);
+    expect(snapshot.scoreTick).toBe(8);
 
-    // After beat 4, tempo is 60 BPM (1000ms/beat).
-    // Advancing performance time by 1000ms should advance beat by 1.0 (to beat 5.0).
+    // After tick 4, tempo is 60 BPM (1000ms/tick).
+    // Advancing performance time by 1000ms should advance tick by 1.0 (to tick 5.0).
     clock.advance(1000);
     snapshot = runtime.advanceToNow();
     expect(snapshot.performanceTimeMs).toBe(3000);
-    expect(snapshot.musicalBeat).toBeCloseTo(5.0, 2);
+    expect(snapshot.scoreTick).toBe(10);
   });
 });
 
 describe('meter-aware Resume Count-In', () => {
-  it.each([3, 4])('%i/4 keeps performance/beat fixed until the resumed running boundary', beats => {
-    const score = cloneArtifact({ meterSegments: [{ startBeat: 0, numerator: beats, denominator: 4,   }] } as Partial<PracticeScoreArtifact>);
-    const clock = new ManualClock(), runtime = new PerformanceClockRuntime({ artifact: score, tempoPlan: resolvePracticeTempoPlan(score, { mode: 'CUSTOM_FIXED_BPM', bpm: 120 }), scope: continuousSessionPlan(score, { scope: { kind: 'FULL' } }).scope, clock, timebase: new PracticeTimebase({ domainId: 'resume' }), countInBeats: 1 });
+  it.each([3, 4])('%i/4 keeps performance/tick fixed until the resumed running boundary', beats => {
+    const score = cloneArtifact({ meterSegments: [{ startTick: 0, numerator: beats, denominator: 4,   }] } as Partial<PracticeScoreArtifact>);
+    const clock = new ManualClock(), runtime = new PerformanceClockRuntime({ artifact: score, tempoPlan: resolvePracticeTempoPlan(score, { mode: 'CUSTOM_FIXED_BPM', bpm: 120 }), scope: continuousSessionPlan(score, { scope: { kind: 'FULL' } }).scope, clock, timebase: new PracticeTimebase({ domainId: 'resume' }), countInTicks: 2 });
     expect(runtime.start()).toMatchObject({ state: 'COUNT_IN', countInKind: 'INITIAL', performanceTimeMs: 0 });
     clock.advance(500); expect(runtime.advanceToNow().performanceTimeMs).toBe(0);
     clock.advance(125); const paused = runtime.pause(); clock.advance(1000);
     const countdown = runtime.resume();
-    expect(countdown).toMatchObject({ state: 'COUNT_IN', countInKind: 'RESUME', countInBeats: beats,
-      performanceTimeMs: paused.performanceTimeMs, musicalBeat: paused.musicalBeat });
+    expect(countdown).toMatchObject({ state: 'COUNT_IN', countInKind: 'RESUME', countInTicks: beats * artifact.ticksPerQuarter,
+      performanceTimeMs: paused.performanceTimeMs, scoreTick: paused.scoreTick });
     expect(countdown.countInTotalMs).toBe(beats * 500);
     clock.advance(countdown.countInTotalMs - 1);
-    expect(runtime.advanceToNow()).toMatchObject({ state: 'COUNT_IN', performanceTimeMs: paused.performanceTimeMs, musicalBeat: paused.musicalBeat });
+    expect(runtime.advanceToNow()).toMatchObject({ state: 'COUNT_IN', performanceTimeMs: paused.performanceTimeMs, scoreTick: paused.scoreTick });
     expect(runtime.performanceTimeAtCapture(clock.nowMs())).toBeNull();
     clock.advance(1); expect(runtime.advanceToNow()).toMatchObject({ state: 'RUNNING', countInKind: null, performanceTimeMs: paused.performanceTimeMs });
     clock.advance(50); expect(runtime.advanceToNow().performanceTimeMs).toBe(paused.performanceTimeMs + 50);
     expect(runtime.performanceTimeAtCapture(clock.nowMs())).toBe(paused.performanceTimeMs + 50);
   });
   it('Pause cancels a resume countdown and End abandons without advancing frozen performance time', () => {
-    const clock = new ManualClock(), runtime = new PerformanceClockRuntime({ artifact, tempoPlan: resolvePracticeTempoPlan(artifact, { mode: 'SCORE' }), scope: continuousSessionPlan(artifact, { scope: { kind: 'FULL' } }).scope, clock, timebase: new PracticeTimebase({ domainId: 'cancel' }), countInBeats: 0 });
+    const clock = new ManualClock(), runtime = new PerformanceClockRuntime({ artifact, tempoPlan: resolvePracticeTempoPlan(artifact, { mode: 'SCORE' }), scope: continuousSessionPlan(artifact, { scope: { kind: 'FULL' } }).scope, clock, timebase: new PracticeTimebase({ domainId: 'cancel' }), countInTicks: 0 });
     runtime.start(); clock.advance(100); runtime.pause(); runtime.resume(); clock.advance(500);
     expect(runtime.pause()).toMatchObject({ state: 'PAUSED', performanceTimeMs: 100 });
     clock.advance(5000); expect(runtime.advanceToNow().performanceTimeMs).toBe(100);

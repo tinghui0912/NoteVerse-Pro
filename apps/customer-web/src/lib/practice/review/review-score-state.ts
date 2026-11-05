@@ -8,12 +8,12 @@ export type ReviewScoreState =
 export function resolveReviewScoreState({ result, artifact }: TransientReviewSession): ReviewScoreState {
   try {
     if (result.scope.kind === 'FULL') return { status: 'READY', scope: {
-      kind: 'FULL', startBeat: result.scope.startBeat, terminalBeat: result.scope.terminalBeat,
+      kind: 'FULL', startTick: result.scope.startTick, terminalTick: result.scope.terminalTick,
     } };
     const allowedNoteIds = resolvePracticeScopeCursorNoteIds(artifact, result.scope);
     if (!allowedNoteIds.length) return { status: 'SCOPE_INVALID', reason: 'range_has_no_selectable_notes' };
-    return { status: 'READY', scope: { kind: 'RANGE', startBeat: result.scope.startBeat,
-      terminalBeat: result.scope.terminalBeat, allowedNoteIds } };
+    return { status: 'READY', scope: { kind: 'RANGE', startTick: result.scope.startTick,
+      terminalTick: result.scope.terminalTick, allowedNoteIds } };
   } catch (error) {
     return { status: 'SCOPE_INVALID', reason: error instanceof Error ? error.message : 'cursor_scope_invalid' };
   }

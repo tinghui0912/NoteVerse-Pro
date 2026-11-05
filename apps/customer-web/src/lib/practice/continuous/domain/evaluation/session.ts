@@ -13,7 +13,7 @@ import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
 import type { ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
 
 type ContinuousEvaluationClock = {
-  beatToTimeMs(beat: number): number;
+  tickToTimeMs(tick: number): number;
 };
 
 export type ContinuousEvaluationSessionOptions = {

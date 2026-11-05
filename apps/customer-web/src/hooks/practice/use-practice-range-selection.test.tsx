@@ -6,8 +6,8 @@ import { usePracticeRangeSelection } from './use-practice-range-selection';
 
 const groups: PracticeMomentView[] = [1, 2, 3].map(number => ({
   groupId: `g${number}`,
-  onsetBeat: number - 1,
-  canonicalEndBeat: number,
+  onsetTick: number - 1,
+  canonicalEndTick: number,
   renderNoteIds: number === 2 ? ['n2a', 'n2b'] : [`n${number}`],
   measureNumbers: [String(number)],
 }));

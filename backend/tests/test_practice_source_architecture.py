@@ -45,7 +45,7 @@ def test_score_compiler_dependency_direction():
     for path in score.rglob("*.py"):
         for node in imports(path.relative_to(ROOT)):
             if node.level:
-                assert node.module in {"domain", "piano_key", "timeline"}
+                assert node.module in {"domain", "piano_key", "timeline", "time"}
             elif node.module and node.module.startswith("app."):
                 assert node.module.startswith("app.modules.practice.score.") or node.module in {
                     "app.score_semantics.musicxml_score",
