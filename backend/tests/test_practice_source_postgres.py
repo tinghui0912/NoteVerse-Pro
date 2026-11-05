@@ -27,7 +27,7 @@ from app.utils.timezone import utc_now_naive
 
 
 @pytest_asyncio.fixture
-async def postgres_source(tmp_path):
+async def postgres_source(tmp_path, request):
     url = os.environ.get("NOTEVERSE_TEST_PRACTICE_SOURCE_POSTGRES_URL")
     if not url:
         pytest.skip(
@@ -53,7 +53,9 @@ async def postgres_source(tmp_path):
             score_id=str(uuid4()),
             revision_id=str(uuid4()),
             canonical_musicxml=(
-                Path(__file__).parent / "fixtures/musicxml/score-domain-metadata.musicxml"
+                Path(__file__).parent
+                / "fixtures/musicxml"
+                / getattr(request, "param", "score-domain-metadata.musicxml")
             ).read_bytes(),
         )
         async with AsyncSession(engine) as seed:

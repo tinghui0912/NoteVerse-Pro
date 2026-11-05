@@ -236,3 +236,16 @@ score input maps to HTTP 422 `practice_score_invalid` at the Source service boun
 Rendered pages and generated audio use [revision presentation demand](revision-derivatives.md).
 That demand and derived-asset retention are independent of canonical PracticeSource
 ownership. Guest Preview does not own PracticeSource.
+
+## Durable score coordinates
+
+Durable Practice coordinates are the pair `ticksPerQuarter + ScoreTick`.
+Save admission persists the exact artifact timebase in the upload reservation,
+alongside resolved scope and tempo-segment ticks. The timebase is server-resolved;
+clients submit selections and verify the returned `score_timebase` against their
+admitted artifact.
+
+Finalize copies this immutable coordinate snapshot into the Take without reading
+Source. Source GC does not erase the coordinate system of saved planning facts.
+Saved score-based export requires both the matching artifact identity and the same
+timebase, as well as matching scope ticks; a different grid fails closed.

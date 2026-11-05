@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Literal, Optional, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from app.modules.practice.planning.score_plan import MIN_PRACTICE_TEMPO_BPM, MAX_PRACTICE_TEMPO_BPM
@@ -9,6 +9,12 @@ from app.modules.practice.planning.score_plan import MIN_PRACTICE_TEMPO_BPM, MAX
 
 class StrictPerformanceTakeModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
+
+
+class PerformanceTakeScoreTimebase(StrictPerformanceTakeModel):
+    """Source-local Practice written score coordinate system, resolved by the server."""
+
+    ticks_per_quarter: int = Field(strict=True, gt=0, le=2**53 - 1)
 
 
 class ScoreTempoPlanSelection(StrictPerformanceTakeModel):
@@ -101,16 +107,23 @@ class PerformanceTakeRangeScopeSelection(StrictPerformanceTakeModel):
     end_group_id: str = Field(min_length=1, max_length=128)
 
 
-class PerformanceTakeResolvedFullScope(StrictPerformanceTakeModel):
+class _PerformanceTakeScoreScope(StrictPerformanceTakeModel):
+    start_tick: int = Field(strict=True, ge=0, le=2**53 - 1)
+    terminal_tick: int = Field(strict=True, gt=0, le=2**53 - 1)
+
+    @model_validator(mode="after")
+    def validate_scope_order(self) -> Self:
+        if self.terminal_tick < self.start_tick:
+            raise ValueError("score scope terminal must not precede its start")
+        return self
+
+
+class PerformanceTakeResolvedFullScope(_PerformanceTakeScoreScope):
     kind: Literal["FULL"]
-    start_tick: int = Field(strict=True, ge=0, le=2**53 - 1)
-    terminal_tick: int = Field(strict=True, gt=0, le=2**53 - 1)
 
 
-class PerformanceTakeResolvedRangeScope(StrictPerformanceTakeModel):
+class PerformanceTakeResolvedRangeScope(_PerformanceTakeScoreScope):
     kind: Literal["RANGE"]
-    start_tick: int = Field(strict=True, ge=0, le=2**53 - 1)
-    terminal_tick: int = Field(strict=True, gt=0, le=2**53 - 1)
     start_group_id: str = Field(min_length=1, max_length=128)
     end_group_id: str = Field(min_length=1, max_length=128)
 
@@ -145,6 +158,7 @@ class PerformanceTakeUploadReservationRead(StrictPerformanceTakeModel):
         discriminator="kind"
     )
     resolved_tempo_plan: PerformanceTakeTempoPlan
+    score_timebase: PerformanceTakeScoreTimebase
     upload_target: PerformanceTakeUploadTarget | None = None
     take: Optional["PerformanceTakeRead"] = None
 
@@ -169,8 +183,15 @@ class PerformanceTakeRead(StrictPerformanceTakeModel):
     scope_end_group_id: Optional[str] = None
     deletion_status: str = "ACTIVE"
     tempo_plan: PerformanceTakeTempoPlan
+    score_timebase: PerformanceTakeScoreTimebase
     recording_timebase: RecordingTimebase
     created_at: datetime
+
+    @model_validator(mode="after")
+    def validate_scope_order(self) -> Self:
+        if self.scope_terminal_tick < self.scope_start_tick:
+            raise ValueError("score scope terminal must not precede its start")
+        return self
 
 
 class PerformanceTakePlaybackRead(StrictPerformanceTakeModel):

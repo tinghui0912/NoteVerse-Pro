@@ -285,6 +285,7 @@ export default function PracticeReviewPage({
     try {
       await saveRecordingMutation.mutateAsync({
         sourceId: result.sourceId,
+        ticksPerQuarter: artifact!.ticksPerQuarter,
         clientRequestId: clientRequestIdRef.current ?? '',
         mediaKind: saveMedia.kind,
         mediaBlob: saveMedia.blob,

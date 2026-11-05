@@ -110,3 +110,25 @@ deletion only.
 
 The save request and planning agreement are defined by the
 [Practice product contract](practice-product-contract.md#performancetake-upload-reservation).
+
+## Durable Practice score timebase
+
+The reservation and Take persist `ticks_per_quarter BIGINT NOT NULL`. Their
+`score_timebase: { ticks_per_quarter }` API field is independent of
+`recording_timebase`, which maps performance milliseconds to media milliseconds.
+Scope and tempo positions share this one score coordinate system.
+
+Admission reads the exact Source artifact's `ticksPerQuarter` while resolving the
+scope and tempo plan. Idempotent replay returns the persisted timebase. Finalize
+copies it from the reservation snapshot, without Source access or replanning.
+Take reads and lists retain the complete coordinate snapshot after Source GC.
+
+Both tables constrain positive JSON-safe `ticks_per_quarter`, nonnegative
+JSON-safe `scope_start_tick`, positive JSON-safe `scope_terminal_tick`, and
+`scope_terminal_tick >= scope_start_tick`. Stored API snapshots validate their
+score timebase, integer scope coordinates and ordered integer tempo positions.
+
+Browser save agreement compares the server's grid with the admitted artifact
+before uploading media. A mismatch follows reservation cancellation policy.
+Saved score-based export also requires matching artifact identity, score timebase
+and scope; coordinates are never rescaled to another artifact grid.

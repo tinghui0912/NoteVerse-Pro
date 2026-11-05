@@ -82,7 +82,7 @@ async function finishContinuousCountIn(page: Page, remainingMs: number) {
 type MockOptions = {
   denyMicrophone?: boolean;
   camera?: 'READY' | 'DENIED' | 'NO_VIDEO' | 'NO_AUDIO' | 'PENDING';
-  reservationMismatch?: 'SCOPE' | 'TEMPO';
+  reservationMismatch?: 'SCOPE' | 'TEMPO' | 'TIMEBASE';
 };
 
 type MediaMock = {
@@ -353,7 +353,7 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
     const scope = resolvePracticeScope(testArtifact, request.scope.kind === 'FULL'
       ? { kind: 'FULL' }
       : { kind: 'RANGE', startGroupId: request.scope.start_group_id, endGroupId: request.scope.end_group_id });
-    return {
+    return {score_timebase: { ticks_per_quarter: testArtifact.ticksPerQuarter },
       resolved_scope: { kind: scope.kind, start_tick: scope.startTick, terminal_tick: scope.terminalTick,
         ...(scope.kind === 'RANGE' ? { start_group_id: scope.startGroupId, end_group_id: scope.endGroupId } : {}) },
       resolved_tempo_plan: resolvePracticeTempoPlan(testArtifact, request.tempo_selection),
@@ -374,6 +374,7 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
     saveProtocol.request = reservedRequest;
     saveProtocol.events.push('RESERVATION');
     const accepted = acceptedPlan(reservedRequest);
+    if (options.reservationMismatch === 'TIMEBASE') accepted.score_timebase.ticks_per_quarter = testArtifact.ticksPerQuarter * 2;
     if (options.reservationMismatch === 'SCOPE') accepted.resolved_scope.terminal_tick += 1;
     if (options.reservationMismatch === 'TEMPO') {
       accepted.resolved_tempo_plan = { ...accepted.resolved_tempo_plan,
@@ -394,7 +395,7 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
     saveProtocol.events.push('FINALIZE');
     const { source, media, scope, recording_timebase } = reservedRequest;
     const { resolved_scope, resolved_tempo_plan } = acceptedPlan(reservedRequest);
-    const take: PerformanceTakeRead = {
+    const take: PerformanceTakeRead = {score_timebase: { ticks_per_quarter: testArtifact.ticksPerQuarter },
       take_id: 'take-e2e-1', source_id: source.source_id, source_score_id: testArtifact.scoreId, source_revision_id: testArtifact.revisionId,
       source_artifact_id: testArtifact.artifactId, score_title_snapshot: 'Continuous Review Score',
       media_kind: media.kind, media_mime_type: media.mime_type, media_byte_size: media.byte_size,
@@ -1683,7 +1684,7 @@ test('Setup Start Practice waits for the previous microphone attempt retirement 
   await expect(page.getByRole('alertdialog')).toHaveCount(0);
 });
 
-for (const mismatch of ['SCOPE', 'TEMPO'] as const) {
+for (const mismatch of ['SCOPE', 'TEMPO', 'TIMEBASE'] as const) {
   test(`Review save rejects server ${mismatch} mismatch before media upload`, async ({ page }, testInfo) => {
     const protocol = await setupContinuousPracticeMocks(page, { reservationMismatch: mismatch });
     await openPreparedPractice(page, scoreId, revisionId);

@@ -18,8 +18,13 @@ from app.db.models.storage_usage import StorageUsageReservation
 from app.modules.performance_takes.repository import PerformanceTakeRepository
 from app.modules.performance_takes.schemas import PerformanceTakeUploadReservationRequest
 from app.modules.performance_takes.upload_reservation.service import PerformanceTakeUploadService
-from app.modules.performance_takes.upload_reservation.cleanup import upload_reservation_cleanup_service
-from app.modules.performance_takes.upload_reservation.persistence import lifecycle_from_row, initialize_lifecycle
+from app.modules.performance_takes.upload_reservation.cleanup import (
+    upload_reservation_cleanup_service,
+)
+from app.modules.performance_takes.upload_reservation.persistence import (
+    lifecycle_from_row,
+    initialize_lifecycle,
+)
 from app.modules.performance_takes.upload_reservation.domain import FinalizeLease
 from app.modules.storage_usage.service import StorageUsageService
 from app.modules.practice.source.service import PracticeSourceService
@@ -33,22 +38,36 @@ MEDIA = b"\x1a\x45\xdf\xa3" + b"reserved-recording"
 
 @pytest.mark.parametrize("command", ["cancel", "expire", "expire-finalizing"])
 @pytest.mark.asyncio
-async def test_terminal_transitions_atomically_release_quota_and_preserve_provenance(postgres_source, command):
+async def test_terminal_transitions_atomically_release_quota_and_preserve_provenance(
+    postgres_source, command
+):
     from unittest.mock import patch
     from app.db.models import PracticeSourceRecord
     from app.utils.timezone import utc_now_naive
+
     sessions, source, storage, request = await setup_source(postgres_source)
     service = PerformanceTakeUploadService(storage=storage, practice_source_service=source)
     async with sessions() as db:
         reserved = await service.reserve_upload(db, 1, request)
         row = await service.repository.get_reservation_by_uuid(db, 1, reserved.reservation_id)
         source_id = row.source_id
-        assert (await db.scalar(select(PracticeSourceRecord).where(PracticeSourceRecord.source_id == source_id))).status == "READY"
+        assert (
+            await db.scalar(
+                select(PracticeSourceRecord).where(PracticeSourceRecord.source_id == source_id)
+            )
+        ).status == "READY"
         now = utc_now_naive()
         if command == "expire-finalizing":
             state = lifecycle_from_row(row)
-            initialize_lifecycle(row, state.begin_finalize(lease=FinalizeLease("worker-token", "worker-candidate",
-                now + timedelta(minutes=15)), now=now).after)
+            initialize_lifecycle(
+                row,
+                state.begin_finalize(
+                    lease=FinalizeLease(
+                        "worker-token", "worker-candidate", now + timedelta(minutes=15)
+                    ),
+                    now=now,
+                ).after,
+            )
             await db.commit()
             assert row.source_id == source_id
         if command == "cancel":
@@ -57,14 +76,21 @@ async def test_terminal_transitions_atomically_release_quota_and_preserve_proven
             await service.cancel_upload_reservation(db, 1, reserved.reservation_id)
         else:
             await db.commit()
-            with patch("app.modules.performance_takes.upload_reservation.cleanup.utc_now_naive",
-                       return_value=now + timedelta(hours=2)):
-                await db.run_sync(lambda sync_db: upload_reservation_cleanup_service.cleanup_expired_reservations(
-                    sync_db, storage, StorageUsageService()))
+            with patch(
+                "app.modules.performance_takes.upload_reservation.cleanup.utc_now_naive",
+                return_value=now + timedelta(hours=2),
+            ):
+                await db.run_sync(
+                    lambda sync_db: upload_reservation_cleanup_service.cleanup_expired_reservations(
+                        sync_db, storage, StorageUsageService()
+                    )
+                )
         await db.refresh(row)
         assert row.status == ("CANCELLED" if command == "cancel" else "EXPIRED")
         assert row.source_id == source_id
-        assert row.finalizing_token is row.finalizing_object_key is row.finalizing_expires_at is None
+        assert (
+            row.finalizing_token is row.finalizing_object_key is row.finalizing_expires_at is None
+        )
         account = await db.get(StorageUsageAccount, 1)
         assert account.reserved_bytes == account.used_bytes == 0
         if command == "expire-finalizing":
@@ -74,6 +100,7 @@ async def test_terminal_transitions_atomically_release_quota_and_preserve_proven
 @pytest.mark.asyncio
 async def test_take_creation_completion_and_quota_commit_share_one_transaction(postgres_source):
     from unittest.mock import patch
+
     sessions, source, storage, request = await setup_source(postgres_source)
     service = PerformanceTakeUploadService(storage=storage, practice_source_service=source)
     async with sessions() as db:
@@ -82,9 +109,13 @@ async def test_take_creation_completion_and_quota_commit_share_one_transaction(p
         source_id = row.source_id
         storage.put_bytes(key=row.staging_object_key, content=MEDIA, content_type="audio/webm")
         await db.commit()
+
         async def fail_commit(*args, **kwargs):
             raise RuntimeError("quota transaction rejected")
-        with patch.object(service.storage_usage_service, "commit_reservation", side_effect=fail_commit):
+
+        with patch.object(
+            service.storage_usage_service, "commit_reservation", side_effect=fail_commit
+        ):
             with pytest.raises(RuntimeError, match="quota transaction rejected"):
                 await service.finalize_take(db, 1, reserved.reservation_id)
         await db.rollback()
@@ -132,7 +163,7 @@ async def setup_source(postgres_source):
                 "byte_size": len(MEDIA),
                 "duration_ms": 1000,
             },
-            "scope": {'kind': "FULL"},
+            "scope": {"kind": "FULL"},
             "tempo_selection": {"mode": "SCORE"},
             "recording_timebase": {
                 "nominalMediaDurationMs": 1000,
@@ -277,9 +308,13 @@ async def test_exact_source_admission_lock_fences_owner_release_until_reservatio
         pid = await b.scalar(text("SELECT pg_backend_pid()"))
         reserve = asyncio.create_task(service.reserve_upload(a, 1, request))
         await asyncio.wait_for(admitted.wait(), 15)
+
         async def delete_revision():
             await b.execute(update(Score).values(head_revision_id=None))
-            await b.execute(delete(ScoreRevision).where(ScoreRevision.id == postgres_source[1].test_revision_id))
+            await b.execute(
+                delete(ScoreRevision).where(ScoreRevision.id == postgres_source[1].test_revision_id)
+            )
+
         deletion = asyncio.create_task(delete_revision())
         try:
 
@@ -306,6 +341,53 @@ async def test_exact_source_admission_lock_fences_owner_release_until_reservatio
         reservation = (await b.execute(select(PerformanceTakeUploadReservation))).scalar_one()
         assert reservation.source_id == row.source_id
         assert result.metadata.source.source_id == row.source_id == request.source.source_id
-        assert len(await b.run_sync(lambda db: practice_source_delete_service.recover_unowned_ready(
-            db, storage_backend=storage.backend_name))) == 1
+        assert (
+            len(
+                await b.run_sync(
+                    lambda db: practice_source_delete_service.recover_unowned_ready(
+                        db, storage_backend=storage.backend_name
+                    )
+                )
+            )
+            == 1
+        )
         assert row.status == "DELETING"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("owner", ["reservation", "take"])
+async def test_durable_score_coordinate_constraints_in_postgres(postgres_source, owner):
+    from sqlalchemy import update
+    from sqlalchemy.exc import IntegrityError
+
+    sessions, source, storage, request = await setup_source(postgres_source)
+    service = PerformanceTakeUploadService(storage=storage, practice_source_service=source)
+    async with sessions() as db:
+        accepted = await service.reserve_upload(db, 1, request)
+        reservation = await service.repository.get_reservation_by_uuid(
+            db, 1, accepted.reservation_id
+        )
+        if owner == "take":
+            storage.put_bytes(
+                key=reservation.staging_object_key, content=MEDIA, content_type="audio/webm"
+            )
+            await service.finalize_take(db, 1, accepted.reservation_id)
+            model = PerformanceTake
+        else:
+            model = PerformanceTakeUploadReservation
+        await db.commit()
+        invalid = [
+            {"ticks_per_quarter": 0},
+            {"ticks_per_quarter": -1},
+            {"ticks_per_quarter": 2**53},
+            {"scope_start_tick": -1},
+            {"scope_start_tick": 2**53},
+            {"scope_terminal_tick": 0},
+            {"scope_terminal_tick": -1},
+            {"scope_terminal_tick": 2**53},
+            {"scope_start_tick": 114, "scope_terminal_tick": 113},
+        ]
+        for values in invalid:
+            with pytest.raises(IntegrityError, match="score_coordinates"):
+                async with db.begin_nested():
+                    await db.execute(update(model).values(**values))

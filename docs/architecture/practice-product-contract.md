@@ -961,10 +961,11 @@ media, scope selection, tempo selection and recording timebase once. Source cont
 canonical source_id; media contains kind, canonical MIME, byte size and duration. The
 reservation snapshots exact source provenance and score title under live save authorization.
 Clients submit FULL or RANGE group IDs and SCORE or CUSTOM_FIXED_BPM selection;
-the server derives durable beats and tempo segments from that exact Source.
-Response metadata describes intent/evidence; resolved_scope and resolved_tempo_plan
-describe the accepted canonical plan. Before upload and before saved success, the
-browser verifies agreement with its executed Result8. Plan mismatch fails closed;
+the server derives durable scope ticks, tempo segments and their shared score timebase
+from that exact Source. Response metadata describes intent/evidence; `score_timebase`,
+`resolved_scope` and `resolved_tempo_plan` describe the accepted coordinate snapshot.
+Before upload and before saved success, the browser verifies agreement with its
+executed Result8 and the admitted artifact's `ticksPerQuarter`. Plan mismatch fails closed;
 a new RESERVED mismatch is cancelled best-effort without media upload.
 Client-request
 idempotency belongs to this boundary: equal normalized metadata returns the same
@@ -973,7 +974,8 @@ the signed upload target. FINALIZING replay provides state, and COMPLETED replay
 the saved Take. The nested upload target is an ephemeral URL/method/headers/expiry capability.
 
 `POST /performance-takes/upload-reservations/{reservation_id}/finalize` has no body.
-It copies persisted canonical scope/tempo and recording evidence without replanning. Live score deletion,
+It copies the persisted score timebase, canonical scope/tempo and recording evidence
+without Source reads or replanning. Live score deletion,
 access changes or head-revision changes do not invalidate an admitted reservation.
 `DELETE /performance-takes/upload-reservations/{reservation_id}` cancels a pending
 RESERVED reservation; CANCELLED cancellation is idempotent. FINALIZING, COMPLETED

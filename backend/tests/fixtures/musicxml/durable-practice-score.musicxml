@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1">
+<measure number="1"><attributes><divisions>60</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+<note><rest/><duration>30</duration></note>
+<note id="n1"><pitch><step>C</step><octave>4</octave></pitch><duration>30</duration></note></measure>
+<measure number="2"><sound tempo="100"><offset>53</offset></sound>
+<note id="n2"><pitch><step>E</step><octave>4</octave></pitch><duration>60</duration></note></measure>
+</part></score-partwise>

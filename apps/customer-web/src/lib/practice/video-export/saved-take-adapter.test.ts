@@ -2,11 +2,17 @@ import { describe, expect, it } from 'vitest';
 
 import {
   createVideoExportSessionFromSavedTake,
+  hasSavedTakeVideoExportMetadata,
   parseSavedRecordingTimebase,
   parseSavedTempoPlan,
 } from './saved-take-adapter';
 
-import { take, artifact, tempoPlan, recordingTimebase } from './__fixtures__/saved-take';
+import {
+  take,
+  artifact,
+  tempoPlan,
+  recordingTimebase,
+} from './__fixtures__/saved-take';
 
 describe('video export session saved-take parsing', () => {
   it('creates a session only from complete saved-video metadata', () => {
@@ -28,8 +34,11 @@ describe('video export session saved-take parsing', () => {
 
   it('accepts the same raw MP4 Take as local composition input', () => {
     const blob = new Blob(['raw mp4'], { type: 'video/mp4' });
-    const result = createVideoExportSessionFromSavedTake({ ...take, media_mime_type: 'video/mp4' }, blob,
-      { sourceId: take.source_id, artifact });
+    const result = createVideoExportSessionFromSavedTake(
+      { ...take, media_mime_type: 'video/mp4' },
+      blob,
+      { sourceId: take.source_id, artifact }
+    );
     expect(result.status).toBe('supported');
     if (result.status !== 'supported') throw new Error('Expected MP4 source');
     expect(result.session.video.blob).toBe(blob);
@@ -58,29 +67,59 @@ describe('video export session saved-take parsing', () => {
       createVideoExportSessionFromSavedTake(
         take,
         new Blob(['video'], { type: 'video/webm' }),
-        { sourceId: take.source_id, artifact: { ...artifact, artifactId: 'different-artifact' } }
+        {
+          sourceId: take.source_id,
+          artifact: { ...artifact, artifactId: 'different-artifact' },
+        }
       )
-    ).toMatchObject({ status: 'unsupported', reason: 'artifact_identity_mismatch' });
+    ).toMatchObject({
+      status: 'unsupported',
+      reason: 'artifact_identity_mismatch',
+    });
   });
 
   it('keeps empty saved media unavailable without constructing a export session', () => {
-    expect(createVideoExportSessionFromSavedTake(take, new Blob([]), { sourceId: take.source_id, artifact: artifact })).toEqual({
+    expect(
+      createVideoExportSessionFromSavedTake(take, new Blob([]), {
+        sourceId: take.source_id,
+        artifact: artifact,
+      })
+    ).toEqual({
       status: 'temporarily_unavailable',
       reason: 'empty_media',
     });
   });
 
   it.each([
-    { field: 'scope', patch: { scope_terminal_tick: take.scope_start_tick }, reason: 'scope_terminal_tick_invalid' },
-    { field: 'tempo', patch: { tempo_plan: { ...take.tempo_plan, segments: [] } }, reason: 'tempo_plan_segments_missing' },
-    { field: 'timebase', patch: { recording_timebase: { ...take.recording_timebase, activeSegments: [] } }, reason: 'recording_timebase_segments_missing' },
-  ])('fails closed on invalid saved $field metadata at the adapter boundary', ({ patch, reason }) => {
-    expect(createVideoExportSessionFromSavedTake(
-      { ...take, ...patch },
-      new Blob(['video'], { type: 'video/webm' }),
-      { sourceId: take.source_id, artifact: artifact }
-    )).toEqual({ status: 'unsupported', reason });
-  });
+    {
+      field: 'scope',
+      patch: { scope_terminal_tick: take.scope_start_tick },
+      reason: 'scope_terminal_tick_invalid',
+    },
+    {
+      field: 'tempo',
+      patch: { tempo_plan: { ...take.tempo_plan, segments: [] } },
+      reason: 'tempo_plan_segments_missing',
+    },
+    {
+      field: 'timebase',
+      patch: {
+        recording_timebase: { ...take.recording_timebase, activeSegments: [] },
+      },
+      reason: 'recording_timebase_segments_missing',
+    },
+  ])(
+    'fails closed on invalid saved $field metadata at the adapter boundary',
+    ({ patch, reason }) => {
+      expect(
+        createVideoExportSessionFromSavedTake(
+          { ...take, ...patch },
+          new Blob(['video'], { type: 'video/webm' }),
+          { sourceId: take.source_id, artifact: artifact }
+        )
+      ).toEqual({ status: 'unsupported', reason });
+    }
+  );
 
   it('rejects missing and malformed recording timebase instead of inventing a timeline', () => {
     expect(() => parseSavedTempoPlan(null)).toThrow(/missing/);
@@ -102,12 +141,24 @@ describe('video export session saved-take parsing', () => {
         ...recordingTimebase,
         nominalMediaDurationMs: 5000,
         activeSegments: [
-          { perfStartMs: 0, perfEndMs: 2000, mediaStartMs: 0, mediaEndMs: 2000 },
-          { perfStartMs: 3000, perfEndMs: 5000, mediaStartMs: 2500, mediaEndMs: 5000 },
+          {
+            perfStartMs: 0,
+            perfEndMs: 2000,
+            mediaStartMs: 0,
+            mediaEndMs: 2000,
+          },
+          {
+            perfStartMs: 3000,
+            perfEndMs: 5000,
+            mediaStartMs: 2500,
+            mediaEndMs: 5000,
+          },
         ],
       })
     ).toThrow(/media_segments_not_continuous/);
-    expect(parseSavedRecordingTimebase(recordingTimebase)).toEqual(recordingTimebase);
+    expect(parseSavedRecordingTimebase(recordingTimebase)).toEqual(
+      recordingTimebase
+    );
   });
 
   it('requires the persisted range identity to agree with the saved range start', () => {
@@ -123,7 +174,10 @@ describe('video export session saved-take parsing', () => {
         new Blob(['video'], { type: 'video/webm' }),
         { sourceId: take.source_id, artifact: artifact }
       )
-    ).toMatchObject({ status: 'unsupported', reason: 'scope_identity_mismatch' });
+    ).toMatchObject({
+      status: 'unsupported',
+      reason: 'scope_identity_mismatch',
+    });
   });
 
   it('does not claim the database duration is the decoded media duration', () => {
@@ -143,10 +197,13 @@ describe('video export session saved-take parsing', () => {
     expect(
       createVideoExportSessionFromSavedTake(
         { ...take, scope_type: 'RANGE' },
-      new Blob(['video'], { type: 'video/webm' }),
-      { sourceId: take.source_id, artifact: artifact }
+        new Blob(['video'], { type: 'video/webm' }),
+        { sourceId: take.source_id, artifact: artifact }
       )
-    ).toMatchObject({ status: 'unsupported', reason: 'scope_identity_missing' });
+    ).toMatchObject({
+      status: 'unsupported',
+      reason: 'scope_identity_missing',
+    });
   });
 
   it('does not require scope identity for FULL takes', () => {
@@ -196,13 +253,45 @@ describe('video export session saved-take parsing', () => {
   });
 });
 
-
 it('uses validated durable scope ticks and tempo without replacing saved integer values', () => {
   const persisted = { ...take };
-  const result = createVideoExportSessionFromSavedTake(persisted, new Blob(['video']), { sourceId: take.source_id, artifact });
+  const result = createVideoExportSessionFromSavedTake(
+    persisted,
+    new Blob(['video']),
+    { sourceId: take.source_id, artifact }
+  );
   expect(result.status).toBe('supported');
   if (result.status === 'supported') {
-    expect(result.session.scope.terminalTick).toBe(persisted.scope_terminal_tick);
+    expect(result.session.scope.terminalTick).toBe(
+      persisted.scope_terminal_tick
+    );
     expect(result.session.tempoPlan).toEqual(take.tempo_plan);
   }
+});
+
+it.each([0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1, 60])(
+  'rejects an invalid or artifact-mismatched durable score grid %s',
+  (resolution) => {
+    const mismatch = {
+      ...take,
+      score_timebase: { ticks_per_quarter: resolution },
+    };
+    expect(
+      createVideoExportSessionFromSavedTake(mismatch, new Blob(['video']), {
+        sourceId: take.source_id,
+        artifact,
+      })
+    ).toEqual({ status: 'unsupported', reason: 'score_timebase_mismatch' });
+  }
+);
+it('rejects missing durable score timebase even with matching artifact identity and scope ticks', () => {
+  const mismatch = { ...take };
+  Reflect.deleteProperty(mismatch, 'score_timebase');
+  expect(
+    createVideoExportSessionFromSavedTake(mismatch, new Blob(['video']), {
+      sourceId: take.source_id,
+      artifact,
+    })
+  ).toEqual({ status: 'unsupported', reason: 'score_timebase_mismatch' });
+  expect(hasSavedTakeVideoExportMetadata(mismatch)).toBe(false);
 });

@@ -75,6 +75,7 @@ def test_durable_provenance_is_self_contained():
         "linked_score_id",
         "score_title_snapshot",
         "scope_type",
+        "ticks_per_quarter",
         "scope_start_tick",
         "scope_terminal_tick",
         "scope_start_group_id",

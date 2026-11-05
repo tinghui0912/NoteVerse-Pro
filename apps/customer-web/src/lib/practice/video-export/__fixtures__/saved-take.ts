@@ -12,7 +12,7 @@ export const recordingTimebase: RecordingTimebase = {
   ],
 };
 
-export const take: PerformanceTakeRead = {
+export const take: PerformanceTakeRead = {score_timebase: { ticks_per_quarter: 1 },
   take_id: 'take-1',
   source_id: 'source-1',
   source_score_id: 'score-1',

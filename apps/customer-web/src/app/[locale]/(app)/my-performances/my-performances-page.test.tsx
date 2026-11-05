@@ -157,7 +157,7 @@ const recordingTimebase: RecordingTimebase = {
 };
 
 // 121 fixture items
-const fixture121Takes: PerformanceTakeRead[] = Array.from({ length: 121 }, (_, i) => ({
+const fixture121Takes: PerformanceTakeRead[] = Array.from({ length: 121 }, (_, i) => ({score_timebase: { ticks_per_quarter: 1 },
   deletion_status: 'ACTIVE',
   take_id: `take-${i + 1}`,
   source_id: 'source-1',
@@ -349,7 +349,7 @@ describe('MyPerformancesPage', () => {
       data: {
         data: {
           items: [
-            {
+            {score_timebase: { ticks_per_quarter: 1 },
               take_id: 'take-deleted-score',
               source_id: 'source-1',
               source_score_id: 'score-retained-source',
@@ -394,7 +394,7 @@ describe('MyPerformancesPage', () => {
       data: {
         data: {
           items: [
-            {
+            {score_timebase: { ticks_per_quarter: 1 },
               take_id: 'take-deleted-score',
               source_id: 'source-1',
               source_score_id: 'score-retained-source',
@@ -437,7 +437,7 @@ describe('MyPerformancesPage', () => {
       data: {
         data: {
           items: [
-            {
+            {score_timebase: { ticks_per_quarter: 1 },
               take_id: 'take-1',
               source_id: 'source-1',
               source_score_id: 'score-uuid-1',
@@ -489,7 +489,7 @@ describe('MyPerformancesPage', () => {
       data: {
         data: {
           items: [
-            {
+            {score_timebase: { ticks_per_quarter: 1 },
               take_id: 'take-video-1',
               source_id: 'source-1',
               source_score_id: 'score-uuid-1',
@@ -548,7 +548,7 @@ describe('MyPerformancesPage', () => {
       data: {
         data: {
           items: [
-            {
+            {score_timebase: { ticks_per_quarter: 1 },
               take_id: 'take-1',
               source_id: 'source-1',
               source_score_id: 'score-uuid-1',
@@ -617,7 +617,7 @@ describe('MyPerformancesPage', () => {
       data: {
         data: {
           items: [
-            {
+            {score_timebase: { ticks_per_quarter: 1 },
               take_id: 'take-1',
               source_id: 'source-1',
               source_score_id: 'score-uuid-1',

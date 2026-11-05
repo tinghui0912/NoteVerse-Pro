@@ -27,6 +27,7 @@ from app.modules.performance_takes.schemas import (
     PerformanceTakePlaybackRead,
     PerformanceTakeRead,
     PerformanceTakeTempoPlan,
+    PerformanceTakeScoreTimebase,
     RecordingTimebase,
 )
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
@@ -124,6 +125,7 @@ class PerformanceTakeService:
             scope_end_group_id=take.scope_end_group_id,
             deletion_status=deletion_status,
             tempo_plan=tempo_plan,
+            score_timebase=PerformanceTakeScoreTimebase(ticks_per_quarter=take.ticks_per_quarter),
             recording_timebase=recording_timebase,
             created_at=take.created_at,
         )

@@ -2,6 +2,8 @@
 
 import asyncio
 from datetime import timedelta
+from fractions import Fraction
+import json
 from app.utils.timezone import utc_now_naive
 from unittest.mock import patch
 
@@ -112,6 +114,7 @@ async def test_score_deletion_commit_denies_waiting_new_save(postgres_source):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("postgres_source", ["durable-practice-score.musicxml"], indirect=True)
 async def test_snapshot_replay_finalize_and_take_reads_survive_source_gc(postgres_source):
     sessions, source, storage, request = await setup_source(postgres_source)
     service = PerformanceTakeUploadService(storage=storage, practice_source_service=source)
@@ -127,10 +130,18 @@ async def test_snapshot_replay_finalize_and_take_reads_survive_source_gc(postgre
                 "source_artifact_id",
                 "score_title_snapshot",
                 "tempo_plan",
+                "ticks_per_quarter",
                 "scope_start_tick",
                 "scope_terminal_tick",
             )
         }
+        assert snapshot["ticks_per_quarter"] == 60
+        assert Fraction(snapshot["scope_start_tick"], snapshot["ticks_per_quarter"]) == Fraction(
+            1, 2
+        )
+        assert Fraction(
+            json.loads(snapshot["tempo_plan"])["segments"][-1]["startTick"], 60
+        ) == Fraction(113, 60)
         storage.put_bytes(key=row.staging_object_key, content=MEDIA, content_type="audio/webm")
         score = await db.scalar(select(Score))
         score.title = "Title after admission"
@@ -180,11 +191,17 @@ async def test_snapshot_replay_finalize_and_take_reads_survive_source_gc(postgre
             replay = await service.reserve_upload(db, 1, request)
             assert replay.reservation_id == accepted.reservation_id
             assert replay.metadata == accepted.metadata
+            assert replay.score_timebase == accepted.score_timebase
+            assert replay.score_timebase.ticks_per_quarter == 60
             assert replay.resolved_scope == accepted.resolved_scope
             assert replay.resolved_tempo_plan == accepted.resolved_tempo_plan
             take = await service.finalize_take(db, 1, accepted.reservation_id)
             completed = await service.reserve_upload(db, 1, request)
             assert completed.take == take
+            assert take.score_timebase.ticks_per_quarter == snapshot["ticks_per_quarter"]
+            assert take.scope_start_tick == snapshot["scope_start_tick"]
+            assert take.scope_terminal_tick == snapshot["scope_terminal_tick"]
+            assert take.tempo_plan.model_dump() == json.loads(snapshot["tempo_plan"])
             assert take.source_id == snapshot["source_id"]
             assert take.score_title_snapshot == snapshot["score_title_snapshot"]
             assert take.linked_score_id is None and not take.can_open_score

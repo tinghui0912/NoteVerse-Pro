@@ -245,6 +245,7 @@ def _create_default_take(
         take_uuid=take_uuid,
         score_title_snapshot="Moonlight Sonata",
         scope_type="FULL",
+        ticks_per_quarter=1,
         scope_start_tick=0,
         scope_terminal_tick=4,
         tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
@@ -286,6 +287,7 @@ def _create_default_take(
         storage_backend="local",
         duration_ms=5000,
         scope_type="FULL",
+        ticks_per_quarter=1,
         scope_start_tick=0,
         scope_terminal_tick=4,
         tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
@@ -2161,6 +2163,7 @@ def test_reserve_finalizing_snapshot_retries_without_new_put(test_env):
         linked_score_id=10,
         score_title_snapshot="Moonlight Sonata",
         scope_type="FULL",
+        ticks_per_quarter=1,
         scope_start_tick=0,
         scope_terminal_tick=4,
         duration_ms=1000,
@@ -3033,6 +3036,7 @@ def test_source_gc_ignores_an_active_reservation_after_take_deletion(test_env, m
         linked_score_id=None,
         score_title_snapshot="Moonlight Sonata",
         scope_type="FULL",
+        ticks_per_quarter=1,
         scope_start_tick=0,
         scope_terminal_tick=4,
         scope_start_group_id=None,
@@ -3332,6 +3336,7 @@ def _expired_cleanup_auth(
         linked_score_id=10,
         score_title_snapshot="Cleanup test",
         scope_type="FULL",
+        ticks_per_quarter=1,
         scope_start_tick=0,
         scope_terminal_tick=4,
         tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
@@ -3486,6 +3491,7 @@ def test_finalize_copy_lease_rejects_expired_executor_before_storage_copy(test_e
         linked_score_id=10,
         score_title_snapshot="Lease test",
         scope_type="FULL",
+        ticks_per_quarter=1,
         scope_start_tick=0,
         scope_terminal_tick=4,
         tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
@@ -3809,6 +3815,7 @@ def test_expired_finalizing_lease_records_candidate_before_retry(test_env):
         linked_score_id=10,
         score_title_snapshot="Finalizing retry",
         scope_type="FULL",
+        ticks_per_quarter=1,
         scope_start_tick=0,
         scope_terminal_tick=4,
         tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
@@ -4902,6 +4909,8 @@ def test_reservation_derives_and_transfers_exact_source_plan(test_env, scope_kin
         assert accepted["metadata"] == {
             key: value for key, value in request.items() if key != "client_request_id"
         }
+        assert accepted["score_timebase"] == {"ticks_per_quarter": artifact["ticksPerQuarter"]}
+        assert row.ticks_per_quarter == artifact["ticksPerQuarter"]
         assert accepted["resolved_scope"] == expected_scope
         assert accepted["resolved_tempo_plan"] == expected_tempo == json.loads(row.tempo_plan)
         assert (row.scope_start_tick, row.scope_terminal_tick) == (
@@ -4957,6 +4966,17 @@ def test_reservation_derives_and_transfers_exact_source_plan(test_env, scope_kin
             assert completed.status_code == 200, completed.text
             assert completed.json()["data"]["take"] == take
         assert take["source_id"] == ref.source_id
+        assert take["score_timebase"] == {"ticks_per_quarter": row.ticks_per_quarter}
+        assert (
+            client.get(f"/api/v1/performance-takes/{take['take_id']}").json()["data"][
+                "score_timebase"
+            ]
+            == take["score_timebase"]
+        )
+        assert (
+            client.get("/api/v1/performance-takes").json()["data"]["items"][0]["score_timebase"]
+            == take["score_timebase"]
+        )
         assert take["scope_start_tick"] == row.scope_start_tick
         assert take["scope_terminal_tick"] == row.scope_terminal_tick
         assert take["tempo_plan"] == expected_tempo
@@ -4964,6 +4984,7 @@ def test_reservation_derives_and_transfers_exact_source_plan(test_env, scope_kin
             select(PerformanceTake).where(PerformanceTake.take_uuid == take["take_id"])
         ).scalar_one()
         assert saved.source_id == ref.source_id
+        assert saved.ticks_per_quarter == row.ticks_per_quarter
         assert saved.scope_start_tick == row.scope_start_tick
         assert saved.scope_terminal_tick == row.scope_terminal_tick
         assert saved.tempo_plan == row.tempo_plan

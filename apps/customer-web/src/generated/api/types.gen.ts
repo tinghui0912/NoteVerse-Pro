@@ -3036,6 +3036,7 @@ export type PerformanceTakeRead = {
      * Scope Type
      */
     scope_type: string;
+    score_timebase: PerformanceTakeScoreTimebase;
     /**
      * Score Title Snapshot
      */
@@ -3105,6 +3106,18 @@ export type PerformanceTakeResolvedRangeScope = {
      * Terminal Tick
      */
     terminal_tick: number;
+};
+
+/**
+ * PerformanceTakeScoreTimebase
+ *
+ * Source-local Practice written score coordinate system, resolved by the server.
+ */
+export type PerformanceTakeScoreTimebase = {
+    /**
+     * Ticks Per Quarter
+     */
+    ticks_per_quarter: number;
 };
 
 /**
@@ -3196,6 +3209,7 @@ export type PerformanceTakeUploadReservationRead = {
         kind: 'RANGE';
     } & PerformanceTakeResolvedRangeScope);
     resolved_tempo_plan: PerformanceTakeTempoPlan;
+    score_timebase: PerformanceTakeScoreTimebase;
     /**
      * Status
      */

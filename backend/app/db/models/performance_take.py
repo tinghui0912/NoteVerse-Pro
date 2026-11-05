@@ -38,6 +38,13 @@ class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "performance_takes"
     __table_args__ = (
         CheckConstraint(
+            "ticks_per_quarter > 0 AND ticks_per_quarter <= 9007199254740991 "
+            "AND scope_start_tick >= 0 AND scope_start_tick <= 9007199254740991 "
+            "AND scope_terminal_tick > 0 AND scope_terminal_tick <= 9007199254740991 "
+            "AND scope_terminal_tick >= scope_start_tick",
+            name="ck_performance_takes_score_coordinates",
+        ),
+        CheckConstraint(
             "deletion_status IN ('ACTIVE','DELETING')", name="ck_performance_takes_deletion_status"
         ),
         CheckConstraint("scope_type IN ('FULL','RANGE')", name="ck_performance_takes_scope_type"),
@@ -99,6 +106,7 @@ class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
     scope_type: str = Field(
         sa_column=Column(String(16), nullable=False),
     )
+    ticks_per_quarter: int = Field(sa_column=Column(BigInteger, nullable=False))
     scope_start_tick: int = Field(sa_column=Column(BigInteger, nullable=False))
     scope_terminal_tick: int = Field(sa_column=Column(BigInteger, nullable=False))
     scope_start_group_id: Optional[str] = Field(

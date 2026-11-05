@@ -28,6 +28,13 @@ class PerformanceTakeUploadReservation(SQLModel, table=True):  # type: ignore[ca
     __tablename__ = "performance_take_upload_reservations"
     __table_args__ = (
         CheckConstraint(
+            "ticks_per_quarter > 0 AND ticks_per_quarter <= 9007199254740991 "
+            "AND scope_start_tick >= 0 AND scope_start_tick <= 9007199254740991 "
+            "AND scope_terminal_tick > 0 AND scope_terminal_tick <= 9007199254740991 "
+            "AND scope_terminal_tick >= scope_start_tick",
+            name="ck_take_reservation_score_coordinates",
+        ),
+        CheckConstraint(
             "status IN ('RESERVED','FINALIZING','COMPLETED','CANCELLED','EXPIRED')",
             name="ck_take_reservation_status",
         ),
@@ -80,6 +87,7 @@ class PerformanceTakeUploadReservation(SQLModel, table=True):  # type: ignore[ca
     scope_type: str = Field(
         sa_column=Column(String(16), nullable=False),
     )
+    ticks_per_quarter: int = Field(sa_column=Column(BigInteger, nullable=False))
     scope_start_tick: int = Field(sa_column=Column(BigInteger, nullable=False))
     scope_terminal_tick: int = Field(sa_column=Column(BigInteger, nullable=False))
     scope_start_group_id: Optional[str] = Field(

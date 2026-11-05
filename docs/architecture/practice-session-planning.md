@@ -383,20 +383,21 @@ positive half-integers, matching browser Math.round. Scope does not trim tempo.
 
 Both language implementations consume the same concrete expected
 [planning cases](../../contracts/practice/score-planning-cases.json). The reservation
-response separates intent metadata from resolved_scope and resolved_tempo_plan.
+response separates intent metadata from `score_timebase`, `resolved_scope` and
+`resolved_tempo_plan`. The score timebase is their shared written-coordinate owner.
 Before media upload, the browser compares that canonical response with Result8's
-executed source/scope/tempo. A mismatch fails closed and best-effort cancels a new
+executed source/scope/tempo and the admitted artifact's `ticksPerQuarter`. A mismatch fails closed and best-effort cancels a new
 RESERVED upload. Completed replay and finalize responses also require agreement.
 
 Reservation persistence owns the resolved save truth. Replay compares the stored
 intent/evidence without new authorization or planning; finalize transfers the saved
-scope/tempo unchanged to the Take, including after live revision deletion.
+timebase/scope/tempo unchanged to the Take, including after Source GC.
 
 ## Durable Media Provenance
 
 Save Recording is a new server admission, independent of the browser's admitted flow.
 The server authorizes the exact live Source and resolves durable scope/tempo before
-committing a self-contained UploadReservation. Deletion before this admission denies
+committing a self-contained UploadReservation with its source-local score timebase. Deletion before this admission denies
 new saves; deletion afterward does not revoke that reservation. Finalize copies its
 provenance and canonical plan into PerformanceTake without Source reads or replanning.
 PracticeSource follows ScoreRevision lifetime only. Take owns raw media and historical

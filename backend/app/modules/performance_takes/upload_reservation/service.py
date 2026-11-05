@@ -269,6 +269,7 @@ class PerformanceTakeUploadService:
             metadata=self._reservation_metadata(reservation),
             resolved_scope=self._reservation_resolved_scope(reservation),
             resolved_tempo_plan=json.loads(reservation.tempo_plan),
+            score_timebase={"ticks_per_quarter": reservation.ticks_per_quarter},
             upload_target=PerformanceTakeUploadTarget(
                 url=upload_target.upload_url,
                 method=upload_target.upload_method,
@@ -601,6 +602,7 @@ class PerformanceTakeUploadService:
             source_artifact_id=source_ref.artifact_id,
             score_title_snapshot=authorized_source.score_title,
             scope_type=plan.scope.kind,
+            ticks_per_quarter=score.ticks_per_quarter,
             scope_start_tick=plan.scope.start_tick,
             scope_terminal_tick=plan.scope.terminal_tick,
             scope_start_group_id=plan.scope.start_group_id,
@@ -742,6 +744,7 @@ class PerformanceTakeUploadService:
                 details={"status": state.status.value, "reason": error.code},
             ) from error
         await self._apply(db, reservation, transition, now=now)
+        self._reservation_read(reservation)  # Validate the complete persisted coordinate snapshot.
         reservation_snapshot = {
             "take_uuid": reservation.take_uuid,
             "user_id": reservation.user_id,
@@ -758,6 +761,7 @@ class PerformanceTakeUploadService:
             "finalizing_object_key": reservation.finalizing_object_key,
             "duration_ms": reservation.duration_ms,
             "scope_type": reservation.scope_type,
+            "ticks_per_quarter": reservation.ticks_per_quarter,
             "scope_start_tick": reservation.scope_start_tick,
             "scope_terminal_tick": reservation.scope_terminal_tick,
             "scope_start_group_id": reservation.scope_start_group_id,
@@ -986,6 +990,7 @@ class PerformanceTakeUploadService:
             storage_backend=reservation_snapshot["storage_backend"],
             duration_ms=reservation_snapshot["duration_ms"],
             scope_type=reservation_snapshot["scope_type"],
+            ticks_per_quarter=reservation_snapshot["ticks_per_quarter"],
             scope_start_tick=reservation_snapshot["scope_start_tick"],
             scope_terminal_tick=reservation_snapshot["scope_terminal_tick"],
             scope_start_group_id=reservation_snapshot["scope_start_group_id"],
