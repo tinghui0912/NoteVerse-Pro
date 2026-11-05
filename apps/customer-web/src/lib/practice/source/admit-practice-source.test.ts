@@ -12,7 +12,7 @@ it('fresh complete admission owns the exact returned references independently of
   const source=await load(signal);
   expect(request).toHaveBeenCalledExactlyOnceWith(fixture.scoreId,fixture.revisionId,true,signal);
   expect(source).toEqual({sourceId:'source',artifact:response.data.artifact,musicXml:'<score />'});
-  expect(source.artifact).toBe(response.data.artifact);expect(Object.isFrozen(source.artifact.moments)).toBe(true);
+  expect(source.artifact).toBe(response.data.artifact);expect(Object.isFrozen(source.artifact)).toBe(true);expect(Object.isFrozen(source.artifact.notes[0])).toBe(true);expect(Object.isFrozen(source.artifact.moments)).toBe(true);
   request.mockResolvedValueOnce({...envelope(),data:{...envelope().data,source_id:'next'}});
   expect((await load()).sourceId).toBe('next'); expect(source.sourceId).toBe('source');expect(request).toHaveBeenCalledTimes(2);
 });

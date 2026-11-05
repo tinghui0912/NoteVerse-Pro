@@ -25,7 +25,7 @@ import type { PracticeMode } from '@/lib/practice/planning/intent';
 import type { CursorScope } from '@/lib/practice/score-view/cursor-scope';
 import type { ContinuousTargetFeedback } from '@/lib/practice/continuous/domain/evaluation/target-feedback';
 
-import type { PracticeExecutionLifecycle } from '@/lib/practice/application/practice-execution-owner';
+import type { PracticeExecutionLifecycle } from '@/lib/practice/application/execution-view';
 
 type PracticeScoreViewerProps = {
   className?: string;

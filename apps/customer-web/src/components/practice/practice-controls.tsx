@@ -11,7 +11,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import type { PracticeExecutionLifecycle } from '@/lib/practice/application/practice-execution-owner';
+import type { PracticeExecutionLifecycle } from '@/lib/practice/application/execution-view';
 import type { TempoSegment } from '@/lib/practice/score/artifact';
 import type { PracticeTempoSelection } from '@/lib/practice/planning/tempo';
 import type { PracticeMicrophoneCapability, PracticeMidiCapability } from '@/lib/practice/input-capability';

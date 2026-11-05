@@ -99,7 +99,7 @@ it("rejects invalid scope, tempo, mode and recording choices without repair", ()
     ).toThrow();
   }
 });
-it("freezes plan-owned structures including selection and canonical notation", () => {
+it("freezes only planner-owned projections and preserves the admitted artifact reference", () => {
   const plan = planPractice(source(), intent);
   expect(Object.isFrozen(plan)).toBe(true);
   expect(Object.isFrozen(plan.scope)).toBe(true);
@@ -109,11 +109,7 @@ it("freezes plan-owned structures including selection and canonical notation", (
   expect(() =>
     Object.assign(plan.tempoPlan.segments[0], { bpm: 70 }),
   ).toThrow();
-  expect(() =>
-    plan.source.artifact.moments[0].attacks.push(
-      plan.source.artifact.moments[1].attacks[0],
-    ),
-  ).toThrow();
+  expect(Object.isFrozen(plan.source)).toBe(true);
 });
 it("pure planning is independent of invocation history and initial metronome choice", () => {
   const input = source();
@@ -237,4 +233,16 @@ it("mode-specific session boundaries require their matching resolved plans", () 
   }
   expect(step.mode).toBe("STEP_BY_STEP");
   expect(continuous.mode).toBe("CONTINUOUS_PLAY");
+});
+
+it("does not freeze mutable caller-owned artifact objects or their descendants", () => {
+  const input = source();
+  const before = Object.isFrozen(input.artifact);
+  const plan = planPractice(input, intent);
+  expect(before).toBe(false);
+  expect(Object.isFrozen(input.artifact)).toBe(false);
+  expect(Object.isFrozen(input.artifact.moments)).toBe(false);
+  expect(Object.isFrozen(input.artifact.meterSegments)).toBe(false);
+  expect(Object.isFrozen(input.artifact.scoreTempoSegments)).toBe(false);
+  expect(plan.source.artifact).toBe(input.artifact);
 });

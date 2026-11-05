@@ -76,6 +76,10 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
   if (edge.target === normalize(path.join(sourceRoot, 'lib/observability/index.ts'))) {
     return ['recording/opfs-recording-sink.ts', 'recording/recording-media-resource.ts'].includes(source);
   }
+  if (source === 'application/execution-machine.ts') return Boolean(edge.typeOnly && target &&
+    (target.startsWith('planning/') || target === 'application/execution-observation.ts'));
+  if (source === 'application/execution-observation.ts') return edge.typeOnly && Boolean(target &&
+    ['score/', 'step/', 'continuous/'].some(owner => target.startsWith(owner)));
   if (source.startsWith('application/')) return Boolean(target && ['application/', 'planning/', 'score/', 'session/', 'device/', 'step/', 'continuous/', 'recording/', 'diagnostics/', 'score-view/', 'acoustic/runtime/'].some(owner => target.startsWith(owner)) || target === 'input-state.ts');
   if (source === 'planning/tempo.ts' && edge.target === normalize(path.join(sourceRoot, 'lib/score/tempo-policy.ts'))) return true;
   if (source.startsWith('planning/')) return Boolean(target && (target.startsWith('planning/')
@@ -218,7 +222,7 @@ describe('Practice bounded domain dependencies', () => {
     }
     for (const owner of ['score/artifact.ts', 'planning/practice-plan.ts', 'session/session.ts']) {
       const file = path.join(practiceRoot, owner);
-      for (const target of ['step/domain/practice-session', 'continuous/continuous-practice-controller', 'application/practice-execution-owner', 'device/device-contract']) {
+      for (const target of ['step/domain/practice-session', 'continuous/continuous-practice-controller', 'application/practice-execution-actor', 'device/device-contract']) {
         expect(dependencyAllowed(file, imports(file, `import type { Value } from '@/lib/practice/${target}';`)[0]), owner + ' -> ' + target).toBe(false);
       }
     }
@@ -274,12 +278,12 @@ describe('Practice bounded domain dependencies', () => {
   });
 
   it('composes exactly one explicit execution owner behind the page bridge and consumes admitted score values', () => {
-    const ownerPath = path.join(practiceRoot, 'application/practice-execution-owner.ts');
+    const ownerPath = path.join(practiceRoot, 'application/practice-execution-actor.ts');
     const bridge = path.join(sourceRoot, 'hooks/practice/use-practice-execution.ts');
     const page = path.join(sourceRoot, 'app/[locale]/(workspace)/score/[id]/practice/page.tsx');
     expect(imports(page).filter(edge => edge.target?.includes('/hooks/practice/') && edge.bindings.includes('usePracticeExecution'))).toHaveLength(1);
     expect(imports(bridge).filter(edge => !edge.typeOnly && edge.target?.startsWith(normalize(practiceRoot)))).toMatchObject([
-      { target: normalize(ownerPath), bindings: ['PracticeExecutionOwner', 'PracticeExecutionPorts'] },
+      { target: normalize(ownerPath), bindings: ['PracticeExecutionActor', 'PracticeExecutionPorts'] },
     ]);
     const constructions = new Map<string, Set<string>>();
     for (const file of productionFiles(sourceRoot)) {
@@ -294,6 +298,14 @@ describe('Practice bounded domain dependencies', () => {
     expect([...constructions.get(normalize(ownerPath))!].sort()).toEqual(['ContinuousPracticeController', 'StepPracticeController']);
     const source = imports(path.join(practiceRoot, 'source/source-envelope.ts'));
     expect(source.find(edge => edge.target?.endsWith('/score/artifact.ts'))?.bindings).toEqual(['parsePracticeScoreArtifact', 'PracticeScoreContractError']);
+  });
+
+  it('keeps execution decisions independent of leaf controllers, browser resources and React', () => {
+    const file = path.join(practiceRoot, 'application/execution-machine.ts');
+    for (const target of ['step/step-practice-controller', 'continuous/continuous-practice-controller', 'device/device-contract']) {
+      expect(dependencyAllowed(file, imports(file, `import type { Value } from '@/lib/practice/${target}';`)[0])).toBe(false);
+    }
+    expect(dependencyAllowed(file, imports(file, `import { useState } from 'react';`)[0])).toBe(false);
   });
 
   it('enforces infrastructure and application direction on every production import', () => {
@@ -646,7 +658,7 @@ it('Practice owns only presentation preference writes; Setup owns mode, input an
 
 it('fresh attempt binding cannot reach cold Setup qualification', () => {
   const roots = ['step/step-practice-controller.ts', 'continuous/continuous-practice-controller.ts',
-    'application/practice-execution-owner.ts'];
+    'application/practice-execution-actor.ts'];
   const visited = new Set<string>();
   const visit = (file: string) => {
     if (visited.has(file)) return; visited.add(file);

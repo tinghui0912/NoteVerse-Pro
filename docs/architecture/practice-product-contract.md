@@ -194,6 +194,8 @@ AdmittedPracticeSource supplies sourceId, the parsed artifact and rendering Musi
 scope, tempo selection and metronome enabled. STEP recording is OFF.
 
 The pure `planPractice(source, intent)` function produces an immutable `PracticePlan`.
+It freezes its own projections and reuses the source-admitted immutable artifact
+reference without mutating or cloning it.
 Its `source` projection contains sourceId and artifact, without MusicXML. It owns mode,
 resolved scope/tempo/metronome plans, immutable resource requirements and Continuous
 Count-In policy. Input and recording truth are owned by the resource plan. A candidate
@@ -266,11 +268,22 @@ immutable during an attempt; enable/disable is live. Continuous
 application code projects clock snapshots into that contract. Neither shared
 infrastructure imports STEP or Continuous domain code.
 
-`PracticeExecutionOwner` is the composition lifecycle owner. The page supplies an
-admitted candidate plan and narrow browser/admission ports through `usePracticeExecution`.
-Explicit Start constructs exactly one selected STEP or Continuous controller. End,
-Retry, release serialization and stale callback fencing belong to that owner.
-Controllers retain mode-specific domain evaluation and processing pipelines.
+`PracticeExecutionActor` owns exactly one explicit execution lifecycle. The page
+supplies an admitted candidate plan and narrow ports through `usePracticeExecution`.
+A pure state machine owns READY, STARTING, RUNNING, COMPLETED, RELEASING, ERROR and
+DISPOSED. Start captures one immutable PracticePlan and constructs a selected leaf
+controller; that controller creates the mode-specific PracticeSession from the plan.
+Controller observations and async outcomes enter as executionId-scoped events.
+Stale events cannot replace an accepted execution. Public views project accepted
+state and leaf observations without accessing a controller.
+
+End fences immediately and detaches before awaiting complete release. All abandon,
+dispose and late preparation work must settle before another controller can be
+constructed. Release failure blocks Start. Retry is accepted only after natural
+completion and reuses the exact executed plan after release; it requires current
+admission and matching composition. Composition replacement releases without auto-start.
+Natural completion publishes once after COMPLETED, with an atomic Continuous payload.
+Controllers retain their mode-specific domain evaluation and processing pipelines.
 
 Strict artifact parsing at the Practice Source projection is the score-level
 correctness authority. Setup invokes it only from Start Practice, before qualification;
@@ -903,7 +916,7 @@ Completion, Review mount and Review exit never create a PerformanceTake.
 artifact. The controller terminates transport, freezes recording, drains acoustic
 tail work, finalizes evaluation/media, creates the result and completes
 input/recorder cleanup while retaining sealed media before publishing the atomic completion and notifying completion listeners.
-PracticeExecutionOwner exposes that exact payload only for the current completed
+PracticeExecutionActor exposes that exact payload only for the current completed
 Continuous attempt; STEP exposes no Continuous completion.
 
 Analysis-unavailable can coexist with READY recording; complete evaluation

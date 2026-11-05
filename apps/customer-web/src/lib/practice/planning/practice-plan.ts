@@ -91,13 +91,15 @@ export function planPractice(
       initiallyEnabled: intent.metronomeEnabled,
     }),
   };
-  return freezeValue(
+  return Object.freeze(
     intent.mode === "STEP_BY_STEP"
       ? { ...truth, mode: "STEP_BY_STEP" as const }
       : {
           ...truth,
           mode: "CONTINUOUS_PLAY" as const,
-          countIn: countInContractAt(source.artifact, scope.startTick),
+          countIn: Object.freeze(
+            countInContractAt(source.artifact, scope.startTick),
+          ),
         },
   );
 }

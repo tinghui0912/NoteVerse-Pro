@@ -27,18 +27,13 @@ it('domain and planning dependencies retain their own invariant owners',()=>{
   }
 });
 it('execution views expose mode-owned application codes and presentation performs code projection',()=>{
-  const tree=source('application/practice-execution-owner.ts');
-  for(const [view,code] of [['StepView','StepApplicationErrorCode'],['ContinuousView','ContinuousErrorCode']]) {
-    const node=tree.statements.find(node=>ts.isTypeAliasDeclaration(node)&&node.name.text===view)!;
-    expect(node.getText(tree)).toContain(`inputError: ${code} | null`);
-  }
   const statusFile=path.resolve('src/components/practice/practice-status.tsx'), text=readFileSync(statusFile,'utf8');
   expect(text).toContain('inputError?: PracticeExecutionErrorCode | null');
   const status=ts.createSourceFile(statusFile,text,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
   walk(status,node=>{if(ts.isPropertyAccessExpression(node)&&node.expression.getText(status)==='inputError') expect(node.name.text).toBe('code');
     if(ts.isPropertyAssignment(node)&&node.name.getText(status)==='customMessage') expect(node.initializer.getText(status)).not.toBe('inputError');});
 });
-it.each(['step/step-practice-controller.ts','continuous/continuous-practice-controller.ts','application/practice-execution-owner.ts'])('%s branches on typed facts at catches',(file)=>{
+it.each(['step/step-practice-controller.ts','continuous/continuous-practice-controller.ts','application/practice-execution-actor.ts'])('%s branches on typed facts at catches',(file)=>{
   const tree=source(file), conditions:ts.Expression[]=[];
   walk(tree,node=>{if(ts.isIfStatement(node)||ts.isConditionalExpression(node)) conditions.push(ts.isIfStatement(node) ? node.expression : node.condition);});
   for(const condition of conditions) walk(condition,node=>{

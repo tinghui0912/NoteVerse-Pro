@@ -42,7 +42,8 @@ plans independently of call history. Each immutable `PracticePlan` owns:
 - `countIn`: Continuous initial execution policy; STEP has no Count-In.
 
 Input kind and recording mode are read from `resources`; score/revision/artifact IDs
-remain owned by `source.artifact`. Planning does not retain mutable caches or sessions.
+remain owned by `source.artifact`. Planning does not retain mutable caches or sessions. It freezes only its own projections;
+source admission owns the deeply immutable artifact, whose reference is reused unchanged.
 
 The Practice page constructs the intent from resolved configuration and committed
 workspace scope/tempo/metronome choices. PreparedPractice supplies its owned sourceId
@@ -53,12 +54,12 @@ and parsed artifact without a query. Page controls read the candidate plan's res
 ```text
 Pinned revision -> Canonical Practice Source -> strict artifact admission
   -> PracticeIntent -> candidate PracticePlan -> READY
-  -> explicit Start -> PracticeExecutionOwner -> one selected controller
+  -> explicit Start -> PracticeExecutionActor -> one selected controller
                                        STEP / Continuous
 ```
 
 `usePracticeExecution` bridges React presentation and the ordinary
-`application/practice-execution-owner.ts` owner. READY has no attempt controller,
+`application/practice-execution-actor.ts` actor. READY has no attempt controller,
 platform, inference lease, AudioContext, MIDI message binding, recorder, metronome,
 refresh loop or controller physical-health subscription. The retained ResourceBinding and
 workspace Environment have their independent retained lifetimes.
@@ -79,17 +80,32 @@ Intervention End creates no independent readiness state.
 
 Natural scope completion notifies once and retains completed presentation. Retry is
 a deliberate command that fully releases the completed attempt and starts one fresh
-controller directly. It does not reacquire retained roots or repeat preflight.
+controller with that exact executed PracticePlan. Candidate preference changes do not
+change Retry semantics. Admission loss or composition replacement cancels restart. It does not reacquire retained roots or repeat preflight.
 The execution view exposes the exact current Continuous completion after natural
 completion; STEP exposes null. End, Retry and new execution remove the old completion
 from that view. A stale callback cannot restore it. No global completion storage exists.
 
-The owner holds one release chain. A new controller waits for old disposal and any
-late preparation to settle. Generation plus selected-controller identity fences
-snapshots and natural completion. Composition/route identity replacement retires the
-old owner; ordinary candidate edits do not. Cleanup failure remains visible and blocks
-replacement. The React bridge uses subscriptions, not mode-specific mounted hooks or
-an idle refresh loop.
+`execution-machine.ts` owns the explicit READY, STARTING, RUNNING, COMPLETED,
+RELEASING, ERROR and DISPOSED states. STARTING distinguishes scheduled preparation
+from controller construction in progress. Each accepted execution has one executionId,
+plan and composition identity. Async start, controller observation, completion and
+release outcomes return as identity-scoped events. Stale outcomes are ignored by
+the pure reducer. Public views are pure projections of accepted state and its latest
+leaf observation, without reading controller handles.
+
+The actor runs preparation, construction/start, release and completion-notification
+effects. Its single opaque runtime handle owns the controller, subscription detach
+and preparation acknowledgement. End fences the state and detaches immediately,
+then waits for abandon, dispose and late preparation to all settle. A new execution
+cannot be constructed before RELEASE_SUCCEEDED. RELEASE_FAILED blocks Start.
+Composition replacement releases the current execution without automatic Start.
+Natural SCOPE_COMPLETED transitions before one completion notification; Continuous
+also requires its atomic result/recording payload. STOPPED_BY_USER is abandonment.
+
+The React bridge subscribes, forwards commands and supplies candidate admission.
+Its effect-lifetime fencing handles StrictMode remounts without permanently disposing
+a live actor. Device acquisition and mode-specific progression remain outside the actor.
 
 STEP and Continuous controllers retain their distinct domain and pipeline owners.
 They consume admitted plans, browser roots and the read-only root-health port.
@@ -118,7 +134,7 @@ explicit Start Practice -> fresh revision Source admission
                         -> validate SAME roots and acoustic/recording pipelines
                         -> atomically commit PreparedPractice
                         -> Practice borrows admitted artifact and MusicXML
-Practice Start -> PracticeExecutionOwner -> selected attempt borrows SAME roots
+Practice Start -> PracticeExecutionActor -> selected attempt borrows SAME roots
 ```
 
 Setup mounts without Source admission or physical acquisition. The command captures
@@ -164,7 +180,7 @@ to Setup. Candidate musical/presentation edits do not replace the physical bindi
 
 ## Explicit Transient Review Handoff
 
-The execution owner retains `{ result, recording }` for its current natural Continuous
+The execution actor retains `{ result, recording }` for its current natural Continuous
 completion. Try Again creates no ReviewSession. Only View Review calls the workspace's
 `handoffToReview(completion)` command. The command checks sourceId and artifact identity,
 validates the result/recording, and builds `{ result, recording, artifact, musicXml }`
@@ -250,7 +266,7 @@ abandonment closes it exactly once. Review navigation releases physical roots be
 routing; Review owns only its transient handoff. Pipeline faults do not close the binding.
 
 Resource planning defines requirements and bindings, not acquisition or Start/End
-lifecycle. `PracticeExecutionOwner` serializes attempt release before any new controller
+lifecycle. `PracticeExecutionActor` serializes attempt release before any new controller
 construction.
 
 Artifact schemaVersion 1, mode-specific PracticeSession snapshots, Result schema8,
