@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { opfsStoreFixture } from "../__fixtures__/opfs-store";
-import { createOwnedMedia } from "../recording/owned-media";
+import { createLocalMediaAsset } from "../media/local-media-asset";
 import type { VideoExportSession } from "./session";
 import { exportVideo } from "./export";
 
@@ -127,7 +127,7 @@ function rig() {
   URL.createObjectURL = vi.fn(() => "blob:input");
   URL.revokeObjectURL = vi.fn();
   const sourceRemoved = vi.fn(async () => {});
-  const source = createOwnedMedia(
+  const source = createLocalMediaAsset(
     new Blob(["source"], { type: "video/webm" }),
     sourceRemoved,
   );

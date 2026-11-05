@@ -1,4 +1,4 @@
-import { releaseOwnedMedia } from "@/lib/practice/recording/owned-media";
+import { releaseLocalMediaAsset } from "@/lib/practice/media/local-media-asset";
 import type { ContinuousPracticeCompletion } from "@/lib/practice/continuous/completion";
 import type { AdmittedPracticeSource } from "@/lib/practice/source/admitted-practice-source";
 import { assertPerformanceRecording } from "@/lib/practice/recording/recording-artifact";
@@ -42,5 +42,5 @@ export async function releaseTransientReviewSession(
   session: TransientReviewSession | null,
 ): Promise<void> {
   if (session?.recording.status === "READY")
-    await releaseOwnedMedia(session.recording.media);
+    await releaseLocalMediaAsset(session.recording.media);
 }

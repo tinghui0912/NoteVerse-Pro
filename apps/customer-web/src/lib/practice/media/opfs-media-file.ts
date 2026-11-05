@@ -1,34 +1,37 @@
 import { reportUnexpectedClientError } from "@/lib/observability";
-import { createOwnedMedia, type OwnedMediaHandle } from "./owned-media";
+import {
+  createLocalMediaAsset,
+  type LocalMediaAsset,
+} from "./local-media-asset";
 
 class OpfsMediaUnavailableError extends Error {}
-export interface OpfsOwnedMediaFile {
+export interface OpfsMediaFile {
   readonly byteSize: number;
   append(chunk: Blob | Uint8Array<ArrayBuffer>): Promise<void>;
-  seal(mimeType: string): Promise<OwnedMediaHandle>;
+  seal(mimeType: string): Promise<LocalMediaAsset>;
   abort(): Promise<void>;
 }
 
-interface OwnedMediaFile {
+interface OpfsMediaFileHandle {
   createWritable(): Promise<
     Pick<FileSystemWritableFileStream, "write" | "close" | "abort">
   >;
   getFile(): Promise<File>;
 }
-interface OwnedMediaDirectory {
+interface OpfsMediaDirectory {
   getDirectoryHandle(
     name: string,
     options: { create: boolean },
-  ): Promise<OwnedMediaDirectory>;
+  ): Promise<OpfsMediaDirectory>;
   getFileHandle(
     name: string,
     options: { create: boolean },
-  ): Promise<OwnedMediaFile>;
+  ): Promise<OpfsMediaFileHandle>;
   removeEntry(name: string): Promise<void>;
   values(): AsyncIterable<{ name: string; kind: string }>;
 }
 export interface OpfsMediaStoragePlatform {
-  root(): Promise<OwnedMediaDirectory>;
+  root(): Promise<OpfsMediaDirectory>;
   locks: Pick<LockManager, "request">;
   randomId(): string;
 }
@@ -43,7 +46,7 @@ function browserStorage(): OpfsMediaStoragePlatform {
   }
   return {
     root: async () =>
-      (await navigator.storage.getDirectory()) as unknown as OwnedMediaDirectory,
+      (await navigator.storage.getDirectory()) as unknown as OpfsMediaDirectory,
     locks: navigator.locks,
     randomId: () => crypto.randomUUID(),
   };
@@ -77,7 +80,7 @@ async function holdLock(
 }
 
 async function reclaimOrphans(
-  directory: OwnedMediaDirectory,
+  directory: OpfsMediaDirectory,
   platform: OpfsMediaStoragePlatform,
   namespace: string,
   signal?: AbortSignal,
@@ -108,16 +111,16 @@ async function reclaimOrphans(
   }
 }
 
-/** The lock starts before file creation and spans recording, Review and operation leases. */
-export async function openOpfsOwnedMediaFile(
+/** The lock starts before file creation and spans the writer and all asset references. */
+export async function openOpfsMediaFile(
   namespace: string,
   signal?: AbortSignal,
   platform?: OpfsMediaStoragePlatform,
   lockPrefix = namespace,
-): Promise<OpfsOwnedMediaFile> {
+): Promise<OpfsMediaFile> {
   signal?.throwIfAborted();
   platform ??= browserStorage();
-  let directory: OwnedMediaDirectory;
+  let directory: OpfsMediaDirectory;
   try {
     directory = await (
       await platform.root()
@@ -140,9 +143,9 @@ export async function openOpfsOwnedMediaFile(
     });
   }
   let writable:
-    | Awaited<ReturnType<OwnedMediaFile["createWritable"]>>
+    | Awaited<ReturnType<OpfsMediaFileHandle["createWritable"]>>
     | undefined;
-  let file: OwnedMediaFile;
+  let file: OpfsMediaFileHandle;
   try {
     signal?.throwIfAborted();
     file = await directory.getFileHandle(id, { create: true });
@@ -172,7 +175,7 @@ export async function openOpfsOwnedMediaFile(
   let state: "OPEN" | "SEALING" | "SEALED" | "ABORTED" = "OPEN";
   let queue: Promise<void> = Promise.resolve();
   let aborting: Promise<void> | null = null;
-  let sealed: Promise<OwnedMediaHandle> | null = null;
+  let sealed: Promise<LocalMediaAsset> | null = null;
   const wasAbandoned = () => state === "ABORTED";
   const remove = async () => {
     try {
@@ -208,7 +211,7 @@ export async function openOpfsOwnedMediaFile(
         // Blob slicing changes metadata without reading the file bytes into JS heap.
         const blob = raw.slice(0, raw.size, mimeType);
         state = "SEALED";
-        return createOwnedMedia(blob, remove);
+        return createLocalMediaAsset(blob, remove);
       })();
       return sealed;
     },

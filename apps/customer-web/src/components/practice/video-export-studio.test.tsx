@@ -34,8 +34,8 @@ import {
 } from "@testing-library/react";
 import { VideoExportStudio } from "./video-export-studio";
 import { exportVideo } from "@/lib/practice/video-export/export";
-import { downloadOwnedMedia } from "@/lib/practice/recording/download-owned-media";
-import { createOwnedMedia } from "@/lib/practice/recording/owned-media";
+import { downloadLocalMedia } from "@/lib/practice/media/download-local-media";
+import { createLocalMediaAsset } from "@/lib/practice/media/local-media-asset";
 import { createVideoExportSessionFromSavedTake } from "@/lib/practice/video-export/saved-take-adapter";
 import {
   take,
@@ -50,15 +50,15 @@ vi.mock("@/lib/practice/video-export/export", () => ({
   exportVideo: vi.fn(),
   getVideoExportReadiness: () => ({ ok: true, mimeType: "video/webm" }),
 }));
-vi.mock("@/lib/practice/recording/download-owned-media", () => ({
-  downloadOwnedMedia: vi.fn(),
+vi.mock("@/lib/practice/media/download-local-media", () => ({
+  downloadLocalMedia: vi.fn(),
 }));
 
 function studio() {
   const sourceRemoved = vi.fn(async () => {}),
     outputRemoved = vi.fn(async () => {});
-  const source = createOwnedMedia(new Blob(["source"]), sourceRemoved);
-  const output = createOwnedMedia(
+  const source = createLocalMediaAsset(new Blob(["source"]), sourceRemoved);
+  const output = createLocalMediaAsset(
     new Blob(["derivative"], { type: "video/webm" }),
     outputRemoved,
   );
@@ -104,8 +104,8 @@ function studio() {
 }
 beforeEach(() => {
   vi.mocked(exportVideo).mockReset();
-  vi.mocked(downloadOwnedMedia).mockReset();
-  vi.mocked(downloadOwnedMedia).mockResolvedValue();
+  vi.mocked(downloadLocalMedia).mockReset();
+  vi.mocked(downloadLocalMedia).mockResolvedValue();
 });
 afterEach(() => {
   vi.restoreAllMocks();
@@ -114,7 +114,7 @@ afterEach(() => {
 it("downloads the output handle and retires its owner independently from the source lease", async () => {
   const f = studio();
   let finish!: () => void;
-  vi.mocked(downloadOwnedMedia).mockImplementation(async (media) => {
+  vi.mocked(downloadLocalMedia).mockImplementation(async (media) => {
     const lease = media.retain();
     try {
       await new Promise<void>((resolve) => {
@@ -125,8 +125,8 @@ it("downloads the output handle and retires its owner independently from the sou
     }
   });
   f.start();
-  await waitFor(() => expect(downloadOwnedMedia).toHaveBeenCalledOnce());
-  expect(downloadOwnedMedia).toHaveBeenCalledWith(
+  await waitFor(() => expect(downloadLocalMedia).toHaveBeenCalledOnce());
+  expect(downloadLocalMedia).toHaveBeenCalledWith(
     f.output,
     expect.stringMatching(/^performance-score-video-.*\.webm$/),
   );
@@ -142,7 +142,7 @@ it("downloads the output handle and retires its owner independently from the sou
 });
 it("releases the result owner even if the download click fails", async () => {
   const f = studio();
-  vi.mocked(downloadOwnedMedia).mockRejectedValueOnce(
+  vi.mocked(downloadLocalMedia).mockRejectedValueOnce(
     new Error("click failed"),
   );
   f.start();
@@ -176,7 +176,7 @@ it.each(["cancel", "unmount"] as const)(
     });
     await waitFor(() => expect(f.outputRemoved).toHaveBeenCalledOnce());
     expect(f.sourceRemoved).toHaveBeenCalledOnce();
-    expect(downloadOwnedMedia).not.toHaveBeenCalled();
+    expect(downloadLocalMedia).not.toHaveBeenCalled();
   },
 );
 it("releases its input lease if the export-status listener throws before output creation", async () => {

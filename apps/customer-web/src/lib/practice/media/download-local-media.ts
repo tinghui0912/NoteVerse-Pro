@@ -1,9 +1,9 @@
-import { releaseOwnedMedia } from "@/lib/practice/recording/owned-media";
-import type { OwnedMediaHandle } from "./owned-media";
+import { releaseLocalMediaAsset } from "@/lib/practice/media/local-media-asset";
+import type { LocalMediaAsset } from "./local-media-asset";
 
 /** The object URL and the browser download retain their backing file until URL retirement. */
-export async function downloadOwnedMedia(
-  media: OwnedMediaHandle,
+export async function downloadLocalMedia(
+  media: LocalMediaAsset,
   filename: string,
 ): Promise<void> {
   const lease = media.retain();
@@ -22,7 +22,7 @@ export async function downloadOwnedMedia(
     try {
       if (url) URL.revokeObjectURL(url);
     } finally {
-      await releaseOwnedMedia(lease);
+      await releaseLocalMediaAsset(lease);
     }
   }
 }

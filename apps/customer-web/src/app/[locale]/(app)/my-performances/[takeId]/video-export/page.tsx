@@ -17,10 +17,10 @@ import {
   usePerformanceTakeDetail,
 } from '@/hooks/queries/use-performance-take-queries';
 import {
-  downloadSavedTakeMedia,
-} from '@/lib/practice/recording/saved-take-media';
-import { releaseOwnedMedia, type OwnedMediaHandle } from '@/lib/practice/recording/owned-media';
-import { downloadOwnedMedia } from '@/lib/practice/recording/download-owned-media';
+  materializePerformanceTakeMedia,
+} from '@/lib/practice/media/performance-take/materialize';
+import { releaseLocalMediaAsset, type LocalMediaAsset } from '@/lib/practice/media/local-media-asset';
+import { downloadLocalMedia } from '@/lib/practice/media/download-local-media';
 import { ApiError } from '@/lib/api-client';
 import { useSavedTakeExportSource } from '@/hooks/practice/use-saved-take-export-source';
 import type { PlayablePerformanceReplay } from '@/lib/practice/recording/performance-replay';
@@ -89,7 +89,7 @@ export default function SavedPerformanceVideoExportPage() {
   const sourceQuery = source.sourceQuery;
   const artifact = source.artifact;
 
-  const [downloadedMedia, setDownloadedMedia] = useState<{take: typeof take; nonce: number; handle: OwnedMediaHandle} | null>(null);
+  const [downloadedMedia, setDownloadedMedia] = useState<{take: typeof take; nonce: number; handle: LocalMediaAsset} | null>(null);
   const [mediaFailure, setMediaFailure] = useState<{take: typeof take; nonce: number; permanent: boolean} | null>(null);
   const [mediaProgress, setMediaProgress] = useState<{
     loadedBytes: number;
@@ -111,8 +111,8 @@ export default function SavedPerformanceVideoExportPage() {
       return;
     }
     const controller = new AbortController();
-    let owned: OwnedMediaHandle | null = null;
-    void downloadSavedTakeMedia({ takeId: take.take_id, expectedByteSize: take.media_byte_size, expectedMimeType: take.media_mime_type,
+    let owned: LocalMediaAsset | null = null;
+    void materializePerformanceTakeMedia({ takeId: take.take_id, expectedByteSize: take.media_byte_size, expectedMimeType: take.media_mime_type,
       signal: controller.signal,
       onProgress: (loadedBytes, totalBytes) => {
         if (!controller.signal.aborted) {
@@ -121,7 +121,7 @@ export default function SavedPerformanceVideoExportPage() {
       },
     })
       .then(async (handle) => {
-        if (controller.signal.aborted) { await releaseOwnedMedia(handle); return; }
+        if (controller.signal.aborted) { await releaseLocalMediaAsset(handle); return; }
         owned = handle;
         setDownloadedMedia({take, nonce: mediaRetryNonce, handle});
       })
@@ -130,7 +130,7 @@ export default function SavedPerformanceVideoExportPage() {
           setMediaFailure({take,nonce:mediaRetryNonce,permanent:isPermanentResourceError(error)});
         }
       });
-    return () => { controller.abort(); if (owned) void releaseOwnedMedia(owned); };
+    return () => { controller.abort(); if (owned) void releaseLocalMediaAsset(owned); };
   }, [isBaseEligible, mediaRetryNonce, take]);
 
   useEffect(() => () => adapter.dispose(), [adapter]);
@@ -286,7 +286,7 @@ export default function SavedPerformanceVideoExportPage() {
             <PerformanceReplayPlayer
               replay={replay}
               actions={<Button onClick={() => {
-                void downloadOwnedMedia(mediaHandle!, `performance-${take.take_id}.${captureMediaExtension(take.media_mime_type)}`);
+                void downloadLocalMedia(mediaHandle!, `performance-${take.take_id}.${captureMediaExtension(take.media_mime_type)}`);
               }}>{t('downloadVideo')}</Button>}
               onReplayTimeChange={(time) => setMediaTimeMs(Math.max(0, time ?? 0))}
               onPlaybackStateChange={setIsReplayPlaying}

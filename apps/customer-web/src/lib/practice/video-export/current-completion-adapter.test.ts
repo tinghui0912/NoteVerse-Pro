@@ -1,4 +1,4 @@
-import { ownedMediaFixture } from "@/lib/practice/__fixtures__/recording-sink";
+import { localMediaAssetFixture } from "@/lib/practice/__fixtures__/local-media-asset";
 import { createTransientReviewSession } from "@/lib/practice/review/transient-review-session";
 import { completedContinuousSessionFixture } from "@/lib/practice/__fixtures__/continuous-result";
 import { expect, it } from "vitest";
@@ -24,7 +24,7 @@ const completion = {
   recording: {
     status: "READY" as const,
     kind: "VIDEO" as const,
-    media: ownedMediaFixture(blob),
+    media: localMediaAssetFixture(blob),
     mimeType: take.media_mime_type,
     durationMs: take.duration_ms,
     timebase: parseSavedRecordingTimebase(take.recording_timebase),
@@ -41,7 +41,7 @@ it("current and saved media converge on the same neutral downstream session", ()
     take,
     handoff.recording.status === "READY"
       ? handoff.recording.media
-      : ownedMediaFixture(blob),
+      : localMediaAssetFixture(blob),
     { sourceId: take.source_id, artifact: artifact },
   );
   expect(saved.status).toBe("supported");
@@ -75,7 +75,7 @@ it("keeps export session identity distinct from exact source provenance", () => 
       take,
       handoff.recording.status === "READY"
         ? handoff.recording.media
-        : ownedMediaFixture(blob),
+        : localMediaAssetFixture(blob),
       { sourceId: "different", artifact },
     ),
   ).toMatchObject({

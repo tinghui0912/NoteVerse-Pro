@@ -1,19 +1,19 @@
 import { reportUnexpectedClientError } from "@/lib/observability";
-/** Each immutable handle owns one reference to these backing bytes. */
-export interface OwnedMediaHandle {
+/** Each immutable asset reference owns the lifetime of its backing bytes. */
+export interface LocalMediaAsset {
   readonly blob: Blob;
   readonly byteSize: number;
-  retain(): OwnedMediaHandle;
+  retain(): LocalMediaAsset;
   release(): Promise<void>;
 }
 
-/** A sealed file is deleted only after every explicit owner retires. */
-export function createOwnedMedia(
+/** Backing bytes retire only after every explicit asset reference retires. */
+export function createLocalMediaAsset(
   blob: Blob,
   remove: () => Promise<void>,
-): OwnedMediaHandle {
+): LocalMediaAsset {
   let references = 0;
-  const lease = (): OwnedMediaHandle => {
+  const lease = (): LocalMediaAsset => {
     references++;
     let released: Promise<void> | null = null;
     return Object.freeze({
@@ -39,11 +39,11 @@ export function createOwnedMedia(
 }
 
 /** Published media retirement reports IO failure and leaves an unlocked orphan for recovery. */
-export async function releaseOwnedMedia(
-  resource: OwnedMediaHandle,
+export async function releaseLocalMediaAsset(
+  asset: LocalMediaAsset,
 ): Promise<void> {
   try {
-    await resource.release();
+    await asset.release();
   } catch (error) {
     reportUnexpectedClientError(error, {
       area: "practice",

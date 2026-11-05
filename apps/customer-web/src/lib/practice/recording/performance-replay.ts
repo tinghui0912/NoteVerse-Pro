@@ -1,11 +1,11 @@
-import type { OwnedMediaHandle } from "./owned-media";
+import type { LocalMediaAsset } from "@/lib/practice/media/local-media-asset";
 type PerformanceReplayTimebase = {
   version: 1;
   speedRatio: number;
 };
 
 type ReplaySource =
-  | { media: OwnedMediaHandle; url?: never }
+  | { media: LocalMediaAsset; url?: never }
   | { url: string; media?: never };
 
 export type PlayablePerformanceReplay =

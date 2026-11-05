@@ -1,7 +1,7 @@
 'use client';
 
-import { releaseOwnedMedia } from '@/lib/practice/recording/owned-media';
-import type { OwnedMediaHandle } from '@/lib/practice/recording/owned-media';
+import { releaseLocalMediaAsset } from '@/lib/practice/media/local-media-asset';
+import type { LocalMediaAsset } from '@/lib/practice/media/local-media-asset';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -65,7 +65,7 @@ export interface SavePerformanceTakeInput {
   clientRequestId: string;
   ticksPerQuarter: number;
   mediaKind: CaptureMediaKind;
-  media: OwnedMediaHandle;
+  media: LocalMediaAsset;
   mimeType: string;
   durationMs: number;
   scope:
@@ -177,7 +177,7 @@ export function useSavePerformanceTake() {
       try {
         return await mutation.mutateAsync({...input,media:lease});
       } finally {
-        await releaseOwnedMedia(lease);
+        await releaseLocalMediaAsset(lease);
       }
     },
   };

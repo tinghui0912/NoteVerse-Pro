@@ -1,8 +1,6 @@
 // @vitest-environment jsdom
-import {
-  recordingSinkFixture,
-  ownedMediaFixture,
-} from '@/lib/practice/__fixtures__/recording-sink';
+import { recordingSinkFixture } from '@/lib/practice/__fixtures__/recording-sink';
+import { localMediaAssetFixture } from '@/lib/practice/__fixtures__/local-media-asset';
 
 import React, { type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -61,7 +59,7 @@ function createInput() {
     sourceId: 'source-1',
     clientRequestId: 'request-1',
     mediaKind: 'AUDIO' as const,
-    media: ownedMediaFixture(new Blob(['RIFF....WAVE'], { type: 'audio/wav' })),
+    media: localMediaAssetFixture(new Blob(['RIFF....WAVE'], { type: 'audio/wav' })),
     mimeType: 'audio/wav',
     durationMs: 1000,
     scope: {
@@ -222,7 +220,7 @@ describe('useSavePerformanceTake', () => {
       ...createInput(),
       mediaKind: 'VIDEO' as const,
       mimeType: raw.type,
-      media: ownedMediaFixture(raw),
+      media: localMediaAssetFixture(raw),
     };
     const reserved = reservation();
     reserved.metadata.media = {

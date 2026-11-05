@@ -1,4 +1,4 @@
-import { releaseOwnedMedia } from '@/lib/practice/recording/owned-media';
+import { releaseLocalMediaAsset } from '@/lib/practice/media/local-media-asset';
 import { createPerformanceRecording, type PerformanceRecording } from './recording-artifact';
 import type { RecordingActiveSegment } from './recording-timebase';
 
@@ -325,7 +325,7 @@ export class PerformanceRecorder {
     try {
       if (this.disposed) throw new RecordingFailure('RECORDING_DISCARDED');
       if (this.unavailableReason) {
-        this.sink = null; await releaseOwnedMedia(media);
+        this.sink = null; await releaseLocalMediaAsset(media);
         return createPerformanceRecording({ status: 'UNAVAILABLE', reason: this.unavailableReason });
       }
       const recording = createPerformanceRecording({
@@ -335,7 +335,7 @@ export class PerformanceRecorder {
       this.sink = null; // The returned completion now owns the sealed file's first reference.
       this.state = 'READY';
       return recording;
-    } catch (error) { await releaseOwnedMedia(media); throw error; }
+    } catch (error) { await releaseLocalMediaAsset(media); throw error; }
   }
 
   stopAndCleanup(): Promise<void> {

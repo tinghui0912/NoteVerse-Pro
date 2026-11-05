@@ -1,4 +1,4 @@
-import { ownedMediaFixture } from '../__fixtures__/recording-sink';
+import { localMediaAssetFixture } from '../__fixtures__/local-media-asset';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -297,4 +297,4 @@ it('rejects missing durable score timebase even with matching artifact identity 
   expect(hasSavedTakeVideoExportMetadata(mismatch)).toBe(false);
 });
 
-function ownedBlob(...args: ConstructorParameters<typeof Blob>) { return ownedMediaFixture(new Blob(...args)); }
+function ownedBlob(...args: ConstructorParameters<typeof Blob>) { return localMediaAssetFixture(new Blob(...args)); }

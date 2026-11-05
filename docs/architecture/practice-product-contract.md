@@ -774,7 +774,7 @@ Result. UNAVAILABLE evaluation remains independent of recording availability.
 
 Result is not a serialized or versioned contract. Review receives the typed atomic
 `ContinuousPracticeCompletion { result, recording }` handoff in browser memory.
-Recording remains a separate owned-media artifact. STEP creates no report Result.
+Recording remains a separate media artifact. STEP creates no report Result.
 
 ## Evaluation / Evidence Provenance
 
@@ -804,7 +804,7 @@ Confidence remains evidence metadata without another uncalibrated threshold.
 `recording/` owns media, recorder resource lifecycle, replay descriptors and
 media-to-performance synchronization. `PerformanceRecording` is a discriminated
 NOT_RECORDED / UNAVAILABLE / READY artifact. Only READY carries AUDIO/VIDEO kind,
-OwnedMediaHandle, MIME, media duration and an immutable recording timebase. Selecting AUDIO or
+LocalMediaAsset, MIME, media duration and an immutable recording timebase. Selecting AUDIO or
 VIDEO requires successful recording admission before transport/count-in begins.
 `PerformanceRecorder.prepare()` resolves only for admitted recording or OFF; missing
 or dead required tracks, permission/device loss, unsupported recorder/MIME, unavailable
@@ -1131,7 +1131,21 @@ archive that composed output.
 
 ## Local Performance Media Storage and Ownership
 
-All locally materialized performance media uses `OwnedMediaHandle`: one handle owns
+`practice/media/` owns shared browser-local byte lifetime and storage.
+`local-media-asset.ts` owns immutable bytes and reference-counted asset references;
+`opfs-media-file.ts` owns sequential file writes, exact byte accounting, seal/abort,
+per-file Web Locks, orphan recovery and final-owner deletion. `download-local-media.ts`
+owns the temporary download lease and object URL. `media/performance-take/materialize.ts`
+streams authorized durable media into disposable local assets. The media core is
+transport-free; only the PerformanceTake materialization subpackage consumes HTTP.
+Neither depends on Practice product domains.
+
+Recording owns Capture semantics and its RecordingSink port. The OPFS recording
+adapter maps media-storage admission errors into RecordingFailure. PerformanceTake
+owns durable archive semantics; VideoExport owns derivative composition. These
+consumers depend on shared media and do not own its generic byte infrastructure.
+
+All locally materialized performance media uses `LocalMediaAsset`: one handle owns
 one reference, its Blob view and its byte size. Retain returns an independently
 releasable handle. Release is idempotent, and the final reference retires the backing
 storage once. A retired handle cannot acquire another reference. MIME belongs to the
@@ -1190,16 +1204,16 @@ Take remains durable authority; temporary local media is neither a cache nor a
 cross-reload session. Ordinary server playback URLs retain their independent contract.
 
 Archive remains explicit Review Save of raw Capture bytes into PerformanceTake.
-VideoExport source media is an OwnedMediaHandle retained by Studio for the whole
+VideoExport source media is a LocalMediaAsset retained by Studio for the whole
 export operation. Encoded output chunks are incrementally appended in MediaRecorder
 event order to `noteverse-video-export-output`, using a finite 1000ms timeslice.
 The operation never retains the complete encoded output in a JS chunk array.
 Stop drains all accepted writes before seal. The shared OPFS primitive validates
 exact byte accounting; seal uses the selected recorder MIME. Empty output fails closed.
 
-VideoExport returns `{ media: OwnedMediaHandle, mimeType, durationMs }` for a new
+VideoExport returns `{ media: LocalMediaAsset, mimeType, durationMs }` for a new
 file-backed derivative. The caller owns that reference until download handoff is
-complete. Studio calls downloadOwnedMedia, which retains its own download lease,
+complete. Studio calls downloadLocalMedia, which retains its own download lease,
 then releases the result owner in finally, independently from its input-media lease.
 Cancellation, encoding/write failure and unpublished sealed output retire their
 partial or final storage before failure returns. Missing OPFS/Web Locks/writer

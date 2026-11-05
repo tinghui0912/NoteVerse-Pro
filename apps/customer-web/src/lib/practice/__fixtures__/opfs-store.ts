@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import type { OpfsMediaStoragePlatform } from '../recording/opfs-owned-media-file';
+import type { OpfsMediaStoragePlatform } from '../media/opfs-media-file';
 
 export function opfsStoreFixture() {
   const files = new Map<string, Blob[]>();

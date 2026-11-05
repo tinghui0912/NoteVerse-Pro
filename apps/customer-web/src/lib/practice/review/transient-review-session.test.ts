@@ -1,7 +1,5 @@
-import {
-  recordingSinkFixture,
-  ownedMediaFixture,
-} from "@/lib/practice/__fixtures__/recording-sink";
+import { recordingSinkFixture } from "@/lib/practice/__fixtures__/recording-sink";
+import { localMediaAssetFixture } from "@/lib/practice/__fixtures__/local-media-asset";
 import { expect, it } from "vitest";
 import type { PracticeScoreArtifact } from "@/lib/practice/score/artifact";
 import fixture from "@/lib/practice/__fixtures__/canonical-practice-score-artifact.json";
@@ -22,7 +20,7 @@ it("hands off canonical references without copying artifact, result or Blob byte
   const recording = createPerformanceRecording({
     status: "READY",
     kind: "VIDEO",
-    media: ownedMediaFixture(blob),
+    media: localMediaAssetFixture(blob),
     mimeType: "video/webm",
     durationMs: 10000,
     timebase: {

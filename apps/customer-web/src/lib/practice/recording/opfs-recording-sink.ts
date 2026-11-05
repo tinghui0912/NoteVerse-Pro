@@ -1,8 +1,8 @@
 import { RecordingFailure } from "@/lib/practice/failure/causal-failure";
 import {
-  openOpfsOwnedMediaFile,
+  openOpfsMediaFile,
   type OpfsMediaStoragePlatform,
-} from "./opfs-owned-media-file";
+} from "@/lib/practice/media/opfs-media-file";
 import type { RecordingSink } from "./recording-sink";
 
 /** Temporary uncommitted Capture bytes; no full-file heap materialization. */
@@ -11,7 +11,7 @@ export async function openOpfsRecordingSink(
   platform?: OpfsMediaStoragePlatform,
 ): Promise<RecordingSink> {
   try {
-    return await openOpfsOwnedMediaFile(
+    return await openOpfsMediaFile(
       "noteverse-practice-captures",
       signal,
       platform,

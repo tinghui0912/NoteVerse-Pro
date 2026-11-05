@@ -71,10 +71,21 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
   const source = relative(file);
   const target = edge.target ? relative(edge.target) : null;
   const presentationOwners = ['score-view/', 'review/', 'video-export/'];
+  const apiNamespace = normalize(path.join(sourceRoot, 'lib/api'));
+  const apiRoot = apiNamespace + '/';
+  const observability = normalize(path.join(sourceRoot, 'lib/observability/index.ts'));
+  if (normalize(file).startsWith(apiNamespace) && target?.startsWith('media/')) return false;
+  if (source.startsWith('media/')) {
+    const materialization = source.startsWith('media/performance-take/');
+    if (target?.startsWith('media/')) return materialization || !target.startsWith('media/performance-take/');
+    if (edge.target === observability) return true;
+    return materialization && Boolean(edge.target?.startsWith(apiRoot));
+  }
+
   if (source.startsWith('failure/')) return Boolean(target?.startsWith('failure/'));
   if (target?.startsWith('failure/')) return !domain(source) && !source.startsWith('planning/') && !source.startsWith('result/');
   if (edge.target === normalize(path.join(sourceRoot, 'lib/observability/index.ts'))) {
-    return ['recording/opfs-owned-media-file.ts', 'recording/owned-media.ts'].includes(source);
+    return source.startsWith('media/');
   }
   if (target?.startsWith('continuous/') && target.endsWith('-control-machine.ts')) {
     return source.startsWith('continuous/') && source.endsWith('-controller.ts');
@@ -115,15 +126,15 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
       && target === 'continuous/domain/evaluation/target-feedback.ts' && edge.bindings.length > 0
       && edge.bindings.every(name => name === 'ContinuousTargetFeedback');
   }
-  if (source.startsWith('review/')) return Boolean(target && (['review/', 'result/', 'score/', 'session/', 'planning/', 'score-view/'].some(owner => target.startsWith(owner))
-    || ['recording/recording-artifact.ts', 'recording/recording-timebase.ts', 'recording/performance-replay.ts', 'recording/owned-media.ts'].includes(target)
+  if (source.startsWith('review/')) return Boolean(target && (['review/', 'result/', 'score/', 'session/', 'planning/', 'score-view/', 'media/'].some(owner => target.startsWith(owner))
+    || ['recording/recording-artifact.ts', 'recording/recording-timebase.ts', 'recording/performance-replay.ts'].includes(target)
     || edge.typeOnly && ['source/admitted-practice-source.ts','continuous/completion.ts'].includes(target)));
   if (source.startsWith('video-export/')) {
     if (source === 'video-export/current-completion-adapter.ts' && edge.typeOnly && target === 'review/transient-review-session.ts') return true;
     if (['react', 'next-intl'].includes(edge.specifier)) return source === 'video-export/preview.tsx';
     if (edge.target === normalize(path.join(sourceRoot, 'lib/api/performance-takes.ts'))) return source === 'video-export/saved-take-adapter.ts' && edge.typeOnly;
-    return Boolean(target && (target.startsWith('video-export/') || ['score/', 'session/', 'planning/'].some(owner => target.startsWith(owner))
-      || ['recording/owned-media.ts', 'recording/opfs-owned-media-file.ts', 'recording/recording-artifact.ts', 'recording/recording-timebase.ts', 'recording/recording-sink.ts', 'score-view/verovio-adapter.ts',
+    return Boolean(target && (target.startsWith('video-export/') || ['score/', 'session/', 'planning/', 'media/'].some(owner => target.startsWith(owner))
+      || ['recording/recording-artifact.ts', 'recording/recording-timebase.ts', 'score-view/verovio-adapter.ts',
         'score-view/playhead-cursor.ts', 'score-view/scope-timing.ts', 'score-view/decorations.ts', 'score-view/cursor-scope.ts'].includes(target)));
   }
   const owner = domain(source);
@@ -137,22 +148,42 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
   if (source.startsWith('result/')) return Boolean(target && (
     target.startsWith('result/') || ['score/', 'session/', 'planning/'].some(owner => target.startsWith(owner)) || target.startsWith('continuous/domain/evaluation/')
     || edge.typeOnly && target === 'continuous/domain/session.ts'));
-  if (source === 'recording/saved-take-media.ts' && edge.target === normalize(path.join(sourceRoot, 'lib/api/performance-takes.ts'))) return true;
-  if (source.startsWith('recording/')) return Boolean(target && (target.startsWith('recording/') || ['score/', 'session/', 'planning/'].some(owner => target.startsWith(owner))));
+  if (source.startsWith('recording/')) return Boolean(target && (target.startsWith('recording/') || ['score/', 'session/', 'planning/', 'media/'].some(owner => target.startsWith(owner))));
   if (source.startsWith('step/')) return !target || !['continuous/', 'result/', 'recording/'].some(owner => target.startsWith(owner));
   if (source.startsWith('continuous/')) return !target?.startsWith('step/');
   return true;
 }
 
 describe('Practice bounded domain dependencies', () => {
-  it('keeps byte ownership independent of product semantics and HTTP transport independent of Practice storage',()=>{
-    for(const [file,edges] of sourceGraph) {
-      if(file.startsWith(normalize(path.join(sourceRoot,'lib/api'))+'/'))
-        for(const edge of edges) expect(edge.target?.startsWith(normalize(path.join(practiceRoot,'recording'))+'/'),`${file}: ${edge.specifier}`).toBeFalsy();
-      if(relative(file).startsWith('recording/'))
-        for(const edge of edges) expect(edge.target && relative(edge.target).startsWith('video-export/'),`${file}: ${edge.specifier}`).toBeFalsy();
-      if(relative(file)==='recording/owned-media.ts')
-        for(const edge of edges) expect(edge.target?.startsWith(normalize(practiceRoot)+'/'),`${file}: ${edge.specifier}`).toBeFalsy();
+  it('keeps the local media core independent of product domains and HTTP transport', () => {
+    const core = path.join(practiceRoot, 'media/boundary-probe.ts');
+    const takeMedia = path.join(practiceRoot, 'media/performance-take/boundary-probe.ts');
+    for (const file of [core, takeMedia]) {
+      for (const owner of ['score', 'planning', 'session', 'step', 'continuous', 'recording', 'review', 'video-export', 'source', 'result', 'failure', 'device', 'acoustic', 'preparation', 'environment']) {
+        const target = `@/lib/practice/${owner}/boundary-probe`;
+        expect(dependencyAllowed(file, imports(file, `import type { Fact } from '${target}';`)[0]), file + ' -> ' + owner).toBe(false);
+      }
+      for (const target of ['react', '@/generated/api/types.gen', '@/contexts/practice-workspace-context']) {
+        expect(dependencyAllowed(file, imports(file, `import type { Fact } from '${target}';`)[0])).toBe(false);
+      }
+    }
+    const transport = path.join(sourceRoot, 'lib/api-client.ts');
+    const localAsset = "import type { LocalMediaAsset } from '@/lib/practice/media/local-media-asset';";
+    expect(dependencyAllowed(transport, imports(transport, localAsset)[0])).toBe(false);
+    const api = "import { openPerformanceTakeMedia } from '@/lib/api/performance-takes';";
+    expect(dependencyAllowed(core, imports(core, api)[0])).toBe(false);
+    expect(dependencyAllowed(takeMedia, imports(takeMedia, api)[0])).toBe(true);
+    const integration = "import { Fact } from '@/lib/practice/media/performance-take/boundary-probe';";
+    expect(dependencyAllowed(core, imports(core, integration)[0])).toBe(false);
+    for (const owner of ['recording', 'video-export', 'review']) {
+      const consumer = path.join(practiceRoot, owner, 'boundary-probe.ts');
+      const dependency = "import { Fact } from '@/lib/practice/media/boundary-probe';";
+      expect(dependencyAllowed(consumer, imports(consumer, dependency)[0])).toBe(true);
+    }
+    for (const [file, edges] of sourceGraph) {
+      if (file.startsWith(normalize(path.join(sourceRoot, 'lib/api')))) {
+        for (const edge of edges) expect(edge.target?.startsWith(normalize(path.join(practiceRoot, 'media')) + '/'), edge.specifier).toBeFalsy();
+      }
     }
   });
   it('consumes the infrastructure-free Score tempo policy from Practice planning', () => {
@@ -991,12 +1022,8 @@ it('browser execution and Review consume workspace-owned representations rather 
   expect(imports(path.join(practiceRoot,'video-export/current-completion-adapter.ts')).some(edge=>edge.typeOnly&&edge.bindings.includes('TransientReviewSession'))).toBe(true);
 });
 
-it('Capture storage and Review ownership use explicit recording infrastructure ports', () => {
+it('Recording consumes its Capture sink port and adapter', () => {
   const recorder = imports(path.join(practiceRoot, 'recording/performance-recorder.ts'));
   expect(recorder.some(edge => edge.typeOnly && edge.bindings.includes('RecordingSink'))).toBe(true);
   expect(recorder.some(edge => edge.bindings.includes('openOpfsRecordingSink'))).toBe(true);
-  const review = imports(path.join(practiceRoot, 'review/transient-review-session.ts'));
-  expect(review.some(edge => edge.bindings.includes('releaseOwnedMedia'))).toBe(true);
-  const storage = imports(path.join(practiceRoot, 'recording/opfs-owned-media-file.ts'));
-  expect(storage.some(edge => edge.bindings.includes('createOwnedMedia'))).toBe(true);
 });

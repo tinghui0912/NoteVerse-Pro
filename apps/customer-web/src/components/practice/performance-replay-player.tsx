@@ -1,5 +1,5 @@
 'use client';
-import { releaseOwnedMedia } from '@/lib/practice/recording/owned-media';
+import { releaseLocalMediaAsset } from '@/lib/practice/media/local-media-asset';
 
 import { Pause, Play } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -179,7 +179,7 @@ function AudioPerformanceReplayPlayer({
       if (!replay.url && audioUrl) {
         URL.revokeObjectURL(audioUrl);
       }
-      if (lease) void releaseOwnedMedia(lease);
+      if (lease) void releaseLocalMediaAsset(lease);
       onReplayTimeChangeRef.current?.(null);
     };
   }, [replay.media, replay.url, stopRenderTicker]);
@@ -428,7 +428,7 @@ function VideoPerformanceReplayPlayer({
       if (!replay.url && videoUrl) {
         URL.revokeObjectURL(videoUrl);
       }
-      if (lease) void releaseOwnedMedia(lease);
+      if (lease) void releaseLocalMediaAsset(lease);
       onReplayTimeChangeRef.current?.(null);
     };
   }, [replay.media, replay.url, stopRenderTicker]);

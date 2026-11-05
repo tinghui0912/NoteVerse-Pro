@@ -3,7 +3,7 @@ import { recordingBrowserFailure } from '@/lib/practice/failure/browser-failures
 import type { PracticeRecordingMode } from './recording-mode';
 import { isArchiveableCaptureMime, VIDEO_CAPTURE_MIME_CANDIDATES } from './media-policy';
 import { openOpfsRecordingSink } from './opfs-recording-sink';
-import type { OwnedMediaHandle } from './owned-media';
+import type { LocalMediaAsset } from '@/lib/practice/media/local-media-asset';
 import type { RecordingSinkFactory } from './recording-sink';
 
 export function recordingOptions(mode: Exclude<PracticeRecordingMode, 'OFF'>): MediaRecorderOptions | undefined {
@@ -45,7 +45,7 @@ export async function probeRecording(mode: Exclude<PracticeRecordingMode, 'OFF'>
   });
   signal.throwIfAborted();
   const sink = await openSink(signal);
-  let media: OwnedMediaHandle | null = null;
+  let media: LocalMediaAsset | null = null;
   let retirement: Promise<void> | null = null;
   const cancel = () => { retirement = sink.abort(); retirement.catch(() => {}); };
   signal.addEventListener('abort', cancel, { once: true });

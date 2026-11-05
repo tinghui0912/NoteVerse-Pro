@@ -1,8 +1,8 @@
-import { ownedMediaFixture } from '@/lib/practice/__fixtures__/recording-sink';
+import { localMediaAssetFixture } from '@/lib/practice/__fixtures__/local-media-asset';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import { createPerformanceRecording, type PerformanceRecording } from './recording-artifact';
 
-const ready = () => ({  status: 'READY' as const, kind: 'AUDIO' as const, media: ownedMediaFixture(new Blob(['audio'])), mimeType: 'audio/webm', durationMs: 100,
+const ready = () => ({  status: 'READY' as const, kind: 'AUDIO' as const, media: localMediaAssetFixture(new Blob(['audio'])), mimeType: 'audio/webm', durationMs: 100,
   timebase: { activeSegments: [{ perfStartMs: 0, perfEndMs: 100, mediaStartMs: 0, mediaEndMs: 100 }], nominalMediaDurationMs: 100 } });
 describe('independent optional recording artifact', () => {
   it('only READY has a timebase and media payload', () => {
@@ -16,7 +16,7 @@ describe('independent optional recording artifact', () => {
   });
   it.each([
     { ...ready(), timebase: { activeSegments: [], nominalMediaDurationMs: 10 } },
-    { ...ready(), media: ownedMediaFixture(new Blob([])) }, { ...ready(), mimeType: '' }, { ...ready(), durationMs: NaN },
+    { ...ready(), media: localMediaAssetFixture(new Blob([])) }, { ...ready(), mimeType: '' }, { ...ready(), durationMs: NaN },
     { ...ready(), mimeType: 'audio/unknown' }, { ...ready(), mimeType: 'video/mp4' },
     { status: 'NOT_RECORDED', timebase: ready().timebase },
     { status: 'UNAVAILABLE', reason: 'failed', timebase: ready().timebase },

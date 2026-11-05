@@ -1,4 +1,5 @@
-import { recordingSinkFixture, ownedMediaFixture } from '@/lib/practice/__fixtures__/recording-sink';
+import { recordingSinkFixture } from '@/lib/practice/__fixtures__/recording-sink';
+import { localMediaAssetFixture } from '@/lib/practice/__fixtures__/local-media-asset';
 import { releaseTransientReviewSession, createTransientReviewSession, type TransientReviewSession } from '@/lib/practice/review/transient-review-session';
 import type { ContinuousPracticeCompletion } from '@/lib/practice/continuous/completion';
 import { completedContinuousSessionFixture } from '@/lib/practice/__fixtures__/continuous-result';
@@ -353,7 +354,7 @@ describe('PracticeReviewPage', () => {
     saveMutationMock.mutateAsync.mockReset();
     videoExportMocks.exportVideo.mockReset();
     videoExportMocks.exportVideo.mockResolvedValue({
-      media: ownedMediaFixture(new Blob(['video-export'], { type: 'video/webm' })),
+      media: localMediaAssetFixture(new Blob(['video-export'], { type: 'video/webm' })),
       mimeType: 'video/webm',
       durationMs: 3000,
     });
@@ -482,7 +483,7 @@ describe('PracticeReviewPage', () => {
       }), recording: {
         status: 'READY',
         kind: 'AUDIO',
-        media: ownedMediaFixture(new Blob(['audio-bytes'], { type: 'audio/webm' })),
+        media: localMediaAssetFixture(new Blob(['audio-bytes'], { type: 'audio/webm' })),
         mimeType: 'audio/webm',
         durationMs: 9600,
         timebase: {
@@ -644,7 +645,7 @@ describe('PracticeReviewPage', () => {
       }), recording: {
         status: 'READY',
         kind: 'AUDIO',
-        media: ownedMediaFixture(new Blob(['audio-bytes'], { type: 'audio/webm' })),
+        media: localMediaAssetFixture(new Blob(['audio-bytes'], { type: 'audio/webm' })),
         mimeType: 'audio/webm',
         durationMs: 10000,
         timebase: {
@@ -697,7 +698,7 @@ describe('PracticeReviewPage', () => {
       },
       updatedAtMs: Date.parse('2026-09-20T12:00:00.000Z'),
     });
-    provideReview({ result, recording: {  status: 'READY', kind: 'AUDIO', media: ownedMediaFixture(new Blob(['audio'], { type: 'audio/webm' })),
+    provideReview({ result, recording: {  status: 'READY', kind: 'AUDIO', media: localMediaAssetFixture(new Blob(['audio'], { type: 'audio/webm' })),
       mimeType: 'audio/webm', durationMs: 3000, timebase: { activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }], nominalMediaDurationMs: 3000 } } });
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
     expect(screen.getByText('本次演奏的识别分析不可用，仍可回放录制。')).toBeDefined();
@@ -753,7 +754,7 @@ describe('PracticeReviewPage', () => {
       }), recording: {
         status: 'READY',
         kind: 'AUDIO',
-        media: ownedMediaFixture(new Blob(['audio'], { type: 'audio/webm' })),
+        media: localMediaAssetFixture(new Blob(['audio'], { type: 'audio/webm' })),
         mimeType: 'audio/webm',
         durationMs: 3000,
         timebase: {
@@ -811,7 +812,7 @@ describe('PracticeReviewPage', () => {
       }), recording: {
         status: 'READY',
         kind: 'VIDEO',
-        media: ownedMediaFixture(videoBlob),
+        media: localMediaAssetFixture(videoBlob),
         mimeType: 'video/webm',
         durationMs: 3000,
         timebase: {
@@ -896,7 +897,7 @@ describe('PracticeReviewPage', () => {
     const signal = videoExportMocks.exportVideo.mock.calls[0][0].signal as AbortSignal;
     expect(signal.aborted).toBe(true);
     await act(async () => {
-      if (outcome === 'success') resolve({ media: ownedMediaFixture(new Blob(['output'], { type: 'video/webm' })), mimeType: 'video/webm', durationMs: 100 });
+      if (outcome === 'success') resolve({ media: localMediaAssetFixture(new Blob(['output'], { type: 'video/webm' })), mimeType: 'video/webm', durationMs: 100 });
       else reject(outcome === 'abort' ? new DOMException('cancelled', 'AbortError') : new Error('encoder failed'));
     });
     await waitFor(() => expect(capture.exists()).toBe(false)); expect(capture.remove).toHaveBeenCalledOnce();
@@ -932,7 +933,7 @@ describe('PracticeReviewPage', () => {
     expect(signal.aborted).toBe(true);
 
     resolveExportRef[0]?.({
-      media: ownedMediaFixture(new Blob(['video-export'], { type: 'video/webm' })),
+      media: localMediaAssetFixture(new Blob(['video-export'], { type: 'video/webm' })),
       mimeType: 'video/webm',
       durationMs: 3000,
     });
@@ -1066,7 +1067,7 @@ function createVideoCompletion({
 }: {
   videoBlob?: Blob;
   mimeType?: string;
-  media?: import('@/lib/practice/recording/owned-media').OwnedMediaHandle;
+  media?: import('@/lib/practice/media/local-media-asset').LocalMediaAsset;
 } = {}): ContinuousPracticeCompletion {
   return {
     result: reviewResult({
@@ -1079,7 +1080,7 @@ function createVideoCompletion({
     }), recording: {
       status: 'READY',
       kind: 'VIDEO',
-      media: media ?? ownedMediaFixture(videoBlob),
+      media: media ?? localMediaAssetFixture(videoBlob),
       mimeType,
       durationMs: 3000,
       timebase: {

@@ -1,9 +1,9 @@
 // @vitest-environment node
 import { afterEach, expect, it, vi } from "vitest";
 import { apiClient } from "@/lib/api-client";
-import { downloadSavedTakeMedia } from "./saved-take-media";
-import { opfsStoreFixture } from "../__fixtures__/opfs-store";
-import type { OpfsMediaStoragePlatform } from "./opfs-owned-media-file";
+import { materializePerformanceTakeMedia } from "./materialize";
+import { opfsStoreFixture } from "../../__fixtures__/opfs-store";
+import type { OpfsMediaStoragePlatform } from "../opfs-media-file";
 vi.mock("@/lib/api-client", () => ({ apiClient: { getRaw: vi.fn() } }));
 afterEach(() => {
   vi.clearAllMocks();
@@ -48,7 +48,7 @@ it.each([true, false])(
         length ? undefined : { "content-type": "video/webm" },
       ),
     );
-    const media = await downloadSavedTakeMedia(
+    const media = await materializePerformanceTakeMedia(
       { ...options(), onProgress: progress },
       f.platform,
     );
@@ -87,7 +87,7 @@ it.each(["0", "-1", "NaN", "Infinity", "7", "6.5"])(
       }),
     );
     await expect(
-      downloadSavedTakeMedia(options(), f.platform),
+      materializePerformanceTakeMedia(options(), f.platform),
     ).rejects.toMatchObject({ reason: "media_size_mismatch" });
     expect(f.files.size).toBe(0);
     expect(f.held.size).toBe(0);
@@ -101,7 +101,7 @@ it.each([{ chunks: ["abc"] }, { chunks: ["abc", "def", "extra"] }])(
       response(chunks, { "content-type": "video/webm" }),
     );
     await expect(
-      downloadSavedTakeMedia(options(), f.platform),
+      materializePerformanceTakeMedia(options(), f.platform),
     ).rejects.toMatchObject({ reason: "media_size_mismatch" });
     expect(f.files.size).toBe(0);
     expect(f.held.size).toBe(0);
@@ -115,7 +115,7 @@ it.each(["audio/webm", "application/octet-stream", ""])(
       response(undefined, { "content-type": mime }),
     );
     await expect(
-      downloadSavedTakeMedia(options(), f.platform),
+      materializePerformanceTakeMedia(options(), f.platform),
     ).rejects.toMatchObject({ reason: "media_type_mismatch" });
     expect(f.files.size).toBe(0);
   },
@@ -125,18 +125,22 @@ it("supports MIME parameters while preserving durable MIME on the file-backed vi
   vi.mocked(apiClient.getRaw).mockResolvedValue(
     response(undefined, { "content-type": "video/webm; codecs=vp9" }),
   );
-  const media = await downloadSavedTakeMedia(options(), f.platform);
+  const media = await materializePerformanceTakeMedia(options(), f.platform);
   expect(media.blob.type).toBe("video/webm");
   await media.release();
 });
 it("requires a streaming response and OPFS, with no memory substitute", async () => {
   vi.mocked(apiClient.getRaw).mockResolvedValue(new Response(null));
-  await expect(downloadSavedTakeMedia(options())).rejects.toMatchObject({
+  await expect(
+    materializePerformanceTakeMedia(options()),
+  ).rejects.toMatchObject({
     reason: "stream_unavailable",
   });
   vi.mocked(apiClient.getRaw).mockResolvedValue(response());
   vi.stubGlobal("navigator", { storage: {} });
-  await expect(downloadSavedTakeMedia(options())).rejects.toMatchObject({
+  await expect(
+    materializePerformanceTakeMedia(options()),
+  ).rejects.toMatchObject({
     reason: "storage_unavailable",
   });
 });
@@ -160,7 +164,7 @@ it("aborts a pending reader, removes partial bytes and releases the file lock", 
       { headers: { "content-type": "video/webm" } },
     ),
   );
-  const pending = downloadSavedTakeMedia(
+  const pending = materializePerformanceTakeMedia(
     {
       ...options(),
       signal: abort.signal,
@@ -180,7 +184,7 @@ it("writer failure cancels source and removes partial storage", async () => {
   f.write.mockRejectedValueOnce(new Error("quota"));
   vi.mocked(apiClient.getRaw).mockResolvedValue(response());
   await expect(
-    downloadSavedTakeMedia(options(), f.platform),
+    materializePerformanceTakeMedia(options(), f.platform),
   ).rejects.toMatchObject({ reason: "download_failed" });
   expect(f.abort).toHaveBeenCalledOnce();
   expect(f.files.size).toBe(0);
@@ -189,9 +193,9 @@ it("writer failure cancels source and removes partial storage", async () => {
 it("reclaims only unlocked downloaded-media orphans, preserving another tab owner", async () => {
   const f = opfsStoreFixture();
   vi.mocked(apiClient.getRaw).mockImplementation(async () => response());
-  const live = await downloadSavedTakeMedia(options(), f.platform);
+  const live = await materializePerformanceTakeMedia(options(), f.platform);
   f.files.set("crashed", [new Blob(["partial"])]);
-  const next = await downloadSavedTakeMedia(options(), f.platform);
+  const next = await materializePerformanceTakeMedia(options(), f.platform);
   expect(f.files.has("crashed")).toBe(false);
   expect(f.files.size).toBe(2);
   await next.release();
@@ -263,7 +267,7 @@ it("accepts a large lazy logical stream with one bounded chunk and a counting fi
       },
     }),
   );
-  const media = await downloadSavedTakeMedia(
+  const media = await materializePerformanceTakeMedia(
     { ...options(), expectedByteSize: total },
     platform,
   );

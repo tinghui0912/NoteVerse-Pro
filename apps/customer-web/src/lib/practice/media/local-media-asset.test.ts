@@ -1,5 +1,8 @@
 import { expect, it, vi } from "vitest";
-import { createOwnedMedia, releaseOwnedMedia } from "./owned-media";
+import {
+  createLocalMediaAsset,
+  releaseLocalMediaAsset,
+} from "./local-media-asset";
 import { reportUnexpectedClientError } from "@/lib/observability";
 vi.mock("@/lib/observability", () => ({
   reportUnexpectedClientError: vi.fn(),
@@ -8,7 +11,7 @@ vi.mock("@/lib/observability", () => ({
 it("each handle owns its bytes and an independent idempotent reference", async () => {
   const blob = new Blob(["bytes"]),
     remove = vi.fn(async () => {});
-  const first = createOwnedMedia(blob, remove),
+  const first = createLocalMediaAsset(blob, remove),
     second = first.retain(),
     third = first.retain();
   expect(first.blob).toBe(blob);
@@ -28,9 +31,9 @@ it("reports failed last-owner retirement without retrying or permitting resurrec
   const remove = vi.fn(async () => {
     throw new Error("disk denied");
   });
-  const media = createOwnedMedia(new Blob(["raw"]), remove);
-  await releaseOwnedMedia(media);
-  await releaseOwnedMedia(media);
+  const media = createLocalMediaAsset(new Blob(["raw"]), remove);
+  await releaseLocalMediaAsset(media);
+  await releaseLocalMediaAsset(media);
   expect(remove).toHaveBeenCalledOnce();
   expect(reportUnexpectedClientError).toHaveBeenCalled();
   expect(() => media.retain()).toThrow("retired");

@@ -1,5 +1,5 @@
 'use client';
-import { releaseOwnedMedia, type OwnedMediaHandle } from '@/lib/practice/recording/owned-media';
+import { releaseLocalMediaAsset, type LocalMediaAsset } from '@/lib/practice/media/local-media-asset';
 
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -27,7 +27,7 @@ import {
 } from '@/lib/practice/video-export/export';
 import type { PracticeVerovioAdapter } from '@/lib/practice/score-view/verovio-adapter';
 import type { VideoExportSession } from '@/lib/practice/video-export/session';
-import { downloadOwnedMedia } from '@/lib/practice/recording/download-owned-media';
+import { downloadLocalMedia } from '@/lib/practice/media/download-local-media';
 
 const FLOATING_VIDEO_EXPORT_TEMPLATE_ENABLED = process.env.NODE_ENV !== 'production';
 
@@ -264,7 +264,7 @@ export function VideoExportStudio({
     }
 
     const sourceMediaLease = session.video.media.retain();
-    let outputMediaOwner: OwnedMediaHandle | null = null;
+    let outputMediaOwner: LocalMediaAsset | null = null;
     const abortController = new AbortController();
     splitExportAbortRef.current = abortController;
     try {
@@ -288,7 +288,7 @@ export function VideoExportStudio({
       });
       outputMediaOwner = result.media;
       abortController.signal.throwIfAborted();
-      await downloadOwnedMedia(
+      await downloadLocalMedia(
         outputMediaOwner,
         `performance-score-video-${Date.now()}.${extensionForMime(result.mimeType)}`,
       );
@@ -308,8 +308,8 @@ export function VideoExportStudio({
           : t('exportScoreVideoFailedDesc'),
       );
     } finally {
-      if (outputMediaOwner) await releaseOwnedMedia(outputMediaOwner);
-      await releaseOwnedMedia(sourceMediaLease);
+      if (outputMediaOwner) await releaseLocalMediaAsset(outputMediaOwner);
+      await releaseLocalMediaAsset(sourceMediaLease);
       splitExportAbortRef.current = null;
       onExportingChange?.(false);
     }

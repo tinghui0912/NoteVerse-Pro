@@ -1,8 +1,8 @@
-import { ownedMediaFixture } from '@/lib/practice/__fixtures__/recording-sink';
+import { localMediaAssetFixture } from '@/lib/practice/__fixtures__/local-media-asset';
 import { expect, it } from 'vitest';
 import { reviewReplay, reviewReplayScoreTick } from './review-replay';
 import type { PerformanceRecording } from '@/lib/practice/recording/recording-artifact';
-const recording: PerformanceRecording = {  status: 'READY', kind: 'AUDIO', media: ownedMediaFixture(new Blob(['audio'])), mimeType: 'audio/webm', durationMs: 1000,
+const recording: PerformanceRecording = {  status: 'READY', kind: 'AUDIO', media: localMediaAssetFixture(new Blob(['audio'])), mimeType: 'audio/webm', durationMs: 1000,
   timebase: { nominalMediaDurationMs: 1000, activeSegments: [{ perfStartMs: 0, perfEndMs: 1000, mediaStartMs: 0, mediaEndMs: 1000 }] } };
 it.each(['AUDIO', 'VIDEO'] as const)('builds a %s replay without cloning media or inventing a recording', kind => {
   const ready = { ...recording, kind } as PerformanceRecording;

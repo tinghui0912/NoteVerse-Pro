@@ -1,11 +1,11 @@
 import { assertRecordingTimebase, immutableRecordingTimebase, type RecordingTimebaseMapping } from './recording-timebase';
 import { isArchiveableCaptureMime, type CaptureMediaKind } from './media-policy';
-import type { OwnedMediaHandle } from './owned-media';
+import type { LocalMediaAsset } from '@/lib/practice/media/local-media-asset';
 
 export type PerformanceRecording =
   | Readonly<{ status: 'NOT_RECORDED' }>
   | Readonly<{ status: 'UNAVAILABLE'; reason: string }>
-  | Readonly<{ status: 'READY'; kind: CaptureMediaKind; media: OwnedMediaHandle; mimeType: string; durationMs: number; timebase: RecordingTimebaseMapping }>;
+  | Readonly<{ status: 'READY'; kind: CaptureMediaKind; media: LocalMediaAsset; mimeType: string; durationMs: number; timebase: RecordingTimebaseMapping }>;
 
 export function assertPerformanceRecording(recording: PerformanceRecording): void {
   if (recording.status === 'NOT_RECORDED' && Object.keys(recording).join() === 'status') return;

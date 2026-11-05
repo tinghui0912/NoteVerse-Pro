@@ -352,8 +352,9 @@ physical and pipeline incidents preserve their audio/video mute/ended meanings,
 strongest recoverability and the single canonical pause. ResourceBinding never interprets
 context, capture, analysis or recorder failures as physical root loss.
 
-Recording storage has a separate lifetime: an OPFS RecordingSink serializes raw
-MediaRecorder writes, and READY media carries one `OwnedMediaHandle`. Controller
+Shared `practice/media/` owns browser-local bytes, OPFS, Web Locks and download
+leases. Recording owns its RecordingSink port and OPFS adapter. The sink serializes
+raw MediaRecorder writes, and READY media carries one `LocalMediaAsset`. Controller
 retirement, Review handoff and asynchronous media consumers retain/release that owner
 without changing borrowed physical roots or the performance timebase. Storage write
 failure is a recording-only hard intervention, not acoustic failure or root loss.

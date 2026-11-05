@@ -1,8 +1,8 @@
 import { openVideoExportOutputMedia } from './output-media';
 import {
-  releaseOwnedMedia,
-  type OwnedMediaHandle,
-} from '@/lib/practice/recording/owned-media';
+  releaseLocalMediaAsset,
+  type LocalMediaAsset,
+} from '@/lib/practice/media/local-media-asset';
 import { resolveVideoExportPlaybackPosition } from './playback-position';
 import { renderVideoExportFrameAtTime } from './frame-renderer';
 import { getVideoExportLayout, type VideoExportConfig } from './templates';
@@ -45,7 +45,7 @@ type VideoExportProgress = {
 };
 
 export type VideoExportResult = Readonly<{
-  media: OwnedMediaHandle;
+  media: LocalMediaAsset;
   mimeType: string;
   durationMs: number;
 }>;
@@ -174,7 +174,7 @@ export async function exportVideo({
   let outputFile: Awaited<
     ReturnType<typeof openVideoExportOutputMedia>
   > | null = null;
-  let outputMedia: OwnedMediaHandle | null = null;
+  let outputMedia: LocalMediaAsset | null = null;
   let abortingOutput: Promise<void> | null = null;
   let detachAbort: (() => void) | null = null;
   let completedResult: VideoExportResult | null = null;
@@ -467,7 +467,7 @@ export async function exportVideo({
       recorder.onstop = null;
       recorder.onerror = null;
     }
-    if (outputMedia) await releaseOwnedMedia(outputMedia);
+    if (outputMedia) await releaseLocalMediaAsset(outputMedia);
     if (outputFile) await abortOutput();
   }
 }

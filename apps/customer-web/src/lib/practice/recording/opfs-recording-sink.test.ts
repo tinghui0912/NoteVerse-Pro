@@ -1,5 +1,6 @@
+import { RecordingFailure } from '@/lib/practice/failure/causal-failure';
 import { afterEach, expect, it, vi } from 'vitest';
-import { releaseOwnedMedia } from './owned-media';
+import { releaseLocalMediaAsset } from '@/lib/practice/media/local-media-asset';
 import { openOpfsRecordingSink } from './opfs-recording-sink';
 import { opfsStoreFixture } from '../__fixtures__/opfs-store';
 import { reportUnexpectedClientError } from '@/lib/observability';
@@ -56,7 +57,7 @@ it('reports sealed-media deletion failure without rejecting completed ownership 
   const f = opfsStoreFixture(), sink = await openOpfsRecordingSink(undefined, f.platform);
   await sink.append(new Blob(['raw'])); const media = await sink.seal('audio/webm');
   f.remove.mockRejectedValueOnce(new Error('delete denied'));
-  await expect(releaseOwnedMedia(media)).resolves.toBeUndefined();
+  await expect(releaseLocalMediaAsset(media)).resolves.toBeUndefined();
   expect(reportUnexpectedClientError).toHaveBeenCalled(); expect(f.files.size).toBe(1); expect(f.held.size).toBe(0);
   const next = await openOpfsRecordingSink(undefined, f.platform); await next.abort(); expect(f.files.size).toBe(0);
 });
@@ -103,4 +104,12 @@ it('retires an aborted seal without publishing an orphaned media reference', asy
   const sealing = sink.seal('audio/webm'); const rejected = expect(sealing).rejects.toThrow('abandoned');
   await Promise.resolve(); await Promise.resolve(); const retiring = sink.abort(); close();
   await rejected; await retiring; expect(f.files.size).toBe(0); expect(f.remove).toHaveBeenCalledOnce();
+});
+
+it('maps generic local-media opening failure to a RecordingFailure without changing its cause', async () => {
+  const f = opfsStoreFixture(), cause = new Error('OPFS writer unavailable');
+  f.directory.getFileHandle.mockImplementationOnce(async () => { throw cause; });
+  const failure = await openOpfsRecordingSink(undefined, f.platform).catch(error => error);
+  expect(failure).toBeInstanceOf(RecordingFailure); expect(failure.code).toBe('RECORDING_STORAGE_UNAVAILABLE');
+  expect(failure.cause.cause).toBe(cause); expect(f.held.size).toBe(0);
 });

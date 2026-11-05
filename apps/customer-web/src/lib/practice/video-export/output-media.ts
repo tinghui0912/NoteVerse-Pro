@@ -1,16 +1,16 @@
 import {
-  openOpfsOwnedMediaFile,
+  openOpfsMediaFile,
   type OpfsMediaStoragePlatform,
-  type OpfsOwnedMediaFile,
-} from "@/lib/practice/recording/opfs-owned-media-file";
+  type OpfsMediaFile,
+} from "@/lib/practice/media/opfs-media-file";
 
 /** Temporary browser-generated derivatives have their own byte-storage lifetime. */
 export async function openVideoExportOutputMedia(
   signal?: AbortSignal,
   platform?: OpfsMediaStoragePlatform,
-): Promise<OpfsOwnedMediaFile> {
+): Promise<OpfsMediaFile> {
   try {
-    return await openOpfsOwnedMediaFile(
+    return await openOpfsMediaFile(
       "noteverse-video-export-output",
       signal,
       platform,
