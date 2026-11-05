@@ -109,6 +109,15 @@ a live actor. Device acquisition and mode-specific progression remain outside th
 
 STEP and Continuous controllers retain their distinct domain and pipeline owners.
 They consume admitted plans, browser roots and the read-only root-health port.
+ContinuousPracticeController hosts effects for a pure Continuous control machine.
+ContinuousControlState owns its lifecycle, analysis coordination, resource incidents
+and shared pause ownership. All browser callbacks and operation-scoped asynchronous
+results enter its event mailbox; clock mutations, finalization and cleanup execute
+only as machine effects. Synchronous callbacks wait until the current clock
+transaction returns. PerformanceClock, evaluation and recording keep their own
+authorities. Snapshot reads are passive; refresh explicitly catches up semantic time.
+Natural terminal latching owns finalization, and COMPLETE is published only after
+atomic completion materialization and complete resource release.
 Pure runtime components consume resolved projections without full score traversal.
 `session/session.ts` defines the common `PracticeSession` snapshot contract:
 localSessionId, the executed plan, createdAtMs, updatedAtMs and completionReason.

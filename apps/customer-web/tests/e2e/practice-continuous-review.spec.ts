@@ -1220,6 +1220,38 @@ test('runtime AUDIO interruption pauses until explicit no-recording continuation
   await expect(page.getByText('本次录音不可用', { exact: true }).first()).toBeVisible();
 });
 
+test('Continuous analysis degradation preserves recording and completes Review without reacquiring inference', async ({ page }) => {
+  await installAcousticCaptureFixture(page);
+  await setupContinuousPracticeMocks(page);
+  await openPreparedPractice(page, scoreId, revisionId);
+  await configurePractice(page, 'CONTINUOUS', 'MICROPHONE', 'AUDIO');
+  await page.getByRole('button', { name: '开始', exact: true }).click();
+  const status = page.getByTestId('practice-status');
+  await expect(status).toContainText('预备拍');
+  await expect(status).toHaveText('');
+  await expect(page.getByTestId('recording-indicator')).toBeVisible();
+  const sessions = await page.evaluate(() => {
+    const engine = (window as unknown as { __practiceAcousticEngineFixture: { sessions: number; fail(): void } }).__practiceAcousticEngineFixture;
+    engine.fail(); return engine.sessions;
+  });
+  const dialog = page.getByRole('alertdialog', { name: '音符分析已停止' });
+  await expect(dialog).toBeVisible();
+  const cursor = page.locator('[data-practice-playhead-cursor]');
+  const position = await cursor.getAttribute('x');
+  await expect(cursor).toHaveAttribute('x', position!);
+  await dialog.getByRole('button', { name: '在没有分析的情况下继续', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(status).toContainText('预备拍');
+  await expect(page.getByRole('button', { name: '查看报告', exact: true })).toBeVisible({ timeout: 15000 });
+  expect(await page.evaluate(() => (window as unknown as { __practiceAcousticEngineFixture: { sessions: number } }).__practiceAcousticEngineFixture.sessions)).toBe(sessions);
+  await page.getByRole('button', { name: '查看报告', exact: true }).click();
+  await page.waitForURL(`**/score/${scoreId}/practice/review`);
+  await expect(page.getByRole('heading', { name: '临时演奏报告' })).toBeVisible();
+  await expect(page.getByText('未能完成可靠的练习评估。', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '回放', exact: true })).toBeVisible();
+  await expect(page.getByText('本次录音不可用', { exact: true })).toHaveCount(0);
+});
+
 test('hard VIDEO interruption offers no Restart and End discards the live paused attempt', async ({ page }) => {
   await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
   await observeNativeRecorders(page); await openCameraSetup(page, 'MIDI', 'READY');

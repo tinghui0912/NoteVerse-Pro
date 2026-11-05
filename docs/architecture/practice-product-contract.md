@@ -341,9 +341,33 @@ and [raw-work audit](practice-step-pitch-evidence-bounds.md).
 
 ## CONTINUOUS_PLAY
 
-`ContinuousPracticeController` owns the Continuous application lifecycle. It creates
-one `ContinuousPracticeSession` and composes input, metronome, optional recorder and
-one completion transaction. React subscribes to snapshots and sends commands.
+`ContinuousPracticeController` is the browser effect host. Its pure
+`ContinuousControlState` machine is the sole controller-level lifecycle and
+intervention authority. Commands, browser callbacks and asynchronous outcomes enter
+one event mailbox. Each transition publishes accepted state and runs explicit
+effects; callbacks raised inside an AudioContext clock transaction wait in that
+mailbox until the transaction returns.
+
+PerformanceClock, ContinuousPracticeSession, analysis input and PerformanceRecorder
+remain independent owners. The machine consumes their immutable observations and
+coordinates preparation, transport, analysis release, recording retirement and
+cleanup. Browser handles and memoized operations carry resources, not lifecycle
+truth. Snapshot reads project accepted state and non-advancing leaf observations;
+only explicit refresh or a formal domain transition advances semantic deadlines.
+
+Analysis and resource incidents remain separate facts with one shared pause owner:
+NONE, USER or INTERVENTION. Clearing an incident cannot resume while another blocker
+remains. User-owned pauses require an explicit Resume. Analysis degradation during
+active execution permanently disables inference only after explicit learner choice;
+during natural finalization it makes evaluation unavailable without opening a dialog.
+Recording and evaluation availability remain independent.
+
+A formal SCOPE_COMPLETED observation enters one FINALIZING workflow and wins later
+End commands. End before that latch abandons without advancing time. Finalization
+freezes recording, drains enabled analysis, finalizes media and materializes the
+atomic completion, then awaits attempt-resource cleanup before publishing COMPLETE.
+Operation-scoped outcomes cannot revive an abandoned, failed or disposed attempt.
+React subscribes to snapshots and sends commands.
 
 `PerformanceClockRuntime` derives performance time, musical beat and playhead from
 the artifact, resolved scope, fixed tempo, Start and pause/resume transitions.

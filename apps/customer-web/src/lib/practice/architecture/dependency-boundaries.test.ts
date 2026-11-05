@@ -76,6 +76,17 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
   if (edge.target === normalize(path.join(sourceRoot, 'lib/observability/index.ts'))) {
     return ['recording/opfs-recording-sink.ts', 'recording/recording-media-resource.ts'].includes(source);
   }
+  if (target?.startsWith('continuous/') && target.endsWith('-control-machine.ts')) {
+    return source.startsWith('continuous/') && source.endsWith('-controller.ts');
+  }
+  if (source.startsWith('continuous/') && source.endsWith('-control-machine.ts')) {
+    if (!edge.typeOnly || !target || !['continuous/', 'planning/', 'score/', 'session/', 'recording/'].some(owner => target.startsWith(owner))) return false;
+    if (/controller|platform|audio-context|microphone-input|midi-input|performance-recorder/.test(target)) return false;
+    // Pure coordinators consume fact declarations, never resource/controller instances.
+    const declarations = ts.createSourceFile(edge.target!, readFileSync(edge.target!, 'utf8'), ts.ScriptTarget.Latest, true).statements;
+    return edge.bindings.length > 0 && edge.bindings.every(name => declarations.some(node =>
+      (ts.isTypeAliasDeclaration(node) || ts.isInterfaceDeclaration(node)) && node.name.text === name));
+  }
   if (source === 'application/execution-machine.ts') return Boolean(edge.typeOnly && target &&
     (target.startsWith('planning/') || target === 'application/execution-observation.ts'));
   if (source === 'application/execution-observation.ts') return edge.typeOnly && Boolean(target &&
@@ -197,11 +208,12 @@ describe('Practice bounded domain dependencies', () => {
   it('keeps score, session and mode domains pure and independent', () => {
     for (const file of files) {
       const owner = domain(relative(file));
-      if (!owner && !relative(file).startsWith('result/') && !relative(file).startsWith('planning/')) continue;
+      if (!owner && !relative(file).startsWith('result/') && !relative(file).startsWith('planning/') && !relative(file).endsWith('-control-machine.ts')) continue;
       const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
       const browserGlobals = new Set(['window', 'document', 'navigator', 'React', 'HTMLElement', 'HTMLMediaElement',
         'Blob', 'MediaStream', 'MediaRecorder', 'AudioContext', 'Worker', 'MIDIAccess', 'MIDIInput', 'fetch', 'WebSocket',
         'EventSource', 'localStorage', 'sessionStorage', 'setTimeout', 'setInterval', 'requestAnimationFrame']);
+      if (relative(file).endsWith('-control-machine.ts')) browserGlobals.add('Promise');
       const visit = (node: ts.Node) => {
         if (ts.isIdentifier(node)) expect(browserGlobals.has(node.text), `${relative(file)}: ${node.text}`).toBe(false);
         ts.forEachChild(node, visit);
@@ -260,7 +272,7 @@ describe('Practice bounded domain dependencies', () => {
     for (const owner of ['step/step-practice-controller.ts', 'continuous/continuous-practice-controller.ts']) {
       const text = readFileSync(path.join(practiceRoot, owner), 'utf8');
       expect(text).toContain('rootHealth: PracticeRootHealthPort'); expect(text).toContain('this.options.rootHealth.subscribe');
-      expect(text).toContain('this.rootHealthChanged(this.options.rootHealth.snapshot())');
+      expect(text).toContain('this.options.rootHealth.snapshot()');
       expect(events(owner)).toEqual([]);
     }
     expect(events('midi/browser-midi-controller.ts')).toEqual([{ target: 'input', event: "'midimessage'" }]);

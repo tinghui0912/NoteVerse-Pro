@@ -129,7 +129,7 @@ describe('Continuous application owner', () => {
     const recorder = new PerformanceRecorder('AUDIO', capture.open);
     f.platform.createRecorder = () => recorder;
     const controller = f.create('MIDI', 0, 'AUDIO'); await controller.start();
-    if (reason === 'completion-construction-failure') Reflect.set(controller, 'evidenceProvenance', null);
+    if (reason === 'completion-construction-failure') Reflect.set(Reflect.get(controller, 'runtime'), 'evidenceProvenance', null);
     if (reason === 'cleanup-failure') {
       const cleanup = recorder.stopAndCleanup.bind(recorder);
       vi.spyOn(recorder, 'stopAndCleanup').mockImplementationOnce(async () => { await cleanup(); throw new Error('storage cleanup failed'); });
@@ -212,13 +212,13 @@ describe('Continuous application owner', () => {
     try {
       await controller.start(); expect(listen.mock.calls.map(([event]) => event)).toEqual(['mute', 'unmute', 'ended']);
       microphone.audio.muted = true; microphone.audio.dispatchEvent(new Event('mute'));
-      expect(Reflect.get(controller, 'recorder').runtimeFault()).toMatchObject({ reason: 'AUDIO_TRACK_MUTED', recoverability: 'SAME_PIPELINE_RECOVERABLE' });
+      expect(Reflect.get(Reflect.get(controller, 'runtime'), 'recorder').runtimeFault()).toMatchObject({ reason: 'AUDIO_TRACK_MUTED', recoverability: 'SAME_PIPELINE_RECOVERABLE' });
       microphone.audio.muted = false; microphone.audio.dispatchEvent(new Event('unmute'));
       expect(controller.snapshot().resourceIntervention?.state).toBe('RECOVERED_WAITING_FOR_USER');
       expect(controller.continueAfterRecovery()).toBe(true);
       // The video physical track is distinct from the unused audio track on the camera fixture.
       const video = camera.media.getVideoTracks()[0]; Object.assign(video, { muted: true }); video.dispatchEvent(new Event('mute'));
-      expect(Reflect.get(controller, 'recorder').runtimeFault()?.reason).toBe('VIDEO_TRACK_MUTED');
+      expect(Reflect.get(Reflect.get(controller, 'runtime'), 'recorder').runtimeFault()?.reason).toBe('VIDEO_TRACK_MUTED');
       expect(f.platform.acquireInference).not.toHaveBeenCalled();
     } finally { await controller.dispose(); lease.close(); }
   });
@@ -256,11 +256,11 @@ describe('Continuous application owner', () => {
       await controller.start();
       f.clock.set(50); controller.refresh();
       expect(controller.snapshot().session).toBe('ACTIVE');
-      const session: ContinuousPracticeSession = Reflect.get(controller, 'session');
+      const session: ContinuousPracticeSession = Reflect.get(Reflect.get(controller, 'runtime'), 'session');
       const before = session.snapshotSession(), transport = controller.snapshot().transport;
       controller.setMetronomeEnabled(true);
       const after = session.snapshotSession();
-      expect(Reflect.get(controller, 'session')).toBe(session);
+      expect(Reflect.get(Reflect.get(controller, 'runtime'), 'session')).toBe(session);
       expect(after.localSessionId).toBe(before.localSessionId);
       expect(after.plan.scope).toBe(before.plan.scope); expect(after.plan.tempoPlan).toBe(before.plan.tempoPlan);
       expect(after.performance.metronomeEnabled).toBe(true);
@@ -907,7 +907,7 @@ for (const transport of ['COUNT_IN', 'RUNNING', 'PAUSED'] as const) {
     const mediaRecorder = Reflect.get(recorder, 'recorder') as Recorder | null;
     const lateData = mediaRecorder?.ondataavailable;
     mediaRecorder?.requestData();
-    const completedEvaluation = vi.spyOn(Reflect.get(controller, 'session'), 'completedEvaluation');
+    const completedEvaluation = vi.spyOn(Reflect.get(Reflect.get(controller, 'runtime'), 'session'), 'completedEvaluation');
     await controller.abandon(); await controller.abandon();
     f.clock.set(10000); controller.refresh(); await f.feed(200);
     expect(controller.snapshot()).toMatchObject({ session: 'ABANDONED', transport: null,
@@ -938,7 +938,7 @@ it('End before the scope latch wins even when the clock has passed the terminal 
 it('the formally latched natural completion wins a later End and publishes exactly once', async () => {
   const f = environment(), callback = vi.fn(), controller = f.create('MIDI', 0, 'OFF', callback);
   await controller.start(); f.clock.set(1300);
-  Reflect.get(controller, 'session').advanceToNow(); // Explicit domain latch, before application refresh.
+  Reflect.get(Reflect.get(controller, 'runtime'), 'session').advanceToNow(); // Explicit domain latch, before application refresh.
   await controller.abandon(); await controller.abandon(); controller.refresh();
   expect(controller.snapshot().session).toBe('COMPLETE');
   expect(controller.snapshot().completed?.result).toBeDefined();
@@ -968,15 +968,15 @@ it.each(['MIDI', 'MICROPHONE'] as const)('VIDEO %s Start after abandonment creat
   const firstOwner = first.create(source, 0, 'VIDEO', vi.fn(), camera.media);
   await firstOwner.start();
   expect(firstOwner.snapshot().recording?.state).toBe('RECORDING');
-  const oldId = Reflect.get(firstOwner, 'session').snapshotSession().localSessionId;
-  const oldRecorder = Reflect.get(firstOwner, 'recorder') as PerformanceRecorder;
+  const oldId = Reflect.get(Reflect.get(firstOwner, 'runtime'), 'session').snapshotSession().localSessionId;
+  const oldRecorder = Reflect.get(Reflect.get(firstOwner, 'runtime'), 'recorder') as PerformanceRecorder;
   const oldTracks = (Reflect.get(oldRecorder, 'ownedStream') as MediaStream).getTracks();
   await firstOwner.abandon();
   const next = environment(), fresh = next.create(source, 0, 'VIDEO', vi.fn(), camera.media);
   await fresh.start();
   expect(fresh.snapshot().recording?.state).toBe('RECORDING');
-  expect(Reflect.get(fresh, 'session').snapshotSession().localSessionId).not.toBe(oldId);
-  expect(Reflect.get(fresh, 'recorder')).not.toBe(oldRecorder);
+  expect(Reflect.get(Reflect.get(fresh, 'runtime'), 'session').snapshotSession().localSessionId).not.toBe(oldId);
+  expect(Reflect.get(Reflect.get(fresh, 'runtime'), 'recorder')).not.toBe(oldRecorder);
   for (const track of oldTracks) expect(track.readyState).toBe('ended');
   for (const track of camera.media.getTracks()) expect(track.readyState).toBe('live');
   await fresh.abandon(); await firstOwner.dispose(); await fresh.dispose();
@@ -997,7 +997,7 @@ it('one qualified environment serves fresh attempts with unique clocks, ledgers,
   for (const natural of [false, false, true, true]) {
     const f = environment(48000, sharedRoot); f.platform.acquireInference = async signal => { const lease = await workspace.acquireInference(signal); leases.add(lease); return lease; };
     const owner = f.create('MICROPHONE', 0, 'AUDIO'); await owner.start();
-    ids.add(owner.engineeringSnapshot().sessionId!); sessions.add(Reflect.get(owner, 'session')); recorders.add(Reflect.get(owner, 'recorder')); contexts.add(f.context);
+    ids.add(owner.engineeringSnapshot().sessionId!); sessions.add(Reflect.get(Reflect.get(owner, 'runtime'), 'session')); recorders.add(Reflect.get(Reflect.get(owner, 'runtime'), 'recorder')); contexts.add(f.context);
     const phases = owner.engineeringSnapshot().startup;
     for (const phase of ['acquireInferenceLease', 'audioContextResume', 'firLoad', 'captureConnect', 'acousticPreroll', 'recorderAdmission']) {
       expect(phases).toContainEqual(expect.objectContaining({ phase, outcome: 'SUCCEEDED', durationMs: expect.any(Number) }));
@@ -1022,18 +1022,18 @@ it('one qualified environment serves fresh attempts with unique clocks, ledgers,
 it('resume countdown freezes recording/evaluation, rejects countdown MIDI, and resumes one existing recorder at T', async () => {
   const f = environment(), owner = f.create('MIDI', 0, 'AUDIO'); await owner.start();
   f.clock.set(300); owner.refresh(); owner.pause();
-  const paused = owner.snapshot(), ledger = paused.evaluation, recorder = Reflect.get(owner, 'recorder');
+  const paused = owner.snapshot(), ledger = paused.evaluation, recorder = Reflect.get(Reflect.get(owner, 'runtime'), 'recorder');
   expect(paused.recording?.elapsedMs).toBe(300); owner.resume();
   const resume = owner.snapshot().transport!;
   expect(resume).toMatchObject({ state: 'COUNT_IN', countInKind: 'RESUME', performanceTimeMs: 300 });
   f.clock.advance(resume.countInRemainingMs - 1); owner.refresh();
-  f.midiOptions().onAttack!({ sessionTime: Reflect.get(owner, 'session').timebase.runtimeToSessionTime(f.clock.nowMs()), noteNumber: 60, confidence: 1 });
+  f.midiOptions().onAttack!({ sessionTime: Reflect.get(Reflect.get(owner, 'runtime'), 'session').timebase.runtimeToSessionTime(f.clock.nowMs()), noteNumber: 60, confidence: 1 });
   expect(owner.snapshot().transport?.performanceTimeMs).toBe(300);
   expect(owner.snapshot().evaluation).toEqual(ledger); expect(owner.snapshot().recording).toMatchObject({ state: 'PAUSED', elapsedMs: 300, indicatorVisible: true });
   f.clock.advance(1); owner.refresh();
   expect(owner.snapshot().transport).toMatchObject({ state: 'RUNNING', performanceTimeMs: 300 });
-  expect(Reflect.get(owner, 'recorder')).toBe(recorder); expect(owner.snapshot().recording?.state).toBe('RECORDING');
-  f.midiOptions().onAttack!({ sessionTime: Reflect.get(owner, 'session').timebase.runtimeToSessionTime(f.clock.nowMs()), noteNumber: 60, confidence: 1 });
+  expect(Reflect.get(Reflect.get(owner, 'runtime'), 'recorder')).toBe(recorder); expect(owner.snapshot().recording?.state).toBe('RECORDING');
+  f.midiOptions().onAttack!({ sessionTime: Reflect.get(Reflect.get(owner, 'runtime'), 'session').timebase.runtimeToSessionTime(f.clock.nowMs()), noteNumber: 60, confidence: 1 });
   f.clock.advance(901); owner.refresh(); await owner.abandon();
   const completion = owner.snapshot().completed!; expect(completion.result.evaluation.status).toBe('COMPLETE');
   if (completion.result.evaluation.status !== 'COMPLETE' || completion.recording.status !== 'READY') throw new Error('Expected complete result and recording');
@@ -1049,7 +1049,7 @@ it('microphone resume-countdown PCM cannot advance evidence and repeated Pause c
   expect(owner.snapshot()).toMatchObject({ transport: { state: 'PAUSED', performanceTimeMs: T }, resourceIntervention: null, analysisError: null });
   await f.feed(100); owner.resume(); await f.feed(resume.countInTotalMs - 100);
   expect(owner.snapshot().transport).toMatchObject({ state: 'COUNT_IN', countInKind: 'RESUME', performanceTimeMs: T });
-  expect(Reflect.get(owner, 'session').evaluationSnapshot.assignment.analyzedThroughPerformanceMs).toBeLessThanOrEqual(T);
+  expect(Reflect.get(Reflect.get(owner, 'runtime'), 'session').evaluationSnapshot.assignment.analyzedThroughPerformanceMs).toBeLessThanOrEqual(T);
   await f.feed(200); expect(owner.snapshot().transport!.performanceTimeMs).toBeGreaterThan(T);
   expect(owner.snapshot().resourceIntervention).toBeNull(); await owner.abandon(); await owner.dispose();
 });
@@ -1239,13 +1239,14 @@ it('synchronous AudioContext health during resume pauses once after clock releas
   } finally { await controller.abandon(); await controller.dispose(); canonicalPause.mockRestore(); recorderPause.mockRestore(); }
 });
 
-for (const incident of ['input', 'analysis'] as const) for (const first of ['input', 'recording'] as const) {
+for (const incident of ['input', 'analysis', 'context'] as const) for (const first of ['input', 'recording'] as const) {
   it(`synchronous ${incident}+recording incidents (${first} first) drain one canonical pause after resume`, async () => {
     const f = environment(), callback = vi.fn(), controller = f.create('MICROPHONE', 0, 'AUDIO', callback);
     await controller.start(); await f.feed(100); controller.pause();
     const canonicalPause = vi.spyOn(ContinuousPracticeSession.prototype, 'pause'), recorderPause = vi.spyOn(PerformanceRecorder.prototype, 'pause');
     const metronomePauses = f.meter.pause.mock.calls.length;
     const input = () => { if (incident === 'analysis') f.failure();
+      else if (incident === 'context') { f.context.state = 'suspended'; f.context.dispatchEvent(new Event('statechange')); }
       else { f.root.audio.muted = true; f.root.audio.dispatchEvent(new Event('mute')); f.health.set('inputMicrophone', 'INTERRUPTED'); } };
     const recording = () => { const clone = f.root.copies[1]; clone.audio.muted = true; clone.audio.dispatchEvent(new Event('mute')); };
     f.meter.resume.mockImplementationOnce(() => { if (first === 'input') { input(); recording(); } else { recording(); input(); }
@@ -1253,7 +1254,8 @@ for (const incident of ['input', 'analysis'] as const) for (const first of ['inp
     try {
       expect(() => controller.resume()).not.toThrow();
       expect(controller.snapshot()).toMatchObject({ session: 'ACTIVE', transport: { state: 'PAUSED' }, completed: null,
-        resourceIntervention: { impact: incident === 'input' ? 'INPUT_AND_RECORDING' : 'RECORDING_ONLY', pauseOrigin: 'INTERVENTION' } });
+        resourceIntervention: { impact: incident === 'analysis' ? 'RECORDING_ONLY' : 'INPUT_AND_RECORDING', pauseOrigin: 'INTERVENTION',
+          reason: incident === 'analysis' ? 'AUDIO_TRACK_MUTED' : incident === 'context' ? 'AUDIO_CONTEXT_INTERRUPTED' : 'MICROPHONE_SOURCE_LOST' } });
       expect(controller.snapshot().analysisIntervention).toEqual(incident === 'analysis' ? { pauseOrigin: 'INTERVENTION' } : null);
       expect(canonicalPause).toHaveBeenCalledOnce(); expect(recorderPause).toHaveBeenCalledOnce();
       expect(f.meter.pause).toHaveBeenCalledTimes(metronomePauses + 1);
