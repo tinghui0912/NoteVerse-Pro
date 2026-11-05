@@ -138,6 +138,155 @@ class StubAudioEngine implements ScorePreviewAudioEngine {
   }
 }
 
+class ReloadAdapter extends StubAdapter {
+  currentXml = '';
+  failure: string | null = null;
+
+  override async loadMusicXml(xml = '') {
+    this.currentXml = xml;
+    if (this.failure === 'renderer') throw new Error('renderer load failed');
+  }
+
+  override renderMidi() {
+    if (this.failure !== 'midi') return super.renderMidi();
+    const midi = new Midi(
+      Uint8Array.from(atob(encodeMidi()), (c) => c.charCodeAt(0))
+    );
+    midi.tracks[0].addCC({ number: 64, ticks: 0, value: 1 });
+    return btoa(String.fromCharCode(...midi.toArray()));
+  }
+
+  override renderAllPages() {
+    if (this.failure === 'svg') throw new Error('SVG rendering failed');
+    return super.renderAllPages();
+  }
+
+  override dispose() {
+    this.currentXml = '';
+    super.dispose();
+  }
+}
+
+describe('Score Preview reload failure', () => {
+  it.each(['resolve', 'reject'])(
+    'does not clear a newer score after a superseded request later %ss',
+    async (outcome) => {
+      const adapter = new ReloadAdapter();
+      const audio = new StubAudioEngine();
+      const container = document.createElement('div');
+      const controller = new VerovioScorePreviewController({
+        container,
+        adapter,
+        audioEngine: audio,
+      });
+      let resolve!: (dto: ReturnType<typeof linearPlan>) => void;
+      let reject!: (error: Error) => void;
+      vi.mocked(apiClient.post).mockImplementationOnce(
+        () =>
+          new Promise((done, fail) => {
+            resolve = done;
+            reject = fail;
+          })
+      );
+      const stale = controller.loadScore('<stale-request/>');
+      const failed = expect(stale).rejects.toThrow();
+      vi.mocked(apiClient.post).mockResolvedValueOnce({
+        ...linearPlan(3, 120),
+        musicxml: '<newer-admitted/>',
+      });
+      await controller.loadScore('<newer-request/>');
+      if (outcome === 'resolve')
+        resolve({ ...linearPlan(3, 120), musicxml: '<stale-admitted/>' });
+      else reject(new Error('late failure'));
+      await failed;
+      expect(adapter.currentXml).toBe('<newer-admitted/>');
+      expect(container.querySelector('[data-score-page]')).not.toBeNull();
+      expect(controller.getPlaybackSnapshot().state).toBe('STOPPED');
+      controller.dispose();
+    }
+  );
+  it.each([
+    'performance-plan',
+    'renderer',
+    'midi',
+    'instrument',
+    'audio',
+    'svg',
+    'empty',
+  ])(
+    'clears DOM, renderer, audio and timeline after %s failure',
+    async (phase) => {
+      vi.useFakeTimers();
+      const adapter = new ReloadAdapter();
+      const audio = new StubAudioEngine();
+      const container = document.createElement('div');
+      Object.defineProperty(container, 'clientWidth', { value: 1000 });
+      const controller = new VerovioScorePreviewController({
+        container,
+        adapter,
+        audioEngine: audio,
+      });
+      try {
+        await controller.loadScore('<old-request/>');
+        controller.syncCursorToStep(1);
+        await controller.play();
+        expect(container.querySelector('[data-score-page]')).not.toBeNull();
+        expect(vi.getTimerCount()).toBeGreaterThan(0);
+        if (phase === 'performance-plan')
+          vi.mocked(apiClient.post).mockRejectedValueOnce(
+            new Error('plan failed')
+          );
+        else
+          vi.mocked(apiClient.post).mockResolvedValueOnce({
+            ...linearPlan(3, 120),
+            musicxml: '<new-admitted/>',
+          });
+        adapter.failure = phase;
+        if (phase === 'audio' || phase === 'instrument')
+          vi.spyOn(audio, 'prepare').mockRejectedValueOnce(
+            new Error(
+              phase === 'instrument'
+                ? 'unsupported_score_preview_instrument: violin'
+                : 'audio preparation failed'
+            )
+          );
+        await expect(
+          controller.loadScore(phase === 'empty' ? '' : '<new-request/>')
+        ).rejects.toThrow();
+        expect(container.childElementCount).toBe(0);
+        expect(adapter.currentXml).toBe('');
+        expect(controller.getPlaybackSnapshot()).toMatchObject({
+          state: 'IDLE',
+          duration: 0,
+          totalSteps: 0,
+          currentTime: 0,
+        });
+        expect(vi.getTimerCount()).toBe(0);
+        await expect(controller.play()).rejects.toThrow('not ready');
+        await controller.fitToContainer();
+        controller.resetCursor();
+        controller.syncCursorToStep(0);
+        expect(container.childElementCount).toBe(0);
+        adapter.failure = null;
+        vi.mocked(apiClient.post)
+          .mockReset()
+          .mockResolvedValue({
+            ...linearPlan(3, 120),
+            musicxml: '<fresh-admitted/>',
+          });
+        await controller.loadScore('<fresh-request/>');
+        expect(adapter.currentXml).toBe('<fresh-admitted/>');
+        expect(container.querySelector('[data-score-page]')).not.toBeNull();
+        expect(controller.getPlaybackSnapshot().state).toBe('STOPPED');
+      } finally {
+        controller.dispose();
+        await Promise.resolve();
+        vi.useRealTimers();
+      }
+    }
+  );
+});
+
 describe('Verovio playback timeline', () => {
   it('extracts MIDI notes and visual events from a real MusicXML fixture through Verovio WASM', async () => {
     const xml = readFileSync(
@@ -368,7 +517,7 @@ describe('ScorePreviewPlaybackController', () => {
       await controller.playFromStep(1);
       await vi.advanceTimersByTimeAsync(600);
 
-      expect(states).toEqual(['PLAYING', 'STOPPED']);
+      expect(states).toEqual(['IDLE', 'PLAYING', 'STOPPED']);
       expect(iterations).toContainEqual(['note-2']);
       expect(iterations.at(-1)).toEqual([]);
       expect(controller.getPlaybackSnapshot()).toMatchObject({

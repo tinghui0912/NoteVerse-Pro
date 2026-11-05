@@ -1,6 +1,7 @@
 import { Midi } from '@tonejs/midi';
 import { parseMidi } from 'midi-file';
 import { Rational, safeInteger, ZERO } from './rational';
+import { validateWrittenMidiCapability } from './written-midi-capability';
 
 export type WrittenPlaybackNote = Readonly<{
   identity: string;
@@ -64,34 +65,15 @@ export function readWrittenRealization(
   const bytes = Uint8Array.from(atob(midiBase64), (character) =>
     character.charCodeAt(0)
   );
-  // This is a layout capability check, not a channel-state interpreter. Per-note
-  // instruments cannot express program state that changes across navigation.
-  for (const track of parseMidi(bytes).tracks) {
-    let ticks = 0;
-    const originPrograms = new Map<number, number>();
-    for (const event of track) {
-      ticks = safeInteger(ticks + safeInteger(event.deltaTime));
-      if (event.type !== 'programChange') continue;
-      const previous = originPrograms.get(event.channel);
-      if (
-        ticks !== 0 ||
-        (previous !== undefined && previous !== event.programNumber)
-      ) {
-        throw new Error('Unsupported written MIDI instrument change.');
-      }
-      originPrograms.set(event.channel, event.programNumber);
-    }
-  }
+  validateWrittenMidiCapability(parseMidi(bytes));
   const midi = new Midi(bytes);
   const ppq = safeInteger(midi.header.ppq, 1);
   const notes: WrittenPlaybackNote[] = midi.tracks.flatMap(
     (track, trackIndex) => {
-      const instrument = track.instrument.name
-        .trim()
-        .toLowerCase()
-        .replaceAll(' ', '_');
-      if (!instrument)
-        throw new Error('Missing written MIDI instrument identity.');
+      const name = track.instrument.name;
+      if (typeof name !== 'string' || !name.trim())
+        throw new Error('unsupported_score_preview_instrument_identity');
+      const instrument = name.trim().toLowerCase().replaceAll(' ', '_');
       return track.notes.map((note, noteIndex) => {
         const start = Rational.ticks(note.ticks, ppq);
         const duration = Rational.ticks(

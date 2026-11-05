@@ -47,42 +47,55 @@ export class ScorePreviewPlaybackController implements ScorePlaybackController {
 
   async loadScore(xml: string) {
     this.assertActive();
-    this.loadAbort?.abort();
+    this.clearScore();
     const request = new AbortController();
     this.loadAbort = request;
+    try {
+      const plan = await compilePerformancePlan(xml, request.signal);
+      request.signal.throwIfAborted();
+      await this.adapter.loadMusicXml(plan.musicxml, {
+        toolkitOptions: { expandNever: true },
+      });
+      request.signal.throwIfAborted();
+      const timeline = createScorePerformanceTimeline(
+        plan,
+        this.adapter.renderMidi(),
+        this.adapter.renderTimemap()
+      );
+      if (timeline.notes.length && !timeline.visualEvents.length) {
+        throw new Error('Missing written visual realization.');
+      }
+      for (const id of new Set(
+        timeline.visualEvents.flatMap((event) => event.noteIds)
+      )) {
+        const page = this.adapter.getPageWithElement(id);
+        if (!Number.isSafeInteger(page) || page <= 0) {
+          throw new Error('Written visual note has no score page.');
+        }
+      }
+      await this.audioEngine.prepare(timeline.instruments);
+      request.signal.throwIfAborted();
+      this.timeline = timeline;
+      this.tempo = timeline.referenceTempoBpm;
+      this.position = 0;
+      this.state = 'STOPPED';
+    } catch (error) {
+      if (this.loadAbort === request) this.clearScore();
+      throw error;
+    }
+  }
+
+  clearScore() {
+    this.loadAbort?.abort();
+    this.loadAbort = null;
     this.audioEngine.stopAll();
     this.clearEventTimers();
     this.timeline = null;
     this.state = 'IDLE';
     this.position = 0;
-    const plan = await compilePerformancePlan(xml, request.signal);
-    request.signal.throwIfAborted();
-    await this.adapter.loadMusicXml(plan.musicxml, {
-      toolkitOptions: { expandNever: true },
-    });
-    request.signal.throwIfAborted();
-    const timeline = createScorePerformanceTimeline(
-      plan,
-      this.adapter.renderMidi(),
-      this.adapter.renderTimemap()
-    );
-    if (timeline.notes.length && !timeline.visualEvents.length) {
-      throw new Error('Missing written visual realization.');
-    }
-    for (const id of new Set(
-      timeline.visualEvents.flatMap((event) => event.noteIds)
-    )) {
-      const page = this.adapter.getPageWithElement(id);
-      if (!Number.isSafeInteger(page) || page <= 0) {
-        throw new Error('Written visual note has no score page.');
-      }
-    }
-    await this.audioEngine.prepare(timeline.instruments);
-    request.signal.throwIfAborted();
-    this.timeline = timeline;
-    this.tempo = timeline.referenceTempoBpm;
-    this.position = 0;
-    this.state = 'STOPPED';
+    this.tempo = 0;
+    this.adapter.dispose();
+    this.emitState();
   }
 
   async play() {

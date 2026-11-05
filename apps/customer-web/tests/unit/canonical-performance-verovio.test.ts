@@ -201,6 +201,6 @@ describe('real Verovio written realization × canonical Browser plan', () => {
     });
     expect(() =>
       readWrittenRealization(btoa(String.fromCharCode(...bytes)), [])
-    ).toThrow('Unsupported written MIDI instrument change');
+    ).toThrow('unsupported_score_preview_instrument_change');
   });
 });

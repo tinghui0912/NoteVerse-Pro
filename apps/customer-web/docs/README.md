@@ -4,4 +4,4 @@ This folder contains implementation guidance owned by the Customer Web applicati
 
 - [Customer Web Architecture Baseline](customer-web_architecture_baseline.md)
 - [Customer Web Engineering Principles](customer-web_engineering_principles.md)
-- [ADR 0001: Verovio Playback Backend](adr/0001-verovio-playback-backend.md)
+- [Canonical Performance and Score Preview Playback](../../../docs/architecture/performance-navigation.md)

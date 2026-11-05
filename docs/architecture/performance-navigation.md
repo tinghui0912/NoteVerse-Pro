@@ -379,9 +379,17 @@ navigation. Timemap milliseconds and MIDI conductor tempos do not define timing.
 Browser note positions use exact integer MIDI ticks/PPQ. A numeric Timemap qstamp
 is accepted only when its IEEE rounding interval identifies one exact point on
 that written MIDI grid. Unrepresentable or ambiguous realization fails closed.
-Browser realization accepts origin program state per renderer stream; timed or
-conflicting program changes fail closed because per-note instruments do not
-represent channel-state replay. Onsets use `[written_start, written_end)`; entry
+Browser written MIDI realization accepts SMF format 0/1 with positive integer
+PPQ, balanced positive-duration note lifecycles, note velocity, and one channel
+with a static origin program or the GM default per raw music track. Separate raw
+tracks retain independent instrument identity even when channel numbers match.
+The raw SMF capability check runs before the note decoder. Multiple channels in
+one raw track, timed/conflicting programs, pitch bend, channel/poly pressure,
+all controllers including sustain, SysEx and opaque state fail closed as current
+Browser realization capabilities. They do not make the source MusicXML or MIDI
+invalid. Channel routing identity stays in the realization adapter; it is not a
+navigation or transport identity. Per-note playback does not interpret channel
+state through navigation. Onsets use `[written_start, written_end)`; entry
 never retriggers an earlier onset.
 Long notes continue through written-contiguous measures and end at discontinuity
 cuts. Repeated visits retain the same written SVG IDs with distinct occurrence
@@ -393,7 +401,22 @@ integrated canonical performance end, including silence. The origin's final
 active tempo is `referenceTempoBpm`; choosing a preview BPM scales the complete
 source-seconds timeline by `selectedBpm / referenceTempoBpm` without replacing
 internal tempo changes. `ScorePreviewPlaybackController` owns scheduling, seeking,
-state and cursor snapshots. API or realization failure leaves playback unloaded.
+state and cursor snapshots. Every load clears the visible score, cursor, active
+voices and prior timeline. Any plan, renderer, realization, instrument, asset or
+SVG failure clears the adapter and playback state and rejects load. Only a fully
+prepared timeline and rendered score become ready; stale asynchronous loads
+cannot replace a newer score. Rendering-only clients do not load the audio stack.
+
+`score-preview/local-soundfont-manifest.ts` describes the shipped local audio
+assets. `LocalSoundfontAudioEngine` uses that authority for both preparation and
+scheduling. The supported instrument is `acoustic_grand_piano`, from the local
+MusyngKite MP3 asset. Unsupported instruments fail preparation before asset loads;
+no instrument substitution or remote soundfont lookup occurs. Audio asset decode
+failure propagates as load failure. Note velocity reaches the sample player
+without a volume floor. The engine owns the WebAudio clock, user-gesture resume,
+prepared players and stop/close resources; UI timer cadence is not musical
+identity. Deterministic injected-engine tests cover state/scheduling, and Chromium
+tests cover the local sample asset and AudioContext lifecycle.
 
 Practice uses written notes, events and moments and does not unfold repeats. Its
 Verovio instance uses `expandNever: true`. Backend and Browser realization tests
