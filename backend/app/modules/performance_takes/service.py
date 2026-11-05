@@ -117,7 +117,6 @@ class PerformanceTakeService:
             media_kind=_media_kind_value(take.media_kind),
             media_mime_type=take.media_mime_type,
             media_byte_size=take.media_byte_size,
-            duration_ms=take.duration_ms,
             scope_type=scope_type,
             scope_start_tick=take.scope_start_tick,
             scope_terminal_tick=take.scope_terminal_tick,
@@ -254,7 +253,6 @@ class PerformanceTakeService:
             media_kind=_media_kind_value(take.media_kind),
             media_mime_type=take.media_mime_type,
             media_byte_size=take.media_byte_size,
-            duration_ms=take.duration_ms,
             expires_in=3600,
         )
 

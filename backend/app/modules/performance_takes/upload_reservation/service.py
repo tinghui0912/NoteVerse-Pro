@@ -84,7 +84,7 @@ SUPPORTED_VIDEO_MIMES = {
     "video/mp4",
 }
 MAX_TAKE_MEDIA_BYTES = 100 * 1024 * 1024
-MAX_TAKE_DURATION_MS = 12 * 60 * 60 * 1000
+MAX_TAKE_DURATION_US = 12 * 60 * 60 * 1_000_000
 MAX_TAKE_METADATA_JSON_BYTES = 64 * 1024
 TAKE_UPLOAD_RESERVATION_SECONDS = 3600
 TAKE_FINALIZING_LEASE_SECONDS = 15 * 60
@@ -233,7 +233,6 @@ class PerformanceTakeUploadService:
                     "kind": reservation.media_kind,
                     "byte_size": reservation.media_byte_size,
                     "mime_type": reservation.media_mime_type,
-                    "duration_ms": reservation.duration_ms,
                 },
                 "scope": scope,
                 "tempo_selection": json.loads(reservation.tempo_plan)["selection"],
@@ -515,8 +514,8 @@ class PerformanceTakeUploadService:
         media.mime_type = _clean_mime_type(media.mime_type)
         if media.mime_type not in _supported_mimes_for_kind(media.kind):
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
-        if not 0 < media.duration_ms <= MAX_TAKE_DURATION_MS:
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="duration_ms")
+        if metadata.recording_timebase.nominalMediaDurationUs > MAX_TAKE_DURATION_US:
+            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="recording_timebase")
         if not 0 < media.byte_size <= MAX_TAKE_MEDIA_BYTES:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_byte_size")
         _json_snapshot(metadata.tempo_selection)
@@ -609,7 +608,6 @@ class PerformanceTakeUploadService:
             scope_end_group_id=plan.scope.end_group_id,
             tempo_plan=_json_snapshot(tempo_plan),
             recording_timebase=_json_snapshot(metadata.recording_timebase),
-            duration_ms=media.duration_ms,
             media_kind=media.kind,
             media_mime_type=media.mime_type,
             media_byte_size=media.byte_size,
@@ -759,7 +757,6 @@ class PerformanceTakeUploadService:
             "storage_backend": reservation.storage_backend,
             "staging_object_key": reservation.staging_object_key,
             "finalizing_object_key": reservation.finalizing_object_key,
-            "duration_ms": reservation.duration_ms,
             "scope_type": reservation.scope_type,
             "ticks_per_quarter": reservation.ticks_per_quarter,
             "scope_start_tick": reservation.scope_start_tick,
@@ -988,7 +985,6 @@ class PerformanceTakeUploadService:
             media_byte_size=reservation_snapshot["media_byte_size"],
             media_object_key=candidate_key,
             storage_backend=reservation_snapshot["storage_backend"],
-            duration_ms=reservation_snapshot["duration_ms"],
             scope_type=reservation_snapshot["scope_type"],
             ticks_per_quarter=reservation_snapshot["ticks_per_quarter"],
             scope_start_tick=reservation_snapshot["scope_start_tick"],

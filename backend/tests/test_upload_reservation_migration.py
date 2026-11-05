@@ -33,7 +33,7 @@ def reservation_values(user_id):
         scope_terminal_tick=4,
         tempo_plan="{}",
         recording_timebase="{}",
-        duration_ms=1000,
+
         media_kind="AUDIO",
         media_mime_type="audio/webm",
         media_byte_size=10,
@@ -70,7 +70,7 @@ def test_fresh_reservation_and_take_store_provenance_without_a_source_row(monkey
                 media_byte_size=10,
                 media_object_key="media",
                 storage_backend="local",
-                duration_ms=1000,
+
                 scope_type="FULL",
                 ticks_per_quarter=1,
                 scope_start_tick=0,

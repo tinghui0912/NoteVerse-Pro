@@ -1,4 +1,5 @@
 'use client';
+import { decodeRecordingTimebase, microsecondsToMilliseconds } from '@/lib/practice/recording/recording-timebase';
 
 import { captureMediaExtension } from '@/lib/practice/recording/media-policy';
 
@@ -167,14 +168,14 @@ function PerformanceTakeCard({
       ? {
           kind: 'VIDEO_RECORDING',
           url: playbackQuery.data.data.playback_url,
-          durationMs: take.duration_ms,
+        recordingTimebase: decodeRecordingTimebase(take.recording_timebase),
           contentType: take.media_mime_type,
           byteSize: take.media_byte_size,
         }
       : {
           kind: 'AUDIO_RECORDING',
           url: playbackQuery.data.data.playback_url,
-          durationMs: take.duration_ms,
+        recordingTimebase: decodeRecordingTimebase(take.recording_timebase),
           contentType: take.media_mime_type,
         }
     : null;
@@ -213,7 +214,7 @@ function PerformanceTakeCard({
                 </span>
                 <span className="flex items-center gap-1">
                   <Clock className="h-3.5 w-3.5" />
-                  {formatDuration(take.duration_ms)}
+                  {formatDuration(microsecondsToMilliseconds(take.recording_timebase.nominalMediaDurationUs))}
                 </span>
                 <span className="rounded bg-gray-100 px-1.5 py-0.5 font-medium text-gray-600">
                   {take.media_mime_type.split('/')[1]?.toUpperCase() || 'AUDIO'}

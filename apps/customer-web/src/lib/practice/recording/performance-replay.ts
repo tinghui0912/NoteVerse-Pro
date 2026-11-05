@@ -1,4 +1,5 @@
-import type { LocalMediaAsset } from "@/lib/practice/media/local-media-asset";
+import type { RecordingTimebase } from './recording-timebase';
+import type { LocalMediaAsset } from '@/lib/practice/media/local-media-asset';
 type PerformanceReplayTimebase = {
   version: 1;
   speedRatio: number;
@@ -10,16 +11,16 @@ type ReplaySource =
 
 export type PlayablePerformanceReplay =
   | (ReplaySource & {
-      kind: "AUDIO_RECORDING";
+      kind: 'AUDIO_RECORDING';
       contentType: string;
       byteSize?: number;
-      durationMs: number;
+      recordingTimebase: RecordingTimebase;
       timebase?: PerformanceReplayTimebase;
     })
   | (ReplaySource & {
-      kind: "VIDEO_RECORDING";
+      kind: 'VIDEO_RECORDING';
       contentType: string;
       byteSize?: number;
-      durationMs: number;
+      recordingTimebase: RecordingTimebase;
       timebase?: PerformanceReplayTimebase;
     });

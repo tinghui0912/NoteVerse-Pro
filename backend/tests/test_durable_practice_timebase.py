@@ -132,13 +132,13 @@ def test_client_cannot_choose_durable_score_timebase():
     payload = {
         "client_request_id": "request",
         "source": {"source_id": "source"},
-        "media": {"kind": "AUDIO", "byte_size": 1, "mime_type": "audio/webm", "duration_ms": 1000},
+        "media": {"kind": "AUDIO", "byte_size": 1, "mime_type": "audio/webm"},
         "scope": {"kind": "FULL"},
         "tempo_selection": {"mode": "SCORE"},
         "recording_timebase": {
-            "nominalMediaDurationMs": 1000,
+            "nominalMediaDurationUs": 1000000,
             "activeSegments": [
-                {"perfStartMs": 0, "perfEndMs": 1000, "mediaStartMs": 0, "mediaEndMs": 1000}
+                {"performanceStartUs": 0, "performanceEndUs": 1000000, "mediaStartUs": 0, "mediaEndUs": 1000000}
             ],
         },
     }

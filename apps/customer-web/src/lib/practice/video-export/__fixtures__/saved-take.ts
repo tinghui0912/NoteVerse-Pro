@@ -6,9 +6,9 @@ export const tempoPlan: PerformanceTakeTempoPlan = {
 };
 
 export const recordingTimebase: RecordingTimebase = {
-  nominalMediaDurationMs: 4000,
+  nominalMediaDurationUs: 4000000,
   activeSegments: [
-    { perfStartMs: 0, perfEndMs: 4000, mediaStartMs: 0, mediaEndMs: 4000 },
+    { performanceStartUs: 0, performanceEndUs: 4000000, mediaStartUs: 0, mediaEndUs: 4000000 },
   ],
 };
 
@@ -22,7 +22,7 @@ export const take: PerformanceTakeRead = {score_timebase: { ticks_per_quarter: 1
   media_kind: 'VIDEO',
   media_mime_type: 'video/webm',
   media_byte_size: 10,
-  duration_ms: 4000,
+
   scope_type: 'FULL',
   scope_start_tick: 0,
   scope_terminal_tick: 16,

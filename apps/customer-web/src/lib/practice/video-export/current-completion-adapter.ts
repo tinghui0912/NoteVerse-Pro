@@ -30,7 +30,7 @@ export function createVideoExportSessionFromCompletion(
       kind: "VIDEO",
       media: recording.media,
       mimeType: recording.mimeType,
-      durationMs: recording.durationMs,
+
     },
     scope,
     tempoPlan: result.session.plan.tempoPlan,

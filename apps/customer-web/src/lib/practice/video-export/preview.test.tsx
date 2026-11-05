@@ -44,9 +44,9 @@ const session: VideoExportSession = {
     segments: [{ startTick: 0, bpm: 96, source: 'MUSICXML' }],
   },
   recordingTimebase: {
-    nominalMediaDurationMs: 4000,
+    nominalMediaDurationUs: 4000000,
     activeSegments: [
-      { perfStartMs: 0, perfEndMs: 4000, mediaStartMs: 0, mediaEndMs: 4000 },
+      { performanceStartUs: 0, performanceEndUs: 4000000, mediaStartUs: 0, mediaEndUs: 4000000 },
     ],
   },
   video: {
@@ -54,7 +54,7 @@ const session: VideoExportSession = {
     kind: 'VIDEO',
     media: localMediaAssetFixture(new Blob(['video'], { type: 'video/webm' })),
     mimeType: 'video/webm',
-    durationMs: 4000,
+
   },
 };
 

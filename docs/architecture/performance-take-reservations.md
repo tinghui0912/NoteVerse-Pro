@@ -115,7 +115,10 @@ The save request and planning agreement are defined by the
 
 The reservation and Take persist `ticks_per_quarter BIGINT NOT NULL`. Their
 `score_timebase: { ticks_per_quarter }` API field is independent of
-`recording_timebase`, which maps performance milliseconds to media milliseconds.
+`recording_timebase`, which maps integer performance microseconds to integer media
+microseconds. Its `nominalMediaDurationUs` is the sole nominal recording duration;
+Take and reservation rows have no separate duration column. Duration admission reads
+this validated timebase, and finalize copies its exact immutable coordinate payload.
 Scope and tempo positions share this one score coordinate system.
 
 Admission reads the exact Source artifact's `ticksPerQuarter` while resolving the

@@ -20,10 +20,10 @@ it('sends raw MP4 capture as the signed PUT body without rebuilding its Blob', a
 it('reserves one structured immutable save request', () => {
   const request: PerformanceTakeUploadReservationRequest = {
     client_request_id: 'request', source: { source_id: 'source-1' },
-    media: { kind: 'AUDIO', byte_size: 10, mime_type: 'audio/webm', duration_ms: 1000 },
+    media: { kind: 'AUDIO', byte_size: 10, mime_type: 'audio/webm' },
     scope: { kind: 'FULL' },
     tempo_selection: { mode: 'SCORE' },
-    recording_timebase: { nominalMediaDurationMs: 1000, activeSegments: [{ perfStartMs: 0, perfEndMs: 1000, mediaStartMs: 0, mediaEndMs: 1000 }] },
+    recording_timebase: { nominalMediaDurationUs: 1000000, activeSegments: [{ performanceStartUs: 0, performanceEndUs: 1000000, mediaStartUs: 0, mediaEndUs: 1000000 }] },
   };
   performanceTakesApi.reserveUpload(request);
   expect(apiClient.post).toHaveBeenCalledExactlyOnceWith('/performance-takes/upload-reservations', request, { signal: undefined });

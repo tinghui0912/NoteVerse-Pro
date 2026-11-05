@@ -819,8 +819,8 @@ describe('Continuous application owner', () => {
     const completed = controller.snapshot().completed!;
     expect(completed.recording.status).toBe('READY'); expect(completed.result.evaluation.status).toBe('COMPLETE');
     if (completed.recording.status !== 'READY') throw new Error('Expected ready recording');
-    expect(completed.recording.timebase.activeSegments[0].perfEndMs).toBe(T);
-    expect(completed.recording.timebase.activeSegments[1].perfStartMs).toBe(T);
+    expect(completed.recording.timebase.activeSegments[0].performanceEndUs).toBe(Math.round(T * 1000));
+    expect(completed.recording.timebase.activeSegments[1].performanceStartUs).toBe(Math.round(T * 1000));
     await controller.dispose();
   });
   it('does not expose COMPLETE or completed truth while Worker cleanup is still pending', async () => {
@@ -1034,7 +1034,7 @@ it('resume countdown freezes recording/evaluation, rejects countdown MIDI, and r
   const completion = owner.snapshot().completed!; expect(completion.result.evaluation.status).toBe('COMPLETE');
   if (completion.result.evaluation.status !== 'COMPLETE' || completion.recording.status !== 'READY') throw new Error('Expected complete result and recording');
   expect(completion.result.evaluation.assignment.observations).toHaveLength(1);
-  expect(completion.recording.timebase.activeSegments.map(segment => [segment.perfStartMs, segment.perfEndMs])).toEqual([[0, 300], [300, 1200]]);
+  expect(completion.recording.timebase.activeSegments.map(segment => [segment.performanceStartUs, segment.performanceEndUs])).toEqual([[0, 300000], [300000, 1200000]]);
   await owner.dispose();
 });
 

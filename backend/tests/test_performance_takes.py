@@ -99,13 +99,13 @@ DEFAULT_TAKE_TEMPO_PLAN = {
     "segments": [{"startTick": 0, "bpm": 120, "source": "CUSTOM"}],
 }
 DEFAULT_TAKE_RECORDING_TIMEBASE = {
-    "nominalMediaDurationMs": 5000,
+    "nominalMediaDurationUs": 5000000,
     "activeSegments": [
         {
-            "perfStartMs": 0,
-            "perfEndMs": 5000,
-            "mediaStartMs": 0,
-            "mediaEndMs": 5000,
+            "performanceStartUs": 0,
+            "performanceEndUs": 5000000,
+            "mediaStartUs": 0,
+            "mediaEndUs": 5000000,
         }
     ],
 }
@@ -250,7 +250,7 @@ def _create_default_take(
         scope_terminal_tick=4,
         tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
         recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
-        duration_ms=5000,
+
         media_kind="AUDIO",
         media_mime_type="audio/webm",
         media_byte_size=len(VALID_WEBM_BYTES),
@@ -285,7 +285,7 @@ def _create_default_take(
         media_byte_size=len(VALID_WEBM_BYTES),
         media_object_key=media_object_key,
         storage_backend="local",
-        duration_ms=5000,
+
         scope_type="FULL",
         ticks_per_quarter=1,
         scope_start_tick=0,
@@ -432,7 +432,7 @@ def test_performance_take_schema_accepts_score_tempo_selection() -> None:
                     "kind": "AUDIO",
                     "byte_size": len(VALID_WEBM_BYTES),
                     "mime_type": "audio/webm",
-                    "duration_ms": 5000,
+
                 },
                 "scope": {"kind": "FULL"},
                 "client_request_id": "req-product-default-tempo",
@@ -757,18 +757,18 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
 
         auth_req = {
             "source": {"source_id": _source_id()},
-            "media": {"byte_size": media_size, "mime_type": "audio/webm", "duration_ms": 15000},
+            "media": {"byte_size": media_size, "mime_type": "audio/webm"},
             "scope": {"kind": "FULL"},
             "client_request_id": "req-001",
             "tempo_selection": {"mode": "CUSTOM_FIXED_BPM", "bpm": 120},
             "recording_timebase": {
-                "nominalMediaDurationMs": 15000,
+                "nominalMediaDurationUs": 15000000,
                 "activeSegments": [
                     {
-                        "perfStartMs": 0,
-                        "perfEndMs": 15000,
-                        "mediaStartMs": 0,
-                        "mediaEndMs": 15000,
+                        "performanceStartUs": 0,
+                        "performanceEndUs": 15000000,
+                        "mediaStartUs": 0,
+                        "mediaEndUs": 15000000,
                     }
                 ],
             },
@@ -1036,7 +1036,7 @@ def test_score_access_and_validation(test_env):
                 "kind": "AUDIO",
                 "byte_size": 1024,
                 "mime_type": "video/mp4",
-                "duration_ms": 5000,
+
             },
             "scope": {"kind": "FULL"},
             "client_request_id": "req-bad-mime",
@@ -1049,7 +1049,7 @@ def test_score_access_and_validation(test_env):
         # Resolved beat fields are not writable request facts
         req_bad_scope = {
             "source": {"source_id": _source_id()},
-            "media": {"byte_size": 1024, "mime_type": "audio/webm", "duration_ms": 5000},
+            "media": {"byte_size": 1024, "mime_type": "audio/webm"},
             "scope": {"start_tick": 4, "terminal_tick": 4},
             "client_request_id": "req-bad-scope",
         }
@@ -1059,7 +1059,7 @@ def test_score_access_and_validation(test_env):
         # A missing exact source fails closed
         req_bad_score = {
             "source": {"source_id": "nonexistent-source"},
-            "media": {"byte_size": 1024, "mime_type": "audio/webm", "duration_ms": 5000},
+            "media": {"byte_size": 1024, "mime_type": "audio/webm"},
             "scope": {"kind": "FULL"},
             "client_request_id": "req-bad-score",
             "tempo_selection": DEFAULT_TAKE_TEMPO_PLAN["selection"],
@@ -1091,7 +1091,7 @@ def test_unowned_source_cannot_start_a_new_reservation(test_env):
                             "media": {
                                 "byte_size": 1024,
                                 "mime_type": "audio/webm",
-                                "duration_ms": 5000,
+
                             },
                             "scope": {"kind": "FULL"},
                         }
@@ -1158,7 +1158,7 @@ def test_cross_user_score_permission(test_env):
         app.dependency_overrides[get_current_user] = lambda: user_1
         req_unauth = {
             "source": {"source_id": private_source.source_id},
-            "media": {"byte_size": 1024, "mime_type": "audio/webm", "duration_ms": 5000},
+            "media": {"byte_size": 1024, "mime_type": "audio/webm"},
             "scope": {"kind": "FULL"},
             "client_request_id": "req-cross-user-auth",
         }
@@ -1196,7 +1196,7 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         size = len(content)
         auth_req = {
             "source": {"source_id": _source_id()},
-            "media": {"byte_size": size, "mime_type": "audio/webm", "duration_ms": 10000},
+            "media": {"byte_size": size, "mime_type": "audio/webm"},
             "scope": {"kind": "FULL"},
             "client_request_id": "req-real-delete-01",
         }
@@ -1361,7 +1361,7 @@ def test_duplicate_deletion_idempotency(test_env, monkeypatch: pytest.MonkeyPatc
         size = len(content)
         auth_req = {
             "source": {"source_id": _source_id()},
-            "media": {"byte_size": size, "mime_type": "audio/webm", "duration_ms": 5000},
+            "media": {"byte_size": size, "mime_type": "audio/webm"},
             "scope": {"kind": "FULL"},
             "client_request_id": "req-idemp-del",
         }
@@ -1445,7 +1445,7 @@ def test_quota_rejection(test_env):
         excessive_size = 2 * 1024 * 1024
         auth_req = {
             "source": {"source_id": _source_id()},
-            "media": {"byte_size": excessive_size, "mime_type": "audio/webm", "duration_ms": 60000},
+            "media": {"byte_size": excessive_size, "mime_type": "audio/webm"},
             "scope": {"kind": "FULL"},
             "client_request_id": "req-huge",
         }
@@ -1480,7 +1480,7 @@ def test_cancel_upload_reservation(test_env, monkeypatch: pytest.MonkeyPatch):
     try:
         auth_req = {
             "source": {"source_id": _source_id()},
-            "media": {"byte_size": 5000, "mime_type": "audio/webm", "duration_ms": 5000},
+            "media": {"byte_size": 5000, "mime_type": "audio/webm"},
             "scope": {"kind": "FULL"},
             "client_request_id": "req-cancel-01",
             "tempo_selection": DEFAULT_TAKE_TEMPO_PLAN["selection"],
@@ -1591,7 +1591,7 @@ def test_pagination(test_env):
             size = len(content)
             auth_req = {
                 "source": {"source_id": _source_id()},
-                "media": {"byte_size": size, "mime_type": "audio/webm", "duration_ms": 5000},
+                "media": {"byte_size": size, "mime_type": "audio/webm"},
                 "scope": {"kind": "FULL"},
                 "client_request_id": f"req-page-{i}",
                 "tempo_selection": DEFAULT_TAKE_TEMPO_PLAN["selection"],
@@ -1662,7 +1662,7 @@ def test_audio_container_magic_bytes_validation(test_env):
             "media": {
                 "byte_size": len(bad_content),
                 "mime_type": "audio/webm",
-                "duration_ms": 5000,
+
             },
             "scope": {"kind": "FULL"},
             "client_request_id": "req-bad-magic",
@@ -1689,7 +1689,7 @@ def test_audio_container_magic_bytes_validation(test_env):
         ogg_content = b"OggS" + b"\x00" * 40
         auth_ogg = {
             "source": {"source_id": _source_id()},
-            "media": {"byte_size": len(ogg_content), "mime_type": "audio/ogg", "duration_ms": 5000},
+            "media": {"byte_size": len(ogg_content), "mime_type": "audio/ogg"},
             "scope": {"kind": "FULL"},
             "client_request_id": "req-ogg-magic",
         }
@@ -1711,7 +1711,7 @@ def test_audio_container_magic_bytes_validation(test_env):
         wav_content = b"RIFF" + b"\x24\x00\x00\x00" + b"WAVEfmt " + b"\x00" * 32
         auth_wav = {
             "source": {"source_id": _source_id()},
-            "media": {"byte_size": len(wav_content), "mime_type": "audio/wav", "duration_ms": 5000},
+            "media": {"byte_size": len(wav_content), "mime_type": "audio/wav"},
             "scope": {"kind": "FULL"},
             "client_request_id": "req-wav-magic",
         }
@@ -1759,7 +1759,7 @@ def test_finalize_safe_retry_idempotency(test_env):
         size = len(content)
         auth_req = {
             "source": {"source_id": _source_id()},
-            "media": {"byte_size": size, "mime_type": "audio/webm", "duration_ms": 5000},
+            "media": {"byte_size": size, "mime_type": "audio/webm"},
             "scope": {"kind": "FULL"},
             "client_request_id": "req-safe-retry-01",
         }
@@ -1861,7 +1861,7 @@ def test_finalize_recovers_first_post_storage_db_disconnect(test_env):
                 "kind": "VIDEO",
                 "byte_size": len(content),
                 "mime_type": "video/webm",
-                "duration_ms": 5000,
+
             },
             "scope": {"kind": "FULL"},
             "client_request_id": "req-post-storage-disconnect",
@@ -1929,13 +1929,13 @@ def test_finalize_range_video_preserves_scope_identity_and_recording_timebase(te
     try:
         content = VALID_WEBM_BYTES
         recording_timebase = {
-            "nominalMediaDurationMs": 5000,
+            "nominalMediaDurationUs": 5000000,
             "activeSegments": [
                 {
-                    "perfStartMs": 0,
-                    "perfEndMs": 5000,
-                    "mediaStartMs": 0,
-                    "mediaEndMs": 5000,
+                    "performanceStartUs": 0,
+                    "performanceEndUs": 5000000,
+                    "mediaStartUs": 0,
+                    "mediaEndUs": 5000000,
                 }
             ],
         }
@@ -1949,7 +1949,7 @@ def test_finalize_range_video_preserves_scope_identity_and_recording_timebase(te
                 "kind": "VIDEO",
                 "byte_size": len(content),
                 "mime_type": "video/webm",
-                "duration_ms": 5000,
+
             },
             "scope": {
                 "kind": "RANGE",
@@ -2039,7 +2039,7 @@ def test_finalize_rejects_candidate_when_staging_changes_after_validation(test_e
             "media": {
                 "byte_size": len(first_content),
                 "mime_type": "audio/webm",
-                "duration_ms": 5000,
+
             },
             "scope": {"kind": "FULL"},
             "client_request_id": "req-staging-rewrite",
@@ -2102,7 +2102,7 @@ def test_video_take_finalize_uses_video_media_kind_and_candidate(test_env):
                 "kind": "VIDEO",
                 "byte_size": len(content),
                 "mime_type": "video/webm",
-                "duration_ms": 5000,
+
             },
             "scope": {"kind": "FULL"},
             "client_request_id": "req-video-save",
@@ -2166,7 +2166,7 @@ def test_reserve_finalizing_snapshot_retries_without_new_put(test_env):
         ticks_per_quarter=1,
         scope_start_tick=0,
         scope_terminal_tick=4,
-        duration_ms=1000,
+
         media_kind="AUDIO",
         media_mime_type="audio/webm",
         media_byte_size=len(VALID_WEBM_BYTES),
@@ -2199,7 +2199,7 @@ def test_reserve_finalizing_snapshot_retries_without_new_put(test_env):
                         "media": {
                             "byte_size": len(VALID_WEBM_BYTES),
                             "mime_type": "audio/webm",
-                            "duration_ms": 1000,
+
                         },
                         "scope": {"kind": "FULL"},
                     }
@@ -2239,7 +2239,7 @@ def test_crash_abandoned_after_reservation(test_env, monkeypatch: pytest.MonkeyP
         size = len(content)
         auth_req = {
             "source": {"source_id": _source_id()},
-            "media": {"byte_size": size, "mime_type": "audio/webm", "duration_ms": 5000},
+            "media": {"byte_size": size, "mime_type": "audio/webm"},
             "scope": {"kind": "FULL"},
             "client_request_id": "req-abandoned-01",
             "tempo_selection": DEFAULT_TAKE_TEMPO_PLAN["selection"],
@@ -2337,7 +2337,7 @@ def test_expired_reservation_staging_delete_failure_is_retryable(test_env, monke
             "/api/v1/performance-takes/upload-reservations",
             json={
                 "source": {"source_id": _source_id()},
-                "media": {"byte_size": size, "mime_type": "audio/webm", "duration_ms": 5000},
+                "media": {"byte_size": size, "mime_type": "audio/webm"},
                 "scope": {"kind": "FULL"},
                 "client_request_id": "req-expired-delete-retry",
             },
@@ -2423,7 +2423,7 @@ def test_archived_reservation_late_staging_put_is_cleaned_after_expiry(test_env)
             "/api/v1/performance-takes/upload-reservations",
             json={
                 "source": {"source_id": _source_id()},
-                "media": {"byte_size": size, "mime_type": "audio/webm", "duration_ms": 5000},
+                "media": {"byte_size": size, "mime_type": "audio/webm"},
                 "scope": {"kind": "FULL"},
                 "client_request_id": "req-late-put-cleanup",
             },
@@ -2516,7 +2516,7 @@ def test_score_deleted_between_reserve_and_finalize_preserves_provenance(test_en
         size = len(content)
         auth_req = {
             "source": {"source_id": _source_id()},
-            "media": {"byte_size": size, "mime_type": "audio/webm", "duration_ms": 5000},
+            "media": {"byte_size": size, "mime_type": "audio/webm"},
             "scope": {"kind": "FULL"},
             "client_request_id": "req-score-del-midway",
         }
@@ -2600,7 +2600,7 @@ def test_deletion_lifecycle_and_worker_retry(test_env, monkeypatch: pytest.Monke
         size = len(content)
         auth_req = {
             "source": {"source_id": _source_id()},
-            "media": {"byte_size": size, "mime_type": "audio/webm", "duration_ms": 5000},
+            "media": {"byte_size": size, "mime_type": "audio/webm"},
             "scope": {"kind": "FULL"},
             "client_request_id": "req-del-retry",
             "tempo_selection": DEFAULT_TAKE_TEMPO_PLAN["selection"],
@@ -2884,7 +2884,7 @@ def test_reservation_rejects_source_pending_gc(test_env):
                 "media": {
                     "byte_size": len(VALID_WEBM_BYTES),
                     "mime_type": "audio/webm",
-                    "duration_ms": 5000,
+
                 },
                 "scope": {"kind": "FULL"},
                 "client_request_id": "req-source-pending-gc-first",
@@ -2911,7 +2911,7 @@ def test_reservation_rejects_source_pending_gc(test_env):
                 "media": {
                     "byte_size": len(VALID_WEBM_BYTES),
                     "mime_type": "audio/webm",
-                    "duration_ms": 5000,
+
                 },
                 "scope": {"kind": "FULL"},
                 "client_request_id": "req-source-pending-gc",
@@ -3043,7 +3043,7 @@ def test_source_gc_ignores_an_active_reservation_after_take_deletion(test_env, m
         scope_end_group_id=None,
         tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
         recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
-        duration_ms=5000,
+
         media_kind="AUDIO",
         media_mime_type="audio/webm",
         media_byte_size=len(VALID_WEBM_BYTES),
@@ -3113,7 +3113,7 @@ def test_reserve_does_not_reuse_source_pending_gc(test_env):
             "media": {
                 "byte_size": len(VALID_WEBM_BYTES),
                 "mime_type": "audio/webm",
-                "duration_ms": 5000,
+
             },
             "scope": {"kind": "FULL"},
             "tempo_selection": DEFAULT_TAKE_TEMPO_PLAN["selection"],
@@ -3281,7 +3281,7 @@ def test_expired_reservation_cleanup_releases_db_lock_before_storage_delete(test
             "/api/v1/performance-takes/upload-reservations",
             json={
                 "source": {"source_id": _source_id()},
-                "media": {"byte_size": size, "mime_type": "audio/webm", "duration_ms": 5000},
+                "media": {"byte_size": size, "mime_type": "audio/webm"},
                 "scope": {"kind": "FULL"},
                 "client_request_id": "req-expired-no-lock-delete",
             },
@@ -3341,7 +3341,7 @@ def _expired_cleanup_auth(
         scope_terminal_tick=4,
         tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
         recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
-        duration_ms=1000,
+
         media_kind="AUDIO",
         media_mime_type="audio/webm",
         media_byte_size=len(VALID_WEBM_BYTES),
@@ -3496,7 +3496,7 @@ def test_finalize_copy_lease_rejects_expired_executor_before_storage_copy(test_e
         scope_terminal_tick=4,
         tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
         recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
-        duration_ms=1000,
+
         media_kind="AUDIO",
         media_mime_type="audio/webm",
         media_byte_size=len(VALID_WEBM_BYTES),
@@ -3820,7 +3820,7 @@ def test_expired_finalizing_lease_records_candidate_before_retry(test_env):
         scope_terminal_tick=4,
         tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
         recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
-        duration_ms=1000,
+
         media_kind="AUDIO",
         media_mime_type="audio/webm",
         media_byte_size=len(VALID_WEBM_BYTES),
@@ -3880,7 +3880,7 @@ def test_worker_handles_already_absent_object_idempotently(
         size = len(content)
         auth_req = {
             "source": {"source_id": _source_id()},
-            "media": {"byte_size": size, "mime_type": "audio/webm", "duration_ms": 5000},
+            "media": {"byte_size": size, "mime_type": "audio/webm"},
             "scope": {"kind": "FULL"},
             "client_request_id": "req-oss-idemp",
         }
@@ -4117,7 +4117,7 @@ def _upload_intent():
                 "kind": "VIDEO",
                 "byte_size": len(VALID_WEBM_BYTES),
                 "mime_type": "video/webm",
-                "duration_ms": 5000,
+
             },
             "scope": {
                 "kind": "RANGE",
@@ -4198,12 +4198,11 @@ def test_reservation_identity_metadata_replay_and_structural_take_lineage(test_e
         ("scope", "start_group_id", "another-start"),
         ("scope", "kind", "FULL"),
         ("tempo_selection", "bpm", 120.1),
-        ("media", "duration_ms", 5001),
         ("tempo_selection", "mode", "SCORE"),
         (
             "recording_timebase",
             "activeSegments",
-            [{"perfStartMs": 1, "perfEndMs": 5001, "mediaStartMs": 0, "mediaEndMs": 5000}],
+            [{"performanceStartUs": 1000, "performanceEndUs": 5001000, "mediaStartUs": 0, "mediaEndUs": 5000000}],
         ),
     ],
 )
@@ -4395,7 +4394,7 @@ def test_live_admission_and_save_snapshot_share_canonical_provenance(test_env):
                 "media": {
                     "byte_size": len(VALID_WEBM_BYTES),
                     "mime_type": "audio/webm",
-                    "duration_ms": 5000,
+
                 },
                 "scope": {"kind": "FULL"},
                 "client_request_id": "durable-source-reservation",
@@ -4710,7 +4709,7 @@ def test_exact_source_authorization_preserves_admitted_representation_identity(t
                     "media": {
                         "byte_size": len(VALID_WEBM_BYTES),
                         "mime_type": "audio/webm",
-                        "duration_ms": 5000,
+
                     },
                     "scope": {"kind": "FULL"},
                 },
@@ -4728,7 +4727,7 @@ def test_exact_source_authorization_preserves_admitted_representation_identity(t
                     "media": {
                         "byte_size": len(VALID_WEBM_BYTES),
                         "mime_type": "audio/webm",
-                        "duration_ms": 5000,
+
                     },
                     "scope": {"kind": "FULL"},
                 },
@@ -4775,7 +4774,7 @@ def test_exact_source_authorization_preserves_admitted_representation_identity(t
                 json={
                     "source": {"source_id": a.source_id},
                     "client_request_id": "not-ready",
-                    "media": {"byte_size": 10, "mime_type": "audio/webm", "duration_ms": 1000},
+                    "media": {"byte_size": 10, "mime_type": "audio/webm"},
                     "scope": {"kind": "FULL"},
                 },
             ).status_code
@@ -4799,7 +4798,7 @@ def test_exact_source_authorization_preserves_admitted_representation_identity(t
             json={
                 "source": {"source_id": a.source_id},
                 "client_request_id": "deleted-live-owner",
-                "media": {"byte_size": 10, "mime_type": "audio/webm", "duration_ms": 1000},
+                "media": {"byte_size": 10, "mime_type": "audio/webm"},
                 "scope": {"kind": "FULL"},
             },
         )
@@ -4864,7 +4863,7 @@ def test_reservation_derives_and_transfers_exact_source_plan(test_env, scope_kin
                 "media": {
                     "byte_size": len(VALID_WEBM_BYTES),
                     "mime_type": "audio/webm",
-                    "duration_ms": 5000,
+
                 },
             }
         )
@@ -5066,3 +5065,78 @@ def test_cleanup_rejects_active_reservation_with_take_as_invariant_violation(tes
     )
     with pytest.raises(ReservationInvariantError, match="atomic"):
         _run_async(service._replay_reservation(AsyncSessionAdapter(session), row, metadata))
+
+
+def test_recording_microseconds_survive_reservation_finalize_and_take_reads(test_env):
+    session, storage, user, _ = test_env
+    request = _upload_intent()
+    timebase = {
+        "nominalMediaDurationUs": 1000003,
+        "activeSegments": [
+            {
+                "performanceStartUs": 137,
+                "performanceEndUs": 500138,
+                "mediaStartUs": 0,
+                "mediaEndUs": 500001,
+            },
+            {
+                "performanceStartUs": 600139,
+                "performanceEndUs": 1100141,
+                "mediaStartUs": 500001,
+                "mediaEndUs": 1000003,
+            },
+        ],
+    }
+    request["recording_timebase"] = timebase
+    with _reservation_client(session, storage, user) as (client, _):
+        response = client.post("/api/v1/performance-takes/upload-reservations", json=request)
+        assert response.status_code == 200, response.text
+        reserved = response.json()["data"]
+        assert reserved["metadata"]["recording_timebase"] == timebase
+        row = session.execute(
+            select(PerformanceTakeUploadReservation).where(
+                PerformanceTakeUploadReservation.reservation_uuid == reserved["reservation_id"]
+            )
+        ).scalar_one()
+        assert json.loads(row.recording_timebase) == timebase
+        storage.put_bytes(
+            key=row.staging_object_key, content=VALID_WEBM_BYTES, content_type="video/webm"
+        )
+        response = client.post(
+            f"/api/v1/performance-takes/upload-reservations/{reserved['reservation_id']}/finalize"
+        )
+        assert response.status_code == 200, response.text
+        take = response.json()["data"]
+        assert take["recording_timebase"] == timebase
+        assert (
+            client.get(f"/api/v1/performance-takes/{take['take_id']}").json()["data"][
+                "recording_timebase"
+            ]
+            == timebase
+        )
+        assert (
+            client.get("/api/v1/performance-takes").json()["data"]["items"][0]["recording_timebase"]
+            == timebase
+        )
+
+
+@pytest.mark.parametrize(
+    "duration, status", [(12 * 60 * 60 * 1_000_000, 200), (12 * 60 * 60 * 1_000_000 + 1, 422)]
+)
+def test_take_duration_admission_uses_exact_nominal_timebase(test_env, duration, status):
+    session, storage, user, _ = test_env
+    request = _upload_intent()
+    request["recording_timebase"] = {
+        "nominalMediaDurationUs": duration,
+        "activeSegments": [
+            {
+                "performanceStartUs": 0,
+                "performanceEndUs": duration,
+                "mediaStartUs": 0,
+                "mediaEndUs": duration,
+            }
+        ],
+    }
+    with _reservation_client(session, storage, user) as (client, _):
+        response = client.post("/api/v1/performance-takes/upload-reservations", json=request)
+        assert response.status_code == status, response.text

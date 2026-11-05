@@ -1,4 +1,4 @@
-import { mediaTimeToPerformanceTimeMs } from '@/lib/practice/recording/recording-timebase';
+import { replayMediaTimeMsToPerformanceTimeMs } from '@/lib/practice/recording/recording-timebase';
 import { PracticeTempoTimeline } from '@/lib/practice/planning/tempo';
 import { resolveScopeTiming } from '@/lib/practice/score-view/scope-timing';
 import type { VideoExportSession } from './session';
@@ -31,7 +31,7 @@ export function resolveVideoExportPlaybackPosition({
   actualMediaDurationMs,
   scoreEndTick, ticksPerQuarter,
 }: ResolveVideoExportPlaybackPositionInput): VideoExportPlaybackPosition | null {
-  const perfTimeMs = mediaTimeToPerformanceTimeMs(
+  const perfTimeMs = replayMediaTimeMsToPerformanceTimeMs(
     mediaTimeMs,
     session.recordingTimebase,
     actualMediaDurationMs

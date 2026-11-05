@@ -1,4 +1,5 @@
 'use client';
+import { decodeRecordingTimebase } from '@/lib/practice/recording/recording-timebase';
 
 import { captureMediaExtension } from '@/lib/practice/recording/media-policy';
 
@@ -156,7 +157,7 @@ export default function SavedPerformanceVideoExportPage() {
       media: mediaHandle,
       contentType: take.media_mime_type,
       byteSize: mediaHandle.byteSize,
-      durationMs: take.duration_ms,
+      recordingTimebase: decodeRecordingTimebase(take.recording_timebase),
     };
   }, [take, mediaHandle]);
 

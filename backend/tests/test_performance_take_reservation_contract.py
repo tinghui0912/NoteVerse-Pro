@@ -82,7 +82,7 @@ def test_durable_provenance_is_self_contained():
         "scope_end_group_id",
         "tempo_plan",
         "recording_timebase",
-        "duration_ms",
+
         "media_kind",
         "media_mime_type",
         "media_byte_size",
@@ -130,13 +130,13 @@ def test_strict_request_rejects_writable_resolved_facts():
     payload = {
         "client_request_id": "intent",
         "source": {"source_id": "source"},
-        "media": {"kind": "AUDIO", "byte_size": 10, "mime_type": "audio/webm", "duration_ms": 1000},
+        "media": {"kind": "AUDIO", "byte_size": 10, "mime_type": "audio/webm"},
         "scope": {"kind": "FULL"},
         "tempo_selection": {"mode": "SCORE"},
         "recording_timebase": {
-            "nominalMediaDurationMs": 1000,
+            "nominalMediaDurationUs": 1000000,
             "activeSegments": [
-                {"perfStartMs": 0, "perfEndMs": 1000, "mediaStartMs": 0, "mediaEndMs": 1000}
+                {"performanceStartUs": 0, "performanceEndUs": 1000000, "mediaStartUs": 0, "mediaEndUs": 1000000}
             ],
         },
     }

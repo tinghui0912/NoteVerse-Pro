@@ -1,3 +1,4 @@
+import { decodeRecordingTimebase } from '@/lib/practice/recording/recording-timebase';
 import { localMediaAssetFixture } from "@/lib/practice/__fixtures__/local-media-asset";
 import { createTransientReviewSession } from "@/lib/practice/review/transient-review-session";
 import { completedContinuousSessionFixture } from "@/lib/practice/__fixtures__/continuous-result";
@@ -10,7 +11,7 @@ import { createContinuousPerformanceResult } from '@/lib/practice/result/continu
 import { unavailableContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/session';
 import {
   parseSavedTempoPlan,
-  parseSavedRecordingTimebase,
+
 } from "./saved-take-adapter";
 const blob = new Blob(["video"], { type: "video/webm" });
 const completion = {
@@ -26,8 +27,8 @@ const completion = {
     kind: "VIDEO" as const,
     media: localMediaAssetFixture(blob),
     mimeType: take.media_mime_type,
-    durationMs: take.duration_ms,
-    timebase: parseSavedRecordingTimebase(take.recording_timebase),
+
+    timebase: decodeRecordingTimebase(take.recording_timebase),
   },
 };
 const handoff = createTransientReviewSession(completion, {

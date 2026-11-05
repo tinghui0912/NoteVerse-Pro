@@ -18,7 +18,7 @@ describe('PerformanceReplayPlayer', () => {
     vi.spyOn(HTMLMediaElement.prototype,'load').mockImplementation(()=>{});
     vi.spyOn(HTMLMediaElement.prototype,'pause').mockImplementation(()=>{});
     const view=render(<NextIntlClientProvider locale="en" messages={{practice:practiceMessages}}>
-      <PerformanceReplayPlayer replay={{kind:'VIDEO_RECORDING',media,contentType:'video/webm',durationMs:100}}/>
+      <PerformanceReplayPlayer replay={{ kind: 'VIDEO_RECORDING', media, contentType: 'video/webm', recordingTimebase: { nominalMediaDurationUs: 100000, activeSegments: [{ performanceStartUs: 0, performanceEndUs: 100000, mediaStartUs: 0, mediaEndUs: 100000 }] } }} />
     </NextIntlClientProvider>);
     await media.release();expect(order).toEqual([]);view.unmount();await Promise.resolve();
     expect(order).toEqual(['revoke','remove']);
@@ -42,7 +42,7 @@ describe('PerformanceReplayPlayer', () => {
             media: localMediaAssetFixture(blob),
             contentType: 'audio/webm',
             byteSize: blob.size,
-            durationMs: 100,
+            recordingTimebase: { nominalMediaDurationUs: 100000, activeSegments: [{ performanceStartUs: 0, performanceEndUs: 100000, mediaStartUs: 0, mediaEndUs: 100000 }] },
           }}
           onReplayTimeChange={vi.fn()}
         />
@@ -69,7 +69,7 @@ describe('PerformanceReplayPlayer', () => {
             media: localMediaAssetFixture(blob),
             contentType: 'audio/webm',
             byteSize: blob.size,
-            durationMs: 100,
+            recordingTimebase: { nominalMediaDurationUs: 100000, activeSegments: [{ performanceStartUs: 0, performanceEndUs: 100000, mediaStartUs: 0, mediaEndUs: 100000 }] },
           }}
           actions={<button type="button">Delete</button>}
         />
@@ -97,7 +97,7 @@ describe('PerformanceReplayPlayer', () => {
             media: localMediaAssetFixture(blob),
             contentType: 'audio/webm',
             byteSize: blob.size,
-            durationMs: 1000,
+            recordingTimebase: { nominalMediaDurationUs: 1000000, activeSegments: [{ performanceStartUs: 0, performanceEndUs: 1000000, mediaStartUs: 0, mediaEndUs: 1000000 }] },
             timebase: {
               version: 1,
               speedRatio: 1,
@@ -133,7 +133,7 @@ describe('PerformanceReplayPlayer', () => {
             media: localMediaAssetFixture(blob),
             contentType: 'audio/webm',
             byteSize: blob.size,
-            durationMs: 1000,
+            recordingTimebase: { nominalMediaDurationUs: 1000000, activeSegments: [{ performanceStartUs: 0, performanceEndUs: 1000000, mediaStartUs: 0, mediaEndUs: 1000000 }] },
             timebase: {
               version: 1,
               speedRatio: 1,
@@ -172,7 +172,7 @@ describe('PerformanceReplayPlayer', () => {
             media: localMediaAssetFixture(blob),
             contentType: 'audio/webm',
             byteSize: blob.size,
-            durationMs: 1000,
+            recordingTimebase: { nominalMediaDurationUs: 1000000, activeSegments: [{ performanceStartUs: 0, performanceEndUs: 1000000, mediaStartUs: 0, mediaEndUs: 1000000 }] },
             timebase: {
               version: 1,
               speedRatio: 1,
@@ -213,7 +213,7 @@ describe('PerformanceReplayPlayer', () => {
             media: localMediaAssetFixture(blob),
             contentType: 'audio/webm',
             byteSize: blob.size,
-            durationMs: 1000,
+            recordingTimebase: { nominalMediaDurationUs: 1000000, activeSegments: [{ performanceStartUs: 0, performanceEndUs: 1000000, mediaStartUs: 0, mediaEndUs: 1000000 }] },
             timebase: {
               version: 1,
               speedRatio: 1,
@@ -261,7 +261,7 @@ describe('PerformanceReplayPlayer', () => {
             media: localMediaAssetFixture(blob),
             contentType: 'audio/webm',
             byteSize: blob.size,
-            durationMs: 1000,
+            recordingTimebase: { nominalMediaDurationUs: 1000000, activeSegments: [{ performanceStartUs: 0, performanceEndUs: 1000000, mediaStartUs: 0, mediaEndUs: 1000000 }] },
             timebase: {
               version: 1,
               speedRatio: 1,
@@ -310,7 +310,7 @@ describe('PerformanceReplayPlayer', () => {
             media: localMediaAssetFixture(blob),
             contentType: 'audio/webm',
             byteSize: blob.size,
-            durationMs: 1000,
+            recordingTimebase: { nominalMediaDurationUs: 1000000, activeSegments: [{ performanceStartUs: 0, performanceEndUs: 1000000, mediaStartUs: 0, mediaEndUs: 1000000 }] },
             timebase: {
               version: 1,
               speedRatio: 1,
@@ -355,7 +355,7 @@ describe('PerformanceReplayPlayer', () => {
             media: localMediaAssetFixture(blob),
             contentType: 'video/webm',
             byteSize: blob.size,
-            durationMs: 1000,
+            recordingTimebase: { nominalMediaDurationUs: 1000000, activeSegments: [{ performanceStartUs: 0, performanceEndUs: 1000000, mediaStartUs: 0, mediaEndUs: 1000000 }] },
             timebase: {
               version: 1,
               speedRatio: 1,
@@ -402,7 +402,7 @@ describe('PerformanceReplayPlayer', () => {
             media,
             contentType: 'video/webm',
             byteSize: blob.size,
-            durationMs: 1000,
+            recordingTimebase: { nominalMediaDurationUs: 1000000, activeSegments: [{ performanceStartUs: 0, performanceEndUs: 1000000, mediaStartUs: 0, mediaEndUs: 1000000 }] },
             timebase: {
               version: 1,
               speedRatio: 1,

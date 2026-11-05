@@ -47,9 +47,9 @@ const tempoPlan: PerformanceTakeTempoPlan = {
 };
 
 const recordingTimebase: RecordingTimebase = {
-  nominalMediaDurationMs: 1000,
+  nominalMediaDurationUs: 1000000,
   activeSegments: [
-    { perfStartMs: 0, perfEndMs: 1000, mediaStartMs: 0, mediaEndMs: 1000 },
+    { performanceStartUs: 0, performanceEndUs: 1000000, mediaStartUs: 0, mediaEndUs: 1000000 },
   ],
 };
 
@@ -61,7 +61,7 @@ function createInput() {
     mediaKind: 'AUDIO' as const,
     media: localMediaAssetFixture(new Blob(['RIFF....WAVE'], { type: 'audio/wav' })),
     mimeType: 'audio/wav',
-    durationMs: 1000,
+
     scope: {
       kind: 'FULL' as const,
       startTick: 0,
@@ -83,7 +83,7 @@ const savedTake: PerformanceTakeRead = {
   media_kind: 'AUDIO',
   media_mime_type: 'audio/wav',
   media_byte_size: 12,
-  duration_ms: 1000,
+
   scope_type: 'FULL',
   scope_start_tick: 0,
   scope_terminal_tick: 4,
@@ -108,7 +108,7 @@ function reservation(
         kind: input.mediaKind,
         byte_size: input.media.byteSize,
         mime_type: input.mimeType,
-        duration_ms: input.durationMs,
+
       },
       scope: { kind: 'FULL' },
       tempo_selection: tempoPlan.selection,
@@ -227,7 +227,7 @@ describe('useSavePerformanceTake', () => {
       kind: 'VIDEO',
       byte_size: raw.size,
       mime_type: 'video/mp4',
-      duration_ms: input.durationMs,
+
     };
     reserved.upload_target = {
       url: '/uploads/staging.mp4',

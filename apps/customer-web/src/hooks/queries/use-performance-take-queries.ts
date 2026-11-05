@@ -67,7 +67,6 @@ export interface SavePerformanceTakeInput {
   mediaKind: CaptureMediaKind;
   media: LocalMediaAsset;
   mimeType: string;
-  durationMs: number;
   scope:
     | {
         kind: 'FULL';
@@ -99,7 +98,6 @@ export function useSavePerformanceTake() {
           kind: input.mediaKind,
           byte_size: input.media.byteSize,
           mime_type: normalizeCaptureMime(input.mimeType),
-          duration_ms: input.durationMs,
         },
         scope:
           input.scope.kind === 'RANGE'

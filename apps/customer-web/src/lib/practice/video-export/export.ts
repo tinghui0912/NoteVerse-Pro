@@ -1,3 +1,4 @@
+import { assertRecordingTimebase, microsecondsToMilliseconds } from '@/lib/practice/recording/recording-timebase';
 import { openVideoExportOutputMedia } from './output-media';
 import {
   releaseLocalMediaAsset,
@@ -104,7 +105,9 @@ export function getVideoExportReadiness({
   if (!xmlContent || !scoreContainer) {
     return { ok: false, reason: 'score_not_ready' };
   }
-  if (!session.recordingTimebase?.activeSegments?.length) {
+  try {
+    assertRecordingTimebase(session.recordingTimebase);
+  } catch {
     return { ok: false, reason: 'timebase_unavailable' };
   }
   const mimeType = selectSupportedVideoExportMimeType();
@@ -153,7 +156,6 @@ export async function exportVideo({
   if (session.video.status !== 'READY') {
     throw new Error('video_export_unavailable:video_not_ready');
   }
-  const sourceVideo = session.video;
   const layout = getVideoExportLayout(config);
 
   const canvas = document.createElement('canvas');
@@ -409,7 +411,7 @@ export async function exportVideo({
         if (!acceptingFrames()) return;
         const durationMs = Number.isFinite(video.duration)
           ? Math.max(0, video.duration * 1000)
-          : sourceVideo.durationMs;
+          : microsecondsToMilliseconds(session.recordingTimebase.nominalMediaDurationUs);
         const mediaTimeMs = Math.max(0, video.currentTime * 1000);
         onProgress?.({
           mediaTimeMs,

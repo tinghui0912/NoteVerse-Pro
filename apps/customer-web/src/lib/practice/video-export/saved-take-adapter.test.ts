@@ -1,10 +1,11 @@
+import { decodeRecordingTimebase } from '@/lib/practice/recording/recording-timebase';
 import { localMediaAssetFixture } from '../__fixtures__/local-media-asset';
 import { describe, expect, it } from 'vitest';
 
 import {
   createVideoExportSessionFromSavedTake,
   hasSavedTakeVideoExportMetadata,
-  parseSavedRecordingTimebase,
+
   parseSavedTempoPlan,
 } from './saved-take-adapter';
 
@@ -107,7 +108,7 @@ describe('video export session saved-take parsing', () => {
       patch: {
         recording_timebase: { ...take.recording_timebase, activeSegments: [] },
       },
-      reason: 'recording_timebase_segments_missing',
+      reason: 'recording_timebase_invalid',
     },
   ])(
     'fails closed on invalid saved $field metadata at the adapter boundary',
@@ -124,13 +125,13 @@ describe('video export session saved-take parsing', () => {
 
   it('rejects missing and malformed recording timebase instead of inventing a timeline', () => {
     expect(() => parseSavedTempoPlan(null)).toThrow(/missing/);
-    expect(() => parseSavedRecordingTimebase(null)).toThrow(/missing/);
+    expect(() => decodeRecordingTimebase(null)).toThrow(/recording_timebase_invalid/);
     expect(() =>
-      parseSavedRecordingTimebase({
+      decodeRecordingTimebase({
         ...recordingTimebase,
         activeSegments: [],
       })
-    ).toThrow(/segments_missing/);
+    ).toThrow(/recording_timebase_invalid/);
     expect(() =>
       parseSavedTempoPlan({
         ...tempoPlan,
@@ -138,26 +139,26 @@ describe('video export session saved-take parsing', () => {
       })
     ).toThrow(/tick_zero/);
     expect(() =>
-      parseSavedRecordingTimebase({
+      decodeRecordingTimebase({
         ...recordingTimebase,
-        nominalMediaDurationMs: 5000,
+        nominalMediaDurationUs: 5000000,
         activeSegments: [
           {
-            perfStartMs: 0,
-            perfEndMs: 2000,
-            mediaStartMs: 0,
-            mediaEndMs: 2000,
+            performanceStartUs: 0,
+            performanceEndUs: 2000000,
+            mediaStartUs: 0,
+            mediaEndUs: 2000000,
           },
           {
-            perfStartMs: 3000,
-            perfEndMs: 5000,
-            mediaStartMs: 2500,
-            mediaEndMs: 5000,
+            performanceStartUs: 3000000,
+            performanceEndUs: 5000000,
+            mediaStartUs: 2500000,
+            mediaEndUs: 5000000,
           },
         ],
       })
-    ).toThrow(/media_segments_not_continuous/);
-    expect(parseSavedRecordingTimebase(recordingTimebase)).toEqual(
+    ).toThrow(/recording_timebase_invalid/);
+    expect(decodeRecordingTimebase(recordingTimebase)).toEqual(
       recordingTimebase
     );
   });
@@ -189,7 +190,7 @@ describe('video export session saved-take parsing', () => {
     );
     expect(result.status).toBe('supported');
     if (result.status === 'supported') {
-      expect(result.session.video.durationMs).toBe(4000);
+      expect(result.session.recordingTimebase.nominalMediaDurationUs).toBe(4000000);
       expect(result.session.video.actualMediaDurationMs).toBeUndefined();
     }
   });

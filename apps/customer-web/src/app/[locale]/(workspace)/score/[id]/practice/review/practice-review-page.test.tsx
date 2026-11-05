@@ -485,10 +485,10 @@ describe('PracticeReviewPage', () => {
         kind: 'AUDIO',
         media: localMediaAssetFixture(new Blob(['audio-bytes'], { type: 'audio/webm' })),
         mimeType: 'audio/webm',
-        durationMs: 9600,
+
         timebase: {
-          activeSegments: [{ perfStartMs: 0, perfEndMs: 9600, mediaStartMs: 0, mediaEndMs: 9600 }],
-          nominalMediaDurationMs: 9600,
+          activeSegments: [{ performanceStartUs: 0, performanceEndUs: 9600000, mediaStartUs: 0, mediaEndUs: 9600000 }],
+          nominalMediaDurationUs: 9600000,
         }
       }
     };
@@ -647,10 +647,10 @@ describe('PracticeReviewPage', () => {
         kind: 'AUDIO',
         media: localMediaAssetFixture(new Blob(['audio-bytes'], { type: 'audio/webm' })),
         mimeType: 'audio/webm',
-        durationMs: 10000,
+
         timebase: {
-          activeSegments: [{ perfStartMs: 0, perfEndMs: 10000, mediaStartMs: 0, mediaEndMs: 10000 }],
-          nominalMediaDurationMs: 10000,
+          activeSegments: [{ performanceStartUs: 0, performanceEndUs: 10000000, mediaStartUs: 0, mediaEndUs: 10000000 }],
+          nominalMediaDurationUs: 10000000,
         }
       }
     };
@@ -699,7 +699,9 @@ describe('PracticeReviewPage', () => {
       updatedAtMs: Date.parse('2026-09-20T12:00:00.000Z'),
     });
     provideReview({ result, recording: {  status: 'READY', kind: 'AUDIO', media: localMediaAssetFixture(new Blob(['audio'], { type: 'audio/webm' })),
-      mimeType: 'audio/webm', durationMs: 3000, timebase: { activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }], nominalMediaDurationMs: 3000 } } });
+      mimeType: 'audio/webm', timebase: { activeSegments: [{ performanceStartUs: 0, performanceEndUs: 3000000, mediaStartUs: 0, mediaEndUs: 3000000 }], nominalMediaDurationUs: 3000000 }
+    }
+    });
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
     expect(screen.getByText('本次演奏的识别分析不可用，仍可回放录制。')).toBeDefined();
     expect(screen.getByTestId('mock-replay-player')).toBeDefined();
@@ -756,10 +758,10 @@ describe('PracticeReviewPage', () => {
         kind: 'AUDIO',
         media: localMediaAssetFixture(new Blob(['audio'], { type: 'audio/webm' })),
         mimeType: 'audio/webm',
-        durationMs: 3000,
+
         timebase: {
-          activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }],
-          nominalMediaDurationMs: 3000,
+          activeSegments: [{ performanceStartUs: 0, performanceEndUs: 3000000, mediaStartUs: 0, mediaEndUs: 3000000 }],
+          nominalMediaDurationUs: 3000000,
         }
       }
     };
@@ -814,10 +816,10 @@ describe('PracticeReviewPage', () => {
         kind: 'VIDEO',
         media: localMediaAssetFixture(videoBlob),
         mimeType: 'video/webm',
-        durationMs: 3000,
+
         timebase: {
-          activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }],
-          nominalMediaDurationMs: 3000,
+          activeSegments: [{ performanceStartUs: 0, performanceEndUs: 3000000, mediaStartUs: 0, mediaEndUs: 3000000 }],
+          nominalMediaDurationUs: 3000000,
         }
       }
     };
@@ -1082,10 +1084,10 @@ function createVideoCompletion({
       kind: 'VIDEO',
       media: media ?? localMediaAssetFixture(videoBlob),
       mimeType,
-      durationMs: 3000,
+
       timebase: {
-        activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }],
-        nominalMediaDurationMs: 3000,
+        activeSegments: [{ performanceStartUs: 0, performanceEndUs: 3000000, mediaStartUs: 0, mediaEndUs: 3000000 }],
+        nominalMediaDurationUs: 3000000,
       }
     }
   };

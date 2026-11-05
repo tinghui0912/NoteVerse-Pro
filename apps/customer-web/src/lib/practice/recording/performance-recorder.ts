@@ -1,6 +1,6 @@
 import { releaseLocalMediaAsset } from '@/lib/practice/media/local-media-asset';
 import { createPerformanceRecording, type PerformanceRecording } from './recording-artifact';
-import type { RecordingActiveSegment } from './recording-timebase';
+import { millisecondsToMicroseconds, microsecondsToMilliseconds, type RecordingActiveSegment } from './recording-timebase';
 
 import type { PracticeRecordingMode } from './recording-mode';
 import { openOpfsRecordingSink } from './opfs-recording-sink';
@@ -39,10 +39,12 @@ function createContinuousVideoStream(
   return new MediaStream([videoTracks[0], audioTracks[0]]);
 }
 
-function createEmptyTimebase(): { activeSegments: RecordingActiveSegment[]; nominalMediaDurationMs: number } {
+type RecordingTimebaseBuilder = { activeSegments: RecordingActiveSegment[]; nominalMediaDurationUs: number };
+
+function createTimebaseBuilder(): RecordingTimebaseBuilder {
   return {
     activeSegments: [],
-    nominalMediaDurationMs: 0,
+    nominalMediaDurationUs: 0,
   };
 }
 
@@ -69,10 +71,10 @@ export class PerformanceRecorder {
   private unavailableReason: string | null = null;
   private state: RecorderState = 'NOT_STARTED';
   private stopPromise: Promise<RecorderStopResult> | null = null;
-  private timebase = createEmptyTimebase();
-  private currentSegmentStartPerfMs: number | null = null;
-  private currentSegmentStartMediaMs = 0;
-  private cumulativeMediaMs = 0;
+  private timebase = createTimebaseBuilder();
+  private currentSegmentStartPerformanceUs: number | null = null;
+  private currentSegmentStartMediaUs = 0;
+  private cumulativeMediaUs = 0;
 
   constructor(mode: PracticeRecordingMode, private readonly openSink: RecordingSinkFactory = openOpfsRecordingSink) {
     this.mode = mode;
@@ -177,9 +179,9 @@ export class PerformanceRecorder {
       return;
     }
     this.runtimeActive = true;
-    this.currentSegmentStartPerfMs = performanceTimeMs;
-    this.currentSegmentStartMediaMs = 0;
-    this.cumulativeMediaMs = 0;
+    this.currentSegmentStartPerformanceUs = millisecondsToMicroseconds(performanceTimeMs);
+    this.currentSegmentStartMediaUs = 0;
+    this.cumulativeMediaUs = 0;
     try {
       this.recorder.start(250);
       this.mediaStarted = true;
@@ -209,8 +211,8 @@ export class PerformanceRecorder {
     try {
       this.recorder.resume();
       this.state = 'RECORDING';
-      this.currentSegmentStartPerfMs = performanceTimeMs;
-      this.currentSegmentStartMediaMs = this.cumulativeMediaMs;
+      this.currentSegmentStartPerformanceUs = millisecondsToMicroseconds(performanceTimeMs);
+      this.currentSegmentStartMediaUs = this.cumulativeMediaUs;
     } catch {
       this.interrupt('RECORDER_RESUME_FAILED', 'RESTART_REQUIRED');
     }
@@ -222,7 +224,7 @@ export class PerformanceRecorder {
     }
     this.runtimeActive = false;
     this.closeActiveSegment(performanceEndMs);
-    this.timebase.nominalMediaDurationMs = this.cumulativeMediaMs;
+    this.timebase.nominalMediaDurationUs = this.cumulativeMediaUs;
 
     if (this.mode === 'OFF') {
       this.stopPromise = Promise.resolve('STOPPED');
@@ -294,6 +296,7 @@ export class PerformanceRecorder {
     if (
       stopResult !== 'STOPPED'
       || totalBytes === 0
+      || this.timebase.activeSegments.length === 0
       || this.unavailableReason !== null
       || this.state === 'UNAVAILABLE'
     ) {
@@ -304,7 +307,7 @@ export class PerformanceRecorder {
         reason: this.unavailableReason
           ?? (stopResult && stopResult !== 'STOPPED'
             ? 'RECORDER_STOP_FAILED'
-            : totalBytes === 0
+          : totalBytes === 0 || this.timebase.activeSegments.length === 0
               ? 'EMPTY_RECORDING_BLOB'
               : 'RECORDING_NOT_AVAILABLE'),
       });
@@ -330,7 +333,7 @@ export class PerformanceRecorder {
       }
       const recording = createPerformanceRecording({
         status: 'READY', kind: this.mediaKind, media,
-        mimeType, durationMs: Math.max(0, Math.round(this.timebase.nominalMediaDurationMs)), timebase: this.timebase,
+        mimeType, timebase: this.timebase,
       });
       this.sink = null; // The returned completion now owns the sealed file's first reference.
       this.state = 'READY';
@@ -343,8 +346,8 @@ export class PerformanceRecorder {
     this.disposed = true;
     this.runtimeActive = false; this.fault = null; this.faultListeners.clear();
     this.discardPipeline();
-    this.timebase = createEmptyTimebase();
-    this.currentSegmentStartPerfMs = null; this.cumulativeMediaMs = 0;
+    this.timebase = createTimebaseBuilder();
+    this.currentSegmentStartPerformanceUs = null; this.cumulativeMediaUs = 0;
     this.cleanupPromise = (async () => {
       if (this.openingSink) await Promise.allSettled([this.openingSink]);
       await this.retireSink();
@@ -379,7 +382,7 @@ export class PerformanceRecorder {
 
   snapshot(performanceTimeMs = 0) { return Object.freeze({
     indicatorVisible: this.mediaStarted && !this.acceptedLoss && !this.disposed,
-    elapsedMs: this.cumulativeMediaMs + (this.currentSegmentStartPerfMs === null ? 0 : Math.max(0, performanceTimeMs - this.currentSegmentStartPerfMs)),
+    elapsedMs: microsecondsToMilliseconds(this.cumulativeMediaUs) + (this.currentSegmentStartPerformanceUs === null ? 0 : Math.max(0, performanceTimeMs - microsecondsToMilliseconds(this.currentSegmentStartPerformanceUs))),
     state: this.mode === 'OFF' ? 'OFF' as const : this.state,
     sourceOwnership: this.sourceOwnership, unavailableReason: this.unavailableReason }); }
 
@@ -442,20 +445,21 @@ export class PerformanceRecorder {
   }
 
   private closeActiveSegment(performanceEndMs: number): void {
-    if (this.currentSegmentStartPerfMs === null) {
+    if(this.currentSegmentStartPerformanceUs === null) {
       return;
     }
-    const perfEndMs = Math.max(this.currentSegmentStartPerfMs, performanceEndMs);
-    const segmentDuration = Math.max(0, perfEndMs - this.currentSegmentStartPerfMs);
-    const mediaEndMs = this.currentSegmentStartMediaMs + segmentDuration;
-    this.timebase.activeSegments.push({
-      perfStartMs: this.currentSegmentStartPerfMs,
-      perfEndMs,
-      mediaStartMs: this.currentSegmentStartMediaMs,
-      mediaEndMs,
+    const performanceEndUs = Math.max(this.currentSegmentStartPerformanceUs, millisecondsToMicroseconds(performanceEndMs));
+    const durationUs = performanceEndUs - this.currentSegmentStartPerformanceUs;
+    const mediaEndUs = this.currentSegmentStartMediaUs + durationUs;
+    if(!Number.isSafeInteger(mediaEndUs)) throw new Error('recording_time_unsafe');
+    if(durationUs > 0) this.timebase.activeSegments.push({
+      performanceStartUs: this.currentSegmentStartPerformanceUs,
+      performanceEndUs,
+      mediaStartUs: this.currentSegmentStartMediaUs,
+      mediaEndUs,
     });
-    this.cumulativeMediaMs = mediaEndMs;
-    this.currentSegmentStartPerfMs = null;
+    this.cumulativeMediaUs = mediaEndUs;
+    this.currentSegmentStartPerformanceUs = null;
   }
 
   private markUnavailable(reason: string): void {

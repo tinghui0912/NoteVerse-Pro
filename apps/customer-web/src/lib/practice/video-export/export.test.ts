@@ -43,13 +43,13 @@ function createSession(
       status: 'READY',
       media: localMediaAssetFixture(new Blob(['video'], { type: 'video/webm' })),
       mimeType: 'video/webm',
-      durationMs: 6000,
+
     },
     recordingTimebase: {
-      nominalMediaDurationMs: 6000,
+      nominalMediaDurationUs: 6000000,
       activeSegments: [
-        { perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 },
-        { perfStartMs: 5000, perfEndMs: 8000, mediaStartMs: 3000, mediaEndMs: 6000 },
+        { performanceStartUs: 0, performanceEndUs: 3000000, mediaStartUs: 0, mediaEndUs: 3000000 },
+        { performanceStartUs: 5000000, performanceEndUs: 8000000, mediaStartUs: 3000000, mediaEndUs: 6000000 },
       ],
     },
     ...overrides,
@@ -231,7 +231,7 @@ describe('video-export video export helpers', () => {
       getVideoExportReadiness({
         session: createSession({
           recordingTimebase: {
-            nominalMediaDurationMs: 0,
+            nominalMediaDurationUs: 0,
             activeSegments: [],
           },
         }),
@@ -616,8 +616,8 @@ describe('video-export video export helpers', () => {
     };
     const session = createSession({
       recordingTimebase: {
-        nominalMediaDurationMs: 5000,
-        activeSegments: [{ perfStartMs: 0, perfEndMs: 5000, mediaStartMs: 0, mediaEndMs: 5000 }],
+        nominalMediaDurationUs: 5000000,
+        activeSegments: [{ performanceStartUs: 0, performanceEndUs: 5000000, mediaStartUs: 0, mediaEndUs: 5000000 }],
       },
       tempoPlan: {
         selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 60 },

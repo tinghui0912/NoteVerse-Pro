@@ -1,89 +1,137 @@
-export type RecordingActiveSegment = Readonly<{
-  perfStartMs: number; perfEndMs: number; mediaStartMs: number; mediaEndMs: number;
-}>;
-export type RecordingTimebaseMapping = Readonly<{
-  activeSegments: readonly RecordingActiveSegment[];
-  nominalMediaDurationMs: number;
-}>;
+import type {
+  RecordingTimebase as RecordingTimebaseDto,
+  RecordingActiveSegment as RecordingActiveSegmentDto,
+} from '@/generated/api/types.gen';
 
-/** Container duration metadata tolerates one millisecond of rounding. */
-const TIMEBASE_TOLERANCE_MS = 1;
-export function assertRecordingTimebase(mapping: RecordingTimebaseMapping): void {
-  const nonnegative = (value: number) => typeof value === 'number' && Number.isFinite(value) && value >= 0;
-  if (!mapping || !nonnegative(mapping.nominalMediaDurationMs) || !Array.isArray(mapping.activeSegments)
-    || Object.keys(mapping).sort().join() !== 'activeSegments,nominalMediaDurationMs') {
+export type RecordingActiveSegment = Readonly<RecordingActiveSegmentDto>;
+export type RecordingTimebase = Readonly<
+  Omit<RecordingTimebaseDto, 'activeSegments'> & {
+    activeSegments: readonly RecordingActiveSegment[];
+  }
+>;
+
+function safeCoordinate(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+}
+function record(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+export function assertRecordingTimebase(
+  value: unknown,
+): asserts value is RecordingTimebase {
+  if (
+    !record(value) ||
+    Object.keys(value).sort().join() !==
+      'activeSegments,nominalMediaDurationUs' ||
+    !safeCoordinate(value.nominalMediaDurationUs) ||
+    value.nominalMediaDurationUs === 0 ||
+    !Array.isArray(value.activeSegments) ||
+    value.activeSegments.length === 0
+  ) {
     throw new Error('recording_timebase_invalid');
   }
   let previous: RecordingActiveSegment | undefined;
-  for (const segment of mapping.activeSegments) {
-    if (!segment || Object.keys(segment).sort().join() !== 'mediaEndMs,mediaStartMs,perfEndMs,perfStartMs'
-      || ![segment.perfStartMs, segment.perfEndMs, segment.mediaStartMs, segment.mediaEndMs].every(nonnegative)) {
-      throw new Error('recording_timebase_segment_invalid');
+  for (const segment of value.activeSegments) {
+    if (
+      !record(segment) ||
+      Object.keys(segment).sort().join() !==
+        'mediaEndUs,mediaStartUs,performanceEndUs,performanceStartUs' ||
+      !safeCoordinate(segment.performanceStartUs) ||
+      !safeCoordinate(segment.performanceEndUs) ||
+      !safeCoordinate(segment.mediaStartUs) ||
+      !safeCoordinate(segment.mediaEndUs) ||
+      segment.performanceEndUs <= segment.performanceStartUs ||
+      segment.mediaEndUs <= segment.mediaStartUs ||
+      segment.performanceEndUs - segment.performanceStartUs !==
+        segment.mediaEndUs - segment.mediaStartUs
+    ) {
+      throw new Error('recording_timebase_invalid_segment');
     }
-    if (segment.perfEndMs < segment.perfStartMs || segment.mediaEndMs < segment.mediaStartMs) {
-      throw new Error('recording_timebase_segment_order_invalid');
+    if (
+      (!previous && segment.mediaStartUs !== 0) ||
+      (previous &&
+        (segment.performanceStartUs < previous.performanceEndUs ||
+          segment.mediaStartUs !== previous.mediaEndUs))
+    ) {
+      throw new Error('recording_timebase_invalid_chronology');
     }
-    if (!previous && segment.mediaStartMs !== 0) throw new Error('recording_timebase_first_media_segment_invalid');
-    if (previous && segment.perfStartMs < previous.perfEndMs) throw new Error('recording_timebase_segments_overlap');
-    if (previous && (segment.mediaStartMs < previous.mediaStartMs
-      || Math.abs(segment.mediaStartMs - previous.mediaEndMs) > TIMEBASE_TOLERANCE_MS)) {
-      throw new Error('recording_timebase_media_segments_not_continuous');
-    }
-    previous = segment;
+    previous = segment as RecordingActiveSegment;
   }
-  if (!previous && mapping.nominalMediaDurationMs !== 0
-    || Math.abs((previous?.mediaEndMs ?? 0) - mapping.nominalMediaDurationMs) > TIMEBASE_TOLERANCE_MS) {
-    throw new Error('recording_timebase_nominal_duration_mismatch');
-  }
+  if (previous!.mediaEndUs !== value.nominalMediaDurationUs)
+    throw new Error('recording_timebase_invalid_duration');
 }
-export function immutableRecordingTimebase(mapping: RecordingTimebaseMapping): RecordingTimebaseMapping {
-  assertRecordingTimebase(mapping);
-  return Object.freeze({ nominalMediaDurationMs: mapping.nominalMediaDurationMs,
-    activeSegments: Object.freeze(mapping.activeSegments.map(segment => Object.freeze({ ...segment }))) });
+
+/** Creates only the immutable coordinate projection; media bytes have their own owner. */
+export function decodeRecordingTimebase(value: unknown): RecordingTimebase {
+  assertRecordingTimebase(value);
+  return Object.freeze({
+    nominalMediaDurationUs: value.nominalMediaDurationUs,
+    activeSegments: Object.freeze(
+      value.activeSegments.map((segment) => Object.freeze({ ...segment })),
+    ),
+  });
 }
 
-/**
- * Maps audio media playback time (ms) to practice performanceTimeMs (ms).
- * Takes into account recording start offset, pause/resume intervals, and actual media duration scaling.
- * Returns null if synchronization cannot be reliably determined (allowing explicit degradation).
- */
-export function mediaTimeToPerformanceTimeMs(
-  mediaTimeMs: number,
-  timebase?: RecordingTimebaseMapping | null,
-  actualMediaDurationMs?: number | null
-): number | null {
-  if (!timebase || timebase.activeSegments.length === 0) {
-    return null;
-  }
+/** Nonnegative runtime milliseconds round to the nearest microsecond, with ties upward. */
+export function millisecondsToMicroseconds(ms: number): number {
+  if (!Number.isFinite(ms) || ms < 0) throw new Error('recording_time_invalid');
+  const us = Math.round(ms * 1000);
+  if (!safeCoordinate(us)) throw new Error('recording_time_unsafe');
+  return us;
+}
+export function microsecondsToMilliseconds(us: number): number {
+  if (!safeCoordinate(us)) throw new Error('recording_time_invalid');
+  return us / 1000;
+}
 
-  const { activeSegments, nominalMediaDurationMs } = timebase;
-
-  let scaledMediaTimeMs = mediaTimeMs;
+/** Integer core. Shared media joins belong to the preceding active segment's endpoint. */
+export function mediaTimeUsToPerformanceTimeUs(
+  mediaTimeUs: number,
+  timebase: RecordingTimebase,
+  actualMediaDurationUs?: number,
+): number {
   if (
-    actualMediaDurationMs &&
-    actualMediaDurationMs > 0 &&
-    nominalMediaDurationMs > 0
+    !safeCoordinate(mediaTimeUs) ||
+    (actualMediaDurationUs !== undefined &&
+      (!safeCoordinate(actualMediaDurationUs) || actualMediaDurationUs === 0))
   ) {
-    scaledMediaTimeMs = (mediaTimeMs / actualMediaDurationMs) * nominalMediaDurationMs;
+    throw new Error('recording_time_invalid');
   }
-
-  const firstSeg = activeSegments[0];
-  const lastSeg = activeSegments[activeSegments.length - 1];
-
-  if (scaledMediaTimeMs <= firstSeg.mediaStartMs) {
-    return firstSeg.perfStartMs;
+  const nominal = timebase.nominalMediaDurationUs;
+  const actual = actualMediaDurationUs ?? nominal;
+  const bounded = Math.min(mediaTimeUs, actual);
+  // Nearest integer, ties upward; products remain exact even at the safe-integer boundary.
+  const scaled = Number(
+    (2n * BigInt(bounded) * BigInt(nominal) + BigInt(actual)) /
+      (2n * BigInt(actual)),
+  );
+  for (const segment of timebase.activeSegments) {
+    if (scaled <= segment.mediaEndUs)
+      return segment.performanceStartUs + (scaled - segment.mediaStartUs);
   }
-  if (scaledMediaTimeMs >= lastSeg.mediaEndMs) {
-    return lastSeg.perfEndMs;
-  }
+  return timebase.activeSegments[timebase.activeSegments.length - 1]
+    .performanceEndUs;
+}
 
-  for (let i = 0; i < activeSegments.length; i++) {
-    const seg = activeSegments[i];
-    if (scaledMediaTimeMs >= seg.mediaStartMs && scaledMediaTimeMs <= seg.mediaEndMs) {
-      const offsetInSeg = scaledMediaTimeMs - seg.mediaStartMs;
-      return seg.perfStartMs + offsetInSeg;
-    }
-  }
-
-  return null;
+/** Browser-only adaptation of decoded container time to the exact nominal recording axis. */
+export function replayMediaTimeMsToPerformanceTimeMs(
+  mediaTimeMs: number,
+  timebase?: RecordingTimebase | null,
+  actualMediaDurationMs?: number | null,
+): number | null {
+  if (!timebase) return null;
+  const actualUs =
+    actualMediaDurationMs != null &&
+    Number.isFinite(actualMediaDurationMs) &&
+    actualMediaDurationMs > 0
+      ? millisecondsToMicroseconds(actualMediaDurationMs)
+      : undefined;
+  return microsecondsToMilliseconds(
+    mediaTimeUsToPerformanceTimeUs(
+      millisecondsToMicroseconds(Math.max(0, mediaTimeMs)),
+      timebase,
+      actualUs,
+    ),
+  );
 }

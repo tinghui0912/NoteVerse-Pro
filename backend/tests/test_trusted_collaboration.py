@@ -252,7 +252,6 @@ async def test_http_source_disclosure_and_editing_boundaries(collaboration, role
                         "kind": "AUDIO",
                         "mime_type": "audio/webm",
                         "byte_size": 100,
-                        "duration_ms": 5000,
                     },
                     "scope": {"kind": "FULL"},
                     "tempo_selection": {"mode": "SCORE"},

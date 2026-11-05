@@ -801,10 +801,10 @@ Confidence remains evidence metadata without another uncalibrated threshold.
 
 ## Recording Artifact
 
-`recording/` owns media, recorder resource lifecycle, replay descriptors and
+`recording/` owns recording semantics, recorder resource lifecycle, replay descriptors and
 media-to-performance synchronization. `PerformanceRecording` is a discriminated
 NOT_RECORDED / UNAVAILABLE / READY artifact. Only READY carries AUDIO/VIDEO kind,
-LocalMediaAsset, MIME, media duration and an immutable recording timebase. Selecting AUDIO or
+LocalMediaAsset, MIME and an immutable recording timebase. Selecting AUDIO or
 VIDEO requires successful recording admission before transport/count-in begins.
 `PerformanceRecorder.prepare()` resolves only for admitted recording or OFF; missing
 or dead required tracks, permission/device loss, unsupported recorder/MIME, unavailable
@@ -913,13 +913,27 @@ cannot reopen transport or create a late intervention. A known preparation failu
 cannot be represented as an UNAVAILABLE completion artifact. Media duration is distinct
 from the completed session's active performance duration; recording owns its media separately.
 
-The recorder can build segments mutably, but finalized timebase/segments are copied
-and frozen. READY validation requires finite nonnegative coordinates, ordered
-non-overlapping performance segments, a media timeline starting at zero with no
-unexplained gaps, and nominal duration matching the final media end. The
-container rounding tolerance is one millisecond; zero-duration boundaries are valid.
-Replay preserves pause/resume mapping, actual decoded-duration scaling, gap-to-null
-behavior and bounds clamping.
+RecordingTimebase uses integer microseconds and is the sole nominal Capture duration
+owner through `nominalMediaDurationUs`. All coordinates are nonnegative JavaScript-safe
+integers. A published timebase has at least one positive-duration active segment and
+positive nominal duration. The first media coordinate is zero, media segments are
+exactly contiguous, performance segments do not overlap, and each segment's media
+duration equals its performance duration. Pause gaps exist only on the performance
+axis. Nominal duration exactly equals the final media endpoint; extra fields are rejected.
+
+The recorder's mutable builder quantizes runtime milliseconds once to the nearest
+microsecond, with ties upward, and uses integer arithmetic thereafter. Zero-duration
+intervals do not form segments. A builder without a positive segment cannot publish
+READY. Finalized coordinate projections are copied and frozen.
+
+Actual decoded media duration is a runtime observation. Replay maps browser time to
+integer microseconds, scales actual to nominal coordinates using exact BigInt products
+and nearest-integer division with ties upward, then maps through the active segments.
+A shared media boundary selects the preceding performance endpoint. Presentation and
+score-tempo integration convert the resulting performance microseconds to milliseconds.
+The actual container duration never changes the durable timebase. The shared executable
+contract is `contracts/practice/recording-timebase-cases.json`, consumed by Python and
+TypeScript tests.
 
 Recording OFF acquires no media. Microphone+AUDIO borrows a clone of the session
 stream; MIDI+AUDIO borrows a clone of the retained recording-microphone root. VIDEO uses camera video

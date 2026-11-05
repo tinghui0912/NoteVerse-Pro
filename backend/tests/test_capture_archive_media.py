@@ -63,7 +63,7 @@ def reserve(client, kind, mime, size):
         "/api/v1/performance-takes/upload-reservations",
         json={
             "source": {"source_id": _source_id()},
-            "media": {"kind": kind, "mime_type": mime, "byte_size": size, "duration_ms": 5000},
+            "media": {"kind": kind, "mime_type": mime, "byte_size": size},
             "scope": {"kind": "FULL"},
             "client_request_id": "capture-archive",
         },

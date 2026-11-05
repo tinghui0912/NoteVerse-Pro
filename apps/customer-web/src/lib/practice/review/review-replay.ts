@@ -1,6 +1,6 @@
 import type { PerformanceRecording } from '@/lib/practice/recording/recording-artifact';
 import type { PlayablePerformanceReplay } from '@/lib/practice/recording/performance-replay';
-import { mediaTimeToPerformanceTimeMs } from '@/lib/practice/recording/recording-timebase';
+import { replayMediaTimeMsToPerformanceTimeMs } from '@/lib/practice/recording/recording-timebase';
 import { PracticeTempoTimeline, type ResolvedPracticeTempoPlan } from '@/lib/practice/planning/tempo';
 import type { ResolvedPracticeScope } from '@/lib/practice/planning/scope';
 import { resolveScopeTiming } from '@/lib/practice/score-view/scope-timing';
@@ -8,7 +8,8 @@ import { resolveScopeTiming } from '@/lib/practice/score-view/scope-timing';
 export function reviewReplay(recording: PerformanceRecording | null): PlayablePerformanceReplay | null {
   if (recording?.status !== 'READY') return null;
   return { kind: recording.kind === 'VIDEO' ? 'VIDEO_RECORDING' : 'AUDIO_RECORDING', media: recording.media,
-    contentType: recording.mimeType, byteSize: recording.media.byteSize, durationMs: recording.durationMs };
+    contentType: recording.mimeType, byteSize: recording.media.byteSize, recordingTimebase: recording.timebase
+  };
 }
 
 export function reviewReplayScoreTick({ recording, mediaTimeMs, actualMediaDurationMs, scope, tempoPlan, scoreEndTick, ticksPerQuarter }: {
@@ -16,7 +17,7 @@ export function reviewReplayScoreTick({ recording, mediaTimeMs, actualMediaDurat
   scope: ResolvedPracticeScope; tempoPlan: ResolvedPracticeTempoPlan; scoreEndTick: number; ticksPerQuarter: number;
 }): number | null {
   if (mediaTimeMs === null || recording?.status !== 'READY') return null;
-  const performanceTimeMs = mediaTimeToPerformanceTimeMs(mediaTimeMs, recording.timebase, actualMediaDurationMs);
+  const performanceTimeMs = replayMediaTimeMsToPerformanceTimeMs(mediaTimeMs, recording.timebase, actualMediaDurationMs);
   if (performanceTimeMs === null) return null;
   const timeline = new PracticeTempoTimeline(tempoPlan, scoreEndTick, ticksPerQuarter);
   const scopeStartMs = resolveScopeTiming(scope, tempoPlan, scoreEndTick, ticksPerQuarter).scopeStartMs;

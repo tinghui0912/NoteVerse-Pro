@@ -2,8 +2,10 @@ import { localMediaAssetFixture } from '@/lib/practice/__fixtures__/local-media-
 import { expect, it } from 'vitest';
 import { reviewReplay, reviewReplayScoreTick } from './review-replay';
 import type { PerformanceRecording } from '@/lib/practice/recording/recording-artifact';
-const recording: PerformanceRecording = {  status: 'READY', kind: 'AUDIO', media: localMediaAssetFixture(new Blob(['audio'])), mimeType: 'audio/webm', durationMs: 1000,
-  timebase: { nominalMediaDurationMs: 1000, activeSegments: [{ perfStartMs: 0, perfEndMs: 1000, mediaStartMs: 0, mediaEndMs: 1000 }] } };
+const recording: PerformanceRecording = {
+  status: 'READY', kind: 'AUDIO', media: localMediaAssetFixture(new Blob(['audio'])), mimeType: 'audio/webm',
+  timebase: { nominalMediaDurationUs: 1000000, activeSegments: [{ performanceStartUs: 0, performanceEndUs: 1000000, mediaStartUs: 0, mediaEndUs: 1000000 }] }
+};
 it.each(['AUDIO', 'VIDEO'] as const)('builds a %s replay without cloning media or inventing a recording', kind => {
   const ready = { ...recording, kind } as PerformanceRecording;
   expect(reviewReplay(ready)).toMatchObject({ kind: kind + '_RECORDING', media: recording.status === 'READY' ? recording.media : null });

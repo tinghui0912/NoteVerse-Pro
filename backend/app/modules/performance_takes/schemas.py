@@ -51,38 +51,40 @@ class PerformanceTakeTempoPlan(StrictPerformanceTakeModel):
         return self
 
 
-class RecordingTimebaseSegment(StrictPerformanceTakeModel):
-    perfStartMs: float = Field(ge=0)
-    perfEndMs: float = Field(gt=0)
-    mediaStartMs: float = Field(ge=0)
-    mediaEndMs: float = Field(gt=0)
+class RecordingActiveSegment(StrictPerformanceTakeModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    performanceStartUs: int = Field(strict=True, ge=0, le=2**53 - 1)
+    performanceEndUs: int = Field(strict=True, gt=0, le=2**53 - 1)
+    mediaStartUs: int = Field(strict=True, ge=0, le=2**53 - 1)
+    mediaEndUs: int = Field(strict=True, gt=0, le=2**53 - 1)
 
     @model_validator(mode="after")
-    def validate_segment_order(self) -> "RecordingTimebaseSegment":
-        if self.perfEndMs <= self.perfStartMs:
-            raise ValueError("perfEndMs must be greater than perfStartMs")
-        if self.mediaEndMs <= self.mediaStartMs:
-            raise ValueError("mediaEndMs must be greater than mediaStartMs")
+    def validate_segment(self) -> "RecordingActiveSegment":
+        if self.performanceEndUs <= self.performanceStartUs or self.mediaEndUs <= self.mediaStartUs:
+            raise ValueError("active segment durations must be positive")
+        if self.performanceEndUs - self.performanceStartUs != self.mediaEndUs - self.mediaStartUs:
+            raise ValueError("active performance and media durations must match exactly")
         return self
 
 
 class RecordingTimebase(StrictPerformanceTakeModel):
-    nominalMediaDurationMs: float = Field(gt=0)
-    activeSegments: list[RecordingTimebaseSegment] = Field(min_length=1)
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    nominalMediaDurationUs: int = Field(strict=True, gt=0, le=2**53 - 1)
+    activeSegments: tuple[RecordingActiveSegment, ...] = Field(min_length=1)
 
     @model_validator(mode="after")
     def validate_timebase(self) -> "RecordingTimebase":
-        first = self.activeSegments[0]
-        last = self.activeSegments[-1]
-        if first.mediaStartMs != 0:
+        if self.activeSegments[0].mediaStartUs != 0:
             raise ValueError("first media segment must start at zero")
-        if abs(last.mediaEndMs - self.nominalMediaDurationMs) > 1:
-            raise ValueError("nominal media duration must match final media segment")
+        if self.activeSegments[-1].mediaEndUs != self.nominalMediaDurationUs:
+            raise ValueError("nominal media duration must match final media end exactly")
         for previous, current in zip(self.activeSegments, self.activeSegments[1:]):
-            if current.perfStartMs < previous.perfEndMs:
-                raise ValueError("performance segments must be ordered")
-            if abs(current.mediaStartMs - previous.mediaEndMs) > 1:
-                raise ValueError("media segments must be continuous")
+            if current.performanceStartUs < previous.performanceEndUs:
+                raise ValueError("performance segments must not overlap")
+            if current.mediaStartUs != previous.mediaEndUs:
+                raise ValueError("media segments must be exactly contiguous")
         return self
 
 
@@ -94,7 +96,6 @@ class PerformanceTakeMediaMetadata(StrictPerformanceTakeModel):
     kind: Literal["AUDIO", "VIDEO"]
     byte_size: int = Field(gt=0)
     mime_type: str = Field(min_length=1, max_length=64)
-    duration_ms: int = Field(ge=0)
 
 
 class PerformanceTakeFullScopeSelection(StrictPerformanceTakeModel):
@@ -175,7 +176,6 @@ class PerformanceTakeRead(StrictPerformanceTakeModel):
     media_kind: str
     media_mime_type: str
     media_byte_size: int
-    duration_ms: int
     scope_type: str
     scope_start_tick: int = Field(strict=True, ge=0, le=2**53 - 1)
     scope_terminal_tick: int = Field(strict=True, gt=0, le=2**53 - 1)
@@ -201,7 +201,6 @@ class PerformanceTakePlaybackRead(StrictPerformanceTakeModel):
     media_kind: str
     media_mime_type: str
     media_byte_size: int
-    duration_ms: int
     expires_in: int
 
 

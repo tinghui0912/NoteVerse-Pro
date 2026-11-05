@@ -139,7 +139,7 @@ function rig() {
       status: "READY",
       kind: "VIDEO",
       media: source,
-      durationMs: 4000,
+
       mimeType: "video/webm",
     },
     scope: { kind: "FULL", startTick: 0, terminalTick: 4 },
@@ -148,9 +148,9 @@ function rig() {
       segments: [{ startTick: 0, bpm: 80, source: "PRODUCT_DEFAULT" }],
     },
     recordingTimebase: {
-      nominalMediaDurationMs: 4000,
+      nominalMediaDurationUs: 4000000,
       activeSegments: [
-        { perfStartMs: 0, perfEndMs: 4000, mediaStartMs: 0, mediaEndMs: 4000 },
+        { performanceStartUs: 0, performanceEndUs: 4000000, mediaStartUs: 0, mediaEndUs: 4000000 },
       ],
     },
   };

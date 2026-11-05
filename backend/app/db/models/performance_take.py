@@ -102,7 +102,6 @@ class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
         sa_column=Column(String(768), unique=True, index=True, nullable=False)
     )
     storage_backend: str = Field(sa_column=Column(String(32), nullable=False))
-    duration_ms: int = Field(sa_column=Column(Integer, nullable=False))
     scope_type: str = Field(
         sa_column=Column(String(16), nullable=False),
     )

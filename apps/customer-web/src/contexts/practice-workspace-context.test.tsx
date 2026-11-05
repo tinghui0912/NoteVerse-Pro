@@ -101,8 +101,11 @@ it.each(['clear', 'route', 'provider', 'new-preparation'] as const)('releases th
   const capture = recordingSinkFixture(); await capture.sink.append(new Blob(['raw capture'])); const media = await capture.sink.seal('audio/webm');
   const result = reviewResult(prepared.value.admission.source);
   const recording = { status: 'READY' as const, kind: 'AUDIO' as const, media,
-    mimeType: 'audio/webm', durationMs: 10000, timebase: { nominalMediaDurationMs: 10000,
-      activeSegments: [{ perfStartMs: 0, perfEndMs: 10000, mediaStartMs: 0, mediaEndMs: 10000 }] } };
+    mimeType: 'audio/webm', timebase: {
+      nominalMediaDurationUs: 10000000,
+      activeSegments: [{ performanceStartUs: 0, performanceEndUs: 10000000, mediaStartUs: 0, mediaEndUs: 10000000 }]
+    }
+  };
   expect(() => r.current.handoffToReview({ result: { ...result, session: { ...result.session, plan: { ...result.session.plan, source: { ...result.session.plan.source, sourceId: 'wrong' } } } }, recording })).toThrow();
   act(() => { r.current.handoffToReview({ result, recording }); });
   expect(prepared.value.binding.snapshot().state).toBe('CLOSED');

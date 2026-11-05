@@ -22,15 +22,15 @@ it("hands off canonical references without copying artifact, result or Blob byte
     kind: "VIDEO",
     media: localMediaAssetFixture(blob),
     mimeType: "video/webm",
-    durationMs: 10000,
+
     timebase: {
-      nominalMediaDurationMs: 10000,
+      nominalMediaDurationUs: 10000000,
       activeSegments: [
         {
-          perfStartMs: 0,
-          perfEndMs: 10000,
-          mediaStartMs: 0,
-          mediaEndMs: 10000,
+          performanceStartUs: 0,
+          performanceEndUs: 10000000,
+          mediaStartUs: 0,
+          mediaEndUs: 10000000,
         },
       ],
     },
@@ -93,15 +93,15 @@ it("retains before controller retirement, and final Review release removes media
     kind: "VIDEO",
     media,
     mimeType: "video/webm",
-    durationMs: 10000,
+
     timebase: {
-      nominalMediaDurationMs: 10000,
+      nominalMediaDurationUs: 10000000,
       activeSegments: [
         {
-          perfStartMs: 0,
-          perfEndMs: 10000,
-          mediaStartMs: 0,
-          mediaEndMs: 10000,
+          performanceStartUs: 0,
+          performanceEndUs: 10000000,
+          mediaStartUs: 0,
+          mediaEndUs: 10000000,
         },
       ],
     },
@@ -136,15 +136,15 @@ it("invalid handoff takes no reference and controller retirement deletes the med
     kind: "VIDEO",
     media,
     mimeType: "video/webm",
-    durationMs: 10000,
+
     timebase: {
-      nominalMediaDurationMs: 10000,
+      nominalMediaDurationUs: 10000000,
       activeSegments: [
         {
-          perfStartMs: 0,
-          perfEndMs: 10000,
-          mediaStartMs: 0,
-          mediaEndMs: 10000,
+          performanceStartUs: 0,
+          performanceEndUs: 10000000,
+          mediaStartUs: 0,
+          mediaEndUs: 10000000,
         },
       ],
     },

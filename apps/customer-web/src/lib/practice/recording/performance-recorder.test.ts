@@ -365,7 +365,7 @@ describe('PerformanceRecorder', () => {
     expect(result.status).toBe('READY');
     if (result.status === 'READY') {
       expect(result.kind).toBe('AUDIO');
-      expect(result.durationMs).toBe(1200);
+      expect(result.timebase.nominalMediaDurationUs).toBe(1200000);
       expect(result.media.blob.size).toBeGreaterThan(0);
       expect(Object.isFrozen(result)).toBe(true); expect(Object.isFrozen(result.timebase)).toBe(true);
       expect(Object.isFrozen(result.timebase.activeSegments)).toBe(true); expect(Object.isFrozen(result.timebase.activeSegments[0])).toBe(true);
@@ -389,10 +389,39 @@ describe('PerformanceRecorder', () => {
     expect(result.status).toBe('READY');
     if (result.status !== 'READY') throw new Error('Expected ready recording');
     expect(result.timebase.activeSegments).toEqual([
-      { perfStartMs: 0, perfEndMs: 500, mediaStartMs: 0, mediaEndMs: 500 },
-      { perfStartMs: 900, perfEndMs: 1400, mediaStartMs: 500, mediaEndMs: 1000 },
+      { performanceStartUs: 0, performanceEndUs: 500000, mediaStartUs: 0, mediaEndUs: 500000 },
+      { performanceStartUs: 900000, performanceEndUs: 1400000, mediaStartUs: 500000, mediaEndUs: 1000000 },
     ]);
-    expect(result.timebase.nominalMediaDurationMs).toBe(1000);
+    expect(result.timebase.nominalMediaDurationUs).toBe(1000000);
+  });
+
+  it('quantizes runtime boundaries once and skips zero-duration intervals', async () => {
+    const recorder = new PerformanceRecorder('AUDIO', memoryRecordingSinkFactory);
+    await recorder.prepare({ audioRoot: createStream() });
+    recorder.startIfReady(0.0004);
+    recorder.pause(0.00049);
+    recorder.resume(0.1005);
+    recorder.pause(0.2005);
+    recorder.resume(0.3005);
+    await recorder.freeze(0.4005);
+    const result = await recorder.finalize();
+    expect(result.status).toBe('READY');
+    if(result.status !== 'READY') throw new Error('Expected recording');
+    expect(result.timebase).toEqual({
+      nominalMediaDurationUs: 200, activeSegments: [
+        { performanceStartUs: 101, performanceEndUs: 201, mediaStartUs: 0, mediaEndUs: 100 },
+        { performanceStartUs: 301, performanceEndUs: 401, mediaStartUs: 100, mediaEndUs: 200 },
+      ]
+    });
+    await result.media.release();
+  });
+
+  it('does not publish READY when every active interval quantizes to zero', async () => {
+    const recorder = new PerformanceRecorder('AUDIO', memoryRecordingSinkFactory);
+    await recorder.prepare({ audioRoot: createStream() });
+    recorder.startIfReady(0);
+    await recorder.freeze(0.0004);
+    expect(await recorder.finalize()).toEqual({ status: 'UNAVAILABLE', reason: 'EMPTY_RECORDING_BLOB' });
   });
 
   it.each(['missing', 'empty', 'dead', 'invalid-clone'])('rejects %s session audio and never stops a borrowed root', async fault => {

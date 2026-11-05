@@ -161,14 +161,14 @@ async def setup_source(postgres_source):
                 "kind": "AUDIO",
                 "mime_type": "audio/webm",
                 "byte_size": len(MEDIA),
-                "duration_ms": 1000,
+
             },
             "scope": {"kind": "FULL"},
             "tempo_selection": {"mode": "SCORE"},
             "recording_timebase": {
-                "nominalMediaDurationMs": 1000,
+                "nominalMediaDurationUs": 1000000,
                 "activeSegments": [
-                    {"perfStartMs": 0, "perfEndMs": 1000, "mediaStartMs": 0, "mediaEndMs": 1000}
+                    {"performanceStartUs": 0, "performanceEndUs": 1000000, "mediaStartUs": 0, "mediaEndUs": 1000000}
                 ],
             },
         }

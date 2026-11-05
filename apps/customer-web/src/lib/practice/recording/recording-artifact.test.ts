@@ -2,8 +2,10 @@ import { localMediaAssetFixture } from '@/lib/practice/__fixtures__/local-media-
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import { createPerformanceRecording, type PerformanceRecording } from './recording-artifact';
 
-const ready = () => ({  status: 'READY' as const, kind: 'AUDIO' as const, media: localMediaAssetFixture(new Blob(['audio'])), mimeType: 'audio/webm', durationMs: 100,
-  timebase: { activeSegments: [{ perfStartMs: 0, perfEndMs: 100, mediaStartMs: 0, mediaEndMs: 100 }], nominalMediaDurationMs: 100 } });
+const ready = () => ({
+  status: 'READY' as const, kind: 'AUDIO' as const, media: localMediaAssetFixture(new Blob(['audio'])), mimeType: 'audio/webm',
+  timebase: { activeSegments: [{ performanceStartUs: 0, performanceEndUs: 100000, mediaStartUs: 0, mediaEndUs: 100000 }], nominalMediaDurationUs: 100000 }
+});
 describe('independent optional recording artifact', () => {
   it('only READY has a timebase and media payload', () => {
     expectTypeOf<keyof Extract<PerformanceRecording, { status: 'NOT_RECORDED' }>>().toEqualTypeOf<'status'>();
@@ -12,11 +14,11 @@ describe('independent optional recording artifact', () => {
     expect(createPerformanceRecording({ status: 'UNAVAILABLE', reason: 'NotAllowedError' })).toEqual({ status: 'UNAVAILABLE', reason: 'NotAllowedError' });
     const value = ready();
     expect(createPerformanceRecording(value)).toEqual(value);
-    expect(Object.keys(createPerformanceRecording(value)).sort()).toEqual(['durationMs', 'kind', 'media', 'mimeType', 'status', 'timebase']);
+    expect(Object.keys(createPerformanceRecording(value)).sort()).toEqual(['kind', 'media', 'mimeType', 'status', 'timebase']);
   });
   it.each([
-    { ...ready(), timebase: { activeSegments: [], nominalMediaDurationMs: 10 } },
-    { ...ready(), media: localMediaAssetFixture(new Blob([])) }, { ...ready(), mimeType: '' }, { ...ready(), durationMs: NaN },
+    { ...ready(), timebase: { activeSegments: [], nominalMediaDurationUs: 10000 } },
+    { ...ready(), media: localMediaAssetFixture(new Blob([])) }, { ...ready(), mimeType: '' },
     { ...ready(), mimeType: 'audio/unknown' }, { ...ready(), mimeType: 'video/mp4' },
     { status: 'NOT_RECORDED', timebase: ready().timebase },
     { status: 'UNAVAILABLE', reason: 'failed', timebase: ready().timebase },

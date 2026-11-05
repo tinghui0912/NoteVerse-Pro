@@ -2910,10 +2910,6 @@ export type PerformanceTakeMediaMetadata = {
      */
     byte_size: number;
     /**
-     * Duration Ms
-     */
-    duration_ms: number;
-    /**
      * Kind
      */
     kind: 'AUDIO' | 'VIDEO';
@@ -2931,10 +2927,6 @@ export type PerformanceTakePlaybackRead = {
      * Download Url
      */
     download_url: string;
-    /**
-     * Duration Ms
-     */
-    duration_ms: number;
     /**
      * Expires In
      */
@@ -2995,10 +2987,6 @@ export type PerformanceTakeRead = {
      * Deletion Status
      */
     deletion_status?: string;
-    /**
-     * Duration Ms
-     */
-    duration_ms: number;
     /**
      * Linked Score Id
      */
@@ -3597,39 +3585,39 @@ export type RationalRead = {
 };
 
 /**
+ * RecordingActiveSegment
+ */
+export type RecordingActiveSegment = {
+    /**
+     * Mediaendus
+     */
+    mediaEndUs: number;
+    /**
+     * Mediastartus
+     */
+    mediaStartUs: number;
+    /**
+     * Performanceendus
+     */
+    performanceEndUs: number;
+    /**
+     * Performancestartus
+     */
+    performanceStartUs: number;
+};
+
+/**
  * RecordingTimebase
  */
 export type RecordingTimebase = {
     /**
      * Activesegments
      */
-    activeSegments: Array<RecordingTimebaseSegment>;
+    activeSegments: Array<RecordingActiveSegment>;
     /**
-     * Nominalmediadurationms
+     * Nominalmediadurationus
      */
-    nominalMediaDurationMs: number;
-};
-
-/**
- * RecordingTimebaseSegment
- */
-export type RecordingTimebaseSegment = {
-    /**
-     * Mediaendms
-     */
-    mediaEndMs: number;
-    /**
-     * Mediastartms
-     */
-    mediaStartMs: number;
-    /**
-     * Perfendms
-     */
-    perfEndMs: number;
-    /**
-     * Perfstartms
-     */
-    perfStartMs: number;
+    nominalMediaDurationUs: number;
 };
 
 /**

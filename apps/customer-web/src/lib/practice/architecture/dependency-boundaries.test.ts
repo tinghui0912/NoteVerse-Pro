@@ -148,6 +148,7 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
   if (source.startsWith('result/')) return Boolean(target && (
     target.startsWith('result/') || ['score/', 'session/', 'planning/'].some(owner => target.startsWith(owner)) || target.startsWith('continuous/domain/evaluation/')
     || edge.typeOnly && target === 'continuous/domain/session.ts'));
+  if(source.startsWith('recording/') && edge.typeOnly && edge.target === normalize(path.join(sourceRoot, 'generated/api/types.gen.ts'))) return true;
   if (source.startsWith('recording/')) return Boolean(target && (target.startsWith('recording/') || ['score/', 'session/', 'planning/', 'media/'].some(owner => target.startsWith(owner))));
   if (source.startsWith('step/')) return !target || !['continuous/', 'result/', 'recording/'].some(owner => target.startsWith(owner));
   if (source.startsWith('continuous/')) return !target?.startsWith('step/');

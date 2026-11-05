@@ -400,7 +400,7 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
       take_id: 'take-e2e-1', source_id: source.source_id, source_score_id: testArtifact.scoreId, source_revision_id: testArtifact.revisionId,
       source_artifact_id: testArtifact.artifactId, score_title_snapshot: 'Continuous Review Score',
       media_kind: media.kind, media_mime_type: media.mime_type, media_byte_size: media.byte_size,
-      duration_ms: media.duration_ms, scope_type: scope.kind, scope_start_tick: resolved_scope.start_tick,
+      scope_type: scope.kind, scope_start_tick: resolved_scope.start_tick,
       scope_terminal_tick: resolved_scope.terminal_tick,
       scope_start_group_id: scope.kind === 'RANGE' ? scope.start_group_id : null,
       scope_end_group_id: scope.kind === 'RANGE' ? scope.end_group_id : null,
@@ -435,7 +435,6 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
         media_kind: 'AUDIO',
         media_mime_type: 'audio/webm',
         media_byte_size: 1024,
-        duration_ms: 3000,
         expires_in: 3600,
       }),
     })

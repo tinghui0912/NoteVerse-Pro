@@ -49,7 +49,7 @@ function session(allowedNoteIds: string[]): VideoExportSession {
       kind: 'VIDEO',
       media: localMediaAssetFixture(new Blob(['video'], { type: 'video/webm' })),
       mimeType: 'video/webm',
-      durationMs: 2500,
+
     },
     scope: {
       startTick: 200,
@@ -62,8 +62,8 @@ function session(allowedNoteIds: string[]): VideoExportSession {
       segments: [{ startTick: 0, bpm: 60, source: 'CUSTOM' }],
     },
     recordingTimebase: {
-      nominalMediaDurationMs: 2500,
-      activeSegments: [{ perfStartMs: 0, perfEndMs: 2500, mediaStartMs: 0, mediaEndMs: 2500 }],
+      nominalMediaDurationUs: 2500000,
+      activeSegments: [{ performanceStartUs: 0, performanceEndUs: 2500000, mediaStartUs: 0, mediaEndUs: 2500000 }],
     },
   };
 }

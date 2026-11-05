@@ -135,7 +135,7 @@ const mockPlaybackQuery = vi.hoisted(() => ({
       media_kind: 'AUDIO',
       media_mime_type: 'audio/webm',
       media_byte_size: 1024,
-      duration_ms: 90000,
+
       expires_in: 3600,
     },
   },
@@ -150,9 +150,9 @@ const tempoPlan: PerformanceTakeTempoPlan = {
 };
 
 const recordingTimebase: RecordingTimebase = {
-  nominalMediaDurationMs: 30000,
+  nominalMediaDurationUs: 30000000,
   activeSegments: [
-    { perfStartMs: 0, perfEndMs: 30000, mediaStartMs: 0, mediaEndMs: 30000 },
+    { performanceStartUs: 0, performanceEndUs: 30000000, mediaStartUs: 0, mediaEndUs: 30000000 },
   ],
 };
 
@@ -168,7 +168,7 @@ const fixture121Takes: PerformanceTakeRead[] = Array.from({ length: 121 }, (_, i
   media_kind: 'AUDIO',
   media_mime_type: 'audio/webm',
   media_byte_size: 1024 * (i + 1),
-  duration_ms: 30000 + i * 1000,
+
   scope_type: i % 2 === 0 ? 'FULL' : 'RANGE',
   scope_start_tick: i % 2 === 0 ? 0 : 4,
   scope_terminal_tick: i % 2 === 0 ? 0 : 16,
@@ -357,7 +357,7 @@ describe('MyPerformancesPage', () => {
               media_kind: 'AUDIO',
               media_mime_type: 'audio/webm',
               media_byte_size: 1024,
-              duration_ms: 60000,
+
               scope_type: 'FULL',
               scope_start_tick: 0,
               scope_terminal_tick: 0,
@@ -402,7 +402,7 @@ describe('MyPerformancesPage', () => {
               media_kind: 'AUDIO',
               media_mime_type: 'audio/webm',
               media_byte_size: 1024,
-              duration_ms: 60000,
+
               scope_type: 'FULL',
               scope_start_tick: 0,
               scope_terminal_tick: 0,
@@ -445,7 +445,7 @@ describe('MyPerformancesPage', () => {
               media_kind: 'AUDIO',
               media_mime_type: 'audio/webm',
               media_byte_size: 1024,
-              duration_ms: 60000,
+
               scope_type: 'FULL',
               scope_start_tick: 0,
               scope_terminal_tick: 0,
@@ -497,7 +497,7 @@ describe('MyPerformancesPage', () => {
               media_kind: 'VIDEO',
               media_mime_type: mimeType,
               media_byte_size: 2048,
-              duration_ms: 60000,
+
               scope_type: 'FULL',
               scope_start_tick: 0,
               scope_terminal_tick: 16,
@@ -556,7 +556,7 @@ describe('MyPerformancesPage', () => {
               media_kind: 'AUDIO',
               media_mime_type: 'audio/webm',
               media_byte_size: 1024,
-              duration_ms: 60000,
+
               scope_type: 'FULL',
               scope_start_tick: 0,
               scope_terminal_tick: 0,
@@ -625,7 +625,7 @@ describe('MyPerformancesPage', () => {
               media_kind: 'AUDIO',
               media_mime_type: 'audio/webm',
               media_byte_size: 1024,
-              duration_ms: 60000,
+
               scope_type: 'FULL',
               scope_start_tick: 0,
               scope_terminal_tick: 0,

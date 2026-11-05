@@ -237,7 +237,7 @@ export default function PracticeReviewPage({
         kind: recording.kind,
         media: recording.media,
         mimeType: recording.mimeType,
-        durationMs: recording.durationMs,
+
         timebase: recording.timebase,
       };
     }
@@ -289,7 +289,7 @@ export default function PracticeReviewPage({
         mediaKind: saveMedia.kind,
         media: saveMedia.media,
         mimeType: saveMedia.mimeType,
-        durationMs: saveMedia.durationMs,
+
         scope:
           result.session.plan.scope.kind === 'RANGE'
             ? {
@@ -305,7 +305,8 @@ export default function PracticeReviewPage({
                 terminalTick: result.session.plan.scope.terminalTick,
               },
         tempoPlan: toPerformanceTakeTempoPlan(result.session.plan.tempoPlan),
-        recordingTimebase: { nominalMediaDurationMs: saveMedia.timebase.nominalMediaDurationMs,
+        recordingTimebase: {
+          nominalMediaDurationUs: saveMedia.timebase.nominalMediaDurationUs,
           activeSegments: saveMedia.timebase.activeSegments.map(segment => ({ ...segment })) },
       });
       setSaveRecordingStatus('saved');

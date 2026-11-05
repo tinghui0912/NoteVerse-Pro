@@ -1,4 +1,6 @@
 'use client';
+import { microsecondsToMilliseconds } from '@/lib/practice/recording/recording-timebase';
+
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
@@ -155,7 +157,7 @@ export function VideoExportPreview({
                   actualMediaDurationMs:
                     Number.isFinite(sourceVideo.duration) && sourceVideo.duration > 0
                       ? sourceVideo.duration * 1000
-                      : session.video.durationMs,
+                      : microsecondsToMilliseconds(session.recordingTimebase.nominalMediaDurationUs),
                   scoreEndTick, ticksPerQuarter,
                 }),
             },

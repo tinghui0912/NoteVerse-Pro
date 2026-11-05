@@ -104,7 +104,6 @@ class PerformanceTakeUploadReservation(SQLModel, table=True):  # type: ignore[ca
     recording_timebase: str = Field(
         sa_column=Column(Text, nullable=False),
     )
-    duration_ms: int = Field(sa_column=Column(Integer, nullable=False))
     media_kind: str = Field(
         sa_column=Column(String(16), nullable=False),
     )

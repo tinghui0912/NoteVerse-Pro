@@ -5822,11 +5822,6 @@
             "title": "Byte Size",
             "type": "integer"
           },
-          "duration_ms": {
-            "minimum": 0.0,
-            "title": "Duration Ms",
-            "type": "integer"
-          },
           "kind": {
             "enum": [
               "AUDIO",
@@ -5845,8 +5840,7 @@
         "required": [
           "kind",
           "byte_size",
-          "mime_type",
-          "duration_ms"
+          "mime_type"
         ],
         "title": "PerformanceTakeMediaMetadata",
         "type": "object"
@@ -5857,10 +5851,6 @@
           "download_url": {
             "title": "Download Url",
             "type": "string"
-          },
-          "duration_ms": {
-            "title": "Duration Ms",
-            "type": "integer"
           },
           "expires_in": {
             "title": "Expires In",
@@ -5894,7 +5884,6 @@
           "media_kind",
           "media_mime_type",
           "media_byte_size",
-          "duration_ms",
           "expires_in"
         ],
         "title": "PerformanceTakePlaybackRead",
@@ -5946,10 +5935,6 @@
             "default": "ACTIVE",
             "title": "Deletion Status",
             "type": "string"
-          },
-          "duration_ms": {
-            "title": "Duration Ms",
-            "type": "integer"
           },
           "linked_score_id": {
             "anyOf": [
@@ -6057,7 +6042,6 @@
           "media_kind",
           "media_mime_type",
           "media_byte_size",
-          "duration_ms",
           "scope_type",
           "scope_start_tick",
           "scope_terminal_tick",
@@ -6995,61 +6979,66 @@
         "title": "RationalRead",
         "type": "object"
       },
+      "RecordingActiveSegment": {
+        "additionalProperties": false,
+        "properties": {
+          "mediaEndUs": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 9007199254740991.0,
+            "title": "Mediaendus",
+            "type": "integer"
+          },
+          "mediaStartUs": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Mediastartus",
+            "type": "integer"
+          },
+          "performanceEndUs": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 9007199254740991.0,
+            "title": "Performanceendus",
+            "type": "integer"
+          },
+          "performanceStartUs": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Performancestartus",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "performanceStartUs",
+          "performanceEndUs",
+          "mediaStartUs",
+          "mediaEndUs"
+        ],
+        "title": "RecordingActiveSegment",
+        "type": "object"
+      },
       "RecordingTimebase": {
         "additionalProperties": false,
         "properties": {
           "activeSegments": {
             "items": {
-              "$ref": "#/components/schemas/RecordingTimebaseSegment"
+              "$ref": "#/components/schemas/RecordingActiveSegment"
             },
             "minItems": 1,
             "title": "Activesegments",
             "type": "array"
           },
-          "nominalMediaDurationMs": {
+          "nominalMediaDurationUs": {
             "exclusiveMinimum": 0.0,
-            "title": "Nominalmediadurationms",
-            "type": "number"
+            "maximum": 9007199254740991.0,
+            "title": "Nominalmediadurationus",
+            "type": "integer"
           }
         },
         "required": [
-          "nominalMediaDurationMs",
+          "nominalMediaDurationUs",
           "activeSegments"
         ],
         "title": "RecordingTimebase",
-        "type": "object"
-      },
-      "RecordingTimebaseSegment": {
-        "additionalProperties": false,
-        "properties": {
-          "mediaEndMs": {
-            "exclusiveMinimum": 0.0,
-            "title": "Mediaendms",
-            "type": "number"
-          },
-          "mediaStartMs": {
-            "minimum": 0.0,
-            "title": "Mediastartms",
-            "type": "number"
-          },
-          "perfEndMs": {
-            "exclusiveMinimum": 0.0,
-            "title": "Perfendms",
-            "type": "number"
-          },
-          "perfStartMs": {
-            "minimum": 0.0,
-            "title": "Perfstartms",
-            "type": "number"
-          }
-        },
-        "required": [
-          "perfStartMs",
-          "perfEndMs",
-          "mediaStartMs",
-          "mediaEndMs"
-        ],
-        "title": "RecordingTimebaseSegment",
         "type": "object"
       },
       "RegisterRequest": {

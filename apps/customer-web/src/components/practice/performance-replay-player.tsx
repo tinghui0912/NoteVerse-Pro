@@ -1,4 +1,5 @@
 'use client';
+import { microsecondsToMilliseconds } from '@/lib/practice/recording/recording-timebase';
 import { releaseLocalMediaAsset } from '@/lib/practice/media/local-media-asset';
 
 import { Pause, Play } from 'lucide-react';
@@ -95,7 +96,7 @@ function AudioPerformanceReplayPlayer({
     setActualDurationMs(null);
   }
 
-  const effectiveDurationMs = actualDurationMs ?? replay.durationMs;
+  const effectiveDurationMs = actualDurationMs ?? microsecondsToMilliseconds(replay.recordingTimebase.nominalMediaDurationUs);
 
   const publishTime = useCallback(
     (timeMs: number, durationOverrideMs?: number | null) => {
@@ -344,7 +345,7 @@ function VideoPerformanceReplayPlayer({
     setActualDurationMs(null);
   }
 
-  const effectiveDurationMs = actualDurationMs ?? replay.durationMs;
+  const effectiveDurationMs = actualDurationMs ?? microsecondsToMilliseconds(replay.recordingTimebase.nominalMediaDurationUs);
 
   const publishTime = useCallback(
     (timeMs: number, durationOverrideMs?: number | null) => {
