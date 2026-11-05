@@ -1,4 +1,4 @@
-import { PracticeTempoTimeline, MIN_PRACTICE_TEMPO_BPM, MAX_PRACTICE_TEMPO_BPM } from '@/lib/practice/kernel/tempo';
+import { PracticeTempoTimeline, MIN_PRACTICE_TEMPO_BPM, MAX_PRACTICE_TEMPO_BPM } from '@/lib/practice/planning/tempo';
 import { ContinuousAssignmentFinalizer } from '@/lib/practice/continuous/domain/evaluation/assignment-finalizer';
 import { assertCompletedAssignment } from '@/lib/practice/continuous/domain/evaluation/assignment-projection';
 import { directObservationClaimants, directStrikeCohort, directStrikeFrontier } from '@/lib/practice/continuous/domain/evaluation/finalization-policy';

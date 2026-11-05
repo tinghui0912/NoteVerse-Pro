@@ -9,8 +9,8 @@ function files(dir: string): string[] {
     : entry.name.endsWith('.ts') && !entry.name.endsWith('.test.ts') ? [path.join(dir, entry.name)] : []);
 }
 describe('canonical Practice ownership', () => {
-  it('keeps physical-key validity in kernel and source-neutral modes free of pitch-name comparison/grammar', () => {
-    for (const dir of ['kernel', 'step/domain', 'continuous/domain']) for (const file of files(path.join(practice, dir))) {
+  it('keeps physical-key validity in score and source-neutral modes free of pitch-name comparison/grammar', () => {
+    for (const dir of ['score', 'session', 'step/domain', 'continuous/domain']) for (const file of files(path.join(practice, dir))) {
       const text = readFileSync(file, 'utf8');
       const tree = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
       const visit = (node: ts.Node) => {
@@ -20,16 +20,16 @@ describe('canonical Practice ownership', () => {
         ts.forEachChild(node, visit);
       }; visit(tree);
     }
-    for (const file of ['src/lib/practice/kernel/scope.ts', 'src/app/[locale]/(workspace)/score/[id]/practice/setup/page.tsx',
+    for (const file of ['src/lib/practice/planning/scope.ts', 'src/app/[locale]/(workspace)/score/[id]/practice/setup/page.tsx',
       'src/app/[locale]/(workspace)/score/[id]/practice/page.tsx']) {
       const text = readFileSync(path.join(app, file), 'utf8');
       expect(text).not.toMatch(/(?:>=|<=)\s*(?:21|108)\b/);
     }
-    expect(read('apps/customer-web/src/lib/practice/kernel/artifact.ts')).not.toContain('@/generated/');
-    expect(read('apps/customer-web/src/lib/practice/kernel/scope.ts')).not.toContain('isPracticePianoKey');
+    expect(read('apps/customer-web/src/lib/practice/score/artifact.ts')).not.toContain('@/generated/');
+    expect(read('apps/customer-web/src/lib/practice/planning/scope.ts')).not.toContain('isPracticePianoKey');
   });
   it('declares artifact and Result schemas at their domain owners', () => {
-    expect(read('apps/customer-web/src/lib/practice/kernel/artifact.ts')).toContain('PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION = 1');
+    expect(read('apps/customer-web/src/lib/practice/score/artifact.ts')).toContain('PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION = 1');
     expect(read('apps/customer-web/src/lib/practice/result/continuous-performance-result.ts')).toContain('CONTINUOUS_PERFORMANCE_RESULT_SCHEMA_VERSION = 8');
     expect(read('backend/app/modules/practice/source/schemas.py')).toContain('schemaVersion: Literal[1]');
 

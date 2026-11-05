@@ -1,25 +1,25 @@
-import { stepSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
+import { stepPracticePlan } from '@/lib/practice/__fixtures__/practice-plan';
 import {expect, expectTypeOf, it} from 'vitest';
-import type { LocalStepSessionSnapshot, StepRuntimeStatus } from '@/lib/practice/step/domain/session';
-import type { LocalPerformanceSessionSnapshot } from '@/lib/practice/continuous/domain/session';
+import type { StepPracticeSessionSnapshot, StepRuntimeStatus } from '@/lib/practice/step/domain/session';
+import type { ContinuousPracticeSessionSnapshot } from '@/lib/practice/continuous/domain/session';
 import type {StepControllerState} from './step-practice-controller';
-import { StepPracticeRuntime } from '@/lib/practice/step/domain/runtime';
-import { ManualClock } from '@/lib/practice/kernel/timebase';
+import { StepPracticeSession } from '@/lib/practice/step/domain/practice-session';
+import { ManualClock } from '@/lib/practice/session/timebase';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
-import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import type { PracticeScoreArtifact } from '@/lib/practice/score/artifact';
 
 it('controller and domain statuses are distinct; STEP runtime cannot represent application states or PAUSED', () => {
   expectTypeOf<StepControllerState>().toEqualTypeOf<'IDLE'|'PREPARING'|'ACTIVE'|'ENDED'|'DISPOSED'>();
   expectTypeOf<StepRuntimeStatus>().toEqualTypeOf<'ACTIVE'|'ENDED'>();
-  expectTypeOf<LocalStepSessionSnapshot['runtimeStatus']>().toEqualTypeOf<StepRuntimeStatus>();
-  expectTypeOf<StepPracticeRuntime['state']>().toEqualTypeOf<StepRuntimeStatus>();
+  expectTypeOf<StepPracticeSessionSnapshot['runtimeStatus']>().toEqualTypeOf<StepRuntimeStatus>();
+  expectTypeOf<StepPracticeSession['state']>().toEqualTypeOf<StepRuntimeStatus>();
   expectTypeOf<Extract<StepRuntimeStatus, 'IDLE'|'PREPARING'|'DISPOSED'|'PAUSED'>>().toEqualTypeOf<never>();
-  expectTypeOf<Extract<keyof LocalStepSessionSnapshot, 'lifecycleState'>>().toEqualTypeOf<never>();
-  expectTypeOf<LocalPerformanceSessionSnapshot['lifecycleState']>().toEqualTypeOf<'READY'|'ACTIVE'|'PAUSED'|'ENDED'>();
+  expectTypeOf<Extract<keyof StepPracticeSessionSnapshot, 'lifecycleState'>>().toEqualTypeOf<never>();
+  expectTypeOf<ContinuousPracticeSessionSnapshot['lifecycleState']>().toEqualTypeOf<'READY'|'ACTIVE'|'PAUSED'|'ENDED'>();
 });
 it.each(['MATCH','MISMATCH'] as const)('%s retires physical input beyond the completed analysis frontier', verdict => {
   const clock=new ManualClock(100),domainId='capture-watermark',time=(ms:number)=>({domainId,ms});
-  const runtime=new StepPracticeRuntime({ ...stepSessionPlan(fixture as PracticeScoreArtifact, { scope: {kind:'FULL'}, inputSource: 'MICROPHONE' }), clock, localSessionId:domainId });
+  const runtime=new StepPracticeSession({ plan: stepPracticePlan(fixture as PracticeScoreArtifact, { scope: {kind:'FULL'}, inputSource: 'MICROPHONE' }), clock, localSessionId:domainId });
   const old=runtime.openAttempt(time(200))!; runtime.analyzeAttempt(old);
   // Analysis covered only through 600, but physical capture continued through 1000.
   clock.set(1000);

@@ -1,16 +1,16 @@
 import { metronomeAudioFixture, observeMetronomeRuntime } from '@/lib/practice/__fixtures__/metronome';
 import { CaptureFailure } from '../failure/causal-failure';
 import { rootHealthFixture } from '@/lib/practice/__fixtures__/root-health';
-import { stepSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
+import { stepPracticePlan } from '@/lib/practice/__fixtures__/practice-plan';
 import { artifactWithKeys } from '@/lib/practice/__fixtures__/piano-key-artifact';
 import { pianoMidiPitchToName } from '../acoustic/model/robust-piano-decoder';
 import { borrowedDevices } from '../__fixtures__/device-roots';
 import type { StepAttemptRecord } from './domain/attempt';
 import { readFile } from 'node:fs/promises';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { PracticeScope } from '@/lib/practice/kernel/scope';
-import { ManualClock } from '@/lib/practice/kernel/timebase';
-import { StepPracticeRuntime } from '@/lib/practice/step/domain/runtime';
+import type { PracticeScope } from '@/lib/practice/planning/scope';
+import { ManualClock } from '@/lib/practice/session/timebase';
+import { StepPracticeSession } from '@/lib/practice/step/domain/practice-session';
 import { SourceAnalysisRuntime, type SourceAnalysisOptions } from '../acoustic/runtime/source-analysis-runtime';
 import type { SourceAcousticPublication } from '../acoustic/runtime/source-publication';
 import type { CaptureConsumer } from '../acoustic/source/capture-types';
@@ -84,7 +84,7 @@ function rig(rate: 44100 | 48000 = 48000, selectedArtifact = artifact, scope: Pr
     },
   };
   const completion = vi.fn();
-  const controller = new StepPracticeController({ rootHealth: health.port, plan: stepSessionPlan(selectedArtifact, { scope: scope, inputSource: 'MICROPHONE' }), devices: borrowedDevices(stream as unknown as MediaStream), platform, onNaturalCompletion: completion });
+  const controller = new StepPracticeController({ rootHealth: health.port, plan: stepPracticePlan(selectedArtifact, { scope: scope, inputSource: 'MICROPHONE' }), devices: borrowedDevices(stream as unknown as MediaStream), platform, onNaturalCompletion: completion });
   const finalized: StepAttemptRecord[] = [];
   controller.subscribe(() => {
     const record = controller.snapshot().pendingPostVerdict;
@@ -116,7 +116,7 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
       r.offset(9590);
       for (let i = 0; i < 100 && r.controller.snapshot().stepInteractionPhase !== 'CAPTURING'; i++) await r.feed();
       if (phase === 'ANALYZING') {
-        const runtime = (r.controller as unknown as { runtime: StepPracticeRuntime }).runtime;
+        const runtime = (r.controller as unknown as { runtime: StepPracticeSession }).runtime;
         runtime.analyzeAttempt(runtime.snapshot().step.activeAttempt!);
       }
       expect(r.controller.snapshot().stepInteractionPhase).toBe(phase);
@@ -145,8 +145,8 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
       it.each(['End', 'unmount'] as const)(`${phase} ${fault} infrastructure failure retains truth until %s`, async end => {
         const r = rig(rate); await r.controller.start(); await r.untilFinalized(1);
         const prior = r.controller.snapshot().sessionSnapshot!, staleFailure = r.staleFailure()!;
-        const unavailable = vi.spyOn(StepPracticeRuntime.prototype, 'setInputUnavailable');
-        const domainEnd = vi.spyOn(StepPracticeRuntime.prototype, 'end');
+        const unavailable = vi.spyOn(StepPracticeSession.prototype, 'setInputUnavailable');
+        const domainEnd = vi.spyOn(StepPracticeSession.prototype, 'end');
         let pending: StepAttemptRecord | null = null;
         const fail = () => {
           if (fault === 'root') { r.track.readyState = 'ended'; r.track.dispatchEvent(new Event('ended')); r.health.set('inputMicrophone', 'LOST'); }
@@ -173,8 +173,8 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
         expect(r.controller.snapshot()).toMatchObject({ state: 'ACTIVE', error: null, canAcceptAttempt: false,
           analysisIntervention: null, infrastructureIntervention: intervention,
           sessionSnapshot: { localSessionId: prior.localSessionId, runtimeStatus: 'ACTIVE', completionReason: null,
-            sourceId: prior.sourceId, scope: prior.scope, tempoPlan: prior.tempoPlan, metronomeEnabled: prior.metronomeEnabled,
-            step: { currentIndex: prior.step.currentIndex, targetGeneration: prior.step.targetGeneration,
+            plan: prior.plan,
+            step: { metronomeEnabled: prior.step.metronomeEnabled, currentIndex: prior.step.currentIndex, targetGeneration: prior.step.targetGeneration,
               inputAvailable: false, activeAttempt: null } } });
         expect(r.controller.snapshot().activeStepGroup).toEqual(artifact.moments[prior.step.currentIndex]);
         expect(r.controller.snapshot().pendingPostVerdict).toEqual(pending);
@@ -204,8 +204,8 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
     it(`${phase} analysis failure retains real progress until ${end}, never a verdict or implicit end`,async()=>{
       const r=rig(rate);await r.controller.start();await r.untilFinalized(1);
       const prior=r.controller.snapshot().sessionSnapshot!, staleFailure=r.staleFailure()!;
-      const unavailable=vi.spyOn(StepPracticeRuntime.prototype,'setInputUnavailable');
-      const domainEnd=vi.spyOn(StepPracticeRuntime.prototype,'end');
+      const unavailable=vi.spyOn(StepPracticeSession.prototype,'setInputUnavailable');
+      const domainEnd=vi.spyOn(StepPracticeSession.prototype,'end');
       let pending: StepAttemptRecord | null=null;
       if(phase==='ANALYZING'||phase==='POST_VERDICT') r.controller.subscribe(()=>{
         if(r.controller.snapshot().stepInteractionPhase===phase&&!r.controller.snapshot().analysisIntervention){
@@ -245,8 +245,8 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
   }
   it('initial availability commits physical retirement then arms, with one persistent graph and shared clock/context', async () => {
     const r = rig(rate), order: string[] = [];
-    const accept = StepPracticeRuntime.prototype.acceptInputAfter;
-    vi.spyOn(StepPracticeRuntime.prototype, 'acceptInputAfter').mockImplementation(function (this: StepPracticeRuntime, boundary) {
+    const accept = StepPracticeSession.prototype.acceptInputAfter;
+    vi.spyOn(StepPracticeSession.prototype, 'acceptInputAfter').mockImplementation(function (this: StepPracticeSession, boundary) {
       expect(this.canAcceptAttempt).toBe(false); order.push('accept'); accept.call(this, boundary);
     });
     const arm = StepMicrophoneInput.prototype.arm;
@@ -260,7 +260,7 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
     const initial = r.controller.snapshot().sessionSnapshot!.step;
     expect(initial.inputEligibleAfter.sampleIndex).toBe(r.input().snapshot().capture!.capturedThroughSourceSample);
     expect(initial.inputEligibleAfter.ms).toBe(7000 + initial.inputEligibleAfter.sampleIndex! / rate * 1000);
-    expect(r.controller.snapshot().sessionSnapshot?.inputSource).toBe('MICROPHONE');
+    expect(r.controller.snapshot().sessionSnapshot?.plan.resources.input.kind).toBe('MICROPHONE');
     expect(r.platform.microphone!.createAudioContext).toHaveBeenCalledOnce();
     expect(r.platform.microphone!.acquireInference).toHaveBeenCalledOnce();
     expect(r.platform.createMidi).not.toHaveBeenCalled(); expect(SourceAnalysisRuntime.create).toHaveBeenCalledOnce();
@@ -274,8 +274,8 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
 
   it.each([[60], [60, 72], [62]])('pianoKey evidence %j keeps target policy, exact H50 and synchronous physical rearm', async (...pianoKeys) => {
     const r = rig(rate); r.pianoKeys(pianoKeys);
-    const trace: string[] = [], rearm = StepPracticeRuntime.prototype.rearm, arm = StepMicrophoneInput.prototype.arm;
-    vi.spyOn(StepPracticeRuntime.prototype, 'rearm').mockImplementation(function (this: StepPracticeRuntime, boundary) {
+    const trace: string[] = [], rearm = StepPracticeSession.prototype.rearm, arm = StepMicrophoneInput.prototype.arm;
+    vi.spyOn(StepPracticeSession.prototype, 'rearm').mockImplementation(function (this: StepPracticeSession, boundary) {
       trace.push('rearm');
       const s = r.input().snapshot();
       expect(boundary.sampleIndex).toBe(s.capture!.capturedThroughSourceSample);
@@ -373,7 +373,7 @@ describe.each([44100, 48000] as const)('STEP microphone controller / %i / determ
 
   it('final committed MATCH completes once without arming another acoustic target', async () => {
     const r = rig(rate); await r.controller.start();
-    const runtime = (r.controller as unknown as { runtime: StepPracticeRuntime }).runtime;
+    const runtime = (r.controller as unknown as { runtime: StepPracticeSession }).runtime;
     const arm = vi.spyOn(r.input(), 'arm');
     await r.untilFinalized(1);
     expect(arm).toHaveBeenCalledTimes(1); // Non-final MATCH still arms the next target.
@@ -532,7 +532,7 @@ for (const phase of ['READY', 'CAPTURING', 'ANALYZING', 'POST_VERDICT'] as const
   it.each(['End', 'unmount'] as const)(`${phase} analysis cleanup rejection retains the active session until %s`, async end => {
     const r = rig(); await r.controller.start(); await r.untilFinalized(1);
     const prior = r.controller.snapshot().sessionSnapshot!;
-    const domainEnd = vi.spyOn(StepPracticeRuntime.prototype, 'end');
+    const domainEnd = vi.spyOn(StepPracticeSession.prototype, 'end');
     const staleFailure = r.staleFailure()!;
     let pending: StepAttemptRecord | null = null;
     r.worker.dispose.mockRejectedValueOnce(new Error('RELEASE_FAILED'));
@@ -596,7 +596,7 @@ it('natural completion wins late worker/capture failure and cannot open an inter
 it.each(['End', 'unmount'] as const)('infrastructure cleanup rejection retains POST_VERDICT until %s', async end => {
   const r = rig(); await r.controller.start(); await r.untilFinalized(1);
   const prior = r.controller.snapshot().sessionSnapshot!, stale = r.staleFailure()!;
-  const domainEnd = vi.spyOn(StepPracticeRuntime.prototype, 'end');
+  const domainEnd = vi.spyOn(StepPracticeSession.prototype, 'end');
   let pending: StepAttemptRecord | null = null;
   r.worker.dispose.mockRejectedValueOnce(new Error('RELEASE_FAILED'));
   r.controller.subscribe(() => {

@@ -8,7 +8,7 @@ import { PracticeResourceBinding } from '@/lib/practice/device/practice-resource
 import { planPracticeResources } from '@/lib/practice/planning/resource-plan';
 import { midiDeviceFixture } from '@/lib/practice/__fixtures__/device-roots';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
-import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import type { PracticeScoreArtifact } from '@/lib/practice/score/artifact';
 import { canonicalContinuousResultFixture } from '@/lib/practice/__fixtures__/continuous-result';
 import { PRACTICE_PREFERENCES_KEY } from '@/lib/practice/configuration/preference-storage';
 const route = vi.hoisted(() => ({ path: '/score/s/practice/setup' }));

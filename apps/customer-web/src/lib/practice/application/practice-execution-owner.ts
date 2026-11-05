@@ -8,11 +8,11 @@ import { browserContinuousPlatform } from '@/lib/practice/continuous/continuous-
 import type { ContinuousPracticeCompletion } from '@/lib/practice/continuous/completion';
 import { projectPracticeMomentView } from '@/lib/practice/score-view/moment-view';
 import { PracticeStartupTimings } from '@/lib/practice/diagnostics/startup-timings';
-import type { PracticeSessionPlan } from '@/lib/practice/planning/session-plan';
+import type { PracticePlan } from '@/lib/practice/planning/practice-plan';
 import type { PracticeDeviceRoots, PracticeRootHealthPort } from '@/lib/practice/device/device-contract';
 import type { AcousticInferencePort } from '@/lib/practice/acoustic/runtime/inference-types';
-import type { LocalStepSessionSnapshot } from '@/lib/practice/step/domain/session';
-import type { LocalPerformanceSessionSnapshot } from '@/lib/practice/continuous/domain/session';
+import type { StepPracticeSessionSnapshot } from '@/lib/practice/step/domain/session';
+import type { ContinuousPracticeSessionSnapshot } from '@/lib/practice/continuous/domain/session';
 import type { LocalPracticeInputState } from '@/lib/practice/input-state';
 
 export type PracticeExecutionLifecycle = 'READY' | 'PREPARING' | 'ACTIVE' | 'PAUSED' | 'FINALIZING' | 'COMPLETED' | 'ERROR';
@@ -33,11 +33,11 @@ const browserFactories: PracticeExecutionFactories = {
   continuous: (options, acquire) => new ContinuousPracticeController(options, browserContinuousPlatform(acquire)),
 };
 type Owned = ({ mode: 'STEP_BY_STEP'; controller: StepController } | { mode: 'CONTINUOUS_PLAY'; controller: ContinuousController }) & {
-  plan: PracticeSessionPlan; token: number; preparation: Promise<void>; detach: () => void; completed: boolean;
+  plan: PracticePlan; token: number; preparation: Promise<void>; detach: () => void; completed: boolean;
 };
 type CommonView = Readonly<{
   lifecycle: PracticeExecutionLifecycle; inputState: LocalPracticeInputState;
-  executedPlan: PracticeSessionPlan | null; canStart: boolean;
+  executedPlan: PracticePlan | null; canStart: boolean;
 }>;
 type StepView = CommonView & Readonly<{
   completion: null;
@@ -60,18 +60,18 @@ type ContinuousView = CommonView & Readonly<{
   resourceIntervention: ReturnType<ContinuousController['snapshot']>['resourceIntervention'];
 }>;
 export type PracticeExecutionView = StepView | ContinuousView;
-type Completion = LocalStepSessionSnapshot | LocalPerformanceSessionSnapshot;
+type Completion = StepPracticeSessionSnapshot | ContinuousPracticeSessionSnapshot;
 
 /** Owns one explicitly started attempt and serializes its complete release before another construction. */
 type ApplicationFailure = { mode: 'STEP_BY_STEP'; code: StepApplicationErrorCode } | { mode: 'CONTINUOUS_PLAY'; code: ContinuousErrorCode };
 export type PracticeExecutionErrorCode = StepApplicationErrorCode | ContinuousErrorCode;
 
 export class PracticeExecutionOwner {
-  private candidate: PracticeSessionPlan | null = null;
+  private candidate: PracticePlan | null = null;
   private admitted = false;
   private composition: string | null = null;
   private owned: Owned | null = null;
-  private startingPlan: PracticeSessionPlan | null = null;
+  private startingPlan: PracticePlan | null = null;
   private generation = 0;
   private disposed = false;
   private pendingStart: Promise<void> | null = null;
@@ -90,7 +90,7 @@ export class PracticeExecutionOwner {
   engineeringSnapshot() { return { failureCause: this.failureCause }; }
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
   setCompletionListener(listener: ((snapshot: Completion) => void) | undefined): void { this.completionListener = listener; }
-  setCandidate(plan: PracticeSessionPlan | null, admitted: boolean, composition: string): void {
+  setCandidate(plan: PracticePlan | null, admitted: boolean, composition: string): void {
     if (this.disposed || this.candidate === plan && this.admitted === admitted && this.composition === composition) return;
     const replacement = this.composition !== null && this.composition !== composition;
     this.composition = composition; this.candidate = plan; this.admitted = admitted;
@@ -105,7 +105,7 @@ export class PracticeExecutionOwner {
     const operation = this.begin(plan, token); this.pendingStart = operation;
     return operation;
   }
-  private async begin(plan: PracticeSessionPlan, token: number): Promise<void> {
+  private async begin(plan: PracticePlan, token: number): Promise<void> {
     const startupTimings = new PracticeStartupTimings();
     try {
       await startupTimings.measure('waitPreviousRelease', () => this.released);
@@ -216,7 +216,7 @@ export class PracticeExecutionOwner {
       inputState: (lifecycle === 'PREPARING' ? 'STARTING' : error ? 'ERROR' : lifecycle === 'ACTIVE' ? 'RUNNING' : 'IDLE') as LocalPracticeInputState };
     if (plan?.mode === 'CONTINUOUS_PLAY') return Object.freeze({ ...base, completion: null, mode: 'CONTINUOUS_PLAY', inputError: continuousError, activeStepGroup: null,
       performanceClock: null, performanceEvaluation: null, recordingIndicator: null, analysisIntervention: null, resourceIntervention: null });
-    return Object.freeze({ ...base, completion: null, mode: 'STEP_BY_STEP', inputError: stepError, activeStepGroup: snapshot?.activeStepGroup && plan ? projectPracticeMomentView(plan.artifact, snapshot.activeStepGroup) : null,
+    return Object.freeze({ ...base, completion: null, mode: 'STEP_BY_STEP', inputError: stepError, activeStepGroup: snapshot?.activeStepGroup && plan ? projectPracticeMomentView(plan.source.artifact, snapshot.activeStepGroup) : null,
       stepInteractionPhase: snapshot?.stepInteractionPhase ?? null, pendingPostVerdict: snapshot?.pendingPostVerdict ?? null,
       canAcceptAttempt: snapshot?.canAcceptAttempt ?? false, analysisIntervention: snapshot?.analysisIntervention ?? null,
       infrastructureIntervention: snapshot?.infrastructureIntervention ?? null, performanceClock: null, performanceEvaluation: null, recordingIndicator: null });

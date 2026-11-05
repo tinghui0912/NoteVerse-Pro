@@ -13,7 +13,7 @@ import { borrowedDevices } from '@/lib/practice/__fixtures__/device-roots';
 import { rootHealthFixture } from '@/lib/practice/__fixtures__/root-health';
 import { planPracticeResources } from '@/lib/practice/planning/resource-plan';
 import type { PracticeConfiguration } from '@/lib/practice/configuration/preferences';
-import { ManualClock } from '@/lib/practice/kernel/timebase';
+import { ManualClock } from '@/lib/practice/session/timebase';
 import { StepPracticeController } from '@/lib/practice/step/step-practice-controller';
 import { ContinuousPracticeController } from '@/lib/practice/continuous/continuous-practice-controller';
 import { PerformanceRecorder } from '@/lib/practice/recording/performance-recorder';

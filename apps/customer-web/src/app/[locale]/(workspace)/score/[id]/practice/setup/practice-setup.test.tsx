@@ -9,7 +9,7 @@ import { PracticeEnvironment } from '@/lib/practice/environment/practice-environ
 import PracticeSetupPage from './page';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
-import * as artifactContract from '@/lib/practice/kernel/artifact';
+import * as artifactContract from '@/lib/practice/score/artifact';
 
 import * as bindingOwner from '@/lib/practice/device/practice-resource-binding';
 import { recordingProbeFixture } from '@/lib/practice/__fixtures__/recording-probe';

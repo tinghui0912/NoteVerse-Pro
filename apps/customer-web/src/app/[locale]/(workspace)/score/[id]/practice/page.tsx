@@ -25,8 +25,8 @@ import { PracticeDeviceStatusPopover } from '@/components/practice/practice-devi
 import { PracticeSkipControl } from '@/components/practice/practice-skip-control';
 import { ScoreSurface } from '@/components/score/score-surface';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
-import { createPracticeSessionPlanner } from '@/lib/practice/planning/session-plan';
-import type { PracticeExecutionIntent } from '@/lib/practice/planning/execution-intent';
+import { planPractice } from '@/lib/practice/planning/practice-plan';
+import type { PracticeIntent } from '@/lib/practice/planning/intent';
 import { projectPracticeMomentViews, type PracticeMomentView } from '@/lib/practice/score-view/moment-view';
 import type { PracticeCompletionOutcome } from '@/lib/practice/completion-outcome';
 
@@ -104,17 +104,17 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
   const range = usePracticeRangeSelection(expectedGroups, workspace.scope, workspace.setScope);
   const { practiceScope, selectedRangeRenderNoteIds } = range;
 
-  const [planPracticeSession] = useState(createPracticeSessionPlanner);
+
   const configuration = workspace.configuration;
-  const executionIntent = useMemo<PracticeExecutionIntent | null>(() => {
+  const intent = useMemo<PracticeIntent | null>(() => {
     if (!configuration || !practiceScope) return null;
     return Object.freeze({ mode: configuration.mode, inputSource: configuration.inputSource,
       recordingMode: configuration.recordingMode, scope: Object.freeze({ ...practiceScope }),
-      tempoSelection: Object.freeze({ ...tempoSelection }), metronomeEnabled }) as PracticeExecutionIntent;
+      tempoSelection: Object.freeze({ ...tempoSelection }), metronomeEnabled }) as PracticeIntent;
   }, [configuration, practiceScope, tempoSelection, metronomeEnabled]);
-  const plan = useMemo(() => source && executionIntent
-    ? planPracticeSession(source, executionIntent) : null,
-    [source, executionIntent, planPracticeSession]);
+  const plan = useMemo(() => source && intent
+    ? planPractice(source, intent) : null,
+    [source, intent]);
 
   const device = usePracticeResourceBinding(matching ? prepared!.binding : null);
   const acousticState = useSyncExternalStore(workspace.environment.subscribeAcoustic, workspace.environment.acousticState, workspace.environment.acousticState);

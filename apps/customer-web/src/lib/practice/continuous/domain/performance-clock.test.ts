@@ -1,10 +1,11 @@
-import { continuousSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
+import { countInContractAt } from '@/lib/practice/planning/count-in';
+import { continuousPracticePlan } from '@/lib/practice/__fixtures__/practice-plan';
 import canonicalArtifactJson from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import { leadingRestArtifact } from '@/lib/practice/__fixtures__/leading-rest-artifact';
 import { PerformanceClockRuntime } from '@/lib/practice/continuous/domain/performance-clock';
-import { type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
-import { resolvePracticeTempoPlan } from '@/lib/practice/kernel/tempo';
-import { ManualClock, PracticeTimebase } from '@/lib/practice/kernel/timebase';
+import { type PracticeScoreArtifact } from '@/lib/practice/score/artifact';
+import { resolvePracticeTempoPlan } from '@/lib/practice/planning/tempo';
+import { ManualClock, PracticeTimebase } from '@/lib/practice/session/timebase';
 import { describe, expect, it } from 'vitest';
 const artifact = canonicalArtifactJson as PracticeScoreArtifact;
 function cloneArtifact(overrides: Partial<PracticeScoreArtifact> = {}): PracticeScoreArtifact {
@@ -13,7 +14,7 @@ function cloneArtifact(overrides: Partial<PracticeScoreArtifact> = {}): Practice
 describe('Continuous transport clock', () => {
   it('maps only already-reached RUNNING coordinates, including count-ins and multiple pause segments, without advancing', () => {
     const clock = new ManualClock();
-    const runtime = new PerformanceClockRuntime({ artifact, tempoPlan: resolvePracticeTempoPlan(artifact, { mode: 'CUSTOM_FIXED_BPM', bpm: 120 }), scope: continuousSessionPlan(artifact, { scope: { kind: 'FULL' } }).scope, timebase: new PracticeTimebase({ domainId: 'inverse-clock' }), clock, countInTicks: 2 });
+    const runtime = new PerformanceClockRuntime({ artifact, tempoPlan: resolvePracticeTempoPlan(artifact, { mode: 'CUSTOM_FIXED_BPM', bpm: 120 }), scope: continuousPracticePlan(artifact, { scope: { kind: 'FULL' } }).scope, timebase: new PracticeTimebase({ domainId: 'inverse-clock' }), clock, countIn: { ...countInContractAt(artifact, 0), durationTicks: 2 }});
     runtime.start();
     expect(runtime.sessionTimeAtReachedPerformance(0)).toBeNull();
     clock.set(500);
@@ -40,7 +41,7 @@ describe('Continuous transport clock', () => {
     const clock = new ManualClock(0);
     // ContinuousPracticeSession initialized with resolved scope:
     const tempoPlan = resolvePracticeTempoPlan(leadingRestArtifact, { mode: 'SCORE' });
-    const perfRuntime = new PerformanceClockRuntime({ timebase: new PracticeTimebase({ domainId: 'clock-contract' }), artifact: leadingRestArtifact, tempoPlan, scope: continuousSessionPlan(leadingRestArtifact, { scope: { kind: 'FULL' } }).scope, clock, countInTicks: 4 });
+    const perfRuntime = new PerformanceClockRuntime({ timebase: new PracticeTimebase({ domainId: 'clock-contract' }), artifact: leadingRestArtifact, tempoPlan, scope: continuousPracticePlan(leadingRestArtifact, { scope: { kind: 'FULL' } }).scope, clock, countIn: { ...countInContractAt(leadingRestArtifact, 0), durationTicks: 4 }});
     perfRuntime.start();
     const snap = perfRuntime.advanceToNow();
     expect(snap.state).toBe('COUNT_IN');
@@ -58,7 +59,7 @@ describe('Continuous transport clock', () => {
   it('supports CONTINUOUS user end vs SCOPE_COMPLETED natural completion', () => {
     const clock = new ManualClock(0);
     const tempoPlan = resolvePracticeTempoPlan(artifact, { mode: 'SCORE' });
-    const runtime = new PerformanceClockRuntime({ timebase: new PracticeTimebase({ domainId: 'clock-contract' }), artifact, tempoPlan, scope: continuousSessionPlan(artifact, { scope: { kind: 'FULL' } }).scope, clock, countInTicks: 0 });
+    const runtime = new PerformanceClockRuntime({ timebase: new PracticeTimebase({ domainId: 'clock-contract' }), artifact, tempoPlan, scope: continuousPracticePlan(artifact, { scope: { kind: 'FULL' } }).scope, clock, countIn: { ...countInContractAt(artifact, 0), durationTicks: 0 }});
     runtime.start();
     expect(runtime.advanceToNow().state).toBe('RUNNING');
     expect(runtime.advanceToNow().scopeCompleted).toBe(false);
@@ -73,7 +74,7 @@ describe('Continuous transport clock', () => {
 
     // Natural scope completion
     const rangeClock = new ManualClock(0);
-    const naturalRuntime = new PerformanceClockRuntime({ timebase: new PracticeTimebase({ domainId: 'clock-contract' }), artifact, tempoPlan, clock: rangeClock, countInTicks: 0, scope: continuousSessionPlan(artifact, { scope: {
+    const naturalRuntime = new PerformanceClockRuntime({ timebase: new PracticeTimebase({ domainId: 'clock-contract' }), artifact, tempoPlan, clock: rangeClock, countIn: { ...countInContractAt(artifact, 0), durationTicks: 0 }, scope: continuousPracticePlan(artifact, { scope: {
         kind: 'RANGE',
         startGroupId: artifact.moments[0].groupId,
         endGroupId: artifact.moments[0].groupId,
@@ -96,7 +97,7 @@ describe('Continuous transport clock', () => {
 
     const clock = new ManualClock(0);
     const tempoPlan = resolvePracticeTempoPlan(multiTempoArtifact, { mode: 'SCORE' });
-    const runtime = new PerformanceClockRuntime({ timebase: new PracticeTimebase({ domainId: 'clock-contract' }), artifact: multiTempoArtifact, tempoPlan, scope: continuousSessionPlan(multiTempoArtifact, { scope: { kind: 'FULL' } }).scope, clock, countInTicks: 6 });
+    const runtime = new PerformanceClockRuntime({ timebase: new PracticeTimebase({ domainId: 'clock-contract' }), artifact: multiTempoArtifact, tempoPlan, scope: continuousPracticePlan(multiTempoArtifact, { scope: { kind: 'FULL' } }).scope, clock, countIn: { ...countInContractAt(multiTempoArtifact, 0), durationTicks: 6 }});
 
     runtime.start();
     let snapshot = runtime.advanceToNow();
@@ -138,7 +139,7 @@ describe('Continuous transport clock', () => {
 describe('meter-aware Resume Count-In', () => {
   it.each([3, 4])('%i/4 keeps performance/tick fixed until the resumed running boundary', beats => {
     const score = cloneArtifact({ meterSegments: [{ startTick: 0, numerator: beats, denominator: 4,   }] } as Partial<PracticeScoreArtifact>);
-    const clock = new ManualClock(), runtime = new PerformanceClockRuntime({ artifact: score, tempoPlan: resolvePracticeTempoPlan(score, { mode: 'CUSTOM_FIXED_BPM', bpm: 120 }), scope: continuousSessionPlan(score, { scope: { kind: 'FULL' } }).scope, clock, timebase: new PracticeTimebase({ domainId: 'resume' }), countInTicks: 2 });
+    const clock = new ManualClock(), runtime = new PerformanceClockRuntime({ artifact: score, tempoPlan: resolvePracticeTempoPlan(score, { mode: 'CUSTOM_FIXED_BPM', bpm: 120 }), scope: continuousPracticePlan(score, { scope: { kind: 'FULL' } }).scope, clock, timebase: new PracticeTimebase({ domainId: 'resume' }), countIn: { ...countInContractAt(score, 0), durationTicks: 2 }});
     expect(runtime.start()).toMatchObject({ state: 'COUNT_IN', countInKind: 'INITIAL', performanceTimeMs: 0 });
     clock.advance(500); expect(runtime.advanceToNow().performanceTimeMs).toBe(0);
     clock.advance(125); const paused = runtime.pause(); clock.advance(1000);
@@ -154,7 +155,7 @@ describe('meter-aware Resume Count-In', () => {
     expect(runtime.performanceTimeAtCapture(clock.nowMs())).toBe(paused.performanceTimeMs + 50);
   });
   it('Pause cancels a resume countdown and End abandons without advancing frozen performance time', () => {
-    const clock = new ManualClock(), runtime = new PerformanceClockRuntime({ artifact, tempoPlan: resolvePracticeTempoPlan(artifact, { mode: 'SCORE' }), scope: continuousSessionPlan(artifact, { scope: { kind: 'FULL' } }).scope, clock, timebase: new PracticeTimebase({ domainId: 'cancel' }), countInTicks: 0 });
+    const clock = new ManualClock(), runtime = new PerformanceClockRuntime({ artifact, tempoPlan: resolvePracticeTempoPlan(artifact, { mode: 'SCORE' }), scope: continuousPracticePlan(artifact, { scope: { kind: 'FULL' } }).scope, clock, timebase: new PracticeTimebase({ domainId: 'cancel' }), countIn: { ...countInContractAt(artifact, 0), durationTicks: 0 }});
     runtime.start(); clock.advance(100); runtime.pause(); runtime.resume(); clock.advance(500);
     expect(runtime.pause()).toMatchObject({ state: 'PAUSED', performanceTimeMs: 100 });
     clock.advance(5000); expect(runtime.advanceToNow().performanceTimeMs).toBe(100);

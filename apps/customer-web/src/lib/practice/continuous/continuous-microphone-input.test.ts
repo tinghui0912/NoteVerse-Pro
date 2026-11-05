@@ -5,7 +5,7 @@ import type { ContinuousPlatform } from './continuous-input';
 import type { ContinuousCaptureBridge } from '../acoustic/continuous/capture-bridge';
 import type { ContinuousEvidencePublication } from './domain/evaluation/evidence-types';
 import type { AcousticInferencePort } from '../acoustic/runtime/inference-types';
-import { ManualClock } from '../kernel/timebase';
+import { ManualClock } from '../session/timebase';
 import { SourceAnalysisRuntime } from '../acoustic/runtime/source-analysis-runtime';
 
 beforeEach(() => vi.useFakeTimers());

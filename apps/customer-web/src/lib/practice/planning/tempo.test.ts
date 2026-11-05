@@ -1,8 +1,8 @@
 import { DEFAULT_SCORE_TEMPO_BPM } from '@/lib/score/tempo-policy';
 import canonical from '../__fixtures__/canonical-practice-score-artifact.json';
-import { parsePracticeScoreArtifact } from './artifact';
+import { parsePracticeScoreArtifact } from '../score/artifact';
 import { leadingRestArtifact } from '@/lib/practice/__fixtures__/leading-rest-artifact';
-import { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { PracticeScoreArtifact } from '@/lib/practice/score/artifact';
 import {
   clampCustomTempo,
   effectiveScoreTempoAtTick,
@@ -14,7 +14,7 @@ import {
   MIN_PRACTICE_TEMPO_BPM,
   PracticeTempoTimeline,
   resolvePracticeTempoPlan,
-} from '@/lib/practice/kernel/tempo';
+} from '@/lib/practice/planning/tempo';
 import { describe, expect, it } from 'vitest';
 
 function createMockArtifact(scoreTempoSegments: { startTick: number; bpm: number }[]): PracticeScoreArtifact {

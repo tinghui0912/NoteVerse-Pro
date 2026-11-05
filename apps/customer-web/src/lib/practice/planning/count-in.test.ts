@@ -1,6 +1,6 @@
 import canonicalArtifactJson from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
-import { type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
-import { countInContractAt } from '@/lib/practice/kernel/count-in';
+import { type PracticeScoreArtifact } from '@/lib/practice/score/artifact';
+import { countInContractAt } from '@/lib/practice/planning/count-in';
 import { describe, expect, it } from 'vitest';
 const artifact = canonicalArtifactJson as PracticeScoreArtifact;
 function cloneArtifact(overrides: Partial<PracticeScoreArtifact> = {}): PracticeScoreArtifact {

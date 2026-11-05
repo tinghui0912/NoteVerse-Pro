@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   PracticeTempoTimeline,
   type ResolvedPracticeTempoPlan,
-} from '../kernel/tempo';
+} from '../planning/tempo';
 import {
   isDownbeat,
   MetronomePulsePlanner,

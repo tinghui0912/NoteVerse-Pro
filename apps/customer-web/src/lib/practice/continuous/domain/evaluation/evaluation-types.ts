@@ -1,6 +1,6 @@
 import type { CONTINUOUS_ASSIGNMENT_POLICY_ID } from './finalization-policy';
 import type { ContinuousAssignmentSnapshot, CompletedContinuousAssignment } from './assignment-types';
-import type { PracticeInputSource } from '@/lib/practice/kernel/session';
+import type { PracticeInputSource } from '@/lib/practice/planning/intent';
 export type ContinuousEvaluationSnapshot = Readonly<{
   assignmentPolicyId: typeof CONTINUOUS_ASSIGNMENT_POLICY_ID;
   inputSource: PracticeInputSource;

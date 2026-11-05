@@ -1,6 +1,6 @@
 import { recordingSinkFixture, recordingResourceFixture } from '@/lib/practice/__fixtures__/recording-sink';
 import { expect, it } from 'vitest';
-import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import type { PracticeScoreArtifact } from '@/lib/practice/score/artifact';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import { canonicalContinuousResultFixture } from '@/lib/practice/__fixtures__/continuous-result';
 import { createPerformanceRecording } from '@/lib/practice/recording/recording-artifact';

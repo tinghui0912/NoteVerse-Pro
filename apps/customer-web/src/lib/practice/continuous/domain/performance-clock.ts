@@ -1,9 +1,9 @@
-import { type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
-import { countInContractAt } from '@/lib/practice/kernel/count-in';
-import type { ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
-import type { LocalPracticeCompletionReason } from '@/lib/practice/kernel/session';
-import { ticksToMs, PracticeTempoTimeline, type ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
-import { PracticeTimebase, type LocalClock, type SessionTime } from '@/lib/practice/kernel/timebase';
+import { type PracticeScoreArtifact } from '@/lib/practice/score/artifact';
+import { countInContractAt, type CountInContract } from '@/lib/practice/planning/count-in';
+import type { ResolvedPracticeScope } from '@/lib/practice/planning/scope';
+import type { LocalPracticeCompletionReason } from '@/lib/practice/session/session';
+import { ticksToMs, PracticeTempoTimeline, type ResolvedPracticeTempoPlan } from '@/lib/practice/planning/tempo';
+import { PracticeTimebase, type LocalClock, type SessionTime } from '@/lib/practice/session/timebase';
 
 export type PerformanceRuntimeState = 'READY' | 'COUNT_IN' | 'RUNNING' | 'PAUSED' | 'ENDED';
 
@@ -42,7 +42,7 @@ export type PerformanceClockRuntimeOptions = {
   scope: Readonly<ResolvedPracticeScope>;
   clock: LocalClock;
   timebase: PracticeTimebase;
-  countInTicks?: number;
+  countIn: Readonly<CountInContract>;
 };
 
 type PerformanceScope = ResolvedPracticeScope & {
@@ -76,8 +76,8 @@ export class PerformanceClockRuntime {
     }
     this.timeline = new PracticeTempoTimeline(tempoPlan, this.artifact.scoreEndTick, this.artifact.ticksPerQuarter);
     this.scope = performanceScopeCoordinates(this.timeline, options.scope);
-    const countIn = countInContractAt(this.artifact, this.scope.startTick);
-    this.countInTicks = options.countInTicks ?? countIn.durationTicks;
+    const countIn = options.countIn;
+    this.countInTicks = countIn.durationTicks;
     this.countInPulses = countIn.pulses;
     this.countInMs = ticksToMs(this.countInTicks, this.timeline.bpmAtTick(this.scope.startTick), this.artifact.ticksPerQuarter);
     this.timebase = options.timebase;

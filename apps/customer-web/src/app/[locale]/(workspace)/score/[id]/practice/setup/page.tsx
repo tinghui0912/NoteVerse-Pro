@@ -12,7 +12,8 @@ import { useTranslations } from 'next-intl';
 import { usePracticeWorkspace } from '@/contexts/practice-workspace-context';
 import { practiceLocation } from '@/lib/practice/configuration/practice-location';
 import type { PracticeConfiguration } from '@/lib/practice/configuration/preferences';
-import type { PracticeInputSource, PracticeMode } from '@/lib/practice/kernel/session';
+import type { PracticeMode } from '@/lib/practice/planning/intent';
+import type { PracticeInputSource } from '@/lib/practice/planning/intent';
 import type { PracticeRecordingMode } from '@/lib/practice/recording/recording-mode';
 import { planPracticeResources, type PracticeQualificationRequirement } from '@/lib/practice/planning/resource-plan';
 

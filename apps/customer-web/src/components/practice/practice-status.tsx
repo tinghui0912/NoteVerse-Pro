@@ -8,7 +8,8 @@ import type { PracticeDeviceIssue } from '@/lib/practice/device/device-contract'
 import { practiceDeviceIssueMessageKeys } from './practice-device-status';
 
 import { cn } from '@/lib/utils';
-import type { PracticeInputSource, PracticeMode } from '@/lib/practice/kernel/session';
+import type { PracticeMode } from '@/lib/practice/planning/intent';
+import type { PracticeInputSource } from '@/lib/practice/planning/intent';
 import type { PerformanceClockSnapshot } from '@/lib/practice/continuous/domain/performance-clock';
 import type { PracticeExecutionLifecycle, PracticeExecutionErrorCode } from '@/lib/practice/application/practice-execution-owner';
 import type { LocalPracticeInputState } from '@/lib/practice/input-state';

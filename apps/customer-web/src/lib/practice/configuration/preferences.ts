@@ -1,4 +1,5 @@
-import type { PracticeInputSource, PracticeMode } from '@/lib/practice/kernel/session';
+import type { PracticeMode } from '@/lib/practice/planning/intent';
+import type { PracticeInputSource } from '@/lib/practice/planning/intent';
 import type { PracticeRecordingMode } from '@/lib/practice/recording/recording-mode';
 
 export type PracticePreferenceProfile = Readonly<{

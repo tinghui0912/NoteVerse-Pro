@@ -1,4 +1,4 @@
-import type { PracticePianoKey } from '@/lib/practice/kernel/piano-key';
+import type { PracticePianoKey } from '@/lib/practice/score/piano-key';
 export type ContinuousObservation = Readonly<{
   observationId: string;
   pianoKey: PracticePianoKey;

@@ -1,4 +1,4 @@
-import type { PracticeInputSource } from '@/lib/practice/kernel/session';
+import type { PracticeInputSource } from '@/lib/practice/planning/intent';
 
 const CONTINUOUS_TIMING_CALIBRATION_POLICY_ID = 'CONTINUOUS_NO_INPUT_TIMING_CALIBRATION_V1';
 const MIDI_EVENT_TIME_MAPPING_POLICY_ID = 'MIDI_EVENT_TIMESTAMP_TO_PERFORMANCE_TIME_V1';

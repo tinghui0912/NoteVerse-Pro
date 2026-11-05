@@ -8,9 +8,9 @@ import type { ContinuousEvaluationSnapshot, CompletedContinuousEvaluation, Conti
 import { ContinuousEvaluationError } from '@/lib/practice/continuous/domain/evaluation/evaluation-error';
 import { assertCompletedAssignment } from '@/lib/practice/continuous/domain/evaluation/assignment-projection';
 import { immutableContinuousValue } from '@/lib/practice/continuous/domain/evaluation/immutable-value';
-import type { PracticeInputSource } from '@/lib/practice/kernel/session';
-import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
-import type { ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
+import type { PracticeInputSource } from '@/lib/practice/planning/intent';
+import type { PracticeScoreArtifact } from '@/lib/practice/score/artifact';
+import type { ResolvedPracticeScope } from '@/lib/practice/planning/scope';
 
 type ContinuousEvaluationClock = {
   tickToTimeMs(tick: number): number;

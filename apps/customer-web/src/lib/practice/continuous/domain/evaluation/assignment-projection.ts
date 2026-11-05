@@ -1,4 +1,4 @@
-import { isPracticePianoKey } from '@/lib/practice/kernel/piano-key';
+import { isPracticePianoKey } from '@/lib/practice/score/piano-key';
 import type { ContinuousAssignmentSnapshot } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
 import type { CompletedContinuousAssignment, CompletedContinuousAssignmentResult, FinalizedContinuousGroupAssignment, FinalizedContinuousStrikeAssignment } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
 import type { ContinuousObservation } from '@/lib/practice/continuous/domain/evaluation/evidence-types';

@@ -1,4 +1,4 @@
-import { isPracticePianoKey } from '../../../src/lib/practice/kernel/piano-key';
+import { isPracticePianoKey } from '../../../src/lib/practice/score/piano-key';
 import { productionPolicy } from './production-policy';
 
 const limitations = [

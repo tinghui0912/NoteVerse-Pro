@@ -1,18 +1,18 @@
-import { PracticeTempoTimeline } from '@/lib/practice/kernel/tempo';
-import { continuousSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
+import { PracticeTempoTimeline } from '@/lib/practice/planning/tempo';
+import { continuousPracticePlan } from '@/lib/practice/__fixtures__/practice-plan';
 import { CONTINUOUS_ASSIGNMENT_POLICY_ID } from '@/lib/practice/continuous/domain/evaluation/finalization-policy';
 import { describe, expect, it } from 'vitest';
 import artifactJson from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import { assertCompletedEvaluation, ContinuousEvaluationSession } from '@/lib/practice/continuous/domain/evaluation/session';
 import { buildContinuousExpectedStrikesFromTimeline } from '@/lib/practice/continuous/domain/evaluation/expected-strikes';
-import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import type { PracticeScoreArtifact } from '@/lib/practice/score/artifact';
 
 const artifact = artifactJson as PracticeScoreArtifact;
-const createSession = () => new ContinuousEvaluationSession({ artifact, timeline: { tickToTimeMs: tick => tick * 1000 }, scope: continuousSessionPlan(artifact, { scope: { kind: 'FULL' } }).scope, sessionDomainId: 'test', inputSource: 'MICROPHONE' });
+const createSession = () => new ContinuousEvaluationSession({ artifact, timeline: { tickToTimeMs: tick => tick * 1000 }, scope: continuousPracticePlan(artifact, { scope: { kind: 'FULL' } }).scope, sessionDomainId: 'test', inputSource: 'MICROPHONE' });
 
 describe('artifact-bound Continuous evaluation session', () => {
   it('constructs canonical same-time strikes from each expected group onset', () => {
-    const plan = continuousSessionPlan(artifact, { tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 } });
+    const plan = continuousPracticePlan(artifact, { tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 } });
     const strikes = buildContinuousExpectedStrikesFromTimeline(artifact, new PracticeTempoTimeline(plan.tempoPlan, artifact.scoreEndTick, artifact.ticksPerQuarter), plan.scope);
     for (const group of artifact.moments) {
       const times = strikes.filter(strike => strike.groupId === group.groupId).map(strike => strike.expectedPerformanceTimeMs);
@@ -44,7 +44,7 @@ describe('artifact-bound Continuous evaluation session', () => {
 
 describe('source-bound evaluation composition', () => {
   it.each(['MIDI', 'MICROPHONE'] as const)('%s rejects foreign-source evidence before ledger mutation and fails closed', inputSource => {
-    const session = new ContinuousEvaluationSession({ artifact, timeline: { tickToTimeMs: tick => tick * 1000 }, scope: continuousSessionPlan(artifact, { scope: { kind: 'FULL' } }).scope, sessionDomainId: 'test', inputSource });
+    const session = new ContinuousEvaluationSession({ artifact, timeline: { tickToTimeMs: tick => tick * 1000 }, scope: continuousPracticePlan(artifact, { scope: { kind: 'FULL' } }).scope, sessionDomainId: 'test', inputSource });
     const before = session.snapshot();
     expect(() => session.publish({ publicationId: 'foreign', sessionDomainId: 'test', analyzedThroughPerformanceMs: 1000, availabilitySessionTimeMs: 1100,
       observations: [{ observationId: 'o', pianoKey: 60, performanceTimeMs: 100, confidence: 1, source: inputSource === 'MIDI' ? 'ACOUSTIC' : 'MIDI' }] })).toThrow('OBSERVATION_SOURCE_MISMATCH');
@@ -93,7 +93,7 @@ it.each(['invalid observation', 'inconsistent group onset'])('completed evaluati
 });
 
 it.each(['MIDI', 'MICROPHONE'] as const)('%s completed evaluation has only exact assignment/source fields without repair', inputSource => {
-  const session = new ContinuousEvaluationSession({ artifact, inputSource, sessionDomainId: 'test', scope: continuousSessionPlan(artifact, { scope: { kind: 'FULL' } }).scope, timeline: { tickToTimeMs: tick => tick * 1000 } });
+  const session = new ContinuousEvaluationSession({ artifact, inputSource, sessionDomainId: 'test', scope: continuousPracticePlan(artifact, { scope: { kind: 'FULL' } }).scope, timeline: { tickToTimeMs: tick => tick * 1000 } });
   const unavailable = session.completedEvaluation();
   session.publish({ publicationId: 'p', sessionDomainId: 'test', analyzedThroughPerformanceMs: 20000, availabilitySessionTimeMs: 20100, observations: [] });
   session.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 20000, availabilitySessionTimeMs: 20100 });
@@ -119,7 +119,7 @@ it.each(['MIDI', 'MICROPHONE'] as const)('%s completed evaluation has only exact
 });
 
 it.each(['MIDI', 'MICROPHONE'] as const)('%s parsed evaluation independently rejects foreign observation sources without mutation', inputSource => {
-  const session = new ContinuousEvaluationSession({ artifact, inputSource, sessionDomainId: 'test', scope: continuousSessionPlan(artifact, { scope: { kind: 'FULL' } }).scope, timeline: { tickToTimeMs: tick => tick * 1000 } });
+  const session = new ContinuousEvaluationSession({ artifact, inputSource, sessionDomainId: 'test', scope: continuousPracticePlan(artifact, { scope: { kind: 'FULL' } }).scope, timeline: { tickToTimeMs: tick => tick * 1000 } });
   session.publish({ publicationId: 'p', sessionDomainId: 'test', analyzedThroughPerformanceMs: 20000, availabilitySessionTimeMs: 20100,
     observations: [{ observationId: 'c', pianoKey: 60, performanceTimeMs: 0, confidence: 1, source: inputSource === 'MIDI' ? 'MIDI' : 'ACOUSTIC' }] });
   session.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 20000, availabilitySessionTimeMs: 20100 });

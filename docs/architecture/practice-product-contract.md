@@ -189,30 +189,32 @@ shows completed feedback; VideoExport always uses its clean-score contract.
 
 ## Session Planning
 
-Canonical Practice Source supplies sourceId and the parsed artifact. The page creates
-an immutable `PracticeExecutionIntent` from resolved configuration, committed scope,
-tempo choice and metronome state. A composition-local `planPracticeSession` owns
-sourceId/intent validation on the Source-admitted artifact and resolves scope and tempo into one immutable
-`PracticeSessionPlan`. STEP and Continuous controllers consume that plan; pure runtimes
-consume its narrow resolved projections. Live feedback is not execution intent.
+AdmittedPracticeSource supplies sourceId, the parsed artifact and rendering MusicXML.
+`PracticeIntent` contains only user choices: mode, input source, recording mode,
+scope, tempo selection and metronome enabled. STEP recording is OFF.
 
-The plan carries immutable `ResolvedMetronomePlan` musical timing and initial enabled state. Live enable/disable stays a runtime
-command and preserves execution ownership, localSessionId and progression. Flag-only
-candidate changes reuse the current resolved scope/tempo. Resources belong to the
-retained binding/application boundaries. The plan contains immutable resource
-requirements/bindings; acquired objects and health state belong to those runtime owners.
+The pure `planPractice(source, intent)` function produces an immutable `PracticePlan`.
+Its `source` projection contains sourceId and artifact, without MusicXML. It owns mode,
+resolved scope/tempo/metronome plans, immutable resource requirements and Continuous
+Count-In policy. Input and recording truth are owned by the resource plan. A candidate
+plan is pre-Start data; `executedPlan` is available only after explicit Start and stays
+pinned during preparation, execution and completed presentation.
 
-Common local snapshots contain sourceId, resolved scope/tempo and current metronome
-state. Natural Continuous completion creates Result8 from those executed resolved
-values. See [session planning](practice-session-planning.md) for contracts and ownership.
+Start constructs one mode-specific `StepPracticeSession` or `ContinuousPracticeSession`.
+Their common snapshot contract contains localSessionId, the exact executed plan,
+completionReason and created/updated timestamps. STEP adds target/attempt state;
+Continuous adds performance state. Runtime metronome toggles belong to those states.
+Natural Continuous completion derives Result8 from the snapshot plan.
 
 ## Domain Ownership
 
-`src/lib/practice/kernel/` owns the pure, cross-mode artifact contract, canonical
-scope, count-in, tempo, session timebase and common session identity/completion
-metadata. It depends on neither mode, acoustic implementation nor browser resources.
-Artifact validation and access stay in `artifact.ts`; scope and count-in policy have
-their own modules. Renderer note IDs are projected by `score-view/cursor-scope.ts`.
+`src/lib/practice/score/` owns admitted artifact facts, exact score ticks, piano keys
+and meter facts. `planning/` owns intent and pure scope, tempo, resource, metronome and
+Count-In resolution. `session/` owns local execution identity and runtime time-domain
+mapping. Score depends on neither planning nor session; planning depends on score;
+session references planning; mode domains consume these packages and remain separate.
+Physical resources and health belong to retained binding/application owners.
+Renderer note IDs are projected by `score-view/cursor-scope.ts`.
 
 Artifact schemaVersion 1 has one canonical notation ownership graph and one canonical
 Practice moment/physical-attack sequence. STEP and Continuous are projections, not
@@ -240,12 +242,12 @@ depend on one another. Consumers import concrete owner modules directly.
 
 The performance clock owns transport coordinates and accepts an established
 `PracticeTimebase`, resolved scope and resolved tempo. `ContinuousPracticeSession`
-owns session identity, input source, durable timestamps, runtime metadata, current
+owns local session identity, its ContinuousPracticePlan, durable timestamps, current
 metronome state and session records.
 Reading a session record does not drive a clock transition.
 
 Continuous session accepts the domain-owned `ContinuousClockDrivenEvidencePort`.
-MIDI options require its factory; microphone options exclude that factory.
+A MIDI plan requires its factory; a microphone plan rejects that factory.
 `continuous/input/midi-evidence.ts`
 implements MIDI observation identity, delivery-grace coverage and terminal coverage;
 the application controller supplies it. Terminal evidence is published before the
@@ -255,7 +257,7 @@ analysis-publication boundary.
 Shared `midi/` infrastructure publishes physical NOTE_ON facts in session time;
 it has no mode-domain dependency. The Continuous input adapter projects these facts
 into `observeMidiAttack`; acoustic observations enter only through `publishAnalysis`.
-Shared `metronome/` consumes resolved musical timing from `PracticeSessionPlan.metronomePlan`
+Shared `metronome/` consumes resolved musical timing from `PracticePlan.metronomePlan`
 and its own minimal live sync-point contract. `MetronomeRuntime` owns scheduling state;
 `MetronomeAudioPort` separates browser audio side effects. The browser adapter borrows
 microphone attempt AudioContext without closing it, or owns a MIDI metronome context
@@ -280,13 +282,13 @@ these dependency and ownership boundaries.
 ## STEP_BY_STEP
 
 STEP is paced learning, not a performance report. The shared schemaVersion 1 artifact is
-validated revision-wide before scope selection. StepPracticeRuntime owns progression;
+validated revision-wide before scope selection. StepPracticeSession owns progression;
 StepPracticeController owns inputs, metronome, cancellation and resource cleanup.
 There is no STEP Performance Clock or Pause/Resume lifecycle.
 
 `StepPianoKeyEvidence` contains1..128 raw numeric attack keys, finite confidence and
 same-session capture end. Admission checks ownership/state, capture time, confidence,
-Array/nonempty/raw128, then own dense indices and the kernel piano-key predicate,
+Array/nonempty/raw128, then own dense indices and the score piano-key predicate,
 before Set+numeric-sort normalization, exact structural comparison and retention.
 Raw129 rejects before indexed reads. Malformed evidence leaves ANALYZING/active
 ownership retryable. Extra non-index properties are irrelevant; there is no complete
@@ -296,9 +298,8 @@ Both sources compare all normalized observed attack keys with attack targets.
 Equal cardinality and every equal member yields MATCH; subsets, supersets and other
 sets yield MISMATCH. Continuation is excluded. Confidence is metadata, never a
 verdict threshold. No target-aware source filtering or evidence loss is permitted.
-The current snapshot is schema9/runtime `step-piano-key-learning-v12`.
 Revision-wide artifact admission establishes the physical-key target contract;
-STEP evidence admission uses the kernel piano-key predicate.
+STEP evidence admission uses the score piano-key predicate.
 
 READY → CAPTURING → ANALYZING → POST_VERDICT owns exactly one attempt. Explicit rearm
 commits MATCH once and completes at scope end; MISMATCH retains the answered target.
@@ -1052,7 +1053,7 @@ VideoExport score snapshots consume canonical decoration constants and remove re
 classes and existing active/playhead nodes from the frozen clone only. Live Review
 annotations remain untouched; export inserts only its own playback cursor. Sharing
 retains 30fps, MIME preference, geometry, audio extraction, frame prefetch and abort
-behavior. No presentation context is imported by kernel, STEP/Continuous domain,
+behavior. No presentation context is imported by score, planning, session, STEP/Continuous domain,
 acoustic, result or recording owners. Concrete module imports define these boundaries
 without aggregate barrels or forwarding paths.
 

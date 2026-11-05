@@ -1,4 +1,4 @@
-import { stepSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
+import { stepPracticePlan } from '@/lib/practice/__fixtures__/practice-plan';
 import { artifactWithKeys } from '../__fixtures__/piano-key-artifact';
 import { pianoMidiPitchToName } from '../acoustic/model/robust-piano-decoder';
 import { readFile, writeFile } from 'node:fs/promises';
@@ -9,7 +9,7 @@ import type { CaptureChunk, CaptureConsumer } from '../acoustic/source/capture-t
 import { CAPTURE_TRANSPORT_BLOCK_SAMPLES } from '../acoustic/source/capture-transport-contract';
 import type { AcousticInferenceInput, AcousticInferenceResult } from '../acoustic/runtime/inference-types';
 import type { StepAttemptIdentity } from '@/lib/practice/step/domain/attempt';
-import { StepPracticeRuntime } from '@/lib/practice/step/domain/runtime';
+import { StepPracticeSession } from '@/lib/practice/step/domain/practice-session';
 import { StepMicrophoneInput } from './step-microphone-input';
 import type { StepMicrophonePlatform } from './step-microphone-platform';
 
@@ -27,7 +27,7 @@ async function rig(rate: 44100 | 48000, pianoKeys = [60], sourceDomainId = 'v25:
   const origin = rate * 7, context = Object.assign(new EventTarget(), { sampleRate: rate, currentTime: 7, state: 'running' });
   const rootStop = vi.fn(), cloneStop = vi.fn(), root = { getTracks: () => [{ stop: rootStop }], clone: vi.fn(() => ({ getTracks: () => [{ stop: cloneStop }] })) };
   const artifact = artifactWithKeys([[60], [60]]);
-  const records: ReturnType<StepPracticeRuntime['completeAttempt']>[] = [], failures: Error[] = [];
+  const records: ReturnType<StepPracticeSession['completeAttempt']>[] = [], failures: Error[] = [];
   let source!: SourceAnalysisRuntime, publish!: SourceAnalysisOptions['onPublication'];
   let bridge!: CaptureConsumer, next = 0, sequence = 0, paused = false, failureListener: ((e: Error) => void) | undefined;
   let extraComplete: (() => void) | undefined;
@@ -80,7 +80,7 @@ async function rig(rate: 44100 | 48000, pianoKeys = [60], sourceDomainId = 'v25:
   const signal = new AbortController();
   const starting = input.start({ context: context as unknown as AudioContext, stream: root as unknown as MediaStream,
     localSessionId: 'v25', sourceDomainId }, signal.signal);
-  const runtime: StepPracticeRuntime = new StepPracticeRuntime({ ...stepSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), clock: input.clock, localSessionId: 'v25', metadataClock: { nowEpochMs: () => 0 } });
+  const runtime: StepPracticeSession = new StepPracticeSession({ plan: stepPracticePlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), clock: input.clock, localSessionId: 'v25', metadataClock: { nowEpochMs: () => 0 } });
   runtime.setInputUnavailable();
   const initial = await starting;
   traces.push(() => ({ rate, initialBoundary: initial, finalInput: input.snapshot(), finalDomain: runtime.snapshot(), records,
@@ -184,7 +184,6 @@ describe.each([44100, 48000] as const)('%i persistent microphone resource owner 
       expect(record.verdict).toBe(pianoKeys.length === 1 && pianoKeys[0] === 60 ? 'MATCH' : 'MISMATCH');
       expect(record.observedAttackKeys).toEqual([...pianoKeys].sort()); expect(record.confidence).toBe(.8);
       expect(record.captureEndSessionTime.sampleIndex! - record.attemptStartSessionTime.sampleIndex!).toBe(rate * .05);
-      expect(r.runtime.snapshot().version).toMatchObject({ schemaVersion: 9, runtimeVersion: 'step-piano-key-learning-v12' });
       expect(r.runtime.snapshot().step).toMatchObject({ currentIndex: 0, attemptState: 'POST_VERDICT' });
       const b = r.input.retirementBoundary(); r.runtime.rearm(b.sessionTime); r.input.arm(b);
       expect(r.runtime.snapshot().step.currentIndex).toBe(record.verdict === 'MATCH' ? 1 : 0);

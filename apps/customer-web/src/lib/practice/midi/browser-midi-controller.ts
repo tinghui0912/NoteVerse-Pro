@@ -1,5 +1,5 @@
 import { MidiFailure } from '@/lib/practice/failure/causal-failure';
-import type { PracticeTimebase, SessionTime } from '@/lib/practice/kernel/timebase';
+import type { PracticeTimebase, SessionTime } from '@/lib/practice/session/timebase';
 export type MidiAttackFact = Readonly<{
   sessionTime: SessionTime;
   noteNumber: number;

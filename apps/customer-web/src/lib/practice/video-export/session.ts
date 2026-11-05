@@ -1,7 +1,7 @@
 import type { RecordingMediaResource } from '@/lib/practice/recording/recording-sink';
 import type { PerformanceRecording } from '@/lib/practice/recording/recording-artifact';
 import type { RecordingTimebaseMapping } from '@/lib/practice/recording/recording-timebase';
-import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
+import type { ResolvedPracticeTempoPlan } from '@/lib/practice/planning/tempo';
 import type { CursorScope } from '@/lib/practice/score-view/cursor-scope';
 
 export type VideoExportSession = {

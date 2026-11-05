@@ -1,5 +1,5 @@
-import type { PracticePianoKey } from '@/lib/practice/kernel/piano-key';
-import { notesForIds, type PracticeMoment, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import type { PracticePianoKey } from '@/lib/practice/score/piano-key';
+import { notesForIds, type PracticeMoment, type PracticeScoreArtifact } from '@/lib/practice/score/artifact';
 
 export function groupForStep(artifact: PracticeScoreArtifact, stepIndex: number): PracticeMoment | null {
   return artifact.moments[stepIndex] ?? null;

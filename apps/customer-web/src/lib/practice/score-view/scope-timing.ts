@@ -1,4 +1,4 @@
-import { PracticeTempoTimeline, type ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
+import { PracticeTempoTimeline, type ResolvedPracticeTempoPlan } from '@/lib/practice/planning/tempo';
 
 export type ScopeTiming = {
   scopeStartMs: number;

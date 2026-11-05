@@ -1,4 +1,4 @@
-import type { PracticeExecutionIntent } from './execution-intent';
+import type { PracticeIntent } from './intent';
 
 export type PracticeQualificationRequirement = 'browserAudio' | 'microphone' | 'acousticEngine'
   | 'midi' | 'camera' | 'audioRecording' | 'videoRecording';
@@ -20,7 +20,7 @@ export type PracticeResourcePlan = Readonly<{
 
 /** Pure resource semantics; the finite immutable plans also retain stable projection identities. */
 export function planPracticeResources(
-  intent: Pick<PracticeExecutionIntent, 'mode' | 'inputSource' | 'recordingMode'>,
+  intent: Pick<PracticeIntent, 'mode' | 'inputSource' | 'recordingMode'>,
 ): PracticeResourcePlan {
   if (!intent || !['STEP_BY_STEP', 'CONTINUOUS_PLAY'].includes(intent.mode)
     || !['MICROPHONE', 'MIDI'].includes(intent.inputSource)

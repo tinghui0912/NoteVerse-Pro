@@ -3,7 +3,7 @@ import { AcousticFailure } from '@/lib/practice/failure/causal-failure';
 import { createPracticeAudioContext } from '@/lib/practice/failure/browser-failures';
 import { BrowserMidiController, type BrowserMidiControllerOptions } from '@/lib/practice/midi/browser-midi-controller';
 import type { MetronomeAudioPort } from '@/lib/practice/metronome/metronome-audio-port';
-import type { LocalClock } from '@/lib/practice/kernel/timebase';
+import type { LocalClock } from '@/lib/practice/session/timebase';
 import type { StepGestureTimer } from './step-midi-attempt-input';
 import { browserStepMicrophonePlatform, type StepMicrophonePlatform } from './step-microphone-platform';
 

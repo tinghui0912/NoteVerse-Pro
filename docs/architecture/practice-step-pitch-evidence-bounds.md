@@ -9,7 +9,7 @@
 | Source output | Practice MIDI/acoustic projections retain at most88 distinct product keys |
 | Work-admission budget |128 is independently owned and unqualified; neither MIDI wire128 nor product88 derives it |
 
-STEP schema9/runtime step-piano-key-learning-v12 receives the same source-neutral
+StepPracticeSession receives the same source-neutral
 StepPianoKeyEvidence from both inputs. Admission checks ownership/state, capture
 time, confidence, Array/nonempty/raw length, dense own indices and valid keys before
 normalization, structural comparison and record retention.

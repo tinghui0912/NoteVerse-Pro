@@ -1,8 +1,8 @@
 import type { PerformanceRecording } from '@/lib/practice/recording/recording-artifact';
 import type { PlayablePerformanceReplay } from '@/lib/practice/recording/performance-replay';
 import { mediaTimeToPerformanceTimeMs } from '@/lib/practice/recording/recording-timebase';
-import { PracticeTempoTimeline, type ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
-import type { ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
+import { PracticeTempoTimeline, type ResolvedPracticeTempoPlan } from '@/lib/practice/planning/tempo';
+import type { ResolvedPracticeScope } from '@/lib/practice/planning/scope';
 import { resolveScopeTiming } from '@/lib/practice/score-view/scope-timing';
 
 export function reviewReplay(recording: PerformanceRecording | null): PlayablePerformanceReplay | null {

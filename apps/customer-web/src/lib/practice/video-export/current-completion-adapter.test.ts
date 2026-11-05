@@ -5,7 +5,7 @@ import { expect, it } from 'vitest';
 import { createVideoExportSessionFromCompletion } from './current-completion-adapter';
 import { createVideoExportSessionFromSavedTake } from './saved-take-adapter';
 import { take, artifact } from './__fixtures__/saved-take';
-import { resolvePracticeScope } from '@/lib/practice/kernel/scope';
+import { resolvePracticeScope } from '@/lib/practice/planning/scope';
 import { parseSavedTempoPlan, parseSavedRecordingTimebase } from './saved-take-adapter';
 const blob = new Blob(['video'], { type: 'video/webm' });
 const completion = {

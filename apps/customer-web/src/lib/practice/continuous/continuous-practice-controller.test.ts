@@ -1,9 +1,10 @@
+import { withContinuousTiming } from '@/lib/practice/__fixtures__/practice-plan';
 import { recordingSinkFixture, memoryRecordingSinkFactory } from '@/lib/practice/__fixtures__/recording-sink';
 import { continuousMetronomeSyncPoint } from './metronome-sync';
 import { metronomeAudioFixture, observeMetronomeRuntime } from '@/lib/practice/__fixtures__/metronome';
 import { rootHealthFixture } from '@/lib/practice/__fixtures__/root-health';
 import { planPracticeResources } from '@/lib/practice/planning/resource-plan';
-import { continuousSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
+import { continuousPracticePlan } from '@/lib/practice/__fixtures__/practice-plan';
 import { artifactWithKeys } from '../__fixtures__/piano-key-artifact';
 import { ContinuousPracticeSession } from './domain/practice-session';
 import { ContinuousMicrophoneInput } from './continuous-microphone-input';
@@ -21,8 +22,8 @@ import { sourceIdentity, ACOUSTIC_MODEL } from '@/lib/practice/acoustic/model/mo
 import { CONTINUOUS_ASSIGNMENT_POLICY_ID } from '@/lib/practice/continuous/domain/evaluation/finalization-policy';
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
-import { ManualClock } from '@/lib/practice/kernel/timebase';
+import type { PracticeScoreArtifact } from '@/lib/practice/score/artifact';
+import { ManualClock } from '@/lib/practice/session/timebase';
 import { ContinuousPracticeController } from './continuous-practice-controller';
 import type { ContinuousPlatform } from './continuous-input';
 import type { ContinuousEvidencePublication } from './domain/evaluation/evidence-types';
@@ -31,8 +32,8 @@ import type { BrowserMidiControllerOptions } from '../midi/browser-midi-controll
 import { performanceTakesApi } from '@/lib/api/performance-takes';
 import { PerformanceRecorder } from '../recording/performance-recorder';
 import { ContinuousMidiEvidence } from './input/midi-evidence';
-import * as scopeContract from '../kernel/scope';
-import * as tempoContract from '../kernel/tempo';
+import * as scopeContract from '../planning/scope';
+import * as tempoContract from '../planning/tempo';
 
 function track(kind = 'audio') {
   const events = new EventTarget();
@@ -108,7 +109,7 @@ function environment(rate = 48000, root = stream(), blockSamples = 128, recordin
     const artifact: PracticeScoreArtifact = { ...base, scoreEndTick,
       ...(meterDenominator === 4 ? {} : { meterSegments: [{ startTick: 0, numerator: 1, denominator: meterDenominator,   }] }),
     };
-    controller = new ContinuousPracticeController({ rootHealth: health.port, plan: continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: inputSource, tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 }, recordingMode: recordingMode }), countInTicks, onNaturalCompletion, devices: borrowedDevices(root.media, recordingRoot, cameraStream ?? null) }, platform);
+    controller = new ContinuousPracticeController({ rootHealth: health.port, plan: withContinuousTiming(continuousPracticePlan(artifact, { scope: { kind: 'FULL' }, inputSource: inputSource, tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 }, recordingMode: recordingMode }), { countInTicks }), onNaturalCompletion, devices: borrowedDevices(root.media, recordingRoot, cameraStream ?? null) }, platform);
     return controller;
   }
   return { health, create, platform, root, context, clock, worker, meter, feed, failure: () => fail?.(new Error('TEST_WORKER_FAILURE')),
@@ -207,7 +208,7 @@ describe('Continuous application owner', () => {
     });
     await lease.open(); const f = environment();
     const controller = new ContinuousPracticeController({ devices: lease.snapshot().roots, rootHealth: lease.rootHealth,
-      plan: continuousSessionPlan(artifactWithKeys([[60]]), { recordingMode: 'VIDEO' }), countInTicks: 0 }, f.platform);
+      plan: withContinuousTiming(continuousPracticePlan(artifactWithKeys([[60]]), { recordingMode: 'VIDEO' }), { countInTicks: 0 }) }, f.platform);
     try {
       await controller.start(); expect(listen.mock.calls.map(([event]) => event)).toEqual(['mute', 'unmute', 'ended']);
       microphone.audio.muted = true; microphone.audio.dispatchEvent(new Event('mute'));
@@ -261,8 +262,8 @@ describe('Continuous application owner', () => {
       const after = session.snapshotSession();
       expect(Reflect.get(controller, 'session')).toBe(session);
       expect(after.localSessionId).toBe(before.localSessionId);
-      expect(after.scope).toBe(before.scope); expect(after.tempoPlan).toBe(before.tempoPlan);
-      expect(after.metronomeEnabled).toBe(true);
+      expect(after.plan.scope).toBe(before.plan.scope); expect(after.plan.tempoPlan).toBe(before.plan.tempoPlan);
+      expect(after.performance.metronomeEnabled).toBe(true);
       expect(controller.snapshot().transport).toEqual(transport);
       expect(f.platform.createMidi).toHaveBeenCalledOnce();
       expect(f.platform.createMetronomeAudio).toHaveBeenCalledOnce();

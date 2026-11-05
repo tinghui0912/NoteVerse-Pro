@@ -3,7 +3,7 @@
 ## Contract and admission
 
 PracticeScoreArtifact uses schemaVersion 1. The transport accepts its exact fields
-and primitive types. The browser kernel validates untrusted transport into its own
+and primitive types. The browser score package validates untrusted transport into its own
 domain model; generated API DTOs describe the transport boundary.
 
 The exact root fields are `schemaVersion`, `scoreId`, `revisionId`, `artifactId`,
@@ -87,7 +87,7 @@ persists the verified READY durable source with exact score/revision/artifact ID
 representation checksums. Live and saved consumers read that same source; its ownership
 and retention are defined by the Source contract.
 
-STEP uses schema9/runtime step-piano-key-learning-v12; its target, attempt and evidence
+StepPracticeSession owns its snapshot; its target, attempt and evidence
 snapshots carry numeric keys. Result schema8 binds canonical scope group identities
 and source-specific evidence provenance. These contracts are described by the
 [product contract](practice-product-contract.md).

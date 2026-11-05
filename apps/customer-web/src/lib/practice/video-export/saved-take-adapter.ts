@@ -1,4 +1,4 @@
-import { scoreTick, ticksPerQuarter } from '@/lib/practice/kernel/score-time';
+import { scoreTick, ticksPerQuarter } from '@/lib/practice/score/score-time';
 import type {
   PerformanceTakeRead,
   RecordingTimebase,
@@ -9,14 +9,14 @@ import {
   assertRecordingTimebase,
   type RecordingTimebaseMapping,
 } from '@/lib/practice/recording/recording-timebase';
-import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import type { PracticeScoreArtifact } from '@/lib/practice/score/artifact';
 import type {
   PracticeTempoSegmentSource,
   ResolvedPracticeTempoPlan,
-} from '@/lib/practice/kernel/tempo';
+} from '@/lib/practice/planning/tempo';
 import type { VideoExportSession } from './session';
-import type { ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
-import { resolvePracticeScope } from '@/lib/practice/kernel/scope';
+import type { ResolvedPracticeScope } from '@/lib/practice/planning/scope';
+import { resolvePracticeScope } from '@/lib/practice/planning/scope';
 import { resolvePracticeScopeCursorNoteIds } from '@/lib/practice/score-view/cursor-scope';
 import {
   cursorScopeFromResolvedPracticeScope,

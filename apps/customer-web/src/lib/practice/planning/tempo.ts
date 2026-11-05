@@ -1,8 +1,8 @@
-import { scoreTick, ticksPerQuarter as requireResolution } from './score-time';
+import { scoreTick, ticksPerQuarter as requireResolution } from '@/lib/practice/score/score-time';
 import {
   PracticeScoreArtifact,
   TempoSegment,
-} from '@/lib/practice/kernel/artifact';
+} from '@/lib/practice/score/artifact';
 
 import { DEFAULT_SCORE_TEMPO_BPM } from '@/lib/score/tempo-policy';
 export const MIN_PRACTICE_TEMPO_BPM = 40;

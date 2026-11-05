@@ -1,7 +1,7 @@
-import { resolvePracticeScope } from '../../src/lib/practice/kernel/scope';
-import { resolvePracticeTempoPlan } from '../../src/lib/practice/kernel/tempo';
+import { resolvePracticeScope } from '../../src/lib/practice/planning/scope';
+import { resolvePracticeTempoPlan } from '../../src/lib/practice/planning/tempo';
 import type { LibraryFolderTreeRead, PerformanceTakeRead, PerformanceTakeUploadReservationRequest } from "../../src/generated/api/types.gen";
-import type { PracticeScoreArtifact } from '../../src/lib/practice/kernel/artifact';
+import type { PracticeScoreArtifact } from '../../src/lib/practice/score/artifact';
 import { installAcousticEngineFixture, openPreparedPractice, preparePracticeSetup, configurePractice, openPracticeSetup, selectPracticeConfiguration } from './support/practice-workspace';
 import { expect, test, type Page } from '@playwright/test';
 import { acousticCaptureWitness, installAcousticCaptureFixture } from './support/acoustic-capture';

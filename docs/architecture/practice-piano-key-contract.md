@@ -4,7 +4,7 @@
 
 PracticePianoKey is an integer MIDI key21..108:88 physical piano keys A0..C8.
 This is an explicit Practice product domain, owned by backend
-modules/practice/score/piano_key.py and browser practice/kernel/piano-key.ts.
+modules/practice/score/piano_key.py and browser practice/score/piano-key.ts.
 Enharmonic spelling belongs to notation; physical evaluation compares numeric keys.
 The domain is independent of input source and acoustic model vocabulary.
 
@@ -20,13 +20,13 @@ coercion, clamping, transposition or filtering. Empty/no-target revisions fail.
 chronological moments with physical attacks and continuation references. A key/onset
 has one attack containing all unison notation identities across voices/staves.
 Backend deterministic construction and browser strict parsing validate this graph.
-Scope selects indexes/beats from an admitted revision.
+Scope selects indexes/ticks from an admitted revision.
 
 PracticeSourceService exposes one `/source` resource containing the artifact, optional
 prepared-MusicXML notation and source_id. See [Practice Source](practice-source.md).
 Deterministic PracticeScoreInvalidError maps to422 practice_score_invalid; unexpected
 parser/storage/serialization/invariant failures map to503 practice_source_failed.
-Generated DTOs describe transport; the kernel parser owns revision-wide semantic
+Generated DTOs describe transport; the score artifact parser owns revision-wide semantic
 admission. Planning and mode execution consume that admitted runtime artifact.
 
 `usePracticeRouteScore` pins revision identity from route/score metadata. Setup's explicit
@@ -52,7 +52,7 @@ score/verdict knowledge.
 
 ## Evaluation and versions
 
-STEP schema9/runtime step-piano-key-learning-v12 uses StepPianoKeyEvidence with
+StepPracticeSession uses StepPianoKeyEvidence with
 observedAttackKeys, exact attackKeys and continuationKeys. normalizePianoKeySet is
 Set plus numeric ascending sort; pianoKeySetsEqual compares normalized cardinality
 and every member. Missing/extra keys mismatch; continuation is excluded. MATCH

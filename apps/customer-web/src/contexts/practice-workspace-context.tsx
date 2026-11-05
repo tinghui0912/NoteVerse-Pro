@@ -8,8 +8,8 @@ import { matchesPreparationConfiguration, type PreparedPractice } from '@/lib/pr
 import { PracticeEnvironment } from '@/lib/practice/environment/practice-environment';
 import { releaseTransientReviewSession, createTransientReviewSession, type TransientReviewSession } from '@/lib/practice/review/transient-review-session';
 import type { ContinuousPracticeCompletion } from '@/lib/practice/continuous/completion';
-import type { PracticeScope } from '@/lib/practice/kernel/scope';
-import type { PracticeTempoSelection } from '@/lib/practice/kernel/tempo';
+import type { PracticeScope } from '@/lib/practice/planning/scope';
+import type { PracticeTempoSelection } from '@/lib/practice/planning/tempo';
 
 function useWorkspaceState(createEnvironment: () => PracticeEnvironment) {
   const pathname = usePathname();

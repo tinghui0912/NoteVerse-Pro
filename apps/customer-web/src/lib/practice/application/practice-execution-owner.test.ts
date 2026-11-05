@@ -1,15 +1,15 @@
 import { metronomeAudioFixture } from '@/lib/practice/__fixtures__/metronome';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { PracticeExecutionOwner, type PracticeExecutionFactories } from './practice-execution-owner';
-import { continuousSessionPlan, stepSessionPlan } from '../__fixtures__/session-plan';
+import { continuousPracticePlan, stepPracticePlan } from '../__fixtures__/practice-plan';
 import { rootHealthFixture } from '../__fixtures__/root-health';
 import { borrowedDevices } from '../__fixtures__/device-roots';
 import { canonicalContinuousResultFixture } from '../__fixtures__/continuous-result';
 import artifactJson from '../__fixtures__/canonical-practice-score-artifact.json';
-import type { PracticeScoreArtifact } from '../kernel/artifact';
+import type { PracticeScoreArtifact } from '../score/artifact';
 import * as stepPlatform from '../step/step-platform';
 import * as continuousPlatform from '../continuous/continuous-platform';
-import { ManualClock } from '../kernel/timebase';
+import { ManualClock } from '../session/timebase';
 
 const artifact = artifactJson as PracticeScoreArtifact;
 const tick = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
@@ -38,7 +38,7 @@ function rig(mode: 'STEP_BY_STEP' | 'CONTINUOUS_PLAY' = 'STEP_BY_STEP') {
       abandon: vi.fn(async () => {}), subscribe: vi.fn((f: () => void) => { subscribers.add(f); savedCallbacks.push(f); return () => subscribers.delete(f); }),
       snapshot: () => options.plan.mode === 'STEP_BY_STEP'
         ? { state, error: null, analysisIntervention: null, infrastructureIntervention: null, stepInteractionPhase: 'READY', canAcceptAttempt: true,
-          pendingPostVerdict: null, activeStepGroup: options.plan.artifact.moments[options.plan.scope.startIndex], sessionSnapshot, lastSnapshot: sessionSnapshot }
+          pendingPostVerdict: null, activeStepGroup: options.plan.source.artifact.moments[options.plan.scope.startIndex], sessionSnapshot, lastSnapshot: sessionSnapshot }
         : { session, transport: session === 'ACTIVE' ? { state: 'RUNNING', performanceTimeMs: 5 } : null, analysis: 'NOT_REQUIRED', inputError: null,
           recording: null, evaluation: null, analysisIntervention: null, resourceIntervention: null, completed: session === 'COMPLETE' ? payload : null },
       setMetronomeEnabled: vi.fn(), skip: vi.fn(), pause: vi.fn(), resume: vi.fn(), continueWithoutAnalysis: vi.fn(async () => {}),
@@ -49,7 +49,7 @@ function rig(mode: 'STEP_BY_STEP' | 'CONTINUOUS_PLAY' = 'STEP_BY_STEP') {
   const factories: PracticeExecutionFactories = { step: vi.fn(create), continuous: vi.fn(create) };
   const borrowRoots = vi.fn(() => borrowedDevices()), acquireInference = vi.fn();
   const owner = new PracticeExecutionOwner({ borrowRoots, rootHealth: health.port, acquireInference }, factories);
-  const plan = mode === 'STEP_BY_STEP' ? stepSessionPlan(artifact) : continuousSessionPlan(artifact);
+  const plan = mode === 'STEP_BY_STEP' ? stepPracticePlan(artifact) : continuousPracticePlan(artifact);
   owner.setCandidate(plan, true, 'score/revision');
   return { owner, health, created, factories, plan, borrowRoots, acquireInference };
 }
@@ -65,7 +65,7 @@ it.each(['STEP_BY_STEP', 'CONTINUOUS_PLAY'] as const)('%s READY has no controlle
 });
 it('candidate edits change only pre-Start intent and active execution keeps its captured plan', async () => {
   const r = rig(), scope = { kind: 'RANGE' as const, startGroupId: artifact.moments[1].groupId, endGroupId: artifact.moments[2].groupId };
-  const latest = stepSessionPlan(artifact, { scope, tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 100 }, metronomeEnabled: true });
+  const latest = stepPracticePlan(artifact, { scope, tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 100 }, metronomeEnabled: true });
   r.owner.setCandidate(latest, true, 'score/revision'); expect(r.created).toHaveLength(0);
   await r.owner.start(); expect(r.created[0].options.plan).toBe(latest);
   r.owner.setCandidate(r.plan, true, 'score/revision'); r.owner.setMetronomeEnabled(false);
@@ -103,7 +103,7 @@ it('release serialization fences Start pending + End + new Start and all stale c
 });
 it('composition replacement retires the old owner; candidate-only rerenders do not', async () => {
   const r = rig(); await r.owner.start(); const first = r.created[0]; first.disposeGate = deferred();
-  r.owner.setCandidate(continuousSessionPlan(artifact), true, 'another/revision');
+  r.owner.setCandidate(continuousPracticePlan(artifact), true, 'another/revision');
   expect(r.owner.snapshot().lifecycle).toBe('READY'); const start = r.owner.start(); await tick(); expect(r.created).toHaveLength(1);
   first.disposeGate.resolve(); await start; expect(r.created[1].options.plan.mode).toBe('CONTINUOUS_PLAY'); await r.owner.dispose();
 });
@@ -139,7 +139,7 @@ it('real STEP explicitly starts without count-in, waits for input, and next Star
   const platform = vi.spyOn(stepPlatform, 'browserStepPlatform').mockReturnValue({ clock, timer: { schedule: vi.fn(), cancel: vi.fn() }, createMidi, createMetronomeAudio: () => metronomeAudioFixture() });
   const continuous = vi.spyOn(continuousPlatform, 'browserContinuousPlatform');
   const owner = new PracticeExecutionOwner({ borrowRoots: () => borrowedDevices(), rootHealth: health.port });
-  owner.setCandidate(stepSessionPlan(artifact), true, 'score/revision'); expect(platform).not.toHaveBeenCalled(); expect(continuous).not.toHaveBeenCalled();
+  owner.setCandidate(stepPracticePlan(artifact), true, 'score/revision'); expect(platform).not.toHaveBeenCalled(); expect(continuous).not.toHaveBeenCalled();
   await owner.start(); const first = owner.snapshot(); expect(first).toMatchObject({ mode: 'STEP_BY_STEP', lifecycle: 'ACTIVE', stepInteractionPhase: 'READY', performanceClock: null });
   clock.advance(100000); expect(owner.snapshot()).toBe(first); expect(health.listenerCount()).toBe(1);
   const firstId = Reflect.get(vi.mocked(platform).mock.results[0], 'value'); expect(firstId).toBeDefined();

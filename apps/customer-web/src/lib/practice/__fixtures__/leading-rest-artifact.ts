@@ -1,4 +1,4 @@
-import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import type { PracticeScoreArtifact } from '@/lib/practice/score/artifact';
 import { artifactWithKeys } from './piano-key-artifact';
 const leadingRestArtifact: PracticeScoreArtifact = artifactWithKeys([[60]]);
 leadingRestArtifact.events[0].onsetTick = 2;

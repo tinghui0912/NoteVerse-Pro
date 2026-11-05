@@ -1,4 +1,4 @@
-import { PracticeTimebase, type SessionTime } from '@/lib/practice/kernel/timebase';
+import { PracticeTimebase, type SessionTime } from '@/lib/practice/session/timebase';
 import type { StepPianoKeyEvidence } from '@/lib/practice/step/domain/attempt';
 import { isAcousticDomainIdentity, SourcePublicationSequence, type SourceAcousticObservation, type SourceAcousticPublication } from '@/lib/practice/acoustic/runtime/source-publication';
 

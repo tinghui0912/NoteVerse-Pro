@@ -1,10 +1,10 @@
-import { stepSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
+import { stepPracticePlan } from '@/lib/practice/__fixtures__/practice-plan';
 import type { StepAttemptRecord } from '@/lib/practice/step/domain/attempt';
 import assert from 'node:assert/strict';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
-import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
-import { StepPracticeRuntime } from '@/lib/practice/step/domain/runtime';
-import { ManualClock } from '@/lib/practice/kernel/timebase';
+import type { PracticeScoreArtifact } from '@/lib/practice/score/artifact';
+import { StepPracticeSession } from '@/lib/practice/step/domain/practice-session';
+import { ManualClock } from '@/lib/practice/session/timebase';
 import { StepMidiAttemptInput } from '../../src/lib/practice/step/step-midi-attempt-input';
 import { parseMidiMessage } from '../../src/lib/practice/midi/browser-midi-controller';
 
@@ -12,7 +12,7 @@ type Verdict = 'MATCH' | 'MISMATCH';
 const artifact = fixture as PracticeScoreArtifact;
 function harness(chord = false) {
   const clock = new ManualClock(100), session = 'exclusive-boundary', callbacks: (() => void)[] = [];
-  const runtime = new StepPracticeRuntime({ ...stepSessionPlan(artifact, { scope: chord ? { kind:'RANGE',startGroupId:artifact.moments[3].groupId,endGroupId:artifact.moments[4].groupId } : {kind:'FULL'} }), clock, localSessionId: session });
+  const runtime = new StepPracticeSession({ plan: stepPracticePlan(artifact, { scope: chord ? { kind:'RANGE',startGroupId:artifact.moments[3].groupId,endGroupId:artifact.moments[4].groupId } : {kind:'FULL'} }), clock, localSessionId: session });
   const finalized: StepAttemptRecord[] = [];
   const input = new StepMidiAttemptInput({ open: time => runtime.openAttempt(time),
     complete: (identity,evidence) => {

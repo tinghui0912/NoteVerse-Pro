@@ -1,5 +1,5 @@
 import { CONTINUOUS_ASSIGNMENT_POLICY_ID } from '@/lib/practice/continuous/domain/evaluation/finalization-policy';
-import type { PracticeInputSource } from '@/lib/practice/kernel/session';
+import type { PracticeInputSource } from '@/lib/practice/planning/intent';
 import type { CompletedContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/evaluation-types';
 import type { ContinuousFinality, FinalizedContinuousGroupAssignment, ContinuousObservationAssignment, CompletedContinuousAssignment } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
 import type { ContinuousObservation } from '@/lib/practice/continuous/domain/evaluation/evidence-types';

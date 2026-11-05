@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { MetronomeRuntime } from './metronome-runtime';
 import { resolveMetronomePlan } from './metronome-plan';
-import type { MeterSegment } from '@/lib/practice/kernel/artifact';
-import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
+import type { MeterSegment } from '@/lib/practice/score/artifact';
+import type { ResolvedPracticeTempoPlan } from '@/lib/practice/planning/tempo';
 
 const tempo: ResolvedPracticeTempoPlan = { selection: { mode: 'SCORE' }, segments: [{ startTick: 0, bpm: 120, source: 'MUSICXML' }] };
 const meter = (numerator = 4, denominator = 4, startTick = 0): MeterSegment => ({ startTick, numerator, denominator,

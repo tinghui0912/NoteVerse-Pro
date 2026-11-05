@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import type { PracticeMomentView } from '@/lib/practice/score-view/moment-view';
-import type { PracticeScope } from '@/lib/practice/kernel/scope';
+import type { PracticeScope } from '@/lib/practice/planning/scope';
 import {
   fullPiecePracticeRangeSelection,
   groupById,

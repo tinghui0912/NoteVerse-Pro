@@ -1,5 +1,5 @@
 import { midiDeviceFixture } from '../__fixtures__/device-roots';
-import { PracticeTimebase } from '@/lib/practice/kernel/timebase';
+import { PracticeTimebase } from '@/lib/practice/session/timebase';
 import type { BrowserMidiControllerOptions } from '@/lib/practice/midi/browser-midi-controller';
 import { describe, expect, it, vi } from 'vitest';
 import type { ContinuousPlatform } from './continuous-input';

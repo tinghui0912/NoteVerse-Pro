@@ -1,7 +1,7 @@
 import type { PracticeSourceRead } from '@/generated/api/types.gen';
 import type { ApiResponse } from '@/lib/api-client';
 import { SourceFailure } from '@/lib/practice/failure/causal-failure';
-import { parsePracticeScoreArtifact, PracticeScoreContractError } from '@/lib/practice/kernel/artifact';
+import { parsePracticeScoreArtifact, PracticeScoreContractError } from '@/lib/practice/score/artifact';
 import type { AdmittedPracticeSource } from './admitted-practice-source';
 
 type ExpectedSource = { scoreId: string; revisionId: string } & (

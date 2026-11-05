@@ -1,6 +1,6 @@
-import type { ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
-import { attackNoteIds, notesForIds, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
-import { resolvePracticeScope, type PracticeScope } from '@/lib/practice/kernel/scope';
+import type { ResolvedPracticeScope } from '@/lib/practice/planning/scope';
+import { attackNoteIds, notesForIds, type PracticeScoreArtifact } from '@/lib/practice/score/artifact';
+import { resolvePracticeScope, type PracticeScope } from '@/lib/practice/planning/scope';
 
 /**
  * The renderer-facing projection of a resolved practice scope.

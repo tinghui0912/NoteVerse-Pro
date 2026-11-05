@@ -1,15 +1,15 @@
-import { stepSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
+import { stepPracticePlan } from '@/lib/practice/__fixtures__/practice-plan';
 import { describe, expect, it } from 'vitest';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
-import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import type { PracticeScoreArtifact } from '@/lib/practice/score/artifact';
 import type { StepAttemptIdentity } from '@/lib/practice/step/domain/attempt';
-import { StepPracticeRuntime } from '@/lib/practice/step/domain/runtime';
-import { ManualClock } from '@/lib/practice/kernel/timebase';
+import { StepPracticeSession } from '@/lib/practice/step/domain/practice-session';
+import { ManualClock } from '@/lib/practice/session/timebase';
 
 function setup() {
   const artifact = fixture as PracticeScoreArtifact, clock = new ManualClock(100), domainId = 'local-instance';
   const last = artifact.moments.at(-1)!.groupId;
-  const runtime = new StepPracticeRuntime({ ...stepSessionPlan(artifact, { scope: { kind: 'RANGE', startGroupId: last, endGroupId: last }, inputSource: 'MIDI' }), clock, localSessionId: domainId, metadataClock: { nowEpochMs: () => 12345 } });
+  const runtime = new StepPracticeSession({ plan: stepPracticePlan(artifact, { scope: { kind: 'RANGE', startGroupId: last, endGroupId: last }, inputSource: 'MIDI' }), clock, localSessionId: domainId, metadataClock: { nowEpochMs: () => 12345 } });
   const time = (ms: number) => ({ domainId, ms });
   const begin = () => runtime.openAttempt(time(200))!;
   const finish = (identity: StepAttemptIdentity) => {
@@ -20,14 +20,14 @@ function setup() {
 }
 
 describe('local STEP domain status, independent of browser resources', () => {
-  it('constructs ACTIVE with local instance identity and versioned snapshot', () => {
+  it('constructs ACTIVE with local instance identity and plan-owned snapshot', () => {
     const s = setup(), snapshot = s.runtime.snapshot();
     expect(s.runtime.state).toBe('ACTIVE');
     expect(snapshot).toMatchObject({ localSessionId: 'local-instance', runtimeStatus: 'ACTIVE', completionReason: null,
-      version: { schemaVersion: 9, runtimeVersion: 'step-piano-key-learning-v12' }, step: { completed: false, attemptState: 'READY' } });
+       step: { completed: false, attemptState: 'READY' } });
     expect(snapshot).not.toHaveProperty('lifecycleState');
-    expect(snapshot.scoreId).toBe(fixture.scoreId);
-    expect(snapshot.revisionId).toBe(fixture.revisionId); expect(snapshot.artifactId).toBe(fixture.artifactId);
+    expect(snapshot.plan.source.artifact.scoreId).toBe(fixture.scoreId);
+    expect(snapshot.plan.source.artifact.revisionId).toBe(fixture.revisionId); expect(snapshot.plan.source.artifact.artifactId).toBe(fixture.artifactId);
     expect(snapshot.createdAtMs).toBe(12345); expect(snapshot.updatedAtMs).toBe(12345);
   });
   it('natural final MATCH consumes pending transition and ends only at rearm', () => {

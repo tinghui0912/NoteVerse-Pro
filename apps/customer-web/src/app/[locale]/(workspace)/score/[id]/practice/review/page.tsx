@@ -47,7 +47,7 @@ import {
   EvaluationAnnotationController,
   noteAnnotationsFromTargetFeedback,
 } from '@/lib/practice/score-view/evaluation-annotations';
-import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
+import type { ResolvedPracticeTempoPlan } from '@/lib/practice/planning/tempo';
 import { PracticeVerovioAdapter } from '@/lib/practice/score-view/verovio-adapter';
 import { resolveReviewScoreState } from '@/lib/practice/review/review-score-state';
 import { reviewReplay, reviewReplayScoreTick } from '@/lib/practice/review/review-replay';

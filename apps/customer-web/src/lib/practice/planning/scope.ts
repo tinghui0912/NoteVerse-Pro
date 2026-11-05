@@ -1,4 +1,4 @@
-import { type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { type PracticeScoreArtifact } from '@/lib/practice/score/artifact';
 
 export type PracticeScope =
   | { kind: 'FULL' }

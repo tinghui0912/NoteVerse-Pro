@@ -1,6 +1,6 @@
-import { scoreTick, ticksPerQuarter } from '@/lib/practice/kernel/score-time';
-import { measureDurationTicks, type MeterSegment } from '@/lib/practice/kernel/artifact';
-import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
+import { scoreTick, ticksPerQuarter } from '@/lib/practice/score/score-time';
+import { measureDurationTicks, type MeterSegment } from '@/lib/practice/score/artifact';
+import type { ResolvedPracticeTempoPlan } from '@/lib/practice/planning/tempo';
 
 /** Immutable musical projection of an admitted session; no browser resources. */
 export type ResolvedMetronomePlan = Readonly<{

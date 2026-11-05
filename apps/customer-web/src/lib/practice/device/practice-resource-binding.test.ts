@@ -2,7 +2,7 @@ import { DeviceFailure } from '@/lib/practice/failure/causal-failure';
 import { describe, expect, it, vi } from 'vitest';
 import { PracticeResourceBinding } from './practice-resource-binding';
 import { planPracticeResources } from '@/lib/practice/planning/resource-plan';
-import type { PracticeExecutionIntent } from '@/lib/practice/planning/execution-intent';
+import type { PracticeIntent } from '@/lib/practice/planning/intent';
 import { midiDeviceFixture } from '../__fixtures__/device-roots';
 
 function media(video = false) {
@@ -11,7 +11,7 @@ function media(video = false) {
   const stream = { getTracks: () => [track], getAudioTracks: () => video ? [] : [track], getVideoTracks: () => video ? [track] : [] } as unknown as MediaStream;
   return { track, stream };
 }
-function rig(configuration: Pick<PracticeExecutionIntent, 'mode' | 'inputSource' | 'recordingMode'>) {
+function rig(configuration: Pick<PracticeIntent, 'mode' | 'inputSource' | 'recordingMode'>) {
   const acquired: ReturnType<typeof media>[] = [], midi = midiDeviceFixture();
   const platform = { acquireStream: vi.fn(async (resource: string) => { const root = media(resource === 'camera'); acquired.push(root); return root.stream; }),
     acquireMidi: vi.fn(async () => midi.access) };

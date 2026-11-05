@@ -1,7 +1,7 @@
 import canonicalArtifactJson from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import { leadingRestArtifact } from '@/lib/practice/__fixtures__/leading-rest-artifact';
-import { type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
-import { entryGroupEndTick, resolvePracticeScope } from '@/lib/practice/kernel/scope';
+import { type PracticeScoreArtifact } from '@/lib/practice/score/artifact';
+import { entryGroupEndTick, resolvePracticeScope } from '@/lib/practice/planning/scope';
 import { describe, expect, it } from 'vitest';
 const artifact = canonicalArtifactJson as PracticeScoreArtifact;
 describe('Canonical practice scope', () => {

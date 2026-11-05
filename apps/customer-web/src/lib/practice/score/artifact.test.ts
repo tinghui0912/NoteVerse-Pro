@@ -1,14 +1,14 @@
-import { continuousSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
-import { PracticeTempoTimeline } from '@/lib/practice/kernel/tempo';
-import { stepSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
+import { continuousPracticePlan } from '@/lib/practice/__fixtures__/practice-plan';
+import { PracticeTempoTimeline } from '@/lib/practice/planning/tempo';
+import { stepPracticePlan } from '@/lib/practice/__fixtures__/practice-plan';
 import { describe, expect, it } from 'vitest';
 import canonical from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import { artifactWithKeys } from '@/lib/practice/__fixtures__/piano-key-artifact';
 import { assertPracticeScoreArtifact, parsePracticeScoreArtifact, notesForIds, type PracticeScoreArtifact } from './artifact';
 import { projectPracticeMomentView } from '@/lib/practice/score-view/moment-view';
-import { resolvePracticeScope } from './scope';
-import { StepPracticeRuntime } from '@/lib/practice/step/domain/runtime';
-import { ManualClock } from './timebase';
+import { resolvePracticeScope } from '../planning/scope';
+import { StepPracticeSession } from '@/lib/practice/step/domain/practice-session';
+import { ManualClock } from '../session/timebase';
 import { buildContinuousExpectedStrikesFromTimeline } from '@/lib/practice/continuous/domain/evaluation/expected-strikes';
 const fixture = canonical as PracticeScoreArtifact;
 function unison(): PracticeScoreArtifact {
@@ -19,7 +19,7 @@ function unison(): PracticeScoreArtifact {
   return value;
 }
 function strikes(artifact: PracticeScoreArtifact) {
-  const plan = continuousSessionPlan(artifact);
+  const plan = continuousPracticePlan(artifact);
   return buildContinuousExpectedStrikesFromTimeline(artifact, new PracticeTempoTimeline(plan.tempoPlan, artifact.scoreEndTick, artifact.ticksPerQuarter), plan.scope);
 }
 describe('one canonical Practice note graph and moment sequence', () => {
@@ -39,7 +39,7 @@ describe('one canonical Practice note graph and moment sequence', () => {
     const attack = value.moments[0].attacks[0];
     expect(attack.noteIds).toHaveLength(2);
     expect(notesForIds(value, attack.noteIds).map(n => n.renderNoteId)).toEqual(['n1','lower-render']);
-    const runtime = new StepPracticeRuntime({ ...stepSessionPlan(value, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), clock: new ManualClock(), localSessionId: 'unison' });
+    const runtime = new StepPracticeSession({ plan: stepPracticePlan(value, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), clock: new ManualClock(), localSessionId: 'unison' });
     expect(runtime.currentTarget()).toMatchObject({ stepId: value.moments[0].groupId, attackKeys: [60] });
     const time = (ms: number) => ({ domainId: 'unison', ms });
     const id = runtime.openAttempt(time(1))!; runtime.analyzeAttempt(id);
@@ -62,7 +62,7 @@ describe('one canonical Practice note graph and moment sequence', () => {
     expect(strikes(tied).filter(s => s.groupId === moment.groupId).map(s => s.pianoKey)).toEqual([69,72]);
     // The canonical graph still resolves all continuation render facts for cursor consumers.
     expect(continuation.map(n => n.renderNoteId)).toEqual(['n4']);
-    const runtime = new StepPracticeRuntime({ ...stepSessionPlan(tied, { scope: { kind: 'RANGE', startGroupId: moment.groupId, endGroupId: moment.groupId }, inputSource: 'MICROPHONE' }), clock: new ManualClock() });
+    const runtime = new StepPracticeSession({ plan: stepPracticePlan(tied, { scope: { kind: 'RANGE', startGroupId: moment.groupId, endGroupId: moment.groupId }, inputSource: 'MICROPHONE' }), clock: new ManualClock() });
     expect(runtime.currentTarget()).toMatchObject({ attackKeys: [69,72], continuationKeys: [67] });
   });
   it('FULL and RANGE use the same valid graph and canonical group identity', () => {

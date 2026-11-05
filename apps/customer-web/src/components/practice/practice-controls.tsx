@@ -12,8 +12,8 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { PracticeExecutionLifecycle } from '@/lib/practice/application/practice-execution-owner';
-import type { TempoSegment } from '@/lib/practice/kernel/artifact';
-import type { PracticeTempoSelection } from '@/lib/practice/kernel/tempo';
+import type { TempoSegment } from '@/lib/practice/score/artifact';
+import type { PracticeTempoSelection } from '@/lib/practice/planning/tempo';
 import type { PracticeMicrophoneCapability, PracticeMidiCapability } from '@/lib/practice/input-capability';
 import { PracticeTempoPopover } from './practice-tempo-popover';
 

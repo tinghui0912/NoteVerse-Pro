@@ -1,5 +1,5 @@
-import { scoreTick } from './score-time';
-import { measureDurationTicks, type MeterSegment, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { scoreTick } from '@/lib/practice/score/score-time';
+import { measureDurationTicks, type MeterSegment, type PracticeScoreArtifact } from '@/lib/practice/score/artifact';
 
 export type CountInContract = {
   durationTicks: number;

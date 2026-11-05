@@ -1,4 +1,4 @@
-import type { PracticeScoreArtifact } from '../../src/lib/practice/kernel/artifact';
+import type { PracticeScoreArtifact } from '../../src/lib/practice/score/artifact';
 import { installAcousticEngineFixture, openPreparedPractice, preparePracticeSetup, configurePractice, openPracticeSetup, selectPracticeConfiguration } from './support/practice-workspace';
 import { expect, test, type Page } from '@playwright/test';
 import {

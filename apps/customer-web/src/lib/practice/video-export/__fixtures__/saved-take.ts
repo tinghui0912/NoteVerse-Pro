@@ -1,4 +1,4 @@
-import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import type { PracticeScoreArtifact } from '@/lib/practice/score/artifact';
 import type { PerformanceTakeRead, RecordingTimebase, PerformanceTakeTempoPlan } from '@/lib/api/performance-takes';
 export const tempoPlan: PerformanceTakeTempoPlan = {
   selection: { mode: 'SCORE' },

@@ -1,11 +1,11 @@
 import { metronomeAudioFixture } from '@/lib/practice/__fixtures__/metronome';
 import { rootHealthFixture } from '@/lib/practice/__fixtures__/root-health';
-import { stepSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
+import { stepPracticePlan } from '@/lib/practice/__fixtures__/practice-plan';
 import { midiDeviceFixture } from '@/lib/practice/__fixtures__/device-roots';
 import { afterEach, expect, it, vi } from 'vitest';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
-import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
-import { ManualClock } from '@/lib/practice/kernel/timebase';
+import type { PracticeScoreArtifact } from '@/lib/practice/score/artifact';
+import { ManualClock } from '@/lib/practice/session/timebase';
 import { BrowserMidiController } from '../midi/browser-midi-controller';
 import { StepPracticeController } from './step-practice-controller';
 import type { StepPlatform } from './step-platform';
@@ -18,7 +18,7 @@ it('real Browser MIDI preserves POST_VERDICT MIDIMessageEvent.timeStamp delivere
     timer: { schedule: fn => { tasks.push(fn); return fn; }, cancel: () => {} },
     createMidi: options => new BrowserMidiController(options),
     createMetronomeAudio: () => metronomeAudioFixture() };
-  const owner = new StepPracticeController({ rootHealth: rootHealthFixture().port, plan: stepSessionPlan(fixture as PracticeScoreArtifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), devices: { inputMicrophone: null, recordingMicrophone: null, camera: null, midi: device.access }, platform });
+  const owner = new StepPracticeController({ rootHealth: rootHealthFixture().port, plan: stepPracticePlan(fixture as PracticeScoreArtifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), devices: { inputMicrophone: null, recordingMicrophone: null, camera: null, midi: device.access }, platform });
   const note = (timeStamp: number) => device.send([0x90, 60, 90], timeStamp);
   try {
     await owner.start(); clock.set(200); note(200);

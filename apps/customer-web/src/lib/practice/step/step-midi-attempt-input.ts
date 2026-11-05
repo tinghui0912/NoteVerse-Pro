@@ -1,5 +1,5 @@
-import { isPracticePianoKey, type PracticePianoKey } from '@/lib/practice/kernel/piano-key';
-import type { SessionTime } from '@/lib/practice/kernel/timebase';
+import { isPracticePianoKey, type PracticePianoKey } from '@/lib/practice/score/piano-key';
+import type { SessionTime } from '@/lib/practice/session/timebase';
 import type { StepPianoKeyEvidence, StepAttemptIdentity } from '@/lib/practice/step/domain/attempt';
 import { isMidiNoteNumber, type MidiNoteFact } from '@/lib/practice/midi/browser-midi-controller';
 

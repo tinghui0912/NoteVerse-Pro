@@ -1,4 +1,4 @@
-import type { PracticePianoKey } from '@/lib/practice/kernel/piano-key';
+import type { PracticePianoKey } from '@/lib/practice/score/piano-key';
 import type { ContinuousObservation } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
 export type ContinuousExpectedStrike = Readonly<{
   strikeId: string;

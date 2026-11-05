@@ -1,4 +1,4 @@
-import type { PracticePianoKey } from '@/lib/practice/kernel/piano-key';
+import type { PracticePianoKey } from '@/lib/practice/score/piano-key';
 import { CONTINUOUS_MIDI_EVIDENCE_POLICY_ID } from './midi-evidence-identity';
 import type { ContinuousClockDrivenEvidencePort } from '@/lib/practice/continuous/domain/clock-evidence-port';
 import type { ContinuousEvidencePublication, ContinuousObservation } from '@/lib/practice/continuous/domain/evaluation/evidence-types';

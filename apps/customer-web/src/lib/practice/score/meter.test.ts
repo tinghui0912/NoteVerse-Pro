@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 import cases from '../__fixtures__/meter-duration-cases.json';
 import { measureDurationTicks, parsePracticeScoreArtifact, type PracticeScoreArtifact } from './artifact';
 import canonical from '../__fixtures__/canonical-practice-score-artifact.json';
-import { countInContractAt } from './count-in';
-import { resolvePracticeScope } from './scope';
-import { stepSessionPlan } from '../__fixtures__/session-plan';
-import { StepPracticeRuntime } from '../step/domain/runtime';
-import { ManualClock } from './timebase';
+import { countInContractAt } from '../planning/count-in';
+import { resolvePracticeScope } from '../planning/scope';
+import { stepPracticePlan } from '../__fixtures__/practice-plan';
+import { StepPracticeSession } from '../step/domain/practice-session';
+import { ManualClock } from '../session/timebase';
 
 describe('canonical meter facts and execution policy', () => {
   it.each([
@@ -84,7 +84,7 @@ describe('canonical meter facts and execution policy', () => {
     expect(value.events[0].onsetTick).toBe(0);
     expect(value.moments[0].onsetTick).toBe(2);
     expect(resolvePracticeScope(value, { kind: 'FULL' }).startTick).toBe(2);
-    const runtime = new StepPracticeRuntime({ ...stepSessionPlan(value), clock: new ManualClock() });
+    const runtime = new StepPracticeSession({ plan: stepPracticePlan(value), clock: new ManualClock() });
     expect(runtime.currentTarget()?.stepId).toBe(value.moments[0].groupId);
   });
 });

@@ -1,4 +1,4 @@
-import type { PracticePianoKey } from '@/lib/practice/kernel/piano-key';
+import type { PracticePianoKey } from '@/lib/practice/score/piano-key';
 import { describe, expect, it, vi } from 'vitest';
 import { ContinuousAssignmentFinalizer } from '@/lib/practice/continuous/domain/evaluation/assignment-finalizer';
 import type { ContinuousExpectedStrike } from '@/lib/practice/continuous/domain/evaluation/assignment-types';

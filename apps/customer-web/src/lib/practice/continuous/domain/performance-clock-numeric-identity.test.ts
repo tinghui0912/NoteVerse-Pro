@@ -1,9 +1,10 @@
-import { continuousSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
+import { countInContractAt } from '@/lib/practice/planning/count-in';
+import { continuousPracticePlan } from '@/lib/practice/__fixtures__/practice-plan';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import { PerformanceClockRuntime } from '@/lib/practice/continuous/domain/performance-clock';
-import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
-import { resolvePracticeTempoPlan } from '@/lib/practice/kernel/tempo';
-import { ManualClock, PracticeTimebase } from '@/lib/practice/kernel/timebase';
+import type { PracticeScoreArtifact } from '@/lib/practice/score/artifact';
+import { resolvePracticeTempoPlan } from '@/lib/practice/planning/tempo';
+import { ManualClock, PracticeTimebase } from '@/lib/practice/session/timebase';
 import { describe, expect, it } from 'vitest';
 
 class AdvancingReadClock extends ManualClock {
@@ -24,7 +25,7 @@ function setup(origin = 0, countInTicks = 0, scoreEndTick = 1000000, clock = new
   base.moments.at(-1)!.canonicalEndTick = scoreEndTick;
   const artifact: PracticeScoreArtifact = { ...base,
     scoreEndTick, scoreTempoSegments: [{ startTick: 0, bpm: 120 }] };
-  const runtime = new PerformanceClockRuntime({ artifact, scope: continuousSessionPlan(artifact, { scope: { kind: 'FULL' } }).scope, clock, countInTicks: countInTicks * artifact.ticksPerQuarter, timebase: new PracticeTimebase({ domainId: 'numeric-identity-test', runtimeOriginMs: origin }), tempoPlan: resolvePracticeTempoPlan(artifact, { mode: 'CUSTOM_FIXED_BPM', bpm: 120 }) });
+  const runtime = new PerformanceClockRuntime({ artifact, scope: continuousPracticePlan(artifact, { scope: { kind: 'FULL' } }).scope, clock, countIn: { ...countInContractAt(artifact, 0), durationTicks: countInTicks * artifact.ticksPerQuarter }, timebase: new PracticeTimebase({ domainId: 'numeric-identity-test', runtimeOriginMs: origin }), tempoPlan: resolvePracticeTempoPlan(artifact, { mode: 'CUSTOM_FIXED_BPM', bpm: 120 }) });
   return { clock, runtime };
 }
 

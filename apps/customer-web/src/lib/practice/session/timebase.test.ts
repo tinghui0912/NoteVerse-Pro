@@ -1,4 +1,4 @@
-import { PracticeTimebase, type SessionTime } from '@/lib/practice/kernel/timebase';
+import { PracticeTimebase, type SessionTime } from '@/lib/practice/session/timebase';
 import { describe, expect, it } from 'vitest';
 function sessionTime(domainId: string, ms: number, sampleIndex?: number): SessionTime {
   return sampleIndex === undefined ? { domainId, ms } : { domainId, ms, sampleIndex };

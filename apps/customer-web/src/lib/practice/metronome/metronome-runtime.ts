@@ -1,4 +1,4 @@
-import { PracticeTempoTimeline } from '@/lib/practice/kernel/tempo';
+import { PracticeTempoTimeline } from '@/lib/practice/planning/tempo';
 import type { ResolvedMetronomePlan } from './metronome-plan';
 import type { MetronomeAudioPort } from './metronome-audio-port';
 import { MetronomePulsePlanner, type MetronomePlanningCursor, type ContinuousMetronomeSyncPoint } from './metronome-pulse-planner';

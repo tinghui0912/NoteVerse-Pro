@@ -1,8 +1,8 @@
 import {
   assertPracticeScoreArtifact,
   type PracticeScoreArtifact,
-} from '@/lib/practice/kernel/artifact';
-import { scoreTick } from '@/lib/practice/kernel/score-time';
+} from '@/lib/practice/score/artifact';
+import { scoreTick } from '@/lib/practice/score/score-time';
 import { VerovioScoreAdapter } from '@/lib/score/verovio';
 
 export type PracticeVisualTimelineEntry = {

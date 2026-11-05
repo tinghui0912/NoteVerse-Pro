@@ -1,5 +1,5 @@
 'use client';
-import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import type { PracticeScoreArtifact } from '@/lib/practice/score/artifact';
 
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -21,7 +21,7 @@ import { syncRangeOverlay, clearRangeOverlay, isRangeBackgroundMutation } from '
 import { SCORE_DECORATIONS } from '@/lib/practice/score-view/decorations';
 import { cn } from '@/lib/utils';
 import type { PracticeMomentView } from '@/lib/practice/score-view/moment-view';
-import type { PracticeMode } from '@/lib/practice/kernel/session';
+import type { PracticeMode } from '@/lib/practice/planning/intent';
 import type { CursorScope } from '@/lib/practice/score-view/cursor-scope';
 import type { ContinuousTargetFeedback } from '@/lib/practice/continuous/domain/evaluation/target-feedback';
 

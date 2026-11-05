@@ -1,17 +1,17 @@
 import { metronomeAudioFixture, observeMetronomeRuntime } from '@/lib/practice/__fixtures__/metronome';
 import { MidiFailure } from '../failure/causal-failure';
 import { rootHealthFixture } from '@/lib/practice/__fixtures__/root-health';
-import * as scopeContract from '@/lib/practice/kernel/scope';
-import * as tempoContract from '@/lib/practice/kernel/tempo';
-import { stepSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
-import type { PracticePianoKey } from '@/lib/practice/kernel/piano-key';
+import * as scopeContract from '@/lib/practice/planning/scope';
+import * as tempoContract from '@/lib/practice/planning/tempo';
+import { stepPracticePlan } from '@/lib/practice/__fixtures__/practice-plan';
+import type { PracticePianoKey } from '@/lib/practice/score/piano-key';
 import { borrowedDevices } from '@/lib/practice/__fixtures__/device-roots';
 import type { StepAttemptRecord } from './domain/attempt';
 import { describe, expect, it, vi } from 'vitest';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
-import { type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
-import type { PracticeScope } from '@/lib/practice/kernel/scope';
-import { ManualClock } from '@/lib/practice/kernel/timebase';
+import { type PracticeScoreArtifact } from '@/lib/practice/score/artifact';
+import type { PracticeScope } from '@/lib/practice/planning/scope';
+import { ManualClock } from '@/lib/practice/session/timebase';
 import { parseMidiMessage, type BrowserMidiControllerOptions } from '../midi/browser-midi-controller';
 import { StepPracticeController } from './step-practice-controller';
 import type { StepPlatform } from './step-platform';
@@ -35,7 +35,7 @@ function setup(index = 0, inputSource: 'MIDI' | 'MICROPHONE' = 'MIDI', delayed =
   const scope: PracticeScope = { kind: 'RANGE', startGroupId: selectedArtifact.moments[index].groupId,
     endGroupId: selectedArtifact.moments.at(-1)!.groupId };
   const completion = vi.fn();
-  const create = () => new StepPracticeController({ rootHealth: health.port, plan: stepSessionPlan(selectedArtifact, { scope: scope, inputSource: inputSource }), devices: borrowedDevices(), platform, onNaturalCompletion: completion });
+  const create = () => new StepPracticeController({ rootHealth: health.port, plan: stepPracticePlan(selectedArtifact, { scope: scope, inputSource: inputSource }), devices: borrowedDevices(), platform, onNaturalCompletion: completion });
   const controller = create();
   const finalized: StepAttemptRecord[] = [];
   controller.subscribe(() => {
@@ -319,13 +319,13 @@ it('executes planned metronome geometry and preserves an active gesture across a
     expect(after.localSessionId).toBe(before.localSessionId);
     expect(after.step.activeAttempt).toBe(before.step.activeAttempt);
     expect(after.step.currentIndex).toBe(before.step.currentIndex);
-    expect(after.scope).toBe(before.scope); expect(after.tempoPlan).toBe(before.tempoPlan);
-    expect(after.metronomeEnabled).toBe(true);
+    expect(after.plan.scope).toBe(before.plan.scope); expect(after.plan.tempoPlan).toBe(before.plan.tempoPlan);
+    expect(after.step.metronomeEnabled).toBe(true);
     const options = Reflect.get(s.metronome.start.mock.instances[0] as object, 'plan');
     expect(options).toBe(Reflect.get(s.controller, 'options').plan.metronomePlan);
-    expect(options.tempoPlan).toBe(before.tempoPlan);
-    expect(options.scopeStartTick).toBe(before.scope.startTick);
-    expect(options.scopeEndTick).toBe(before.scope.terminalTick);
+    expect(options.tempoPlan).toBe(before.plan.tempoPlan);
+    expect(options.scopeStartTick).toBe(before.plan.scope.startTick);
+    expect(options.scopeEndTick).toBe(before.plan.scope.terminalTick);
     expect(scope).not.toHaveBeenCalled(); expect(tempo).not.toHaveBeenCalled();
   } finally { await s.controller.dispose(); scope.mockRestore(); tempo.mockRestore(); }
 });

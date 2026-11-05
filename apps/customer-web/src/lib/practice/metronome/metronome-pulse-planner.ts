@@ -1,11 +1,11 @@
-import type { MeterSegment } from '@/lib/practice/kernel/artifact';
+import type { MeterSegment } from '@/lib/practice/score/artifact';
 import {
   measureDurationTicks,
   meterPulseTicks,
   pulseAtOrAfter,
   scoreTick,
-} from '@/lib/practice/kernel/score-time';
-import { ticksToMs, PracticeTempoTimeline } from '@/lib/practice/kernel/tempo';
+} from '@/lib/practice/score/score-time';
+import { ticksToMs, PracticeTempoTimeline } from '@/lib/practice/planning/tempo';
 
 export type MetronomeMeterSource = {
   meterSegments: readonly Readonly<MeterSegment>[];

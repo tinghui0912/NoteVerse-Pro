@@ -1,5 +1,5 @@
-import { isPracticePianoKey } from '@/lib/practice/kernel/piano-key';
-import type { PracticePianoKey } from '@/lib/practice/kernel/piano-key';
+import { isPracticePianoKey } from '@/lib/practice/score/piano-key';
+import type { PracticePianoKey } from '@/lib/practice/score/piano-key';
 import { ContinuousEvaluationError } from './evaluation-error';
 import { immutableContinuousValue } from './immutable-value';
 import type { ContinuousEvidencePublication, ContinuousObservation } from './evidence-types';

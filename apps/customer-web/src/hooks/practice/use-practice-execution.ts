@@ -1,10 +1,10 @@
 'use client';
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { PracticeExecutionOwner, type PracticeExecutionPorts } from '@/lib/practice/application/practice-execution-owner';
-import type { PracticeSessionPlan } from '@/lib/practice/planning/session-plan';
+import type { PracticePlan } from '@/lib/practice/planning/practice-plan';
 
 export function usePracticeExecution(options: PracticeExecutionPorts & {
-  plan: PracticeSessionPlan | null; admitted: boolean; compositionId: string;
+  plan: PracticePlan | null; admitted: boolean; compositionId: string;
   onNaturalCompletion?: Parameters<PracticeExecutionOwner['setCompletionListener']>[0];
 }) {
   const [owner] = useState(() => new PracticeExecutionOwner(options));

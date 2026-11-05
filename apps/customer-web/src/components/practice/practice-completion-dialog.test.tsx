@@ -8,7 +8,7 @@ import practiceMessages from '../../../messages/en/practice.json';
 import { PracticeCompletionDialog } from './practice-completion-dialog';
 import type { PracticeCompletionOutcome } from '@/lib/practice/completion-outcome';
 import type { ComponentProps } from 'react';
-import type { PracticeMode } from '@/lib/practice/kernel/session';
+import type { PracticeMode } from '@/lib/practice/planning/intent';
 
 function renderDialog(
   outcome: PracticeCompletionOutcome,

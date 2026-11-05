@@ -99,11 +99,3 @@ export class PracticeTimebase {
     }
   }
 }
-
-
-
-export type RuntimeVersionIdentity = {
-  schemaVersion: number;
-  runtimeVersion: string;
-  modelVersion?: string;
-};

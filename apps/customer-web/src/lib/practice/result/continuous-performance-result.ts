@@ -1,10 +1,10 @@
 import { assertCompletedEvaluation } from '@/lib/practice/continuous/domain/evaluation/session';
 import type { CompletedContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/evaluation-types';
 import { immutableContinuousValue } from '@/lib/practice/continuous/domain/evaluation/immutable-value';
-import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
-import type { ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
-import type { PracticeInputSource } from '@/lib/practice/kernel/session';
-import type { ResolvedPracticeTempoPlan } from '@/lib/practice/kernel/tempo';
+import type { PracticeScoreArtifact } from '@/lib/practice/score/artifact';
+import type { ResolvedPracticeScope } from '@/lib/practice/planning/scope';
+import type { PracticeInputSource } from '@/lib/practice/planning/intent';
+import type { ResolvedPracticeTempoPlan } from '@/lib/practice/planning/tempo';
 import { assertContinuousEvidenceProvenance, type ContinuousEvidenceProvenance } from './continuous-result-provenance';
 
 export const CONTINUOUS_PERFORMANCE_RESULT_SCHEMA_VERSION = 8;

@@ -1,4 +1,4 @@
-import { attackNoteIds, notesForIds, type PracticeMoment, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { attackNoteIds, notesForIds, type PracticeMoment, type PracticeScoreArtifact } from '@/lib/practice/score/artifact';
 
 /** Read-only presentation values resolved from canonical moment note references. */
 export type PracticeMomentView = Readonly<{

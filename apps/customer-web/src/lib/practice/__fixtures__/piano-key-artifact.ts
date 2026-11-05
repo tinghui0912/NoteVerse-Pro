@@ -1,5 +1,5 @@
 import fixture from './canonical-practice-score-artifact.json';
-import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import type { PracticeScoreArtifact } from '@/lib/practice/score/artifact';
 
 /** Consistent canonical note/event/moment graph for domain tests. */
 export function artifactWithKeys(steps: readonly (readonly number[])[]): PracticeScoreArtifact {

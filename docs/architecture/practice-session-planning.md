@@ -2,9 +2,9 @@
 
 ```text
 Canonical Practice Source (sourceId + parsed artifact)
-  + PracticeExecutionIntent
-  -> planPracticeSession
-  -> immutable PracticeSessionPlan
+  + PracticeIntent
+  -> planPractice
+  -> immutable PracticePlan
        -> resources: PracticeResourcePlan
        -> metronomePlan: ResolvedMetronomePlan
        -> STEP execution
@@ -25,24 +25,24 @@ It neither selects another revision/source nor reconstructs notation from Take s
 
 ## Intent and Plan
 
-`planning/execution-intent.ts` defines the learner/application choices before Start:
+`planning/intent.ts` defines the learner/application choices before Start:
 mode, input source, recording mode, raw scope, tempo selection and metronome enabled.
 STEP owns recording OFF; Continuous admits OFF/AUDIO/VIDEO. Invalid combinations fail
 admission. Live note feedback is presentation state and is absent from the intent.
 
-`planning/session-plan.ts` owns semantic planning. `createPracticeSessionPlanner()`
-creates a composition-local `planPracticeSession(source, intent)` function. It checks
-source identity and intent validity on an admitted runtime artifact, then resolves scope
-and tempo. The frozen plan owns sourceId, the canonical artifact, mode/input/recording,
-resolved scope, resolved tempo, the canonical resource plan and resolved metronome timing. Score/revision/artifact
-IDs remain owned by the artifact. Scope and tempo projections and canonical notation
-are immutable to consumers.
+`planning/practice-plan.ts` exposes the pure `planPractice(source, intent)` function.
+It validates the source identity and choices, and resolves scope, tempo, resources,
+metronome timing and Continuous initial Count-In. Equal semantic inputs produce equal
+plans independently of call history. Each immutable `PracticePlan` owns:
 
-The planner retains only its current semantic resolution. A metronome flag change
-uses that same resolved scope and tempo in a fresh immutable candidate plan. A scope,
-tempo, source or execution configuration change establishes a new resolution.
-This bounded composition-local memo is semantic data, not a resource lease or session
-lifecycle owner.
+- `source`: sourceId and the admitted artifact; notation remains in AdmittedPracticeSource.
+- `mode`: STEP_BY_STEP or CONTINUOUS_PLAY.
+- `scope`, `tempoPlan`, `metronomePlan`: resolved musical execution facts.
+- `resources`: input, analysis and recording requirements, without physical objects.
+- `countIn`: Continuous initial execution policy; STEP has no Count-In.
+
+Input kind and recording mode are read from `resources`; score/revision/artifact IDs
+remain owned by `source.artifact`. Planning does not retain mutable caches or sessions.
 
 The Practice page constructs the intent from resolved configuration and committed
 workspace scope/tempo/metronome choices. PreparedPractice supplies its owned sourceId
@@ -52,7 +52,7 @@ and parsed artifact without a query. Page controls read the candidate plan's res
 
 ```text
 Pinned revision -> Canonical Practice Source -> strict artifact admission
-  -> PracticeExecutionIntent -> candidate PracticeSessionPlan -> READY
+  -> PracticeIntent -> candidate PracticePlan -> READY
   -> explicit Start -> PracticeExecutionOwner -> one selected controller
                                        STEP / Continuous
 ```
@@ -94,8 +94,19 @@ an idle refresh loop.
 STEP and Continuous controllers retain their distinct domain and pipeline owners.
 They consume admitted plans, browser roots and the read-only root-health port.
 Pure runtime components consume resolved projections without full score traversal.
-Common local snapshots expose sourceId, resolved scope/tempo and current metronome
-state. Continuous natural Result8 uses the executed scope/tempo without re-resolution.
+`session/session.ts` defines the common `PracticeSession` snapshot contract:
+localSessionId, the executed plan, createdAtMs, updatedAtMs and completionReason.
+Only Start creates a concrete `StepPracticeSession` or `ContinuousPracticeSession`.
+Their constructors receive the matching mode-specific plan and runtime infrastructure.
+Snapshots reference that exact plan and add mode-specific state; musical facts are
+not copied into sibling fields. Natural Continuous Result8 reads source, scope and
+tempo from the executed snapshot plan without re-resolution.
+
+`score/` owns admitted artifact facts, piano keys and exact score coordinates.
+`planning/` owns intent, scope/tempo/resource/metronome resolution and Count-In policy.
+`session/` owns local execution identity and runtime clock mapping. Score depends on
+neither planning nor runtime; planning depends on score; session depends on planning;
+mode domains consume these packages without importing each other or browser controllers.
 
 ## Setup Preparation and Retained Admission
 
@@ -174,10 +185,10 @@ Review Retry opens pinned Setup for a fresh admission and physical binding.
 ## Resource Planning and Lifetimes
 
 ```text
-PracticeExecutionIntent (mode + inputSource + recordingMode)
+PracticeIntent (mode + inputSource + recordingMode)
   -> planPracticeResources
   -> immutable PracticeResourcePlan
-       -> PracticeSessionPlan.resources
+       -> PracticePlan.resources
        -> qualification -> Setup validation on retained roots
        -> liveRoots -> PracticeResourceBinding / retained physical roots
        -> input -> STEP / Continuous input binding
@@ -186,7 +197,7 @@ PracticeExecutionIntent (mode + inputSource + recordingMode)
 ```
 
 `planning/resource-plan.ts` owns the complete resource matrix. Its input is the
-resource-choice projection of `PracticeExecutionIntent`; scope, tempo, metronome,
+resource-choice projection of `PracticeIntent`; scope, tempo, metronome,
 source/artifact identity and live feedback have no effect on resource requirements.
 STEP accepts recording OFF. Invalid mode/input/recording combinations fail admission.
 All arrays and nested projections are frozen. Equivalent resource choices return the
@@ -242,7 +253,7 @@ Resource planning defines requirements and bindings, not acquisition or Start/En
 lifecycle. `PracticeExecutionOwner` serializes attempt release before any new controller
 construction.
 
-Artifact schemaVersion 1, STEP schema9/runtime `step-piano-key-learning-v12`, Result schema8,
+Artifact schemaVersion 1, mode-specific PracticeSession snapshots, Result schema8,
 count-in policy, timing/recognition/resource values and acoustic identities are their
 current contracts. See the [product contract](practice-product-contract.md) and
 [Practice Source](practice-source.md).
@@ -313,13 +324,13 @@ failure is a recording-only hard intervention, not acoustic failure or root loss
 
 ## Metronome Plan, Runtime and Audio
 
-`PracticeSessionPlan.metronomePlan` is the immutable musical projection owned by
+`PracticePlan.metronomePlan` is the immutable musical projection owned by
 session planning. It contains STEP/CONTINUOUS mode, meter segments, resolved tempo,
 finite timeline end, scope start/end and initial enabled state. Meter timing is
 nonempty, explicitly MUSICXML-sourced and starts at tick 0. Missing initial meter
 fails admission; planning and runtime perform no meter repair. Runtime receives no
 Artifact and performs no semantic scope/tempo resolution. A candidate initial-enable
-change reuses the same resolved scope and tempo.
+change is resolved by the pure planner; it preserves scope and tempo semantics.
 
 Mode controllers compose `MetronomeRuntime(plan.metronomePlan, audio)` with a
 `MetronomeAudioPort` supplied by browser infrastructure. Musical plan fields are
@@ -349,7 +360,7 @@ analysis, recording or critical attempt-cleanup failures.
 
 The artifact supplies admitted meter facts: `startTick`, `numerator`, `denominator`.
 The pure score-time helper derives exact measure duration ticks using the artifact
-timebase. `kernel/count-in.ts` owns the execution policy: a full active
+timebase. `planning/count-in.ts` owns the execution policy: a full active
 measure supplies Count-In duration, and its numerator supplies the number of pulses.
 Thus 3/4 gives 3 beats/3 pulses, 6/8 gives 3 beats/6 pulses, and 2/2 gives 4 beats/2
 pulses. Count-In pulses are not part of the score artifact or source identity.
@@ -361,9 +372,9 @@ MetronomeRuntime consumes its live sync point. STEP has no Count-In.
 
 ## Executed Source Provenance
 
-PracticeSessionPlan.sourceId is the admitted canonical durable source identity.
-Local STEP and Continuous session snapshots retain it. Natural Continuous completion
-verifies session/artifact descriptive identity and copies session.sourceId verbatim
+PracticePlan.source.sourceId is the admitted canonical durable source identity.
+Local STEP and Continuous session snapshots reference the executed plan. Natural Continuous completion
+reads its source projection and copies plan.source.sourceId verbatim
 into Result schema8. The explicit workspace Review handoff validates and preserves
 that identity with the admitted artifact and notation; save sends only source_id as Source lineage.
 Source authorization and retention belong to [Practice Source](practice-source.md).

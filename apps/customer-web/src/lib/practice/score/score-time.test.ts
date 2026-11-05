@@ -7,8 +7,8 @@ import {
   scoreTick,
   ticksPerQuarter,
 } from './score-time';
-import { resolvePracticeScope } from './scope';
-import { PracticeTempoTimeline, resolvePracticeTempoPlan } from './tempo';
+import { resolvePracticeScope } from '../planning/scope';
+import { PracticeTempoTimeline, resolvePracticeTempoPlan } from '../planning/tempo';
 import { MetronomePulsePlanner } from '../metronome/metronome-pulse-planner';
 
 it('reads the backend-produced mixed-denominator, meter, tie, tempo and scope artifact', () => {

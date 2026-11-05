@@ -13,9 +13,9 @@ progression only. Canonical moments own targets; STEP projects attack keys and
 continuation keys from their note references. There is no serialized STEP sequence. Runtime asserts the artifact, resolves scope and initializes;
 revision-wide key validity applies to every selected target.
 
-STEP schema9/runtime step-piano-key-learning-v12 receives StepPianoKeyEvidence:
+StepPracticeSession receives StepPianoKeyEvidence:
 nonempty dense own-indexed numeric observedAttackKeys, raw length<=128, finite
-confidence and capture-end Session Time. The kernel predicate owns key validity.
+confidence and capture-end Session Time. The score predicate owns key validity.
 Raw129 rejects before indexed reads; sparse/malformed evidence remains ANALYZING
 and retryable. Raw128 is an unqualified work policy, not derived from88.
 

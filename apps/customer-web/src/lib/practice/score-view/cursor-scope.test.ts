@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import { PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION, type PracticeScoreArtifact } from '@/lib/practice/score/artifact';
 import { resolvePracticeScopeCursorNoteIds } from '@/lib/practice/score-view/cursor-scope';
 import { resolveVideoExportPlaybackPosition } from '@/lib/practice/video-export/playback-position';
 import type { VideoExportSession } from '@/lib/practice/video-export/session';

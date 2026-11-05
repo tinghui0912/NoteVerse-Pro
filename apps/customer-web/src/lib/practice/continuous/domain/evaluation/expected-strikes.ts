@@ -1,6 +1,6 @@
 import type { ContinuousExpectedStrike } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
-import { notesForIds, type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
-import type { ResolvedPracticeScope } from '@/lib/practice/kernel/scope';
+import { notesForIds, type PracticeScoreArtifact } from '@/lib/practice/score/artifact';
+import type { ResolvedPracticeScope } from '@/lib/practice/planning/scope';
 
 type ContinuousExpectedStrikeClock = {
   tickToTimeMs(tick: number): number;

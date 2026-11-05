@@ -1,4 +1,4 @@
-import { continuousSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
+import { continuousPracticePlan } from '@/lib/practice/__fixtures__/practice-plan';
 import type { ContinuousPerformanceResult } from '@/lib/practice/result/continuous-performance-result';
 import { CONTINUOUS_PERFORMANCE_RESULT_SCHEMA_VERSION } from '@/lib/practice/result/continuous-performance-result';
 import { microphoneEvidenceProvenance, midiEvidenceProvenance } from '@/lib/practice/result/continuous-result-provenance';
@@ -12,15 +12,15 @@ export function continuousResultFixture(fields: Omit<ContinuousPerformanceResult
 }
 
 import artifactJson from './canonical-practice-score-artifact.json';
-import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
+import type { PracticeScoreArtifact } from '@/lib/practice/score/artifact';
 import { ContinuousEvaluationSession, unavailableContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/session';
 import { createContinuousPerformanceResult } from '@/lib/practice/result/continuous-performance-result';
-import { resolvePracticeTempoPlan } from '@/lib/practice/kernel/tempo';
+import { resolvePracticeTempoPlan } from '@/lib/practice/planning/tempo';
 
 export function canonicalContinuousResultFixture(inputSource: 'MIDI' | 'MICROPHONE' = 'MIDI', rate: 44100 | 48000 = 48000, available = true): ContinuousPerformanceResult {
   const artifact = artifactJson as PracticeScoreArtifact, scope = { kind: 'FULL' } as const, localSessionId = 'result-fixture';
-  const session = new ContinuousEvaluationSession({ artifact, scope: continuousSessionPlan(artifact, { scope: scope }).scope, inputSource, sessionDomainId: localSessionId, timeline: { tickToTimeMs: tick => tick * 500 } });
+  const session = new ContinuousEvaluationSession({ artifact, scope: continuousPracticePlan(artifact, { scope: scope }).scope, inputSource, sessionDomainId: localSessionId, timeline: { tickToTimeMs: tick => tick * 500 } });
   session.publish({ publicationId: 'coverage', sessionDomainId: localSessionId, analyzedThroughPerformanceMs: 10000, availabilitySessionTimeMs: 10000, observations: [] });
   session.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 10000, availabilitySessionTimeMs: 10000 });
-  return createContinuousPerformanceResult({ sourceId: 'source-fixture', artifact, scope: continuousSessionPlan(artifact, { scope: scope }).scope, localSessionId, inputSource, activeElapsedMs: 10000, tempoPlan: resolvePracticeTempoPlan(artifact, { mode: 'SCORE' }), evaluation: available ? session.completedEvaluation() : unavailableContinuousEvaluation(inputSource, 'CONTINUOUS_ANALYSIS_UNAVAILABLE'), evidenceProvenance: inputSource === 'MIDI' ? midiEvidenceProvenance(CONTINUOUS_MIDI_EVIDENCE_POLICY_ID) : microphoneEvidenceProvenance(rate), completedAt: '2026-10-26T00:00:00.000Z' });
+  return createContinuousPerformanceResult({ sourceId: 'source-fixture', artifact, scope: continuousPracticePlan(artifact, { scope: scope }).scope, localSessionId, inputSource, activeElapsedMs: 10000, tempoPlan: resolvePracticeTempoPlan(artifact, { mode: 'SCORE' }), evaluation: available ? session.completedEvaluation() : unavailableContinuousEvaluation(inputSource, 'CONTINUOUS_ANALYSIS_UNAVAILABLE'), evidenceProvenance: inputSource === 'MIDI' ? midiEvidenceProvenance(CONTINUOUS_MIDI_EVIDENCE_POLICY_ID) : microphoneEvidenceProvenance(rate), completedAt: '2026-10-26T00:00:00.000Z' });
 }

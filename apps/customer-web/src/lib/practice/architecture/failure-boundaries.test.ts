@@ -21,7 +21,7 @@ it.each([['step/step-errors.ts','projectStepFailure'],['continuous/continuous-er
 });
 it('domain and planning dependencies retain their own invariant owners',()=>{
   const files=(dir:string):string[]=>readdirSync(dir,{withFileTypes:true}).flatMap(entry=>entry.isDirectory()?files(path.join(dir,entry.name)):entry.name.endsWith('.ts')&&!entry.name.endsWith('.test.ts')?[path.join(dir,entry.name)]:[]);
-  for(const owner of ['kernel','step/domain','continuous/domain','result','planning']) for(const file of files(path.join(root,owner))) {
+  for(const owner of ['score','session','step/domain','continuous/domain','result','planning']) for(const file of files(path.join(root,owner))) {
     const tree=source(path.relative(root,file));
     for(const node of tree.statements.filter(ts.isImportDeclaration)) if(ts.isStringLiteral(node.moduleSpecifier)) expect(node.moduleSpecifier.text).not.toContain('/failure/');
   }

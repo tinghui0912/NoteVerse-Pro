@@ -1,4 +1,4 @@
-import { isPracticePianoKey } from '@/lib/practice/kernel/piano-key';
+import { isPracticePianoKey } from '@/lib/practice/score/piano-key';
 import type { ContinuousMidiPort, ContinuousPlatform, MidiConnection } from './continuous-input';
 
 export class ContinuousMidiInput {

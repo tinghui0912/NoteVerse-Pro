@@ -1,8 +1,9 @@
+import { withContinuousTiming } from '@/lib/practice/__fixtures__/practice-plan';
 import { describe, expect, it } from 'vitest';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
-import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
-import { ManualClock } from '@/lib/practice/kernel/timebase';
-import { continuousSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
+import type { PracticeScoreArtifact } from '@/lib/practice/score/artifact';
+import { ManualClock } from '@/lib/practice/session/timebase';
+import { continuousPracticePlan } from '@/lib/practice/__fixtures__/practice-plan';
 import { midiEvidenceProvenance, microphoneEvidenceProvenance } from '@/lib/practice/result/continuous-result-provenance';
 import { ContinuousPracticeSession } from './domain/practice-session';
 import { unavailableContinuousEvaluation } from './domain/evaluation/session';
@@ -14,13 +15,13 @@ const artifact = fixture as PracticeScoreArtifact;
 describe.each(['MIDI', 'MICROPHONE'] as const)('%s natural completion composition', inputSource => {
   function setup() {
     const clock = new ManualClock(0);
-    const configuration = { ...continuousSessionPlan(artifact), clock, countInTicks: 0 };
+    const configuration = { plan: withContinuousTiming(continuousPracticePlan(artifact, { inputSource }), { countInTicks: 0 }), clock };
     const session = new ContinuousPracticeSession(inputSource === 'MIDI'
-      ? { ...configuration, inputSource, createClockEvidence: id => new ContinuousMidiEvidence(id) }
-      : { ...configuration, inputSource });
+      ? { ...configuration, createClockEvidence: id => new ContinuousMidiEvidence(id) }
+      : { ...configuration });
     session.start();
     const completion = (identity: Partial<ReturnType<typeof session.snapshotSession>> = {}) => createNaturalContinuousCompletion({
-      session: { ...session.snapshotSession(), ...identity }, artifact,
+      session: { ...session.snapshotSession(), ...identity },
       evaluation: unavailableContinuousEvaluation(inputSource, 'CONTINUOUS_ANALYSIS_UNAVAILABLE'),
       evidenceProvenance: inputSource === 'MIDI' ? midiEvidenceProvenance(CONTINUOUS_MIDI_EVIDENCE_POLICY_ID) : microphoneEvidenceProvenance(48000),
       recording: { status: 'NOT_RECORDED' }, completedAt: '2026-10-26T00:00:00.000Z',
@@ -37,11 +38,9 @@ describe.each(['MIDI', 'MICROPHONE'] as const)('%s natural completion compositio
     expect(s.session.snapshotSession().completionReason).toBe('SCOPE_COMPLETED');
     const completion = s.completion();
     expect(completion.result.inputSource).toBe(inputSource);
-    expect(completion.result.sourceId).toBe(s.session.snapshotSession().sourceId);
-    expect(s.completion({ sourceId: 'exact-admitted-source' }).result.sourceId).toBe('exact-admitted-source');
-    for (const identity of [{ sourceId: '' }, { scoreId: 'other' }, { revisionId: 'other' }, { artifactId: 'other' }]) {
-      expect(() => s.completion(identity)).toThrow('source identity mismatch');
-    }
+    expect(completion.result.sourceId).toBe(s.session.snapshotSession().plan.source.sourceId);
+    expect(completion.result.scope).toEqual(s.session.snapshotSession().plan.scope);
+    expect(completion.result.tempoPlan).toEqual(s.session.snapshotSession().plan.tempoPlan);
     expect(completion.recording).toEqual({ status: 'NOT_RECORDED' });
     expect(Object.isFrozen(completion)).toBe(true);
   });

@@ -4,7 +4,7 @@ import { PracticeStartupTimings } from '@/lib/practice/diagnostics/startup-timin
 import type { AcousticInferencePort } from '@/lib/practice/acoustic/runtime/inference-types';
 import { SourceAnalysisRuntime } from '@/lib/practice/acoustic/runtime/source-analysis-runtime';
 import { isAcousticDomainIdentity, type SourceAcousticPublication } from '@/lib/practice/acoustic/runtime/source-publication';
-import { PracticeTimebase, type LocalClock, type SessionTime } from '@/lib/practice/kernel/timebase';
+import { PracticeTimebase, type LocalClock, type SessionTime } from '@/lib/practice/session/timebase';
 import type { StepPianoKeyEvidence } from '@/lib/practice/step/domain/attempt';
 import { StepAcousticAttemptAssembler, type StepAcousticAttemptSink } from './step-acoustic-attempt-assembler';
 import { StepAcousticCaptureBridge } from './step-acoustic-capture-bridge';

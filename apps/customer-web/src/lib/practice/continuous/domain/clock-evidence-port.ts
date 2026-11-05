@@ -1,5 +1,5 @@
-import type { PracticePianoKey } from '@/lib/practice/kernel/piano-key';
-import type { SessionTime } from '@/lib/practice/kernel/timebase';
+import type { PracticePianoKey } from '@/lib/practice/score/piano-key';
+import type { SessionTime } from '@/lib/practice/session/timebase';
 import type { ContinuousEvidencePublication } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
 
 export type ContinuousMidiAttack = Readonly<{

@@ -1,13 +1,13 @@
-import { stepSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
+import { stepPracticePlan } from '@/lib/practice/__fixtures__/practice-plan';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
-import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
-import { StepPracticeRuntime } from '@/lib/practice/step/domain/runtime';
-import { ManualClock } from '@/lib/practice/kernel/timebase';
+import type { PracticeScoreArtifact } from '@/lib/practice/score/artifact';
+import { StepPracticeSession } from '@/lib/practice/step/domain/practice-session';
+import { ManualClock } from '@/lib/practice/session/timebase';
 import { type StepPianoKeyEvidence, type StepAttemptIdentity, type StepAttemptRecord } from '@/lib/practice/step/domain/attempt';
 
 const artifact = fixture as PracticeScoreArtifact;
-function rearmAtCaptureEnd(runtime: StepPracticeRuntime) {
+function rearmAtCaptureEnd(runtime: StepPracticeSession) {
   const record = runtime.snapshot().step.pendingPostVerdict;
   if (!record) throw Error('Expected a pending answer before rearm');
   runtime.rearm(record.captureEndSessionTime);
@@ -15,7 +15,7 @@ function rearmAtCaptureEnd(runtime: StepPracticeRuntime) {
 function setup(index = 0, id = 'step-test', inputSource: 'MIDI' | 'MICROPHONE' = 'MIDI') {
   const clock = new ManualClock(100);
   const groupId = artifact.moments[index].groupId;
-  const runtime = new StepPracticeRuntime({ ...stepSessionPlan(artifact, { scope: { kind: 'RANGE', startGroupId: groupId, endGroupId: artifact.moments.at(-1)!.groupId }, inputSource: inputSource }), clock, localSessionId: id });
+  const runtime = new StepPracticeSession({ plan: stepPracticePlan(artifact, { scope: { kind: 'RANGE', startGroupId: groupId, endGroupId: artifact.moments.at(-1)!.groupId }, inputSource: inputSource }), clock, localSessionId: id });
   const time = (ms = clock.nowMs()) => ({ domainId: id, ms });
   const begin = () => { clock.advance(100); return runtime.openAttempt(time())!; };
   const finish = (identity: StepAttemptIdentity, pianoKeys: StepPianoKeyEvidence['observedAttackKeys']) => {
@@ -93,7 +93,7 @@ describe('one target / one bounded attempt / one verdict', () => {
     expect(runtime.snapshot().step.attemptState).toBe('POST_VERDICT');
     rearmAtCaptureEnd(runtime);
     expect(() => runtime.rearm({ domainId: runtime.localSessionId, ms: 0 })).toThrow('STEP_ATTEMPT_STATE_INVALID');
-    expect(runtime.snapshot()).toMatchObject({ version: { schemaVersion: 9, runtimeVersion: 'step-piano-key-learning-v12' },
+    expect(runtime.snapshot()).toMatchObject({
       runtimeStatus: 'ENDED', completionReason: 'SCOPE_COMPLETED', step: { completed: true } });
     expect(runtime.currentTarget()).toBeNull(); expect(runtime.skip()).toBe(false);
   });

@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { MIN_PRACTICE_TEMPO_BPM, MAX_PRACTICE_TEMPO_BPM } from '@/lib/practice/kernel/tempo';
+import { MIN_PRACTICE_TEMPO_BPM, MAX_PRACTICE_TEMPO_BPM } from '@/lib/practice/planning/tempo';
 import { CONTINUOUS_ASSIGNMENT_WINDOW_MS } from '@/lib/practice/continuous/domain/evaluation/finalization-policy';
 import { benchmarkTempo, characterizeCase, expectedPattern, fixedTimeline, offsetSweepMs, patternFamilies,
   runSyntheticBenchmark, spacingGrid, tempoGrid, tieCase, transitionCases } from './policy-benchmark';

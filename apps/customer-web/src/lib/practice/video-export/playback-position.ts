@@ -1,5 +1,5 @@
 import { mediaTimeToPerformanceTimeMs } from '@/lib/practice/recording/recording-timebase';
-import { PracticeTempoTimeline } from '@/lib/practice/kernel/tempo';
+import { PracticeTempoTimeline } from '@/lib/practice/planning/tempo';
 import { resolveScopeTiming } from '@/lib/practice/score-view/scope-timing';
 import type { VideoExportSession } from './session';
 import type { PracticeVerovioAdapter } from '@/lib/practice/score-view/verovio-adapter';

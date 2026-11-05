@@ -11,14 +11,14 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import type { TempoSegment } from '@/lib/practice/kernel/artifact';
+import type { TempoSegment } from '@/lib/practice/score/artifact';
 import {
   MAX_PRACTICE_TEMPO_BPM,
   MIN_PRACTICE_TEMPO_BPM,
   clampCustomTempo,
   effectiveScoreTempoAtTick,
   type PracticeTempoSelection,
-} from '@/lib/practice/kernel/tempo';
+} from '@/lib/practice/planning/tempo';
 
 export type PracticeTempoPopoverProps = {
   tempoSelection: PracticeTempoSelection;

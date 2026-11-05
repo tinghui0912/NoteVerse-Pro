@@ -15,10 +15,10 @@ import { qualifiedAcousticSourceRate } from '@/lib/practice/acoustic/failure-bou
 import type { ContinuousTargetFeedback } from '@/lib/practice/continuous/domain/evaluation/target-feedback';
 import { type PerformanceClockSnapshot } from '@/lib/practice/continuous/domain/performance-clock';
 import { ContinuousPracticeSession } from '@/lib/practice/continuous/domain/practice-session';
-import { type LocalPerformanceSessionSnapshot } from '@/lib/practice/continuous/domain/session';
+import { type ContinuousPracticeSessionSnapshot } from '@/lib/practice/continuous/domain/session';
 import { ContinuousMidiEvidence } from '@/lib/practice/continuous/input/midi-evidence';
-import { createLocalSessionId } from '@/lib/practice/kernel/session';
-import type { ContinuousPracticeSessionPlan } from '@/lib/practice/planning/session-plan';
+import { createLocalSessionId } from '@/lib/practice/session/session';
+import type { ContinuousPracticePlan } from '@/lib/practice/planning/practice-plan';
 import { RecordingFailure } from '@/lib/practice/failure/causal-failure';
 import type { ContinuousAnalysisIntervention } from './analysis-intervention';
 import type { PracticeResourceIntervention } from './resource-intervention';
@@ -37,9 +37,8 @@ export type ContinuousControllerOptions = Readonly<{
   devices: PracticeDeviceRoots;
   rootHealth: PracticeRootHealthPort;
   startupTimings?: PracticeStartupTimings;
-  plan: ContinuousPracticeSessionPlan;
-  countInTicks?: number;
-  onNaturalCompletion?(snapshot: LocalPerformanceSessionSnapshot): void;
+  plan: ContinuousPracticePlan;
+  onNaturalCompletion?(snapshot: ContinuousPracticeSessionSnapshot): void;
 }>;
 export type ContinuousControllerState = 'IDLE' | 'PREPARING' | 'ACTIVE' | 'FINALIZING' | 'COMPLETE' | 'FAILED_BEFORE_START' | 'FAILED' | 'ABANDONED' | 'DISPOSED';
 export type ContinuousControllerSnapshot = Readonly<{
@@ -49,7 +48,7 @@ export type ContinuousControllerSnapshot = Readonly<{
   analysisIntervention: ContinuousAnalysisIntervention | null;
   resourceIntervention: PracticeResourceIntervention | null;
   evaluation: ContinuousTargetFeedback | null; completed: ContinuousPracticeCompletion | null;
-  sessionSnapshot: LocalPerformanceSessionSnapshot | null;
+  sessionSnapshot: ContinuousPracticeSessionSnapshot | null;
 }>;
 
 /** Application lifecycle owner. Inputs cannot control this transport or completion. */
@@ -76,7 +75,7 @@ export class ContinuousPracticeController {
   private completed: ContinuousPracticeCompletion | null = null;
   private disposal: Promise<void> | null = null;
   private evidenceProvenance: ContinuousEvidenceProvenance | null = null;
-  private finalSession: LocalPerformanceSessionSnapshot | null = null;
+  private finalSession: ContinuousPracticeSessionSnapshot | null = null;
   private completion: Promise<void> | null = null;
   private abandonment: Promise<void> | null = null;
   private preparing: Promise<void> | null = null;
@@ -143,15 +142,15 @@ export class ContinuousPracticeController {
         this.evidenceProvenance = microphoneEvidenceProvenance(qualifiedAcousticSourceRate(this.context.sampleRate));
       }
       this.session = new ContinuousPracticeSession({
-        ...(this.options.plan.inputSource === 'MIDI'
-          ? { inputSource: 'MIDI' as const, createClockEvidence: (domainId: string) => {
-              const evidence = new ContinuousMidiEvidence(domainId);
-              this.evidenceProvenance = midiEvidenceProvenance(evidence.evidencePolicyId); return evidence;
-            } }
-          : { inputSource: 'MICROPHONE' as const }), artifact: this.options.plan.artifact, scope: this.options.plan.scope,
-        sourceId: this.options.plan.sourceId, tempoPlan: this.options.plan.tempoPlan, clock: this.renderClock ?? this.platform.midiClock,
-        localSessionId: createLocalSessionId(), countInTicks: this.options.countInTicks, metronomeEnabled: this.enabled });
+        plan: this.options.plan,
+        ...(resources.input.kind === 'MIDI' ? { createClockEvidence: (domainId: string) => {
+          const evidence = new ContinuousMidiEvidence(domainId);
+          this.evidenceProvenance = midiEvidenceProvenance(evidence.evidencePolicyId); return evidence;
+        } } : {}),
+        clock: this.renderClock ?? this.platform.midiClock,
+        localSessionId: createLocalSessionId() });
       const session = this.session;
+      session.setMetronomeEnabled(this.enabled);
       if (this.microphone) {
         await this.microphone.connect({ context: this.context!, stream: this.rootStream!, sessionDomainId: session.timebase.domainId,
           clock: this.renderClock!, publish: publication => { if (this.analysisError || this.disposed || this.state === 'ABANDONED') return; this.checkAlive(); session.publishAnalysis(publication); this.notify(); } }, this.abort.signal);
@@ -188,9 +187,9 @@ export class ContinuousPracticeController {
     } catch (error) {
       if (!this.disposed && this.state !== 'ABANDONED' && !this.fatalFailure) { this.inputError = error instanceof ContinuousApplicationFailure ? error.code : error instanceof RecordingFailure
         ? 'RECORDING_PREPARATION_FAILED' : isPracticeCausalFailure(error) ? projectContinuousFailure(error, 'PREPARING')
-          : this.options.plan.inputSource === 'MICROPHONE' ? 'MODEL_LOAD_FAILED' : 'MIDI_UNAVAILABLE';
+          : this.options.plan.resources.input.kind === 'MICROPHONE' ? 'MODEL_LOAD_FAILED' : 'MIDI_UNAVAILABLE';
         this.record('PREPARATION_FAILED', String(error));
-        if (this.options.plan.inputSource === 'MICROPHONE' && this.inputError !== 'RECORDING_PREPARATION_FAILED') this.analysisError ??= this.inputError;
+        if (this.options.plan.resources.input.kind === 'MICROPHONE' && this.inputError !== 'RECORDING_PREPARATION_FAILED') this.analysisError ??= this.inputError;
         this.state = 'FAILED_BEFORE_START'; }
       await this.cleanup(); if (this.cleanupFailure && !this.disposed) this.state = 'FAILED'; this.notify();
     }
@@ -413,11 +412,10 @@ export class ContinuousPracticeController {
         // After admission and Start, media degradation is independent of evaluation and completion.
         const recording = await this.recorder!.finalize(); finalizedRecording = recording; this.checkAlive();
         const session = this.session!; this.finalSession = session.snapshotSession();
-        const evaluation = this.analysisError ? unavailableContinuousEvaluation(this.options.plan.inputSource, 'CONTINUOUS_ANALYSIS_UNAVAILABLE')
+        const evaluation = this.analysisError ? unavailableContinuousEvaluation(this.options.plan.resources.input.kind, 'CONTINUOUS_ANALYSIS_UNAVAILABLE')
           : session.completedEvaluation();
         if (!this.evidenceProvenance) throw new Error('CONTINUOUS_EVIDENCE_IDENTITY_UNAVAILABLE');
         this.completed = createNaturalContinuousCompletion({ session: this.finalSession,
-          artifact: this.options.plan.artifact,
           evaluation, evidenceProvenance: this.evidenceProvenance, recording, completedAt: new Date().toISOString() });
         finalizedRecording = null;
         await this.cleanup(); this.checkAlive();

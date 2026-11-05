@@ -1,5 +1,5 @@
-import { isPracticePianoKey } from '@/lib/practice/kernel/piano-key';
-import type { PracticePianoKey } from '@/lib/practice/kernel/piano-key';
+import { isPracticePianoKey } from '@/lib/practice/score/piano-key';
+import type { PracticePianoKey } from '@/lib/practice/score/piano-key';
 import { matchOrderedSameKeyEvidence } from '@/lib/practice/continuous/domain/evaluation/same-key-matching';
 import { CONTINUOUS_ASSIGNMENT_WINDOW_MS, directObservationClaimants, directStrikeCohort, directStrikeFrontier, withinContinuousWindow } from '@/lib/practice/continuous/domain/evaluation/finalization-policy';
 import { compareContinuousId, ContinuousEvidenceStore, observationsInRange, type PreparedContinuousEvidence } from '@/lib/practice/continuous/domain/evaluation/observation-store';

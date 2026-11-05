@@ -31,7 +31,7 @@ it('recording probe failure still stops only cloned tracks, never retained origi
  const mic=root('audio'),camera=root('video'),environment=new PracticeEnvironment();
  vi.stubGlobal('MediaStream',class{constructor(readonly tracks:MediaStreamTrack[]){}getTracks(){return this.tracks;}});
  vi.spyOn(recording,'probeRecording').mockRejectedValue(new Error('probe'));
- await expect(validatePracticeResources({plan:planPracticeResources({mode:'CONTINUOUS_PLAY',inputSource:'MIDI',recordingMode:'VIDEO'}),roots:borrowedDevices(null,mic.stream,camera.stream),environment,signal:new AbortController().signal,onComponent:vi.fn()})).rejects.toThrow('probe');
+ await expect(validatePracticeResources({ plan: planPracticeResources({mode:'CONTINUOUS_PLAY',inputSource:'MIDI',recordingMode:'VIDEO'}), roots:borrowedDevices(null,mic.stream,camera.stream), environment, signal:new AbortController().signal, onComponent:vi.fn() })).rejects.toThrow('probe');
  for(const original of [mic,camera]){expect(original.track.stop).not.toHaveBeenCalled();expect(original.clones[0].stop).toHaveBeenCalledOnce();}await environment.dispose();
 });
 
@@ -56,7 +56,6 @@ it('abort releases recording clones immediately; retained roots are released onl
 it('recording OFF requires neither OPFS nor a recording capability probe', async () => {
   const storage = vi.spyOn(opfs, 'openOpfsRecordingSink');
   const probe = vi.spyOn(recording, 'probeRecording'); const environment = new PracticeEnvironment();
-  await validatePracticeResources({ plan: planPracticeResources({ mode: 'CONTINUOUS_PLAY', inputSource: 'MIDI', recordingMode: 'OFF' }),
-    roots: borrowedDevices(), environment, signal: new AbortController().signal, onComponent: vi.fn() });
+  await validatePracticeResources({ plan: planPracticeResources({ mode: 'CONTINUOUS_PLAY', inputSource: 'MIDI', recordingMode: 'OFF' }), roots: borrowedDevices(), environment, signal: new AbortController().signal, onComponent: vi.fn() });
   expect(storage).not.toHaveBeenCalled(); expect(probe).not.toHaveBeenCalled(); await environment.dispose();
 });

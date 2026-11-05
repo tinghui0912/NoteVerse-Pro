@@ -2,7 +2,7 @@ import type { ContinuousCaptureBridge } from '@/lib/practice/acoustic/continuous
 import type { AcousticInferencePort } from '@/lib/practice/acoustic/runtime/inference-types';
 import type { BrowserAcousticCapture } from '@/lib/practice/acoustic/source/capture';
 import type { ContinuousEvidencePublication } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
-import type { LocalClock, PracticeTimebase } from '@/lib/practice/kernel/timebase';
+import type { LocalClock, PracticeTimebase } from '@/lib/practice/session/timebase';
 import type { MetronomeAudioPort } from '@/lib/practice/metronome/metronome-audio-port';
 import type { BrowserMidiControllerOptions } from '@/lib/practice/midi/browser-midi-controller';
 import type { PracticeRecordingMode } from '@/lib/practice/recording/recording-mode';

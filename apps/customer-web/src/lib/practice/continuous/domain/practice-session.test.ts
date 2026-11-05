@@ -1,13 +1,14 @@
-import { continuousSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
+import { withContinuousTiming } from '@/lib/practice/__fixtures__/practice-plan';
+import { continuousPracticePlan } from '@/lib/practice/__fixtures__/practice-plan';
 import { artifactWithKeys } from '../../__fixtures__/piano-key-artifact';
-import type { PracticePianoKey } from '@/lib/practice/kernel/piano-key';
+import type { PracticePianoKey } from '@/lib/practice/score/piano-key';
 import { CONTINUOUS_ASSIGNMENT_POLICY_ID } from '@/lib/practice/continuous/domain/evaluation/finalization-policy';
 import canonicalArtifactJson from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import { ContinuousPracticeSession } from '@/lib/practice/continuous/domain/practice-session';
 import { ContinuousMidiEvidence } from '@/lib/practice/continuous/input/midi-evidence';
-import { type PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
-import { resolvePracticeTempoPlan } from '@/lib/practice/kernel/tempo';
-import { ManualClock, PracticeTimebase, type SessionTime } from '@/lib/practice/kernel/timebase';
+import { type PracticeScoreArtifact } from '@/lib/practice/score/artifact';
+import { resolvePracticeTempoPlan } from '@/lib/practice/planning/tempo';
+import { ManualClock, PracticeTimebase, type SessionTime } from '@/lib/practice/session/timebase';
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import { ContinuousEvaluationSession } from '@/lib/practice/continuous/domain/evaluation/session';
 import type { ContinuousPracticeSessionOptions } from './practice-session';
@@ -25,7 +26,7 @@ function deadlineSession(score = artifact, countInTicks = 0) {
     const publication = cover(...args); if (publication) publications.push(publication); return publication;
   });
   const tempoPlan = resolvePracticeTempoPlan(score, { mode: 'CUSTOM_FIXED_BPM', bpm: 120 });
-  const session = new ContinuousPracticeSession({ ...continuousSessionPlan(score, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), clock, localSessionId: 'deadline-session', metadataClock: { nowEpochMs: () => 1000 }, countInTicks: countInTicks * score.ticksPerQuarter, tempoPlan, createClockEvidence: () => evidence });
+  const session = new ContinuousPracticeSession({ plan: withContinuousTiming(continuousPracticePlan(score, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), { countInTicks: countInTicks * score.ticksPerQuarter, tempoPlan }), clock, localSessionId: 'deadline-session', metadataClock: { nowEpochMs: () => 1000 }, createClockEvidence: () => evidence });
   session.start();
   return { clock, evidence, publications, session, tempoPlan };
 }
@@ -103,7 +104,7 @@ describe('explicit semantic MIDI progression', () => {
       }
     }
     const evaluation = session.completedEvaluation(); if (evaluation.status !== 'COMPLETE') throw new Error('incomplete');
-    const result = reason === 'SCOPE_COMPLETED' ? createContinuousPerformanceResult({ sourceId: 'source-fixture', artifact, localSessionId: session.localSessionId, inputSource: 'MIDI', scope: continuousSessionPlan(artifact, { scope: { kind: 'FULL' } }).scope, tempoPlan: h.tempoPlan, activeElapsedMs: session.snapshotSession().performance.activeElapsedMs, evaluation, evidenceProvenance: midiEvidenceProvenance(h.evidence.evidencePolicyId), completedAt: '2026-10-27T00:00:00.000Z' }) : null;
+    const result = reason === 'SCOPE_COMPLETED' ? createContinuousPerformanceResult({ sourceId: 'source-fixture', artifact, localSessionId: session.localSessionId, inputSource: 'MIDI', scope: continuousPracticePlan(artifact, { scope: { kind: 'FULL' } }).scope, tempoPlan: h.tempoPlan, activeElapsedMs: session.snapshotSession().performance.activeElapsedMs, evaluation, evidenceProvenance: midiEvidenceProvenance(h.evidence.evidencePolicyId), completedAt: '2026-10-27T00:00:00.000Z' }) : null;
     return { publications, evaluation, result, callCount };
   }
   it.each(['SCOPE_COMPLETED', 'STOPPED_BY_USER'] as const)('%s dense/sparse/irregular advancement has identical publications, finalities and completed assignment', reason => {
@@ -205,7 +206,7 @@ describe('Continuous session composition and record ownership', () => {
     const publications: ReturnType<ContinuousMidiEvidence['cover']>[] = [];
     const cover = evidence.cover.bind(evidence);
     vi.spyOn(evidence, 'cover').mockImplementation((...args) => { const p = cover(...args); if (p) publications.push(p); return p; });
-    const session = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), clock, localSessionId: 'timing', countInTicks: 4, createClockEvidence: () => evidence });
+    const session = new ContinuousPracticeSession({ plan: withContinuousTiming(continuousPracticePlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), { countInTicks: 4 }), clock, localSessionId: 'timing', createClockEvidence: () => evidence });
     const start = session.start();
     clock.advance(100); expect(session.observeMidiAttack(midiAttack('timing', clock.nowMs(), [60]))).toBe(false);
     clock.set(start.countInTotalMs + 1000); expect(session.pause().performanceTimeMs).toBe(1000);
@@ -225,17 +226,13 @@ describe('Continuous session composition and record ownership', () => {
     expect(session.evaluationSnapshot.assignment.completion).toMatchObject({ performanceTimeMs: terminal.performanceTimeMs,
       availabilitySessionTimeMs: terminal.nowMs });
   });
-  it('requires MIDI evidence in the type contract and excludes it from microphone options', () => {
-    type Midi = Extract<ContinuousPracticeSessionOptions, { inputSource: 'MIDI' }>;
-    type Microphone = Extract<ContinuousPracticeSessionOptions, { inputSource: 'MICROPHONE' }>;
-    expectTypeOf<Pick<Midi, 'inputSource'>>().not.toExtend<Pick<Midi, 'inputSource' | 'createClockEvidence'>>();
-    expectTypeOf<Microphone['createClockEvidence']>().toEqualTypeOf<undefined>();
+  it('keeps MIDI attack evidence in the local session time domain', () => {
     expectTypeOf<keyof Parameters<ContinuousPracticeSession['observeMidiAttack']>[0]>()
       .toEqualTypeOf<'captureTime' | 'pianoKey' | 'confidence'>();
   });
 
   it('fails closed on an untyped MIDI configuration with no evidence owner', () => {
-    const options: unknown = { artifact, scope: { kind: 'FULL' }, clock: new ManualClock(), inputSource: 'MIDI' };
+    const options: unknown = { plan: continuousPracticePlan(artifact), clock: new ManualClock() };
     expect(() => new ContinuousPracticeSession(options as ContinuousPracticeSessionOptions))
       .toThrow('MIDI sessions require a clock evidence input.');
   });
@@ -243,7 +240,7 @@ describe('Continuous session composition and record ownership', () => {
   it('rejects an untyped microphone configuration carrying a MIDI factory without constructing it', () => {
     const createClockEvidence = vi.fn();
     const options: unknown = {
-      artifact, scope: { kind: 'FULL' }, clock: new ManualClock(), inputSource: 'MICROPHONE', createClockEvidence,
+      plan: continuousPracticePlan(artifact, { inputSource: 'MICROPHONE' }), clock: new ManualClock(), createClockEvidence,
     };
     expect(() => new ContinuousPracticeSession(options as ContinuousPracticeSessionOptions))
       .toThrow('Microphone sessions do not accept MIDI evidence ownership.');
@@ -254,12 +251,11 @@ describe('Continuous session composition and record ownership', () => {
     let epochMs = 10_000;
     const clock = new ManualClock(100);
     const timebase = new PracticeTimebase({ domainId: 'capture-clock', runtimeOriginMs: 100 });
-    const version = { schemaVersion: 1, ticksPerQuarter: 1, runtimeVersion: 'session-contract' };
-    const session = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), clock, timebase, metadataClock: { nowEpochMs: () => epochMs }, version, localSessionId: 'product-session', countInTicks: 0 });
+    const session = new ContinuousPracticeSession({ plan: withContinuousTiming(continuousPracticePlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), { countInTicks: 0 }), clock, timebase, metadataClock: { nowEpochMs: () => epochMs }, localSessionId: 'product-session' });
     expect(session.localSessionId).toBe('product-session');
     expect(session.timebase).toBe(timebase);
     expect(session.snapshotSession()).toMatchObject({
-      localSessionId: 'product-session', inputSource: 'MICROPHONE', createdAtMs: 10_000, updatedAtMs: 10_000, version,
+      localSessionId: 'product-session', plan: { resources: { input: { kind: 'MICROPHONE' } } }, createdAtMs: 10_000, updatedAtMs: 10_000,
       performance: { state: 'READY', activeElapsedMs: 0 },
     });
     session.start();
@@ -275,7 +271,7 @@ describe('Continuous session composition and record ownership', () => {
 
   it('reads session record timing without driving a transport transition', () => {
     const clock = new ManualClock();
-    const session = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), clock, countInTicks: 0 });
+    const session = new ContinuousPracticeSession({ plan: withContinuousTiming(continuousPracticePlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), { countInTicks: 0 }), clock });
     session.start();
     clock.advance(20_000);
     expect(session.snapshotSession()).toMatchObject({
@@ -290,7 +286,7 @@ describe('Continuous session composition and record ownership', () => {
 describe('Continuous clock and evaluation composition', () => {
   it('keeps clock state separate from continuous evaluation state', () => {
     const clock = new ManualClock(0);
-    const session = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), createClockEvidence: domainId => new ContinuousMidiEvidence(domainId), tempoPlan: defaultTempoPlan, clock, countInTicks: 0, localSessionId: 'continuous-clock-separate' });
+    const session = new ContinuousPracticeSession({ plan: withContinuousTiming(continuousPracticePlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), { tempoPlan: defaultTempoPlan, countInTicks: 0 }), createClockEvidence: domainId => new ContinuousMidiEvidence(domainId), clock, localSessionId: 'continuous-clock-separate' });
 
     expect(session.advanceToNow().state).toBe('READY');
     expect(session.evaluationSnapshot.assignment.groups.flatMap(group => group.strikes)).toHaveLength(
@@ -310,7 +306,7 @@ describe('Continuous clock and evaluation composition', () => {
 
   it('MIDI produces canonical target assignment states through the sole accumulated evaluator', () => {
     const clock = new ManualClock(0);
-    const session = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI', tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 60 } }), createClockEvidence: domainId => new ContinuousMidiEvidence(domainId), clock, countInTicks: 0, localSessionId: 'target-states' });
+    const session = new ContinuousPracticeSession({ plan: withContinuousTiming(continuousPracticePlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI', tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 60 } }), { countInTicks: 0 }), createClockEvidence: domainId => new ContinuousMidiEvidence(domainId), clock, localSessionId: 'target-states' });
     session.start();
     let now = 0;
     for (const [time, pianoKey] of [[0, 60], [2000, 66], [3000, 69], [3900, 66], [4500, 74]] as const) {
@@ -330,7 +326,7 @@ describe('Continuous clock and evaluation composition', () => {
 
   it('does not advance MIDI frontier while paused', () => {
     const clock = new ManualClock(0);
-    const session = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), createClockEvidence: domainId => new ContinuousMidiEvidence(domainId), tempoPlan: defaultTempoPlan, clock, countInTicks: 0, localSessionId: 'continuous-midi-pause' });
+    const session = new ContinuousPracticeSession({ plan: withContinuousTiming(continuousPracticePlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), { tempoPlan: defaultTempoPlan, countInTicks: 0 }), createClockEvidence: domainId => new ContinuousMidiEvidence(domainId), clock, localSessionId: 'continuous-midi-pause' });
 
     session.start();
     clock.advance(100);
@@ -350,7 +346,7 @@ describe('Continuous clock and evaluation composition', () => {
     twoGroupArtifact.moments[1].canonicalEndTick = 16;
     twoGroupArtifact.scoreEndTick = 16;
     const extraClock = new ManualClock(0);
-    const session = new ContinuousPracticeSession({ ...continuousSessionPlan(twoGroupArtifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), createClockEvidence: domainId => new ContinuousMidiEvidence(domainId), tempoPlan: resolvePracticeTempoPlan(twoGroupArtifact,{mode:"SCORE"}), clock: extraClock, countInTicks: 0, localSessionId: 'continuous-global-extra' });
+    const session = new ContinuousPracticeSession({ plan: withContinuousTiming(continuousPracticePlan(twoGroupArtifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), { tempoPlan: resolvePracticeTempoPlan(twoGroupArtifact,{mode:"SCORE"}), countInTicks: 0 }), createClockEvidence: domainId => new ContinuousMidiEvidence(domainId), clock: extraClock, localSessionId: 'continuous-global-extra' });
 
     session.start();
     extraClock.advance(150);
@@ -366,7 +362,7 @@ describe('Continuous clock and evaluation composition', () => {
 
   it('syncs natural clock auto-end into final continuous evaluation without explicit end', () => {
     const naturalClock = new ManualClock(0);
-    const natural = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), createClockEvidence: domainId => new ContinuousMidiEvidence(domainId), tempoPlan: defaultTempoPlan, clock: naturalClock, countInTicks: 0 });
+    const natural = new ContinuousPracticeSession({ plan: withContinuousTiming(continuousPracticePlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), { tempoPlan: defaultTempoPlan, countInTicks: 0 }), createClockEvidence: domainId => new ContinuousMidiEvidence(domainId), clock: naturalClock });
     natural.start();
     naturalClock.advance(20_000);
     const snapshot = natural.advanceToNow();
@@ -382,7 +378,7 @@ describe('Continuous clock and evaluation composition', () => {
 
   it('uses NOT_REACHED only for manual stop tails', () => {
     const manualClock = new ManualClock(0);
-    const manual = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), createClockEvidence: domainId => new ContinuousMidiEvidence(domainId), tempoPlan: defaultTempoPlan, clock: manualClock, countInTicks: 0 });
+    const manual = new ContinuousPracticeSession({ plan: withContinuousTiming(continuousPracticePlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), { tempoPlan: defaultTempoPlan, countInTicks: 0 }), createClockEvidence: domainId => new ContinuousMidiEvidence(domainId), clock: manualClock });
     manual.start();
     manualClock.advance(100);
     manual.end('STOPPED_BY_USER');
@@ -395,7 +391,7 @@ describe('Continuous clock and evaluation composition', () => {
 
   it('drains MIDI completion through stop time while preserving missing and not-reached semantics', () => {
     const manualClock = new ManualClock(0);
-    const manual = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), createClockEvidence: domainId => new ContinuousMidiEvidence(domainId), tempoPlan: defaultTempoPlan, clock: manualClock, countInTicks: 0 });
+    const manual = new ContinuousPracticeSession({ plan: withContinuousTiming(continuousPracticePlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), { tempoPlan: defaultTempoPlan, countInTicks: 0 }), createClockEvidence: domainId => new ContinuousMidiEvidence(domainId), clock: manualClock });
     manual.start();
     manualClock.advance(1000);
     manual.end('STOPPED_BY_USER');
@@ -410,7 +406,7 @@ describe('Continuous clock and evaluation composition', () => {
 
   it('keeps matched MIDI evidence immediately before Stop after completion drain', () => {
     const manualClock = new ManualClock(0);
-    const manual = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), createClockEvidence: domainId => new ContinuousMidiEvidence(domainId), tempoPlan: defaultTempoPlan, clock: manualClock, countInTicks: 0, localSessionId: 'midi-stop-match' });
+    const manual = new ContinuousPracticeSession({ plan: withContinuousTiming(continuousPracticePlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), { tempoPlan: defaultTempoPlan, countInTicks: 0 }), createClockEvidence: domainId => new ContinuousMidiEvidence(domainId), clock: manualClock, localSessionId: 'midi-stop-match' });
     manual.start();
     manualClock.advance(100);
     expect(manual.observeMidiAttack(midiAttack(manual.timebase.domainId, 0, [60]))).toBe(true);
@@ -455,7 +451,7 @@ describe('Continuous clock and evaluation composition', () => {
 
     try {
       const offlineClock = new ManualClock(0);
-      const session = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), createClockEvidence: domainId => new ContinuousMidiEvidence(domainId), tempoPlan: defaultTempoPlan, clock: offlineClock, countInTicks: 0, localSessionId: 'active-session-network-loss' });
+      const session = new ContinuousPracticeSession({ plan: withContinuousTiming(continuousPracticePlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), { tempoPlan: defaultTempoPlan, countInTicks: 0 }), createClockEvidence: domainId => new ContinuousMidiEvidence(domainId), clock: offlineClock, localSessionId: 'active-session-network-loss' });
 
       expect(session.start()).toMatchObject({ state: 'RUNNING', performanceTimeMs: 0 });
       expect(session.observeMidiAttack(midiAttack(session.timebase.domainId, 0, [60]))).toBe(true);
@@ -484,7 +480,7 @@ describe('Continuous clock and evaluation composition', () => {
 
   it('fails closed when final evaluation still contains pending strikes', () => {
     const clock = new ManualClock(0);
-    const session = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), tempoPlan: defaultTempoPlan, clock, countInTicks: 0 });
+    const session = new ContinuousPracticeSession({ plan: withContinuousTiming(continuousPracticePlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), { tempoPlan: defaultTempoPlan, countInTicks: 0 }), clock });
     session.start();
     clock.advance(1000);
     session.end('STOPPED_BY_USER');
@@ -497,11 +493,11 @@ describe('Continuous clock and evaluation composition', () => {
   it('uses capture-time performance membership and closes ordinary MIDI evidence after completion', () => {
     const clock = new ManualClock(0);
     const tempoPlan = resolvePracticeTempoPlan(artifact, { mode: 'SCORE' });
-    const runtime = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: {
+    const runtime = new ContinuousPracticeSession({ plan: withContinuousTiming(continuousPracticePlan(artifact, { scope: {
         kind: 'RANGE',
         startGroupId: artifact.moments[0].groupId,
         endGroupId: artifact.moments[0].groupId,
-      }, inputSource: 'MIDI' }), createClockEvidence: domainId => new ContinuousMidiEvidence(domainId), tempoPlan, clock, countInTicks: 3 });
+      }, inputSource: 'MIDI' }), { tempoPlan, countInTicks: 3 }), createClockEvidence: domainId => new ContinuousMidiEvidence(domainId), clock });
     // Before start: state is READY
     const evidence = midiAttack(runtime.timebase.domainId, 100, [60]);
     expect(runtime.observeMidiAttack(evidence)).toBe(false);
@@ -537,7 +533,7 @@ describe('Continuous clock and evaluation composition', () => {
   it("uses native MIDI capture time rather than callback availability", () => {
     const midiTimebase = new PracticeTimebase({ domainId: 'normalized-midi' });
     const performanceClock = new ManualClock(0);
-    const performance = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), createClockEvidence: domainId => new ContinuousMidiEvidence(domainId), tempoPlan: defaultTempoPlan, clock: performanceClock, countInTicks: 0, localSessionId: 'normalized-midi', timebase: midiTimebase });
+    const performance = new ContinuousPracticeSession({ plan: withContinuousTiming(continuousPracticePlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), { tempoPlan: defaultTempoPlan, countInTicks: 0 }), createClockEvidence: domainId => new ContinuousMidiEvidence(domainId), clock: performanceClock, localSessionId: 'normalized-midi', timebase: midiTimebase });
     performance.start();
     performanceClock.advance(100);
     const evaluated = performance.observeMidiAttack({
@@ -567,7 +563,7 @@ describe('Continuous clock and evaluation composition', () => {
       events: [],
       moments: [],
     });
-    expect(() => new ContinuousPracticeSession({ ...continuousSessionPlan(empty, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), tempoPlan: resolvePracticeTempoPlan(empty, { mode: 'SCORE' }), clock: new ManualClock() })).toThrow('Practice scope requires at least one expected group.');
+    expect(() => new ContinuousPracticeSession({ plan: withContinuousTiming(continuousPracticePlan(empty, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), { tempoPlan: resolvePracticeTempoPlan(empty, { mode: 'SCORE' }) }), clock: new ManualClock() })).toThrow('Practice scope requires at least one expected group.');
 
   });
 
@@ -576,11 +572,11 @@ describe('Continuous clock and evaluation composition', () => {
     const art = cloneArtifact();
     const clock = new ManualClock(100);
 
-    const perfRuntime = new ContinuousPracticeSession({ ...continuousSessionPlan(art, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE', metronomeEnabled: false }), clock, metronomeEnabled: false });
-    expect(perfRuntime.snapshotSession().metronomeEnabled).toBe(false);
+    const perfRuntime = new ContinuousPracticeSession({ plan: continuousPracticePlan(art, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE', metronomeEnabled: false }), clock });
+    expect(perfRuntime.snapshotSession().performance.metronomeEnabled).toBe(false);
 
     perfRuntime.setMetronomeEnabled(true);
-    expect(perfRuntime.snapshotSession().metronomeEnabled).toBe(true);
+    expect(perfRuntime.snapshotSession().performance.metronomeEnabled).toBe(true);
 
   });
 
@@ -589,24 +585,24 @@ describe('Continuous clock and evaluation composition', () => {
     const art = cloneArtifact();
     const clock = new ManualClock(0);
 
-    const perfA = new ContinuousPracticeSession({ ...continuousSessionPlan(art, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE', metronomeEnabled: false }), clock, metronomeEnabled: false });
+    const perfA = new ContinuousPracticeSession({ plan: continuousPracticePlan(art, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE', metronomeEnabled: false }), clock });
     perfA.start();
-    expect(perfA.snapshotSession().metronomeEnabled).toBe(false);
+    expect(perfA.snapshotSession().performance.metronomeEnabled).toBe(false);
     perfA.setMetronomeEnabled(true);
-    expect(perfA.snapshotSession().metronomeEnabled).toBe(true);
+    expect(perfA.snapshotSession().performance.metronomeEnabled).toBe(true);
     perfA.end('STOPPED_BY_USER');
     const finalPerfA = perfA.snapshotSession();
     expect(finalPerfA.lifecycleState).toBe('ENDED');
-    expect(finalPerfA.metronomeEnabled).toBe(true);
+    expect(finalPerfA.performance.metronomeEnabled).toBe(true);
 
-    const perfB = new ContinuousPracticeSession({ ...continuousSessionPlan(art, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE', metronomeEnabled: true }), clock, metronomeEnabled: true });
+    const perfB = new ContinuousPracticeSession({ plan: continuousPracticePlan(art, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE', metronomeEnabled: true }), clock });
     perfB.start();
-    expect(perfB.snapshotSession().metronomeEnabled).toBe(true);
+    expect(perfB.snapshotSession().performance.metronomeEnabled).toBe(true);
     perfB.setMetronomeEnabled(false);
     perfB.end('STOPPED_BY_USER');
     const finalPerfB = perfB.snapshotSession();
     expect(finalPerfB.lifecycleState).toBe('ENDED');
-    expect(finalPerfB.metronomeEnabled).toBe(false);
+    expect(finalPerfB.performance.metronomeEnabled).toBe(false);
 
   });
 });
@@ -620,7 +616,7 @@ it('publishes terminal MIDI coverage before completing evaluation, exactly once'
     return originalComplete.apply(this, args);
   });
   try {
-    const session = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), clock, countInTicks: 0, createClockEvidence: domainId => {
+    const session = new ContinuousPracticeSession({ plan: withContinuousTiming(continuousPracticePlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), { countInTicks: 0 }), clock, createClockEvidence: domainId => {
         const evidence = new ContinuousMidiEvidence(domainId);
         return {
           observe: (...args) => evidence.observe(...args),
@@ -653,7 +649,7 @@ it('publishes terminal MIDI coverage before completing evaluation, exactly once'
 
 it('advances MIDI analysis from performance clock time', () => {
   const clock = new ManualClock(0);
-  const session = new ContinuousPracticeSession({ ...continuousSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), createClockEvidence: domainId => new ContinuousMidiEvidence(domainId), tempoPlan: defaultTempoPlan, clock, countInTicks: 0, localSessionId: 'continuous-midi-frontier' });
+  const session = new ContinuousPracticeSession({ plan: withContinuousTiming(continuousPracticePlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), { tempoPlan: defaultTempoPlan, countInTicks: 0 }), createClockEvidence: domainId => new ContinuousMidiEvidence(domainId), clock, localSessionId: 'continuous-midi-frontier' });
 
   session.start();
   clock.advance(1_000);

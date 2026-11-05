@@ -5,12 +5,12 @@ import { StrictMode } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { usePracticeExecution } from './use-practice-execution';
-import { stepSessionPlan, continuousSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
+import { stepPracticePlan, continuousPracticePlan } from '@/lib/practice/__fixtures__/practice-plan';
 import { borrowedDevices } from '@/lib/practice/__fixtures__/device-roots';
 import { rootHealthFixture } from '@/lib/practice/__fixtures__/root-health';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
-import type { PracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
-import { ManualClock } from '@/lib/practice/kernel/timebase';
+import type { PracticeScoreArtifact } from '@/lib/practice/score/artifact';
+import { ManualClock } from '@/lib/practice/session/timebase';
 import { StepPracticeController } from '@/lib/practice/step/step-practice-controller';
 import { ContinuousPracticeController } from '@/lib/practice/continuous/continuous-practice-controller';
 import * as stepPlatform from '@/lib/practice/step/step-platform';
@@ -26,13 +26,13 @@ function rig() {
   const continuous = vi.spyOn(continuousPlatform, 'browserContinuousPlatform').mockReturnValue({ midiClock: clock, createMidi,
     createMetronomeAudio: () => metronomeAudioFixture(), createRecorder: () => new PerformanceRecorder('OFF', memoryRecordingSinkFactory) } as never);
   const completion = vi.fn();
-  return { health, clock, meter, midi, step, continuous, options: { plan: stepSessionPlan(artifact), admitted: true,
+  return { health, clock, meter, midi, step, continuous, options: { plan: stepPracticePlan(artifact), admitted: true,
     compositionId: 'score/revision', borrowRoots, rootHealth: health.port, onNaturalCompletion: completion }, completion };
 }
 it('StrictMode READY and candidate scope/tempo edits create zero execution platforms, controllers or subscriptions', async () => {
   const r = rig(), stepStart = vi.spyOn(StepPracticeController.prototype, 'start'), continuousStart = vi.spyOn(ContinuousPracticeController.prototype, 'start');
   const { result, rerender, unmount } = renderHook(options => usePracticeExecution(options), { initialProps: r.options, wrapper: StrictMode });
-  const candidate = stepSessionPlan(artifact, { scope: { kind: 'RANGE', startGroupId: artifact.moments[1].groupId, endGroupId: artifact.moments[2].groupId },
+  const candidate = stepPracticePlan(artifact, { scope: { kind: 'RANGE', startGroupId: artifact.moments[1].groupId, endGroupId: artifact.moments[2].groupId },
     tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 100 }, metronomeEnabled: true });
   rerender({ ...r.options, plan: candidate });
   expect(r.step).not.toHaveBeenCalled(); expect(r.continuous).not.toHaveBeenCalled(); expect(r.health.listenerCount()).toBe(0);
@@ -46,7 +46,7 @@ it('StrictMode READY and candidate scope/tempo edits create zero execution platf
 });
 it('Continuous creates no platform until Start, and End returns READY without replacement', async () => {
   const r = rig(), start = vi.spyOn(ContinuousPracticeController.prototype, 'start'), step = vi.spyOn(StepPracticeController.prototype, 'start');
-  const { result, unmount } = renderHook(() => usePracticeExecution({ ...r.options, plan: continuousSessionPlan(artifact) }));
+  const { result, unmount } = renderHook(() => usePracticeExecution({ ...r.options, plan: continuousPracticePlan(artifact) }));
   expect(r.continuous).not.toHaveBeenCalled();
   await act(async () => { await result.current.start(); }); expect(start).toHaveBeenCalledOnce(); expect(step).not.toHaveBeenCalled();
   await act(async () => { result.current.pause(); }); expect(result.current.lifecycle).toBe('PAUSED');
@@ -89,7 +89,7 @@ it('route identity changes serialize retirement; stale completion cannot replace
 
 it('real Continuous completion publishes one handoff through the owner and Retry creates one fresh controller', async () => {
   const r = rig(), started = vi.spyOn(ContinuousPracticeController.prototype, 'start');
-  const { result, unmount } = renderHook(() => usePracticeExecution({ ...r.options, plan: continuousSessionPlan(artifact) }));
+  const { result, unmount } = renderHook(() => usePracticeExecution({ ...r.options, plan: continuousPracticePlan(artifact) }));
   await act(async () => { await result.current.start(); }); const controller = started.mock.contexts[0] as ContinuousPracticeController;
   await act(async () => { r.clock.advance(60000); controller.refresh(); });
   await waitFor(() => expect(result.current.lifecycle).toBe('COMPLETED'));

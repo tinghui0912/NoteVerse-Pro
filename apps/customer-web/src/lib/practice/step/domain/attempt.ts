@@ -1,8 +1,7 @@
-import type { PracticePianoKey } from '@/lib/practice/kernel/piano-key';
-import type { PracticeInputSource } from '@/lib/practice/kernel/session';
-import type { SessionTime } from '@/lib/practice/kernel/timebase';
+import type { PracticePianoKey } from '@/lib/practice/score/piano-key';
+import type { PracticeInputSource } from '@/lib/practice/planning/intent';
+import type { SessionTime } from '@/lib/practice/session/timebase';
 
-export const STEP_RUNTIME_VERSION = Object.freeze({ schemaVersion: 9, runtimeVersion: 'step-piano-key-learning-v12' });
 export type StepAttemptState = 'READY' | 'CAPTURING' | 'ANALYZING' | 'POST_VERDICT';
 export type StepTarget = Readonly<{
   stepId: string; targetGeneration: number; inputEligibleAfter: Readonly<SessionTime>;

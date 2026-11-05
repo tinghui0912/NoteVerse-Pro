@@ -1,5 +1,5 @@
 import type { PracticeMomentView } from '@/lib/practice/score-view/moment-view';
-import type { PracticeScope } from '@/lib/practice/kernel/scope';
+import type { PracticeScope } from '@/lib/practice/planning/scope';
 
 export type PracticeRangeSelection =
   | { kind: 'FULL_PIECE' }

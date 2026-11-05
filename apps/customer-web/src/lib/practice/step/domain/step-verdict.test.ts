@@ -1,17 +1,16 @@
-import { stepSessionPlan } from '@/lib/practice/__fixtures__/session-plan';
+import { stepPracticePlan } from '@/lib/practice/__fixtures__/practice-plan';
 import { artifactWithKeys } from '@/lib/practice/__fixtures__/piano-key-artifact';
 import { describe, expect, it } from 'vitest';
-import type { PracticeInputSource } from '@/lib/practice/kernel/session';
+import type { PracticeInputSource } from '@/lib/practice/planning/intent';
 import { normalizePianoKeySet, pianoKeySetsEqual, type StepPianoKeyEvidence } from '@/lib/practice/step/domain/attempt';
-import { StepPracticeRuntime, type StepPracticeRuntimeOptions } from '@/lib/practice/step/domain/runtime';
-import { ManualClock } from '@/lib/practice/kernel/timebase';
+import { StepPracticeSession, type StepPracticeSessionOptions } from '@/lib/practice/step/domain/practice-session';
+import { ManualClock } from '@/lib/practice/session/timebase';
 
 function setup(inputSource: PracticeInputSource, expected: readonly number[] = [56, 64]) {
   const artifact = artifactWithKeys(Array.from({ length: 5 }, () => normalizePianoKeySet(expected)));
   const clock = new ManualClock(), domainId = 'exact-learning';
-  const options: StepPracticeRuntimeOptions = { ...stepSessionPlan(artifact, { inputSource }), clock, localSessionId: domainId,
-    metadataClock: { nowEpochMs: () => 0 } };
-  const runtime = new StepPracticeRuntime(options);
+  const options: StepPracticeSessionOptions = { plan: stepPracticePlan(artifact, { inputSource }), clock, localSessionId: domainId, metadataClock: { nowEpochMs: () => 0 } };
+  const runtime = new StepPracticeSession(options);
   const time = (ms: number) => ({ domainId, ms });
   const finish = (observed: readonly number[], start = 100) => {
     const id = runtime.openAttempt(time(start))!;
@@ -73,9 +72,9 @@ describe('STEP exact pianoKey-set learning verdict', () => {
   });
   it('input ownership is pinned while target comparison has no source-specific policy', () => {
     const s = setup('MIDI', [60]);
-    s.options.inputSource = 'MICROPHONE';
+    expect(() => Object.assign(s.options.plan.resources.input, { kind: 'MICROPHONE' })).toThrow();
     expect(s.finish([60, 67]).record).toMatchObject({ inputSource: 'MIDI', verdict: 'MISMATCH' });
-    expect(s.runtime.snapshot().inputSource).toBe('MIDI');
+    expect(s.runtime.snapshot().plan.resources.input.kind).toBe('MIDI');
   });
   it.each(['MIDI', 'MICROPHONE'] as const)('%s confidence is retained metadata, not a verdict threshold', source => {
     for (const confidence of [0, .01, .49, .99, 1]) {
@@ -117,7 +116,7 @@ describe('STEP exact pianoKey-set learning verdict', () => {
 it.each(['MIDI', 'MICROPHONE'] as const)('%s compares physical piano endpoints and all88 keys without a scope-specific legality rule', inputSource => {
   const keys = Array.from({ length: 88 }, (_, i) => i + 21);
   const artifact = artifactWithKeys([[21, 108], keys]);
-  const runtime = new StepPracticeRuntime({ ...stepSessionPlan(artifact, { scope: { kind: 'FULL' }, inputSource: inputSource }), localSessionId: 'piano-endpoints', clock: new ManualClock() });
+  const runtime = new StepPracticeSession({ plan: stepPracticePlan(artifact, { scope: { kind: 'FULL' }, inputSource: inputSource }), localSessionId: 'piano-endpoints', clock: new ManualClock() });
   const time = (ms: number) => ({ domainId: 'piano-endpoints', ms });
   expect(runtime.currentTarget()?.attackKeys).toEqual([21, 108]);
   const first = runtime.openAttempt(time(1))!; runtime.analyzeAttempt(first);

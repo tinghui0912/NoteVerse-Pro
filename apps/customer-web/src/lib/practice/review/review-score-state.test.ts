@@ -1,8 +1,8 @@
 import { expect, it } from 'vitest';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import { canonicalContinuousResultFixture } from '@/lib/practice/__fixtures__/continuous-result';
-import { parsePracticeScoreArtifact } from '@/lib/practice/kernel/artifact';
-import { resolvePracticeScope } from '@/lib/practice/kernel/scope';
+import { parsePracticeScoreArtifact } from '@/lib/practice/score/artifact';
+import { resolvePracticeScope } from '@/lib/practice/planning/scope';
 import { createTransientReviewSession } from './transient-review-session';
 import { resolveReviewScoreState } from './review-score-state';
 const artifact=parsePracticeScoreArtifact(fixture),result=canonicalContinuousResultFixture();
