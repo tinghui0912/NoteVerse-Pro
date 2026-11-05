@@ -64,7 +64,7 @@ function useWorkspaceState(createEnvironment: () => PracticeEnvironment) {
   }, []);
   const handoffToReview = useCallback((completion: ContinuousPracticeCompletion) => {
     if (!prepared.current || prepared.current.admission.configuration.mode !== 'CONTINUOUS_PLAY'
-      || completion.result.inputSource !== prepared.current.admission.configuration.inputSource) {
+      || completion.result.session.plan.resources.input.kind !== prepared.current.admission.configuration.inputSource) {
       throw new Error('Matching prepared Continuous Practice required for Review handoff.');
     }
     const session = createTransientReviewSession(completion, prepared.current.admission.source);

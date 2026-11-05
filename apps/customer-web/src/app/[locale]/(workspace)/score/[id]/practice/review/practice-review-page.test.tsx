@@ -1,7 +1,12 @@
 import { recordingSinkFixture, ownedMediaFixture } from '@/lib/practice/__fixtures__/recording-sink';
 import { releaseTransientReviewSession, createTransientReviewSession, type TransientReviewSession } from '@/lib/practice/review/transient-review-session';
 import type { ContinuousPracticeCompletion } from '@/lib/practice/continuous/completion';
-import { continuousResultFixture } from '@/lib/practice/__fixtures__/continuous-result';
+import { completedContinuousSessionFixture } from '@/lib/practice/__fixtures__/continuous-result';
+import { createContinuousPerformanceResult } from '@/lib/practice/result/continuous-performance-result';
+import { planPractice } from '@/lib/practice/planning/practice-plan';
+import type { PracticeInputSource } from '@/lib/practice/planning/intent';
+import type { PracticeTempoSelection } from '@/lib/practice/planning/tempo';
+import { ContinuousEvaluationSession } from '@/lib/practice/continuous/domain/evaluation/session';
 // @vitest-environment jsdom
 
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -200,7 +205,7 @@ const reviewWorkspace = { reviewSession: null as TransientReviewSession | null, 
 vi.mock('@/contexts/practice-workspace-context', () => ({ usePracticeWorkspace: () => reviewWorkspace }));
 function provideReview(completion: ContinuousPracticeCompletion) {
   reviewWorkspace.reviewSession = createTransientReviewSession(completion, {
-    sourceId: completion.result.sourceId, artifact: currentMockArtifact, musicXml: '<score-partwise></score-partwise>',
+    sourceId: completion.result.session.plan.source.sourceId, artifact: currentMockArtifact, musicXml: '<score-partwise></score-partwise>',
   });
 }
 
@@ -297,6 +302,46 @@ function completeEvaluation(
   }))));
 }
 
+function reviewResult(options: {
+  localSessionId: string; inputSource: PracticeInputSource; activeElapsedMs: number;
+  tempoSelection: PracticeTempoSelection; evaluation: CompletedContinuousEvaluation; updatedAtMs: number;
+}) {
+  const groups = options.evaluation.status === 'COMPLETE' ? options.evaluation.assignment.groups : [];
+  if (groups.length) {
+    // The notation fixture describes the same canonical attacks as the evaluation fixture.
+    currentMockArtifact = createMockArtifact({
+      notes: groups.flatMap((group, i) => group.strikes.flatMap(strike => strike.renderNoteIds.map(noteId => ({
+        noteId, renderNoteId: noteId, eventId: `event-${i}`, pianoKey: strike.pianoKey,
+        measureNumber: '1', staffId: '', voiceId: '', tieTypes: [],
+      })))),
+      events: groups.map((_, i) => ({ eventId: `event-${i}`, onsetTick: i * 4, durationTicks: 4 })),
+      moments: groups.map((group, i) => ({ groupId: group.groupId, onsetTick: i * 4, canonicalEndTick: (i + 1) * 4,
+        attacks: group.strikes.map(strike => ({ attackId: strike.strikeId, pianoKey: strike.pianoKey, noteIds: strike.renderNoteIds })),
+        continuationNoteIds: [],
+      })), scoreEndTick: groups.length * 4,
+    });
+  }
+  const plan = planPractice({ sourceId: 'source-fixture', artifact: currentMockArtifact }, {
+    mode: 'CONTINUOUS_PLAY', inputSource: options.inputSource, recordingMode: 'OFF',
+    scope: { kind: 'FULL' }, tempoSelection: options.tempoSelection, metronomeEnabled: false,
+  });
+  if (plan.mode !== 'CONTINUOUS_PLAY') throw new Error('Expected Continuous plan');
+  const session = completedContinuousSessionFixture(plan, options);
+  let evaluation = options.evaluation;
+  if (evaluation.status === 'COMPLETE') {
+    if (groups.length) evaluation = { ...evaluation, assignment: { ...evaluation.assignment, sessionDomainId: session.localSessionId } };
+    else {
+      const evaluator = new ContinuousEvaluationSession({ artifact: plan.source.artifact, scope: plan.scope,
+        inputSource: options.inputSource, sessionDomainId: session.localSessionId, timeline: { tickToTimeMs: tick => tick * 500 } });
+      evaluator.publish({ publicationId: 'coverage', sessionDomainId: session.localSessionId,
+        observations: [], analyzedThroughPerformanceMs: 10000, availabilitySessionTimeMs: 10000 });
+      evaluator.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 10000, availabilitySessionTimeMs: 10000 });
+      evaluation = evaluator.completedEvaluation();
+    }
+  }
+  return createContinuousPerformanceResult({ session, evaluation });
+}
+
 describe('PracticeReviewPage', () => {
   beforeEach(() => {
     translationMocks.locale = 'zh';
@@ -358,13 +403,15 @@ describe('PracticeReviewPage', () => {
       onError: error => { throw error; },
     });
     const completion = createVideoCompletion();
-    provideReview({
-      ...completion,
-      result: { ...completion.result, scope: {
-        kind: 'RANGE', startIndex: 1, endIndex: 1, startGroupId: 'g-2', endGroupId: 'g-2',
-        startTick: 4, terminalTick: 8,
-      } },
+    const plan = planPractice(completion.result.session.plan.source, {
+      mode: 'CONTINUOUS_PLAY', inputSource: 'MICROPHONE', recordingMode: 'OFF', metronomeEnabled: false,
+      scope: { kind: 'RANGE', startGroupId: 'g-2', endGroupId: 'g-2' }, tempoSelection: { mode: 'SCORE' },
     });
+    if (plan.mode !== 'CONTINUOUS_PLAY') throw new Error('Expected Continuous');
+    provideReview({ ...completion, result: createContinuousPerformanceResult({
+      session: completedContinuousSessionFixture(plan, { updatedAtMs: completion.result.session.updatedAtMs }),
+      evaluation: { status: 'UNAVAILABLE', inputSource: 'MICROPHONE', assignmentPolicyId: 'CONTINUOUS_EXACT_PIANO_KEY_ORDERED_ASSIGNMENT_FINALITY_V5', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' },
+    }) });
 
     const view = render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
     expect(screen.getByText(locale === 'en' ? 'Score Tempo' : '原速')).toBeInTheDocument();
@@ -372,7 +419,7 @@ describe('PracticeReviewPage', () => {
       ? 'Section Performance (Beats 4 - 8)' : '选段演奏 (第 4 - 8 拍)')).toBeInTheDocument();
     const completedTime = new Intl.DateTimeFormat(locale, {
       hour: 'numeric', minute: '2-digit', second: '2-digit',
-    }).format(new Date(completion.result.completedAt));
+    }).format(new Date(completion.result.session.updatedAtMs));
     expect(screen.getByText(locale === 'en' ? `Completed at ${completedTime}` : `完成时间：${completedTime}`)).toBeInTheDocument();
     expect(screen.getByTestId('mock-verovio-viewer')).toBeInTheDocument();
     if (locale === 'en') {
@@ -384,17 +431,13 @@ describe('PracticeReviewPage', () => {
   it('renders expired empty state when handoff scoreId does not match url', () => {
     currentMockArtifact = createMockArtifact({ scoreId: 'score-OTHER' });
     provideReview({
-      result: continuousResultFixture({ sourceId: 'source-fixture',
+      result: reviewResult({
         localSessionId: 'sess-1',
-        scoreId: 'score-OTHER',
-        scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startTick: 0, terminalTick: 8 },
-        tempoPlan: { selection: { mode: 'SCORE' }, segments: [{ startTick: 0, bpm: 80, source: 'CUSTOM' }] },
         inputSource: 'MICROPHONE',
         activeElapsedMs: 0,
+        tempoSelection: { mode: 'SCORE' },
         evaluation: completeEvaluation(),
-        revisionId: 'rev-1',
-        artifactId: 'art-1',
-        completedAt: new Date().toISOString()
+        updatedAtMs: Date.parse(new Date().toISOString()),
       }), recording: { status: 'UNAVAILABLE', reason: 'NONE' }
     });
 
@@ -404,25 +447,20 @@ describe('PracticeReviewPage', () => {
 
   it('renders full review report with player when valid completion has audio READY', () => {
     const validCompletion: ContinuousPracticeCompletion = {
-      result: continuousResultFixture({ sourceId: 'source-fixture',
+      result: reviewResult({
         localSessionId: 'sess-1',
-        scoreId: 'score-123',
-        revisionId: 'rev-1',
-        artifactId: 'art-1',
-        scope: { kind: 'FULL', startIndex: 0, endIndex: 3, startTick: 0, terminalTick: 16 },
-        tempoPlan: {
-          selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 100 },
-          segments: [{ startTick: 0, bpm: 100, source: 'CUSTOM' }],
-        },
         inputSource: 'MICROPHONE',
         activeElapsedMs: 9600,
+        tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 100 },
         evaluation: completeEvaluation([
           {
             expectedGroupId: 'g-1',
             performanceTimeMs: 0,
             confidence: 0.9,
             source: 'ACOUSTIC',
-            expectedStrikeOutcomes: [{ strikeId: 's-1', pianoKey: 60, renderNoteIds: ['n-1'], result: 'MATCHED' }],
+            expectedStrikeOutcomes: [
+              { strikeId: 's-1', pianoKey: 60, renderNoteIds: ['n-1'], result: 'MATCHED' },
+            ],
             unattributedKeys: [],
             renderNoteIds: ['n-1'],
             measureNumbers: ['1'],
@@ -432,13 +470,15 @@ describe('PracticeReviewPage', () => {
             performanceTimeMs: 600,
             confidence: 0.7,
             source: 'ACOUSTIC',
-            expectedStrikeOutcomes: [{ strikeId: 's-2', pianoKey: 62, renderNoteIds: ['n-2'], result: 'NOT_REACHED' }],
+            expectedStrikeOutcomes: [
+              { strikeId: 's-2', pianoKey: 62, renderNoteIds: ['n-2'], result: 'NOT_REACHED' },
+            ],
             unattributedKeys: [],
             renderNoteIds: ['n-2'],
             measureNumbers: ['1'],
           },
         ]),
-        completedAt: '2026-09-20T12:00:00.000Z'
+        updatedAtMs: Date.parse('2026-09-20T12:00:00.000Z'),
       }), recording: {
         status: 'READY',
         kind: 'AUDIO',
@@ -460,7 +500,7 @@ describe('PracticeReviewPage', () => {
     expect(screen.getByText('00:09')).toBeDefined(); // 9600ms = 9s
     expect(screen.getByText('100 BPM')).toBeDefined();
     expect(screen.getByText('麦克风 (Acoustic)')).toBeDefined();
-    expect(screen.getByText('全曲演奏 (第 0 - 16 拍)')).toBeDefined();
+    expect(screen.getByText(`全曲演奏 (第 0 - ${validCompletion.result.session.plan.scope.terminalTick} 拍)`)).toBeDefined();
 
     for (const label of ['目标音', '正确', '错音', '漏弹', '未完成', '已识别目标音', '未确认目标音', '额外音', '额外演奏']) {
       expect(screen.queryByText(label, { exact: true })).toBeNull();
@@ -482,89 +522,125 @@ describe('PracticeReviewPage', () => {
     const applySpy = vi.spyOn(EvaluationAnnotationController.prototype, 'apply');
 
     const completionWithChordsAndOutcomes: ContinuousPracticeCompletion = {
-      result: continuousResultFixture({ sourceId: 'source-fixture',
+      result: reviewResult({
         localSessionId: 'sess-1',
-        scoreId: 'score-123',
-        revisionId: 'rev-1',
-        artifactId: 'art-1',
-        scope: { kind: 'FULL', startIndex: 0, endIndex: 4, startTick: 0, terminalTick: 20 },
-        tempoPlan: {
-          selection: { mode: 'SCORE' },
-          segments: [{ startTick: 0, bpm: 80, source: 'MUSICXML' }],
-        },
-        inputSource,
+        inputSource: inputSource,
         activeElapsedMs: 10000,
-        evaluation: completeEvaluation([
-          // 1. MATCH group with 2 matched strikes in a chord
-          {
-            expectedGroupId: 'g-1',
-            performanceTimeMs: 0,
-            confidence: 0.95,
-            source: 'ACOUSTIC',
-            expectedStrikeOutcomes: [
-              { strikeId: 's-c4', pianoKey: 60, renderNoteIds: ['note-c4'], result: 'MATCHED' },
-              { strikeId: 's-e4', pianoKey: 64, renderNoteIds: ['note-e4'], result: 'MATCHED' },
-            ],
-            unattributedKeys: [],
-            renderNoteIds: ['note-c4', 'note-e4'],
-            measureNumbers: ['1'],
-          },
-          // 2. One matched and one unmatched target
-          {
-            expectedGroupId: 'g-2',
-            performanceTimeMs: 1000,
-            confidence: 0.7,
-            source: 'ACOUSTIC',
-            expectedStrikeOutcomes: [
-              { strikeId: 's-g4', pianoKey: 67, renderNoteIds: ['note-g4'], result: 'MATCHED' },
-              { strikeId: 's-b4', pianoKey: 71, renderNoteIds: ['note-b4'], result: 'UNMATCHED' },
-            ],
-            unattributedKeys: [],
-            renderNoteIds: ['note-g4', 'note-b4'],
-            measureNumbers: ['1'],
-          },
-          // 3. One supported target and one unattributed physical observation
-          {
-            expectedGroupId: 'g-3',
-            performanceTimeMs: 2000,
-            confidence: 0.3,
-            source: 'ACOUSTIC',
-            expectedStrikeOutcomes: [
-              { strikeId: 's-c5', pianoKey: 72, renderNoteIds: ['note-c5'], result: 'MATCHED' },
-              { strikeId: 's-e5', pianoKey: 76, renderNoteIds: ['note-e5'], result: 'UNMATCHED' },
-            ],
-            unattributedKeys: [75],
-            renderNoteIds: ['note-c5', 'note-e5'],
-            measureNumbers: ['2'],
-          },
-          // 4. Manual-stop tail group with a not-reached strike
-          {
-            expectedGroupId: 'g-4',
-            performanceTimeMs: 3000,
-            confidence: 0.4,
-            source: 'ACOUSTIC',
-            expectedStrikeOutcomes: [
-              { strikeId: 's-f4', pianoKey: 65, renderNoteIds: ['note-f4'], result: 'NOT_REACHED' },
-            ],
-            unattributedKeys: [],
-            renderNoteIds: ['note-f4'],
-            measureNumbers: ['2'],
-          },
-          // 5. Another target beyond terminal coverage
-          {
-            expectedGroupId: 'g-5',
-            performanceTimeMs: 4000,
-            confidence: 0,
-            source: 'ACOUSTIC',
-            expectedStrikeOutcomes: [
-              { strikeId: 's-a4', pianoKey: 69, renderNoteIds: ['note-a4'], result: 'NOT_REACHED' },
-            ],
-            unattributedKeys: [],
-            renderNoteIds: ['note-a4'],
-            measureNumbers: ['3'],
-          },
-        ], inputSource),
-        completedAt: '2026-09-20T12:00:00.000Z'
+        tempoSelection: { mode: 'SCORE' },
+        evaluation: completeEvaluation(
+          [
+            // 1. MATCH group with 2 matched strikes in a chord
+            {
+              expectedGroupId: 'g-1',
+              performanceTimeMs: 0,
+              confidence: 0.95,
+              source: 'ACOUSTIC',
+              expectedStrikeOutcomes: [
+                {
+                  strikeId: 's-c4',
+                  pianoKey: 60,
+                  renderNoteIds: ['note-c4'],
+                  result: 'MATCHED',
+                },
+                {
+                  strikeId: 's-e4',
+                  pianoKey: 64,
+                  renderNoteIds: ['note-e4'],
+                  result: 'MATCHED',
+                },
+              ],
+              unattributedKeys: [],
+              renderNoteIds: ['note-c4', 'note-e4'],
+              measureNumbers: ['1'],
+            },
+            // 2. One matched and one unmatched target
+            {
+              expectedGroupId: 'g-2',
+              performanceTimeMs: 1000,
+              confidence: 0.7,
+              source: 'ACOUSTIC',
+              expectedStrikeOutcomes: [
+                {
+                  strikeId: 's-g4',
+                  pianoKey: 67,
+                  renderNoteIds: ['note-g4'],
+                  result: 'MATCHED',
+                },
+                {
+                  strikeId: 's-b4',
+                  pianoKey: 71,
+                  renderNoteIds: ['note-b4'],
+                  result: 'UNMATCHED',
+                },
+              ],
+              unattributedKeys: [],
+              renderNoteIds: ['note-g4', 'note-b4'],
+              measureNumbers: ['1'],
+            },
+            // 3. One supported target and one unattributed physical observation
+            {
+              expectedGroupId: 'g-3',
+              performanceTimeMs: 2000,
+              confidence: 0.3,
+              source: 'ACOUSTIC',
+              expectedStrikeOutcomes: [
+                {
+                  strikeId: 's-c5',
+                  pianoKey: 72,
+                  renderNoteIds: ['note-c5'],
+                  result: 'MATCHED',
+                },
+                {
+                  strikeId: 's-e5',
+                  pianoKey: 76,
+                  renderNoteIds: ['note-e5'],
+                  result: 'UNMATCHED',
+                },
+              ],
+              unattributedKeys: [75],
+              renderNoteIds: ['note-c5', 'note-e5'],
+              measureNumbers: ['2'],
+            },
+            // 4. Manual-stop tail group with a not-reached strike
+            {
+              expectedGroupId: 'g-4',
+              performanceTimeMs: 3000,
+              confidence: 0.4,
+              source: 'ACOUSTIC',
+              expectedStrikeOutcomes: [
+                {
+                  strikeId: 's-f4',
+                  pianoKey: 65,
+                  renderNoteIds: ['note-f4'],
+                  result: 'NOT_REACHED',
+                },
+              ],
+              unattributedKeys: [],
+              renderNoteIds: ['note-f4'],
+              measureNumbers: ['2'],
+            },
+            // 5. Another target beyond terminal coverage
+            {
+              expectedGroupId: 'g-5',
+              performanceTimeMs: 4000,
+              confidence: 0,
+              source: 'ACOUSTIC',
+              expectedStrikeOutcomes: [
+                {
+                  strikeId: 's-a4',
+                  pianoKey: 69,
+                  renderNoteIds: ['note-a4'],
+                  result: 'NOT_REACHED',
+                },
+              ],
+              unattributedKeys: [],
+              renderNoteIds: ['note-a4'],
+              measureNumbers: ['3'],
+            },
+          ],
+          inputSource,
+        ),
+        updatedAtMs: Date.parse('2026-09-20T12:00:00.000Z'),
       }), recording: {
         status: 'READY',
         kind: 'AUDIO',
@@ -608,12 +684,19 @@ describe('PracticeReviewPage', () => {
   });
 
   it('keeps replay and a clear notice when completed evaluation is unavailable, without aggregate cards', () => {
-    const result = continuousResultFixture({ sourceId: 'source-fixture', localSessionId: 'unavailable', scoreId: 'score-123', revisionId: 'rev-1', artifactId: 'art-1',
-      scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startTick: 0, terminalTick: 4 },
-      tempoPlan: { selection: { mode: 'SCORE' }, segments: [{ startTick: 0, bpm: 80, source: 'MUSICXML' }] },
-      inputSource: 'MICROPHONE', activeElapsedMs: 3000,
-      evaluation: { status: 'UNAVAILABLE', inputSource: 'MICROPHONE', assignmentPolicyId: 'CONTINUOUS_EXACT_PIANO_KEY_ORDERED_ASSIGNMENT_FINALITY_V5', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' },
-      completedAt: '2026-09-20T12:00:00.000Z' });
+    const result = reviewResult({
+      localSessionId: 'unavailable',
+      inputSource: 'MICROPHONE',
+      activeElapsedMs: 3000,
+      tempoSelection: { mode: 'SCORE' },
+      evaluation: {
+        status: 'UNAVAILABLE',
+        inputSource: 'MICROPHONE',
+        assignmentPolicyId: 'CONTINUOUS_EXACT_PIANO_KEY_ORDERED_ASSIGNMENT_FINALITY_V5',
+        reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE',
+      },
+      updatedAtMs: Date.parse('2026-09-20T12:00:00.000Z'),
+    });
     provideReview({ result, recording: {  status: 'READY', kind: 'AUDIO', media: ownedMediaFixture(new Blob(['audio'], { type: 'audio/webm' })),
       mimeType: 'audio/webm', durationMs: 3000, timebase: { activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }], nominalMediaDurationMs: 3000 } } });
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
@@ -624,20 +707,13 @@ describe('PracticeReviewPage', () => {
 
   it('renders notice when audio recording is UNAVAILABLE due to denied mic permission', () => {
     const validCompletion: ContinuousPracticeCompletion = {
-      result: continuousResultFixture({ sourceId: 'source-fixture',
+      result: reviewResult({
         localSessionId: 'sess-1',
-        scoreId: 'score-123',
-        revisionId: 'rev-1',
-        artifactId: 'art-1',
-        scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startTick: 0, terminalTick: 4 },
-        tempoPlan: {
-          selection: { mode: 'SCORE' },
-          segments: [{ startTick: 0, bpm: 80, source: 'CUSTOM' }],
-        },
         inputSource: 'MIDI',
         activeElapsedMs: 3000,
+        tempoSelection: { mode: 'SCORE' },
         evaluation: completeEvaluation([], 'MIDI'),
-        completedAt: '2026-09-20T12:00:00.000Z'
+        updatedAtMs: Date.parse('2026-09-20T12:00:00.000Z'),
       }), recording: {
         status: 'UNAVAILABLE',
         reason: 'PERMISSION_DENIED',
@@ -667,20 +743,13 @@ describe('PracticeReviewPage', () => {
 
   it('handles save performance flow with success state', async () => {
     const validCompletion: ContinuousPracticeCompletion = {
-      result: continuousResultFixture({ sourceId: 'source-fixture',
+      result: reviewResult({
         localSessionId: 'sess-save',
-        scoreId: 'score-123',
-        revisionId: 'rev-1',
-        artifactId: 'art-1',
-        scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startTick: 0, terminalTick: 4 },
-        tempoPlan: {
-          selection: { mode: 'SCORE' },
-          segments: [{ startTick: 0, bpm: 80, source: 'CUSTOM' }],
-        },
         inputSource: 'MIDI',
         activeElapsedMs: 3000,
+        tempoSelection: { mode: 'SCORE' },
         evaluation: completeEvaluation([], 'MIDI'),
-        completedAt: '2026-09-20T12:00:00.000Z'
+        updatedAtMs: Date.parse('2026-09-20T12:00:00.000Z'),
       }), recording: {
         status: 'READY',
         kind: 'AUDIO',
@@ -732,20 +801,13 @@ describe('PracticeReviewPage', () => {
 
     const videoBlob = new Blob(['video'], { type: 'video/webm' });
     const validCompletion: ContinuousPracticeCompletion = {
-      result: continuousResultFixture({ sourceId: 'source-fixture',
+      result: reviewResult({
         localSessionId: 'sess-video-save',
-        scoreId: 'score-123',
-        revisionId: 'rev-1',
-        artifactId: 'art-1',
-        scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startTick: 0, terminalTick: 4 },
-        tempoPlan: {
-          selection: { mode: 'SCORE' },
-          segments: [{ startTick: 0, bpm: 80, source: 'CUSTOM' }],
-        },
         inputSource: 'MICROPHONE',
         activeElapsedMs: 3000,
+        tempoSelection: { mode: 'SCORE' },
         evaluation: completeEvaluation(),
-        completedAt: '2026-09-20T12:00:00.000Z'
+        updatedAtMs: Date.parse('2026-09-20T12:00:00.000Z'),
       }), recording: {
         status: 'READY',
         kind: 'VIDEO',
@@ -1007,20 +1069,13 @@ function createVideoCompletion({
   media?: import('@/lib/practice/recording/owned-media').OwnedMediaHandle;
 } = {}): ContinuousPracticeCompletion {
   return {
-    result: continuousResultFixture({ sourceId: 'source-fixture',
+    result: reviewResult({
       localSessionId: 'sess-video',
-      scoreId: 'score-123',
-      revisionId: 'rev-1',
-      artifactId: 'art-1',
-      scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startTick: 0, terminalTick: 4 },
-      tempoPlan: {
-        selection: { mode: 'SCORE' },
-        segments: [{ startTick: 0, bpm: 80, source: 'CUSTOM' }],
-      },
       inputSource: 'MICROPHONE',
       activeElapsedMs: 3000,
+      tempoSelection: { mode: 'SCORE' },
       evaluation: completeEvaluation(),
-      completedAt: '2026-09-20T12:00:00.000Z'
+      updatedAtMs: Date.parse('2026-09-20T12:00:00.000Z'),
     }), recording: {
       status: 'READY',
       kind: 'VIDEO',

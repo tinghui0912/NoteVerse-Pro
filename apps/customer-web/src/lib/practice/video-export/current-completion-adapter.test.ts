@@ -1,27 +1,26 @@
 import { ownedMediaFixture } from "@/lib/practice/__fixtures__/recording-sink";
 import { createTransientReviewSession } from "@/lib/practice/review/transient-review-session";
-import { canonicalContinuousResultFixture } from "@/lib/practice/__fixtures__/continuous-result";
+import { completedContinuousSessionFixture } from "@/lib/practice/__fixtures__/continuous-result";
 import { expect, it } from "vitest";
 import { createVideoExportSessionFromCompletion } from "./current-completion-adapter";
 import { createVideoExportSessionFromSavedTake } from "./saved-take-adapter";
 import { take, artifact } from "./__fixtures__/saved-take";
-import { resolvePracticeScope } from "@/lib/practice/planning/scope";
+import { continuousPracticePlan } from '@/lib/practice/__fixtures__/practice-plan';
+import { createContinuousPerformanceResult } from '@/lib/practice/result/continuous-performance-result';
+import { unavailableContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/session';
 import {
   parseSavedTempoPlan,
   parseSavedRecordingTimebase,
 } from "./saved-take-adapter";
 const blob = new Blob(["video"], { type: "video/webm" });
 const completion = {
-  result: {
-    ...canonicalContinuousResultFixture("MIDI", 48000, false),
-    sourceId: take.source_id,
-    localSessionId: take.take_id,
-    scoreId: artifact.scoreId,
-    revisionId: artifact.revisionId,
-    artifactId: artifact.artifactId,
-    scope: resolvePracticeScope(artifact, { kind: "FULL" }),
-    tempoPlan: parseSavedTempoPlan(take.tempo_plan),
-  },
+  result: createContinuousPerformanceResult({
+    session: completedContinuousSessionFixture(Object.freeze({
+      ...continuousPracticePlan(artifact), source: Object.freeze({ sourceId: take.source_id, artifact }),
+      tempoPlan: parseSavedTempoPlan(take.tempo_plan),
+    }), { localSessionId: take.take_id }),
+    evaluation: unavailableContinuousEvaluation('MIDI', 'CONTINUOUS_ANALYSIS_UNAVAILABLE'),
+  }),
   recording: {
     status: "READY" as const,
     kind: "VIDEO" as const,
@@ -69,7 +68,7 @@ it("refuses missing or non-video current media", () => {
 
 it("keeps export session identity distinct from exact source provenance", () => {
   const current = createVideoExportSessionFromCompletion(handoff);
-  expect(current.sessionId).toBe(completion.result.localSessionId);
+  expect(current.sessionId).toBe(completion.result.session.localSessionId);
   expect(current.sourceId).toBe(take.source_id);
   expect(
     createVideoExportSessionFromSavedTake(

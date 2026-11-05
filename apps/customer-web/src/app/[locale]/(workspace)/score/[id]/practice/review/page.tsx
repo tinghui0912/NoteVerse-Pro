@@ -90,9 +90,9 @@ export default function PracticeReviewPage({
   const reviewSession = workspace.reviewSession;
   const result = reviewSession?.result ?? null;
   const recording = reviewSession?.recording ?? null;
-  const artifact = reviewSession?.artifact ?? null;
+  const artifact = reviewSession?.result.session.plan.source.artifact ?? null;
   const xmlContent = reviewSession?.musicXml ?? null;
-  const isValidCompletion = Boolean(result && result.scoreId === id);
+  const isValidCompletion = Boolean(result && result.session.plan.source.artifact.scoreId === id);
   const scoreState = useMemo(() => reviewSession ? resolveReviewScoreState(reviewSession) : null, [reviewSession]);
   const isScoreIdentityConfirmed = isValidCompletion && scoreState?.status === 'READY';
   const videoExportSession = useMemo(() => {
@@ -173,8 +173,8 @@ export default function PracticeReviewPage({
         return;
       }
       const scoreTick = reviewReplayScoreTick({ recording, mediaTimeMs: replayTimeMs,
-        actualMediaDurationMs, scope: result.scope, tempoPlan: result.tempoPlan,
-        scoreEndTick: artifact?.scoreEndTick ?? result.scope.terminalTick, ticksPerQuarter: artifact!.ticksPerQuarter });
+        actualMediaDurationMs, scope: result.session.plan.scope, tempoPlan: result.session.plan.tempoPlan,
+        scoreEndTick: artifact?.scoreEndTick ?? result.session.plan.scope.terminalTick, ticksPerQuarter: artifact!.ticksPerQuarter });
       if (scoreTick === null) { playheadController.clear(container); return; }
       playheadController.apply(
         container,
@@ -283,28 +283,28 @@ export default function PracticeReviewPage({
 
     try {
       await saveRecordingMutation.mutateAsync({
-        sourceId: result.sourceId,
-        ticksPerQuarter: artifact!.ticksPerQuarter,
+        sourceId: result.session.plan.source.sourceId,
+        ticksPerQuarter: result.session.plan.source.artifact.ticksPerQuarter,
         clientRequestId: clientRequestIdRef.current ?? '',
         mediaKind: saveMedia.kind,
         media: saveMedia.media,
         mimeType: saveMedia.mimeType,
         durationMs: saveMedia.durationMs,
         scope:
-          result.scope.kind === 'RANGE'
+          result.session.plan.scope.kind === 'RANGE'
             ? {
                 kind: 'RANGE',
-                startTick: result.scope.startTick,
-                terminalTick: result.scope.terminalTick,
-                startGroupId: result.scope.startGroupId,
-                endGroupId: result.scope.endGroupId,
+                startTick: result.session.plan.scope.startTick,
+                terminalTick: result.session.plan.scope.terminalTick,
+                startGroupId: result.session.plan.scope.startGroupId,
+                endGroupId: result.session.plan.scope.endGroupId,
               }
             : {
                 kind: 'FULL',
-                startTick: result.scope.startTick,
-                terminalTick: result.scope.terminalTick,
+                startTick: result.session.plan.scope.startTick,
+                terminalTick: result.session.plan.scope.terminalTick,
               },
-        tempoPlan: toPerformanceTakeTempoPlan(result.tempoPlan),
+        tempoPlan: toPerformanceTakeTempoPlan(result.session.plan.tempoPlan),
         recordingTimebase: { nominalMediaDurationMs: saveMedia.timebase.nominalMediaDurationMs,
           activeSegments: saveMedia.timebase.activeSegments.map(segment => ({ ...segment })) },
       });
@@ -319,8 +319,8 @@ export default function PracticeReviewPage({
 
   const performLeave = useCallback((target: 'score' | 'practice') => {
     workspace.clearReviewSession();
-    router.push(target === 'score' ? `/score/${id}` : practiceLocation(id, 'setup', result?.revisionId));
-  }, [id, router, result?.revisionId, workspace]);
+    router.push(target === 'score' ? `/score/${id}` : practiceLocation(id, 'setup', result?.session.plan.source.artifact.revisionId));
+  }, [id, router, result?.session.plan.source.artifact.revisionId, workspace]);
 
   const requestLeave = useCallback(
     (target: 'score' | 'practice') => {
@@ -383,7 +383,7 @@ export default function PracticeReviewPage({
     start: view.scope.startTick / artifact!.ticksPerQuarter, end: view.scope.terminalTick / artifact!.ticksPerQuarter,
   })})`;
   const inputSourceText = t(view.inputSourceLabel);
-  const completedTime = format.dateTime(new Date(result.completedAt), {
+  const completedTime = format.dateTime(new Date(result.session.updatedAtMs), {
     hour: 'numeric', minute: '2-digit', second: '2-digit',
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   });
@@ -445,7 +445,7 @@ export default function PracticeReviewPage({
       />
 
       {result.evaluation.status === 'UNAVAILABLE' ? <p className="text-sm text-muted-foreground">{t('evaluationUnavailableDesc')}</p>
-        : result.inputSource === 'MICROPHONE' ? <p className="text-sm text-muted-foreground">{t('acousticEvidenceDesc')}</p> : null}
+        : result.session.plan.resources.input.kind === 'MICROPHONE' ? <p className="text-sm text-muted-foreground">{t('acousticEvidenceDesc')}</p> : null}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
         {/* Synchronized Replay Player / Recording Status */}
@@ -622,11 +622,11 @@ export default function PracticeReviewPage({
 
       {recording?.status === 'READY' && recording.kind === 'VIDEO' ? (
         <VideoExportStudio
-          key={result.localSessionId}
+          key={result.session.localSessionId}
           session={videoExportSession}
           scoreContainer={scoreContainer}
           adapter={adapter}
-          scoreEndTick={artifact?.scoreEndTick ?? result.scope.terminalTick} ticksPerQuarter={artifact!.ticksPerQuarter}
+          scoreEndTick={artifact?.scoreEndTick ?? result.session.plan.scope.terminalTick} ticksPerQuarter={artifact!.ticksPerQuarter}
           isScoreIdentityConfirmed={isScoreIdentityConfirmed}
           xmlContent={xmlContent}
           mediaTimeMs={videoExportPreviewTimeMs}

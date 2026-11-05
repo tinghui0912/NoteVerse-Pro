@@ -13,8 +13,6 @@ import { StepPracticeSession } from "../step/domain/practice-session";
 import { ContinuousPracticeSession } from "../continuous/domain/practice-session";
 import { ContinuousMidiEvidence } from "../continuous/input/midi-evidence";
 import { createNaturalContinuousCompletion } from "../continuous/natural-completion";
-import { midiEvidenceProvenance } from "../result/continuous-result-provenance";
-import { CONTINUOUS_MIDI_EVIDENCE_POLICY_ID } from "../continuous/input/midi-evidence-identity";
 
 const intent: PracticeIntent = {
   mode: "STEP_BY_STEP",
@@ -191,16 +189,11 @@ it("Continuous clock, evaluator, snapshot and natural Result consume executed re
   const completion = createNaturalContinuousCompletion({
     session: session.snapshotSession(),
     evaluation: session.completedEvaluation(),
-    evidenceProvenance: midiEvidenceProvenance(
-      CONTINUOUS_MIDI_EVIDENCE_POLICY_ID,
-    ),
     recording: { status: "NOT_RECORDED" },
-    completedAt: "2026-10-30T00:00:00.000Z",
   });
-  expect(completion.result.scope).toEqual(plan.scope);
-  expect(completion.result.tempoPlan).toEqual(plan.tempoPlan);
-  expect(completion.result.schemaVersion).toBe(8);
-  expect(completion.result.sourceId).toBe(plan.source.sourceId);
+  expect(completion.result.session.plan.scope).toEqual(plan.scope);
+  expect(completion.result.session.plan.tempoPlan).toEqual(plan.tempoPlan);
+  expect(completion.result.session.plan.source.sourceId).toBe(plan.source.sourceId);
   expect(completion.result.evaluation.status).toBe("COMPLETE");
   if (completion.result.evaluation.status === "COMPLETE") {
     expect(

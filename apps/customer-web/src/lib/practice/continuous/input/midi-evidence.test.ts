@@ -46,3 +46,10 @@ it.each([349, 350, 351])('delivery at %i has a grace-defined outcome without nee
     expect(evidence.complete(delivery, delivery)?.observations[0].observationId).toBe('delivery:midi:0');
   }
 });
+
+it('identifies the evidence policy implemented by each MIDI owner', () => {
+  expect(new ContinuousMidiEvidence('first').evidencePolicyId)
+    .toBe('MIDI_PIANO_KEY_SESSION_TIME_WITH_250MS_COVERAGE_GRACE_V3');
+  expect(new ContinuousMidiEvidence('second').evidencePolicyId)
+    .toBe(new ContinuousMidiEvidence('first').evidencePolicyId);
+});

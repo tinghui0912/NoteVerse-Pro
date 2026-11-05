@@ -14,7 +14,6 @@ import { ContinuousEvaluationSession } from '@/lib/practice/continuous/domain/ev
 import type { ContinuousPracticeSessionOptions } from './practice-session';
 import type { ContinuousEvidencePublication } from './evaluation/evidence-types';
 import { createContinuousPerformanceResult } from '@/lib/practice/result/continuous-performance-result';
-import { midiEvidenceProvenance } from '@/lib/practice/result/continuous-result-provenance';
 const artifact = canonicalArtifactJson as PracticeScoreArtifact;
 const defaultTempoPlan = resolvePracticeTempoPlan(artifact, { mode: 'SCORE' });
 
@@ -104,7 +103,7 @@ describe('explicit semantic MIDI progression', () => {
       }
     }
     const evaluation = session.completedEvaluation(); if (evaluation.status !== 'COMPLETE') throw new Error('incomplete');
-    const result = reason === 'SCOPE_COMPLETED' ? createContinuousPerformanceResult({ sourceId: 'source-fixture', artifact, localSessionId: session.localSessionId, inputSource: 'MIDI', scope: continuousPracticePlan(artifact, { scope: { kind: 'FULL' } }).scope, tempoPlan: h.tempoPlan, activeElapsedMs: session.snapshotSession().performance.activeElapsedMs, evaluation, evidenceProvenance: midiEvidenceProvenance(h.evidence.evidencePolicyId), completedAt: '2026-10-27T00:00:00.000Z' }) : null;
+    const result = reason === 'SCOPE_COMPLETED' ? createContinuousPerformanceResult({ session: session.snapshotSession(), evaluation }) : null;
     return { publications, evaluation, result, callCount };
   }
   it.each(['SCOPE_COMPLETED', 'STOPPED_BY_USER'] as const)('%s dense/sparse/irregular advancement has identical publications, finalities and completed assignment', reason => {

@@ -2,20 +2,19 @@
 
 ## Identity concerns
 
-| Concern | Owner | Persisted evidence meaning |
+| Concern | Owner | Evidence meaning |
 | --- | --- | --- |
 | Model asset | model-contract and verified delivery | Exact ONNX bytes, descriptor and runtime configuration |
 | Decoder | robust-piano-decoder and core declaration | Qualified piano pitch/onset semantics |
 | Geometry, FIR and source mapping | planner, source adapter and FIR assets | Tensor context, half-open ownership and physical source coordinates |
 | Source publication | source runtime/publication | Immutable all-pitch observations and analyzed-through coverage |
-| Timing | Continuous timing provenance and segmented clock | Event-time mapping and explicit no-calibration policy |
+| Timing | Session timebase and segmented clock | Event-time mapping and explicit no-calibration policy |
 | Admission/liveness | resource policy, capture/worker/engine/controllers | Resource retention, readiness, failure and intervention behavior |
 
-Result schema8 evidenceProvenance identifies the configured evidence-producing stack.
-It does not claim full execution replay, workload headroom, latency calibration or
-physical-device recognition accuracy. COMPLETE identifies the stack that produced
-accepted evidence, including possible silence. UNAVAILABLE identifies the stack
-configured for the attempt; it does not assert successful publication.
+The acoustic model, decoder and source-adapter identities belong to their algorithm
+and loading owners. Their hashes and characterization tests identify the configured
+evidence-producing stack. A transient Continuous Result references evaluation and
+its completed session; it carries no evidence-stack transport payload.
 
 ## Selected source and asset attestation
 
@@ -50,30 +49,18 @@ hashes. Conversely equal core hashes do not establish identical execution outcom
 for dependencies outside the selected scope. Evidence-semantic review must consider
 the relevant declaration, selected sources and timing policy as well as hash guards.
 
-## Provenance shape
+## Evidence owners and timing
 
-Microphone evidenceProvenance contains:
-
-```text
-inputSource
-acousticIdentityName
-acousticCoreIdentitySha256
-modelSha256
-decoderSourceSha256
-sourceSampleRateHz
-sourceAdapterIdentitySha256
-timing { eventTimeMappingPolicyId, calibrationPolicyId, calibrationApplied }
-```
-
-MIDI provenance identifies physical MIDI event semantics and timing policy. Practice
-artifact/schema and numeric piano-key projections belong to the separate
-[Practice contract](practice-piano-key-contract.md). Source analysis remains
-score/target/verdict-blind, and source publication independently enforces canonical
-pitch/midiPitch identity before Practice projections consume the numeric key.
+`ACOUSTIC_ANALYSIS_IDENTITY` identifies the model/core/decoder contracts. Each
+qualified source rate selects its source-adapter identity. `ContinuousMidiEvidence`
+owns its physical MIDI policy identity. Source analysis remains score/target/verdict
+blind, and source publication enforces canonical pitch/midiPitch identity before
+Practice consumes the numeric key.
 
 Session Time, Performance Time, physical Source Time and evidence Availability Time
-remain distinct. Timing provenance explicitly states calibrationApplied=false;
-no hardware offset is inferred from processing delay or availability.
+remain distinct. Event mapping applies no hardware compensation inferred from
+processing delay or availability. Timebase and publication tests characterize the
+actual mappings at their owners.
 
 ## Integrity limits and change responsibilities
 
@@ -83,14 +70,9 @@ require review of core/adapter/timing identities. Artifact identity describes sc
 content; it is independent of acoustic model identity.
 
 Admission budgets, Worklet credits, worker silence/readiness deadlines, engine lease
-retirement and application intervention govern availability and failures. Current
-Result evidence provenance does not identify each of those policies or persist every
-failure/hang. Thus two executions can have identical configured evidence provenance
-and different availability outcomes without violating this evidence-only contract.
-
-An execution-reproducibility requirement would need an explicit separate contract
-covering policy and execution inputs. The current dependency and provenance tests
-keep evidence identity separate from resource/transport/liveness implementations.
+retirement and application interventions own availability. The evidence-core and
+source-adapter declarations attest their selected algorithm sources and assets;
+they do not describe every runtime policy or availability outcome.
 Hash validation establishes drift resistance, not the reasonableness, optimality or
 qualification of any parameter. See the [parameter evidence](practice-acoustic-parameter-provenance.md).
 

@@ -156,7 +156,7 @@ cancels or fails cleanup safely. Storage failures remain retryable through the o
 ## Exact Source Access and Provenance
 
 `sourceId` is admitted once and propagated verbatim through the session plan, local
-execution, Continuous Result schema8, completion, Review and save request. It is
+execution and the transient Result session Plan. Review and save read that same source projection. It is
 never reconstructed downstream from descriptive score/revision/artifact identities.
 `localSessionId` identifies browser execution; takeId identifies a saved performance;
 VideoExport sessionId identifies browser-local composition/export. Each is distinct

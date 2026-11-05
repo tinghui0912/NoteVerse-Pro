@@ -1,174 +1,285 @@
-import { continuousPracticePlan } from '@/lib/practice/__fixtures__/practice-plan';
-import { ContinuousEvaluationSession } from '@/lib/practice/continuous/domain/evaluation/session';
-import type { PracticeScoreArtifact } from '@/lib/practice/score/artifact';
-import { describe, expect, expectTypeOf, it } from 'vitest';
-import { assertContinuousPerformanceResult, createContinuousPerformanceResult } from './continuous-performance-result';
-import { canonicalContinuousResultFixture } from '@/lib/practice/__fixtures__/continuous-result';
-import artifact from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
-import type { CompletedContinuousAssignment } from '@/lib/practice/continuous/domain/evaluation/assignment-types';
+import { describe, expect, it } from "vitest";
+import {
+  canonicalContinuousResultFixture,
+  completedContinuousSessionFixture,
+} from "@/lib/practice/__fixtures__/continuous-result";
+import { continuousPracticePlan } from "@/lib/practice/__fixtures__/practice-plan";
+import {
+  ContinuousEvaluationSession,
+  unavailableContinuousEvaluation,
+} from "@/lib/practice/continuous/domain/evaluation/session";
+import { createContinuousPerformanceResult } from "./continuous-performance-result";
 
-const clone = () => JSON.parse(JSON.stringify(canonicalContinuousResultFixture()));
-
-function resultWithRetainedEvidence() {
+function resultWithEvidence() {
   const base = canonicalContinuousResultFixture();
-  const evaluator = new ContinuousEvaluationSession({ artifact: artifact as PracticeScoreArtifact, inputSource: 'MIDI', scope: continuousPracticePlan(artifact as PracticeScoreArtifact, { scope: { kind: 'FULL' } }).scope, sessionDomainId: base.localSessionId, timeline: { tickToTimeMs: tick => tick * 500 } });
-  evaluator.publish({ publicationId: 'evidence', sessionDomainId: base.localSessionId, analyzedThroughPerformanceMs: 10000, availabilitySessionTimeMs: 3000,
-    observations: [{ observationId: 'matched', pianoKey: 60, performanceTimeMs: 0, confidence: 1, source: 'MIDI',
-      provenance: { sourceDomainId: 'capture', sourceSampleRateHz: 48000, sourceEventSample: 0 } },
-    { observationId: 'non-target', pianoKey: 71, performanceTimeMs: 1500, confidence: 1, source: 'MIDI' },
-    { observationId: 'unattributed', pianoKey: 76, performanceTimeMs: 6000, confidence: 1, source: 'MIDI' }] });
-  evaluator.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 10000, availabilitySessionTimeMs: 4000 });
-  return createContinuousPerformanceResult({ sourceId: 'source-fixture', artifact: artifact as PracticeScoreArtifact, localSessionId: base.localSessionId, inputSource: 'MIDI', scope: continuousPracticePlan(artifact as PracticeScoreArtifact, { scope: { kind: 'FULL' } }).scope, tempoPlan: base.tempoPlan, activeElapsedMs: 10000, evaluation: evaluator.completedEvaluation(), evidenceProvenance: base.evidenceProvenance, completedAt: base.completedAt });
+  const { plan, localSessionId } = base.session;
+  const evaluator = new ContinuousEvaluationSession({
+    artifact: plan.source.artifact,
+    scope: plan.scope,
+    inputSource: "MIDI",
+    sessionDomainId: localSessionId,
+    timeline: { tickToTimeMs: (tick) => tick * 500 },
+  });
+  evaluator.publish({
+    publicationId: "evidence",
+    sessionDomainId: localSessionId,
+    analyzedThroughPerformanceMs: 10000,
+    availabilitySessionTimeMs: 10000,
+    observations: [
+      {
+        observationId: "matched",
+        pianoKey: 60,
+        performanceTimeMs: 0,
+        confidence: 1,
+        source: "MIDI",
+        provenance: {
+          sourceDomainId: "capture",
+          sourceSampleRateHz: 48000,
+          sourceEventSample: 0,
+        },
+      },
+      {
+        observationId: "extra",
+        pianoKey: 76,
+        performanceTimeMs: 6000,
+        confidence: 1,
+        source: "MIDI",
+      },
+    ],
+  });
+  evaluator.complete({
+    reason: "SCOPE_COMPLETED",
+    performanceTimeMs: 10000,
+    availabilitySessionTimeMs: 10000,
+  });
+  return createContinuousPerformanceResult({
+    session: base.session,
+    evaluation: evaluator.completedEvaluation(),
+  });
 }
 
-describe('parsed Result delegates retained local truth validation', () => {
-  it('validates a successful JSON roundtrip without freezing or changing caller-owned assignment data', () => {
-    const parsed = JSON.parse(JSON.stringify(resultWithRetainedEvidence())) as ReturnType<typeof resultWithRetainedEvidence>;
-    if (parsed.evaluation.status !== 'COMPLETE') throw new Error('incomplete');
-    const assignment = parsed.evaluation.assignment;
-    const callerObjects = [assignment, ...assignment.observations,
-      ...assignment.groups.flatMap(group => [group, ...group.strikes, ...group.strikes.map(strike => strike.renderNoteIds)]),
-      ...assignment.unattributedObservations.map(row => row.observation)];
-    expect(callerObjects.every(row => !Object.isFrozen(row))).toBe(true);
-    const before = structuredClone(parsed), serializedBefore = JSON.stringify(parsed);
-    expect(() => assertContinuousPerformanceResult(parsed)).not.toThrow();
-    expect(callerObjects.every(row => !Object.isFrozen(row))).toBe(true);
-    expect(parsed).toEqual(before); expect(JSON.stringify(parsed)).toBe(serializedBefore);
-  });
-  it.each(['matched pianoKey', 'matched timing offset', 'matched outside window', 'group onset', 'malformed observation', 'malformed provenance', 'unknown retained field'])('rejects %s at the assignment boundary without mutation', corruption => {
-    const parsed = JSON.parse(JSON.stringify(resultWithRetainedEvidence())) as ReturnType<typeof resultWithRetainedEvidence>;
-    expect(() => assertContinuousPerformanceResult(parsed)).not.toThrow();
-    if (parsed.evaluation.status !== 'COMPLETE') throw new Error('incomplete');
-    const assignment = parsed.evaluation.assignment;
-    const matched = assignment.groups.flatMap(group => group.strikes).find(strike => strike.state === 'MATCHED')!;
-    if (matched.state !== 'MATCHED') throw new Error('matched fixture required');
-    const changeEvidence = (id: string, patch: Partial<CompletedContinuousAssignment['observations'][number]>) => {
-      const ledger = assignment.observations.find(row => row.observationId === id)!;
-      Object.assign(ledger, patch);
-      Object.assign(matched.match.observation, patch);
+describe("transient natural Continuous result", () => {
+  it.each(["MIDI", "MICROPHONE"] as const)(
+    "retains exact executed owners for %s, including unavailable evaluation",
+    (input) => {
+      for (const available of [true, false]) {
+        const original = canonicalContinuousResultFixture(input, available);
+        const result = createContinuousPerformanceResult(original);
+        expect(result.session.plan).toBe(original.session.plan);
+        expect(result.session.plan.source.artifact).toBe(
+          original.session.plan.source.artifact,
+        );
+        expect(result.evaluation).toBe(original.evaluation);
+        expect(result.session.performance.activeElapsedMs).toBe(
+          original.session.performance.activeElapsedMs,
+        );
+        expect(result.session.updatedAtMs).toBe(original.session.updatedAtMs);
+        expect(Object.isFrozen(result)).toBe(true);
+        expect(Object.isFrozen(result.session)).toBe(true);
+        expect(Object.isFrozen(result.session.performance)).toBe(true);
+        expect(() =>
+          Reflect.set(result.session.performance, "activeElapsedMs", 0),
+        ).not.toThrow();
+        expect(
+          Reflect.set(result.session.performance, "activeElapsedMs", 0),
+        ).toBe(false);
+      }
+    },
+  );
+  it("freezes only its owned projections without mutating caller session shells", () => {
+    const original = canonicalContinuousResultFixture();
+    const session = {
+      ...original.session,
+      performance: { ...original.session.performance },
     };
-    let expectedError = 'Continuous assignment matched strike semantics are corrupt.';
-    if (corruption === 'matched pianoKey') changeEvidence('matched', { pianoKey: 62 });
-    if (corruption === 'matched timing offset') Object.assign(matched.match, { timingOffsetMs: 1 });
-    if (corruption === 'matched outside window') {
-      changeEvidence('matched', { performanceTimeMs: 251 }); Object.assign(matched.match, { timingOffsetMs: 251 });
-    }
-    if (corruption === 'group onset') {
-      Object.assign(assignment.groups[0], { performanceTimeMs: 1 }); expectedError = 'Continuous assignment strike identity is corrupt.';
-    }
-    if (corruption === 'malformed observation') {
-      changeEvidence('matched', { confidence: 1.1 }); expectedError = 'Continuous assignment observation is corrupt.';
-    }
-    if (corruption === 'malformed provenance') {
-      changeEvidence('matched', { provenance: { sourceDomainId: 'capture', sourceSampleRateHz: 0, sourceEventSample: 0 } });
-      expectedError = 'Continuous assignment observation provenance is corrupt.';
-    }
-    if (corruption === 'unknown retained field') {
-      Object.assign(assignment, { extra: true }); expectedError = 'Continuous assignment assignment is corrupt.';
-    }
-    const before = structuredClone(parsed), serializedBefore = JSON.stringify(parsed);
-    expect(() => assertContinuousPerformanceResult(parsed)).toThrow(expectedError);
-    expect(parsed).toEqual(before); expect(JSON.stringify(parsed)).toBe(serializedBefore);
+    const result = createContinuousPerformanceResult({
+      session,
+      evaluation: original.evaluation,
+    });
+    expect(Object.isFrozen(session)).toBe(false);
+    expect(Object.isFrozen(session.performance)).toBe(false);
+    expect(result.session).not.toBe(session);
+    expect(result.session.performance).not.toBe(session.performance);
+    expect(result.session.plan).toBe(session.plan);
   });
-});
-describe('immutable Continuous product result', () => {
-  it.each(['MIDI', 'MICROPHONE'] as const)('%s parsed Result and direct creation reject stopped evaluations while generic evaluation accepts them', inputSource => {
-    const base = canonicalContinuousResultFixture(inputSource);
-    const parsed = JSON.parse(JSON.stringify(base)); parsed.evaluation.assignment.completion.reason = 'STOPPED_BY_USER';
-    expect(() => assertContinuousPerformanceResult(parsed)).toThrow('natural scope completion');
-    const evaluator = new ContinuousEvaluationSession({ artifact: artifact as PracticeScoreArtifact, inputSource, scope: continuousPracticePlan(artifact as PracticeScoreArtifact, { scope: { kind: 'FULL' } }).scope, sessionDomainId: base.localSessionId, timeline: { tickToTimeMs: tick => tick * 500 } });
-    evaluator.publish({ publicationId: 'coverage', sessionDomainId: base.localSessionId, analyzedThroughPerformanceMs: 10000, availabilitySessionTimeMs: 3000, observations: [] });
-    evaluator.complete({ reason: 'STOPPED_BY_USER', performanceTimeMs: 10000, availabilitySessionTimeMs: 3000 });
-    const evaluation = evaluator.completedEvaluation();
-    expect(evaluation.status).toBe('COMPLETE');
-    expect(() => createContinuousPerformanceResult({ sourceId: 'source-fixture', artifact: artifact as PracticeScoreArtifact, localSessionId: base.localSessionId, inputSource, scope: continuousPracticePlan(artifact as PracticeScoreArtifact, { scope: { kind: 'FULL' } }).scope, tempoPlan: base.tempoPlan, activeElapsedMs: 10000, evaluation, evidenceProvenance: base.evidenceProvenance, completedAt: base.completedAt })).toThrow('natural scope completion');
+  it.each(["STOPPED_BY_USER", null] as const)(
+    "rejects completion reason %s",
+    (completionReason) => {
+      const base = canonicalContinuousResultFixture();
+      expect(() =>
+        createContinuousPerformanceResult({
+          ...base,
+          session: { ...base.session, completionReason },
+        }),
+      ).toThrow("naturally completed");
+    },
+  );
+  it.each(["lifecycle", "transport"] as const)(
+    "rejects a non-ended %s",
+    (kind) => {
+      const base = canonicalContinuousResultFixture();
+      const session =
+        kind === "lifecycle"
+          ? { ...base.session, lifecycleState: "ACTIVE" as const }
+          : {
+              ...base.session,
+              performance: {
+                ...base.session.performance,
+                state: "RUNNING" as const,
+              },
+            };
+      expect(() =>
+        createContinuousPerformanceResult({ ...base, session }),
+      ).toThrow("ended session");
+    },
+  );
+  it("rejects evaluation session identity mismatch", () => {
+    const base = canonicalContinuousResultFixture();
+    expect(() =>
+      createContinuousPerformanceResult({
+        ...base,
+        session: { ...base.session, localSessionId: "other" },
+      }),
+    ).toThrow("session identity");
   });
-  it.each(['MIDI', 'MICROPHONE'] as const)('%s round-trips JSON with identities and complete assignment integrity', inputSource => {
-    const result = canonicalContinuousResultFixture(inputSource);
-    const parsed = JSON.parse(JSON.stringify(result));
-    expect(parsed.schemaVersion).toBe(8);
-    expect(parsed.evidenceProvenance.timing.calibrationApplied).toBe(false);
-    expect(() => assertContinuousPerformanceResult(parsed)).not.toThrow();
-    expect(parsed).toEqual(result);
-    expect(Object.isFrozen(result)).toBe(true); expect(Object.isFrozen(result.scope)).toBe(true);
-    expect(Object.isFrozen(result.tempoPlan.segments)).toBe(true); expect(Object.isFrozen(result.evaluation)).toBe(true);
-    expect(result).not.toHaveProperty('metrics'); expect(Object.isFrozen(result.evidenceProvenance)).toBe(true);
-    expectTypeOf<Extract<keyof Parameters<typeof createContinuousPerformanceResult>[0], 'metrics'>>().toEqualTypeOf<never>();
+  it("rejects evaluation input mismatch", () => {
+    const base = canonicalContinuousResultFixture();
+    expect(() =>
+      createContinuousPerformanceResult({
+        session: base.session,
+        evaluation: unavailableContinuousEvaluation(
+          "MICROPHONE",
+          "CONTINUOUS_ANALYSIS_UNAVAILABLE",
+        ),
+      }),
+    ).toThrow();
+  });
+  it("rejects stopped evaluation even when its session claims natural completion", () => {
+    const base = canonicalContinuousResultFixture();
+    if (base.evaluation.status !== "COMPLETE")
+      throw new Error("Expected complete");
+    const evaluation = {
+      ...base.evaluation,
+      assignment: {
+        ...base.evaluation.assignment,
+        completion: {
+          ...base.evaluation.assignment.completion,
+          reason: "STOPPED_BY_USER" as const,
+        },
+      },
+    };
+    expect(() =>
+      createContinuousPerformanceResult({ ...base, evaluation }),
+    ).toThrow("natural scope completion");
+  });
+  it("requires exactly the canonical scoped attacks, including repeated and missing assignments", () => {
+    const base = canonicalContinuousResultFixture();
+    if (base.evaluation.status !== "COMPLETE")
+      throw new Error("Expected complete");
+    const artifact = base.session.plan.source.artifact;
+    const scope = {
+      kind: "RANGE" as const,
+      startGroupId: artifact.moments[1].groupId,
+      endGroupId: artifact.moments[1].groupId,
+    };
+    const plan = continuousPracticePlan(artifact, { scope });
+    expect(() =>
+      createContinuousPerformanceResult({
+        session: completedContinuousSessionFixture(plan),
+        evaluation: base.evaluation,
+      }),
+    ).toThrow("canonical scoped targets");
+    const complete = base.evaluation;
+    const assignment = complete.assignment;
+    for (const groups of [
+      assignment.groups.slice(1),
+      [...assignment.groups, assignment.groups[0]],
+    ]) {
+      expect(() =>
+        createContinuousPerformanceResult({
+          ...base,
+          evaluation: { ...complete, assignment: { ...assignment, groups } },
+        }),
+      ).toThrow();
+    }
+  });
+  it("retains exact assignment observations and render identities without copying", () => {
+    const base = resultWithEvidence();
+    const result = createContinuousPerformanceResult(base);
+    if (
+      result.evaluation.status !== "COMPLETE" ||
+      base.evaluation.status !== "COMPLETE"
+    )
+      throw new Error("Expected complete");
+    expect(result.evaluation.assignment).toBe(base.evaluation.assignment);
+    expect(result.evaluation.assignment.observations).toBe(
+      base.evaluation.assignment.observations,
+    );
+    expect(
+      result.evaluation.assignment.observations.map((o) => o.observationId),
+    ).toEqual(["extra", "matched"]);
+    expect(
+      result.evaluation.assignment.groups[0].strikes[0].renderNoteIds,
+    ).toBe(base.evaluation.assignment.groups[0].strikes[0].renderNoteIds);
   });
   it.each([
-    ['unsupported schema', (value: ReturnType<typeof clone>) => { value.schemaVersion = 999; }],
-    ['unsupported assignment policy', (value: ReturnType<typeof clone>) => { value.evaluation.assignmentPolicyId = 'UNSUPPORTED_ASSIGNMENT_POLICY'; }],
-    ['unknown evaluation field', (value: ReturnType<typeof clone>) => { value.evaluation.unexpectedField = {}; }],
-    ['extra metrics', (value: ReturnType<typeof clone>) => { value.metrics = {}; }],
-    ['session', (value: ReturnType<typeof clone>) => { value.localSessionId = 'foreign'; }],
-    ['source', (value: ReturnType<typeof clone>) => { value.inputSource = 'STEP'; }],
-    ['cross-source evaluation', (value: ReturnType<typeof clone>) => { value.inputSource = 'MICROPHONE'; }],
-    ['cross-source provenance', (value: ReturnType<typeof clone>) => { value.evidenceProvenance = canonicalContinuousResultFixture('MICROPHONE').evidenceProvenance; }],
-    ['provenance', (value: ReturnType<typeof clone>) => { value.evidenceProvenance.evidencePolicyId = 'other'; }],
-    ['timing mapping', (value: ReturnType<typeof clone>) => { value.evidenceProvenance.timing.eventTimeMappingPolicyId = 'OTHER'; }],
-    ['calibration policy', (value: ReturnType<typeof clone>) => { value.evidenceProvenance.timing.calibrationPolicyId = 'MEASURED'; }],
-    ['applied calibration', (value: ReturnType<typeof clone>) => { value.evidenceProvenance.timing.calibrationApplied = true; }],
-    ['ambiguous finality field', (value: ReturnType<typeof clone>) => {
-      const finality = value.evaluation.assignment.groups[0].finality;
-      finality.finalizationTimeMs = finality.finalizationSessionTimeMs; delete finality.finalizationSessionTimeMs;
-    }],
-    ['completion date', (value: ReturnType<typeof clone>) => { value.completedAt = 'today'; }],
-    ['elapsed', (value: ReturnType<typeof clone>) => { value.activeElapsedMs = -1; }],
-    ['scope', (value: ReturnType<typeof clone>) => { value.scope.endIndex = -1; }],
-    ['tempo', (value: ReturnType<typeof clone>) => { value.tempoPlan.segments[0].bpm = 0; }],
-    ['media', (value: ReturnType<typeof clone>) => { value.media = new Blob(['forbidden']); }],
-    ['non-JSON metadata', (value: ReturnType<typeof clone>) => { value.completedAt = new Date(); }],
-  ] as const)('rejects corrupt %s without repair', (_name, corrupt) => {
-    const value = clone(); corrupt(value); const before = structuredClone(value);
-    expect(() => assertContinuousPerformanceResult(value)).toThrow(); expect(value).toEqual(before);
-  });
-  it.each(['MIDI', 'MICROPHONE'] as const)('%s result retains assigned observations and capture provenance through JSON', inputSource => {
-    const base = canonicalContinuousResultFixture(inputSource), localSessionId = 'evidence-result';
-    const evaluator = new ContinuousEvaluationSession({ artifact: artifact as PracticeScoreArtifact, inputSource, scope: continuousPracticePlan(artifact as PracticeScoreArtifact, { scope: { kind: 'FULL' } }).scope, sessionDomainId: localSessionId, timeline: { tickToTimeMs: tick => tick * 500 } });
-    const observation = { observationId: 'observed-C4', pianoKey: 60, performanceTimeMs: 0, confidence: .42,
-      source: inputSource === 'MIDI' ? 'MIDI' as const : 'ACOUSTIC' as const,
-      ...(inputSource === 'MICROPHONE' ? { provenance: { sourceDomainId: 'capture', sourceEventSample: 2400, sourceSampleRateHz: 48000 } } : {}) };
-    evaluator.publish({ publicationId: 'evidence', sessionDomainId: localSessionId, observations: [observation],
-      analyzedThroughPerformanceMs: 10000, availabilitySessionTimeMs: 3000 });
-    evaluator.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 10000, availabilitySessionTimeMs: 4000 });
-    const result = createContinuousPerformanceResult({ sourceId: 'source-fixture', artifact: artifact as PracticeScoreArtifact, localSessionId, inputSource, scope: continuousPracticePlan(artifact as PracticeScoreArtifact, { scope: { kind: 'FULL' } }).scope, tempoPlan: base.tempoPlan, activeElapsedMs: 10000, evaluation: evaluator.completedEvaluation(), evidenceProvenance: base.evidenceProvenance, completedAt: base.completedAt });
-    const parsed = JSON.parse(JSON.stringify(result)); assertContinuousPerformanceResult(parsed);
-    expect(parsed.evaluation.status).toBe('COMPLETE');
-    if (parsed.evaluation.status !== 'COMPLETE') throw new Error('incomplete');
-    expect(parsed.evaluation.assignment.observations).toEqual([observation]);
-    expect(parsed.schemaVersion).toBe(8);
-    expect(parsed.evaluation.assignment.completion).toMatchObject({ performanceTimeMs: 10000, availabilitySessionTimeMs: 4000 });
-    expect(parsed.evaluation.assignment.groups[0].strikes[0].finality.finalizationSessionTimeMs).toBe(3000);
-    expect(parsed.evidenceProvenance.timing).toMatchObject({ calibrationApplied: false,
-      calibrationPolicyId: 'CONTINUOUS_NO_INPUT_TIMING_CALIBRATION_V1', eventTimeMappingPolicyId: inputSource === 'MIDI'
-        ? 'MIDI_EVENT_TIMESTAMP_TO_PERFORMANCE_TIME_V1' : 'ACOUSTIC_SOURCE_EVENT_SAMPLE_TO_PERFORMANCE_TIME_V1' });
-    expect(parsed.evaluation.assignment.observationAssignments).toMatchObject([{ kind: 'STRIKE_MATCH', observationId: observation.observationId }]);
-  });
-  it('unavailable evaluation retains identities and provenance without fabricated outcomes', () => {
-    const result = canonicalContinuousResultFixture('MICROPHONE', 44100, false);
-    expect(result).not.toHaveProperty('metrics');
-    expect(result.evaluation).toMatchObject({ status: 'UNAVAILABLE', assignmentPolicyId: 'CONTINUOUS_EXACT_PIANO_KEY_ORDERED_ASSIGNMENT_FINALITY_V5' });
-    expect(result.evidenceProvenance).toMatchObject({ sourceSampleRateHz: 44100 });
-    expect(() => assertContinuousPerformanceResult(JSON.parse(JSON.stringify(result)))).not.toThrow();
-  });
-  it('unavailable range retains its original canonical scope', () => {
-    const base = canonicalContinuousResultFixture('MICROPHONE', 48000, false);
-    const group = artifact.moments[3];
-    const result = createContinuousPerformanceResult({ sourceId: 'source-fixture', artifact: artifact as PracticeScoreArtifact, localSessionId: base.localSessionId, scope: continuousPracticePlan(artifact as PracticeScoreArtifact, { scope: { kind: 'RANGE', startGroupId: group.groupId, endGroupId: group.groupId } }).scope, inputSource: base.inputSource, tempoPlan: base.tempoPlan, activeElapsedMs: base.activeElapsedMs, evaluation: base.evaluation, evidenceProvenance: base.evidenceProvenance, completedAt: base.completedAt });
-    expect(result.evaluation.status).toBe('UNAVAILABLE'); expect(result).not.toHaveProperty('metrics');
-    expect(result.scope).toMatchObject({ kind: 'RANGE', startIndex: 3, endIndex: 3 });
-  });
-});
-
-
-describe('canonical source provenance', () => {
-  it('requires an exact nonempty source identity and preserves it through JSON', () => {
-    const value = canonicalContinuousResultFixture();
-    expect(JSON.parse(JSON.stringify(value)).sourceId).toBe(value.sourceId);
-    for (const invalid of [{ ...value, sourceId: '' }, { ...value, sourceId: undefined },
-      Object.fromEntries(Object.entries(value).filter(([key]) => key !== 'sourceId')),
-      { ...value, unknown: true }, { ...value, schemaVersion: 7 }]) {
-      expect(() => assertContinuousPerformanceResult(invalid)).toThrow();
-    }
-  });
+    "pitch",
+    "offset",
+    "window",
+    "group onset",
+    "confidence",
+    "sample rate",
+  ] as const)(
+    "validates retained assignment %s semantics during construction",
+    (corruption) => {
+      const base = resultWithEvidence();
+      if (base.evaluation.status !== "COMPLETE")
+        throw new Error("Expected complete");
+      const original = base.evaluation.assignment;
+      const matched = original.observations.find(
+        (observation) => observation.observationId === "matched",
+      )!;
+      const observation = {
+        ...matched,
+        ...(corruption === "pitch" ? { pianoKey: 62 } : {}),
+        ...(corruption === "window" ? { performanceTimeMs: 251 } : {}),
+        ...(corruption === "confidence" ? { confidence: 1.1 } : {}),
+        ...(corruption === "sample rate"
+          ? { provenance: { ...matched.provenance!, sourceSampleRateHz: 0 } }
+          : {}),
+      };
+      const groups = original.groups.map((group, i) => ({
+        ...group,
+        ...(i === 0 && corruption === "group onset"
+          ? { performanceTimeMs: 1 }
+          : {}),
+        strikes: group.strikes.map((strike) =>
+          strike.state === "MATCHED"
+            ? {
+                ...strike,
+                match: {
+                  ...strike.match,
+                  observation,
+                  ...(corruption === "offset" ? { timingOffsetMs: 1 } : {}),
+                  ...(corruption === "window" ? { timingOffsetMs: 251 } : {}),
+                },
+              }
+            : strike,
+        ),
+      }));
+      const evaluation = {
+        ...base.evaluation,
+        assignment: {
+          ...original,
+          groups,
+          observations: original.observations.map((row) =>
+            row.observationId === observation.observationId ? observation : row,
+          ),
+        },
+      };
+      expect(() =>
+        createContinuousPerformanceResult({ ...base, evaluation }),
+      ).toThrow();
+    },
+  );
 });

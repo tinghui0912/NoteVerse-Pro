@@ -207,7 +207,7 @@ Start constructs one mode-specific `StepPracticeSession` or `ContinuousPracticeS
 Their common snapshot contract contains localSessionId, the exact executed plan,
 completionReason and created/updated timestamps. STEP adds target/attempt state;
 Continuous adds performance state. Runtime metronome toggles belong to those states.
-Natural Continuous completion derives Result8 from the snapshot plan.
+Natural Continuous completion creates its transient Result from the completed session snapshot.
 
 ## Domain Ownership
 
@@ -440,8 +440,8 @@ repository files. A Node-side recursive attestation test checks those source and
 assets separately: text uses UTF-8 with CRLF normalized to LF only, while binary
 coefficients use exact raw bytes. Browser identity validation does not read or fetch
 repository source. The core hash and source-adapter composite hashes bind the
-selected implementation and asset attestations. Result schema8 retains the configured
-acoustic identity values in its evidence provenance.
+selected implementation and asset attestations. Acoustic model and source-adapter
+identities belong to their evidence owners and qualification tests.
 
 `practice/acoustic/continuous` projects source observations into performance time
 and publishes `ContinuousEvidencePublication` through the session. Paused context
@@ -536,14 +536,11 @@ Source analysis uses `availabilityRuntimeMs` and injected
 be the established Session Time and publishes `availabilitySessionTimeMs`. Analysis
 delay never shifts source events or their mapped performance positions.
 
-`continuous/timing/timing-provenance.ts` records these mapping identities:
-`MIDI_EVENT_TIMESTAMP_TO_PERFORMANCE_TIME_V1` and
-`ACOUSTIC_SOURCE_EVENT_SAMPLE_TO_PERFORMANCE_TIME_V1`. Both declare
-`CONTINUOUS_NO_INPUT_TIMING_CALIBRATION_V1` with `calibrationApplied: false`.
-There is no offset, measured-zero claim, calibration profile/storage or learner UI.
-Transport, target feedback, Review and score annotations do not apply timing
-correction. Result evidence provenance retains the source-bound mapping/calibration
-identity without turning it into a learner metric.
+MIDI maps captured event timestamps through Session Time into Performance Time.
+Acoustic evidence maps physical source samples through the active performance
+segment. Neither mapping applies a measured hardware offset or shifts events by
+analysis availability. Transport, target feedback, Review and score annotations
+consume these uncorrected event coordinates.
 
 The independent numeric policies keep their semantic owners: STEP MIDI 35ms groups
 one chord gesture; acoustic H50/50ms groups bounded evidence; Continuous ±250ms is
@@ -760,31 +757,24 @@ detached before intentional cleanup. Cleanup failures remain explicit applicatio
 owned release is attempted once. Product errors are localized; bounded diagnostics
 retain causal metadata separately from observations and user recordings.
 
-## Continuous Result Artifact
+## Transient Continuous Result
 
-`result/continuous-performance-result.ts` owns `ContinuousPerformanceResult`, schema
-8: admitted sourceId, local session and score/revision/artifact identities, resolved scope, tempo plan,
-input source, active performance duration, completed evaluation, evidence
-provenance and ISO UTC completion time. The result is pure, deeply immutable and
-JSON-serializable. It contains no recording or browser-media resource. STEP creates
-no result artifact, metrics or performance report.
+`ContinuousPerformanceResult` is an immutable in-memory value produced only by
+natural completion. It contains `{ session, evaluation }`. The completed session
+projection requires SCOPE_COMPLETED, lifecycle ENDED and performance ENDED. Its
+exact executed PracticePlan owns source, artifact, scope, tempo and input facts;
+its performance snapshot owns active elapsed time. Session updatedAtMs supplies
+completion metadata time. Result construction freezes its own session/performance
+shells and preserves exact Plan, Artifact and completed Evaluation references.
 
-The completion transaction creates the result from the canonical artifact and
-resolved scope. COMPLETE evaluation has exactly status, inputSource, assignmentPolicyId and
-assignment. UNAVAILABLE has exactly status, inputSource, assignmentPolicyId and
-reason, without inventing empty analysis.
-Validation rejects mismatched session/source identities, corrupt assignment and
-unsupported provenance. It validates exact artifact fields without repair or coercion.
-JSON round-trip preserves these semantic checks.
-Both Result creation and parsed Result validation require SCOPE_COMPLETED for a
-COMPLETE evaluation. Generic assignment/evaluation may still retain STOPPED_BY_USER
-for internal diagnostics; that does not make it eligible for a learner Result.
+The factory validates evaluation input/session identity and COMPLETE assignment
+coverage of exactly the canonical scoped attacks. Generic assignment/evaluation
+can represent STOPPED_BY_USER for diagnostics; it does not qualify for a natural
+Result. UNAVAILABLE evaluation remains independent of recording availability.
 
-Result validation accepts the exact schema8 fields and configured provenance.
-Unknown fields and unsupported schema/policy identities fail closed.
-A score revision mismatch does not alter retained evaluation, input, scope, tempo
-or active duration. Score annotations, playhead and video-export score rendering require
-confirmed artifact identity independently of recording replay.
+Result is not a serialized or versioned contract. Review receives the typed atomic
+`ContinuousPracticeCompletion { result, recording }` handoff in browser memory.
+Recording remains a separate owned-media artifact. STEP creates no report Result.
 
 ## Evaluation / Evidence Provenance
 
@@ -802,12 +792,11 @@ capture in Session Time, one observation per NOTE_ON, a 250ms coverage-publicati
 grace, Session-Time availability and exact terminal coverage. The MIDI evidence owner
 supplies this identity.
 
-Microphone results retain the public canonical acoustic analysis descriptor:
-acoustic identity name/core SHA-256, model SHA-256 and authoritative decoder-source
-SHA-256. They also retain the actual session AudioContext source sample rate and
-that rate's source-adapter SHA-256. The 44.1kHz and 48kHz adapters have distinct
-identities. This session-level provenance is present even for silence and unavailable
-analysis; it is not inferred from observations or duplicated onto every observation.
+The acoustic model owner defines the analysis name/core SHA-256, model SHA-256
+and authoritative decoder-source SHA-256. Source-adapter identities distinguish
+44.1kHz and 48kHz realization. These identities support model loading, integrity
+and characterization; transient Results do not copy them. Observation provenance
+retains the actual source-domain event coordinates used for evaluation.
 Confidence remains evidence metadata without another uncalibrated threshold.
 
 ## Recording Artifact
@@ -815,7 +804,7 @@ Confidence remains evidence metadata without another uncalibrated threshold.
 `recording/` owns media, recorder resource lifecycle, replay descriptors and
 media-to-performance synchronization. `PerformanceRecording` is a discriminated
 NOT_RECORDED / UNAVAILABLE / READY artifact. Only READY carries AUDIO/VIDEO kind,
-Blob, MIME, media duration and an immutable recording timebase. Selecting AUDIO or
+OwnedMediaHandle, MIME, media duration and an immutable recording timebase. Selecting AUDIO or
 VIDEO requires successful recording admission before transport/count-in begins.
 `PerformanceRecorder.prepare()` resolves only for admitted recording or OFF; missing
 or dead required tracks, permission/device loss, unsupported recorder/MIME, unavailable
@@ -885,8 +874,8 @@ Count-In only when the intervention caused the pause; an existing user pause nee
 an explicit later Resume. Accepted degradation is a quiet valid performance, not an
 input/start ERROR. No worker retry or publication can revive analysis. Completed
 natural evaluation has the exact UNAVAILABLE shape with reason
-`CONTINUOUS_ANALYSIS_UNAVAILABLE`, never partial COMPLETE truth. Result schema8
-binds the configured assignment and evidence provenance. Healthy media finalizes normally;
+`CONTINUOUS_ANALYSIS_UNAVAILABLE`, never partial COMPLETE truth. The Result retains
+the completed evaluation. Healthy media finalizes normally;
 Review retains replay/save/export and its unavailable notice without target colors.
 
 Acoustic analysis release neither closes the controller AudioContext nor stops the
@@ -922,7 +911,7 @@ UNAVAILABLE represents explicitly accepted runtime recording loss, or media that
 not finish reliably after natural completion was already latched. Finalization failure
 cannot reopen transport or create a late intervention. A known preparation failure
 cannot be represented as an UNAVAILABLE completion artifact. Media duration is distinct
-from the result's active performance duration; recording is not a JSON result contract.
+from the completed session's active performance duration; recording owns its media separately.
 
 The recorder can build segments mutably, but finalized timebase/segments are copied
 and frozen. READY validation requires finite nonnegative coordinates, ordered
@@ -957,9 +946,10 @@ artifact's truth. The handoff is transient application state, not durable persis
 
 End, Retry and new attempt execution remove the old completion from the execution
 view. View Review is an explicit workspace transition: it validates completion/source
-identity, retains result, recording, artifact and MusicXML as one TransientReviewSession,
+identity, retains `{ result, recording, musicXml }` as one TransientReviewSession,
 and releases the prepared physical binding before navigation. Try Again creates no
-Review handoff. Artifact, MusicXML and Blob references are reused without byte copies.
+Review handoff. Artifact remains owned by the executed Plan; notation and owned media
+are reused without byte copies.
 
 ## Natural Completion and Abandonment
 
@@ -1011,7 +1001,7 @@ the server derives durable scope ticks, tempo segments and their shared score ti
 from that exact Source. Response metadata describes intent/evidence; `score_timebase`,
 `resolved_scope` and `resolved_tempo_plan` describe the accepted coordinate snapshot.
 Before upload and before saved success, the browser verifies agreement with its
-executed Result8 and the admitted artifact's `ticksPerQuarter`. Plan mismatch fails closed;
+executed Result session Plan and its artifact's `ticksPerQuarter`. Plan mismatch fails closed;
 a new RESERVED mismatch is cancelled best-effort without media upload.
 Client-request
 idempotency belongs to this boundary: equal normalized metadata returns the same
@@ -1116,8 +1106,8 @@ STEP has no count-in.
 
 ## Exact Source Provenance
 
-Continuous Result schema8 retains required sourceId from the executed session.
-Completion, the explicit Review handoff and save carry it verbatim. Review uses its
+Continuous Result references the completed session and its executed Plan source.
+The explicit Review handoff validates that exact admitted source; save reads its sourceId verbatim. Review uses its
 admitted artifact and MusicXML, and save submits source: { source_id }.
 A Take exposes its source_id with server-derived score/revision/artifact descriptions.
 Ordinary exact-source access and new save admission require live revision access;

@@ -1,26 +1,76 @@
-import { continuousPracticePlan } from '@/lib/practice/__fixtures__/practice-plan';
-import type { ContinuousPerformanceResult } from '@/lib/practice/result/continuous-performance-result';
-import { CONTINUOUS_PERFORMANCE_RESULT_SCHEMA_VERSION } from '@/lib/practice/result/continuous-performance-result';
-import { microphoneEvidenceProvenance, midiEvidenceProvenance } from '@/lib/practice/result/continuous-result-provenance';
-import { CONTINUOUS_MIDI_EVIDENCE_POLICY_ID } from '@/lib/practice/continuous/input/midi-evidence-identity';
+import artifactJson from "./canonical-practice-score-artifact.json";
+import type { PracticeScoreArtifact } from "@/lib/practice/score/artifact";
+import { continuousPracticePlan } from "./practice-plan";
+import type { ContinuousPracticePlan } from "@/lib/practice/planning/practice-plan";
+import type { CompletedContinuousPracticeSessionSnapshot } from "@/lib/practice/result/continuous-performance-result";
+import { createContinuousPerformanceResult } from "@/lib/practice/result/continuous-performance-result";
+import {
+  ContinuousEvaluationSession,
+  unavailableContinuousEvaluation,
+} from "@/lib/practice/continuous/domain/evaluation/session";
+import type { PracticeInputSource } from "@/lib/practice/planning/intent";
 
-export function continuousResultFixture(fields: Omit<ContinuousPerformanceResult, 'schemaVersion' | 'evidenceProvenance'>): ContinuousPerformanceResult {
-  const evaluation = fields.evaluation.status === 'COMPLETE' ? { ...fields.evaluation,
-    assignment: { ...fields.evaluation.assignment, sessionDomainId: fields.localSessionId } } : fields.evaluation;
-  return { ...fields, schemaVersion: CONTINUOUS_PERFORMANCE_RESULT_SCHEMA_VERSION, evaluation,
-    evidenceProvenance: fields.inputSource === 'MIDI' ? midiEvidenceProvenance(CONTINUOUS_MIDI_EVIDENCE_POLICY_ID) : microphoneEvidenceProvenance(48000) };
+export function completedContinuousSessionFixture(
+  plan: ContinuousPracticePlan,
+  options: {
+    localSessionId?: string;
+    activeElapsedMs?: number;
+    updatedAtMs?: number;
+  } = {},
+): CompletedContinuousPracticeSessionSnapshot {
+  return Object.freeze({
+    localSessionId: options.localSessionId ?? "result-fixture",
+    plan,
+    completionReason: "SCOPE_COMPLETED",
+    lifecycleState: "ENDED",
+    createdAtMs: Date.UTC(2026, 8, 20),
+    updatedAtMs: options.updatedAtMs ?? Date.UTC(2026, 8, 20, 0, 0, 10),
+    performance: Object.freeze({
+      state: "ENDED",
+      stateBeforePause: "RUNNING",
+      activeElapsedMs: options.activeElapsedMs ?? 10000,
+      metronomeEnabled: plan.metronomePlan.initiallyEnabled,
+      countInMs: 0,
+      countInTicks: plan.countIn.durationTicks,
+      countInPulses: plan.countIn.pulses,
+    }),
+  });
 }
 
-import artifactJson from './canonical-practice-score-artifact.json';
-import type { PracticeScoreArtifact } from '@/lib/practice/score/artifact';
-import { ContinuousEvaluationSession, unavailableContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/session';
-import { createContinuousPerformanceResult } from '@/lib/practice/result/continuous-performance-result';
-import { resolvePracticeTempoPlan } from '@/lib/practice/planning/tempo';
-
-export function canonicalContinuousResultFixture(inputSource: 'MIDI' | 'MICROPHONE' = 'MIDI', rate: 44100 | 48000 = 48000, available = true): ContinuousPerformanceResult {
-  const artifact = artifactJson as PracticeScoreArtifact, scope = { kind: 'FULL' } as const, localSessionId = 'result-fixture';
-  const session = new ContinuousEvaluationSession({ artifact, scope: continuousPracticePlan(artifact, { scope: scope }).scope, inputSource, sessionDomainId: localSessionId, timeline: { tickToTimeMs: tick => tick * 500 } });
-  session.publish({ publicationId: 'coverage', sessionDomainId: localSessionId, analyzedThroughPerformanceMs: 10000, availabilitySessionTimeMs: 10000, observations: [] });
-  session.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 10000, availabilitySessionTimeMs: 10000 });
-  return createContinuousPerformanceResult({ sourceId: 'source-fixture', artifact, scope: continuousPracticePlan(artifact, { scope: scope }).scope, localSessionId, inputSource, activeElapsedMs: 10000, tempoPlan: resolvePracticeTempoPlan(artifact, { mode: 'SCORE' }), evaluation: available ? session.completedEvaluation() : unavailableContinuousEvaluation(inputSource, 'CONTINUOUS_ANALYSIS_UNAVAILABLE'), evidenceProvenance: inputSource === 'MIDI' ? midiEvidenceProvenance(CONTINUOUS_MIDI_EVIDENCE_POLICY_ID) : microphoneEvidenceProvenance(rate), completedAt: '2026-10-26T00:00:00.000Z' });
+export function canonicalContinuousResultFixture(
+  inputSource: PracticeInputSource = "MIDI",
+  available = true,
+) {
+  const plan = continuousPracticePlan(artifactJson as PracticeScoreArtifact, {
+    inputSource,
+  });
+  const session = completedContinuousSessionFixture(plan);
+  const evaluator = new ContinuousEvaluationSession({
+    artifact: plan.source.artifact,
+    scope: plan.scope,
+    inputSource,
+    sessionDomainId: session.localSessionId,
+    timeline: { tickToTimeMs: (tick) => tick * 500 },
+  });
+  evaluator.publish({
+    publicationId: "coverage",
+    sessionDomainId: session.localSessionId,
+    analyzedThroughPerformanceMs: 10000,
+    availabilitySessionTimeMs: 10000,
+    observations: [],
+  });
+  evaluator.complete({
+    reason: "SCOPE_COMPLETED",
+    performanceTimeMs: 10000,
+    availabilitySessionTimeMs: 10000,
+  });
+  return createContinuousPerformanceResult({
+    session,
+    evaluation: available
+      ? evaluator.completedEvaluation()
+      : unavailableContinuousEvaluation(
+          inputSource,
+          "CONTINUOUS_ANALYSIS_UNAVAILABLE",
+        ),
+  });
 }

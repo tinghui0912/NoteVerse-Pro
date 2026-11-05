@@ -88,8 +88,8 @@ representation checksums. Live and saved consumers read that same source; its ow
 and retention are defined by the Source contract.
 
 StepPracticeSession owns its snapshot; its target, attempt and evidence
-snapshots carry numeric keys. Result schema8 binds canonical scope group identities
-and source-specific evidence provenance. These contracts are described by the
+snapshots carry numeric keys. Natural Continuous Result references its completed
+session, exact executed Plan and completed evaluation. These contracts are described by the
 [product contract](practice-product-contract.md).
 
 ## Integrity and evidence

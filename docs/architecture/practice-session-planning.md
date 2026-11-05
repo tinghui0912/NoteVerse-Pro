@@ -134,8 +134,8 @@ localSessionId, the executed plan, createdAtMs, updatedAtMs and completionReason
 Only Start creates a concrete `StepPracticeSession` or `ContinuousPracticeSession`.
 Their constructors receive the matching mode-specific plan and runtime infrastructure.
 Snapshots reference that exact plan and add mode-specific state; musical facts are
-not copied into sibling fields. Natural Continuous Result8 reads source, scope and
-tempo from the executed snapshot plan without re-resolution.
+not copied into sibling fields. Natural Continuous Result references an immutable completed session projection
+and the exact executed Plan, without re-resolution or duplicate execution facts.
 
 `score/` owns admitted artifact facts, piano keys and exact score coordinates.
 `planning/` owns intent, scope/tempo/resource/metronome resolution and Count-In policy.
@@ -202,8 +202,9 @@ to Setup. Candidate musical/presentation edits do not replace the physical bindi
 The execution actor retains `{ result, recording }` for its current natural Continuous
 completion. Try Again creates no ReviewSession. Only View Review calls the workspace's
 `handoffToReview(completion)` command. The command checks sourceId and artifact identity,
-validates the result/recording, and builds `{ result, recording, artifact, musicXml }`
-using the same canonical references and Blob. It releases PreparedPractice's binding
+validates the typed completion against the exact admitted artifact reference and
+stable source identities, validates recording and non-empty notation, and builds
+`{ result, recording, musicXml }`. Artifact is read from Result.session.plan.source. It releases PreparedPractice's binding
 before navigation and retains the handoff in workspace memory.
 
 Review consumes that complete TransientReviewSession, not a Source query. Scope
@@ -288,7 +289,7 @@ Resource planning defines requirements and bindings, not acquisition or Start/En
 lifecycle. `PracticeExecutionActor` serializes attempt release before any new controller
 construction.
 
-Artifact schemaVersion 1, mode-specific PracticeSession snapshots, Result schema8,
+Artifact schemaVersion 1, mode-specific PracticeSession snapshots, transient Result,
 count-in policy, timing/recognition/resource values and acoustic identities are their
 current contracts. See the [product contract](practice-product-contract.md) and
 [Practice Source](practice-source.md).
@@ -415,8 +416,7 @@ MetronomeRuntime consumes its live sync point. STEP has no Count-In.
 
 PracticePlan.source.sourceId is the admitted canonical durable source identity.
 Local STEP and Continuous session snapshots reference the executed plan. Natural Continuous completion
-reads its source projection and copies plan.source.sourceId verbatim
-into Result schema8. The explicit workspace Review handoff validates and preserves
+references its completed session snapshot and exact executed Plan. The explicit workspace Review handoff validates and preserves
 that identity with the admitted artifact and notation; save sends only source_id as Source lineage.
 Source authorization and retention belong to [Practice Source](practice-source.md).
 
@@ -437,8 +437,8 @@ Both language implementations consume the same concrete expected
 [planning cases](../../contracts/practice/score-planning-cases.json). The reservation
 response separates intent metadata from `score_timebase`, `resolved_scope` and
 `resolved_tempo_plan`. The score timebase is their shared written-coordinate owner.
-Before media upload, the browser compares that canonical response with Result8's
-executed source/scope/tempo and the admitted artifact's `ticksPerQuarter`. A mismatch fails closed and best-effort cancels a new
+Before media upload, the browser compares that canonical response with Result.session.plan's
+executed source/scope/tempo and its artifact's `ticksPerQuarter`. A mismatch fails closed and best-effort cancels a new
 RESERVED upload. Completed replay and finalize responses also require agreement.
 
 Reservation persistence owns the resolved save truth. Replay compares the stored

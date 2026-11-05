@@ -14,12 +14,6 @@ import { unavailableContinuousEvaluation } from "@/lib/practice/continuous/domai
 import { ContinuousMicrophoneHealth } from "./microphone-resource-health";
 import type { ContinuousPracticeCompletion } from "./completion";
 import { createNaturalContinuousCompletion } from "./natural-completion";
-import {
-  midiEvidenceProvenance,
-  microphoneEvidenceProvenance,
-  type ContinuousEvidenceProvenance,
-} from "@/lib/practice/result/continuous-result-provenance";
-import { qualifiedAcousticSourceRate } from "@/lib/practice/acoustic/failure-boundary";
 import type { ContinuousTargetFeedback } from "@/lib/practice/continuous/domain/evaluation/target-feedback";
 import { type PerformanceClockSnapshot } from "@/lib/practice/continuous/domain/performance-clock";
 import { ContinuousPracticeSession } from "@/lib/practice/continuous/domain/practice-session";
@@ -115,7 +109,6 @@ type ContinuousRuntimeHandles = {
   timer: ReturnType<typeof setInterval> | null;
   detachRootHealth: (() => void) | null;
   detachRecorder: (() => void) | null;
-  evidenceProvenance: ContinuousEvidenceProvenance | null;
 };
 type ContinuousOperationHandles = {
   preparation?: Promise<void>;
@@ -150,7 +143,6 @@ export class ContinuousPracticeController {
     timer: null,
     detachRootHealth: null,
     detachRecorder: null,
-    evidenceProvenance: null,
   };
   private readonly operations: ContinuousOperationHandles = {};
   private readonly mailbox: {
@@ -518,9 +510,6 @@ export class ContinuousPracticeController {
             }),
         );
         h.renderClock = new AudioContextPerformanceClock(h.context);
-        h.evidenceProvenance = microphoneEvidenceProvenance(
-          qualifiedAcousticSourceRate(h.context.sampleRate),
-        );
       }
       h.session = new ContinuousPracticeSession({
         plan: this.options.plan,
@@ -528,9 +517,6 @@ export class ContinuousPracticeController {
           ? {
               createClockEvidence: (domainId: string) => {
                 const evidence = new ContinuousMidiEvidence(domainId);
-                h.evidenceProvenance = midiEvidenceProvenance(
-                  evidence.evidencePolicyId,
-                );
                 return evidence;
               },
             }
@@ -883,14 +869,10 @@ export class ContinuousPracticeController {
             "CONTINUOUS_ANALYSIS_UNAVAILABLE",
           )
         : session.completedEvaluation();
-      if (!this.runtime.evidenceProvenance)
-        throw new Error("CONTINUOUS_EVIDENCE_IDENTITY_UNAVAILABLE");
       const completion = createNaturalContinuousCompletion({
         session: sessionSnapshot,
         evaluation,
-        evidenceProvenance: this.runtime.evidenceProvenance,
         recording,
-        completedAt: new Date().toISOString(),
       });
       finalizedRecording = null;
       this.dispatch({

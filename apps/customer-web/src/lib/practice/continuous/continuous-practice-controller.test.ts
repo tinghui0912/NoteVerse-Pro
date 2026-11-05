@@ -17,8 +17,6 @@ import { PracticeEnvironment } from '@/lib/practice/environment/practice-environ
 import { AcousticEngine } from '@/lib/practice/acoustic/model/acoustic-engine';
 import { workerRpcRig } from '@/lib/practice/acoustic/model/__fixtures__/worker-rpc';
 import { ACOUSTIC_WORKER_RPC_SILENCE_TIMEOUT_MS as SILENCE } from '@/lib/practice/acoustic/model/worker-liveness-policy';
-import { microphoneEvidenceProvenance } from '@/lib/practice/result/continuous-result-provenance';
-import { sourceIdentity, ACOUSTIC_MODEL } from '@/lib/practice/acoustic/model/model-contract';
 import { CONTINUOUS_ASSIGNMENT_POLICY_ID } from '@/lib/practice/continuous/domain/evaluation/finalization-policy';
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -129,7 +127,7 @@ describe('Continuous application owner', () => {
     const recorder = new PerformanceRecorder('AUDIO', capture.open);
     f.platform.createRecorder = () => recorder;
     const controller = f.create('MIDI', 0, 'AUDIO'); await controller.start();
-    if (reason === 'completion-construction-failure') Reflect.set(Reflect.get(controller, 'runtime'), 'evidenceProvenance', null);
+    if (reason === 'completion-construction-failure') vi.spyOn(Reflect.get(controller, 'runtime').session, 'completedEvaluation').mockReturnValue({ status: 'COMPLETE' } as never);
     if (reason === 'cleanup-failure') {
       const cleanup = recorder.stopAndCleanup.bind(recorder);
       vi.spyOn(recorder, 'stopAndCleanup').mockImplementationOnce(async () => { await cleanup(); throw new Error('storage cleanup failed'); });
@@ -625,8 +623,6 @@ describe('Continuous application owner', () => {
     await f.feed(2100);
     expect(controller.snapshot().session).toBe('COMPLETE'); expect(controller.snapshot().completed?.result.evaluation.status).toBe('COMPLETE');
     const result = controller.snapshot().completed!.result;
-    expect(result.evidenceProvenance).toMatchObject({ inputSource: 'MICROPHONE', sourceSampleRateHz: rate,
-      sourceAdapterIdentitySha256: sourceIdentity(rate as 44100 | 48000).identitySha256, acousticCoreIdentitySha256: ACOUSTIC_MODEL.identitySha256 });
     if (result.evaluation.status !== 'COMPLETE') throw new Error('Expected complete evaluation');
     expect(result.evaluation.assignment.observations).toEqual([]);
     expect(f.platform.createAudioContext).toHaveBeenCalledTimes(1);
@@ -709,7 +705,7 @@ describe('Continuous application owner', () => {
     await f.feed(controller.snapshot().transport!.countInRemainingMs + 5000); await controller.abandon();
     expect(controller.snapshot().session).toBe('COMPLETE');
     const completion = controller.snapshot().completed!;
-    expect(completion.result).toMatchObject({ schemaVersion: 8, evaluation: { status: 'UNAVAILABLE', inputSource: 'MICROPHONE',
+    expect(completion.result).toMatchObject({ evaluation: { status: 'UNAVAILABLE', inputSource: 'MICROPHONE',
       assignmentPolicyId: CONTINUOUS_ASSIGNMENT_POLICY_ID, reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' } });
     expect(completedContinuousTargetFeedback(completion.result.evaluation)).toEqual({ targets: [] });
     expect(completion.recording.status).toBe('READY'); expect(complete).toHaveBeenCalledOnce();
@@ -1310,8 +1306,7 @@ it('R14 silent INFER after tailReady settles natural FINALIZING with healthy rec
     expect(engine.snapshot().state).toBe('FAILED'); expect(service.terminate).toHaveBeenCalledOnce();
     expect(controller.snapshot()).toMatchObject({ session: 'COMPLETE', analysisIntervention: null, resourceIntervention: null });
     const completed = controller.snapshot().completed!;
-    expect(completed.result).toMatchObject({ schemaVersion: 8, evaluation: { status: 'UNAVAILABLE', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' } });
-    expect(completed.result.evidenceProvenance).toEqual(microphoneEvidenceProvenance(48000));
+    expect(completed.result).toMatchObject({ evaluation: { status: 'UNAVAILABLE', reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' } });
     expect(completedContinuousTargetFeedback(completed.result.evaluation)).toEqual({ targets: [] });
     expect(completed.recording.status).toBe('READY'); expect(callback).toHaveBeenCalledOnce();
     expect(controller.snapshot().transport?.completionReason).toBe('SCOPE_COMPLETED');

@@ -28,9 +28,8 @@ describe('canonical Practice ownership', () => {
     expect(read('apps/customer-web/src/lib/practice/score/artifact.ts')).not.toContain('@/generated/');
     expect(read('apps/customer-web/src/lib/practice/planning/scope.ts')).not.toContain('isPracticePianoKey');
   });
-  it('declares artifact and Result schemas at their domain owners', () => {
+  it('declares the durable score artifact schema at its domain owner', () => {
     expect(read('apps/customer-web/src/lib/practice/score/artifact.ts')).toContain('PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION = 1');
-    expect(read('apps/customer-web/src/lib/practice/result/continuous-performance-result.ts')).toContain('CONTINUOUS_PERFORMANCE_RESULT_SCHEMA_VERSION = 8');
     expect(read('backend/app/modules/practice/source/schemas.py')).toContain('schemaVersion: Literal[1]');
 
   });

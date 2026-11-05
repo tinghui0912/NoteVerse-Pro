@@ -243,8 +243,7 @@ it("real Continuous completion publishes one handoff through the actor and Retry
   });
   await waitFor(() => expect(result.current.lifecycle).toBe("COMPLETED"));
   expect(r.completion).toHaveBeenCalledOnce();
-  expect(result.current.completion?.result.schemaVersion).toBe(8);
-  expect(result.current.completion?.result.scope).toEqual(
+  expect(result.current.completion?.result.session.plan.scope).toEqual(
     result.current.executedPlan?.scope,
   );
   await act(async () => {

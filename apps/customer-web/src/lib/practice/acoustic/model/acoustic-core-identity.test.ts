@@ -1,10 +1,11 @@
+import { ACOUSTIC_ANALYSIS_IDENTITY } from './analysis-identity';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, it } from 'vitest';
 import core from './acoustic-core-identity.json';
 import adapters from '../source/source-adapter-identities.json';
-import { ACOUSTIC_MODEL, assertAcousticIdentity, canonicalJson } from './model-contract';
+import { ACOUSTIC_MODEL, assertAcousticIdentity, canonicalJson, sourceIdentity } from './model-contract';
 
 it('checks the descriptive full-window past against parent geometry without a second model owner', async () => {
   expect(core.ownership.fullWindowPastMs)
@@ -104,4 +105,17 @@ it('binds the repaired declaration and both composite identities through the exi
     expect(adapter.identity.acousticCoreIdentitySha256).toBe(ACOUSTIC_MODEL.identitySha256);
     expect(digest(canonicalJson(adapter.identity))).toBe(adapter.identitySha256);
   }
+});
+
+it.each([44100, 48000] as const)('%i source adapter and analysis identity describe the configured evidence owners', rate => {
+  expect(ACOUSTIC_ANALYSIS_IDENTITY).toEqual({
+    identityName: core.identityName,
+    coreIdentitySha256: ACOUSTIC_MODEL.identitySha256,
+    modelSha256: core.model.onnxSha256,
+    decoderSourceSha256: core.decoder.authoritativeSource.sha256,
+  });
+  expect(Object.isFrozen(ACOUSTIC_ANALYSIS_IDENTITY)).toBe(true);
+  expect(sourceIdentity(rate).identity.sourceRateHz).toBe(rate);
+  expect(sourceIdentity(rate).identitySha256).toMatch(/^[a-f0-9]{64}$/);
+  expect(sourceIdentity(44100).identitySha256).not.toBe(sourceIdentity(48000).identitySha256);
 });

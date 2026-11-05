@@ -101,7 +101,6 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
     || edge.typeOnly && ['continuous/domain/clock-evidence-port.ts', 'continuous/domain/evaluation/evidence-types.ts', 'score/piano-key.ts'].includes(target ?? '');
   if (source.startsWith('device/')) return Boolean(target && (target.startsWith('device/') || edge.typeOnly && target === 'planning/resource-plan.ts' || target === 'session/session.ts'
     || target === 'recording/recording-mode.ts' || target === 'diagnostics/startup-timings.ts'));
-  if (source.startsWith('continuous/timing/')) return Boolean(target && (target.startsWith('continuous/timing/') || ['score/', 'session/', 'planning/'].some(owner => target.startsWith(owner))));
   if (source.startsWith('configuration/')) return Boolean(target && (target.startsWith('configuration/')
     || ['score/', 'session/', 'planning/'].some(owner => target.startsWith(owner)) || target === 'recording/recording-mode.ts'));
   if (source.startsWith('environment/')) return Boolean(target && (target.startsWith('environment/') || target.startsWith('acoustic/')
@@ -137,8 +136,7 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
   }
   if (source.startsWith('result/')) return Boolean(target && (
     target.startsWith('result/') || ['score/', 'session/', 'planning/'].some(owner => target.startsWith(owner)) || target.startsWith('continuous/domain/evaluation/')
-    || target === 'continuous/timing/timing-provenance.ts'
-    || ['acoustic/model/analysis-identity.ts', 'acoustic/model/model-contract.ts', 'continuous/input/midi-evidence-identity.ts'].includes(target)));
+    || edge.typeOnly && target === 'continuous/domain/session.ts'));
   if (source === 'recording/saved-take-media.ts' && edge.target === normalize(path.join(sourceRoot, 'lib/api/performance-takes.ts'))) return true;
   if (source.startsWith('recording/')) return Boolean(target && (target.startsWith('recording/') || ['score/', 'session/', 'planning/'].some(owner => target.startsWith(owner))));
   if (source.startsWith('step/')) return !target || !['continuous/', 'result/', 'recording/'].some(owner => target.startsWith(owner));
@@ -433,27 +431,13 @@ describe('Practice bounded domain dependencies', () => {
     }
   });
 
-  it('keeps persisted evidence provenance separate from resource, transport, liveness and intervention implementations', () => {
-    for (const file of files.filter(file => relative(file).startsWith('result/'))) {
-      for (const edge of imports(file)) expect(dependencyAllowed(file, edge), relative(file) + ' -> ' + edge.specifier).toBe(true);
-    }
-    const file = path.join(practiceRoot, 'result/continuous-result-provenance.ts');
-    for (const target of [
-      'acoustic/runtime/resource-policy', 'acoustic/source/capture-transport-contract',
-      'acoustic/source/capture.worklet.js', 'acoustic/continuous/capture', 'acoustic/continuous/capture-bridge',
-      'acoustic/model/worker-client', 'acoustic/model/model-inference', 'acoustic/model/acoustic-worker.entry',
-      'acoustic/model/acoustic-engine', 'acoustic/model/worker-liveness-policy',
-      'continuous/continuous-microphone-input', 'continuous/continuous-practice-controller',
-      'continuous/analysis-intervention', 'continuous/resource-intervention',
-      'step/step-analysis-intervention', 'step/step-infrastructure-intervention',
-    ]) for (const statement of [
-      `import { Contract } from '@/lib/practice/${target}';`,
-      `import type { Contract } from '@/lib/practice/${target}';`,
-      `export * from '@/lib/practice/${target}';`,
-      `const contract = import('@/lib/practice/${target}');`,
-    ]) expect(dependencyAllowed(file, imports(file, statement)[0]), target).toBe(false);
-    for (const target of ['acoustic/model/analysis-identity', 'acoustic/model/model-contract', 'continuous/timing/timing-provenance']) {
-      expect(dependencyAllowed(file, imports(file, `import { Contract } from '@/lib/practice/${target}';`)[0]), target).toBe(true);
+  it('keeps transient Result and Review independent of persistence and resource implementations', () => {
+    for (const owner of ['result', 'review']) {
+      const file = path.join(practiceRoot, owner, 'boundary-probe.ts');
+      for (const target of ['@/lib/api/client', '@/lib/api/performance-takes', '@/lib/storage/database',
+        '@/lib/practice/continuous/continuous-practice-controller', '@/lib/practice/acoustic/model/acoustic-engine']) {
+        expect(dependencyAllowed(file, imports(file, `import { Contract } from '${target}';`)[0]), owner + ' -> ' + target).toBe(false);
+      }
     }
   });
 
@@ -626,28 +610,6 @@ describe('Practice bounded domain dependencies', () => {
     };
     for (const file of graph.keys()) visit(file, []);
   });
-});
-
-it('timing calibration cannot enter transport, target feedback or presentation', () => {
-  const forbidden = [...files.filter(file => ['continuous/domain/performance-clock.ts',
-    'continuous/domain/evaluation/target-feedback.ts'].includes(relative(file))
-    || /^(score-view|review|video-export)\//.test(relative(file))),
-    ...productionFiles(path.join(sourceRoot, 'app/[locale]/(workspace)/score/[id]/practice/review'))];
-  for (const start of forbidden) {
-    // Type-only artifact contracts are allowed; executable timing policy does not belong in these owners.
-    for (const edge of graph.get(normalize(start)) ?? []) {
-      expect(edge.target && relative(edge.target).startsWith('continuous/timing/'), relative(start)).toBeFalsy();
-    }
-    const ast = ts.createSourceFile(start, readFileSync(start, 'utf8'), ts.ScriptTarget.Latest, true);
-    const visit = (node: ts.Node) => {
-      if (ts.isPropertyAccessExpression(node)) expect(['calibrationApplied', 'calibrationPolicyId', 'offsetMs'].includes(node.name.text), relative(start)).toBe(false);
-      ts.forEachChild(node, visit);
-    }; visit(ast);
-  }
-  for (const [file, edges] of sourceGraph) for (const edge of edges) {
-    if (!edge.target || !relative(edge.target).startsWith('continuous/timing/')) continue;
-    expect(relative(file).startsWith('continuous/timing/') || relative(file) === 'result/continuous-result-provenance.ts', relative(file)).toBe(true);
-  }
 });
 
 it('Practice owns only presentation preference writes; Setup owns mode, input and recording editors', () => {

@@ -72,9 +72,9 @@ prefixed ID):2N+1 fields. This describes string content, not allocated heap byte
 Continuous projection with M retained observations has2M+1 source-prefix fields and
 one session field; terminal publication has <D>:terminal plus its session identity.
 The immutable evidence store clones publications, retains IDs as Map keys and
-receipts, and builds indexing/header identities. Result8 retains accepted observation
-IDs/provenance in its flat/nested assignment projection. Configured stack provenance
-itself does not include source/session IDs.
+receipts, and builds indexing/header identities. Completed evaluation retains accepted observation
+IDs/provenance in its flat/nested assignment projection. Model/core/source-adapter
+identity declarations do not include execution-specific source/session IDs.
 
 The STEP H50 Map retains observation IDs and frozen observation copies; a sealed
 header plus K observations has2K+1 domain-bearing fields and additional key references.

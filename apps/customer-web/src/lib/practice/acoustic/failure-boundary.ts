@@ -1,5 +1,5 @@
 import { AcousticFailure, CaptureFailure, InferenceFailure, isPracticeCausalFailure } from '@/lib/practice/failure/causal-failure';
-import { AcousticAnalysisError, sourceRate } from './model/model-contract';
+import { AcousticAnalysisError } from './model/model-contract';
 
 export function acousticBoundaryFailure(cause: unknown): Error {
   if (isPracticeCausalFailure(cause)) return cause;
@@ -24,8 +24,4 @@ export function acousticBoundaryFailure(cause: unknown): Error {
     }
   }
   return cause instanceof Error ? cause : new Error('Unexpected acoustic boundary failure', { cause });
-}
-
-export function qualifiedAcousticSourceRate(value: number) {
-  try { return sourceRate(value); } catch (cause) { throw acousticBoundaryFailure(cause); }
 }
