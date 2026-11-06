@@ -5,7 +5,13 @@ import { completedContinuousTargetFeedback } from '@/lib/practice/continuous/dom
 import { SCORE_DECORATIONS } from '@/lib/practice/score-view/decorations';
 import { practiceLocation } from '@/lib/practice/configuration/practice-location';
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
 import { useParams, useRouter } from 'next/navigation';
 import {
@@ -47,32 +53,18 @@ import {
   EvaluationAnnotationController,
   noteAnnotationsFromTargetFeedback,
 } from '@/lib/practice/score-view/evaluation-annotations';
-import type { ResolvedPracticeTempoPlan } from '@/lib/practice/planning/tempo';
 import { PracticeVerovioAdapter } from '@/lib/practice/score-view/verovio-adapter';
 import { resolveReviewScoreState } from '@/lib/practice/review/review-score-state';
-import { reviewReplay, reviewReplayScoreTick } from '@/lib/practice/review/review-replay';
+import { recordedPerformanceReplay } from '@/lib/practice/recording/performance-replay';
+import { recordedPerformanceScoreTick } from '@/lib/practice/recording/recorded-performance-timeline';
 import { reviewViewModel } from '@/lib/practice/review/review-view-model';
 import { VideoExportStudio } from '@/components/practice/video-export-studio';
-import { createVideoExportSessionFromCompletion } from '@/lib/practice/video-export/current-completion-adapter';
-import type { PerformanceTakeTempoPlan } from '@/lib/api/performance-takes';
-
 
 const MAX_TAKE_MEDIA_BYTES = 100 * 1024 * 1024;
 
 function scoreIdFromParams(params: ReturnType<typeof useParams>): string {
   const id = params?.id;
-  return Array.isArray(id) ? id[0] ?? '' : id ?? '';
-}
-
-function toPerformanceTakeTempoPlan(plan: ResolvedPracticeTempoPlan): PerformanceTakeTempoPlan {
-  return {
-    selection: plan.selection,
-    segments: plan.segments.map((segment) => ({
-      startTick: segment.startTick,
-      bpm: segment.bpm,
-      source: segment.source,
-    })),
-  };
+  return Array.isArray(id) ? (id[0] ?? '') : (id ?? '');
 }
 
 export default function PracticeReviewPage({
@@ -90,31 +82,57 @@ export default function PracticeReviewPage({
   const reviewSession = workspace.reviewSession;
   const result = reviewSession?.result ?? null;
   const recording = reviewSession?.recording ?? null;
-  const artifact = reviewSession?.result.session.plan.bundle.artifact ?? null;
+  const recorded = reviewSession?.recorded ?? null;
+  const artifact = reviewSession?.result.executed.bundle.artifact ?? null;
   const xmlContent = reviewSession?.musicXml ?? null;
-  const isValidCompletion = Boolean(result && result.session.plan.bundle.binding.scoreId === id);
-  const scoreState = useMemo(() => reviewSession ? resolveReviewScoreState(reviewSession) : null, [reviewSession]);
-  const isScoreIdentityConfirmed = isValidCompletion && scoreState?.status === 'READY';
-  const videoExportSession = useMemo(() => {
-    if (!reviewSession || reviewSession.recording.status !== 'READY' || reviewSession.recording.kind !== 'VIDEO'
-      || scoreState?.status !== 'READY') return null;
-    return createVideoExportSessionFromCompletion(reviewSession);
+  const isValidCompletion = Boolean(
+    result && result.executed.bundle.binding.scoreId === id,
+  );
+  const scoreState = useMemo(
+    () => (reviewSession ? resolveReviewScoreState(reviewSession) : null),
+    [reviewSession],
+  );
+  const isScoreIdentityConfirmed =
+    isValidCompletion && scoreState?.status === 'READY';
+  const exportPerformance = useMemo(() => {
+    if (
+      !reviewSession ||
+      reviewSession.recording.status !== 'READY' ||
+      reviewSession.recording.kind !== 'VIDEO' ||
+      scoreState?.status !== 'READY'
+    )
+      return null;
+    return reviewSession.recorded;
   }, [reviewSession, scoreState]);
 
-  const adapter = useMemo(() => new PracticeVerovioAdapter(artifact), [artifact]);
+  const adapter = useMemo(
+    () => new PracticeVerovioAdapter(artifact),
+    [artifact],
+  );
   const adapterFactory = useCallback(() => adapter, [adapter]);
-  const playheadController = useMemo(() => new PerformancePlayheadController(), []);
-  const annotationController = useMemo(() => new EvaluationAnnotationController(), []);
+  const playheadController = useMemo(
+    () => new PerformancePlayheadController(),
+    [],
+  );
+  const annotationController = useMemo(
+    () => new EvaluationAnnotationController(),
+    [],
+  );
 
   const scoreContainerRef = useRef<HTMLDivElement | null>(null);
   const scoreRenderRevisionRef = useRef(0);
-  const [scoreContainer, setScoreContainer] = useState<HTMLDivElement | null>(null);
+  const [scoreContainer, setScoreContainer] = useState<HTMLDivElement | null>(
+    null,
+  );
   const [videoExportPreviewTimeMs, setVideoExportPreviewTimeMs] = useState(0);
   const [isReplayPlaying, setIsReplayPlaying] = useState(false);
   const [replayVideo, setReplayVideo] = useState<HTMLVideoElement | null>(null);
   const latestReplayTimeMsRef = useRef(0);
-  const [hasExportedOriginalMedia, setHasExportedOriginalMedia] = useState(false);
-  const [leaveIntent, setLeaveIntent] = useState<'score' | 'practice' | null>(null);
+  const [hasExportedOriginalMedia, setHasExportedOriginalMedia] =
+    useState(false);
+  const [leaveIntent, setLeaveIntent] = useState<'score' | 'practice' | null>(
+    null,
+  );
   const [isVideoExportStudioOpen, setIsVideoExportStudioOpen] = useState(false);
   const [isVideoExporting, setIsVideoExporting] = useState(false);
 
@@ -123,10 +141,11 @@ export default function PracticeReviewPage({
       return {
         supportedNoteIds: [],
         unsupportedNoteIds: [],
-
       };
     }
-    return noteAnnotationsFromTargetFeedback(completedContinuousTargetFeedback(result.evaluation));
+    return noteAnnotationsFromTargetFeedback(
+      completedContinuousTargetFeedback(result.evaluation),
+    );
   }, [result, isScoreIdentityConfirmed]);
 
   const handleScoreRendered = useCallback(
@@ -138,24 +157,30 @@ export default function PracticeReviewPage({
         setScoreContainer(container);
       }
       if (!isScoreIdentityConfirmed) {
-        annotationController.apply(container, {
-          supportedNoteIds: [],
-          unsupportedNoteIds: [],
-
-        }, {
-          renderRevision: scoreRenderRevisionRef.current,
-        });
+        annotationController.apply(
+          container,
+          {
+            supportedNoteIds: [],
+            unsupportedNoteIds: [],
+          },
+          {
+            renderRevision: scoreRenderRevisionRef.current,
+          },
+        );
         return;
       }
-      annotationController.apply(container, {
-        supportedNoteIds: scoreNoteAnnotations.supportedNoteIds,
-        unsupportedNoteIds: scoreNoteAnnotations.unsupportedNoteIds,
-
-      }, {
-        renderRevision: scoreRenderRevisionRef.current,
-      });
+      annotationController.apply(
+        container,
+        {
+          supportedNoteIds: scoreNoteAnnotations.supportedNoteIds,
+          unsupportedNoteIds: scoreNoteAnnotations.unsupportedNoteIds,
+        },
+        {
+          renderRevision: scoreRenderRevisionRef.current,
+        },
+      );
     },
-    [annotationController, isScoreIdentityConfirmed, scoreNoteAnnotations]
+    [annotationController, isScoreIdentityConfirmed, scoreNoteAnnotations],
   );
 
   const handleReplayTimeChange = useCallback(
@@ -172,26 +197,28 @@ export default function PracticeReviewPage({
         playheadController.clear(container);
         return;
       }
-      const scoreTick = reviewReplayScoreTick({ recording, mediaTimeMs: replayTimeMs,
-        actualMediaDurationMs, scope: result.session.plan.scope, tempoPlan: result.session.plan.tempoPlan,
-        scoreEndTick: artifact?.scoreEndTick ?? result.session.plan.scope.terminalTick, ticksPerQuarter: artifact!.ticksPerQuarter });
-      if (scoreTick === null) { playheadController.clear(container); return; }
-      playheadController.apply(
-        container,
-        adapter,
-        scoreTick,
-        scoreState.scope
-      );
+      const scoreTick = recorded
+        ? recordedPerformanceScoreTick(
+            recorded,
+            replayTimeMs,
+            actualMediaDurationMs,
+          )
+        : null;
+      if (scoreTick === null) {
+        playheadController.clear(container);
+        return;
+      }
+      playheadController.apply(container, adapter, scoreTick, scoreState.scope);
     },
     [
       adapter,
-      artifact,
       result,
       recording,
+      recorded,
       isScoreIdentityConfirmed,
       playheadController,
       scoreState,
-    ]
+    ],
   );
 
   const handleReplayPlaybackStateChange = useCallback((playing: boolean) => {
@@ -210,43 +237,45 @@ export default function PracticeReviewPage({
     const container = scoreContainerRef.current;
     if (!container) return;
     if (!isScoreIdentityConfirmed) {
-      annotationController.apply(container, {
-        supportedNoteIds: [],
-        unsupportedNoteIds: [],
-
-      }, {
-        renderRevision: scoreRenderRevisionRef.current,
-      });
+      annotationController.apply(
+        container,
+        {
+          supportedNoteIds: [],
+          unsupportedNoteIds: [],
+        },
+        {
+          renderRevision: scoreRenderRevisionRef.current,
+        },
+      );
       playheadController.clear(container);
       return;
     }
-    annotationController.apply(container, {
-      supportedNoteIds: scoreNoteAnnotations.supportedNoteIds,
-      unsupportedNoteIds: scoreNoteAnnotations.unsupportedNoteIds,
+    annotationController.apply(
+      container,
+      {
+        supportedNoteIds: scoreNoteAnnotations.supportedNoteIds,
+        unsupportedNoteIds: scoreNoteAnnotations.unsupportedNoteIds,
+      },
+      {
+        renderRevision: scoreRenderRevisionRef.current,
+      },
+    );
+  }, [
+    annotationController,
+    isScoreIdentityConfirmed,
+    playheadController,
+    scoreNoteAnnotations,
+  ]);
 
-    }, {
-      renderRevision: scoreRenderRevisionRef.current,
-    });
-  }, [annotationController, isScoreIdentityConfirmed, playheadController, scoreNoteAnnotations]);
-
-  const replay = useMemo(() => reviewReplay(recording), [recording]);
-
-  const saveMedia = useMemo(() => {
-    if (recording?.status === 'READY') {
-      return {
-        kind: recording.kind,
-        media: recording.media,
-        mimeType: recording.mimeType,
-
-        timebase: recording.timebase,
-      };
-    }
-    return null;
-  }, [recording]);
+  const replay = useMemo(() => recordedPerformanceReplay(recorded), [recorded]);
 
   const clientRequestIdRef = useRef<string | null>(null);
-  const [saveRecordingStatus, setSaveRecordingStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  const [saveRecordingErrorMessage, setSaveRecordingErrorMessage] = useState<string | null>(null);
+  const [saveRecordingStatus, setSaveRecordingStatus] = useState<
+    'idle' | 'saving' | 'saved' | 'error'
+  >('idle');
+  const [saveRecordingErrorMessage, setSaveRecordingErrorMessage] = useState<
+    string | null
+  >(null);
   const saveRecordingMutation = useSavePerformanceTake();
 
   const handleExportOriginalVideo = useCallback(async () => {
@@ -257,14 +286,17 @@ export default function PracticeReviewPage({
     ) {
       return;
     }
-    await downloadLocalMedia(recording.media, `performance-video-${Date.now()}.${captureMediaExtension(recording.mimeType)}`);
+    await downloadLocalMedia(
+      recording.media,
+      `performance-video-${Date.now()}.${captureMediaExtension(recording.mimeType)}`,
+    );
     setHasExportedOriginalMedia(true);
   }, [recording]);
 
   const handleSaveRecording = useCallback(async () => {
     if (
       !result ||
-      !saveMedia ||
+      !recorded ||
       saveRecordingStatus === 'saving' ||
       saveRecordingStatus === 'saved'
     ) {
@@ -273,7 +305,7 @@ export default function PracticeReviewPage({
     if (!clientRequestIdRef.current) {
       clientRequestIdRef.current = `take-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     }
-    if (saveMedia.media.byteSize > MAX_TAKE_MEDIA_BYTES) {
+    if (recorded.recording.media.byteSize > MAX_TAKE_MEDIA_BYTES) {
       setSaveRecordingStatus('error');
       setSaveRecordingErrorMessage(t('saveRecordingMediaTooLarge'));
       return;
@@ -283,52 +315,40 @@ export default function PracticeReviewPage({
 
     try {
       await saveRecordingMutation.mutateAsync({
-        binding: result.session.plan.bundle.binding,
-        ticksPerQuarter: result.session.plan.bundle.artifact.ticksPerQuarter,
-        clientRequestId: clientRequestIdRef.current ?? '',
-        mediaKind: saveMedia.kind,
-        media: saveMedia.media,
-        mimeType: saveMedia.mimeType,
-
-        scope:
-          result.session.plan.scope.kind === 'RANGE'
-            ? {
-                kind: 'RANGE',
-                startTick: result.session.plan.scope.startTick,
-                terminalTick: result.session.plan.scope.terminalTick,
-                startGroupId: result.session.plan.scope.startGroupId,
-                endGroupId: result.session.plan.scope.endGroupId,
-              }
-            : {
-                kind: 'FULL',
-                startTick: result.session.plan.scope.startTick,
-                terminalTick: result.session.plan.scope.terminalTick,
-              },
-        tempoPlan: toPerformanceTakeTempoPlan(result.session.plan.tempoPlan),
-        recordingTimebase: {
-          nominalMediaDurationUs: saveMedia.timebase.nominalMediaDurationUs,
-          activeSegments: saveMedia.timebase.activeSegments.map(segment => ({ ...segment })) },
+        clientRequestId: clientRequestIdRef.current,
+        recordedPerformance: recorded,
       });
       setSaveRecordingStatus('saved');
     } catch (err: unknown) {
       setSaveRecordingStatus('error');
       setSaveRecordingErrorMessage(
-        err instanceof Error ? err.message : t('saveRecordingFailed')
+        err instanceof Error ? err.message : t('saveRecordingFailed'),
       );
     }
-  }, [result, saveMedia, saveRecordingMutation, saveRecordingStatus, t]);
+  }, [result, recorded, saveRecordingMutation, saveRecordingStatus, t]);
 
-  const performLeave = useCallback((target: 'score' | 'practice') => {
-    workspace.clearReviewSession();
-    router.push(target === 'score' ? `/score/${id}` : practiceLocation(id, 'setup', result?.session.plan.bundle.binding.revisionId));
-  }, [id, router, result?.session.plan.bundle.binding.revisionId, workspace]);
+  const performLeave = useCallback(
+    (target: 'score' | 'practice') => {
+      workspace.clearReviewSession();
+      router.push(
+        target === 'score'
+          ? `/score/${id}`
+          : practiceLocation(
+              id,
+              'setup',
+              result?.executed.bundle.binding.revisionId,
+            ),
+      );
+    },
+    [id, router, result?.executed.bundle.binding.revisionId, workspace],
+  );
 
   const requestLeave = useCallback(
     (target: 'score' | 'practice') => {
       const hasUncommittedMedia = Boolean(
         recording?.status === 'READY' &&
           saveRecordingStatus !== 'saved' &&
-          !hasExportedOriginalMedia
+          !hasExportedOriginalMedia,
       );
       if (hasUncommittedMedia || isVideoExporting) {
         setLeaveIntent(target);
@@ -336,7 +356,13 @@ export default function PracticeReviewPage({
       }
       performLeave(target);
     },
-    [recording, hasExportedOriginalMedia, isVideoExporting, performLeave, saveRecordingStatus]
+    [
+      recording,
+      hasExportedOriginalMedia,
+      isVideoExporting,
+      performLeave,
+      saveRecordingStatus,
+    ],
   );
 
   const handleRestart = useCallback(() => {
@@ -350,7 +376,7 @@ export default function PracticeReviewPage({
   const hasUncommittedReviewMedia = Boolean(
     recording?.status === 'READY' &&
       saveRecordingStatus !== 'saved' &&
-      !hasExportedOriginalMedia
+      !hasExportedOriginalMedia,
   );
   const leaveReviewDescription = isVideoExporting
     ? hasUncommittedReviewMedia
@@ -379,13 +405,17 @@ export default function PracticeReviewPage({
   }
 
   const view = reviewViewModel(result);
-  const tempoText = view.tempo.kind === 'SCORE' ? t('tempoScoreMode') : `${view.tempo.bpm} BPM`;
+  const tempoText =
+    view.tempo.kind === 'SCORE' ? t('tempoScoreMode') : `${view.tempo.bpm} BPM`;
   const scopeText = `${t(view.scope.label)} (${t('takeScopeBeats', {
-    start: view.scope.startTick / artifact!.ticksPerQuarter, end: view.scope.terminalTick / artifact!.ticksPerQuarter,
+    start: view.scope.startTick / artifact!.ticksPerQuarter,
+    end: view.scope.terminalTick / artifact!.ticksPerQuarter,
   })})`;
   const inputSourceText = t(view.inputSourceLabel);
-  const completedTime = format.dateTime(new Date(result.session.updatedAtMs), {
-    hour: 'numeric', minute: '2-digit', second: '2-digit',
+  const completedTime = format.dateTime(new Date(result.completedAtMs), {
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   });
 
@@ -445,8 +475,15 @@ export default function PracticeReviewPage({
         }
       />
 
-      {result.evaluation.status === 'UNAVAILABLE' ? <p className="text-sm text-muted-foreground">{t('evaluationUnavailableDesc')}</p>
-        : result.session.plan.resources.input.kind === 'MICROPHONE' ? <p className="text-sm text-muted-foreground">{t('acousticEvidenceDesc')}</p> : null}
+      {result.evaluation.status === 'UNAVAILABLE' ? (
+        <p className="text-sm text-muted-foreground">
+          {t('evaluationUnavailableDesc')}
+        </p>
+      ) : result.inputKind === 'MICROPHONE' ? (
+        <p className="text-sm text-muted-foreground">
+          {t('acousticEvidenceDesc')}
+        </p>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
         {/* Synchronized Replay Player / Recording Status */}
@@ -472,7 +509,9 @@ export default function PracticeReviewPage({
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-slate-700 dark:border-slate-800 dark:bg-slate-950/20 dark:text-slate-300">
             <div className="flex items-center gap-2">
               <Music className="h-4 w-4 flex-shrink-0" />
-              <span className="text-sm font-semibold">{t('performanceNotRecorded')}</span>
+              <span className="text-sm font-semibold">
+                {t('performanceNotRecorded')}
+              </span>
             </div>
             <p className="mt-1 pl-6 text-xs text-slate-600 dark:text-slate-400">
               {t('performanceNotRecordedDesc')}
@@ -482,7 +521,9 @@ export default function PracticeReviewPage({
           <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 p-4 text-amber-800 dark:text-amber-300">
             <div className="flex items-center gap-2">
               <AlertCircle className="h-4 w-4 flex-shrink-0" />
-              <span className="text-sm font-semibold">{t('audioRecordingUnavailable')}</span>
+              <span className="text-sm font-semibold">
+                {t('audioRecordingUnavailable')}
+              </span>
             </div>
             <p className="mt-1 text-xs text-amber-700 dark:text-amber-400 pl-6">
               {recording.status === 'UNAVAILABLE' &&
@@ -508,7 +549,10 @@ export default function PracticeReviewPage({
               pageClassName="w-full overflow-hidden bg-white"
               svgClassName="practice-summary-score-svg"
               loadingContent={
-                <PreviewLoading label={t('reviewLoadingScore')} className="min-h-80" />
+                <PreviewLoading
+                  label={t('reviewLoadingScore')}
+                  className="min-h-80"
+                />
               }
               renderError={(message) => (
                 <div className="flex min-h-80 items-center justify-center p-6 text-center text-sm text-muted-foreground">
@@ -530,47 +574,67 @@ export default function PracticeReviewPage({
         <CardContent>
           <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
             <div>
-              <div className="text-xs text-muted-foreground">{t('performanceDuration')}</div>
+              <div className="text-xs text-muted-foreground">
+                {t('performanceDuration')}
+              </div>
               <div className="font-semibold">{view.durationText}</div>
             </div>
             <div>
-              <div className="text-xs text-muted-foreground">{t('performanceTempo')}</div>
+              <div className="text-xs text-muted-foreground">
+                {t('performanceTempo')}
+              </div>
               <div className="font-semibold">{tempoText}</div>
             </div>
             <div>
-              <div className="text-xs text-muted-foreground">{t('performanceInput')}</div>
+              <div className="text-xs text-muted-foreground">
+                {t('performanceInput')}
+              </div>
               <div className="font-semibold">{inputSourceText}</div>
             </div>
             <div>
-              <div className="text-xs text-muted-foreground">{t('performanceScope')}</div>
+              <div className="text-xs text-muted-foreground">
+                {t('performanceScope')}
+              </div>
               <div className="font-semibold">{scopeText}</div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <Card className="rounded-lg bg-card" data-testid="original-performance-card">
+      <Card
+        className="rounded-lg bg-card"
+        data-testid="original-performance-card"
+      >
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold">{t('saveOriginalRecordingTitle')}</CardTitle>
+          <CardTitle className="text-sm font-semibold">
+            {t('saveOriginalRecordingTitle')}
+          </CardTitle>
           <p className="text-xs text-muted-foreground">
             {t('saveOriginalRecordingDesc')}
           </p>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center gap-2">
           {recording?.status === 'READY' && recording.kind === 'VIDEO' ? (
-            <Button size="sm" variant="outline" onClick={handleExportOriginalVideo}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleExportOriginalVideo}
+            >
               <Download className="mr-1.5 h-4 w-4" />
               {t('exportOriginalVideo')}
             </Button>
           ) : null}
-          {saveMedia ? (
+          {recorded ? (
             saveRecordingStatus === 'saved' ? (
               <div className="flex flex-wrap items-center gap-2">
                 <Button size="sm" variant="secondary" disabled>
                   <CheckCircle2 className="mr-1.5 h-4 w-4 text-green-600" />
                   {t('recordingSaved')}
                 </Button>
-                <Button size="sm" onClick={() => router.push('/my-performances')}>
+                <Button
+                  size="sm"
+                  onClick={() => router.push('/my-performances')}
+                >
                   {t('viewMyPerformances')}
                 </Button>
               </div>
@@ -580,7 +644,11 @@ export default function PracticeReviewPage({
                 {t('savingRecording')}
               </Button>
             ) : saveRecordingStatus === 'error' ? (
-              <Button size="sm" variant="destructive" onClick={handleSaveRecording}>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={handleSaveRecording}
+              >
                 <AlertCircle className="mr-1.5 h-4 w-4" />
                 {t('retrySaveRecording')}
               </Button>
@@ -610,7 +678,9 @@ export default function PracticeReviewPage({
               <div className="flex items-start gap-2">
                 <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-600 dark:text-red-400" />
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold">{t('saveRecordingFailedTitle')}</p>
+                  <p className="text-sm font-semibold">
+                    {t('saveRecordingFailedTitle')}
+                  </p>
                   <p className="text-xs text-red-700 dark:text-red-300">
                     {saveRecordingErrorMessage ?? t('saveRecordingFailedDesc')}
                   </p>
@@ -623,11 +693,10 @@ export default function PracticeReviewPage({
 
       {recording?.status === 'READY' && recording.kind === 'VIDEO' ? (
         <VideoExportStudio
-          key={result.session.localSessionId}
-          session={videoExportSession}
+          key={result.localSessionId}
+          recordedPerformance={exportPerformance}
           scoreContainer={scoreContainer}
           adapter={adapter}
-          scoreEndTick={artifact?.scoreEndTick ?? result.session.plan.scope.terminalTick} ticksPerQuarter={artifact!.ticksPerQuarter}
           isScoreIdentityConfirmed={isScoreIdentityConfirmed}
           xmlContent={xmlContent}
           mediaTimeMs={videoExportPreviewTimeMs}

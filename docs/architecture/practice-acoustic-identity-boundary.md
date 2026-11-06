@@ -2,19 +2,19 @@
 
 ## Identity concerns
 
-| Concern | Owner | Evidence meaning |
-| --- | --- | --- |
-| Model asset | runtime-contract.json and generated verified delivery | Exact ONNX bytes, descriptor and runtime configuration |
-| Decoder | robust-piano-decoder and runtime decoder configuration | Qualified piano pitch/onset semantics |
-| Geometry, FIR and source mapping | planner, source adapter and FIR assets | Tensor context, half-open ownership and physical source coordinates |
-| Source publication | source runtime/publication | Immutable all-pitch observations and analyzed-through coverage |
-| Timing | Session timebase and segmented clock | Event-time mapping and explicit no-calibration policy |
-| Admission/liveness | resource policy, capture/worker/engine/controllers | Resource retention, readiness, failure and intervention behavior |
+| Concern                          | Owner                                                  | Evidence meaning                                                    |
+| -------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------- |
+| Model asset                      | runtime-contract.json and generated verified delivery  | Exact ONNX bytes, descriptor and runtime configuration              |
+| Decoder                          | robust-piano-decoder and runtime decoder configuration | Qualified piano pitch/onset semantics                               |
+| Geometry, FIR and source mapping | planner, source adapter and FIR assets                 | Tensor context, half-open ownership and physical source coordinates |
+| Source publication               | source runtime/publication                             | Immutable all-pitch observations and analyzed-through coverage      |
+| Timing                           | Session timebase and segmented clock                   | Event-time mapping and explicit no-calibration policy               |
+| Admission/liveness               | resource policy, capture/worker/engine/controllers     | Resource retention, readiness, failure and intervention behavior    |
 
 The acoustic model, decoder and source-adapter identities belong to their algorithm
 and loading owners. Their hashes and characterization tests identify the configured
 evidence-producing stack. A transient Continuous Result references evaluation and
-its completed session; it carries no evidence-stack transport payload.
+its ExecutedPerformance and transient outcome; it carries no evidence-stack transport payload.
 
 ## Selected source and asset attestation
 

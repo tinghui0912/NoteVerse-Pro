@@ -1,3 +1,11 @@
+import { planPractice } from '@/lib/practice/planning/practice-plan';
+import type { ExecutedPerformance } from '@/lib/practice/run/executed-performance';
+import {
+  recordedPerformance,
+  type ReadyPerformanceRecording,
+} from '@/lib/practice/recording/recorded-performance';
+import { recordedPerformanceFixture } from '@/lib/practice/__fixtures__/recorded-performance';
+import { artifact as videoArtifact } from '@/lib/practice/video-export/__fixtures__/saved-take';
 // @vitest-environment jsdom
 import { recordingSinkFixture } from '@/lib/practice/__fixtures__/recording-sink';
 import { localMediaAssetFixture } from '@/lib/practice/__fixtures__/local-media-asset';
@@ -51,27 +59,53 @@ const recordingTimebase: RecordingTimebase = {
     },
   ],
 };
-function createInput() {
-  return {
-    ticksPerQuarter: 1,
-    binding: {
-      scoreId: 'score-1',
-      revisionId: 'revision-1',
-      bundleId: 'source-1',
+function createInput(
+  overrides: {
+    executed?: Partial<ExecutedPerformance>;
+    recording?: Partial<ReadyPerformanceRecording>;
+  } = {},
+) {
+  const artifact = {
+    ...videoArtifact,
+    notes: videoArtifact.notes.slice(0, 1),
+    events: videoArtifact.events.slice(0, 1),
+    moments: videoArtifact.moments.slice(0, 1),
+    scoreEndTick: 4,
+    scoreTempoSegments: [{ startTick: 0, bpm: 120 }],
+  };
+  const plan = planPractice(
+    {
+      binding: {
+        scoreId: 'score-1',
+        revisionId: 'revision-1',
+        bundleId: 'source-1',
+      },
+      artifact,
     },
-    clientRequestId: 'request-1',
-    mediaKind: 'AUDIO' as const,
+    {
+      mode: 'CONTINUOUS_PLAY',
+      inputSource: 'MIDI',
+      recordingMode: 'OFF',
+      scope: { kind: 'FULL' },
+      tempoSelection: { mode: 'SCORE' },
+      metronomeEnabled: false,
+    },
+  );
+  const base = recordedPerformanceFixture(plan, {
+    status: 'READY',
+    kind: 'AUDIO',
     media: localMediaAssetFixture(
       new Blob(['RIFF....WAVE'], { type: 'audio/wav' }),
     ),
     mimeType: 'audio/wav',
-    scope: {
-      kind: 'FULL' as const,
-      startTick: 0,
-      terminalTick: 4,
-    },
-    tempoPlan,
-    recordingTimebase,
+    timebase: recordingTimebase,
+  });
+  return {
+    clientRequestId: 'request-1',
+    recordedPerformance: recordedPerformance(
+      { ...base.executed, ...overrides.executed },
+      { ...base.recording, ...overrides.recording },
+    ),
   };
 }
 const savedTake: PerformanceTakeRead = {
@@ -80,7 +114,7 @@ const savedTake: PerformanceTakeRead = {
   deletion_status: 'ACTIVE',
   created_at: '2026-09-21T00:00:00Z',
   manifest: {
-    artifact_id: 'artifact-1',
+    artifact_id: videoArtifact.artifactId,
     score_title_snapshot: 'Etude',
     score_timebase: { ticks_per_quarter: 1 },
     tempo_plan: tempoPlan,
@@ -181,10 +215,9 @@ describe('useSavePerformanceTake', () => {
       });
       let pending!: Promise<unknown>;
       act(() => {
-        pending = result.current.mutateAsync({
-          ...createInput(),
-          media,
-        });
+        pending = result.current.mutateAsync(
+          createInput({ recording: { media }, executed: {} }),
+        );
       });
       await media.release();
       expect(capture.exists()).toBe(true);
@@ -217,7 +250,7 @@ describe('useSavePerformanceTake', () => {
       'https://objects.example/staging.wav',
       'PUT',
       { 'content-type': 'audio/wav' },
-      createInput().media.blob,
+      createInput().recordedPerformance.recording.media.blob,
     );
     expect(performanceTakesApi.finalizeTake).toHaveBeenCalledExactlyOnceWith(
       'upload-reservation-1',
@@ -228,12 +261,14 @@ describe('useSavePerformanceTake', () => {
     const raw = new Blob(['raw captured mp4'], {
       type: 'video/mp4;codecs=avc1',
     });
-    const input = {
-      ...createInput(),
-      mediaKind: 'VIDEO' as const,
-      mimeType: raw.type,
-      media: localMediaAssetFixture(raw),
-    };
+    const input = createInput({
+      recording: {
+        kind: 'VIDEO' as const,
+        mimeType: raw.type,
+        media: localMediaAssetFixture(raw),
+      },
+      executed: {},
+    });
     const reserved = reservation();
     reserved.manifest.capture = {
       kind: 'VIDEO',
@@ -321,20 +356,31 @@ describe('useSavePerformanceTake', () => {
     },
   );
   it('reserves RANGE VIDEO metadata once', async () => {
-    const input = {
-      ...createInput(),
-      mediaKind: 'VIDEO' as const,
-      scope: {
-        kind: 'RANGE' as const,
-        startTick: 1,
-        terminalTick: 3,
-        startGroupId: 'g1',
-        endGroupId: 'g3',
+    const input = createInput({
+      recording: {
+        kind: 'VIDEO' as const,
+        mimeType: 'video/webm',
+        media: localMediaAssetFixture(
+          new Blob(['RIFF....WAVE'], { type: 'video/webm' }),
+        ),
       },
-    };
+      executed: {
+        scope: {
+          startIndex: 0,
+          endIndex: 0,
+          ...{
+            kind: 'RANGE' as const,
+            startTick: 1,
+            terminalTick: 3,
+            startGroupId: 'g1',
+            endGroupId: 'g3',
+          },
+        },
+      },
+    });
     const accepted = reservation();
-    accepted.manifest.capture.kind = input.mediaKind;
-    accepted.manifest.capture.kind = input.mediaKind;
+    accepted.manifest.capture.kind = input.recordedPerformance.recording.kind;
+    accepted.manifest.capture.mime_type = 'video/webm';
     accepted.manifest.scope = {
       kind: 'RANGE',
       start_tick: 1,
@@ -348,9 +394,14 @@ describe('useSavePerformanceTake', () => {
     vi.mocked(performanceTakesApi.finalizeTake).mockResolvedValue({
       data: {
         ...savedTake,
+        archive_media: { ...savedTake.archive_media, mime_type: 'video/webm' },
         manifest: {
           ...savedTake.manifest,
-          capture: { ...savedTake.manifest.capture, kind: 'VIDEO' },
+          capture: {
+            ...savedTake.manifest.capture,
+            kind: 'VIDEO',
+            mime_type: 'video/webm',
+          },
           scope: {
             ...savedTake.manifest.scope,
             kind: 'RANGE',
@@ -545,13 +596,15 @@ describe('server canonical plan agreement before media upload', () => {
   });
 });
 it('compares raw custom selection even when rounded segment BPM is identical', async () => {
-  const input = {
-    ...createInput(),
-    tempoPlan: {
-      selection: { mode: 'CUSTOM_FIXED_BPM' as const, bpm: 80.5 },
-      segments: [{ startTick: 0, bpm: 81, source: 'CUSTOM' as const }],
+  const input = createInput({
+    recording: {},
+    executed: {
+      tempoPlan: {
+        selection: { mode: 'CUSTOM_FIXED_BPM' as const, bpm: 80.5 },
+        segments: [{ startTick: 0, bpm: 81, source: 'CUSTOM' as const }],
+      },
     },
-  };
+  });
   const accepted = structuredClone(reservation());
   accepted.manifest.tempo_plan = {
     selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 80.6 },
@@ -571,16 +624,22 @@ it('compares raw custom selection even when rounded segment BPM is identical', a
   expect(uploadMediaToSignedUrl).not.toHaveBeenCalled();
 });
 it('requires exact RANGE group identities even when beats match', async () => {
-  const input = {
-    ...createInput(),
-    scope: {
-      kind: 'RANGE' as const,
-      startTick: 0,
-      terminalTick: 4,
-      startGroupId: 'a',
-      endGroupId: 'b',
+  const input = createInput({
+    recording: {},
+    executed: {
+      scope: {
+        startIndex: 0,
+        endIndex: 0,
+        ...{
+          kind: 'RANGE' as const,
+          startTick: 0,
+          terminalTick: 4,
+          startGroupId: 'a',
+          endGroupId: 'b',
+        },
+      },
     },
-  };
+  });
   const accepted = structuredClone(reservation());
   accepted.manifest.scope = {
     kind: 'RANGE',
@@ -604,7 +663,19 @@ it('requires exact RANGE group identities even when beats match', async () => {
 });
 it('validates the executed grid locally without submitting it as reservation authority', async () => {
   const input = createInput();
-  input.ticksPerQuarter = 60;
+  input.recordedPerformance = {
+    ...input.recordedPerformance,
+    executed: {
+      ...input.recordedPerformance.executed,
+      bundle: {
+        ...input.recordedPerformance.executed.bundle,
+        artifact: {
+          ...input.recordedPerformance.executed.bundle.artifact,
+          ticksPerQuarter: 60,
+        },
+      },
+    },
+  };
   const accepted = structuredClone(reservation());
   accepted.manifest.score_timebase.ticks_per_quarter = 60;
   vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue({

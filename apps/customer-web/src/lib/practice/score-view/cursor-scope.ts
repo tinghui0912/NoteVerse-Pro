@@ -1,6 +1,14 @@
+import type { ExecutedPerformance } from '@/lib/practice/run/executed-performance';
 import type { ResolvedPracticeScope } from '@/lib/practice/planning/scope';
-import { attackNoteIds, notesForIds, type PracticeScoreArtifact } from '@/lib/practice/score/artifact';
-import { resolvePracticeScope, type PracticeScope } from '@/lib/practice/planning/scope';
+import {
+  attackNoteIds,
+  notesForIds,
+  type PracticeScoreArtifact,
+} from '@/lib/practice/score/artifact';
+import {
+  resolvePracticeScope,
+  type PracticeScope,
+} from '@/lib/practice/planning/scope';
 
 /**
  * The renderer-facing projection of a resolved practice scope.
@@ -19,9 +27,9 @@ export type CursorScope =
       allowedNoteIds: readonly string[];
     };
 
-export function cursorScopeFromResolvedPracticeScope(
+function cursorScopeFromResolvedPracticeScope(
   scope: ResolvedPracticeScope,
-  allowedNoteIds: readonly string[] = []
+  allowedNoteIds: readonly string[] = [],
 ): CursorScope {
   if (scope.kind === 'FULL') {
     return {
@@ -43,17 +51,40 @@ export function cursorScopeFromResolvedPracticeScope(
 
 export function resolvePracticeScopeCursorNoteIds(
   artifact: PracticeScoreArtifact,
-  scope: ResolvedPracticeScope | PracticeScope
+  scope: ResolvedPracticeScope | PracticeScope,
 ): string[] {
-  const resolved = 'startIndex' in scope
-    ? scope
-    : resolvePracticeScope(artifact, scope);
+  const resolved =
+    'startIndex' in scope ? scope : resolvePracticeScope(artifact, scope);
   return Array.from(
     new Set(
       artifact.moments
         .slice(resolved.startIndex, resolved.endIndex + 1)
-        .flatMap(group => notesForIds(artifact, attackNoteIds(group)).map(note => note.renderNoteId))
-        .filter(Boolean)
-    )
+        .flatMap((group) =>
+          notesForIds(artifact, attackNoteIds(group)).map(
+            (note) => note.renderNoteId,
+          ),
+        )
+        .filter(Boolean),
+    ),
   );
+}
+
+const executedScopes = new WeakMap<ExecutedPerformance, CursorScope>();
+export function cursorScopeFromExecutedPerformance(
+  executed: ExecutedPerformance,
+): CursorScope {
+  let scope = executedScopes.get(executed);
+  if (!scope) {
+    scope = cursorScopeFromResolvedPracticeScope(
+      executed.scope,
+      executed.scope.kind === 'RANGE'
+        ? resolvePracticeScopeCursorNoteIds(
+            executed.bundle.artifact,
+            executed.scope,
+          )
+        : [],
+    );
+    executedScopes.set(executed, scope);
+  }
+  return scope;
 }

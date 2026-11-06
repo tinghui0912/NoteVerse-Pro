@@ -1,4 +1,6 @@
-import { localMediaAssetFixture } from '@/lib/practice/__fixtures__/local-media-asset';
+import { recordedPerformanceFixture } from '@/lib/practice/__fixtures__/recorded-performance';
+import { continuousPracticePlan } from '@/lib/practice/__fixtures__/practice-plan';
+import { artifact as videoArtifact } from './__fixtures__/saved-take';
 // @vitest-environment jsdom
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -11,49 +13,62 @@ import {
 } from './export';
 import { resolveVideoExportPlaybackPosition } from './playback-position';
 import { renderVideoExportFrameAtTime } from './frame-renderer';
-import { applyExportPlayheadCursor, getPlayheadCursorGeometry } from '@/lib/practice/score-view/playhead-cursor';
+import {
+  applyExportPlayheadCursor,
+  getPlayheadCursorGeometry,
+} from '@/lib/practice/score-view/playhead-cursor';
 import { getEventScoreImage, prepareScorePageCache } from './score-model';
 import { getVideoExportLayout } from './templates';
-import type { VideoExportSession } from './session';
+import type { RecordedPerformance } from '@/lib/practice/recording/recorded-performance';
 
 function createSession(
-  overrides: Partial<VideoExportSession> = {}
-): VideoExportSession {
-  return {
-    sessionId: 'session-1', bundleId: 'source-1',
-    scoreIdentity: {
-      scoreId: 'score-1',
-      revisionId: 'rev-1',
-      artifactId: 'artifact-1',
-    },
-    scope: {
-      kind: 'RANGE',
-      startTick: 4,
-      terminalTick: 16,
-      allowedNoteIds: ['note-page-1', 'note-page-2'],
-    },
-    tempoPlan: {
-      selection: { mode: 'SCORE' },
-      segments: [
-        { startTick: 0, bpm: 120, source: 'MUSICXML' },
-        { startTick: 8, bpm: 60, source: 'MUSICXML' },
-      ],
-    },
-    video: {
-      status: 'READY',
-      media: localMediaAssetFixture(new Blob(['video'], { type: 'video/webm' })),
-      mimeType: 'video/webm',
-
-    },
-    recordingTimebase: {
+  overrides: Partial<RecordedPerformance> = {},
+): RecordedPerformance {
+  const artifact = {
+    ...videoArtifact,
+    notes: videoArtifact.notes.map((note, i) => ({
+      ...note,
+      renderNoteId: `note-page-${i + 1}`,
+    })),
+    events: videoArtifact.events.map((event, i) => ({
+      ...event,
+      onsetTick: i ? 8 : 4,
+      durationTicks: i ? 8 : 4,
+    })),
+    moments: videoArtifact.moments.map((group, i) => ({
+      ...group,
+      onsetTick: i ? 8 : 4,
+      canonicalEndTick: i ? 16 : 8,
+    })),
+    scoreTempoSegments: [
+      { startTick: 0, bpm: 120 },
+      { startTick: 8, bpm: 60 },
+    ],
+  };
+  const plan = continuousPracticePlan(artifact, {
+    scope: { kind: 'RANGE', startGroupId: 'group-1', endGroupId: 'group-2' },
+  });
+  const base = recordedPerformanceFixture(plan, {
+    ...recordedPerformanceFixture().recording,
+    timebase: {
       nominalMediaDurationUs: 6000000,
       activeSegments: [
-        { performanceStartUs: 0, performanceEndUs: 3000000, mediaStartUs: 0, mediaEndUs: 3000000 },
-        { performanceStartUs: 5000000, performanceEndUs: 8000000, mediaStartUs: 3000000, mediaEndUs: 6000000 },
+        {
+          performanceStartUs: 0,
+          performanceEndUs: 3000000,
+          mediaStartUs: 0,
+          mediaEndUs: 3000000,
+        },
+        {
+          performanceStartUs: 5000000,
+          performanceEndUs: 8000000,
+          mediaStartUs: 3000000,
+          mediaEndUs: 6000000,
+        },
       ],
     },
-    ...overrides,
-  } as VideoExportSession;
+  });
+  return { ...base, ...overrides };
 }
 
 function createAdapter() {
@@ -68,16 +83,24 @@ function createAdapter() {
           endTick: tick + 1,
           noteIds: [noteId],
         };
-      }
+      },
     ),
-    getPageWithElement: vi.fn((noteId: string) => (noteId === 'note-page-2' ? 2 : 1)),
+    getPageWithElement: vi.fn((noteId: string) =>
+      noteId === 'note-page-2' ? 2 : 1,
+    ),
   };
 }
 
 function makeImage(width = 1200, height = 1600) {
   const image = document.createElement('img');
-  Object.defineProperty(image, 'naturalWidth', { configurable: true, value: width });
-  Object.defineProperty(image, 'naturalHeight', { configurable: true, value: height });
+  Object.defineProperty(image, 'naturalWidth', {
+    configurable: true,
+    value: width,
+  });
+  Object.defineProperty(image, 'naturalHeight', {
+    configurable: true,
+    value: height,
+  });
   return image;
 }
 
@@ -95,16 +118,24 @@ function createFakeContext() {
     beginPath: vi.fn(() => calls.push({ name: 'beginPath', args: [] })),
     moveTo: vi.fn((...args: unknown[]) => calls.push({ name: 'moveTo', args })),
     lineTo: vi.fn((...args: unknown[]) => calls.push({ name: 'lineTo', args })),
-    quadraticCurveTo: vi.fn((...args: unknown[]) => calls.push({ name: 'quadraticCurveTo', args })),
+    quadraticCurveTo: vi.fn((...args: unknown[]) =>
+      calls.push({ name: 'quadraticCurveTo', args }),
+    ),
     closePath: vi.fn(() => calls.push({ name: 'closePath', args: [] })),
     fill: vi.fn(() => calls.push({ name: 'fill', args: [] })),
     stroke: vi.fn(() => calls.push({ name: 'stroke', args: [] })),
     save: vi.fn(() => calls.push({ name: 'save', args: [] })),
     restore: vi.fn(() => calls.push({ name: 'restore', args: [] })),
-    fillRect: vi.fn((...args: unknown[]) => calls.push({ name: 'fillRect', args })),
-    drawImage: vi.fn((...args: unknown[]) => calls.push({ name: 'drawImage', args })),
+    fillRect: vi.fn((...args: unknown[]) =>
+      calls.push({ name: 'fillRect', args }),
+    ),
+    drawImage: vi.fn((...args: unknown[]) =>
+      calls.push({ name: 'drawImage', args }),
+    ),
   };
-  return ctx as unknown as CanvasRenderingContext2D & { calls: FakeContextCall[] };
+  return ctx as unknown as CanvasRenderingContext2D & {
+    calls: FakeContextCall[];
+  };
 }
 
 function createScoreContainer() {
@@ -128,7 +159,10 @@ function createScoreContainer() {
       </svg>
     </div>
   `;
-  const boxes: Record<string, { x: number; y: number; width: number; height: number }> = {
+  const boxes: Record<
+    string,
+    { x: number; y: number; width: number; height: number }
+  > = {
     'system-1': { x: 60, y: 120, width: 1080, height: 260 },
     'system-2': { x: 60, y: 430, width: 1080, height: 260 },
     'note-a': { x: 100, y: 200, width: 30, height: 40 },
@@ -136,10 +170,15 @@ function createScoreContainer() {
     'chord-1': { x: 260, y: 360, width: 80, height: 50 },
     'note-page-2': { x: 400, y: 500, width: 35, height: 45 },
   };
-  container.querySelectorAll<SVGGraphicsElement>('[data-id], [data-testid]').forEach((element) => {
-    const id = element.getAttribute('data-id') ?? element.getAttribute('data-testid') ?? '';
-    element.getBBox = vi.fn(() => boxes[id] as DOMRect);
-  });
+  container
+    .querySelectorAll<SVGGraphicsElement>('[data-id], [data-testid]')
+    .forEach((element) => {
+      const id =
+        element.getAttribute('data-id') ??
+        element.getAttribute('data-testid') ??
+        '';
+      element.getBBox = vi.fn(() => boxes[id] as DOMRect);
+    });
   installIdentitySvgGeometry(container);
   document.body.appendChild(container);
   return container;
@@ -149,20 +188,33 @@ function installIdentitySvgGeometry(container: HTMLElement) {
   const matrix = {
     inverse: vi.fn(() => matrix),
     multiply: vi.fn(() => ({
-      transformPoint: (point: { x: number; y: number }) => ({ x: point.x, y: point.y }),
+      transformPoint: (point: { x: number; y: number }) => ({
+        x: point.x,
+        y: point.y,
+      }),
     })),
   };
-  container.querySelectorAll<SVGGraphicsElement>('svg, g').forEach((element) => {
-    element.getCTM = vi.fn(() => matrix as unknown as DOMMatrix);
-  });
+  container
+    .querySelectorAll<SVGGraphicsElement>('svg, g')
+    .forEach((element) => {
+      element.getCTM = vi.fn(() => matrix as unknown as DOMMatrix);
+    });
   container.querySelectorAll<SVGSVGElement>('svg').forEach((svg) => {
-    svg.createSVGPoint = vi.fn(() => ({
-      x: 0,
-      y: 0,
-      matrixTransform(matrixLike: { transformPoint: (point: { x: number; y: number }) => { x: number; y: number } }) {
-        return matrixLike.transformPoint(this);
-      },
-    } as SVGPoint));
+    svg.createSVGPoint = vi.fn(
+      () =>
+        ({
+          x: 0,
+          y: 0,
+          matrixTransform(matrixLike: {
+            transformPoint: (point: { x: number; y: number }) => {
+              x: number;
+              y: number;
+            };
+          }) {
+            return matrixLike.transformPoint(this);
+          },
+        }) as SVGPoint,
+    );
   });
 }
 
@@ -173,11 +225,15 @@ describe('video-export video export helpers', () => {
 
   it('selects a supported WebM MediaRecorder mime type', () => {
     const FakeMediaRecorder = {
-      isTypeSupported: vi.fn((mime: string) => mime === 'video/webm;codecs=vp8,opus'),
+      isTypeSupported: vi.fn(
+        (mime: string) => mime === 'video/webm;codecs=vp8,opus',
+      ),
     };
     vi.stubGlobal('MediaRecorder', FakeMediaRecorder);
 
-    expect(selectSupportedVideoExportMimeType()).toBe('video/webm;codecs=vp8,opus');
+    expect(selectSupportedVideoExportMimeType()).toBe(
+      'video/webm;codecs=vp8,opus',
+    );
   });
 
   it('reports unsupported encoding when MediaRecorder cannot encode WebM', () => {
@@ -202,55 +258,54 @@ describe('video-export video export helpers', () => {
 
     expect(
       getVideoExportReadiness({
-        session: null,
+        recordedPerformance: null,
         isScoreIdentityConfirmed: true,
         xmlContent: '<score/>',
         scoreContainer: document.createElement('div'),
-      })
+      }),
     ).toEqual({ ok: false, reason: 'video_not_ready' });
 
     expect(
       getVideoExportReadiness({
-        session: createSession(),
+        recordedPerformance: createSession(),
         isScoreIdentityConfirmed: false,
         xmlContent: '<score/>',
         scoreContainer: document.createElement('div'),
-      })
+      }),
     ).toEqual({ ok: false, reason: 'score_identity_mismatch' });
 
     expect(
       getVideoExportReadiness({
-        session: createSession(),
+        recordedPerformance: createSession(),
         isScoreIdentityConfirmed: true,
         xmlContent: null,
         scoreContainer: document.createElement('div'),
-      })
+      }),
     ).toEqual({ ok: false, reason: 'score_not_ready' });
 
     expect(
       getVideoExportReadiness({
-        session: createSession({
-          recordingTimebase: {
-            nominalMediaDurationUs: 0,
-            activeSegments: [],
+        recordedPerformance: createSession({
+          recording: {
+            ...createSession().recording,
+            timebase: { nominalMediaDurationUs: 0, activeSegments: [] },
           },
         }),
         isScoreIdentityConfirmed: true,
         xmlContent: '<score/>',
         scoreContainer: document.createElement('div'),
-      })
+      }),
     ).toEqual({ ok: false, reason: 'timebase_unavailable' });
   });
 
   it('resolves selected-scope timing through pause/resume and variable tempo into score pages', () => {
-    const session = createSession();
+    const recordedPerformance = createSession();
     const adapter = createAdapter();
 
     const firstSegment = resolveVideoExportPlaybackPosition({
-      session,
+      recordedPerformance,
       adapter,
       mediaTimeMs: 1000,
-      scoreEndTick: 24, ticksPerQuarter: 1,
     });
     expect(firstSegment?.perfTimeMs).toBe(1000);
     expect(firstSegment?.scoreTick).toBe(6);
@@ -258,10 +313,9 @@ describe('video-export video export helpers', () => {
     expect(firstSegment?.noteIds).toEqual(['note-page-1']);
 
     const afterPause = resolveVideoExportPlaybackPosition({
-      session,
+      recordedPerformance,
       adapter,
       mediaTimeMs: 4000,
-      scoreEndTick: 24, ticksPerQuarter: 1,
     });
     expect(afterPause?.perfTimeMs).toBe(6000);
     expect(afterPause?.scoreTick).toBe(12);
@@ -270,15 +324,14 @@ describe('video-export video export helpers', () => {
   });
 
   it('scales media time when decoded media duration differs from nominal duration', () => {
-    const session = createSession();
+    const recordedPerformance = createSession();
     const adapter = createAdapter();
 
     const frame = resolveVideoExportPlaybackPosition({
-      session,
+      recordedPerformance,
       adapter,
       mediaTimeMs: 5000,
       actualMediaDurationMs: 10000,
-      scoreEndTick: 24, ticksPerQuarter: 1,
     });
 
     expect(frame?.perfTimeMs).toBe(3000);
@@ -296,13 +349,16 @@ describe('video-export video export helpers', () => {
     } as MediaStream;
     const mediaStreamSpy = vi.fn(function FakeMediaStream(
       this: { tracks?: MediaStreamTrack[] },
-      tracks?: MediaStreamTrack[]
+      tracks?: MediaStreamTrack[],
     ) {
       this.tracks = tracks;
     });
     vi.stubGlobal('MediaStream', mediaStreamSpy);
 
-    const result = composeVideoExportOutputStream(canvasStream, audioStream) as unknown as {
+    const result = composeVideoExportOutputStream(
+      canvasStream,
+      audioStream,
+    ) as unknown as {
       tracks: MediaStreamTrack[];
     };
 
@@ -323,29 +379,54 @@ describe('video-export video export helpers', () => {
     expect(loadImage).toHaveBeenCalledTimes(2);
   });
 
-  it.each(['data-practice-review-page', 'data-score-page'])('freezes clean export score through %s without changing live Review annotations', async pageAttribute => {
-    const container = createScoreContainer();
-    for (const page of container.querySelectorAll('[data-practice-review-page]')) {
-      page.setAttribute(pageAttribute, page.getAttribute('data-practice-review-page')!);
-      if (pageAttribute !== 'data-practice-review-page') page.removeAttribute('data-practice-review-page');
-    }
-    const decorations = ['practice-summary-note-supported', 'practice-summary-note-unsupported'];
-    const note = container.querySelector('[data-id="note-a"]')!;
-    note.classList.add(...decorations);
-    const svg = container.querySelector('svg')!;
-    svg.insertAdjacentHTML('beforeend', '<g class="practice-playhead-cursor" data-practice-playhead-cursor="true"></g>');
-    const frozen: string[] = [];
-    await prepareScorePageCache(container, async text => { frozen.push(text); return makeImage(); });
-    expect(frozen).toHaveLength(2);
-    for (const text of frozen) {
-      for (const decoration of [...decorations, 'practice-note-active', 'practice-playhead-cursor', 'data-practice-playhead-cursor']) {
-        expect(text).not.toContain(decoration);
+  it.each(['data-practice-review-page', 'data-score-page'])(
+    'freezes clean export score through %s without changing live Review annotations',
+    async (pageAttribute) => {
+      const container = createScoreContainer();
+      for (const page of container.querySelectorAll(
+        '[data-practice-review-page]',
+      )) {
+        page.setAttribute(
+          pageAttribute,
+          page.getAttribute('data-practice-review-page')!,
+        );
+        if (pageAttribute !== 'data-practice-review-page')
+          page.removeAttribute('data-practice-review-page');
       }
-    }
-    expect(note.classList.contains(decorations[0])).toBe(true);
-    expect(note.classList.contains(decorations[1])).toBe(true);
-    expect(svg.querySelector('[data-practice-playhead-cursor]')).not.toBeNull();
-  });
+      const decorations = [
+        'practice-summary-note-supported',
+        'practice-summary-note-unsupported',
+      ];
+      const note = container.querySelector('[data-id="note-a"]')!;
+      note.classList.add(...decorations);
+      const svg = container.querySelector('svg')!;
+      svg.insertAdjacentHTML(
+        'beforeend',
+        '<g class="practice-playhead-cursor" data-practice-playhead-cursor="true"></g>',
+      );
+      const frozen: string[] = [];
+      await prepareScorePageCache(container, async (text) => {
+        frozen.push(text);
+        return makeImage();
+      });
+      expect(frozen).toHaveLength(2);
+      for (const text of frozen) {
+        for (const decoration of [
+          ...decorations,
+          'practice-note-active',
+          'practice-playhead-cursor',
+          'data-practice-playhead-cursor',
+        ]) {
+          expect(text).not.toContain(decoration);
+        }
+      }
+      expect(note.classList.contains(decorations[0])).toBe(true);
+      expect(note.classList.contains(decorations[1])).toBe(true);
+      expect(
+        svg.querySelector('[data-practice-playhead-cursor]'),
+      ).not.toBeNull();
+    },
+  );
 
   it('renders the event cursor inside the frozen SVG image instead of on Canvas', async () => {
     const container = createScoreContainer();
@@ -367,28 +448,36 @@ describe('video-export video export helpers', () => {
       {
         eventImageLoader,
         eventSvgDecorator: (svg) => {
-          svg.createSVGPoint = vi.fn(() => ({
-            x: 0,
-            y: 0,
-            matrixTransform(pointMatrix: { transformPoint?: (point: unknown) => unknown }) {
-              return pointMatrix.transformPoint?.(this) ?? this;
-            },
-          } as SVGPoint));
+          svg.createSVGPoint = vi.fn(
+            () =>
+              ({
+                x: 0,
+                y: 0,
+                matrixTransform(pointMatrix: {
+                  transformPoint?: (point: unknown) => unknown;
+                }) {
+                  return pointMatrix.transformPoint?.(this) ?? this;
+                },
+              }) as SVGPoint,
+          );
           svg.getCTM = vi.fn(() => matrix as unknown as DOMMatrix);
           svg.querySelectorAll<SVGGraphicsElement>('g').forEach((element) => {
             const id = element.getAttribute('data-id');
             if (id === 'note-a') {
-              element.getBBox = vi.fn(() => ({
-                x: 100,
-                y: 200,
-                width: 30,
-                height: 40,
-              } as DOMRect));
+              element.getBBox = vi.fn(
+                () =>
+                  ({
+                    x: 100,
+                    y: 200,
+                    width: 30,
+                    height: 40,
+                  }) as DOMRect,
+              );
               element.getCTM = vi.fn(() => matrix as unknown as DOMMatrix);
             }
           });
         },
-      }
+      },
     );
 
     const image = await getEventScoreImage(cache.get(1)!, ['note-a']);
@@ -397,16 +486,22 @@ describe('video-export video export helpers', () => {
     expect(image).toBeTruthy();
     expect(cachedImage).toBe(image);
     expect(eventImageLoader).toHaveBeenCalledTimes(1);
-    expect(serialized.filter((text) => text.includes('data-practice-playhead-cursor'))).toHaveLength(1);
+    expect(
+      serialized.filter((text) =>
+        text.includes('data-practice-playhead-cursor'),
+      ),
+    ).toHaveLength(1);
     expect(serialized.at(-1)).toContain('data-practice-playhead-cursor');
   });
 
   it('keeps standard and floating event image styling in separate visual modes', async () => {
     const container = createScoreContainer();
-    container.querySelector('svg')?.insertAdjacentHTML(
-      'beforeend',
-      '<path data-testid="floating-notation" fill="#000000" stroke="#000000" d="M0 0h10" />'
-    );
+    container
+      .querySelector('svg')
+      ?.insertAdjacentHTML(
+        'beforeend',
+        '<path data-testid="floating-notation" fill="#000000" stroke="#000000" d="M0 0h10" />',
+      );
     const serialized: string[] = [];
     const eventImageLoader = vi.fn(async (svgText: string) => {
       serialized.push(svgText);
@@ -417,22 +512,30 @@ describe('video-export video export helpers', () => {
       multiply: vi.fn(() => matrix),
     };
     const decorateGeometry = (svg: SVGSVGElement) => {
-      svg.createSVGPoint = vi.fn(() => ({
-        x: 0,
-        y: 0,
-        matrixTransform(pointMatrix: { transformPoint?: (point: unknown) => unknown }) {
-          return pointMatrix.transformPoint?.(this) ?? this;
-        },
-      } as SVGPoint));
+      svg.createSVGPoint = vi.fn(
+        () =>
+          ({
+            x: 0,
+            y: 0,
+            matrixTransform(pointMatrix: {
+              transformPoint?: (point: unknown) => unknown;
+            }) {
+              return pointMatrix.transformPoint?.(this) ?? this;
+            },
+          }) as SVGPoint,
+      );
       svg.getCTM = vi.fn(() => matrix as unknown as DOMMatrix);
       const note = svg.querySelector<SVGGraphicsElement>('[data-id="note-a"]');
       if (note) {
-        note.getBBox = vi.fn(() => ({
-          x: 100,
-          y: 200,
-          width: 30,
-          height: 40,
-        } as DOMRect));
+        note.getBBox = vi.fn(
+          () =>
+            ({
+              x: 100,
+              y: 200,
+              width: 30,
+              height: 40,
+            }) as DOMRect,
+        );
         note.getCTM = vi.fn(() => matrix as unknown as DOMMatrix);
       }
     };
@@ -440,12 +543,20 @@ describe('video-export video export helpers', () => {
     const standard = await prepareScorePageCache(
       container,
       async () => makeImage(),
-      { eventImageLoader, eventSvgDecorator: decorateGeometry, visualMode: 'standard' }
+      {
+        eventImageLoader,
+        eventSvgDecorator: decorateGeometry,
+        visualMode: 'standard',
+      },
     );
     const floating = await prepareScorePageCache(
       container,
       async () => makeImage(),
-      { eventImageLoader, eventSvgDecorator: decorateGeometry, visualMode: 'floating' }
+      {
+        eventImageLoader,
+        eventSvgDecorator: decorateGeometry,
+        visualMode: 'floating',
+      },
     );
 
     await getEventScoreImage(standard.get(1)!, ['note-a']);
@@ -473,7 +584,10 @@ describe('video-export video export helpers', () => {
         </g>
       </svg>
     `;
-    const boxes: Record<string, { x: number; y: number; width: number; height: number }> = {
+    const boxes: Record<
+      string,
+      { x: number; y: number; width: number; height: number }
+    > = {
       'staff-top': { x: 80, y: 120, width: 640, height: 100 },
       'staff-bottom': { x: 80, y: 520, width: 640, height: 100 },
       'top-a': { x: 240, y: 150, width: 24, height: 32 },
@@ -486,43 +600,65 @@ describe('video-export video export helpers', () => {
       inverse: vi.fn(() => identity),
       multiply: vi.fn(() => identity),
     };
-    container.querySelectorAll<SVGGraphicsElement>('[data-id]').forEach((element) => {
-      element.getBBox = vi.fn(() => boxes[element.getAttribute('data-id')!] as DOMRect);
-      element.getCTM = vi.fn(() => identity as unknown as DOMMatrix);
-    });
-    system.getBBox = vi.fn(() => ({ x: 80, y: 120, width: 640, height: 500 } as DOMRect));
+    container
+      .querySelectorAll<SVGGraphicsElement>('[data-id]')
+      .forEach((element) => {
+        element.getBBox = vi.fn(
+          () => boxes[element.getAttribute('data-id')!] as DOMRect,
+        );
+        element.getCTM = vi.fn(() => identity as unknown as DOMMatrix);
+      });
+    system.getBBox = vi.fn(
+      () => ({ x: 80, y: 120, width: 640, height: 500 }) as DOMRect,
+    );
     system.getCTM = vi.fn(() => identity as unknown as DOMMatrix);
-    svg.createSVGPoint = vi.fn(() => ({
-      x: 0,
-      y: 0,
-      matrixTransform: (point: { x: number; y: number }) => point,
-    } as SVGPoint));
+    svg.createSVGPoint = vi.fn(
+      () =>
+        ({
+          x: 0,
+          y: 0,
+          matrixTransform: (point: { x: number; y: number }) => point,
+        }) as SVGPoint,
+    );
     document.body.appendChild(container);
 
-    const result = applyExportPlayheadCursor(container, ['top-a', 'top-b', 'bottom-a'], 'top-a');
-    const cursor = container.querySelector<SVGRectElement>('[data-practice-playhead-cursor]');
+    const result = applyExportPlayheadCursor(
+      container,
+      ['top-a', 'top-b', 'bottom-a'],
+      'top-a',
+    );
+    const cursor = container.querySelector<SVGRectElement>(
+      '[data-practice-playhead-cursor]',
+    );
 
     expect(result.geometry).not.toBeNull();
     expect(cursor).not.toBeNull();
-    const cursors = container.querySelectorAll<SVGRectElement>('[data-practice-playhead-cursor]');
+    const cursors = container.querySelectorAll<SVGRectElement>(
+      '[data-practice-playhead-cursor]',
+    );
     expect(cursors).toHaveLength(2);
     expect(
-      Array.from(cursors).map((cursor) => cursor.getAttribute('data-playhead-staff'))
+      Array.from(cursors).map((cursor) =>
+        cursor.getAttribute('data-playhead-staff'),
+      ),
     ).toEqual(expect.arrayContaining(['treble', 'bass']));
     const trebleCursor = container.querySelector<SVGRectElement>(
-      '[data-practice-playhead-cursor][data-playhead-staff="treble"]'
+      '[data-practice-playhead-cursor][data-playhead-staff="treble"]',
     );
     const bassCursor = container.querySelector<SVGRectElement>(
-      '[data-practice-playhead-cursor][data-playhead-staff="bass"]'
+      '[data-practice-playhead-cursor][data-playhead-staff="bass"]',
     );
     expect(trebleCursor?.getAttribute('fill')).toEqual(
-      expect.stringContaining('125, 211, 252')
+      expect.stringContaining('125, 211, 252'),
     );
     expect(bassCursor?.getAttribute('fill')).toEqual(
-      expect.stringContaining('251, 191, 36')
+      expect.stringContaining('251, 191, 36'),
     );
     expect(Number(trebleCursor?.getAttribute('y'))).toBeLessThan(120);
-    expect(Number(trebleCursor?.getAttribute('y')) + Number(trebleCursor?.getAttribute('height'))).toBeLessThan(300);
+    expect(
+      Number(trebleCursor?.getAttribute('y')) +
+        Number(trebleCursor?.getAttribute('height')),
+    ).toBeLessThan(300);
   });
 
   it('keeps staff colors stable when a system contains repeated measure staff pairs', () => {
@@ -541,7 +677,10 @@ describe('video-export video export helpers', () => {
         </g>
       </svg>
     `;
-    const boxes: Record<string, { x: number; y: number; width: number; height: number }> = {
+    const boxes: Record<
+      string,
+      { x: number; y: number; width: number; height: number }
+    > = {
       'measure-1-top': { x: 80, y: 100, width: 300, height: 100 },
       'measure-1-bottom': { x: 80, y: 300, width: 300, height: 100 },
       'measure-2-top': { x: 420, y: 100, width: 300, height: 100 },
@@ -555,42 +694,52 @@ describe('video-export video export helpers', () => {
       inverse: vi.fn(() => identity),
       multiply: vi.fn(() => identity),
     };
-    container.querySelectorAll<SVGGraphicsElement>('[data-id]').forEach((element) => {
-      element.getBBox = vi.fn(() => (boxes[element.getAttribute('data-id')!] ?? {
-        x: 0,
-        y: 0,
-        width: 1,
-        height: 1,
-      }) as DOMRect);
-      element.getCTM = vi.fn(() => identity as unknown as DOMMatrix);
-    });
-    system.getBBox = vi.fn(() => ({ x: 80, y: 100, width: 640, height: 300 } as DOMRect));
+    container
+      .querySelectorAll<SVGGraphicsElement>('[data-id]')
+      .forEach((element) => {
+        element.getBBox = vi.fn(
+          () =>
+            (boxes[element.getAttribute('data-id')!] ?? {
+              x: 0,
+              y: 0,
+              width: 1,
+              height: 1,
+            }) as DOMRect,
+        );
+        element.getCTM = vi.fn(() => identity as unknown as DOMMatrix);
+      });
+    system.getBBox = vi.fn(
+      () => ({ x: 80, y: 100, width: 640, height: 300 }) as DOMRect,
+    );
     system.getCTM = vi.fn(() => identity as unknown as DOMMatrix);
-    containerSvg.createSVGPoint = vi.fn(() => ({
-      x: 0,
-      y: 0,
-      matrixTransform: (point: { x: number; y: number }) => point,
-    } as SVGPoint));
+    containerSvg.createSVGPoint = vi.fn(
+      () =>
+        ({
+          x: 0,
+          y: 0,
+          matrixTransform: (point: { x: number; y: number }) => point,
+        }) as SVGPoint,
+    );
     document.body.appendChild(container);
 
     applyExportPlayheadCursor(
       container,
       ['measure-2-top-note', 'measure-2-bottom-note'],
-      'measure-2-top-note'
+      'measure-2-top-note',
     );
 
     expect(
       container.querySelector(
-        '[data-practice-playhead-cursor][data-playhead-staff="treble"]'
-      )
+        '[data-practice-playhead-cursor][data-playhead-staff="treble"]',
+      ),
     ).not.toBeNull();
     expect(
       container.querySelector(
-        '[data-practice-playhead-cursor][data-playhead-staff="bass"]'
-      )
+        '[data-practice-playhead-cursor][data-playhead-staff="bass"]',
+      ),
     ).not.toBeNull();
     expect(
-      container.querySelectorAll('[data-playhead-staff="other"]')
+      container.querySelectorAll('[data-playhead-staff="other"]'),
     ).toHaveLength(0);
   });
 
@@ -602,8 +751,14 @@ describe('video-export video export helpers', () => {
     const stagingCtx = createFakeContext();
     const stagingCanvas = document.createElement('canvas');
     const video = document.createElement('video');
-    Object.defineProperty(video, 'videoWidth', { configurable: true, value: 640 });
-    Object.defineProperty(video, 'videoHeight', { configurable: true, value: 480 });
+    Object.defineProperty(video, 'videoWidth', {
+      configurable: true,
+      value: 640,
+    });
+    Object.defineProperty(video, 'videoHeight', {
+      configurable: true,
+      value: 480,
+    });
 
     const adapter = {
       getCursorTimelineEntryForTickRange: vi.fn((tick: number) => ({
@@ -614,30 +769,37 @@ describe('video-export video export helpers', () => {
       })),
       getPageWithElement: vi.fn(() => 1),
     };
-    const session = createSession({
-      recordingTimebase: {
-        nominalMediaDurationUs: 5000000,
-        activeSegments: [{ performanceStartUs: 0, performanceEndUs: 5000000, mediaStartUs: 0, mediaEndUs: 5000000 }],
+    const recordedPerformance = recordedPerformanceFixture(
+      continuousPracticePlan(videoArtifact, {
+        tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 60 },
+      }),
+      {
+        ...recordedPerformanceFixture().recording,
+        timebase: {
+          nominalMediaDurationUs: 5000000,
+          activeSegments: [
+            {
+              performanceStartUs: 0,
+              performanceEndUs: 5000000,
+              mediaStartUs: 0,
+              mediaEndUs: 5000000,
+            },
+          ],
+        },
       },
-      tempoPlan: {
-        selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 60 },
-        segments: [{ startTick: 0, bpm: 60, source: 'CUSTOM' }],
-      },
-      scope: {
-        kind: 'FULL',
-        startTick: 0,
-        terminalTick: 8,
-      },
-    });
+    );
 
     for (let i = 0; i < 5; i += 1) {
-      Object.defineProperty(video, 'currentTime', { configurable: true, value: i });
+      Object.defineProperty(video, 'currentTime', {
+        configurable: true,
+        value: i,
+      });
       await drawExportFrame({
         ctx: finalCtx,
         video,
-        session,
+        recordedPerformance,
         adapter: adapter as never,
-        scoreEndTick: 8, ticksPerQuarter: 1,
+
         frameState: { scorePages: cache, stagingCanvas, stagingCtx },
       });
     }
@@ -648,14 +810,25 @@ describe('video-export video export helpers', () => {
 
   it('commits only complete staged frames to the captured canvas', async () => {
     const container = createScoreContainer();
-    const cache = await prepareScorePageCache(container, async () => makeImage());
+    const cache = await prepareScorePageCache(container, async () =>
+      makeImage(),
+    );
     const finalCtx = createFakeContext();
     const stagingCtx = createFakeContext();
     const stagingCanvas = document.createElement('canvas');
     const video = document.createElement('video');
-    Object.defineProperty(video, 'videoWidth', { configurable: true, value: 640 });
-    Object.defineProperty(video, 'videoHeight', { configurable: true, value: 480 });
-    Object.defineProperty(video, 'currentTime', { configurable: true, value: 1 });
+    Object.defineProperty(video, 'videoWidth', {
+      configurable: true,
+      value: 640,
+    });
+    Object.defineProperty(video, 'videoHeight', {
+      configurable: true,
+      value: 480,
+    });
+    Object.defineProperty(video, 'currentTime', {
+      configurable: true,
+      value: 1,
+    });
     const adapter = {
       getCursorTimelineEntryForTickRange: vi.fn((tick: number) => ({
         index: 0,
@@ -669,17 +842,21 @@ describe('video-export video export helpers', () => {
     await drawExportFrame({
       ctx: finalCtx,
       video,
-      session: createSession(),
+      recordedPerformance: createSession(),
       adapter: adapter as never,
-      scoreEndTick: 24, ticksPerQuarter: 1,
+
       frameState: { scorePages: cache, stagingCanvas, stagingCtx },
     });
 
     const stagingCallNames = stagingCtx.calls.map((call) => call.name);
     expect(stagingCallNames).toContain('fillRect');
     expect(stagingCallNames).toContain('drawImage');
-    expect(stagingCallNames.filter((name) => name === 'drawImage')).toHaveLength(2);
-    expect(finalCtx.calls).toEqual([{ name: 'drawImage', args: [stagingCanvas, 0, 0] }]);
+    expect(
+      stagingCallNames.filter((name) => name === 'drawImage'),
+    ).toHaveLength(2);
+    expect(finalCtx.calls).toEqual([
+      { name: 'drawImage', args: [stagingCanvas, 0, 0] },
+    ]);
   });
 
   it('keeps drawing from one frozen score snapshot after Review replaces the mounted SVG', async () => {
@@ -690,9 +867,18 @@ describe('video-export video export helpers', () => {
     const stagingCtx = createFakeContext();
     const stagingCanvas = document.createElement('canvas');
     const video = document.createElement('video');
-    Object.defineProperty(video, 'videoWidth', { configurable: true, value: 640 });
-    Object.defineProperty(video, 'videoHeight', { configurable: true, value: 480 });
-    Object.defineProperty(video, 'currentTime', { configurable: true, value: 1 });
+    Object.defineProperty(video, 'videoWidth', {
+      configurable: true,
+      value: 640,
+    });
+    Object.defineProperty(video, 'videoHeight', {
+      configurable: true,
+      value: 480,
+    });
+    Object.defineProperty(video, 'currentTime', {
+      configurable: true,
+      value: 1,
+    });
     const adapter = {
       getCursorTimelineEntryForTickRange: vi.fn(() => ({
         index: 0,
@@ -707,25 +893,29 @@ describe('video-export video export helpers', () => {
     await drawExportFrame({
       ctx: finalCtx,
       video,
-      session: createSession(),
+      recordedPerformance: createSession(),
       adapter: adapter as never,
-      scoreEndTick: 24, ticksPerQuarter: 1,
+
       frameState,
     });
 
     const replacement = createScoreContainer();
     container.replaceWith(replacement);
 
-    await expect(drawExportFrame({
+    await expect(
+      drawExportFrame({
         ctx: finalCtx,
         video,
-        session: createSession(),
+        recordedPerformance: createSession(),
         adapter: adapter as never,
-        scoreEndTick: 24, ticksPerQuarter: 1,
+
         frameState,
-      })).resolves.toBeUndefined();
+      }),
+    ).resolves.toBeUndefined();
     expect(loadImage).toHaveBeenCalledTimes(2);
-    expect(finalCtx.calls.filter((call) => call.name === 'drawImage')).toHaveLength(2);
+    expect(
+      finalCtx.calls.filter((call) => call.name === 'drawImage'),
+    ).toHaveLength(2);
     expect(cache.get(1)?.geometryByNoteId.has('note-a')).toBe(true);
     expect(adapter.getPageWithElement).not.toHaveBeenCalled();
   });
@@ -736,8 +926,18 @@ describe('video-export video export helpers', () => {
 
     const geometry = getPlayheadCursorGeometry(svg, ['note-a', 'chord-1']);
 
-    expect(geometry?.noteBox).toEqual({ x: 100, y: 200, width: 240, height: 210 });
-    expect(geometry?.systemBox).toEqual({ x: 60, y: 120, width: 1080, height: 260 });
+    expect(geometry?.noteBox).toEqual({
+      x: 100,
+      y: 200,
+      width: 240,
+      height: 210,
+    });
+    expect(geometry?.systemBox).toEqual({
+      x: 60,
+      y: 120,
+      width: 1080,
+      height: 260,
+    });
     expect(geometry?.box.height).toBeGreaterThan(260);
     expect(geometry?.box.x).toBeLessThan(geometry!.noteBox.x);
     expect(geometry?.box.width).toBeGreaterThan(geometry!.noteBox.width);
@@ -745,7 +945,9 @@ describe('video-export video export helpers', () => {
 
   it('renders a deterministic static frame from the frozen score model', async () => {
     const container = createScoreContainer();
-    const cache = await prepareScorePageCache(container, async () => makeImage());
+    const cache = await prepareScorePageCache(container, async () =>
+      makeImage(),
+    );
     const outputCanvas = document.createElement('canvas');
     outputCanvas.width = 1280;
     outputCanvas.height = 720;
@@ -785,7 +987,9 @@ describe('video-export video export helpers', () => {
 
   it('uses the frozen system content bounds for the floating score viewport', async () => {
     const container = createScoreContainer();
-    const cache = await prepareScorePageCache(container, async () => makeImage());
+    const cache = await prepareScorePageCache(container, async () =>
+      makeImage(),
+    );
     const outputCanvas = document.createElement('canvas');
     const layout = getVideoExportLayout({
       orientation: 'landscape',
@@ -818,10 +1022,14 @@ describe('video-export video export helpers', () => {
       layout,
     });
 
-    expect(diagnostics.viewport).toEqual(cache.get(1)?.systems[0]?.contentBounds);
+    expect(diagnostics.viewport).toEqual(
+      cache.get(1)?.systems[0]?.contentBounds,
+    );
     expect(diagnostics.scoreRect.width).toBeGreaterThan(0);
     expect(diagnostics.scoreRect.width).toBeLessThanOrEqual(outputCanvas.width);
-    expect(diagnostics.imageRect.width).toBeCloseTo(diagnostics.scoreRect.width);
+    expect(diagnostics.imageRect.width).toBeCloseTo(
+      diagnostics.scoreRect.width,
+    );
     expect(ctx.drawImage).toHaveBeenCalled();
     const fillRects = ctx.calls.filter((call) => call.name === 'fillRect');
     expect(fillRects).toHaveLength(2);
@@ -830,7 +1038,9 @@ describe('video-export video export helpers', () => {
   it('keeps transformed system-local and root SVG cursor rectangles in separate coordinate spaces', () => {
     const container = createScoreContainer();
     const svg = container.querySelector<SVGSVGElement>('svg')!;
-    const system = container.querySelector<SVGGraphicsElement>('[data-testid="system-1"]')!;
+    const system = container.querySelector<SVGGraphicsElement>(
+      '[data-testid="system-1"]',
+    )!;
     const systemMatrix = {};
     const rootMatrix = {
       inverse: vi.fn(() => rootInverse),
@@ -846,11 +1056,16 @@ describe('video-export video export helpers', () => {
     const point = {
       x: 0,
       y: 0,
-      matrixTransform(matrix: { transformPoint: (point: { x: number; y: number }) => { x: number; y: number } }) {
+      matrixTransform(matrix: {
+        transformPoint: (point: { x: number; y: number }) => {
+          x: number;
+          y: number;
+        };
+      }) {
         return matrix.transformPoint(this);
       },
     };
-    svg.createSVGPoint = vi.fn(() => ({ ...point } as SVGPoint));
+    svg.createSVGPoint = vi.fn(() => ({ ...point }) as SVGPoint);
     svg.getCTM = vi.fn(() => rootMatrix as unknown as DOMMatrix);
     system.getCTM = vi.fn(() => systemMatrix as unknown as DOMMatrix);
 
@@ -863,17 +1078,30 @@ describe('video-export video export helpers', () => {
 
   it('fails coordinate conversion instead of exporting with system-local rectangles as root coordinates', async () => {
     const container = createScoreContainer();
-    container.querySelectorAll<SVGGraphicsElement>('svg, g').forEach((element) => {
-      element.getCTM = undefined as unknown as SVGGraphicsElement['getCTM'];
-    });
-    const cache = await prepareScorePageCache(container, async () => makeImage());
+    container
+      .querySelectorAll<SVGGraphicsElement>('svg, g')
+      .forEach((element) => {
+        element.getCTM = undefined as unknown as SVGGraphicsElement['getCTM'];
+      });
+    const cache = await prepareScorePageCache(container, async () =>
+      makeImage(),
+    );
     const finalCtx = createFakeContext();
     const stagingCtx = createFakeContext();
     const stagingCanvas = document.createElement('canvas');
     const video = document.createElement('video');
-    Object.defineProperty(video, 'videoWidth', { configurable: true, value: 640 });
-    Object.defineProperty(video, 'videoHeight', { configurable: true, value: 480 });
-    Object.defineProperty(video, 'currentTime', { configurable: true, value: 1 });
+    Object.defineProperty(video, 'videoWidth', {
+      configurable: true,
+      value: 640,
+    });
+    Object.defineProperty(video, 'videoHeight', {
+      configurable: true,
+      value: 480,
+    });
+    Object.defineProperty(video, 'currentTime', {
+      configurable: true,
+      value: 1,
+    });
     const adapter = {
       getCursorTimelineEntryForTickRange: vi.fn((tick: number) => ({
         index: 0,
@@ -884,71 +1112,99 @@ describe('video-export video export helpers', () => {
       getPageWithElement: vi.fn(() => 1),
     };
 
-    await expect(drawExportFrame({
+    await expect(
+      drawExportFrame({
         ctx: finalCtx,
         video,
-        session: createSession(),
+        recordedPerformance: createSession(),
         adapter: adapter as never,
-        scoreEndTick: 24, ticksPerQuarter: 1,
+
         frameState: { scorePages: cache, stagingCanvas, stagingCtx },
-      })).rejects.toThrow('video_export_failed:playback_event_geometry_unavailable');
+      }),
+    ).rejects.toThrow(
+      'video_export_failed:playback_event_geometry_unavailable',
+    );
   });
 
   it('uses rendered SVG rectangles to keep visibly present transformed notes inside the export viewport', async () => {
     const container = createScoreContainer();
     const svg = container.querySelector<SVGSVGElement>('svg')!;
-    const system = container.querySelector<SVGGraphicsElement>('[data-testid="system-1"]')!;
-    const note = container.querySelector<SVGGraphicsElement>('[data-id="note-a"]')!;
-    svg.getBoundingClientRect = vi.fn(() => ({
-      left: 0,
-      top: 0,
-      width: 600,
-      height: 800,
-      right: 600,
-      bottom: 800,
-      x: 0,
-      y: 0,
-      toJSON: () => ({}),
-    } as DOMRect));
-    system.getBoundingClientRect = vi.fn(() => ({
-      left: 30,
-      top: 80,
-      width: 540,
-      height: 150,
-      right: 570,
-      bottom: 230,
-      x: 30,
-      y: 80,
-      toJSON: () => ({}),
-    } as DOMRect));
-    note.getBoundingClientRect = vi.fn(() => ({
-      left: 75,
-      top: 120,
-      width: 28,
-      height: 32,
-      right: 103,
-      bottom: 152,
-      x: 75,
-      y: 120,
-      toJSON: () => ({}),
-    } as DOMRect));
+    const system = container.querySelector<SVGGraphicsElement>(
+      '[data-testid="system-1"]',
+    )!;
+    const note =
+      container.querySelector<SVGGraphicsElement>('[data-id="note-a"]')!;
+    svg.getBoundingClientRect = vi.fn(
+      () =>
+        ({
+          left: 0,
+          top: 0,
+          width: 600,
+          height: 800,
+          right: 600,
+          bottom: 800,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        }) as DOMRect,
+    );
+    system.getBoundingClientRect = vi.fn(
+      () =>
+        ({
+          left: 30,
+          top: 80,
+          width: 540,
+          height: 150,
+          right: 570,
+          bottom: 230,
+          x: 30,
+          y: 80,
+          toJSON: () => ({}),
+        }) as DOMRect,
+    );
+    note.getBoundingClientRect = vi.fn(
+      () =>
+        ({
+          left: 75,
+          top: 120,
+          width: 28,
+          height: 32,
+          right: 103,
+          bottom: 152,
+          x: 75,
+          y: 120,
+          toJSON: () => ({}),
+        }) as DOMRect,
+    );
     svg.getCTM = vi.fn(() => null);
     system.getCTM = vi.fn(() => null);
     note.getCTM = vi.fn(() => null);
 
-    const cache = await prepareScorePageCache(container, async () => makeImage());
+    const cache = await prepareScorePageCache(container, async () =>
+      makeImage(),
+    );
     const finalCtx = createFakeContext();
     const stagingCtx = createFakeContext();
     const stagingCanvas = document.createElement('canvas');
     const video = document.createElement('video');
-    Object.defineProperty(video, 'videoWidth', { configurable: true, value: 640 });
-    Object.defineProperty(video, 'videoHeight', { configurable: true, value: 480 });
-    Object.defineProperty(video, 'currentTime', { configurable: true, value: 1 });
+    Object.defineProperty(video, 'videoWidth', {
+      configurable: true,
+      value: 640,
+    });
+    Object.defineProperty(video, 'videoHeight', {
+      configurable: true,
+      value: 480,
+    });
+    Object.defineProperty(video, 'currentTime', {
+      configurable: true,
+      value: 1,
+    });
 
-    await expect(drawExportFrame({
+    await expect(
+      drawExportFrame({
         ctx: finalCtx,
         video,
-        session: createSession(),
+        recordedPerformance: createSession(),
         adapter: {
           getCursorTimelineEntryForTickRange: vi.fn((tick: number) => ({
             index: 0,
@@ -958,16 +1214,20 @@ describe('video-export video export helpers', () => {
           })),
           getPageWithElement: vi.fn(() => 1),
         } as never,
-        scoreEndTick: 24, ticksPerQuarter: 1,
+
         frameState: { scorePages: cache, stagingCanvas, stagingCtx },
-      })).resolves.toBeUndefined();
+      }),
+    ).resolves.toBeUndefined();
   });
 
   it('maps Verovio internal coordinates through CTM viewport pixels before comparing with the root viewBox', async () => {
     const container = createScoreContainer();
     const svg = container.querySelector<SVGSVGElement>('svg')!;
-    const system = container.querySelector<SVGGraphicsElement>('[data-testid="system-1"]')!;
-    const note = container.querySelector<SVGGraphicsElement>('[data-id="note-a"]')!;
+    const system = container.querySelector<SVGGraphicsElement>(
+      '[data-testid="system-1"]',
+    )!;
+    const note =
+      container.querySelector<SVGGraphicsElement>('[data-id="note-a"]')!;
     svg.setAttribute('viewBox', '0 0 840 931');
     svg.setAttribute('width', '840px');
     svg.setAttribute('height', '931px');
@@ -980,26 +1240,32 @@ describe('video-export video export helpers', () => {
             top: 0,
             width: 840 * 0.053047619047619045,
             height: 931 * 0.053047619047619045,
-          }) as DOMRect
+          }) as DOMRect,
       ),
     });
-    note.getBBox = vi.fn(() => ({
-      x: 5039,
-      y: 1536.239990234375,
-      width: 226.080078125,
-      height: 842.760009765625,
-    } as DOMRect));
-    system.getBBox = vi.fn(() => ({
-      x: 182.479736328125,
-      y: 1266.239990234375,
-      width: 19819.51953125,
-      height: 3425.760009765625,
-    } as DOMRect));
+    note.getBBox = vi.fn(
+      () =>
+        ({
+          x: 5039,
+          y: 1536.239990234375,
+          width: 226.080078125,
+          height: 842.760009765625,
+        }) as DOMRect,
+    );
+    system.getBBox = vi.fn(
+      () =>
+        ({
+          x: 182.479736328125,
+          y: 1266.239990234375,
+          width: 19819.51953125,
+          height: 3425.760009765625,
+        }) as DOMRect,
+    );
     note.getBoundingClientRect = vi.fn(
-      () => ({ left: 272, top: 157, width: 12, height: 45 }) as DOMRect
+      () => ({ left: 272, top: 157, width: 12, height: 45 }) as DOMRect,
     );
     system.getBoundingClientRect = vi.fn(
-      () => ({ left: 10, top: 140, width: 820, height: 185 }) as DOMRect
+      () => ({ left: 10, top: 140, width: 820, height: 185 }) as DOMRect,
     );
     const matrix = {
       a: 0.053047619047619045,
@@ -1026,19 +1292,31 @@ describe('video-export video export helpers', () => {
     expect(geometry?.rootNoteBox?.y).toBeGreaterThan(140);
     expect(geometry?.rootNoteBox?.y).toBeLessThan(230);
 
-    const cache = await prepareScorePageCache(container, async () => makeImage(840, 931));
+    const cache = await prepareScorePageCache(container, async () =>
+      makeImage(840, 931),
+    );
     const finalCtx = createFakeContext();
     const stagingCtx = createFakeContext();
     const stagingCanvas = document.createElement('canvas');
     const video = document.createElement('video');
-    Object.defineProperty(video, 'videoWidth', { configurable: true, value: 640 });
-    Object.defineProperty(video, 'videoHeight', { configurable: true, value: 480 });
-    Object.defineProperty(video, 'currentTime', { configurable: true, value: 1 });
+    Object.defineProperty(video, 'videoWidth', {
+      configurable: true,
+      value: 640,
+    });
+    Object.defineProperty(video, 'videoHeight', {
+      configurable: true,
+      value: 480,
+    });
+    Object.defineProperty(video, 'currentTime', {
+      configurable: true,
+      value: 1,
+    });
 
-    await expect(drawExportFrame({
+    await expect(
+      drawExportFrame({
         ctx: finalCtx,
         video,
-        session: createSession(),
+        recordedPerformance: createSession(),
         adapter: {
           getCursorTimelineEntryForTickRange: vi.fn((tick: number) => ({
             index: 0,
@@ -1048,8 +1326,9 @@ describe('video-export video export helpers', () => {
           })),
           getPageWithElement: vi.fn(() => 1),
         } as never,
-        scoreEndTick: 24, ticksPerQuarter: 1,
+
         frameState: { scorePages: cache, stagingCanvas, stagingCtx },
-      })).resolves.toBeUndefined();
+      }),
+    ).resolves.toBeUndefined();
   });
 });

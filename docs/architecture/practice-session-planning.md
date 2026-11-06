@@ -129,8 +129,8 @@ localSessionId, the executed plan, createdAtMs, updatedAtMs and completionReason
 Only Start creates a concrete `StepPracticeSession` or `ContinuousPracticeSession`.
 Their constructors receive the matching mode-specific plan and runtime infrastructure.
 Snapshots reference that exact plan and add mode-specific state; musical facts are
-not copied into sibling fields. Natural Continuous Result references an immutable completed session projection
-and the exact executed Plan, without re-resolution or duplicate execution facts.
+not copied into sibling fields. Natural Continuous Result carries one ExecutedPerformance created at natural completion.
+It preserves the Plan bundle, scope and tempo references without re-resolution.
 
 `score/` owns admitted artifact facts, piano keys and exact score coordinates.
 `planning/` owns intent, scope/tempo/resource/metronome resolution and Count-In policy.
@@ -199,7 +199,8 @@ completion. Try Again creates no ReviewSession. Only View Review calls the works
 `handoffToReview(completion)` command. The command checks bundleId and artifact identity,
 validates the typed completion against the exact admitted artifact reference and
 stable binding identities, validates recording and non-empty notation, and builds
-`{ result, recording, musicXml }`. Artifact is read from Result.session.plan.bundle.artifact. It releases PreparedPractice's binding
+`{ result, recording, recorded, musicXml }`. Artifact is read from result.executed.bundle.artifact.
+The recorded pairing references that executed value and the Review-owned READY recording. It releases PreparedPractice's binding
 before navigation and retains the handoff in workspace memory.
 
 Review consumes that complete TransientReviewSession, not a Bundle query. Scope
@@ -239,16 +240,16 @@ and analysis bindings, and a discriminated recording binding. It contains no
 MediaStream, MIDIAccess, AudioContext, inference/recorder instance, callback or health
 state. `PracticeDeviceRoots` maps the planned root names directly to acquired objects.
 
-| Mode | Input | Recording | Qualification | Live roots | Analysis | Recording binding |
-| --- | --- | --- | --- | --- | --- | --- |
-| STEP | MICROPHONE | OFF | acousticEngine, browserAudio, microphone | inputMicrophone | ACOUSTIC: inputMicrophone | OFF |
-| STEP | MIDI | OFF | midi | midi | NONE | OFF |
-| Continuous | MICROPHONE | OFF | acousticEngine, browserAudio, microphone | inputMicrophone | ACOUSTIC: inputMicrophone | OFF |
-| Continuous | MICROPHONE | AUDIO | acousticEngine, audioRecording, browserAudio, microphone | inputMicrophone | ACOUSTIC: inputMicrophone | AUDIO: inputMicrophone |
-| Continuous | MICROPHONE | VIDEO | acousticEngine, browserAudio, camera, microphone, videoRecording | inputMicrophone, camera | ACOUSTIC: inputMicrophone | VIDEO: inputMicrophone + camera |
-| Continuous | MIDI | OFF | midi | midi | NONE | OFF |
-| Continuous | MIDI | AUDIO | audioRecording, microphone, midi | midi, recordingMicrophone | NONE | AUDIO: recordingMicrophone |
-| Continuous | MIDI | VIDEO | camera, microphone, midi, videoRecording | midi, recordingMicrophone, camera | NONE | VIDEO: recordingMicrophone + camera |
+| Mode       | Input      | Recording | Qualification                                                    | Live roots                        | Analysis                  | Recording binding                   |
+| ---------- | ---------- | --------- | ---------------------------------------------------------------- | --------------------------------- | ------------------------- | ----------------------------------- |
+| STEP       | MICROPHONE | OFF       | acousticEngine, browserAudio, microphone                         | inputMicrophone                   | ACOUSTIC: inputMicrophone | OFF                                 |
+| STEP       | MIDI       | OFF       | midi                                                             | midi                              | NONE                      | OFF                                 |
+| Continuous | MICROPHONE | OFF       | acousticEngine, browserAudio, microphone                         | inputMicrophone                   | ACOUSTIC: inputMicrophone | OFF                                 |
+| Continuous | MICROPHONE | AUDIO     | acousticEngine, audioRecording, browserAudio, microphone         | inputMicrophone                   | ACOUSTIC: inputMicrophone | AUDIO: inputMicrophone              |
+| Continuous | MICROPHONE | VIDEO     | acousticEngine, browserAudio, camera, microphone, videoRecording | inputMicrophone, camera           | ACOUSTIC: inputMicrophone | VIDEO: inputMicrophone + camera     |
+| Continuous | MIDI       | OFF       | midi                                                             | midi                              | NONE                      | OFF                                 |
+| Continuous | MIDI       | AUDIO     | audioRecording, microphone, midi                                 | midi, recordingMicrophone         | NONE                      | AUDIO: recordingMicrophone          |
+| Continuous | MIDI       | VIDEO     | camera, microphone, midi, videoRecording                         | midi, recordingMicrophone, camera | NONE                      | VIDEO: recordingMicrophone + camera |
 
 Input binding is MICROPHONE to inputMicrophone or MIDI to midi. Acoustic execution
 uses the planned analysis source root. Microphone recording shares inputMicrophone;
@@ -318,14 +319,14 @@ reacquires roots.
 
 Physical root health is distinct from processing pipeline health:
 
-| Fact | Owner |
-| --- | --- |
-| Borrowed microphone/camera mute or end | ResourceBinding |
-| Retained MIDIAccess connectedness | ResourceBinding |
-| MIDIInput message listener binding and NOTE_ON/OFF parsing | BrowserMidiController |
-| AudioContext state | Execution pipeline |
-| Capture bridge validity / worker or model failure | Acoustic pipeline |
-| Owned recording clone tracks / MediaRecorder state and errors | Recorder pipeline |
+| Fact                                                          | Owner                 |
+| ------------------------------------------------------------- | --------------------- |
+| Borrowed microphone/camera mute or end                        | ResourceBinding       |
+| Retained MIDIAccess connectedness                             | ResourceBinding       |
+| MIDIInput message listener binding and NOTE_ON/OFF parsing    | BrowserMidiController |
+| AudioContext state                                            | Execution pipeline    |
+| Capture bridge validity / worker or model failure             | Acoustic pipeline     |
+| Owned recording clone tracks / MediaRecorder state and errors | Recorder pipeline     |
 
 STEP microphone interruption suspends unfinished acoustic evidence and preserves the
 session and target. HEALTHY recovery uses the canonical physical retirement boundary;
@@ -355,9 +356,8 @@ without changing borrowed physical roots or the performance timebase. Storage wr
 failure is a recording-only hard intervention, not acoustic failure or root loss.
 Saved Take media streams into a separate temporary OPFS namespace and yields the
 same handle contract. Review/replay, raw download, save and VideoExport hold explicit
-leases; the last reference removes backing storage. VideoExportSession carries
-`video.media` for both current and saved media, and the studio retains it for every
-export operation. Downloaded Take bytes are not buffered wholesale in JavaScript heap
+leases; the last reference removes backing storage. RecordedPerformance pairs the executed semantics with one READY recording.
+The studio retains its recording media for every export operation. Downloaded Take bytes are not buffered wholesale in JavaScript heap
 and have no arbitrary frontend size ceiling.
 
 ## Metronome Plan, Runtime and Audio
@@ -393,7 +393,6 @@ on audio activation and closed at most once. `MetronomeAudioPort` exposes only
 creation/resume/click/cleanup faults stay nonfatal and cannot become physical root,
 analysis, recording or critical attempt-cleanup failures.
 
-
 ## Meter and Count-In policy
 
 The artifact supplies admitted meter facts: `startTick`, `numerator`, `denominator`.
@@ -412,9 +411,9 @@ MetronomeRuntime consumes its live sync point. STEP has no Count-In.
 
 PracticePlan.bundle contains the admitted revision binding and immutable artifact.
 Local STEP and Continuous session snapshots reference the executed Plan. Natural
-Continuous completion references that completed session snapshot. Review validates
+Continuous completion creates ExecutedPerformance from its completed Plan once. Review validates
 its exact admitted binding, artifact reference and notation. Save submits
-practice_binding with score_id, revision_id and bundle_id from the executed Plan.
+practice_binding with score_id, revision_id and bundle_id from ExecutedPerformance.
 Revision-binding authorization and retention belong to [Practice Bundle](practice-bundle.md).
 
 ## Durable Save Planning
@@ -434,8 +433,8 @@ Both language implementations consume the same concrete expected
 [planning cases](../../contracts/practice/score-planning-cases.json). Reservation and Take
 responses expose the same immutable `manifest` with score timebase, resolved scope and tempo.
 The score timebase is their shared written-coordinate owner.
-Before media upload, the browser compares that canonical response with Result.session.plan's
-executed binding/scope/tempo and its artifact's `ticksPerQuarter`. A mismatch fails closed and best-effort cancels a new
+Before media upload, the browser compares that canonical response with RecordedPerformance's
+executed binding/scope/tempo and artifact's `ticksPerQuarter`. A mismatch fails closed and best-effort cancels a new
 RESERVED upload. Completed replay and finalize responses also require agreement.
 
 PerformanceTakeManifest owns the resolved save truth. Reservation and Take reference the same
@@ -455,11 +454,18 @@ currently authorized exact revision-binding read; raw media remains independentl
 
 ## Browser-local Video Export
 
-VideoExport consumes a source-neutral VideoExportSession containing sessionId, bundleId,
-score identity, video, scope, tempo and recording timebase. The current Review adapter
-uses the transient admitted representation; it initiates no Bundle read. The saved
-Take adapter uses generic exact revision-binding authorization for optional score-based export.
-Both feed the same clean-score preview/render pipeline and browser Blob download.
+VideoExport consumes RecordedPerformance for both current and saved performances.
+Its executed value supplies canonical binding/artifact, resolved scope and tempo;
+its recording supplies media and RecordingTimebase. Review and VideoExport use the
+same recorded-performance media-time-to-score-tick mapping. CursorScope is derived
+presentation, and MusicXML remains a separate notation representation.
+
+The archive admission boundary validates a saved TakeManifest against the
+reauthorized Bundle and materialized media once. Saved replay and VideoExport
+share that RecordedPerformance. Raw saved media playback remains independent of
+Bundle availability. Save transport projects its request from RecordedPerformance
+and verifies server Manifest agreement; the server reauthorizes and resolves the
+canonical save plan. Save remains an explicit user action.
 Export creates no server asset and grants no sharing access.
 
 Explicit tempo interpretation and the cross-runtime missing-tempo policy belong to

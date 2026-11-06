@@ -1,4 +1,7 @@
-import { assertRecordingTimebase, microsecondsToMilliseconds } from '@/lib/practice/recording/recording-timebase';
+import {
+  assertRecordingTimebase,
+  microsecondsToMilliseconds,
+} from '@/lib/practice/recording/recording-timebase';
 import { openVideoExportOutputMedia } from './output-media';
 import {
   releaseLocalMediaAsset,
@@ -15,7 +18,7 @@ import {
   type ScorePageCache,
 } from './score-model';
 import type { PracticeVerovioAdapter } from '@/lib/practice/score-view/verovio-adapter';
-import type { VideoExportSession } from './session';
+import type { RecordedPerformance } from '@/lib/practice/recording/recorded-performance';
 
 const EXPORT_FPS = 30;
 const VIDEO_EXPORT_CHUNK_TIMESLICE_MS = 1000;
@@ -52,11 +55,9 @@ export type VideoExportResult = Readonly<{
 }>;
 
 export type VideoExportOptions = {
-  session: VideoExportSession;
+  recordedPerformance: RecordedPerformance;
   scoreContainer: HTMLElement;
   adapter: PracticeVerovioAdapter;
-  scoreEndTick: number;
-  ticksPerQuarter: number;
   signal?: AbortSignal;
   onProgress?: (progress: VideoExportProgress) => void;
   config?: VideoExportConfig;
@@ -83,20 +84,24 @@ export function selectSupportedVideoExportMimeType(): string | null {
 }
 
 export function getVideoExportReadiness({
-  session,
+  recordedPerformance,
   isScoreIdentityConfirmed,
   xmlContent,
   scoreContainer,
 }: {
-  session: VideoExportSession | null;
+  recordedPerformance: RecordedPerformance | null;
   isScoreIdentityConfirmed: boolean;
   xmlContent: string | null;
   scoreContainer: HTMLElement | null;
 }): VideoExportReadiness {
-  if (!session?.video || session.video.status !== 'READY') {
+  if (
+    !recordedPerformance ||
+    recordedPerformance.recording.kind !== 'VIDEO' ||
+    recordedPerformance.recording.status !== 'READY'
+  ) {
     return { ok: false, reason: 'video_not_ready' };
   }
-  if (session.video.media.blob.size <= 0) {
+  if (recordedPerformance.recording.media.blob.size <= 0) {
     return { ok: false, reason: 'empty_video' };
   }
   if (!isScoreIdentityConfirmed) {
@@ -106,7 +111,7 @@ export function getVideoExportReadiness({
     return { ok: false, reason: 'score_not_ready' };
   }
   try {
-    assertRecordingTimebase(session.recordingTimebase);
+    assertRecordingTimebase(recordedPerformance.recording.timebase);
   } catch {
     return { ok: false, reason: 'timebase_unavailable' };
   }
@@ -131,21 +136,21 @@ export function composeVideoExportOutputStream(
 }
 
 export async function exportVideo({
-  session,
+  recordedPerformance,
   scoreContainer,
   adapter,
-  scoreEndTick,
-  ticksPerQuarter,
+
   signal,
   onProgress,
   config = { orientation: 'landscape', presentation: { kind: 'split' } },
 }: VideoExportOptions): Promise<VideoExportResult> {
   const checkCancellation = () => {
-    if (signal?.aborted) throw new DOMException('Export cancelled', 'AbortError');
+    if (signal?.aborted)
+      throw new DOMException('Export cancelled', 'AbortError');
   };
   checkCancellation();
   const readiness = getVideoExportReadiness({
-    session,
+    recordedPerformance,
     isScoreIdentityConfirmed: true,
     xmlContent: 'ready',
     scoreContainer,
@@ -153,7 +158,7 @@ export async function exportVideo({
   if (!readiness.ok) {
     throw new Error(`video_export_unavailable:${readiness.reason}`);
   }
-  if (session.video.status !== 'READY') {
+  if (recordedPerformance.recording.status !== 'READY') {
     throw new Error('video_export_unavailable:video_not_ready');
   }
   const layout = getVideoExportLayout(config);
@@ -167,7 +172,9 @@ export async function exportVideo({
   }
 
   const video = document.createElement('video');
-  const objectUrl = URL.createObjectURL(session.video.media.blob);
+  const objectUrl = URL.createObjectURL(
+    recordedPerformance.recording.media.blob,
+  );
   let audioContext: AudioContext | null = null;
   let canvasStream: MediaStream | null = null;
   let outputStream: MediaStream | null = null;
@@ -231,20 +238,18 @@ export async function exportVideo({
       await drawExportFrame({
         ctx,
         video,
-        session,
+        recordedPerformance,
         adapter,
-        scoreEndTick,
-        ticksPerQuarter,
+
         frameState,
         config,
       });
       await prefetchUpcomingEventImage({
         mediaTimeMs: Math.max(0, video.currentTime * 1000) + 400,
         video,
-        session,
+        recordedPerformance,
         adapter,
-        scoreEndTick,
-        ticksPerQuarter,
+
         scorePages,
       });
 
@@ -357,10 +362,9 @@ export async function exportVideo({
             await drawExportFrame({
               ctx,
               video,
-              session,
+              recordedPerformance,
               adapter,
-              scoreEndTick,
-              ticksPerQuarter,
+
               frameState,
               config,
             });
@@ -383,10 +387,9 @@ export async function exportVideo({
           await drawExportFrame({
             ctx,
             video,
-            session,
+            recordedPerformance,
             adapter,
-            scoreEndTick,
-            ticksPerQuarter,
+
             frameState,
             config,
           });
@@ -398,10 +401,9 @@ export async function exportVideo({
           void prefetchUpcomingEventImage({
             mediaTimeMs: Math.max(0, video.currentTime * 1000) + 400,
             video,
-            session,
+            recordedPerformance,
             adapter,
-            scoreEndTick,
-            ticksPerQuarter,
+
             scorePages: frameState.scorePages,
           }).catch(() => undefined);
         } catch (err) {
@@ -411,7 +413,9 @@ export async function exportVideo({
         if (!acceptingFrames()) return;
         const durationMs = Number.isFinite(video.duration)
           ? Math.max(0, video.duration * 1000)
-          : microsecondsToMilliseconds(session.recordingTimebase.nominalMediaDurationUs);
+          : microsecondsToMilliseconds(
+              recordedPerformance.recording.timebase.nominalMediaDurationUs,
+            );
         const mediaTimeMs = Math.max(0, video.currentTime * 1000);
         onProgress?.({
           mediaTimeMs,
@@ -477,48 +481,47 @@ export async function exportVideo({
 async function prefetchUpcomingEventImage({
   mediaTimeMs,
   video,
-  session,
+  recordedPerformance,
   adapter,
-  scoreEndTick, ticksPerQuarter,
   scorePages,
 }: {
   mediaTimeMs: number;
   video: HTMLVideoElement;
-  session: VideoExportSession;
+  recordedPerformance: RecordedPerformance;
   adapter: PracticeVerovioAdapter;
-  scoreEndTick: number; ticksPerQuarter: number;
   scorePages: ScorePageCache;
 }) {
   const position = resolveVideoExportPlaybackPosition({
-    session,
+    recordedPerformance,
     adapter,
     pageNumberResolver: (noteIds) => findStablePageNumber(noteIds, scorePages),
     mediaTimeMs,
     actualMediaDurationMs: safeDurationMs(video),
-    scoreEndTick, ticksPerQuarter,
   });
   if (!position) return;
   const page = scorePages.get(position.pageNumber);
   if (!page) return;
   const playback = resolveExportPlaybackGeometry(page, position.noteIds);
   if (!playback) return;
-  await prefetchEventScoreImage(page, position.noteIds, playback.anchorNote.noteId);
+  await prefetchEventScoreImage(
+    page,
+    position.noteIds,
+    playback.anchorNote.noteId,
+  );
 }
 
 export async function drawExportFrame({
   ctx,
   video,
-  session,
+  recordedPerformance,
   adapter,
-  scoreEndTick, ticksPerQuarter,
   frameState,
   config = { orientation: 'landscape', presentation: { kind: 'split' } },
 }: {
   ctx: CanvasRenderingContext2D;
   video: HTMLVideoElement;
-  session: VideoExportSession;
+  recordedPerformance: RecordedPerformance;
   adapter: PracticeVerovioAdapter;
-  scoreEndTick: number; ticksPerQuarter: number;
   frameState: FrameRenderState;
   config?: VideoExportConfig;
 }): Promise<void> {
@@ -528,15 +531,15 @@ export async function drawExportFrame({
     mediaTimeMs: Math.max(0, video.currentTime * 1000),
     scoreModel: frameState.scorePages,
     playbackTimeline: {
-      resolve: (mediaTimeMs) => resolveVideoExportPlaybackPosition({
-        session,
-        adapter,
-        pageNumberResolver: (noteIds) => findStablePageNumber(noteIds, frameState.scorePages),
-        mediaTimeMs,
-        actualMediaDurationMs:
-          session.video.actualMediaDurationMs ?? safeDurationMs(video),
-        scoreEndTick, ticksPerQuarter,
-      }),
+      resolve: (mediaTimeMs) =>
+        resolveVideoExportPlaybackPosition({
+          recordedPerformance,
+          adapter,
+          pageNumberResolver: (noteIds) =>
+            findStablePageNumber(noteIds, frameState.scorePages),
+          mediaTimeMs,
+          actualMediaDurationMs: safeDurationMs(video),
+        }),
     },
     sourceVideoFrame: video,
     outputCanvas: frameState.stagingCanvas,
@@ -554,7 +557,10 @@ function canCaptureCanvasStream(): boolean {
   return typeof canvas.captureStream === 'function';
 }
 
-function waitForVideoMetadata(video: HTMLVideoElement, signal?: AbortSignal): Promise<void> {
+function waitForVideoMetadata(
+  video: HTMLVideoElement,
+  signal?: AbortSignal,
+): Promise<void> {
   if (video.readyState >= 1) {
     return Promise.resolve();
   }
@@ -582,7 +588,10 @@ function waitForVideoMetadata(video: HTMLVideoElement, signal?: AbortSignal): Pr
   });
 }
 
-function waitForVideoFrame(video: HTMLVideoElement, signal?: AbortSignal): Promise<void> {
+function waitForVideoFrame(
+  video: HTMLVideoElement,
+  signal?: AbortSignal,
+): Promise<void> {
   if (video.readyState >= 2) {
     return Promise.resolve();
   }

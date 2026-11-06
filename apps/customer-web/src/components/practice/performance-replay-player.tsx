@@ -12,7 +12,10 @@ import type { PlayablePerformanceReplay } from '@/lib/practice/recording/perform
 
 type PerformanceReplayPlayerProps = {
   replay: PlayablePerformanceReplay;
-  onReplayTimeChange?: (replayTimeMs: number | null, actualDurationMs?: number | null) => void;
+  onReplayTimeChange?: (
+    replayTimeMs: number | null,
+    actualDurationMs?: number | null,
+  ) => void;
   onPlaybackStateChange?: (playing: boolean) => void;
   onReplaySeekCommitted?: (replayTimeMs: number) => void;
   onVideoElementChange?: (video: HTMLVideoElement | null) => void;
@@ -57,8 +60,14 @@ export function PerformanceReplayPlayer({
   return null;
 }
 
-type AudioPerformanceReplay = Extract<PlayablePerformanceReplay, { kind: 'AUDIO_RECORDING' }>;
-type VideoPerformanceReplay = Extract<PlayablePerformanceReplay, { kind: 'VIDEO_RECORDING' }>;
+type AudioPerformanceReplay = Extract<
+  PlayablePerformanceReplay,
+  { kind: 'AUDIO_RECORDING' }
+>;
+type VideoPerformanceReplay = Extract<
+  PlayablePerformanceReplay,
+  { kind: 'VIDEO_RECORDING' }
+>;
 
 function AudioPerformanceReplayPlayer({
   replay,
@@ -69,7 +78,10 @@ function AudioPerformanceReplayPlayer({
   actions,
 }: {
   replay: AudioPerformanceReplay;
-  onReplayTimeChange?: (replayTimeMs: number | null, actualDurationMs?: number | null) => void;
+  onReplayTimeChange?: (
+    replayTimeMs: number | null,
+    actualDurationMs?: number | null,
+  ) => void;
   onPlaybackStateChange?: (playing: boolean) => void;
   onReplaySeekCommitted?: (replayTimeMs: number) => void;
   autoStart: boolean;
@@ -96,14 +108,23 @@ function AudioPerformanceReplayPlayer({
     setActualDurationMs(null);
   }
 
-  const effectiveDurationMs = actualDurationMs ?? microsecondsToMilliseconds(replay.recordingTimebase.nominalMediaDurationUs);
+  const effectiveDurationMs =
+    actualDurationMs ??
+    (replay.recordingTimebase
+      ? microsecondsToMilliseconds(
+          replay.recordingTimebase.nominalMediaDurationUs,
+        )
+      : 0);
 
   const publishTime = useCallback(
     (timeMs: number, durationOverrideMs?: number | null) => {
       const durationMs = durationOverrideMs ?? effectiveDurationMs;
       const boundedTimeMs = boundReplayTime(timeMs, durationMs);
       setCurrentMs(boundedTimeMs);
-      if (durationOverrideMs !== undefined && durationOverrideMs !== actualDurationMs) {
+      if (
+        durationOverrideMs !== undefined &&
+        durationOverrideMs !== actualDurationMs
+      ) {
         setActualDurationMs(durationOverrideMs);
       }
       const reportedDurationMs = durationOverrideMs ?? actualDurationMs;
@@ -113,7 +134,7 @@ function AudioPerformanceReplayPlayer({
         onReplayTimeChange?.(boundedTimeMs);
       }
     },
-    [actualDurationMs, effectiveDurationMs, onReplayTimeChange]
+    [actualDurationMs, effectiveDurationMs, onReplayTimeChange],
   );
 
   const updateActualDuration = useCallback((audio: HTMLAudioElement) => {
@@ -130,7 +151,7 @@ function AudioPerformanceReplayPlayer({
       const durationMs = updateActualDuration(audio) ?? actualDurationMs;
       publishTime(audio.currentTime * 1000, durationMs);
     },
-    [actualDurationMs, publishTime, updateActualDuration]
+    [actualDurationMs, publishTime, updateActualDuration],
   );
 
   const stopRenderTicker = useCallback(() => {
@@ -152,13 +173,15 @@ function AudioPerformanceReplayPlayer({
       }
       publishTime(audio.currentTime * 1000);
       if (!audio.paused && !audio.ended) {
-        animationFrameRef.current = window.requestAnimationFrame(reportPlaybackTime);
+        animationFrameRef.current =
+          window.requestAnimationFrame(reportPlaybackTime);
         return;
       }
       animationFrameRef.current = null;
     };
 
-    animationFrameRef.current = window.requestAnimationFrame(reportPlaybackTime);
+    animationFrameRef.current =
+      window.requestAnimationFrame(reportPlaybackTime);
   }, [publishTime, stopRenderTicker]);
 
   useEffect(() => {
@@ -167,7 +190,11 @@ function AudioPerformanceReplayPlayer({
       return undefined;
     }
     const lease = replay.media?.retain();
-    const audioUrl = replay.url ? replay.url : (lease ? URL.createObjectURL(lease.blob) : '');
+    const audioUrl = replay.url
+      ? replay.url
+      : lease
+        ? URL.createObjectURL(lease.blob)
+        : '';
     if (!audioUrl) return undefined;
 
     audio.src = audioUrl;
@@ -236,7 +263,7 @@ function AudioPerformanceReplayPlayer({
       }
       publishTime(boundedTimeMs);
     },
-    [effectiveDurationMs, publishTime]
+    [effectiveDurationMs, publishTime],
   );
 
   return (
@@ -310,7 +337,10 @@ function VideoPerformanceReplayPlayer({
   actions,
 }: {
   replay: VideoPerformanceReplay;
-  onReplayTimeChange?: (replayTimeMs: number | null, actualDurationMs?: number | null) => void;
+  onReplayTimeChange?: (
+    replayTimeMs: number | null,
+    actualDurationMs?: number | null,
+  ) => void;
   onPlaybackStateChange?: (playing: boolean) => void;
   onReplaySeekCommitted?: (replayTimeMs: number) => void;
   onVideoElementChange?: (video: HTMLVideoElement | null) => void;
@@ -336,7 +366,7 @@ function VideoPerformanceReplayPlayer({
       videoRef.current = element;
       onVideoElementChange?.(element);
     },
-    [onVideoElementChange]
+    [onVideoElementChange],
   );
 
   if (prevMediaSource !== mediaSource) {
@@ -345,14 +375,23 @@ function VideoPerformanceReplayPlayer({
     setActualDurationMs(null);
   }
 
-  const effectiveDurationMs = actualDurationMs ?? microsecondsToMilliseconds(replay.recordingTimebase.nominalMediaDurationUs);
+  const effectiveDurationMs =
+    actualDurationMs ??
+    (replay.recordingTimebase
+      ? microsecondsToMilliseconds(
+          replay.recordingTimebase.nominalMediaDurationUs,
+        )
+      : 0);
 
   const publishTime = useCallback(
     (timeMs: number, durationOverrideMs?: number | null) => {
       const durationMs = durationOverrideMs ?? effectiveDurationMs;
       const boundedTimeMs = boundReplayTime(timeMs, durationMs);
       setCurrentMs(boundedTimeMs);
-      if (durationOverrideMs !== undefined && durationOverrideMs !== actualDurationMs) {
+      if (
+        durationOverrideMs !== undefined &&
+        durationOverrideMs !== actualDurationMs
+      ) {
         setActualDurationMs(durationOverrideMs);
       }
       const reportedDurationMs = durationOverrideMs ?? actualDurationMs;
@@ -362,7 +401,7 @@ function VideoPerformanceReplayPlayer({
         onReplayTimeChange?.(boundedTimeMs);
       }
     },
-    [actualDurationMs, effectiveDurationMs, onReplayTimeChange]
+    [actualDurationMs, effectiveDurationMs, onReplayTimeChange],
   );
 
   const updateActualDuration = useCallback((video: HTMLVideoElement) => {
@@ -379,7 +418,7 @@ function VideoPerformanceReplayPlayer({
       const durationMs = updateActualDuration(video) ?? actualDurationMs;
       publishTime(video.currentTime * 1000, durationMs);
     },
-    [actualDurationMs, publishTime, updateActualDuration]
+    [actualDurationMs, publishTime, updateActualDuration],
   );
 
   const stopRenderTicker = useCallback(() => {
@@ -401,13 +440,15 @@ function VideoPerformanceReplayPlayer({
       }
       publishTime(video.currentTime * 1000);
       if (!video.paused && !video.ended) {
-        animationFrameRef.current = window.requestAnimationFrame(reportPlaybackTime);
+        animationFrameRef.current =
+          window.requestAnimationFrame(reportPlaybackTime);
         return;
       }
       animationFrameRef.current = null;
     };
 
-    animationFrameRef.current = window.requestAnimationFrame(reportPlaybackTime);
+    animationFrameRef.current =
+      window.requestAnimationFrame(reportPlaybackTime);
   }, [publishTime, stopRenderTicker]);
 
   useEffect(() => {
@@ -416,7 +457,11 @@ function VideoPerformanceReplayPlayer({
       return undefined;
     }
     const lease = replay.media?.retain();
-    const videoUrl = replay.url ? replay.url : (lease ? URL.createObjectURL(lease.blob) : '');
+    const videoUrl = replay.url
+      ? replay.url
+      : lease
+        ? URL.createObjectURL(lease.blob)
+        : '';
     if (!videoUrl) return undefined;
 
     video.src = videoUrl;
@@ -485,7 +530,7 @@ function VideoPerformanceReplayPlayer({
       }
       publishTime(boundedTimeMs);
     },
-    [effectiveDurationMs, publishTime]
+    [effectiveDurationMs, publishTime],
   );
 
   return (
@@ -591,10 +636,18 @@ function ReplayChrome({
           step={50}
           value={Math.round(boundReplayTime(currentMs, durationMs))}
           onChange={(event) => onSeek(Number(event.currentTarget.value))}
-          onPointerUp={(event) => onSeekCommitted?.(Number(event.currentTarget.value))}
-          onTouchEnd={(event) => onSeekCommitted?.(Number(event.currentTarget.value))}
+          onPointerUp={(event) =>
+            onSeekCommitted?.(Number(event.currentTarget.value))
+          }
+          onTouchEnd={(event) =>
+            onSeekCommitted?.(Number(event.currentTarget.value))
+          }
           onKeyUp={(event) => {
-            if (event.key.startsWith('Arrow') || event.key === 'Home' || event.key === 'End') {
+            if (
+              event.key.startsWith('Arrow') ||
+              event.key === 'Home' ||
+              event.key === 'End'
+            ) {
               onSeekCommitted?.(Number(event.currentTarget.value));
             }
           }}
@@ -627,11 +680,16 @@ function ReplayChrome({
 }
 
 function boundReplayTime(timeMs: number, durationMs: number) {
-  return Math.min(Math.max(Number.isFinite(timeMs) ? timeMs : 0, 0), Math.max(0, durationMs));
+  return Math.min(
+    Math.max(Number.isFinite(timeMs) ? timeMs : 0, 0),
+    Math.max(0, durationMs),
+  );
 }
 
 function finiteMediaDurationMs(media: HTMLMediaElement) {
-  return Number.isFinite(media.duration) && media.duration > 0 ? media.duration * 1000 : null;
+  return Number.isFinite(media.duration) && media.duration > 0
+    ? media.duration * 1000
+    : null;
 }
 
 function formatReplayTime(timeMs: number) {

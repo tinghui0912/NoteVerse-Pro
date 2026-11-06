@@ -1,11 +1,10 @@
-import { replayMediaTimeMsToPerformanceTimeMs } from '@/lib/practice/recording/recording-timebase';
-import { PracticeTempoTimeline } from '@/lib/practice/planning/tempo';
-import { resolveScopeTiming } from '@/lib/practice/score-view/scope-timing';
-import type { VideoExportSession } from './session';
+import { recordedPerformancePosition } from '@/lib/practice/recording/recorded-performance-timeline';
+import { cursorScopeFromExecutedPerformance } from '@/lib/practice/score-view/cursor-scope';
+import type { RecordedPerformance } from '@/lib/practice/recording/recorded-performance';
 import type { PracticeVerovioAdapter } from '@/lib/practice/score-view/verovio-adapter';
 
 export type ResolveVideoExportPlaybackPositionInput = {
-  session: VideoExportSession;
+  recordedPerformance: RecordedPerformance;
   adapter: Pick<
     PracticeVerovioAdapter,
     'getCursorTimelineEntryForTickRange' | 'getPageWithElement'
@@ -13,7 +12,6 @@ export type ResolveVideoExportPlaybackPositionInput = {
   pageNumberResolver?: (noteIds: readonly string[]) => number | null;
   mediaTimeMs: number;
   actualMediaDurationMs?: number | null;
-  scoreEndTick: number; ticksPerQuarter: number;
 };
 
 export type VideoExportPlaybackPosition = {
@@ -24,30 +22,28 @@ export type VideoExportPlaybackPosition = {
 };
 
 export function resolveVideoExportPlaybackPosition({
-  session,
+  recordedPerformance,
   adapter,
   pageNumberResolver,
   mediaTimeMs,
   actualMediaDurationMs,
-  scoreEndTick, ticksPerQuarter,
 }: ResolveVideoExportPlaybackPositionInput): VideoExportPlaybackPosition | null {
-  const perfTimeMs = replayMediaTimeMsToPerformanceTimeMs(
+  const position = recordedPerformancePosition(
+    recordedPerformance,
     mediaTimeMs,
-    session.recordingTimebase,
-    actualMediaDurationMs
+    actualMediaDurationMs,
   );
-  if (perfTimeMs === null) {
-    return null;
-  }
-
-  const timeline = new PracticeTempoTimeline(session.tempoPlan, scoreEndTick, ticksPerQuarter);
-  const scopeStartMs = resolveScopeTiming(session.scope, session.tempoPlan, scoreEndTick, ticksPerQuarter).scopeStartMs;
-  const scoreTick = timeline.timeMsToTick(scopeStartMs + perfTimeMs);
+  if (!position) return null;
+  const perfTimeMs = position.performanceTimeMs,
+    scoreTick = position.scoreTick;
+  const scope = cursorScopeFromExecutedPerformance(
+    recordedPerformance.executed,
+  );
   const entry = adapter.getCursorTimelineEntryForTickRange(
     scoreTick,
-    session.scope.startTick,
-    session.scope.terminalTick,
-    session.scope.kind === 'RANGE' ? session.scope.allowedNoteIds : undefined
+    scope.startTick,
+    scope.terminalTick,
+    scope.kind === 'RANGE' ? scope.allowedNoteIds : undefined,
   );
   if (!entry || entry.noteIds.length === 0) {
     return null;

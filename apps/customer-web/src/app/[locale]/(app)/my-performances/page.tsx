@@ -1,8 +1,5 @@
 'use client';
-import {
-  decodeRecordingTimebase,
-  microsecondsToMilliseconds,
-} from '@/lib/practice/recording/recording-timebase';
+import { microsecondsToMilliseconds } from '@/lib/practice/recording/recording-timebase';
 
 import { captureMediaExtension } from '@/lib/practice/recording/media-policy';
 
@@ -47,7 +44,7 @@ import {
   type PerformanceTakeRead,
 } from '@/lib/api/performance-takes';
 import type { PlayablePerformanceReplay } from '@/lib/practice/recording/performance-replay';
-import { hasSavedTakeVideoExportMetadata } from '@/lib/practice/video-export/saved-take-adapter';
+import { isSavedVideoCandidate } from '@/lib/practice/archive/saved-performance';
 import { useToast } from '@/hooks/use-toast';
 
 const DELETE_POLL_INTERVAL_MS = 2500;
@@ -190,18 +187,12 @@ function PerformanceTakeCard({
       ? {
           kind: 'VIDEO_RECORDING',
           url: playbackQuery.data.data.playback_url,
-          recordingTimebase: decodeRecordingTimebase(
-            take.manifest.recording_timebase,
-          ),
           contentType: take.archive_media.mime_type,
           byteSize: take.archive_media.byte_size,
         }
       : {
           kind: 'AUDIO_RECORDING',
           url: playbackQuery.data.data.playback_url,
-          recordingTimebase: decodeRecordingTimebase(
-            take.manifest.recording_timebase,
-          ),
           contentType: take.archive_media.mime_type,
         }
     : null;
@@ -291,7 +282,7 @@ function PerformanceTakeCard({
                     : t('downloadRecording')}
               </Button>
 
-              {hasSavedTakeVideoExportMetadata(take) ? (
+              {isSavedVideoCandidate(take) ? (
                 <Button asChild variant="outline" size="sm" className="gap-1.5">
                   <Link
                     href={`/my-performances/${take.take_id}/video-export`}

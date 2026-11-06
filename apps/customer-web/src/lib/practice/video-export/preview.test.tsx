@@ -1,4 +1,4 @@
-import { localMediaAssetFixture } from '@/lib/practice/__fixtures__/local-media-asset';
+import { recordedPerformanceFixture } from '@/lib/practice/__fixtures__/recorded-performance';
 // @vitest-environment jsdom
 
 import { render as renderComponent, waitFor } from '@testing-library/react';
@@ -8,11 +8,17 @@ import { NextIntlClientProvider } from 'next-intl';
 import englishPractice from '@/../messages/en/practice.json';
 import chinesePractice from '@/../messages/zh/practice.json';
 
-const render = (ui: React.ReactNode) => renderComponent(ui, {
-  wrapper: ({ children }) => <NextIntlClientProvider locale="en" messages={{ practice: englishPractice }}>{children}</NextIntlClientProvider>,
-});
-
-import type { VideoExportSession } from './session';
+const render = (ui: React.ReactNode) =>
+  renderComponent(ui, {
+    wrapper: ({ children }) => (
+      <NextIntlClientProvider
+        locale="en"
+        messages={{ practice: englishPractice }}
+      >
+        {children}
+      </NextIntlClientProvider>
+    ),
+  });
 
 const mocks = vi.hoisted(() => ({
   prepareScorePageCache: vi.fn(async () => new Map()),
@@ -35,28 +41,7 @@ vi.mock('./playback-position', () => ({
 import { VideoExportPreview } from './preview';
 import { captureReplayVideoFrame } from './preview';
 
-const session: VideoExportSession = {
-  sessionId: 'session-1', bundleId: 'source-1',
-  scoreIdentity: { scoreId: 'score-1', revisionId: 'revision-1', artifactId: 'artifact-1' },
-  scope: { kind: 'FULL', startTick: 0, terminalTick: 16 },
-  tempoPlan: {
-    selection: { mode: 'SCORE' },
-    segments: [{ startTick: 0, bpm: 96, source: 'MUSICXML' }],
-  },
-  recordingTimebase: {
-    nominalMediaDurationUs: 4000000,
-    activeSegments: [
-      { performanceStartUs: 0, performanceEndUs: 4000000, mediaStartUs: 0, mediaEndUs: 4000000 },
-    ],
-  },
-  video: {
-    status: 'READY',
-    kind: 'VIDEO',
-    media: localMediaAssetFixture(new Blob(['video'], { type: 'video/webm' })),
-    mimeType: 'video/webm',
-
-  },
-};
+const recordedPerformance = recordedPerformanceFixture();
 
 describe('VideoExportPreview', () => {
   beforeEach(() => {
@@ -67,43 +52,93 @@ describe('VideoExportPreview', () => {
     } as unknown as CanvasRenderingContext2D);
   });
 
-  it.each([['en', englishPractice], ['zh', chinesePractice]] as const)('uses %s messages for the preview controls', async (locale, messages) => {
-    const { getByText, getByLabelText, container } = renderComponent(
-      <NextIntlClientProvider locale={locale} messages={{ practice: messages }}>
-        <VideoExportPreview session={session} scoreContainer={document.createElement('div')}
-          adapter={{} as never} scoreEndTick={16} ticksPerQuarter={1} mediaTimeMs={0}
-          config={{ orientation: 'landscape', presentation: { kind: 'split' } }} replayVideo={null} />
-      </NextIntlClientProvider>
-    );
-    await waitFor(() => expect(getByText(messages.videoExportPreviewSyncDesc)).toBeVisible());
-    expect(getByLabelText(messages.videoExportPreviewCanvasLabel)).toBeInTheDocument();
-    expect(getByText(messages.videoExportPreviewSavePng)).toBeVisible();
-    if (locale === 'en') expect(container.textContent).not.toMatch(/[\u4e00-\u9fff]/);
-  });
+  it.each([
+    ['en', englishPractice],
+    ['zh', chinesePractice],
+  ] as const)(
+    'uses %s messages for the preview controls',
+    async (locale, messages) => {
+      const { getByText, getByLabelText, container } = renderComponent(
+        <NextIntlClientProvider
+          locale={locale}
+          messages={{ practice: messages }}
+        >
+          <VideoExportPreview
+            recordedPerformance={recordedPerformance}
+            scoreContainer={document.createElement('div')}
+            adapter={{} as never}
+            mediaTimeMs={0}
+            config={{
+              orientation: 'landscape',
+              presentation: { kind: 'split' },
+            }}
+            replayVideo={null}
+          />
+        </NextIntlClientProvider>,
+      );
+      await waitFor(() =>
+        expect(getByText(messages.videoExportPreviewSyncDesc)).toBeVisible(),
+      );
+      expect(
+        getByLabelText(messages.videoExportPreviewCanvasLabel),
+      ).toBeInTheDocument();
+      expect(getByText(messages.videoExportPreviewSavePng)).toBeVisible();
+      if (locale === 'en')
+        expect(container.textContent).not.toMatch(/[\u4e00-\u9fff]/);
+    },
+  );
 
-  it.each([['en', englishPractice], ['zh', chinesePractice]] as const)('uses %s messages for preview failure and retry', async (locale, messages) => {
-    mocks.prepareScorePageCache.mockRejectedValueOnce(null);
-    const { getByText, getByRole, container } = renderComponent(
-      <NextIntlClientProvider locale={locale} messages={{ practice: messages }}>
-        <VideoExportPreview session={session} scoreContainer={document.createElement('div')}
-          adapter={{} as never} scoreEndTick={16} ticksPerQuarter={1} mediaTimeMs={0}
-          config={{ orientation: 'landscape', presentation: { kind: 'split' } }} replayVideo={null} />
-      </NextIntlClientProvider>
-    );
-    await waitFor(() => expect(getByText(messages.videoExportPreviewScoreFailed)).toBeVisible());
-    expect(getByRole('button', { name: messages.videoExportPreviewRetry })).toBeVisible();
-    if (locale === 'en') expect(container.textContent).not.toMatch(/[\u4e00-\u9fff]/);
-  });
+  it.each([
+    ['en', englishPractice],
+    ['zh', chinesePractice],
+  ] as const)(
+    'uses %s messages for preview failure and retry',
+    async (locale, messages) => {
+      mocks.prepareScorePageCache.mockRejectedValueOnce(null);
+      const { getByText, getByRole, container } = renderComponent(
+        <NextIntlClientProvider
+          locale={locale}
+          messages={{ practice: messages }}
+        >
+          <VideoExportPreview
+            recordedPerformance={recordedPerformance}
+            scoreContainer={document.createElement('div')}
+            adapter={{} as never}
+            mediaTimeMs={0}
+            config={{
+              orientation: 'landscape',
+              presentation: { kind: 'split' },
+            }}
+            replayVideo={null}
+          />
+        </NextIntlClientProvider>,
+      );
+      await waitFor(() =>
+        expect(getByText(messages.videoExportPreviewScoreFailed)).toBeVisible(),
+      );
+      expect(
+        getByRole('button', { name: messages.videoExportPreviewRetry }),
+      ).toBeVisible();
+      if (locale === 'en')
+        expect(container.textContent).not.toMatch(/[\u4e00-\u9fff]/);
+    },
+  );
 
   it('rerenders a paused current frame when the template changes without controlling replay media', async () => {
     const video = document.createElement('video');
-    Object.defineProperty(video, 'currentTime', { configurable: true, value: 1.25 });
+    Object.defineProperty(video, 'currentTime', {
+      configurable: true,
+      value: 1.25,
+    });
     Object.defineProperty(video, 'duration', { configurable: true, value: 4 });
     Object.defineProperty(video, 'readyState', {
       configurable: true,
       value: HTMLMediaElement.HAVE_CURRENT_DATA,
     });
-    Object.defineProperty(video, 'seeking', { configurable: true, value: false });
+    Object.defineProperty(video, 'seeking', {
+      configurable: true,
+      value: false,
+    });
     const play = vi.spyOn(video, 'play').mockResolvedValue(undefined);
     const pause = vi.spyOn(video, 'pause').mockImplementation(() => {});
     const load = vi.spyOn(video, 'load').mockImplementation(() => {});
@@ -111,14 +146,13 @@ describe('VideoExportPreview', () => {
     const scoreContainer = document.createElement('div');
     const { rerender } = render(
       <VideoExportPreview
-        session={session}
+        recordedPerformance={recordedPerformance}
         scoreContainer={scoreContainer}
         adapter={{} as never}
-        scoreEndTick={16} ticksPerQuarter={1}
         mediaTimeMs={1250}
         config={{ orientation: 'landscape', presentation: { kind: 'split' } }}
         replayVideo={video}
-      />
+      />,
     );
 
     await waitFor(() => {
@@ -128,23 +162,22 @@ describe('VideoExportPreview', () => {
 
     rerender(
       <VideoExportPreview
-        session={session}
+        recordedPerformance={recordedPerformance}
         scoreContainer={scoreContainer}
         adapter={{} as never}
-        scoreEndTick={16} ticksPerQuarter={1}
         mediaTimeMs={1250}
         config={{ orientation: 'portrait', presentation: { kind: 'split' } }}
         replayVideo={video}
-      />
+      />,
     );
 
     await waitFor(() => {
-      expect(mocks.renderVideoExportFrameAtTime.mock.calls.length).toBeGreaterThan(
-        firstCallCount
-      );
+      expect(
+        mocks.renderVideoExportFrameAtTime.mock.calls.length,
+      ).toBeGreaterThan(firstCallCount);
     });
     expect(
-      mocks.renderVideoExportFrameAtTime.mock.calls.at(-1)?.[0]
+      mocks.renderVideoExportFrameAtTime.mock.calls.at(-1)?.[0],
     ).toMatchObject({
       mediaTimeMs: 1250,
       sourceVideoFrame: expect.any(HTMLCanvasElement),
@@ -154,30 +187,30 @@ describe('VideoExportPreview', () => {
       },
     });
 
-    const portraitCallCount = mocks.renderVideoExportFrameAtTime.mock.calls.length;
+    const portraitCallCount =
+      mocks.renderVideoExportFrameAtTime.mock.calls.length;
 
     rerender(
       <VideoExportPreview
-        session={session}
+        recordedPerformance={recordedPerformance}
         scoreContainer={scoreContainer}
         adapter={{} as never}
-        scoreEndTick={16} ticksPerQuarter={1}
         mediaTimeMs={1250}
         config={{
           orientation: 'portrait',
           presentation: { kind: 'floating', position: 'bottom', size: 'large' },
         }}
         replayVideo={video}
-      />
+      />,
     );
 
     await waitFor(() => {
-      expect(mocks.renderVideoExportFrameAtTime.mock.calls.length).toBeGreaterThan(
-        portraitCallCount
-      );
+      expect(
+        mocks.renderVideoExportFrameAtTime.mock.calls.length,
+      ).toBeGreaterThan(portraitCallCount);
     });
     expect(
-      mocks.renderVideoExportFrameAtTime.mock.calls.at(-1)?.[0]
+      mocks.renderVideoExportFrameAtTime.mock.calls.at(-1)?.[0],
     ).toMatchObject({
       sourceVideoFrame: expect.any(HTMLCanvasElement),
       layout: {
@@ -203,30 +236,34 @@ describe('VideoExportPreview', () => {
       configurable: true,
       value: HTMLMediaElement.HAVE_CURRENT_DATA,
     });
-    Object.defineProperty(video, 'seeking', { configurable: true, value: false });
+    Object.defineProperty(video, 'seeking', {
+      configurable: true,
+      value: false,
+    });
 
     const renderGate: { resolve: (() => void) | null } = { resolve: null };
-    mocks.renderVideoExportFrameAtTime.mockImplementationOnce(async (rawOptions: unknown) => {
-      const options = rawOptions as { mediaTimeMs: number };
-      expect(options.mediaTimeMs).toBe(1050);
-      sourceAdvanced = true;
-      await new Promise<void>((resolve) => {
-        renderGate.resolve = resolve;
-      });
-    });
+    mocks.renderVideoExportFrameAtTime.mockImplementationOnce(
+      async (rawOptions: unknown) => {
+        const options = rawOptions as { mediaTimeMs: number };
+        expect(options.mediaTimeMs).toBe(1050);
+        sourceAdvanced = true;
+        await new Promise<void>((resolve) => {
+          renderGate.resolve = resolve;
+        });
+      },
+    );
 
     const onFrameCommitted = vi.fn();
     render(
       <VideoExportPreview
-        session={session}
+        recordedPerformance={recordedPerformance}
         scoreContainer={document.createElement('div')}
         adapter={{} as never}
-        scoreEndTick={16} ticksPerQuarter={1}
         mediaTimeMs={1000}
         config={{ orientation: 'landscape', presentation: { kind: 'split' } }}
         replayVideo={video}
         onFrameCommitted={onFrameCommitted}
-      />
+      />,
     );
 
     await waitFor(() => {
@@ -243,7 +280,10 @@ describe('VideoExportPreview', () => {
 
   it('freezes the media time at the same instant as the source frame', () => {
     const video = document.createElement('video');
-    Object.defineProperty(video, 'currentTime', { configurable: true, value: 1.05 });
+    Object.defineProperty(video, 'currentTime', {
+      configurable: true,
+      value: 1.05,
+    });
     const source = captureReplayVideoFrame(video, { current: null });
     expect(source.mediaTimeMs).toBe(1050);
     expect(source.canvas).toBeInstanceOf(HTMLCanvasElement);

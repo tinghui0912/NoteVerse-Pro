@@ -24,6 +24,7 @@ const calls = vi.hoisted(() => ({
   get: vi.fn(),
   media: vi.fn(),
   player: vi.fn(),
+  studio: vi.fn(),
   push: vi.fn(),
 }));
 vi.mock('next/navigation', () => ({
@@ -47,7 +48,10 @@ vi.mock('@/components/practice/performance-replay-player', () => ({
   },
 }));
 vi.mock('@/components/practice/video-export-studio', () => ({
-  VideoExportStudio: () => <div data-testid="score-export" />,
+  VideoExportStudio: (props: { recordedPerformance: unknown }) => {
+    calls.studio(props);
+    return <div data-testid="score-export" />;
+  },
 }));
 vi.mock('@/components/score-preview/verovio-score-viewer', () => ({
   VerovioScoreViewer: () => <div data-testid="score" />,
@@ -58,7 +62,7 @@ vi.mock('@/lib/practice/score-view/verovio-adapter', () => ({
   },
 }));
 
-const blob = new Blob(['raw video'], { type: 'video/webm' });
+const blob = new Blob(['raw video!'], { type: 'video/webm' });
 beforeEach(() => {
   vi.clearAllMocks();
   calls.media.mockResolvedValue(localMediaAssetFixture(blob));
@@ -96,7 +100,7 @@ function openPage() {
     </QueryClientProvider>,
   );
 }
-it('loads exact currently authorized Source for optional saved score export', async () => {
+it('loads exact currently authorized Bundle for optional saved score export', async () => {
   openPage();
   await screen.findByTestId('score-export');
   expect(calls.get).toHaveBeenCalledExactlyOnceWith(
@@ -105,9 +109,16 @@ it('loads exact currently authorized Source for optional saved score export', as
     { signal: expect.any(AbortSignal) },
   );
   expect(calls.player.mock.calls.at(-1)![0].replay.media.blob).toBe(blob);
+  const recorded = calls.studio.mock.calls.at(-1)![0].recordedPerformance;
+  expect(calls.player.mock.calls.at(-1)![0].replay.media).toBe(
+    recorded.recording.media,
+  );
+  expect(calls.player.mock.calls.at(-1)![0].replay.recordingTimebase).toBe(
+    recorded.recording.timebase,
+  );
 });
 it.each([403, 404])(
-  'keeps raw replay and download usable when Source authorization returns %s',
+  'keeps raw replay and download usable when Bundle authorization returns %s',
   async (status) => {
     calls.get.mockRejectedValue(
       new ApiError(status, 'resource_not_found', 'Unavailable'),

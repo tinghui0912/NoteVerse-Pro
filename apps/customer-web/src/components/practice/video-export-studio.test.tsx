@@ -36,7 +36,7 @@ import { VideoExportStudio } from './video-export-studio';
 import { exportVideo } from '@/lib/practice/video-export/export';
 import { downloadLocalMedia } from '@/lib/practice/media/download-local-media';
 import { createLocalMediaAsset } from '@/lib/practice/media/local-media-asset';
-import { createVideoExportSessionFromSavedTake } from '@/lib/practice/video-export/saved-take-adapter';
+import { admitSavedRecordedPerformance } from '@/lib/practice/archive/saved-performance';
 import {
   take,
   artifact,
@@ -57,19 +57,23 @@ vi.mock('@/lib/practice/media/download-local-media', () => ({
 function studio() {
   const sourceRemoved = vi.fn(async () => {}),
     outputRemoved = vi.fn(async () => {});
-  const source = createLocalMediaAsset(new Blob(['source']), sourceRemoved);
+  const source = createLocalMediaAsset(new Blob(['source1234']), sourceRemoved);
   const output = createLocalMediaAsset(
     new Blob(['derivative'], { type: 'video/webm' }),
     outputRemoved,
   );
-  const adapted = createVideoExportSessionFromSavedTake(take, source, {
-    binding: {
-      scoreId: 'score-1',
-      revisionId: 'revision-1',
-      bundleId: take.manifest.practice_binding.bundle_id,
+  const adapted = admitSavedRecordedPerformance(
+    take,
+    {
+      binding: {
+        scoreId: 'score-1',
+        revisionId: 'revision-1',
+        bundleId: take.manifest.practice_binding.bundle_id,
+      },
+      artifact,
     },
-    artifact,
-  });
+    source,
+  );
   if (adapted.status !== 'supported') throw new Error('Expected video');
   vi.mocked(exportVideo).mockResolvedValue({
     media: output,
@@ -79,11 +83,9 @@ function studio() {
   const exporting = vi.fn();
   const view = render(
     <VideoExportStudio
-      session={adapted.session}
+      recordedPerformance={adapted.recordedPerformance}
       scoreContainer={document.createElement('div')}
       adapter={{} as never}
-      scoreEndTick={16}
-      ticksPerQuarter={1}
       isScoreIdentityConfirmed
       xmlContent="<score />"
       mediaTimeMs={0}

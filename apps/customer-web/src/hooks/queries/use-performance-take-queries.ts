@@ -1,24 +1,20 @@
 'use client';
-import type { PracticeBundleBinding } from '@/lib/practice/bundle/admitted-practice-bundle';
+import { recordedPerformance } from '@/lib/practice/recording/recorded-performance';
+import {
+  performanceTakeUploadRequest,
+  takeManifestAgreesWithRecordedPerformance,
+  archivedTakeAgreesWithRecordedPerformance,
+  type SavePerformanceTakeInput,
+} from '@/lib/practice/archive/take-admission';
 
 import { releaseLocalMediaAsset } from '@/lib/practice/media/local-media-asset';
-import type { LocalMediaAsset } from '@/lib/practice/media/local-media-asset';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
   performanceTakesApi,
   uploadMediaToSignedUrl,
-  type RecordingTimebase,
-  type PerformanceTakeManifestRead,
-  type PerformanceTakeRead,
-  type PerformanceTakeTempoPlan,
-  type PerformanceTakeUploadReservationRequest,
 } from '@/lib/api/performance-takes';
-import {
-  normalizeCaptureMime,
-  type CaptureMediaKind,
-} from '@/lib/practice/recording/media-policy';
 import { queryKeys } from '@/lib/query-client';
 
 export function usePerformanceTakes(
@@ -61,64 +57,21 @@ export function useDeletePerformanceTake() {
   });
 }
 
-export interface SavePerformanceTakeInput {
-  binding: PracticeBundleBinding;
-  clientRequestId: string;
-  ticksPerQuarter: number;
-  mediaKind: CaptureMediaKind;
-  media: LocalMediaAsset;
-  mimeType: string;
-  scope:
-    | {
-        kind: 'FULL';
-        startTick: number;
-        terminalTick: number;
-      }
-    | {
-        kind: 'RANGE';
-        startTick: number;
-        terminalTick: number;
-        startGroupId: string;
-        endGroupId: string;
-      };
-  tempoPlan: PerformanceTakeTempoPlan;
-  recordingTimebase: RecordingTimebase;
-}
-
 export function useSavePerformanceTake() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
     mutationFn: async (input: SavePerformanceTakeInput) => {
-      const request: PerformanceTakeUploadReservationRequest = {
-        client_request_id: input.clientRequestId,
-        practice_binding: {
-          score_id: input.binding.scoreId,
-          revision_id: input.binding.revisionId,
-          bundle_id: input.binding.bundleId,
-        },
-        media: {
-          kind: input.mediaKind,
-          byte_size: input.media.byteSize,
-          mime_type: normalizeCaptureMime(input.mimeType),
-        },
-        scope:
-          input.scope.kind === 'RANGE'
-            ? {
-                kind: 'RANGE',
-                start_group_id: input.scope.startGroupId,
-                end_group_id: input.scope.endGroupId,
-              }
-            : {
-                kind: 'FULL',
-              },
-        tempo_selection: input.tempoPlan.selection,
-        recording_timebase: input.recordingTimebase,
-      };
+      const request = performanceTakeUploadRequest(input);
       const response = await performanceTakesApi.reserveUpload(request);
       const reservation = response.data;
       if (!reservation) throw new Error('Upload reservation is unavailable');
-      if (!manifestMatchesExecution(reservation.manifest, input)) {
+      if (
+        !takeManifestAgreesWithRecordedPerformance(
+          reservation.manifest,
+          input.recordedPerformance,
+        )
+      ) {
         if (reservation.status === 'RESERVED') {
           try {
             await performanceTakesApi.cancelUploadReservation(
@@ -134,8 +87,14 @@ export function useSavePerformanceTake() {
         if (!reservation.take)
           throw new Error('Completed reservation has no saved take');
         if (
-          !manifestMatchesExecution(reservation.take.manifest, input) ||
-          !archiveMatchesCapture(reservation.take)
+          !takeManifestAgreesWithRecordedPerformance(
+            reservation.take.manifest,
+            input.recordedPerformance,
+          ) ||
+          !archivedTakeAgreesWithRecordedPerformance(
+            reservation.take,
+            input.recordedPerformance,
+          )
         )
           throw new Error('PERFORMANCE_TAKE_PLAN_MISMATCH');
         return reservation.take;
@@ -148,7 +107,7 @@ export function useSavePerformanceTake() {
             target.url,
             target.method,
             target.headers,
-            input.media.blob,
+            input.recordedPerformance.recording.media.blob,
           );
         } catch (error) {
           try {
@@ -167,8 +126,14 @@ export function useSavePerformanceTake() {
       );
       if (
         !finalized.data ||
-        !manifestMatchesExecution(finalized.data.manifest, input) ||
-        !archiveMatchesCapture(finalized.data)
+        !takeManifestAgreesWithRecordedPerformance(
+          finalized.data.manifest,
+          input.recordedPerformance,
+        ) ||
+        !archivedTakeAgreesWithRecordedPerformance(
+          finalized.data,
+          input.recordedPerformance,
+        )
       )
         throw new Error('PERFORMANCE_TAKE_PLAN_MISMATCH');
       return finalized.data;
@@ -183,105 +148,21 @@ export function useSavePerformanceTake() {
   return {
     async mutateAsync(input: SavePerformanceTakeInput) {
       // Retain synchronously with the command, before React Query can schedule transport.
-      const lease = input.media.retain();
+      const lease = input.recordedPerformance.recording.media.retain();
       try {
-        return await mutation.mutateAsync({ ...input, media: lease });
+        return await mutation.mutateAsync({
+          ...input,
+          recordedPerformance: recordedPerformance(
+            input.recordedPerformance.executed,
+            Object.freeze({
+              ...input.recordedPerformance.recording,
+              media: lease,
+            }),
+          ),
+        });
       } finally {
         await releaseLocalMediaAsset(lease);
       }
     },
   };
-}
-
-function tempoMatchesExecution(
-  actual: PerformanceTakeTempoPlan | undefined,
-  expected: PerformanceTakeTempoPlan,
-): boolean {
-  if (!actual?.selection || !Array.isArray(actual.segments)) return false;
-  if (actual.selection.mode !== expected.selection.mode) return false;
-  if (
-    expected.selection.mode === 'CUSTOM_FIXED_BPM' &&
-    (actual.selection.mode !== 'CUSTOM_FIXED_BPM' ||
-      actual.selection.bpm !== expected.selection.bpm)
-  )
-    return false;
-  return (
-    actual.segments.length === expected.segments.length &&
-    actual.segments.every((segment, index) => {
-      const executed = expected.segments[index];
-      return (
-        segment?.startTick === executed.startTick &&
-        segment.bpm === executed.bpm &&
-        segment.source === executed.source
-      );
-    })
-  );
-}
-
-function manifestMatchesExecution(
-  manifest: PerformanceTakeManifestRead | undefined,
-  input: SavePerformanceTakeInput,
-): boolean {
-  const scope = manifest?.scope;
-  return Boolean(
-    manifest &&
-      scope &&
-      scoreTimebaseMatchesExecution(
-        manifest.score_timebase?.ticks_per_quarter,
-        input.ticksPerQuarter,
-      ) &&
-      manifest.practice_binding?.bundle_id === input.binding.bundleId &&
-      manifest.practice_binding.score_id === input.binding.scoreId &&
-      manifest.practice_binding.revision_id === input.binding.revisionId &&
-      manifest.capture?.kind === input.mediaKind &&
-      manifest.capture.byte_size === input.media.byteSize &&
-      manifest.capture.mime_type === normalizeCaptureMime(input.mimeType) &&
-      recordingTimebaseMatchesExecution(
-        manifest.recording_timebase,
-        input.recordingTimebase,
-      ) &&
-      scope.kind === input.scope.kind &&
-      scope.start_tick === input.scope.startTick &&
-      scope.terminal_tick === input.scope.terminalTick &&
-      (input.scope.kind !== 'RANGE' ||
-        (scope.kind === 'RANGE' &&
-          scope.start_group_id === input.scope.startGroupId &&
-          scope.end_group_id === input.scope.endGroupId)) &&
-      tempoMatchesExecution(manifest.tempo_plan, input.tempoPlan),
-  );
-}
-
-function scoreTimebaseMatchesExecution(
-  actual: number | undefined,
-  expected: number,
-): boolean {
-  return Number.isSafeInteger(expected) && expected > 0 && actual === expected;
-}
-
-function recordingTimebaseMatchesExecution(
-  actual: RecordingTimebase | undefined,
-  expected: RecordingTimebase,
-): boolean {
-  return Boolean(
-    actual &&
-      actual.nominalMediaDurationUs === expected.nominalMediaDurationUs &&
-      Array.isArray(actual.activeSegments) &&
-      actual.activeSegments.length === expected.activeSegments.length &&
-      actual.activeSegments.every((segment, index) => {
-        const executed = expected.activeSegments[index];
-        return (
-          segment.performanceStartUs === executed.performanceStartUs &&
-          segment.performanceEndUs === executed.performanceEndUs &&
-          segment.mediaStartUs === executed.mediaStartUs &&
-          segment.mediaEndUs === executed.mediaEndUs
-        );
-      }),
-  );
-}
-
-function archiveMatchesCapture(take: PerformanceTakeRead): boolean {
-  return (
-    take.archive_media?.mime_type === take.manifest.capture.mime_type &&
-    take.archive_media.byte_size === take.manifest.capture.byte_size
-  );
 }

@@ -612,7 +612,7 @@ with one event at 1150ms, the earlier unresolved target wins, regardless of IDs.
 This FIFO convention is deterministic product policy, not learner-accuracy evidence.
 
 The domain-specific same-key solver uses scalar suffix cardinality/cost tables
-and chronological reconstruction, with O(targets * events) space/time per cohort.
+and chronological reconstruction, with O(targets \* events) space/time per cohort.
 No DP cell retains a growing pair list; costs use structured comparison, without
 epsilon or artificial numeric weighting. Overlapping eligibility allows: targets
 1000/1250ms with events 1100/1110ms both match, as do events 800/1100ms. Nearest
@@ -704,11 +704,11 @@ capabilities remain explicit in inputSource and evidence provenance.
 For a C4+D4 target, both sources produce the same assignment states and colors:
 
 | Accepted evidence | C4 target | D4 target | Target colors |
-| --- | --- | --- | --- |
-| silence | UNMATCHED | UNMATCHED | red / red |
-| C4 + E4 | MATCHED | UNMATCHED | green / red |
-| C4 only | MATCHED | UNMATCHED | green / red |
-| C4 + D4 | MATCHED | MATCHED | green / green |
+| ----------------- | --------- | --------- | ------------- |
+| silence           | UNMATCHED | UNMATCHED | red / red     |
+| C4 + E4           | MATCHED   | UNMATCHED | green / red   |
+| C4 only           | MATCHED   | UNMATCHED | green / red   |
+| C4 + D4           | MATCHED   | MATCHED   | green / green |
 
 E4 in the second row remains UNATTRIBUTED; the third row contains no E4 fact.
 PENDING and NOT_REACHED carry no correctness colors. UNAVAILABLE means trustworthy
@@ -760,12 +760,13 @@ retain causal metadata separately from observations and user recordings.
 ## Transient Continuous Result
 
 `ContinuousPerformanceResult` is an immutable in-memory value produced only by
-natural completion. It contains `{ session, evaluation }`. The completed session
-projection requires SCOPE_COMPLETED, lifecycle ENDED and performance ENDED. Its
-exact executed PracticePlan owns binding, artifact, scope, tempo and input facts;
-its performance snapshot owns active elapsed time. Session updatedAtMs supplies
-completion metadata time. Result construction freezes its own session/performance
-shells and preserves exact Plan, Artifact and completed Evaluation references.
+natural completion. It carries ExecutedPerformance, evaluation and transient outcome
+facts: local session identity, completion metadata time, input kind and active
+elapsed time. Natural completion requires SCOPE_COMPLETED, lifecycle ENDED and
+performance ENDED. ExecutedPerformance freezes its aggregate shell and preserves
+the exact executed Plan bundle, scope and tempo references. It owns no resources,
+MusicXML, media or transient outcome facts. Session updatedAtMs supplies completion
+metadata time; the completed evaluation retains its exact reference.
 
 The factory validates evaluation input/session identity and COMPLETE assignment
 coverage of exactly the canonical scoped attacks. Generic assignment/evaluation
@@ -1015,7 +1016,7 @@ the server derives durable scope ticks, tempo segments and their shared score ti
 from that exact bound Bundle. Reservation and Take responses expose one `manifest` containing
 binding, artifact identity, title, source `capture`, resolved scope, score timebase, tempo plan and recording timebase.
 Before upload and before saved success, the browser verifies agreement with its
-executed Result session Plan and its artifact's `ticksPerQuarter`. Plan mismatch fails closed;
+RecordedPerformance and its executed artifact's `ticksPerQuarter`. Plan mismatch fails closed;
 a new RESERVED mismatch is cancelled best-effort without media upload.
 Client-request
 idempotency belongs to this boundary: equal normalized metadata returns the same
@@ -1065,8 +1066,9 @@ same supported/green and unsupported/red targets as live Practice. VideoExport c
 own playback cursor, never report annotations. Snapshot preparation strips report
 classes and existing active/playhead decorations from the cloned SVG only. Live
 Review annotations remain intact. Current recordings and saved takes share this
-clean-score contract; VideoExportSession contains score/scope/tempo/media/timebase,
-without evaluation or metrics.
+clean-score contract. Both consume RecordedPerformance: one ExecutedPerformance
+paired with one READY recording, without evaluation or metrics. The common playback
+timeline maps recording media time through the executed scope and tempo to score ticks.
 
 ## Score View, Review and VideoExport Ownership
 
@@ -1086,19 +1088,26 @@ score-view primitives.
 
 `review/` consumes the workspace TransientReviewSession. Its constructor guarantees
 atomic binding/result/artifact identity and complete notation. review-score-state.ts
-projects cursor scope; Verovio owns rendering failures. review-replay.ts delegates
-synchronization to recording timebase; review-view-model.ts projects result metadata.
+projects cursor scope; Verovio owns rendering failures. The recorded-performance
+timeline owns replay synchronization; review-view-model.ts projects executed semantics
+and transient outcome metadata.
 The route owns save-recording mutation, navigation, leave confirmation and
 VideoExportStudio state, with no Bundle query or subscription. Save Recording remains
 an explicit server operation and new save admission requires live revision-binding authorization.
 
-`video-export/session.ts` defines a neutral score/scope/tempo/video/timebase contract.
-The current-completion adapter consumes the transient handoff; the saved-Take adapter
-parses backend archive metadata and its reauthorized Bundle. Both provide the same
-session to source-neutral preview/render/export consumers. The current adapter's
-Review input is type-only; downstream render/export owns no result/evaluation/Practice
-capture lifecycle. The output recorder belongs to export. Floating-score styling is
-video-export presentation policy.
+`run/executed-performance.ts` owns completed score semantics. Natural completion
+creates this value once, retaining the Plan's canonical binding/artifact, scope and
+tempo references. `recording/recorded-performance.ts` pairs it with one READY
+recording. Review retains its recording media once and exposes that same pairing
+to Save, replay and VideoExport.
+
+`archive/saved-performance.ts` is the saved Take API-to-domain admission boundary.
+It validates the Manifest against the reauthorized Bundle and materialized media;
+saved score replay and export share the admitted RecordedPerformance. Archive
+request projection and Manifest agreement live in `archive/take-admission.ts`.
+VideoExport accepts RecordedPerformance plus presentation inputs, without separate
+scope, tempo, score extent, tick resolution or recording timebase arguments.
+The output recorder belongs to export. Floating-score styling is presentation policy.
 
 VideoExport score snapshots consume canonical decoration constants and remove report
 classes and existing active/playhead nodes from the frozen clone only. Live Review
@@ -1122,14 +1131,17 @@ STEP has no count-in.
 
 ## Exact Practice Binding Provenance
 
-Continuous Result references its completed session and executed Plan bundle projection.
+Continuous Result carries its ExecutedPerformance created once from natural completion.
 Review validates the exact admitted binding and artifact reference. Save submits
-`practice_binding: {score_id, revision_id, bundle_id}` from that executed Plan.
+`practice_binding: {score_id, revision_id, bundle_id}` through the RecordedPerformance
+archive transport projection. Server Manifest agreement is checked against that same value.
 A Take stores immutable Bundle/Score/Revision/artifact provenance without retaining Bundle.
 Saved score export reauthorizes the revision binding and verifies exact Bundle/artifact
 identity; raw playback and download remain independent of revision lifetime.
 The [Practice Bundle contract](practice-bundle.md) defines identity, authorization and retention.
-VideoExport sessionId identifies the local derivative composition independently of bundleId.
+Saved-performance admission validates persisted binding, artifact, scope, tempo,
+RecordingTimebase and capture/archive/local byte facts before producing the shared
+RecordedPerformance used by replay and VideoExport. MusicXML stays separate.
 
 ## Capture and archive media contract
 

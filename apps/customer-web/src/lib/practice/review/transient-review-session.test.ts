@@ -1,27 +1,27 @@
-import { recordingSinkFixture } from "@/lib/practice/__fixtures__/recording-sink";
-import { localMediaAssetFixture } from "@/lib/practice/__fixtures__/local-media-asset";
-import { expect, it } from "vitest";
-import type { PracticeScoreArtifact } from "@/lib/practice/score/artifact";
-import fixture from "@/lib/practice/__fixtures__/canonical-practice-score-artifact.json";
-import { canonicalContinuousResultFixture } from "@/lib/practice/__fixtures__/continuous-result";
-import { createPerformanceRecording } from "@/lib/practice/recording/recording-artifact";
+import { recordingSinkFixture } from '@/lib/practice/__fixtures__/recording-sink';
+import { localMediaAssetFixture } from '@/lib/practice/__fixtures__/local-media-asset';
+import { expect, it } from 'vitest';
+import type { PracticeScoreArtifact } from '@/lib/practice/score/artifact';
+import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
+import { canonicalContinuousResultFixture } from '@/lib/practice/__fixtures__/continuous-result';
+import { createPerformanceRecording } from '@/lib/practice/recording/recording-artifact';
 import {
   releaseTransientReviewSession,
   createTransientReviewSession,
-} from "./transient-review-session";
+} from './transient-review-session';
 const artifact = fixture as PracticeScoreArtifact;
 const source = {
-  ...canonicalContinuousResultFixture().session.plan.bundle,
-  musicXml: "<score />",
+  ...canonicalContinuousResultFixture().executed.bundle,
+  musicXml: '<score />',
 };
-it("hands off canonical references without copying artifact, result or Blob bytes", () => {
+it('hands off canonical references without copying artifact, result or Blob bytes', () => {
   const result = canonicalContinuousResultFixture(),
-    blob = new Blob(["video"], { type: "video/webm" });
+    blob = new Blob(['video'], { type: 'video/webm' });
   const recording = createPerformanceRecording({
-    status: "READY",
-    kind: "VIDEO",
+    status: 'READY',
+    kind: 'VIDEO',
     media: localMediaAssetFixture(blob),
-    mimeType: "video/webm",
+    mimeType: 'video/webm',
 
     timebase: {
       nominalMediaDurationUs: 10000000,
@@ -38,61 +38,61 @@ it("hands off canonical references without copying artifact, result or Blob byte
   const session = createTransientReviewSession({ result, recording }, source);
   expect(session.result).toBe(result);
   expect(session.recording).not.toBe(recording);
-  expect(session.result.session.plan.bundle.artifact).toBe(artifact);
+  expect(session.result.executed.bundle.artifact).toBe(artifact);
   expect(
-    session.recording.status === "READY" && session.recording.media.blob,
+    session.recording.status === 'READY' && session.recording.media.blob,
   ).toBe(blob);
   expect(Object.isFrozen(session)).toBe(true);
 });
-it.each(["bundleId", "scoreId", "revisionId", "artifactId"] as const)(
-  "rejects %s mismatch before Review ownership begins",
+it.each(['bundleId', 'scoreId', 'revisionId', 'artifactId'] as const)(
+  'rejects %s mismatch before Review ownership begins',
   (field) => {
     const result = canonicalContinuousResultFixture();
     const mismatched =
-      field === "bundleId"
-        ? { ...source, binding:{...source.binding,bundleId:"wrong"} }
-        : { ...source, artifact: { ...source.artifact, [field]: "wrong" } };
+      field === 'bundleId'
+        ? { ...source, binding: { ...source.binding, bundleId: 'wrong' } }
+        : { ...source, artifact: { ...source.artifact, [field]: 'wrong' } };
     expect(() =>
       createTransientReviewSession(
-        { result, recording: { status: "NOT_RECORDED" } },
+        { result, recording: { status: 'NOT_RECORDED' } },
         mismatched,
       ),
     ).toThrow();
   },
 );
-it.each(["", "   "])("requires admitted notation: %j", (musicXml) => {
+it.each(['', '   '])('requires admitted notation: %j', (musicXml) => {
   expect(() =>
     createTransientReviewSession(
       {
         result: canonicalContinuousResultFixture(),
-        recording: { status: "NOT_RECORDED" },
+        recording: { status: 'NOT_RECORDED' },
       },
       { ...source, musicXml },
     ),
   ).toThrow();
 });
-it("validates recording before accepting the typed completion", () => {
+it('validates recording before accepting the typed completion', () => {
   const completion = {
     result: canonicalContinuousResultFixture(),
-    recording: { status: "NOT_RECORDED" as const },
+    recording: { status: 'NOT_RECORDED' as const },
   };
   expect(() =>
     createTransientReviewSession(
-      { ...completion, recording: { status: "READY" } as never },
+      { ...completion, recording: { status: 'READY' } as never },
       source,
     ),
   ).toThrow();
 });
 
-it("retains before controller retirement, and final Review release removes media exactly once", async () => {
+it('retains before controller retirement, and final Review release removes media exactly once', async () => {
   const f = recordingSinkFixture();
-  await f.sink.append(new Blob(["raw"]));
-  const media = await f.sink.seal("video/webm");
+  await f.sink.append(new Blob(['raw']));
+  const media = await f.sink.seal('video/webm');
   const recording = createPerformanceRecording({
-    status: "READY",
-    kind: "VIDEO",
+    status: 'READY',
+    kind: 'VIDEO',
     media,
-    mimeType: "video/webm",
+    mimeType: 'video/webm',
 
     timebase: {
       nominalMediaDurationUs: 10000000,
@@ -110,32 +110,32 @@ it("retains before controller retirement, and final Review release removes media
   expect(() =>
     createTransientReviewSession(
       { result, recording },
-      { ...source, binding:{...source.binding,bundleId:"wrong"} },
+      { ...source, binding: { ...source.binding, bundleId: 'wrong' } },
     ),
   ).toThrow();
   const session = createTransientReviewSession({ result, recording }, source);
-  if (recording.status !== "READY") throw new Error("Expected capture");
+  if (recording.status !== 'READY') throw new Error('Expected capture');
   await recording.media.release();
   expect(f.exists()).toBe(true);
   expect(
-    session.recording.status === "READY" &&
+    session.recording.status === 'READY' &&
       (await session.recording.media.blob.text()),
-  ).toBe("raw");
+  ).toBe('raw');
   await releaseTransientReviewSession(session);
   await releaseTransientReviewSession(session);
   expect(f.exists()).toBe(false);
   expect(f.remove).toHaveBeenCalledOnce();
 });
 
-it("invalid handoff takes no reference and controller retirement deletes the media", async () => {
+it('invalid handoff takes no reference and controller retirement deletes the media', async () => {
   const f = recordingSinkFixture();
-  await f.sink.append(new Blob(["raw"]));
-  const media = await f.sink.seal("video/webm");
+  await f.sink.append(new Blob(['raw']));
+  const media = await f.sink.seal('video/webm');
   const recording = createPerformanceRecording({
-    status: "READY",
-    kind: "VIDEO",
+    status: 'READY',
+    kind: 'VIDEO',
     media,
-    mimeType: "video/webm",
+    mimeType: 'video/webm',
 
     timebase: {
       nominalMediaDurationUs: 10000000,
@@ -152,7 +152,7 @@ it("invalid handoff takes no reference and controller retirement deletes the med
   expect(() =>
     createTransientReviewSession(
       { result: canonicalContinuousResultFixture(), recording },
-      { ...source, musicXml: "" },
+      { ...source, musicXml: '' },
     ),
   ).toThrow();
   await media.release();
@@ -160,12 +160,12 @@ it("invalid handoff takes no reference and controller retirement deletes the med
   expect(f.exists()).toBe(false);
 });
 
-it("requires the exact admitted artifact even when stable identity fields agree", () => {
+it('requires the exact admitted artifact even when stable identity fields agree', () => {
   const result = canonicalContinuousResultFixture();
   expect(() =>
     createTransientReviewSession(
-      { result, recording: { status: "NOT_RECORDED" } },
+      { result, recording: { status: 'NOT_RECORDED' } },
       { ...source, artifact: { ...source.artifact } },
     ),
-  ).toThrow("bundle identity");
+  ).toThrow('bundle identity');
 });

@@ -1,5 +1,4 @@
 'use client';
-import { decodeRecordingTimebase } from '@/lib/practice/recording/recording-timebase';
 
 import { captureMediaExtension } from '@/lib/practice/recording/media-policy';
 
@@ -23,11 +22,11 @@ import {
 import { downloadLocalMedia } from '@/lib/practice/media/download-local-media';
 import { ApiError } from '@/lib/api-client';
 import { useSavedTakeExportBundle } from '@/hooks/practice/use-saved-take-export-bundle';
-import type { PlayablePerformanceReplay } from '@/lib/practice/recording/performance-replay';
+import { recordedPerformanceReplay } from '@/lib/practice/recording/performance-replay';
 import {
-  createVideoExportSessionFromSavedTake,
-  hasSavedTakeVideoExportMetadata,
-} from '@/lib/practice/video-export/saved-take-adapter';
+  admitSavedRecordedPerformance,
+  isSavedVideoCandidate,
+} from '@/lib/practice/archive/saved-performance';
 import { PracticeVerovioAdapter } from '@/lib/practice/score-view/verovio-adapter';
 
 function takeIdFromParams(params: ReturnType<typeof useParams>): string {
@@ -82,7 +81,7 @@ export default function SavedPerformanceVideoExportPage() {
   const takeId = takeIdFromParams(params);
   const takeQuery = usePerformanceTakeDetail(takeId);
   const take = takeQuery.data?.data ?? null;
-  const isBaseEligible = Boolean(take && hasSavedTakeVideoExportMetadata(take));
+  const isBaseEligible = Boolean(take && isSavedVideoCandidate(take));
 
   const bundle = useSavedTakeExportBundle(
     {
@@ -173,30 +172,32 @@ export default function SavedPerformanceVideoExportPage() {
   useEffect(() => () => adapter.dispose(), [adapter]);
 
   const isBundleReady = Boolean(bundle.artifact && bundle.musicXml);
-  const sessionEligibility = useMemo(() => {
+  const admission = useMemo(() => {
     if (!take || !mediaHandle || !artifact || !isBundleReady) return null;
-    return createVideoExportSessionFromSavedTake(take, mediaHandle, {
-      binding: bundle.binding!,
-      artifact,
-    });
+    return admitSavedRecordedPerformance(
+      take,
+      {
+        binding: bundle.binding!,
+        artifact,
+      },
+      mediaHandle,
+    );
   }, [artifact, isBundleReady, mediaHandle, take, bundle.binding]);
-  const session =
-    sessionEligibility?.status === 'supported'
-      ? sessionEligibility.session
-      : null;
+  const recorded =
+    admission?.status === 'supported' ? admission.recordedPerformance : null;
 
-  const replay = useMemo<PlayablePerformanceReplay | null>(() => {
-    if (!take || !mediaHandle) return null;
-    return {
-      kind: 'VIDEO_RECORDING',
-      media: mediaHandle,
-      contentType: take.archive_media.mime_type,
-      byteSize: mediaHandle.byteSize,
-      recordingTimebase: decodeRecordingTimebase(
-        take.manifest.recording_timebase,
-      ),
-    };
-  }, [take, mediaHandle]);
+  const replay = useMemo(
+    () =>
+      recordedPerformanceReplay(recorded) ??
+      (mediaHandle && take
+        ? {
+            kind: 'VIDEO_RECORDING' as const,
+            media: mediaHandle,
+            contentType: take.archive_media.mime_type,
+          }
+        : null),
+    [recorded, mediaHandle, take],
+  );
 
   const xmlContent = bundle.musicXml;
   if (takeQuery.isLoading) {
@@ -229,7 +230,7 @@ export default function SavedPerformanceVideoExportPage() {
       />
     );
   }
-  if (!hasSavedTakeVideoExportMetadata(take)) {
+  if (!isSavedVideoCandidate(take)) {
     return (
       <SavedTakeExportUnavailable
         message={t('savedTakeVideoExportUnavailable')}
@@ -267,7 +268,7 @@ export default function SavedPerformanceVideoExportPage() {
   const exportUnavailable =
     bundle.invalid ||
     isPermanentResourceError(bundle.transportError) ||
-    sessionEligibility?.status === 'unsupported';
+    admission?.status === 'unsupported';
   if (!replay) {
     return (
       <div className="mx-auto max-w-4xl space-y-6 px-4 py-8">
@@ -414,13 +415,11 @@ export default function SavedPerformanceVideoExportPage() {
         </Card>
       </div>
 
-      {session && artifact && xmlContent && (
+      {recorded && artifact && xmlContent && (
         <VideoExportStudio
-          session={session}
+          recordedPerformance={recorded}
           scoreContainer={scoreContainer}
           adapter={adapter}
-          scoreEndTick={artifact.scoreEndTick}
-          ticksPerQuarter={artifact.ticksPerQuarter}
           isScoreIdentityConfirmed={isBundleReady}
           xmlContent={xmlContent}
           mediaTimeMs={mediaTimeMs}

@@ -1,11 +1,10 @@
 'use client';
 import { microsecondsToMilliseconds } from '@/lib/practice/recording/recording-timebase';
 
-
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
-import type { VideoExportSession } from './session';
+import type { RecordedPerformance } from '@/lib/practice/recording/recorded-performance';
 import { renderVideoExportFrameAtTime } from './frame-renderer';
 import {
   findStablePageNumber,
@@ -26,7 +25,7 @@ type PreviewRequest = {
 
 type RenderableVideo = HTMLVideoElement & {
   requestVideoFrameCallback?: (
-    callback: (now: number, metadata: { mediaTime: number }) => void
+    callback: (now: number, metadata: { mediaTime: number }) => void,
   ) => number;
   cancelVideoFrameCallback?: (handle: number) => void;
 };
@@ -36,20 +35,18 @@ type RenderableVideo = HTMLVideoElement & {
  * media playback, seeks, audio, or an object URL of its own.
  */
 export function VideoExportPreview({
-  session,
+  recordedPerformance,
   scoreContainer,
   adapter,
-  scoreEndTick, ticksPerQuarter,
   mediaTimeMs,
   config,
   isReplayPlaying = false,
   replayVideo,
   onFrameCommitted,
 }: {
-  session: VideoExportSession;
+  recordedPerformance: RecordedPerformance;
   scoreContainer: HTMLElement | null;
   adapter: PracticeVerovioAdapter;
-  scoreEndTick: number; ticksPerQuarter: number;
   mediaTimeMs: number;
   config: VideoExportConfig;
   isReplayPlaying?: boolean;
@@ -104,18 +101,24 @@ export function VideoExportPreview({
     }
   }, [replayVideo]);
 
-  const commitStagingFrame = useCallback((layout: ReturnType<typeof getVideoExportLayout>) => {
-    const visibleCanvas = canvasRef.current;
-    const stagingCanvas = stagingCanvasRef.current;
-    if (!visibleCanvas || !stagingCanvas || disposedRef.current) return;
-    if (visibleCanvas.width !== layout.width || visibleCanvas.height !== layout.height) {
-      visibleCanvas.width = layout.width;
-      visibleCanvas.height = layout.height;
-    }
-    const context = visibleCanvas.getContext('2d');
-    if (!context) throw new Error(t('videoExportPreviewCanvasFailed'));
-    context.drawImage(stagingCanvas, 0, 0);
-  }, [t]);
+  const commitStagingFrame = useCallback(
+    (layout: ReturnType<typeof getVideoExportLayout>) => {
+      const visibleCanvas = canvasRef.current;
+      const stagingCanvas = stagingCanvasRef.current;
+      if (!visibleCanvas || !stagingCanvas || disposedRef.current) return;
+      if (
+        visibleCanvas.width !== layout.width ||
+        visibleCanvas.height !== layout.height
+      ) {
+        visibleCanvas.width = layout.width;
+        visibleCanvas.height = layout.height;
+      }
+      const context = visibleCanvas.getContext('2d');
+      if (!context) throw new Error(t('videoExportPreviewCanvasFailed'));
+      context.drawImage(stagingCanvas, 0, 0);
+    },
+    [t],
+  );
 
   const drainPreviewQueue = useCallback(async () => {
     if (activeRenderRef.current || disposedRef.current) return;
@@ -130,18 +133,24 @@ export function VideoExportPreview({
         if (!scorePages || !sourceVideo || !stagingCanvas) continue;
 
         const layout = getVideoExportLayout(request.config);
-        if (stagingCanvas.width !== layout.width || stagingCanvas.height !== layout.height) {
+        if (
+          stagingCanvas.width !== layout.width ||
+          stagingCanvas.height !== layout.height
+        ) {
           stagingCanvas.width = layout.width;
           stagingCanvas.height = layout.height;
         }
 
         try {
           if (!isPlayingRef.current) {
-            await waitForReplayVideoFrame(sourceVideo, t('videoExportPreviewDecodeFailed'));
+            await waitForReplayVideoFrame(
+              sourceVideo,
+              t('videoExportPreviewDecodeFailed'),
+            );
           }
           const frozenSource = captureReplayVideoFrame(
             sourceVideo,
-            sourceFrameCanvasRef
+            sourceFrameCanvasRef,
           );
           const renderMediaTimeMs = frozenSource.mediaTimeMs;
           await renderVideoExportFrameAtTime({
@@ -150,15 +159,19 @@ export function VideoExportPreview({
             playbackTimeline: {
               resolve: (timeMs) =>
                 resolveVideoExportPlaybackPosition({
-                  session,
+                  recordedPerformance,
                   adapter,
-                  pageNumberResolver: (noteIds) => findStablePageNumber(noteIds, scorePages),
+                  pageNumberResolver: (noteIds) =>
+                    findStablePageNumber(noteIds, scorePages),
                   mediaTimeMs: timeMs,
                   actualMediaDurationMs:
-                    Number.isFinite(sourceVideo.duration) && sourceVideo.duration > 0
+                    Number.isFinite(sourceVideo.duration) &&
+                    sourceVideo.duration > 0
                       ? sourceVideo.duration * 1000
-                      : microsecondsToMilliseconds(session.recordingTimebase.nominalMediaDurationUs),
-                  scoreEndTick, ticksPerQuarter,
+                      : microsecondsToMilliseconds(
+                          recordedPerformance.recording.timebase
+                            .nominalMediaDurationUs,
+                        ),
                 }),
             },
             sourceVideoFrame: frozenSource.canvas,
@@ -183,17 +196,27 @@ export function VideoExportPreview({
           ) {
             continue;
           }
-          setError(cause instanceof Error
-            ? cause.message === 'video_export_preview_frame_buffer'
-              ? t('videoExportPreviewFrameBufferFailed') : cause.message
-            : t('videoExportPreviewFailed'));
+          setError(
+            cause instanceof Error
+              ? cause.message === 'video_export_preview_frame_buffer'
+                ? t('videoExportPreviewFrameBufferFailed')
+                : cause.message
+              : t('videoExportPreviewFailed'),
+          );
           setStatus('error');
         }
       }
     } finally {
       activeRenderRef.current = false;
     }
-  }, [adapter, commitStagingFrame, session, onFrameCommitted, replayVideo, scoreEndTick, ticksPerQuarter, t]);
+  }, [
+    adapter,
+    commitStagingFrame,
+    recordedPerformance,
+    onFrameCommitted,
+    replayVideo,
+    t,
+  ]);
 
   const enqueuePreview = useCallback(
     (nextTimeMs: number) => {
@@ -205,7 +228,7 @@ export function VideoExportPreview({
       };
       void drainPreviewQueue();
     },
-    [drainPreviewQueue, replayVideo]
+    [drainPreviewQueue, replayVideo],
   );
 
   useEffect(() => {
@@ -217,25 +240,36 @@ export function VideoExportPreview({
       setStatus('preparing');
       setError(null);
       initialPreviewQueuedRef.current = false;
-      if (!scoreContainer || session.video.status !== 'READY') {
+      if (!scoreContainer || recordedPerformance.recording.status !== 'READY') {
         setStatus('idle');
         return;
       }
       try {
-        const scorePages = await prepareScorePageCache(scoreContainer, undefined, {
-          visualMode: config.presentation.kind === 'floating' ? 'floating' : 'standard',
-        });
+        const scorePages = await prepareScorePageCache(
+          scoreContainer,
+          undefined,
+          {
+            visualMode:
+              config.presentation.kind === 'floating' ? 'floating' : 'standard',
+          },
+        );
         if (cancelled || disposedRef.current) return;
         scorePagesRef.current = scorePages;
         setStatus('ready');
         initialPreviewQueuedRef.current = true;
         enqueuePreview(
-          replayVideo?.currentTime ? replayVideo.currentTime * 1000 : mediaTimeRef.current
+          replayVideo?.currentTime
+            ? replayVideo.currentTime * 1000
+            : mediaTimeRef.current,
         );
       } catch (cause) {
         if (!cancelled && !disposedRef.current) {
           setStatus('error');
-          setError(cause instanceof Error ? cause.message : t('videoExportPreviewScoreFailed'));
+          setError(
+            cause instanceof Error
+              ? cause.message
+              : t('videoExportPreviewScoreFailed'),
+          );
         }
       }
     };
@@ -260,7 +294,7 @@ export function VideoExportPreview({
     clearFrameScheduler,
     enqueuePreview,
     replayVideo,
-    session,
+    recordedPerformance,
     retryNonce,
     scoreContainer,
     config.presentation.kind,
@@ -274,7 +308,7 @@ export function VideoExportPreview({
     configRef.current = config;
     if (scorePagesRef.current) {
       enqueuePreview(
-        replayVideo?.currentTime ? replayVideo.currentTime * 1000 : mediaTimeMs
+        replayVideo?.currentTime ? replayVideo.currentTime * 1000 : mediaTimeMs,
       );
     }
   }, [config, enqueuePreview, mediaTimeMs, replayVideo]);
@@ -289,7 +323,9 @@ export function VideoExportPreview({
           return;
         }
         enqueuePreview(
-          replayVideo?.currentTime ? replayVideo.currentTime * 1000 : mediaTimeRef.current
+          replayVideo?.currentTime
+            ? replayVideo.currentTime * 1000
+            : mediaTimeRef.current,
         );
       }
       return;
@@ -305,7 +341,8 @@ export function VideoExportPreview({
       const onVideoFrame = () => {
         renderCurrentFrame();
         if (!disposedRef.current && isPlayingRef.current) {
-          frameCallbackRef.current = video.requestVideoFrameCallback(onVideoFrame);
+          frameCallbackRef.current =
+            video.requestVideoFrameCallback(onVideoFrame);
         }
       };
       frameCallbackRef.current = video.requestVideoFrameCallback(onVideoFrame);
@@ -339,7 +376,9 @@ export function VideoExportPreview({
         <canvas ref={stagingCanvasRef} className="hidden" aria-hidden="true" />
       </div>
       {status === 'preparing' ? (
-        <p className="text-xs text-muted-foreground">{t('videoExportPreviewPreparing')}</p>
+        <p className="text-xs text-muted-foreground">
+          {t('videoExportPreviewPreparing')}
+        </p>
       ) : null}
       {status === 'ready' && !error ? (
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
@@ -371,8 +410,14 @@ export function VideoExportPreview({
   );
 }
 
-function waitForReplayVideoFrame(video: HTMLVideoElement, decodeError: string): Promise<void> {
-  if (!video.seeking && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+function waitForReplayVideoFrame(
+  video: HTMLVideoElement,
+  decodeError: string,
+): Promise<void> {
+  if (
+    !video.seeking &&
+    video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
+  ) {
     return Promise.resolve();
   }
   return new Promise((resolve, reject) => {
@@ -399,7 +444,7 @@ function waitForReplayVideoFrame(video: HTMLVideoElement, decodeError: string): 
 
 export function captureReplayVideoFrame(
   video: HTMLVideoElement,
-  canvasRef: React.MutableRefObject<HTMLCanvasElement | null>
+  canvasRef: React.MutableRefObject<HTMLCanvasElement | null>,
 ): { canvas: HTMLCanvasElement; mediaTimeMs: number } {
   const width = Math.max(1, video.videoWidth || video.clientWidth || 1);
   const height = Math.max(1, video.videoHeight || video.clientHeight || 1);
@@ -411,9 +456,8 @@ export function captureReplayVideoFrame(
     throw new Error('video_export_preview_frame_buffer');
   }
   const currentTime = video.currentTime;
-  const currentTimeMs = Number.isFinite(currentTime) && currentTime >= 0
-    ? currentTime * 1000
-    : 0;
+  const currentTimeMs =
+    Number.isFinite(currentTime) && currentTime >= 0 ? currentTime * 1000 : 0;
   context.drawImage(video, 0, 0, width, height);
   canvasRef.current = canvas;
   return { canvas, mediaTimeMs: currentTimeMs };

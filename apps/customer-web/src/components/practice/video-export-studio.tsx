@@ -1,6 +1,8 @@
 'use client';
-import { releaseLocalMediaAsset, type LocalMediaAsset } from '@/lib/practice/media/local-media-asset';
-
+import {
+  releaseLocalMediaAsset,
+  type LocalMediaAsset,
+} from '@/lib/practice/media/local-media-asset';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
@@ -26,10 +28,11 @@ import {
   type VideoExportBlockReason,
 } from '@/lib/practice/video-export/export';
 import type { PracticeVerovioAdapter } from '@/lib/practice/score-view/verovio-adapter';
-import type { VideoExportSession } from '@/lib/practice/video-export/session';
+import type { RecordedPerformance } from '@/lib/practice/recording/recorded-performance';
 import { downloadLocalMedia } from '@/lib/practice/media/download-local-media';
 
-const FLOATING_VIDEO_EXPORT_TEMPLATE_ENABLED = process.env.NODE_ENV !== 'production';
+const FLOATING_VIDEO_EXPORT_TEMPLATE_ENABLED =
+  process.env.NODE_ENV !== 'production';
 
 type VideoOrientation = 'landscape' | 'portrait';
 type ScorePresentation = 'split' | 'floating';
@@ -37,7 +40,7 @@ type FloatingPosition = 'top' | 'bottom';
 type FloatingSize = 'small' | 'medium' | 'large';
 
 export function initialVideoExportOrientation(
-  video: Pick<HTMLVideoElement, 'videoWidth' | 'videoHeight'> | null
+  video: Pick<HTMLVideoElement, 'videoWidth' | 'videoHeight'> | null,
 ): VideoOrientation {
   if (video && video.videoWidth > 0 && video.videoHeight > 0) {
     return video.videoWidth >= video.videoHeight ? 'landscape' : 'portrait';
@@ -59,7 +62,7 @@ function extensionForMime(mimeType: string): string {
 
 function videoExportBlockReasonToMessage(
   t: (key: string) => string,
-  reason: VideoExportBlockReason
+  reason: VideoExportBlockReason,
 ) {
   switch (reason) {
     case 'video_not_ready':
@@ -128,17 +131,18 @@ function VideoExportChoiceCard({
             </span>
           ) : null}
         </span>
-        <span className="mt-1 block text-xs leading-5 text-muted-foreground">{description}</span>
+        <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+          {description}
+        </span>
       </span>
     </button>
   );
 }
 
 export function VideoExportStudio({
-  session,
+  recordedPerformance,
   scoreContainer,
   adapter,
-  scoreEndTick, ticksPerQuarter,
   isScoreIdentityConfirmed,
   xmlContent,
   mediaTimeMs,
@@ -149,10 +153,9 @@ export function VideoExportStudio({
   onExportingChange,
   collapsible = true,
 }: {
-  session: VideoExportSession | null;
+  recordedPerformance: RecordedPerformance | null;
   scoreContainer: HTMLElement | null;
   adapter: PracticeVerovioAdapter;
-  scoreEndTick: number; ticksPerQuarter: number;
   isScoreIdentityConfirmed: boolean;
   xmlContent: string | null;
   mediaTimeMs: number;
@@ -165,12 +168,16 @@ export function VideoExportStudio({
 }) {
   const t = useTranslations('practice');
   const [orientationPreference, setOrientationPreference] = useState<{
-    sessionId: string;
+    performance: RecordedPerformance | null;
     value: VideoOrientation;
-  }>({ sessionId: session?.sessionId ?? '', value: 'landscape' });
-  const manualOrientationSessionRef = useRef<string | null>(null);
-  const [scorePresentation, setScorePresentation] = useState<ScorePresentation>('split');
-  const [floatingPosition, setFloatingPosition] = useState<FloatingPosition>('top');
+  }>({ performance: recordedPerformance, value: 'landscape' });
+  const manualOrientationPerformanceRef = useRef<RecordedPerformance | null>(
+    null,
+  );
+  const [scorePresentation, setScorePresentation] =
+    useState<ScorePresentation>('split');
+  const [floatingPosition, setFloatingPosition] =
+    useState<FloatingPosition>('top');
   const [floatingSize, setFloatingSize] = useState<FloatingSize>('medium');
   const [isFloatingAdvancedOpen, setIsFloatingAdvancedOpen] = useState(false);
   const [previewFrameTimeMs, setPreviewFrameTimeMs] = useState(mediaTimeMs);
@@ -183,25 +190,27 @@ export function VideoExportStudio({
 
   useEffect(() => {
     const video = replayVideo;
-    if (!video || !session) return;
+    if (!video || !recordedPerformance) return;
 
     const syncOrientationFromMetadata = () => {
-      if (manualOrientationSessionRef.current === session.sessionId) {
+      if (manualOrientationPerformanceRef.current === recordedPerformance) {
         return;
       }
       setOrientationPreference({
-        sessionId: session.sessionId,
+        performance: recordedPerformance,
         value: initialVideoExportOrientation(video),
       });
     };
 
     syncOrientationFromMetadata();
     video.addEventListener('loadedmetadata', syncOrientationFromMetadata);
-    return () => video.removeEventListener('loadedmetadata', syncOrientationFromMetadata);
-  }, [replayVideo, session]);
+    return () =>
+      video.removeEventListener('loadedmetadata', syncOrientationFromMetadata);
+  }, [replayVideo, recordedPerformance]);
 
   const videoOrientation =
-    session && orientationPreference.sessionId === session.sessionId
+    recordedPerformance &&
+    orientationPreference.performance === recordedPerformance
       ? orientationPreference.value
       : initialVideoExportOrientation(replayVideo);
 
@@ -228,12 +237,17 @@ export function VideoExportStudio({
         ? t('videoExportLandscapeTitle')
         : t('videoExportPortraitTitle');
     const presentationLabel =
-      scorePresentation === 'floating' ? t('videoExportFloatingTitle') : t('videoExportSplitTitle');
+      scorePresentation === 'floating'
+        ? t('videoExportFloatingTitle')
+        : t('videoExportSplitTitle');
     return scorePresentation === 'floating'
       ? t('videoExportTemplateSummary', {
           orientation: orientationLabel,
           presentation: presentationLabel,
-          position: floatingPosition === 'top' ? t('videoExportTop') : t('videoExportBottom'),
+          position:
+            floatingPosition === 'top'
+              ? t('videoExportTop')
+              : t('videoExportBottom'),
         })
       : t('videoExportTemplateSummaryWithoutPosition', {
           orientation: orientationLabel,
@@ -244,26 +258,26 @@ export function VideoExportStudio({
   const readiness = useMemo(
     () =>
       getVideoExportReadiness({
-        session,
+        recordedPerformance,
         isScoreIdentityConfirmed,
         xmlContent,
         scoreContainer,
       }),
-    [isScoreIdentityConfirmed, scoreContainer, session, xmlContent]
+    [isScoreIdentityConfirmed, scoreContainer, recordedPerformance, xmlContent],
   );
 
   const handleExport = useCallback(async () => {
     if (
       !scoreContainer ||
-      !session ||
+      !recordedPerformance ||
       !readiness.ok ||
       splitExportStatus === 'exporting' ||
-      session.video.status !== 'READY'
+      recordedPerformance.recording.status !== 'READY'
     ) {
       return;
     }
 
-    const sourceMediaLease = session.video.media.retain();
+    const sourceMediaLease = recordedPerformance.recording.media.retain();
     let outputMediaOwner: LocalMediaAsset | null = null;
     const abortController = new AbortController();
     splitExportAbortRef.current = abortController;
@@ -274,14 +288,16 @@ export function VideoExportStudio({
       setSplitExportError(null);
 
       const result = await exportVideo({
-        session: {
-          ...session,
-          video: { ...session.video, media: sourceMediaLease },
+        recordedPerformance: {
+          ...recordedPerformance,
+          recording: {
+            ...recordedPerformance.recording,
+            media: sourceMediaLease,
+          },
         },
         scoreContainer,
         adapter,
-        scoreEndTick,
-        ticksPerQuarter,
+
         signal: abortController.signal,
         onProgress: (progress) => setSplitExportProgress(progress.ratio),
         config: videoExportConfig,
@@ -317,13 +333,12 @@ export function VideoExportStudio({
     adapter,
     readiness.ok,
     scoreContainer,
-    scoreEndTick,
-    ticksPerQuarter,
+
     videoExportConfig,
     splitExportStatus,
     t,
     onExportingChange,
-    session,
+    recordedPerformance,
   ]);
 
   const handleCancelExport = useCallback(() => {
@@ -337,9 +352,12 @@ export function VideoExportStudio({
     };
   }, [onExportingChange]);
 
-  if (!session) {
+  if (!recordedPerformance) {
     return (
-      <Card className="rounded-lg bg-card" data-testid="video-export-studio-unavailable">
+      <Card
+        className="rounded-lg bg-card"
+        data-testid="video-export-studio-unavailable"
+      >
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-semibold">
             {t('videoExportTitle')}
@@ -356,13 +374,23 @@ export function VideoExportStudio({
 
   if (!open) {
     return (
-      <Card className="rounded-lg bg-card" data-testid="video-export-entry-card">
+      <Card
+        className="rounded-lg bg-card"
+        data-testid="video-export-entry-card"
+      >
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold">{t('videoExportEntryTitle')}</CardTitle>
-          <p className="text-xs text-muted-foreground">{t('videoExportEntryDesc')}</p>
+          <CardTitle className="text-sm font-semibold">
+            {t('videoExportEntryTitle')}
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            {t('videoExportEntryDesc')}
+          </p>
         </CardHeader>
         <CardContent>
-          <Button onClick={() => onOpenChange(true)} data-testid="open-video-export-studio">
+          <Button
+            onClick={() => onOpenChange(true)}
+            data-testid="open-video-export-studio"
+          >
             <Clapperboard className="mr-1.5 h-4 w-4" />
             {t('videoExportOpenAction')}
           </Button>
@@ -375,8 +403,12 @@ export function VideoExportStudio({
     <Card className="rounded-lg bg-card" data-testid="video-export-studio">
       <CardHeader className="flex flex-row items-start justify-between gap-3 pb-2">
         <div>
-          <CardTitle className="text-sm font-semibold">{t('videoExportTitle')}</CardTitle>
-          <p className="mt-1 text-xs text-muted-foreground">{t('videoExportDesc')}</p>
+          <CardTitle className="text-sm font-semibold">
+            {t('videoExportTitle')}
+          </CardTitle>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {t('videoExportDesc')}
+          </p>
         </div>
         {collapsible ? (
           <Button
@@ -393,19 +425,30 @@ export function VideoExportStudio({
       <CardContent className="space-y-6">
         <section className="space-y-3">
           <div>
-            <h3 className="text-sm font-semibold">{t('videoExportOrientationStep')}</h3>
-            <p className="mt-1 text-xs text-muted-foreground">{t('videoExportOrientationDesc')}</p>
+            <h3 className="text-sm font-semibold">
+              {t('videoExportOrientationStep')}
+            </h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t('videoExportOrientationDesc')}
+            </p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2" role="group" aria-label={t('videoExportOrientationStep')}>
+          <div
+            className="grid gap-3 sm:grid-cols-2"
+            role="group"
+            aria-label={t('videoExportOrientationStep')}
+          >
             <VideoExportChoiceCard
               selected={videoOrientation === 'landscape'}
               title={t('videoExportLandscapeTitle')}
               description={t('videoExportLandscapeDesc')}
               icon={RectangleHorizontal}
               onClick={() => {
-                if (!session) return;
-                manualOrientationSessionRef.current = session.sessionId;
-                setOrientationPreference({ sessionId: session.sessionId, value: 'landscape' });
+                if (!recordedPerformance) return;
+                manualOrientationPerformanceRef.current = recordedPerformance;
+                setOrientationPreference({
+                  performance: recordedPerformance,
+                  value: 'landscape',
+                });
               }}
               testId="video-export-orientation-landscape"
             />
@@ -415,9 +458,12 @@ export function VideoExportStudio({
               description={t('videoExportPortraitDesc')}
               icon={RectangleVertical}
               onClick={() => {
-                if (!session) return;
-                manualOrientationSessionRef.current = session.sessionId;
-                setOrientationPreference({ sessionId: session.sessionId, value: 'portrait' });
+                if (!recordedPerformance) return;
+                manualOrientationPerformanceRef.current = recordedPerformance;
+                setOrientationPreference({
+                  performance: recordedPerformance,
+                  value: 'portrait',
+                });
               }}
               testId="video-export-orientation-portrait"
             />
@@ -426,10 +472,18 @@ export function VideoExportStudio({
 
         <section className="space-y-3">
           <div>
-            <h3 className="text-sm font-semibold">{t('videoExportPresentationStep')}</h3>
-            <p className="mt-1 text-xs text-muted-foreground">{t('videoExportPresentationDesc')}</p>
+            <h3 className="text-sm font-semibold">
+              {t('videoExportPresentationStep')}
+            </h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t('videoExportPresentationDesc')}
+            </p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2" role="group" aria-label={t('videoExportPresentationStep')}>
+          <div
+            className="grid gap-3 sm:grid-cols-2"
+            role="group"
+            aria-label={t('videoExportPresentationStep')}
+          >
             <VideoExportChoiceCard
               selected={scorePresentation === 'split'}
               title={t('videoExportSplitTitle')}
@@ -456,8 +510,12 @@ export function VideoExportStudio({
           <section className="space-y-3">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
-                <h3 className="text-sm font-semibold">{t('videoExportPositionStep')}</h3>
-                <p className="mt-1 text-xs text-muted-foreground">{t('videoExportPositionDesc')}</p>
+                <h3 className="text-sm font-semibold">
+                  {t('videoExportPositionStep')}
+                </h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t('videoExportPositionDesc')}
+                </p>
               </div>
               <button
                 type="button"
@@ -468,10 +526,18 @@ export function VideoExportStudio({
               >
                 <SlidersHorizontal className="h-3.5 w-3.5" />
                 {t('videoExportAdjustPositionSize')}
-                {isFloatingAdvancedOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                {isFloatingAdvancedOpen ? (
+                  <ChevronUp className="h-3.5 w-3.5" />
+                ) : (
+                  <ChevronDown className="h-3.5 w-3.5" />
+                )}
               </button>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2" role="group" aria-label={t('videoExportPositionStep')}>
+            <div
+              className="grid gap-3 sm:grid-cols-2"
+              role="group"
+              aria-label={t('videoExportPositionStep')}
+            >
               <VideoExportChoiceCard
                 selected={floatingPosition === 'top'}
                 title={t('videoExportTop')}
@@ -495,7 +561,11 @@ export function VideoExportStudio({
                   <SlidersHorizontal className="h-4 w-4" />
                   {t('videoExportScoreSize')}
                 </div>
-                <div className="grid grid-cols-3 gap-2" role="group" aria-label={t('videoExportScoreSize')}>
+                <div
+                  className="grid grid-cols-3 gap-2"
+                  role="group"
+                  aria-label={t('videoExportScoreSize')}
+                >
                   {(['small', 'medium', 'large'] as const).map((size) => (
                     <button
                       key={size}
@@ -511,7 +581,11 @@ export function VideoExportStudio({
                       ].join(' ')}
                       data-testid={`video-export-floating-size-${size}`}
                     >
-                      {size === 'small' ? t('videoExportSmall') : size === 'medium' ? t('videoExportMedium') : t('videoExportLarge')}
+                      {size === 'small'
+                        ? t('videoExportSmall')
+                        : size === 'medium'
+                          ? t('videoExportMedium')
+                          : t('videoExportLarge')}
                     </button>
                   ))}
                 </div>
@@ -523,18 +597,23 @@ export function VideoExportStudio({
         <section className="space-y-3">
           <div className="flex flex-wrap items-end justify-between gap-2">
             <div>
-              <h3 className="text-sm font-semibold">{t('videoExportPreviewTitle')}</h3>
-              <p className="mt-1 text-xs text-muted-foreground">{t('videoExportPreviewDesc')}</p>
+              <h3 className="text-sm font-semibold">
+                {t('videoExportPreviewTitle')}
+              </h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t('videoExportPreviewDesc')}
+              </p>
             </div>
             <span className="text-xs tabular-nums text-muted-foreground">
-              {t('videoExportPreviewTime', { time: formatDuration(previewFrameTimeMs) })}
+              {t('videoExportPreviewTime', {
+                time: formatDuration(previewFrameTimeMs),
+              })}
             </span>
           </div>
           <VideoExportPreview
-            session={session}
+            recordedPerformance={recordedPerformance}
             scoreContainer={scoreContainer}
             adapter={adapter}
-            scoreEndTick={scoreEndTick} ticksPerQuarter={ticksPerQuarter}
             mediaTimeMs={mediaTimeMs}
             config={videoExportConfig}
             isReplayPlaying={isReplayPlaying}
@@ -545,8 +624,12 @@ export function VideoExportStudio({
 
         <section className="space-y-3">
           <div>
-            <h3 className="text-sm font-semibold">{t('videoExportOutputTitle')}</h3>
-            <p className="mt-1 text-xs text-muted-foreground">{videoExportConfigSummary}</p>
+            <h3 className="text-sm font-semibold">
+              {t('videoExportOutputTitle')}
+            </h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {videoExportConfigSummary}
+            </p>
           </div>
           {!readiness.ok ? (
             <p className="text-xs text-amber-700 dark:text-amber-300">
@@ -569,15 +652,27 @@ export function VideoExportStudio({
         </section>
 
         {splitExportStatus === 'exporting' ? (
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-100" data-testid="video-export-progress">
+          <div
+            className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-100"
+            data-testid="video-export-progress"
+          >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h4 className="text-sm font-semibold">{t('exportScoreVideoProgressTitle')}</h4>
+                <h4 className="text-sm font-semibold">
+                  {t('exportScoreVideoProgressTitle')}
+                </h4>
                 <p className="mt-1 text-xs text-blue-700 dark:text-blue-300">
-                  {t('exportScoreVideoProgressDesc', { progress: Math.round(splitExportProgress * 100) })}
+                  {t('exportScoreVideoProgressDesc', {
+                    progress: Math.round(splitExportProgress * 100),
+                  })}
                 </p>
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-blue-100 dark:bg-blue-900">
-                  <div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${Math.round(splitExportProgress * 100)}%` }} />
+                  <div
+                    className="h-full rounded-full bg-blue-600 transition-all"
+                    style={{
+                      width: `${Math.round(splitExportProgress * 100)}%`,
+                    }}
+                  />
                 </div>
               </div>
               <Button size="sm" variant="outline" onClick={handleCancelExport}>
@@ -587,14 +682,26 @@ export function VideoExportStudio({
           </div>
         ) : null}
         {splitExportStatus === 'error' ? (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-900 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-100" data-testid="video-export-error">
-            <h4 className="text-sm font-semibold">{t('exportScoreVideoFailedTitle')}</h4>
-            <p className="mt-1 text-xs">{splitExportError ?? t('exportScoreVideoFailedDesc')}</p>
+          <div
+            className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-900 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-100"
+            data-testid="video-export-error"
+          >
+            <h4 className="text-sm font-semibold">
+              {t('exportScoreVideoFailedTitle')}
+            </h4>
+            <p className="mt-1 text-xs">
+              {splitExportError ?? t('exportScoreVideoFailedDesc')}
+            </p>
           </div>
         ) : null}
         {splitExportStatus === 'success' ? (
-          <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-green-900 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-100" data-testid="video-export-success">
-            <p className="text-sm font-semibold">{t('exportScoreVideoSuccessTitle')}</p>
+          <div
+            className="rounded-lg border border-green-200 bg-green-50 p-4 text-green-900 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-100"
+            data-testid="video-export-success"
+          >
+            <p className="text-sm font-semibold">
+              {t('exportScoreVideoSuccessTitle')}
+            </p>
           </div>
         ) : null}
       </CardContent>

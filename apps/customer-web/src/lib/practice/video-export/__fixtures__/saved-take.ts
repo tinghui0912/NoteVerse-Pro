@@ -4,11 +4,11 @@ import type {
   RecordingTimebase,
   PerformanceTakeTempoPlan,
 } from '@/lib/api/performance-takes';
-export const tempoPlan: PerformanceTakeTempoPlan = {
+const tempoPlan: PerformanceTakeTempoPlan = {
   selection: { mode: 'SCORE' },
   segments: [{ startTick: 0, bpm: 96, source: 'MUSICXML' }],
 };
-export const recordingTimebase: RecordingTimebase = {
+const recordingTimebase: RecordingTimebase = {
   nominalMediaDurationUs: 4000000,
   activeSegments: [
     {
