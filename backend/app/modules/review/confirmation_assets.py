@@ -19,7 +19,7 @@ from app.db.models import (
 )
 from app.db.models.score import RenderAssetKind, ScoreInputAssetPurpose
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
-from app.storage import FileStorage
+from app.storage import ObjectStorage
 
 
 @dataclass(frozen=True)
@@ -33,7 +33,7 @@ class PromotedScoreInputUsage:
 async def copy_review_thumbnail_to_score_revision(
     db: AsyncSession,
     *,
-    storage: FileStorage,
+    storage: ObjectStorage,
     job_id: int,
     score_uuid: str,
     revision_uuid: str,
@@ -68,7 +68,6 @@ async def copy_review_thumbnail_to_score_revision(
             asset_uuid=artifact_uuid,
             revision_id=revision_id,
             kind=RenderAssetKind.RENDERED_PAGE,
-            storage_backend=storage.backend_name,
             storage_key=stored.storage_key,
             filename=stored.filename,
             mime_type=thumbnail.mime_type or "image/svg+xml",

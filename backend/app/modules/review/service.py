@@ -49,19 +49,19 @@ from app.modules.scores.taxonomy import ordered_unique_pairs
 from app.modules.storage_usage.service import storage_usage_service
 from app.shared.constants import ErrorCode
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
-from app.storage import FileStorage, file_storage
+from app.storage import ObjectStorage, object_storage
 from app.utils.timezone import utc_now_naive
 
 
 class ReviewService:
     def __init__(
         self,
-        storage: FileStorage | None = None,
+        storage: ObjectStorage | None = None,
         score_repository: ScoreRepository | None = None,
         library_service: LibraryService | None = None,
         read_model: ReviewReadModel | None = None,
     ) -> None:
-        self.storage = storage or file_storage
+        self.storage = storage or object_storage
         self.score_repository = score_repository or ScoreRepository()
         self.library_service = library_service or LibraryService()
         self.read_model = read_model or ReviewReadModel(self.storage)
@@ -166,7 +166,6 @@ class ReviewService:
                     source_uuid=source_uuid,
                     revision_id=revision_id,
                     format=RevisionSourceFormat.MUSICXML,
-                    storage_backend=self.storage.backend_name,
                     storage_key=stored.storage_key,
                     filename=stored.filename,
                     mime_type="application/vnd.recordare.musicxml+xml",
@@ -326,7 +325,6 @@ class ReviewService:
         )
         business_committed = False
         try:
-            artifact.storage_backend = self.storage.backend_name
             artifact.storage_key = stored.storage_key
             artifact.filename = stored.filename
             artifact.mime_type = "application/vnd.recordare.musicxml+xml"

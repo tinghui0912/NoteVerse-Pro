@@ -21,7 +21,7 @@ from app.modules.score_assets.schemas import (
 )
 from app.modules.scores.repository import ScoreRepository
 from app.shared.constants import ErrorCode
-from app.storage import FileStorage, file_storage
+from app.storage import ObjectStorage, object_storage
 
 
 @dataclass(frozen=True)
@@ -36,12 +36,12 @@ class ScoreAssetService:
         self,
         repository: ScoreAssetRepository | None = None,
         score_repository: ScoreRepository | None = None,
-        storage: FileStorage | None = None,
+        storage: ObjectStorage | None = None,
         access_policy: ScoreAccessPolicy | None = None,
     ) -> None:
         self.repository = repository or ScoreAssetRepository()
         self.score_repository = score_repository or ScoreRepository()
-        self.storage = storage or file_storage
+        self.storage = storage or object_storage
         self.access_policy = access_policy or ScoreAccessPolicy()
 
     async def list_revision_assets(

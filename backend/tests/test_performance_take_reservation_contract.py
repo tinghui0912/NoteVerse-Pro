@@ -53,7 +53,7 @@ def test_manifest_and_lifecycle_persistence_ownership():
         "user_id",
         "manifest_id",
         "client_request_id",
-        "storage_backend",
+
         "staging_object_key",
         "storage_reservation_id",
         "expires_at",

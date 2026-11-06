@@ -14,13 +14,14 @@ from app.modules.import_jobs.execution_manifest import bind_import_job_execution
 from app.pipeline import JobContext, PipelineBuilder
 from app.pipeline.context import CeleryTaskLike
 from app.shared.constants import ErrorCode
-from app.storage import FileStorage, file_storage
+from app.storage import ObjectStorage, object_storage
+from app.storage.paths import object_work_path
 from app.utils.timezone import utc_now_naive
 
 
 class ImportJobExecutionService:
-    def __init__(self, storage: FileStorage | None = None) -> None:
-        self.storage = storage or file_storage
+    def __init__(self, storage: ObjectStorage | None = None) -> None:
+        self.storage = storage or object_storage
 
     @staticmethod
     def get_error_code(exception: Exception) -> str:
@@ -34,7 +35,7 @@ class ImportJobExecutionService:
         return [
             self.storage.materialize_to_local(
                 storage_key,
-                self.storage.local_path(storage_key),
+                object_work_path(storage_key),
             )
             for storage_key in storage_keys
         ]

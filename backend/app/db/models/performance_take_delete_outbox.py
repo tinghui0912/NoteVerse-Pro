@@ -64,9 +64,6 @@ class PerformanceTakeDeleteOutbox(SQLModel, table=True):  # type: ignore[call-ar
             nullable=False,
         )
     )
-    storage_backend: str = Field(
-        sa_column=Column(String(32), nullable=False)
-    )
     object_key: str = Field(
         sa_column=Column(String(768), nullable=False)
     )

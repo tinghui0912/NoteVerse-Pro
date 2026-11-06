@@ -17,7 +17,7 @@ from app.modules.import_jobs.repository import ImportJobRepository
 from app.modules.import_jobs.schemas import ImportJobDetail, ImportJobProcessingOptions, ImportJobStatusEntry, ImportJobSubmitRequestLike, ImportJobSubmitResult
 from app.modules.import_jobs.submission_service import ImportJobSubmissionService
 from app.modules.import_jobs.worker_service import sync_import_job_service
-from app.storage import FileStorage, file_storage
+from app.storage import ObjectStorage, object_storage
 from app.shared.constants import ErrorCode
 
 
@@ -40,12 +40,12 @@ class ImportJobService:
         self,
         repository: ImportJobRepository | None = None,
         submission_service: ImportJobSubmissionService | None = None,
-        storage: FileStorage | None = None,
+        storage: ObjectStorage | None = None,
         deletion_service: ImportJobDeletionService | None = None,
     ) -> None:
         self.repository = repository or ImportJobRepository()
         self.submission_service = submission_service or ImportJobSubmissionService()
-        self.storage = storage or file_storage
+        self.storage = storage or object_storage
         self.deletion_service = deletion_service or ImportJobDeletionService(self.storage)
 
     async def submit(self, current_user: User, request: ImportJobSubmitRequestLike) -> ImportJobSubmitResult:

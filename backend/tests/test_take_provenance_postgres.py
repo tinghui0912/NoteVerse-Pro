@@ -142,7 +142,7 @@ async def test_snapshot_replay_finalize_and_take_reads_survive_bundle_gc(postgre
         await db.commit()
         due = await db.run_sync(
             lambda sync: practice_bundle_delete_service.recover_unowned_ready(
-                sync, storage_backend=storage.backend_name
+                sync,
             )
         )
         assert len(due) == 1
@@ -249,7 +249,7 @@ async def test_revision_only_retention_with_existing_reservation_or_take(postgre
         assert (
             await db.run_sync(
                 lambda sync: practice_bundle_delete_service.recover_unowned_ready(
-                    sync, storage_backend=storage.backend_name
+                    sync,
                 )
             )
             == []
@@ -261,7 +261,7 @@ async def test_revision_only_retention_with_existing_reservation_or_take(postgre
         await db.commit()
         due = await db.run_sync(
             lambda sync: practice_bundle_delete_service.recover_unowned_ready(
-                sync, storage_backend=storage.backend_name
+                sync,
             )
         )
         assert len(due) == 1

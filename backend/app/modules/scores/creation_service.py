@@ -20,7 +20,7 @@ from app.db.models import (
     TaxonomyTag,
 )
 from app.db.models.score import MetadataStatus, RevisionOrigin, RevisionSourceFormat
-from app.storage import FileStorage, file_storage
+from app.storage import ObjectStorage, object_storage
 from app.modules.metadata.service import rebuild_metadata_sync
 from app.modules.revisions.derivatives import revision_derivative_service
 from app.modules.scores.taxonomy import TAXONOMY_SORT_ORDER, ordered_unique_pairs
@@ -32,8 +32,8 @@ from app.utils.timezone import utc_now_naive
 class SyncConfirmedScoreCreationService:
     """Create the stable score aggregate exactly once after review is confirmed."""
 
-    def __init__(self, storage: FileStorage | None = None) -> None:
-        self.storage = storage or file_storage
+    def __init__(self, storage: ObjectStorage | None = None) -> None:
+        self.storage = storage or object_storage
 
     def create_confirmed_from_job(
         self,
@@ -141,7 +141,6 @@ class SyncConfirmedScoreCreationService:
                     source_uuid=source_uuid,
                     revision_id=revision_id,
                     format=RevisionSourceFormat.MUSICXML,
-                    storage_backend=self.storage.backend_name,
                     storage_key=stored.storage_key,
                     filename=stored.filename,
                     mime_type="application/vnd.recordare.musicxml+xml",

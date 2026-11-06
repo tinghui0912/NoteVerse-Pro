@@ -320,7 +320,7 @@ def render_overlay(args: argparse.Namespace) -> Path:
     )
     backend_config = replace_env_value(
         backend_config,
-        "S3_PRESIGN_EXPIRE_SECONDS",
+        "OBJECT_STORAGE_SIGNED_URL_EXPIRE_SECONDS",
         args.s3_presign_expire_seconds,
     )
     backend_config_path.write_text(backend_config, encoding="utf-8")

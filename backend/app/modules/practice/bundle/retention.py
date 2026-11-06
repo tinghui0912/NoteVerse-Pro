@@ -32,7 +32,7 @@ class PracticeBundleDeletePayload:
     outbox_uuid: str
     practice_bundle_id: int | None
     bundle_id: str
-    storage_backend: str
+
     prepared_musicxml_object_key: str
     artifact_object_key: str
     attempt: int
@@ -44,8 +44,6 @@ class PracticeBundleDeleteService:
         self,
         db: Session,
         practice_bundle_id: int | None,
-        *,
-        storage_backend: str,
     ) -> PracticeBundleDeleteOutbox | None:
         if practice_bundle_id is None:
             return None
@@ -69,10 +67,10 @@ class PracticeBundleDeleteService:
             ).scalar_one_or_none()
         if bundle.status != PracticeBundleStatus.READY.value:
             return None
-        return self._enqueue(db, bundle, storage_backend=storage_backend)
+        return self._enqueue(db, bundle)
 
     def discard_creation(
-        self, db: Session, practice_bundle_id: int, *, storage_backend: str
+        self, db: Session, practice_bundle_id: int
     ) -> PracticeBundleDeleteOutbox | None:
         bundle = db.execute(
             select(PracticeBundleRecord)
@@ -86,10 +84,10 @@ class PracticeBundleDeleteService:
         if bundle is None:
             return None
         # Incomplete representations do not retain a usable live bundle.
-        return self._enqueue(db, bundle, storage_backend=storage_backend)
+        return self._enqueue(db, bundle)
 
     def _enqueue(
-        self, db: Session, bundle: PracticeBundleRecord, *, storage_backend: str
+        self, db: Session, bundle: PracticeBundleRecord
     ) -> PracticeBundleDeleteOutbox:
         bundle.status = PracticeBundleStatus.DELETING.value
         bundle.creation_expires_at = None
@@ -105,7 +103,6 @@ class PracticeBundleDeleteService:
         outbox = PracticeBundleDeleteOutbox(
             practice_bundle_id=bundle.id,
             bundle_id=bundle.bundle_id,
-            storage_backend=storage_backend,
             prepared_musicxml_object_key=bundle.prepared_musicxml_object_key,
             artifact_object_key=bundle.artifact_object_key,
             status=PracticeBundleDeleteOutboxStatus.PENDING.value,
@@ -118,8 +115,6 @@ class PracticeBundleDeleteService:
     def recover_stale_creating(
         self,
         db: Session,
-        *,
-        storage_backend: str,
     ) -> list[str]:
         now = utc_now_naive()
         stale_bundles = list(
@@ -140,13 +135,12 @@ class PracticeBundleDeleteService:
             outbox = self.discard_creation(
                 db,
                 bundle.id,
-                storage_backend=storage_backend,
             )
             if outbox is not None:
                 outbox_ids.append(outbox.outbox_uuid)
         return outbox_ids
 
-    def recover_unowned_ready(self, db: Session, *, storage_backend: str) -> list[str]:
+    def recover_unowned_ready(self, db: Session) -> list[str]:
         rows = (
             db.execute(
                 select(PracticeBundleRecord)
@@ -167,7 +161,7 @@ class PracticeBundleDeleteService:
         return [
             outbox.outbox_uuid
             for row in rows
-            if (outbox := self.enqueue_if_unowned(db, row.id, storage_backend=storage_backend))
+            if (outbox := self.enqueue_if_unowned(db, row.id))
             is not None
         ]
 
@@ -299,8 +293,8 @@ class PracticeBundleDeleteService:
         outbox.updated_at = utc_now_naive()
 
     def recover_and_list_due(self, db: Session) -> list[str]:
-        self.recover_stale_creating(db, storage_backend=settings.FILE_STORAGE_BACKEND)
-        self.recover_unowned_ready(db, storage_backend=settings.FILE_STORAGE_BACKEND)
+        self.recover_stale_creating(db)
+        self.recover_unowned_ready(db)
         now = utc_now_naive()
         stale = db.execute(
             select(PracticeBundleDeleteOutbox).where(
@@ -354,7 +348,6 @@ class PracticeBundleDeleteService:
             outbox_uuid=outbox.outbox_uuid,
             practice_bundle_id=outbox.practice_bundle_id,
             bundle_id=outbox.bundle_id,
-            storage_backend=outbox.storage_backend,
             prepared_musicxml_object_key=outbox.prepared_musicxml_object_key,
             artifact_object_key=outbox.artifact_object_key,
             attempt=0,

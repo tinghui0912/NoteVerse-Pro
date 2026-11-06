@@ -64,9 +64,8 @@ submit an import job, and read its pending status.
 The stack uses only the `noteverse-integration` Compose project and removes its
 containers and named volumes on completion. It never uses the development
 database, synchronous database, scheduler-lock database, or Redis URLs from
-`backend/.env.docker`; all are overridden to isolated Compose services. File
-uploads use container-local ephemeral storage rather than any configured object
-storage. The seeded email and password exist
+`backend/.env.docker`; all are overridden to isolated Compose services. Durable uploads use the isolated Compose object-storage service through the same
+ObjectStorage protocol as production. Worker scratch remains disposable. The seeded email and password exist
 only in the disposable test database and are not application credentials.
 
 ## Kubernetes Manifest Guard

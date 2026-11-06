@@ -15,7 +15,7 @@ from app.modules.performance_takes.dependencies import (
 )
 from app.modules.storage_usage.service import StorageUsageService
 from app.modules.storage_usage.dependencies import get_storage_usage_service
-from app.storage.factory import get_file_storage
+from app.storage.factory import get_object_storage
 from app.storage.base import StoredObjectMetadata
 from tests.test_performance_takes import (
     AsyncSessionAdapter,
@@ -46,7 +46,7 @@ def archive_client(test_env):
         {
             get_db: db,
             get_current_user: lambda: user,
-            get_file_storage: lambda: storage,
+            get_object_storage: lambda: storage,
             get_storage_usage_service: lambda: usage,
             get_performance_take_service: lambda: service.takes,
             get_performance_take_upload_service: lambda: service,

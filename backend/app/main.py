@@ -1,9 +1,7 @@
 """FastAPI application entrypoint."""
 
-import os
 
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
 
 from app.api.runtime_endpoints import install_process_endpoints
 from app.api.v1.router import api_router
@@ -58,15 +56,6 @@ def create_app() -> FastAPI:
         app,
         csrf_settings=_csrf_settings(),
         cors_origins=_cors_origins(),
-    )
-
-    # StaticFiles requires the target directory to exist at mount time.
-    os.makedirs(settings.STORAGE_ROOT, exist_ok=True)
-
-    app.mount(
-        f"{CUSTOMER_API_PREFIX}/uploads",
-        StaticFiles(directory=settings.STORAGE_ROOT),
-        name="uploads",
     )
 
     app.include_router(api_router, prefix=CUSTOMER_API_PREFIX)

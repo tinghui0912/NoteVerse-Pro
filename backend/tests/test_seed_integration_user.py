@@ -41,7 +41,6 @@ class _FakeSeedSession:
 
 
 class _FailingStorage:
-    backend_name = "s3"
 
     def exists(self, _key: str) -> bool:
         return False
@@ -79,7 +78,7 @@ async def test_seed_existing_integration_user_is_read_only(monkeypatch: pytest.M
         source_uuid="integration-practice-bundle",
         revision_id=revision.id,
         format=RevisionSourceFormat.MUSICXML,
-        storage_backend="s3",
+
         storage_key="scores/existing/score.musicxml",
         filename="score.musicxml",
         mime_type="application/vnd.recordare.musicxml+xml",
@@ -91,7 +90,7 @@ async def test_seed_existing_integration_user_is_read_only(monkeypatch: pytest.M
     session = _FakeSeedSession([user, score, revision, source])
 
     monkeypatch.setattr(seed_integration_user, "AsyncSessionLocal", lambda: session)
-    monkeypatch.setattr(seed_integration_user, "file_storage", _FailingStorage())
+    monkeypatch.setattr(seed_integration_user, "object_storage", _FailingStorage())
 
     await seed_integration_user.seed_user()
 
@@ -148,7 +147,6 @@ async def test_seed_new_integration_score_refuses_existing_storage_key(
     session = _FakeSeedSession([None, None])
 
     class ExistingObjectStorage:
-        backend_name = "s3"
 
         def exists(self, _key: str) -> bool:
             return True
@@ -157,7 +155,7 @@ async def test_seed_new_integration_score_refuses_existing_storage_key(
             raise AssertionError("seed must not overwrite existing storage object")
 
     monkeypatch.setattr(seed_integration_user, "AsyncSessionLocal", lambda: session)
-    monkeypatch.setattr(seed_integration_user, "file_storage", ExistingObjectStorage())
+    monkeypatch.setattr(seed_integration_user, "object_storage", ExistingObjectStorage())
     monkeypatch.setenv(seed_integration_user.INTEGRATION_PASSWORD_ENV, "explicit-dev-password")
 
     with pytest.raises(RuntimeError, match="already exists"):

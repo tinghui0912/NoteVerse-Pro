@@ -66,7 +66,7 @@ class ScorePlaybackAsset(SQLModel, table=True):  # type: ignore[call-arg]
     kind: PlaybackAssetKind = Field(
         sa_column=Column(SAEnum(PlaybackAssetKind, name="playbackassetkind"), nullable=False)
     )
-    storage_backend: str = Field(sa_column=Column(String(32), nullable=False))
+
     storage_key: str = Field(sa_column=Column(String(768), nullable=False))
     filename: str = Field(sa_column=Column(String(255), nullable=False))
     mime_type: str = Field(sa_column=Column(String(128), nullable=False))

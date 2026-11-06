@@ -1,6 +1,6 @@
 """Network-free current delivery and strict descriptor conformance."""
 
-import alibabacloud_oss_v2 as oss
+from tests.support.object_storage import InMemoryObjectStorage
 import pytest
 from pydantic import ValidationError
 from fastapi import FastAPI
@@ -16,19 +16,14 @@ from app.modules.model_assets.router import router
 
 
 def delivery():
-    config = oss.config.load_default()
-    config.region = "cn-shenzhen"
-    config.credentials_provider = oss.credentials.StaticCredentialsProvider(
-        "test-id", "test-secret"
-    )
-    return ModelAssetService(bucket="noteverse-model-assets", client=oss.Client(config))
+    return ModelAssetService(storage=InMemoryObjectStorage())
 
 
 def test_current_delivery_matches_canonical_descriptor_and_content_addressed_key():
     access = delivery().get_practice_acoustic_access()
     assert access.model_dump(include=set(MODEL_ASSET_DESCRIPTOR)) == dict(MODEL_ASSET_DESCRIPTOR)
     assert MODEL_ASSET.storage_key in access.downloadUrl
-    assert "x-oss-signature=" in access.downloadUrl
+    assert access.downloadUrl.startswith("https://objects.example/")
 
 
 @pytest.mark.parametrize(

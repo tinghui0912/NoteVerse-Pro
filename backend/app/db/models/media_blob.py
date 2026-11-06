@@ -20,10 +20,10 @@ bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 class MediaBlob(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "media_blobs"
     __table_args__ = (
-        UniqueConstraint("storage_backend", "object_key", name="uq_media_blob_locator"),
+        UniqueConstraint("object_key", name="uq_media_blob_locator"),
         CheckConstraint("byte_size > 0", name="ck_media_blob_positive_size"),
         CheckConstraint(
-            "length(trim(storage_backend)) > 0 AND length(trim(object_key)) > 0 AND length(trim(content_type)) > 0",
+            "length(trim(object_key)) > 0 AND length(trim(content_type)) > 0",
             name="ck_media_blob_locator_type",
         ),
         CheckConstraint(
@@ -34,7 +34,7 @@ class MediaBlob(SQLModel, table=True):  # type: ignore[call-arg]
     id: Optional[int] = Field(
         default=None, sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True)
     )
-    storage_backend: str = Field(sa_column=Column(String(32), nullable=False))
+
     object_key: str = Field(sa_column=Column(String(768), nullable=False))
     byte_size: int = Field(sa_column=Column(BigInteger, nullable=False))
     sha256: str = Field(sa_column=Column(String(64), nullable=False))

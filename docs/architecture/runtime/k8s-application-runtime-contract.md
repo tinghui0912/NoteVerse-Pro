@@ -197,15 +197,15 @@ role-specific ConfigMaps for runtime-owned settings:
   - `CSRF_COOKIE_NAME`;
   - `CSRF_HEADER_NAME`;
 - shared storage mode and non-secret S3 settings:
-  - `FILE_STORAGE_BACKEND`;
+  - configured object-store endpoint, bucket and credentials;
   - `S3_ENDPOINT_URL`;
   - `S3_REGION`;
   - `S3_BUCKET`;
   - `S3_PUBLIC_BASE_URL`;
   - `S3_FORCE_PATH_STYLE`;
-  - `S3_PRESIGN_EXPIRE_SECONDS`;
+  - `OBJECT_STORAGE_SIGNED_URL_EXPIRE_SECONDS`;
 - shared runtime paths:
-  - `STORAGE_ROOT`;
+
   - `WORK_ROOT`;
 - shared task reliability settings:
   - import, render, playback, mail, realtime, notification, and cleanup interval,
@@ -258,7 +258,7 @@ Production should make volume intent explicit:
 - node-local model cache: read-only in application pods, mounted at the
   configured model root;
 - work volume: writable temporary runtime data;
-- local storage volume: only when `FILE_STORAGE_BACKEND=local`;
+- durable objects: one configured ObjectStorage namespace;
 - no local backend log volume in production. Logs go to stdout/stderr and are
   collected by Fluent Bit.
 
@@ -328,7 +328,7 @@ Required configuration must be explicit in production:
   `scripts/check_runtime.py`;
 - missing frontend public/runtime config should fail application startup/build;
 - invalid CORS origins should fail backend startup;
-- `FILE_STORAGE_BACKEND=s3` must require S3 endpoint, bucket, access key, and
+- The concrete adapter requires an endpoint, bucket, access key, and
   secret key;
 - OMR and render engine paths must be validated by worker runtime checks;
 - no application image should silently default to a development backend,

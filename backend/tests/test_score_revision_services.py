@@ -87,7 +87,7 @@ from app.modules.notifications.service import NotificationService, NotificationT
 from app.modules.realtime.maintenance_service import RealtimeMaintenanceService
 from app.shared.constants import ErrorCode
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
-from app.storage import LocalFileStorage
+from tests.support.object_storage import InMemoryObjectStorage
 from app.utils.timezone import utc_now_naive
 
 MUSICXML_1 = b"""<?xml version='1.0'?><score-partwise version='4.0'>
@@ -209,7 +209,7 @@ def add_active_score_with_head_revision(
 
 
 @pytest.fixture
-def score_service_session(tmp_path) -> Iterator[tuple[Session, LocalFileStorage]]:
+def score_service_session(tmp_path) -> Iterator[tuple[Session, InMemoryObjectStorage]]:
     engine = create_engine("sqlite:///:memory:")
 
     @event.listens_for(engine, "connect")
@@ -219,7 +219,7 @@ def score_service_session(tmp_path) -> Iterator[tuple[Session, LocalFileStorage]
         cursor.close()
 
     SQLModel.metadata.create_all(engine)
-    storage = LocalFileStorage(storage_root=str(tmp_path / "storage"))
+    storage = InMemoryObjectStorage()
     with Session(engine) as session:
         session.add_all(
             [
@@ -250,7 +250,7 @@ def score_service_session(tmp_path) -> Iterator[tuple[Session, LocalFileStorage]
 
 @pytest.mark.asyncio
 async def test_revision_read_model_projects_actor_restore_and_note(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     score = add_active_score_with_head_revision(
@@ -316,7 +316,7 @@ async def test_revision_read_model_projects_actor_restore_and_note(
 
 @pytest.mark.asyncio
 async def test_collaborator_revision_source_usage_counts_against_score_owner(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
     add_active_score_with_head_revision(
@@ -363,7 +363,7 @@ async def test_collaborator_revision_source_usage_counts_against_score_owner(
 
 
 def test_confirmed_job_creates_one_active_score_and_initial_revision(
-    score_service_session: tuple[Session, LocalFileStorage], tmp_path
+    score_service_session: tuple[Session, InMemoryObjectStorage], tmp_path
 ) -> None:
     session, storage = score_service_session
     session.add_all(
@@ -404,7 +404,7 @@ def test_confirmed_job_creates_one_active_score_and_initial_revision(
 
 
 def test_completed_job_notifies_owner_when_ready_for_review(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
     session.add(
@@ -427,7 +427,7 @@ def test_completed_job_notifies_owner_when_ready_for_review(
             job_id=11,
             artifact_uuid="completed-review-xml",
             kind=ImportArtifactKind.REVIEW_MUSICXML.value,
-            storage_backend="local",
+
             storage_key=stored_xml.storage_key,
             filename=stored_xml.filename,
             mime_type="application/vnd.recordare.musicxml+xml",
@@ -460,7 +460,7 @@ def test_completed_job_notifies_owner_when_ready_for_review(
 
 
 def test_failed_job_notifies_owner_once(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     session.add(
@@ -505,7 +505,7 @@ def test_failed_job_notifies_owner_once(
 
 @pytest.mark.asyncio
 async def test_review_detail_reads_pending_job_artifacts(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
     stored_xml = storage.put_bytes(
@@ -537,7 +537,7 @@ async def test_review_detail_reads_pending_job_artifacts(
                 job_id=13,
                 artifact_uuid="review-musicxml-artifact",
                 kind=ImportArtifactKind.REVIEW_MUSICXML.value,
-                storage_backend="local",
+
                 storage_key=stored_xml.storage_key,
                 filename=stored_xml.filename,
                 mime_type="application/vnd.recordare.musicxml+xml",
@@ -548,7 +548,7 @@ async def test_review_detail_reads_pending_job_artifacts(
             StorageBlob(
                 id=131,
                 sha256="upload-sha",
-                storage_backend="local",
+
                 storage_key=uploaded_image.storage_key,
                 filename=uploaded_image.filename,
                 size_bytes=uploaded_image.size_bytes,
@@ -585,7 +585,7 @@ async def test_review_detail_reads_pending_job_artifacts(
 
 
 def test_job_detail_uses_review_preview_image_only(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _ = score_service_session
     session.add(
@@ -603,7 +603,7 @@ def test_job_detail_uses_review_preview_image_only(
                 job_id=16,
                 artifact_uuid="result-thumbnail-artifact",
                 kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
-                storage_backend="local",
+
                 storage_key="jobs/job-thumbnail/review_preview_image/001-result.svg",
                 filename="001-result.svg",
                 mime_type="image/svg+xml",
@@ -620,7 +620,7 @@ def test_job_detail_uses_review_preview_image_only(
 
 
 def test_import_job_detail_hides_artifact_storage_details(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _ = score_service_session
     session.add(
@@ -638,7 +638,7 @@ def test_import_job_detail_hides_artifact_storage_details(
             job_id=181,
             artifact_uuid="public-artifact-id",
             kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
-            storage_backend="local",
+
             storage_key="jobs/job-public-artifact/review_preview_image/001-result.svg",
             filename="001-result.svg",
             mime_type="image/svg+xml",
@@ -668,7 +668,7 @@ def test_import_job_detail_hides_artifact_storage_details(
 
 
 def test_import_job_detail_exposes_public_failure_fields_only(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _ = score_service_session
     session.add(
@@ -725,7 +725,7 @@ def test_import_job_detail_exposes_public_failure_fields_only(
 
 
 def test_review_thumbnail_records_temp_import_usage(
-    score_service_session: tuple[Session, LocalFileStorage], tmp_path
+    score_service_session: tuple[Session, InMemoryObjectStorage], tmp_path
 ) -> None:
     session, storage = score_service_session
     stored_xml = storage.put_bytes(
@@ -747,7 +747,7 @@ def test_review_thumbnail_records_temp_import_usage(
             job_id=17,
             artifact_uuid="thumbnail-usage-review-xml",
             kind=ImportArtifactKind.REVIEW_MUSICXML.value,
-            storage_backend="local",
+
             storage_key=stored_xml.storage_key,
             filename=stored_xml.filename,
             mime_type="application/vnd.recordare.musicxml+xml",
@@ -795,7 +795,7 @@ def test_review_thumbnail_records_temp_import_usage(
 
 @pytest.mark.asyncio
 async def test_review_update_replaces_pending_review_musicxml(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
     stored_xml = storage.put_bytes(
@@ -817,7 +817,7 @@ async def test_review_update_replaces_pending_review_musicxml(
             job_id=15,
             artifact_uuid="review-update-artifact",
             kind=ImportArtifactKind.REVIEW_MUSICXML.value,
-            storage_backend="local",
+
             storage_key=stored_xml.storage_key,
             filename=stored_xml.filename,
             mime_type="application/vnd.recordare.musicxml+xml",
@@ -850,7 +850,7 @@ async def test_review_update_replaces_pending_review_musicxml(
 
 @pytest.mark.asyncio
 async def test_review_confirm_creates_active_score_once(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
     stored_thumbnail = storage.put_bytes(
@@ -886,7 +886,7 @@ async def test_review_confirm_creates_active_score_once(
             job_id=14,
             artifact_uuid="confirm-review-thumbnail",
             kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
-            storage_backend="local",
+
             storage_key=stored_thumbnail.storage_key,
             filename=stored_thumbnail.filename,
             mime_type="image/svg+xml",
@@ -961,7 +961,7 @@ async def test_review_confirm_creates_active_score_once(
 
 @pytest.mark.asyncio
 async def test_score_detail_describes_only_head_presentation(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
     stored_thumbnail = storage.put_bytes(
@@ -1000,7 +1000,7 @@ async def test_score_detail_describes_only_head_presentation(
                 asset_uuid="old-thumbnail",
                 revision_id=21,
                 kind=RenderAssetKind.RENDERED_PAGE,
-                storage_backend="local",
+
                 storage_key=stored_thumbnail.storage_key,
                 filename=stored_thumbnail.filename,
                 mime_type="image/svg+xml",
@@ -1039,7 +1039,7 @@ async def test_score_detail_describes_only_head_presentation(
 
 @pytest.mark.asyncio
 async def test_revision_snapshots_preserve_noop_replay_and_expected_head_conflict(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
     initial = storage.put_bytes(
@@ -1072,7 +1072,7 @@ async def test_revision_snapshots_preserve_noop_replay_and_expected_head_conflic
             source_uuid="artifact-1",
             revision_id=40,
             format=RevisionSourceFormat.MUSICXML,
-            storage_backend="local",
+
             storage_key=initial.storage_key,
             filename=initial.filename,
             mime_type="application/vnd.recordare.musicxml+xml",
@@ -1184,7 +1184,7 @@ async def test_revision_snapshots_preserve_noop_replay_and_expected_head_conflic
 
 @pytest.mark.asyncio
 async def test_revision_restore_creates_new_head_from_target_revision(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
     first = storage.put_bytes(
@@ -1229,7 +1229,7 @@ async def test_revision_restore_creates_new_head_from_target_revision(
                 source_uuid="restore-source-1",
                 revision_id=41,
                 format=RevisionSourceFormat.MUSICXML,
-                storage_backend="local",
+
                 storage_key=first.storage_key,
                 filename=first.filename,
                 mime_type="application/vnd.recordare.musicxml+xml",
@@ -1241,7 +1241,7 @@ async def test_revision_restore_creates_new_head_from_target_revision(
                 source_uuid="restore-source-2",
                 revision_id=42,
                 format=RevisionSourceFormat.MUSICXML,
-                storage_backend="local",
+
                 storage_key=second.storage_key,
                 filename=second.filename,
                 mime_type="application/vnd.recordare.musicxml+xml",
@@ -1314,7 +1314,7 @@ async def test_revision_restore_creates_new_head_from_target_revision(
 
 @pytest.mark.asyncio
 async def test_revision_note_can_be_added_updated_and_cleared(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
     add_active_score_with_head_revision(
@@ -1362,7 +1362,7 @@ async def test_revision_note_can_be_added_updated_and_cleared(
 
 @pytest.mark.asyncio
 async def test_derived_asset_retention_protects_current_head_only(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
     score = Score(
@@ -1414,7 +1414,7 @@ async def test_derived_asset_retention_protects_current_head_only(
                     asset_uuid=f"retention-render-{revision.revision_number}",
                     revision_id=revision_id,
                     kind=RenderAssetKind.RENDERED_PAGE,
-                    storage_backend="local",
+
                     storage_key=rendered.storage_key,
                     filename=rendered.filename,
                     mime_type="image/svg+xml",
@@ -1429,7 +1429,7 @@ async def test_derived_asset_retention_protects_current_head_only(
                     source_uuid=f"retention-xml-{revision.revision_number}",
                     revision_id=revision_id,
                     format=RevisionSourceFormat.MUSICXML,
-                    storage_backend="local",
+
                     storage_key=musicxml.storage_key,
                     filename=musicxml.filename,
                     mime_type="application/vnd.recordare.musicxml+xml",
@@ -1442,7 +1442,7 @@ async def test_derived_asset_retention_protects_current_head_only(
                     asset_uuid=f"retention-audio-{revision.revision_number}",
                     revision_id=revision_id,
                     kind=PlaybackAssetKind.AUDIO,
-                    storage_backend="local",
+
                     storage_key=audio.storage_key,
                     filename=audio.filename,
                     mime_type="audio/wav",
@@ -1479,7 +1479,7 @@ async def test_derived_asset_retention_protects_current_head_only(
 
 @pytest.mark.asyncio
 async def test_revision_list_uses_cursor_pagination(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
     score = Score(
@@ -1531,7 +1531,7 @@ async def test_revision_list_uses_cursor_pagination(
 
 
 def test_render_outbox_recovers_stale_delivery_and_lists_due_work(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     score = add_active_score_with_head_revision(
@@ -1579,7 +1579,7 @@ def test_render_outbox_recovers_stale_delivery_and_lists_due_work(
 
 
 def test_render_outbox_claim_failure_and_completion_are_persistent(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     score = add_active_score_with_head_revision(
@@ -1596,7 +1596,7 @@ def test_render_outbox_claim_failure_and_completion_are_persistent(
             source_uuid="render-claim-source",
             revision_id=revision.id,
             format=RevisionSourceFormat.MUSICXML,
-            storage_backend="local",
+
             storage_key="render-claim.musicxml",
             filename="score.musicxml",
             mime_type="application/vnd.recordare.musicxml+xml",
@@ -1643,7 +1643,7 @@ def test_render_outbox_claim_failure_and_completion_are_persistent(
 
 
 def test_review_thumbnail_outbox_claims_only_the_current_musicxml(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     job = ImportJob(
@@ -1659,7 +1659,7 @@ def test_review_thumbnail_outbox_claims_only_the_current_musicxml(
             job_id=413,
             artifact_uuid="review-thumbnail-source",
             kind=ImportArtifactKind.REVIEW_MUSICXML.value,
-            storage_backend="local",
+
             storage_key="jobs/review-thumbnail-job/review_musicxml/score.musicxml",
             filename="score.musicxml",
             mime_type="application/vnd.recordare.musicxml+xml",
@@ -1696,7 +1696,7 @@ def test_review_thumbnail_outbox_claims_only_the_current_musicxml(
 
 
 def test_mail_outbox_retries_and_scrubs_sensitive_content_after_delivery(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     outbox = MailOutbox(
@@ -1737,7 +1737,7 @@ def test_mail_outbox_retries_and_scrubs_sensitive_content_after_delivery(
 
 
 def test_expired_verification_mail_is_never_dispatched(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     outbox = MailOutbox(
@@ -1762,7 +1762,7 @@ def test_expired_verification_mail_is_never_dispatched(
 
 
 def test_import_dispatch_claim_reconstructs_persisted_request(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     job = ImportJob(
@@ -1783,7 +1783,7 @@ def test_import_dispatch_claim_reconstructs_persisted_request(
         id=602,
         blob_uuid="queued-blob",
         sha256="queued-upload-sha",
-        storage_backend="local",
+
         storage_key="blobs/qu/queued-upload-sha.png",
         filename="queued.png",
         size_bytes=5,
@@ -1806,7 +1806,7 @@ def test_import_dispatch_claim_reconstructs_persisted_request(
 
 
 def test_import_dispatch_recovers_stale_worker_without_failing_business_job(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     now = utc_now_naive()
@@ -1836,7 +1836,7 @@ def test_import_dispatch_recovers_stale_worker_without_failing_business_job(
 
 
 def test_import_dispatch_publish_failure_uses_exponential_backoff(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     now = utc_now_naive()
@@ -1864,7 +1864,7 @@ def test_import_dispatch_publish_failure_uses_exponential_backoff(
 
 @pytest.mark.asyncio
 async def test_collaborator_revision_save_notifies_score_owner(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
     score = add_active_score_with_head_revision(
@@ -1929,7 +1929,7 @@ async def test_collaborator_revision_save_notifies_score_owner(
 
 @pytest.mark.asyncio
 async def test_source_delivery_checks_score_access_and_reports_missing_objects(
-    score_service_session: tuple[Session, LocalFileStorage], tmp_path
+    score_service_session: tuple[Session, InMemoryObjectStorage], tmp_path
 ) -> None:
     session, storage = score_service_session
     source = tmp_path / "score.musicxml"
@@ -1972,7 +1972,7 @@ async def test_source_delivery_checks_score_access_and_reports_missing_objects(
 
 @pytest.mark.asyncio
 async def test_score_access_policy_is_deny_by_default_and_context_aware(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     score = Score(
@@ -2039,7 +2039,7 @@ async def test_score_access_policy_is_deny_by_default_and_context_aware(
 
 @pytest.mark.asyncio
 async def test_invite_acceptance_creates_editable_membership(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     score = Score(
@@ -2122,7 +2122,7 @@ async def test_invite_acceptance_creates_editable_membership(
 
 @pytest.mark.asyncio
 async def test_invite_email_target_is_enforced(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     score = add_active_score_with_head_revision(
@@ -2156,7 +2156,7 @@ async def test_invite_email_target_is_enforced(
 
 @pytest.mark.asyncio
 async def test_user_pending_invites_can_be_accepted_without_token(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     add_active_score_with_head_revision(
@@ -2196,7 +2196,7 @@ async def test_user_pending_invites_can_be_accepted_without_token(
 
 @pytest.mark.asyncio
 async def test_user_pending_invites_can_be_declined(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     add_active_score_with_head_revision(
@@ -2247,7 +2247,7 @@ async def test_user_pending_invites_can_be_declined(
 
 @pytest.mark.asyncio
 async def test_notifications_are_scoped_and_can_be_marked_read(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     db = AsyncSessionAdapter(session)
@@ -2287,7 +2287,7 @@ async def test_notifications_are_scoped_and_can_be_marked_read(
 
 @pytest.mark.asyncio
 async def test_notification_dedupe_key_returns_existing_event(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     db = AsyncSessionAdapter(session)
@@ -2326,7 +2326,7 @@ async def test_notification_dedupe_key_returns_existing_event(
 
 @pytest.mark.asyncio
 async def test_notification_cleanup_removes_events_older_than_retention(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     db = AsyncSessionAdapter(session)
@@ -2366,7 +2366,7 @@ async def test_notification_cleanup_removes_events_older_than_retention(
 
 
 def test_notification_maintenance_removes_events_older_than_retention(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     service = NotificationMaintenanceService()
@@ -2404,7 +2404,7 @@ def test_notification_maintenance_removes_events_older_than_retention(
 
 
 def test_realtime_maintenance_removes_events_older_than_retention(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     service = RealtimeMaintenanceService()
@@ -2442,7 +2442,7 @@ def test_realtime_maintenance_removes_events_older_than_retention(
 
 
 def test_realtime_maintenance_rejects_non_positive_retention(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     service = RealtimeMaintenanceService()
@@ -2607,7 +2607,7 @@ async def test_review_semantic_admission_precedes_storage(score_service_session,
         job_id=14,
         artifact_uuid="admission-artifact",
         kind=ImportArtifactKind.REVIEW_MUSICXML.value,
-        storage_backend="local",
+
         storage_key=original.storage_key,
         filename=original.filename,
         mime_type="application/vnd.recordare.musicxml+xml",

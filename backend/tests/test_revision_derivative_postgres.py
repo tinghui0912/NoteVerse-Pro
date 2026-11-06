@@ -27,7 +27,7 @@ from app.modules.guest_previews.schemas import GuestPreviewCreateRequest
 from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.score_assets.render_outbox_service import render_outbox_service
 from app.modules.playback.outbox_service import playback_outbox_service
-from app.storage import LocalFileStorage
+from tests.support.object_storage import InMemoryObjectStorage
 from tests.test_practice_bundle_migration import migration_database
 from tests.test_score_revision_services import AsyncSessionAdapter, MUSICXML_2
 
@@ -43,7 +43,7 @@ def test_preview_head_race_preserves_durable_demand(monkeypatch, tmp_path, order
             assert {
                 column["name"] for column in sa.inspect(engine).get_columns(model.__tablename__)
             } == set(model.__table__.columns.keys())
-        storage = LocalFileStorage(str(tmp_path / "storage"))
+        storage = InMemoryObjectStorage()
         fingerprint = sha256(MUSICXML_2.encode()).hexdigest()
         with Session(engine) as seed:
             user = User(email="demand-race@example.com", display_name="Owner", password_hash="hash")
@@ -78,7 +78,7 @@ def test_preview_head_race_preserves_durable_demand(monkeypatch, tmp_path, order
                     source_uuid="race-source",
                     revision_id=r1,
                     format=RevisionSourceFormat.MUSICXML,
-                    storage_backend="local",
+
                     storage_key=stored.storage_key,
                     filename=stored.filename,
                     mime_type="application/vnd.recordare.musicxml+xml",

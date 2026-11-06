@@ -30,7 +30,7 @@ from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.score_assets.service import ScoreAssetDelivery
 from app.shared.constants import ErrorCode
-from app.storage import FileStorage, file_storage
+from app.storage import ObjectStorage, object_storage
 from app.utils.timezone import to_utc_naive, utc_now_naive
 
 
@@ -41,11 +41,11 @@ class GuestPreviewService:
         self,
         *,
         repository: GuestPreviewRepository | None = None,
-        storage: FileStorage | None = None,
+        storage: ObjectStorage | None = None,
         access_policy: ScoreAccessPolicy | None = None,
     ) -> None:
         self.repository = repository or GuestPreviewRepository()
-        self.storage = storage or file_storage
+        self.storage = storage or object_storage
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.assets = ScoreAssetRepository()
         self.playback = PlaybackDeliveryReadModel(

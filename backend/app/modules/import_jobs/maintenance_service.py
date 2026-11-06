@@ -11,7 +11,7 @@ from app.core.logger import logger
 from app.db.models import StorageBlob, StorageUsageCategory, Upload
 from app.modules.import_jobs.repository import SyncImportJobRepository
 from app.modules.storage_usage.service import storage_usage_service
-from app.storage import FileStorage, file_storage
+from app.storage import ObjectStorage, object_storage
 from app.utils.timezone import utc_now_naive
 
 
@@ -24,10 +24,10 @@ class ImportJobMaintenanceService:
     def __init__(
         self,
         repository: SyncImportJobRepository | None = None,
-        storage: FileStorage | None = None,
+        storage: ObjectStorage | None = None,
     ) -> None:
         self.repository = repository or SyncImportJobRepository()
-        self.storage = storage or file_storage
+        self.storage = storage or object_storage
 
     def run(self, db: Session) -> JobMaintenanceResult:
         return JobMaintenanceResult(

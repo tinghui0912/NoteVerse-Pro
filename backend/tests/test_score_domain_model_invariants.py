@@ -113,7 +113,7 @@ def revision_source(*, source_id: int, key: str) -> ScoreRevisionSource:
         source_uuid=f"source-{source_id}",
         revision_id=100,
         format=RevisionSourceFormat.MUSICXML,
-        storage_backend="local",
+
         storage_key=key,
         filename="score.musicxml",
         mime_type="application/vnd.recordare.musicxml+xml",
@@ -129,7 +129,7 @@ def render_asset(*, asset_id: int, key: str) -> ScoreRenderAsset:
         asset_uuid=f"asset-{asset_id}",
         revision_id=100,
         kind=RenderAssetKind.RENDERED_PAGE,
-        storage_backend="local",
+
         storage_key=key,
         filename="page.svg",
         mime_type="image/svg+xml",

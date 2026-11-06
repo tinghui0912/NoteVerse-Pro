@@ -64,7 +64,7 @@ class PracticeBundleDeleteOutbox(SQLModel, table=True):  # type: ignore[call-arg
         ),
     )
     bundle_id: str = Field(sa_column=Column(String(128), nullable=False))
-    storage_backend: str = Field(sa_column=Column(String(32), nullable=False))
+
     prepared_musicxml_object_key: str = Field(sa_column=Column(String(768), nullable=False))
     artifact_object_key: str = Field(sa_column=Column(String(768), nullable=False))
     status: str = Field(

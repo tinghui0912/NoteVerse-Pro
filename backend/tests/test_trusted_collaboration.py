@@ -77,7 +77,7 @@ def collaboration(score_service_session):
             source_uuid="trusted-source",
             revision_id=4001,
             format=RevisionSourceFormat.MUSICXML,
-            storage_backend="local",
+
             storage_key=xml.storage_key,
             filename=xml.filename,
             mime_type="application/vnd.recordare.musicxml+xml",
@@ -93,7 +93,7 @@ def collaboration(score_service_session):
             id=4002,
             blob_uuid="trusted-blob",
             sha256="b" * 64,
-            storage_backend="local",
+
             storage_key=image.storage_key,
             filename="private-scan.png",
             mime_type="image/png",
@@ -155,13 +155,6 @@ async def test_http_source_disclosure_and_editing_boundaries(collaboration, role
     from app.modules.performance_takes.dependencies import get_performance_take_upload_service
     from app.modules.performance_takes.upload_reservation.service import (
         PerformanceTakeUploadService,
-    )
-    from app.storage import DirectUploadTarget
-
-    storage.upload_url = lambda **kwargs: DirectUploadTarget(
-        upload_url="https://upload.example.test/object",
-        upload_method="PUT",
-        upload_headers={"content-type": kwargs["content_type"]},
     )
     services = {
         get_performance_take_upload_service: PerformanceTakeUploadService(

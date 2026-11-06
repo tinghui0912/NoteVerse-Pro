@@ -40,7 +40,6 @@ def upgrade() -> None:
         sa.Column("session_id", sa.BigInteger(), nullable=False),
         sa.Column("kind", replay_kind_enum, nullable=False),
         sa.Column("input_source", practice_input_source_enum, nullable=False),
-        sa.Column("storage_backend", sa.String(length=64), nullable=False),
         sa.Column("object_key", sa.String(length=768), nullable=False),
         sa.Column("content_type", sa.String(length=128), nullable=False),
         sa.Column("byte_size", sa.BigInteger(), nullable=False),

@@ -17,7 +17,7 @@ from app.db.models.practice_bundle import (
     PracticeBundleStatus,
 )
 from app.shared.constants import ErrorCode
-from app.storage.base import FileStorage
+from app.storage.base import ObjectStorage
 from app.utils.timezone import utc_now_naive
 from app.modules.practice.score.artifact import (
     canonical_practice_artifact_bytes,
@@ -42,7 +42,7 @@ class BundleRowLock(Enum):
 
 
 class PracticeBundleRepository:
-    def __init__(self, storage: FileStorage):
+    def __init__(self, storage: ObjectStorage):
         self.storage = storage
 
     @staticmethod
@@ -185,7 +185,7 @@ class PracticeBundleRepository:
             except Exception as error:
                 await db.run_sync(
                     lambda sync: practice_bundle_delete_service.discard_creation(
-                        sync, row.id, storage_backend=self.storage.backend_name
+                        sync, row.id
                     )
                 )
                 await db.commit()

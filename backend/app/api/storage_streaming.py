@@ -7,7 +7,7 @@ from urllib.parse import quote
 from fastapi import Request, status
 from fastapi.responses import Response, StreamingResponse
 
-from app.storage import FileStorage
+from app.storage import ObjectStorage
 
 DEFAULT_STREAM_CHUNK_SIZE = 1024 * 1024
 
@@ -20,7 +20,7 @@ class ByteRange:
 
 def stream_storage_object(
     *,
-    storage: FileStorage,
+    storage: ObjectStorage,
     storage_key: str,
     filename: str,
     media_type: str,

@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import (
     ResourceNotFoundException,
-    ValidationException,
 )
 from app.db.models.performance_take import (
     PerformanceTake,
@@ -29,7 +28,8 @@ from app.modules.performance_takes.schemas import (
 )
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.shared.constants import ErrorCode
-from app.storage.base import FileStorage
+from app.storage.base import ObjectStorage
+from app.storage.factory import object_storage
 from app.utils.timezone import utc_now_naive
 
 
@@ -61,11 +61,11 @@ class PerformanceTakeService:
     def __init__(
         self,
         repository: PerformanceTakeRepository | None = None,
-        storage: FileStorage | None = None,
+        storage: ObjectStorage | None = None,
         score_access_policy: ScoreAccessPolicy | None = None,
     ) -> None:
         self.repository = repository or PerformanceTakeRepository()
-        self.storage = storage
+        self.storage = storage or object_storage
         self.score_access_policy = score_access_policy or ScoreAccessPolicy()
 
     def _to_read_dto(
@@ -198,8 +198,6 @@ class PerformanceTakeService:
                 "performance_take", take_id, ErrorCode.RESOURCE_NOT_FOUND
             )
 
-        if self.storage is None:
-            raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="storage")
 
         facts = take_from_row(take)
         manifest, blob = facts.manifest, facts.blob
@@ -213,8 +211,6 @@ class PerformanceTakeService:
             filename=f"performance-{manifest.take_uuid}.{ext}",
             content_type=blob.content_type,
         )
-        if not playback_url or not download_url:
-            raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="download_url")
 
         return PerformanceTakePlaybackRead(
             take_id=manifest.take_uuid,
@@ -241,8 +237,6 @@ class PerformanceTakeService:
             raise ResourceNotFoundException(
                 "performance_take", take_id, ErrorCode.RESOURCE_NOT_FOUND
             )
-        if self.storage is None:
-            raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="storage")
         facts = take_from_row(take)
         manifest, blob = facts.manifest, facts.blob
         extension = _extension_for_mime(blob.content_type)
@@ -274,7 +268,6 @@ class PerformanceTakeService:
             take_id=take.id,
             take_uuid=manifest.take_uuid,
             user_id=manifest.user_id,
-            storage_backend=blob.storage_backend,
             object_key=blob.object_key,
             media_byte_size=blob.byte_size,
             status=PerformanceTakeDeleteOutboxStatus.PENDING.value,

@@ -7,8 +7,8 @@ from app.modules.performance_takes.service import PerformanceTakeService
 from app.modules.performance_takes.upload_reservation.service import PerformanceTakeUploadService
 from app.modules.storage_usage.dependencies import get_storage_usage_service
 from app.modules.storage_usage.service import StorageUsageService
-from app.storage.base import FileStorage
-from app.storage.factory import get_file_storage
+from app.storage.base import ObjectStorage
+from app.storage.factory import get_object_storage
 
 
 def get_performance_take_repository() -> PerformanceTakeRepository:
@@ -17,7 +17,7 @@ def get_performance_take_repository() -> PerformanceTakeRepository:
 
 def get_performance_take_service(
     repository: PerformanceTakeRepository = Depends(get_performance_take_repository),
-    storage: FileStorage = Depends(get_file_storage),
+    storage: ObjectStorage = Depends(get_object_storage),
 ) -> PerformanceTakeService:
     return PerformanceTakeService(
         repository=repository,
@@ -27,7 +27,7 @@ def get_performance_take_service(
 
 def get_performance_take_upload_service(
     repository: PerformanceTakeRepository = Depends(get_performance_take_repository),
-    storage: FileStorage = Depends(get_file_storage),
+    storage: ObjectStorage = Depends(get_object_storage),
     storage_usage_service: StorageUsageService = Depends(get_storage_usage_service),
 ) -> PerformanceTakeUploadService:
     return PerformanceTakeUploadService(

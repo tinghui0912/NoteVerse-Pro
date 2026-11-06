@@ -7,9 +7,10 @@ from PIL import Image
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logger import logger
+from app.core.settings.service_identity import CUSTOMER_API_PREFIX
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
-from app.storage import FileStorage, file_storage
+from app.storage import ObjectStorage, object_storage
 
 
 class AvatarService:
@@ -19,8 +20,8 @@ class AvatarService:
     MAX_FILE_SIZE = 5 * 1024 * 1024
     AVATAR_SIZE = (200, 200)
 
-    def __init__(self, storage: FileStorage | None = None) -> None:
-        self.storage = storage or file_storage
+    def __init__(self, storage: ObjectStorage | None = None) -> None:
+        self.storage = storage or object_storage
 
     def is_allowed_extension(self, filename: str) -> bool:
         if "." not in filename:
@@ -66,7 +67,7 @@ class AvatarService:
             final_filename = f"{user_id}_{file_hash}.jpg"
             output = io.BytesIO()
             canvas.save(output, "JPEG", quality=85, optimize=True)
-            stored = self.storage.save_avatar(
+            self.storage.save_avatar(
                 content=output.getvalue(),
                 filename=final_filename,
             )
@@ -76,7 +77,7 @@ class AvatarService:
                 user_id=user_id,
                 filename=final_filename,
             ).info("Avatar saved")
-            return final_filename, stored.public_url or self.storage.avatar_url(final_filename)
+            return final_filename, f"{CUSTOMER_API_PREFIX}/account/avatars/{final_filename}"
         except Exception as exc:
             logger.bind(
                 event="account.avatar.processing_failed",

@@ -15,17 +15,17 @@ from app.modules.import_jobs.repository import SyncImportJobRepository
 from app.modules.storage_usage.service import storage_usage_service
 from app.processing.engines.render import create_score_render_engine
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
-from app.storage import FileStorage, file_storage
+from app.storage import ObjectStorage, object_storage
 
 
 class ReviewThumbnailService:
     def __init__(
         self,
         repository: SyncImportJobRepository | None = None,
-        storage: FileStorage | None = None,
+        storage: ObjectStorage | None = None,
     ) -> None:
         self.repository = repository or SyncImportJobRepository()
-        self.storage = storage or file_storage
+        self.storage = storage or object_storage
 
     def render(
         self,
@@ -95,7 +95,6 @@ class ReviewThumbnailService:
                 artifact_uuid=artifact_uuid,
                 job_id=job_id,
                 kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
-                storage_backend=self.storage.backend_name,
                 storage_key=stored.storage_key,
                 filename=stored.filename,
                 page_number=1,

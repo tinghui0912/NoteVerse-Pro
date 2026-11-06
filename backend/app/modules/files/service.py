@@ -11,15 +11,15 @@ from app.modules.files.repository import FilesRepository
 from app.modules.files.schemas import DeleteUploadedFileRead, UploadFileRead
 from app.modules.storage_usage.service import storage_usage_service
 from app.shared.constants import ErrorCode
-from app.storage import FileStorage, file_storage
+from app.storage import ObjectStorage, object_storage
 
 
 class FilesService:
     """Own uploaded processing inputs; score source and derived delivery live elsewhere."""
 
-    def __init__(self, repository: FilesRepository | None = None, storage: FileStorage | None = None) -> None:
+    def __init__(self, repository: FilesRepository | None = None, storage: ObjectStorage | None = None) -> None:
         self.repository = repository or FilesRepository()
-        self.storage = storage or file_storage
+        self.storage = storage or object_storage
 
     @staticmethod
     def allowed_file(filename: str) -> bool:
@@ -53,7 +53,6 @@ class FilesService:
         try:
             blob_needs_current_storage = (
                 blob is None
-                or blob.storage_backend != self.storage.backend_name
                 or not self.storage.exists(blob.storage_key)
             )
             if blob_needs_current_storage:
@@ -67,7 +66,6 @@ class FilesService:
                     blob = await self.repository.create_blob(
                         db,
                         sha256=file_hash,
-                        storage_backend=self.storage.backend_name,
                         storage_key=stored.storage_key,
                         filename=stored.filename,
                         size_bytes=stored.size_bytes,
@@ -77,7 +75,6 @@ class FilesService:
                     blob = await self.repository.update_blob_storage(
                         db,
                         blob,
-                        storage_backend=self.storage.backend_name,
                         storage_key=stored.storage_key,
                         filename=stored.filename,
                         size_bytes=stored.size_bytes,

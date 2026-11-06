@@ -30,7 +30,7 @@ class StorageBlob(SQLModel, table=True):  # type: ignore[call-arg]
         sa_column=Column(String(36), unique=True, nullable=False),
     )
     sha256: str = Field(sa_column=Column(String(64), nullable=False))
-    storage_backend: str = Field(sa_column=Column(String(32), nullable=False))
+
     storage_key: str = Field(sa_column=Column(String(768), nullable=False))
     filename: str = Field(sa_column=Column(String(255), nullable=False))
     size_bytes: int = Field(sa_column=Column(BigInteger, nullable=False))

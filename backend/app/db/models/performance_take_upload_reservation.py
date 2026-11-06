@@ -73,7 +73,7 @@ class PerformanceTakeUploadReservation(SQLModel, table=True):  # type: ignore[ca
         sa_relationship=relationship(PerformanceTakeManifest, lazy="selectin")
     )
     client_request_id: str = Field(sa_column=Column(String(128), index=True, nullable=False))
-    storage_backend: str = Field(sa_column=Column(String(32), nullable=False))
+
     staging_object_key: str = Field(sa_column=Column(String(768), nullable=False))
 
     storage_reservation_id: str = Field(sa_column=Column(String(36), index=True, nullable=False))

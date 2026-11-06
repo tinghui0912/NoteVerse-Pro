@@ -36,10 +36,8 @@ class StoredObjectMetadata:
     checksum_sha256: str | None = None
 
 
-class FileStorage(Protocol):
+class ObjectStorage(Protocol):
     """Operations required by feature services and workers."""
-
-    backend_name: str
 
     def put_bytes(
         self,
@@ -47,20 +45,15 @@ class FileStorage(Protocol):
         key: str,
         content: bytes,
         content_type: str | None = None,
-    ) -> StoredFile:
-        ...
+    ) -> StoredFile: ...
 
-    def exists(self, key: str) -> bool:
-        ...
+    def exists(self, key: str) -> bool: ...
 
-    def read_bytes(self, key: str) -> bytes:
-        ...
+    def read_bytes(self, key: str) -> bytes: ...
 
-    def size_bytes(self, key: str) -> int:
-        ...
+    def size_bytes(self, key: str) -> int: ...
 
-    def object_metadata(self, key: str) -> StoredObjectMetadata:
-        ...
+    def object_metadata(self, key: str) -> StoredObjectMetadata: ...
 
     def upload_url(
         self,
@@ -68,8 +61,7 @@ class FileStorage(Protocol):
         *,
         content_type: str,
         checksum_sha256: str,
-    ) -> DirectUploadTarget | None:
-        ...
+    ) -> DirectUploadTarget: ...
 
     def iter_bytes(
         self,
@@ -78,20 +70,13 @@ class FileStorage(Protocol):
         chunk_size: int = 1024 * 1024,
         start: int | None = None,
         end: int | None = None,
-    ) -> Iterator[bytes]:
-        ...
+    ) -> Iterator[bytes]: ...
 
-    def copy(self, source_key: str, target_key: str) -> None:
-        ...
+    def copy(self, source_key: str, target_key: str) -> None: ...
 
-    def delete(self, key: str) -> bool:
-        ...
+    def delete(self, key: str) -> bool: ...
 
-    def local_path(self, key: str) -> str:
-        ...
-
-    def public_url(self, key: str) -> str:
-        ...
+    def public_url(self, key: str) -> str: ...
 
     def download_url(
         self,
@@ -99,11 +84,10 @@ class FileStorage(Protocol):
         *,
         filename: str | None = None,
         content_type: str | None = None,
-    ) -> str | None:
-        ...
+        expires_seconds: int | None = None,
+    ) -> str: ...
 
-    def materialize_to_local(self, key: str, target_path: str) -> str:
-        ...
+    def materialize_to_local(self, key: str, target_path: str) -> str: ...
 
     def save_blob(
         self,
@@ -112,19 +96,15 @@ class FileStorage(Protocol):
         sha256: str,
         extension: str,
         content_type: str | None = None,
-    ) -> StoredFile:
-        ...
+    ) -> StoredFile: ...
 
     def save_avatar(
         self,
         *,
         content: bytes,
         filename: str,
-    ) -> StoredFile:
-        ...
+    ) -> StoredFile: ...
 
-    def avatar_url(self, filename: str) -> str:
-        ...
+    def avatar_url(self, filename: str) -> str: ...
 
-    def delete_avatar(self, filename: str) -> bool:
-        ...
+    def delete_avatar(self, filename: str) -> bool: ...

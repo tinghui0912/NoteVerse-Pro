@@ -3,20 +3,20 @@
 from __future__ import annotations
 
 import os
+import boto3
+from botocore.config import Config
 from collections.abc import Iterator
 
 from app.core.config import settings
 from app.storage.base import DirectUploadTarget, StoredFile, StoredObjectMetadata
 
 
-class S3CompatibleStorage:
-    """Object storage adapter for AWS S3-compatible APIs."""
+class S3CompatibleObjectStorage:
+    """Object storage adapter for the S3-compatible wire protocol."""
 
-    backend_name = "s3"
     score_prefix = "scores"
     blob_prefix = "blobs"
     avatar_prefix = "avatars"
-    cache_prefix = "storage-cache"
 
     def __init__(self) -> None:
         self.bucket = settings.S3_BUCKET or ""
@@ -24,27 +24,22 @@ class S3CompatibleStorage:
         self.region = settings.S3_REGION
         self.public_base_url = settings.S3_PUBLIC_BASE_URL
         self._client = None
+        self._signing_client = None
 
     @property
     def client(self):
-        """Create the S3 client lazily so local mode does not require boto3."""
+        """Create the configured infrastructure client on first use."""
 
         if self._client is not None:
             return self._client
 
-        try:
-            import boto3
-            from botocore.config import Config
-        except ImportError as exc:
-            raise RuntimeError(
-                "boto3 is required when FILE_STORAGE_BACKEND=s3. "
-                "Install backend requirements before enabling S3 storage."
-            ) from exc
+        return self._make_client(self.endpoint_url)
 
+    def _make_client(self, endpoint_url: str):
         addressing_style = "path" if settings.S3_FORCE_PATH_STYLE else "virtual"
-        self._client = boto3.client(
+        client = boto3.client(
             "s3",
-            endpoint_url=self.endpoint_url,
+            endpoint_url=endpoint_url,
             region_name=self.region,
             aws_access_key_id=settings.S3_ACCESS_KEY_ID,
             aws_secret_access_key=settings.S3_SECRET_ACCESS_KEY,
@@ -58,7 +53,17 @@ class S3CompatibleStorage:
                 },
             ),
         )
-        return self._client
+        if endpoint_url == self.endpoint_url:
+            self._client = client
+        return client
+
+    @property
+    def signing_client(self):
+        if not settings.S3_SIGNED_ENDPOINT_URL:
+            return self.client
+        if self._signing_client is None:
+            self._signing_client = self._make_client(settings.S3_SIGNED_ENDPOINT_URL)
+        return self._signing_client
 
     def put_bytes(
         self,
@@ -92,7 +97,11 @@ class S3CompatibleStorage:
         normalized_key = self._normalize_key(key)
         try:
             response = self.client.get_object(Bucket=self.bucket, Key=normalized_key)
-            return response["Body"].read()
+            body = response["Body"]
+            try:
+                return body.read()
+            finally:
+                body.close()
         except Exception as exc:
             if self._is_not_found_error(exc):
                 raise FileNotFoundError(normalized_key) from exc
@@ -136,7 +145,7 @@ class S3CompatibleStorage:
             "content-type": content_type,
             "x-amz-meta-sha256": checksum_sha256,
         }
-        url = self.client.generate_presigned_url(
+        url = self.signing_client.generate_presigned_url(
             ClientMethod="put_object",
             Params={
                 "Bucket": self.bucket,
@@ -144,7 +153,7 @@ class S3CompatibleStorage:
                 "ContentType": content_type,
                 "Metadata": {"sha256": checksum_sha256},
             },
-            ExpiresIn=settings.S3_PRESIGN_EXPIRE_SECONDS,
+            ExpiresIn=settings.OBJECT_STORAGE_SIGNED_URL_EXPIRE_SECONDS,
             HttpMethod="PUT",
         )
         return DirectUploadTarget(
@@ -164,12 +173,16 @@ class S3CompatibleStorage:
         normalized_key = self._normalize_key(key)
         kwargs = {"Bucket": self.bucket, "Key": normalized_key}
         if start is not None or end is not None:
-            range_start = "" if start is None else str(start)
+            range_start = str(start or 0)
             range_end = "" if end is None else str(end)
             kwargs["Range"] = f"bytes={range_start}-{range_end}"
         try:
             response = self.client.get_object(**kwargs)
-            yield from response["Body"].iter_chunks(chunk_size=chunk_size)
+            body = response["Body"]
+            try:
+                yield from body.iter_chunks(chunk_size=chunk_size)
+            finally:
+                body.close()
         except Exception as exc:
             if self._is_not_found_error(exc):
                 raise FileNotFoundError(normalized_key) from exc
@@ -187,12 +200,6 @@ class S3CompatibleStorage:
         copy_source = {"Bucket": self.bucket, "Key": source_normalized}
         self.client.copy_object(CopySource=copy_source, Bucket=self.bucket, Key=target_normalized)
 
-    def local_path(self, key: str) -> str:
-        normalized_key = self._normalize_key(key)
-        return os.path.abspath(
-            os.path.join(settings.WORK_ROOT, self.cache_prefix, normalized_key)
-        )
-
     def public_url(self, key: str) -> str:
         normalized_key = self._normalize_key(key)
         if self.public_base_url:
@@ -208,11 +215,13 @@ class S3CompatibleStorage:
         *,
         filename: str | None = None,
         content_type: str | None = None,
-    ) -> str | None:
+        expires_seconds: int | None = None,
+    ) -> str:
         return self.presign_get(
             key,
             filename=filename,
             content_type=content_type,
+            expires_seconds=expires_seconds,
         )
 
     def presign_get(
@@ -221,6 +230,7 @@ class S3CompatibleStorage:
         *,
         filename: str | None = None,
         content_type: str | None = None,
+        expires_seconds: int | None = None,
     ) -> str:
         normalized_key = self._normalize_key(key)
         params = {"Bucket": self.bucket, "Key": normalized_key}
@@ -228,10 +238,12 @@ class S3CompatibleStorage:
             params["ResponseContentDisposition"] = (
                 f'attachment; filename="{filename.replace(chr(34), "")}"'
             )
-        return self.client.generate_presigned_url(
+        if content_type:
+            params["ResponseContentType"] = content_type
+        return self.signing_client.generate_presigned_url(
             ClientMethod="get_object",
             Params=params,
-            ExpiresIn=settings.S3_PRESIGN_EXPIRE_SECONDS,
+            ExpiresIn=expires_seconds or settings.OBJECT_STORAGE_SIGNED_URL_EXPIRE_SECONDS,
         )
 
     def materialize_to_local(self, key: str, target_path: str) -> str:
@@ -294,7 +306,7 @@ class S3CompatibleStorage:
     @staticmethod
     def _normalize_key(key: str) -> str:
         normalized = key.replace("\\", "/").strip("/")
-        if not normalized or normalized.startswith("../") or "/../" in normalized:
+        if not normalized or any(part in {".", ".."} for part in normalized.split("/")):
             raise ValueError(f"Invalid storage key: {key}")
         return normalized
 
@@ -305,4 +317,4 @@ class S3CompatibleStorage:
             return False
         error = response.get("Error") or {}
         code = str(error.get("Code") or "")
-        return code in {"404", "NoSuchKey", "NotFound", "NoSuchBucket"}
+        return code in {"404", "NoSuchKey", "NotFound"}

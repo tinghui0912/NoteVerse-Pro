@@ -42,7 +42,7 @@ from app.modules.scores.repository import ScoreRepository
 from app.modules.storage_usage.service import storage_usage_service
 from app.processing.musicxml.admission import admit_musicxml_document
 from app.shared.constants import ErrorCode
-from app.storage import FileStorage, file_storage
+from app.storage import ObjectStorage, object_storage
 from app.utils.timezone import utc_now_naive
 
 
@@ -51,14 +51,14 @@ class RevisionService:
         self,
         repository: ScoreRepository | None = None,
         asset_repository: ScoreAssetRepository | None = None,
-        storage: FileStorage | None = None,
+        storage: ObjectStorage | None = None,
         access_policy: ScoreAccessPolicy | None = None,
         notification_service: NotificationService | None = None,
         read_model: RevisionReadModel | None = None,
     ) -> None:
         self.repository = repository or ScoreRepository()
         self.asset_repository = asset_repository or ScoreAssetRepository()
-        self.storage = storage or file_storage
+        self.storage = storage or object_storage
         self.derived_asset_retention = DerivedAssetRetentionService(self.storage)
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.notification_service = notification_service or NotificationService()
@@ -155,7 +155,6 @@ class RevisionService:
                     source_uuid=source_uuid,
                     revision_id=revision_id,
                     format=RevisionSourceFormat.MUSICXML,
-                    storage_backend=self.storage.backend_name,
                     storage_key=stored.storage_key,
                     filename=stored.filename,
                     mime_type="application/vnd.recordare.musicxml+xml",
@@ -326,7 +325,6 @@ class RevisionService:
                     source_uuid=source_uuid,
                     revision_id=revision_id,
                     format=RevisionSourceFormat.MUSICXML,
-                    storage_backend=self.storage.backend_name,
                     storage_key=stored.storage_key,
                     filename=stored.filename,
                     mime_type=source.mime_type,

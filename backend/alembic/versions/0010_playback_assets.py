@@ -55,7 +55,6 @@ def upgrade() -> None:
         sa.Column("asset_uuid", sa.String(length=36), nullable=False),
         sa.Column("revision_id", sa.BigInteger(), nullable=False),
         sa.Column("kind", playback_asset_kind, nullable=False),
-        sa.Column("storage_backend", sa.String(length=32), nullable=False),
         sa.Column("storage_key", sa.String(length=768), nullable=False),
         sa.Column("filename", sa.String(length=255), nullable=False),
         sa.Column("mime_type", sa.String(length=128), nullable=False),

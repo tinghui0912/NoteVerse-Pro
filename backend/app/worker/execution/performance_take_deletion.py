@@ -21,7 +21,7 @@ from app.modules.performance_takes.delete_outbox_service import (
 )
 from app.modules.storage_usage.service import storage_usage_service
 from app.pipeline.context import CeleryTaskLike
-from app.storage import file_storage
+from app.storage import object_storage
 from app.worker.task_runtime import (
     bind_task_context,
     clear_task_context,
@@ -64,7 +64,6 @@ def execute_performance_take_deletion_task(
             "operation_kind": "performance_take_deletion",
             "outbox_id": outbox_uuid,
             "take_uuid": payload.take_uuid,
-            "storage_backend": payload.storage_backend,
             "object_key": payload.object_key,
             "attempt": payload.attempt,
             "max_attempts": payload.max_attempts,
@@ -75,14 +74,9 @@ def execute_performance_take_deletion_task(
 
         handled_error = False
         try:
-            if payload.storage_backend != file_storage.backend_name:
-                raise RuntimeError(
-                    "performance take deletion storage backend mismatch: "
-                    f"{payload.storage_backend} != {file_storage.backend_name}"
-                )
             # 1. Delete object from storage outside of database transaction (idempotent)
-            if file_storage.exists(payload.object_key):
-                file_storage.delete(payload.object_key)
+            if object_storage.exists(payload.object_key):
+                object_storage.delete(payload.object_key)
         except Exception as exc:
             handled_error = True
             record_current_attempt_failure(exc)
@@ -156,7 +150,6 @@ def execute_performance_take_deletion_task(
                 if (
                     blob.object_key != payload.object_key
                     or blob.byte_size != payload.media_byte_size
-                    or blob.storage_backend != payload.storage_backend
                 ):
                     raise RuntimeError(
                         "performance take deletion payload does not match locked take: "

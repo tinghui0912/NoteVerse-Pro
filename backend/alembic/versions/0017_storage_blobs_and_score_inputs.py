@@ -36,7 +36,6 @@ def upgrade() -> None:
         sa.Column("id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), autoincrement=True, nullable=False),
         sa.Column("blob_uuid", sa.String(length=36), nullable=False),
         sa.Column("sha256", sa.String(length=64), nullable=False),
-        sa.Column("storage_backend", sa.String(length=32), nullable=False),
         sa.Column("storage_key", sa.String(length=768), nullable=False),
         sa.Column("filename", sa.String(length=255), nullable=False),
         sa.Column("size_bytes", sa.BigInteger(), nullable=False),
@@ -58,12 +57,11 @@ def upgrade() -> None:
         op.execute(
             """
             INSERT INTO storage_blobs (
-                blob_uuid, sha256, storage_backend, storage_key, filename, size_bytes, mime_type, created_at
+                blob_uuid, sha256, storage_key, filename, size_bytes, mime_type, created_at
             )
             SELECT
                 '10000000-0000-0000-0000-' || lpad(id::text, 12, '0'),
                 sha256,
-                storage_backend,
                 storage_key,
                 filename,
                 COALESCE(size_bytes, 0),
@@ -87,12 +85,11 @@ def upgrade() -> None:
         op.execute(
             """
             INSERT INTO storage_blobs (
-                blob_uuid, sha256, storage_backend, storage_key, filename, size_bytes, mime_type, created_at
+                blob_uuid, sha256, storage_key, filename, size_bytes, mime_type, created_at
             )
             SELECT
                 printf('10000000-0000-0000-0000-%012d', id),
                 sha256,
-                storage_backend,
                 storage_key,
                 filename,
                 COALESCE(size_bytes, 0),
@@ -130,7 +127,6 @@ def upgrade() -> None:
             batch.drop_constraint("uploads_sha256_key", type_="unique")
             batch.drop_constraint("uploads_storage_key_key", type_="unique")
         batch.drop_column("sha256")
-        batch.drop_column("storage_backend")
         batch.drop_column("storage_key")
         batch.drop_column("filename")
         batch.drop_column("size_bytes")
@@ -214,7 +210,6 @@ def downgrade() -> None:
         batch.add_column(sa.Column("size_bytes", sa.BigInteger(), nullable=True))
         batch.add_column(sa.Column("filename", sa.String(length=255), nullable=True))
         batch.add_column(sa.Column("storage_key", sa.String(length=768), nullable=True))
-        batch.add_column(sa.Column("storage_backend", sa.String(length=32), nullable=True))
         batch.add_column(sa.Column("sha256", sa.String(length=64), nullable=True))
 
     op.execute(
@@ -222,7 +217,6 @@ def downgrade() -> None:
         UPDATE uploads
         SET
             sha256 = (SELECT sha256 FROM storage_blobs WHERE storage_blobs.id = uploads.blob_id),
-            storage_backend = (SELECT storage_backend FROM storage_blobs WHERE storage_blobs.id = uploads.blob_id),
             storage_key = (SELECT storage_key FROM storage_blobs WHERE storage_blobs.id = uploads.blob_id),
             filename = (SELECT filename FROM storage_blobs WHERE storage_blobs.id = uploads.blob_id),
             size_bytes = (SELECT size_bytes FROM storage_blobs WHERE storage_blobs.id = uploads.blob_id),
@@ -231,7 +225,6 @@ def downgrade() -> None:
     )
     with op.batch_alter_table("uploads") as batch:
         batch.alter_column("sha256", nullable=False)
-        batch.alter_column("storage_backend", nullable=False)
         batch.alter_column("storage_key", nullable=False)
         batch.alter_column("filename", nullable=False)
         batch.drop_constraint("fk_uploads_blob_id_storage_blobs", type_="foreignkey")

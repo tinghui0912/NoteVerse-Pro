@@ -65,7 +65,7 @@ def add_page(session, storage, revision_id, asset_id):
         asset_uuid=asset_id,
         revision_id=revision_id,
         kind=RenderAssetKind.RENDERED_PAGE,
-        storage_backend="local",
+
         storage_key=stored.storage_key,
         filename=stored.filename,
         mime_type="image/svg+xml",
@@ -90,7 +90,7 @@ def add_audio(session, storage, revision_id):
             asset_uuid=f"audio-{revision_id}",
             revision_id=revision_id,
             kind=PlaybackAssetKind.AUDIO,
-            storage_backend="local",
+
             storage_key=stored.storage_key,
             filename=stored.filename,
             mime_type="audio/wav",

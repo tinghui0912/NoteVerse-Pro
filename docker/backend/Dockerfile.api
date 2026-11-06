@@ -27,7 +27,7 @@ RUN uv sync --project /opt/noteverse/project --locked --no-default-groups --only
 
 COPY docker/backend/entrypoint.sh /usr/local/bin/noteverse-entrypoint
 RUN chmod +x /usr/local/bin/noteverse-entrypoint \
-    && mkdir -p /app/data/storage /app/data/work
+    && mkdir -p /app/data/work
 
 COPY backend/ /app/
 RUN test ! -e /app/research

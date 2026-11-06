@@ -75,7 +75,7 @@ def revisions(score_service_session):
                 source_uuid=f"demand-source-{number}",
                 revision_id=revision.id,
                 format=RevisionSourceFormat.MUSICXML,
-                storage_backend="local",
+
                 storage_key=stored.storage_key,
                 filename=stored.filename,
                 mime_type="application/vnd.recordare.musicxml+xml",

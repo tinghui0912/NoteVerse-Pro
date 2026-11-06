@@ -83,7 +83,8 @@ from app.modules.practice.score.domain import PracticeTempoSegment
 from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.storage_usage.service import StorageUsageService
 from app.shared.constants import ErrorCode
-from app.storage.base import FileStorage
+from app.storage.base import ObjectStorage
+from app.storage.factory import object_storage
 from app.utils.timezone import utc_now_naive
 
 MAX_TAKE_MEDIA_BYTES = 100 * 1024 * 1024
@@ -160,7 +161,7 @@ def _verify_container_magic_bytes(header_bytes: bytes, mime_type: str, media_kin
     return False
 
 
-def _sha256_storage_object(storage: FileStorage, key: str) -> str:
+def _sha256_storage_object(storage: ObjectStorage, key: str) -> str:
     digest = hashlib.sha256()
     for chunk in storage.iter_bytes(key, chunk_size=1024 * 1024):
         digest.update(chunk)
@@ -184,7 +185,7 @@ class PerformanceTakeUploadService:
     def __init__(
         self,
         repository: PerformanceTakeRepository | None = None,
-        storage: FileStorage | None = None,
+        storage: ObjectStorage | None = None,
         storage_usage_service: StorageUsageService | None = None,
         score_access_policy: ScoreAccessPolicy | None = None,
         practice_bundle_service: PracticeBundleService | None = None,
@@ -195,7 +196,7 @@ class PerformanceTakeUploadService:
             storage=storage,
             score_access_policy=score_access_policy,
         )
-        self.storage = storage
+        self.storage = storage or object_storage
         self.storage_usage_service = storage_usage_service or StorageUsageService()
         self.score_access_policy = score_access_policy or ScoreAccessPolicy()
         self.practice_bundle_service = practice_bundle_service or PracticeBundleService(
@@ -219,7 +220,7 @@ class PerformanceTakeUploadService:
                 url=upload_target.upload_url,
                 method=upload_target.upload_method,
                 headers=upload_target.upload_headers,
-                expires_in=settings.S3_PRESIGN_EXPIRE_SECONDS,
+                expires_in=settings.OBJECT_STORAGE_SIGNED_URL_EXPIRE_SECONDS,
             )
             if upload_target is not None
             else None,
@@ -262,7 +263,7 @@ class PerformanceTakeUploadService:
             )
 
     def _put_url_expires_at(self, now: datetime) -> datetime:
-        return now + timedelta(seconds=settings.S3_PRESIGN_EXPIRE_SECONDS)
+        return now + timedelta(seconds=settings.OBJECT_STORAGE_SIGNED_URL_EXPIRE_SECONDS)
 
     async def _ensure_finalize_copy_lease(
         self,
@@ -426,15 +427,11 @@ class PerformanceTakeUploadService:
                 field="client_request_id",
                 details={"reason": "client_request_id_expired_use_new_id"},
             )
-        if self.storage is None:
-            raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="storage")
         upload_target = self.storage.upload_url(
             key=reservation.staging_object_key,
             content_type=manifest_from_row(reservation.manifest).snapshot.capture.mime_type,
             checksum_sha256="",
         )
-        if upload_target is None:
-            raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="upload_target")
         now = utc_now_naive()
         await self._apply(
             db,
@@ -468,8 +465,6 @@ class PerformanceTakeUploadService:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_byte_size")
         canonical_manifest_json(metadata.tempo_selection.model_dump(mode="json"))
         canonical_manifest_json(metadata.recording_timebase.model_dump(mode="json"))
-        if self.storage is None:
-            raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="storage")
         existing = await self.repository.get_reservation_by_client_request_id(
             db,
             user_id,
@@ -527,8 +522,6 @@ class PerformanceTakeUploadService:
         upload_target = self.storage.upload_url(
             key=staging_key, content_type=media.mime_type, checksum_sha256=""
         )
-        if upload_target is None:
-            raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="upload_target")
         storage_reservation = await self.storage_usage_service.reserve(
             db,
             user_id=user_id,
@@ -568,7 +561,6 @@ class PerformanceTakeUploadService:
         reservation = PerformanceTakeUploadReservation(
             user_id=user_id,
             client_request_id=request.client_request_id,
-            storage_backend=self.storage.backend_name,
             staging_object_key=staging_key,
             storage_reservation_id=storage_reservation.reservation_id,
             expires_at=now + timedelta(seconds=TAKE_UPLOAD_RESERVATION_SECONDS),
@@ -644,9 +636,6 @@ class PerformanceTakeUploadService:
                     "elapsed_ms": round((monotonic() - started_at) * 1000, 1),
                     "media_kind": manifest.snapshot.capture.kind,
                     "media_byte_size": manifest.snapshot.capture.byte_size,
-                    "storage_backend": self.storage.__class__.__name__
-                    if self.storage is not None
-                    else None,
                 },
             )
 
@@ -675,8 +664,6 @@ class PerformanceTakeUploadService:
                 details={"reason": "completed_reservation_missing_take"},
             )
 
-        if self.storage is None:
-            raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="storage")
 
         finalizing_token = str(uuid4())
         finalizing_object_key = _build_final_candidate_object_key(
@@ -709,7 +696,6 @@ class PerformanceTakeUploadService:
             ) from error
         await self._apply(db, reservation, transition, now=now)
         staging_key = reservation.staging_object_key
-        storage_backend = reservation.storage_backend
         reservation_expiry = reservation.expires_at
         await db.commit()
         log_stage("lease_acquired", started_at=finalize_started)
@@ -931,7 +917,6 @@ class PerformanceTakeUploadService:
             .first()
         )
         blob_facts = MediaBlobFacts(
-            storage_backend,
             candidate_key,
             candidate_metadata.size_bytes,
             candidate_sha256,

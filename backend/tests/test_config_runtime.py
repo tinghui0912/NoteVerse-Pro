@@ -186,7 +186,6 @@ def test_settings_compose_upload_admission_policy() -> None:
 def test_s3_storage_settings_are_validated() -> None:
     with pytest.raises(ValidationError, match="Missing required S3 storage settings"):
         Settings(
-            FILE_STORAGE_BACKEND="s3",
             S3_ENDPOINT_URL=None,
             S3_BUCKET=None,
             S3_ACCESS_KEY_ID=None,
@@ -194,14 +193,12 @@ def test_s3_storage_settings_are_validated() -> None:
         )
 
     settings = Settings(
-        FILE_STORAGE_BACKEND="s3",
         S3_ENDPOINT_URL="oss-cn-shenzhen.aliyuncs.com",
         S3_BUCKET="bucket",
         S3_ACCESS_KEY_ID="access-key",
         S3_SECRET_ACCESS_KEY="secret-key",
     )
 
-    assert settings.FILE_STORAGE_BACKEND == "s3"
     assert settings.S3_ENDPOINT_URL == "https://oss-cn-shenzhen.aliyuncs.com"
 
 

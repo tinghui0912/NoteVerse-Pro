@@ -113,7 +113,7 @@ function reservation(
     upload_target:
       status === 'RESERVED'
         ? {
-            url: '/uploads/staging.wav',
+            url: 'https://objects.example/staging.wav',
             method: 'PUT',
             headers: { 'content-type': 'audio/wav' },
             expires_in: 3600,
@@ -214,7 +214,7 @@ describe('useSavePerformanceTake', () => {
       recording_timebase: recordingTimebase,
     });
     expect(uploadMediaToSignedUrl).toHaveBeenCalledExactlyOnceWith(
-      '/uploads/staging.wav',
+      'https://objects.example/staging.wav',
       'PUT',
       { 'content-type': 'audio/wav' },
       createInput().media.blob,
@@ -241,7 +241,7 @@ describe('useSavePerformanceTake', () => {
       mime_type: 'video/mp4',
     };
     reserved.upload_target = {
-      url: '/uploads/staging.mp4',
+      url: 'https://objects.example/staging.mp4',
       method: 'PUT',
       headers: { 'content-type': 'video/mp4' },
       expires_in: 3600,
@@ -275,7 +275,7 @@ describe('useSavePerformanceTake', () => {
     );
     expect(vi.mocked(uploadMediaToSignedUrl).mock.calls[0][3]).toBe(raw);
     expect(uploadMediaToSignedUrl).toHaveBeenCalledWith(
-      '/uploads/staging.mp4',
+      'https://objects.example/staging.mp4',
       'PUT',
       { 'content-type': 'video/mp4' },
       raw,

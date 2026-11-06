@@ -45,7 +45,7 @@ def build_render_asset_record(
     *,
     asset_uuid: str,
     revision_id: int,
-    storage_backend: str,
+
     stored: StoredFile,
     mime_type: str,
     content: bytes,
@@ -58,7 +58,6 @@ def build_render_asset_record(
         asset_uuid=asset_uuid,
         revision_id=revision_id,
         kind=RenderAssetKind.RENDERED_PAGE,
-        storage_backend=storage_backend,
         storage_key=stored.storage_key,
         filename=stored.filename,
         mime_type=mime_type,

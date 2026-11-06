@@ -147,7 +147,7 @@ def check_settings(_: bool = False) -> CheckResult:
         "settings",
         True,
         (
-            f"storage={settings.FILE_STORAGE_BACKEND}; "
+            "storage=object-storage; "
             f"pipeline={task_settings.MAX_PROCESSING_TIME}s; "
             f"celery_soft={task_settings.CELERY_TASK_SOFT_TIME_LIMIT}s, "
             f"celery_hard={task_settings.CELERY_TASK_TIME_LIMIT}s"
@@ -264,9 +264,7 @@ def check_redis(_: bool = False) -> CheckResult:
 
 
 def check_api_storage(_: bool = False) -> CheckResult:
-    if settings.FILE_STORAGE_BACKEND == "local":
-        return _check_writable_directory("storage", settings.STORAGE_ROOT)
-    return _result("storage", True, "s3 storage configuration validated by settings")
+    return _result("storage", True, "object storage configuration validated by settings")
 
 
 def check_work_root(_: bool = False) -> CheckResult:

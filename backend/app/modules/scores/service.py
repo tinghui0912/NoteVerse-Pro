@@ -40,7 +40,7 @@ from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.score_access.schemas import ScoreCapabilities
 from app.modules.score_assets.render_service import RevisionRenderService
 from app.shared.constants import ErrorCode
-from app.storage import FileStorage, file_storage
+from app.storage import ObjectStorage, object_storage
 from app.utils.timezone import utc_now_naive
 
 
@@ -55,7 +55,7 @@ class ScoreService:
     def __init__(
         self,
         repository: ScoreRepository | None = None,
-        storage: FileStorage | None = None,
+        storage: ObjectStorage | None = None,
         access_policy: ScoreAccessPolicy | None = None,
         render_service: RevisionRenderService | None = None,
         asset_repository: ScoreAssetRepository | None = None,
@@ -63,7 +63,7 @@ class ScoreService:
     ) -> None:
         self.repository = repository or ScoreRepository()
         self.asset_repository = asset_repository or ScoreAssetRepository()
-        self.storage = storage or file_storage
+        self.storage = storage or object_storage
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.render_service = render_service or RevisionRenderService(
             access_policy=self.access_policy,

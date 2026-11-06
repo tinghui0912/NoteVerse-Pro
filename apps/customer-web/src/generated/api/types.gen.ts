@@ -5464,6 +5464,27 @@ export type UploadAvatarApiV1MeAvatarPostResponses = {
 
 export type UploadAvatarApiV1MeAvatarPostResponse = UploadAvatarApiV1MeAvatarPostResponses[keyof UploadAvatarApiV1MeAvatarPostResponses];
 
+export type ReadAvatarApiV1MeAvatarsFilenameGetData = {
+    body?: never;
+    path: {
+        /**
+         * Filename
+         */
+        filename: string;
+    };
+    query?: never;
+    url: '/api/v1/me/avatars/{filename}';
+};
+
+export type ReadAvatarApiV1MeAvatarsFilenameGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReadAvatarApiV1MeAvatarsFilenameGetError = ReadAvatarApiV1MeAvatarsFilenameGetErrors[keyof ReadAvatarApiV1MeAvatarsFilenameGetErrors];
+
 export type RequestMyEmailChangeApiV1MeEmailChangePostData = {
     body: RequestEmailChangeRequest;
     path?: never;

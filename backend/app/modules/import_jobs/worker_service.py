@@ -220,7 +220,6 @@ class SyncImportJobService:
             artifact = ImportArtifact(
                 job_id=job_id,
                 kind=kind,
-                storage_backend=item["storage_backend"],
                 storage_key=item["storage_key"],
                 filename=item["filename"],
                 page_number=item["page_number"],

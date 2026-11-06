@@ -191,7 +191,7 @@ copy tool breaks snapshots, copy the cache as a tar archive and extract it into
 The local Docker profile uses explicit runtime directories:
 
 ```text
-backend/data/storage   durable local file storage when FILE_STORAGE_BACKEND=local
+ObjectStorage          durable objects in the configured private namespace
 backend/data/work      worker scratch space, storage cache, and Celery beat state
 models                 mounted read-only model assets
 ```
@@ -199,7 +199,6 @@ models                 mounted read-only model assets
 Inside the containers these paths are:
 
 ```text
-/app/data/storage
 /app/data/work
 /opt/noteverse/models
 /opt/noteverse/legato
@@ -383,5 +382,5 @@ LEGATO itself.
 - The backend source is bind mounted, so code changes are visible immediately.
 - The base image should contain dependencies, not business code or model files.
 - Models are mounted read-only so application code cannot mutate them.
-- `backend/data` is bind mounted to preserve local storage and work cache across container restarts.
+- `backend/data/work` holds transient worker scratch and cache; durable objects live in ObjectStorage.
 - Use the role-aware `scripts/check_runtime.py` as the first diagnostic command after changing image, env, or model mounts.

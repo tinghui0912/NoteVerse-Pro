@@ -6,17 +6,13 @@ import re
 
 @dataclass(frozen=True)
 class MediaBlobFacts:
-    storage_backend: str
     object_key: str
     byte_size: int
     sha256: str
     content_type: str
 
     def __post_init__(self) -> None:
-        if any(
-            not isinstance(value, str) or not value.strip()
-            for value in (self.storage_backend, self.object_key)
-        ):
+        if any(not isinstance(value, str) or not value.strip() for value in (self.object_key,)):
             raise ValueError("MediaBlob requires a physical locator")
         if type(self.byte_size) is not int or self.byte_size <= 0:
             raise ValueError("MediaBlob requires positive exact bytes")

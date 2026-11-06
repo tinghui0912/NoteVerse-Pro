@@ -48,7 +48,6 @@ auth = [
 storage = [
   { include-group = "core" },
   "boto3==1.43.114",
-  "alibabacloud-oss-v2==1.4.0",
 ]
 image = [
   "Pillow==13.0.0",

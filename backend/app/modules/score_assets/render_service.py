@@ -41,7 +41,7 @@ from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.storage_usage.service import storage_usage_service
 from app.processing.engines.render import create_score_render_engine
 from app.shared.constants import ErrorCode
-from app.storage import FileStorage, file_storage
+from app.storage import ObjectStorage, object_storage
 
 
 class RevisionRenderService:
@@ -51,12 +51,12 @@ class RevisionRenderService:
         self,
         repository: ScoreAssetRepository | None = None,
         score_repository: ScoreRepository | None = None,
-        storage: FileStorage | None = None,
+        storage: ObjectStorage | None = None,
         access_policy: ScoreAccessPolicy | None = None,
     ) -> None:
         self.repository = repository or ScoreAssetRepository()
         self.score_repository = score_repository or ScoreRepository()
-        self.storage = storage or file_storage
+        self.storage = storage or object_storage
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.asset_service = ScoreAssetService(
             self.repository,
@@ -298,7 +298,6 @@ class RevisionRenderService:
                     build_render_asset_record(
                         asset_uuid=artifact_uuid,
                         revision_id=revision_id,
-                        storage_backend=self.storage.backend_name,
                         stored=stored,
                         mime_type=output["mime_type"],
                         content=content,

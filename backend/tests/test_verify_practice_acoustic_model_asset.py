@@ -39,18 +39,32 @@ def asset(verifier, monkeypatch, tmp_path):
         "MODEL_ASSET",
         MODEL_ASSET._replace(byte_size=len(data), sha256=hashlib.sha256(data).hexdigest()),
     )
-    monkeypatch.setenv("OSS_ACCESS_KEY_ID", "test-id")
-    monkeypatch.setenv("OSS_ACCESS_KEY_SECRET", "test-secret")
     body = Mock()
-    body.iter_bytes.return_value = [data[:5], data[5:]]
+    body.iter_chunks.return_value = [data[:5], data[5:]]
     client = Mock()
-    client.get_bucket_acl.return_value = SimpleNamespace(acl="private")
-    client.head_object.return_value = SimpleNamespace(content_length=len(data))
-    client.get_object.return_value = SimpleNamespace(body=body)
-    factory = Mock(return_value=client)
-    monkeypatch.setattr(verifier.oss, "Client", factory)
+    client.get_bucket_acl.return_value = {
+        "Owner": {"ID": "owner"},
+        "Grants": [{"Grantee": {"Type": "CanonicalUser", "ID": "owner"}}],
+    }
+    client.head_object.return_value = {"ContentLength": len(data)}
+    client.get_object.return_value = {"Body": body}
+    storage = SimpleNamespace(
+        client=client,
+        bucket="test-objects",
+        region="test",
+        exists=Mock(return_value=True),
+        size_bytes=Mock(return_value=len(data)),
+    )
+    factory = Mock(return_value=storage)
+    monkeypatch.setattr(verifier, "S3CompatibleObjectStorage", factory)
     return SimpleNamespace(
-        data=data, model=model, report=report, body=body, client=client, factory=factory
+        data=data,
+        model=model,
+        report=report,
+        body=body,
+        client=client,
+        factory=factory,
+        storage=storage,
     )
 
 
@@ -58,7 +72,7 @@ def test_verifier_targets_the_current_delivery_object(verifier):
     assert verifier.MODEL_ASSET is MODEL_ASSET
 
 
-def test_local_identity_failure_stops_before_oss(verifier, asset):
+def test_local_identity_failure_stops_before_object_access(verifier, asset):
     asset.model.write_bytes(b"incorrect")
 
     receipt = verifier.verify_asset(False, asset.report, asset.model)
@@ -77,14 +91,17 @@ def test_existing_private_object_is_streamed_verified_and_closed(verifier, asset
     assert receipt["remoteBytes"] == len(asset.data)
     assert receipt["remoteSha256"] == hashlib.sha256(asset.data).hexdigest()
     assert receipt["uploaded"] is False
-    assert asset.client.head_object.call_args.args[0].key == verifier.MODEL_ASSET.storage_key
-    assert asset.client.get_object.call_args.args[0].key == verifier.MODEL_ASSET.storage_key
+    asset.storage.exists.assert_called_once_with(verifier.MODEL_ASSET.storage_key)
+    asset.storage.size_bytes.assert_called_once_with(verifier.MODEL_ASSET.storage_key)
+    assert asset.client.get_object.call_args.kwargs["Key"] == verifier.MODEL_ASSET.storage_key
     asset.client.put_object.assert_not_called()
     asset.body.close.assert_called_once_with()
 
 
 def test_public_bucket_blocks_all_object_access(verifier, asset):
-    asset.client.get_bucket_acl.return_value.acl = "public-read"
+    asset.client.get_bucket_acl.return_value["Grants"] = [
+        {"Grantee": {"Type": "Group", "URI": "all-users"}}
+    ]
 
     receipt = verifier.verify_asset(True, asset.report, asset.model)
 
@@ -96,19 +113,11 @@ def test_public_bucket_blocks_all_object_access(verifier, asset):
 
 @pytest.mark.parametrize("publish", [False, True])
 def test_missing_object_requires_explicit_publish_and_forbids_overwrite(verifier, asset, publish):
-    asset.client.head_object.side_effect = verifier.oss.exceptions.ServiceError(
-        status_code=404,
-        code="NoSuchKey",
-        request_id="test-request",
-        message="missing",
-        ec=None,
-        timestamp=None,
-        request_target="https://example.invalid",
-    )
+    asset.storage.exists.return_value = False
     uploads = []
 
-    def upload(request):
-        uploads.append((request.key, request.forbid_overwrite, request.body.read()))
+    def upload(**request):
+        uploads.append((request["Key"], request["IfNoneMatch"], request["Body"].read()))
 
     asset.client.put_object.side_effect = upload
 
@@ -117,7 +126,7 @@ def test_missing_object_requires_explicit_publish_and_forbids_overwrite(verifier
     if publish:
         assert receipt["status"] == "EXACT_VALIDATED_ASSET_DELIVERY_VERIFIED"
         assert receipt["uploaded"] is True
-        assert uploads == [(verifier.MODEL_ASSET.storage_key, True, asset.data)]
+        assert uploads == [(verifier.MODEL_ASSET.storage_key, "*", asset.data)]
         asset.body.close.assert_called_once_with()
     else:
         assert receipt["failure"]["code"] == "EXACT_DELIVERY_OBJECT_NOT_PUBLISHED"
@@ -127,7 +136,7 @@ def test_missing_object_requires_explicit_publish_and_forbids_overwrite(verifier
 
 @pytest.mark.parametrize("oversized", [False, True])
 def test_remote_integrity_failure_closes_stream(verifier, asset, oversized):
-    asset.body.iter_bytes.return_value = [b"x" * (len(asset.data) + int(oversized))]
+    asset.body.iter_chunks.return_value = [b"x" * (len(asset.data) + int(oversized))]
 
     receipt = verifier.verify_asset(False, asset.report, asset.model)
 

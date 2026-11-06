@@ -47,7 +47,7 @@ def test_build_playback_asset_record_uses_rendered_audio_metadata() -> None:
         asset_uuid="asset-1",
         revision_id=17,
         asset_kind=PlaybackAssetKind.AUDIO,
-        storage_backend="local",
+
         stored=StoredFile(
             storage_key="scores/score-1/revisions/revision-1/playback/asset-1.wav",
             filename="asset-1.wav",
@@ -70,7 +70,6 @@ def test_build_playback_asset_record_uses_rendered_audio_metadata() -> None:
     assert asset.asset_uuid == "asset-1"
     assert asset.revision_id == 17
     assert asset.kind == PlaybackAssetKind.AUDIO
-    assert asset.storage_backend == "local"
     assert asset.storage_key.endswith("/asset-1.wav")
     assert asset.mime_type == "audio/wav"
     assert asset.size_bytes == 10

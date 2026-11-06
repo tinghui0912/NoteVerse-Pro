@@ -17,7 +17,7 @@ from app.modules.practice.bundle.retention import (
 from app.modules.playback.outbox_service import playback_outbox_service
 from app.modules.score_assets.render_outbox_service import render_outbox_service
 from app.modules.storage_usage.service import storage_usage_service
-from app.storage import file_storage
+from app.storage import object_storage
 from app.worker.task_runtime import run_scheduler_scan
 
 
@@ -92,7 +92,7 @@ def execute_performance_take_deletion_maintenance() -> dict[str, int]:
         try:
             with get_worker_db() as db:
                 cleaned = upload_reservation_cleanup_service.cleanup_expired_reservations(
-                    db, file_storage, storage_usage_service
+                    db, object_storage, storage_usage_service
                 )
                 db.commit()
         except Exception:

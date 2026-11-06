@@ -17,7 +17,7 @@ from app.core.security import get_password_hash
 from app.db.models import Score, ScoreRevision, ScoreRevisionSource, User
 from app.db.models.score import RevisionOrigin, RevisionSourceFormat
 from app.db.session import AsyncSessionLocal
-from app.storage import file_storage
+from app.storage import object_storage
 
 
 INTEGRATION_EMAIL = "integration@example.com"
@@ -91,12 +91,12 @@ async def seed_user() -> None:
             storage_key = (
                 f"scores/{score.score_uuid}/revisions/{revision.revision_uuid}/score.musicxml"
             )
-            if file_storage.exists(storage_key):
+            if object_storage.exists(storage_key):
                 raise RuntimeError(
                     f"Integration score object already exists at {storage_key}; "
                     "refusing to overwrite existing development OSS data."
                 )
-            stored = file_storage.put_bytes(
+            stored = object_storage.put_bytes(
                 key=storage_key,
                 content=INTEGRATION_MUSICXML,
                 content_type="application/vnd.recordare.musicxml+xml",
@@ -106,7 +106,6 @@ async def seed_user() -> None:
                     source_uuid="integration-practice-bundle",
                     revision_id=revision.id,
                     format=RevisionSourceFormat.MUSICXML,
-                    storage_backend=file_storage.backend_name,
                     storage_key=stored.storage_key,
                     filename=stored.filename,
                     mime_type="application/vnd.recordare.musicxml+xml",

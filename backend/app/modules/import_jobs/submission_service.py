@@ -11,13 +11,13 @@ from app.modules.import_jobs.schemas import ImportJobProcessingOptions, ImportJo
 from app.modules.scores.schemas import ScoreTaxonomyTagInput
 from app.modules.import_jobs.worker_service import sync_import_job_service
 from app.shared.constants import ErrorCode
-from app.storage import FileStorage, file_storage
+from app.storage import ObjectStorage, object_storage
 from app.utils.timezone import utc_now_naive
 
 
 class ImportJobSubmissionService:
-    def __init__(self, storage: FileStorage | None = None) -> None:
-        self.storage = storage or file_storage
+    def __init__(self, storage: ObjectStorage | None = None) -> None:
+        self.storage = storage or object_storage
 
     async def submit(self, current_user: User, request: ImportJobSubmitRequestLike) -> ImportJobSubmitResult:
         user_id = require_persisted_id(current_user.id, entity="user")
@@ -90,7 +90,6 @@ class ImportJobSubmissionService:
                     upload
                     and blob
                     and upload.uploader_user_id == user_id
-                    and blob.storage_backend == self.storage.backend_name
                 ):
                     continue
                 raise ResourceNotFoundException(

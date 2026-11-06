@@ -27,8 +27,9 @@ from app.modules.scores.schemas import ScoreTaxonomyTagInput
 from app.pipeline.files_recorder import _build_file_item
 from app.shared.constants import ErrorCode
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
-from app.storage import LocalFileStorage
-from app.storage.s3 import S3CompatibleStorage
+from tests.support.object_storage import InMemoryObjectStorage
+from app.storage.s3_compatible import S3CompatibleObjectStorage
+from app.storage.paths import object_work_path
 from app.utils.timezone import utc_now_naive
 
 
@@ -88,9 +89,9 @@ def test_allowed_file_accepts_supported_extensions() -> None:
     assert service.allowed_file("score") is False
 
 
-def test_local_file_storage_saves_and_materializes_blob() -> None:
+def test_object_storage_saves_and_materializes_blob() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
-        storage = LocalFileStorage(storage_root=temp_dir)
+        storage = InMemoryObjectStorage()
         stored = storage.save_blob(
             content=b"score",
             sha256="abc123",
@@ -101,14 +102,14 @@ def test_local_file_storage_saves_and_materializes_blob() -> None:
         assert stored.size_bytes == 5
         assert stored.storage_key == "blobs/ab/abc123.png"
         assert (
-            storage.materialize_to_local(stored.storage_key, storage.local_path(stored.storage_key))
-            == stored.path
+            storage.materialize_to_local(stored.storage_key, os.path.join(temp_dir, "scratch.png"))
+            == os.path.join(temp_dir, "scratch.png")
         )
 
 
-def test_local_file_storage_delete_blob_is_idempotent() -> None:
-    with tempfile.TemporaryDirectory() as temp_dir:
-        storage = LocalFileStorage(storage_root=temp_dir)
+def test_object_storage_delete_blob_is_idempotent() -> None:
+    with tempfile.TemporaryDirectory():
+        storage = InMemoryObjectStorage()
         stored = storage.save_blob(
             content=b"score",
             sha256="abc123",
@@ -119,9 +120,9 @@ def test_local_file_storage_delete_blob_is_idempotent() -> None:
         assert storage.delete(stored.storage_key) is False
 
 
-def test_local_file_storage_rejects_path_traversal_keys() -> None:
-    with tempfile.TemporaryDirectory() as temp_dir:
-        storage = LocalFileStorage(storage_root=temp_dir)
+def test_object_storage_rejects_path_traversal_keys() -> None:
+    with tempfile.TemporaryDirectory():
+        storage = InMemoryObjectStorage()
 
         with pytest.raises(ValueError):
             storage.put_bytes(key="../escape.txt", content=b"bad")
@@ -129,12 +130,12 @@ def test_local_file_storage_rejects_path_traversal_keys() -> None:
 
 def test_files_recorder_uploads_task_output_to_storage_key() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
-        storage = LocalFileStorage(storage_root=temp_dir)
+        storage = InMemoryObjectStorage()
         output_path = os.path.join(temp_dir, "preview-01.svg")
         with open(output_path, "w", encoding="utf-8") as file_handle:
             file_handle.write("<svg />")
 
-        with patch("app.pipeline.files_recorder.file_storage", storage):
+        with patch("app.pipeline.files_recorder.object_storage", storage):
             item = _build_file_item(
                 "task-1",
                 "preview_image",
@@ -142,7 +143,6 @@ def test_files_recorder_uploads_task_output_to_storage_key() -> None:
                 page=1,
             )
 
-        assert item["storage_backend"] == "local"
         assert item["storage_key"] == "jobs/task-1/preview_image/001-preview-01.svg"
         assert item["filename"] == "001-preview-01.svg"
         assert item["page_number"] == 1
@@ -153,12 +153,12 @@ def test_files_recorder_uploads_task_output_to_storage_key() -> None:
 
 def test_files_recorder_uses_file_kind_values_in_storage_keys() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
-        storage = LocalFileStorage(storage_root=temp_dir)
+        storage = InMemoryObjectStorage()
         output_path = os.path.join(temp_dir, "input.jpg")
         with open(output_path, "wb") as file_handle:
             file_handle.write(b"jpg")
 
-        with patch("app.pipeline.files_recorder.file_storage", storage):
+        with patch("app.pipeline.files_recorder.object_storage", storage):
             item = _build_file_item(
                 "task-1",
                 ImportArtifactKind.REVIEW_MUSICXML,
@@ -172,8 +172,8 @@ def test_files_recorder_uses_file_kind_values_in_storage_keys() -> None:
 
 @pytest.mark.parametrize("mode", ("RGB", "RGBA", "L"))
 def test_avatar_service_stores_processed_image_through_storage(mode: str) -> None:
-    with tempfile.TemporaryDirectory() as temp_dir:
-        storage = LocalFileStorage(storage_root=temp_dir)
+    with tempfile.TemporaryDirectory():
+        storage = InMemoryObjectStorage()
         service = AvatarService(storage=storage)
         image = Image.new(mode, (400, 100), 128 if mode == "L" else "red")
         image_bytes = io.BytesIO()
@@ -187,7 +187,7 @@ def test_avatar_service_stores_processed_image_through_storage(mode: str) -> Non
 
         assert filename.startswith("7_")
         assert filename.endswith(".jpg")
-        assert avatar_url == f"/api/v1/uploads/avatars/{filename}"
+        assert avatar_url == f"/api/v1/account/avatars/{filename}"
         with Image.open(io.BytesIO(storage.read_bytes(f"avatars/{filename}"))) as avatar:
             assert avatar.format == "JPEG"
             assert avatar.mode == "RGB"
@@ -199,8 +199,8 @@ def test_avatar_service_stores_processed_image_through_storage(mode: str) -> Non
 
 
 def test_avatar_service_detects_missing_local_avatar() -> None:
-    with tempfile.TemporaryDirectory() as temp_dir:
-        storage = LocalFileStorage(storage_root=temp_dir)
+    with tempfile.TemporaryDirectory():
+        storage = InMemoryObjectStorage()
         service = AvatarService(storage=storage)
 
         assert service.avatar_exists("missing.jpg") is False
@@ -212,19 +212,19 @@ def test_profile_payload_does_not_repair_missing_avatar_reference() -> None:
         email="user@example.com",
         display_name="User",
         password_hash="hash",
-        avatar_url="/api/v1/uploads/avatars/missing.jpg",
+        avatar_url="https://objects.example/avatars/missing.jpg",
     )
 
     payload = ProfileService().profile_payload(user)
 
-    assert payload.user.avatar_url == "/api/v1/uploads/avatars/missing.jpg"
-    assert user.avatar_url == "/api/v1/uploads/avatars/missing.jpg"
+    assert payload.user.avatar_url == "https://objects.example/avatars/missing.jpg"
+    assert user.avatar_url == "https://objects.example/avatars/missing.jpg"
 
 
 @pytest.mark.asyncio
 async def test_avatar_service_replaces_user_avatar_and_deletes_old_file() -> None:
-    with tempfile.TemporaryDirectory() as temp_dir:
-        storage = LocalFileStorage(storage_root=temp_dir)
+    with tempfile.TemporaryDirectory():
+        storage = InMemoryObjectStorage()
         service = AvatarService(storage=storage)
         old = storage.save_avatar(content=b"old", filename="old.jpg")
         user = User(
@@ -256,20 +256,20 @@ async def test_avatar_service_replaces_user_avatar_and_deletes_old_file() -> Non
 
 def test_s3_storage_saves_and_materializes_blob() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
-        storage = S3CompatibleStorage()
+        storage = S3CompatibleObjectStorage()
         storage.bucket = "bucket"
         storage.endpoint_url = "https://oss-cn-shenzhen.aliyuncs.com"
         storage.public_base_url = "https://cdn.example"
         storage._client = FakeS3Client()
 
-        with patch("app.storage.s3.settings.WORK_ROOT", temp_dir):
+        with patch("app.storage.s3_compatible.settings.WORK_ROOT", temp_dir):
             stored = storage.save_blob(
                 content=b"score",
                 sha256="abc123",
                 extension=".png",
             )
             path = storage.materialize_to_local(
-                stored.storage_key, storage.local_path(stored.storage_key)
+                stored.storage_key, os.path.join(temp_dir, "scratch.png")
             )
 
         assert stored.storage_key == "blobs/ab/abc123.png"
@@ -280,7 +280,7 @@ def test_s3_storage_saves_and_materializes_blob() -> None:
 
 
 def test_s3_storage_avatar_public_url_uses_stable_object_url() -> None:
-    storage = S3CompatibleStorage()
+    storage = S3CompatibleObjectStorage()
     storage.bucket = "sky-itcast7788"
     storage.endpoint_url = "https://oss-cn-shenzhen.aliyuncs.com"
     storage.public_base_url = None
@@ -397,15 +397,13 @@ def test_import_job_submission_serializes_taxonomy_tags_for_json_storage() -> No
 
 def test_import_job_execution_resolves_file_ids_inside_worker() -> None:
     storage = Mock()
-    storage.local_path.return_value = "C:/worker/cache/blob.png"
     storage.materialize_to_local.return_value = "C:/worker/cache/score.png"
     service = ImportJobExecutionService(storage=storage)
 
     assert service._resolve_input_paths(["blobs/ab/abc123.png"]) == ["C:/worker/cache/score.png"]
-    storage.local_path.assert_called_once_with("blobs/ab/abc123.png")
     storage.materialize_to_local.assert_called_once_with(
         "blobs/ab/abc123.png",
-        "C:/worker/cache/blob.png",
+        object_work_path("blobs/ab/abc123.png"),
     )
 
 
@@ -414,7 +412,7 @@ def test_import_job_submission_rejects_upload_owned_by_another_user() -> None:
     sync_db = Mock()
     upload = SimpleNamespace(uploader_user_id=99, blob_id=3)
     sync_db.get.return_value = SimpleNamespace(
-        storage_backend=service.storage.backend_name, storage_key="blobs/ab/abc123.png"
+         storage_key="blobs/ab/abc123.png"
     )
 
     with patch("app.db.sync_session.get_db_session", return_value=sync_db):
@@ -429,11 +427,11 @@ def test_import_job_submission_rejects_upload_owned_by_another_user() -> None:
 
 
 @pytest.mark.asyncio
-async def test_file_upload_rehomes_existing_blob_when_storage_backend_changes() -> None:
+async def test_file_upload_restores_missing_object() -> None:
     repository = Mock()
     existing_blob = SimpleNamespace(
         id=3,
-        storage_backend="local",
+
         storage_key="blobs/ab/existing.png",
         filename="existing.png",
         size_bytes=3,
@@ -441,7 +439,7 @@ async def test_file_upload_rehomes_existing_blob_when_storage_backend_changes() 
     )
     updated_blob = SimpleNamespace(
         id=3,
-        storage_backend="s3",
+
         storage_key="blobs/ba/new.png",
         filename="new.png",
         size_bytes=5,
@@ -453,7 +451,6 @@ async def test_file_upload_rehomes_existing_blob_when_storage_backend_changes() 
     repository.create_blob = AsyncMock()
     repository.create_upload = AsyncMock(return_value=upload_record)
     storage = Mock()
-    storage.backend_name = "s3"
     storage.exists.return_value = False
     storage.save_blob.return_value = SimpleNamespace(
         storage_key="blobs/ba/new.png",
@@ -480,13 +477,13 @@ async def test_file_upload_rehomes_existing_blob_when_storage_backend_changes() 
     assert result.file_id == "upload-1"
     assert result.filename == "score.png"
     assert result.size == 5
-    storage.exists.assert_not_called()
+    storage.exists.assert_called_once_with(existing_blob.storage_key)
     storage.save_blob.assert_called_once()
     repository.create_blob.assert_not_called()
     repository.update_blob_storage.assert_awaited_once_with(
         db,
         existing_blob,
-        storage_backend="s3",
+
         storage_key="blobs/ba/new.png",
         filename="new.png",
         size_bytes=5,
@@ -546,7 +543,7 @@ async def test_delete_uploaded_file_removes_owned_file_and_record() -> None:
         with open(file_path, "wb") as file_handle:
             file_handle.write(b"png")
 
-        storage = LocalFileStorage(storage_root=temp_dir)
+        storage = InMemoryObjectStorage()
         service = FilesService(repository=repository, storage=storage)
         with patch(
             "app.modules.files.service.storage_usage_service.record_release"

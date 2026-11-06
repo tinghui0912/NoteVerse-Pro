@@ -1,25 +1,13 @@
-"""Storage adapter factory."""
-
-from __future__ import annotations
+"""Deployment composition for the authoritative durable object namespace."""
 
 from functools import lru_cache
-
-from app.core.config import settings
-from app.storage.base import FileStorage
-from app.storage.local import LocalFileStorage
+from app.storage.base import ObjectStorage
+from app.storage.s3_compatible import S3CompatibleObjectStorage
 
 
 @lru_cache(maxsize=1)
-def get_file_storage() -> FileStorage:
-    """Return the configured storage adapter."""
-
-    if settings.FILE_STORAGE_BACKEND == "local":
-        return LocalFileStorage()
-    if settings.FILE_STORAGE_BACKEND == "s3":
-        from app.storage.s3 import S3CompatibleStorage
-
-        return S3CompatibleStorage()
-    raise ValueError(f"Unsupported FILE_STORAGE_BACKEND: {settings.FILE_STORAGE_BACKEND}")
+def get_object_storage() -> ObjectStorage:
+    return S3CompatibleObjectStorage()
 
 
-file_storage = get_file_storage()
+object_storage = get_object_storage()

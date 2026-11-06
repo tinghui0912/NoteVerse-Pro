@@ -12,7 +12,7 @@ from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.practice.score.piano_key import PracticeScoreInvalidError
 from app.shared.constants import ErrorCode
-from app.storage import FileStorage, file_storage
+from app.storage import ObjectStorage, object_storage
 from .compiler import PracticeBundleCompiler
 from .domain import AuthorizedPracticeBundle
 from .repository import PracticeBundleRepository
@@ -33,13 +33,13 @@ class PracticeBundleService:
         *,
         access_policy=None,
         asset_repository=None,
-        storage: FileStorage | None = None,
+        storage: ObjectStorage | None = None,
         compiler: PracticeBundleCompiler | None = None,
         repository=None,
     ):
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.asset_repository = asset_repository or ScoreAssetRepository()
-        self.storage = storage or file_storage
+        self.storage = storage or object_storage
         self.compiler = compiler or PracticeBundleCompiler()
         self.repository = repository or PracticeBundleRepository(self.storage)
 

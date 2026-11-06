@@ -28,7 +28,7 @@ from app.modules.score_assets.render_outbox_service import (
     create_revision_render_outbox_sync,
     rearm_revision_outbox as rearm_render,
 )
-from app.storage import FileStorage, file_storage
+from app.storage import ObjectStorage, object_storage
 
 
 @dataclass(frozen=True)
@@ -119,7 +119,7 @@ class RevisionDerivativeService:
         revision_id: int,
         requested_by_user_id: int,
         source_fingerprint: str,
-        storage: FileStorage,
+        storage: ObjectStorage,
     ) -> RevisionDerivativeOutboxes:
         # Caller holds the Score lock: worker claims cannot interleave with this rearm.
         work = await self.enqueue(
@@ -178,10 +178,10 @@ class RevisionDerivativeService:
         score_uuid: str,
         revision_uuid: str,
         user_id: int,
-        storage: FileStorage | None = None,
+        storage: ObjectStorage | None = None,
     ) -> None:
         try:
-            await MetadataProjectionService(storage=storage or file_storage).rebuild(
+            await MetadataProjectionService(storage=storage or object_storage).rebuild(
                 db, score_uuid, revision_uuid, user_id
             )
         except Exception:

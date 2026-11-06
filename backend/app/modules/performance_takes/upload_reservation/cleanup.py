@@ -12,7 +12,7 @@ from app.modules.performance_takes.upload_reservation.persistence import (
     lifecycle_from_row,
 )
 from app.modules.storage_usage.service import StorageUsageService
-from app.storage.base import FileStorage
+from app.storage.base import ObjectStorage
 from app.utils.timezone import utc_now_naive
 
 
@@ -20,7 +20,7 @@ class UploadReservationCleanupService:
     """Bounded recovery and reference-aware cleanup of reservation-owned objects."""
 
     def cleanup_expired_reservations(
-        self, db: Session, storage: FileStorage, storage_usage_service: StorageUsageService
+        self, db: Session, storage: ObjectStorage, storage_usage_service: StorageUsageService
     ) -> int:
         now = utc_now_naive()
         ids = list(
@@ -90,7 +90,6 @@ class UploadReservationCleanupService:
                     if db.scalar(
                         select(MediaBlob.id).where(
                             MediaBlob.object_key == candidate.key,
-                            MediaBlob.storage_backend == storage.backend_name,
                         )
                     )
                     is None
@@ -129,7 +128,6 @@ class UploadReservationCleanupService:
                     db.scalars(
                         select(MediaBlob.object_key).where(
                             MediaBlob.object_key.in_(absent),
-                            MediaBlob.storage_backend == storage.backend_name,
                         )
                     )
                 )

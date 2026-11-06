@@ -20,7 +20,7 @@ from app.processing.musicxml import (
     extract_musicxml_metadata,
 )
 from app.shared.constants import ErrorCode
-from app.storage import FileStorage, file_storage
+from app.storage import ObjectStorage, object_storage
 from app.utils.timezone import utc_now_naive
 
 
@@ -29,12 +29,12 @@ class MetadataProjectionService:
         self,
         score_repository: ScoreRepository | None = None,
         asset_repository: ScoreAssetRepository | None = None,
-        storage: FileStorage | None = None,
+        storage: ObjectStorage | None = None,
         access_policy: ScoreAccessPolicy | None = None,
     ) -> None:
         self.score_repository = score_repository or ScoreRepository()
         self.asset_repository = asset_repository or ScoreAssetRepository()
-        self.storage = storage or file_storage
+        self.storage = storage or object_storage
         self.access_policy = access_policy or ScoreAccessPolicy()
 
     async def get(
@@ -171,9 +171,9 @@ class MetadataProjectionService:
 def rebuild_metadata_sync(
     db: Session,
     revision_id: int,
-    storage: FileStorage | None = None,
+    storage: ObjectStorage | None = None,
 ) -> None:
-    storage = storage or file_storage
+    storage = storage or object_storage
     projection = db.get(ScoreRevisionMetadata, revision_id)
     if not projection:
         projection = ScoreRevisionMetadata(

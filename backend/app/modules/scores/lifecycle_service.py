@@ -30,7 +30,7 @@ from app.modules.scores.cleanup_records import StorageUsageReleaseRecord
 from app.modules.scores.deletion_failure_policy import ScoreDeletionFailurePolicy
 from app.modules.scores.repository import ScoreRepository
 from app.modules.storage_usage.service import storage_usage_service
-from app.storage import FileStorage, file_storage
+from app.storage import ObjectStorage, object_storage
 from app.utils.timezone import utc_now_naive
 
 
@@ -46,12 +46,12 @@ class ScoreLifecycleService:
     def __init__(
         self,
         repository: ScoreRepository | None = None,
-        storage: FileStorage | None = None,
+        storage: ObjectStorage | None = None,
         access_policy: ScoreAccessPolicy | None = None,
         deletion_failure_policy: ScoreDeletionFailurePolicy | None = None,
     ) -> None:
         self.repository = repository or ScoreRepository()
-        self.storage = storage or file_storage
+        self.storage = storage or object_storage
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.deletion_failure_policy = deletion_failure_policy or ScoreDeletionFailurePolicy()
 

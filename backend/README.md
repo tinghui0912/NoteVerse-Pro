@@ -136,9 +136,8 @@ Practice performance replay saves use browser-to-object-storage direct upload.
 The backend returns a presigned `PUT` URL plus the required upload headers, then
 finalizes the durable replay artifact only after the object already exists.
 
-When `FILE_STORAGE_BACKEND=s3` points to Aliyun OSS or another S3-compatible
-bucket, configure bucket CORS for each Customer Web origin that can save
-replays. Local development with Customer Web on `http://localhost:3000` needs a
+The concrete adapter uses the deployment S3-compatible namespace. Configure
+bucket CORS for each Customer Web origin that can save replays. Local development with Customer Web on `http://localhost:3000` needs a
 rule equivalent to:
 
 ```json
@@ -220,3 +219,5 @@ It runs the same baseline checks for pushes and pull requests that touch
 - [Backend engineering principles](docs/backend_engineering_principles.md)
 - [Repository quality checks](../docs/engineering/guides/repository-quality-checks.md)
 - [Docker backend runtime runbook](../docs/operations/runbooks/docker-backend-runtime-runbook.md)
+
+Durable object ownership and development configuration are described in [ObjectStorage](../docs/architecture/object-storage.md).

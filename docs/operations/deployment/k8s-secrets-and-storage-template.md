@@ -153,13 +153,13 @@ noteverse-app-assets-staging
 
 Required backend config keys:
 
-- `FILE_STORAGE_BACKEND=s3`
+- One configured ObjectStorage namespace
 - `S3_ENDPOINT_URL`
 - `S3_REGION`
 - `S3_BUCKET`
 - `S3_PUBLIC_BASE_URL`
 - `S3_FORCE_PATH_STYLE`
-- `S3_PRESIGN_EXPIRE_SECONDS`
+- `OBJECT_STORAGE_SIGNED_URL_EXPIRE_SECONDS`
 
 Credential keys live in `Secret/noteverse-backend-secret`:
 

@@ -13,7 +13,7 @@ class FilesRepository:
         db: AsyncSession,
         *,
         sha256: str,
-        storage_backend: str,
+
         storage_key: str,
         filename: str,
         size_bytes: int,
@@ -21,7 +21,6 @@ class FilesRepository:
     ) -> StorageBlob:
         blob = StorageBlob(
             sha256=sha256,
-            storage_backend=storage_backend,
             storage_key=storage_key,
             filename=filename,
             size_bytes=size_bytes,
@@ -36,13 +35,12 @@ class FilesRepository:
         db: AsyncSession,
         blob: StorageBlob,
         *,
-        storage_backend: str,
+
         storage_key: str,
         filename: str,
         size_bytes: int,
         mime_type: str,
     ) -> StorageBlob:
-        blob.storage_backend = storage_backend
         blob.storage_key = storage_key
         blob.filename = filename
         blob.size_bytes = size_bytes

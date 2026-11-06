@@ -146,7 +146,7 @@ Verify:
 - object storage bucket exists;
 - `Secret/noteverse-registry-credentials` exists and can pull private images;
 - object storage credentials are scoped to the intended bucket;
-- `FILE_STORAGE_BACKEND=s3` has all required S3 settings;
+- The configured object-store adapter has all required endpoint, bucket and credential settings;
 - nodes that run worker pods are labeled `noteverse.io/model-cache=enabled`;
 - node-local model cache is read-only in application pods;
 - Legato source is built into the backend runtime image;

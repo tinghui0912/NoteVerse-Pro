@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import os
 from collections.abc import Iterator
 
 import pytest
@@ -43,7 +42,7 @@ from app.modules.scores.service import ScoreService
 from app.modules.storage_usage.service import storage_usage_service
 from app.shared.constants import ErrorCode
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
-from app.storage import LocalFileStorage
+from tests.support.object_storage import InMemoryObjectStorage
 from app.utils.timezone import utc_now_naive
 
 
@@ -105,7 +104,7 @@ class AsyncSessionAdapter:
 
 
 @pytest.fixture
-def storage_usage_session(tmp_path) -> Iterator[tuple[Session, LocalFileStorage]]:
+def storage_usage_session(tmp_path) -> Iterator[tuple[Session, InMemoryObjectStorage]]:
     engine = create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
@@ -120,7 +119,7 @@ def storage_usage_session(tmp_path) -> Iterator[tuple[Session, LocalFileStorage]
         cursor.close()
 
     SQLModel.metadata.create_all(engine)
-    storage = LocalFileStorage(storage_root=str(tmp_path / "storage"))
+    storage = InMemoryObjectStorage()
     with Session(engine) as session:
         session.add(
             User(
@@ -159,7 +158,7 @@ def _set_quota(session: Session, limit_bytes: int) -> None:
 
 def _seed_score_with_source(
     session: Session,
-    storage: LocalFileStorage,
+    storage: InMemoryObjectStorage,
     *,
     owner_user_id: int = 1,
     content: str = MUSICXML_BASE,
@@ -200,7 +199,7 @@ def _seed_score_with_source(
         source_uuid="source-storage-test-1",
         revision_id=revision_id,
         format=RevisionSourceFormat.MUSICXML,
-        storage_backend=storage.backend_name,
+
         storage_key=stored.storage_key,
         filename=stored.filename,
         mime_type="application/vnd.recordare.musicxml+xml",
@@ -222,7 +221,7 @@ def _count(session: Session, model: type) -> int:
 
 
 def test_storage_usage_reservation_blocks_when_quota_would_be_exceeded(
-    storage_usage_session: tuple[Session, LocalFileStorage],
+    storage_usage_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = storage_usage_session
     _set_quota(session, 8)
@@ -273,7 +272,7 @@ def test_storage_usage_requires_seeded_default_policy() -> None:
 
 def test_storage_usage_api_returns_quota_and_breakdown(
     client: TestClient,
-    storage_usage_session: tuple[Session, LocalFileStorage],
+    storage_usage_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = storage_usage_session
     storage_usage_service.record_allocation_sync(
@@ -333,7 +332,7 @@ def test_storage_usage_api_returns_quota_and_breakdown(
 
 
 def test_storage_usage_commit_and_release_updates_account_and_counter(
-    storage_usage_session: tuple[Session, LocalFileStorage],
+    storage_usage_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = storage_usage_session
 
@@ -390,7 +389,7 @@ def test_storage_usage_commit_and_release_updates_account_and_counter(
 
 @pytest.mark.asyncio
 async def test_file_upload_quota_exceeded_does_not_store_file(
-    storage_usage_session: tuple[Session, LocalFileStorage],
+    storage_usage_session: tuple[Session, InMemoryObjectStorage],
     tmp_path,
 ) -> None:
     session, storage = storage_usage_session
@@ -415,13 +414,12 @@ async def test_file_upload_quota_exceeded_does_not_store_file(
     assert exc_info.value.code == ErrorCode.STORAGE_QUOTA_EXCEEDED
     session.rollback()
     assert _count(session, Upload) == 0
-    storage_root = tmp_path / "storage"
-    assert not storage_root.exists() or not any(storage_root.rglob("*"))
+    assert not storage.objects
 
 
 def test_file_upload_api_returns_storage_quota_error_without_storing_file(
     client: TestClient,
-    storage_usage_session: tuple[Session, LocalFileStorage],
+    storage_usage_session: tuple[Session, InMemoryObjectStorage],
     tmp_path,
 ) -> None:
     session, storage = storage_usage_session
@@ -455,13 +453,12 @@ def test_file_upload_api_returns_storage_quota_error_without_storing_file(
     assert "internal_details" not in payload
     session.rollback()
     assert _count(session, Upload) == 0
-    storage_root = tmp_path / "storage"
-    assert not storage_root.exists() or not any(storage_root.rglob("*"))
+    assert not storage.objects
 
 
 def test_file_upload_api_hides_storage_key(
     client: TestClient,
-    storage_usage_session: tuple[Session, LocalFileStorage],
+    storage_usage_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = storage_usage_session
     _set_quota(session, 1024)
@@ -502,7 +499,7 @@ async def _async_bytes(content: bytes) -> bytes:
 
 @pytest.mark.asyncio
 async def test_revision_create_quota_exceeded_does_not_create_revision_or_source(
-    storage_usage_session: tuple[Session, LocalFileStorage],
+    storage_usage_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = storage_usage_session
     _seed_score_with_source(session, storage)
@@ -532,7 +529,7 @@ async def test_revision_create_quota_exceeded_does_not_create_revision_or_source
 
 @pytest.mark.asyncio
 async def test_score_delete_releases_source_usage_and_storage_object(
-    storage_usage_session: tuple[Session, LocalFileStorage],
+    storage_usage_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = storage_usage_session
     score, _revision, source = _seed_score_with_source(session, storage)
@@ -576,7 +573,7 @@ async def test_score_delete_releases_source_usage_and_storage_object(
 
 
 def test_score_deletion_cleanup_records_retry_state_on_failure(
-    storage_usage_session: tuple[Session, LocalFileStorage],
+    storage_usage_session: tuple[Session, InMemoryObjectStorage],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     session, storage = storage_usage_session
@@ -611,7 +608,7 @@ def test_score_deletion_cleanup_records_retry_state_on_failure(
 
 @pytest.mark.asyncio
 async def test_score_delete_cleans_single_origin_import_job_storage(
-    storage_usage_session: tuple[Session, LocalFileStorage],
+    storage_usage_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = storage_usage_session
     score, _revision, source = _seed_score_with_source(session, storage)
@@ -643,7 +640,7 @@ async def test_score_delete_cleans_single_origin_import_job_storage(
             id=1302,
             blob_uuid="origin-upload-blob",
             sha256="origin-upload-sha",
-            storage_backend=storage.backend_name,
+
             storage_key=upload.storage_key,
             filename=upload.filename,
             size_bytes=upload.size_bytes,
@@ -665,7 +662,7 @@ async def test_score_delete_cleans_single_origin_import_job_storage(
             artifact_uuid="origin-review-source",
             job_id=1201,
             kind=ImportArtifactKind.REVIEW_MUSICXML.value,
-            storage_backend=storage.backend_name,
+
             storage_key=review_source.storage_key,
             filename=review_source.filename,
             mime_type="application/vnd.recordare.musicxml+xml",
@@ -730,7 +727,7 @@ async def test_score_delete_cleans_single_origin_import_job_storage(
 
 @pytest.mark.asyncio
 async def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
-    storage_usage_session: tuple[Session, LocalFileStorage],
+    storage_usage_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = storage_usage_session
     job_uuid = "job-delete-owned-storage"
@@ -762,7 +759,7 @@ async def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
             id=1303,
             blob_uuid="delete-owned-upload-blob",
             sha256="delete-owned-upload-sha",
-            storage_backend=storage.backend_name,
+
             storage_key=upload.storage_key,
             filename=upload.filename,
             size_bytes=upload.size_bytes,
@@ -782,7 +779,7 @@ async def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
             artifact_uuid="delete-owned-review-source",
             job_id=1001,
             kind=ImportArtifactKind.REVIEW_MUSICXML.value,
-            storage_backend=storage.backend_name,
+
             storage_key=review_source.storage_key,
             filename=review_source.filename,
             mime_type="application/vnd.recordare.musicxml+xml",
@@ -794,7 +791,7 @@ async def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
             artifact_uuid="delete-owned-thumbnail",
             job_id=1001,
             kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
-            storage_backend=storage.backend_name,
+
             storage_key=thumbnail.storage_key,
             filename=thumbnail.filename,
             mime_type="image/png",
@@ -829,7 +826,7 @@ async def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
     assert not storage.exists(upload.storage_key)
     assert not storage.exists(review_source.storage_key)
     assert not storage.exists(thumbnail.storage_key)
-    assert not os.path.exists(storage.local_path(f"jobs/{job_uuid}"))
+    assert not any(key.startswith(f"jobs/{job_uuid}/") for key in storage.objects)
     account = session.get(StorageUsageAccount, 1)
     assert account is not None
     assert account.used_bytes == 0
@@ -845,7 +842,7 @@ async def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
 
 @pytest.mark.asyncio
 async def test_import_job_delete_keeps_shared_upload_usage_and_storage(
-    storage_usage_session: tuple[Session, LocalFileStorage],
+    storage_usage_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = storage_usage_session
     upload = storage.put_bytes(
@@ -873,7 +870,7 @@ async def test_import_job_delete_keeps_shared_upload_usage_and_storage(
                 id=1304,
                 blob_uuid="shared-upload-blob",
                 sha256="shared-upload-sha",
-                storage_backend=storage.backend_name,
+
                 storage_key=upload.storage_key,
                 filename=upload.filename,
                 size_bytes=upload.size_bytes,

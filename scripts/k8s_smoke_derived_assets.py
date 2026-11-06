@@ -125,7 +125,7 @@ from app.modules.metadata.service import rebuild_metadata_sync
 from app.modules.storage_usage.service import storage_usage_service
 from app.shared.playback_dispatcher import dispatch_playback_outbox
 from app.shared.render_dispatcher import dispatch_render_outbox
-from app.storage import file_storage
+from app.storage import object_storage
 from app.utils.timezone import utc_now_naive
 
 email = {email!r}
@@ -169,7 +169,7 @@ with SessionLocal() as db:
         reason="k8s_smoke_revision_source",
         object_type="score_revision_source",
     )
-    stored = file_storage.put_bytes(
+    stored = object_storage.put_bytes(
         key=storage_key,
         content=musicxml,
         content_type="application/vnd.recordare.musicxml+xml",
@@ -202,7 +202,6 @@ with SessionLocal() as db:
             source_uuid=source_uuid,
             revision_id=revision_id,
             format=RevisionSourceFormat.MUSICXML,
-            storage_backend=file_storage.backend_name,
             storage_key=stored.storage_key,
             filename=stored.filename,
             mime_type="application/vnd.recordare.musicxml+xml",
@@ -248,7 +247,7 @@ with SessionLocal() as db:
             storage_key=stored.storage_key,
         )
         try:
-            rebuild_metadata_sync(db, revision_id, file_storage)
+            rebuild_metadata_sync(db, revision_id, object_storage)
         except Exception:
             db.rollback()
         dispatch_render_outbox(render_outbox.outbox_uuid)
@@ -261,7 +260,7 @@ with SessionLocal() as db:
         }}))
     except Exception:
         db.rollback()
-        file_storage.delete(stored.storage_key)
+        object_storage.delete(stored.storage_key)
         storage_usage_service.release_reservation_sync(db, reservation.reservation_id)
         raise
 """

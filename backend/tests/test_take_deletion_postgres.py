@@ -93,7 +93,7 @@ async def test_worker_completion_locks_outbox_and_take_separately_and_preserves_
             yield db
 
     monkeypatch.setattr(worker, "get_worker_db", transaction)
-    monkeypatch.setattr(worker, "file_storage", storage)
+    monkeypatch.setattr(worker, "object_storage", storage)
     monkeypatch.setattr(worker, "start_attempt_trace", lambda **kwargs: nullcontext())
     delete = storage.delete
     concurrent_results = []

@@ -343,7 +343,7 @@ class ScoreRevisionSource(SQLModel, table=True):  # type: ignore[call-arg]
     format: RevisionSourceFormat = Field(
         sa_column=Column(SAEnum(RevisionSourceFormat, name="revisionsourceformat"), nullable=False)
     )
-    storage_backend: str = Field(sa_column=Column(String(32), nullable=False))
+
     storage_key: str = Field(sa_column=Column(String(768), nullable=False))
     filename: str = Field(sa_column=Column(String(255), nullable=False))
     mime_type: str = Field(sa_column=Column(String(128), nullable=False))
@@ -390,7 +390,7 @@ class ScoreRenderAsset(SQLModel, table=True):  # type: ignore[call-arg]
     kind: RenderAssetKind = Field(
         sa_column=Column(SAEnum(RenderAssetKind, name="renderassetkind"), nullable=False)
     )
-    storage_backend: str = Field(sa_column=Column(String(32), nullable=False))
+
     storage_key: str = Field(sa_column=Column(String(768), nullable=False))
     filename: str = Field(sa_column=Column(String(255), nullable=False))
     mime_type: str = Field(sa_column=Column(String(128), nullable=False))

@@ -36,7 +36,6 @@ def upgrade() -> None:
         sa.Column("id", sa.BigInteger(), nullable=False),
         sa.Column("outbox_uuid", sa.String(length=36), nullable=False),
         sa.Column("artifact_uuid", sa.String(length=36), nullable=False),
-        sa.Column("storage_backend", sa.String(length=64), nullable=False),
         sa.Column("object_key", sa.String(length=768), nullable=False),
         sa.Column("status", deletion_status_enum, nullable=False),
         sa.Column("attempt_count", sa.Integer(), nullable=False),

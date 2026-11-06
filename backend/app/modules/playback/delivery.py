@@ -13,7 +13,7 @@ from app.db.models import (
 )
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.shared.constants import ErrorCode
-from app.storage import FileStorage, file_storage
+from app.storage import ObjectStorage, object_storage
 
 
 @dataclass(frozen=True)
@@ -27,7 +27,7 @@ class PlaybackDeliveryReadModel:
     def __init__(
         self,
         *,
-        storage: FileStorage,
+        storage: ObjectStorage,
         access_policy: ScoreAccessPolicy,
     ) -> None:
         self.storage = storage
@@ -78,11 +78,11 @@ class PlaybackDeliveryService:
 
     def __init__(
         self,
-        storage: FileStorage | None = None,
+        storage: ObjectStorage | None = None,
         access_policy: ScoreAccessPolicy | None = None,
         delivery_read_model: PlaybackDeliveryReadModel | None = None,
     ) -> None:
-        self.storage = storage or file_storage
+        self.storage = storage or object_storage
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.delivery_read_model = delivery_read_model or PlaybackDeliveryReadModel(
             storage=self.storage,

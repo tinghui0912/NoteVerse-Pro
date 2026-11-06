@@ -1,17 +1,13 @@
 """Storage adapters for uploaded and generated files."""
 
-from .base import DirectUploadTarget, FileStorage, StoredFile, StoredObjectMetadata
-from .factory import file_storage, get_file_storage
-from .local import (
-    LocalFileStorage,
-)
+from .base import DirectUploadTarget, ObjectStorage, StoredFile, StoredObjectMetadata
+from .factory import object_storage, get_object_storage
 
 __all__ = [
-    "FileStorage",
+    "ObjectStorage",
     "DirectUploadTarget",
-    "LocalFileStorage",
     "StoredFile",
     "StoredObjectMetadata",
-    "file_storage",
-    "get_file_storage",
+    "object_storage",
+    "get_object_storage",
 ]

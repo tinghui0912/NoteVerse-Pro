@@ -32,7 +32,7 @@ from app.processing.engines.playback import FluidSynthAudioRenderer
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.storage_usage.service import storage_usage_service
 from app.shared.constants import ErrorCode
-from app.storage import FileStorage, file_storage
+from app.storage import ObjectStorage, object_storage
 
 
 class PlaybackGenerationService:
@@ -40,11 +40,11 @@ class PlaybackGenerationService:
 
     def __init__(
         self,
-        storage: FileStorage | None = None,
+        storage: ObjectStorage | None = None,
         renderer: FluidSynthAudioRenderer | None = None,
         asset_repository: ScoreAssetRepository | None = None,
     ) -> None:
-        self.storage = storage or file_storage
+        self.storage = storage or object_storage
         self.renderer = renderer or FluidSynthAudioRenderer()
         self.asset_repository = asset_repository or ScoreAssetRepository()
 
@@ -123,7 +123,6 @@ class PlaybackGenerationService:
                 asset_uuid=asset_uuid,
                 revision_id=revision_id,
                 asset_kind=asset_kind,
-                storage_backend=self.storage.backend_name,
                 stored=stored,
                 audio=audio,
                 execution_manifest_id=execution_manifest_id,
@@ -264,7 +263,6 @@ class PlaybackGenerationService:
                 asset_uuid=asset_uuid,
                 revision_id=revision_id,
                 asset_kind=asset_kind,
-                storage_backend=self.storage.backend_name,
                 stored=stored,
                 audio=audio,
                 execution_manifest_id=execution_manifest_id,

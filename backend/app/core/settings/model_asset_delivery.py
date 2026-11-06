@@ -6,8 +6,6 @@ from pydantic import BaseModel, field_validator
 class ModelAssetDeliverySettings(BaseModel):
     """Configuration for private object storage model asset delivery."""
 
-    ALIYUN_OSS_MODEL_BUCKET: str = "noteverse-model-assets"
-    ALIYUN_OSS_MODEL_REGION: str = "cn-shenzhen"
     MODEL_ASSET_SIGNED_GET_TTL_SECONDS: int = 3600
 
     @field_validator("MODEL_ASSET_SIGNED_GET_TTL_SECONDS")

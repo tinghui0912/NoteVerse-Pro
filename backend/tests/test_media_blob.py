@@ -9,7 +9,7 @@ from tests.test_take_manifest import value as manifest_value
 
 
 def facts():
-    return MediaBlobFacts("local", "private/candidate.webm", 42, "ab" * 32, "audio/webm")
+    return MediaBlobFacts("private/candidate.webm", 42, "ab" * 32, "audio/webm")
 
 
 def test_exact_blob_facts_round_trip_and_immutable_value():
@@ -23,8 +23,8 @@ def test_exact_blob_facts_round_trip_and_immutable_value():
 @pytest.mark.parametrize(
     "field,bad",
     [
-        ("storage_backend", ""),
-        ("storage_backend", " "),
+
+
         ("object_key", ""),
         ("byte_size", 0),
         ("byte_size", -1),
@@ -64,7 +64,7 @@ def test_physical_schema_and_dependency_ownership():
     blob, take = MediaBlob.__table__, PerformanceTake.__table__
     assert set(blob.columns.keys()) == {
         "id",
-        "storage_backend",
+
         "object_key",
         "byte_size",
         "sha256",
@@ -89,7 +89,7 @@ def test_physical_schema_and_dependency_ownership():
     )
     assert any(
         isinstance(c, UniqueConstraint)
-        and [column.name for column in c.columns] == ["storage_backend", "object_key"]
+        and [column.name for column in c.columns] == [ "object_key"]
         for c in blob.constraints
     )
     root = Path(__file__).parents[1] / "app/modules/media"

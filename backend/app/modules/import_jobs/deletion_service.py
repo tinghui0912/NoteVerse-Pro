@@ -17,7 +17,7 @@ from app.db.models import (
 )
 from app.db.model_utils import require_persisted_id
 from app.modules.storage_usage.service import storage_usage_service
-from app.storage import FileStorage, file_storage
+from app.storage import ObjectStorage, object_storage
 
 
 @dataclass(frozen=True)
@@ -34,8 +34,8 @@ class StoredObjectCleanup:
 class ImportJobDeletionService:
     """Delete import-job rows and their owned temporary storage artifacts."""
 
-    def __init__(self, storage: FileStorage | None = None) -> None:
-        self.storage = storage or file_storage
+    def __init__(self, storage: ObjectStorage | None = None) -> None:
+        self.storage = storage or object_storage
 
     async def delete_job(self, db: AsyncSession, job: ImportJob, user_id: int) -> None:
         job_id = require_persisted_id(job.id, entity="import job")

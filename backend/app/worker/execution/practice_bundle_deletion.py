@@ -15,7 +15,7 @@ from app.db.sync_session import get_worker_db
 from app.modules.practice.bundle.retention import (
     practice_bundle_delete_service,
 )
-from app.storage import file_storage
+from app.storage import object_storage
 from app.worker.task_runtime import (
     bind_task_context,
     clear_task_context,
@@ -54,7 +54,6 @@ def execute_practice_bundle_deletion_task(
             "operation_kind": "practice_bundle_deletion",
             "outbox_id": outbox_uuid,
             "bundle_id": payload.bundle_id,
-            "storage_backend": payload.storage_backend,
             "attempt": payload.attempt,
             "max_attempts": payload.max_attempts,
         }
@@ -87,13 +86,11 @@ def execute_practice_bundle_deletion_task(
                     or practice_bundle_delete_service.has_owner(db, bundle)
                 ):
                     raise RuntimeError("Practice bundle deletion ownership invariant violated")
-                if payload.storage_backend != file_storage.backend_name:
-                    raise RuntimeError("Practice bundle deletion storage backend mismatch")
                 # The bundle/outbox locks fence ownership and attempt replacement across exact object deletion.
                 for key in (payload.prepared_musicxml_object_key, payload.artifact_object_key):
-                    if file_storage.exists(key):
-                        file_storage.delete(key)
-                    if file_storage.exists(key):
+                    if object_storage.exists(key):
+                        object_storage.delete(key)
+                    if object_storage.exists(key):
                         raise RuntimeError("Practice bundle object remains after deletion")
                 if bundle is not None:
                     if practice_bundle_delete_service.has_owner(db, bundle):

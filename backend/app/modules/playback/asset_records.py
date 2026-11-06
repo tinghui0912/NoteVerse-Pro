@@ -40,7 +40,7 @@ def build_playback_asset_record(
     asset_uuid: str,
     revision_id: int,
     asset_kind: PlaybackAssetKind,
-    storage_backend: str,
+
     stored: StoredFile,
     audio: RenderedAudio,
     execution_manifest_id: int,
@@ -50,7 +50,6 @@ def build_playback_asset_record(
         asset_uuid=asset_uuid,
         revision_id=revision_id,
         kind=asset_kind,
-        storage_backend=storage_backend,
         storage_key=stored.storage_key,
         filename=stored.filename,
         mime_type=audio.mime_type,

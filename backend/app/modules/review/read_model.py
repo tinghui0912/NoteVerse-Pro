@@ -20,11 +20,11 @@ from app.modules.review.schemas import (
     ReviewMusicXmlRead,
 )
 from app.shared.constants import ErrorCode
-from app.storage import FileStorage
+from app.storage import ObjectStorage
 
 
 class ReviewReadModel:
-    def __init__(self, storage: FileStorage) -> None:
+    def __init__(self, storage: ObjectStorage) -> None:
         self.storage = storage
 
     async def detail(

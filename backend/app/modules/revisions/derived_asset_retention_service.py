@@ -19,7 +19,7 @@ from app.db.models import (
 )
 from app.db.models.score import RenderAssetKind
 from app.modules.storage_usage.service import storage_usage_service
-from app.storage import FileStorage, file_storage
+from app.storage import ObjectStorage, object_storage
 from app.utils.timezone import utc_now_naive
 
 
@@ -40,8 +40,8 @@ class DerivedAssetRetentionResult:
 
 
 class DerivedAssetRetentionService:
-    def __init__(self, storage: FileStorage | None = None) -> None:
-        self.storage = storage or file_storage
+    def __init__(self, storage: ObjectStorage | None = None) -> None:
+        self.storage = storage or object_storage
 
     async def cleanup_for_score_best_effort(
         self,

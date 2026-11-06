@@ -93,9 +93,8 @@ from app.modules.scores.service import ScoreService
 from app.modules.storage_usage.dependencies import get_storage_usage_service
 from app.modules.storage_usage.service import StorageUsageService
 from app.shared.error_codes import ErrorCode
-from app.storage.base import DirectUploadTarget
-from app.storage.factory import get_file_storage
-from app.storage.local import LocalFileStorage
+from app.storage.factory import get_object_storage
+from tests.support.object_storage import InMemoryObjectStorage
 from app.worker.execution import performance_take_deletion, practice_bundle_deletion
 
 VALID_WEBM_BYTES = b"\x1a\x45\xdf\xa3" + b"fake-webm-audio-binary-data-12345"
@@ -166,7 +165,7 @@ DEFAULT_TAKE_ARTIFACT_ID = _bundle_artifact_payload("", "", "")["artifactId"]
 def _performance_take_service(
     *,
     session: Session,
-    storage: LocalFileStorage,
+    storage: InMemoryObjectStorage,
     storage_usage_service: StorageUsageService | None = None,
 ) -> PerformanceTakeUploadService:
     if session.get(ScoreRevisionPracticeBinding, 100) is None:
@@ -180,7 +179,7 @@ def _performance_take_service(
 
 def _create_default_bundle(
     session: Session,
-    storage: LocalFileStorage,
+    storage: InMemoryObjectStorage,
     *,
     practice_score_uuid: str = "score-uuid-10",
     practice_revision_uuid: str = DEFAULT_TAKE_REVISION_ID,
@@ -283,7 +282,7 @@ def _create_default_take(
         ),
         user_id=user_id,
         client_request_id=client_request_id,
-        storage_backend="local",
+
         staging_object_key=media_object_key + ".staging",
         storage_reservation_id="quota-" + take_uuid,
         expires_at=datetime.now(timezone.utc).replace(tzinfo=None),
@@ -307,7 +306,7 @@ def _create_default_take(
         linked_score_id=linked_score_id,
         deletion_status=PerformanceTakeDeletionStatus.ACTIVE,
         media_blob=MediaBlob(
-            storage_backend="local",
+
             object_key=media_object_key,
             byte_size=len(VALID_WEBM_BYTES),
             sha256=hashlib.sha256(VALID_WEBM_BYTES).hexdigest(),
@@ -404,7 +403,7 @@ def _create_take_delete_outbox(
         take_id=take.id,
         take_uuid=take.manifest.take_uuid,
         user_id=take.manifest.user_id,
-        storage_backend=take.media_blob.storage_backend,
+
         object_key=take.media_blob.object_key,
         media_byte_size=take.media_blob.byte_size,
         status=PerformanceTakeDeleteOutboxStatus.PENDING.value,
@@ -560,13 +559,13 @@ class _TraceScope:
 def _run_worker_deletion(
     monkeypatch: pytest.MonkeyPatch,
     session: Session,
-    storage: LocalFileStorage,
+    storage: InMemoryObjectStorage,
     outbox_uuid: str,
 ) -> dict[str, str]:
     monkeypatch.setattr(
         performance_take_deletion, "get_worker_db", lambda: _mock_worker_db(session)
     )
-    monkeypatch.setattr(performance_take_deletion, "file_storage", storage)
+    monkeypatch.setattr(performance_take_deletion, "object_storage", storage)
     monkeypatch.setattr(
         performance_take_deletion, "start_attempt_trace", lambda **_kwargs: _TraceScope()
     )
@@ -576,7 +575,7 @@ def _run_worker_deletion(
 def _run_bundle_deletion(
     monkeypatch: pytest.MonkeyPatch,
     session: Session,
-    storage: LocalFileStorage,
+    storage: InMemoryObjectStorage,
     outbox_uuid: str,
 ) -> dict[str, str]:
     monkeypatch.setattr(
@@ -584,7 +583,7 @@ def _run_bundle_deletion(
         "get_worker_db",
         lambda: _mock_worker_db(session),
     )
-    monkeypatch.setattr(practice_bundle_deletion, "file_storage", storage)
+    monkeypatch.setattr(practice_bundle_deletion, "object_storage", storage)
     monkeypatch.setattr(
         practice_bundle_deletion,
         "start_attempt_trace",
@@ -594,7 +593,7 @@ def _run_bundle_deletion(
 
 
 @pytest.fixture
-def test_env(tmp_path) -> Iterator[tuple[Session, LocalFileStorage, User, User]]:
+def test_env(tmp_path) -> Iterator[tuple[Session, InMemoryObjectStorage, User, User]]:
     engine = create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
@@ -609,19 +608,7 @@ def test_env(tmp_path) -> Iterator[tuple[Session, LocalFileStorage, User, User]]
         cursor.close()
 
     SQLModel.metadata.create_all(engine)
-    storage = LocalFileStorage(storage_root=str(tmp_path / "storage"))
-
-    # Enable mock OSS direct upload target on storage
-    def mock_upload_url(
-        key: str, *, content_type: str, checksum_sha256: str = ""
-    ) -> DirectUploadTarget:
-        return DirectUploadTarget(
-            upload_url=f"https://oss.example.com/{key}",
-            upload_method="PUT",
-            upload_headers={"content-type": content_type},
-        )
-
-    storage.upload_url = mock_upload_url  # type: ignore[assignment]
+    storage = InMemoryObjectStorage()
 
     with Session(engine) as session:
         user_1 = User(
@@ -746,7 +733,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
 
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_current_user] = lambda: user_1
-    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
     app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
@@ -794,7 +781,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
             "revision_id": DEFAULT_TAKE_REVISION_ID,
             "bundle_id": _bundle_id(),
         }
-        assert upload_url.startswith("https://oss.example.com/")
+        assert upload_url.startswith("https://objects.example/")
         assert staging_object_key.startswith("staging/performance-takes/")
 
         # Verify quota reservation was held
@@ -1041,7 +1028,7 @@ def test_score_access_and_validation(test_env):
 
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_current_user] = lambda: user_1
-    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
     app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
@@ -1148,7 +1135,7 @@ def test_cross_user_score_permission(test_env):
         yield AsyncSessionAdapter(session)
 
     app.dependency_overrides[get_db] = override_db
-    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
     app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
@@ -1221,7 +1208,7 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
 
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_current_user] = lambda: user_1
-    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
     app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
@@ -1395,7 +1382,7 @@ def test_duplicate_deletion_idempotency(test_env, monkeypatch: pytest.MonkeyPatc
 
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_current_user] = lambda: user_1
-    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
     app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
@@ -1481,7 +1468,7 @@ def test_quota_rejection(test_env):
 
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_current_user] = lambda: user_1
-    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
     app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
@@ -1524,7 +1511,7 @@ def test_cancel_upload_reservation(test_env, monkeypatch: pytest.MonkeyPatch):
 
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_current_user] = lambda: user_1
-    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
     app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
@@ -1635,7 +1622,7 @@ def test_pagination(test_env):
 
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_current_user] = lambda: user_1
-    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
     app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
@@ -1709,7 +1696,7 @@ def test_audio_container_magic_bytes_validation(test_env):
 
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_current_user] = lambda: user_1
-    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
     app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
@@ -1820,7 +1807,7 @@ def test_finalize_safe_retry_idempotency(test_env):
 
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_current_user] = lambda: user_1
-    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
     app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
@@ -1927,7 +1914,7 @@ def test_finalize_recovers_first_post_storage_db_disconnect(test_env):
 
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_current_user] = lambda: user_1
-    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
     app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
@@ -2006,7 +1993,7 @@ def test_finalize_range_video_preserves_scope_identity_and_recording_timebase(te
 
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_current_user] = lambda: user_1
-    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
     app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
@@ -2092,9 +2079,9 @@ def test_finalize_rejects_candidate_when_staging_changes_after_validation(test_e
     rewritten_content = b"\x1a\x45\xdf\xa3" + b"B" * 32
     assert len(first_content) == len(rewritten_content)
 
-    class MutatingCopyStorage(LocalFileStorage):
-        def __init__(self, wrapped: LocalFileStorage) -> None:
-            super().__init__(storage_root=wrapped.storage_root)
+    class MutatingCopyStorage(InMemoryObjectStorage):
+        def __init__(self, wrapped: InMemoryObjectStorage) -> None:
+            super().__init__(objects=wrapped.objects)
 
         def copy(self, source_key: str, target_key: str) -> None:
             self.put_bytes(
@@ -2105,7 +2092,6 @@ def test_finalize_rejects_candidate_when_staging_changes_after_validation(test_e
             super().copy(source_key, target_key)
 
     mutating_storage = MutatingCopyStorage(storage)
-    mutating_storage.upload_url = storage.upload_url  # type: ignore[assignment]
     take_svc = _performance_take_service(
         session=session,
         storage=mutating_storage,
@@ -2117,7 +2103,7 @@ def test_finalize_rejects_candidate_when_staging_changes_after_validation(test_e
 
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_current_user] = lambda: user_1
-    app.dependency_overrides[get_file_storage] = lambda: mutating_storage
+    app.dependency_overrides[get_object_storage] = lambda: mutating_storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
     app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
@@ -2183,7 +2169,7 @@ def test_video_take_finalize_uses_video_media_kind_and_candidate(test_env):
 
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_current_user] = lambda: user_1
-    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
     app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
@@ -2274,7 +2260,7 @@ def test_reserve_finalizing_snapshot_retries_without_new_put(test_env):
         ),
         user_id=user_1.id,
         client_request_id="req-finalizing-reserve",
-        storage_backend="local",
+
         staging_object_key="staging/performance-takes/1/finalizing-reserve/recording.webm",
         finalizing_object_key="performance-takes/1/finalizing-reserve/token.webm",
         storage_reservation_id="reservation-finalizing-reserve",
@@ -2332,7 +2318,7 @@ def test_crash_abandoned_after_reservation(test_env, monkeypatch: pytest.MonkeyP
 
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_current_user] = lambda: user_1
-    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
     app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
@@ -2433,7 +2419,7 @@ def test_expired_reservation_staging_delete_failure_is_retryable(test_env, monke
 
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_current_user] = lambda: user_1
-    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
     app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
@@ -2522,7 +2508,7 @@ def test_archived_reservation_late_staging_put_is_cleaned_after_expiry(test_env)
 
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_current_user] = lambda: user_1
-    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
     app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
@@ -2621,7 +2607,7 @@ def test_score_deleted_between_reserve_and_finalize_preserves_provenance(test_en
 
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_current_user] = lambda: user_1
-    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
     app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
@@ -2713,7 +2699,7 @@ def test_deletion_lifecycle_and_worker_retry(test_env, monkeypatch: pytest.Monke
 
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_current_user] = lambda: user_1
-    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
     app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
@@ -2789,11 +2775,11 @@ def test_deletion_lifecycle_and_worker_retry(test_env, monkeypatch: pytest.Monke
         assert outbox.attempt_count == 0
 
         # 1. Simulate worker failure: storage raises connection error
-        class FailingStorage(LocalFileStorage):
+        class FailingStorage(InMemoryObjectStorage):
             def delete(self, key: str) -> None:
                 raise ConnectionError("Transient OSS deletion timeout")
 
-        failing_storage = FailingStorage(storage_root=storage.storage_root)
+        failing_storage = FailingStorage(objects=storage.objects)
         failing_res = _run_worker_deletion(
             monkeypatch, session, failing_storage, outbox.outbox_uuid
         )
@@ -2871,14 +2857,14 @@ def test_bundle_delete_outbox_retries_transient_storage_failure(
     outbox = practice_bundle_delete_service.enqueue_if_unowned(
         session,
         practice_bundle_id,
-        storage_backend=storage.backend_name,
+
     )
     session.commit()
     assert outbox is not None
 
-    class FailingSnapshotStorage(LocalFileStorage):
-        def __init__(self, wrapped: LocalFileStorage) -> None:
-            super().__init__(storage_root=wrapped.storage_root)
+    class FailingSnapshotStorage(InMemoryObjectStorage):
+        def __init__(self, wrapped: InMemoryObjectStorage) -> None:
+            super().__init__(objects=wrapped.objects)
 
         def delete(self, key: str) -> bool:
             if key == musicxml_key:
@@ -2923,7 +2909,7 @@ def test_bundle_gc_marks_snapshot_deleting_until_completed(test_env):
     outbox = practice_bundle_delete_service.enqueue_if_unowned(
         session,
         practice_bundle_id,
-        storage_backend=storage.backend_name,
+
     )
     session.commit()
 
@@ -2979,7 +2965,7 @@ def test_stale_creating_snapshot_recovery_cleans_partial_objects(
 
     due = practice_bundle_delete_service.recover_stale_creating(
         session,
-        storage_backend=storage.backend_name,
+
     )
     session.commit()
     assert len(due) == len(variants)
@@ -3008,7 +2994,7 @@ def test_reservation_rejects_bundle_pending_gc(test_env):
 
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_current_user] = lambda: user_1
-    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
     app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
@@ -3121,7 +3107,7 @@ def test_take_deletion_leaves_bundle_cleanup_to_its_revision_retention_owner(tes
     assert (
         len(
             practice_bundle_delete_service.recover_unowned_ready(
-                session, storage_backend=storage.backend_name
+                session,
             )
         )
         == 1
@@ -3141,7 +3127,7 @@ def test_take_deletion_leaves_bundle_cleanup_to_its_revision_retention_owner(tes
     duplicate = practice_bundle_delete_service.enqueue_if_unowned(
         session,
         source.id,
-        storage_backend=storage.backend_name,
+
     )
     assert duplicate is not None
     assert duplicate.id == source_outboxes[0].id
@@ -3192,7 +3178,7 @@ def test_bundle_gc_ignores_an_active_reservation_after_take_deletion(test_env, m
         ),
         user_id=user_1.id,
         client_request_id="gc-active-auth",
-        storage_backend=storage.backend_name,
+
         staging_object_key="performance-takes/staging/gc-active-auth.webm",
         storage_reservation_id="reservation-gc-active-auth",
         status=UploadReservationStatus.RESERVED.value,
@@ -3222,7 +3208,7 @@ def test_bundle_gc_ignores_an_active_reservation_after_take_deletion(test_env, m
     outbox = practice_bundle_delete_service.enqueue_if_unowned(
         session,
         source.id,
-        storage_backend=storage.backend_name,
+
     )
     assert outbox is not None
     session.commit()
@@ -3246,7 +3232,7 @@ def test_reserve_does_not_reuse_bundle_pending_gc(test_env):
 
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_current_user] = lambda: user_1
-    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
     app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
@@ -3325,7 +3311,7 @@ def test_delete_outbox_late_fail_cannot_overwrite_completed_attempt(test_env):
         take_id=None,
         take_uuid="take-late-fail-001",
         user_id=user_1.id,
-        storage_backend="local",
+
         object_key="performance-takes/1/take-late-fail-001/recording.webm",
         media_byte_size=123,
         status=PerformanceTakeDeleteOutboxStatus.PENDING,
@@ -3408,18 +3394,17 @@ def test_expired_reservation_cleanup_releases_db_lock_before_storage_delete(test
 
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_current_user] = lambda: user_1
-    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
     app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
-    class LockAssertingStorage(LocalFileStorage):
-        backend_name = "local"
+    class LockAssertingStorage(InMemoryObjectStorage):
 
-        def __init__(self, wrapped: LocalFileStorage) -> None:
-            super().__init__(storage_root=wrapped.storage_root)
+        def __init__(self, wrapped: InMemoryObjectStorage) -> None:
+            super().__init__(objects=wrapped.objects)
 
         def delete(self, key: str) -> bool:
             assert not session.in_transaction()
@@ -3500,7 +3485,7 @@ def _expired_cleanup_auth(
         ),
         user_id=user_id,
         client_request_id=client_request_id,
-        storage_backend="local",
+
         staging_object_key=staging_key,
         storage_reservation_id=f"reservation-{client_request_id}",
         expires_at=expired_at,
@@ -3532,9 +3517,9 @@ def test_reservation_cleanup_does_not_complete_when_delete_returns_false(test_en
     session.add(auth)
     session.commit()
 
-    class DeleteFalseStorage(LocalFileStorage):
-        def __init__(self, wrapped: LocalFileStorage) -> None:
-            super().__init__(storage_root=wrapped.storage_root)
+    class DeleteFalseStorage(InMemoryObjectStorage):
+        def __init__(self, wrapped: InMemoryObjectStorage) -> None:
+            super().__init__(objects=wrapped.objects)
 
         def delete(self, key: str) -> bool:
             return False
@@ -3569,9 +3554,9 @@ def test_reservation_cleanup_does_not_complete_when_head_still_exists(test_env):
     session.add(auth)
     session.commit()
 
-    class DeleteLiesStorage(LocalFileStorage):
-        def __init__(self, wrapped: LocalFileStorage) -> None:
-            super().__init__(storage_root=wrapped.storage_root)
+    class DeleteLiesStorage(InMemoryObjectStorage):
+        def __init__(self, wrapped: InMemoryObjectStorage) -> None:
+            super().__init__(objects=wrapped.objects)
 
         def delete(self, key: str) -> bool:
             return True
@@ -3606,9 +3591,9 @@ def test_reservation_cleanup_does_not_complete_when_final_head_fails(test_env):
     session.add(auth)
     session.commit()
 
-    class HeadFailsAfterDeleteStorage(LocalFileStorage):
-        def __init__(self, wrapped: LocalFileStorage) -> None:
-            super().__init__(storage_root=wrapped.storage_root)
+    class HeadFailsAfterDeleteStorage(InMemoryObjectStorage):
+        def __init__(self, wrapped: InMemoryObjectStorage) -> None:
+            super().__init__(objects=wrapped.objects)
             self._deleted = False
 
         def delete(self, key: str) -> bool:
@@ -3656,7 +3641,7 @@ def test_finalize_copy_lease_rejects_expired_executor_before_storage_copy(test_e
         ),
         user_id=user_1.id,
         client_request_id="lease-expired-before-copy",
-        storage_backend="local",
+
         staging_object_key="staging/performance-takes/1/lease-expired/recording.webm",
         finalizing_object_key="performance-takes/1/lease-expired/recording.webm",
         storage_reservation_id="reservation-lease-expired",
@@ -3698,7 +3683,7 @@ def test_completed_reservation_cleanup_does_not_touch_storage(test_env):
     session.add(auth)
     session.commit()
 
-    class FailsOnAccessStorage(LocalFileStorage):
+    class FailsOnAccessStorage(InMemoryObjectStorage):
         def exists(self, key: str) -> bool:
             raise AssertionError(f"storage should not be touched for {key}")
 
@@ -3736,9 +3721,9 @@ def test_reservation_cleanup_retries_orphan_final_without_touching_completed_sta
 
     touched: list[str] = []
 
-    class TrackingStorage(LocalFileStorage):
-        def __init__(self, wrapped: LocalFileStorage) -> None:
-            super().__init__(storage_root=wrapped.storage_root)
+    class TrackingStorage(InMemoryObjectStorage):
+        def __init__(self, wrapped: InMemoryObjectStorage) -> None:
+            super().__init__(objects=wrapped.objects)
 
         def exists(self, key: str) -> bool:
             touched.append(f"exists:{key}")
@@ -3981,7 +3966,7 @@ def test_expired_finalizing_lease_records_candidate_before_retry(test_env):
         ),
         user_id=user_1.id,
         client_request_id="finalizing-expired-retry",
-        storage_backend="local",
+
         staging_object_key="staging/performance-takes/1/finalizing-expired/recording.webm",
         finalizing_object_key=candidate_key,
         storage_reservation_id="reservation-finalizing-expired",
@@ -4025,7 +4010,7 @@ def test_worker_handles_already_absent_object_idempotently(
 
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_current_user] = lambda: user_1
-    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
     app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
@@ -4540,13 +4525,13 @@ def test_live_admission_and_save_snapshot_share_canonical_provenance(test_env):
         assert row.artifact_byte_size == expected.artifact.representation.byte_size
         assert (
             practice_bundle_delete_service.recover_unowned_ready(
-                session, storage_backend=storage.backend_name
+                session,
             )
             == []
         )
         assert (
             practice_bundle_delete_service.enqueue_if_unowned(
-                session, row.id, storage_backend=storage.backend_name
+                session, row.id,
             )
             is None
         )
@@ -4608,16 +4593,14 @@ def test_live_admission_and_save_snapshot_share_canonical_provenance(test_env):
 
 
 def test_live_revision_deletion_is_discovered_by_bounded_bundle_scan(test_env, monkeypatch):
-    from app.core.config import settings
 
-    monkeypatch.setattr(settings, "FILE_STORAGE_BACKEND", "local")
     session, storage, _, _ = test_env
     source = _create_default_bundle(session, storage)
     session.add(ScoreRevisionPracticeBinding(revision_id=100, bundle_id=source.id))
     session.commit()
     assert (
         practice_bundle_delete_service.recover_unowned_ready(
-            session, storage_backend=storage.backend_name
+            session,
         )
         == []
     )
@@ -4645,9 +4628,7 @@ def test_live_revision_deletion_is_discovered_by_bounded_bundle_scan(test_env, m
 
 @pytest.mark.parametrize("terminal", ["CANCELLED", "EXPIRED", "COMPLETED"])
 def test_terminal_reservation_does_not_retain_orphan_bundle(test_env, monkeypatch, terminal):
-    from app.core.config import settings
 
-    monkeypatch.setattr(settings, "FILE_STORAGE_BACKEND", "local")
     session, storage, user, _ = test_env
     source = _create_default_bundle(session, storage)
     take = _create_default_take(
@@ -4694,7 +4675,7 @@ def test_bundle_orphan_scan_has_a_bounded_batch(test_env, monkeypatch):
     assert (
         len(
             practice_bundle_delete_service.recover_unowned_ready(
-                session, storage_backend=storage.backend_name
+                session,
             )
         )
         == 2
@@ -4790,7 +4771,7 @@ def test_bundle_gc_ignores_active_reservation_after_revision_deletion(test_env, 
     assert (
         len(
             practice_bundle_delete_service.recover_unowned_ready(
-                session, storage_backend=storage.backend_name
+                session,
             )
         )
         == 1
@@ -4804,7 +4785,7 @@ def test_bundle_deletion_dispatch_publishes_registered_durable_operation(test_en
     session, storage, _, _ = test_env
     source = _create_default_bundle(session, storage)
     outbox = practice_bundle_delete_service.enqueue_if_unowned(
-        session, source.id, storage_backend=storage.backend_name
+        session, source.id,
     )
     session.commit()
     monkeypatch.setattr(dispatch, "get_worker_db", lambda: _mock_worker_db(session))
@@ -5327,7 +5308,7 @@ def test_take_deletion_retires_media_but_preserves_manifest_and_reservation(test
         manifest_id = reservation.manifest_id
         before = manifest_from_row(reservation.manifest)
         storage.put_bytes(
-            key=reservation.staging_object_key, content=VALID_WEBM_BYTES, content_type="audio/webm"
+            key=reservation.staging_object_key, content=VALID_WEBM_BYTES, content_type="video/webm"
         )
         finalized = client.post(
             f"/api/v1/performance-takes/upload-reservations/{accepted['reservation_id']}/finalize"
@@ -5377,7 +5358,7 @@ def test_final_blob_sha_is_the_complete_candidate_and_actual_object_digest(test_
         storage.put_bytes(
             key=_staging_key(session, accepted["reservation_id"]),
             content=VALID_WEBM_BYTES,
-            content_type="audio/webm",
+            content_type="video/webm",
         )
         response = client.post(
             f"/api/v1/performance-takes/upload-reservations/{accepted['reservation_id']}/finalize"
@@ -5403,7 +5384,7 @@ def test_same_size_candidate_corruption_has_no_blob_or_take(test_env):
     def corrupt(source, target):
         original(source, target)
         storage.put_bytes(
-            key=target, content=VALID_WEBM_BYTES[:-1] + b"X", content_type="audio/webm"
+            key=target, content=VALID_WEBM_BYTES[:-1] + b"X", content_type="video/webm"
         )
 
     with _reservation_client(session, storage, user) as (client, service):
@@ -5413,7 +5394,7 @@ def test_same_size_candidate_corruption_has_no_blob_or_take(test_env):
         storage.put_bytes(
             key=_staging_key(session, accepted["reservation_id"]),
             content=VALID_WEBM_BYTES,
-            content_type="audio/webm",
+            content_type="video/webm",
         )
         with (
             patch.object(storage, "copy", side_effect=corrupt),

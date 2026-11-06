@@ -20,7 +20,7 @@ from app.db.models.practice_bundle import PracticeBundleRecord
 from app.db.models import User, Score, ScoreRevision
 from app.modules.practice.bundle.compiler import PracticeBundleCompiler
 from app.modules.practice.bundle.repository import PracticeBundleRepository
-from app.storage.local import LocalFileStorage
+from tests.support.object_storage import InMemoryObjectStorage
 
 
 @pytest_asyncio.fixture
@@ -73,7 +73,7 @@ async def postgres_bundle(tmp_path, request):
             revision_id = revision.id
             score.head_revision_id = revision_id
             await seed.commit()
-        storage = LocalFileStorage(str(tmp_path))
+        storage = InMemoryObjectStorage()
         repository = PracticeBundleRepository(storage)
         repository.test_revision_id = revision_id
         repository.test_score_uuid = "score-content-owner"
@@ -175,7 +175,7 @@ async def test_binding_cascade_retains_shared_bundle_until_last_revision_deleted
         assert (
             await db.run_sync(
                 lambda sync: practice_bundle_delete_service.recover_unowned_ready(
-                    sync, storage_backend=storage.backend_name
+                    sync,
                 )
             )
             == []
@@ -185,7 +185,7 @@ async def test_binding_cascade_retains_shared_bundle_until_last_revision_deleted
         await db.commit()
         due = await db.run_sync(
             lambda sync: practice_bundle_delete_service.recover_unowned_ready(
-                sync, storage_backend=storage.backend_name
+                sync,
             )
         )
         await db.commit()
@@ -208,7 +208,7 @@ async def test_gc_marked_bundle_cannot_receive_a_new_binding(postgres_bundle):
         await db.commit()
         await db.run_sync(
             lambda sync: practice_bundle_delete_service.enqueue_if_unowned(
-                sync, ref.id, storage_backend=storage.backend_name
+                sync, ref.id,
             )
         )
         await db.commit()
@@ -228,7 +228,7 @@ async def test_binding_committed_before_gc_protects_the_bundle(postgres_bundle):
         assert (
             await b.run_sync(
                 lambda sync: practice_bundle_delete_service.enqueue_if_unowned(
-                    sync, ref.id, storage_backend=storage.backend_name
+                    sync, ref.id,
                 )
             )
             is None
@@ -291,7 +291,7 @@ async def test_binding_and_gc_serialize_on_bundle_row(postgres_bundle, winner):
                 assert not binding.done()
                 outbox = await gc.run_sync(
                     lambda sync: practice_bundle_delete_service.enqueue_if_unowned(
-                        sync, ref.id, storage_backend=storage.backend_name
+                        sync, ref.id,
                     )
                 )
                 assert outbox is not None
@@ -323,7 +323,7 @@ async def test_binding_and_gc_serialize_on_bundle_row(postgres_bundle, winner):
             collecting = asyncio.create_task(
                 gc.run_sync(
                     lambda sync: practice_bundle_delete_service.enqueue_if_unowned(
-                        sync, ref.id, storage_backend=storage.backend_name
+                        sync, ref.id,
                     )
                 )
             )
@@ -372,7 +372,7 @@ async def test_interrupted_creation_has_durable_lease_for_orphan_cleanup(postgre
         await db.commit()
         due = await db.run_sync(
             lambda sync: practice_bundle_delete_service.recover_stale_creating(
-                sync, storage_backend=storage.backend_name
+                sync,
             )
         )
         await db.commit()
@@ -484,7 +484,7 @@ async def test_bound_readers_share_locks_and_fence_gc_during_verification(
                     collecting = asyncio.create_task(
                         gc.run_sync(
                             lambda sync: practice_bundle_delete_service.enqueue_if_unowned(
-                                sync, ref.id, storage_backend=storage.backend_name
+                                sync, ref.id,
                             )
                         )
                     )

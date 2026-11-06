@@ -30,7 +30,7 @@ class PerformanceTakeDeletePayload:
     take_id: int
     take_uuid: str
     user_id: int
-    storage_backend: str
+
     object_key: str
     media_byte_size: int
     attempt: int
@@ -84,7 +84,6 @@ class PerformanceTakeDeleteOutboxService:
             take_id=outbox.take_id,
             take_uuid=outbox.take_uuid,
             user_id=outbox.user_id,
-            storage_backend=outbox.storage_backend,
             object_key=outbox.object_key,
             media_byte_size=outbox.media_byte_size,
             attempt=0,

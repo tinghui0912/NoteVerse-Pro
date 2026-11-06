@@ -30,7 +30,6 @@ from app.modules.performance_takes.upload_reservation.persistence import (
 from app.modules.performance_takes.upload_reservation.domain import FinalizeLease
 from app.modules.storage_usage.service import StorageUsageService
 from app.modules.practice.bundle.service import PracticeBundleService
-from app.storage.base import DirectUploadTarget
 from app.utils.timezone import utc_now_naive
 
 pytest_plugins = ["tests.test_practice_bundle_postgres"]
@@ -153,9 +152,6 @@ async def setup_bundle(postgres_bundle):
             db, bundle, revision_id=repository.test_revision_id
         )
     source = PracticeBundleService(repository=repository, storage=storage)
-    storage.upload_url = lambda **kwargs: DirectUploadTarget(
-        upload_url="https://upload.example/target", upload_method="PUT", upload_headers={}
-    )
     request = PerformanceTakeUploadReservationRequest.model_validate(
         {
             "client_request_id": "same-request",
@@ -383,7 +379,7 @@ async def test_exact_bundle_admission_lock_fences_owner_release_until_reservatio
             len(
                 await b.run_sync(
                     lambda db: practice_bundle_delete_service.recover_unowned_ready(
-                        db, storage_backend=storage.backend_name
+                        db,
                     )
                 )
             )

@@ -12,7 +12,7 @@ from enum import Enum
 from typing import List
 
 from app.modules.import_jobs.artifact_records import ImportJobStoredArtifactItem
-from app.storage import file_storage
+from app.storage import object_storage
 
 
 def _kind_value(kind: object) -> str:
@@ -90,7 +90,6 @@ def _build_file_item(
             sha256 = hashlib.sha256(file_handle.read()).hexdigest()
 
     return {
-        "storage_backend": file_storage.backend_name,
         "storage_key": storage_key,
         "filename": os.path.basename(storage_key),
         "page_number": page,
@@ -111,7 +110,7 @@ def _store_job_output(
     key = f"jobs/{job_id}/{kind}/{page:03d}-{filename}"
 
     with open(abs_path, "rb") as file_handle:
-        stored = file_storage.put_bytes(
+        stored = object_storage.put_bytes(
             key=key,
             content=file_handle.read(),
             content_type=mime_type,
