@@ -17,9 +17,13 @@ from app.core.exceptions import (
 from app.db.models.user import User
 from app.db.models.import_job import ImportJobState
 from app.modules.files.service import FilesService, blob_object_key
-from app.storage import StoredObject
+from app.storage import ObjectWriteResult
 import hashlib
 from app.modules.account.avatar_service import AvatarService
+from app.modules.account.avatar_presentation import avatar_url_for_user
+from app.modules.storage_objects.persistence import object_from_bytes
+from tests.test_score_revision_services import AsyncSessionAdapter
+from tests.test_score_revision_services import score_service_session as score_service_session
 from app.modules.account.profile_service import ProfileService
 from app.modules.import_jobs.execution_service import ImportJobExecutionService
 from app.modules.import_jobs.maintenance_service import ImportJobMaintenanceService
@@ -70,18 +74,6 @@ class FakeS3NotFound(Exception):
     response = {"Error": {"Code": "NoSuchKey"}}
 
 
-class FakeAvatarDb:
-    def __init__(self) -> None:
-        self.commits = 0
-        self.refreshes = 0
-
-    async def commit(self) -> None:
-        self.commits += 1
-
-    async def refresh(self, _record: object) -> None:
-        self.refreshes += 1
-
-
 def test_allowed_file_accepts_supported_extensions() -> None:
     service = FilesService(repository=Mock())
 
@@ -98,10 +90,9 @@ def test_object_storage_put_and_materialize() -> None:
 
         assert stored.size_bytes == 5
         assert stored.object_key == "objects/example.bin"
-        assert (
-            storage.materialize_to_local(stored.object_key, os.path.join(temp_dir, "scratch.png"))
-            == os.path.join(temp_dir, "scratch.png")
-        )
+        assert storage.materialize_to_local(
+            stored.object_key, os.path.join(temp_dir, "scratch.png")
+        ) == os.path.join(temp_dir, "scratch.png")
 
 
 def test_object_storage_delete_is_idempotent() -> None:
@@ -136,7 +127,9 @@ def test_files_recorder_uploads_task_output_to_storage_key() -> None:
                 page=1,
             )
 
-        assert item["storage_key"] == "jobs/task-1/preview_image/001-preview-01.svg"
+        assert (
+            item["storage_key"] == f"jobs/task-1/preview_image/{item['sha256']}/001-preview-01.svg"
+        )
         assert item["filename"] == "001-preview-01.svg"
         assert item["page_number"] == 1
         assert item["mime_type"] == "image/svg+xml"
@@ -159,7 +152,7 @@ def test_files_recorder_uses_file_kind_values_in_storage_keys() -> None:
                 page=1,
             )
 
-        assert item["storage_key"] == "jobs/task-1/review_musicxml/001-input.jpg"
+        assert item["storage_key"] == f"jobs/task-1/review_musicxml/{item['sha256']}/001-input.jpg"
         assert "ImportArtifactKind" not in item["storage_key"]
 
 
@@ -174,12 +167,14 @@ def test_avatar_service_stores_processed_image_through_storage(mode: str) -> Non
         image_bytes = io.BytesIO()
         image.save(image_bytes, format="PNG")
 
-        filename, avatar_url = service.process_avatar(
+        avatar_object = service.process_avatar(
             file_bytes=image_bytes.getvalue(),
             filename="avatar.png",
             user_id=7,
         )
 
+        filename = avatar_object.object_key.rsplit("/", 1)[-1]
+        avatar_url = avatar_url_for_user(User(avatar_object=avatar_object))
         put.assert_called_once()
         assert put.call_args.kwargs["key"] == f"avatars/{filename}"
         assert put.call_args.kwargs["content_type"] == "image/jpeg"
@@ -215,19 +210,23 @@ def test_profile_payload_does_not_repair_missing_avatar_reference() -> None:
         email="user@example.com",
         display_name="User",
         password_hash="hash",
-        avatar_url="https://objects.example/avatars/missing.jpg",
+        avatar_object=object_from_bytes(
+            object_key="avatars/profile.jpg", content=b"avatar", content_type="image/jpeg"
+        ),
     )
 
     payload = ProfileService().profile_payload(user)
 
-    assert payload.user.avatar_url == "https://objects.example/avatars/missing.jpg"
-    assert user.avatar_url == "https://objects.example/avatars/missing.jpg"
+    assert payload.user.avatar_url == "/api/v1/account/avatars/profile.jpg"
+    assert user.avatar_object.object_key == "avatars/profile.jpg"
 
 
 @pytest.mark.asyncio
-async def test_avatar_service_replaces_user_avatar_and_deletes_old_file() -> None:
+async def test_avatar_service_replaces_user_avatar_and_deletes_old_file(
+    score_service_session,
+) -> None:
     with tempfile.TemporaryDirectory():
-        storage = InMemoryObjectStorage()
+        session, storage = score_service_session
         service = AvatarService(storage=storage)
         storage.put_bytes(key="avatars/old.jpg", content=b"old", content_type="image/jpeg")
         user = User(
@@ -235,9 +234,13 @@ async def test_avatar_service_replaces_user_avatar_and_deletes_old_file() -> Non
             email="user@example.com",
             display_name="User",
             password_hash="hash",
-            avatar_url="/api/v1/account/avatars/old.jpg",
+            avatar_object=object_from_bytes(
+                object_key="avatars/old.jpg", content=b"old", content_type="image/jpeg"
+            ),
         )
-        db = FakeAvatarDb()
+        session.add(user)
+        session.commit()
+        db = AsyncSessionAdapter(session)
         image = Image.new("RGB", (20, 20), (255, 0, 0))
         image_bytes = io.BytesIO()
         image.save(image_bytes, format="PNG")
@@ -250,11 +253,13 @@ async def test_avatar_service_replaces_user_avatar_and_deletes_old_file() -> Non
         )
 
         assert filename.startswith("7_")
-        assert user.avatar_url == avatar_url
+        assert avatar_url_for_user(user) == avatar_url
         assert storage.exists(f"avatars/{filename}")
         assert not storage.exists("avatars/old.jpg")
-        assert db.commits == 1
-        assert db.refreshes == 1
+        assert (
+            user.avatar_object.sha256
+            == hashlib.sha256(storage.read_bytes(user.avatar_object.object_key)).hexdigest()
+        )
 
 
 def test_s3_storage_put_and_materialize() -> None:
@@ -276,7 +281,6 @@ def test_s3_storage_put_and_materialize() -> None:
             assert file_handle.read() == b"score"
 
 
-
 def test_import_job_maintenance_deletes_orphan_upload_file_and_row() -> None:
     repository = Mock()
     storage = Mock()
@@ -287,11 +291,11 @@ def test_import_job_maintenance_deletes_orphan_upload_file_and_row() -> None:
     upload = SimpleNamespace(
         id=3,
         upload_uuid="upload-orphan",
-        blob_id=9,
+        stored_object_id=9,
         uploader_user_id=7,
         created_at=utc_now_naive() - timedelta(days=2),
     )
-    blob = SimpleNamespace(id=9, size_bytes=123, storage_key="blobs/or/orphan.png")
+    blob = SimpleNamespace(id=9, byte_size=123, object_key="blobs/or/orphan.png")
     repository.list_orphan_uploads.return_value = [upload]
     db.get.return_value = blob
     db.execute.return_value.scalar_one.return_value = 1
@@ -393,10 +397,8 @@ def test_import_job_execution_resolves_file_ids_inside_worker() -> None:
 def test_import_job_submission_rejects_upload_owned_by_another_user() -> None:
     service = ImportJobSubmissionService(storage=Mock())
     sync_db = Mock()
-    upload = SimpleNamespace(uploader_user_id=99, blob_id=3)
-    sync_db.get.return_value = SimpleNamespace(
-         storage_key="blobs/ab/abc123.png"
-    )
+    upload = SimpleNamespace(uploader_user_id=99, stored_object_id=3)
+    sync_db.get.return_value = SimpleNamespace(storage_key="blobs/ab/abc123.png")
 
     with patch("app.db.sync_session.get_db_session", return_value=sync_db):
         with patch.object(
@@ -410,79 +412,47 @@ def test_import_job_submission_rejects_upload_owned_by_another_user() -> None:
 
 
 @pytest.mark.asyncio
-async def test_file_upload_restores_missing_object() -> None:
+async def test_file_upload_restores_missing_immutable_object() -> None:
     key = blob_object_key(hashlib.sha256(b"score").hexdigest(), ".png")
+    existing = object_from_bytes(object_key=key, content=b"score", content_type="image/png")
+    existing.id = 3
+    before = existing.model_dump()
     repository = Mock()
-    existing_blob = SimpleNamespace(
-        id=3,
-
-        storage_key="blobs/ab/existing.png",
-        filename="existing.png",
-        size_bytes=3,
-        mime_type="image/png",
-    )
-    updated_blob = SimpleNamespace(
-        id=3,
-
-        storage_key=key,
-        filename=key.rsplit("/", 1)[-1],
-        size_bytes=5,
-        mime_type="image/png",
-    )
-    upload_record = SimpleNamespace(upload_uuid="upload-1")
-    repository.get_blob_by_sha256 = AsyncMock(return_value=existing_blob)
-    repository.update_blob_storage = AsyncMock(return_value=updated_blob)
-    repository.create_blob = AsyncMock()
-    repository.create_upload = AsyncMock(return_value=upload_record)
+    repository.get_upload_object_by_sha256 = AsyncMock(return_value=existing)
+    repository.create_upload = AsyncMock(return_value=SimpleNamespace(upload_uuid="upload-1"))
     storage = Mock()
     storage.exists.return_value = False
-    storage.put_bytes.return_value = StoredObject(object_key=key, size_bytes=5)
+    storage.put_bytes.return_value = ObjectWriteResult(object_key=key, size_bytes=5)
     db = AsyncMock()
     user = SimpleNamespace(id=1)
     upload = SimpleNamespace(
-        filename="score.png",
-        content_type="image/png",
-        read=AsyncMock(return_value=b"score"),
+        filename="score.png", content_type="image/png", read=AsyncMock(return_value=b"score")
     )
-
-    with patch("app.modules.files.service.storage_usage_service.reserve") as reserve_mock:
-        reserve_mock.return_value = SimpleNamespace(reservation_id="reservation-1")
-        with patch(
-            "app.modules.files.service.storage_usage_service.commit_reservation"
-        ) as commit_mock:
-            result = await FilesService(repository=repository, storage=storage).upload_file(
-                db, user, upload
-            )
-
-    assert result.file_id == "upload-1"
-    assert result.filename == "score.png"
-    assert result.size == 5
-    assert storage.exists.call_args_list == [call(existing_blob.storage_key), call(key)]
+    with (
+        patch("app.modules.files.service.storage_usage_service.reserve") as reserve,
+        patch("app.modules.files.service.storage_usage_service.commit_reservation") as commit,
+    ):
+        reserve.return_value = SimpleNamespace(reservation_id="reservation-1")
+        result = await FilesService(repository=repository, storage=storage).upload_file(
+            db, user, upload
+        )
+    assert result.file_id == "upload-1" and result.filename == "score.png" and result.size == 5
+    storage.exists.assert_called_once_with(key)
     storage.put_bytes.assert_called_once_with(key=key, content=b"score", content_type="image/png")
-    repository.create_blob.assert_not_called()
-    repository.update_blob_storage.assert_awaited_once_with(
-        db,
-        existing_blob,
-
-        storage_key=key,
-        filename=key.rsplit("/", 1)[-1],
-        size_bytes=5,
-        mime_type="image/png",
-    )
+    assert existing.model_dump() == before
     repository.create_upload.assert_awaited_once_with(
-        db,
-        blob_id=3,
-        original_filename="score.png",
-        uploader_user_id=1,
+        db, stored_object_id=3, original_filename="score.png", uploader_user_id=1
     )
-    commit_mock.assert_awaited_once()
+    commit.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 async def test_delete_uploaded_file_rejects_non_owner() -> None:
     repository = Mock()
     repository.get_upload_by_uuid = AsyncMock(
-        return_value=SimpleNamespace(id=1, upload_uuid="upload-1", blob_id=5, uploader_user_id=99)
+        return_value=SimpleNamespace(
+            id=1, upload_uuid="upload-1", stored_object_id=5, uploader_user_id=99
+        )
     )
     service = FilesService(repository=repository)
     db = AsyncMock()
@@ -500,19 +470,19 @@ async def test_delete_uploaded_file_removes_owned_file_and_record() -> None:
     repository = Mock()
     repository.get_upload_by_uuid = AsyncMock(
         return_value=SimpleNamespace(
-            id=7, upload_uuid="upload-owned", uploader_user_id=1, blob_id=5
+            id=7, upload_uuid="upload-owned", uploader_user_id=1, stored_object_id=5
         )
     )
     repository.upload_reference_count = AsyncMock(return_value=0)
     repository.delete_upload_by_id = AsyncMock()
-    repository.blob_upload_count = AsyncMock(return_value=0)
-    repository.delete_blob_by_id = AsyncMock()
+    repository.object_upload_count = AsyncMock(return_value=0)
+    repository.delete_object_by_id = AsyncMock()
     service = FilesService(repository=repository)
     db = AsyncMock()
     db.get.return_value = SimpleNamespace(
         id=5,
-        size_bytes=3,
-        storage_key="blobs/ow/owned.png",
+        byte_size=3,
+        object_key="blobs/ow/owned.png",
     )
     current_user = SimpleNamespace(id=1)
 
@@ -532,9 +502,10 @@ async def test_delete_uploaded_file_removes_owned_file_and_record() -> None:
 
     assert result.filename == "owned.png"
     repository.delete_upload_by_id.assert_awaited_once_with(db, 7)
-    repository.delete_blob_by_id.assert_awaited_once_with(db, 5)
+    repository.delete_object_by_id.assert_awaited_once_with(db, 5)
     release_usage.assert_awaited_once()
     db.commit.assert_awaited_once()
+
 
 def test_avatar_delivery_uses_stable_application_url_and_fresh_capability():
     from fastapi import FastAPI
@@ -549,12 +520,23 @@ def test_avatar_delivery_uses_stable_application_url_and_fresh_capability():
     service = AvatarService(storage=storage)
     image = io.BytesIO()
     Image.new("RGB", (2, 2), "red").save(image, format="PNG")
-    filename, url = service.process_avatar(image.getvalue(), "avatar.png", 42)
+    current = service.process_avatar(image.getvalue(), "avatar.png", 42)
+    filename = current.object_key.rsplit("/", 1)[-1]
+    url = avatar_url_for_user(User(avatar_object=current))
     assert url == f"/api/v1/account/avatars/{filename}"
     app = FastAPI()
     register_exception_handlers(app)
     app.include_router(router, prefix="/api/v1/account")
     app.dependency_overrides[get_avatar_service] = lambda: service
+    from app.api.deps import get_db
+
+    db = Mock()
+    db.scalar = AsyncMock(return_value=current)
+
+    async def avatar_db():
+        yield db
+
+    app.dependency_overrides[get_db] = avatar_db
     capabilities = ["https://objects.example/lease-one", "https://objects.example/lease-two"]
     storage.download_url = Mock(side_effect=capabilities)
     with TestClient(app, follow_redirects=False) as client:
@@ -562,7 +544,10 @@ def test_avatar_delivery_uses_stable_application_url_and_fresh_capability():
         assert response.status_code == 307
         assert response.headers["location"] == capabilities[0]
         assert client.get(url).headers["location"] == capabilities[1]
-        assert storage.download_url.call_args_list == [call(f"avatars/{filename}", content_type="image/jpeg")] * 2
+        assert (
+            storage.download_url.call_args_list
+            == [call(f"avatars/{filename}", content_type="image/jpeg")] * 2
+        )
         assert storage.object_metadata(f"avatars/{filename}").content_type == "image/jpeg"
         service.delete_avatar(filename)
         assert client.get(url).status_code == 404

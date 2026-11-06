@@ -57,7 +57,9 @@ class PracticeBundleService:
             if source is None:
                 raise ResourceNotFoundException("source", revision_uuid, ErrorCode.FILE_NOT_FOUND)
             try:
-                canonical = await asyncio.to_thread(self.storage.read_bytes, source.storage_key)
+                canonical = await asyncio.to_thread(
+                    self.storage.read_bytes, source.stored_object.object_key
+                )
                 candidate = await asyncio.to_thread(
                     self.compiler.compile, canonical_musicxml=canonical
                 )

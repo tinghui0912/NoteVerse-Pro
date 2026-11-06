@@ -20,7 +20,7 @@ from app.db.models import (
     ScoreRenderAsset,
     ScoreRevision,
     ScoreRevisionSource,
-    StorageBlob,
+    StoredObject,
     StorageUsageCategory,
     Upload,
 )
@@ -130,9 +130,10 @@ class ScoreLifecycleService:
             db.execute(
                 select(
                     ScoreRevisionSource.source_uuid,
-                    ScoreRevisionSource.storage_key,
-                    ScoreRevisionSource.size_bytes,
+                    StoredObject.object_key,
+                    StoredObject.byte_size,
                 )
+                .join(StoredObject, ScoreRevisionSource.stored_object_id == StoredObject.id)
                 .join(
                     ScoreRevision,
                     ScoreRevisionSource.revision_id == ScoreRevision.id,
@@ -155,9 +156,10 @@ class ScoreLifecycleService:
             db.execute(
                 select(
                     ScoreRenderAsset.asset_uuid,
-                    ScoreRenderAsset.storage_key,
-                    ScoreRenderAsset.size_bytes,
+                    StoredObject.object_key,
+                    StoredObject.byte_size,
                 )
+                .join(StoredObject, ScoreRenderAsset.stored_object_id == StoredObject.id)
                 .join(ScoreRevision, ScoreRenderAsset.revision_id == ScoreRevision.id)
                 .where(ScoreRevision.score_id == score_id)
             ).all()
@@ -177,9 +179,10 @@ class ScoreLifecycleService:
             db.execute(
                 select(
                     ScorePlaybackAsset.asset_uuid,
-                    ScorePlaybackAsset.storage_key,
-                    ScorePlaybackAsset.size_bytes,
+                    StoredObject.object_key,
+                    StoredObject.byte_size,
                 )
+                .join(StoredObject, ScorePlaybackAsset.stored_object_id == StoredObject.id)
                 .join(ScoreRevision, ScorePlaybackAsset.revision_id == ScoreRevision.id)
                 .where(ScoreRevision.score_id == score_id)
             ).all()
@@ -200,13 +203,12 @@ class ScoreLifecycleService:
                 select(
                     ScoreInputAsset.asset_uuid,
                     ScoreInputAsset.upload_id,
-                    StorageBlob.id,
-                    StorageBlob.blob_uuid,
-                    StorageBlob.storage_key,
-                    StorageBlob.size_bytes,
+                    StoredObject.id,
+                    StoredObject.object_key,
+                    StoredObject.byte_size,
                 )
                 .join(Upload, ScoreInputAsset.upload_id == Upload.id)
-                .join(StorageBlob, Upload.blob_id == StorageBlob.id)
+                .join(StoredObject, Upload.stored_object_id == StoredObject.id)
                 .where(ScoreInputAsset.score_id == score_id)
             ).all()
         )
@@ -218,26 +220,35 @@ class ScoreLifecycleService:
                 object_id=asset_uuid,
                 storage_key=storage_key,
             )
-            for asset_uuid, _upload_id, _blob_id, _blob_uuid, storage_key, size_bytes in input_rows
+            for asset_uuid, _upload_id, _object_id, storage_key, size_bytes in input_rows
         )
         upload_ids_to_maybe_delete = [upload_id for _asset_uuid, upload_id, *_rest in input_rows]
-        blob_rows_by_upload = {
-            upload_id: (blob_id, blob_uuid, storage_key)
-            for _asset_uuid, upload_id, blob_id, blob_uuid, storage_key, _size_bytes in input_rows
+        objects_by_upload = {
+            upload_id: (stored_object_id, storage_key)
+            for _asset_uuid, upload_id, stored_object_id, storage_key, _size_bytes in input_rows
         }
+        representations = list(
+            db.scalars(select(StoredObject).where(StoredObject.object_key.in_(storage_keys)))
+        )
         score.head_revision_id = None
         db.delete(score)
         db.flush()
-        blobs_to_delete: dict[int, tuple[str, str]] = {}
+        for representation in representations:
+            db.delete(representation)
+        upload_keys_to_delete: set[str] = set()
         for upload_id in upload_ids_to_maybe_delete:
             import_refs = (
                 db.execute(
-                    select(func.count(ImportJobUpload.id)).where(ImportJobUpload.upload_id == upload_id)
+                    select(func.count(ImportJobUpload.id)).where(
+                        ImportJobUpload.upload_id == upload_id
+                    )
                 )
             ).scalar_one()
             input_refs = (
                 db.execute(
-                    select(func.count(ScoreInputAsset.id)).where(ScoreInputAsset.upload_id == upload_id)
+                    select(func.count(ScoreInputAsset.id)).where(
+                        ScoreInputAsset.upload_id == upload_id
+                    )
                 )
             ).scalar_one()
             if import_refs or input_refs:
@@ -245,16 +256,19 @@ class ScoreLifecycleService:
             upload = db.get(Upload, upload_id)
             if upload is None:
                 continue
-            blob_id, blob_uuid, blob_storage_key = blob_rows_by_upload[upload_id]
+            stored_object_id, object_key = objects_by_upload[upload_id]
             db.delete(upload)
+            db.flush()
             blob_refs = (
-                db.execute(select(func.count(Upload.id)).where(Upload.blob_id == blob_id))
+                db.execute(
+                    select(func.count(Upload.id)).where(Upload.stored_object_id == stored_object_id)
+                )
             ).scalar_one()
-            if blob_refs <= 1:
-                blob = db.get(StorageBlob, blob_id)
+            if blob_refs == 0:
+                blob = db.get(StoredObject, stored_object_id)
                 if blob is not None:
                     db.delete(blob)
-                    blobs_to_delete[blob_id] = (blob_uuid, blob_storage_key)
+                    upload_keys_to_delete.add(object_key)
         import_cleanup = self._delete_originating_import_job_sync(
             db,
             originating_job,
@@ -288,8 +302,8 @@ class ScoreLifecycleService:
             )
             if release.delete_storage and self._delete_storage_best_effort(release.storage_key):
                 deleted_storage_count += 1
-        for _blob_uuid, blob_storage_key in blobs_to_delete.values():
-            if self._delete_storage_best_effort(blob_storage_key):
+        for object_key in upload_keys_to_delete:
+            if self._delete_storage_best_effort(object_key):
                 deleted_storage_count += 1
         return ScoreDeletionCleanupResult(
             scores_deleted=1,
@@ -308,9 +322,11 @@ class ScoreLifecycleService:
             db.execute(
                 select(
                     ImportArtifact.artifact_uuid,
-                    ImportArtifact.storage_key,
-                    ImportArtifact.size_bytes,
-                ).where(ImportArtifact.job_id == job_id)
+                    StoredObject.object_key,
+                    StoredObject.byte_size,
+                )
+                .join(StoredObject, ImportArtifact.stored_object_id == StoredObject.id)
+                .where(ImportArtifact.job_id == job_id)
             ).all()
         )
         upload_rows = list(
@@ -318,13 +334,12 @@ class ScoreLifecycleService:
                 select(
                     Upload.id,
                     Upload.upload_uuid,
-                    StorageBlob.id,
-                    StorageBlob.blob_uuid,
-                    StorageBlob.storage_key,
-                    StorageBlob.size_bytes,
+                    StoredObject.id,
+                    StoredObject.object_key,
+                    StoredObject.byte_size,
                 )
                 .join(ImportJobUpload, ImportJobUpload.upload_id == Upload.id)
-                .join(StorageBlob, Upload.blob_id == StorageBlob.id)
+                .join(StoredObject, Upload.stored_object_id == StoredObject.id)
                 .where(ImportJobUpload.job_id == job_id)
             ).all()
         )
@@ -339,8 +354,14 @@ class ScoreLifecycleService:
             )
             for artifact_uuid, storage_key, size_bytes in artifact_rows
         ]
-        orphan_uploads: list[tuple[int, str, int, str, str, int]] = []
-        for upload_id, upload_uuid, blob_id, blob_uuid, storage_key, size_bytes in upload_rows:
+        orphan_uploads: list[tuple[int, str, int, str, int]] = []
+        for (
+            upload_id,
+            upload_uuid,
+            stored_object_id,
+            storage_key,
+            size_bytes,
+        ) in upload_rows:
             other_job_refs = db.execute(
                 select(func.count(ImportJobUpload.id)).where(
                     ImportJobUpload.upload_id == upload_id,
@@ -348,15 +369,25 @@ class ScoreLifecycleService:
                 )
             ).scalar_one()
             input_refs = db.execute(
-                select(func.count(ScoreInputAsset.id)).where(
-                    ScoreInputAsset.upload_id == upload_id
-                )
+                select(func.count(ScoreInputAsset.id)).where(ScoreInputAsset.upload_id == upload_id)
             ).scalar_one()
             if other_job_refs == 0 and input_refs == 0:
                 orphan_uploads.append(
-                    (upload_id, upload_uuid, blob_id, blob_uuid, storage_key, size_bytes or 0)
+                    (
+                        upload_id,
+                        upload_uuid,
+                        stored_object_id,
+                        storage_key,
+                        size_bytes or 0,
+                    )
                 )
-        for _upload_id, upload_uuid, _blob_id, _blob_uuid, storage_key, size_bytes in orphan_uploads:
+        for (
+            _upload_id,
+            upload_uuid,
+            _object_id,
+            storage_key,
+            size_bytes,
+        ) in orphan_uploads:
             cleanup.append(
                 StorageUsageReleaseRecord(
                     category=StorageUsageCategory.UPLOAD,
@@ -366,29 +397,45 @@ class ScoreLifecycleService:
                     storage_key=storage_key,
                 )
             )
+        objects = list(
+            db.scalars(
+                select(StoredObject).where(
+                    StoredObject.object_key.in_([key for _, key, _ in artifact_rows])
+                )
+            )
+        )
         db.delete(job)
         db.flush()
+        for stored_object in objects:
+            db.delete(stored_object)
         seen_blob_ids: set[int] = set()
-        for upload_id, _upload_uuid, blob_id, blob_uuid, storage_key, _size_bytes in orphan_uploads:
+        for (
+            upload_id,
+            _upload_uuid,
+            stored_object_id,
+            storage_key,
+            _size_bytes,
+        ) in orphan_uploads:
             upload = db.get(Upload, upload_id)
             if upload is not None:
                 db.delete(upload)
-            if blob_id in seen_blob_ids:
+                db.flush()
+            if stored_object_id in seen_blob_ids:
                 continue
-            seen_blob_ids.add(blob_id)
+            seen_blob_ids.add(stored_object_id)
             blob_refs = db.execute(
-                select(func.count(Upload.id)).where(Upload.blob_id == blob_id)
+                select(func.count(Upload.id)).where(Upload.stored_object_id == stored_object_id)
             ).scalar_one()
-            if blob_refs <= 1:
-                blob = db.get(StorageBlob, blob_id)
+            if blob_refs == 0:
+                blob = db.get(StoredObject, stored_object_id)
                 if blob is not None:
                     db.delete(blob)
                     cleanup.append(
                         StorageUsageReleaseRecord(
                             category=StorageUsageCategory.UPLOAD,
                             bytes_count=0,
-                            object_type="storage_blob",
-                            object_id=blob_uuid,
+                            object_type="stored_object",
+                            object_id=str(stored_object_id),
                             storage_key=storage_key,
                             delete_storage=True,
                         )

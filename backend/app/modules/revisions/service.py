@@ -1,4 +1,6 @@
 from __future__ import annotations
+from app.modules.storage_objects.facts import StoredObjectFacts
+from app.modules.storage_objects.persistence import object_to_row
 
 import hashlib
 import uuid
@@ -155,11 +157,15 @@ class RevisionService:
                     source_uuid=source_uuid,
                     revision_id=revision_id,
                     format=RevisionSourceFormat.MUSICXML,
-                    storage_key=stored.object_key,
+                    stored_object=object_to_row(
+                        StoredObjectFacts(
+                            object_key=stored.object_key,
+                            content_type="application/vnd.recordare.musicxml+xml",
+                            byte_size=len(content),
+                            sha256=content_hash,
+                        )
+                    ),
                     filename=stored.object_key.rsplit("/", 1)[-1],
-                    mime_type="application/vnd.recordare.musicxml+xml",
-                    size_bytes=stored.size_bytes,
-                    sha256=content_hash,
                     generator="editor",
                     generator_version="1",
                 )
@@ -282,7 +288,7 @@ class RevisionService:
         )
         if not source:
             raise ResourceNotFoundException("source", revision_uuid, ErrorCode.FILE_NOT_FOUND)
-        content = self.storage.read_bytes(source.storage_key)
+        content = self.storage.read_bytes(source.stored_object.object_key)
         content = admit_musicxml_document(content)
         content_hash = hashlib.sha256(content).hexdigest()
         storage_owner_user_id = score.owner_user_id
@@ -325,11 +331,15 @@ class RevisionService:
                     source_uuid=source_uuid,
                     revision_id=revision_id,
                     format=RevisionSourceFormat.MUSICXML,
-                    storage_key=stored.object_key,
+                    stored_object=object_to_row(
+                        StoredObjectFacts(
+                            object_key=stored.object_key,
+                            content_type=source.stored_object.content_type,
+                            byte_size=len(content),
+                            sha256=content_hash,
+                        )
+                    ),
                     filename=stored.object_key.rsplit("/", 1)[-1],
-                    mime_type=source.mime_type,
-                    size_bytes=stored.size_bytes,
-                    sha256=content_hash,
                     generator="restore",
                     generator_version="1",
                 )
@@ -478,9 +488,11 @@ class RevisionService:
         )
         if not source:
             raise ResourceNotFoundException("source", revision_uuid, ErrorCode.FILE_NOT_FOUND)
-        content = self.storage.read_bytes(source.storage_key).decode("utf-8")
+        content = self.storage.read_bytes(source.stored_object.object_key).decode("utf-8")
         base = await self._read(db, revision)
-        return RevisionContentRead(**base.model_dump(), content=content, mime_type=source.mime_type)
+        return RevisionContentRead(
+            **base.model_dump(), content=content, mime_type=source.stored_object.content_type
+        )
 
     async def _read(self, db: AsyncSession, revision: ScoreRevision) -> RevisionRead:
         return await self.read_model.revision_read(db, revision)

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.modules.account.avatar_presentation import avatar_url_for_user
 
 import uuid
 
@@ -453,7 +454,7 @@ class ScoreInviteService:
             membership_id=require_persisted_id(membership.id, entity="score membership"),
             display_name=user.display_name,
             email=user.email,
-            avatar_url=user.avatar_url,
+            avatar_url=avatar_url_for_user(user),
             role=membership.role,
             created_at=membership.created_at,
             revoked_at=membership.revoked_at,
@@ -468,7 +469,7 @@ class ScoreInviteService:
         return InviteActorRead(
             display_name=user.display_name,
             email=user.email,
-            avatar_url=user.avatar_url,
+            avatar_url=avatar_url_for_user(user),
         )
 
     async def _queue_invite_email(

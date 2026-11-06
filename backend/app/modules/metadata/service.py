@@ -53,9 +53,7 @@ class MetadataProjectionService:
             require_persisted_id(revision.id, entity="score revision"),
         )
         if not projection:
-            raise ResourceNotFoundException(
-                "metadata", revision_uuid, ErrorCode.RESOURCE_NOT_FOUND
-            )
+            raise ResourceNotFoundException("metadata", revision_uuid, ErrorCode.RESOURCE_NOT_FOUND)
         return self.to_read(revision, projection)
 
     async def rebuild(
@@ -82,7 +80,7 @@ class MetadataProjectionService:
             )
             db.add(projection)
         try:
-            content = self.storage.read_bytes(source.storage_key)
+            content = self.storage.read_bytes(source.stored_object.object_key)
         except Exception:
             self._mark_failed(projection, "source_read_failed")
         else:
@@ -120,9 +118,7 @@ class MetadataProjectionService:
         MetadataProjectionService._apply_result(projection, result)
 
     @staticmethod
-    def _apply_result(
-        projection: ScoreRevisionMetadata, result: MusicXMLMetadata
-    ) -> None:
+    def _apply_result(projection: ScoreRevisionMetadata, result: MusicXMLMetadata) -> None:
         projection.status = MetadataStatus.READY
         projection.error_code = None
         projection.measure_count = result.measure_count
@@ -150,9 +146,7 @@ class MetadataProjectionService:
         projection.tempo_events = []
 
     @staticmethod
-    def to_read(
-        revision: ScoreRevision, projection: ScoreRevisionMetadata
-    ) -> MetadataRead:
+    def to_read(revision: ScoreRevision, projection: ScoreRevisionMetadata) -> MetadataRead:
         return MetadataRead(
             revision_id=revision.revision_uuid,
             status=projection.status,
@@ -189,16 +183,12 @@ def rebuild_metadata_sync(
         )
     ).scalar_one_or_none()
     if not source:
-        MetadataProjectionService._mark_failed(
-            projection, "canonical_source_missing"
-        )
+        MetadataProjectionService._mark_failed(projection, "canonical_source_missing")
     else:
         try:
-            content = storage.read_bytes(source.storage_key)
+            content = storage.read_bytes(source.stored_object.object_key)
         except Exception:
-            MetadataProjectionService._mark_failed(
-                projection, "source_read_failed"
-            )
+            MetadataProjectionService._mark_failed(projection, "source_read_failed")
         else:
             MetadataProjectionService._compute_into(projection, content)
     db.commit()

@@ -1,6 +1,7 @@
 """Application test ports for unbound canonical notation compilation."""
 
 from types import SimpleNamespace
+from app.modules.storage_objects.persistence import object_from_bytes
 from unittest.mock import AsyncMock, Mock
 from app.modules.practice.bundle.service import PracticeBundleService
 
@@ -9,7 +10,13 @@ def bundle_service_for_notation(content: bytes):
     return PracticeBundleService(
         storage=Mock(read_bytes=Mock(return_value=content)),
         asset_repository=Mock(
-            canonical_source=AsyncMock(return_value=SimpleNamespace(storage_key="canonical.xml"))
+            canonical_source=AsyncMock(
+                return_value=SimpleNamespace(
+                    stored_object=object_from_bytes(
+                        object_key="canonical.xml", content=content, content_type="application/xml"
+                    )
+                )
+            )
         ),
         repository=Mock(read_bound=AsyncMock(return_value=None)),
     )

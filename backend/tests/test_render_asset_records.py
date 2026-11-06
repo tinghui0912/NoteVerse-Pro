@@ -8,7 +8,7 @@ from app.modules.score_assets.render_asset_records import (
     render_asset_usage,
     render_storage_key,
 )
-from app.storage import StoredObject
+from app.storage import ObjectWriteResult
 
 
 def test_render_storage_key_uses_profile_and_page_scoped_asset_path() -> None:
@@ -32,8 +32,7 @@ def test_render_asset_usage_captures_replacement_release_fields() -> None:
                 ScoreRenderAsset,
                 SimpleNamespace(
                     asset_uuid="asset-old",
-                    storage_key="scores/old.svg",
-                    size_bytes=123,
+                    stored_object=SimpleNamespace(object_key="scores/old.svg", byte_size=123),
                 ),
             )
         ]
@@ -49,10 +48,9 @@ def test_build_render_asset_record_uses_storage_and_renderer_metadata() -> None:
     asset = build_render_asset_record(
         asset_uuid="asset-1",
         revision_id=17,
-
-        stored=StoredObject(
+        stored=ObjectWriteResult(
             object_key="scores/score-1/revisions/revision-1/renders/default/001-asset-1.svg",
-            size_bytes=10,
+            size_bytes=7,
         ),
         mime_type="image/svg+xml",
         content=b"<svg />",
@@ -65,12 +63,12 @@ def test_build_render_asset_record_uses_storage_and_renderer_metadata() -> None:
     assert asset.asset_uuid == "asset-1"
     assert asset.revision_id == 17
     assert asset.kind == RenderAssetKind.RENDERED_PAGE
-    assert asset.storage_key.endswith("/001-asset-1.svg")
-    assert asset.mime_type == "image/svg+xml"
-    assert asset.size_bytes == 10
+    assert asset.stored_object.object_key.endswith("/001-asset-1.svg")
+    assert asset.stored_object.content_type == "image/svg+xml"
+    assert asset.stored_object.byte_size == 7
     assert asset.execution_manifest_id == 19
     assert asset.page_number == 1
     assert asset.render_profile == "default"
     assert asset.generator == "test-renderer"
     assert asset.generator_version == "1"
-    assert len(asset.sha256) == 64
+    assert len(asset.stored_object.sha256) == 64

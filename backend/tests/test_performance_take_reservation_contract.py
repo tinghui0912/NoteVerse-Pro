@@ -42,7 +42,7 @@ def test_manifest_and_lifecycle_persistence_ownership():
         "id",
         "manifest_id",
         "linked_score_id",
-        "media_blob_id",
+        "recording_object_id",
         "deletion_status",
         "created_at",
         "updated_at",
@@ -53,7 +53,6 @@ def test_manifest_and_lifecycle_persistence_ownership():
         "user_id",
         "manifest_id",
         "client_request_id",
-
         "staging_object_key",
         "storage_reservation_id",
         "expires_at",

@@ -97,7 +97,7 @@ class RevisionRenderService:
                 score_uuid=score_uuid,
                 revision_uuid=revision_uuid,
                 revision_id=revision_id,
-                canonical_storage_key=source.storage_key,
+                canonical_storage_key=source.stored_object.object_key,
                 profile=profile,
                 execution_manifest_id=execution_manifest_id,
                 uploaded_keys=uploaded_keys,
@@ -115,6 +115,7 @@ class RevisionRenderService:
         try:
             for item in previous:
                 await db.delete(item)
+                await db.delete(item.stored_object)
             await db.flush()
             for item in new_records:
                 db.add(item)
@@ -128,11 +129,11 @@ class RevisionRenderService:
                 db,
                 user_id=access.score.owner_user_id,
                 category=StorageUsageCategory.DERIVED_RENDER,
-                bytes_count=item.size_bytes or 0,
+                bytes_count=item.stored_object.byte_size or 0,
                 reason="render_asset_created",
                 object_type="score_render_asset",
                 object_id=item.asset_uuid,
-                storage_key=item.storage_key,
+                storage_key=item.stored_object.object_key,
             )
         for usage in previous_usage:
             await storage_usage_service.record_release(
@@ -197,7 +198,7 @@ class RevisionRenderService:
                 score_uuid=score_uuid,
                 revision_uuid=revision_uuid,
                 revision_id=revision_id,
-                canonical_storage_key=source.storage_key,
+                canonical_storage_key=source.stored_object.object_key,
                 profile=profile,
                 execution_manifest_id=execution_manifest_id,
                 uploaded_keys=uploaded_keys,
@@ -214,6 +215,7 @@ class RevisionRenderService:
             previous_usage = render_asset_usage(previous)
             for item in previous:
                 db.delete(item)
+                db.delete(item.stored_object)
             db.flush()
             for item in new_records:
                 db.add(item)
@@ -228,11 +230,11 @@ class RevisionRenderService:
                 db,
                 user_id=score.owner_user_id,
                 category=StorageUsageCategory.DERIVED_RENDER,
-                bytes_count=item.size_bytes or 0,
+                bytes_count=item.stored_object.byte_size or 0,
                 reason="render_asset_created",
                 object_type="score_render_asset",
                 object_id=item.asset_uuid,
-                storage_key=item.storage_key,
+                storage_key=item.stored_object.object_key,
             )
         for usage in previous_usage:
             storage_usage_service.record_release_sync(
@@ -310,7 +312,7 @@ class RevisionRenderService:
         return new_records
 
     def _delete_render_assets_best_effort(self, assets: list[ScoreRenderAsset]) -> None:
-        self._delete_storage_keys_best_effort([item.storage_key for item in assets])
+        self._delete_storage_keys_best_effort([item.stored_object.object_key for item in assets])
 
     def _delete_storage_keys_best_effort(self, storage_keys: list[str]) -> None:
         for key in storage_keys:

@@ -115,8 +115,8 @@ class PracticeBundleDeleteService:
         outbox = PracticeBundleDeleteOutbox(
             practice_bundle_id=bundle.id,
             bundle_id=bundle.bundle_id,
-            prepared_musicxml_object_key=bundle.prepared_musicxml_object_key,
-            artifact_object_key=bundle.artifact_object_key,
+            prepared_musicxml_object_key=bundle.prepared_musicxml_object.object_key,
+            artifact_object_key=bundle.artifact_object.object_key,
             status=PracticeBundleDeleteOutboxStatus.PENDING.value,
             max_attempts=settings.PERFORMANCE_TAKE_DELETE_OUTBOX_MAX_ATTEMPTS,
         )

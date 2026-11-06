@@ -88,7 +88,7 @@ class PlaybackGenerationService:
         if source is None:
             raise ResourceNotFoundException("source", revision_uuid, ErrorCode.FILE_NOT_FOUND)
 
-        source_content = self.storage.read_bytes(source.storage_key)
+        source_content = self.storage.read_bytes(source.stored_object.object_key)
         audio = self.renderer.render(source_content)
         asset_uuid = str(uuid.uuid4())
         stored = self.storage.put_bytes(
@@ -109,7 +109,7 @@ class PlaybackGenerationService:
                 )
             )
         ).scalar_one_or_none()
-        old_key = previous.storage_key if previous else None
+        old_key = previous.stored_object.object_key if previous else None
         previous_usage = playback_asset_usage(previous)
         try:
             manifest = await get_or_create_execution_manifest_async(
@@ -118,6 +118,7 @@ class PlaybackGenerationService:
             execution_manifest_id = require_persisted_id(manifest.id, entity="execution manifest")
             if previous is not None:
                 await db.delete(previous)
+                await db.delete(previous.stored_object)
                 await db.flush()
             asset = build_playback_asset_record(
                 asset_uuid=asset_uuid,
@@ -140,11 +141,11 @@ class PlaybackGenerationService:
             db,
             user_id=score.owner_user_id,
             category=StorageUsageCategory.DERIVED_AUDIO,
-            bytes_count=asset.size_bytes,
+            bytes_count=asset.stored_object.byte_size,
             reason="playback_asset_created",
             object_type="score_playback_asset",
             object_id=asset.asset_uuid,
-            storage_key=asset.storage_key,
+            storage_key=asset.stored_object.object_key,
         )
         if previous_usage is not None:
             await storage_usage_service.record_release(
@@ -209,7 +210,7 @@ class PlaybackGenerationService:
             revision_id=revision_id,
             source_fingerprint=source_fingerprint,
             asset_kind=asset_kind,
-            source=self.storage.read_bytes(source.storage_key),
+            source=self.storage.read_bytes(source.stored_object.object_key),
         )
 
     def _render_asset_sync(
@@ -241,7 +242,7 @@ class PlaybackGenerationService:
                 ScorePlaybackAsset.kind == asset_kind,
             )
         ).scalar_one_or_none()
-        old_key = previous.storage_key if previous else None
+        old_key = previous.stored_object.object_key if previous else None
         score = db.execute(
             select(Score)
             .join(ScoreRevision, ScoreRevision.score_id == Score.id)
@@ -258,6 +259,7 @@ class PlaybackGenerationService:
             execution_manifest_id = require_persisted_id(manifest.id, entity="execution manifest")
             if previous is not None:
                 db.delete(previous)
+                db.delete(previous.stored_object)
                 db.flush()
             asset = build_playback_asset_record(
                 asset_uuid=asset_uuid,
@@ -280,11 +282,11 @@ class PlaybackGenerationService:
             db,
             user_id=score.owner_user_id,
             category=StorageUsageCategory.DERIVED_AUDIO,
-            bytes_count=asset.size_bytes,
+            bytes_count=asset.stored_object.byte_size,
             reason="playback_asset_created",
             object_type="score_playback_asset",
             object_id=asset.asset_uuid,
-            storage_key=asset.storage_key,
+            storage_key=asset.stored_object.object_key,
         )
         if previous_usage is not None:
             storage_usage_service.record_release_sync(

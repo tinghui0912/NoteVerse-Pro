@@ -1,4 +1,6 @@
 from __future__ import annotations
+from app.modules.storage_objects.facts import StoredObjectFacts
+from app.modules.storage_objects.persistence import object_to_row
 
 from datetime import datetime
 from typing import Optional
@@ -32,6 +34,8 @@ from app.modules.score_assets.render_outbox_service import (
 )
 from app.shared.constants import ErrorCode
 from app.utils.timezone import utc_now_naive
+from app.storage import ObjectStorage, object_storage
+from app.core.logger import logger
 
 
 class SyncImportJobService:
@@ -39,7 +43,9 @@ class SyncImportJobService:
         self,
         repository: SyncImportJobRepository | None = None,
         notification_service: SyncNotificationService | None = None,
+        storage: ObjectStorage | None = None,
     ) -> None:
+        self.storage = storage or object_storage
         self.repository = repository or SyncImportJobRepository()
         self.notification_service = notification_service or sync_notification_service
 
@@ -103,11 +109,11 @@ class SyncImportJobService:
                 ImportArtifact.kind == ImportArtifactKind.REVIEW_MUSICXML.value,
             )
         ).scalar_one_or_none()
-        if review_xml is not None and review_xml.sha256:
+        if review_xml is not None and review_xml.stored_object.sha256:
             create_review_thumbnail_render_outbox_sync(
                 db,
                 import_job_id=require_persisted_id(job.id, entity="import job"),
-                source_fingerprint=review_xml.sha256,
+                source_fingerprint=review_xml.stored_object.sha256,
             )
         db.commit()
         self._notify_success(db, job)
@@ -210,7 +216,11 @@ class SyncImportJobService:
             raise ValueError(f"Job {job_uuid} not found")
         job_id = require_persisted_id(job.id, entity="import job")
         previous = [
-            (artifact.artifact_uuid, artifact.storage_key, artifact.size_bytes or 0)
+            (
+                artifact.artifact_uuid,
+                artifact.stored_object.object_key,
+                artifact.stored_object.byte_size or 0,
+            )
             for artifact in self.repository.list_artifacts(db, job_id)
             if artifact.kind == kind
         ]
@@ -220,12 +230,16 @@ class SyncImportJobService:
             artifact = ImportArtifact(
                 job_id=job_id,
                 kind=kind,
-                storage_key=item["storage_key"],
+                stored_object=object_to_row(
+                    StoredObjectFacts(
+                        object_key=item["storage_key"],
+                        byte_size=item["size"],
+                        content_type=item["mime_type"],
+                        sha256=item["sha256"],
+                    )
+                ),
                 filename=item["filename"],
                 page_number=item["page_number"],
-                size_bytes=item["size"],
-                mime_type=item["mime_type"],
-                sha256=item["sha256"],
             )
             db.add(artifact)
             created.append(artifact)
@@ -246,12 +260,22 @@ class SyncImportJobService:
                 db,
                 user_id=job.user_id,
                 category=StorageUsageCategory.TEMP_IMPORT,
-                bytes_count=artifact.size_bytes or 0,
+                bytes_count=artifact.stored_object.byte_size or 0,
                 reason="import_artifact_created",
                 object_type="import_artifact",
                 object_id=artifact.artifact_uuid,
-                storage_key=artifact.storage_key,
+                storage_key=artifact.stored_object.object_key,
             )
+
+        current_keys = {artifact.stored_object.object_key for artifact in created}
+        for _artifact_uuid, key, _size in previous:
+            if key not in current_keys:
+                try:
+                    self.storage.delete(key)
+                except Exception as exc:
+                    logger.bind(event="import_job.artifact_delete_failed", storage_key=key).opt(
+                        exception=exc
+                    ).warning("Import artifact object deletion failed")
 
     def get_detail(self, db: Session, job_uuid: str) -> ImportJobDetail:
         job = self.repository.get_by_uuid(db, job_uuid)
@@ -295,8 +319,8 @@ class SyncImportJobService:
                     "artifact_id": thumbnail_artifact.artifact_uuid,
                     "filename": thumbnail_artifact.filename,
                     "page_number": thumbnail_artifact.page_number,
-                    "size": thumbnail_artifact.size_bytes,
-                    "mime_type": thumbnail_artifact.mime_type,
+                    "size": thumbnail_artifact.stored_object.byte_size,
+                    "mime_type": thumbnail_artifact.stored_object.content_type,
                 }
                 if thumbnail_artifact
                 else None
@@ -311,10 +335,10 @@ class SyncImportJobService:
             "original_images": [
                 {
                     "artifact_id": f"upload:{require_persisted_id(upload.id, entity='upload')}",
-                    "filename": upload.original_filename or blob.filename,
+                    "filename": upload.original_filename,
                     "page_number": job_upload.page_number,
-                    "size": blob.size_bytes,
-                    "mime_type": blob.mime_type,
+                    "size": blob.byte_size,
+                    "mime_type": blob.content_type,
                     "upload_id": upload.upload_uuid,
                     "original_filename": upload.original_filename,
                 }

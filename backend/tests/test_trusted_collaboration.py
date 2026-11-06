@@ -11,7 +11,7 @@ from app.core.exceptions import UnauthorizedException
 from app.db.models import (
     ScoreMembership,
     ScoreInputAsset,
-    StorageBlob,
+    StoredObject,
     Upload,
     ScoreRevisionSource,
     ScoreInvite,
@@ -77,27 +77,25 @@ def collaboration(score_service_session):
             source_uuid="trusted-source",
             revision_id=4001,
             format=RevisionSourceFormat.MUSICXML,
-
-            storage_key=xml.object_key,
+            stored_object=StoredObject(
+                object_key=xml.object_key,
+                content_type="application/vnd.recordare.musicxml+xml",
+                byte_size=xml.size_bytes,
+                sha256="a" * 64,
+            ),
             filename=xml.object_key.rsplit("/", 1)[-1],
-            mime_type="application/vnd.recordare.musicxml+xml",
-            size_bytes=xml.size_bytes,
-            sha256="a" * 64,
             generator="test",
             generator_version="1",
         )
     )
     image = storage.put_bytes(key="trusted/raw.png", content=b"original", content_type="image/png")
     session.add(
-        StorageBlob(
+        StoredObject(
             id=4002,
-            blob_uuid="trusted-blob",
             sha256="b" * 64,
-
-            storage_key=image.object_key,
-            filename="private-scan.png",
-            mime_type="image/png",
-            size_bytes=image.size_bytes,
+            object_key=image.object_key,
+            content_type="image/png",
+            byte_size=image.size_bytes,
         )
     )
     session.flush()
@@ -105,7 +103,7 @@ def collaboration(score_service_session):
         Upload(
             id=4003,
             upload_uuid="trusted-upload",
-            blob_id=4002,
+            stored_object_id=4002,
             original_filename="private-scan.png",
             uploader_user_id=1,
         )
@@ -156,6 +154,7 @@ async def test_http_source_disclosure_and_editing_boundaries(collaboration, role
     from app.modules.performance_takes.upload_reservation.service import (
         PerformanceTakeUploadService,
     )
+
     services = {
         get_performance_take_upload_service: PerformanceTakeUploadService(
             storage=storage, practice_bundle_service=source
@@ -239,7 +238,11 @@ async def test_http_source_disclosure_and_editing_boundaries(collaboration, role
                 "/api/v1/performance-takes/upload-reservations",
                 json={
                     "client_request_id": f"matrix-{role}",
-                    "practice_binding": {"score_id": "trusted-score", "revision_id": "trusted-revision", "bundle_id": bundle_id},
+                    "practice_binding": {
+                        "score_id": "trusted-score",
+                        "revision_id": "trusted-revision",
+                        "bundle_id": bundle_id,
+                    },
                     "media": {
                         "kind": "AUDIO",
                         "mime_type": "audio/webm",
@@ -252,11 +255,15 @@ async def test_http_source_disclosure_and_editing_boundaries(collaboration, role
             )
             assert reservation.status_code == (200 if can_practice else 403), reservation.text[:200]
             if can_practice:
-                saved = await source.authorize_bundle_for_save(db,user_id,"trusted-score","trusted-revision",bundle_id)
+                saved = await source.authorize_bundle_for_save(
+                    db, user_id, "trusted-score", "trusted-revision", bundle_id
+                )
                 assert saved.bundle.bundle_id == bundle_id
             else:
                 with pytest.raises(UnauthorizedException):
-                    await source.authorize_bundle_for_save(db,user_id,"trusted-score","trusted-revision",bundle_id)
+                    await source.authorize_bundle_for_save(
+                        db, user_id, "trusted-score", "trusted-revision", bundle_id
+                    )
     finally:
         for dependency in [get_db, get_current_user, *services]:
             app.dependency_overrides.pop(dependency, None)

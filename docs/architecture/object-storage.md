@@ -1,19 +1,31 @@
-# Durable ObjectStorage
+# Durable ObjectStorage and StoredObject
 
-NoteVerse durable binary data uses one configured `ObjectStorage` namespace per deployment. The port is capability-only. Application services and workers depend on `app/storage/base.py`, its neutral capability DTOs, and the deployment composition root. Concrete provider selection belongs to infrastructure configuration.
+NoteVerse uses one private `ObjectStorage` namespace per deployment. The capability-only port in `app/storage/base.py` executes generic writes, stat, reads/ranges, copy, deletion, direct-upload and signed-download operations. `ObjectWriteResult` reports an operation's object key and byte size; `ObjectMetadata` reports provider observations. Neither creates persistent physical authority.
 
-Feature modules own object identity, object keys, feature namespaces, MIME, deduplication and authorization/delivery policy. Files owns its content-hash upload key policy; Account owns avatar keys, JPEG processing and stable application URLs. `StoredObject` reports only the object key and byte size of a write.
+`StoredObject` in `app/db/models/stored_object.py` persists exactly `id`, `object_key`, `byte_size`, `sha256`, `content_type` and `created_at`. Its key is unique within the deployment namespace. Byte size is nonnegative. SHA-256 is a full lowercase digest and is not unique. Filename, user, product identity, authorization, generator and lifecycle belong to semantic owners.
 
-The durable namespace is private. Raw public object URLs are not part of the port. Delivery explicitly uses signed download capabilities or authorized application streaming/redirect endpoints.
+`modules/storage_objects/facts.py` validates the immutable `StoredObjectFacts` value. `persistence.py` is the physical-fact hydration/creation boundary. Application-verified complete bytes establish size and SHA; provider checksums and ETags do not establish durable SHA authority.
 
-`app/storage/s3_compatible.py` implements the S3-compatible wire protocol. Direct upload is a required capability: a short-lived URL, HTTP method and request headers. Download capabilities are signed by the configured adapter. No database row selects a provider. Object keys are unique within the deployment namespace.
+## Semantic references
 
-Development uses the same object-storage application protocol as production. `docker-compose.backend-dev.yml` supplies a private object-store service and initializes the development namespace. Its signing endpoint is browser-reachable; its internal endpoint addresses the same namespace from containers. Deployment credentials and endpoints are infrastructure configuration. Backend filesystem durable storage and backend upload fallback do not exist.
+Upload, ImportArtifact, ScoreRevisionSource, ScoreRenderAsset and ScorePlaybackAsset reference `stored_object`. PerformanceTake references `recording_object` alongside its independent TakeManifest. PracticeBundle references `prepared_musicxml_object` and `artifact_object`. User references its current `avatar_object`. Their foreign keys restrict physical-row removal while any semantic reference remains.
 
-`MediaBlob` owns the immutable object key, verified full SHA-256, exact byte size and canonical content type. Finalize streams the complete staging and copied candidate objects, compares their hashes, and atomically commits Blob, Take, reservation completion and quota. Provider checksums and ETags do not establish durable byte identity.
+Features own object keys, namespaces, filenames, MIME policy, deduplication and delivery authorization. Upload deduplication selects only objects already referenced by Uploads; a matching SHA in another domain grants no reuse. StoredObject implies no global deduplication. Account creates an immutable processed-JPEG key and derives a stable application avatar URL from the current reference. The avatar endpoint issues a fresh signed download capability.
 
-Deletion snapshots contain the physical key and accounting facts. Workers use the deployment ObjectStorage and atomically retire Take, Blob and quota with outbox completion. Manifest and reservation lineage remain. Bundle, score sources, generated assets, avatars and processing inputs use the same capability boundary. Profile images use a stable application URL that issues a fresh object download capability.
+TakeManifest.capture remains admitted browser provenance. Take aggregate admission verifies its MIME and byte size agree with the recording StoredObject. Finalize streams complete staging and copied candidate bytes, verifies both full hashes, then commits StoredObject, Take, reservation completion and quota atomically.
 
-Worker materialization writes disposable files under `WORK_ROOT`. Browser OPFS and `LocalMediaAsset` are transient browser resources, independent of server durable storage.
+## Locators and deletion
 
-Unit/application tests use a test-only object-map adapter. Shared capability checks also exercise the concrete SDK boundary. `NOTEVERSE_TEST_OBJECT_STORAGE_*` selects an explicitly dedicated network integration namespace for direct upload, metadata, streaming/range reads, copy, signed download and deletion. Network integration is reported separately from unit tests.
+Temporary upload staging, finalizing and orphan keys are reservation lifecycle locators, not StoredObjects. Delete-outbox keys are immutable operation snapshots. StorageUsage reservation/event keys are accounting/audit snapshots. These snapshots do not establish current physical facts.
+
+Take and Bundle deletion retain their domain outboxes, payloads and retry policies. Workers check the domain lease/ownership, remove semantic and physical rows under foreign-key protection, delete snapshot objects, and atomically complete domain cleanup. Take Manifest and Reservation lineage remain.
+
+Files deletion, Avatar replacement/clear, Import cleanup, Score cleanup and derivative replacement/retention use their domain cleanup flows. Their synchronous or best-effort object deletion is not a shared durable retirement protocol. A failed post-commit storage delete can leave unreferenced bytes. Domain code never deliberately deletes bytes while retaining a live semantic reference to their StoredObject.
+
+## Infrastructure and verification
+
+`app/storage/s3_compatible.py` implements the configured S3-compatible protocol. Application modules depend on the port and composition root. No database row chooses a provider. Delivery explicitly uses signed capabilities or authorized application streaming/redirect endpoints; raw public object URLs are not part of the port.
+
+Development uses the same application protocol as production. `docker-compose.backend-dev.yml` supplies the development object-store service. Backend filesystem durable storage and backend upload fallback do not exist. Worker materialization writes disposable files under `WORK_ROOT`. Browser OPFS and LocalMediaAsset are independent transient browser resources.
+
+Unit/application tests use a test-only object-map adapter. `NOTEVERSE_TEST_OBJECT_STORAGE_*` selects a dedicated network integration namespace for direct upload, metadata, full/range reads, copy, signed download and deletion. Network integration is reported separately from SDK-boundary and unit tests.

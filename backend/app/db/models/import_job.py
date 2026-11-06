@@ -21,7 +21,9 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, Relationship, SQLModel
+from sqlalchemy.orm import relationship
+from .stored_object import StoredObject
 
 from app.utils.timezone import utc_now_naive
 
@@ -220,7 +222,7 @@ class ImportJobUpload(SQLModel, table=True):  # type: ignore[call-arg]
 class ImportArtifact(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "import_artifacts"
     __table_args__ = (
-        UniqueConstraint("storage_key", name="uq_import_artifacts_storage_key"),
+        UniqueConstraint("stored_object_id", name="uq_import_artifacts_stored_object"),
         Index("idx_import_artifacts_job_kind", "job_id", "kind"),
     )
 
@@ -241,11 +243,15 @@ class ImportArtifact(SQLModel, table=True):  # type: ignore[call-arg]
     )
     kind: str = Field(sa_column=Column(String(64), nullable=False))
 
-    storage_key: str = Field(sa_column=Column(String(768), nullable=False))
+    stored_object_id: int = Field(
+        sa_column=Column(
+            bigint_pk_type, ForeignKey("stored_objects.id", ondelete="RESTRICT"), nullable=False
+        )
+    )
+    stored_object: StoredObject = Relationship(
+        sa_relationship=relationship(StoredObject, lazy="selectin")
+    )
     filename: str = Field(sa_column=Column(String(255), nullable=False))
-    mime_type: Optional[str] = Field(default=None, sa_column=Column(String(128)))
-    size_bytes: Optional[int] = Field(default=None, sa_column=Column(BigInteger))
-    sha256: Optional[str] = Field(default=None, sa_column=Column(String(64)))
     page_number: Optional[int] = Field(default=None, sa_column=Column(Integer))
     created_at: datetime = Field(
         default_factory=utc_now_naive,

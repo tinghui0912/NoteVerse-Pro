@@ -1,5 +1,7 @@
 """Durable presentation demand, post-commit relaying, and generation admission."""
 
+from app.db.models import StoredObject
+
 from contextlib import contextmanager
 from datetime import timedelta
 from hashlib import sha256
@@ -75,11 +77,13 @@ def revisions(score_service_session):
                 source_uuid=f"demand-source-{number}",
                 revision_id=revision.id,
                 format=RevisionSourceFormat.MUSICXML,
-
-                storage_key=stored.object_key,
+                stored_object=StoredObject(
+                    object_key=stored.object_key,
+                    byte_size=stored.size_bytes,
+                    content_type="application/vnd.recordare.musicxml+xml",
+                    sha256=fingerprint,
+                ),
                 filename=stored.object_key.rsplit("/", 1)[-1],
-                mime_type="application/vnd.recordare.musicxml+xml",
-                sha256=fingerprint,
                 generator="test",
                 generator_version="1",
             )
@@ -115,7 +119,9 @@ def work_rows(db, number):
     )
 
 
-def test_unpinned_history_is_not_generation_demand_and_never_runs_generators(revisions, monkeypatch):
+def test_unpinned_history_is_not_generation_demand_and_never_runs_generators(
+    revisions, monkeypatch
+):
     db, storage, score, rows = revisions
     from app.worker.execution import render_outbox, playback_outbox
 
@@ -159,7 +165,8 @@ def test_unpinned_history_is_not_generation_demand_and_never_runs_generators(rev
     assert playback_outbox_service.claim(db, "audio-3") is not None
     assert len(db.scalars(select(ScoreRevisionSource)).all()) == 3
     assert all(
-        storage.exists(source.storage_key) for source in db.scalars(select(ScoreRevisionSource))
+        storage.exists(source.stored_object.object_key)
+        for source in db.scalars(select(ScoreRevisionSource))
     )
 
 
@@ -333,7 +340,7 @@ async def test_business_commit_precedes_immediate_dispatch_and_broker_failure_is
             source = check.scalar(
                 select(ScoreRevisionSource).where(ScoreRevisionSource.revision_id == revision.id)
             )
-            assert source is not None and storage.exists(source.storage_key)
+            assert source is not None and storage.exists(source.stored_object.object_key)
             assert (
                 check.scalar(
                     select(RenderOutbox).where(RenderOutbox.outbox_uuid == work.render_outbox_uuid)

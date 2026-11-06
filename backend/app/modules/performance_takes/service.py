@@ -76,7 +76,7 @@ class PerformanceTakeService:
         can_open_score: bool = False,
     ) -> PerformanceTakeRead:
         facts = take_from_row(take)
-        manifest, blob = facts.manifest, facts.blob
+        manifest, blob = facts.manifest, facts.recording_object
         linked_score_id = (
             score.score_uuid
             if can_open_score
@@ -198,9 +198,8 @@ class PerformanceTakeService:
                 "performance_take", take_id, ErrorCode.RESOURCE_NOT_FOUND
             )
 
-
         facts = take_from_row(take)
-        manifest, blob = facts.manifest, facts.blob
+        manifest, blob = facts.manifest, facts.recording_object
         playback_url = self.storage.download_url(
             blob.object_key,
             content_type=blob.content_type,
@@ -238,7 +237,7 @@ class PerformanceTakeService:
                 "performance_take", take_id, ErrorCode.RESOURCE_NOT_FOUND
             )
         facts = take_from_row(take)
-        manifest, blob = facts.manifest, facts.blob
+        manifest, blob = facts.manifest, facts.recording_object
         extension = _extension_for_mime(blob.content_type)
         return (
             blob.object_key,
@@ -262,7 +261,7 @@ class PerformanceTakeService:
             return {"status": "deleting", "take_id": take_id}
 
         facts = take_from_row(take)
-        manifest, blob = facts.manifest, facts.blob
+        manifest, blob = facts.manifest, facts.recording_object
         take.deletion_status = PerformanceTakeDeletionStatus.DELETING.value
         outbox = PerformanceTakeDeleteOutbox(
             take_id=take.id,

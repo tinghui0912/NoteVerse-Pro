@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from alembic import command
 from app.db.models import (
-    MediaBlob,
+    StoredObject,
     User,
     PerformanceTakeUploadReservation,
     PerformanceTake,
@@ -33,7 +33,6 @@ def reservation_values(user_id, manifest_id):
         manifest_id=manifest_id,
         reservation_uuid="reservation",
         client_request_id="request",
-
         staging_object_key="staging",
         storage_reservation_id="quota",
         expires_at=utc_now_naive() + timedelta(hours=1),
@@ -76,7 +75,6 @@ def test_fresh_manifest_shared_by_reservation_and_take(monkeypatch):
                 manifest_id=manifest.id,
                 reservation_uuid="reservation",
                 client_request_id="request",
-
                 staging_object_key="staging",
                 storage_reservation_id="quota",
                 expires_at=utc_now_naive() + timedelta(hours=1),
@@ -84,8 +82,7 @@ def test_fresh_manifest_shared_by_reservation_and_take(monkeypatch):
             )
             take = PerformanceTake(
                 manifest_id=manifest.id,
-                media_blob=MediaBlob(
-
+                recording_object=StoredObject(
                     object_key="media",
                     byte_size=len(VALID_WEBM_BYTES),
                     sha256=hashlib.sha256(VALID_WEBM_BYTES).hexdigest(),
@@ -99,8 +96,7 @@ def test_fresh_manifest_shared_by_reservation_and_take(monkeypatch):
             db.add(
                 PerformanceTake(
                     manifest_id=manifest.id,
-                    media_blob=MediaBlob(
-
+                    recording_object=StoredObject(
                         object_key="other",
                         byte_size=len(VALID_WEBM_BYTES),
                         sha256=hashlib.sha256(VALID_WEBM_BYTES).hexdigest(),
@@ -120,7 +116,6 @@ def test_fresh_manifest_shared_by_reservation_and_take(monkeypatch):
                     manifest_id=manifest.id,
                     reservation_uuid="other",
                     client_request_id="request",
-
                     staging_object_key="other-staging",
                     storage_reservation_id="other-quota",
                     expires_at=utc_now_naive() + timedelta(hours=1),

@@ -1,5 +1,7 @@
 """Presentation-only bearer access pins exactly one revision."""
 
+from app.db.models import StoredObject
+
 from datetime import timedelta, timezone
 from hashlib import sha256
 
@@ -65,12 +67,13 @@ def add_page(session, storage, revision_id, asset_id):
         asset_uuid=asset_id,
         revision_id=revision_id,
         kind=RenderAssetKind.RENDERED_PAGE,
-
-        storage_key=stored.object_key,
+        stored_object=StoredObject(
+            object_key=stored.object_key,
+            content_type="image/svg+xml",
+            byte_size=stored.size_bytes,
+            sha256="a" * 64,
+        ),
         filename=stored.object_key.rsplit("/", 1)[-1],
-        mime_type="image/svg+xml",
-        size_bytes=stored.size_bytes,
-        sha256="a" * 64,
         page_number=1,
         render_profile="default",
         generator="test",
@@ -90,12 +93,13 @@ def add_audio(session, storage, revision_id):
             asset_uuid=f"audio-{revision_id}",
             revision_id=revision_id,
             kind=PlaybackAssetKind.AUDIO,
-
-            storage_key=stored.object_key,
+            stored_object=StoredObject(
+                object_key=stored.object_key,
+                content_type="audio/wav",
+                byte_size=stored.size_bytes,
+                sha256="b" * 64,
+            ),
             filename=stored.object_key.rsplit("/", 1)[-1],
-            mime_type="audio/wav",
-            size_bytes=stored.size_bytes,
-            sha256="b" * 64,
             duration_ms=1000,
             source_fingerprint="c" * 64,
             generator="test",
@@ -159,7 +163,9 @@ async def test_preview_pins_revision_and_never_falls_back(preview_context):
     assert [p.asset_id for p in detail.render_assets] == ["page-a"]
     assert not detail.audio_available
     assert_presentation_only(detail.model_dump())
-    assert (await service.image(db, created.token, "page-a")).storage_key == a.storage_key
+    assert (
+        await service.image(db, created.token, "page-a")
+    ).storage_key == a.stored_object.object_key
     with pytest.raises(ResourceNotFoundException):
         await service.image(db, created.token, "page-b")
     with pytest.raises(ResourceNotFoundException):
@@ -347,7 +353,7 @@ async def test_active_preview_retains_exact_presentation_until_pin_ends(
 
     session, storage, score, db, previews = preview_context
     page = add_page(session, storage, 901, "retained-page")
-    page_key = page.storage_key
+    page_key = page.stored_object.object_key
     add_audio(session, storage, 901)
     created = await previews.create(db, score.score_uuid, 1, GuestPreviewCreateRequest())
     add_head_b(session, score)

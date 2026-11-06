@@ -42,12 +42,12 @@ explicit product domain independently of recognition models.
 
 ## Canonical ownership
 
-| Owner | Facts |
-| --- | --- |
-| notes | noteId, eventId reference, pianoKey, renderNoteId, measureNumber, staffId, voiceId, tieTypes |
-| events | eventId, onsetTick, durationTicks |
-| moments | groupId, onsetTick, canonicalEndTick, attacks, continuationNoteIds |
-| physical attack | attackId, pianoKey, nonempty canonical noteIds at the same onset/key |
+| Owner           | Facts                                                                                        |
+| --------------- | -------------------------------------------------------------------------------------------- |
+| notes           | noteId, eventId reference, pianoKey, renderNoteId, measureNumber, staffId, voiceId, tieTypes |
+| events          | eventId, onsetTick, durationTicks                                                            |
+| moments         | groupId, onsetTick, canonicalEndTick, attacks, continuationNoteIds                           |
+| physical attack | attackId, pianoKey, nonempty canonical noteIds at the same onset/key                         |
 
 A revision has one canonical notation graph and one chronological Practice moment
 sequence. STEP and Continuous project the same physical attacks. Each note owns one
@@ -91,8 +91,8 @@ The deterministic producer fixture check verifies payload stability independentl
 
 [Practice Bundle](practice-bundle.md) supplies the artifact and optional prepared
 MusicXML with an explicit revision binding in one `/bundle` envelope. Artifact content
-determines artifactId. PracticeBundleRecord owns content identity and representation
-checksums/physical facts. ScoreRevisionPracticeBinding owns the revision association.
+determines artifactId. PracticeBundleRecord owns content identity and two representation-specific StoredObject references.
+StoredObject owns representation physical facts. ScoreRevisionPracticeBinding owns the revision association.
 Take and Reservation own detached provenance snapshots without retaining Bundle.
 Bundle admission and saved score export authorize the exact revision binding; the Bundle
 contract defines authorization, durable verification and retention.

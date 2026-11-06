@@ -8,7 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.core.exceptions import FileException, ValidationException
-from app.db.models import User
+from app.db.models import User, StoredObject
+from sqlalchemy import select
 from app.modules.account.avatar_service import AvatarService, avatar_object_key
 from app.modules.account.dependencies import get_avatar_service, get_profile_service
 from app.modules.account.profile_service import ProfileService
@@ -93,12 +94,21 @@ async def delete_avatar(
 
 
 @router.get("/avatars/{filename}", response_class=RedirectResponse, status_code=307)
-def read_avatar(filename: str, avatar_service: AvatarService = Depends(get_avatar_service)):
+async def read_avatar(
+    filename: str,
+    db: AsyncSession = Depends(get_db),
+    avatar_service: AvatarService = Depends(get_avatar_service),
+):
     """Issue a fresh object capability for a public profile image."""
-    if not re.fullmatch(r"[0-9]+_[0-9a-f]{32}\.jpg", filename):
+    if not re.fullmatch(r"[0-9]+_[0-9a-f]{64}_[0-9a-f]{32}\.jpg", filename):
         raise ResourceNotFoundException("avatar", filename)
-    if not avatar_service.avatar_exists(filename):
+    current = await db.scalar(
+        select(StoredObject)
+        .join(User, User.avatar_object_id == StoredObject.id)
+        .where(StoredObject.object_key == avatar_object_key(filename))
+    )
+    if current is None or not avatar_service.avatar_exists(filename):
         raise ResourceNotFoundException("avatar", filename)
     return RedirectResponse(
-        avatar_service.storage.download_url(avatar_object_key(filename), content_type="image/jpeg")
+        avatar_service.storage.download_url(current.object_key, content_type=current.content_type)
     )

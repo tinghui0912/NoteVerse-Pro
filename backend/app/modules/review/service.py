@@ -1,4 +1,6 @@
 from __future__ import annotations
+from app.modules.storage_objects.facts import StoredObjectFacts
+from app.modules.storage_objects.persistence import object_to_row
 
 import hashlib
 import uuid
@@ -166,11 +168,15 @@ class ReviewService:
                     source_uuid=source_uuid,
                     revision_id=revision_id,
                     format=RevisionSourceFormat.MUSICXML,
-                    storage_key=stored.object_key,
+                    stored_object=object_to_row(
+                        StoredObjectFacts(
+                            object_key=stored.object_key,
+                            content_type="application/vnd.recordare.musicxml+xml",
+                            byte_size=len(content),
+                            sha256=content_hash,
+                        )
+                    ),
                     filename=stored.object_key.rsplit("/", 1)[-1],
-                    mime_type="application/vnd.recordare.musicxml+xml",
-                    size_bytes=stored.size_bytes,
-                    sha256=content_hash,
                     generator="review-confirm",
                     generator_version="1",
                     created_at=now,
@@ -315,9 +321,10 @@ class ReviewService:
         if artifact is None:
             raise ResourceNotFoundException("import_artifact", job_uuid, ErrorCode.XML_NOT_FOUND)
 
+        previous_object = artifact.stored_object
         old_artifact_uuid = artifact.artifact_uuid
-        old_storage_key = artifact.storage_key
-        old_size_bytes = artifact.size_bytes or 0
+        old_storage_key = artifact.stored_object.object_key
+        old_size_bytes = artifact.stored_object.byte_size or 0
         stored = self.storage.put_bytes(
             key=f"jobs/{job_uuid}/{ImportArtifactKind.REVIEW_MUSICXML.value}/{uuid.uuid4()}.musicxml",
             content=content,
@@ -325,11 +332,17 @@ class ReviewService:
         )
         business_committed = False
         try:
-            artifact.storage_key = stored.object_key
+            artifact.stored_object = object_to_row(
+                StoredObjectFacts(
+                    object_key=stored.object_key,
+                    content_type="application/vnd.recordare.musicxml+xml",
+                    byte_size=len(content),
+                    sha256=content_hash,
+                )
+            )
             artifact.filename = stored.object_key.rsplit("/", 1)[-1]
-            artifact.mime_type = "application/vnd.recordare.musicxml+xml"
-            artifact.size_bytes = stored.size_bytes
-            artifact.sha256 = content_hash
+            await db.flush()
+            await db.delete(previous_object)
             job.updated_at = utc_now_naive()
             await create_review_thumbnail_render_outbox(
                 db,

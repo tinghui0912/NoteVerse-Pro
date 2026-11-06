@@ -8,7 +8,7 @@ from app.modules.playback.asset_records import (
     playback_storage_key,
 )
 from app.processing.engines.playback import RenderedAudio
-from app.storage import StoredObject
+from app.storage import ObjectWriteResult
 
 
 def test_playback_storage_key_uses_revision_scoped_asset_path() -> None:
@@ -29,8 +29,7 @@ def test_playback_asset_usage_captures_replacement_release_fields() -> None:
             ScorePlaybackAsset,
             SimpleNamespace(
                 asset_uuid="asset-old",
-                storage_key="scores/old.wav",
-                size_bytes=123,
+                stored_object=SimpleNamespace(object_key="scores/old.wav", byte_size=123),
             ),
         )
     )
@@ -47,8 +46,7 @@ def test_build_playback_asset_record_uses_rendered_audio_metadata() -> None:
         asset_uuid="asset-1",
         revision_id=17,
         asset_kind=PlaybackAssetKind.AUDIO,
-
-        stored=StoredObject(
+        stored=ObjectWriteResult(
             object_key="scores/score-1/revisions/revision-1/playback/asset-1.wav",
             size_bytes=10,
         ),
@@ -68,12 +66,12 @@ def test_build_playback_asset_record_uses_rendered_audio_metadata() -> None:
     assert asset.asset_uuid == "asset-1"
     assert asset.revision_id == 17
     assert asset.kind == PlaybackAssetKind.AUDIO
-    assert asset.storage_key.endswith("/asset-1.wav")
-    assert asset.mime_type == "audio/wav"
-    assert asset.size_bytes == 10
+    assert asset.stored_object.object_key.endswith("/asset-1.wav")
+    assert asset.stored_object.content_type == "audio/wav"
+    assert asset.stored_object.byte_size == 10
     assert asset.duration_ms == 3210
     assert asset.execution_manifest_id == 19
     assert asset.source_fingerprint == "b" * 64
     assert asset.generator == "test-generator"
     assert asset.generator_version == "1"
-    assert len(asset.sha256) == 64
+    assert len(asset.stored_object.sha256) == 64

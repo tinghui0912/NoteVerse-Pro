@@ -13,8 +13,8 @@ from uuid import uuid4
 
 from sqlalchemy import select
 from app.db.models.score import Score, ScoreDeletionStatus
-from app.modules.media.blob import MediaBlobFacts
-from app.modules.media.persistence import blob_to_row
+from app.modules.storage_objects.facts import StoredObjectFacts
+from app.modules.storage_objects.persistence import object_to_row
 from app.modules.performance_takes.aggregate import SavedTakeFacts
 from app.modules.performance_takes.manifest import (
     TakeManifest,
@@ -664,7 +664,6 @@ class PerformanceTakeUploadService:
                 details={"reason": "completed_reservation_missing_take"},
             )
 
-
         finalizing_token = str(uuid4())
         finalizing_object_key = _build_final_candidate_object_key(
             reservation.user_id,
@@ -899,7 +898,7 @@ class PerformanceTakeUploadService:
             await db.commit()
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="reservation_expired")
 
-        # Commit Blob, Take, reservation completion and quota in one transaction.
+        # Commit StoredObject, Take, reservation completion and quota in one transaction.
         if manifest_from_row(reservation.manifest) != manifest:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="manifest")
         current_score = (
@@ -916,19 +915,19 @@ class PerformanceTakeUploadService:
             .scalars()
             .first()
         )
-        blob_facts = MediaBlobFacts(
+        blob_facts = StoredObjectFacts(
             candidate_key,
             candidate_metadata.size_bytes,
             candidate_sha256,
             manifest.snapshot.capture.mime_type,
         )
         SavedTakeFacts(manifest, blob_facts)
-        blob_row = blob_to_row(blob_facts)
+        blob_row = object_to_row(blob_facts)
         db.add(blob_row)
         await db.flush()
         take = PerformanceTake(
-            media_blob_id=blob_row.id,
-            media_blob=blob_row,
+            recording_object_id=blob_row.id,
+            recording_object=blob_row,
             manifest_id=reservation.manifest_id,
             manifest=reservation.manifest,
             linked_score_id=current_score.id if current_score is not None else None,

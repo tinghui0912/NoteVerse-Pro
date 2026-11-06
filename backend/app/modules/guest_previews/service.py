@@ -152,9 +152,10 @@ class GuestPreviewService:
             render_assets=[
                 GuestPreviewPageRead(asset_id=a.asset_uuid, page_number=a.page_number)
                 for a in pages
-                if a.page_number is not None and self.storage.exists(a.storage_key)
+                if a.page_number is not None and self.storage.exists(a.stored_object.object_key)
             ],
-            audio_available=audio is not None and self.storage.exists(audio.storage_key),
+            audio_available=audio is not None
+            and self.storage.exists(audio.stored_object.object_key),
         )
 
     async def image(self, db: AsyncSession, token: str, asset_uuid: str) -> ScoreAssetDelivery:
@@ -164,11 +165,13 @@ class GuestPreviewService:
             asset is None
             or asset.revision_id != preview.revision_id
             or asset.kind != RenderAssetKind.RENDERED_PAGE
-            or not self.storage.exists(asset.storage_key)
+            or not self.storage.exists(asset.stored_object.object_key)
         ):
             raise ResourceNotFoundException("render_asset", code=ErrorCode.FILE_NOT_FOUND)
         return ScoreAssetDelivery(
-            filename=asset.filename, media_type=asset.mime_type, storage_key=asset.storage_key
+            filename=asset.filename,
+            media_type=asset.stored_object.content_type,
+            storage_key=asset.stored_object.object_key,
         )
 
     async def audio(self, db: AsyncSession, token: str) -> PlaybackDelivery:

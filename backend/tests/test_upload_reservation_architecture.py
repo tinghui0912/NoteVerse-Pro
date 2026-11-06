@@ -87,7 +87,7 @@ def test_object_ownership_is_explicit_in_persistence_shape():
     columns = set(PerformanceTakeUploadReservation.__table__.columns.keys())
     assert {"staging_object_key", "finalizing_object_key", "orphan_final_object_keys"} <= columns
     assert "final_object_key" not in columns and "final_cleanup_completed_at" not in columns
-    assert "media_blob_id" in PerformanceTake.__table__.columns
+    assert "recording_object_id" in PerformanceTake.__table__.columns
     assert "media_object_key" not in columns
 
 
@@ -112,7 +112,7 @@ def test_manifest_semantics_and_persistence_have_explicit_dependency_owners():
     assert "app.modules.performance_takes.manifest_persistence" in imports(
         MODULE / "upload_reservation/service.py"
     )
-    assert {"manifest_persistence", "app.modules.media.persistence"} <= imports(
+    assert {"manifest_persistence", "app.modules.storage_objects.persistence"} <= imports(
         MODULE / "aggregate.py"
     )
     # The upload aggregate consumes lifecycle facts independently of admitted archive metadata.

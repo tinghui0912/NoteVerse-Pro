@@ -16,7 +16,7 @@ from app.modules.performance_takes.dependencies import (
 from app.modules.storage_usage.service import StorageUsageService
 from app.modules.storage_usage.dependencies import get_storage_usage_service
 from app.storage.factory import get_object_storage
-from app.storage.base import StoredObjectMetadata
+from app.storage.base import ObjectMetadata
 from tests.test_performance_takes import (
     AsyncSessionAdapter,
     PerformanceTakeTestClient,
@@ -136,8 +136,8 @@ def test_video_archive_and_delivery_preserve_exact_raw_capture(
         .join(PerformanceTakeManifest)
         .where(PerformanceTakeManifest.take_uuid == take["take_id"])
     ).scalar_one()
-    assert row.media_blob.object_key.endswith("." + extension)
-    assert b"".join(storage.iter_bytes(row.media_blob.object_key)) == content
+    assert row.recording_object.object_key.endswith("." + extension)
+    assert b"".join(storage.iter_bytes(row.recording_object.object_key)) == content
     playback = client.get(f"/api/v1/performance-takes/{take['take_id']}/playback-url")
     assert playback.status_code == 200, playback.text
     assert playback.json()["data"]["media_mime_type"] == mime
@@ -176,7 +176,7 @@ def test_video_finalize_rejects_wrong_container_or_storage_content_type(
     with patch.object(
         storage,
         "object_metadata",
-        return_value=StoredObjectMetadata(
+        return_value=ObjectMetadata(
             size_bytes=len(content),
             content_type=stored_mime,
         ),

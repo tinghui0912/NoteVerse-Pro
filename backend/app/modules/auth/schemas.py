@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 
 class TokenPayload(BaseModel):
@@ -108,6 +108,19 @@ class User(BaseModel):
     updated_at: datetime | None = None
     avatar_url: str | None = None
     email_verified_at: datetime | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def project_user(cls, value):
+        from app.db.models import User as UserRecord
+        from app.modules.account.avatar_presentation import avatar_url_for_user
+
+        if isinstance(value, UserRecord):
+            return {
+                **{name: getattr(value, name) for name in cls.model_fields if name != "avatar_url"},
+                "avatar_url": avatar_url_for_user(value),
+            }
+        return value
 
 
 __all__ = [

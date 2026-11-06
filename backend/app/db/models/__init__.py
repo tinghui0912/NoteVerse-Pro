@@ -1,8 +1,8 @@
-from .media_blob import MediaBlob
+from .stored_object import StoredObject
 from .performance_take_manifest import PerformanceTakeManifest, PerformanceTakeMediaKind
 from .user import User
 from .auth import AuthToken, EmailChangeRequest, PendingRegistration, RefreshToken
-from .file import StorageBlob, Upload
+from .file import Upload
 from .notification import NotificationEvent
 from .ops_audit import OpsAuditEvent
 from .operator import (
@@ -103,7 +103,7 @@ __all__ = [
     "AuthToken",
     "PendingRegistration",
     "EmailChangeRequest",
-    "StorageBlob",
+    "StoredObject",
     "Upload",
     "NotificationEvent",
     "OpsAuditEvent",
@@ -169,7 +169,6 @@ __all__ = [
     "StorageUsageReservation",
     "StorageUsageReservationStatus",
     "PerformanceTakeManifest",
-    "MediaBlob",
     "PerformanceTake",
     "PerformanceTakeDeletionStatus",
     "PerformanceTakeMediaKind",

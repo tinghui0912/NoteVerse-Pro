@@ -9,6 +9,7 @@ from sqlalchemy import select
 from app.core.background_tracing import record_current_attempt_failure
 from app.db.models.performance_take_manifest import PerformanceTakeManifest
 from app.db.models.performance_take import PerformanceTake
+from app.db.models.stored_object import StoredObject
 from app.db.models.performance_take_delete_outbox import (
     PerformanceTakeDeleteOutbox,
     PerformanceTakeDeleteOutboxStatus,
@@ -73,14 +74,114 @@ def execute_performance_take_deletion_task(
         )
 
         handled_error = False
+        storage_failed = False
+        # Delete only the Take media/row and release its storage usage.
+        # PracticeBundle lifetime is independent and belongs to ScoreRevision.
         try:
-            # 1. Delete object from storage outside of database transaction (idempotent)
-            if object_storage.exists(payload.object_key):
-                object_storage.delete(payload.object_key)
+            with get_worker_db() as db:
+                outbox = db.execute(
+                    select(PerformanceTakeDeleteOutbox)
+                    .where(PerformanceTakeDeleteOutbox.outbox_uuid == outbox_uuid)
+                    .with_for_update()
+                ).scalar_one_or_none()
+                if outbox is None:
+                    raise RuntimeError(
+                        f"performance take deletion outbox missing during completion: {outbox_uuid}"
+                    )
+                if outbox.status == PerformanceTakeDeleteOutboxStatus.COMPLETED:
+                    db.commit()
+                    operation_logger(
+                        "performance_take_deletion.completed_idempotently",
+                        **context,
+                        status="completed",
+                    ).info("performance_take_deletion.completed_idempotently")
+                    return {"status": "deleted", "outbox_uuid": outbox_uuid}
+                if outbox.status != PerformanceTakeDeleteOutboxStatus.PROCESSING:
+                    raise RuntimeError(
+                        "performance take deletion outbox is not processing during completion: "
+                        f"{outbox_uuid}"
+                    )
+                if outbox.attempt_count != payload.attempt:
+                    raise RuntimeError(
+                        "performance take deletion outbox attempt changed during processing: "
+                        f"{outbox_uuid}"
+                    )
+                if (
+                    outbox.take_uuid != payload.take_uuid
+                    or outbox.user_id != payload.user_id
+                    or outbox.object_key != payload.object_key
+                    or outbox.media_byte_size != payload.media_byte_size
+                ):
+                    raise RuntimeError(
+                        "performance take deletion outbox payload changed during processing: "
+                        f"{outbox_uuid}"
+                    )
+                take = db.execute(
+                    select(PerformanceTake)
+                    .join(PerformanceTakeManifest)
+                    .where(
+                        PerformanceTakeManifest.take_uuid == payload.take_uuid,
+                        PerformanceTakeManifest.user_id == payload.user_id,
+                    )
+                    .with_for_update(of=PerformanceTake)
+                ).scalar_one_or_none()
+                if take is not None:
+                    blob = take_from_row(take).recording_object
+                    if (
+                        blob.object_key != payload.object_key
+                        or blob.byte_size != payload.media_byte_size
+                    ):
+                        raise RuntimeError(
+                            "performance take deletion payload does not match locked take: "
+                            f"{payload.take_uuid}"
+                        )
+                    db.delete(take)
+                    db.flush()
+                    db.delete(take.recording_object)
+                    db.flush()
+                    storage_usage_service.record_release_sync(
+                        db,
+                        user_id=payload.user_id,
+                        category=StorageUsageCategory.UPLOAD,
+                        bytes_count=payload.media_byte_size,
+                        reason="performance_take_deleted",
+                        object_type="performance_take",
+                        object_id=payload.take_uuid,
+                        storage_key=payload.object_key,
+                        auto_commit=False,
+                    )
+                else:
+                    remaining = db.scalar(
+                        select(StoredObject).where(StoredObject.object_key == payload.object_key)
+                    )
+                    if remaining is not None:
+                        if remaining.byte_size != payload.media_byte_size:
+                            raise RuntimeError("Take deletion snapshot disagrees with StoredObject")
+                        db.delete(remaining)
+                        db.flush()
+                # FK checks run before deleting bytes, so an object still referenced elsewhere is protected.
+                try:
+                    if object_storage.exists(payload.object_key):
+                        object_storage.delete(payload.object_key)
+                except Exception:
+                    storage_failed = True
+                    raise
+                if not performance_take_delete_outbox_service.complete(
+                    db,
+                    outbox_uuid,
+                    attempt=payload.attempt,
+                ):
+                    raise RuntimeError(
+                        f"performance take deletion outbox completion lease mismatch: {outbox_uuid}"
+                    )
+                db.commit()
         except Exception as exc:
+            if not storage_failed:
+                raise
             handled_error = True
             record_current_attempt_failure(exc)
             with get_worker_db() as db:
+                db.rollback()
                 performance_take_delete_outbox_service.fail(
                     db,
                     outbox_uuid,
@@ -95,90 +196,6 @@ def execute_performance_take_deletion_task(
                 exception_type=type(exc).__name__,
             ).opt(exception=True).error("performance_take_deletion.failed")
             return {"status": "failed", "outbox_uuid": outbox_uuid}
-
-        # 2. Delete only the Take media/row and release its storage usage.
-        # PracticeBundle lifetime is independent and belongs to ScoreRevision.
-        with get_worker_db() as db:
-            outbox = db.execute(
-                select(PerformanceTakeDeleteOutbox)
-                .where(PerformanceTakeDeleteOutbox.outbox_uuid == outbox_uuid)
-                .with_for_update()
-            ).scalar_one_or_none()
-            if outbox is None:
-                raise RuntimeError(
-                    f"performance take deletion outbox missing during completion: {outbox_uuid}"
-                )
-            if outbox.status == PerformanceTakeDeleteOutboxStatus.COMPLETED:
-                db.commit()
-                operation_logger(
-                    "performance_take_deletion.completed_idempotently",
-                    **context,
-                    status="completed",
-                ).info("performance_take_deletion.completed_idempotently")
-                return {"status": "deleted", "outbox_uuid": outbox_uuid}
-            if outbox.status != PerformanceTakeDeleteOutboxStatus.PROCESSING:
-                raise RuntimeError(
-                    "performance take deletion outbox is not processing during completion: "
-                    f"{outbox_uuid}"
-                )
-            if outbox.attempt_count != payload.attempt:
-                raise RuntimeError(
-                    "performance take deletion outbox attempt changed during processing: "
-                    f"{outbox_uuid}"
-                )
-            if (
-                outbox.take_uuid != payload.take_uuid
-                or outbox.user_id != payload.user_id
-                or outbox.object_key != payload.object_key
-                or outbox.media_byte_size != payload.media_byte_size
-            ):
-                raise RuntimeError(
-                    "performance take deletion outbox payload changed during processing: "
-                    f"{outbox_uuid}"
-                )
-            take = db.execute(
-                select(PerformanceTake)
-                .join(PerformanceTakeManifest)
-                .where(
-                    PerformanceTakeManifest.take_uuid == payload.take_uuid,
-                    PerformanceTakeManifest.user_id == payload.user_id,
-                )
-                .with_for_update(of=PerformanceTake)
-            ).scalar_one_or_none()
-            if take is not None:
-                blob = take_from_row(take).blob
-                if (
-                    blob.object_key != payload.object_key
-                    or blob.byte_size != payload.media_byte_size
-                ):
-                    raise RuntimeError(
-                        "performance take deletion payload does not match locked take: "
-                        f"{payload.take_uuid}"
-                    )
-                db.delete(take)
-                db.flush()
-                db.delete(take.media_blob)
-                db.flush()
-                storage_usage_service.record_release_sync(
-                    db,
-                    user_id=payload.user_id,
-                    category=StorageUsageCategory.UPLOAD,
-                    bytes_count=payload.media_byte_size,
-                    reason="performance_take_deleted",
-                    object_type="performance_take",
-                    object_id=payload.take_uuid,
-                    storage_key=payload.object_key,
-                    auto_commit=False,
-                )
-            if not performance_take_delete_outbox_service.complete(
-                db,
-                outbox_uuid,
-                attempt=payload.attempt,
-            ):
-                raise RuntimeError(
-                    f"performance take deletion outbox completion lease mismatch: {outbox_uuid}"
-                )
-            db.commit()
 
         operation_logger(
             "performance_take_deletion.completed",

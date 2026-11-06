@@ -63,8 +63,9 @@ revisions make score export unavailable; raw Take playback and download remain i
 
 ## Durable verification and retention
 
-practice_bundles stores immutable representation fingerprints and physical locators,
-with CREATING, READY and DELETING lifecycle states. Objects use
+practice_bundles owns content identity and CREATING, READY and DELETING lifecycle states.
+It references exactly two StoredObjects: prepared_musicxml_object and artifact_object.
+Each StoredObject owns its representation locator, exact byte size, SHA256 and content type. Objects use
 `practice-bundles/{bundle_id}/score.musicxml` and `artifact.json`.
 Every durable read verifies exact byte counts and SHA256 values, decodes generated
 artifact transport structure, validates the musical graph through backend score semantics,

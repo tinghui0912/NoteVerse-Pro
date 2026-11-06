@@ -1,4 +1,6 @@
 from __future__ import annotations
+from app.modules.storage_objects.facts import StoredObjectFacts
+from app.modules.storage_objects.persistence import object_to_row
 
 import hashlib
 import uuid
@@ -141,11 +143,15 @@ class SyncConfirmedScoreCreationService:
                     source_uuid=source_uuid,
                     revision_id=revision_id,
                     format=RevisionSourceFormat.MUSICXML,
-                    storage_key=stored.object_key,
+                    stored_object=object_to_row(
+                        StoredObjectFacts(
+                            object_key=stored.object_key,
+                            content_type="application/vnd.recordare.musicxml+xml",
+                            byte_size=len(content),
+                            sha256=content_hash,
+                        )
+                    ),
                     filename=stored.object_key.rsplit("/", 1)[-1],
-                    mime_type="application/vnd.recordare.musicxml+xml",
-                    size_bytes=stored.size_bytes,
-                    sha256=content_hash,
                     generator="omr-pipeline",
                     generator_version="1",
                     created_at=now,

@@ -2,14 +2,17 @@
 
 import hashlib
 import io
+from uuid import uuid4
+from sqlalchemy import select
 
 from PIL import Image
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logger import logger
-from app.core.settings.service_identity import CUSTOMER_API_PREFIX
 from app.db.model_utils import require_persisted_id
-from app.db.models import User
+from app.db.models import User, StoredObject
+from app.modules.storage_objects.persistence import object_from_bytes
+from app.modules.account.avatar_presentation import avatar_url_for_user
 from app.storage import ObjectStorage, object_storage
 
 
@@ -36,24 +39,16 @@ class AvatarService:
     def validate_file_size(self, file_bytes: bytes) -> bool:
         return len(file_bytes) <= self.MAX_FILE_SIZE
 
-    def filename_from_url(self, avatar_url: str | None) -> str | None:
-        if not avatar_url:
-            return None
-        return avatar_url.split("/")[-1].split("?")[0] or None
-
     def process_avatar(
         self,
         file_bytes: bytes,
         filename: str,
         user_id: int,
-    ) -> tuple[str, str]:
+    ) -> StoredObject:
         if not self.is_allowed_extension(filename):
             raise ValueError("Unsupported file format")
         if not self.validate_file_size(file_bytes):
             raise ValueError("File size exceeds the 5MB limit")
-
-        hash_input = f"{user_id}_{filename}".encode("utf-8")
-        file_hash = hashlib.md5(hash_input).hexdigest()
 
         try:
             img = Image.open(io.BytesIO(file_bytes))
@@ -68,11 +63,12 @@ class AvatarService:
             )
             canvas.paste(img, offset)
 
-            final_filename = f"{user_id}_{file_hash}.jpg"
             output = io.BytesIO()
             canvas.save(output, "JPEG", quality=85, optimize=True)
+            content = output.getvalue()
+            final_filename = f"{user_id}_{hashlib.sha256(content).hexdigest()}_{uuid4().hex}.jpg"
             self.storage.put_bytes(
-                content=output.getvalue(),
+                content=content,
                 key=avatar_object_key(final_filename),
                 content_type="image/jpeg",
             )
@@ -82,7 +78,11 @@ class AvatarService:
                 user_id=user_id,
                 filename=final_filename,
             ).info("Avatar saved")
-            return final_filename, f"{CUSTOMER_API_PREFIX}/account/avatars/{final_filename}"
+            return object_from_bytes(
+                object_key=avatar_object_key(final_filename),
+                content=content,
+                content_type="image/jpeg",
+            )
         except Exception as exc:
             logger.bind(
                 event="account.avatar.processing_failed",
@@ -100,45 +100,57 @@ class AvatarService:
         filename: str,
     ) -> tuple[str, str]:
         user_id = require_persisted_id(user.id, entity="user")
-        old_filename = self.filename_from_url(user.avatar_url)
-        saved_filename, avatar_url = self.process_avatar(
-            file_bytes=file_bytes,
-            filename=filename,
-            user_id=user_id,
+        user = (
+            await db.execute(
+                select(User)
+                .where(User.id == user_id)
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+        ).scalar_one()
+        previous = user.avatar_object
+        current = self.process_avatar(file_bytes=file_bytes, filename=filename, user_id=user_id)
+        try:
+            user.avatar_object = current
+            db.add(user)
+            await db.commit()
+            await db.refresh(user)
+        except Exception:
+            await db.rollback()
+            self.delete_avatar(current.object_key.rsplit("/", 1)[-1])
+            raise
+        await self._discard_avatar(db, previous)
+        return current.object_key.rsplit("/", 1)[-1], avatar_url_for_user(user) or ""
+
+    async def _discard_avatar(self, db: AsyncSession, previous: StoredObject | None) -> None:
+        if previous is None:
+            return
+        key = previous.object_key
+        # Avatar references are explicit. A still-current avatar is never deleted.
+        owner = await db.scalar(
+            select(User.id).where(User.avatar_object_id == previous.id).limit(1)
         )
-
-        if old_filename and old_filename != saved_filename:
-            self.delete_avatar(old_filename)
-
-        user.avatar_url = avatar_url
+        if owner is not None:
+            return
+        await db.delete(previous)
         await db.commit()
-        await db.refresh(user)
-        return saved_filename, avatar_url
+        self.delete_avatar(key.rsplit("/", 1)[-1])
 
     async def clear_user_avatar(self, db: AsyncSession, user: User) -> bool:
-        old_filename = self.filename_from_url(user.avatar_url)
-        if old_filename:
-            self.delete_avatar(old_filename)
-
-        if user.avatar_url:
-            user.avatar_url = None
-            await db.commit()
-            return True
-
-        return False
+        previous = user.avatar_object
+        if previous is None:
+            return False
+        user.avatar_object = None
+        user.avatar_object_id = None
+        await db.commit()
+        await self._discard_avatar(db, previous)
+        return True
 
     async def clear_missing_avatar_reference(self, db: AsyncSession, user: User) -> bool:
-        avatar_filename = self.filename_from_url(user.avatar_url)
-        if not avatar_filename or self.avatar_exists(avatar_filename):
+        current = user.avatar_object
+        if current is None or self.avatar_exists(current.object_key.rsplit("/", 1)[-1]):
             return False
-
-        user.avatar_url = None
-        await db.commit()
-        logger.bind(
-            event="account.avatar.missing_reference_cleared",
-            user_id=user.id,
-            filename=avatar_filename,
-        ).info("Missing avatar reference cleared")
+        await self.clear_user_avatar(db, user)
         return True
 
     def delete_avatar(self, filename: str) -> bool:

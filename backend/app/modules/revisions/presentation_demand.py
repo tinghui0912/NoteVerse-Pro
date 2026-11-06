@@ -10,6 +10,7 @@ from app.db.models import (
     Score,
     ScoreRevision,
     ScoreRevisionSource,
+    StoredObject,
     ScoreGuestPreviewGrant,
     ScoreDeletionStatus,
 )
@@ -47,10 +48,12 @@ def revision_presentation_demand(
     ):
         return RevisionPresentationDemand.UNAVAILABLE
     source = db.execute(
-        select(ScoreRevisionSource.id).where(
+        select(ScoreRevisionSource.id)
+        .join(StoredObject, ScoreRevisionSource.stored_object_id == StoredObject.id)
+        .where(
             ScoreRevisionSource.revision_id == revision_id,
             ScoreRevisionSource.format == RevisionSourceFormat.MUSICXML,
-            ScoreRevisionSource.sha256 == fingerprint,
+            StoredObject.sha256 == fingerprint,
         )
     ).scalar_one_or_none()
     if source is None:

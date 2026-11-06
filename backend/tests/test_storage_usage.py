@@ -20,7 +20,7 @@ from app.db.models import (
     Score,
     ScoreRevision,
     ScoreRevisionSource,
-    StorageBlob,
+    StoredObject,
     StorageQuotaPolicy,
     StorageUsageAccount,
     StorageUsageCategory,
@@ -80,6 +80,9 @@ class AsyncSessionAdapter:
 
     async def execute(self, statement, params=None, *args, **kwargs):  # type: ignore[no-untyped-def]
         return self.session.execute(statement, params=params, *args, **kwargs)
+
+    async def scalars(self, statement):
+        return self.session.scalars(statement)
 
     async def commit(self) -> None:
         self.session.commit()
@@ -199,12 +202,13 @@ def _seed_score_with_source(
         source_uuid="source-storage-test-1",
         revision_id=revision_id,
         format=RevisionSourceFormat.MUSICXML,
-
-        storage_key=stored.object_key,
+        stored_object=StoredObject(
+            object_key=stored.object_key,
+            content_type="application/vnd.recordare.musicxml+xml",
+            byte_size=stored.size_bytes,
+            sha256=content_hash,
+        ),
         filename=stored.object_key.rsplit("/", 1)[-1],
-        mime_type="application/vnd.recordare.musicxml+xml",
-        size_bytes=stored.size_bytes,
-        sha256=content_hash,
         generator="test",
         generator_version="1",
         created_at=utc_now_naive(),
@@ -321,10 +325,7 @@ def test_storage_usage_api_returns_quota_and_breakdown(
         "limit_bytes": 1000,
         "available_bytes": 880,
     }
-    breakdown = {
-        item["category"]: item
-        for item in payload["data"]["breakdown"]
-    }
+    breakdown = {item["category"]: item for item in payload["data"]["breakdown"]}
     assert breakdown["SOURCE"]["used_bytes"] == 120
     assert breakdown["SOURCE"]["counts_toward_quota"] is True
     assert breakdown["DERIVED_RENDER"]["used_bytes"] == 30
@@ -400,14 +401,14 @@ async def test_file_upload_quota_exceeded_does_not_store_file(
     assert user is not None
 
     upload = type(
-            "TestUpload",
-            (),
-            {
-                "filename": "too-large.png",
-                "content_type": "image/png",
-                "read": lambda self: _async_bytes(b"123456789"),
-            },
-        )()
+        "TestUpload",
+        (),
+        {
+            "filename": "too-large.png",
+            "content_type": "image/png",
+            "read": lambda self: _async_bytes(b"123456789"),
+        },
+    )()
     with pytest.raises(ValidationException) as exc_info:
         await service.upload_file(db, user, upload)  # type: ignore[arg-type]
 
@@ -534,13 +535,13 @@ async def test_score_delete_releases_source_usage_and_storage_object(
     session, storage = storage_usage_session
     score, _revision, source = _seed_score_with_source(session, storage)
     assert score.score_uuid is not None
-    assert source.size_bytes is not None
-    source_storage_key = source.storage_key
+    assert source.stored_object.byte_size is not None
+    source_storage_key = source.stored_object.object_key
     storage_usage_service.record_allocation_sync(
         session,
         user_id=1,
         category=StorageUsageCategory.SOURCE,
-        bytes_count=source.size_bytes,
+        bytes_count=source.stored_object.byte_size,
         reason="seed_source",
         object_type="score_revision_source",
         object_id=source.source_uuid,
@@ -614,7 +615,7 @@ async def test_score_delete_cleans_single_origin_import_job_storage(
     score, _revision, source = _seed_score_with_source(session, storage)
     assert score.id is not None
     assert score.score_uuid is not None
-    assert source.size_bytes is not None
+    assert source.stored_object.byte_size is not None
     job_uuid = "score-delete-origin-job"
     upload = storage.put_bytes(
         key="uploads/origin-upload.png",
@@ -634,25 +635,24 @@ async def test_score_delete_cleans_single_origin_import_job_storage(
         progress=100,
         score_id=score.id,
     )
-    session.add_all([
-        job,
-        StorageBlob(
-            id=1302,
-            blob_uuid="origin-upload-blob",
-            sha256="origin-upload-sha",
-
-            storage_key=upload.object_key,
-            filename=upload.object_key.rsplit("/", 1)[-1],
-            size_bytes=upload.size_bytes,
-            mime_type="image/png",
-        ),
-        Upload(
-            id=1202,
-            blob_id=1302,
-            original_filename="origin.png",
-            uploader_user_id=1,
-        ),
-    ])
+    session.add_all(
+        [
+            job,
+            StoredObject(
+                id=1302,
+                sha256="9d65812087c4c1d2c9fa7d298b12c5224c0a29ed5b752296874c2b1bf6711f9d",
+                object_key=upload.object_key,
+                byte_size=upload.size_bytes,
+                content_type="image/png",
+            ),
+            Upload(
+                id=1202,
+                stored_object_id=1302,
+                original_filename="origin.png",
+                uploader_user_id=1,
+            ),
+        ]
+    )
     session.commit()
     score.originating_job_id = 1201
     session.add(score)
@@ -662,11 +662,13 @@ async def test_score_delete_cleans_single_origin_import_job_storage(
             artifact_uuid="origin-review-source",
             job_id=1201,
             kind=ImportArtifactKind.REVIEW_MUSICXML.value,
-
-            storage_key=review_source.object_key,
+            stored_object=StoredObject(
+                object_key=review_source.object_key,
+                content_type="application/vnd.recordare.musicxml+xml",
+                byte_size=review_source.size_bytes,
+                sha256=hashlib.sha256(storage.read_bytes(review_source.object_key)).hexdigest(),
+            ),
             filename=review_source.object_key.rsplit("/", 1)[-1],
-            mime_type="application/vnd.recordare.musicxml+xml",
-            size_bytes=review_source.size_bytes,
         )
     )
     session.commit()
@@ -674,11 +676,11 @@ async def test_score_delete_cleans_single_origin_import_job_storage(
         session,
         user_id=1,
         category=StorageUsageCategory.SOURCE,
-        bytes_count=source.size_bytes,
+        bytes_count=source.stored_object.byte_size,
         reason="seed_source",
         object_type="score_revision_source",
         object_id=source.source_uuid,
-        storage_key=source.storage_key,
+        storage_key=source.stored_object.object_key,
     )
     storage_usage_service.record_allocation_sync(
         session,
@@ -687,7 +689,7 @@ async def test_score_delete_cleans_single_origin_import_job_storage(
         bytes_count=upload.size_bytes,
         reason="seed_upload",
         object_type="upload",
-        object_id="origin-upload-sha",
+        object_id="9d65812087c4c1d2c9fa7d298b12c5224c0a29ed5b752296874c2b1bf6711f9d",
         storage_key=upload.object_key,
     )
     storage_usage_service.record_allocation_sync(
@@ -700,7 +702,7 @@ async def test_score_delete_cleans_single_origin_import_job_storage(
         object_id="origin-review-source",
         storage_key=review_source.object_key,
     )
-    source_storage_key = source.storage_key
+    source_storage_key = source.stored_object.object_key
     upload_storage_key = upload.object_key
     review_source_storage_key = review_source.object_key
 
@@ -753,25 +755,24 @@ async def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
         state=ImportJobState.PENDING_REVIEW,
         progress=100,
     )
-    session.add_all([
-        job,
-        StorageBlob(
-            id=1303,
-            blob_uuid="delete-owned-upload-blob",
-            sha256="delete-owned-upload-sha",
-
-            storage_key=upload.object_key,
-            filename=upload.object_key.rsplit("/", 1)[-1],
-            size_bytes=upload.size_bytes,
-            mime_type="image/png",
-        ),
-        Upload(
-            id=1002,
-            blob_id=1303,
-            original_filename="upload.png",
-            uploader_user_id=1,
-        ),
-    ])
+    session.add_all(
+        [
+            job,
+            StoredObject(
+                id=1303,
+                sha256="a4117a1f0ff460c600674eeeeb14cf60f9f4ddc1c63b49a64d4f5b2ff873f7cb",
+                object_key=upload.object_key,
+                byte_size=upload.size_bytes,
+                content_type="image/png",
+            ),
+            Upload(
+                id=1002,
+                stored_object_id=1303,
+                original_filename="upload.png",
+                uploader_user_id=1,
+            ),
+        ]
+    )
     session.commit()
     session.add(ImportJobUpload(job_id=1001, upload_id=1002, page_number=1, sort_order=1))
     session.add(
@@ -779,11 +780,13 @@ async def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
             artifact_uuid="delete-owned-review-source",
             job_id=1001,
             kind=ImportArtifactKind.REVIEW_MUSICXML.value,
-
-            storage_key=review_source.object_key,
+            stored_object=StoredObject(
+                object_key=review_source.object_key,
+                content_type="application/vnd.recordare.musicxml+xml",
+                byte_size=review_source.size_bytes,
+                sha256=hashlib.sha256(storage.read_bytes(review_source.object_key)).hexdigest(),
+            ),
             filename=review_source.object_key.rsplit("/", 1)[-1],
-            mime_type="application/vnd.recordare.musicxml+xml",
-            size_bytes=review_source.size_bytes,
         )
     )
     session.add(
@@ -791,11 +794,13 @@ async def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
             artifact_uuid="delete-owned-thumbnail",
             job_id=1001,
             kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
-
-            storage_key=thumbnail.object_key,
+            stored_object=StoredObject(
+                object_key=thumbnail.object_key,
+                content_type="image/png",
+                byte_size=thumbnail.size_bytes,
+                sha256=hashlib.sha256(storage.read_bytes(thumbnail.object_key)).hexdigest(),
+            ),
             filename=thumbnail.object_key.rsplit("/", 1)[-1],
-            mime_type="image/png",
-            size_bytes=thumbnail.size_bytes,
         )
     )
     session.commit()
@@ -806,7 +811,7 @@ async def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
         bytes_count=upload.size_bytes,
         reason="seed_upload",
         object_type="upload",
-        object_id="delete-owned-upload-sha",
+        object_id="a4117a1f0ff460c600674eeeeb14cf60f9f4ddc1c63b49a64d4f5b2ff873f7cb",
         storage_key=upload.object_key,
     )
     storage_usage_service.record_allocation_sync(
@@ -866,19 +871,16 @@ async def test_import_job_delete_keeps_shared_upload_usage_and_storage(
                 state=ImportJobState.PENDING_REVIEW,
                 progress=100,
             ),
-            StorageBlob(
+            StoredObject(
                 id=1304,
-                blob_uuid="shared-upload-blob",
-                sha256="shared-upload-sha",
-
-                storage_key=upload.object_key,
-                filename=upload.object_key.rsplit("/", 1)[-1],
-                size_bytes=upload.size_bytes,
-                mime_type="image/png",
+                sha256="e14d13d88ed945fc5a843770a4f2433ab825ce077d86770120166426391033a9",
+                object_key=upload.object_key,
+                byte_size=upload.size_bytes,
+                content_type="image/png",
             ),
             Upload(
                 id=1103,
-                blob_id=1304,
+                stored_object_id=1304,
                 original_filename="shared.png",
                 uploader_user_id=1,
             ),
@@ -899,7 +901,7 @@ async def test_import_job_delete_keeps_shared_upload_usage_and_storage(
         bytes_count=upload.size_bytes,
         reason="seed_upload",
         object_type="upload",
-        object_id="shared-upload-sha",
+        object_id="e14d13d88ed945fc5a843770a4f2433ab825ce077d86770120166426391033a9",
         storage_key=upload.object_key,
     )
 
@@ -920,12 +922,15 @@ async def test_import_job_delete_keeps_shared_upload_usage_and_storage(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("preexisting_object", [False, True])
-async def test_files_owns_sha_key_dedup_and_last_upload_deletion(storage_usage_session, monkeypatch, preexisting_object):
+async def test_files_owns_sha_key_dedup_and_last_upload_deletion(
+    storage_usage_session, monkeypatch, preexisting_object
+):
     import io
     import hashlib
     from unittest.mock import Mock
     from starlette.datastructures import UploadFile, Headers
     from app.modules.files.service import blob_object_key
+
     session, storage = storage_usage_session
     _set_quota(session, 1024)
     content = b"identical image bytes"
@@ -934,15 +939,23 @@ async def test_files_owns_sha_key_dedup_and_last_upload_deletion(storage_usage_s
         storage.put_bytes(key=key, content=content, content_type="image/png")
     put = Mock(wraps=storage.put_bytes)
     monkeypatch.setattr(storage, "put_bytes", put)
-    service, db, user = FilesService(storage=storage), AsyncSessionAdapter(session), session.get(User, 1)
+    service, db, user = (
+        FilesService(storage=storage),
+        AsyncSessionAdapter(session),
+        session.get(User, 1),
+    )
+
     def upload(name):
-        return UploadFile(io.BytesIO(content), filename=name, headers=Headers({"content-type": "image/png"}))
+        return UploadFile(
+            io.BytesIO(content), filename=name, headers=Headers({"content-type": "image/png"})
+        )
+
     first = await service.upload_file(db, user, upload("first.png"))
     second = await service.upload_file(db, user, upload("second.png"))
-    blobs = session.scalars(select(StorageBlob)).all()
-    assert len(blobs) == 1 and blobs[0].storage_key == key
+    blobs = session.scalars(select(StoredObject)).all()
+    assert len(blobs) == 1 and blobs[0].object_key == key
     uploads = session.scalars(select(Upload)).all()
-    assert len(uploads) == 2 and all(row.blob_id == blobs[0].id for row in uploads)
+    assert len(uploads) == 2 and all(row.stored_object_id == blobs[0].id for row in uploads)
     assert put.call_count == (0 if preexisting_object else 1)
     if not preexisting_object:
         put.assert_called_once_with(key=key, content=content, content_type="image/png")
@@ -950,20 +963,23 @@ async def test_files_owns_sha_key_dedup_and_last_upload_deletion(storage_usage_s
     assert storage.exists(key)
     await service.delete_uploaded_file(db, user, second.file_id)
     assert not storage.exists(key)
-    assert not session.scalars(select(StorageBlob)).all()
+    assert not session.scalars(select(StoredObject)).all()
     account = session.get(StorageUsageAccount, 1)
     assert account.used_bytes == account.reserved_bytes == 0
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("preexisting_object", [False, True])
-async def test_files_failed_upload_retires_only_newly_written_bytes(storage_usage_session, monkeypatch, preexisting_object):
+async def test_files_failed_upload_retires_only_newly_written_bytes(
+    storage_usage_session, monkeypatch, preexisting_object
+):
     import io
     import hashlib
     from unittest.mock import AsyncMock
     from starlette.datastructures import UploadFile, Headers
     from app.core.exceptions import FileException
     from app.modules.files.service import blob_object_key
+
     session, storage = storage_usage_session
     _set_quota(session, 1024)
     content = b"image upload"
@@ -971,11 +987,17 @@ async def test_files_failed_upload_retires_only_newly_written_bytes(storage_usag
     if preexisting_object:
         storage.put_bytes(key=key, content=content, content_type="image/png")
     service = FilesService(storage=storage)
-    monkeypatch.setattr(service.repository, "create_upload", AsyncMock(side_effect=RuntimeError("database write failed")))
-    upload = UploadFile(io.BytesIO(content), filename="image.png", headers=Headers({"content-type": "image/png"}))
+    monkeypatch.setattr(
+        service.repository,
+        "create_upload",
+        AsyncMock(side_effect=RuntimeError("database write failed")),
+    )
+    upload = UploadFile(
+        io.BytesIO(content), filename="image.png", headers=Headers({"content-type": "image/png"})
+    )
     with pytest.raises(FileException):
         await service.upload_file(AsyncSessionAdapter(session), session.get(User, 1), upload)
     assert storage.exists(key) is preexisting_object
-    assert not session.scalars(select(StorageBlob)).all()
+    assert not session.scalars(select(StoredObject)).all()
     account = session.get(StorageUsageAccount, 1)
     assert account.used_bytes == account.reserved_bytes == 0

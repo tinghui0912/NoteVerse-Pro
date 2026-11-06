@@ -37,7 +37,7 @@ from app.db.models import (
     ScoreRevisionMetadata,
     ScoreRevisionNote,
     ScoreRevisionSource,
-    StorageBlob,
+    StoredObject,
     StorageQuotaPolicy,
     StorageUsageCounter,
     StorageUsageCategory,
@@ -165,6 +165,12 @@ class AsyncSessionAdapter:
 
     async def refresh(self, instance) -> None:
         self.session.refresh(instance)
+
+    async def scalars(self, statement):
+        return self.session.scalars(statement)
+
+    async def scalar(self, statement):
+        return self.session.scalar(statement)
 
     async def get(self, model, identity):
         return self.session.get(model, identity)
@@ -396,7 +402,7 @@ def test_confirmed_job_creates_one_active_score_and_initial_revision(
     metadata = session.get(ScoreRevisionMetadata, revision.id)
     assert score.head_revision_id == revision.id
     assert revision_source.format == RevisionSourceFormat.MUSICXML
-    assert storage.exists(revision_source.storage_key)
+    assert storage.exists(revision_source.stored_object.object_key)
     assert metadata is not None
     assert metadata.status == MetadataStatus.READY
     assert metadata.measure_count == 1
@@ -427,12 +433,13 @@ def test_completed_job_notifies_owner_when_ready_for_review(
             job_id=11,
             artifact_uuid="completed-review-xml",
             kind=ImportArtifactKind.REVIEW_MUSICXML.value,
-
-            storage_key=stored_xml.object_key,
+            stored_object=StoredObject(
+                object_key=stored_xml.object_key,
+                content_type="application/vnd.recordare.musicxml+xml",
+                byte_size=stored_xml.size_bytes,
+                sha256="5d17f78acc41e8e8ad4fe9dfc2c0e998b718a0acb7283f077b797581fb9f715d",
+            ),
             filename=stored_xml.object_key.rsplit("/", 1)[-1],
-            mime_type="application/vnd.recordare.musicxml+xml",
-            size_bytes=stored_xml.size_bytes,
-            sha256="5d17f78acc41e8e8ad4fe9dfc2c0e998b718a0acb7283f077b797581fb9f715d",
         )
     )
     session.commit()
@@ -537,32 +544,32 @@ async def test_review_detail_reads_pending_job_artifacts(
                 job_id=13,
                 artifact_uuid="review-musicxml-artifact",
                 kind=ImportArtifactKind.REVIEW_MUSICXML.value,
-
-                storage_key=stored_xml.object_key,
+                stored_object=StoredObject(
+                    object_key=stored_xml.object_key,
+                    content_type="application/vnd.recordare.musicxml+xml",
+                    byte_size=stored_xml.size_bytes,
+                    sha256="5d17f78acc41e8e8ad4fe9dfc2c0e998b718a0acb7283f077b797581fb9f715d",
+                ),
                 filename=stored_xml.object_key.rsplit("/", 1)[-1],
-                mime_type="application/vnd.recordare.musicxml+xml",
-                size_bytes=stored_xml.size_bytes,
-                sha256="5d17f78acc41e8e8ad4fe9dfc2c0e998b718a0acb7283f077b797581fb9f715d",
                 page_number=1,
             ),
-            StorageBlob(
+            StoredObject(
                 id=131,
-                sha256="upload-sha",
-
-                storage_key=uploaded_image.object_key,
-                filename=uploaded_image.object_key.rsplit("/", 1)[-1],
-                size_bytes=uploaded_image.size_bytes,
-                mime_type="image/png",
+                sha256="8a10d5bc2234674caf6623192c43720a4dd822fc4ecb31eca6d6dff67ec12ec3",
+                object_key=uploaded_image.object_key,
+                byte_size=uploaded_image.size_bytes,
+                content_type="image/png",
             ),
             Upload(
                 id=130,
-                blob_id=131,
+                stored_object_id=131,
                 original_filename="page-1.png",
                 uploader_user_id=1,
             ),
-            ImportJobUpload(job_id=13, upload_id=130, page_number=1, sort_order=1),
         ]
     )
+    session.commit()
+    session.add(ImportJobUpload(job_id=13, upload_id=130, page_number=1, sort_order=1))
     session.commit()
     service = ReviewService(storage=storage)
 
@@ -603,10 +610,13 @@ def test_job_detail_uses_review_preview_image_only(
                 job_id=16,
                 artifact_uuid="result-thumbnail-artifact",
                 kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
-
-                storage_key="jobs/job-thumbnail/review_preview_image/001-result.svg",
+                stored_object=StoredObject(
+                    object_key="jobs/job-thumbnail/review_preview_image/001-result.svg",
+                    content_type="image/svg+xml",
+                    byte_size=7,
+                    sha256="f68e724d27d8f77658c3fefb57fba1f236c3f0592e66bfbaac3547ffdcdadc8b",
+                ),
                 filename="001-result.svg",
-                mime_type="image/svg+xml",
                 page_number=1,
             ),
         ]
@@ -638,13 +648,14 @@ def test_import_job_detail_hides_artifact_storage_details(
             job_id=181,
             artifact_uuid="public-artifact-id",
             kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
-
-            storage_key="jobs/job-public-artifact/review_preview_image/001-result.svg",
+            stored_object=StoredObject(
+                object_key="jobs/job-public-artifact/review_preview_image/001-result.svg",
+                content_type="image/svg+xml",
+                byte_size=123,
+                sha256="6ca13d52ca70c883e0f0bb101e425a89e8624de51db2d2392593af6a84118090",
+            ),
             filename="001-result.svg",
-            mime_type="image/svg+xml",
             page_number=1,
-            size_bytes=123,
-            sha256="abc123",
         )
     )
     session.commit()
@@ -747,12 +758,13 @@ def test_review_thumbnail_records_temp_import_usage(
             job_id=17,
             artifact_uuid="thumbnail-usage-review-xml",
             kind=ImportArtifactKind.REVIEW_MUSICXML.value,
-
-            storage_key=stored_xml.object_key,
+            stored_object=StoredObject(
+                object_key=stored_xml.object_key,
+                content_type="application/vnd.recordare.musicxml+xml",
+                byte_size=stored_xml.size_bytes,
+                sha256="5d17f78acc41e8e8ad4fe9dfc2c0e998b718a0acb7283f077b797581fb9f715d",
+            ),
             filename=stored_xml.object_key.rsplit("/", 1)[-1],
-            mime_type="application/vnd.recordare.musicxml+xml",
-            size_bytes=stored_xml.size_bytes,
-            sha256="5d17f78acc41e8e8ad4fe9dfc2c0e998b718a0acb7283f077b797581fb9f715d",
         )
     )
     session.commit()
@@ -817,12 +829,13 @@ async def test_review_update_replaces_pending_review_musicxml(
             job_id=15,
             artifact_uuid="review-update-artifact",
             kind=ImportArtifactKind.REVIEW_MUSICXML.value,
-
-            storage_key=stored_xml.object_key,
+            stored_object=StoredObject(
+                object_key=stored_xml.object_key,
+                content_type="application/vnd.recordare.musicxml+xml",
+                byte_size=stored_xml.size_bytes,
+                sha256="5d17f78acc41e8e8ad4fe9dfc2c0e998b718a0acb7283f077b797581fb9f715d",
+            ),
             filename=stored_xml.object_key.rsplit("/", 1)[-1],
-            mime_type="application/vnd.recordare.musicxml+xml",
-            size_bytes=stored_xml.size_bytes,
-            sha256="5d17f78acc41e8e8ad4fe9dfc2c0e998b718a0acb7283f077b797581fb9f715d",
         )
     )
     session.commit()
@@ -838,13 +851,13 @@ async def test_review_update_replaces_pending_review_musicxml(
     assert detail.musicxml is not None
     assert detail.musicxml.content == MUSICXML_2
     artifact = one_row(session, ImportArtifact, artifact_uuid="review-update-artifact")
-    assert artifact.storage_key != stored_xml.object_key
-    assert storage.read_bytes(artifact.storage_key).decode("utf-8") == MUSICXML_2
+    assert artifact.stored_object.object_key != stored_xml.object_key
+    assert storage.read_bytes(artifact.stored_object.object_key).decode("utf-8") == MUSICXML_2
     assert count_rows(session, Score) == 0
     render_outbox = one_row(session, RenderOutbox)
     assert render_outbox.target_type == RenderTargetType.REVIEW_THUMBNAIL
     assert render_outbox.import_job_id == 15
-    assert render_outbox.source_fingerprint == artifact.sha256
+    assert render_outbox.source_fingerprint == artifact.stored_object.sha256
     assert render_outbox.status == RenderOutboxStatus.PENDING
 
 
@@ -886,13 +899,14 @@ async def test_review_confirm_creates_active_score_once(
             job_id=14,
             artifact_uuid="confirm-review-thumbnail",
             kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
-
-            storage_key=stored_thumbnail.object_key,
+            stored_object=StoredObject(
+                object_key=stored_thumbnail.object_key,
+                content_type="image/svg+xml",
+                byte_size=stored_thumbnail.size_bytes,
+                sha256="80f61f96184524ba54db767ed49487392430ad26bf5cf2ef689905f3400325d7",
+            ),
             filename=stored_thumbnail.object_key.rsplit("/", 1)[-1],
-            mime_type="image/svg+xml",
-            size_bytes=stored_thumbnail.size_bytes,
             page_number=1,
-            sha256="thumbnail",
         )
     )
     session.commit()
@@ -953,7 +967,7 @@ async def test_review_confirm_creates_active_score_once(
         page_number=1,
     )
     assert copied_thumbnail.generator == "review-thumbnail"
-    assert storage.read_bytes(copied_thumbnail.storage_key) == b"<svg />"
+    assert storage.read_bytes(copied_thumbnail.stored_object.object_key) == b"<svg />"
     render_outbox = one_row(session, RenderOutbox)
     assert render_outbox.revision_id == revision.id
     assert render_outbox.status == RenderOutboxStatus.PENDING
@@ -1000,12 +1014,13 @@ async def test_score_detail_describes_only_head_presentation(
                 asset_uuid="old-thumbnail",
                 revision_id=21,
                 kind=RenderAssetKind.RENDERED_PAGE,
-
-                storage_key=stored_thumbnail.object_key,
+                stored_object=StoredObject(
+                    object_key=stored_thumbnail.object_key,
+                    content_type="image/svg+xml",
+                    byte_size=stored_thumbnail.size_bytes,
+                    sha256="3" * 64,
+                ),
                 filename=stored_thumbnail.object_key.rsplit("/", 1)[-1],
-                mime_type="image/svg+xml",
-                size_bytes=stored_thumbnail.size_bytes,
-                sha256="3" * 64,
                 page_number=1,
                 render_profile="default",
                 generator="test",
@@ -1072,11 +1087,13 @@ async def test_revision_snapshots_preserve_noop_replay_and_expected_head_conflic
             source_uuid="artifact-1",
             revision_id=40,
             format=RevisionSourceFormat.MUSICXML,
-
-            storage_key=initial.object_key,
+            stored_object=StoredObject(
+                object_key=initial.object_key,
+                byte_size=initial.size_bytes,
+                content_type="application/vnd.recordare.musicxml+xml",
+                sha256=revision.content_hash,
+            ),
             filename=initial.object_key.rsplit("/", 1)[-1],
-            mime_type="application/vnd.recordare.musicxml+xml",
-            sha256=revision.content_hash,
             generator="test",
             generator_version="1",
         )
@@ -1178,7 +1195,7 @@ async def test_revision_snapshots_preserve_noop_replay_and_expected_head_conflic
         sorted(snapshots, key=lambda row: row.revision_number), expected_bytes
     ):
         source = one_row(session, ScoreRevisionSource, revision_id=revision.id)
-        assert storage.read_bytes(source.storage_key) == content
+        assert storage.read_bytes(source.stored_object.object_key) == content
     assert count_rows(session, RenderOutbox) == count_rows(session, PlaybackOutbox) == 2
 
 
@@ -1229,11 +1246,13 @@ async def test_revision_restore_creates_new_head_from_target_revision(
                 source_uuid="restore-source-1",
                 revision_id=41,
                 format=RevisionSourceFormat.MUSICXML,
-
-                storage_key=first.object_key,
+                stored_object=StoredObject(
+                    object_key=first.object_key,
+                    byte_size=first.size_bytes,
+                    content_type="application/vnd.recordare.musicxml+xml",
+                    sha256=revision_1.content_hash,
+                ),
                 filename=first.object_key.rsplit("/", 1)[-1],
-                mime_type="application/vnd.recordare.musicxml+xml",
-                sha256=revision_1.content_hash,
                 generator="test",
                 generator_version="1",
             ),
@@ -1241,11 +1260,13 @@ async def test_revision_restore_creates_new_head_from_target_revision(
                 source_uuid="restore-source-2",
                 revision_id=42,
                 format=RevisionSourceFormat.MUSICXML,
-
-                storage_key=second.object_key,
+                stored_object=StoredObject(
+                    object_key=second.object_key,
+                    byte_size=second.size_bytes,
+                    content_type="application/vnd.recordare.musicxml+xml",
+                    sha256=revision_2.content_hash,
+                ),
                 filename=second.object_key.rsplit("/", 1)[-1],
-                mime_type="application/vnd.recordare.musicxml+xml",
-                sha256=revision_2.content_hash,
                 generator="test",
                 generator_version="1",
             ),
@@ -1295,7 +1316,7 @@ async def test_revision_restore_creates_new_head_from_target_revision(
     assert restored.restore.note == "Return to revision 2"
     assert score.head_revision_id == new_revision.id
     assert score.version == 5
-    assert storage.read_bytes(new_artifact.storage_key) == MUSICXML_2.encode()
+    assert storage.read_bytes(new_artifact.stored_object.object_key) == MUSICXML_2.encode()
     assert metadata is not None
     assert metadata.status == MetadataStatus.READY
     assert count_rows(session, RenderOutbox) == 3
@@ -1414,12 +1435,13 @@ async def test_derived_asset_retention_protects_current_head_only(
                     asset_uuid=f"retention-render-{revision.revision_number}",
                     revision_id=revision_id,
                     kind=RenderAssetKind.RENDERED_PAGE,
-
-                    storage_key=rendered.object_key,
+                    stored_object=StoredObject(
+                        object_key=rendered.object_key,
+                        content_type="image/svg+xml",
+                        byte_size=rendered.size_bytes,
+                        sha256=hashlib.sha256(b"<svg />").hexdigest(),
+                    ),
                     filename=rendered.object_key.rsplit("/", 1)[-1],
-                    mime_type="image/svg+xml",
-                    size_bytes=rendered.size_bytes,
-                    sha256=f"r{revision.revision_number}" * 32,
                     page_number=1,
                     render_profile="default",
                     generator="test",
@@ -1429,12 +1451,13 @@ async def test_derived_asset_retention_protects_current_head_only(
                     source_uuid=f"retention-xml-{revision.revision_number}",
                     revision_id=revision_id,
                     format=RevisionSourceFormat.MUSICXML,
-
-                    storage_key=musicxml.object_key,
+                    stored_object=StoredObject(
+                        object_key=musicxml.object_key,
+                        content_type="application/vnd.recordare.musicxml+xml",
+                        byte_size=musicxml.size_bytes,
+                        sha256=hashlib.sha256(MUSICXML_1).hexdigest(),
+                    ),
                     filename=musicxml.object_key.rsplit("/", 1)[-1],
-                    mime_type="application/vnd.recordare.musicxml+xml",
-                    size_bytes=musicxml.size_bytes,
-                    sha256=f"x{revision.revision_number}" * 32,
                     generator="test",
                     generator_version="1",
                 ),
@@ -1442,12 +1465,13 @@ async def test_derived_asset_retention_protects_current_head_only(
                     asset_uuid=f"retention-audio-{revision.revision_number}",
                     revision_id=revision_id,
                     kind=PlaybackAssetKind.AUDIO,
-
-                    storage_key=audio.object_key,
+                    stored_object=StoredObject(
+                        object_key=audio.object_key,
+                        content_type="audio/wav",
+                        byte_size=audio.size_bytes,
+                        sha256=hashlib.sha256(b"RIFF").hexdigest(),
+                    ),
                     filename=audio.object_key.rsplit("/", 1)[-1],
-                    mime_type="audio/wav",
-                    size_bytes=audio.size_bytes,
-                    sha256=f"a{revision.revision_number}" * 32,
                     source_fingerprint=f"{revision.revision_number:064x}",
                     generator="test",
                     generator_version="1",
@@ -1548,7 +1572,7 @@ def test_render_outbox_recovers_stale_delivery_and_lists_due_work(
         target_type=RenderTargetType.SCORE_REVISION,
         score_id=score.id,
         revision_id=score.head_revision_id,
-        source_fingerprint="stale-source",
+        source_fingerprint="16a3fe9f344807aa7b7a8dd1da722daa56043317e557bd535cc98ffbaf519867",
         requested_by_user_id=1,
         render_profile="default",
         status=RenderOutboxStatus.DISPATCHED,
@@ -1560,7 +1584,7 @@ def test_render_outbox_recovers_stale_delivery_and_lists_due_work(
         target_type=RenderTargetType.SCORE_REVISION,
         score_id=score.id,
         revision_id=score.head_revision_id,
-        source_fingerprint="failed-source",
+        source_fingerprint="0ef0b734ebb94ff1fa6af550527abcbca2c07f799b9dfa7820519348943ce070",
         requested_by_user_id=1,
         render_profile="compact",
         status=RenderOutboxStatus.FAILED,
@@ -1596,11 +1620,13 @@ def test_render_outbox_claim_failure_and_completion_are_persistent(
             source_uuid="render-claim-source",
             revision_id=revision.id,
             format=RevisionSourceFormat.MUSICXML,
-
-            storage_key="render-claim.musicxml",
+            stored_object=StoredObject(
+                object_key="render-claim.musicxml",
+                byte_size=len(MUSICXML_1),
+                content_type="application/vnd.recordare.musicxml+xml",
+                sha256=revision.content_hash,
+            ),
             filename="score.musicxml",
-            mime_type="application/vnd.recordare.musicxml+xml",
-            sha256=revision.content_hash,
             generator="test",
             generator_version="1",
         )
@@ -1659,25 +1685,27 @@ def test_review_thumbnail_outbox_claims_only_the_current_musicxml(
             job_id=413,
             artifact_uuid="review-thumbnail-source",
             kind=ImportArtifactKind.REVIEW_MUSICXML.value,
-
-            storage_key="jobs/review-thumbnail-job/review_musicxml/score.musicxml",
+            stored_object=StoredObject(
+                object_key="jobs/review-thumbnail-job/review_musicxml/score.musicxml",
+                byte_size=len(MUSICXML_1),
+                content_type="application/vnd.recordare.musicxml+xml",
+                sha256="e10d56ef7710f0bd00dfbade1c0476e577b3a0d296e9dfca9853169b1a3771e7",
+            ),
             filename="score.musicxml",
-            mime_type="application/vnd.recordare.musicxml+xml",
-            sha256="current-source",
         )
     )
     current = RenderOutbox(
         outbox_uuid="review-thumbnail-current",
         target_type=RenderTargetType.REVIEW_THUMBNAIL,
         import_job_id=413,
-        source_fingerprint="current-source",
+        source_fingerprint="e10d56ef7710f0bd00dfbade1c0476e577b3a0d296e9dfca9853169b1a3771e7",
         render_profile="review-thumbnail",
     )
     stale = RenderOutbox(
         outbox_uuid="review-thumbnail-stale",
         target_type=RenderTargetType.REVIEW_THUMBNAIL,
         import_job_id=413,
-        source_fingerprint="stale-source",
+        source_fingerprint="16a3fe9f344807aa7b7a8dd1da722daa56043317e557bd535cc98ffbaf519867",
         render_profile="review-thumbnail",
     )
     session.add_all([current, stale])
@@ -1775,19 +1803,16 @@ def test_import_dispatch_claim_reconstructs_persisted_request(
     upload = Upload(
         id=502,
         upload_uuid="queued-upload",
-        blob_id=602,
+        stored_object_id=602,
         original_filename="queued.png",
         uploader_user_id=1,
     )
-    blob = StorageBlob(
+    blob = StoredObject(
         id=602,
-        blob_uuid="queued-blob",
-        sha256="queued-upload-sha",
-
-        storage_key="blobs/qu/queued-upload-sha.png",
-        filename="queued.png",
-        size_bytes=5,
-        mime_type="image/png",
+        sha256="c6a6aef50795992f8112412a4171cda3f041225642c94b4dfef40d2755edf2ef",
+        object_key="blobs/qu/queued-upload-sha.png",
+        byte_size=5,
+        content_type="image/png",
     )
     session.add_all([job, blob, upload])
     session.flush()
@@ -1959,7 +1984,7 @@ async def test_source_delivery_checks_score_access_and_reports_missing_objects(
         revision_source.source_uuid,
         1,  # type: ignore[arg-type]
     )
-    assert delivery.storage_key == revision_source.storage_key
+    assert delivery.storage_key == revision_source.stored_object.object_key
     assert storage.read_bytes(delivery.storage_key) == MUSICXML_1
 
     with pytest.raises(UnauthorizedException):
@@ -2607,12 +2632,13 @@ async def test_review_semantic_admission_precedes_storage(score_service_session,
         job_id=14,
         artifact_uuid="admission-artifact",
         kind=ImportArtifactKind.REVIEW_MUSICXML.value,
-
-        storage_key=original.object_key,
+        stored_object=StoredObject(
+            object_key=original.object_key,
+            content_type="application/vnd.recordare.musicxml+xml",
+            byte_size=original.size_bytes,
+            sha256=hashlib.sha256(MUSICXML_1).hexdigest(),
+        ),
         filename=original.object_key.rsplit("/", 1)[-1],
-        mime_type="application/vnd.recordare.musicxml+xml",
-        size_bytes=original.size_bytes,
-        sha256=hashlib.sha256(MUSICXML_1).hexdigest(),
     )
     session.add(artifact)
     session.commit()
@@ -2641,7 +2667,7 @@ async def test_review_semantic_admission_precedes_storage(score_service_session,
         put.assert_not_called()
         reserve.assert_not_awaited()
     assert caught.value.code == ErrorCode.REVISION_CONTENT_INVALID
-    assert artifact.storage_key == original.object_key
+    assert artifact.stored_object.object_key == original.object_key
     assert storage.read_bytes(original.object_key) == MUSICXML_1
     assert count_rows(session, Score) == count_rows(session, ScoreRevisionSource) == 0
 
@@ -2695,9 +2721,9 @@ async def test_service_hash_and_storage_use_exact_admitted_bytes(score_service_s
         put.assert_called_once()
         assert put.call_args.kwargs["content"] == admitted
     source = one_row(session, ScoreRevisionSource, revision_id=revision.id)
-    assert revision.content_hash == source.sha256 == expected_hash
-    assert source.size_bytes == len(admitted)
-    assert storage.read_bytes(source.storage_key) == admitted
+    assert revision.content_hash == source.stored_object.sha256 == expected_hash
+    assert source.stored_object.byte_size == len(admitted)
+    assert storage.read_bytes(source.stored_object.object_key) == admitted
 
 
 @pytest.mark.parametrize("content", [INVALID_WRITTEN_XML.encode(), b""])
@@ -2751,8 +2777,10 @@ def test_sync_confirmed_score_hashes_and_stores_admitted_bytes(score_service_ses
         assert put.call_args.kwargs["content"] == admitted
     revision = one_row(session, ScoreRevision)
     source = one_row(session, ScoreRevisionSource)
-    assert revision.content_hash == source.sha256 == hashlib.sha256(admitted).hexdigest()
-    assert storage.read_bytes(source.storage_key) == admitted
+    assert (
+        revision.content_hash == source.stored_object.sha256 == hashlib.sha256(admitted).hexdigest()
+    )
+    assert storage.read_bytes(source.stored_object.object_key) == admitted
 
 
 @pytest.mark.asyncio
@@ -2779,7 +2807,7 @@ async def test_admitted_revision_survives_unsupported_metadata_projection(score_
     revision = session.get(ScoreRevision, score.head_revision_id)
     source = one_row(session, ScoreRevisionSource, revision_id=revision.id)
     projection = session.get(ScoreRevisionMetadata, revision.id)
-    assert storage.read_bytes(source.storage_key) == admitted
+    assert storage.read_bytes(source.stored_object.object_key) == admitted
     assert revision.content_hash == hashlib.sha256(admitted).hexdigest()
     assert projection.status == MetadataStatus.FAILED
     assert projection.error_code == "unsupported_nontraditional_key"

@@ -7,14 +7,25 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
-from app.core.exceptions import FileException, ResourceNotFoundException, UnauthorizedException, ValidationException
-from app.db.models import ImportJob, ImportJobUpload, StorageBlob, Upload, User
+from app.core.exceptions import (
+    FileException,
+    ResourceNotFoundException,
+    UnauthorizedException,
+    ValidationException,
+)
+from app.db.models import ImportJob, ImportJobUpload, StoredObject, Upload, User
 from app.db.models.import_job import ImportJobState
 from app.db.model_utils import require_persisted_id
 from app.modules.import_jobs.deletion_service import ImportJobDeletionService
 from app.modules.import_jobs.public_errors import public_import_job_error
 from app.modules.import_jobs.repository import ImportJobRepository
-from app.modules.import_jobs.schemas import ImportJobDetail, ImportJobProcessingOptions, ImportJobStatusEntry, ImportJobSubmitRequestLike, ImportJobSubmitResult
+from app.modules.import_jobs.schemas import (
+    ImportJobDetail,
+    ImportJobProcessingOptions,
+    ImportJobStatusEntry,
+    ImportJobSubmitRequestLike,
+    ImportJobSubmitResult,
+)
 from app.modules.import_jobs.submission_service import ImportJobSubmissionService
 from app.modules.import_jobs.worker_service import sync_import_job_service
 from app.storage import ObjectStorage, object_storage
@@ -48,7 +59,9 @@ class ImportJobService:
         self.storage = storage or object_storage
         self.deletion_service = deletion_service or ImportJobDeletionService(self.storage)
 
-    async def submit(self, current_user: User, request: ImportJobSubmitRequestLike) -> ImportJobSubmitResult:
+    async def submit(
+        self, current_user: User, request: ImportJobSubmitRequestLike
+    ) -> ImportJobSubmitResult:
         return await self.submission_service.submit(current_user, request)
 
     async def retry(
@@ -99,7 +112,9 @@ class ImportJobService:
 
         sync_db = get_db_session()
         try:
-            return [sync_import_job_service.get_detail(sync_db, row.job_uuid) for row in rows], total
+            return [
+                sync_import_job_service.get_detail(sync_db, row.job_uuid) for row in rows
+            ], total
         finally:
             sync_db.close()
 
@@ -179,13 +194,13 @@ class ImportJobService:
             raise ResourceNotFoundException(
                 "import_artifact", artifact_uuid, ErrorCode.FILE_NOT_FOUND
             )
-        if not self.storage.exists(artifact.storage_key):
-            raise FileException(ErrorCode.FILE_NOT_FOUND, artifact.storage_key)
-        media_type = artifact.mime_type or "application/octet-stream"
+        if not self.storage.exists(artifact.stored_object.object_key):
+            raise FileException(ErrorCode.FILE_NOT_FOUND, artifact.stored_object.object_key)
+        media_type = artifact.stored_object.content_type or "application/octet-stream"
         return ImportArtifactDelivery(
             filename=artifact.filename,
             media_type=media_type,
-            storage_key=artifact.storage_key,
+            storage_key=artifact.stored_object.object_key,
         )
 
     async def _upload_delivery(
@@ -196,14 +211,16 @@ class ImportJobService:
     ) -> ImportArtifactDelivery:
         raw_upload_id = artifact_uuid.removeprefix("upload:")
         if not raw_upload_id.isdigit():
-            raise ResourceNotFoundException("import_upload", artifact_uuid, ErrorCode.FILE_NOT_FOUND)
+            raise ResourceNotFoundException(
+                "import_upload", artifact_uuid, ErrorCode.FILE_NOT_FOUND
+            )
         upload_id = int(raw_upload_id)
         job_id = require_persisted_id(job.id, entity="import job")
         row = (
             await db.execute(
-                select(ImportJobUpload, Upload, StorageBlob)
+                select(ImportJobUpload, Upload, StoredObject)
                 .join(Upload, ImportJobUpload.upload_id == Upload.id)
-                .join(StorageBlob, Upload.blob_id == StorageBlob.id)
+                .join(StoredObject, Upload.stored_object_id == StoredObject.id)
                 .where(
                     ImportJobUpload.job_id == job_id,
                     ImportJobUpload.upload_id == upload_id,
@@ -211,16 +228,18 @@ class ImportJobService:
             )
         ).first()
         if row is None:
-            raise ResourceNotFoundException("import_upload", artifact_uuid, ErrorCode.FILE_NOT_FOUND)
+            raise ResourceNotFoundException(
+                "import_upload", artifact_uuid, ErrorCode.FILE_NOT_FOUND
+            )
         _, upload, blob = row
-        if not self.storage.exists(blob.storage_key):
-            raise FileException(ErrorCode.FILE_NOT_FOUND, blob.storage_key)
-        media_type = blob.mime_type or "application/octet-stream"
-        filename = upload.original_filename or blob.filename
+        if not self.storage.exists(blob.object_key):
+            raise FileException(ErrorCode.FILE_NOT_FOUND, blob.object_key)
+        media_type = blob.content_type or "application/octet-stream"
+        filename = upload.original_filename
         return ImportArtifactDelivery(
             filename=filename,
             media_type=media_type,
-            storage_key=blob.storage_key,
+            storage_key=blob.object_key,
         )
 
 

@@ -33,12 +33,12 @@ lifecycle field clearing without deciding whether domain work should be reactiva
 
 Domain responsibilities remain explicit:
 
-| Domain | Domain-owned semantics |
-| --- | --- |
-| Render / Playback | Revision presentation demand, SUPERSEDED, resource admission, asset short circuits, payloads, revision/score locks and diagnostic classification |
-| Mail | Expiry, EXPIRED/PERMANENT_FAILURE decisions, body availability and scrubbing, recipients, provider message identity and mail diagnostics; success is SENT |
-| Performance Take deletion | Take/MediaBlob checks, physical deletion, quota release and atomic completion; success is COMPLETED |
-| Practice Bundle deletion | Bundle ownership, CREATING/READY/DELETING scans, cancellation and its two object keys; success is COMPLETED |
+| Domain                    | Domain-owned semantics                                                                                                                                    |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Render / Playback         | Revision presentation demand, SUPERSEDED, resource admission, asset short circuits, payloads, revision/score locks and diagnostic classification          |
+| Mail                      | Expiry, EXPIRED/PERMANENT_FAILURE decisions, body availability and scrubbing, recipients, provider message identity and mail diagnostics; success is SENT |
+| Performance Take deletion | Take/StoredObject checks, physical deletion, quota release and atomic completion; success is COMPLETED                                                    |
+| Practice Bundle deletion  | Bundle ownership, CREATING/READY/DELETING scans, cancellation and its two object keys; success is COMPLETED                                               |
 
 Services own SQL predicates, row locks, maintenance ordering/batches and transactions.
 They project `apply_async_diagnostic()` / `clear_async_diagnostic()` after shared

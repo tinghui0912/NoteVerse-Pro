@@ -1,4 +1,6 @@
 from __future__ import annotations
+from app.modules.storage_objects.facts import StoredObjectFacts
+from app.modules.storage_objects.persistence import object_to_row
 
 import hashlib
 import uuid
@@ -14,7 +16,7 @@ from app.db.models import (
     ImportJobUpload,
     ScoreInputAsset,
     ScoreRenderAsset,
-    StorageBlob,
+    StoredObject,
     Upload,
 )
 from app.db.models.score import RenderAssetKind, ScoreInputAssetPurpose
@@ -52,7 +54,7 @@ async def copy_review_thumbnail_to_score_revision(
     ).scalar_one_or_none()
     if thumbnail is None:
         return
-    content = storage.read_bytes(thumbnail.storage_key)
+    content = storage.read_bytes(thumbnail.stored_object.object_key)
     artifact_uuid = str(uuid.uuid4())
     extension = "." + thumbnail.filename.rsplit(".", 1)[-1] if "." in thumbnail.filename else ".svg"
     stored = storage.put_bytes(
@@ -61,18 +63,22 @@ async def copy_review_thumbnail_to_score_revision(
             f"default/001-{artifact_uuid}{extension}"
         ),
         content=content,
-        content_type=thumbnail.mime_type or "image/svg+xml",
+        content_type=thumbnail.stored_object.content_type or "image/svg+xml",
     )
     db.add(
         ScoreRenderAsset(
             asset_uuid=artifact_uuid,
             revision_id=revision_id,
             kind=RenderAssetKind.RENDERED_PAGE,
-            storage_key=stored.object_key,
+            stored_object=object_to_row(
+                StoredObjectFacts(
+                    object_key=stored.object_key,
+                    content_type=thumbnail.stored_object.content_type or "image/svg+xml",
+                    byte_size=len(content),
+                    sha256=hashlib.sha256(content).hexdigest(),
+                )
+            ),
             filename=stored.object_key.rsplit("/", 1)[-1],
-            mime_type=thumbnail.mime_type or "image/svg+xml",
-            size_bytes=stored.size_bytes,
-            sha256=hashlib.sha256(content).hexdigest(),
             page_number=1,
             render_profile="default",
             generator="review-thumbnail",
@@ -89,9 +95,9 @@ async def promote_uploads_to_score_inputs(
 ) -> list[PromotedScoreInputUsage]:
     rows = (
         await db.execute(
-            select(ImportJobUpload, Upload, StorageBlob)
+            select(ImportJobUpload, Upload, StoredObject)
             .join(Upload, ImportJobUpload.upload_id == Upload.id)
-            .join(StorageBlob, Upload.blob_id == StorageBlob.id)
+            .join(StoredObject, Upload.stored_object_id == StoredObject.id)
             .where(ImportJobUpload.job_id == job_id)
             .order_by(col(ImportJobUpload.sort_order).asc(), col(ImportJobUpload.id).asc())
         )
@@ -113,8 +119,8 @@ async def promote_uploads_to_score_inputs(
             PromotedScoreInputUsage(
                 asset_uuid=asset_uuid,
                 upload_uuid=upload.upload_uuid,
-                storage_key=blob.storage_key,
-                size_bytes=blob.size_bytes,
+                storage_key=blob.object_key,
+                size_bytes=blob.byte_size,
             )
         )
     return promoted

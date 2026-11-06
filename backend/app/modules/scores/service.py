@@ -20,7 +20,7 @@ from app.db.models import (
     ScoreLibraryEntry,
     ScoreRevision,
     ScoreRevisionMetadata,
-    StorageBlob,
+    StoredObject,
     Upload,
 )
 from app.modules.score_assets.derived_assets import score_derived_assets
@@ -178,9 +178,9 @@ class ScoreService:
         score_id = require_persisted_id(access.score.id, entity="score")
         row = (
             await db.execute(
-                select(ScoreInputAsset, Upload, StorageBlob)
+                select(ScoreInputAsset, Upload, StoredObject)
                 .join(Upload, ScoreInputAsset.upload_id == Upload.id)
-                .join(StorageBlob, Upload.blob_id == StorageBlob.id)
+                .join(StoredObject, Upload.stored_object_id == StoredObject.id)
                 .where(
                     ScoreInputAsset.score_id == score_id,
                     ScoreInputAsset.asset_uuid == asset_uuid,
@@ -192,13 +192,13 @@ class ScoreService:
                 "score_input_asset", asset_uuid, ErrorCode.FILE_NOT_FOUND
             )
         _asset, upload, blob = row
-        if not self.storage.exists(blob.storage_key):
-            raise FileException(ErrorCode.FILE_NOT_FOUND, blob.storage_key)
-        filename = upload.original_filename or blob.filename
+        if not self.storage.exists(blob.object_key):
+            raise FileException(ErrorCode.FILE_NOT_FOUND, blob.object_key)
+        filename = upload.original_filename
         return ScoreInputAssetDelivery(
             filename=filename,
-            media_type=blob.mime_type,
-            storage_key=blob.storage_key,
+            media_type=blob.content_type,
+            storage_key=blob.object_key,
         )
 
     async def _read(
@@ -243,9 +243,9 @@ class ScoreService:
         input_asset_rows = (
             (
                 await db.execute(
-                    select(ScoreInputAsset, Upload, StorageBlob)
+                    select(ScoreInputAsset, Upload, StoredObject)
                     .join(Upload, ScoreInputAsset.upload_id == Upload.id)
-                    .join(StorageBlob, Upload.blob_id == StorageBlob.id)
+                    .join(StoredObject, Upload.stored_object_id == StoredObject.id)
                     .where(ScoreInputAsset.score_id == score_id)
                     .order_by(col(ScoreInputAsset.sort_order).asc(), col(ScoreInputAsset.id).asc())
                 )
@@ -273,9 +273,9 @@ class ScoreService:
             input_assets=[
                 ScoreInputAssetRead(
                     asset_id=asset.asset_uuid,
-                    filename=upload.original_filename or blob.filename,
-                    mime_type=blob.mime_type,
-                    size=blob.size_bytes,
+                    filename=upload.original_filename,
+                    mime_type=blob.content_type,
+                    size=blob.byte_size,
                     page_number=asset.page_number,
                 )
                 for asset, upload, blob in input_asset_rows

@@ -3,6 +3,7 @@
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
+from app.modules.storage_objects.persistence import object_from_bytes
 from unittest.mock import AsyncMock, Mock, patch
 import xml.etree.ElementTree as ET
 
@@ -123,7 +124,13 @@ async def test_unbound_revision_compiles_once_then_reads_existing_binding():
     compiler = Mock(compile=Mock(return_value=bundle))
     storage = Mock(read_bytes=Mock(return_value=FIXTURE.read_bytes()))
     assets = Mock(
-        canonical_source=AsyncMock(return_value=SimpleNamespace(storage_key="canonical.xml"))
+        canonical_source=AsyncMock(
+            return_value=SimpleNamespace(
+                stored_object=object_from_bytes(
+                    object_key="canonical.xml", content=b"xml", content_type="application/xml"
+                )
+            )
+        )
     )
     access = SimpleNamespace(
         score=SimpleNamespace(id=10, score_uuid="score-A", title="Title"),
@@ -178,7 +185,13 @@ async def test_unbound_revision_reauthorization_failure_prevents_binding_mutatio
         access_policy=policy,
         storage=Mock(read_bytes=Mock(return_value=FIXTURE.read_bytes())),
         asset_repository=Mock(
-            canonical_source=AsyncMock(return_value=SimpleNamespace(storage_key="canonical.xml"))
+            canonical_source=AsyncMock(
+                return_value=SimpleNamespace(
+                    stored_object=object_from_bytes(
+                        object_key="canonical.xml", content=b"xml", content_type="application/xml"
+                    )
+                )
+            )
         ),
     )
     with patch(

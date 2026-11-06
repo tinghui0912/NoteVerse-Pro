@@ -64,12 +64,12 @@ class PlaybackDeliveryReadModel:
                 )
             )
         ).scalar_one_or_none()
-        if asset is None or not self.storage.exists(asset.storage_key):
+        if asset is None or not self.storage.exists(asset.stored_object.object_key):
             raise ResourceNotFoundException("playback_asset", code=ErrorCode.FILE_NOT_FOUND)
         return PlaybackDelivery(
             filename=asset.filename,
-            media_type=asset.mime_type,
-            storage_key=asset.storage_key,
+            media_type=asset.stored_object.content_type,
+            storage_key=asset.stored_object.object_key,
         )
 
 

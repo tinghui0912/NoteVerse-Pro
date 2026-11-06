@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.modules.account.avatar_presentation import avatar_url_for_user
 
 from datetime import timedelta
 from typing import Any
@@ -170,15 +171,11 @@ class NotificationService:
         events = await self.repository.list_for_user(db, user_id, limit=limit)
         return [await self._event_read(db, event) for event in events]
 
-    async def unread_count(
-        self, db: AsyncSession, user_id: int
-    ) -> NotificationUnreadCountRead:
+    async def unread_count(self, db: AsyncSession, user_id: int) -> NotificationUnreadCountRead:
         user = await db.get(User, user_id)
         if user is None:
             raise UnauthorizedException(ErrorCode.NO_ACCESS)
-        return NotificationUnreadCountRead(
-            count=await self.repository.unread_count(db, user_id)
-        )
+        return NotificationUnreadCountRead(count=await self.repository.unread_count(db, user_id))
 
     async def mark_read(
         self, db: AsyncSession, notification_uuid: str, user_id: int
@@ -210,7 +207,9 @@ class NotificationService:
     async def cleanup_expired_events(
         self, db: AsyncSession, *, retention_days: int | None = None
     ) -> int:
-        days = retention_days if retention_days is not None else settings.NOTIFICATION_RETENTION_DAYS
+        days = (
+            retention_days if retention_days is not None else settings.NOTIFICATION_RETENTION_DAYS
+        )
         if days <= 0:
             raise ValueError("notification retention days must be positive")
         cutoff = utc_now_naive() - timedelta(days=days)
@@ -234,9 +233,7 @@ class NotificationService:
             created_at=event.created_at,
         )
 
-    async def _actor(
-        self, db: AsyncSession, user_id: int | None
-    ) -> NotificationActorRead | None:
+    async def _actor(self, db: AsyncSession, user_id: int | None) -> NotificationActorRead | None:
         if user_id is None:
             return None
         user = await db.get(User, user_id)
@@ -245,12 +242,10 @@ class NotificationService:
         return NotificationActorRead(
             display_name=user.display_name,
             email=user.email,
-            avatar_url=user.avatar_url,
+            avatar_url=avatar_url_for_user(user),
         )
 
-    async def _score_notification_recipients(
-        self, db: AsyncSession, score: Score
-    ) -> list[int]:
+    async def _score_notification_recipients(self, db: AsyncSession, score: Score) -> list[int]:
         score_id = score.id
         if score_id is None:
             return []

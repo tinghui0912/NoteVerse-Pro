@@ -11,7 +11,7 @@ from app.core.exceptions import (
     ValidationException,
 )
 from app.db.model_utils import require_persisted_id
-from app.db.models import ImportArtifact, ImportJob, ImportJobUpload, Score, StorageBlob, Upload
+from app.db.models import ImportArtifact, ImportJob, ImportJobUpload, Score, StoredObject, Upload
 from app.db.models.import_job import ImportJobState
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from app.modules.review.schemas import (
@@ -34,9 +34,7 @@ class ReviewReadModel:
         user_id: int,
     ) -> ImportJobReviewRead:
         job = (
-            await db.execute(
-                select(ImportJob).where(ImportJob.job_uuid == job_uuid)
-            )
+            await db.execute(select(ImportJob).where(ImportJob.job_uuid == job_uuid))
         ).scalar_one_or_none()
         if not job:
             raise ResourceNotFoundException("job", job_uuid, ErrorCode.JOB_NOT_FOUND)
@@ -65,11 +63,9 @@ class ReviewReadModel:
 
         job_id = require_persisted_id(job.id, entity="import job")
         artifacts = list(
-            (
-                await db.execute(
-                    select(ImportArtifact).where(ImportArtifact.job_id == job_id)
-                )
-            ).scalars().all()
+            (await db.execute(select(ImportArtifact).where(ImportArtifact.job_id == job_id)))
+            .scalars()
+            .all()
         )
         musicxml_artifact = next(
             (
@@ -81,10 +77,14 @@ class ReviewReadModel:
         )
         if musicxml_artifact is None:
             raise ResourceNotFoundException("import_artifact", job_uuid, ErrorCode.XML_NOT_FOUND)
-        if not self.storage.exists(musicxml_artifact.storage_key):
-            raise FileException(ErrorCode.FILE_NOT_FOUND, musicxml_artifact.storage_key)
+        if not self.storage.exists(musicxml_artifact.stored_object.object_key):
+            raise FileException(
+                ErrorCode.FILE_NOT_FOUND, musicxml_artifact.stored_object.object_key
+            )
 
-        content = self.storage.read_bytes(musicxml_artifact.storage_key).decode("utf-8")
+        content = self.storage.read_bytes(musicxml_artifact.stored_object.object_key).decode(
+            "utf-8"
+        )
         options = job.requested_options if isinstance(job.requested_options, dict) else {}
         title = options.get("title")
         taxonomy_tags = options.get("taxonomy_tags")
@@ -97,7 +97,7 @@ class ReviewReadModel:
             musicxml=ReviewMusicXmlRead(
                 artifact_id=musicxml_artifact.artifact_uuid,
                 content=content,
-                mime_type=musicxml_artifact.mime_type,
+                mime_type=musicxml_artifact.stored_object.content_type,
             ),
             original_images=original_images,
             created_at=job.created_at,
@@ -107,9 +107,9 @@ class ReviewReadModel:
     async def upload_reads(self, db: AsyncSession, job_id: int) -> list[ReviewArtifactRead]:
         rows = (
             await db.execute(
-                select(Upload, StorageBlob)
+                select(Upload, StoredObject)
                 .join(ImportJobUpload, ImportJobUpload.upload_id == Upload.id)
-                .join(StorageBlob, Upload.blob_id == StorageBlob.id)
+                .join(StoredObject, Upload.stored_object_id == StoredObject.id)
                 .where(ImportJobUpload.job_id == job_id)
                 .order_by(col(ImportJobUpload.sort_order).asc(), col(ImportJobUpload.id).asc())
             )
@@ -117,9 +117,9 @@ class ReviewReadModel:
         return [
             ReviewArtifactRead(
                 artifact_id=f"upload:{require_persisted_id(upload.id, entity='upload')}",
-                filename=upload.original_filename or blob.filename,
-                mime_type=blob.mime_type,
-                size=blob.size_bytes,
+                filename=upload.original_filename,
+                mime_type=blob.content_type,
+                size=blob.byte_size,
                 page_number=index + 1,
             )
             for index, (upload, blob) in enumerate(rows)

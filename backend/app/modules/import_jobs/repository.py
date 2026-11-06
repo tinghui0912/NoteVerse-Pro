@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from sqlmodel import col
@@ -14,9 +14,10 @@ from app.db.models import (
     ImportJobUpload,
     Score,
     ScoreInputAsset,
-    StorageBlob,
+    StoredObject,
     Upload,
 )
+
 job_uuid_col = ImportJob.__table__.c.job_uuid
 job_created_col = ImportJob.__table__.c.created_at
 
@@ -33,9 +34,7 @@ class ImportJobRepository:
         total = int(
             (
                 await db.execute(
-                    select(func.count(ImportJob.id)).where(
-                        ImportJob.user_id == user_id
-                    )
+                    select(func.count(ImportJob.id)).where(ImportJob.user_id == user_id)
                 )
             ).scalar_one()
         )
@@ -47,10 +46,9 @@ class ImportJobRepository:
             .limit(page_size)
         )
         return list(rows.scalars().all()), total
+
     async def get_by_uuid(self, db: AsyncSession, job_uuid: str) -> ImportJob | None:
-        result = await db.execute(
-            select(ImportJob).where(ImportJob.job_uuid == job_uuid)
-        )
+        result = await db.execute(select(ImportJob).where(ImportJob.job_uuid == job_uuid))
         return result.scalars().first()
 
     async def batch_status(
@@ -67,14 +65,10 @@ class ImportJobRepository:
         )
         return list(result.scalars().all())
 
-    async def artifact_by_uuid(
-        self, db: AsyncSession, artifact_uuid: str
-    ) -> ImportArtifact | None:
+    async def artifact_by_uuid(self, db: AsyncSession, artifact_uuid: str) -> ImportArtifact | None:
         return (
             await db.execute(
-                select(ImportArtifact).where(
-                    ImportArtifact.artifact_uuid == artifact_uuid
-                )
+                select(ImportArtifact).where(ImportArtifact.artifact_uuid == artifact_uuid)
             )
         ).scalar_one_or_none()
 
@@ -121,19 +115,22 @@ class SyncImportJobRepository:
     @staticmethod
     def list_artifacts(db: Session, job_id: int) -> list[ImportArtifact]:
         return list(
-            db.execute(
-                select(ImportArtifact).where(ImportArtifact.job_id == job_id)
-            ).scalars()
+            db.execute(select(ImportArtifact).where(ImportArtifact.job_id == job_id)).scalars()
         )
 
     @staticmethod
     def delete_artifacts_by_kind(db: Session, job_id: int, kind: str) -> None:
-        db.execute(
-            delete(ImportArtifact).where(
-                ImportArtifact.job_id == job_id,
-                ImportArtifact.kind == kind,
+        rows = list(
+            db.scalars(
+                select(ImportArtifact).where(
+                    ImportArtifact.job_id == job_id, ImportArtifact.kind == kind
+                )
             )
         )
+        for row in rows:
+            db.delete(row)
+            db.delete(row.stored_object)
+        db.flush()
 
     @staticmethod
     def get_upload_by_uuid(db: Session, upload_uuid: str) -> Upload | None:
@@ -158,13 +155,13 @@ class SyncImportJobRepository:
     def list_upload_rows(
         db: Session,
         job_id: int,
-    ) -> list[tuple[ImportJobUpload, Upload, StorageBlob]]:
+    ) -> list[tuple[ImportJobUpload, Upload, StoredObject]]:
         return [
             (job_upload, upload, blob)
             for job_upload, upload, blob in db.execute(
-                select(ImportJobUpload, Upload, StorageBlob)
+                select(ImportJobUpload, Upload, StoredObject)
                 .join(Upload, ImportJobUpload.upload_id == Upload.id)
-                .join(StorageBlob, Upload.blob_id == StorageBlob.id)
+                .join(StoredObject, Upload.stored_object_id == StoredObject.id)
                 .where(ImportJobUpload.job_id == job_id)
                 .order_by(col(ImportJobUpload.sort_order).asc(), col(ImportJobUpload.id).asc())
             ).all()

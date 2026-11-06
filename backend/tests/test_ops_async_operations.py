@@ -319,7 +319,7 @@ def _create_score_revision(
         revision_uuid=revision_uuid,
         score_id=score.id,
         revision_number=1,
-        content_hash="ops-retry-content-hash",
+        content_hash="4d79a65cfc7699044ae2a70961f04596bde500399ffd47072ad9b9e7d77a4003",
         origin=RevisionOrigin.IMPORT,
         created_by_user_id=1,
     )
@@ -951,7 +951,7 @@ def test_ops_api_retry_rejects_completed_render_outbox_and_records_audit(
         outbox_uuid="00000000-0000-0000-0000-000000000202",
         target_type=RenderTargetType.REVIEW_THUMBNAIL,
         import_job_id=job.id,
-        source_fingerprint="fingerprint-render-completed",
+        source_fingerprint="6d01e2a02f5936672bba6dd48f3c0decf9eedf3ffca9047b258748dd0aac92ef",
         status=RenderOutboxStatus.COMPLETED,
     )
     ops_session.add(outbox)
@@ -1092,7 +1092,7 @@ def test_ops_api_admin_can_retry_failed_render_outbox(
         outbox_uuid="00000000-0000-0000-0000-000000000212",
         target_type=RenderTargetType.REVIEW_THUMBNAIL,
         import_job_id=job.id,
-        source_fingerprint="fingerprint-render-failed",
+        source_fingerprint="8bd70392968d39fd8c94730768c9b2e2def65c4dfe9e0a675a8493143407cf2a",
         status=RenderOutboxStatus.FAILED,
         attempt_count=3,
         next_attempt_at=utc_now_naive() + timedelta(hours=1),
@@ -1154,7 +1154,7 @@ def test_ops_api_admin_can_retry_failed_playback_outbox(
         outbox_uuid="00000000-0000-0000-0000-000000000602",
         score_id=score.id,
         revision_id=revision.id,
-        source_fingerprint="fingerprint-playback-failed",
+        source_fingerprint="5c0008124d153564f07ff7bd63bdcdb1a4f322dc47f9a5c36a806edb9a5fafea",
         asset_kind=PlaybackAssetKind.AUDIO,
         status=PlaybackOutboxStatus.FAILED,
         attempt_count=3,

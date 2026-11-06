@@ -148,7 +148,9 @@ class RevisionDerivativeService:
                 .scalars()
                 .all()
             )
-            if not pages or not all(storage.exists(page.storage_key) for page in pages):
+            if not pages or not all(
+                storage.exists(page.stored_object.object_key) for page in pages
+            ):
                 rearm_render(render)
         playback = (
             await db.execute(
@@ -167,7 +169,7 @@ class RevisionDerivativeService:
                     )
                 )
             ).scalar_one_or_none()
-            if audio is None or not storage.exists(audio.storage_key):
+            if audio is None or not storage.exists(audio.stored_object.object_key):
                 rearm_playback(playback)
         return work
 

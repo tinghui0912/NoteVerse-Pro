@@ -66,8 +66,7 @@ def replace_files(
 
     normalized_kind = _kind_value(kind)
     items: List[ImportJobStoredArtifactItem] = [
-        _build_file_item(job_id, normalized_kind, p, i + 1)
-        for i, p in enumerate(abs_paths)
+        _build_file_item(job_id, normalized_kind, p, i + 1) for i, p in enumerate(abs_paths)
     ]
 
     with get_worker_db() as db:
@@ -82,12 +81,13 @@ def _build_file_item(
 ) -> ImportJobStoredArtifactItem:
     normalized_kind = _kind_value(kind)
     mime_type = _guess_mime_type(abs_path)
-    size = os.path.getsize(abs_path) if os.path.exists(abs_path) else None
-    storage_key = _store_job_output(job_id, normalized_kind, abs_path, page, mime_type)
-    sha256 = None
-    if os.path.exists(abs_path):
-        with open(abs_path, "rb") as file_handle:
-            sha256 = hashlib.sha256(file_handle.read()).hexdigest()
+    with open(abs_path, "rb") as file_handle:
+        content = file_handle.read()
+    size = len(content)
+    sha256 = hashlib.sha256(content).hexdigest()
+    filename = f"{page:03d}-{os.path.basename(abs_path)}"
+    storage_key = f"jobs/{job_id}/{normalized_kind}/{sha256}/{filename}"
+    object_storage.put_bytes(key=storage_key, content=content, content_type=mime_type)
 
     return {
         "storage_key": storage_key,
@@ -97,23 +97,3 @@ def _build_file_item(
         "size": size,
         "sha256": sha256,
     }
-
-
-def _store_job_output(
-    job_id: str,
-    kind: str,
-    abs_path: str,
-    page: int,
-    mime_type: str,
-) -> str:
-    filename = os.path.basename(abs_path)
-    key = f"jobs/{job_id}/{kind}/{page:03d}-{filename}"
-
-    with open(abs_path, "rb") as file_handle:
-        stored = object_storage.put_bytes(
-            key=key,
-            content=file_handle.read(),
-            content_type=mime_type,
-        )
-
-    return stored.object_key

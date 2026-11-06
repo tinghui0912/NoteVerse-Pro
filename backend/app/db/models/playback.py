@@ -18,7 +18,9 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, Relationship, SQLModel
+from sqlalchemy.orm import relationship
+from .stored_object import StoredObject
 
 from app.utils.timezone import utc_now_naive
 
@@ -42,7 +44,7 @@ class PlaybackOutboxStatus(str, enum.Enum):
 class ScorePlaybackAsset(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "score_playback_assets"
     __table_args__ = (
-        UniqueConstraint("storage_key", name="uq_score_playback_assets_storage_key"),
+        UniqueConstraint("stored_object_id", name="uq_score_playback_assets_stored_object"),
         UniqueConstraint(
             "revision_id",
             "kind",
@@ -67,11 +69,15 @@ class ScorePlaybackAsset(SQLModel, table=True):  # type: ignore[call-arg]
         sa_column=Column(SAEnum(PlaybackAssetKind, name="playbackassetkind"), nullable=False)
     )
 
-    storage_key: str = Field(sa_column=Column(String(768), nullable=False))
+    stored_object_id: int = Field(
+        sa_column=Column(
+            bigint_pk_type, ForeignKey("stored_objects.id", ondelete="RESTRICT"), nullable=False
+        )
+    )
+    stored_object: StoredObject = Relationship(
+        sa_relationship=relationship(StoredObject, lazy="selectin")
+    )
     filename: str = Field(sa_column=Column(String(255), nullable=False))
-    mime_type: str = Field(sa_column=Column(String(128), nullable=False))
-    size_bytes: int = Field(sa_column=Column(BigInteger, nullable=False))
-    sha256: str = Field(sa_column=Column(String(64), nullable=False))
     execution_manifest_id: Optional[int] = Field(
         default=None,
         sa_column=Column(

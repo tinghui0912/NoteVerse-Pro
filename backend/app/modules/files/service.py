@@ -12,8 +12,9 @@ from app.core.exceptions import (
     ValidationException,
 )
 from app.db.model_utils import require_persisted_id
-from app.db.models import StorageBlob, StorageUsageCategory, User
+from app.db.models import StoredObject, StorageUsageCategory, User
 from app.modules.files.repository import FilesRepository
+from app.modules.storage_objects.persistence import object_from_bytes
 from app.modules.files.schemas import DeleteUploadedFileRead, UploadFileRead
 from app.modules.storage_usage.service import storage_usage_service
 from app.shared.constants import ErrorCode
@@ -51,7 +52,9 @@ class FilesService:
         content = await file.read()
         file_hash = hashlib.sha256(content).hexdigest()
         extension = f".{file.filename.rsplit('.', 1)[1].lower()}"
-        content_type = file.content_type or "application/octet-stream"
+        content_type = (
+            (file.content_type or "application/octet-stream").split(";", 1)[0].strip().lower()
+        )
         user_id = require_persisted_id(current_user.id, entity="user")
         reservation = await storage_usage_service.reserve(
             db,
@@ -62,60 +65,53 @@ class FilesService:
             object_type="upload",
             object_id=file_hash,
         )
-        blob = await self.repository.get_blob_by_sha256(db, file_hash)
+        blob = await self.repository.get_upload_object_by_sha256(db, file_hash)
         stored = None
+        creates_object = blob is None
         try:
-            blob_needs_current_storage = blob is None or not self.storage.exists(blob.storage_key)
-            if blob_needs_current_storage:
+            if blob is None:
                 key = blob_object_key(file_hash, extension)
                 if self.storage.exists(key):
-                    size_bytes = self.storage.size_bytes(key)
+                    if self.storage.read_bytes(key) != content:
+                        raise ValueError("Upload object bytes disagree with content key")
+                    content_type = self.storage.object_metadata(key).content_type or content_type
                 else:
                     stored = self.storage.put_bytes(
                         key=key, content=content, content_type=content_type
                     )
-                    size_bytes = stored.size_bytes
-                filename = key.rsplit("/", 1)[-1]
-                if blob is None:
-                    blob = await self.repository.create_blob(
-                        db,
-                        sha256=file_hash,
-                        storage_key=key,
-                        filename=filename,
-                        size_bytes=size_bytes,
-                        mime_type=content_type,
-                    )
-                else:
-                    blob = await self.repository.update_blob_storage(
-                        db,
-                        blob,
-                        storage_key=key,
-                        filename=filename,
-                        size_bytes=size_bytes,
-                        mime_type=content_type,
-                    )
+                blob = object_from_bytes(object_key=key, content=content, content_type=content_type)
+                db.add(blob)
+                await db.flush()
+            elif not self.storage.exists(blob.object_key):
+                if len(content) != blob.byte_size:
+                    raise ValueError("Upload object byte facts disagree")
+                stored = self.storage.put_bytes(
+                    key=blob.object_key, content=content, content_type=blob.content_type
+                )
             if blob is None:
                 raise FileException(code=ErrorCode.FILE_SAVE_FAILED, filename=file.filename)
             persisted_blob = blob
             upload = await self.repository.create_upload(
                 db,
-                blob_id=require_persisted_id(persisted_blob.id, entity="storage blob"),
+                stored_object_id=require_persisted_id(persisted_blob.id, entity="stored object"),
                 original_filename=file.filename,
                 uploader_user_id=user_id,
             )
-            await db.commit()
             await storage_usage_service.commit_reservation(
                 db,
                 reservation.reservation_id,
                 object_type="upload",
                 object_id=upload.upload_uuid,
-                storage_key=persisted_blob.storage_key,
+                storage_key=persisted_blob.object_key,
             )
         except Exception as exc:
             await db.rollback()
-            if stored is not None:
+            if stored is not None and creates_object:
                 try:
-                    self.storage.delete(stored.object_key)
+                    # A concurrent Upload may have committed the same domain-local key.
+                    committed = await self.repository.get_object_by_key(db, stored.object_key)
+                    if committed is None:
+                        self.storage.delete(stored.object_key)
                 except Exception:
                     pass
             await storage_usage_service.release_reservation(db, reservation.reservation_id)
@@ -128,7 +124,7 @@ class FilesService:
         return UploadFileRead(
             file_id=upload.upload_uuid,
             filename=file.filename,
-            size=persisted_blob.size_bytes,
+            size=persisted_blob.byte_size,
         )
 
     async def delete_uploaded_file(
@@ -142,22 +138,22 @@ class FilesService:
         upload_id = require_persisted_id(upload.id, entity="upload")
         if await self.repository.upload_reference_count(db, upload_id) > 0:
             raise ConflictException(ErrorCode.VALIDATION_ERROR, {"upload_id": upload.upload_uuid})
-        blob = await db.get(StorageBlob, upload.blob_id)
+        blob = await db.get(StoredObject, upload.stored_object_id)
         if blob is None:
             raise ResourceNotFoundException(
-                "storage_blob", str(upload.blob_id), ErrorCode.FILE_NOT_FOUND
+                "stored_object", str(upload.stored_object_id), ErrorCode.FILE_NOT_FOUND
             )
-        size_bytes = blob.size_bytes
-        storage_key = blob.storage_key
+        size_bytes = blob.byte_size
+        storage_key = blob.object_key
         upload_uuid = upload.upload_uuid
         await self.repository.delete_upload_by_id(
             db, require_persisted_id(upload.id, entity="upload")
         )
         await db.flush()
-        blob_id = require_persisted_id(blob.id, entity="storage blob")
-        should_delete_blob = await self.repository.blob_upload_count(db, blob_id) == 0
+        stored_object_id = require_persisted_id(blob.id, entity="stored object")
+        should_delete_blob = await self.repository.object_upload_count(db, stored_object_id) == 0
         if should_delete_blob:
-            await self.repository.delete_blob_by_id(db, blob_id)
+            await self.repository.delete_object_by_id(db, stored_object_id)
         await db.commit()
         await storage_usage_service.record_release(
             db,

@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.modules.storage_objects.persistence import object_from_bytes, object_from_row
 from app.core.exceptions import ValidationException, ResourceNotFoundException
 from app.db.model_utils import require_persisted_id
 from app.db.models import ScoreRevisionPracticeBinding, ScoreRevision, Score, ScoreDeletionStatus
@@ -127,12 +128,16 @@ class PracticeBundleRepository:
                 bundle_id=bundle.bundle_id,
                 artifact_id=bundle.artifact.artifact_id,
                 artifact_schema_version=bundle.artifact.schema_version,
-                prepared_musicxml_object_key=f"practice-bundles/{bundle.bundle_id}/score.musicxml",
-                prepared_musicxml_sha256=bundle.prepared_musicxml.sha256,
-                prepared_musicxml_byte_size=bundle.prepared_musicxml.byte_size,
-                artifact_object_key=f"practice-bundles/{bundle.bundle_id}/artifact.json",
-                artifact_sha256=bundle.artifact.representation.sha256,
-                artifact_byte_size=bundle.artifact.representation.byte_size,
+                prepared_musicxml_object=object_from_bytes(
+                    object_key=f"practice-bundles/{bundle.bundle_id}/score.musicxml",
+                    content=bundle.prepared_musicxml.data,
+                    content_type=bundle.prepared_musicxml.mime_type,
+                ),
+                artifact_object=object_from_bytes(
+                    object_key=f"practice-bundles/{bundle.bundle_id}/artifact.json",
+                    content=bundle.artifact.representation.data,
+                    content_type=bundle.artifact.representation.mime_type,
+                ),
                 status=PracticeBundleStatus.CREATING.value,
                 creation_expires_at=utc_now_naive()
                 + timedelta(seconds=BUNDLE_CREATION_LEASE_SECONDS),
@@ -171,8 +176,8 @@ class PracticeBundleRepository:
         if row.status == PracticeBundleStatus.CREATING.value:
             try:
                 for key, representation in [
-                    (row.prepared_musicxml_object_key, bundle.prepared_musicxml),
-                    (row.artifact_object_key, bundle.artifact.representation),
+                    (row.prepared_musicxml_object.object_key, bundle.prepared_musicxml),
+                    (row.artifact_object.object_key, bundle.artifact.representation),
                 ]:
                     await asyncio.to_thread(
                         self.storage.put_bytes,
@@ -184,9 +189,7 @@ class PracticeBundleRepository:
                         raise ValueError("Practice bundle storage read-back mismatch")
             except Exception as error:
                 await db.run_sync(
-                    lambda sync: practice_bundle_delete_service.discard_creation(
-                        sync, row.id
-                    )
+                    lambda sync: practice_bundle_delete_service.discard_creation(sync, row.id)
                 )
                 await db.commit()
                 raise ValidationException(
@@ -245,22 +248,40 @@ class PracticeBundleRepository:
         return await self._read_verified_bundle(row)
 
     async def _read_verified_bundle(self, row: PracticeBundleRecord) -> PracticeBundle:
+        xml_facts = object_from_row(row.prepared_musicxml_object)
+        artifact_facts = object_from_row(row.artifact_object)
+        if (
+            xml_facts.content_type != "application/vnd.recordare.musicxml+xml"
+            or artifact_facts.content_type != "application/json"
+        ):
+            raise ValidationException(
+                ErrorCode.VALIDATION_ERROR,
+                field="practice_bundle",
+                details={"reason": "representation_type_mismatch"},
+            )
         xml = PracticeBundleRepresentation(
-            await asyncio.to_thread(self.storage.read_bytes, row.prepared_musicxml_object_key),
+            await asyncio.to_thread(
+                self.storage.read_bytes, row.prepared_musicxml_object.object_key
+            ),
             "application/vnd.recordare.musicxml+xml",
         )
         data = PracticeBundleRepresentation(
-            await asyncio.to_thread(self.storage.read_bytes, row.artifact_object_key),
+            await asyncio.to_thread(self.storage.read_bytes, row.artifact_object.object_key),
             "application/json",
         )
         for representation, expected_sha, expected_size, reason in [
             (
                 xml,
-                row.prepared_musicxml_sha256,
-                row.prepared_musicxml_byte_size,
+                row.prepared_musicxml_object.sha256,
+                row.prepared_musicxml_object.byte_size,
                 "prepared_musicxml_checksum_mismatch",
             ),
-            (data, row.artifact_sha256, row.artifact_byte_size, "artifact_checksum_mismatch"),
+            (
+                data,
+                row.artifact_object.sha256,
+                row.artifact_object.byte_size,
+                "artifact_checksum_mismatch",
+            ),
         ]:
             if representation.sha256 != expected_sha or representation.byte_size != expected_size:
                 raise ValidationException(

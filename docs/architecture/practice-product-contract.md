@@ -1038,7 +1038,7 @@ FINALIZING, COMPLETED, CANCELLED and EXPIRED.
 persistence, cleanup and object ownership.
 Reservation and Take reference the same immutable PerformanceTakeManifest row. A unique
 Take.manifest_id permits at most one Take per Manifest. Manifest owns the sole public Take UUID
-and admitted performance/source Capture facts. MediaBlob owns verified durable server-byte facts;
+and admitted performance/source Capture facts. StoredObject owns verified durable server-byte facts;
 Take joins both and owns library/deletion lifecycle.
 Neither retains PracticeBundle. Playback/listing consume Manifest semantic facts and Blob physical facts after Bundle GC.
 Reservation alone owns client_request_id and upload lifecycle; its owner is database-constrained
@@ -1049,7 +1049,7 @@ to a token-owned candidate, and verifies candidate size and SHA-256 equality. A 
 finalizing lease guards concurrent execution; expired takeover records the prior
 candidate as an orphan. Unknown-outcome grace, reference-aware orphan deletion, late
 staging cleanup and database-disconnect recovery preserve safe retries. Take creation,
-MediaBlob creation, reservation completion and quota commit are one transaction. Cancellation/expiry
+StoredObject creation, reservation completion and quota commit are one transaction. Cancellation/expiry
 release the internal quota hold. Finalize retry returns the same Take and commits no
 additional quota. Final object ownership and immutable metadata do not depend on a
 second client payload.
@@ -1259,9 +1259,9 @@ Explicit tempo interpretation and the cross-runtime missing-tempo policy belong 
 
 ## Saved media physical authority
 
-Manifest.capture is the source Capture admission snapshot. MediaBlob is the immutable durable
+Manifest.capture is the source Capture admission snapshot. StoredObject is the immutable durable
 archive observation: backend/key, exact bytes, canonical MIME and a SHA-256 computed by reading
-the complete candidate. PerformanceTake references one Manifest and one unique MediaBlob.
+the complete candidate. PerformanceTake references one Manifest and one unique StoredObject.
 There is no shared-hash deduplication, refcount or Blob upload lifecycle.
 
 Completed Take.archive_media exposes Blob MIME/size without locator/hash. Raw playback/download

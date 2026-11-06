@@ -32,7 +32,7 @@ def test_application_depends_on_storage_port_and_composition_only():
 
 def test_one_object_namespace_and_required_direct_upload():
     assert get_type_hints(ObjectStorage.upload_url)["return"] is DirectUploadTarget
-    assert set(SQLModel.metadata.tables["media_blobs"].columns.keys()) == {
+    assert set(SQLModel.metadata.tables["stored_objects"].columns.keys()) == {
         "id",
         "object_key",
         "byte_size",
@@ -46,14 +46,14 @@ def test_one_object_namespace_and_required_direct_upload():
 
     assert any(
         isinstance(c, UniqueConstraint) and [x.name for x in c.columns] == ["object_key"]
-        for c in SQLModel.metadata.tables["media_blobs"].constraints
+        for c in SQLModel.metadata.tables["stored_objects"].constraints
     )
 
 
 def test_capability_surface_and_write_observation():
     from dataclasses import fields, FrozenInstanceError
     import pytest
-    from app.storage.base import StoredObject
+    from app.storage.base import ObjectWriteResult
     from app.storage.s3_compatible import S3CompatibleObjectStorage
     from tests.support.object_storage import InMemoryObjectStorage
 
@@ -88,7 +88,7 @@ def test_capability_surface_and_write_observation():
         "_client",
         "_signing_client",
     }
-    assert [f.name for f in fields(StoredObject)] == ["object_key", "size_bytes"]
-    written = StoredObject("objects/one", 3)
+    assert [f.name for f in fields(ObjectWriteResult)] == ["object_key", "size_bytes"]
+    written = ObjectWriteResult("objects/one", 3)
     with pytest.raises(FrozenInstanceError):
         written.object_key = "objects/two"

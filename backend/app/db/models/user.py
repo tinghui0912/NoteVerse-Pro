@@ -1,13 +1,16 @@
 from datetime import datetime
 from typing import Optional, List, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
-from sqlalchemy import Column, String, Boolean, DateTime, BigInteger
+from sqlalchemy import Column, String, Boolean, DateTime, BigInteger, ForeignKey
+from sqlalchemy.orm import relationship
+from .stored_object import StoredObject
 
 from app.utils.timezone import utc_now_naive
 
 if TYPE_CHECKING:
     from .auth import RefreshToken
     from .file import Upload
+
 
 class User(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "users"
@@ -23,9 +26,23 @@ class User(SQLModel, table=True):  # type: ignore[call-arg]
     )
     last_login: Optional[datetime] = Field(sa_column=Column(DateTime))
     password_changed_at: Optional[datetime] = Field(sa_column=Column(DateTime))
-    avatar_url: Optional[str] = Field(sa_column=Column(String(512)))
-    created_at: datetime = Field(default_factory=utc_now_naive, sa_column=Column(DateTime, default=utc_now_naive, nullable=False))
-    updated_at: datetime = Field(default_factory=utc_now_naive, sa_column=Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive, nullable=False))
+    avatar_object_id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(
+            BigInteger, ForeignKey("stored_objects.id", ondelete="RESTRICT"), nullable=True
+        ),
+    )
+    avatar_object: Optional[StoredObject] = Relationship(
+        sa_relationship=relationship(StoredObject, lazy="selectin")
+    )
+    created_at: datetime = Field(
+        default_factory=utc_now_naive,
+        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+    )
+    updated_at: datetime = Field(
+        default_factory=utc_now_naive,
+        sa_column=Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive, nullable=False),
+    )
 
     uploads: List["Upload"] = Relationship(back_populates="uploader")
     refresh_tokens: List["RefreshToken"] = Relationship(back_populates="user")

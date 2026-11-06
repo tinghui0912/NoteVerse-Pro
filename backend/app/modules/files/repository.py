@@ -1,63 +1,39 @@
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import ImportJobUpload, ScoreInputAsset, StorageBlob, Upload
+from app.db.models import ImportJobUpload, ScoreInputAsset, StoredObject, Upload
 
 
 class FilesRepository:
-    async def get_blob_by_sha256(self, db: AsyncSession, sha256: str) -> StorageBlob | None:
-        return (await db.execute(select(StorageBlob).where(StorageBlob.sha256 == sha256))).scalar_one_or_none()
+    async def get_upload_object_by_sha256(
+        self, db: AsyncSession, sha256: str
+    ) -> StoredObject | None:
+        # Upload-domain reuse only; other domains' identical bytes are not candidates.
+        return (
+            await db.execute(
+                select(StoredObject)
+                .join(Upload, Upload.stored_object_id == StoredObject.id)
+                .where(StoredObject.sha256 == sha256)
+                .order_by(StoredObject.id)
+                .limit(1)
+            )
+        ).scalar_one_or_none()
 
-    async def create_blob(
-        self,
-        db: AsyncSession,
-        *,
-        sha256: str,
-
-        storage_key: str,
-        filename: str,
-        size_bytes: int,
-        mime_type: str,
-    ) -> StorageBlob:
-        blob = StorageBlob(
-            sha256=sha256,
-            storage_key=storage_key,
-            filename=filename,
-            size_bytes=size_bytes,
-            mime_type=mime_type,
-        )
-        db.add(blob)
-        await db.flush()
-        return blob
-
-    async def update_blob_storage(
-        self,
-        db: AsyncSession,
-        blob: StorageBlob,
-        *,
-
-        storage_key: str,
-        filename: str,
-        size_bytes: int,
-        mime_type: str,
-    ) -> StorageBlob:
-        blob.storage_key = storage_key
-        blob.filename = filename
-        blob.size_bytes = size_bytes
-        blob.mime_type = mime_type
-        await db.flush()
-        return blob
+    async def get_object_by_key(self, db: AsyncSession, key: str) -> StoredObject | None:
+        return (
+            await db.execute(select(StoredObject).where(StoredObject.object_key == key))
+        ).scalar_one_or_none()
 
     async def create_upload(
         self,
         db: AsyncSession,
         *,
-        blob_id: int,
+        stored_object_id: int,
         original_filename: str,
         uploader_user_id: int,
     ) -> Upload:
         upload = Upload(
-            blob_id=blob_id,
+            stored_object_id=stored_object_id,
             original_filename=original_filename,
             uploader_user_id=uploader_user_id,
         )
@@ -66,7 +42,9 @@ class FilesRepository:
         return upload
 
     async def get_upload_by_uuid(self, db: AsyncSession, upload_uuid: str) -> Upload | None:
-        return (await db.execute(select(Upload).where(Upload.upload_uuid == upload_uuid))).scalar_one_or_none()
+        return (
+            await db.execute(select(Upload).where(Upload.upload_uuid == upload_uuid))
+        ).scalar_one_or_none()
 
     async def upload_reference_count(self, db: AsyncSession, upload_id: int) -> int:
         import_refs = (
@@ -81,14 +59,20 @@ class FilesRepository:
         ).scalar_one()
         return int(import_refs) + int(input_refs)
 
-    async def blob_upload_count(self, db: AsyncSession, blob_id: int) -> int:
-        return int((await db.execute(select(func.count(Upload.id)).where(Upload.blob_id == blob_id))).scalar_one())
+    async def object_upload_count(self, db: AsyncSession, stored_object_id: int) -> int:
+        return int(
+            (
+                await db.execute(
+                    select(func.count(Upload.id)).where(Upload.stored_object_id == stored_object_id)
+                )
+            ).scalar_one()
+        )
 
     async def delete_upload_by_id(self, db: AsyncSession, upload_id: int) -> None:
         await db.execute(delete(Upload).where(Upload.id == upload_id))
 
-    async def delete_blob_by_id(self, db: AsyncSession, blob_id: int) -> None:
-        await db.execute(delete(StorageBlob).where(StorageBlob.id == blob_id))
+    async def delete_object_by_id(self, db: AsyncSession, stored_object_id: int) -> None:
+        await db.execute(delete(StoredObject).where(StoredObject.id == stored_object_id))
 
 
 files_repository = FilesRepository()

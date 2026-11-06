@@ -8,7 +8,7 @@ from botocore.config import Config
 from collections.abc import Iterator
 
 from app.core.config import settings
-from app.storage.base import DirectUploadTarget, StoredObject, StoredObjectMetadata
+from app.storage.base import DirectUploadTarget, ObjectWriteResult, ObjectMetadata
 
 
 class S3CompatibleObjectStorage:
@@ -66,7 +66,7 @@ class S3CompatibleObjectStorage:
         key: str,
         content: bytes,
         content_type: str | None = None,
-    ) -> StoredObject:
+    ) -> ObjectWriteResult:
         normalized_key = self._normalize_key(key)
         kwargs = {
             "Bucket": self.bucket,
@@ -76,7 +76,7 @@ class S3CompatibleObjectStorage:
         if content_type:
             kwargs["ContentType"] = content_type
         self.client.put_object(**kwargs)
-        return StoredObject(object_key=normalized_key, size_bytes=len(content))
+        return ObjectWriteResult(object_key=normalized_key, size_bytes=len(content))
 
     def exists(self, key: str) -> bool:
         normalized_key = self._normalize_key(key)
@@ -112,7 +112,7 @@ class S3CompatibleObjectStorage:
                 raise FileNotFoundError(normalized_key) from exc
             raise
 
-    def object_metadata(self, key: str) -> StoredObjectMetadata:
+    def object_metadata(self, key: str) -> ObjectMetadata:
         normalized_key = self._normalize_key(key)
         try:
             response = self.client.head_object(Bucket=self.bucket, Key=normalized_key)
@@ -122,7 +122,7 @@ class S3CompatibleObjectStorage:
             raise
         metadata = response.get("Metadata") or {}
         checksum_sha256 = metadata.get("sha256")
-        return StoredObjectMetadata(
+        return ObjectMetadata(
             size_bytes=int(response["ContentLength"]),
             content_type=response.get("ContentType"),
             checksum_sha256=str(checksum_sha256) if checksum_sha256 else None,

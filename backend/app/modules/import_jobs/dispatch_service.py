@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from sqlmodel import col
 
 from app.core.config import settings
-from app.db.models import ImportDispatchStatus, ImportJob, ImportJobUpload, StorageBlob, Upload
+from app.db.models import ImportDispatchStatus, ImportJob, ImportJobUpload, StoredObject, Upload
 from app.db.models.import_job import ImportJobState
 from app.modules.async_operations.diagnostics import (
     AsyncOperationKindValue,
@@ -42,9 +42,7 @@ class ImportDispatchService:
 
     def claim(self, db: Session, job_uuid: str) -> ImportDispatchPayload | None:
         job = db.execute(
-            select(ImportJob)
-            .where(ImportJob.job_uuid == job_uuid)
-            .with_for_update()
+            select(ImportJob).where(ImportJob.job_uuid == job_uuid).with_for_update()
         ).scalar_one_or_none()
         if job is None or job.dispatch_status in {
             ImportDispatchStatus.PROCESSING,
@@ -61,14 +59,18 @@ class ImportDispatchService:
         ):
             return None
 
-        storage_keys = db.execute(
-            select(StorageBlob.storage_key)
-            .select_from(ImportJobUpload)
-            .join(Upload, ImportJobUpload.upload_id == Upload.id)
-            .join(StorageBlob, Upload.blob_id == StorageBlob.id)
-            .where(ImportJobUpload.job_id == job.id)
-            .order_by(col(ImportJobUpload.sort_order).asc(), col(ImportJobUpload.id).asc())
-        ).scalars().all()
+        storage_keys = (
+            db.execute(
+                select(StoredObject.object_key)
+                .select_from(ImportJobUpload)
+                .join(Upload, ImportJobUpload.upload_id == Upload.id)
+                .join(StoredObject, Upload.stored_object_id == StoredObject.id)
+                .where(ImportJobUpload.job_id == job.id)
+                .order_by(col(ImportJobUpload.sort_order).asc(), col(ImportJobUpload.id).asc())
+            )
+            .scalars()
+            .all()
+        )
         if not storage_keys:
             self._terminal_failure(job, "Import job has no persisted uploads")
             return None
@@ -127,14 +129,20 @@ class ImportDispatchService:
         now = utc_now_naive()
         dispatch_cutoff = now - timedelta(seconds=settings.IMPORT_DISPATCH_TIMEOUT_SECONDS)
         processing_cutoff = now - timedelta(seconds=settings.IMPORT_PROCESSING_TIMEOUT_SECONDS)
-        active = db.execute(
-            select(ImportJob).where(
-                col(ImportJob.dispatch_status).in_([
-                    ImportDispatchStatus.DISPATCHED,
-                    ImportDispatchStatus.PROCESSING,
-                ])
+        active = (
+            db.execute(
+                select(ImportJob).where(
+                    col(ImportJob.dispatch_status).in_(
+                        [
+                            ImportDispatchStatus.DISPATCHED,
+                            ImportDispatchStatus.PROCESSING,
+                        ]
+                    )
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         for job in active:
             stale_dispatch = (
                 job.dispatch_status == ImportDispatchStatus.DISPATCHED
@@ -169,21 +177,27 @@ class ImportDispatchService:
             )
             job.updated_at = now
 
-        due = db.execute(
-            select(ImportJob)
-            .where(
-                ImportJob.state == ImportJobState.PENDING,
-                col(ImportJob.dispatch_status).in_([
-                    ImportDispatchStatus.PENDING,
-                    ImportDispatchStatus.FAILED,
-                ]),
-                ImportJob.next_dispatch_at <= now,
-                ImportJob.dispatch_attempt_count < settings.IMPORT_DISPATCH_MAX_ATTEMPTS,
+        due = (
+            db.execute(
+                select(ImportJob)
+                .where(
+                    ImportJob.state == ImportJobState.PENDING,
+                    col(ImportJob.dispatch_status).in_(
+                        [
+                            ImportDispatchStatus.PENDING,
+                            ImportDispatchStatus.FAILED,
+                        ]
+                    ),
+                    ImportJob.next_dispatch_at <= now,
+                    ImportJob.dispatch_attempt_count < settings.IMPORT_DISPATCH_MAX_ATTEMPTS,
+                )
+                .order_by(ImportJob.created_at)
+                .limit(settings.IMPORT_DISPATCH_BATCH_SIZE)
+                .with_for_update(skip_locked=True)
             )
-            .order_by(ImportJob.created_at)
-            .limit(settings.IMPORT_DISPATCH_BATCH_SIZE)
-            .with_for_update(skip_locked=True)
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         for job in due:
             job.dispatch_status = ImportDispatchStatus.DISPATCHED
             job.dispatched_at = now
@@ -203,7 +217,8 @@ class ImportDispatchService:
     def _is_dispatchable(job: ImportJob) -> bool:
         return (
             job.state == ImportJobState.PENDING
-            and job.dispatch_status in {
+            and job.dispatch_status
+            in {
                 ImportDispatchStatus.PENDING,
                 ImportDispatchStatus.FAILED,
             }

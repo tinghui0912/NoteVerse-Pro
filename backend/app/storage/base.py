@@ -8,7 +8,7 @@ from typing import Protocol
 
 
 @dataclass(frozen=True)
-class StoredObject:
+class ObjectWriteResult:
     """Observed identity and byte size of an object write."""
 
     object_key: str
@@ -25,7 +25,7 @@ class DirectUploadTarget:
 
 
 @dataclass(frozen=True)
-class StoredObjectMetadata:
+class ObjectMetadata:
     """Metadata read from an existing storage object."""
 
     size_bytes: int
@@ -42,7 +42,7 @@ class ObjectStorage(Protocol):
         key: str,
         content: bytes,
         content_type: str | None = None,
-    ) -> StoredObject: ...
+    ) -> ObjectWriteResult: ...
 
     def exists(self, key: str) -> bool: ...
 
@@ -50,7 +50,7 @@ class ObjectStorage(Protocol):
 
     def size_bytes(self, key: str) -> int: ...
 
-    def object_metadata(self, key: str) -> StoredObjectMetadata: ...
+    def object_metadata(self, key: str) -> ObjectMetadata: ...
 
     def upload_url(
         self,

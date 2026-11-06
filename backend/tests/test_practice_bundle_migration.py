@@ -1,5 +1,7 @@
 """PostgreSQL upgrade and current durable Bundle model agreement."""
 
+from app.db.models import StoredObject
+
 from contextlib import contextmanager
 import os
 from pathlib import Path
@@ -52,7 +54,13 @@ def assert_current_bundle_schema(engine):
         "practice_bundles",
         "score_revision_practice_bindings",
         "practice_bundle_delete_outbox",
-        "media_blobs",
+        "stored_objects",
+        "uploads",
+        "import_artifacts",
+        "score_revision_sources",
+        "score_render_assets",
+        "score_playback_assets",
+        "users",
         "performance_take_manifests",
         "performance_takes",
         "performance_take_upload_reservations",
@@ -64,6 +72,17 @@ def assert_current_bundle_schema(engine):
             assert columns[column.name]["nullable"] == column.nullable
         actual_fks = {fk["name"]: fk for fk in inspector.get_foreign_keys(name)}
         for fk in expected.foreign_key_constraints:
+            matching = [
+                actual
+                for actual in actual_fks.values()
+                if actual["constrained_columns"] == [element.parent.name for element in fk.elements]
+            ]
+            assert len(matching) == 1
+            assert matching[0]["referred_table"] == next(iter(fk.elements)).column.table.name
+            assert matching[0]["referred_columns"] == [
+                element.column.name for element in fk.elements
+            ]
+            assert matching[0]["options"].get("ondelete") == fk.ondelete
             if fk.name:
                 assert fk.name in actual_fks
                 assert (
@@ -107,7 +126,7 @@ def test_fresh_foundation_schema_matches_models_and_revision_ownership(monkeypat
             )
         for name, targets in {
             "performance_take_manifests": {"users"},
-            "performance_takes": {"scores", "performance_take_manifests", "media_blobs"},
+            "performance_takes": {"scores", "performance_take_manifests", "stored_objects"},
             "performance_take_upload_reservations": {"users", "performance_take_manifests"},
         }.items():
             assert {fk["referred_table"] for fk in inspector.get_foreign_keys(name)} == targets
@@ -122,7 +141,7 @@ def test_fresh_foundation_schema_matches_models_and_revision_ownership(monkeypat
                 revision_uuid="revision",
                 score_id=score.id,
                 revision_number=1,
-                content_hash="hash",
+                content_hash="d04b98f48e8f8bcc15c6ae5ac050801cd6dcfd428fb5f9e65c4e16e7807340fa",
                 origin=RevisionOrigin.OMR,
                 created_by_user_id=user.id,
             )
@@ -132,12 +151,18 @@ def test_fresh_foundation_schema_matches_models_and_revision_ownership(monkeypat
                 bundle_id="source",
                 artifact_id="artifact",
                 artifact_schema_version=1,
-                prepared_musicxml_object_key="xml",
-                prepared_musicxml_sha256="a" * 64,
-                prepared_musicxml_byte_size=10,
-                artifact_object_key="json",
-                artifact_sha256="b" * 64,
-                artifact_byte_size=10,
+                prepared_musicxml_object=StoredObject(
+                    object_key="xml",
+                    sha256="a" * 64,
+                    byte_size=10,
+                    content_type="application/vnd.recordare.musicxml+xml",
+                ),
+                artifact_object=StoredObject(
+                    object_key="json",
+                    sha256="b" * 64,
+                    byte_size=10,
+                    content_type="application/json",
+                ),
                 status="READY",
             )
             db.add(source)

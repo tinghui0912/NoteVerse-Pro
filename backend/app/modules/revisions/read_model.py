@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.modules.account.avatar_presentation import avatar_url_for_user
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,7 +17,9 @@ from app.modules.revisions.schemas import (
 
 class RevisionReadModel:
     async def revision_read(self, db: AsyncSession, revision: ScoreRevision) -> RevisionRead:
-        actor = await db.get(User, revision.created_by_user_id) if revision.created_by_user_id else None
+        actor = (
+            await db.get(User, revision.created_by_user_id) if revision.created_by_user_id else None
+        )
         restore = await self.restore_read(db, revision)
         note = await self.note_read(db, revision)
         return RevisionRead(
@@ -46,7 +49,11 @@ class RevisionReadModel:
         ).scalar_one_or_none()
         if event is None:
             return None
-        target = await db.get(ScoreRevision, event.target_revision_id) if event.target_revision_id else None
+        target = (
+            await db.get(ScoreRevision, event.target_revision_id)
+            if event.target_revision_id
+            else None
+        )
         actor = await db.get(User, event.actor_user_id) if event.actor_user_id else None
         return RevisionRestoreRead(
             restored_from_revision_id=target.revision_uuid if target else None,
@@ -56,9 +63,7 @@ class RevisionReadModel:
             created_at=event.created_at,
         )
 
-    async def note_read(
-        self, db: AsyncSession, revision: ScoreRevision
-    ) -> RevisionNoteRead | None:
+    async def note_read(self, db: AsyncSession, revision: ScoreRevision) -> RevisionNoteRead | None:
         revision_id = require_persisted_id(revision.id, entity="score revision")
         note = (
             await db.execute(
@@ -81,5 +86,5 @@ def actor_read(user: User | None) -> RevisionActorRead | None:
     return RevisionActorRead(
         display_name=user.display_name,
         email=user.email,
-        avatar_url=user.avatar_url,
+        avatar_url=avatar_url_for_user(user),
     )

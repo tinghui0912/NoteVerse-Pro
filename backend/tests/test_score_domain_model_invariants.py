@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.db.models import StoredObject
 
 from collections.abc import Iterator
 from datetime import timedelta
@@ -113,11 +114,13 @@ def revision_source(*, source_id: int, key: str) -> ScoreRevisionSource:
         source_uuid=f"source-{source_id}",
         revision_id=100,
         format=RevisionSourceFormat.MUSICXML,
-
-        storage_key=key,
+        stored_object=StoredObject(
+            object_key=key,
+            byte_size=0,
+            content_type="application/vnd.recordare.musicxml+xml",
+            sha256=str(source_id).zfill(64),
+        ),
         filename="score.musicxml",
-        mime_type="application/vnd.recordare.musicxml+xml",
-        sha256=str(source_id).zfill(64),
         generator="noteverse",
         generator_version="1",
     )
@@ -129,11 +132,13 @@ def render_asset(*, asset_id: int, key: str) -> ScoreRenderAsset:
         asset_uuid=f"asset-{asset_id}",
         revision_id=100,
         kind=RenderAssetKind.RENDERED_PAGE,
-
-        storage_key=key,
+        stored_object=StoredObject(
+            object_key=key,
+            byte_size=0,
+            content_type="image/svg+xml",
+            sha256=str(asset_id).zfill(64),
+        ),
         filename="page.svg",
-        mime_type="image/svg+xml",
-        sha256=str(asset_id).zfill(64),
         generator="noteverse",
         generator_version="1",
     )

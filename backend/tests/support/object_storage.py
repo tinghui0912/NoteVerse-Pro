@@ -3,7 +3,7 @@
 from collections.abc import Iterator
 from pathlib import Path
 from urllib.parse import quote
-from app.storage.base import DirectUploadTarget, StoredObject, StoredObjectMetadata
+from app.storage.base import DirectUploadTarget, ObjectWriteResult, ObjectMetadata
 
 
 class InMemoryObjectStorage:
@@ -19,10 +19,10 @@ class InMemoryObjectStorage:
 
     def put_bytes(
         self, *, key: str, content: bytes, content_type: str | None = None
-    ) -> StoredObject:
+    ) -> ObjectWriteResult:
         key = self._key(key)
         self.objects[key] = (bytes(content), content_type)
-        return StoredObject(object_key=key, size_bytes=len(content))
+        return ObjectWriteResult(object_key=key, size_bytes=len(content))
 
     def exists(self, key: str) -> bool:
         return self._key(key) in self.objects
@@ -36,8 +36,8 @@ class InMemoryObjectStorage:
     def size_bytes(self, key: str) -> int:
         return len(self.read_bytes(key))
 
-    def object_metadata(self, key: str) -> StoredObjectMetadata:
-        return StoredObjectMetadata(self.size_bytes(key), self.objects[self._key(key)][1])
+    def object_metadata(self, key: str) -> ObjectMetadata:
+        return ObjectMetadata(self.size_bytes(key), self.objects[self._key(key)][1])
 
     def iter_bytes(
         self,

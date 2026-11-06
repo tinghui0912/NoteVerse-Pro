@@ -94,16 +94,22 @@ class DerivedAssetRetentionService:
         )
         owner_user_id = score.owner_user_id if score else None
         render_usage = [
-            (asset.asset_uuid, asset.storage_key, asset.size_bytes) for asset in rendered_pages
+            (asset.asset_uuid, asset.stored_object.object_key, asset.stored_object.byte_size)
+            for asset in rendered_pages
         ]
         audio_usage = [
-            (asset.asset_uuid, asset.storage_key, asset.size_bytes) for asset in playback_assets
+            (asset.asset_uuid, asset.stored_object.object_key, asset.stored_object.byte_size)
+            for asset in playback_assets
         ]
-        storage_keys = [asset.storage_key for asset in rendered_pages + playback_assets]
+        storage_keys = [
+            asset.stored_object.object_key for asset in rendered_pages + playback_assets
+        ]
         for asset in rendered_pages:
             await db.delete(asset)
+            await db.delete(asset.stored_object)
         for asset in playback_assets:
             await db.delete(asset)
+            await db.delete(asset.stored_object)
         await db.commit()
         if owner_user_id is not None:
             for asset_uuid, storage_key, size_bytes in render_usage:
@@ -180,16 +186,22 @@ class DerivedAssetRetentionService:
         )
         owner_user_id = score.owner_user_id if score else None
         render_usage = [
-            (asset.asset_uuid, asset.storage_key, asset.size_bytes) for asset in rendered_pages
+            (asset.asset_uuid, asset.stored_object.object_key, asset.stored_object.byte_size)
+            for asset in rendered_pages
         ]
         audio_usage = [
-            (asset.asset_uuid, asset.storage_key, asset.size_bytes) for asset in playback_assets
+            (asset.asset_uuid, asset.stored_object.object_key, asset.stored_object.byte_size)
+            for asset in playback_assets
         ]
-        storage_keys = [asset.storage_key for asset in rendered_pages + playback_assets]
+        storage_keys = [
+            asset.stored_object.object_key for asset in rendered_pages + playback_assets
+        ]
         for asset in rendered_pages:
             db.delete(asset)
+            db.delete(asset.stored_object)
         for asset in playback_assets:
             db.delete(asset)
+            db.delete(asset.stored_object)
         db.commit()
         if owner_user_id is not None:
             for asset_uuid, storage_key, size_bytes in render_usage:

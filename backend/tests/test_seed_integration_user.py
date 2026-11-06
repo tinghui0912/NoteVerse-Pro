@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.db.models import StoredObject
 
 import pytest
 
@@ -41,7 +42,6 @@ class _FakeSeedSession:
 
 
 class _FailingStorage:
-
     def exists(self, _key: str) -> bool:
         return False
 
@@ -69,7 +69,7 @@ async def test_seed_existing_integration_user_is_read_only(monkeypatch: pytest.M
         revision_uuid=seed_integration_user.INTEGRATION_PRACTICE_REVISION_ID,
         score_id=score.id,
         revision_number=1,
-        content_hash="existing-content-hash",
+        content_hash="6055090ea4efcc8dba0e5ce4fb7b1a84f25dd4f4de76f335958feb2104395e57",
         origin=RevisionOrigin.IMPORT,
         created_by_user_id=user.id,
     )
@@ -78,12 +78,13 @@ async def test_seed_existing_integration_user_is_read_only(monkeypatch: pytest.M
         source_uuid="integration-practice-bundle",
         revision_id=revision.id,
         format=RevisionSourceFormat.MUSICXML,
-
-        storage_key="scores/existing/score.musicxml",
+        stored_object=StoredObject(
+            object_key="scores/existing/score.musicxml",
+            content_type="application/vnd.recordare.musicxml+xml",
+            byte_size=123,
+            sha256="7cf4e50990e5b99062a6743169e143abca1db3033b715d0827e0a7026bba8a37",
+        ),
         filename="score.musicxml",
-        mime_type="application/vnd.recordare.musicxml+xml",
-        size_bytes=123,
-        sha256="existing-sha256",
         generator="integration-fixture",
         generator_version="1",
     )
@@ -147,7 +148,6 @@ async def test_seed_new_integration_score_refuses_existing_storage_key(
     session = _FakeSeedSession([None, None])
 
     class ExistingObjectStorage:
-
         def exists(self, _key: str) -> bool:
             return True
 

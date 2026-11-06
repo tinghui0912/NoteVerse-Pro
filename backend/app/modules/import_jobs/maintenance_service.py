@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.logger import logger
-from app.db.models import StorageBlob, StorageUsageCategory, Upload
+from app.db.models import StoredObject, StorageUsageCategory, Upload
 from app.modules.import_jobs.repository import SyncImportJobRepository
 from app.modules.storage_usage.service import storage_usage_service
 from app.storage import ObjectStorage, object_storage
@@ -39,36 +39,39 @@ class ImportJobMaintenanceService:
         deleted = 0
         for upload in self.repository.list_orphan_uploads(db, cutoff):
             try:
-                blob = db.get(StorageBlob, upload.blob_id)
+                blob = db.get(StoredObject, upload.stored_object_id)
                 if blob is None:
                     db.delete(upload)
                     deleted += 1
                     continue
                 blob_ref_count = db.execute(
-                    select(func.count(Upload.id)).where(Upload.blob_id == upload.blob_id)
+                    select(func.count(Upload.id)).where(
+                        Upload.stored_object_id == upload.stored_object_id
+                    )
                 ).scalar_one()
                 should_delete_blob = blob_ref_count <= 1
-                if upload.uploader_user_id is not None and blob.size_bytes:
+                if upload.uploader_user_id is not None and blob.byte_size:
                     storage_usage_service.record_release_sync(
                         db,
                         user_id=upload.uploader_user_id,
                         category=StorageUsageCategory.UPLOAD,
-                        bytes_count=blob.size_bytes,
+                        bytes_count=blob.byte_size,
                         reason="orphan_upload_deleted",
                         object_type="upload",
                         object_id=upload.upload_uuid,
-                        storage_key=blob.storage_key,
+                        storage_key=blob.object_key,
                     )
                 db.delete(upload)
                 if should_delete_blob:
                     db.delete(blob)
-                    self.storage.delete(blob.storage_key)
+                    db.flush()
+                    self.storage.delete(blob.object_key)
                 deleted += 1
             except Exception as exc:
                 logger.bind(
                     event="import_job.orphan_upload_delete_failed",
                     upload_id=upload.upload_uuid,
-                    blob_id=upload.blob_id,
+                    stored_object_id=upload.stored_object_id,
                     exception_type=type(exc).__name__,
                 ).opt(exception=exc).warning("Orphan upload deletion failed")
         if deleted:

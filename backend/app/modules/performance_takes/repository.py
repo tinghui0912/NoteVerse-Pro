@@ -47,7 +47,8 @@ class PerformanceTakeRepository:
             select(PerformanceTake)
             .join(PerformanceTakeManifest)
             .options(
-                selectinload(PerformanceTake.manifest), selectinload(PerformanceTake.media_blob)
+                selectinload(PerformanceTake.manifest),
+                selectinload(PerformanceTake.recording_object),
             )
             .where(
                 PerformanceTakeManifest.user_id == user_id,
@@ -69,7 +70,8 @@ class PerformanceTakeRepository:
             select(PerformanceTake)
             .join(PerformanceTakeManifest)
             .options(
-                selectinload(PerformanceTake.manifest), selectinload(PerformanceTake.media_blob)
+                selectinload(PerformanceTake.manifest),
+                selectinload(PerformanceTake.recording_object),
             )
             .where(
                 PerformanceTakeManifest.user_id == user_id,
@@ -108,7 +110,8 @@ class PerformanceTakeRepository:
             select(PerformanceTake)
             .join(PerformanceTakeManifest)
             .options(
-                selectinload(PerformanceTake.manifest), selectinload(PerformanceTake.media_blob)
+                selectinload(PerformanceTake.manifest),
+                selectinload(PerformanceTake.recording_object),
             )
             .where(*filters)
             .order_by(PerformanceTake.created_at.desc(), PerformanceTake.id.desc())

@@ -15,7 +15,9 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
 )
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, Relationship, SQLModel
+from sqlalchemy.orm import relationship
+from .stored_object import StoredObject
 
 from app.utils.timezone import utc_now_naive
 
@@ -32,8 +34,8 @@ class PracticeBundleRecord(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "practice_bundles"
     __table_args__ = (
         UniqueConstraint("bundle_id", name="uq_practice_bundles_bundle_id"),
-        UniqueConstraint("prepared_musicxml_object_key", name="uq_practice_bundles_musicxml_key"),
-        UniqueConstraint("artifact_object_key", name="uq_practice_bundles_artifact_key"),
+        UniqueConstraint("prepared_musicxml_object_id", name="uq_practice_bundles_musicxml_object"),
+        UniqueConstraint("artifact_object_id", name="uq_practice_bundles_artifact_object"),
         CheckConstraint(
             "status IN ('CREATING', 'READY', 'DELETING')", name="ck_practice_bundles_status"
         ),
@@ -55,12 +57,28 @@ class PracticeBundleRecord(SQLModel, table=True):  # type: ignore[call-arg]
     bundle_id: str = Field(sa_column=Column(String(128), nullable=False))
     artifact_id: str = Field(sa_column=Column(String(128), nullable=False))
     artifact_schema_version: int = Field(sa_column=Column(Integer, nullable=False))
-    prepared_musicxml_object_key: str = Field(sa_column=Column(String(768), nullable=False))
-    prepared_musicxml_sha256: str = Field(sa_column=Column(String(64), nullable=False))
-    prepared_musicxml_byte_size: int = Field(sa_column=Column(BigInteger, nullable=False))
-    artifact_object_key: str = Field(sa_column=Column(String(768), nullable=False))
-    artifact_sha256: str = Field(sa_column=Column(String(64), nullable=False))
-    artifact_byte_size: int = Field(sa_column=Column(BigInteger, nullable=False))
+    prepared_musicxml_object_id: int = Field(
+        sa_column=Column(
+            bigint_pk_type, ForeignKey("stored_objects.id", ondelete="RESTRICT"), nullable=False
+        )
+    )
+    prepared_musicxml_object: StoredObject = Relationship(
+        sa_relationship=relationship(
+            StoredObject,
+            foreign_keys="PracticeBundleRecord.prepared_musicxml_object_id",
+            lazy="selectin",
+        )
+    )
+    artifact_object_id: int = Field(
+        sa_column=Column(
+            bigint_pk_type, ForeignKey("stored_objects.id", ondelete="RESTRICT"), nullable=False
+        )
+    )
+    artifact_object: StoredObject = Relationship(
+        sa_relationship=relationship(
+            StoredObject, foreign_keys="PracticeBundleRecord.artifact_object_id", lazy="selectin"
+        )
+    )
     status: str = Field(sa_column=Column(String(16), nullable=False))
     creation_expires_at: Optional[datetime] = Field(
         default=None,

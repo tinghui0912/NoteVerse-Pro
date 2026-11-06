@@ -44,16 +44,16 @@ def seed_assets(db, storage, rows):
         (ScorePlaybackAsset, StorageUsageCategory.DERIVED_AUDIO),
     ):
         for asset in db.scalars(select(model)).all():
-            keys[(category, asset.revision_id)] = asset.storage_key
+            keys[(category, asset.revision_id)] = asset.stored_object.object_key
             storage_usage_service.record_allocation_sync(
                 db,
                 user_id=1,
                 category=category,
-                bytes_count=asset.size_bytes,
+                bytes_count=asset.stored_object.byte_size,
                 reason="test",
                 object_type=model.__tablename__,
                 object_id=asset.asset_uuid,
-                storage_key=asset.storage_key,
+                storage_key=asset.stored_object.object_key,
             )
     return keys
 
@@ -124,7 +124,9 @@ async def test_only_head_and_active_pins_protect_rows_objects_and_usage(revision
         )
     assert db.scalar(select(func.count()).select_from(ScoreRevision)) == 3
     sources = db.scalars(select(ScoreRevisionSource)).all()
-    assert len(sources) == 3 and all(storage.exists(source.storage_key) for source in sources)
+    assert len(sources) == 3 and all(
+        storage.exists(source.stored_object.object_key) for source in sources
+    )
 
 
 @pytest.mark.asyncio

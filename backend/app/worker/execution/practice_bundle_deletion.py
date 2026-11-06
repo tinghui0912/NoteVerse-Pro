@@ -86,17 +86,21 @@ def execute_practice_bundle_deletion_task(
                     or practice_bundle_delete_service.has_owner(db, bundle)
                 ):
                     raise RuntimeError("Practice bundle deletion ownership invariant violated")
-                # The bundle/outbox locks fence ownership and attempt replacement across exact object deletion.
-                for key in (payload.prepared_musicxml_object_key, payload.artifact_object_key):
-                    if object_storage.exists(key):
-                        object_storage.delete(key)
-                    if object_storage.exists(key):
-                        raise RuntimeError("Practice bundle object remains after deletion")
                 if bundle is not None:
                     if practice_bundle_delete_service.has_owner(db, bundle):
                         raise RuntimeError("Practice bundle deletion ownership invariant violated")
                     db.delete(bundle)
                     db.flush()
+                    db.delete(bundle.prepared_musicxml_object)
+                    db.delete(bundle.artifact_object)
+                    # FK checks protect any remaining physical-object reference before storage deletion.
+                    db.flush()
+                # Bundle/outbox locks fence ownership and attempt replacement across object deletion.
+                for key in (payload.prepared_musicxml_object_key, payload.artifact_object_key):
+                    if object_storage.exists(key):
+                        object_storage.delete(key)
+                    if object_storage.exists(key):
+                        raise RuntimeError("Practice bundle object remains after deletion")
                 if not practice_bundle_delete_service.complete(
                     db, outbox_uuid, attempt=payload.attempt
                 ):

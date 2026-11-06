@@ -22,7 +22,9 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, Relationship, SQLModel
+from sqlalchemy.orm import relationship
+from .stored_object import StoredObject
 
 from app.utils.timezone import utc_now_naive
 
@@ -324,7 +326,7 @@ class ScoreRevisionSource(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "score_revision_sources"
     __table_args__ = (
         UniqueConstraint("revision_id", "format", name="uq_score_revision_sources_revision_format"),
-        UniqueConstraint("storage_key", name="uq_score_revision_sources_storage_key"),
+        UniqueConstraint("stored_object_id", name="uq_score_revision_sources_stored_object"),
         Index("idx_score_revision_sources_revision_format", "revision_id", "format"),
     )
 
@@ -344,11 +346,15 @@ class ScoreRevisionSource(SQLModel, table=True):  # type: ignore[call-arg]
         sa_column=Column(SAEnum(RevisionSourceFormat, name="revisionsourceformat"), nullable=False)
     )
 
-    storage_key: str = Field(sa_column=Column(String(768), nullable=False))
+    stored_object_id: int = Field(
+        sa_column=Column(
+            bigint_pk_type, ForeignKey("stored_objects.id", ondelete="RESTRICT"), nullable=False
+        )
+    )
+    stored_object: StoredObject = Relationship(
+        sa_relationship=relationship(StoredObject, lazy="selectin")
+    )
     filename: str = Field(sa_column=Column(String(255), nullable=False))
-    mime_type: str = Field(sa_column=Column(String(128), nullable=False))
-    size_bytes: Optional[int] = Field(default=None, sa_column=Column(BigInteger))
-    sha256: str = Field(sa_column=Column(String(64), nullable=False))
     generator: str = Field(sa_column=Column(String(64), nullable=False))
     generator_version: str = Field(sa_column=Column(String(64), nullable=False))
     created_at: datetime = Field(
@@ -364,7 +370,7 @@ class ScoreRenderAsset(SQLModel, table=True):  # type: ignore[call-arg]
             "kind != 'RENDERED_PAGE' OR (render_profile IS NOT NULL AND page_number IS NOT NULL)",
             name="ck_score_render_assets_rendered_page_fields",
         ),
-        UniqueConstraint("storage_key", name="uq_score_render_assets_storage_key"),
+        UniqueConstraint("stored_object_id", name="uq_score_render_assets_stored_object"),
         UniqueConstraint(
             "revision_id",
             "kind",
@@ -391,11 +397,15 @@ class ScoreRenderAsset(SQLModel, table=True):  # type: ignore[call-arg]
         sa_column=Column(SAEnum(RenderAssetKind, name="renderassetkind"), nullable=False)
     )
 
-    storage_key: str = Field(sa_column=Column(String(768), nullable=False))
+    stored_object_id: int = Field(
+        sa_column=Column(
+            bigint_pk_type, ForeignKey("stored_objects.id", ondelete="RESTRICT"), nullable=False
+        )
+    )
+    stored_object: StoredObject = Relationship(
+        sa_relationship=relationship(StoredObject, lazy="selectin")
+    )
     filename: str = Field(sa_column=Column(String(255), nullable=False))
-    mime_type: str = Field(sa_column=Column(String(128), nullable=False))
-    size_bytes: Optional[int] = Field(default=None, sa_column=Column(BigInteger))
-    sha256: str = Field(sa_column=Column(String(64), nullable=False))
     execution_manifest_id: Optional[int] = Field(
         default=None,
         sa_column=Column(

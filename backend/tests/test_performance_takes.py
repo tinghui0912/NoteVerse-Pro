@@ -39,7 +39,7 @@ from sqlmodel import SQLModel, create_engine
 from app.api.deps import get_current_user, get_db
 from app.core.exceptions import ValidationException, ResourceNotFoundException
 from app.db.models import (
-    MediaBlob,
+    StoredObject,
     PerformanceTakeManifest,
     PerformanceTake,
     PerformanceTakeDeletionStatus,
@@ -228,12 +228,18 @@ def _create_default_bundle(
         bundle_id=bundle_id,
         artifact_id=source_value.artifact.artifact_id,
         artifact_schema_version=1,
-        prepared_musicxml_object_key=musicxml_key,
-        prepared_musicxml_sha256=musicxml_sha,
-        prepared_musicxml_byte_size=len(musicxml_bytes),
-        artifact_object_key=artifact_key,
-        artifact_sha256=artifact_sha,
-        artifact_byte_size=len(artifact_bytes),
+        prepared_musicxml_object=StoredObject(
+            object_key=musicxml_key,
+            sha256=musicxml_sha,
+            byte_size=len(musicxml_bytes),
+            content_type="application/vnd.recordare.musicxml+xml",
+        ),
+        artifact_object=StoredObject(
+            object_key=artifact_key,
+            sha256=artifact_sha,
+            byte_size=len(artifact_bytes),
+            content_type="application/json",
+        ),
         status=PracticeBundleStatus.READY.value,
         creation_expires_at=None,
     )
@@ -282,7 +288,6 @@ def _create_default_take(
         ),
         user_id=user_id,
         client_request_id=client_request_id,
-
         staging_object_key=media_object_key + ".staging",
         storage_reservation_id="quota-" + take_uuid,
         expires_at=datetime.now(timezone.utc).replace(tzinfo=None),
@@ -305,8 +310,7 @@ def _create_default_take(
         manifest=reservation.manifest,
         linked_score_id=linked_score_id,
         deletion_status=PerformanceTakeDeletionStatus.ACTIVE,
-        media_blob=MediaBlob(
-
+        recording_object=StoredObject(
             object_key=media_object_key,
             byte_size=len(VALID_WEBM_BYTES),
             sha256=hashlib.sha256(VALID_WEBM_BYTES).hexdigest(),
@@ -349,15 +353,17 @@ def test_bundle_materialization_stores_and_reuses_exact_content(test_env):
     )
     assert first == second and verified == reused == value
     row = session.get(PracticeBundleRecord, first.id)
-    assert storage.read_bytes(row.prepared_musicxml_object_key) == value.prepared_musicxml.data
-    assert storage.read_bytes(row.artifact_object_key) == value.artifact.representation.data
+    assert (
+        storage.read_bytes(row.prepared_musicxml_object.object_key) == value.prepared_musicxml.data
+    )
+    assert storage.read_bytes(row.artifact_object.object_key) == value.artifact.representation.data
 
 
 @pytest.mark.parametrize("representation", ["prepared_musicxml", "artifact"])
 def test_practice_bundle_checksum_corruption_is_rejected(test_env, representation):
     session, storage, _, _ = test_env
     row = _create_default_bundle(session, storage)
-    key = getattr(row, f"{representation}_object_key")
+    key = getattr(row, f"{representation}_object").object_key
     storage.put_bytes(key=key, content=b"corrupt", content_type="application/octet-stream")
     with pytest.raises(ValidationException) as caught:
         _run_async(
@@ -381,10 +387,10 @@ def test_practice_bundle_artifact_identity_corruption_is_rejected(test_env):
         canonical_practice_artifact_bytes(value), "application/json"
     )
     storage.put_bytes(
-        key=row.artifact_object_key, content=changed.data, content_type=changed.mime_type
+        key=row.artifact_object.object_key, content=changed.data, content_type=changed.mime_type
     )
-    row.artifact_sha256 = changed.sha256
-    row.artifact_byte_size = changed.byte_size
+    row.artifact_object.sha256 = changed.sha256
+    row.artifact_object.byte_size = changed.byte_size
     session.commit()
     with pytest.raises(ValidationException) as caught:
         _run_async(
@@ -403,9 +409,8 @@ def _create_take_delete_outbox(
         take_id=take.id,
         take_uuid=take.manifest.take_uuid,
         user_id=take.manifest.user_id,
-
-        object_key=take.media_blob.object_key,
-        media_byte_size=take.media_blob.byte_size,
+        object_key=take.recording_object.object_key,
+        media_byte_size=take.recording_object.byte_size,
         status=PerformanceTakeDeleteOutboxStatus.PENDING.value,
         next_attempt_at=datetime.now(timezone.utc).replace(tzinfo=None),
     )
@@ -680,7 +685,7 @@ def test_env(tmp_path) -> Iterator[tuple[Session, InMemoryObjectStorage, User, U
             revision_uuid="revision-uuid-100",
             score_id=10,
             revision_number=1,
-            content_hash="abc123hash",
+            content_hash="d24f65a6f145d04d475fdafc2554a3f113c2b20b4e044b307ba615244e0b6803",
             origin=RevisionOrigin.OMR,
             created_by_user_id=1,
         )
@@ -835,17 +840,17 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         assert "score-uuid-10" == "score-uuid-10"
         assert DEFAULT_TAKE_REVISION_ID == "revision-uuid-100"
         assert source.artifact_id == DEFAULT_TAKE_ARTIFACT_ID
-        assert storage.exists(source.prepared_musicxml_object_key)
-        assert storage.exists(source.artifact_object_key)
+        assert storage.exists(source.prepared_musicxml_object.object_key)
+        assert storage.exists(source.artifact_object.object_key)
         expected_bundle_value = _canonical_bundle(
             "score-uuid-10", DEFAULT_TAKE_REVISION_ID, DEFAULT_TAKE_ARTIFACT_ID
         )
         assert (
-            storage.read_bytes(source.prepared_musicxml_object_key)
+            storage.read_bytes(source.prepared_musicxml_object.object_key)
             == expected_bundle_value.prepared_musicxml.data
         )
         assert (
-            storage.read_bytes(source.artifact_object_key)
+            storage.read_bytes(source.artifact_object.object_key)
             == expected_bundle_value.artifact.representation.data
         )
         assert source.bundle_id == expected_bundle_value.bundle_id
@@ -858,7 +863,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
             retained = client.get(f"/api/v1/performance-takes/{take_id}")
         assert retained.status_code == 200, retained.text
         assert retained.json()["data"] == take_data
-        final_object_key = take_row.media_blob.object_key
+        final_object_key = take_row.recording_object.object_key
         assert final_object_key.startswith(f"performance-takes/1/{take_id}/")
         assert final_object_key != staging_object_key
         assert storage.exists(final_object_key)
@@ -1159,7 +1164,7 @@ def test_cross_user_score_permission(test_env):
             revision_uuid="revision-uuid-user2",
             score_id=30,
             revision_number=1,
-            content_hash="hash300",
+            content_hash="0249aee2190a4e71c6607c6df2973810a6350fe832a5e2a6383fd392bb27d803",
             origin=RevisionOrigin.OMR,
             created_by_user_id=2,
         )
@@ -1249,7 +1254,7 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
             .join(PerformanceTakeManifest)
             .where(PerformanceTakeManifest.take_uuid == take_id)
         ).scalar_one()
-        final_key = take_row.media_blob.object_key
+        final_key = take_row.recording_object.object_key
         assert final_key.startswith(f"performance-takes/1/{take_id}/")
         assert storage.exists(final_key)
 
@@ -1317,8 +1322,8 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         assert source is not None
         assert "score-uuid-10" == "score-uuid-10"
         assert DEFAULT_TAKE_REVISION_ID == "revision-uuid-100"
-        assert storage.exists(source.prepared_musicxml_object_key)
-        assert storage.exists(source.artifact_object_key)
+        assert storage.exists(source.prepared_musicxml_object.object_key)
+        assert storage.exists(source.artifact_object.object_key)
 
         # Verify storage: media object is STILL PRESERVED!
         assert storage.exists(final_key)
@@ -1547,8 +1552,8 @@ def test_cancel_upload_reservation(test_env, monkeypatch: pytest.MonkeyPatch):
         ).scalar_one()
         practice_bundle_id = source.id
         assert source is not None
-        musicxml_key = source.prepared_musicxml_object_key
-        artifact_key = source.artifact_object_key
+        musicxml_key = source.prepared_musicxml_object.object_key
+        artifact_key = source.artifact_object.object_key
 
         account = session.get(StorageUsageAccount, 1)
         session.refresh(account)
@@ -2216,10 +2221,10 @@ def test_video_take_finalize_uses_video_media_kind_and_candidate(test_env):
             .where(PerformanceTakeManifest.take_uuid == auth_data["take_id"])
         ).scalar_one()
         assert take_row.manifest.capture_kind == PerformanceTakeMediaKind.VIDEO
-        assert take_row.media_blob.object_key.endswith(".webm")
-        assert storage.exists(take_row.media_blob.object_key)
+        assert take_row.recording_object.object_key.endswith(".webm")
+        assert storage.exists(take_row.recording_object.object_key)
         assert b"fake-browser-video-with-audio" in b"".join(
-            storage.iter_bytes(take_row.media_blob.object_key)
+            storage.iter_bytes(take_row.recording_object.object_key)
         )
 
         res_playback = client.get(f"/api/v1/performance-takes/{take_data['take_id']}/playback-url")
@@ -2260,7 +2265,6 @@ def test_reserve_finalizing_snapshot_retries_without_new_put(test_env):
         ),
         user_id=user_1.id,
         client_request_id="req-finalizing-reserve",
-
         staging_object_key="staging/performance-takes/1/finalizing-reserve/recording.webm",
         finalizing_object_key="performance-takes/1/finalizing-reserve/token.webm",
         storage_reservation_id="reservation-finalizing-reserve",
@@ -2362,8 +2366,8 @@ def test_crash_abandoned_after_reservation(test_env, monkeypatch: pytest.MonkeyP
         ).scalar_one()
         practice_bundle_id = source.id
         assert source is not None
-        musicxml_key = source.prepared_musicxml_object_key
-        artifact_key = source.artifact_object_key
+        musicxml_key = source.prepared_musicxml_object.object_key
+        artifact_key = source.artifact_object.object_key
         auth.expires_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=2)
         auth.last_put_url_expires_at = auth.expires_at
         auth.staging_cleanup_after = auth.expires_at
@@ -2550,7 +2554,7 @@ def test_archived_reservation_late_staging_put_is_cleaned_after_expiry(test_env)
         ).scalar_one()
         final_bytes = storage.read_bytes(
             session.execute(
-                select(MediaBlob.object_key)
+                select(StoredObject.object_key)
                 .join(PerformanceTake)
                 .where(PerformanceTake.manifest_id == auth.manifest_id)
             ).scalar_one()
@@ -2580,7 +2584,7 @@ def test_archived_reservation_late_staging_put_is_cleaned_after_expiry(test_env)
         assert (
             storage.read_bytes(
                 session.execute(
-                    select(MediaBlob.object_key)
+                    select(StoredObject.object_key)
                     .join(PerformanceTake)
                     .where(PerformanceTake.manifest_id == auth.manifest_id)
                 ).scalar_one()
@@ -2667,8 +2671,8 @@ def test_score_deleted_between_reserve_and_finalize_preserves_provenance(test_en
         assert source is not None
         assert "score-uuid-10" == "score-uuid-10"
         assert DEFAULT_TAKE_REVISION_ID == "revision-uuid-100"
-        assert storage.exists(source.prepared_musicxml_object_key)
-        assert storage.exists(source.artifact_object_key)
+        assert storage.exists(source.prepared_musicxml_object.object_key)
+        assert storage.exists(source.artifact_object.object_key)
 
         retained = client.get(f"/api/v1/performance-takes/{take_id}")
         assert retained.status_code == 200, retained.text
@@ -2757,8 +2761,8 @@ def test_deletion_lifecycle_and_worker_retry(test_env, monkeypatch: pytest.Monke
         ).scalar_one()
         practice_bundle_id = source.id
         assert source is not None
-        musicxml_key = source.prepared_musicxml_object_key
-        artifact_key = source.artifact_object_key
+        musicxml_key = source.prepared_musicxml_object.object_key
+        artifact_key = source.artifact_object.object_key
         assert storage.exists(musicxml_key)
         assert storage.exists(artifact_key)
 
@@ -2852,12 +2856,11 @@ def test_bundle_delete_outbox_retries_transient_storage_failure(
     session, storage, _user_1, _ = test_env
     source = _create_default_bundle(session, storage)
     practice_bundle_id = source.id
-    musicxml_key = source.prepared_musicxml_object_key
-    artifact_key = source.artifact_object_key
+    musicxml_key = source.prepared_musicxml_object.object_key
+    artifact_key = source.artifact_object.object_key
     outbox = practice_bundle_delete_service.enqueue_if_unowned(
         session,
         practice_bundle_id,
-
     )
     session.commit()
     assert outbox is not None
@@ -2909,7 +2912,6 @@ def test_bundle_gc_marks_snapshot_deleting_until_completed(test_env):
     outbox = practice_bundle_delete_service.enqueue_if_unowned(
         session,
         practice_bundle_id,
-
     )
     session.commit()
 
@@ -2951,12 +2953,18 @@ def test_stale_creating_snapshot_recovery_cleans_partial_objects(
             practice_revision_uuid=DEFAULT_TAKE_REVISION_ID,
             artifact_id=f"{DEFAULT_TAKE_ARTIFACT_ID}-{label}",
             artifact_schema_version=1,
-            prepared_musicxml_object_key=musicxml_key,
-            prepared_musicxml_sha256=hashlib.sha256(b"<score-partwise />").hexdigest(),
-            prepared_musicxml_byte_size=len(b"<score-partwise />"),
-            artifact_object_key=artifact_key,
-            artifact_sha256=hashlib.sha256(b"{}").hexdigest(),
-            artifact_byte_size=len(b"{}"),
+            prepared_musicxml_object=StoredObject(
+                object_key=musicxml_key,
+                sha256=hashlib.sha256(b"<score-partwise />").hexdigest(),
+                byte_size=len(b"<score-partwise />"),
+                content_type="application/vnd.recordare.musicxml+xml",
+            ),
+            artifact_object=StoredObject(
+                object_key=artifact_key,
+                sha256=hashlib.sha256(b"{}").hexdigest(),
+                byte_size=len(b"{}"),
+                content_type="application/json",
+            ),
             status=PracticeBundleStatus.CREATING.value,
             creation_expires_at=expired_at,
         )
@@ -2965,7 +2973,6 @@ def test_stale_creating_snapshot_recovery_cleans_partial_objects(
 
     due = practice_bundle_delete_service.recover_stale_creating(
         session,
-
     )
     session.commit()
     assert len(due) == len(variants)
@@ -3127,7 +3134,6 @@ def test_take_deletion_leaves_bundle_cleanup_to_its_revision_retention_owner(tes
     duplicate = practice_bundle_delete_service.enqueue_if_unowned(
         session,
         source.id,
-
     )
     assert duplicate is not None
     assert duplicate.id == source_outboxes[0].id
@@ -3141,8 +3147,8 @@ def test_take_deletion_leaves_bundle_cleanup_to_its_revision_retention_owner(tes
     )
     assert source_result["status"] == "deleted"
     assert session.get(PracticeBundleRecord, source.id) is None
-    assert not storage.exists(source.prepared_musicxml_object_key)
-    assert not storage.exists(source.artifact_object_key)
+    assert not storage.exists(source.prepared_musicxml_object.object_key)
+    assert not storage.exists(source.artifact_object.object_key)
 
 
 def test_bundle_gc_ignores_an_active_reservation_after_take_deletion(test_env, monkeypatch):
@@ -3178,7 +3184,6 @@ def test_bundle_gc_ignores_an_active_reservation_after_take_deletion(test_env, m
         ),
         user_id=user_1.id,
         client_request_id="gc-active-auth",
-
         staging_object_key="performance-takes/staging/gc-active-auth.webm",
         storage_reservation_id="reservation-gc-active-auth",
         status=UploadReservationStatus.RESERVED.value,
@@ -3208,7 +3213,6 @@ def test_bundle_gc_ignores_an_active_reservation_after_take_deletion(test_env, m
     outbox = practice_bundle_delete_service.enqueue_if_unowned(
         session,
         source.id,
-
     )
     assert outbox is not None
     session.commit()
@@ -3311,7 +3315,6 @@ def test_delete_outbox_late_fail_cannot_overwrite_completed_attempt(test_env):
         take_id=None,
         take_uuid="take-late-fail-001",
         user_id=user_1.id,
-
         object_key="performance-takes/1/take-late-fail-001/recording.webm",
         media_byte_size=123,
         status=PerformanceTakeDeleteOutboxStatus.PENDING,
@@ -3402,7 +3405,6 @@ def test_expired_reservation_cleanup_releases_db_lock_before_storage_delete(test
     client = PerformanceTakeTestClient(app)
 
     class LockAssertingStorage(InMemoryObjectStorage):
-
         def __init__(self, wrapped: InMemoryObjectStorage) -> None:
             super().__init__(objects=wrapped.objects)
 
@@ -3485,7 +3487,6 @@ def _expired_cleanup_auth(
         ),
         user_id=user_id,
         client_request_id=client_request_id,
-
         staging_object_key=staging_key,
         storage_reservation_id=f"reservation-{client_request_id}",
         expires_at=expired_at,
@@ -3641,7 +3642,6 @@ def test_finalize_copy_lease_rejects_expired_executor_before_storage_copy(test_e
         ),
         user_id=user_1.id,
         client_request_id="lease-expired-before-copy",
-
         staging_object_key="staging/performance-takes/1/lease-expired/recording.webm",
         finalizing_object_key="performance-takes/1/lease-expired/recording.webm",
         storage_reservation_id="reservation-lease-expired",
@@ -3966,7 +3966,6 @@ def test_expired_finalizing_lease_records_candidate_before_retry(test_env):
         ),
         user_id=user_1.id,
         client_request_id="finalizing-expired-retry",
-
         staging_object_key="staging/performance-takes/1/finalizing-expired/recording.webm",
         finalizing_object_key=candidate_key,
         storage_reservation_id="reservation-finalizing-expired",
@@ -4051,7 +4050,7 @@ def test_worker_handles_already_absent_object_idempotently(
             .join(PerformanceTakeManifest)
             .where(PerformanceTakeManifest.take_uuid == take_id)
         ).scalar_one()
-        final_key = take_row.media_blob.object_key
+        final_key = take_row.recording_object.object_key
         assert final_key.startswith(f"performance-takes/1/{take_id}/")
         assert storage.exists(final_key)
 
@@ -4459,7 +4458,7 @@ def test_finalize_unknown_commit_outcome_recovers_via_reservation_lineage(
         session.refresh(account)
         assert account.reserved_bytes == 0 and account.used_bytes == len(VALID_WEBM_BYTES)
         assert len(session.execute(select(PerformanceTake)).scalars().all()) == 1
-        assert len(session.execute(select(MediaBlob)).scalars().all()) == 1
+        assert len(session.execute(select(StoredObject)).scalars().all()) == 3
 
 
 def test_live_admission_and_save_snapshot_share_canonical_provenance(test_env):
@@ -4475,7 +4474,14 @@ def test_live_admission_and_save_snapshot_share_canonical_provenance(test_env):
     storage.put_bytes(key="canonical.musicxml", content=canonical, content_type="application/xml")
     assets = Mock()
     assets.canonical_source = AsyncMock(
-        return_value=SimpleNamespace(storage_key="canonical.musicxml")
+        return_value=SimpleNamespace(
+            stored_object=StoredObject(
+                object_key="canonical.musicxml",
+                byte_size=len(canonical),
+                sha256=hashlib.sha256(canonical).hexdigest(),
+                content_type="application/xml",
+            )
+        )
     )
     bundle_service = PracticeBundleService(storage=storage, asset_repository=assets)
     take_service = PerformanceTakeUploadService(
@@ -4512,17 +4518,22 @@ def test_live_admission_and_save_snapshot_share_canonical_provenance(test_env):
         expected = PracticeBundleCompiler().compile(canonical_musicxml=canonical)
         assert row.bundle_id == expected.bundle_id
         assert (
-            row.prepared_musicxml_object_key == f"practice-bundles/{row.bundle_id}/score.musicxml"
+            row.prepared_musicxml_object.object_key
+            == f"practice-bundles/{row.bundle_id}/score.musicxml"
         )
-        assert row.artifact_object_key == f"practice-bundles/{row.bundle_id}/artifact.json"
+        assert row.artifact_object.object_key == f"practice-bundles/{row.bundle_id}/artifact.json"
         assert (
-            storage.read_bytes(row.prepared_musicxml_object_key) == expected.prepared_musicxml.data
+            storage.read_bytes(row.prepared_musicxml_object.object_key)
+            == expected.prepared_musicxml.data
         )
-        assert storage.read_bytes(row.artifact_object_key) == expected.artifact.representation.data
-        assert row.prepared_musicxml_sha256 == expected.prepared_musicxml.sha256
-        assert row.artifact_sha256 == expected.artifact.representation.sha256
-        assert row.prepared_musicxml_byte_size == expected.prepared_musicxml.byte_size
-        assert row.artifact_byte_size == expected.artifact.representation.byte_size
+        assert (
+            storage.read_bytes(row.artifact_object.object_key)
+            == expected.artifact.representation.data
+        )
+        assert row.prepared_musicxml_object.sha256 == expected.prepared_musicxml.sha256
+        assert row.artifact_object.sha256 == expected.artifact.representation.sha256
+        assert row.prepared_musicxml_object.byte_size == expected.prepared_musicxml.byte_size
+        assert row.artifact_object.byte_size == expected.artifact.representation.byte_size
         assert (
             practice_bundle_delete_service.recover_unowned_ready(
                 session,
@@ -4531,7 +4542,8 @@ def test_live_admission_and_save_snapshot_share_canonical_provenance(test_env):
         )
         assert (
             practice_bundle_delete_service.enqueue_if_unowned(
-                session, row.id,
+                session,
+                row.id,
             )
             is None
         )
@@ -4581,13 +4593,13 @@ def test_live_admission_and_save_snapshot_share_canonical_provenance(test_env):
         assert saved.status_code == 200, saved.text
         assert saved.json()["data"]["manifest"]["practice_binding"]["bundle_id"] == row.bundle_id
         storage.put_bytes(
-            key=row.artifact_object_key, content=b"corrupt", content_type="application/json"
+            key=row.artifact_object.object_key, content=b"corrupt", content_type="application/json"
         )
         with patch.object(storage, "put_bytes", wraps=storage.put_bytes) as writes:
             corrupt = client.get(live_url)
             assert corrupt.status_code >= 400
             writes.assert_not_called()
-        assert storage.read_bytes(row.artifact_object_key) == b"corrupt"
+        assert storage.read_bytes(row.artifact_object.object_key) == b"corrupt"
     finally:
         app.dependency_overrides.clear()
 
@@ -4785,7 +4797,8 @@ def test_bundle_deletion_dispatch_publishes_registered_durable_operation(test_en
     session, storage, _, _ = test_env
     source = _create_default_bundle(session, storage)
     outbox = practice_bundle_delete_service.enqueue_if_unowned(
-        session, source.id,
+        session,
+        source.id,
     )
     session.commit()
     monkeypatch.setattr(dispatch, "get_worker_db", lambda: _mock_worker_db(session))
@@ -4808,7 +4821,16 @@ def test_bound_bundle_authorization_preserves_admitted_representation_identity(t
     ).read_bytes()
     storage.put_bytes(key="canonical.xml", content=canonical, content_type="application/xml")
     assets = Mock(
-        canonical_source=AsyncMock(return_value=SimpleNamespace(storage_key="canonical.xml"))
+        canonical_source=AsyncMock(
+            return_value=SimpleNamespace(
+                stored_object=StoredObject(
+                    object_key="canonical.xml",
+                    byte_size=len(canonical),
+                    sha256=hashlib.sha256(canonical).hexdigest(),
+                    content_type="application/xml",
+                )
+            )
+        )
     )
     bundles = PracticeBundleService(storage=storage, asset_repository=assets)
     uploads = PerformanceTakeUploadService(storage=storage, practice_bundle_service=bundles)
@@ -5317,7 +5339,7 @@ def test_take_deletion_retires_media_but_preserves_manifest_and_reservation(test
         take = session.scalar(select(PerformanceTake))
         assert take.manifest_id == manifest_id
         assert finalized.json()["data"]["manifest"] == accepted["manifest"]
-        final_key = take.media_blob.object_key
+        final_key = take.recording_object.object_key
         deleted = client.delete(f"/api/v1/performance-takes/{accepted['take_id']}")
         assert deleted.status_code == 202, deleted.text
         outbox = session.scalar(select(PerformanceTakeDeleteOutbox))
@@ -5365,7 +5387,7 @@ def test_final_blob_sha_is_the_complete_candidate_and_actual_object_digest(test_
         )
         assert response.status_code == 200, response.text
         take = session.scalar(select(PerformanceTake))
-        blob = take.media_blob
+        blob = take.recording_object
         actual = storage.read_bytes(blob.object_key)
         digest = hashlib.sha256(actual).hexdigest()
         assert hashes[blob.object_key] == blob.sha256 == digest
@@ -5408,7 +5430,7 @@ def test_same_size_candidate_corruption_has_no_blob_or_take(test_env):
         assert error.value.details["field"] == "media_checksum"
         assert error.value.details["reason"] == "candidate_content_mismatch"
         assert (
-            session.scalar(select(MediaBlob)) is None
+            len(session.scalars(select(StoredObject)).all()) == 2
             and session.scalar(select(PerformanceTake)) is None
         )
         row = session.scalar(select(PerformanceTakeUploadReservation))
@@ -5430,6 +5452,6 @@ def test_take_read_rejects_corrupt_or_capture_mismatched_blob(test_env, field, b
         take_uuid="corrupt-archive",
         media_object_key="corrupt.webm",
     )
-    setattr(take.media_blob, field, bad)
+    setattr(take.recording_object, field, bad)
     with pytest.raises(ValidationException):
         PerformanceTakeService(storage=storage)._to_read_dto(take)

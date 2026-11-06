@@ -5,9 +5,13 @@ import uuid
 from app.core.exceptions import ResourceNotFoundException
 from app.core.logger import get_request_id
 from app.db.model_utils import require_persisted_id
-from app.db.models import ImportJob, ImportJobUpload, StorageBlob, User
+from app.db.models import ImportJob, ImportJobUpload, StoredObject, User
 from app.db.models.import_job import ImportJobState
-from app.modules.import_jobs.schemas import ImportJobProcessingOptions, ImportJobSubmitRequestLike, ImportJobSubmitResult
+from app.modules.import_jobs.schemas import (
+    ImportJobProcessingOptions,
+    ImportJobSubmitRequestLike,
+    ImportJobSubmitResult,
+)
 from app.modules.scores.schemas import ScoreTaxonomyTagInput
 from app.modules.import_jobs.worker_service import sync_import_job_service
 from app.shared.constants import ErrorCode
@@ -19,7 +23,9 @@ class ImportJobSubmissionService:
     def __init__(self, storage: ObjectStorage | None = None) -> None:
         self.storage = storage or object_storage
 
-    async def submit(self, current_user: User, request: ImportJobSubmitRequestLike) -> ImportJobSubmitResult:
+    async def submit(
+        self, current_user: User, request: ImportJobSubmitRequestLike
+    ) -> ImportJobSubmitResult:
         user_id = require_persisted_id(current_user.id, entity="user")
         idempotency_key = self._normalize_key(request.idempotency_key)
         if idempotency_key:
@@ -60,9 +66,7 @@ class ImportJobSubmissionService:
         taxonomy_tags = options.get("taxonomy_tags")
         if isinstance(taxonomy_tags, list):
             serialized["taxonomy_tags"] = [
-                tag.model_dump(mode="json")
-                if isinstance(tag, ScoreTaxonomyTagInput)
-                else tag
+                tag.model_dump(mode="json") if isinstance(tag, ScoreTaxonomyTagInput) else tag
                 for tag in taxonomy_tags
             ]
         return serialized
@@ -85,12 +89,8 @@ class ImportJobSubmissionService:
         try:
             for file_id in file_ids:
                 upload = sync_import_job_service.repository.get_upload_by_uuid(db, file_id)
-                blob = db.get(StorageBlob, upload.blob_id) if upload else None
-                if (
-                    upload
-                    and blob
-                    and upload.uploader_user_id == user_id
-                ):
+                blob = db.get(StoredObject, upload.stored_object_id) if upload else None
+                if upload and blob and upload.uploader_user_id == user_id:
                     continue
                 raise ResourceNotFoundException(
                     resource_type="file",
@@ -161,5 +161,6 @@ class ImportJobSubmissionService:
             raise
         finally:
             db.close()
+
 
 job_submission_service = ImportJobSubmissionService()

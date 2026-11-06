@@ -1,11 +1,13 @@
 from __future__ import annotations
+from app.modules.storage_objects.facts import StoredObjectFacts
+from app.modules.storage_objects.persistence import object_to_row
 
 import hashlib
 from dataclasses import dataclass
 
 from app.db.models import ScoreRenderAsset
 from app.db.models.score import RenderAssetKind
-from app.storage import StoredObject
+from app.storage import ObjectWriteResult
 
 
 @dataclass(frozen=True)
@@ -34,8 +36,8 @@ def render_asset_usage(assets: list[ScoreRenderAsset]) -> list[RenderAssetUsage]
     return [
         RenderAssetUsage(
             asset_uuid=item.asset_uuid,
-            storage_key=item.storage_key,
-            size_bytes=item.size_bytes,
+            storage_key=item.stored_object.object_key,
+            size_bytes=item.stored_object.byte_size,
         )
         for item in assets
     ]
@@ -45,8 +47,7 @@ def build_render_asset_record(
     *,
     asset_uuid: str,
     revision_id: int,
-
-    stored: StoredObject,
+    stored: ObjectWriteResult,
     mime_type: str,
     content: bytes,
     execution_manifest_id: int,
@@ -58,11 +59,15 @@ def build_render_asset_record(
         asset_uuid=asset_uuid,
         revision_id=revision_id,
         kind=RenderAssetKind.RENDERED_PAGE,
-        storage_key=stored.object_key,
+        stored_object=object_to_row(
+            StoredObjectFacts(
+                object_key=stored.object_key,
+                content_type=mime_type,
+                byte_size=len(content),
+                sha256=hashlib.sha256(content).hexdigest(),
+            )
+        ),
         filename=stored.object_key.rsplit("/", 1)[-1],
-        mime_type=mime_type,
-        size_bytes=stored.size_bytes,
-        sha256=hashlib.sha256(content).hexdigest(),
         execution_manifest_id=execution_manifest_id,
         page_number=page_number,
         render_profile=profile,

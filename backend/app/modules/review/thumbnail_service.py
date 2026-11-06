@@ -1,4 +1,6 @@
 from __future__ import annotations
+from app.modules.storage_objects.facts import StoredObjectFacts
+from app.modules.storage_objects.persistence import object_to_row
 
 import hashlib
 import os
@@ -48,7 +50,7 @@ class ReviewThumbnailService:
             raise RuntimeError(f"Review MusicXML for {job_uuid} is unavailable")
         if (
             expected_source_fingerprint is not None
-            and review_xml.sha256 != expected_source_fingerprint
+            and review_xml.stored_object.sha256 != expected_source_fingerprint
         ):
             return None
 
@@ -61,7 +63,7 @@ class ReviewThumbnailService:
             ).scalars()
         )
         previous_usage = [
-            (item.artifact_uuid, item.storage_key, item.size_bytes or 0)
+            (item.artifact_uuid, item.stored_object.object_key, item.stored_object.byte_size or 0)
             for item in previous
         ]
         uploaded_key: str | None = None
@@ -69,7 +71,7 @@ class ReviewThumbnailService:
         with tempfile.TemporaryDirectory(dir=settings.WORK_ROOT) as work_dir:
             xml_path = os.path.join(work_dir, "score.musicxml")
             with open(xml_path, "wb") as target:
-                target.write(self.storage.read_bytes(review_xml.storage_key))
+                target.write(self.storage.read_bytes(review_xml.stored_object.object_key))
             engine = create_score_render_engine(output_folder=work_dir)
             result = engine.render_score(xml_path=xml_path, output_name="thumbnail")
             if not result["success"] or not result.get("files"):
@@ -95,17 +97,22 @@ class ReviewThumbnailService:
                 artifact_uuid=artifact_uuid,
                 job_id=job_id,
                 kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
-                storage_key=stored.object_key,
+                stored_object=object_to_row(
+                    StoredObjectFacts(
+                        object_key=stored.object_key,
+                        byte_size=len(content),
+                        content_type=output["mime_type"],
+                        sha256=hashlib.sha256(content).hexdigest(),
+                    )
+                ),
                 filename=stored.object_key.rsplit("/", 1)[-1],
                 page_number=1,
-                size_bytes=stored.size_bytes,
-                mime_type=output["mime_type"],
-                sha256=hashlib.sha256(content).hexdigest(),
             )
 
         try:
             for item in previous:
                 db.delete(item)
+                db.delete(item.stored_object)
             db.flush()
             db.add(thumbnail)
             db.commit()
@@ -133,16 +140,16 @@ class ReviewThumbnailService:
             db,
             user_id=job.user_id,
             category=StorageUsageCategory.TEMP_IMPORT,
-            bytes_count=thumbnail.size_bytes or 0,
+            bytes_count=thumbnail.stored_object.byte_size or 0,
             reason="review_thumbnail_created",
             object_type="import_artifact",
             object_id=thumbnail.artifact_uuid,
-            storage_key=thumbnail.storage_key,
+            storage_key=thumbnail.stored_object.object_key,
         )
 
         for item in previous:
             try:
-                self.storage.delete(item.storage_key)
+                self.storage.delete(item.stored_object.object_key)
             except Exception:
                 pass
         return thumbnail.artifact_uuid

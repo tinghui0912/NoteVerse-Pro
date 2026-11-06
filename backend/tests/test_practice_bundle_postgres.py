@@ -54,7 +54,11 @@ async def postgres_bundle(tmp_path, request):
             ).read_bytes(),
         )
         async with AsyncSession(engine) as seed:
-            user = User(email="source@example.com", display_name="Source", password_hash="test")
+            user = User(
+                email="source@example.com",
+                display_name="Source",
+                password_hash="9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+            )
             seed.add(user)
             await seed.flush()
             score = Score(score_uuid="score-content-owner", owner_user_id=user.id, title="Source")
@@ -64,7 +68,7 @@ async def postgres_bundle(tmp_path, request):
                 revision_uuid="revision-content-owner",
                 score_id=score.id,
                 revision_number=1,
-                content_hash="test",
+                content_hash="9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
                 origin="OMR",
                 created_by_user_id=user.id,
             )
@@ -122,7 +126,7 @@ async def test_identical_content_across_scores_shares_one_bundle_two_bindings(po
             revision_uuid="another-revision",
             score_id=score.id,
             revision_number=1,
-            content_hash="same",
+            content_hash="0967115f2813a3541eaef77de9d9d5773f1c0c04314b0bbfe4ff3b3b1c55b5d5",
             origin="OMR",
             created_by_user_id=1,
         )
@@ -156,7 +160,7 @@ async def test_binding_cascade_retains_shared_bundle_until_last_revision_deleted
             revision_uuid="another-revision",
             score_id=1,
             revision_number=2,
-            content_hash="same",
+            content_hash="0967115f2813a3541eaef77de9d9d5773f1c0c04314b0bbfe4ff3b3b1c55b5d5",
             origin="OMR",
             created_by_user_id=1,
         )
@@ -208,7 +212,8 @@ async def test_gc_marked_bundle_cannot_receive_a_new_binding(postgres_bundle):
         await db.commit()
         await db.run_sync(
             lambda sync: practice_bundle_delete_service.enqueue_if_unowned(
-                sync, ref.id,
+                sync,
+                ref.id,
             )
         )
         await db.commit()
@@ -228,7 +233,8 @@ async def test_binding_committed_before_gc_protects_the_bundle(postgres_bundle):
         assert (
             await b.run_sync(
                 lambda sync: practice_bundle_delete_service.enqueue_if_unowned(
-                    sync, ref.id,
+                    sync,
+                    ref.id,
                 )
             )
             is None
@@ -246,7 +252,7 @@ async def test_durable_representation_corruption_fails_closed(postgres_bundle, r
         ref, _ = await repository.get_or_create(db, bundle, revision_id=repository.test_revision_id)
         row = await db.get(PracticeBundleRecord, ref.id)
         storage.put_bytes(
-            key=getattr(row, representation + "_object_key"),
+            key=getattr(row, representation + "_object").object_key,
             content=b"corrupt",
             content_type="application/octet-stream",
         )
@@ -291,7 +297,8 @@ async def test_binding_and_gc_serialize_on_bundle_row(postgres_bundle, winner):
                 assert not binding.done()
                 outbox = await gc.run_sync(
                     lambda sync: practice_bundle_delete_service.enqueue_if_unowned(
-                        sync, ref.id,
+                        sync,
+                        ref.id,
                     )
                 )
                 assert outbox is not None
@@ -323,7 +330,8 @@ async def test_binding_and_gc_serialize_on_bundle_row(postgres_bundle, winner):
             collecting = asyncio.create_task(
                 gc.run_sync(
                     lambda sync: practice_bundle_delete_service.enqueue_if_unowned(
-                        sync, ref.id,
+                        sync,
+                        ref.id,
                     )
                 )
             )
@@ -366,7 +374,7 @@ async def test_interrupted_creation_has_durable_lease_for_orphan_cleanup(postgre
     async with sessions() as db:
         row = await db.scalar(select(PracticeBundleRecord))
         assert row.status == "CREATING" and row.creation_expires_at is not None
-        assert storage.exists(row.prepared_musicxml_object_key)
+        assert storage.exists(row.prepared_musicxml_object.object_key)
         assert await db.scalar(select(ScoreRevisionPracticeBinding)) is None
         row.creation_expires_at = utc_now_naive() - timedelta(seconds=1)
         await db.commit()
@@ -399,7 +407,11 @@ async def test_bound_readers_share_locks_and_fence_gc_during_verification(
             seed, bundle, revision_id=repository.test_revision_id
         )
         if reader_role == "PRACTITIONER":
-            user = User(email="reader@example.com", display_name="Reader", password_hash="test")
+            user = User(
+                email="reader@example.com",
+                display_name="Reader",
+                password_hash="9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+            )
             seed.add(user)
             await seed.flush()
             user_id = user.id
@@ -484,7 +496,8 @@ async def test_bound_readers_share_locks_and_fence_gc_during_verification(
                     collecting = asyncio.create_task(
                         gc.run_sync(
                             lambda sync: practice_bundle_delete_service.enqueue_if_unowned(
-                                sync, ref.id,
+                                sync,
+                                ref.id,
                             )
                         )
                     )
@@ -496,9 +509,9 @@ async def test_bound_readers_share_locks_and_fence_gc_during_verification(
                                 await observer.commit()
                         assert not collecting.done()
                         row = await observer.get(PracticeBundleRecord, ref.id)
-                        assert storage.exists(row.prepared_musicxml_object_key) and storage.exists(
-                            row.artifact_object_key
-                        )
+                        assert storage.exists(
+                            row.prepared_musicxml_object.object_key
+                        ) and storage.exists(row.artifact_object.object_key)
                     finally:
                         release.set()
                     assert (
@@ -534,13 +547,15 @@ async def test_durable_bundle_rejects_graph_corruption_with_consistent_content_h
         value["artifactId"] = practice_artifact_id(value)
         data = canonical_practice_artifact_bytes(value)
         storage.put_bytes(
-            key=row.artifact_object_key, content=data, content_type="application/json"
+            key=row.artifact_object.object_key, content=data, content_type="application/json"
         )
         row.artifact_id = value["artifactId"]
-        row.artifact_byte_size = len(data)
-        row.artifact_sha256 = hashlib.sha256(data).hexdigest()
+        row.artifact_object.byte_size = len(data)
+        row.artifact_object.sha256 = hashlib.sha256(data).hexdigest()
         row.bundle_id = calculate_bundle_id(
-            row.artifact_schema_version, row.prepared_musicxml_sha256, row.artifact_sha256
+            row.artifact_schema_version,
+            row.prepared_musicxml_object.sha256,
+            row.artifact_object.sha256,
         )
         await db.commit()
         with pytest.raises(ValueError, match="dangling"):

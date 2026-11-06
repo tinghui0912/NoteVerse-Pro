@@ -2,6 +2,8 @@
 
 import asyncio
 from contextlib import contextmanager, nullcontext
+from concurrent.futures import ThreadPoolExecutor
+from threading import Event
 
 import pytest
 from sqlalchemy import create_engine, select, text
@@ -9,7 +11,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from app.db.models import (
-    MediaBlob,
+    StoredObject,
     PerformanceTake,
     PerformanceTakeDeleteOutbox,
     PerformanceTakeManifest,
@@ -42,8 +44,8 @@ async def test_worker_completion_locks_outbox_and_take_separately_and_preserves_
         )
         take_read = await service.finalize_take(db, 1, accepted.reservation_id)
         take = await service.repository.get_by_uuid(db, 1, take_read.take_id)
-        take_id, final_key = take.id, take.media_blob.object_key
-        blob_id = take.media_blob_id
+        take_id, final_key = take.id, take.recording_object.object_key
+        stored_object_id = take.recording_object_id
         await service.takes.delete_take(db, 1, take_read.take_id)
         outbox = await db.scalar(select(PerformanceTakeDeleteOutbox))
         outbox_id, outbox_uuid = outbox.id, outbox.outbox_uuid
@@ -81,14 +83,18 @@ async def test_worker_completion_locks_outbox_and_take_separately_and_preserves_
                     assert_lock(PerformanceTakeDeleteOutbox, outbox_id, blocked=True)
                     assert_lock(PerformanceTake, take_id, blocked=True)
                     assert_lock(PerformanceTakeManifest, manifest_id, blocked=False)
-                    assert_lock(MediaBlob, blob_id, blocked=False)
+                    assert_lock(StoredObject, stored_object_id, blocked=False)
                     observations.append("Take locked; Manifest unlocked")
             return result
 
-    # Observe only completion transactions, after the physical deletion has finished.
+    # Observe completion transactions separately from the initial claim.
+    transactions = 0
+
     @contextmanager
     def transaction():
-        session_type = Session if storage.exists(final_key) else CompletionSession
+        nonlocal transactions
+        transactions += 1
+        session_type = CompletionSession if transactions == 2 else Session
         with session_type(engine) as db:
             yield db
 
@@ -96,11 +102,21 @@ async def test_worker_completion_locks_outbox_and_take_separately_and_preserves_
     monkeypatch.setattr(worker, "object_storage", storage)
     monkeypatch.setattr(worker, "start_attempt_trace", lambda **kwargs: nullcontext())
     delete = storage.delete
-    concurrent_results = []
+    duplicate_started = Event()
+    pool = ThreadPoolExecutor(max_workers=1)
+    duplicate = None
 
     def delete_with_duplicate(key):
-        # A second delivery cannot claim the currently PROCESSING attempt.
-        concurrent_results.append(worker.execute_performance_take_deletion_task(None, outbox_uuid))
+        nonlocal duplicate
+
+        # A duplicate delivery waits on the completion row lock, then observes COMPLETED.
+        def deliver():
+            duplicate_started.set()
+            return worker.execute_performance_take_deletion_task(None, outbox_uuid)
+
+        duplicate = pool.submit(deliver)
+        assert duplicate_started.wait(5)
+        assert not duplicate.done()
         delete(key)
 
     monkeypatch.setattr(storage, "delete", delete_with_duplicate)
@@ -109,11 +125,11 @@ async def test_worker_completion_locks_outbox_and_take_separately_and_preserves_
             worker.execute_performance_take_deletion_task, None, outbox_uuid
         )
         assert result["status"] == "deleted"
-        assert concurrent_results[0]["status"] == "ignored"
+        assert duplicate.result(timeout=5)["status"] == "ignored"
         assert observations == ["outbox locked", "Take locked; Manifest unlocked"]
         with Session(engine) as db:
             assert db.get(PerformanceTake, take_id) is None
-            assert db.get(MediaBlob, blob_id) is None
+            assert db.get(StoredObject, stored_object_id) is None
             assert not storage.exists(final_key)
             assert manifest_from_row(db.get(PerformanceTakeManifest, manifest_id)) == manifest
             retained = db.scalar(select(PerformanceTakeUploadReservation))
@@ -123,4 +139,5 @@ async def test_worker_completion_locks_outbox_and_take_separately_and_preserves_
             completed = db.get(PerformanceTakeDeleteOutbox, outbox_id)
             assert completed.status == "COMPLETED" and completed.attempt_count == 1
     finally:
+        pool.shutdown(wait=True)
         engine.dispose()

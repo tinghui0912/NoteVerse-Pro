@@ -56,12 +56,12 @@ than inferring them from prior status.
 
 ## Object ownership
 
-| Object                           | Owner                  |
-| -------------------------------- | ---------------------- |
-| staging object                   | reservation            |
-| current final candidate          | current finalize lease |
-| abandoned or uncertain candidate | orphan cleanup list    |
-| completed media object           | `MediaBlob.object_key` |
+| Object                           | Owner                     |
+| -------------------------------- | ------------------------- |
+| staging object                   | reservation               |
+| current final candidate          | current finalize lease    |
+| abandoned or uncertain candidate | orphan cleanup list       |
+| completed media object           | `StoredObject.object_key` |
 
 Finalization verifies staging size, MIME/container and full SHA-256, copies to a
 unique token-owned candidate, and verifies candidate size and SHA-256 equality.
@@ -80,7 +80,7 @@ UUID, user identity, detached Bundle/Score/Revision/artifact provenance strings,
 hydration and canonical JSON codec. Invalid persisted snapshots fail closed.
 
 Reservation and Take reference the exact same Manifest row. Reservation owns idempotency,
-quota hold, staging and finalize/cleanup lifecycle. Take joins one Manifest and one MediaBlob
+quota hold, staging and finalize/cleanup lifecycle. Take joins one Manifest and one StoredObject
 and owns the live navigation pointer and library/deletion lifecycle. Manifest has no storage locator, upload
 state, navigation pointer or Bundle/Revision FK. Only revision bindings retain PracticeBundle.
 
@@ -90,12 +90,12 @@ projection; their public `take_id` comes from Manifest.take_uuid. The composite 
 Manifest/owner FK enforces agreement with its idempotency user. Take.manifest_id is unique.
 
 Finalization holds an immutable TakeManifest value across slow storage IO and creates a Take
-with its manifest_id, media_blob_id and library facts. MediaBlob creation, Take creation,
+with its manifest_id, recording_object_id and library facts. StoredObject creation, Take creation,
 reservation completion and quota commit share one transaction. Finalize performs no Bundle read, authorization or replanning.
 It resolves an optional current Score navigation link by the Manifest score UUID; a missing or
 deleting Score produces a null pointer. Read-time Score access controls navigation.
 
-Take deletion snapshots a self-contained outbox payload, removes final media, Take and MediaBlob rows,
+Take deletion snapshots a self-contained outbox payload, removes final media, Take and StoredObject rows,
 and releases quota. Manifest and Reservation remain as idempotency lineage. Cancellation and
 expiry preserve the same Manifest without introducing a separate Manifest cleanup lifecycle.
 
@@ -147,24 +147,23 @@ and requires exact Manifest Bundle/artifact identity, score timebase and scope a
 
 ## Durable server bytes
 
-`modules/media/blob.py` owns immutable MediaBlobFacts; `modules/media/persistence.py` is its
-single hydration boundary. A MediaBlob records storage backend, object key, exact byte size,
-full server-computed SHA-256 and canonical content type. Locator uniqueness is backend plus
-key. Hashes are observations, never dedup identities. MediaBlob has no user, Capture kind,
+`modules/storage_objects/facts.py` owns immutable StoredObjectFacts; `modules/storage_objects/persistence.py` is its
+single hydration boundary. A StoredObject records object key, exact byte size,
+full server-computed SHA-256 and canonical content type. Locator uniqueness is object key within the deployment namespace. Hashes are observations; domain-owned reuse policies do not imply global deduplication. StoredObject has no user, Capture kind,
 Practice identity, authorization or lifecycle state.
 
 Manifest.capture describes the exact browser Capture admitted for Save. Take aggregate admission
-requires its MIME and byte size to match the archived Blob. The Blob is created only after a
+requires its MIME and byte size to match the recording StoredObject. The StoredObject is created only after a
 complete candidate read proves its hash equals the container-validated staging bytes. Storage
 metadata supplies no authoritative digest. Missing adapter content type uses admitted canonical
 Capture MIME after byte/container verification. Raw bytes are preserved without transcoding.
 
-Playback/download and Take.archive_media consume Blob MIME/size. Saved OPFS materialization uses
+Playback/download and Take.archive_media consume recording StoredObject MIME/size. Saved OPFS materialization uses
 that archive projection; reservation agreement uses Manifest.capture. Finalize responses also
-require archive/Capture consistency. Backend/key/hash stay private.
+require archive/Capture consistency. Object key/hash stay private.
 
 DeleteOutbox is an operation snapshot, not current physical authority. Its locator and byte count
-come from Blob; identity/user come from Manifest. The worker locks Outbox then Take, validates
-Blob facts, deletes Take and Blob and commits quota release plus outbox completion atomically.
+come from StoredObject; identity/user come from Manifest. The worker locks Outbox then Take, validates
+StoredObject facts, deletes Take and StoredObject and commits quota release plus outbox completion atomically.
 Missing physical objects remain safe to retry. Manifest/Reservation lineage survives deletion.
 StorageUsage is an accounting ledger, never a playback locator authority.

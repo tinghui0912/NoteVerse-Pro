@@ -96,7 +96,7 @@ class RenderPayloadBuilder:
             return RenderPayloadBuildResult(None)
         if job.state != ImportJobState.PENDING_REVIEW:
             return RenderPayloadBuildResult(None, terminal_completed=True)
-        if review_source.sha256 != outbox.source_fingerprint:
+        if review_source.stored_object.sha256 != outbox.source_fingerprint:
             return RenderPayloadBuildResult(None, terminal_completed=True)
 
         return RenderPayloadBuildResult(
