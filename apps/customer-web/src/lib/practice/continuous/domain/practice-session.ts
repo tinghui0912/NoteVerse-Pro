@@ -82,7 +82,7 @@ export class ContinuousPracticeSession {
       options.timebase ??
       new PracticeTimebase({ domainId: this.localSessionId });
     this.clock = new PerformanceClockRuntime({
-      artifact: this.plan.source.artifact,
+      artifact: this.plan.bundle.artifact,
       scope: this.plan.scope,
       tempoPlan: this.plan.tempoPlan,
       clock: options.clock,
@@ -102,11 +102,11 @@ export class ContinuousPracticeSession {
       throw new Error("MIDI sessions require a clock evidence input.");
     }
     this.evaluator = new ContinuousEvaluationSession({
-      artifact: this.plan.source.artifact,
+      artifact: this.plan.bundle.artifact,
       timeline: new PracticeTempoTimeline(
         this.plan.tempoPlan,
-        this.plan.source.artifact.scoreEndTick,
-        this.plan.source.artifact.ticksPerQuarter,
+        this.plan.bundle.artifact.scoreEndTick,
+        this.plan.bundle.artifact.ticksPerQuarter,
       ),
       scope: this.plan.scope,
       sessionDomainId: this.clock.timebase.domainId,

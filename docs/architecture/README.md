@@ -20,7 +20,7 @@ accepted current decisions and their rationale.
 
 - [Product Contract](practice-product-contract.md)
 - [Piano-Key Domain](practice-piano-key-contract.md)
-- [Practice Source](practice-source.md)
+- [Practice Bundle](practice-bundle.md)
 - [Performance Take Reservations](performance-take-reservations.md)
 - [Practice Score Compiler](practice-score-compiler.md)
 - [Session and Resource Planning](practice-session-planning.md)

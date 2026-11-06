@@ -101,7 +101,7 @@ def execute_performance_take_deletion_task(
             return {"status": "failed", "outbox_uuid": outbox_uuid}
 
         # 2. Delete only the Take media/row and release its storage usage.
-        # PracticeSource lifetime is independent and belongs to ScoreRevision.
+        # PracticeBundle lifetime is independent and belongs to ScoreRevision.
         with get_worker_db() as db:
             outbox = db.execute(
                 select(PerformanceTakeDeleteOutbox)

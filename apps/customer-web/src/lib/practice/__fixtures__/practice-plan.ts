@@ -11,7 +11,7 @@ export function stepPracticePlan(
   artifact: PracticeScoreArtifact,
   choices: Choices = {},
 ): StepPracticePlan {
-  return planPractice({ sourceId: "practice-source-fixture", artifact }, {
+  return planPractice({ binding: { scoreId: 'score-1', revisionId: 'revision-1', bundleId: "practice-bundle-fixture" }, artifact }, {
     mode: "STEP_BY_STEP",
     recordingMode: "OFF",
     inputSource: "MIDI",
@@ -26,7 +26,7 @@ export function continuousPracticePlan<const T extends Choices = {}>(
   choices: T = {} as T,
 ): ContinuousPracticePlan {
   return planPractice(
-    { sourceId: "practice-source-fixture", artifact },
+    { binding: { scoreId: 'score-1', revisionId: 'revision-1', bundleId: "practice-bundle-fixture" }, artifact },
     {
       mode: "CONTINUOUS_PLAY",
       recordingMode: "OFF",

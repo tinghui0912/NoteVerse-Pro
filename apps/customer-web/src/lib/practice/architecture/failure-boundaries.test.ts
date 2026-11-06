@@ -9,7 +9,7 @@ it('the causal taxonomy is independent of product modes and browser infrastructu
   const tree=source('failure/causal-failure.ts');
   expect(tree.statements.filter(ts.isImportDeclaration)).toHaveLength(0);
   const union=tree.statements.find(node=>ts.isTypeAliasDeclaration(node)&&node.name.text==='PracticeCausalFailure') as ts.TypeAliasDeclaration;
-  expect(union.type.getText(tree).split(' | ')).toEqual(['DeviceFailure','MidiFailure','AudioContextFailure','CaptureFailure','AcousticFailure','InferenceFailure','RecordingFailure','SourceFailure']);
+  expect(union.type.getText(tree).split(' | ')).toEqual(['DeviceFailure','MidiFailure','AudioContextFailure','CaptureFailure','AcousticFailure','InferenceFailure','RecordingFailure','BundleFailure']);
 });
 it.each([['step/step-errors.ts','projectStepFailure'],['continuous/continuous-errors.ts','projectContinuousFailure']])('%s consumes only semantic causal fields in mode policy',(file,name)=>{
   const tree=source(file), fn=tree.statements.find(node=>ts.isFunctionDeclaration(node)&&node.name?.text===name) as ts.FunctionDeclaration;

@@ -29,8 +29,8 @@ let ready: boolean, deviceReady: boolean;
 let clock: ManualClock;
 const environment = { acquireInference: vi.fn(), acousticState: () => 'READY_IDLE', subscribeAcoustic: () => () => {} };
 const binding = {};
-const admittedArtifact = { ...artifact, scoreId: 'score-id', revisionId: 'pinned-revision' };
-const workspace = { get preparedPractice() { return ready ? { admission: { source: { sourceId: 'source', artifact: admittedArtifact, musicXml: '<score />' }, configuration: { mode: fake.mismatchMode ? 'OTHER' : mode, inputSource: 'MIDI', recordingMode: 'OFF' } }, binding } : null; }, clearPreparedPractice: vi.fn(), handoffToReview: vi.fn(), hydrated: true,
+const admittedArtifact = artifact;
+const workspace = { get preparedPractice() { return ready ? { admission: { bundle: { binding: { scoreId: 'score-id', revisionId: 'pinned-revision', bundleId: 'source' }, artifact: admittedArtifact, musicXml: '<score />' }, configuration: { mode: fake.mismatchMode ? 'OTHER' : mode, inputSource: 'MIDI', recordingMode: 'OFF' } }, binding } : null; }, clearPreparedPractice: vi.fn(), handoffToReview: vi.fn(), hydrated: true,
   get profile() { return { mode: fake.incomplete ? null : mode, inputSource: fake.incomplete ? null : 'MIDI', continuous: { recordingMode: 'OFF', liveFeedbackEnabled: false } }; },
   get configuration(): PracticeConfiguration | null { return fake.incomplete ? null : { mode, inputSource: 'MIDI', recordingMode: 'OFF', liveFeedbackEnabled: false }; },
   get resourcePlan() { return this.configuration ? planPracticeResources(this.configuration) : null; }, scope: { kind: 'FULL' },
@@ -44,7 +44,7 @@ vi.mock('@/hooks/practice/use-practice-resource-binding', () => ({ usePracticeRe
     rootHealth: health.port, borrow: () => deviceReady ? borrowedDevices() : null };
 } }));
 vi.mock('@/hooks/queries/use-score-queries', () => ({ useScoreDetail: fake.scoreRequest }));
-vi.mock('@/lib/api', () => ({ practiceApi: { getPracticeSource: fake.sourceRequest } }));
+vi.mock('@/lib/api', () => ({ practiceApi: { getPracticeBundle: fake.sourceRequest } }));
 vi.mock('@/lib/practice/step/step-platform', () => ({ browserStepPlatform: (...args: unknown[]) => fake.step(...args) }));
 vi.mock('@/lib/practice/continuous/continuous-platform', () => ({ browserContinuousPlatform: (...args: unknown[]) => fake.continuous(...args) }));
 vi.mock('@/lib/practice/input-capability', () => ({ evaluatePracticeInputCapabilities: () => ({}), getSelectedInputCapability: () => ({ supported: true }) }));

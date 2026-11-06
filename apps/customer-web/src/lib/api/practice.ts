@@ -1,23 +1,17 @@
 import { apiClient, type ApiResponse } from '../api-client';
-import type { PracticeSourceRead } from '@/generated/api/types.gen';
+import type { PracticeBundleRead } from '@/generated/api/types.gen';
 
-async function getPracticeSource(
+async function getPracticeBundle(
   scoreId: string,
   revisionId: string,
   includeNotation: boolean,
   signal?: AbortSignal,
-): Promise<ApiResponse<PracticeSourceRead>> {
-  return apiClient.get<ApiResponse<PracticeSourceRead>>(
-    `/practice/scores/${scoreId}/revisions/${revisionId}/source`,
+): Promise<ApiResponse<PracticeBundleRead>> {
+  return apiClient.get<ApiResponse<PracticeBundleRead>>(
+    `/practice/scores/${scoreId}/revisions/${revisionId}/bundle`,
     { include_notation: includeNotation },
     { signal },
   );
 }
 
-async function getExactSource(sourceId: string, signal: AbortSignal): Promise<ApiResponse<PracticeSourceRead>> {
-  return apiClient.get<ApiResponse<PracticeSourceRead>>(
-    `/practice/sources/${encodeURIComponent(sourceId)}`, { include_notation: true }, { signal },
-  );
-}
-
-export const practiceApi = { getPracticeSource, getExactSource };
+export const practiceApi = { getPracticeBundle };

@@ -61,12 +61,12 @@ for (const sourceState of ['LIVE', 'DELETED', 'MISMATCH'] as const) {
     page.on('request', request => {
       if (['POST', 'PUT'].includes(request.method())) exportWrites.push(request.url());
       const path = new URL(request.url()).pathname;
-      if (path.includes('/practice-source') || path.startsWith('/api/v1/practice/sources/')) sourceRequests.push(request.url());
+      if (path.includes('/practice-bundle') || path.startsWith('/api/v1/practice/scores/')) sourceRequests.push(request.url());
     });
-    await page.route('**/api/v1/practice/sources/source-1*', route => route.fulfill({
+    await page.route('**/api/v1/practice/scores/*/revisions/*/bundle*', route => route.fulfill({
       status: sourceState === 'DELETED' ? 404 : 200, contentType: 'application/json',
       body: JSON.stringify(sourceState === 'DELETED' ? { public_code: 'resource_not_found' } : {
-        data: { source_id: sourceState === 'MISMATCH' ? 'another-source' : take.source_id, artifact,
+        data: { binding:{score_id:take.score_id,revision_id:take.revision_id,bundle_id:sourceState === 'MISMATCH' ? 'another-bundle' : take.bundle_id}, artifact,
           notation: { musicxml: musicXml, mime_type: 'application/vnd.recordare.musicxml+xml' } },
       }),
     }));
@@ -117,7 +117,7 @@ for (const sourceState of ['LIVE', 'DELETED', 'MISMATCH'] as const) {
     // requesting this same exact identity, never a Take-owned or alternate source.
     expect(sourceRequests).toHaveLength(sourceState === 'LIVE' ? 1 : 2);
     for (const request of sourceRequests) {
-      expect(new URL(request).pathname).toBe('/api/v1/practice/sources/source-1');
+      expect(new URL(request).pathname).toBe(`/api/v1/practice/scores/${take.score_id}/revisions/${take.revision_id}/bundle`);
       expect(new URL(request).searchParams.get('include_notation')).toBe('true');
     }
     expect(exportWrites).toEqual([]);
@@ -146,7 +146,7 @@ test('route exit during saved-media streaming aborts the writer and removes its 
   const bytes=Buffer.from('pending temporary bytes');
   await page.route('**/api/v1/performance-takes/take-1',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({data:{...take,media_byte_size:bytes.length}})}));
   await page.route('**/api/v1/performance-takes/take-1/media',route=>route.fulfill({status:200,contentType:'video/webm',body:bytes}));
-  await page.route('**/api/v1/practice/sources/source-1*',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({data:{source_id:take.source_id,artifact,notation:{musicxml:musicXml,mime_type:'application/vnd.recordare.musicxml+xml'}}})}));
+  await page.route('**/api/v1/practice/scores/*/revisions/*/bundle*',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({data:{binding:{score_id:take.score_id,revision_id:take.revision_id,bundle_id:take.bundle_id},artifact,notation:{musicxml:musicXml,mime_type:'application/vnd.recordare.musicxml+xml'}}})}));
   await page.goto('/en/my-performances/take-1/video-export');
   await expect.poll(()=>page.evaluate(()=>(window as unknown as {__savedMediaWrite:{pending:boolean}}).__savedMediaWrite.pending)).toBe(true);
   expect((await temporaryMediaFiles(page)).filter(name=>!name.endsWith('.crswap'))).toHaveLength(1);

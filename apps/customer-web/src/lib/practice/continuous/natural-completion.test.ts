@@ -35,7 +35,7 @@ describe.each(['MIDI', 'MICROPHONE'] as const)('%s natural completion compositio
     expect(s.session.snapshotSession().completionReason).toBe('SCOPE_COMPLETED');
     const completion = s.completion();
     expect(completion.result.session.plan.resources.input.kind).toBe(inputSource);
-    expect(completion.result.session.plan.source.sourceId).toBe(s.session.snapshotSession().plan.source.sourceId);
+    expect(completion.result.session.plan.bundle.binding.bundleId).toBe(s.session.snapshotSession().plan.bundle.binding.bundleId);
     expect(completion.result.session.plan.scope).toEqual(s.session.snapshotSession().plan.scope);
     expect(completion.result.session.plan.tempoPlan).toEqual(s.session.snapshotSession().plan.tempoPlan);
     expect(completion.result.session.plan).toBe(s.session.plan);

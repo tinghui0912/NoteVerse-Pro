@@ -1,9 +1,9 @@
-"""Create canonical Practice sources and independently owned performance media."""
+"""Create content-addressed Practice bundles, revision bindings and performance media."""
 
 from alembic import op
 import sqlalchemy as sa
 
-revision = "0053_practice_source_takes"
+revision = "0053_practice_bundle_takes"
 down_revision = "0052_practice_step_verifier_provider"
 branch_labels = None
 depends_on = None
@@ -35,19 +35,14 @@ def upgrade() -> None:
         op.execute(f"DROP TYPE IF EXISTS {enum_name}")
 
     op.create_table(
-        "practice_sources",
+        "practice_bundles",
         sa.Column(
             "id",
             sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
             autoincrement=True,
             nullable=False,
         ),
-        sa.Column(
-            "live_revision_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=True
-        ),
-        sa.Column("source_id", sa.String(length=128), nullable=False),
-        sa.Column("source_score_uuid", sa.String(length=36), nullable=False),
-        sa.Column("source_revision_uuid", sa.String(length=36), nullable=False),
+        sa.Column("bundle_id", sa.String(length=128), nullable=False),
         sa.Column("artifact_id", sa.String(length=128), nullable=False),
         sa.Column("artifact_schema_version", sa.Integer(), nullable=False),
         sa.Column("prepared_musicxml_object_key", sa.String(length=768), nullable=False),
@@ -61,48 +56,34 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.CheckConstraint(
             "(status = 'CREATING' AND creation_expires_at IS NOT NULL) OR (status IN ('READY', 'DELETING') AND creation_expires_at IS NULL)",
-            name="ck_practice_sources_creation_lease",
+            name="ck_practice_bundles_creation_lease",
         ),
         sa.CheckConstraint(
-            "status IN ('CREATING', 'READY', 'DELETING')", name="ck_practice_sources_status"
-        ),
-        sa.ForeignKeyConstraint(
-            ["live_revision_id"],
-            ["score_revisions.id"],
-            name="fk_practice_sources_live_revision",
-            ondelete="SET NULL",
+            "status IN ('CREATING', 'READY', 'DELETING')", name="ck_practice_bundles_status"
         ),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("artifact_object_key", name="uq_practice_sources_artifact_key"),
+        sa.UniqueConstraint("artifact_object_key", name="uq_practice_bundles_artifact_key"),
         sa.UniqueConstraint(
-            "prepared_musicxml_object_key", name="uq_practice_sources_musicxml_key"
+            "prepared_musicxml_object_key", name="uq_practice_bundles_musicxml_key"
         ),
-        sa.UniqueConstraint("source_id", name="uq_practice_sources_source_id"),
+        sa.UniqueConstraint("bundle_id", name="uq_practice_bundles_bundle_id"),
     )
     op.create_index(
-        op.f("ix_practice_sources_live_revision_id"),
-        "practice_sources",
-        ["live_revision_id"],
-        unique=False,
-    )
-    op.create_index(
-        "ix_practice_sources_source_score_revision",
-        "practice_sources",
-        ["source_score_uuid", "source_revision_uuid"],
-        unique=False,
-    )
-    op.create_index(
-        "ix_practice_sources_status_creation",
-        "practice_sources",
+        "ix_practice_bundles_status_creation",
+        "practice_bundles",
         ["status", "creation_expires_at"],
         unique=False,
     )
-    op.create_index(
-        "ix_practice_sources_status_owner",
-        "practice_sources",
-        ["status", "live_revision_id"],
-        unique=False,
+    op.create_table(
+        "score_revision_practice_bindings",
+        sa.Column("revision_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=False),
+        sa.Column("bundle_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.ForeignKeyConstraint(["revision_id"], ["score_revisions.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["bundle_id"], ["practice_bundles.id"], ondelete="RESTRICT"),
+        sa.PrimaryKeyConstraint("revision_id"),
     )
+    op.create_index("ix_score_revision_practice_bindings_bundle_id", "score_revision_practice_bindings", ["bundle_id"])
     op.create_table(
         "performance_take_upload_reservations",
         sa.Column(
@@ -113,10 +94,10 @@ def upgrade() -> None:
         ),
         sa.Column("reservation_uuid", sa.String(length=36), nullable=False),
         sa.Column("user_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=False),
-        sa.Column("source_id", sa.String(length=128), nullable=False),
-        sa.Column("source_score_uuid", sa.String(length=36), nullable=False),
-        sa.Column("source_revision_uuid", sa.String(length=36), nullable=False),
-        sa.Column("source_artifact_id", sa.String(length=128), nullable=False),
+        sa.Column("practice_bundle_id", sa.String(length=128), nullable=False),
+        sa.Column("practice_score_uuid", sa.String(length=36), nullable=False),
+        sa.Column("practice_revision_uuid", sa.String(length=36), nullable=False),
+        sa.Column("practice_artifact_id", sa.String(length=128), nullable=False),
         sa.Column("client_request_id", sa.String(length=128), nullable=False),
         sa.Column("take_uuid", sa.String(length=36), nullable=False),
         sa.Column(
@@ -219,10 +200,10 @@ def upgrade() -> None:
         ),
         sa.Column("take_uuid", sa.String(length=36), nullable=False),
         sa.Column("user_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=False),
-        sa.Column("source_id", sa.String(length=128), nullable=False),
-        sa.Column("source_score_uuid", sa.String(length=36), nullable=False),
-        sa.Column("source_revision_uuid", sa.String(length=36), nullable=False),
-        sa.Column("source_artifact_id", sa.String(length=128), nullable=False),
+        sa.Column("practice_bundle_id", sa.String(length=128), nullable=False),
+        sa.Column("practice_score_uuid", sa.String(length=36), nullable=False),
+        sa.Column("practice_revision_uuid", sa.String(length=36), nullable=False),
+        sa.Column("practice_artifact_id", sa.String(length=128), nullable=False),
         sa.Column(
             "linked_score_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=True
         ),
@@ -360,7 +341,7 @@ def upgrade() -> None:
         unique=False,
     )
     op.create_table(
-        "practice_source_delete_outbox",
+        "practice_bundle_delete_outbox",
         sa.Column(
             "id",
             sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
@@ -369,11 +350,11 @@ def upgrade() -> None:
         ),
         sa.Column("outbox_uuid", sa.String(length=36), nullable=False),
         sa.Column(
-            "practice_source_id",
+            "practice_bundle_id",
             sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
             nullable=True,
         ),
-        sa.Column("source_id", sa.String(length=128), nullable=False),
+        sa.Column("bundle_id", sa.String(length=128), nullable=False),
         sa.Column("storage_backend", sa.String(length=32), nullable=False),
         sa.Column("prepared_musicxml_object_key", sa.String(length=768), nullable=False),
         sa.Column("artifact_object_key", sa.String(length=768), nullable=False),
@@ -389,32 +370,32 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(), nullable=False),
         sa.CheckConstraint(
             "status IN ('PENDING', 'DISPATCHED', 'PROCESSING', 'COMPLETED', 'FAILED')",
-            name="ck_practice_source_delete_status",
+            name="ck_practice_bundle_delete_status",
         ),
         sa.ForeignKeyConstraint(
-            ["practice_source_id"],
-            ["practice_sources.id"],
-            name="fk_practice_source_delete_source",
+            ["practice_bundle_id"],
+            ["practice_bundles.id"],
+            name="fk_practice_bundle_delete_bundle",
             ondelete="SET NULL",
         ),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("outbox_uuid", name="uq_practice_source_delete_outbox_uuid"),
+        sa.UniqueConstraint("outbox_uuid", name="uq_practice_bundle_delete_outbox_uuid"),
     )
     op.create_index(
-        op.f("ix_practice_source_delete_outbox_practice_source_id"),
-        "practice_source_delete_outbox",
-        ["practice_source_id"],
+        op.f("ix_practice_bundle_delete_outbox_practice_bundle_id"),
+        "practice_bundle_delete_outbox",
+        ["practice_bundle_id"],
         unique=False,
     )
     op.create_index(
-        "ix_practice_source_delete_source_id",
-        "practice_source_delete_outbox",
-        ["source_id"],
+        "ix_practice_bundle_delete_bundle_id",
+        "practice_bundle_delete_outbox",
+        ["bundle_id"],
         unique=False,
     )
     op.create_index(
-        "ix_practice_source_delete_status_next",
-        "practice_source_delete_outbox",
+        "ix_practice_bundle_delete_status_next",
+        "practice_bundle_delete_outbox",
         ["status", "next_attempt_at"],
         unique=False,
     )

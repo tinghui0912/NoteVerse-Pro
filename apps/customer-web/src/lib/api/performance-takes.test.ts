@@ -19,7 +19,7 @@ it('sends raw MP4 capture as the signed PUT body without rebuilding its Blob', a
 
 it('reserves one structured immutable save request', () => {
   const request: PerformanceTakeUploadReservationRequest = {
-    client_request_id: 'request', source: { source_id: 'source-1' },
+    client_request_id: 'request', practice_binding: { score_id:'score-1',revision_id:'revision-1',bundle_id:'source-1' },
     media: { kind: 'AUDIO', byte_size: 10, mime_type: 'audio/webm' },
     scope: { kind: 'FULL' },
     tempo_selection: { mode: 'SCORE' },

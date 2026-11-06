@@ -57,8 +57,8 @@ def test_shared_backend_generated_exact_artifact():
     timeline = practice_timeline_from_compiled(compiled)
     artifact = practice_score_artifact_from_timeline(
         timeline,
-        score_id="canonical-local-core-score",
-        revision_id="canonical-local-core-revision",
+
+
         score_tempo_segments=compiled.tempo_segments,
     )
     assert artifact == json.loads(

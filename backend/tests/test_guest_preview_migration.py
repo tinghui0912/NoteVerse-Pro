@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from app.db.models import ScoreGuestPreviewGrant, Score, ScoreRevision, User
 from app.db.models.score import RevisionOrigin
 from app.utils.timezone import utc_now_naive
-from tests.test_practice_source_migration import migration_database
+from tests.test_practice_bundle_migration import migration_database
 
 
 def test_fresh_postgres_preview_constraints_and_cascade(monkeypatch):

@@ -32,7 +32,7 @@ async function rig() {
     const microphone = { getTracks: () => [track], getAudioTracks: () => [track], getVideoTracks: () => [] } as unknown as MediaStream;
     const midi = midiDeviceFixture(), binding = new PracticeResourceBinding(planPracticeResources(current.configuration!), { acquireMidi: async () => midi.access, acquireStream: vi.fn(async () => microphone) });
     await binding.open();
-    const admission = Object.freeze({ source: Object.freeze({ sourceId:'source-fixture', artifact:{...(fixture as PracticeScoreArtifact), scoreId:'s', revisionId:'r'}, musicXml:'<score />' }), configuration: Object.freeze({mode:current.configuration!.mode, inputSource:current.configuration!.inputSource, recordingMode:current.configuration!.recordingMode}) });
+    const admission = Object.freeze({ bundle: Object.freeze({ binding: { scoreId: 'score-1', revisionId: 'revision-1', bundleId: 'source-fixture' }, artifact:{...(fixture as PracticeScoreArtifact)}, musicXml:'<score />' }), configuration: Object.freeze({mode:current.configuration!.mode, inputSource:current.configuration!.inputSource, recordingMode:current.configuration!.recordingMode}) });
     return { transaction, value: Object.freeze({ admission, binding }), midi };
   };
   return { get current() { return current; }, view, tree, prepare, environment };
@@ -74,11 +74,11 @@ it('superseding a preparation fences its commit and closes a stale binding', asy
 it('View Review atomically retains canonical references and releases roots; the same-route render preserves the handoff', async () => {
   route.path='/score/s/practice'; const r=await rig();act(()=>r.current.updateProfile({...profile,mode:'CONTINUOUS_PLAY'}));const p=await r.prepare();
   act(()=>{r.current.commitPreparedPractice(p.value,p.transaction);});
-  const result=reviewResult(p.value.admission.source), recording={status:'NOT_RECORDED' as const};
+  const result=reviewResult(p.value.admission.bundle), recording={status:'NOT_RECORDED' as const};
   act(()=>{r.current.handoffToReview({result,recording});});
   const session=r.current.reviewSession!;
   expect(session.result).toBe(result); expect(session.recording).toBe(recording);
-  expect(session.result.session.plan.source.artifact).toBe(p.value.admission.source.artifact); expect(session.musicXml).toBe('<score />');
+  expect(session.result.session.plan.bundle.artifact).toBe(p.value.admission.bundle.artifact); expect(session.musicXml).toBe('<score />');
   expect(r.current.preparedPractice).toBeNull(); expect(p.value.binding.snapshot().state).toBe('CLOSED');
   r.view.rerender(r.tree()); await act(async()=>{}); expect(r.current.reviewSession).toBe(session);
   route.path='/score/s/practice/review';r.view.rerender(r.tree());await act(async()=>{}); expect(r.current.reviewSession).toBe(session);
@@ -87,7 +87,7 @@ it('View Review atomically retains canonical references and releases roots; the 
 });
 it('invalid handoff preserves the prepared transaction; explicit clear drops only Review references', async () => {
   route.path='/score/s/practice';const r=await rig();act(()=>r.current.updateProfile({...profile,mode:'CONTINUOUS_PLAY'}));const p=await r.prepare();act(()=>{r.current.commitPreparedPractice(p.value,p.transaction);});
-  const result=reviewResult(p.value.admission.source), recording={status:'NOT_RECORDED' as const};
+  const result=reviewResult(p.value.admission.bundle), recording={status:'NOT_RECORDED' as const};
   expect(()=>r.current.handoffToReview({result,recording:{status:'READY'} as never})).toThrow();
   expect(r.current.preparedPractice).toBe(p.value);expect(p.value.binding.borrowRoots()).not.toBeNull();expect(r.current.reviewSession).toBeNull();
   act(()=>{r.current.handoffToReview({result,recording});});expect(r.current.reviewSession).not.toBeNull();
@@ -99,14 +99,14 @@ it.each(['clear', 'route', 'provider', 'new-preparation'] as const)('releases th
   act(() => r.current.updateProfile({ ...profile, mode: 'CONTINUOUS_PLAY', continuous: { ...profile.continuous, recordingMode: 'AUDIO' } }));
   const prepared = await r.prepare(); act(() => { r.current.commitPreparedPractice(prepared.value, prepared.transaction); });
   const capture = recordingSinkFixture(); await capture.sink.append(new Blob(['raw capture'])); const media = await capture.sink.seal('audio/webm');
-  const result = reviewResult(prepared.value.admission.source);
+  const result = reviewResult(prepared.value.admission.bundle);
   const recording = { status: 'READY' as const, kind: 'AUDIO' as const, media,
     mimeType: 'audio/webm', timebase: {
       nominalMediaDurationUs: 10000000,
       activeSegments: [{ performanceStartUs: 0, performanceEndUs: 10000000, mediaStartUs: 0, mediaEndUs: 10000000 }]
     }
   };
-  expect(() => r.current.handoffToReview({ result: { ...result, session: { ...result.session, plan: { ...result.session.plan, source: { ...result.session.plan.source, sourceId: 'wrong' } } } }, recording })).toThrow();
+  expect(() => r.current.handoffToReview({ result: { ...result, session: { ...result.session, plan: { ...result.session.plan, bundle: { ...result.session.plan.bundle, binding: {...result.session.plan.bundle.binding,bundleId:'wrong'} } } } }, recording })).toThrow();
   act(() => { r.current.handoffToReview({ result, recording }); });
   expect(prepared.value.binding.snapshot().state).toBe('CLOSED');
   await media.release(); expect(capture.exists()).toBe(true);
@@ -120,8 +120,8 @@ it.each(['clear', 'route', 'provider', 'new-preparation'] as const)('releases th
   expect(capture.remove).toHaveBeenCalledOnce();
 });
 
-function reviewResult(source: { sourceId: string; artifact: import('@/lib/practice/score/artifact').PracticeScoreArtifact }) {
-  const plan = Object.freeze({ ...continuousPracticePlan(source.artifact), source });
+function reviewResult(source: { binding: import("@/lib/practice/bundle/admitted-practice-bundle").PracticeBundleBinding; artifact: import('@/lib/practice/score/artifact').PracticeScoreArtifact }) {
+  const plan = Object.freeze({ ...continuousPracticePlan(source.artifact), bundle: source });
   return createContinuousPerformanceResult({ session: completedContinuousSessionFixture(plan),
     evaluation: unavailableContinuousEvaluation('MIDI', 'CONTINUOUS_ANALYSIS_UNAVAILABLE') });
 }

@@ -9,7 +9,7 @@ only; PRACTITIONER can practice; EDITOR can practice and edit. Only the owner ca
 explicit source/render download, archive and access-URL operations. Raw input delivery,
 revision content and revision history require EDIT. Viewer/Practitioner receive empty
 revision_sources and input_assets projections. Inline rendered-image viewing remains
-VIEW access. Authenticated playback and exact PracticeSource admission require PRACTICE.
+VIEW access. Authenticated playback and exact PracticeBundle admission require PRACTICE.
 
 Practice and editing necessarily disclose machine-readable source to trusted
 Practitioner/Editor browsers. They do not imply a product download action. Invites

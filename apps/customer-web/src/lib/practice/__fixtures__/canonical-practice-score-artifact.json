@@ -1,5 +1,5 @@
 {
-  "artifactId": "practice-score-artifact:7d53bd7fed2ca43a",
+  "artifactId": "practice-score-artifact:f302746d7229b692",
   "events": [
     {
       "durationTicks": 2,
@@ -206,10 +206,8 @@
       "voiceId": "1"
     }
   ],
-  "revisionId": "canonical-local-core-revision",
   "schemaVersion": 1,
   "scoreEndTick": 12,
-  "scoreId": "canonical-local-core-score",
   "scoreTempoSegments": [
     {
       "bpm": 120.0,

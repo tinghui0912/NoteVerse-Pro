@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { projectStepFailure } from '../step/step-errors';
 import { projectContinuousFailure } from '../continuous/continuous-errors';
-import { DeviceFailure, MidiFailure, AudioContextFailure, CaptureFailure, AcousticFailure, InferenceFailure, RecordingFailure, SourceFailure } from './causal-failure';
+import { DeviceFailure, MidiFailure, AudioContextFailure, CaptureFailure, AcousticFailure, InferenceFailure, RecordingFailure, BundleFailure } from './causal-failure';
 const rows = [
   [new DeviceFailure('PERMISSION_DENIED','MICROPHONE'),'STEP_MICROPHONE_PERMISSION_DENIED','STEP_MICROPHONE_PERMISSION_DENIED','MICROPHONE_PERMISSION_DENIED','MICROPHONE_PERMISSION_DENIED'],
   [new DeviceFailure('SOURCE_LOST','MICROPHONE'),'STEP_MICROPHONE_UNAVAILABLE','STEP_MICROPHONE_INFRASTRUCTURE_FAILED','MICROPHONE_SOURCE_LOST','MICROPHONE_SOURCE_LOST'],
@@ -16,7 +16,7 @@ const rows = [
   [new MidiFailure('NO_CONNECTED_INPUT'),'NO_CONNECTED_INPUT','NO_CONNECTED_INPUT','NO_CONNECTED_INPUT','NO_CONNECTED_INPUT'],
   [new MidiFailure('PERMISSION_DENIED'),'STEP_MIDI_PERMISSION_DENIED','STEP_MIDI_PERMISSION_DENIED','MIDI_PERMISSION_DENIED','MIDI_PERMISSION_DENIED'],
   [new RecordingFailure('RECORDER_INIT_FAILED'),'STEP_ATTEMPT_FAILED','STEP_ATTEMPT_FAILED','RECORDING_PREPARATION_FAILED','RECORDER_UNAVAILABLE'],
-  [new SourceFailure('INVALID_SCORE'),'STEP_SCORE_UNAVAILABLE','STEP_SCORE_UNAVAILABLE','SCORE_UNAVAILABLE','SCORE_UNAVAILABLE'],
+  [new BundleFailure('INVALID_SCORE'),'STEP_SCORE_UNAVAILABLE','STEP_SCORE_UNAVAILABLE','SCORE_UNAVAILABLE','SCORE_UNAVAILABLE'],
 ] as const;
 it.each(rows)('$0.kind / $0.code has explicit mode and phase consequences', (failure,stepPreparing,stepActive,continuousPreparing,continuousActive) => {
   expect(projectStepFailure(failure,'PREPARING')).toBe(stepPreparing); expect(projectStepFailure(failure,'ACTIVE')).toBe(stepActive);

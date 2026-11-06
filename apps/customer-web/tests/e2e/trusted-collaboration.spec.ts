@@ -28,7 +28,7 @@ async function mockScore(page: Page, role: Role) {
   await page.route('**/api/v1/render-assets/page-a/view', route => route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect width="200" height="200" fill="white"/></svg>' }));
   await page.route(`**/api/v1/scores/${scoreId}/revisions?**`, route => route.fulfill({ json: { success: true, data: { items: [revision], next_cursor: null } } }));
   await page.route(`**/api/v1/scores/${scoreId}/revisions/*/content`, route => route.fulfill({ status: caps.can_edit ? 200 : 403, json: caps.can_edit ? { success: true, data: { ...revision, revision_id: new URL(route.request().url()).pathname.split('/').at(-2), content: musicXml, mime_type: 'application/vnd.recordare.musicxml+xml' } } : { success: false, public_code: 'no_edit_access' } }));
-  await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/source?**`, route => {
+  await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/bundle?**`, route => {
     expect(caps.can_practice).toBe(true);
     expect(new URL(route.request().url()).searchParams.get('include_notation')).toBe('true');
     return route.fulfill({ json: { success: true, data: { source_id: 'trusted-admission', artifact: { ...artifactFixture, scoreId, revisionId }, notation: { musicxml: musicXml, mime_type: 'application/vnd.recordare.musicxml+xml' } } } });
@@ -69,7 +69,7 @@ test('Practitioner completes Setup source admission without direct editor source
   page.on('request', request => { if (request.url().includes('/api/v1/')) reads.push(request.url()); });
   await openPreparedPractice(page, scoreId, revisionId);
   expect(reads.filter(url => url.includes('/content') || url.includes('/revision-sources/'))).toEqual([]);
-  expect(reads.filter(url => url.includes('/source?'))).toHaveLength(1);
+  expect(reads.filter(url => url.includes('/bundle?'))).toHaveLength(1);
 });
 
 test('Editor loads MusicXML and saves a revision without download permission', async ({ page }) => {

@@ -1,4 +1,5 @@
 'use client';
+import type { PracticeBundleBinding } from '@/lib/practice/bundle/admitted-practice-bundle';
 
 import { releaseLocalMediaAsset } from '@/lib/practice/media/local-media-asset';
 import type { LocalMediaAsset } from '@/lib/practice/media/local-media-asset';
@@ -61,7 +62,7 @@ export function useDeletePerformanceTake() {
 }
 
 export interface SavePerformanceTakeInput {
-  sourceId: string;
+  binding: PracticeBundleBinding;
   clientRequestId: string;
   ticksPerQuarter: number;
   mediaKind: CaptureMediaKind;
@@ -91,8 +92,8 @@ export function useSavePerformanceTake() {
     mutationFn: async (input: SavePerformanceTakeInput) => {
       const request: PerformanceTakeUploadReservationRequest = {
         client_request_id: input.clientRequestId,
-        source: {
-          source_id: input.sourceId,
+        practice_binding: {
+          score_id: input.binding.scoreId, revision_id: input.binding.revisionId, bundle_id: input.binding.bundleId,
         },
         media: {
           kind: input.mediaKind,
@@ -216,7 +217,9 @@ function reservationMatchesExecution(
       reservation.score_timebase?.ticks_per_quarter,
       input.ticksPerQuarter
     ) &&
-    reservation.metadata?.source?.source_id === input.sourceId &&
+    reservation.metadata?.practice_binding?.bundle_id === input.binding.bundleId
+    && reservation.metadata.practice_binding.score_id === input.binding.scoreId
+    && reservation.metadata.practice_binding.revision_id === input.binding.revisionId &&
     Boolean(scope) &&
     scope.kind === input.scope.kind &&
     scope.start_tick === input.scope.startTick &&
@@ -239,7 +242,7 @@ function assertTakeMatchesExecution(
       take.score_timebase?.ticks_per_quarter,
       input.ticksPerQuarter
     ) ||
-    take.source_id !== input.sourceId ||
+    take.bundle_id !== input.binding.bundleId || take.score_id !== input.binding.scoreId || take.revision_id !== input.binding.revisionId ||
     take.scope_type !== input.scope.kind ||
     take.scope_start_tick !== input.scope.startTick ||
     take.scope_terminal_tick !== input.scope.terminalTick ||

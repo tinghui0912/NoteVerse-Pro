@@ -11,7 +11,7 @@ export type ReviewScoreState =
 export function resolveReviewScoreState({
   result,
 }: TransientReviewSession): ReviewScoreState {
-  const artifact = result.session.plan.source.artifact;
+  const artifact = result.session.plan.bundle.artifact;
   try {
     if (result.session.plan.scope.kind === "FULL")
       return {

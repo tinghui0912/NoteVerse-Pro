@@ -131,7 +131,7 @@ def test_client_cannot_choose_durable_score_timebase():
 
     payload = {
         "client_request_id": "request",
-        "source": {"source_id": "source"},
+        "practice_binding": {"score_id":"score","revision_id":"revision","bundle_id":"bundle"},
         "media": {"kind": "AUDIO", "byte_size": 1, "mime_type": "audio/webm"},
         "scope": {"kind": "FULL"},
         "tempo_selection": {"mode": "SCORE"},

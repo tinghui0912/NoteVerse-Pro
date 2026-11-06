@@ -67,7 +67,7 @@ function useWorkspaceState(createEnvironment: () => PracticeEnvironment) {
       || completion.result.session.plan.resources.input.kind !== prepared.current.admission.configuration.inputSource) {
       throw new Error('Matching prepared Continuous Practice required for Review handoff.');
     }
-    const session = createTransientReviewSession(completion, prepared.current.admission.source);
+    const session = createTransientReviewSession(completion, prepared.current.admission.bundle);
     clearPreparedPractice();
     const previous = review.current; review.current = session;
     setReviewSession(session); void releaseTransientReviewSession(previous);

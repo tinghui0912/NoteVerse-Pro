@@ -21,7 +21,7 @@ describe('video export session saved-take parsing', () => {
     const result = createVideoExportSessionFromSavedTake(
       take,
       ownedBlob(['video'], { type: 'video/webm' }),
-      { sourceId: take.source_id, artifact: artifact }
+      { binding: { scoreId: 'score-1', revisionId: 'revision-1', bundleId: take.bundle_id }, artifact: artifact }
     );
     expect(result.status).toBe('supported');
     if (result.status === 'supported') {
@@ -39,7 +39,7 @@ describe('video export session saved-take parsing', () => {
     const result = createVideoExportSessionFromSavedTake(
       { ...take, media_mime_type: 'video/mp4' },
       blob,
-      { sourceId: take.source_id, artifact }
+      { binding: { scoreId: 'score-1', revisionId: 'revision-1', bundleId: take.bundle_id }, artifact }
     );
     expect(result.status).toBe('supported');
     if (result.status !== 'supported') throw new Error('Expected MP4 source');
@@ -52,14 +52,14 @@ describe('video export session saved-take parsing', () => {
       createVideoExportSessionFromSavedTake(
         { ...take, media_kind: 'AUDIO' },
         ownedBlob(['audio']),
-        { sourceId: take.source_id, artifact: artifact }
+        { binding: { scoreId: 'score-1', revisionId: 'revision-1', bundleId: take.bundle_id }, artifact: artifact }
       )
     ).toMatchObject({ status: 'unsupported', reason: 'video_required' });
     expect(
       createVideoExportSessionFromSavedTake(
         { ...take, deletion_status: 'DELETING' },
         ownedBlob(['video']),
-        { sourceId: take.source_id, artifact: artifact }
+        { binding: { scoreId: 'score-1', revisionId: 'revision-1', bundleId: take.bundle_id }, artifact: artifact }
       )
     ).toMatchObject({ status: 'unsupported', reason: 'take_deleting' });
   });
@@ -70,7 +70,7 @@ describe('video export session saved-take parsing', () => {
         take,
         ownedBlob(['video'], { type: 'video/webm' }),
         {
-          sourceId: take.source_id,
+          binding: { scoreId: 'score-1', revisionId: 'revision-1', bundleId: take.bundle_id },
           artifact: { ...artifact, artifactId: 'different-artifact' },
         }
       )
@@ -83,7 +83,7 @@ describe('video export session saved-take parsing', () => {
   it('keeps empty saved media unavailable without constructing a export session', () => {
     expect(
       createVideoExportSessionFromSavedTake(take, ownedBlob([]), {
-        sourceId: take.source_id,
+        binding: { scoreId: 'score-1', revisionId: 'revision-1', bundleId: take.bundle_id },
         artifact: artifact,
       })
     ).toEqual({
@@ -117,7 +117,7 @@ describe('video export session saved-take parsing', () => {
         createVideoExportSessionFromSavedTake(
           { ...take, ...patch },
           ownedBlob(['video'], { type: 'video/webm' }),
-          { sourceId: take.source_id, artifact: artifact }
+          { binding: { scoreId: 'score-1', revisionId: 'revision-1', bundleId: take.bundle_id }, artifact: artifact }
         )
       ).toEqual({ status: 'unsupported', reason });
     }
@@ -174,7 +174,7 @@ describe('video export session saved-take parsing', () => {
           scope_end_group_id: 'group-2',
         },
         ownedBlob(['video'], { type: 'video/webm' }),
-        { sourceId: take.source_id, artifact: artifact }
+        { binding: { scoreId: 'score-1', revisionId: 'revision-1', bundleId: take.bundle_id }, artifact: artifact }
       )
     ).toMatchObject({
       status: 'unsupported',
@@ -186,7 +186,7 @@ describe('video export session saved-take parsing', () => {
     const result = createVideoExportSessionFromSavedTake(
       take,
       ownedBlob(['video'], { type: 'video/webm' }),
-      { sourceId: take.source_id, artifact: artifact }
+      { binding: { scoreId: 'score-1', revisionId: 'revision-1', bundleId: take.bundle_id }, artifact: artifact }
     );
     expect(result.status).toBe('supported');
     if (result.status === 'supported') {
@@ -200,7 +200,7 @@ describe('video export session saved-take parsing', () => {
       createVideoExportSessionFromSavedTake(
         { ...take, scope_type: 'RANGE' },
         ownedBlob(['video'], { type: 'video/webm' }),
-        { sourceId: take.source_id, artifact: artifact }
+        { binding: { scoreId: 'score-1', revisionId: 'revision-1', bundleId: take.bundle_id }, artifact: artifact }
       )
     ).toMatchObject({
       status: 'unsupported',
@@ -212,7 +212,7 @@ describe('video export session saved-take parsing', () => {
     const result = createVideoExportSessionFromSavedTake(
       { ...take, scope_type: 'FULL' },
       ownedBlob(['video'], { type: 'video/webm' }),
-      { sourceId: take.source_id, artifact: artifact }
+      { binding: { scoreId: 'score-1', revisionId: 'revision-1', bundleId: take.bundle_id }, artifact: artifact }
     );
     expect(result.status).toBe('supported');
   });
@@ -226,7 +226,7 @@ describe('video export session saved-take parsing', () => {
         scope_end_group_id: 'group-2',
       },
       ownedBlob(['video'], { type: 'video/webm' }),
-      { sourceId: take.source_id, artifact: artifact }
+      { binding: { scoreId: 'score-1', revisionId: 'revision-1', bundleId: take.bundle_id }, artifact: artifact }
     );
     expect(result.status).toBe('supported');
     if (result.status === 'supported') {
@@ -246,7 +246,7 @@ describe('video export session saved-take parsing', () => {
         scope_end_group_id: 'missing-group',
       },
       ownedBlob(['video'], { type: 'video/webm' }),
-      { sourceId: take.source_id, artifact: artifact }
+      { binding: { scoreId: 'score-1', revisionId: 'revision-1', bundleId: take.bundle_id }, artifact: artifact }
     );
     expect(result).toMatchObject({
       status: 'unsupported',
@@ -260,7 +260,7 @@ it('uses validated durable scope ticks and tempo without replacing saved integer
   const result = createVideoExportSessionFromSavedTake(
     persisted,
     ownedBlob(['video']),
-    { sourceId: take.source_id, artifact }
+    { binding: { scoreId: 'score-1', revisionId: 'revision-1', bundleId: take.bundle_id }, artifact }
   );
   expect(result.status).toBe('supported');
   if (result.status === 'supported') {
@@ -280,7 +280,7 @@ it.each([0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1, 60])(
     };
     expect(
       createVideoExportSessionFromSavedTake(mismatch, ownedBlob(['video']), {
-        sourceId: take.source_id,
+        binding: { scoreId: 'score-1', revisionId: 'revision-1', bundleId: take.bundle_id },
         artifact,
       })
     ).toEqual({ status: 'unsupported', reason: 'score_timebase_mismatch' });
@@ -291,7 +291,7 @@ it('rejects missing durable score timebase even with matching artifact identity 
   Reflect.deleteProperty(mismatch, 'score_timebase');
   expect(
     createVideoExportSessionFromSavedTake(mismatch, ownedBlob(['video']), {
-      sourceId: take.source_id,
+      binding: { scoreId: 'score-1', revisionId: 'revision-1', bundleId: take.bundle_id },
       artifact,
     })
   ).toEqual({ status: 'unsupported', reason: 'score_timebase_mismatch' });

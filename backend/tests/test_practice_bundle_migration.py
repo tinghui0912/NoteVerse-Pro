@@ -12,20 +12,20 @@ from alembic import command
 from alembic.config import Config
 from sqlmodel import SQLModel
 
-from app.db.models import User, Score, ScoreRevision
+from app.db.models import User, Score, ScoreRevision, ScoreRevisionPracticeBinding
 from app.db.models.score import RevisionOrigin
 
 
 @contextmanager
 def migration_database(monkeypatch):
-    raw_url = os.environ.get("NOTEVERSE_TEST_PRACTICE_SOURCE_POSTGRES_URL")
+    raw_url = os.environ.get("NOTEVERSE_TEST_PRACTICE_BUNDLE_POSTGRES_URL")
     if not raw_url:
         pytest.skip(
-            "Set NOTEVERSE_TEST_PRACTICE_SOURCE_POSTGRES_URL for PostgreSQL migration validation"
+            "Set NOTEVERSE_TEST_PRACTICE_BUNDLE_POSTGRES_URL for PostgreSQL migration validation"
         )
     url = make_url(raw_url).set(drivername="postgresql+psycopg")
     assert (url.database or "").startswith("noteverse_test_")
-    schema = "practice_source_migration_" + uuid4().hex
+    schema = "practice_bundle_migration_" + uuid4().hex
     admin = sa.create_engine(url)
     with admin.begin() as connection:
         connection.execute(sa.text(f'CREATE SCHEMA "{schema}"'))
@@ -49,8 +49,9 @@ def migration_database(monkeypatch):
 def assert_current_source_schema(engine):
     inspector = sa.inspect(engine)
     for name in [
-        "practice_sources",
-        "practice_source_delete_outbox",
+        "practice_bundles",
+        "score_revision_practice_bindings",
+        "practice_bundle_delete_outbox",
         "performance_takes",
         "performance_take_upload_reservations",
     ]:
@@ -84,7 +85,7 @@ def assert_current_source_schema(engine):
 
 def test_fresh_foundation_schema_matches_models_and_revision_ownership(monkeypatch):
     from sqlalchemy.orm import Session
-    from app.db.models import PracticeSourceRecord
+    from app.db.models import PracticeBundleRecord
 
     with migration_database(monkeypatch) as (engine, config):
         command.upgrade(config, "head")
@@ -97,7 +98,6 @@ def test_fresh_foundation_schema_matches_models_and_revision_ownership(monkeypat
             "score_memberships",
             "score_guest_preview_grants",
             "score_invites",
-
         ):
             table = SQLModel.metadata.tables[name]
             assert {column["name"] for column in inspector.get_columns(name)} == set(
@@ -106,10 +106,10 @@ def test_fresh_foundation_schema_matches_models_and_revision_ownership(monkeypat
         for name in ("performance_takes", "performance_take_upload_reservations"):
             table = SQLModel.metadata.tables[name]
             provenance = {
-                "source_id",
-                "source_score_uuid",
-                "source_revision_uuid",
-                "source_artifact_id",
+                "practice_bundle_id",
+                "practice_score_uuid",
+                "practice_revision_uuid",
+                "practice_artifact_id",
                 "score_title_snapshot",
             }
             assert provenance <= set(table.columns.keys())
@@ -137,11 +137,8 @@ def test_fresh_foundation_schema_matches_models_and_revision_ownership(monkeypat
             )
             db.add(revision)
             db.flush()
-            source = PracticeSourceRecord(
-                live_revision_id=revision.id,
-                source_id="source",
-                source_score_uuid="score",
-                source_revision_uuid="revision",
+            source = PracticeBundleRecord(
+                bundle_id="source",
                 artifact_id="artifact",
                 artifact_schema_version=1,
                 prepared_musicxml_object_key="xml",
@@ -153,9 +150,10 @@ def test_fresh_foundation_schema_matches_models_and_revision_ownership(monkeypat
                 status="READY",
             )
             db.add(source)
+            db.flush()
+            db.add(ScoreRevisionPracticeBinding(revision_id=revision.id, bundle_id=source.id))
             db.commit()
             db.delete(revision)
             db.commit()
             db.refresh(source)
-            assert source.live_revision_id is None
-            assert source.source_revision_uuid == "revision"
+            assert db.get(ScoreRevisionPracticeBinding, revision.id) is None

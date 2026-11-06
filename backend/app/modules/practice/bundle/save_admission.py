@@ -24,7 +24,7 @@ async def lock_live_save_access(
 ) -> ScoreAccessContext:
     """Keep Score, Revision and the selected access facts locked until caller commit.
 
-    Score precedes Revision and Source, matching Score deletion and Source creation.
+    Score precedes Revision and Bundle, matching Score deletion and Bundle creation.
     Reauthorization under the selected fact locks fails closed if that authority changed.
     """
     score = (

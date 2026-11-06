@@ -46,7 +46,7 @@ export function createContinuousPerformanceResult({
     if (evaluation.assignment.sessionDomainId !== session.localSessionId) {
       throw new Error("Continuous result session identity is inconsistent.");
     }
-    const expected = plan.source.artifact.moments
+    const expected = plan.bundle.artifact.moments
       .slice(plan.scope.startIndex, plan.scope.endIndex + 1)
       .flatMap((group) => group.attacks);
     const assigned = evaluation.assignment.groups.flatMap(

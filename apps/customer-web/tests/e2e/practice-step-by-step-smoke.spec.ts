@@ -43,7 +43,7 @@ const selectableMusicXml = `<?xml version="1.0" encoding="UTF-8"?>
 
 const smokeArtifact: PracticeScoreArtifact = {
   schemaVersion: 1, ticksPerQuarter: 1,
-  artifactId: 'practice-score-artifact:smoke-test', scoreId, revisionId,
+  artifactId: 'practice-score-artifact:smoke-test',
    scoreEndTick: 4,
   notes: [60, 62, 64].map((pianoKey, i) => ({ noteId: `note-${i}`, eventId: `e-${i}`, pianoKey,
     renderNoteId: ['select-start-note', 'middle-note', 'select-end-note'][i], measureNumber: '1', staffId: '1', voiceId: '1', tieTypes: [] })),
@@ -217,11 +217,11 @@ async function setupPracticeMocks(
   );
 
   // One Practice Source envelope supplies the artifact and requested notation.
-  await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/source*`, route =>
+  await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/bundle*`, route =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: apiResponse({ source_id: 'source-1', artifact: artifactOverride ?? smokeArtifact, notation:
+        body: apiResponse({ binding:{score_id:scoreId,revision_id:revisionId,bundle_id:'bundle-1'}, artifact: artifactOverride ?? smokeArtifact, notation:
           new URL(route.request().url()).searchParams.get('include_notation') === 'true'
             ? { musicxml: selectableMusicXml, mime_type: 'application/vnd.recordare.musicxml+xml' } : null }),
       })

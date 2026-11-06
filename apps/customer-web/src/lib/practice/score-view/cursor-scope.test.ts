@@ -15,8 +15,8 @@ function artifact(): PracticeScoreArtifact {
   ];
   return {
     schemaVersion: PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION, ticksPerQuarter: 100,
-    scoreId: 'score',
-    revisionId: 'revision',
+
+
     artifactId: 'artifact',
     notes: groups.map(g => ({ noteId: g.groupId, eventId: g.groupId, pianoKey: 60, renderNoteId: g.renderNoteIds[0], measureNumber: '1', staffId: '1', voiceId: '1', tieTypes: [] })),
     events: groups.map(g => ({ eventId: g.groupId, onsetTick: g.onsetTick, durationTicks: g.canonicalEndTick - g.onsetTick })),
@@ -42,7 +42,7 @@ function adapter() {
 
 function session(allowedNoteIds: string[]): VideoExportSession {
   return {
-    sessionId: 'session', sourceId: 'source-1',
+    sessionId: 'session', bundleId: 'source-1',
     scoreIdentity: { scoreId: 'score', revisionId: 'revision', artifactId: 'artifact' },
     video: {
       status: 'READY',

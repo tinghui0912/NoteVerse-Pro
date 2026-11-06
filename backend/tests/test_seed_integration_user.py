@@ -76,7 +76,7 @@ async def test_seed_existing_integration_user_is_read_only(monkeypatch: pytest.M
     )
     source = ScoreRevisionSource(
         id=401,
-        source_uuid="integration-practice-source",
+        source_uuid="integration-practice-bundle",
         revision_id=revision.id,
         format=RevisionSourceFormat.MUSICXML,
         storage_backend="s3",

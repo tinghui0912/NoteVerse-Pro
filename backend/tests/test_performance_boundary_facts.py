@@ -118,7 +118,7 @@ def test_generic_projection_retains_boundary_identity_source_order_and_duplicate
         (2, -8, [0, 8]),
     ],
 )
-def test_sound_offsets_preserve_source_identity_and_resolve_unambiguous_playback_owner(
+def test_sound_offsets_preserve_bundle_identity_and_resolve_unambiguous_playback_owner(
     source, offset, expected
 ):
     notation = f'<direction><offset sound="yes">{offset}</offset><sound tempo="90"/></direction>'

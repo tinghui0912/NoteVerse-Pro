@@ -90,9 +90,9 @@ export default function PracticeReviewPage({
   const reviewSession = workspace.reviewSession;
   const result = reviewSession?.result ?? null;
   const recording = reviewSession?.recording ?? null;
-  const artifact = reviewSession?.result.session.plan.source.artifact ?? null;
+  const artifact = reviewSession?.result.session.plan.bundle.artifact ?? null;
   const xmlContent = reviewSession?.musicXml ?? null;
-  const isValidCompletion = Boolean(result && result.session.plan.source.artifact.scoreId === id);
+  const isValidCompletion = Boolean(result && result.session.plan.bundle.binding.scoreId === id);
   const scoreState = useMemo(() => reviewSession ? resolveReviewScoreState(reviewSession) : null, [reviewSession]);
   const isScoreIdentityConfirmed = isValidCompletion && scoreState?.status === 'READY';
   const videoExportSession = useMemo(() => {
@@ -283,8 +283,8 @@ export default function PracticeReviewPage({
 
     try {
       await saveRecordingMutation.mutateAsync({
-        sourceId: result.session.plan.source.sourceId,
-        ticksPerQuarter: result.session.plan.source.artifact.ticksPerQuarter,
+        binding: result.session.plan.bundle.binding,
+        ticksPerQuarter: result.session.plan.bundle.artifact.ticksPerQuarter,
         clientRequestId: clientRequestIdRef.current ?? '',
         mediaKind: saveMedia.kind,
         media: saveMedia.media,
@@ -320,8 +320,8 @@ export default function PracticeReviewPage({
 
   const performLeave = useCallback((target: 'score' | 'practice') => {
     workspace.clearReviewSession();
-    router.push(target === 'score' ? `/score/${id}` : practiceLocation(id, 'setup', result?.session.plan.source.artifact.revisionId));
-  }, [id, router, result?.session.plan.source.artifact.revisionId, workspace]);
+    router.push(target === 'score' ? `/score/${id}` : practiceLocation(id, 'setup', result?.session.plan.bundle.binding.revisionId));
+  }, [id, router, result?.session.plan.bundle.binding.revisionId, workspace]);
 
   const requestLeave = useCallback(
     (target: 'score' | 'practice') => {

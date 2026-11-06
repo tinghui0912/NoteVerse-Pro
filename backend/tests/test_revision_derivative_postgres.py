@@ -28,7 +28,7 @@ from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.score_assets.render_outbox_service import render_outbox_service
 from app.modules.playback.outbox_service import playback_outbox_service
 from app.storage import LocalFileStorage
-from tests.test_practice_source_migration import migration_database
+from tests.test_practice_bundle_migration import migration_database
 from tests.test_score_revision_services import AsyncSessionAdapter, MUSICXML_2
 
 

@@ -1,11 +1,10 @@
 from pathlib import Path
-from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
+from tests.practice_bundle_fixtures import bundle_service_for_notation, authorize_test_revision
 import pytest
 
 from app.core.exceptions import ExternalServiceException, ValidationException
-from app.modules.practice.source.service import PracticeSourceService
 from app.modules.practice.score.piano_key import PracticeScoreInvalidError
 from app.modules.practice.score.domain import (
     CompiledPracticeScore,
@@ -36,9 +35,7 @@ def make_timeline(keys):
 @pytest.mark.parametrize("key", [21, 108])
 def test_piano_endpoints_are_practice_ready(key):
     timeline = make_timeline([key])
-    artifact = practice_score_artifact_from_timeline(
-        timeline, score_id="s", revision_id="r", score_tempo_segments=()
-    )
+    artifact = practice_score_artifact_from_timeline(timeline, score_tempo_segments=())
     assert artifact["schemaVersion"] == 1
     assert [a["pianoKey"] for a in artifact["moments"][0]["attacks"]] == [key]
 
@@ -62,22 +59,23 @@ def test_entire_revision_is_invalid_even_if_an_earlier_section_is_playable(keys)
         (
             RuntimeError("parser unavailable"),
             ExternalServiceException,
-            "practice_source_failed",
+            "practice_bundle_failed",
             503,
         ),
     ],
 )
 async def test_score_invalidity_is_distinct_from_infrastructure(error, exception, code, status):
-    service = PracticeSourceService()
-    access = SimpleNamespace(
-        score=SimpleNamespace(score_uuid="s"), revision=SimpleNamespace(revision_uuid="r")
-    )
-    service._authorized_musicxml_path = AsyncMock(return_value=(access, Path("score.musicxml")))
+    service = bundle_service_for_notation(b"xml")
     with (
         patch.object(Path, "read_bytes", return_value=b"xml"),
-        patch.object(service.builder, "build", side_effect=error),
+        patch.object(service.compiler, "compile", side_effect=error),
     ):
         with pytest.raises(exception) as caught:
-            await service.read_source(AsyncMock(), "s", 1, "r")
+            await service.read_bundle(AsyncMock(), "s", 1, "r")
     assert caught.value.code == code
     assert caught.value.status_code == status
+
+
+@pytest.fixture(autouse=True)
+def authorized_revision(monkeypatch):
+    authorize_test_revision(monkeypatch)

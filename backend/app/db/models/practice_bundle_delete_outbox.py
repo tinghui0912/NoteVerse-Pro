@@ -24,7 +24,7 @@ from app.utils.timezone import utc_now_naive
 bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 
 
-class PracticeSourceDeleteOutboxStatus(str, enum.Enum):
+class PracticeBundleDeleteOutboxStatus(str, enum.Enum):
     PENDING = "PENDING"
     DISPATCHED = "DISPATCHED"
     PROCESSING = "PROCESSING"
@@ -32,16 +32,16 @@ class PracticeSourceDeleteOutboxStatus(str, enum.Enum):
     FAILED = "FAILED"
 
 
-class PracticeSourceDeleteOutbox(SQLModel, table=True):  # type: ignore[call-arg]
-    __tablename__ = "practice_source_delete_outbox"
+class PracticeBundleDeleteOutbox(SQLModel, table=True):  # type: ignore[call-arg]
+    __tablename__ = "practice_bundle_delete_outbox"
     __table_args__ = (
-        UniqueConstraint("outbox_uuid", name="uq_practice_source_delete_outbox_uuid"),
+        UniqueConstraint("outbox_uuid", name="uq_practice_bundle_delete_outbox_uuid"),
         CheckConstraint(
             "status IN ('PENDING', 'DISPATCHED', 'PROCESSING', 'COMPLETED', 'FAILED')",
-            name="ck_practice_source_delete_status",
+            name="ck_practice_bundle_delete_status",
         ),
-        Index("ix_practice_source_delete_status_next", "status", "next_attempt_at"),
-        Index("ix_practice_source_delete_source_id", "source_id"),
+        Index("ix_practice_bundle_delete_status_next", "status", "next_attempt_at"),
+        Index("ix_practice_bundle_delete_bundle_id", "bundle_id"),
     )
 
     id: Optional[int] = Field(
@@ -52,27 +52,27 @@ class PracticeSourceDeleteOutbox(SQLModel, table=True):  # type: ignore[call-arg
         default_factory=lambda: str(uuid4()),
         sa_column=Column(String(36), nullable=False),
     )
-    practice_source_id: Optional[int] = Field(
+    practice_bundle_id: Optional[int] = Field(
         default=None,
         sa_column=Column(
             bigint_pk_type,
             ForeignKey(
-                "practice_sources.id", ondelete="SET NULL", name="fk_practice_source_delete_source"
+                "practice_bundles.id", ondelete="SET NULL", name="fk_practice_bundle_delete_bundle"
             ),
             index=True,
             nullable=True,
         ),
     )
-    source_id: str = Field(sa_column=Column(String(128), nullable=False))
+    bundle_id: str = Field(sa_column=Column(String(128), nullable=False))
     storage_backend: str = Field(sa_column=Column(String(32), nullable=False))
     prepared_musicxml_object_key: str = Field(sa_column=Column(String(768), nullable=False))
     artifact_object_key: str = Field(sa_column=Column(String(768), nullable=False))
     status: str = Field(
-        default=PracticeSourceDeleteOutboxStatus.PENDING.value,
+        default=PracticeBundleDeleteOutboxStatus.PENDING.value,
         sa_column=Column(
             String(24),
             nullable=False,
-            default=PracticeSourceDeleteOutboxStatus.PENDING.value,
+            default=PracticeBundleDeleteOutboxStatus.PENDING.value,
         ),
     )
     attempt_count: int = Field(default=0, sa_column=Column(Integer, nullable=False, default=0))

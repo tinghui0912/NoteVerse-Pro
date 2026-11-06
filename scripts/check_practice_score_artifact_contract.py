@@ -96,8 +96,8 @@ def _canonical_artifact(source: Path = CANONICAL_MUSICXML) -> dict[str, Any]:
 
     return practice_score_artifact_from_timeline(
         timeline,
-        score_id="canonical-local-core-score",
-        revision_id="canonical-local-core-revision",
+
+
         score_tempo_segments=compiled.tempo_segments,
     )
 

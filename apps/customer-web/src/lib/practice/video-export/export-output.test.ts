@@ -133,7 +133,7 @@ function rig() {
   );
   const session: VideoExportSession = {
     sessionId: "export",
-    sourceId: "source",
+    bundleId: "source",
     scoreIdentity: { scoreId: "s", revisionId: "r", artifactId: "a" },
     video: {
       status: "READY",

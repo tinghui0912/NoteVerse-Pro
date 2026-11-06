@@ -190,7 +190,7 @@ vi.mock('@/hooks/queries/use-performance-take-queries', () => ({
 
 
 const createMockArtifact = (overrides: Record<string, unknown> = {}) => ({
-  schemaVersion: 1 as const, ticksPerQuarter: 1, scoreId: 'score-123', revisionId: 'rev-1', artifactId: 'art-1',
+  schemaVersion: 1 as const, ticksPerQuarter: 1,   artifactId: 'art-1',
    scoreEndTick: 20,
   notes: Array.from({ length: 5 }, (_, i) => ({ noteId: `note-${i+1}`, eventId: `event-${i+1}`, pianoKey: 60, renderNoteId: `n-${i+1}`, measureNumber: '1', staffId: '', voiceId: '', tieTypes: [] })),
   events: Array.from({ length: 5 }, (_, i) => ({ eventId: `event-${i+1}`, onsetTick: i*4, durationTicks: 4 })),
@@ -206,7 +206,7 @@ const reviewWorkspace = { reviewSession: null as TransientReviewSession | null, 
 vi.mock('@/contexts/practice-workspace-context', () => ({ usePracticeWorkspace: () => reviewWorkspace }));
 function provideReview(completion: ContinuousPracticeCompletion) {
   reviewWorkspace.reviewSession = createTransientReviewSession(completion, {
-    sourceId: completion.result.session.plan.source.sourceId, artifact: currentMockArtifact, musicXml: '<score-partwise></score-partwise>',
+    binding: { scoreId: 'score-123', revisionId: 'revision-1', bundleId: completion.result.session.plan.bundle.binding.bundleId }, artifact: currentMockArtifact, musicXml: '<score-partwise></score-partwise>',
   });
 }
 
@@ -322,7 +322,7 @@ function reviewResult(options: {
       })), scoreEndTick: groups.length * 4,
     });
   }
-  const plan = planPractice({ sourceId: 'source-fixture', artifact: currentMockArtifact }, {
+  const plan = planPractice({ binding: { scoreId: 'score-123', revisionId: 'revision-1', bundleId: 'source-fixture' }, artifact: currentMockArtifact }, {
     mode: 'CONTINUOUS_PLAY', inputSource: options.inputSource, recordingMode: 'OFF',
     scope: { kind: 'FULL' }, tempoSelection: options.tempoSelection, metronomeEnabled: false,
   });
@@ -332,7 +332,7 @@ function reviewResult(options: {
   if (evaluation.status === 'COMPLETE') {
     if (groups.length) evaluation = { ...evaluation, assignment: { ...evaluation.assignment, sessionDomainId: session.localSessionId } };
     else {
-      const evaluator = new ContinuousEvaluationSession({ artifact: plan.source.artifact, scope: plan.scope,
+      const evaluator = new ContinuousEvaluationSession({ artifact: plan.bundle.artifact, scope: plan.scope,
         inputSource: options.inputSource, sessionDomainId: session.localSessionId, timeline: { tickToTimeMs: tick => tick * 500 } });
       evaluator.publish({ publicationId: 'coverage', sessionDomainId: session.localSessionId,
         observations: [], analyzedThroughPerformanceMs: 10000, availabilitySessionTimeMs: 10000 });
@@ -404,7 +404,7 @@ describe('PracticeReviewPage', () => {
       onError: error => { throw error; },
     });
     const completion = createVideoCompletion();
-    const plan = planPractice(completion.result.session.plan.source, {
+    const plan = planPractice(completion.result.session.plan.bundle, {
       mode: 'CONTINUOUS_PLAY', inputSource: 'MICROPHONE', recordingMode: 'OFF', metronomeEnabled: false,
       scope: { kind: 'RANGE', startGroupId: 'g-2', endGroupId: 'g-2' }, tempoSelection: { mode: 'SCORE' },
     });
@@ -430,7 +430,7 @@ describe('PracticeReviewPage', () => {
   });
 
   it('renders expired empty state when handoff scoreId does not match url', () => {
-    currentMockArtifact = createMockArtifact({ scoreId: 'score-OTHER' });
+    currentMockArtifact = createMockArtifact();
     provideReview({
       result: reviewResult({
         localSessionId: 'sess-1',
@@ -442,6 +442,8 @@ describe('PracticeReviewPage', () => {
       }), recording: { status: 'UNAVAILABLE', reason: 'NONE' }
     });
 
+    const current = reviewWorkspace.reviewSession!;
+    reviewWorkspace.reviewSession = { ...current, result: {...current.result, session: {...current.result.session, plan: {...current.result.session.plan, bundle: {...current.result.session.plan.bundle, binding: {...current.result.session.plan.bundle.binding, scoreId:'score-OTHER'}}}}}};
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
     expect(screen.getByText('本次临时报告已失效')).toBeDefined();
   });
@@ -516,7 +518,7 @@ describe('PracticeReviewPage', () => {
     fireEvent.click(retryButton);
     fireEvent.click(screen.getByRole('button', { name: '确认离开' }));
     expect(reviewWorkspace.reviewSession).toBeNull();
-    expect(navigationMocks.push).toHaveBeenCalledWith('/score/score-123/practice/setup?practiceRevisionId=rev-1');
+    expect(navigationMocks.push).toHaveBeenCalledWith('/score/score-123/practice/setup?practiceRevisionId=revision-1');
   });
 
   it.each(['MIDI','MICROPHONE'] as const)('%s review has no aggregate cards and keeps completed annotation semantics', (inputSource) => {
@@ -779,7 +781,7 @@ describe('PracticeReviewPage', () => {
 
     expect(saveMutationMock.mutateAsync).toHaveBeenCalled();
     const saveCall = saveMutationMock.mutateAsync.mock.calls[0][0];
-    expect(saveCall.sourceId).toBe('source-fixture');
+    expect(saveCall.binding.bundleId).toBe('source-fixture');
     expect(saveCall.scope).toMatchObject({ kind: 'FULL' });
     expect(saveCall.mediaKind).toBe('AUDIO');
     expect(saveCall.media.blob).toBeDefined();

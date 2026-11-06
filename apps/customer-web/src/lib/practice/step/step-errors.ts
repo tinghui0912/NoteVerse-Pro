@@ -26,7 +26,7 @@ export const STEP_ERROR_MESSAGES: Readonly<Record<StepApplicationErrorCode, stri
 /** Pure STEP consequence policy. Invariant/unknown failures use the caller's generic mode outcome. */
 export function projectStepFailure(failure: PracticeCausalFailure, phase: 'PREPARING' | 'ACTIVE'): StepApplicationErrorCode {
   switch (failure.kind) {
-    case 'SOURCE': return 'STEP_SCORE_UNAVAILABLE';
+    case 'BUNDLE': return 'STEP_SCORE_UNAVAILABLE';
     case 'MIDI': return failure.code === 'PERMISSION_DENIED' ? 'STEP_MIDI_PERMISSION_DENIED'
       : failure.code === 'NO_CONNECTED_INPUT' ? 'NO_CONNECTED_INPUT' : 'STEP_MIDI_UNAVAILABLE';
     case 'DEVICE': return failure.resource === 'MICROPHONE' && failure.code === 'PERMISSION_DENIED' ? 'STEP_MICROPHONE_PERMISSION_DENIED'

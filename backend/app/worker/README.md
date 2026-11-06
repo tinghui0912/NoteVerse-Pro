@@ -55,10 +55,10 @@ expired dispatch/processing leases; it is not the normal-path scheduling delay.
 
 ## Durable Practice Source cleanup
 
-`practice_source_deletion_task` executes a `PracticeSourceDeleteOutbox` attempt.
+`practice_bundle_deletion_task` executes a `PracticeBundleDeleteOutbox` attempt.
 The maintenance dispatcher polls bounded orphan READY sources and expired CREATING
 sources independently of Take deletion. Only live ScoreRevision ownership retains
 READY sources; Takes and reservations keep provenance snapshots. Claim and locked execution both recheck
 ownership before exact representation deletion. Source retention owns this policy;
 score/revision deletion only releases the live foreign key through ON DELETE SET NULL.
-See [Practice Source](../../../docs/architecture/practice-source.md).
+See [Practice Source](../../../docs/architecture/practice-bundle.md).

@@ -67,10 +67,10 @@ class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=False,
         )
     )
-    source_id: str = Field(sa_column=Column(String(128), nullable=False))
-    source_score_uuid: str = Field(sa_column=Column(String(36), nullable=False))
-    source_revision_uuid: str = Field(sa_column=Column(String(36), nullable=False))
-    source_artifact_id: str = Field(sa_column=Column(String(128), nullable=False))
+    practice_bundle_id: str = Field(sa_column=Column(String(128), nullable=False))
+    practice_score_uuid: str = Field(sa_column=Column(String(36), nullable=False))
+    practice_revision_uuid: str = Field(sa_column=Column(String(36), nullable=False))
+    practice_artifact_id: str = Field(sa_column=Column(String(128), nullable=False))
     linked_score_id: Optional[int] = Field(
         default=None,
         sa_column=Column(

@@ -10,13 +10,11 @@ from app.modules.practice.score.artifact import (
     canonical_practice_artifact_bytes,
     practice_score_artifact_from_timeline,
 )
-from .domain import PracticeSourceArtifact, PracticeSource, PracticeSourceRepresentation
+from .domain import PracticeBundleArtifact, PracticeBundle, PracticeBundleRepresentation
 
 
-class PracticeSourceBuilder:
-    def build(
-        self, *, score_id: str, revision_id: str, canonical_musicxml: bytes
-    ) -> PracticeSource:
+class PracticeBundleCompiler:
+    def compile(self, *, canonical_musicxml: bytes) -> PracticeBundle:
         try:
             prepared = prepare_musicxml_ids_for_practice(canonical_musicxml.decode("utf-8")).encode(
                 "utf-8"
@@ -27,16 +25,12 @@ class PracticeSourceBuilder:
         timeline = practice_timeline_from_compiled(compiled)
         value = practice_score_artifact_from_timeline(
             timeline,
-            score_id=score_id,
-            revision_id=revision_id,
             score_tempo_segments=compiled.tempo_segments,
         )
-        return PracticeSource(
-            score_id,
-            revision_id,
-            PracticeSourceRepresentation(prepared, "application/vnd.recordare.musicxml+xml"),
-            PracticeSourceArtifact(
-                PracticeSourceRepresentation(
+        return PracticeBundle(
+            PracticeBundleRepresentation(prepared, "application/vnd.recordare.musicxml+xml"),
+            PracticeBundleArtifact(
+                PracticeBundleRepresentation(
                     canonical_practice_artifact_bytes(value), "application/json"
                 ),
                 value["artifactId"],

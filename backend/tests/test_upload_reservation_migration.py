@@ -13,7 +13,7 @@ from app.db.models import (
     PerformanceTakeMediaKind,
 )
 from app.utils.timezone import utc_now_naive
-from tests.test_practice_source_migration import migration_database, assert_current_source_schema
+from tests.test_practice_bundle_migration import migration_database, assert_current_source_schema
 
 
 def reservation_values(user_id):
@@ -22,10 +22,10 @@ def reservation_values(user_id):
         reservation_uuid="reservation",
         client_request_id="request",
         take_uuid="take",
-        source_id="source-fingerprint",
-        source_score_uuid="score",
-        source_revision_uuid="revision",
-        source_artifact_id="artifact",
+        practice_bundle_id="source-fingerprint",
+        practice_score_uuid="score",
+        practice_revision_uuid="revision",
+        practice_artifact_id="artifact",
         score_title_snapshot="Title at admission",
         scope_type="FULL",
         ticks_per_quarter=1,
@@ -60,10 +60,10 @@ def test_fresh_reservation_and_take_store_provenance_without_a_source_row(monkey
                 user_id=user.id,
                 take_uuid="take",
                 upload_reservation_id=row.id,
-                source_id=row.source_id,
-                source_score_uuid=row.source_score_uuid,
-                source_revision_uuid=row.source_revision_uuid,
-                source_artifact_id=row.source_artifact_id,
+                practice_bundle_id=row.practice_bundle_id,
+                practice_score_uuid=row.practice_score_uuid,
+                practice_revision_uuid=row.practice_revision_uuid,
+                practice_artifact_id=row.practice_artifact_id,
                 score_title_snapshot=row.score_title_snapshot,
                 media_kind=PerformanceTakeMediaKind.AUDIO,
                 media_mime_type="audio/webm",
@@ -82,10 +82,10 @@ def test_fresh_reservation_and_take_store_provenance_without_a_source_row(monkey
             db.commit()
             db.refresh(take)
             assert (
-                take.source_id == "source-fingerprint"
+                take.practice_bundle_id == "source-fingerprint"
                 and take.score_title_snapshot == "Title at admission"
             )
-            assert db.scalar(sa.text("SELECT count(*) FROM practice_sources")) == 0
+            assert db.scalar(sa.text("SELECT count(*) FROM practice_bundles")) == 0
             duplicate = PerformanceTake(
                 **{
                     **take.model_dump(exclude={"id"}),

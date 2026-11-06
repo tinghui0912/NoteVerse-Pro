@@ -33,8 +33,8 @@ export type RecordingFailureCode = 'RECORDING_PERMISSION_DENIED' | 'RECORDING_AU
 export class RecordingFailure extends CausalFailure<'RECORDING', RecordingFailureCode> {
   constructor(code: RecordingFailureCode, options?: ErrorOptions) { super('RECORDING', code, options); }
 }
-export class SourceFailure extends CausalFailure<'SOURCE', 'INVALID_SCORE' | 'LOAD_FAILED'> {
-  constructor(code: 'INVALID_SCORE' | 'LOAD_FAILED', options?: ErrorOptions) { super('SOURCE', code, options); }
+export class BundleFailure extends CausalFailure<'BUNDLE', 'INVALID_SCORE' | 'LOAD_FAILED'> {
+  constructor(code: 'INVALID_SCORE' | 'LOAD_FAILED', options?: ErrorOptions) { super('BUNDLE', code, options); }
 }
-export type PracticeCausalFailure = DeviceFailure | MidiFailure | AudioContextFailure | CaptureFailure | AcousticFailure | InferenceFailure | RecordingFailure | SourceFailure;
+export type PracticeCausalFailure = DeviceFailure | MidiFailure | AudioContextFailure | CaptureFailure | AcousticFailure | InferenceFailure | RecordingFailure | BundleFailure;
 export function isPracticeCausalFailure(value: unknown): value is PracticeCausalFailure { return value instanceof CausalFailure; }

@@ -41,7 +41,7 @@ it('depends only on execution resource choices, with stable immutable projection
   const first = planPracticeResources(intent);
   const withOtherChoices = { ...intent, scope: { kind: 'RANGE', startGroupId: 'a', endGroupId: 'b' },
     tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 100 }, metronomeEnabled: true,
-    sourceId: 'source', artifact: {}, liveFeedbackEnabled: true };
+    binding: { scoreId: 'score-1', revisionId: 'revision-1', bundleId: 'source' }, artifact: {}, liveFeedbackEnabled: true };
   expect(planPracticeResources(withOtherChoices)).toBe(first);
   expect(planPracticeResources({ ...intent })).toBe(first);
   for (const value of [first, first.qualification, first.liveRoots, first.input, first.analysis, first.recording]) {

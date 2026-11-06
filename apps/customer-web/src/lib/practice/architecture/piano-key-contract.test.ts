@@ -30,7 +30,7 @@ describe('canonical Practice ownership', () => {
   });
   it('declares the durable score artifact schema at its domain owner', () => {
     expect(read('apps/customer-web/src/lib/practice/score/artifact.ts')).toContain('PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION = 1');
-    expect(read('backend/app/modules/practice/source/schemas.py')).toContain('schemaVersion: Literal[1]');
+    expect(read('backend/app/modules/practice/bundle/schemas.py')).toContain('schemaVersion: Literal[1]');
 
   });
   it('documents unique current parameter entries and explicit raw-work qualification', () => {

@@ -11,7 +11,7 @@ import {
 } from "./transient-review-session";
 const artifact = fixture as PracticeScoreArtifact;
 const source = {
-  ...canonicalContinuousResultFixture().session.plan.source,
+  ...canonicalContinuousResultFixture().session.plan.bundle,
   musicXml: "<score />",
 };
 it("hands off canonical references without copying artifact, result or Blob bytes", () => {
@@ -38,19 +38,19 @@ it("hands off canonical references without copying artifact, result or Blob byte
   const session = createTransientReviewSession({ result, recording }, source);
   expect(session.result).toBe(result);
   expect(session.recording).not.toBe(recording);
-  expect(session.result.session.plan.source.artifact).toBe(artifact);
+  expect(session.result.session.plan.bundle.artifact).toBe(artifact);
   expect(
     session.recording.status === "READY" && session.recording.media.blob,
   ).toBe(blob);
   expect(Object.isFrozen(session)).toBe(true);
 });
-it.each(["sourceId", "scoreId", "revisionId", "artifactId"] as const)(
+it.each(["bundleId", "scoreId", "revisionId", "artifactId"] as const)(
   "rejects %s mismatch before Review ownership begins",
   (field) => {
     const result = canonicalContinuousResultFixture();
     const mismatched =
-      field === "sourceId"
-        ? { ...source, sourceId: "wrong" }
+      field === "bundleId"
+        ? { ...source, binding:{...source.binding,bundleId:"wrong"} }
         : { ...source, artifact: { ...source.artifact, [field]: "wrong" } };
     expect(() =>
       createTransientReviewSession(
@@ -110,7 +110,7 @@ it("retains before controller retirement, and final Review release removes media
   expect(() =>
     createTransientReviewSession(
       { result, recording },
-      { ...source, sourceId: "wrong" },
+      { ...source, binding:{...source.binding,bundleId:"wrong"} },
     ),
   ).toThrow();
   const session = createTransientReviewSession({ result, recording }, source);
@@ -167,5 +167,5 @@ it("requires the exact admitted artifact even when stable identity fields agree"
       { result, recording: { status: "NOT_RECORDED" } },
       { ...source, artifact: { ...source.artifact } },
     ),
-  ).toThrow("source identity");
+  ).toThrow("bundle identity");
 });

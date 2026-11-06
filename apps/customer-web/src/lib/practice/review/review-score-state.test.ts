@@ -6,9 +6,9 @@ import { resolvePracticeScope } from "@/lib/practice/planning/scope";
 import { createTransientReviewSession } from "./transient-review-session";
 import { resolveReviewScoreState } from "./review-score-state";
 const result = canonicalContinuousResultFixture(),
-  artifact = result.session.plan.source.artifact;
+  artifact = result.session.plan.bundle.artifact;
 const source = {
-  sourceId: result.session.plan.source.sourceId,
+  binding: { scoreId: 'score-1', revisionId: 'revision-1', bundleId: result.session.plan.bundle.binding.bundleId },
   artifact,
   musicXml: "<score />",
 };

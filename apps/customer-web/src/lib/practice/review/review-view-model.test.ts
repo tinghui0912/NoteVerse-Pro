@@ -38,11 +38,11 @@ it.each(["SCORE", "CUSTOM_FIXED_BPM"] as const)(
   (mode) => {
     const result = canonicalContinuousResultFixture();
     const base = result.session.plan;
-    const plan = continuousPracticePlan(base.source.artifact, {
+    const plan = continuousPracticePlan(base.bundle.artifact, {
       scope: {
         kind: "RANGE",
-        startGroupId: base.source.artifact.moments[1].groupId,
-        endGroupId: base.source.artifact.moments[2].groupId,
+        startGroupId: base.bundle.artifact.moments[1].groupId,
+        endGroupId: base.bundle.artifact.moments[2].groupId,
       },
       tempoSelection: mode === "SCORE" ? { mode } : { mode, bpm: 96 },
     });

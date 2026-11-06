@@ -13,7 +13,7 @@ from app.main import app
 from app.core.middleware import normalize_origin
 from app.modules.playback.router import get_playback_delivery_service
 from app.modules.playback.delivery import PlaybackDelivery
-from app.modules.practice.source.router import get_practice_source_service
+from app.modules.practice.bundle.router import get_practice_bundle_service
 
 
 def _request(
@@ -138,11 +138,11 @@ def test_external_playback_routes_stream_audio(client: TestClient, tmp_path) -> 
 
 
 @pytest.mark.parametrize("include_notation", [False, True])
-def test_main_api_serves_one_practice_source(client: TestClient, include_notation) -> None:
+def test_main_api_serves_one_practice_bundle(client: TestClient, include_notation) -> None:
     calls = []
 
-    class FakePracticeSourceService:
-        async def read_source(
+    class FakePracticeBundleService:
+        async def read_bundle(
             self, db, score_uuid, user_id, revision_uuid, *, include_notation=False
         ):
             import json
@@ -157,9 +157,8 @@ def test_main_api_serves_one_practice_source(client: TestClient, include_notatio
                     / "apps/customer-web/src/lib/practice/__fixtures__/canonical-practice-score-artifact.json"
                 ).read_text()
             )
-            artifact.update(scoreId=score_uuid, revisionId=revision_uuid)
             return {
-                "source_id": "source-1",
+                "binding":{"score_id":score_uuid,"revision_id":revision_uuid,"bundle_id":"bundle-1"},
                 "artifact": artifact,
                 "notation": {
                     "musicxml": '<score-partwise><note id="nv-p1-m1-note1" /></score-partwise>',
@@ -174,32 +173,32 @@ def test_main_api_serves_one_practice_source(client: TestClient, include_notatio
 
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1, is_active=True)
     app.dependency_overrides[get_db] = fake_get_db
-    app.dependency_overrides[get_practice_source_service] = lambda: FakePracticeSourceService()
+    app.dependency_overrides[get_practice_bundle_service] = lambda: FakePracticeBundleService()
     try:
         response = client.get(
-            "/api/v1/practice/scores/score-1/revisions/revision-1/source",
+            "/api/v1/practice/scores/score-1/revisions/revision-1/bundle",
             params={"include_notation": include_notation},
         )
     finally:
-        app.dependency_overrides.pop(get_practice_source_service, None)
+        app.dependency_overrides.pop(get_practice_bundle_service, None)
         app.dependency_overrides.pop(get_current_user, None)
         app.dependency_overrides.pop(get_db, None)
     assert response.status_code == 200
     source = response.json()["data"]
-    assert source["source_id"] == "source-1"
-    assert source["artifact"]["scoreId"] == "score-1"
-    assert source["artifact"]["revisionId"] == "revision-1"
+    assert source["binding"] == {"score_id":"score-1","revision_id":"revision-1","bundle_id":"bundle-1"}
+    assert "scoreId" not in source["artifact"]
+    assert "revisionId" not in source["artifact"]
     assert (source["notation"] is not None) == include_notation
     if include_notation:
         assert 'id="nv-p1-m1-note1"' in source["notation"]["musicxml"]
     assert calls == [("score-1", "revision-1", include_notation)]
 
 
-def test_main_openapi_includes_practice_source_routes(client: TestClient) -> None:
+def test_main_openapi_includes_practice_bundle_routes(client: TestClient) -> None:
     schema = client.get("/api/v1/openapi.json").json()
     paths = schema["paths"]
 
-    assert "/api/v1/practice/scores/{score_id}/revisions/{revision_id}/source" in paths
+    assert "/api/v1/practice/scores/{score_id}/revisions/{revision_id}/bundle" in paths
     assert "/api/v1/practice/scores/{score_id}/revisions/{revision_id}/targets" not in paths
     assert "/api/v1/practice/sessions" not in paths
 
@@ -209,7 +208,7 @@ def test_protected_endpoints_require_authentication(client: TestClient) -> None:
         "/api/v1/import-jobs/test-job",
         "/api/v1/scores/test-score",
         "/api/v1/me/profile",
-        "/api/v1/practice/scores/score-1/revisions/revision-1/source",
+        "/api/v1/practice/scores/score-1/revisions/revision-1/bundle",
     ]
 
     for path in protected_paths:

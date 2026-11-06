@@ -15,8 +15,6 @@ PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION = 1
 def practice_score_artifact_from_timeline(
     timeline: PracticeScoreTimeline,
     *,
-    score_id: str,
-    revision_id: str,
     score_tempo_segments: Sequence[PracticeTempoSegment],
 ) -> dict[str, Any]:
     """Serialize the practice-ready score timeline for browser-local execution."""
@@ -25,8 +23,6 @@ def practice_score_artifact_from_timeline(
     payload: dict[str, Any] = {
         "schemaVersion": PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION,
         "ticksPerQuarter": timeline.ticks_per_quarter,
-        "scoreId": score_id,
-        "revisionId": revision_id,
         "artifactId": "",
         "notes": [_camel_dataclass(note) for note in timeline.notes],
         "events": [_camel_dataclass(event) for event in timeline.events],
@@ -35,23 +31,19 @@ def practice_score_artifact_from_timeline(
         "scoreTempoSegments": [_tempo_segment(segment) for segment in score_tempo_segments],
         "scoreEndTick": timeline.score_end_tick,
     }
-    payload["artifactId"] = _artifact_id(payload)
+    payload["artifactId"] = practice_artifact_id(payload)
     return payload
 
 
 def practice_score_artifact_json(
     timeline: PracticeScoreTimeline,
     *,
-    score_id: str,
-    revision_id: str,
     score_tempo_segments: Sequence[PracticeTempoSegment],
 ) -> str:
     return (
         json.dumps(
             practice_score_artifact_from_timeline(
                 timeline,
-                score_id=score_id,
-                revision_id=revision_id,
                 score_tempo_segments=score_tempo_segments,
             ),
             indent=2,
@@ -66,7 +58,7 @@ def canonical_practice_artifact_bytes(value: dict[str, Any]) -> bytes:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
 
 
-def _artifact_id(payload: dict[str, Any]) -> str:
+def practice_artifact_id(payload: dict[str, Any]) -> str:
     identity_payload = {**payload, "artifactId": ""}
     digest = hashlib.sha256(canonical_practice_artifact_bytes(identity_payload)).hexdigest()[:16]
     return f"practice-score-artifact:{digest}"

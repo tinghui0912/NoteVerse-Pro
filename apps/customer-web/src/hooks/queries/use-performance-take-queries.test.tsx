@@ -56,7 +56,7 @@ const recordingTimebase: RecordingTimebase = {
 function createInput() {
   return {
     ticksPerQuarter: 1,
-    sourceId: 'source-1',
+    binding: { scoreId: 'score-1', revisionId: 'revision-1', bundleId: 'source-1' },
     clientRequestId: 'request-1',
     mediaKind: 'AUDIO' as const,
     media: localMediaAssetFixture(new Blob(['RIFF....WAVE'], { type: 'audio/wav' })),
@@ -75,11 +75,11 @@ function createInput() {
 const savedTake: PerformanceTakeRead = {
   score_timebase: { ticks_per_quarter: 1 },
   take_id: 'take-1',
-  source_id: 'source-1',
-  source_score_id: 'score-1',
+  bundle_id: 'source-1',
+  score_id: 'score-1',
   score_title_snapshot: 'Etude',
-  source_revision_id: 'revision-1',
-  source_artifact_id: 'artifact-1',
+  revision_id: 'revision-1',
+  artifact_id: 'artifact-1',
   media_kind: 'AUDIO',
   media_mime_type: 'audio/wav',
   media_byte_size: 12,
@@ -103,7 +103,7 @@ function reservation(
     take_id: savedTake.take_id,
     status,
     metadata: {
-      source: { source_id: 'source-1' },
+      practice_binding: { score_id:'score-1',revision_id:'revision-1',bundle_id:'source-1' },
       media: {
         kind: input.mediaKind,
         byte_size: input.media.byteSize,
@@ -379,7 +379,7 @@ describe('server canonical plan agreement before media upload', () => {
     [
       'source',
       (value) => {
-        value.metadata.source.source_id = 'different-source';
+        value.metadata.practice_binding.bundle_id = 'different-source';
       },
     ],
     [
@@ -488,7 +488,7 @@ describe('server canonical plan agreement before media upload', () => {
       const accepted = structuredClone(reservation('COMPLETED'));
       if (field === 'timebase')
         accepted.take!.score_timebase.ticks_per_quarter = 60;
-      if (field === 'source') accepted.take!.source_id = 'different-source';
+      if (field === 'source') accepted.take!.bundle_id = 'different-source';
       if (field === 'scope') accepted.take!.scope_terminal_tick = 5;
       if (field === 'tempo') accepted.take!.tempo_plan.segments[0].bpm = 121;
       vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue({

@@ -23,7 +23,7 @@ const intent: PracticeIntent = {
   metronomeEnabled: false,
 };
 const source = () => ({
-  sourceId: "canonical-source",
+  binding: { scoreId: 'score-1', revisionId: 'revision-1', bundleId: "canonical-source" },
   musicXml: "<score-partwise/>",
   artifact: structuredClone(fixture) as PracticeScoreArtifact,
 });
@@ -34,13 +34,13 @@ it("deterministically retains canonical source and artifact identities", () => {
     second = planPractice(input, structuredClone(intent));
   expect(first.resources).toEqual(planPracticeResources(intent));
   expect(first).toEqual(second);
-  expect(first.source.artifact).toBe(input.artifact);
-  expect(first.source.sourceId).toBe(input.sourceId);
-  expect(Object.keys(first.source).sort()).toEqual(["artifact", "sourceId"]);
+  expect(first.bundle.artifact).toBe(input.artifact);
+  expect(first.bundle.binding.bundleId).toBe(input.binding.bundleId);
+  expect(Object.keys(first.bundle).sort()).toEqual(["artifact", "binding"]);
   expect(Object.keys(first).sort()).toEqual(
     [
       "resources",
-      "source",
+      "bundle",
       "mode",
       "scope",
       "tempoPlan",
@@ -76,9 +76,9 @@ it("resolves FULL and RANGE and SCORE and CUSTOM_FIXED_BPM", () => {
     { startTick: 0, bpm: 100, source: "CUSTOM" },
   ]);
 });
-it.each(["", null, 123])("rejects invalid source id %s", (sourceId) => {
+it.each(["", null, 123])("rejects invalid source id %s", (bundleId) => {
   expect(() =>
-    planPractice({ ...source(), sourceId } as never, intent),
+    planPractice({ ...source(), binding: {...source().binding, bundleId} } as never, intent),
   ).toThrow();
 });
 it("rejects invalid scope, tempo, mode and recording choices without repair", () => {
@@ -107,7 +107,7 @@ it("freezes only planner-owned projections and preserves the admitted artifact r
   expect(() =>
     Object.assign(plan.tempoPlan.segments[0], { bpm: 70 }),
   ).toThrow();
-  expect(Object.isFrozen(plan.source)).toBe(true);
+  expect(Object.isFrozen(plan.bundle)).toBe(true);
 });
 it("pure planning is independent of invocation history and initial metronome choice", () => {
   const input = source();
@@ -141,7 +141,7 @@ it("STEP executes the exact planned scope and tempo through completion", () => {
   expect(runtime.currentStepIndex).toBe(plan.scope.startIndex);
   expect(runtime.snapshot().plan.scope).toBe(plan.scope);
   expect(runtime.snapshot().plan.tempoPlan).toBe(plan.tempoPlan);
-  expect(runtime.snapshot().plan.source.sourceId).toBe(plan.source.sourceId);
+  expect(runtime.snapshot().plan.bundle.binding.bundleId).toBe(plan.bundle.binding.bundleId);
   expect(runtime.snapshot().plan).toBe(plan);
   runtime.skip();
   expect(runtime.snapshot().completionReason).toBe("SCOPE_COMPLETED");
@@ -179,8 +179,8 @@ it("Continuous clock, evaluator, snapshot and natural Result consume executed re
   expect(Reflect.get(session.clock, "timeline").plan).toBe(plan.tempoPlan);
   expect(session.snapshotSession().plan.scope).toBe(plan.scope);
   expect(session.snapshotSession().plan.tempoPlan).toBe(plan.tempoPlan);
-  expect(session.snapshotSession().plan.source.sourceId).toBe(
-    plan.source.sourceId,
+  expect(session.snapshotSession().plan.bundle.binding.bundleId).toBe(
+    plan.bundle.binding.bundleId,
   );
   clock.advance(
     session.clock.scopeDurationMs() + session.snapshot().countInTotalMs + 1000,
@@ -193,7 +193,7 @@ it("Continuous clock, evaluator, snapshot and natural Result consume executed re
   });
   expect(completion.result.session.plan.scope).toEqual(plan.scope);
   expect(completion.result.session.plan.tempoPlan).toEqual(plan.tempoPlan);
-  expect(completion.result.session.plan.source.sourceId).toBe(plan.source.sourceId);
+  expect(completion.result.session.plan.bundle.binding.bundleId).toBe(plan.bundle.binding.bundleId);
   expect(completion.result.evaluation.status).toBe("COMPLETE");
   if (completion.result.evaluation.status === "COMPLETE") {
     expect(
@@ -201,7 +201,7 @@ it("Continuous clock, evaluator, snapshot and natural Result consume executed re
         (group) => group.groupId,
       ),
     ).toEqual(
-      plan.source.artifact.moments
+      plan.bundle.artifact.moments
         .slice(plan.scope.startIndex, plan.scope.endIndex + 1)
         .map((group) => group.groupId),
     );
@@ -237,5 +237,5 @@ it("does not freeze mutable caller-owned artifact objects or their descendants",
   expect(Object.isFrozen(input.artifact.moments)).toBe(false);
   expect(Object.isFrozen(input.artifact.meterSegments)).toBe(false);
   expect(Object.isFrozen(input.artifact.scoreTempoSegments)).toBe(false);
-  expect(plan.source.artifact).toBe(input.artifact);
+  expect(plan.bundle.artifact).toBe(input.artifact);
 });

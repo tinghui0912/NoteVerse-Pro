@@ -103,7 +103,7 @@ async def seed_user() -> None:
             )
             session.add(
                 ScoreRevisionSource(
-                    source_uuid="integration-practice-source",
+                    source_uuid="integration-practice-bundle",
                     revision_id=revision.id,
                     format=RevisionSourceFormat.MUSICXML,
                     storage_backend=file_storage.backend_name,
@@ -140,7 +140,7 @@ async def seed_user() -> None:
                 await session.exec(
                     select(ScoreRevisionSource).where(
                         ScoreRevisionSource.revision_id == revision.id,
-                        ScoreRevisionSource.source_uuid == "integration-practice-source",
+                        ScoreRevisionSource.source_uuid == "integration-practice-bundle",
                     )
                 )
             ).one_or_none()

@@ -26,8 +26,8 @@ describe('local STEP domain status, independent of browser resources', () => {
     expect(snapshot).toMatchObject({ localSessionId: 'local-instance', runtimeStatus: 'ACTIVE', completionReason: null,
        step: { completed: false, attemptState: 'READY' } });
     expect(snapshot).not.toHaveProperty('lifecycleState');
-    expect(snapshot.plan.source.artifact.scoreId).toBe(fixture.scoreId);
-    expect(snapshot.plan.source.artifact.revisionId).toBe(fixture.revisionId); expect(snapshot.plan.source.artifact.artifactId).toBe(fixture.artifactId);
+    expect(snapshot.plan.bundle.binding.scoreId).toBe('score-1');
+    expect(snapshot.plan.bundle.binding.revisionId).toBe('revision-1'); expect(snapshot.plan.bundle.artifact.artifactId).toBe(fixture.artifactId);
     expect(snapshot.createdAtMs).toBe(12345); expect(snapshot.updatedAtMs).toBe(12345);
   });
   it('natural final MATCH consumes pending transition and ends only at rearm', () => {

@@ -27,11 +27,11 @@ from app.modules.performance_takes.upload_reservation.persistence import (
 )
 from app.modules.performance_takes.upload_reservation.domain import FinalizeLease
 from app.modules.storage_usage.service import StorageUsageService
-from app.modules.practice.source.service import PracticeSourceService
+from app.modules.practice.bundle.service import PracticeBundleService
 from app.storage.base import DirectUploadTarget
 from app.utils.timezone import utc_now_naive
 
-pytest_plugins = ["tests.test_practice_source_postgres"]
+pytest_plugins = ["tests.test_practice_bundle_postgres"]
 
 MEDIA = b"\x1a\x45\xdf\xa3" + b"reserved-recording"
 
@@ -42,18 +42,18 @@ async def test_terminal_transitions_atomically_release_quota_and_preserve_proven
     postgres_source, command
 ):
     from unittest.mock import patch
-    from app.db.models import PracticeSourceRecord
+    from app.db.models import PracticeBundleRecord
     from app.utils.timezone import utc_now_naive
 
     sessions, source, storage, request = await setup_source(postgres_source)
-    service = PerformanceTakeUploadService(storage=storage, practice_source_service=source)
+    service = PerformanceTakeUploadService(storage=storage, practice_bundle_service=source)
     async with sessions() as db:
         reserved = await service.reserve_upload(db, 1, request)
         row = await service.repository.get_reservation_by_uuid(db, 1, reserved.reservation_id)
-        source_id = row.source_id
+        bundle_id = row.practice_bundle_id
         assert (
             await db.scalar(
-                select(PracticeSourceRecord).where(PracticeSourceRecord.source_id == source_id)
+                select(PracticeBundleRecord).where(PracticeBundleRecord.bundle_id == bundle_id)
             )
         ).status == "READY"
         now = utc_now_naive()
@@ -69,7 +69,7 @@ async def test_terminal_transitions_atomically_release_quota_and_preserve_proven
                 ).after,
             )
             await db.commit()
-            assert row.source_id == source_id
+            assert row.practice_bundle_id == bundle_id
         if command == "cancel":
             await service.cancel_upload_reservation(db, 1, reserved.reservation_id)
             # Idempotent cancellation does not release quota twice.
@@ -87,7 +87,7 @@ async def test_terminal_transitions_atomically_release_quota_and_preserve_proven
                 )
         await db.refresh(row)
         assert row.status == ("CANCELLED" if command == "cancel" else "EXPIRED")
-        assert row.source_id == source_id
+        assert row.practice_bundle_id == bundle_id
         assert (
             row.finalizing_token is row.finalizing_object_key is row.finalizing_expires_at is None
         )
@@ -102,11 +102,11 @@ async def test_take_creation_completion_and_quota_commit_share_one_transaction(p
     from unittest.mock import patch
 
     sessions, source, storage, request = await setup_source(postgres_source)
-    service = PerformanceTakeUploadService(storage=storage, practice_source_service=source)
+    service = PerformanceTakeUploadService(storage=storage, practice_bundle_service=source)
     async with sessions() as db:
         reserved = await service.reserve_upload(db, 1, request)
         row = await service.repository.get_reservation_by_uuid(db, 1, reserved.reservation_id)
-        source_id = row.source_id
+        bundle_id = row.practice_bundle_id
         storage.put_bytes(key=row.staging_object_key, content=MEDIA, content_type="audio/webm")
         await db.commit()
 
@@ -121,7 +121,7 @@ async def test_take_creation_completion_and_quota_commit_share_one_transaction(p
         await db.rollback()
     async with sessions() as observer:
         row = await service.repository.get_reservation_by_uuid(observer, 1, reserved.reservation_id)
-        assert row.status == "FINALIZING" and row.source_id == source_id
+        assert row.status == "FINALIZING" and row.practice_bundle_id == bundle_id
         assert await observer.scalar(select(func.count()).select_from(PerformanceTake)) == 0
         account = await observer.get(StorageUsageAccount, 1)
         assert account.reserved_bytes == len(MEDIA) and account.used_bytes == 0
@@ -147,16 +147,16 @@ async def setup_source(postgres_source):
         )
         await db.commit()
         reference, verified_source = await repository.get_or_create(
-            db, bundle, live_revision_id=repository.test_revision_id
+            db, bundle, revision_id=repository.test_revision_id
         )
-    source = PracticeSourceService(repository=repository, storage=storage)
+    source = PracticeBundleService(repository=repository, storage=storage)
     storage.upload_url = lambda **kwargs: DirectUploadTarget(
         upload_url="https://upload.example/target", upload_method="PUT", upload_headers={}
     )
     request = PerformanceTakeUploadReservationRequest.model_validate(
         {
             "client_request_id": "same-request",
-            "source": {"source_id": bundle.source_id},
+            "practice_binding": {"score_id": repository.test_score_uuid, "revision_id": repository.test_revision_uuid, "bundle_id": bundle.bundle_id},
             "media": {
                 "kind": "AUDIO",
                 "mime_type": "audio/webm",
@@ -194,7 +194,7 @@ async def test_two_creators_share_one_reservation_and_one_quota_hold(postgres_so
             return value
 
     service = PerformanceTakeUploadService(
-        repository=SynchronizedRepository(), storage=storage, practice_source_service=source
+        repository=SynchronizedRepository(), storage=storage, practice_bundle_service=source
     )
     async with sessions() as a, sessions() as b:
         first, second = await asyncio.wait_for(
@@ -221,11 +221,11 @@ async def test_finalize_lease_blocks_concurrency_and_expired_takeover_preserves_
     postgres_source, takeover
 ):
     sessions, source, storage, request = await setup_source(postgres_source)
-    service = PerformanceTakeUploadService(storage=storage, practice_source_service=source)
+    service = PerformanceTakeUploadService(storage=storage, practice_bundle_service=source)
     async with sessions() as a:
         reserved = await service.reserve_upload(a, 1, request)
         row = await service.repository.get_reservation_by_uuid(a, 1, reserved.reservation_id)
-        source_id = row.source_id
+        bundle_id = row.practice_bundle_id
         storage.put_bytes(key=row.staging_object_key, content=MEDIA, content_type="audio/webm")
         await a.commit()
     entered, release = Event(), Event()
@@ -274,7 +274,7 @@ async def test_finalize_lease_blocks_concurrency_and_expired_takeover_preserves_
         row = await service.repository.get_reservation_by_uuid(db, 1, reserved.reservation_id)
         take = await service.repository.get_by_reservation(db, 1, row.id)
         assert take.take_uuid == reserved.take_id and row.status == "COMPLETED"
-        assert row.source_id == source_id and take.source_id == source_id
+        assert row.practice_bundle_id == bundle_id and take.practice_bundle_id == bundle_id
         assert row.reservation_uuid != row.storage_reservation_id
         assert storage.read_bytes(take.media_object_key) == MEDIA
         if takeover:
@@ -289,13 +289,13 @@ async def test_exact_source_admission_lock_fences_owner_release_until_reservatio
     postgres_source,
 ):
     from sqlalchemy import delete, text, update
-    from app.db.models import Score, ScoreRevision, PracticeSourceRecord
-    from app.modules.practice.source.retention import practice_source_delete_service
+    from app.db.models import Score, ScoreRevision, PracticeBundleRecord
+    from app.modules.practice.bundle.retention import practice_bundle_delete_service
 
     sessions, source, storage, request = await setup_source(postgres_source)
-    service = PerformanceTakeUploadService(storage=storage, practice_source_service=source)
+    service = PerformanceTakeUploadService(storage=storage, practice_bundle_service=source)
     admitted, release = asyncio.Event(), asyncio.Event()
-    authorize = source.authorize_source_for_save
+    authorize = source.authorize_bundle_for_save
 
     async def held_authorize(*args, **kwargs):
         value = await authorize(*args, **kwargs)
@@ -303,7 +303,7 @@ async def test_exact_source_admission_lock_fences_owner_release_until_reservatio
         await asyncio.wait_for(release.wait(), 15)
         return value
 
-    source.authorize_source_for_save = held_authorize
+    source.authorize_bundle_for_save = held_authorize
     async with sessions() as a, sessions() as b, sessions() as observer:
         pid = await b.scalar(text("SELECT pg_backend_pid()"))
         reserve = asyncio.create_task(service.reserve_upload(a, 1, request))
@@ -336,15 +336,16 @@ async def test_exact_source_admission_lock_fences_owner_release_until_reservatio
         result = await asyncio.wait_for(reserve, 15)
         await asyncio.wait_for(deletion, 15)
         await b.commit()
-        row = (await b.execute(select(PracticeSourceRecord))).scalar_one()
-        assert row.live_revision_id is None
+        row = (await b.execute(select(PracticeBundleRecord))).scalar_one()
+        from app.db.models import ScoreRevisionPracticeBinding
+        assert await b.scalar(select(ScoreRevisionPracticeBinding)) is None
         reservation = (await b.execute(select(PerformanceTakeUploadReservation))).scalar_one()
-        assert reservation.source_id == row.source_id
-        assert result.metadata.source.source_id == row.source_id == request.source.source_id
+        assert reservation.practice_bundle_id == row.bundle_id
+        assert result.metadata.practice_binding.bundle_id == row.bundle_id == request.practice_binding.bundle_id
         assert (
             len(
                 await b.run_sync(
-                    lambda db: practice_source_delete_service.recover_unowned_ready(
+                    lambda db: practice_bundle_delete_service.recover_unowned_ready(
                         db, storage_backend=storage.backend_name
                     )
                 )
@@ -361,7 +362,7 @@ async def test_durable_score_coordinate_constraints_in_postgres(postgres_source,
     from sqlalchemy.exc import IntegrityError
 
     sessions, source, storage, request = await setup_source(postgres_source)
-    service = PerformanceTakeUploadService(storage=storage, practice_source_service=source)
+    service = PerformanceTakeUploadService(storage=storage, practice_bundle_service=source)
     async with sessions() as db:
         accepted = await service.reserve_upload(db, 1, request)
         reservation = await service.repository.get_reservation_by_uuid(

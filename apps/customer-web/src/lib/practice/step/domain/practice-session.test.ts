@@ -97,6 +97,6 @@ it('STEP snapshots contain only current learning interaction state', () => {
 it('retains canonical source provenance in the STEP session snapshot', () => {
   const plan = stepPracticePlan(artifact);
   const runtime = new StepPracticeSession({ plan, clock: new ManualClock() });
-  expect(runtime.snapshot().plan.source.sourceId).toBe(plan.source.sourceId);
-  expect(runtime.snapshot().localSessionId).not.toBe(plan.source.sourceId);
+  expect(runtime.snapshot().plan.bundle.binding.bundleId).toBe(plan.bundle.binding.bundleId);
+  expect(runtime.snapshot().localSessionId).not.toBe(plan.bundle.binding.bundleId);
 });

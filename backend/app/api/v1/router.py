@@ -17,7 +17,7 @@ from app.modules.model_assets.router import router as model_assets
 from app.modules.realtime.router import router as realtime
 from app.modules.review.router import router as review
 from app.modules.performance_takes.router import router as performance_takes
-from app.modules.practice.source.router import router as practice_sources
+from app.modules.practice.bundle.router import router as practice_bundles
 from app.modules.scores.router import router as scores
 from app.modules.storage_usage.router import router as storage_usage
 from app.modules.score_assets.router import render_asset_router
@@ -58,4 +58,4 @@ api_router.include_router(model_assets, prefix="/model-assets", tags=["Model Ass
 api_router.include_router(realtime, prefix="/realtime", tags=["Realtime"])
 api_router.include_router(review, prefix="/review", tags=["Review"])
 api_router.include_router(performance_takes, prefix="/performance-takes", tags=["Performance Takes"])
-api_router.include_router(practice_sources, prefix="/practice", tags=["Practice Sources"])
+api_router.include_router(practice_bundles, prefix="/practice", tags=["Practice Sources"])

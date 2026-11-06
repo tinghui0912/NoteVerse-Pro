@@ -23,7 +23,7 @@ import {
 import { releaseLocalMediaAsset, type LocalMediaAsset } from '@/lib/practice/media/local-media-asset';
 import { downloadLocalMedia } from '@/lib/practice/media/download-local-media';
 import { ApiError } from '@/lib/api-client';
-import { useSavedTakeExportSource } from '@/hooks/practice/use-saved-take-export-source';
+import { useSavedTakeExportBundle } from '@/hooks/practice/use-saved-take-export-bundle';
 import type { PlayablePerformanceReplay } from '@/lib/practice/recording/performance-replay';
 import {
   createVideoExportSessionFromSavedTake,
@@ -83,12 +83,12 @@ export default function SavedPerformanceVideoExportPage() {
   const take = takeQuery.data?.data ?? null;
   const isBaseEligible = Boolean(take && hasSavedTakeVideoExportMetadata(take));
 
-  const source = useSavedTakeExportSource({
-    sourceId: take?.source_id ?? '', scoreId: take?.source_score_id ?? '', revisionId: take?.source_revision_id ?? '',
-    artifactId: take?.source_artifact_id ?? '',
+  const bundle = useSavedTakeExportBundle({
+    bundleId: take?.bundle_id ?? '', scoreId: take?.score_id ?? '', revisionId: take?.revision_id ?? '',
+    artifactId: take?.artifact_id ?? '',
   }, { enabled: isBaseEligible });
-  const sourceQuery = source.sourceQuery;
-  const artifact = source.artifact;
+  const bundleQuery = bundle.bundleQuery;
+  const artifact = bundle.artifact;
 
   const [downloadedMedia, setDownloadedMedia] = useState<{take: typeof take; nonce: number; handle: LocalMediaAsset} | null>(null);
   const [mediaFailure, setMediaFailure] = useState<{take: typeof take; nonce: number; permanent: boolean} | null>(null);
@@ -136,15 +136,15 @@ export default function SavedPerformanceVideoExportPage() {
 
   useEffect(() => () => adapter.dispose(), [adapter]);
 
-  const isSourceReady = Boolean(source.artifact && source.musicXml);
+  const isBundleReady = Boolean(bundle.artifact && bundle.musicXml);
   const sessionEligibility = useMemo(() => {
-    if (!take || !mediaHandle || !artifact || !isSourceReady) return null;
+    if (!take || !mediaHandle || !artifact || !isBundleReady) return null;
     return createVideoExportSessionFromSavedTake(
       take,
       mediaHandle,
-      { sourceId: source.sourceId!, artifact }
+      { binding: bundle.binding!, artifact }
     );
-  }, [artifact, isSourceReady, mediaHandle, take, source.sourceId]);
+  }, [artifact, isBundleReady, mediaHandle, take, bundle.binding]);
   const session =
     sessionEligibility?.status === 'supported'
       ? sessionEligibility.session
@@ -161,7 +161,7 @@ export default function SavedPerformanceVideoExportPage() {
     };
   }, [take, mediaHandle]);
 
-  const xmlContent = source.musicXml;
+  const xmlContent = bundle.musicXml;
   if (takeQuery.isLoading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
@@ -225,7 +225,7 @@ export default function SavedPerformanceVideoExportPage() {
       />
     );
   }
-  const exportUnavailable = source.invalid || isPermanentResourceError(source.transportError)
+  const exportUnavailable = bundle.invalid || isPermanentResourceError(bundle.transportError)
     || sessionEligibility?.status === 'unsupported';
   if (!replay) {
     return (
@@ -300,11 +300,11 @@ export default function SavedPerformanceVideoExportPage() {
             <CardTitle className="text-sm">{t('savedTakeVideoExportScore')}</CardTitle>
           </CardHeader>
           <CardContent>
-            {exportUnavailable || source.isError ? <div className="space-y-3 p-8" role="status">
+            {exportUnavailable || bundle.isError ? <div className="space-y-3 p-8" role="status">
               <p>{t(exportUnavailable ? 'savedTakeVideoExportRevisionUnavailable' : 'savedTakeVideoExportTemporaryUnavailable')}</p>
-              {!exportUnavailable && <Button onClick={() => { void sourceQuery.refetch(); }}>{t('savedTakeVideoExportRetry')}</Button>}
+              {!exportUnavailable && <Button onClick={() => { void bundleQuery.refetch(); }}>{t('savedTakeVideoExportRetry')}</Button>}
             </div> : <VerovioScoreViewer
-              isLoading={source.isLoading}
+              isLoading={bundle.isLoading}
               xmlContent={xmlContent}
               adapterFactory={adapterFactory}
               onRendered={(_renderedAdapter, container) => setScoreContainer(container)}
@@ -325,7 +325,7 @@ export default function SavedPerformanceVideoExportPage() {
         scoreContainer={scoreContainer}
         adapter={adapter}
         scoreEndTick={artifact.scoreEndTick} ticksPerQuarter={artifact.ticksPerQuarter}
-        isScoreIdentityConfirmed={isSourceReady}
+        isScoreIdentityConfirmed={isBundleReady}
         xmlContent={xmlContent}
         mediaTimeMs={mediaTimeMs}
         isReplayPlaying={isReplayPlaying}

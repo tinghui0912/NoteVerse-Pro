@@ -22,16 +22,16 @@ has one attack containing all unison notation identities across voices/staves.
 Backend deterministic construction and browser strict parsing validate this graph.
 Scope selects indexes/ticks from an admitted revision.
 
-PracticeSourceService exposes one `/source` resource containing the artifact, optional
-prepared-MusicXML notation and source_id. See [Practice Source](practice-source.md).
+PracticeBundleService exposes one `/bundle` resource containing the artifact, optional
+prepared-MusicXML notation and bundle_id. See [Practice Bundle](practice-bundle.md).
 Deterministic PracticeScoreInvalidError maps to422 practice_score_invalid; unexpected
-parser/storage/serialization/invariant failures map to503 practice_source_failed.
+parser/storage/serialization/invariant failures map to503 practice_bundle_failed.
 Generated DTOs describe transport; the score artifact parser owns revision-wide semantic
 admission. Planning and mode execution consume that admitted runtime artifact.
 
 `usePracticeRouteScore` pins revision identity from route/score metadata. Setup's explicit
-command invokes `admitPracticeSource` for fresh complete Source admission before
-resource acquisition. Its successful PreparedPractice handoff carries exact sourceId
+command invokes `admitPracticeBundle` for fresh complete Bundle admission before
+resource acquisition. Its successful PreparedPractice handoff carries exact bundleId
 and retained roots. Practice and Review reuse that admitted representation without
 Source reads.
 Without handoff it shows Setup required. Invalid Source fails Setup admission before acquisition.

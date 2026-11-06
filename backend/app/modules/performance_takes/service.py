@@ -107,10 +107,10 @@ class PerformanceTakeService:
 
         return PerformanceTakeRead(
             take_id=take.take_uuid,
-            source_id=take.source_id,
-            source_score_id=take.source_score_uuid,
-            source_revision_id=take.source_revision_uuid,
-            source_artifact_id=take.source_artifact_id,
+            bundle_id=take.practice_bundle_id,
+            score_id=take.practice_score_uuid,
+            revision_id=take.practice_revision_uuid,
+            artifact_id=take.practice_artifact_id,
             score_title_snapshot=score_title_snapshot,
             linked_score_id=linked_score_id,
             can_open_score=linked_score_id is not None,

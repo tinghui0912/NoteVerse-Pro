@@ -14,7 +14,7 @@ function resultWithEvidence() {
   const base = canonicalContinuousResultFixture();
   const { plan, localSessionId } = base.session;
   const evaluator = new ContinuousEvaluationSession({
-    artifact: plan.source.artifact,
+    artifact: plan.bundle.artifact,
     scope: plan.scope,
     inputSource: "MIDI",
     sessionDomainId: localSessionId,
@@ -66,8 +66,8 @@ describe("transient natural Continuous result", () => {
         const original = canonicalContinuousResultFixture(input, available);
         const result = createContinuousPerformanceResult(original);
         expect(result.session.plan).toBe(original.session.plan);
-        expect(result.session.plan.source.artifact).toBe(
-          original.session.plan.source.artifact,
+        expect(result.session.plan.bundle.artifact).toBe(
+          original.session.plan.bundle.artifact,
         );
         expect(result.evaluation).toBe(original.evaluation);
         expect(result.session.performance.activeElapsedMs).toBe(
@@ -176,7 +176,7 @@ describe("transient natural Continuous result", () => {
     const base = canonicalContinuousResultFixture();
     if (base.evaluation.status !== "COMPLETE")
       throw new Error("Expected complete");
-    const artifact = base.session.plan.source.artifact;
+    const artifact = base.session.plan.bundle.artifact;
     const scope = {
       kind: "RANGE" as const,
       startGroupId: artifact.moments[1].groupId,

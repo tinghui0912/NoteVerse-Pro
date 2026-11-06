@@ -14,7 +14,7 @@ generation demand.
 Derived-asset retention protects exactly the current head and active Guest Preview pins.
 Other historical presentation rows, storage objects and derived usage are eligible for
 cleanup immediately, even while the new head's render/audio are pending. Canonical
-MusicXML snapshots and PracticeSource ownership are independent and remain durable.
+MusicXML snapshots and PracticeBundle ownership are independent and remain durable.
 
 Post-save/restore cleanup and post-commit Preview revoke/delete cleanup are best effort.
 The daily Beat pass reconciles expired pins and remaining disposable presentation.

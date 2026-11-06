@@ -19,7 +19,7 @@ import { midiDeviceFixture } from '@/lib/practice/__fixtures__/device-roots';
 import { usePracticeWorkspace } from '@/contexts/practice-workspace-context';
 import { AcousticEngine } from '@/lib/practice/acoustic/model/acoustic-engine';
 const admission = vi.hoisted(() => ({ request: vi.fn(), supported: true, events: [] as string[], revision: 'revision-id' as string | null }));
-vi.mock('@/lib/api', () => ({ practiceApi: { getPracticeSource: (...args: unknown[]) => admission.request(...args) } }));
+vi.mock('@/lib/api', () => ({ practiceApi: { getPracticeBundle: (...args: unknown[]) => admission.request(...args) } }));
 vi.mock('@/hooks/queries/use-score-queries', () => ({ useScoreDetail: () => ({ data: { data: { head_revision_id: 'head-id', capabilities: { can_practice: true } } }, isError: false }) }));
 vi.mock('@/lib/practice/input-capability', () => ({
   evaluatePracticeInputCapabilities: () => { admission.events.push('capability'); return {}; },
@@ -29,7 +29,7 @@ const navigation = vi.hoisted(() => ({ replace: vi.fn(), push: vi.fn() }));
 vi.mock('@/i18n/routing', () => ({ useRouter: () => navigation }));
 vi.mock('next/navigation', () => ({ useParams: () => ({ id: 'score-id' }), usePathname: () => '/score/score-id/practice/setup',
   useSearchParams: () => new URLSearchParams(admission.revision ? `practiceRevisionId=${admission.revision}` : ''), useRouter: () => navigation }));
-function envelope() { return { data: { source_id: 'source', artifact: { ...fixture, scoreId: 'score-id', revisionId: admission.revision ?? 'head-id' }, notation: { musicxml: '<score />', mime_type: 'application/vnd.recordare.musicxml+xml' } } }; }
+function envelope() { return { data: { binding:{score_id:'score-id',revision_id:admission.revision ?? 'head-id',bundle_id:'bundle'}, artifact: fixture, notation: { musicxml: '<score />', mime_type: 'application/vnd.recordare.musicxml+xml' } } }; }
 
 beforeEach(() => {
   admission.supported = true; admission.revision = 'revision-id'; admission.events = [];
@@ -68,8 +68,8 @@ it('fresh Source parse precedes one physical acquisition, SAME-root validation, 
   expect(admission.request).toHaveBeenCalledExactlyOnceWith('score-id','revision-id',true,expect.any(AbortSignal));
   expect(admission.events).toEqual(['source','acquire','capability']);expect(parse).toHaveBeenCalledOnce();expect(r.acquireMidi).toHaveBeenCalledOnce();
   expect(r.workspace.preparedPractice!.binding.borrowRoots()!.midi).toBe(r.midi.access);
-  expect(r.workspace.preparedPractice!.admission).toEqual({source:{sourceId:'source',artifact:envelope().data.artifact,musicXml:'<score />'},configuration:{mode:'STEP_BY_STEP',inputSource:'MIDI',recordingMode:'OFF'}});
-  expect(Object.isFrozen(r.workspace.preparedPractice!.admission.source)).toBe(true);
+  expect(r.workspace.preparedPractice!.admission).toEqual({bundle:{binding: { scoreId: 'score-id', revisionId: 'revision-id', bundleId: 'bundle' },artifact:envelope().data.artifact,musicXml:'<score />'},configuration:{mode:'STEP_BY_STEP',inputSource:'MIDI',recordingMode:'OFF'}});
+  expect(Object.isFrozen(r.workspace.preparedPractice!.admission.bundle)).toBe(true);
   expect(navigation.replace).toHaveBeenCalledWith('/score/score-id/practice?practiceRevisionId=revision-id');
 });
 it.each(['parser','server'] as const)('%s invalid score never acquires physical roots',async kind=>{
@@ -146,11 +146,11 @@ it('superseded recording validation releases A immediately, lets B commit and ig
   expect(first.track.clones[0].stop).toHaveBeenCalledOnce();expect(first.track.stop).toHaveBeenCalledOnce();expect(bindingA.snapshot().state).toBe('CLOSED');
   expect(screen.getByRole('button',{name:'Video'})).toHaveAttribute('aria-pressed','true');
   expect(screen.queryByRole('alert')).toBeNull();expect(button()).toBeEnabled();
-  admission.request.mockResolvedValueOnce({data:{...envelope().data,source_id:'source-B'}});
+  admission.request.mockResolvedValueOnce({data:{...envelope().data,binding:{...envelope().data.binding,bundle_id:'bundle-B'}}});
   await act(async()=>{fireEvent.click(button());await vi.advanceTimersByTimeAsync(0);});
   expect(probe.instances).toHaveLength(2);const b=probe.instances[1];b.completeOnStop=true;
   await act(async()=>{b.stop();await vi.advanceTimersByTimeAsync(0);});
-  const prepared=r.workspace.preparedPractice!;expect(prepared.admission.source.sourceId).toBe('source-B');
+  const prepared=r.workspace.preparedPractice!;expect(prepared.admission.bundle.binding.bundleId).toBe('bundle-B');
   expect(prepared.binding.borrowRoots()!.recordingMicrophone).toBe(second.stream);expect(prepared.binding.snapshot().state).toBe('READY');
   for(const root of [second,camera]){expect(root.track.clones[0].stop).toHaveBeenCalledOnce();expect(root.track.stop).not.toHaveBeenCalled();}
   expect(r.acquireStream).toHaveBeenCalledTimes(3);

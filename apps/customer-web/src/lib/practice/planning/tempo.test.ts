@@ -20,8 +20,8 @@ import { describe, expect, it } from 'vitest';
 function createMockArtifact(scoreTempoSegments: { startTick: number; bpm: number }[]): PracticeScoreArtifact {
   return {
     schemaVersion: 1, ticksPerQuarter: 1,
-    scoreId: 'test-score',
-    revisionId: 'test-revision',
+
+
     artifactId: 'test-artifact',
     notes: [],
     events: [],

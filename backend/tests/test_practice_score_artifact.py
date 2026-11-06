@@ -20,19 +20,19 @@ def test_practice_score_artifact_matches_browser_fixture() -> None:
 
     artifact = practice_score_artifact_from_timeline(
         timeline,
-        score_id="canonical-local-core-score",
-        revision_id="canonical-local-core-revision",
+
+
         score_tempo_segments=compiled.tempo_segments,
     )
 
     assert artifact["schemaVersion"] == 1
-    assert artifact["artifactId"] == "practice-score-artifact:7d53bd7fed2ca43a"
+    assert artifact["artifactId"] == "practice-score-artifact:f302746d7229b692"
     assert artifact["scoreTempoSegments"] == [
         {"startTick": 0, "bpm": 120},
         {"startTick": 6, "bpm": 90},
     ]
-    assert artifact["scoreId"] == "canonical-local-core-score"
-    assert artifact["revisionId"] == "canonical-local-core-revision"
+    assert "scoreId" not in artifact
+    assert "revisionId" not in artifact
     assert [
         [attack["pianoKey"] for attack in moment["attacks"]] for moment in artifact["moments"]
     ] == [
@@ -74,7 +74,7 @@ def test_empty_practice_score_artifact_is_not_practice_ready() -> None:
     )
     with pytest.raises(PracticeScoreInvalidError):
         practice_score_artifact_from_timeline(
-            timeline, score_id="s", revision_id="r", score_tempo_segments=()
+            timeline,   score_tempo_segments=()
         )
 
 
@@ -84,14 +84,14 @@ def test_practice_score_artifact_deterministic_identity() -> None:
 
     artifact1 = practice_score_artifact_from_timeline(
         timeline,
-        score_id="score-123",
-        revision_id="rev-456",
+
+
         score_tempo_segments=compiled.tempo_segments,
     )
     artifact2 = practice_score_artifact_from_timeline(
         timeline,
-        score_id="score-123",
-        revision_id="rev-456",
+
+
         score_tempo_segments=compiled.tempo_segments,
     )
 
@@ -258,8 +258,8 @@ def test_practice_score_artifact_requires_explicit_score_tempo_segments() -> Non
         # Omitting score_tempo_segments must raise TypeError
         practice_score_artifact_from_timeline(  # type: ignore[call-arg]
             timeline,
-            score_id="score-1",
-            revision_id="rev-1",
+
+
         )
 
 
@@ -268,7 +268,7 @@ def test_practice_score_artifact_rejects_unsupported_schema() -> None:
     import os
     import pytest
     from pydantic import ValidationError
-    from app.modules.practice.source.schemas import PracticeScoreArtifactRead
+    from app.modules.practice.bundle.schemas import PracticeScoreArtifactRead
 
     root = Path(os.environ.get("NOTEVERSE_REPO_ROOT", Path(__file__).resolve().parents[2]))
     value = json.loads(
@@ -283,20 +283,20 @@ def test_practice_score_artifact_rejects_unsupported_schema() -> None:
 
 
 def test_semantic_score_fact_changes_artifact_content_identity():
-    from app.modules.practice.source.builder import PracticeSourceBuilder
+    from app.modules.practice.bundle.compiler import PracticeBundleCompiler
 
-    builder = PracticeSourceBuilder()
+    builder = PracticeBundleCompiler()
     xml = CANONICAL_MUSICXML.read_bytes()
-    first = builder.build(score_id="s", revision_id="r", canonical_musicxml=xml)
-    same = builder.build(score_id="s", revision_id="r", canonical_musicxml=xml)
-    changed = builder.build(
-        score_id="s",
-        revision_id="r",
+    first = builder.compile(  canonical_musicxml=xml)
+    same = builder.compile(  canonical_musicxml=xml)
+    changed = builder.compile(
+
+
         canonical_musicxml=xml.replace(b"<step>C</step>", b"<step>D</step>", 1),
     )
     assert first.artifact.artifact_id == same.artifact.artifact_id
     assert changed.artifact.artifact_id != first.artifact.artifact_id
-    assert changed.source_id != first.source_id
+    assert changed.bundle_id != first.bundle_id
 
 
 def test_repeat_notation_artifact_matches_browser_alignment_fixture() -> None:
@@ -307,8 +307,8 @@ def test_repeat_notation_artifact_matches_browser_alignment_fixture() -> None:
     compiled = compile_practice_score(xml.read_bytes())
     artifact = practice_score_artifact_from_timeline(
         practice_timeline_from_compiled(compiled),
-        score_id="repeat-alignment-score",
-        revision_id="repeat-alignment-revision",
+
+
         score_tempo_segments=compiled.tempo_segments,
     )
     root = Path(os.environ.get("NOTEVERSE_REPO_ROOT", Path(__file__).resolve().parents[2]))

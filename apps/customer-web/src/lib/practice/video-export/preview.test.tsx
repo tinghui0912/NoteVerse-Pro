@@ -36,7 +36,7 @@ import { VideoExportPreview } from './preview';
 import { captureReplayVideoFrame } from './preview';
 
 const session: VideoExportSession = {
-  sessionId: 'session-1', sourceId: 'source-1',
+  sessionId: 'session-1', bundleId: 'source-1',
   scoreIdentity: { scoreId: 'score-1', revisionId: 'revision-1', artifactId: 'artifact-1' },
   scope: { kind: 'FULL', startTick: 0, terminalTick: 16 },
   tempoPlan: {

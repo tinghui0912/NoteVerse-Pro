@@ -83,6 +83,11 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
     return materialization && Boolean(edge.target?.startsWith(apiRoot));
   }
 
+  if (source.startsWith('bundle/')) return Boolean(target?.startsWith('bundle/')
+    || target?.startsWith('score/') || target?.startsWith('failure/')
+    || edge.target === normalize(path.join(sourceRoot, 'lib/api/index.ts'))
+    || edge.typeOnly && (edge.target === normalize(path.join(sourceRoot, 'lib/api-client.ts'))
+      || edge.target?.startsWith(normalize(path.join(sourceRoot, 'generated/api')) + '/')));
   if (source.startsWith('failure/')) return Boolean(target?.startsWith('failure/'));
   if (target?.startsWith('failure/')) return !domain(source) && !source.startsWith('planning/') && !source.startsWith('result/');
   if (edge.target === normalize(path.join(sourceRoot, 'lib/observability/index.ts'))) {
@@ -106,7 +111,7 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
   if (source.startsWith('application/')) return Boolean(target && ['application/', 'planning/', 'score/', 'session/', 'device/', 'step/', 'continuous/', 'recording/', 'diagnostics/', 'score-view/', 'acoustic/runtime/'].some(owner => target.startsWith(owner)) || target === 'input-state.ts');
   if (source === 'planning/tempo.ts' && edge.target === normalize(path.join(sourceRoot, 'lib/score/tempo-policy.ts'))) return true;
   if (source.startsWith('planning/')) return Boolean(target && (target.startsWith('planning/')
-    || target.startsWith('score/') || target === 'metronome/metronome-plan.ts' || edge.typeOnly && target === 'recording/recording-mode.ts'));
+    || target.startsWith('score/') || target === 'metronome/metronome-plan.ts' || edge.typeOnly && (target === 'recording/recording-mode.ts' || target?.startsWith('bundle/'))));
   if (target === 'acoustic/continuous/capture-bridge.ts') return ['continuous/continuous-microphone-input.ts', 'continuous/continuous-input.ts'].includes(source);
   if(source.startsWith('acoustic/generated/')) return false;
   if(source.startsWith('acoustic/runtime/')) return Boolean(target?.startsWith('acoustic/') && !target.startsWith('acoustic/continuous/'));
@@ -130,8 +135,9 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
   }
   if (source.startsWith('review/')) return Boolean(target && (['review/', 'result/', 'score/', 'session/', 'planning/', 'score-view/', 'media/'].some(owner => target.startsWith(owner))
     || ['recording/recording-artifact.ts', 'recording/recording-timebase.ts', 'recording/performance-replay.ts'].includes(target)
-    || edge.typeOnly && ['source/admitted-practice-source.ts','continuous/completion.ts'].includes(target)));
+    || edge.typeOnly && ['bundle/admitted-practice-bundle.ts','continuous/completion.ts'].includes(target)));
   if (source.startsWith('video-export/')) {
+    if (edge.typeOnly && target?.startsWith('bundle/')) return true;
     if (source === 'video-export/current-completion-adapter.ts' && edge.typeOnly && target === 'review/transient-review-session.ts') return true;
     if (['react', 'next-intl'].includes(edge.specifier)) return source === 'video-export/preview.tsx';
     if (edge.target === normalize(path.join(sourceRoot, 'lib/api/performance-takes.ts'))) return source === 'video-export/saved-take-adapter.ts' && edge.typeOnly;
@@ -162,7 +168,7 @@ describe('Practice bounded domain dependencies', () => {
     const core = path.join(practiceRoot, 'media/boundary-probe.ts');
     const takeMedia = path.join(practiceRoot, 'media/performance-take/boundary-probe.ts');
     for (const file of [core, takeMedia]) {
-      for (const owner of ['score', 'planning', 'session', 'step', 'continuous', 'recording', 'review', 'video-export', 'source', 'result', 'failure', 'device', 'acoustic', 'preparation', 'environment']) {
+      for (const owner of ['score', 'planning', 'session', 'step', 'continuous', 'recording', 'review', 'video-export', 'bundle', 'result', 'failure', 'device', 'acoustic', 'preparation', 'environment']) {
         const target = `@/lib/practice/${owner}/boundary-probe`;
         expect(dependencyAllowed(file, imports(file, `import type { Fact } from '${target}';`)[0]), file + ' -> ' + owner).toBe(false);
       }
@@ -201,7 +207,7 @@ describe('Practice bounded domain dependencies', () => {
     expect(existsSync(guestPreview)).toBe(true);
     const savedBindings = imports(saved).flatMap(edge => edge.bindings);
     expect(savedBindings).toEqual(expect.arrayContaining([
-      'VideoExportStudio', 'createVideoExportSessionFromSavedTake', 'useSavedTakeExportSource',
+      'VideoExportStudio', 'createVideoExportSessionFromSavedTake', 'useSavedTakeExportBundle',
     ]));
     const review = path.join(sourceRoot, 'app/[locale]/(workspace)/score/[id]/practice/review/page.tsx');
     expect(imports(review).flatMap(edge => edge.bindings)).toEqual(expect.arrayContaining([
@@ -351,7 +357,7 @@ describe('Practice bounded domain dependencies', () => {
     }
     expect([...constructions.keys()]).toEqual([normalize(ownerPath)]);
     expect([...constructions.get(normalize(ownerPath))!].sort()).toEqual(['ContinuousPracticeController', 'StepPracticeController']);
-    const source = imports(path.join(practiceRoot, 'source/source-envelope.ts'));
+    const source = imports(path.join(practiceRoot, 'bundle/bundle-envelope.ts'));
     expect(source.find(edge => edge.target?.endsWith('/score/artifact.ts'))?.bindings).toEqual(['parsePracticeScoreArtifact', 'PracticeScoreContractError']);
   });
 
@@ -942,7 +948,7 @@ it('Setup commands compose fresh source, retained acquisition, validation, atomi
   const source = ts.createSourceFile(file, readFileSync(file,'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const calls: string[]=[];
   const inspect = (node: ts.Node) => { if (ts.isCallExpression(node)) calls.push(node.expression.getText(source)); ts.forEachChild(node, inspect); }; inspect(source);
-  const order = ['admitPracticeSource','planPracticeResources','binding.open','validatePracticeResources','commitPreparedPractice','router.replace'];
+  const order = ['admitPracticeBundle','planPracticeResources','binding.open','validatePracticeResources','commitPreparedPractice','router.replace'];
   expect(order.map(name=>calls.indexOf(name))).toEqual([...order.map(name=>calls.indexOf(name))].sort((a,b)=>a-b));
   for(const name of order) expect(calls.filter(call=>call===name)).toHaveLength(1);
   const page = path.join(sourceRoot,'app/[locale]/(workspace)/score/[id]/practice/page.tsx');
@@ -1018,17 +1024,17 @@ it('R03 boundary admission is read only by capture/control ownership, never sour
 it('browser execution and Review consume workspace-owned representations rather than Source transport',()=>{
   const executionPage=path.join(sourceRoot,'app/[locale]/(workspace)/score/[id]/practice/page.tsx');
   const reviewPage=path.join(sourceRoot,'app/[locale]/(workspace)/score/[id]/practice/review/page.tsx');
-  const transportOwners=['lib/practice/source/admit-practice-source.ts','lib/practice/source/source-envelope.ts',
-    'lib/api/practice.ts','hooks/practice/use-saved-take-export-source.ts','hooks/queries/use-score-queries.ts']
+  const transportOwners=['lib/practice/bundle/admit-practice-bundle.ts','lib/practice/bundle/bundle-envelope.ts',
+    'lib/api/practice.ts','hooks/practice/use-saved-take-export-bundle.ts','hooks/queries/use-score-queries.ts']
     .map(file=>normalize(path.join(sourceRoot,file)));
   for(const file of [executionPage,reviewPage,...productionFiles(path.join(practiceRoot,'review'))]) {
     for(const edge of imports(file).filter(edge=>!edge.typeOnly)) expect(transportOwners,`${file}: ${edge.specifier}`).not.toContain(edge.target);
   }
   expect(imports(reviewPage).some(edge=>edge.bindings.includes('usePracticeWorkspace'))).toBe(true);
   const setup=normalize(path.join(sourceRoot,'app/[locale]/(workspace)/score/[id]/practice/setup/page.tsx'));
-  for(const [file,edges] of sourceGraph) if(edges.some(edge=>!edge.typeOnly&&edge.bindings.includes('admitPracticeSource'))) expect(file).toBe(setup);
+  for(const [file,edges] of sourceGraph) if(edges.some(edge=>!edge.typeOnly&&edge.bindings.includes('admitPracticeBundle'))) expect(file).toBe(setup);
   const prepared=path.join(practiceRoot,'preparation/prepared-practice.ts');
-  expect(imports(prepared).some(edge=>edge.typeOnly&&edge.bindings.includes('AdmittedPracticeSource'))).toBe(true);
+  expect(imports(prepared).some(edge=>edge.typeOnly&&edge.bindings.includes('AdmittedPracticeBundle'))).toBe(true);
   expect(imports(path.join(practiceRoot,'video-export/current-completion-adapter.ts')).some(edge=>edge.typeOnly&&edge.bindings.includes('TransientReviewSession'))).toBe(true);
 });
 

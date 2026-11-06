@@ -51,7 +51,7 @@ const sampleMusicXml = `<?xml version="1.0" encoding="UTF-8"?>
 
 const testArtifact: PracticeScoreArtifact = {
   schemaVersion: 1, ticksPerQuarter: 1,
-  artifactId: 'practice-score-artifact:continuous-test', scoreId, revisionId,
+  artifactId: 'practice-score-artifact:continuous-test',
    scoreEndTick: 4,
   notes: [60, 62, 64].map((pianoKey, i) => ({ noteId: `note-${i}`, eventId: `e-${i}`, pianoKey,
     renderNoteId: ['note-c4', 'note-d4', 'note-e4'][i], measureNumber: '1', staffId: '1', voiceId: '1', tieTypes: [] })),
@@ -364,8 +364,8 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
     expect(route.request().method()).toBe('POST');
     reservedRequest = route.request().postDataJSON();
     // The public write contract carries selections and evidence only.
-    expect(Object.keys(reservedRequest).sort()).toEqual(['client_request_id', 'media', 'recording_timebase', 'scope', 'source', 'tempo_selection']);
-    expect(reservedRequest.source).toEqual({ source_id: 'source-1' });
+    expect(Object.keys(reservedRequest).sort()).toEqual(['client_request_id', 'media', 'practice_binding', 'recording_timebase', 'scope', 'tempo_selection']);
+    expect(reservedRequest.practice_binding).toEqual({score_id:scoreId,revision_id:revisionId,bundle_id:'bundle-1'});
     expect(Object.keys(reservedRequest.scope).sort()).toEqual(reservedRequest.scope.kind === 'FULL'
       ? ['kind'] : ['end_group_id', 'kind', 'start_group_id']);
     expect(Object.keys(reservedRequest.tempo_selection).sort()).toEqual(reservedRequest.tempo_selection.mode === 'SCORE' ? ['mode'] : ['bpm', 'mode']);
@@ -381,10 +381,10 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
       accepted.resolved_tempo_plan = { ...accepted.resolved_tempo_plan,
         segments: accepted.resolved_tempo_plan.segments.map((segment, index) => index === 0 ? { ...segment, bpm: segment.bpm + 1 } : segment) };
     }
-    const { source, media, scope, tempo_selection, recording_timebase } = reservedRequest;
+    const { practice_binding, media, scope, tempo_selection, recording_timebase } = reservedRequest;
     return route.fulfill({ status: 200, contentType: 'application/json', body: apiResponse({
       reservation_id: 'upload-res-e2e-1', take_id: 'take-e2e-1', status: 'RESERVED',
-      metadata: { source, media, scope, tempo_selection, recording_timebase },
+      metadata: { practice_binding, media, scope, tempo_selection, recording_timebase },
       ...accepted,
       upload_target: { url: '/api/v1/performance-takes/mock-upload/take-e2e-1', method: 'PUT',
         headers: { 'content-type': media.mime_type }, expires_in: 3600 },
@@ -394,11 +394,11 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
     expect(route.request().postData()).toBeNull();
     expect(saveProtocol.events).toEqual(['RESERVATION', 'MEDIA_PUT']);
     saveProtocol.events.push('FINALIZE');
-    const { source, media, scope, recording_timebase } = reservedRequest;
+    const { practice_binding, media, scope, recording_timebase } = reservedRequest;
     const { resolved_scope, resolved_tempo_plan } = acceptedPlan(reservedRequest);
     const take: PerformanceTakeRead = {score_timebase: { ticks_per_quarter: testArtifact.ticksPerQuarter },
-      take_id: 'take-e2e-1', source_id: source.source_id, source_score_id: testArtifact.scoreId, source_revision_id: testArtifact.revisionId,
-      source_artifact_id: testArtifact.artifactId, score_title_snapshot: 'Continuous Review Score',
+      take_id: 'take-e2e-1', bundle_id: practice_binding.bundle_id, score_id: practice_binding.score_id, revision_id: practice_binding.revision_id,
+      artifact_id: testArtifact.artifactId, score_title_snapshot: 'Continuous Review Score',
       media_kind: media.kind, media_mime_type: media.mime_type, media_byte_size: media.byte_size,
       scope_type: scope.kind, scope_start_tick: resolved_scope.start_tick,
       scope_terminal_tick: resolved_scope.terminal_tick,
@@ -474,11 +474,11 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
   );
 
   // One Practice Source envelope supplies the artifact and requested notation.
-  await page.route(/\/api\/v1\/practice\/scores\/[^/]+\/revisions\/[^/]+\/source(?:\?.*)?$/, route =>
+  await page.route(/\/api\/v1\/practice\/scores\/[^/]+\/revisions\/[^/]+\/bundle(?:\?.*)?$/, route =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: apiResponse({ source_id: 'source-1', artifact: testArtifact, notation:
+      body: apiResponse({ binding:{score_id:scoreId,revision_id:revisionId,bundle_id:'bundle-1'}, artifact: testArtifact, notation:
         new URL(route.request().url()).searchParams.get('include_notation') === 'true'
           ? { musicxml: sampleMusicXml, mime_type: 'application/vnd.recordare.musicxml+xml' } : null }),
     })
@@ -495,7 +495,7 @@ function recordingOption(page: Page, mode: 'OFF' | 'AUDIO' | 'VIDEO') {
 test('first use requires explicit intent; full reload restores intent but requires live preparation', async ({ page }) => {
   await setupContinuousPracticeMocks(page);
   const sourceRequests: string[] = [];
-  page.on('request',request=>{if(request.url().includes('/practice/')&&request.url().includes('/source'))sourceRequests.push(request.url());});
+  page.on('request',request=>{if(request.url().includes('/practice/')&&request.url().includes('/bundle'))sourceRequests.push(request.url());});
   await page.goto(`/zh/score/${scoreId}/practice/setup?practiceRevisionId=${revisionId}`);
   const setup = page.getByTestId('practice-setup');
   await expect(setup).toBeVisible();
@@ -1821,7 +1821,7 @@ test('Review saves RANGE and CUSTOM selection with server planning agreement', a
 
 test('Setup microphone admission retains the exact stream across Start, End and natural Retry',async({page},testInfo)=>{
   const sourceRequests:string[]=[];
-  page.on('request',request=>{if(request.url().includes('/practice/')&&request.url().includes('/source'))sourceRequests.push(new URL(request.url()).pathname);});
+  page.on('request',request=>{if(request.url().includes('/practice/')&&request.url().includes('/bundle'))sourceRequests.push(new URL(request.url()).pathname);});
   await setupContinuousPracticeMocks(page);
   await page.goto(`/zh/score/${scoreId}/practice/setup?practiceRevisionId=${revisionId}`);
   await selectPracticeConfiguration(page,'STEP','MICROPHONE','OFF');
@@ -1837,7 +1837,7 @@ test('Setup microphone admission retains the exact stream across Start, End and 
   await expect(page.getByRole('dialog')).toBeVisible();await page.getByRole('button',{name:'重弹一次',exact:true}).click();
   await expect(page.getByRole('status')).toContainText('弹奏当前高亮音');
   expect(await witness()).toMatchObject({acquisitions:1,captures:4,same:true,live:true});
-  expect(sourceRequests).toEqual([`/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/source`]);
+  expect(sourceRequests).toEqual([`/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/bundle`]);
   await testInfo.attach('same-microphone-source',{body:JSON.stringify({resources:await witness(),sourceRequests}),contentType:'application/json'});
 });
 
@@ -1866,7 +1866,7 @@ test('one complete Setup admission survives Score deletion through Practice, Rev
   const sourceRequests: string[] = [], scoreRequests: string[] = [];
   page.on('request', request => {
     const url=new URL(request.url());
-    if(url.pathname.startsWith('/api/v1/practice/') && url.pathname.includes('/source')) sourceRequests.push(request.url());
+    if(url.pathname.startsWith('/api/v1/practice/') && url.pathname.includes('/bundle')) sourceRequests.push(request.url());
     if(url.pathname===`/api/v1/scores/${scoreId}`)scoreRequests.push(request.url());
   });
   await page.goto(`/zh/score/${scoreId}/practice/setup?practiceRevisionId=${revisionId}`);
@@ -1875,7 +1875,7 @@ test('one complete Setup admission survives Score deletion through Practice, Rev
   expect(await preparePracticeSetup(page)).toBe('READY');
   expect(sourceRequests).toHaveLength(1);
   const admitted=new URL(sourceRequests[0]);
-  expect(admitted.pathname).toBe(`/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/source`);
+  expect(admitted.pathname).toBe(`/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/bundle`);
   expect(admitted.searchParams.get('include_notation')).toBe('true');
   const admittedScoreReads=scoreRequests.length;
   // Any new authorization/read fails: the current browser flow already owns its input.

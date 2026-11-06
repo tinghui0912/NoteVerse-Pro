@@ -122,7 +122,7 @@ function rig(mode: "STEP_BY_STEP" | "CONTINUOUS_PLAY" = "STEP_BY_STEP") {
               canAcceptAttempt: true,
               pendingPostVerdict: null,
               activeStepGroup:
-                options.plan.source.artifact.moments[
+                options.plan.bundle.artifact.moments[
                   options.plan.scope.startIndex
                 ],
               sessionSnapshot,

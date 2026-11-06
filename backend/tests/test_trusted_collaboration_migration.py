@@ -5,7 +5,7 @@ from alembic import command
 from sqlalchemy.orm import Session
 from app.db.models import User, Score, ScoreMembership, ScoreInvite
 from app.db.models.score_access import MembershipRole
-from tests.test_practice_source_migration import migration_database
+from tests.test_practice_bundle_migration import migration_database
 
 
 def test_fresh_membership_role_enum_and_both_consumers(monkeypatch):

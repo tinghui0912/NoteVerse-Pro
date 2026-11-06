@@ -3,7 +3,7 @@
 UploadReservation is a persisted lifecycle aggregate. Its pure owner is
 `backend/app/modules/performance_takes/upload_reservation/domain.py`.
 HTTP DTOs carry intent and recording evidence. `PerformanceTakeUploadService`
-authorizes the exact Source, calls the Practice planner, orchestrates storage IO,
+authorizes the exact bound Bundle, calls the Practice planner, orchestrates storage IO,
 and executes explicit transition effects. `PerformanceTakeService` owns the durable
 Take library: reads, playback, download and deletion from its own durable snapshots.
 
@@ -68,18 +68,18 @@ An active finite lease cannot be taken over. Expired takeover assigns a new toke
 and key and retains the old candidate with a thirty-minute unknown-outcome grace.
 Copy and completion both check lease identity; completion also requires a live lease.
 
-New durable save admission authorizes and verifies a live exact Source under Score,
-Revision, authorization-fact and Source locks. The lock order and delete/admit ordering
-belong to [Practice Source](practice-source.md#durable-save-admission). The reservation
-snapshots source_id, source_score_uuid, source_revision_uuid, source_artifact_id,
+New durable save admission authorizes and verifies a live exact bound Bundle under Score,
+Revision, authorization-fact and binding and Bundle locks. The lock order and delete/admit ordering
+belong to [Practice Bundle](practice-bundle.md#durable-save-admission). The reservation
+snapshots bundle_id, practice_score_uuid, practice_revision_uuid, practice_artifact_id,
 score_title_snapshot and server-resolved scope/tempo. Provenance is immutable metadata,
-not Source ownership. A committed reservation finalizes independently of Source lifetime.
+not Bundle ownership. A committed reservation finalizes independently of Bundle lifetime.
 
 Take creation, reservation completion and quota commit share one database transaction.
 Cancellation/expiry release quota in one transaction. Finalize copies provenance, title,
-resolved scope/tempo and recording timebase without Source reads or replanning. Its live
+resolved scope/tempo and recording timebase without Bundle reads or replanning. Its live
 navigation FK follows ON DELETE SET NULL; the read projection decides whether navigation
-is currently authorized. PracticeSource has only its ScoreRevision lifecycle owner.
+is currently authorized. PracticeBundle has only its ScoreRevision lifecycle owner.
 
 ## Replay, cancellation and recovery
 
@@ -121,10 +121,10 @@ Take and reservation rows have no separate duration column. Duration admission r
 this validated timebase, and finalize copies its exact immutable coordinate payload.
 Scope and tempo positions share this one score coordinate system.
 
-Admission reads the exact Source artifact's `ticksPerQuarter` while resolving the
+Admission reads the exact bound Bundle artifact's `ticksPerQuarter` while resolving the
 scope and tempo plan. Idempotent replay returns the persisted timebase. Finalize
-copies it from the reservation snapshot, without Source access or replanning.
-Take reads and lists retain the complete coordinate snapshot after Source GC.
+copies it from the reservation snapshot, without revision binding access or replanning.
+Take reads and lists retain the complete coordinate snapshot after Bundle GC.
 
 Both tables constrain positive JSON-safe `ticks_per_quarter`, nonnegative
 JSON-safe `scope_start_tick`, positive JSON-safe `scope_terminal_tick`, and

@@ -25,12 +25,12 @@ function strikes(artifact: PracticeScoreArtifact) {
 describe('one canonical Practice note graph and moment sequence', () => {
   it('accepts the deterministic producer fixture and exact canonical transport fields', () => {
     assertPracticeScoreArtifact(fixture);
-    expect(fixture.schemaVersion).toBe(1); expect(fixture.artifactId).toBe('practice-score-artifact:7d53bd7fed2ca43a');
+    expect(fixture.schemaVersion).toBe(1); expect(fixture.artifactId).toBe('practice-score-artifact:f302746d7229b692');
     expect(fixture.notes).toHaveLength(7);
     expect(new Set(fixture.notes.map(n => n.noteId)).size).toBe(fixture.notes.length);
     expect(fixture.moments.map(m => m.attacks.map(a => a.pianoKey))).toEqual([[60],[60],[67],[69,72],[74]]);
     expect(Object.keys(fixture.meterSegments[0]).sort()).toEqual(['startTick','numerator','denominator'].sort());
-    expect(Object.keys(fixture).sort()).toEqual(['schemaVersion','scoreId','revisionId','artifactId','notes','events','moments',
+    expect(Object.keys(fixture).sort()).toEqual(['schemaVersion','artifactId','notes','events','moments',
       'meterSegments','scoreTempoSegments','scoreEndTick','ticksPerQuarter'].sort());
   });
   it('two unison notation identities produce one STEP attack and one Continuous strike carrying both render IDs', () => {
@@ -122,7 +122,7 @@ it.each([{meterSegments:[]},{meterSegments:[{...fixture.meterSegments[0],startTi
 it('strict parser admits explicit initial meter and physical notation without tonal metadata',()=>{
   const value=structuredClone(fixture);expect(parsePracticeScoreArtifact(value)).toBe(value);
   expect(value.meterSegments[0]).toEqual({startTick:0,numerator:3,denominator:4});
-  expect(Object.keys(value).sort()).toEqual(['schemaVersion','scoreId','revisionId','artifactId','notes','events','moments',
+  expect(Object.keys(value).sort()).toEqual(['schemaVersion','artifactId','notes','events','moments',
     'meterSegments','scoreTempoSegments','scoreEndTick','ticksPerQuarter'].sort());
 });
 

@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { DeviceFailure, MidiFailure, AudioContextFailure, CaptureFailure, AcousticFailure, InferenceFailure, RecordingFailure, SourceFailure, isPracticeCausalFailure } from './causal-failure';
+import { DeviceFailure, MidiFailure, AudioContextFailure, CaptureFailure, AcousticFailure, InferenceFailure, RecordingFailure, BundleFailure, isPracticeCausalFailure } from './causal-failure';
 import { AcousticAnalysisError } from '../acoustic/errors';
 import { acousticBoundaryFailure } from '../acoustic/failure-boundary';
 
@@ -8,8 +8,8 @@ it('closed causal categories retain original diagnostic cause without interpreti
   const facts = [new DeviceFailure('UNAVAILABLE', 'CAMERA', { cause }), new MidiFailure('ACCESS_UNAVAILABLE', { cause }),
     new AudioContextFailure('INTERRUPTED', { cause }), new CaptureFailure('PIPELINE_INVALID', { cause }),
     new AcousticFailure('MODEL_LOAD_FAILED', { cause }), new InferenceFailure('WORKER_TIMEOUT', { cause }),
-    new RecordingFailure('RECORDER_INIT_FAILED', { cause }), new SourceFailure('LOAD_FAILED', { cause })];
-  expect(facts.map(f => f.kind)).toEqual(['DEVICE', 'MIDI', 'AUDIO_CONTEXT', 'CAPTURE', 'ACOUSTIC', 'INFERENCE', 'RECORDING', 'SOURCE']);
+    new RecordingFailure('RECORDER_INIT_FAILED', { cause }), new BundleFailure('LOAD_FAILED', { cause })];
+  expect(facts.map(f => f.kind)).toEqual(['DEVICE', 'MIDI', 'AUDIO_CONTEXT', 'CAPTURE', 'ACOUSTIC', 'INFERENCE', 'RECORDING', 'BUNDLE']);
   for (const fact of facts) { expect(isPracticeCausalFailure(fact)).toBe(true); expect(fact.cause).toBe(cause); expect(acousticBoundaryFailure(fact)).toBe(fact); }
   expect(isPracticeCausalFailure(cause)).toBe(false);
 });

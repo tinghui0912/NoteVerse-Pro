@@ -19,15 +19,15 @@ def test_take_library_reads_its_own_provenance_without_source_persistence():
         node.module for node in imports("modules/performance_takes/service.py") if node.module
     }
     assert "app.modules.performance_takes.repository" in dependencies
-    assert not any(module.startswith("app.modules.practice.source") for module in dependencies)
+    assert not any(module.startswith("app.modules.practice.bundle") for module in dependencies)
     retention = {
-        node.module for node in imports("modules/practice/source/retention.py") if node.module
+        node.module for node in imports("modules/practice/bundle/retention.py") if node.module
     }
     assert not any(module.startswith("app.modules.performance_takes") for module in retention)
 
 
 def test_source_builder_consumes_compiler_and_score_projections():
-    dependencies = {node.module for node in imports("modules/practice/source/builder.py")}
+    dependencies = {node.module for node in imports("modules/practice/bundle/compiler.py")}
     assert {
         "app.modules.practice.score.compiler.stable_ids",
         "app.modules.practice.score.compiler.musicxml",
@@ -56,15 +56,15 @@ def test_score_compiler_dependency_direction():
 def test_source_domain_is_independent_of_transport_and_persistence():
     assert all(
         not node.module or not node.module.startswith(("pydantic", "sqlalchemy", "fastapi", "app."))
-        for node in imports("modules/practice/source/domain.py")
+        for node in imports("modules/practice/bundle/domain.py")
     )
 
 
 def test_source_service_delegates_durable_ownership_to_repository():
-    dependencies = {node.module for node in imports("modules/practice/source/service.py")}
-    assert {"repository", "builder", "domain"} <= dependencies
-    repository = {node.module for node in imports("modules/practice/source/repository.py")}
-    assert {"app.storage.base", "app.db.models.practice_source", "domain"} <= repository
+    dependencies = {node.module for node in imports("modules/practice/bundle/service.py")}
+    assert {"repository", "compiler", "domain"} <= dependencies
+    repository = {node.module for node in imports("modules/practice/bundle/repository.py")}
+    assert {"app.storage.base", "app.db.models.practice_bundle", "domain"} <= repository
     assert not any(
         module and module.startswith(("fastapi", "app.modules.performance_takes"))
         for module in repository

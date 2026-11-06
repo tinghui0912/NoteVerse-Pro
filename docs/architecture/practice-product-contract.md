@@ -5,20 +5,20 @@
 Practice-ready validity belongs to the entire pinned score revision. The only current
 artifact is schemaVersion 1 with integer PracticePianoKey21..108. FULL/Section and STEP/Continuous
 consume that same valid artifact; source or scope never repairs an invalid revision.
-Setup requests it through the shared Source parser only when Start Practice is pressed,
-before resource acquisition. Invalid Practice Source disables attempt/session
+Setup requests it through the shared Bundle parser only when Start Practice is pressed,
+before resource acquisition. Invalid Practice Bundle disables attempt/session
 resources and shows an in-place score-unavailable state. Physical health remains binding-owned. See the
 [canonical contract](practice-piano-key-contract.md) for owners, error codes and versions.
 
 ## Execution and Inputs
 
-Practice execution is browser-local. The backend Practice Source service authorizes
-one revision and resolves one verified READY durable PracticeSource containing schemaVersion 1 artifact and
-prepared notation representations. One `/source` request returns `source_id`, the
+Practice execution is browser-local. The backend Practice Bundle service authorizes
+one revision and resolves one verified READY durable PracticeBundle containing schemaVersion 1 artifact and
+prepared notation representations. One `/bundle` request returns the revision `binding`, the
 artifact and prepared-MusicXML notation. Setup Start Practice admits this complete
 representation once. PreparedPractice owns it for browser-local execution; Practice
 and Review do not re-read Source or Score capability. Notation is a presentation input,
-not an evaluation input. [Practice Source](practice-source.md) owns server construction,
+not an evaluation input. [Practice Bundle](practice-bundle.md) owns server construction,
 verification and retention by its live ScoreRevision only.
 The backend also provides immutable model assets. Once the required
 assets are loaded, an active session executes independently of network availability.
@@ -66,7 +66,7 @@ persists with the profile and defaults to OFF.
 ## Preparation, Resource Binding and Attempt Lifetimes
 
 Setup is the unconditional entry from Score Detail. Only its explicit Start practice
-(开始练习) command admits the fresh pinned Source, derives the resource plan, acquires
+(开始练习) command admits the fresh pinned Bundle, derives the resource plan, acquires
 live physical roots, validates those same roots and atomically commits memory-only
 PreparedPractice. Failure stays on Setup and releases the transaction's resources.
 Selectors are locked while the command runs; stale completion cannot navigate.
@@ -74,7 +74,7 @@ Selectors are locked while the command runs; stale completion cannot navigate.
 Setup does not probe and release physical roots before Practice.
 The explicit Setup command acquires the live roots that the admitted Practice execution will actually borrow.
 Successful preparation does not create a persistent readiness flag.
-It creates a retained resource binding plus exact Source admission.
+It creates a retained resource binding plus exact Bundle admission.
 
 Practice uses the admitted representation and verifies URL identity locally. Direct
 entry or full reload has no retained
@@ -117,7 +117,7 @@ for transaction, handoff and resource lifetimes, and its
 
 ## Failure Ownership
 
-External failures are normalized once by browser, media, worker and Source adapters
+External failures are normalized once by browser, media, worker and Bundle adapters
 into closed typed causal facts. STEP and Continuous application policies project those
 facts into their own stable error codes and interventions. Physical root health remains
 ResourceBinding-owned; context/capture/inference/recorder failures describe pipeline health.
@@ -127,13 +127,13 @@ explicit and block execution replacement. See [failure boundaries](practice-fail
 
 ## Setup Admission
 
-Setup mounts without Source admission or device acquisition. It has Back to score
-navigation, configuration controls and one Start practice CTA. A fresh Source request
+Setup mounts without Bundle admission or device acquisition. It has Back to score
+navigation, configuration controls and one Start practice CTA. A fresh Bundle request
 and strict parse precede resource acquisition and same-root preflight. Deterministic
 invalid Score blocks that revision; load/capability/preflight failure stays retryable
 through the same CTA. No failure automatically routes Practice to Setup.
 
-`PreparedPractice` binds exact Source provenance to mode/input/recording and its live
+`PreparedPractice` binds exact bound Bundle provenance to mode/input/recording and its live
 binding. It is not persisted. Scope/tempo/metronome/live-feedback changes do not replace
 that binding. Practice starts attempts only with matching admission, verified exact
 Source, healthy roots, valid selection/plan and an available acoustic engine when needed.
@@ -146,7 +146,7 @@ model progress and the score-blind `acoustic/model/acoustic-engine.ts`.
 It owns no score, scope, evaluator, attempt, result or recording artifact.
 
 ```text
-Setup Start Practice -> Source admission -> Retained-root validation
+Setup Start Practice -> Bundle admission -> Retained-root validation
                                                -> Warm environment (workspace lifetime)
                                                -> Session inference lease (fresh attempt Start)
 ```
@@ -190,14 +190,14 @@ shows completed feedback; VideoExport always uses its clean-score contract.
 
 ## Session Planning
 
-AdmittedPracticeSource supplies sourceId, the parsed artifact and rendering MusicXML.
+AdmittedPracticeBundle supplies bundleId, the parsed artifact and rendering MusicXML.
 `PracticeIntent` contains only user choices: mode, input source, recording mode,
 scope, tempo selection and metronome enabled. STEP recording is OFF.
 
 The pure `planPractice(source, intent)` function produces an immutable `PracticePlan`.
 It freezes its own projections and reuses the source-admitted immutable artifact
 reference without mutating or cloning it.
-Its `source` projection contains sourceId and artifact, without MusicXML. It owns mode,
+Its `source` projection contains bundleId and artifact, without MusicXML. It owns mode,
 resolved scope/tempo/metronome plans, immutable resource requirements and Continuous
 Count-In policy. Input and recording truth are owned by the resource plan. A candidate
 plan is pre-Start data; `executedPlan` is available only after explicit Start and stays
@@ -293,7 +293,7 @@ admission and matching composition. Composition replacement releases without aut
 Natural completion publishes once after COMPLETED, with an atomic Continuous payload.
 Controllers retain their mode-specific domain evaluation and processing pipelines.
 
-Strict artifact parsing at the Practice Source projection is the score-level
+Strict artifact parsing at the Practice Bundle projection is the score-level
 correctness authority. Setup invokes it only from Start Practice, before qualification;
 Practice invokes it defensively before plan/execution admission and stays in place on failure. Planners/controllers
 consume admitted runtime values and do not perform full artifact validation.
@@ -429,7 +429,7 @@ the previous window summary and capture origin, never publication or event histo
 
 The model is `practice-acoustic-robust-browser@v1`, delivered through
 `/model-assets/practice-acoustic/access`. The acoustic README
-records its byte size, SHA256, decoder and resource bounds. Source adapters accept
+records its byte size, SHA256, decoder and resource bounds. Bundle adapters accept
 44.1kHz and 48kHz. Window inputs require real context; missing PCM is not padded.
 Input regions include overlapping context, while acoustic owned regions authorize
 observation publication. Window width does not define assignment finalization.
@@ -590,7 +590,7 @@ has already materialized coverage. This ordering makes delivery acceptance,
 publication identity and finality availability independent of presentation cadence.
 
 Publications carry immutable publication/observation identity, session domain,
-source provenance, confidence, session availability and monotonic performance analyzed-through
+bundle provenance, confidence, session availability and monotonic performance analyzed-through
 coverage. Availability is not attack time. Exact replay is idempotent; mutated
 identities and genuinely new evidence at or before declared coverage fail closed.
 The evaluation session rejects observations whose source disagrees with its input:
@@ -845,8 +845,8 @@ root/context/capture failure instead retains the active session and target behin
 End-only infrastructure intervention. Unusable resources are released immediately;
 only End or page teardown ends domain/application truth. The controller never stops
 or reacquires the borrowed root. End retires the STEP attempt and returns READY; the
-next Start uses the matching retained admission, exact Source, binding health and engine lifecycle.
-Returning to Setup releases the binding; explicit Start Practice admits fresh Source and live roots.
+next Start uses the matching retained admission, exact bound Bundle, binding health and engine lifecycle.
+Returning to Setup releases the binding; explicit Start Practice admits fresh Bundle and live roots.
 Terminal analysis failure has its separate End-only intervention. Context/capture/analysis
 failure remains owned by the Attempt or engine, without generic Environment invalidation.
 Continuous required-input root ended, context closure and invalid capture offer End only. Required
@@ -987,12 +987,12 @@ wins a later End; End before that latch wins over subsequent timer/publication w
 
 Continuous Practice Reports are browser-local products of an explicitly handed-off
 natural completion. The workspace owns the transient ReviewSession. Review and its
-current local composite/export require no Source read, cache entry or current Score
+current local composite/export require no Bundle read, cache entry or current Score
 access. Score/Revision deletion blocks future admission but does not revoke the
 admitted browser flow. Explicit exit, Setup/Practice route entry and provider disposal
 end the handoff. No localStorage, sessionStorage, IndexedDB, backend result API,
 database or serialized URL persists it. Direct visit/reload shows expired Review and
-performs no Source recovery. Saved media does not reconstruct a Practice Report.
+performs no Bundle recovery. Saved media does not reconstruct a Practice Report.
 
 Save Recording persists media only through an explicit user action. It does not
 persist evaluation, metrics or provenance, and does not extend the report lifetime.
@@ -1006,13 +1006,13 @@ completed local recording -> immutable upload reservation -> direct binary uploa
                          -> finalize(reservationId) -> durable PerformanceTake
 ```
 
-`POST /performance-takes/upload-reservations` captures client_request_id, source,
-media, scope selection, tempo selection and recording timebase once. Source contains only
-canonical source_id; media contains kind, canonical MIME, byte size and duration. The
-reservation snapshots exact source provenance and score title under live save authorization.
+`POST /performance-takes/upload-reservations` captures client_request_id, practice_binding,
+media, scope selection, tempo selection and recording timebase once. Practice binding contains
+score_id, revision_id and bundle_id; media contains kind, canonical MIME and byte size. The
+reservation snapshots exact bundle provenance and score title under live save authorization.
 Clients submit FULL or RANGE group IDs and SCORE or CUSTOM_FIXED_BPM selection;
 the server derives durable scope ticks, tempo segments and their shared score timebase
-from that exact Source. Response metadata describes intent/evidence; `score_timebase`,
+from that exact bound Bundle. Response metadata describes intent/evidence; `score_timebase`,
 `resolved_scope` and `resolved_tempo_plan` describe the accepted coordinate snapshot.
 Before upload and before saved success, the browser verifies agreement with its
 executed Result session Plan and its artifact's `ticksPerQuarter`. Plan mismatch fails closed;
@@ -1025,7 +1025,7 @@ the saved Take. The nested upload target is an ephemeral URL/method/headers/expi
 
 `POST /performance-takes/upload-reservations/{reservation_id}/finalize` has no body.
 It copies the persisted score timebase, canonical scope/tempo and recording evidence
-without Source reads or replanning. Live score deletion,
+without Bundle reads or replanning. Live score deletion,
 access changes or head-revision changes do not invalidate an admitted reservation.
 `DELETE /performance-takes/upload-reservations/{reservation_id}` cancels a pending
 RESERVED reservation; CANCELLED cancellation is idempotent. FINALIZING, COMPLETED
@@ -1037,8 +1037,8 @@ FINALIZING, COMPLETED, CANCELLED and EXPIRED.
 [Reservation architecture](performance-take-reservations.md) defines lifecycle,
 persistence, cleanup and object ownership.
 A unique, non-null Take foreign key establishes one reservation to at most one Take.
-The Take owns raw durable media and immutable provenance snapshots, never PracticeSource.
-A committed reservation is self-contained even after Source GC. Playback/listing read the Take's
+The Take owns raw durable media and immutable provenance snapshots, never PracticeBundle.
+A committed reservation is self-contained even after Bundle GC. Playback/listing read the Take's
 metadata directly. The reservation is the sole owner of client_request_id.
 
 Finalization verifies staging existence, size, MIME/container and full SHA-256, copies
@@ -1087,8 +1087,8 @@ atomic source/result/artifact identity and complete notation. review-score-state
 projects cursor scope; Verovio owns rendering failures. review-replay.ts delegates
 synchronization to recording timebase; review-view-model.ts projects result metadata.
 The route owns save-recording mutation, navigation, leave confirmation and
-VideoExportStudio state, with no Source query or subscription. Save Recording remains
-an explicit server operation and new save admission requires live Source authorization.
+VideoExportStudio state, with no Bundle query or subscription. Save Recording remains
+an explicit server operation and new save admission requires live revision-binding authorization.
 
 `video-export/session.ts` defines a neutral score/scope/tempo/video/timebase contract.
 The current-completion adapter consumes the transient handoff; the saved-Take adapter
@@ -1118,17 +1118,16 @@ and three pulses, 6/8 three beats and six pulses, and 2/2 four beats and two pul
 These are execution policies defined by [session planning](practice-session-planning.md).
 STEP has no count-in.
 
-## Exact Source Provenance
+## Exact Practice Binding Provenance
 
-Continuous Result references the completed session and its executed Plan source.
-The explicit Review handoff validates that exact admitted source; save reads its sourceId verbatim. Review uses its
-admitted artifact and MusicXML, and save submits source: { source_id }.
-A Take exposes its source_id with server-derived score/revision/artifact descriptions.
-Ordinary exact-source access and new save admission require live revision access;
-Raw Take playback/download survive deletion; optional saved score-based export requires
-current generic exact-source authorization. The
-[Practice Source contract](practice-source.md) defines authorization and retention.
-VideoExport distinguishes its sessionId from canonical sourceId.
+Continuous Result references its completed session and executed Plan bundle projection.
+Review validates the exact admitted binding and artifact reference. Save submits
+`practice_binding: {score_id, revision_id, bundle_id}` from that executed Plan.
+A Take stores immutable Bundle/Score/Revision/artifact provenance without retaining Bundle.
+Saved score export reauthorizes the revision binding and verifies exact Bundle/artifact
+identity; raw playback and download remain independent of revision lifetime.
+The [Practice Bundle contract](practice-bundle.md) defines identity, authorization and retention.
+VideoExport sessionId identifies the local derivative composition independently of bundleId.
 
 ## Capture and archive media contract
 

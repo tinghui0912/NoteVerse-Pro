@@ -63,7 +63,7 @@ function studio() {
     outputRemoved,
   );
   const adapted = createVideoExportSessionFromSavedTake(take, source, {
-    sourceId: take.source_id,
+    binding: { scoreId: 'score-1', revisionId: 'revision-1', bundleId: take.bundle_id },
     artifact,
   });
   if (adapted.status !== "supported") throw new Error("Expected video");

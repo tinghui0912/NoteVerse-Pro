@@ -20,7 +20,7 @@ function createSession(
   overrides: Partial<VideoExportSession> = {}
 ): VideoExportSession {
   return {
-    sessionId: 'session-1', sourceId: 'source-1',
+    sessionId: 'session-1', bundleId: 'source-1',
     scoreIdentity: {
       scoreId: 'score-1',
       revisionId: 'rev-1',

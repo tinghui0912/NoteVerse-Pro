@@ -1,0 +1,281 @@
+from __future__ import annotations
+
+import asyncio
+import json
+from datetime import timedelta
+from collections.abc import Callable, Awaitable
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.exceptions import ValidationException, ResourceNotFoundException
+from app.db.model_utils import require_persisted_id
+from app.db.models import ScoreRevisionPracticeBinding, ScoreRevision, Score, ScoreDeletionStatus
+from app.db.models.practice_bundle import (
+    PracticeBundleRecord,
+    PracticeBundleStatus,
+)
+from app.shared.constants import ErrorCode
+from app.storage.base import FileStorage
+from app.utils.timezone import utc_now_naive
+from app.modules.practice.score.artifact import (
+    canonical_practice_artifact_bytes,
+    practice_artifact_id,
+)
+from .domain import (
+    PracticeBundleArtifact,
+    PracticeBundle,
+    PracticeBundleRepresentation,
+    PracticeBundleRef,
+)
+from .schemas import PracticeScoreArtifactRead
+from .retention import practice_bundle_delete_service
+
+BUNDLE_CREATION_LEASE_SECONDS = 15 * 60
+
+
+class PracticeBundleRepository:
+    def __init__(self, storage: FileStorage):
+        self.storage = storage
+
+    @staticmethod
+    def _reference(bundle: PracticeBundleRecord) -> PracticeBundleRef:
+        return PracticeBundleRef(
+            require_persisted_id(bundle.id, entity="practice bundle"),
+            bundle.bundle_id,
+            bundle.artifact_id,
+        )
+
+    async def binding(self, db: AsyncSession, revision_id: int, *, lock: bool = False):
+        statement = (
+            select(ScoreRevisionPracticeBinding)
+            .where(ScoreRevisionPracticeBinding.revision_id == revision_id)
+            .execution_options(populate_existing=True)
+        )
+        if lock:
+            statement = statement.with_for_update()
+        return (await db.execute(statement)).scalar_one_or_none()
+
+    async def read_bound(self, db: AsyncSession, revision_id: int):
+        binding = await self.binding(db, revision_id, lock=True)
+        if binding is None:
+            return None
+        row = await self._require_ready_row(db, binding.bundle_id, lock=True)
+        return self._reference(row), await self._read_verified_bundle(row)
+
+    async def _lock_revision(self, db: AsyncSession, revision_id: int):
+        score_id = (
+            await db.execute(select(ScoreRevision.score_id).where(ScoreRevision.id == revision_id))
+        ).scalar_one_or_none()
+        score = (
+            await db.execute(
+                select(Score)
+                .where(Score.id == score_id, Score.deletion_status == ScoreDeletionStatus.ACTIVE)
+                .with_for_update()
+            )
+        ).scalar_one_or_none()
+        revision = (
+            (
+                await db.execute(
+                    select(ScoreRevision.id)
+                    .where(ScoreRevision.id == revision_id)
+                    .with_for_update()
+                )
+            ).scalar_one_or_none()
+            if score is not None
+            else None
+        )
+        if revision is None:
+            raise ResourceNotFoundException(
+                "revision", str(revision_id), ErrorCode.REVISION_NOT_FOUND
+            )
+
+    async def get_or_create(
+        self,
+        db: AsyncSession,
+        bundle: PracticeBundle,
+        *,
+        revision_id: int,
+        reauthorize: Callable[[], Awaitable[object]] | None = None,
+    ):
+        await self._lock_revision(db, revision_id)
+        # Binding uniqueness is database authority.
+        bound = await self.read_bound(db, revision_id)
+        if bound is not None:
+            return bound
+        row = (
+            await db.execute(
+                select(PracticeBundleRecord)
+                .where(PracticeBundleRecord.bundle_id == bundle.bundle_id)
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+        ).scalar_one_or_none()
+        if row is None:
+            row = PracticeBundleRecord(
+                bundle_id=bundle.bundle_id,
+                artifact_id=bundle.artifact.artifact_id,
+                artifact_schema_version=bundle.artifact.schema_version,
+                prepared_musicxml_object_key=f"practice-bundles/{bundle.bundle_id}/score.musicxml",
+                prepared_musicxml_sha256=bundle.prepared_musicxml.sha256,
+                prepared_musicxml_byte_size=bundle.prepared_musicxml.byte_size,
+                artifact_object_key=f"practice-bundles/{bundle.bundle_id}/artifact.json",
+                artifact_sha256=bundle.artifact.representation.sha256,
+                artifact_byte_size=bundle.artifact.representation.byte_size,
+                status=PracticeBundleStatus.CREATING.value,
+                creation_expires_at=utc_now_naive()
+                + timedelta(seconds=BUNDLE_CREATION_LEASE_SECONDS),
+            )
+            created = False
+            try:
+                async with db.begin_nested():
+                    db.add(row)
+                    await db.flush()
+                created = True
+            except IntegrityError:
+                row = (
+                    await db.execute(
+                        select(PracticeBundleRecord)
+                        .where(PracticeBundleRecord.bundle_id == bundle.bundle_id)
+                        .with_for_update()
+                        .execution_options(populate_existing=True)
+                    )
+                ).scalar_one()
+            if created:
+                await db.commit()
+                if reauthorize is not None:
+                    await reauthorize()
+                await self._lock_revision(db, revision_id)
+                bound = await self.read_bound(db, revision_id)
+                if bound is not None:
+                    return bound
+                row = (
+                    await db.execute(
+                        select(PracticeBundleRecord)
+                        .where(PracticeBundleRecord.bundle_id == bundle.bundle_id)
+                        .with_for_update()
+                        .execution_options(populate_existing=True)
+                    )
+                ).scalar_one()
+        if row.status == PracticeBundleStatus.CREATING.value:
+            try:
+                for key, representation in [
+                    (row.prepared_musicxml_object_key, bundle.prepared_musicxml),
+                    (row.artifact_object_key, bundle.artifact.representation),
+                ]:
+                    await asyncio.to_thread(
+                        self.storage.put_bytes,
+                        key=key,
+                        content=representation.data,
+                        content_type=representation.mime_type,
+                    )
+                    if await asyncio.to_thread(self.storage.read_bytes, key) != representation.data:
+                        raise ValueError("Practice bundle storage read-back mismatch")
+            except Exception as error:
+                await db.run_sync(
+                    lambda sync: practice_bundle_delete_service.discard_creation(
+                        sync, row.id, storage_backend=self.storage.backend_name
+                    )
+                )
+                await db.commit()
+                raise ValidationException(
+                    ErrorCode.STORAGE_BACKEND_UNAVAILABLE,
+                    field="practice_bundle",
+                    details={"reason": "practice_bundle_storage_write_failed"},
+                ) from error
+            row.status, row.creation_expires_at = PracticeBundleStatus.READY.value, None
+            await db.flush()
+        if row.status != PracticeBundleStatus.READY.value:
+            raise ValidationException(
+                ErrorCode.STORAGE_BACKEND_UNAVAILABLE,
+                field="practice_bundle",
+                details={"reason": "practice_bundle_not_ready"},
+            )
+        verified = await self._read_verified_bundle(row)
+        db.add(ScoreRevisionPracticeBinding(revision_id=revision_id, bundle_id=row.id))
+        await db.flush()
+        reference = self._reference(row)
+        await db.commit()
+        return reference, verified
+
+    async def _require_ready_row(self, db: AsyncSession, bundle_id: int, *, lock: bool = False):
+        statement = (
+            select(PracticeBundleRecord)
+            .where(
+                PracticeBundleRecord.id == bundle_id,
+                PracticeBundleRecord.status == PracticeBundleStatus.READY.value,
+            )
+            .execution_options(populate_existing=True)
+        )
+        if lock:
+            statement = statement.with_for_update()
+        row = (await db.execute(statement)).scalar_one_or_none()
+        if row is None:
+            raise ResourceNotFoundException(
+                "practice_bundle", str(bundle_id), ErrorCode.RESOURCE_NOT_FOUND
+            )
+        return row
+
+    async def read_by_bundle_id(self, db: AsyncSession, bundle_id: str):
+        row = (
+            await db.execute(
+                select(PracticeBundleRecord)
+                .where(
+                    PracticeBundleRecord.bundle_id == bundle_id,
+                    PracticeBundleRecord.status == PracticeBundleStatus.READY.value,
+                )
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+        ).scalar_one_or_none()
+        if row is None:
+            raise ResourceNotFoundException(
+                "practice_bundle", bundle_id, ErrorCode.RESOURCE_NOT_FOUND
+            )
+        return await self._read_verified_bundle(row)
+
+    async def _read_verified_bundle(self, row: PracticeBundleRecord) -> PracticeBundle:
+        xml = PracticeBundleRepresentation(
+            await asyncio.to_thread(self.storage.read_bytes, row.prepared_musicxml_object_key),
+            "application/vnd.recordare.musicxml+xml",
+        )
+        data = PracticeBundleRepresentation(
+            await asyncio.to_thread(self.storage.read_bytes, row.artifact_object_key),
+            "application/json",
+        )
+        for representation, expected_sha, expected_size, reason in [
+            (
+                xml,
+                row.prepared_musicxml_sha256,
+                row.prepared_musicxml_byte_size,
+                "prepared_musicxml_checksum_mismatch",
+            ),
+            (data, row.artifact_sha256, row.artifact_byte_size, "artifact_checksum_mismatch"),
+        ]:
+            if representation.sha256 != expected_sha or representation.byte_size != expected_size:
+                raise ValidationException(
+                    ErrorCode.VALIDATION_ERROR, field="practice_bundle", details={"reason": reason}
+                )
+        artifact = PracticeScoreArtifactRead.model_validate_json(data.data)
+        if (
+            artifact.artifactId != practice_artifact_id(json.loads(data.data))
+            or artifact.artifactId != row.artifact_id
+            or artifact.schemaVersion != row.artifact_schema_version
+            or canonical_practice_artifact_bytes(json.loads(data.data)) != data.data
+        ):
+            raise ValidationException(
+                ErrorCode.VALIDATION_ERROR,
+                field="practice_bundle",
+                details={"reason": "artifact_identity_mismatch"},
+            )
+        bundle = PracticeBundle(
+            xml,
+            PracticeBundleArtifact(data, artifact.artifactId, artifact.schemaVersion),
+        )
+        if bundle.bundle_id != row.bundle_id:
+            raise ValidationException(
+                ErrorCode.VALIDATION_ERROR,
+                field="practice_bundle",
+                details={"reason": "bundle_identity_mismatch"},
+            )
+        return bundle

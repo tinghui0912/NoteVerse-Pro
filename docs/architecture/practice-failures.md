@@ -15,7 +15,7 @@ while `cause` retains diagnostic context.
 | AcousticFailure | Qualified source rate, asset/identity, WebGPU and model preparation |
 | InferenceFailure | Worker protocol, crash, timeout, backpressure and live inference execution |
 | RecordingFailure | Recorder preparation/action failures |
-| SourceFailure | Invalid score/source contract or source transport/load failure |
+| BundleFailure | Invalid score/source contract or source transport/load failure |
 
 Browser adapters interpret native exception names where they call browser APIs.
 `failure/browser-failures.ts` provides shared normalization for media, MIDI,
@@ -57,9 +57,9 @@ callback handling retain their lifecycle ownership.
 
 ## Source and Presentation
 
-The complete Source admission boundary runs the canonical strict artifact parser once per response.
-Invalid artifact, envelope identity or notation produces `SourceFailure.INVALID_SCORE`;
-transport/service failure produces `SourceFailure.LOAD_FAILED`. The load failure retains
+The complete Bundle admission boundary runs the canonical strict artifact parser once per response.
+Invalid artifact, envelope identity or notation produces `BundleFailure.INVALID_SCORE`;
+transport/service failure produces `BundleFailure.LOAD_FAILED`. The load failure retains
 its transport cause for safe API error-code formatting and HTTP resource decisions.
 Setup admits Source before acquiring live roots and validating those same objects.
 Failed acquisition or validation closes the transaction binding and cannot commit

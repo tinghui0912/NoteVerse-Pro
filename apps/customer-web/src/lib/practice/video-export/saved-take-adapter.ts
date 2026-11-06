@@ -1,3 +1,4 @@
+import type { PracticeBundleBinding } from '@/lib/practice/bundle/admitted-practice-bundle';
 import type { LocalMediaAsset } from '@/lib/practice/media/local-media-asset';
 import { scoreTick, ticksPerQuarter } from '@/lib/practice/score/score-time';
 import type {
@@ -55,9 +56,9 @@ export function hasSavedTakeVideoExportMetadata(
 export function createVideoExportSessionFromSavedTake(
   take: PerformanceTakeRead,
   media: LocalMediaAsset,
-  source: { sourceId: string; artifact: PracticeScoreArtifact },
+  bundle: { binding: PracticeBundleBinding; artifact: PracticeScoreArtifact },
 ): SavedTakeEligibility {
-  const { artifact } = source;
+  const { artifact } = bundle;
   if (take.deletion_status === 'DELETING') {
     return { status: 'unsupported', reason: 'take_deleting' };
   }
@@ -68,11 +69,11 @@ export function createVideoExportSessionFromSavedTake(
     return { status: 'temporarily_unavailable', reason: 'empty_media' };
   }
   if (
-    !take.source_id ||
-    source.sourceId !== take.source_id ||
-    artifact.scoreId !== take.source_score_id ||
-    artifact.revisionId !== take.source_revision_id ||
-    artifact.artifactId !== take.source_artifact_id
+    !take.bundle_id ||
+    bundle.binding.bundleId !== take.bundle_id ||
+    bundle.binding.scoreId !== take.score_id ||
+    bundle.binding.revisionId !== take.revision_id ||
+    artifact.artifactId !== take.artifact_id
   ) {
     return { status: 'unsupported', reason: 'artifact_identity_mismatch' };
   }
@@ -153,11 +154,11 @@ export function createVideoExportSessionFromSavedTake(
       status: 'supported',
       session: {
         sessionId: take.take_id,
-        sourceId: take.source_id,
+        bundleId: take.bundle_id,
         scoreIdentity: {
-          scoreId: take.source_score_id,
-          revisionId: take.source_revision_id,
-          artifactId: take.source_artifact_id,
+          scoreId: take.score_id,
+          revisionId: take.revision_id,
+          artifactId: take.artifact_id,
         },
         video: {
           status: 'READY',

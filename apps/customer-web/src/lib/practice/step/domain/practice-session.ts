@@ -47,7 +47,7 @@ export type StepAttemptCompletion =
 export class StepPracticeSession {
   readonly plan: StepPracticePlan;
   get artifact() {
-    return this.plan.source.artifact;
+    return this.plan.bundle.artifact;
   }
   readonly localSessionId: string;
   private get inputSource() {

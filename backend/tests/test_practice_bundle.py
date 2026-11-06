@@ -1,0 +1,129 @@
+"""Content-only compilation and binding-first application reads."""
+
+from dataclasses import replace
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock, patch
+import xml.etree.ElementTree as ET
+
+import pytest
+from app.modules.practice.bundle.compiler import PracticeBundleCompiler
+from app.modules.practice.bundle.domain import PracticeBundleRepresentation, PracticeBundleRef
+from app.modules.practice.bundle.service import PracticeBundleService
+from app.modules.practice.score.compiler.stable_ids import prepare_musicxml_ids_for_practice
+from app.modules.practice.score.compiler.musicxml import compile_practice_score
+
+FIXTURE = Path(__file__).parent / "fixtures/musicxml/score-domain-metadata.musicxml"
+
+
+def test_content_compilation_uses_exact_prepared_notation_once():
+    with (
+        patch(
+            "app.modules.practice.bundle.compiler.prepare_musicxml_ids_for_practice",
+            wraps=prepare_musicxml_ids_for_practice,
+        ) as prepare,
+        patch(
+            "app.modules.practice.bundle.compiler.compile_practice_score",
+            wraps=compile_practice_score,
+        ) as compile_score,
+    ):
+        bundle = PracticeBundleCompiler().compile(canonical_musicxml=FIXTURE.read_bytes())
+    prepare.assert_called_once()
+    compile_score.assert_called_once_with(bundle.prepared_musicxml.data)
+    ids = {
+        n.attrib["id"]
+        for n in ET.fromstring(bundle.prepared_musicxml.data).iter("note")
+        if "id" in n.attrib
+    }
+    assert {n["renderNoteId"] for n in bundle.artifact.value["notes"]} <= ids
+    assert not {"scoreId", "revisionId"} & bundle.artifact.value.keys()
+    detached = bundle.artifact.value
+    detached["notes"].clear()
+    assert bundle.artifact.value["notes"]
+
+
+def test_content_identity_is_deterministic_and_binds_both_exact_representations():
+    first = PracticeBundleCompiler().compile(canonical_musicxml=FIXTURE.read_bytes())
+    second = PracticeBundleCompiler().compile(canonical_musicxml=FIXTURE.read_bytes())
+    assert first == second
+    assert first.bundle_id == second.bundle_id
+    assert first.artifact.representation.data == second.artifact.representation.data
+    changed = replace(
+        first,
+        prepared_musicxml=PracticeBundleRepresentation(
+            first.prepared_musicxml.data + b"\n", first.prepared_musicxml.mime_type
+        ),
+    )
+    assert changed.bundle_id != first.bundle_id
+    changed = replace(
+        first,
+        artifact=replace(
+            first.artifact,
+            representation=PracticeBundleRepresentation(
+                first.artifact.representation.data + b"\n", "application/json"
+            ),
+        ),
+    )
+    assert changed.bundle_id != first.bundle_id
+
+
+@pytest.mark.asyncio
+async def test_bound_revision_reads_without_compiler_canonical_lookup_or_materialization():
+    bundle = PracticeBundleCompiler().compile(canonical_musicxml=FIXTURE.read_bytes())
+    ref = PracticeBundleRef(1, bundle.bundle_id, bundle.artifact.artifact_id)
+    repository = Mock(read_bound=AsyncMock(return_value=(ref, bundle)))
+    compiler = Mock()
+    storage = Mock()
+    assets = Mock(canonical_source=AsyncMock())
+    access = SimpleNamespace(
+        score=SimpleNamespace(id=10, score_uuid="score-A", title="Title"),
+        revision=SimpleNamespace(id=20, revision_uuid="rev-A"),
+    )
+    service = PracticeBundleService(
+        repository=repository, compiler=compiler, storage=storage, asset_repository=assets
+    )
+    db = AsyncMock()
+    with patch(
+        "app.modules.practice.bundle.service.lock_live_save_access", AsyncMock(return_value=access)
+    ):
+        read = await service.read_bundle(db, "score-A", 1, "rev-A", include_notation=True)
+    assert read.binding.model_dump() == {
+        "score_id": "score-A",
+        "revision_id": "rev-A",
+        "bundle_id": bundle.bundle_id,
+    }
+    assert read.artifact.artifactId == bundle.artifact.artifact_id
+    compiler.compile.assert_not_called()
+    assets.canonical_source.assert_not_awaited()
+    storage.read_bytes.assert_not_called()
+    storage.materialize_to_local.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_unbound_revision_compiles_once_then_reads_existing_binding():
+    bundle = PracticeBundleCompiler().compile(canonical_musicxml=FIXTURE.read_bytes())
+    ref = PracticeBundleRef(1, bundle.bundle_id, bundle.artifact.artifact_id)
+    repository = Mock(
+        read_bound=AsyncMock(side_effect=[None, (ref, bundle)]),
+        get_or_create=AsyncMock(return_value=(ref, bundle)),
+    )
+    compiler = Mock(compile=Mock(return_value=bundle))
+    storage = Mock(read_bytes=Mock(return_value=FIXTURE.read_bytes()))
+    assets = Mock(
+        canonical_source=AsyncMock(return_value=SimpleNamespace(storage_key="canonical.xml"))
+    )
+    access = SimpleNamespace(
+        score=SimpleNamespace(id=10, score_uuid="score-A", title="Title"),
+        revision=SimpleNamespace(id=20, revision_uuid="rev-A"),
+    )
+    service = PracticeBundleService(
+        repository=repository, compiler=compiler, storage=storage, asset_repository=assets
+    )
+    with patch(
+        "app.modules.practice.bundle.service.lock_live_save_access", AsyncMock(return_value=access)
+    ):
+        await service.read_bundle(AsyncMock(), "score-A", 1, "rev-A")
+        await service.read_bundle(AsyncMock(), "score-A", 1, "rev-A")
+    compiler.compile.assert_called_once_with(canonical_musicxml=FIXTURE.read_bytes())
+    assets.canonical_source.assert_awaited_once()
+    storage.read_bytes.assert_called_once_with("canonical.xml")

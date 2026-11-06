@@ -48,8 +48,6 @@ export type MeterSegment = {
 export type TempoSegment = { startTick: ScoreTick; bpm: number };
 export type PracticeScoreArtifact = {
   schemaVersion: typeof PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION;
-  scoreId: string;
-  revisionId: string;
   artifactId: string;
   notes: PracticeScoreNote[];
   events: PracticeScoreEvent[];
@@ -73,11 +71,11 @@ export function assertPracticeScoreArtifact(
 ): asserts value is PracticeScoreArtifact {
   const root = object(
     value,
-    'schemaVersion scoreId revisionId artifactId notes events moments meterSegments scoreTempoSegments scoreEndTick ticksPerQuarter'
+    'schemaVersion artifactId notes events moments meterSegments scoreTempoSegments scoreEndTick ticksPerQuarter'
   );
   if (root.schemaVersion !== PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION)
     fail('Unsupported PracticeScoreArtifact schema.');
-  for (const key of ['scoreId', 'revisionId', 'artifactId'])
+  for (const key of ['artifactId'])
     identity(root[key]);
   const resolution = ticksPerQuarter(root.ticksPerQuarter);
   const scoreEnd = scoreTick(root.scoreEndTick);

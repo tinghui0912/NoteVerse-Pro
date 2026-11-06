@@ -222,7 +222,7 @@ def test_metronome_materialization_preserves_sound_applicability_and_is_idempote
     assert model.tempos[0].position == (2 if "<offset>" in existing_sound else 0)
 
 
-def test_duplicate_sound_and_barline_labels_retain_part_and_source_identity():
+def test_duplicate_sound_and_barline_labels_retain_part_and_bundle_identity():
     body = '<sound segno="S1"/><note><rest/><duration>2</duration></note><sound segno="S1"/><note><rest/><duration>2</duration></note><barline segno="S1"><segno/></barline>'
     other = f'<part id="P2"><measure number="1">{ATTRIBUTES}{NOTE}<barline segno="S1"/></measure></part>'
     model = admitted(score(body, other))

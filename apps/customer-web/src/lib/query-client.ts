@@ -86,7 +86,7 @@ export const queryKeys = {
         current: () => ['storage-usage', 'current'] as const,
     },
     savedTakeExport: {
-        source: (sourceId: string) => ['saved-take-export-source', { sourceId }] as const,
+        bundle: (bundleId: string) => ['saved-take-export-bundle', { bundleId }] as const,
     },
     performanceTakes: {
         all: ['performance-takes'] as const,

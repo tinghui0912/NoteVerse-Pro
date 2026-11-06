@@ -27,7 +27,7 @@ def test_upload_reservation_owns_idempotency_and_unique_take_lineage():
         if constraint.__class__.__name__ == "UniqueConstraint"
     )
     assert set(PerformanceTakeUploadReservationRequest.model_fields) == {
-        "source",
+        "practice_binding",
         "media",
         "scope",
         "tempo_selection",
@@ -56,20 +56,20 @@ def test_finalize_contract_consumes_only_user_scoped_reservation_identity():
 
 def test_durable_provenance_is_self_contained():
     from app.modules.performance_takes.schemas import (
-        PerformanceTakeSourceIdentity,
+        PerformanceTakePracticeBinding,
         PerformanceTakeRead,
     )
 
-    assert set(PerformanceTakeSourceIdentity.model_fields) == {"source_id"}
-    assert PerformanceTakeRead.model_fields["source_id"].is_required()
+    assert set(PerformanceTakePracticeBinding.model_fields) == {"score_id", "revision_id", "bundle_id"}
+    assert PerformanceTakeRead.model_fields["bundle_id"].is_required()
     expected = {
         "id",
         "reservation_uuid",
         "user_id",
-        "source_id",
-        "source_score_uuid",
-        "source_revision_uuid",
-        "source_artifact_id",
+        "practice_bundle_id",
+        "practice_score_uuid",
+        "practice_revision_uuid",
+        "practice_artifact_id",
         "client_request_id",
         "take_uuid",
         "linked_score_id",
@@ -129,7 +129,7 @@ def test_strict_request_rejects_writable_resolved_facts():
 
     payload = {
         "client_request_id": "intent",
-        "source": {"source_id": "source"},
+        "practice_binding": {"score_id": "score-uuid-10", "revision_id": "revision-uuid-100", "bundle_id": "source"},
         "media": {"kind": "AUDIO", "byte_size": 10, "mime_type": "audio/webm"},
         "scope": {"kind": "FULL"},
         "tempo_selection": {"mode": "SCORE"},

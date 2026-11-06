@@ -263,7 +263,7 @@ describe("real leaf retirement arbitration", () => {
     expect(dispose).not.toHaveBeenCalled();
     expect(r.sink.remove).not.toHaveBeenCalled();
     const review = createTransientReviewSession(completion, {
-      ...r.plan.source,
+      ...r.plan.bundle,
       musicXml: "<score-partwise/>",
     });
     await r.actor.dispose();

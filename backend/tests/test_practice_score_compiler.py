@@ -1,9 +1,9 @@
 """Cross-projection witnesses for the canonical quarter-note beat axis."""
 
-from types import SimpleNamespace
 from unittest.mock import AsyncMock
 import xml.etree.ElementTree as ET
 
+from tests.practice_bundle_fixtures import bundle_service_for_notation, authorize_test_revision
 import pytest
 
 from app.core.exceptions import ValidationException
@@ -11,9 +11,8 @@ from app.modules.practice.score.compiler.musicxml import compile_practice_score
 from app.modules.practice.score.compiler.stable_ids import prepare_musicxml_ids_for_practice
 from app.modules.practice.score.piano_key import PracticeScoreInvalidError
 from app.modules.practice.score.timeline import practice_timeline_from_compiled
-from app.modules.practice.source.builder import PracticeSourceBuilder
-from app.modules.practice.source.schemas import PracticeScoreArtifactRead
-from app.modules.practice.source.service import PracticeSourceService
+from app.modules.practice.bundle.compiler import PracticeBundleCompiler
+from app.modules.practice.bundle.schemas import PracticeScoreArtifactRead
 
 
 def meter(n=4, d=4):
@@ -71,7 +70,7 @@ def test_measure_boundary_is_shared_by_notes_meter_tempo_and_artifact(body, expe
     assert (
         next(e for e in timeline.events if e.event_id == next_note.event_id).onset_tick == expected
     )
-    bundle = PracticeSourceBuilder().build(score_id="s", revision_id="r", canonical_musicxml=xml)
+    bundle = PracticeBundleCompiler().compile(canonical_musicxml=xml)
     artifact = PracticeScoreArtifactRead.model_validate(bundle.artifact.value)
     assert (
         artifact.moments[-1].onsetTick
@@ -207,13 +206,9 @@ def test_malformed_chronology_fails_closed(body):
 async def test_chronology_failure_is_invalid_score_at_source_boundary(tmp_path, body):
     path = tmp_path / "score.musicxml"
     path.write_bytes(score(body))
-    service = PracticeSourceService()
-    access = SimpleNamespace(
-        score=SimpleNamespace(score_uuid="s"), revision=SimpleNamespace(revision_uuid="r")
-    )
-    service._authorized_musicxml_path = AsyncMock(return_value=(access, path))
+    service = bundle_service_for_notation(path.read_bytes())
     with pytest.raises(ValidationException) as caught:
-        await service.read_source(AsyncMock(), "s", 1, "r")
+        await service.read_bundle(AsyncMock(), "s", 1, "r")
     assert caught.value.code == "practice_score_invalid"
     assert caught.value.status_code == 422
     assert isinstance(caught.value.__cause__, PracticeScoreInvalidError)
@@ -224,12 +219,13 @@ async def test_chronology_failure_is_invalid_score_at_source_boundary(tmp_path, 
 async def test_unreadable_musicxml_is_invalid_score_not_infrastructure(tmp_path, xml):
     path = tmp_path / "score.musicxml"
     path.write_bytes(xml)
-    service = PracticeSourceService()
-    access = SimpleNamespace(
-        score=SimpleNamespace(score_uuid="s"), revision=SimpleNamespace(revision_uuid="r")
-    )
-    service._authorized_musicxml_path = AsyncMock(return_value=(access, path))
+    service = bundle_service_for_notation(path.read_bytes())
     with pytest.raises(ValidationException) as caught:
-        await service.read_source(AsyncMock(), "s", 1, "r")
+        await service.read_bundle(AsyncMock(), "s", 1, "r")
     assert caught.value.code == "practice_score_invalid"
     assert caught.value.status_code == 422
+
+
+@pytest.fixture(autouse=True)
+def authorized_revision(monkeypatch):
+    authorize_test_revision(monkeypatch)

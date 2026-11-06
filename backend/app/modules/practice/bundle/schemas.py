@@ -17,11 +17,11 @@ from app.modules.practice.score.domain import (
 )
 
 
-class StrictPracticeSourceModel(BaseModel):
+class StrictPracticeBundleModel(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, allow_inf_nan=False)
 
 
-class PracticeScoreNoteRead(StrictPracticeSourceModel):
+class PracticeScoreNoteRead(StrictPracticeBundleModel):
     noteId: str
     eventId: str
     pianoKey: PracticePianoKey
@@ -32,19 +32,19 @@ class PracticeScoreNoteRead(StrictPracticeSourceModel):
     tieTypes: list[Literal["start", "stop"]]
 
 
-class PracticeScoreEventRead(StrictPracticeSourceModel):
+class PracticeScoreEventRead(StrictPracticeBundleModel):
     eventId: str
     onsetTick: int = Field(ge=0, le=MAX_JSON_SAFE_INTEGER)
     durationTicks: int = Field(ge=0, le=MAX_JSON_SAFE_INTEGER)
 
 
-class PracticeScoreAttackRead(StrictPracticeSourceModel):
+class PracticeScoreAttackRead(StrictPracticeBundleModel):
     attackId: str
     pianoKey: PracticePianoKey
     noteIds: list[str]
 
 
-class PracticeScoreMomentRead(StrictPracticeSourceModel):
+class PracticeScoreMomentRead(StrictPracticeBundleModel):
     groupId: str
     onsetTick: int = Field(ge=0, le=MAX_JSON_SAFE_INTEGER)
     canonicalEndTick: int = Field(ge=0, le=MAX_JSON_SAFE_INTEGER)
@@ -52,21 +52,19 @@ class PracticeScoreMomentRead(StrictPracticeSourceModel):
     continuationNoteIds: list[str]
 
 
-class PracticeScoreMeterSegmentRead(StrictPracticeSourceModel):
+class PracticeScoreMeterSegmentRead(StrictPracticeBundleModel):
     startTick: int = Field(ge=0, le=MAX_JSON_SAFE_INTEGER)
     numerator: int = Field(gt=0, le=MAX_JSON_SAFE_INTEGER)
     denominator: int = Field(gt=0, le=MAX_JSON_SAFE_INTEGER)
 
 
-class PracticeScoreTempoSegmentRead(StrictPracticeSourceModel):
+class PracticeScoreTempoSegmentRead(StrictPracticeBundleModel):
     startTick: int = Field(ge=0, le=MAX_JSON_SAFE_INTEGER)
     bpm: float
 
 
-class PracticeScoreArtifactRead(StrictPracticeSourceModel):
+class PracticeScoreArtifactRead(StrictPracticeBundleModel):
     schemaVersion: Literal[1]
-    scoreId: str
-    revisionId: str
     artifactId: str
     notes: list[PracticeScoreNoteRead]
     events: list[PracticeScoreEventRead]
@@ -116,7 +114,7 @@ class PracticeScoreArtifactRead(StrictPracticeSourceModel):
             ),
         )
         assert_practice_timeline(timeline)
-        if not self.scoreId or not self.revisionId or not self.artifactId:
+        if not self.artifactId:
             raise ValueError("Missing Practice artifact identity.")
         previous = -1
         for tempo in self.scoreTempoSegments:
@@ -131,14 +129,20 @@ class PracticeScoreArtifactRead(StrictPracticeSourceModel):
         return self
 
 
-class PracticeSourceNotationRead(StrictPracticeSourceModel):
+class PracticeBundleNotationRead(StrictPracticeBundleModel):
     musicxml: str
     mime_type: Literal["application/vnd.recordare.musicxml+xml"] = (
         "application/vnd.recordare.musicxml+xml"
     )
 
 
-class PracticeSourceRead(StrictPracticeSourceModel):
-    source_id: str
+class ScoreRevisionPracticeBindingRead(StrictPracticeBundleModel):
+    score_id: str
+    revision_id: str
+    bundle_id: str
+
+
+class PracticeBundleRead(StrictPracticeBundleModel):
+    binding: ScoreRevisionPracticeBindingRead
     artifact: PracticeScoreArtifactRead
-    notation: PracticeSourceNotationRead | None
+    notation: PracticeBundleNotationRead | None

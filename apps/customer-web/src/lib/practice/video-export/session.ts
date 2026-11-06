@@ -5,7 +5,7 @@ import type { CursorScope } from '@/lib/practice/score-view/cursor-scope';
 
 export type VideoExportSession = {
   sessionId: string;
-  sourceId: string;
+  bundleId: string;
   scoreIdentity: {
     scoreId: string;
     revisionId: string;

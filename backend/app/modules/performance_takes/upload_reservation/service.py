@@ -53,7 +53,7 @@ from app.modules.performance_takes.schemas import (
     PerformanceTakeUploadMetadata,
     PerformanceTakeUploadTarget,
 )
-from app.modules.practice.source.service import PracticeSourceService
+from app.modules.practice.bundle.service import PracticeBundleService
 from app.modules.practice.planning.score_plan import (
     PlanningMoment,
     PracticePlanningScore,
@@ -198,7 +198,7 @@ class PerformanceTakeUploadService:
         storage: FileStorage | None = None,
         storage_usage_service: StorageUsageService | None = None,
         score_access_policy: ScoreAccessPolicy | None = None,
-        practice_source_service: PracticeSourceService | None = None,
+        practice_bundle_service: PracticeBundleService | None = None,
     ) -> None:
         self.repository = repository or PerformanceTakeRepository()
         self.takes = PerformanceTakeService(
@@ -209,7 +209,7 @@ class PerformanceTakeUploadService:
         self.storage = storage
         self.storage_usage_service = storage_usage_service or StorageUsageService()
         self.score_access_policy = score_access_policy or ScoreAccessPolicy()
-        self.practice_source_service = practice_source_service or PracticeSourceService(
+        self.practice_bundle_service = practice_bundle_service or PracticeBundleService(
             access_policy=self.score_access_policy,
             storage=storage,
         )
@@ -228,7 +228,7 @@ class PerformanceTakeUploadService:
             )
         return PerformanceTakeUploadMetadata.model_validate(
             {
-                "source": {"source_id": reservation.source_id},
+                "practice_binding": {"score_id": reservation.practice_score_uuid, "revision_id": reservation.practice_revision_uuid, "bundle_id": reservation.practice_bundle_id},
                 "media": {
                     "kind": reservation.media_kind,
                     "byte_size": reservation.media_byte_size,
@@ -530,11 +530,11 @@ class PerformanceTakeUploadService:
         )
         if existing is not None:
             return await self._replay_reservation(db, existing, metadata)
-        authorized_source = await self.practice_source_service.authorize_source_for_save(
-            db, user_id, metadata.source.source_id
+        authorized_bundle = await self.practice_bundle_service.authorize_bundle_for_save(
+            db, user_id, metadata.practice_binding.score_id, metadata.practice_binding.revision_id, metadata.practice_binding.bundle_id
         )
-        source_ref = authorized_source.source_ref
-        artifact = authorized_source.source.artifact.value
+        bundle_ref = authorized_bundle.bundle_ref
+        artifact = authorized_bundle.bundle.artifact.value
         score = PracticePlanningScore(
             tuple(
                 PlanningMoment(moment["groupId"], moment["onsetTick"], moment["canonicalEndTick"])
@@ -594,12 +594,12 @@ class PerformanceTakeUploadService:
             user_id=user_id,
             client_request_id=request.client_request_id,
             take_uuid=take_uuid,
-            linked_score_id=authorized_source.score_db_id,
-            source_id=source_ref.source_id,
-            source_score_uuid=source_ref.source_score_uuid,
-            source_revision_uuid=source_ref.source_revision_uuid,
-            source_artifact_id=source_ref.artifact_id,
-            score_title_snapshot=authorized_source.score_title,
+            linked_score_id=authorized_bundle.score_db_id,
+            practice_bundle_id=bundle_ref.bundle_id,
+            practice_score_uuid=authorized_bundle.score_uuid,
+            practice_revision_uuid=authorized_bundle.revision_uuid,
+            practice_artifact_id=bundle_ref.artifact_id,
+            score_title_snapshot=authorized_bundle.score_title,
             scope_type=plan.scope.kind,
             ticks_per_quarter=score.ticks_per_quarter,
             scope_start_tick=plan.scope.start_tick,
@@ -746,10 +746,10 @@ class PerformanceTakeUploadService:
         reservation_snapshot = {
             "take_uuid": reservation.take_uuid,
             "user_id": reservation.user_id,
-            "source_id": reservation.source_id,
-            "source_score_uuid": reservation.source_score_uuid,
-            "source_revision_uuid": reservation.source_revision_uuid,
-            "source_artifact_id": reservation.source_artifact_id,
+            "practice_bundle_id": reservation.practice_bundle_id,
+            "practice_score_uuid": reservation.practice_score_uuid,
+            "practice_revision_uuid": reservation.practice_revision_uuid,
+            "practice_artifact_id": reservation.practice_artifact_id,
             "score_title_snapshot": reservation.score_title_snapshot,
             "media_kind": reservation.media_kind,
             "media_mime_type": reservation.media_mime_type,
@@ -973,10 +973,10 @@ class PerformanceTakeUploadService:
         take = PerformanceTake(
             take_uuid=reservation_snapshot["take_uuid"],
             user_id=reservation.user_id,
-            source_id=reservation_snapshot["source_id"],
-            source_score_uuid=reservation_snapshot["source_score_uuid"],
-            source_revision_uuid=reservation_snapshot["source_revision_uuid"],
-            source_artifact_id=reservation_snapshot["source_artifact_id"],
+            practice_bundle_id=reservation_snapshot["practice_bundle_id"],
+            practice_score_uuid=reservation_snapshot["practice_score_uuid"],
+            practice_revision_uuid=reservation_snapshot["practice_revision_uuid"],
+            practice_artifact_id=reservation_snapshot["practice_artifact_id"],
             linked_score_id=reservation.linked_score_id,
             score_title_snapshot=reservation_snapshot["score_title_snapshot"],
             upload_reservation_id=reservation.id,

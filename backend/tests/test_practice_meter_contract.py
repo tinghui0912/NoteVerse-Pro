@@ -2,13 +2,13 @@ from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
+from tests.practice_bundle_fixtures import bundle_service_for_notation, authorize_test_revision
 import pytest
 from pydantic import ValidationError
 
 from app.core.exceptions import ValidationException
-from app.modules.practice.source.builder import PracticeSourceBuilder
-from app.modules.practice.source.schemas import PracticeScoreArtifactRead
-from app.modules.practice.source.service import PracticeSourceService
+from app.modules.practice.bundle.compiler import PracticeBundleCompiler
+from app.modules.practice.bundle.schemas import PracticeScoreArtifactRead
 from app.modules.practice.score.piano_key import PracticeScoreInvalidError
 from app.modules.practice.score.domain import (
     MAX_JSON_SAFE_INTEGER,
@@ -33,7 +33,7 @@ def xml(initial, later="", tempo=""):
 
 
 def build(value):
-    return PracticeSourceBuilder().build(score_id="s", revision_id="r", canonical_musicxml=value)
+    return PracticeBundleCompiler().compile(canonical_musicxml=value)
 
 
 @pytest.mark.parametrize(
@@ -77,7 +77,7 @@ INVALID = [
 def test_invalid_meter_fails_before_timeline_projection(tmp_path, initial, later):
     path = tmp_path / "prepared.musicxml"
     path.write_bytes(xml(initial, later))
-    with patch("app.modules.practice.source.builder.practice_timeline_from_compiled") as load:
+    with patch("app.modules.practice.bundle.compiler.practice_timeline_from_compiled") as load:
         with pytest.raises(PracticeScoreInvalidError):
             build(path.read_bytes())
     load.assert_not_called()
@@ -90,13 +90,9 @@ def test_invalid_meter_fails_before_timeline_projection(tmp_path, initial, later
 async def test_real_builder_meter_failure_maps_to_existing_invalid_score(tmp_path, initial, later):
     path = tmp_path / "score.musicxml"
     path.write_bytes(xml(initial, later))
-    service = PracticeSourceService()
-    access = SimpleNamespace(
-        score=SimpleNamespace(score_uuid="s"), revision=SimpleNamespace(revision_uuid="r")
-    )
-    service._authorized_musicxml_path = AsyncMock(return_value=(access, path))
+    service = bundle_service_for_notation(path.read_bytes())
     with pytest.raises(ValidationException) as caught:
-        await service.read_source(AsyncMock(), "s", 1, "r")
+        await service.read_bundle(AsyncMock(), "s", 1, "r")
     assert caught.value.code == "practice_score_invalid"
     assert caught.value.status_code == 422
     assert isinstance(caught.value.__cause__, PracticeScoreInvalidError)
@@ -112,8 +108,6 @@ def test_no_key_and_no_tempo_are_valid_but_delayed_explicit_tempo_is_retained():
     assert set(no_tempo) == {
         "schemaVersion",
         "ticksPerQuarter",
-        "scoreId",
-        "revisionId",
         "artifactId",
         "notes",
         "events",
@@ -276,7 +270,7 @@ def test_artifact_transport_rejects_nonportable_meter_integers_without_coercion(
 
 
 def test_meter_openapi_exposes_portable_integer_bounds():
-    from app.modules.practice.source.schemas import PracticeScoreMeterSegmentRead
+    from app.modules.practice.bundle.schemas import PracticeScoreMeterSegmentRead
 
     properties = PracticeScoreMeterSegmentRead.model_json_schema()["properties"]
     for field in ("numerator", "denominator"):
@@ -297,24 +291,25 @@ def test_unsafe_musicxml_meter_is_invalid_score_over_http(tmp_path, numerator, d
     from fastapi.testclient import TestClient
     from app.api.deps import get_current_user, get_db
     from app.core.exception_handlers import register_exception_handlers
-    from app.modules.practice.source.router import router, get_practice_source_service
+    from app.modules.practice.bundle.router import router, get_practice_bundle_service
 
     assert round(numerator * 4 / denominator, 6) == 4
     path = tmp_path / "score.musicxml"
     path.write_bytes(xml(time(numerator, denominator)))
-    service = PracticeSourceService()
-    access = SimpleNamespace(
-        score=SimpleNamespace(score_uuid="s"), revision=SimpleNamespace(revision_uuid="r")
-    )
-    service._authorized_musicxml_path = AsyncMock(return_value=(access, path))
+    service = bundle_service_for_notation(path.read_bytes())
     app = FastAPI()
     register_exception_handlers(app)
     app.include_router(router, prefix="/api/v1/practice")
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
     app.dependency_overrides[get_db] = lambda: AsyncMock()
-    app.dependency_overrides[get_practice_source_service] = lambda: service
-    with patch.object(service.builder, "build", wraps=service.builder.build) as builder:
-        response = TestClient(app).get("/api/v1/practice/scores/s/revisions/r/source")
+    app.dependency_overrides[get_practice_bundle_service] = lambda: service
+    with patch.object(service.compiler, "compile", wraps=service.compiler.compile) as builder:
+        response = TestClient(app).get("/api/v1/practice/scores/s/revisions/r/bundle")
     builder.assert_called_once()
     assert response.status_code == 422
     assert response.json()["public_code"] == "practice_score_invalid"
+
+
+@pytest.fixture(autouse=True)
+def authorized_revision(monkeypatch):
+    authorize_test_revision(monkeypatch)

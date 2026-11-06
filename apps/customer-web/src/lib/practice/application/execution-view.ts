@@ -126,7 +126,7 @@ export function projectExecutionView(
     activeStepGroup:
       snapshot?.activeStepGroup && plan
         ? projectPracticeMomentView(
-            plan.source.artifact,
+            plan.bundle.artifact,
             snapshot.activeStepGroup,
           )
         : null,

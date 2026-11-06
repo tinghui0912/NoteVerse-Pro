@@ -25,7 +25,7 @@ const blob = new Blob(['raw video'], { type: 'video/webm' });
 beforeEach(() => {
   vi.clearAllMocks();
   calls.media.mockResolvedValue(localMediaAssetFixture(blob));
-  calls.get.mockResolvedValue({ data: { source_id: take.source_id, artifact: structuredClone(artifact), notation: { musicxml: '<score />', mime_type: 'application/vnd.recordare.musicxml+xml' } } });
+  calls.get.mockResolvedValue({ data: { binding: {score_id:take.score_id,revision_id:take.revision_id,bundle_id:take.bundle_id}, artifact: structuredClone(artifact), notation: { musicxml: '<score />', mime_type: 'application/vnd.recordare.musicxml+xml' } } });
   vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
   URL.createObjectURL = vi.fn(() => 'blob:raw'); URL.revokeObjectURL = vi.fn();
 });
@@ -36,7 +36,7 @@ function openPage() {
 }
 it('loads exact currently authorized Source for optional saved score export', async () => {
   openPage(); await screen.findByTestId('score-export');
-  expect(calls.get).toHaveBeenCalledExactlyOnceWith('/practice/sources/source-1', { include_notation: true }, { signal: expect.any(AbortSignal) });
+  expect(calls.get).toHaveBeenCalledExactlyOnceWith(`/practice/scores/${take.score_id}/revisions/${take.revision_id}/bundle`, { include_notation: true }, { signal: expect.any(AbortSignal) });
   expect(calls.player.mock.calls.at(-1)![0].replay.media.blob).toBe(blob);
 });
 it.each([403, 404])('keeps raw replay and download usable when Source authorization returns %s', async status => {
@@ -50,7 +50,7 @@ it.each([403, 404])('keeps raw replay and download usable when Source authorizat
   await waitFor(() => expect(calls.get).toHaveBeenCalledTimes(1));
 });
 it('refuses different exact representation identity while retaining raw media', async () => {
-  calls.get.mockResolvedValue({ data: { source_id: 'another-source', artifact, notation: { musicxml: '<score />', mime_type: 'application/vnd.recordare.musicxml+xml' } } });
+  calls.get.mockResolvedValue({ data: { binding: {score_id:take.score_id,revision_id:take.revision_id,bundle_id:'another-bundle'}, artifact, notation: { musicxml: '<score />', mime_type: 'application/vnd.recordare.musicxml+xml' } } });
   openPage(); await screen.findByText(practice.savedTakeVideoExportRevisionUnavailable);
   expect(screen.getByTestId('raw-replay')).toBeVisible(); expect(screen.queryByTestId('score-export')).toBeNull();
 });

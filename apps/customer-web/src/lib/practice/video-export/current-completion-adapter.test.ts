@@ -17,7 +17,7 @@ const blob = new Blob(["video"], { type: "video/webm" });
 const completion = {
   result: createContinuousPerformanceResult({
     session: completedContinuousSessionFixture(Object.freeze({
-      ...continuousPracticePlan(artifact), source: Object.freeze({ sourceId: take.source_id, artifact }),
+      ...continuousPracticePlan(artifact), bundle: Object.freeze({ binding: { scoreId: 'score-1', revisionId: 'revision-1', bundleId: take.bundle_id }, artifact }),
       tempoPlan: parseSavedTempoPlan(take.tempo_plan),
     }), { localSessionId: take.take_id }),
     evaluation: unavailableContinuousEvaluation('MIDI', 'CONTINUOUS_ANALYSIS_UNAVAILABLE'),
@@ -32,7 +32,7 @@ const completion = {
   },
 };
 const handoff = createTransientReviewSession(completion, {
-  sourceId: take.source_id,
+  binding: { scoreId: 'score-1', revisionId: 'revision-1', bundleId: take.bundle_id },
   artifact,
   musicXml: "<score />",
 });
@@ -43,7 +43,7 @@ it("current and saved media converge on the same neutral downstream session", ()
     handoff.recording.status === "READY"
       ? handoff.recording.media
       : localMediaAssetFixture(blob),
-    { sourceId: take.source_id, artifact: artifact },
+    { binding: { scoreId: 'score-1', revisionId: 'revision-1', bundleId: take.bundle_id }, artifact: artifact },
   );
   expect(saved.status).toBe("supported");
   if (saved.status !== "supported") throw new Error("Expected supported take");
@@ -70,14 +70,14 @@ it("refuses missing or non-video current media", () => {
 it("keeps export session identity distinct from exact source provenance", () => {
   const current = createVideoExportSessionFromCompletion(handoff);
   expect(current.sessionId).toBe(completion.result.session.localSessionId);
-  expect(current.sourceId).toBe(take.source_id);
+  expect(current.bundleId).toBe(take.bundle_id);
   expect(
     createVideoExportSessionFromSavedTake(
       take,
       handoff.recording.status === "READY"
         ? handoff.recording.media
         : localMediaAssetFixture(blob),
-      { sourceId: "different", artifact },
+      { binding: { scoreId: 'score-1', revisionId: 'revision-1', bundleId: "different" }, artifact },
     ),
   ).toMatchObject({
     status: "unsupported",

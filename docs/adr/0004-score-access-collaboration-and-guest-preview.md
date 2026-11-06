@@ -19,7 +19,7 @@ invite does not downgrade it. Owner member-management commands can explicitly ch
 roles in either direction. Revocation immediately removes subsequent access.
 
 VIEWER can view rendered presentation only. PRACTITIONER can also practice, which
-necessarily discloses exact machine-readable PracticeSource to that trusted browser.
+necessarily discloses exact machine-readable PracticeBundle to that trusted browser.
 EDITOR can also edit, requiring revision MusicXML and original editing inputs in its
 browser. These disclosures are not DRM. Only the owner can use explicit MusicXML,
 render-page/archive download and download access-URL actions. Members cannot manage

@@ -88,12 +88,12 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
   const selectedRevisionId = useSearchParams().get('practiceRevisionId') ?? undefined;
   const prepared = workspace.preparedPractice;
   const admission = prepared?.admission;
-  const matching = Boolean(admission && admission.source.artifact.scoreId === id
-    && admission.source.artifact.revisionId === selectedRevisionId
+  const matching = Boolean(admission && admission.bundle.binding.scoreId === id
+    && admission.bundle.binding.revisionId === selectedRevisionId
     && matchesPreparationConfiguration(admission, workspace.configuration));
-  const source = matching ? admission!.source : null;
-  const artifact = source?.artifact ?? null;
-  const xmlContent = source?.musicXml ?? null;
+  const bundle = matching ? admission!.bundle : null;
+  const artifact = bundle?.artifact ?? null;
+  const xmlContent = bundle?.musicXml ?? null;
 
   // Range interaction projects canonical moment notation references.
   const expectedGroups: readonly PracticeMomentView[] = useMemo(
@@ -112,9 +112,9 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
       recordingMode: configuration.recordingMode, scope: Object.freeze({ ...practiceScope }),
       tempoSelection: Object.freeze({ ...tempoSelection }), metronomeEnabled }) as PracticeIntent;
   }, [configuration, practiceScope, tempoSelection, metronomeEnabled]);
-  const plan = useMemo(() => source && intent
-    ? planPractice(source, intent) : null,
-    [source, intent]);
+  const plan = useMemo(() => bundle && intent
+    ? planPractice(bundle, intent) : null,
+    [bundle, intent]);
 
   const device = usePracticeResourceBinding(matching ? prepared!.binding : null);
   const acousticState = useSyncExternalStore(workspace.environment.subscribeAcoustic, workspace.environment.acousticState, workspace.environment.acousticState);

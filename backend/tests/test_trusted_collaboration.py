@@ -25,8 +25,8 @@ from app.modules.scores.service import ScoreService
 from app.modules.revisions.service import RevisionService
 from app.modules.playback.delivery import PlaybackDeliveryService
 from app.modules.playback.router import get_playback_delivery_service
-from app.modules.practice.source.service import PracticeSourceService
-from app.modules.practice.source.router import get_practice_source_service
+from app.modules.practice.bundle.service import PracticeBundleService
+from app.modules.practice.bundle.router import get_practice_bundle_service
 from app.modules.score_assets.dependencies import get_score_asset_service
 from app.modules.scores.dependencies import get_score_service, get_revision_service
 from app.modules.score_invites.dependencies import get_score_invite_service
@@ -149,9 +149,9 @@ async def test_every_action_is_authorized_by_the_canonical_matrix(collaboration,
 async def test_http_source_disclosure_and_editing_boundaries(collaboration, role):
     session, storage, score, db = collaboration
     user_id = member_for(session, role)
-    source = PracticeSourceService(storage=storage)
-    admitted = await source.resolve_source(db, score.score_uuid, 1, "trusted-revision")
-    source_id = admitted.source.source_id
+    source = PracticeBundleService(storage=storage)
+    admitted = await source.resolve_bundle(db, score.score_uuid, 1, "trusted-revision")
+    bundle_id = admitted.bundle.bundle_id
     from app.modules.performance_takes.dependencies import get_performance_take_upload_service
     from app.modules.performance_takes.upload_reservation.service import (
         PerformanceTakeUploadService,
@@ -165,12 +165,12 @@ async def test_http_source_disclosure_and_editing_boundaries(collaboration, role
     )
     services = {
         get_performance_take_upload_service: PerformanceTakeUploadService(
-            storage=storage, practice_source_service=source
+            storage=storage, practice_bundle_service=source
         ),
         get_score_service: ScoreService(storage=storage),
         get_revision_service: RevisionService(storage=storage),
         get_score_asset_service: ScoreAssetService(storage=storage),
-        get_practice_source_service: source,
+        get_practice_bundle_service: source,
         get_playback_delivery_service: PlaybackDeliveryService(storage=storage),
         get_score_invite_service: ScoreInviteService(),
     }
@@ -205,10 +205,9 @@ async def test_http_source_disclosure_and_editing_boundaries(collaboration, role
                 ("/scores/trusted-score/render-asset-archive?kind=RENDERED_PAGE", can_download),
                 ("/render-assets/trusted-page/view", True),
                 (
-                    "/practice/scores/trusted-score/revisions/trusted-revision/source?include_notation=true",
+                    "/practice/scores/trusted-score/revisions/trusted-revision/bundle?include_notation=true",
                     can_practice,
                 ),
-                (f"/practice/sources/{source_id}?include_notation=true", can_practice),
                 ("/scores/trusted-score/revisions/trusted-revision/playback", can_practice),
                 ("/scores/trusted-score/members", role == "OWNER"),
                 ("/scores/trusted-score/guest-previews", role == "OWNER"),
@@ -247,7 +246,7 @@ async def test_http_source_disclosure_and_editing_boundaries(collaboration, role
                 "/api/v1/performance-takes/upload-reservations",
                 json={
                     "client_request_id": f"matrix-{role}",
-                    "source": {"source_id": source_id},
+                    "practice_binding": {"score_id": "trusted-score", "revision_id": "trusted-revision", "bundle_id": bundle_id},
                     "media": {
                         "kind": "AUDIO",
                         "mime_type": "audio/webm",
@@ -260,11 +259,11 @@ async def test_http_source_disclosure_and_editing_boundaries(collaboration, role
             )
             assert reservation.status_code == (200 if can_practice else 403), reservation.text[:200]
             if can_practice:
-                saved = await source.authorize_source_for_save(db, user_id, source_id)
-                assert saved.source.source_id == source_id
+                saved = await source.authorize_bundle_for_save(db,user_id,"trusted-score","trusted-revision",bundle_id)
+                assert saved.bundle.bundle_id == bundle_id
             else:
                 with pytest.raises(UnauthorizedException):
-                    await source.authorize_source_for_save(db, user_id, source_id)
+                    await source.authorize_bundle_for_save(db,user_id,"trusted-score","trusted-revision",bundle_id)
     finally:
         for dependency in [get_db, get_current_user, *services]:
             app.dependency_overrides.pop(dependency, None)

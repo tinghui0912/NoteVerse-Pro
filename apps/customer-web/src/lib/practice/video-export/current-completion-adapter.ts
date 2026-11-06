@@ -9,7 +9,7 @@ export function createVideoExportSessionFromCompletion(
   session: TransientReviewSession,
 ): VideoExportSession {
   const { result, recording } = session;
-  const artifact = result.session.plan.source.artifact;
+  const artifact = result.session.plan.bundle.artifact;
   if (recording.status !== "READY" || recording.kind !== "VIDEO") {
     throw new Error("Video export requires a ready video recording.");
   }
@@ -19,11 +19,11 @@ export function createVideoExportSessionFromCompletion(
   );
   return {
     sessionId: result.session.localSessionId,
-    sourceId: result.session.plan.source.sourceId,
+    bundleId: result.session.plan.bundle.binding.bundleId,
     scoreIdentity: {
-      scoreId: result.session.plan.source.artifact.scoreId,
-      revisionId: result.session.plan.source.artifact.revisionId,
-      artifactId: result.session.plan.source.artifact.artifactId,
+      scoreId: result.session.plan.bundle.binding.scoreId,
+      revisionId: result.session.plan.bundle.binding.revisionId,
+      artifactId: result.session.plan.bundle.artifact.artifactId,
     },
     video: {
       status: "READY",

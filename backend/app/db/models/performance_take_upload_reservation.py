@@ -66,10 +66,10 @@ class PerformanceTakeUploadReservation(SQLModel, table=True):  # type: ignore[ca
             nullable=False,
         )
     )
-    source_id: str = Field(sa_column=Column(String(128), nullable=False))
-    source_score_uuid: str = Field(sa_column=Column(String(36), nullable=False))
-    source_revision_uuid: str = Field(sa_column=Column(String(36), nullable=False))
-    source_artifact_id: str = Field(sa_column=Column(String(128), nullable=False))
+    practice_bundle_id: str = Field(sa_column=Column(String(128), nullable=False))
+    practice_score_uuid: str = Field(sa_column=Column(String(36), nullable=False))
+    practice_revision_uuid: str = Field(sa_column=Column(String(36), nullable=False))
+    practice_artifact_id: str = Field(sa_column=Column(String(128), nullable=False))
     client_request_id: str = Field(sa_column=Column(String(128), index=True, nullable=False))
     take_uuid: str = Field(sa_column=Column(String(36), index=True, nullable=False))
     linked_score_id: Optional[int] = Field(

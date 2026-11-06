@@ -23,8 +23,8 @@ from app.worker.execution.maintenance_dispatch import (
 from app.worker.execution.performance_take_deletion import (
     execute_performance_take_deletion_task,
 )
-from app.worker.execution.practice_source_deletion import (
-    execute_practice_source_deletion_task,
+from app.worker.execution.practice_bundle_deletion import (
+    execute_practice_bundle_deletion_task,
 )
 from app.worker.execution.playback_outbox import execute_playback_outbox_task
 from app.worker.execution.render_outbox import execute_render_outbox_task
@@ -76,16 +76,16 @@ def performance_take_deletion_task(
 
 
 @celery_app.task(
-    name="app.worker.tasks.practice_source_deletion_task",
+    name="app.worker.tasks.practice_bundle_deletion_task",
     bind=True,
     ignore_result=True,
 )
-def practice_source_deletion_task(
+def practice_bundle_deletion_task(
     self: CeleryTaskLike,
     outbox_uuid: str,
 ) -> dict[str, str]:
     """Delete one unowned immutable Practice source."""
-    return execute_practice_source_deletion_task(self, outbox_uuid)
+    return execute_practice_bundle_deletion_task(self, outbox_uuid)
 
 
 @celery_app.task(name="app.worker.tasks.run_job_maintenance")

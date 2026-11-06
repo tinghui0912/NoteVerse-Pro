@@ -20,7 +20,7 @@ for (const loggedIn of [false, true]) {
       await expect(page.getByRole('button', { name })).toHaveCount(0);
       await expect(page.getByRole('link', { name })).toHaveCount(0);
     }
-    expect(requests.filter((request) => /musicxml|revision-sources|practice\/sources|bookmark|redeem|members/.test(request))).toEqual([]);
+    expect(requests.filter((request) => /musicxml|revision-sources|practice\/bundles|bookmark|redeem|members/.test(request))).toEqual([]);
     expect(requests.filter((request) => /^(POST|PUT|PATCH|DELETE) /.test(request) && !request.includes('/auth/refresh'))).toEqual([]);
   });
 }

@@ -931,9 +931,9 @@ export type ApiResponsePracticeAcousticAccessRead = {
 };
 
 /**
- * APIResponse[PracticeSourceRead]
+ * APIResponse[PracticeBundleRead]
  */
-export type ApiResponsePracticeSourceRead = {
+export type ApiResponsePracticeBundleRead = {
     /**
      * Code
      *
@@ -943,7 +943,7 @@ export type ApiResponsePracticeSourceRead = {
     /**
      * Response payload
      */
-    data?: PracticeSourceRead | null;
+    data?: PracticeBundleRead | null;
     /**
      * Message
      *
@@ -2954,6 +2954,24 @@ export type PerformanceTakePlaybackRead = {
 };
 
 /**
+ * PerformanceTakePracticeBinding
+ */
+export type PerformanceTakePracticeBinding = {
+    /**
+     * Bundle Id
+     */
+    bundle_id: string;
+    /**
+     * Revision Id
+     */
+    revision_id: string;
+    /**
+     * Score Id
+     */
+    score_id: string;
+};
+
+/**
  * PerformanceTakeRangeScopeSelection
  */
 export type PerformanceTakeRangeScopeSelection = {
@@ -2975,6 +2993,14 @@ export type PerformanceTakeRangeScopeSelection = {
  * PerformanceTakeRead
  */
 export type PerformanceTakeRead = {
+    /**
+     * Artifact Id
+     */
+    artifact_id: string;
+    /**
+     * Bundle Id
+     */
+    bundle_id: string;
     /**
      * Can Open Score
      */
@@ -3005,6 +3031,10 @@ export type PerformanceTakeRead = {
     media_mime_type: string;
     recording_timebase: RecordingTimebase;
     /**
+     * Revision Id
+     */
+    revision_id: string;
+    /**
      * Scope End Group Id
      */
     scope_end_group_id?: string | null;
@@ -3024,27 +3054,15 @@ export type PerformanceTakeRead = {
      * Scope Type
      */
     scope_type: string;
+    /**
+     * Score Id
+     */
+    score_id: string;
     score_timebase: PerformanceTakeScoreTimebase;
     /**
      * Score Title Snapshot
      */
     score_title_snapshot: string;
-    /**
-     * Source Artifact Id
-     */
-    source_artifact_id: string;
-    /**
-     * Source Id
-     */
-    source_id: string;
-    /**
-     * Source Revision Id
-     */
-    source_revision_id: string;
-    /**
-     * Source Score Id
-     */
-    source_score_id: string;
     /**
      * Take Id
      */
@@ -3109,16 +3127,6 @@ export type PerformanceTakeScoreTimebase = {
 };
 
 /**
- * PerformanceTakeSourceIdentity
- */
-export type PerformanceTakeSourceIdentity = {
-    /**
-     * Source Id
-     */
-    source_id: string;
-};
-
-/**
  * PerformanceTakeTempoPlan
  */
 export type PerformanceTakeTempoPlan = {
@@ -3159,6 +3167,7 @@ export type PerformanceTakeTempoPlanSegment = {
  */
 export type PerformanceTakeUploadMetadata = {
     media: PerformanceTakeMediaMetadata;
+    practice_binding: PerformanceTakePracticeBinding;
     recording_timebase: RecordingTimebase;
     /**
      * Scope
@@ -3168,7 +3177,6 @@ export type PerformanceTakeUploadMetadata = {
     } & PerformanceTakeFullScopeSelection) | ({
         kind: 'RANGE';
     } & PerformanceTakeRangeScopeSelection);
-    source: PerformanceTakeSourceIdentity;
     /**
      * Tempo Selection
      */
@@ -3219,6 +3227,7 @@ export type PerformanceTakeUploadReservationRequest = {
      */
     client_request_id: string;
     media: PerformanceTakeMediaMetadata;
+    practice_binding: PerformanceTakePracticeBinding;
     recording_timebase: RecordingTimebase;
     /**
      * Scope
@@ -3228,7 +3237,6 @@ export type PerformanceTakeUploadReservationRequest = {
     } & PerformanceTakeFullScopeSelection) | ({
         kind: 'RANGE';
     } & PerformanceTakeRangeScopeSelection);
-    source: PerformanceTakeSourceIdentity;
     /**
      * Tempo Selection
      */
@@ -3314,6 +3322,29 @@ export type PracticeAcousticAccessRead = {
 };
 
 /**
+ * PracticeBundleNotationRead
+ */
+export type PracticeBundleNotationRead = {
+    /**
+     * Mime Type
+     */
+    mime_type?: 'application/vnd.recordare.musicxml+xml';
+    /**
+     * Musicxml
+     */
+    musicxml: string;
+};
+
+/**
+ * PracticeBundleRead
+ */
+export type PracticeBundleRead = {
+    artifact: PracticeScoreArtifactRead;
+    binding: ScoreRevisionPracticeBindingRead;
+    notation: PracticeBundleNotationRead | null;
+};
+
+/**
  * PracticeScoreArtifactRead
  */
 export type PracticeScoreArtifactRead = {
@@ -3338,10 +3369,6 @@ export type PracticeScoreArtifactRead = {
      */
     notes: Array<PracticeScoreNoteRead>;
     /**
-     * Revisionid
-     */
-    revisionId: string;
-    /**
      * Schemaversion
      */
     schemaVersion: 1;
@@ -3349,10 +3376,6 @@ export type PracticeScoreArtifactRead = {
      * Scoreendtick
      */
     scoreEndTick: number;
-    /**
-     * Scoreid
-     */
-    scoreId: string;
     /**
      * Scoretemposegments
      */
@@ -3493,32 +3516,6 @@ export type PracticeScoreTempoSegmentRead = {
      * Starttick
      */
     startTick: number;
-};
-
-/**
- * PracticeSourceNotationRead
- */
-export type PracticeSourceNotationRead = {
-    /**
-     * Mime Type
-     */
-    mime_type?: 'application/vnd.recordare.musicxml+xml';
-    /**
-     * Musicxml
-     */
-    musicxml: string;
-};
-
-/**
- * PracticeSourceRead
- */
-export type PracticeSourceRead = {
-    artifact: PracticeScoreArtifactRead;
-    notation: PracticeSourceNotationRead | null;
-    /**
-     * Source Id
-     */
-    source_id: string;
 };
 
 /**
@@ -4171,6 +4168,24 @@ export type ScoreRevisionAssetsRead = {
      * Revision Sources
      */
     revision_sources: Array<RevisionSourceRead>;
+};
+
+/**
+ * ScoreRevisionPracticeBindingRead
+ */
+export type ScoreRevisionPracticeBindingRead = {
+    /**
+     * Bundle Id
+     */
+    bundle_id: string;
+    /**
+     * Revision Id
+     */
+    revision_id: string;
+    /**
+     * Score Id
+     */
+    score_id: string;
 };
 
 /**
@@ -6254,7 +6269,7 @@ export type CreatePerformancePlanApiV1PlaybackPerformancePlanPostResponses = {
 
 export type CreatePerformancePlanApiV1PlaybackPerformancePlanPostResponse = CreatePerformancePlanApiV1PlaybackPerformancePlanPostResponses[keyof CreatePerformancePlanApiV1PlaybackPerformancePlanPostResponses];
 
-export type ReadSourceApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceGetData = {
+export type ReadBundleApiV1PracticeScoresScoreIdRevisionsRevisionIdBundleGetData = {
     body?: never;
     path: {
         /**
@@ -6272,61 +6287,26 @@ export type ReadSourceApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceGetData
          */
         include_notation?: boolean;
     };
-    url: '/api/v1/practice/scores/{score_id}/revisions/{revision_id}/source';
+    url: '/api/v1/practice/scores/{score_id}/revisions/{revision_id}/bundle';
 };
 
-export type ReadSourceApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceGetErrors = {
+export type ReadBundleApiV1PracticeScoresScoreIdRevisionsRevisionIdBundleGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ReadSourceApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceGetError = ReadSourceApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceGetErrors[keyof ReadSourceApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceGetErrors];
+export type ReadBundleApiV1PracticeScoresScoreIdRevisionsRevisionIdBundleGetError = ReadBundleApiV1PracticeScoresScoreIdRevisionsRevisionIdBundleGetErrors[keyof ReadBundleApiV1PracticeScoresScoreIdRevisionsRevisionIdBundleGetErrors];
 
-export type ReadSourceApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceGetResponses = {
+export type ReadBundleApiV1PracticeScoresScoreIdRevisionsRevisionIdBundleGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponsePracticeSourceRead;
+    200: ApiResponsePracticeBundleRead;
 };
 
-export type ReadSourceApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceGetResponse = ReadSourceApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceGetResponses[keyof ReadSourceApiV1PracticeScoresScoreIdRevisionsRevisionIdSourceGetResponses];
-
-export type ReadExactSourceApiV1PracticeSourcesSourceIdGetData = {
-    body?: never;
-    path: {
-        /**
-         * Source Id
-         */
-        source_id: string;
-    };
-    query?: {
-        /**
-         * Include Notation
-         */
-        include_notation?: boolean;
-    };
-    url: '/api/v1/practice/sources/{source_id}';
-};
-
-export type ReadExactSourceApiV1PracticeSourcesSourceIdGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type ReadExactSourceApiV1PracticeSourcesSourceIdGetError = ReadExactSourceApiV1PracticeSourcesSourceIdGetErrors[keyof ReadExactSourceApiV1PracticeSourcesSourceIdGetErrors];
-
-export type ReadExactSourceApiV1PracticeSourcesSourceIdGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponsePracticeSourceRead;
-};
-
-export type ReadExactSourceApiV1PracticeSourcesSourceIdGetResponse = ReadExactSourceApiV1PracticeSourcesSourceIdGetResponses[keyof ReadExactSourceApiV1PracticeSourcesSourceIdGetResponses];
+export type ReadBundleApiV1PracticeScoresScoreIdRevisionsRevisionIdBundleGetResponse = ReadBundleApiV1PracticeScoresScoreIdRevisionsRevisionIdBundleGetResponses[keyof ReadBundleApiV1PracticeScoresScoreIdRevisionsRevisionIdBundleGetResponses];
 
 export type RealtimeEventsApiV1RealtimeEventsGetData = {
     body?: never;

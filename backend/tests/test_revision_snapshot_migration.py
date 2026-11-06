@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.db.models import Score, ScoreRevision, ScoreGuestPreviewGrant, User
 from app.db.models.score import RevisionOrigin
 from app.utils.timezone import utc_now_naive
-from tests.test_practice_source_migration import migration_database
+from tests.test_practice_bundle_migration import migration_database
 
 
 def test_fresh_snapshot_schema_and_same_score_references(monkeypatch):

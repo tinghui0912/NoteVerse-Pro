@@ -4,10 +4,10 @@ import { ArrowLeft } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/routing';
 import { usePracticeRouteScore } from '@/hooks/practice/use-practice-route-score';
-import { admitPracticeSource } from '@/lib/practice/source/admit-practice-source';
+import { admitPracticeBundle } from '@/lib/practice/bundle/admit-practice-bundle';
 import { PracticeResourceBinding } from '@/lib/practice/device/practice-resource-binding';
 import { validatePracticeResources } from '@/lib/practice/environment/validate-practice-resources';
-import { SourceFailure } from '@/lib/practice/failure/causal-failure';
+import { BundleFailure } from '@/lib/practice/failure/causal-failure';
 import { useTranslations } from 'next-intl';
 import { usePracticeWorkspace } from '@/contexts/practice-workspace-context';
 import { practiceLocation } from '@/lib/practice/configuration/practice-location';
@@ -20,8 +20,8 @@ import { planPracticeResources, type PracticeQualificationRequirement } from '@/
 type Preparation = {
   revisionId: string;
   configuration: PracticeConfiguration;
-  stage: 'SOURCE' | 'ACQUIRING' | 'VALIDATING' | 'FAILED';
-  failure: 'SOURCE' | 'RESOURCES' | null;
+  stage: 'BUNDLE' | 'ACQUIRING' | 'VALIDATING' | 'FAILED';
+  failure: 'BUNDLE' | 'RESOURCES' | null;
   components?: Partial<Record<PracticeQualificationRequirement, 'READY'>>;
   progress?: number | null;
 };
@@ -39,7 +39,7 @@ export default function PracticeSetupPage() {
     return () => { transaction.current?.abort(); transaction.current = null; };
   }, [params.id, route.revisionId, configuration?.mode, configuration?.inputSource, configuration?.recordingMode, clearPreparedPractice]);
   const current = preparation?.revisionId === route.revisionId && preparation?.configuration === configuration ? preparation : null;
-  const checking = current?.stage === 'SOURCE' || current?.stage === 'ACQUIRING' || current?.stage === 'VALIDATING';
+  const checking = current?.stage === 'BUNDLE' || current?.stage === 'ACQUIRING' || current?.stage === 'VALIDATING';
   const invalid = invalidRevision !== null && invalidRevision === route.revisionId;
   const currentRequirements = resourcePlan?.qualification ?? [];
   const prepare = async () => {
@@ -51,10 +51,10 @@ export default function PracticeSetupPage() {
     const active = () => transaction.current === command && !command.signal.aborted;
     let binding: PracticeResourceBinding | null = null;
     let committed = false;
-    let failure: Preparation['failure'] = 'SOURCE';
-    setPreparation({ ...captured, stage: 'SOURCE', failure: null });
+    let failure: Preparation['failure'] = 'BUNDLE';
+    setPreparation({ ...captured, stage: 'BUNDLE', failure: null });
     try {
-      const admitted = await admitPracticeSource(params.id, revisionId, command.signal);
+      const admitted = await admitPracticeBundle(params.id, revisionId, command.signal);
       if (!active()) return;
       failure = 'RESOURCES';
       const resources = planPracticeResources(configuration);
@@ -74,7 +74,7 @@ export default function PracticeSetupPage() {
           onProgress: progress => { if (active()) setPreparation(previous => previous ? { ...previous, progress } : previous); },
         });
         if (!active()) return;
-        const admission = Object.freeze({ source: admitted, configuration: Object.freeze({
+        const admission = Object.freeze({ bundle: admitted, configuration: Object.freeze({
           mode: configuration.mode, inputSource: configuration.inputSource, recordingMode: configuration.recordingMode,
         }) });
         committed = commitPreparedPractice(Object.freeze({ admission, binding }), command);
@@ -82,7 +82,7 @@ export default function PracticeSetupPage() {
       } finally { command.signal.removeEventListener('abort', close); }
     } catch (error) {
       if (active()) {
-        if (failure === 'SOURCE' && error instanceof SourceFailure && error.code === 'INVALID_SCORE') setInvalidRevision(revisionId);
+        if (failure === 'BUNDLE' && error instanceof BundleFailure && error.code === 'INVALID_SCORE') setInvalidRevision(revisionId);
         setPreparation({ ...captured, stage: 'FAILED', failure });
       }
     } finally {
@@ -102,8 +102,8 @@ export default function PracticeSetupPage() {
     <p>{t('setupDescription')}</p>
     {invalid ? <p role="alert">{t('scoreInvalid')}</p>
       : !route.canPractice ? <p role="alert">{t('accessDeniedDesc')}</p>
-      : current?.failure === 'SOURCE' || route.scoreQuery.isError ? <p role="alert">{t('scoreLoadFailed')}</p>
-      : current?.stage === 'SOURCE' ? <p role="status">{t('scoreLoading')}</p> : null}
+      : current?.failure === 'BUNDLE' || route.scoreQuery.isError ? <p role="alert">{t('scoreLoadFailed')}</p>
+      : current?.stage === 'BUNDLE' ? <p role="status">{t('scoreLoading')}</p> : null}
     <fieldset disabled={checking} className="space-y-2"><legend>{t('settingsMode')}</legend>
       {(['STEP_BY_STEP', 'CONTINUOUS_PLAY'] as PracticeMode[]).map(mode => <button key={mode} type="button"
         className="mr-3 rounded border p-3 aria-pressed:bg-orange-100" aria-pressed={profile.mode === mode}
@@ -122,7 +122,7 @@ export default function PracticeSetupPage() {
     </fieldset>}
     <section aria-live="polite" className="space-y-2">
       {currentRequirements.map(key => <p key={key}>
-        {t(`setupComponent_${key}`)}: {t(!current || current.stage === 'SOURCE' ? 'setupNotPrepared'
+        {t(`setupComponent_${key}`)}: {t(!current || current.stage === 'BUNDLE' ? 'setupNotPrepared'
           : current.stage === 'FAILED' ? 'setupBlocked' : current.components?.[key] === 'READY' ? 'setupReady' : 'setupChecking')}
         {key === 'acousticEngine' && current?.stage === 'VALIDATING' && current.progress != null ? ` ${current.progress}%` : ''}
       </p>)}

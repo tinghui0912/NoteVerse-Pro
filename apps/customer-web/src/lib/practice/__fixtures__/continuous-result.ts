@@ -46,7 +46,7 @@ export function canonicalContinuousResultFixture(
   });
   const session = completedContinuousSessionFixture(plan);
   const evaluator = new ContinuousEvaluationSession({
-    artifact: plan.source.artifact,
+    artifact: plan.bundle.artifact,
     scope: plan.scope,
     inputSource,
     sessionDomainId: session.localSessionId,

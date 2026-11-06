@@ -6,7 +6,7 @@ from alembic import command
 from sqlalchemy.exc import IntegrityError
 from app.db.models import User
 from app.utils.timezone import utc_now_naive
-from tests.test_practice_source_migration import migration_database
+from tests.test_practice_bundle_migration import migration_database
 from tests.test_upload_reservation_migration import reservation_values
 
 

@@ -11,7 +11,7 @@ Invites default to VIEWER. Role rank is VIEWER < PRACTITIONER < EDITOR; acceptan
 upgrades weaker membership without downgrading stronger membership. Owner management
 supports explicit upgrade/downgrade. Revocation denies subsequent access immediately.
 
-Practice necessarily sends exact PracticeSource to the Practitioner/Editor browser;
+Practice necessarily sends exact PracticeBundle to the Practitioner/Editor browser;
 editing sends revision MusicXML and original input assets to Editor. These are trusted
 application disclosures, not DRM restrictions. Viewer gets no machine-readable source.
 Revision content and history require EDIT; authenticated audio requires PRACTICE.

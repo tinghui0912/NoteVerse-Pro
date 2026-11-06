@@ -1,9 +1,9 @@
 import type { PracticeResourceBinding } from '@/lib/practice/device/practice-resource-binding';
 import type { PracticeConfiguration } from '@/lib/practice/configuration/preferences';
-import type { AdmittedPracticeSource } from '@/lib/practice/source/admitted-practice-source';
+import type { AdmittedPracticeBundle } from '@/lib/practice/bundle/admitted-practice-bundle';
 
 export type PracticePreparationAdmission = Readonly<{
-  source: AdmittedPracticeSource;
+  bundle: AdmittedPracticeBundle;
   configuration: Readonly<Pick<PracticeConfiguration, 'mode' | 'inputSource' | 'recordingMode'>>;
 }>;
 

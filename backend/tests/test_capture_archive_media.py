@@ -21,7 +21,7 @@ from tests.test_performance_takes import (
     AsyncSessionAdapter,
     PerformanceTakeTestClient,
     _performance_take_service,
-    _source_id,
+    _bundle_id,
     _run_async,
     _staging_key,
     test_env as test_env,
@@ -62,7 +62,7 @@ def reserve(client, kind, mime, size):
     return client.post(
         "/api/v1/performance-takes/upload-reservations",
         json={
-            "source": {"source_id": _source_id()},
+            "practice_binding": {"score_id":"score-uuid-10","revision_id":"revision-uuid-100","bundle_id":_bundle_id()},
             "media": {"kind": kind, "mime_type": mime, "byte_size": size},
             "scope": {"kind": "FULL"},
             "client_request_id": "capture-archive",

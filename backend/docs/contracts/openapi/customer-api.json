@@ -1942,7 +1942,7 @@
         "title": "APIResponse[PracticeAcousticAccessRead]",
         "type": "object"
       },
-      "APIResponse_PracticeSourceRead_": {
+      "APIResponse_PracticeBundleRead_": {
         "examples": [
           {
             "data": {
@@ -1969,7 +1969,7 @@
           "data": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/PracticeSourceRead"
+                "$ref": "#/components/schemas/PracticeBundleRead"
               },
               {
                 "type": "null"
@@ -1998,7 +1998,7 @@
         "required": [
           "success"
         ],
-        "title": "APIResponse[PracticeSourceRead]",
+        "title": "APIResponse[PracticeBundleRead]",
         "type": "object"
       },
       "APIResponse_ProfileRead_": {
@@ -5889,6 +5889,36 @@
         "title": "PerformanceTakePlaybackRead",
         "type": "object"
       },
+      "PerformanceTakePracticeBinding": {
+        "additionalProperties": false,
+        "properties": {
+          "bundle_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Bundle Id",
+            "type": "string"
+          },
+          "revision_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Revision Id",
+            "type": "string"
+          },
+          "score_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Score Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "score_id",
+          "revision_id",
+          "bundle_id"
+        ],
+        "title": "PerformanceTakePracticeBinding",
+        "type": "object"
+      },
       "PerformanceTakeRangeScopeSelection": {
         "additionalProperties": false,
         "properties": {
@@ -5921,6 +5951,14 @@
       "PerformanceTakeRead": {
         "additionalProperties": false,
         "properties": {
+          "artifact_id": {
+            "title": "Artifact Id",
+            "type": "string"
+          },
+          "bundle_id": {
+            "title": "Bundle Id",
+            "type": "string"
+          },
           "can_open_score": {
             "default": false,
             "title": "Can Open Score",
@@ -5962,6 +6000,10 @@
           "recording_timebase": {
             "$ref": "#/components/schemas/RecordingTimebase"
           },
+          "revision_id": {
+            "title": "Revision Id",
+            "type": "string"
+          },
           "scope_end_group_id": {
             "anyOf": [
               {
@@ -6000,28 +6042,16 @@
             "title": "Scope Type",
             "type": "string"
           },
+          "score_id": {
+            "title": "Score Id",
+            "type": "string"
+          },
           "score_timebase": {
             "$ref": "#/components/schemas/PerformanceTakeScoreTimebase"
           },
           "score_title_snapshot": {
             "minLength": 1,
             "title": "Score Title Snapshot",
-            "type": "string"
-          },
-          "source_artifact_id": {
-            "title": "Source Artifact Id",
-            "type": "string"
-          },
-          "source_id": {
-            "title": "Source Id",
-            "type": "string"
-          },
-          "source_revision_id": {
-            "title": "Source Revision Id",
-            "type": "string"
-          },
-          "source_score_id": {
-            "title": "Source Score Id",
             "type": "string"
           },
           "take_id": {
@@ -6034,10 +6064,10 @@
         },
         "required": [
           "take_id",
-          "source_id",
-          "source_score_id",
-          "source_revision_id",
-          "source_artifact_id",
+          "bundle_id",
+          "score_id",
+          "revision_id",
+          "artifact_id",
           "score_title_snapshot",
           "media_kind",
           "media_mime_type",
@@ -6142,22 +6172,6 @@
         "title": "PerformanceTakeScoreTimebase",
         "type": "object"
       },
-      "PerformanceTakeSourceIdentity": {
-        "additionalProperties": false,
-        "properties": {
-          "source_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "title": "Source Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "source_id"
-        ],
-        "title": "PerformanceTakeSourceIdentity",
-        "type": "object"
-      },
       "PerformanceTakeTempoPlan": {
         "additionalProperties": false,
         "properties": {
@@ -6229,6 +6243,9 @@
           "media": {
             "$ref": "#/components/schemas/PerformanceTakeMediaMetadata"
           },
+          "practice_binding": {
+            "$ref": "#/components/schemas/PerformanceTakePracticeBinding"
+          },
           "recording_timebase": {
             "$ref": "#/components/schemas/RecordingTimebase"
           },
@@ -6250,9 +6267,6 @@
             ],
             "title": "Scope"
           },
-          "source": {
-            "$ref": "#/components/schemas/PerformanceTakeSourceIdentity"
-          },
           "tempo_selection": {
             "discriminator": {
               "mapping": {
@@ -6273,7 +6287,7 @@
           }
         },
         "required": [
-          "source",
+          "practice_binding",
           "media",
           "scope",
           "tempo_selection",
@@ -6374,6 +6388,9 @@
           "media": {
             "$ref": "#/components/schemas/PerformanceTakeMediaMetadata"
           },
+          "practice_binding": {
+            "$ref": "#/components/schemas/PerformanceTakePracticeBinding"
+          },
           "recording_timebase": {
             "$ref": "#/components/schemas/RecordingTimebase"
           },
@@ -6395,9 +6412,6 @@
             ],
             "title": "Scope"
           },
-          "source": {
-            "$ref": "#/components/schemas/PerformanceTakeSourceIdentity"
-          },
           "tempo_selection": {
             "discriminator": {
               "mapping": {
@@ -6418,7 +6432,7 @@
           }
         },
         "required": [
-          "source",
+          "practice_binding",
           "media",
           "scope",
           "tempo_selection",
@@ -6532,6 +6546,54 @@
         "title": "PracticeAcousticAccessRead",
         "type": "object"
       },
+      "PracticeBundleNotationRead": {
+        "additionalProperties": false,
+        "properties": {
+          "mime_type": {
+            "const": "application/vnd.recordare.musicxml+xml",
+            "default": "application/vnd.recordare.musicxml+xml",
+            "title": "Mime Type",
+            "type": "string"
+          },
+          "musicxml": {
+            "title": "Musicxml",
+            "type": "string"
+          }
+        },
+        "required": [
+          "musicxml"
+        ],
+        "title": "PracticeBundleNotationRead",
+        "type": "object"
+      },
+      "PracticeBundleRead": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact": {
+            "$ref": "#/components/schemas/PracticeScoreArtifactRead"
+          },
+          "binding": {
+            "$ref": "#/components/schemas/ScoreRevisionPracticeBindingRead"
+          },
+          "notation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PracticeBundleNotationRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "binding",
+          "artifact",
+          "notation"
+        ],
+        "title": "PracticeBundleRead",
+        "type": "object"
+      },
       "PracticeScoreArtifactRead": {
         "additionalProperties": false,
         "properties": {
@@ -6568,10 +6630,6 @@
             "title": "Notes",
             "type": "array"
           },
-          "revisionId": {
-            "title": "Revisionid",
-            "type": "string"
-          },
           "schemaVersion": {
             "const": 1,
             "title": "Schemaversion",
@@ -6582,10 +6640,6 @@
             "minimum": 0.0,
             "title": "Scoreendtick",
             "type": "integer"
-          },
-          "scoreId": {
-            "title": "Scoreid",
-            "type": "string"
           },
           "scoreTempoSegments": {
             "items": {
@@ -6603,8 +6657,6 @@
         },
         "required": [
           "schemaVersion",
-          "scoreId",
-          "revisionId",
           "artifactId",
           "notes",
           "events",
@@ -6825,55 +6877,6 @@
           "bpm"
         ],
         "title": "PracticeScoreTempoSegmentRead",
-        "type": "object"
-      },
-      "PracticeSourceNotationRead": {
-        "additionalProperties": false,
-        "properties": {
-          "mime_type": {
-            "const": "application/vnd.recordare.musicxml+xml",
-            "default": "application/vnd.recordare.musicxml+xml",
-            "title": "Mime Type",
-            "type": "string"
-          },
-          "musicxml": {
-            "title": "Musicxml",
-            "type": "string"
-          }
-        },
-        "required": [
-          "musicxml"
-        ],
-        "title": "PracticeSourceNotationRead",
-        "type": "object"
-      },
-      "PracticeSourceRead": {
-        "additionalProperties": false,
-        "properties": {
-          "artifact": {
-            "$ref": "#/components/schemas/PracticeScoreArtifactRead"
-          },
-          "notation": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PracticeSourceNotationRead"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "source_id": {
-            "title": "Source Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "source_id",
-          "artifact",
-          "notation"
-        ],
-        "title": "PracticeSourceRead",
         "type": "object"
       },
       "ProfileRead": {
@@ -8055,6 +8058,30 @@
           "render_assets"
         ],
         "title": "ScoreRevisionAssetsRead",
+        "type": "object"
+      },
+      "ScoreRevisionPracticeBindingRead": {
+        "additionalProperties": false,
+        "properties": {
+          "bundle_id": {
+            "title": "Bundle Id",
+            "type": "string"
+          },
+          "revision_id": {
+            "title": "Revision Id",
+            "type": "string"
+          },
+          "score_id": {
+            "title": "Score Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "score_id",
+          "revision_id",
+          "bundle_id"
+        ],
+        "title": "ScoreRevisionPracticeBindingRead",
         "type": "object"
       },
       "ScoreTaxonomyTagInput": {
@@ -12203,9 +12230,9 @@
         ]
       }
     },
-    "/api/v1/practice/scores/{score_id}/revisions/{revision_id}/source": {
+    "/api/v1/practice/scores/{score_id}/revisions/{revision_id}/bundle": {
       "get": {
-        "operationId": "read_source_api_v1_practice_scores__score_id__revisions__revision_id__source_get",
+        "operationId": "read_bundle_api_v1_practice_scores__score_id__revisions__revision_id__bundle_get",
         "parameters": [
           {
             "in": "path",
@@ -12257,7 +12284,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_PracticeSourceRead_"
+                  "$ref": "#/components/schemas/APIResponse_PracticeBundleRead_"
                 }
               }
             },
@@ -12274,75 +12301,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Read Source",
-        "tags": [
-          "Practice Sources"
-        ]
-      }
-    },
-    "/api/v1/practice/sources/{source_id}": {
-      "get": {
-        "operationId": "read_exact_source_api_v1_practice_sources__source_id__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "source_id",
-            "required": true,
-            "schema": {
-              "title": "Source Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "include_notation",
-            "required": false,
-            "schema": {
-              "default": false,
-              "title": "Include Notation",
-              "type": "boolean"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/APIResponse_PracticeSourceRead_"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Read Exact Source",
+        "summary": "Read Bundle",
         "tags": [
           "Practice Sources"
         ]

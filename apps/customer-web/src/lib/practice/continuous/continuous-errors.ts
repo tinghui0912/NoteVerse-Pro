@@ -12,7 +12,7 @@ export class ContinuousApplicationFailure extends Error {
 /** Cause is independent of the mode's intervention, transport and degradation policy. */
 export function projectContinuousFailure(failure: PracticeCausalFailure, phase: 'PREPARING' | 'ACTIVE'): ContinuousErrorCode {
   switch (failure.kind) {
-    case 'SOURCE': return 'SCORE_UNAVAILABLE';
+    case 'BUNDLE': return 'SCORE_UNAVAILABLE';
     case 'MIDI': return failure.code === 'PERMISSION_DENIED' ? 'MIDI_PERMISSION_DENIED'
       : failure.code === 'NO_CONNECTED_INPUT' ? 'NO_CONNECTED_INPUT' : 'MIDI_UNAVAILABLE';
     case 'DEVICE': return failure.resource === 'CAMERA' ? 'RECORDER_UNAVAILABLE'
