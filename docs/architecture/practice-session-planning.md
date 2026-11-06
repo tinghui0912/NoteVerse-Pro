@@ -431,26 +431,26 @@ finite 40–240 BPM, retains the raw selection and rounds the segment BPM upward
 positive half-integers, matching browser Math.round. Scope does not trim tempo.
 
 Both language implementations consume the same concrete expected
-[planning cases](../../contracts/practice/score-planning-cases.json). The reservation
-response separates intent metadata from `score_timebase`, `resolved_scope` and
-`resolved_tempo_plan`. The score timebase is their shared written-coordinate owner.
+[planning cases](../../contracts/practice/score-planning-cases.json). Reservation and Take
+responses expose the same immutable `manifest` with score timebase, resolved scope and tempo.
+The score timebase is their shared written-coordinate owner.
 Before media upload, the browser compares that canonical response with Result.session.plan's
 executed binding/scope/tempo and its artifact's `ticksPerQuarter`. A mismatch fails closed and best-effort cancels a new
 RESERVED upload. Completed replay and finalize responses also require agreement.
 
-Reservation persistence owns the resolved save truth. Replay compares the stored
-intent/evidence without new authorization or planning; finalize transfers the saved
-timebase/scope/tempo unchanged to the Take, including after Bundle GC.
+PerformanceTakeManifest owns the resolved save truth. Reservation and Take reference the same
+Manifest row. Replay compares request intent/evidence against that value without new authorization
+or planning; finalize retains its identity and facts, including after Bundle GC.
 
 ## Durable Media Provenance
 
 Save Recording is a new server admission, independent of the browser's admitted flow.
 The server authorizes the exact live revision binding and Bundle and resolves durable scope/tempo before
-committing a self-contained UploadReservation with its artifact-local score timebase. Deletion before this admission denies
-new saves; deletion afterward does not revoke that reservation. Finalize copies its
-provenance and canonical plan into PerformanceTake without Bundle reads or replanning.
-PracticeBundle follows ScoreRevision lifetime only. Take owns raw media and historical
-provenance, not retrievable score content. Saved local score-based export requires a
+committing a Manifest and UploadReservation with its artifact-local score timebase. Deletion before
+admission denies new saves; deletion afterward does not revoke the Manifest. Finalize creates
+PerformanceTake with the same manifest_id, without Bundle reads or replanning.
+Only ScoreRevisionPracticeBinding retains PracticeBundle. Take owns final raw media; Manifest
+owns immutable provenance, not retrievable score content. Saved local score-based export requires a
 currently authorized exact revision-binding read; raw media remains independently usable.
 
 ## Browser-local Video Export

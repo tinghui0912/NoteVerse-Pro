@@ -29,24 +29,27 @@ export type SavedTakeEligibility =
 export function hasSavedTakeVideoExportMetadata(
   take: PerformanceTakeRead,
 ): boolean {
-  if (take.deletion_status === 'DELETING' || take.media_kind !== 'VIDEO') {
+  if (
+    take.deletion_status === 'DELETING' ||
+    take.manifest.media.kind !== 'VIDEO'
+  ) {
     return false;
   }
   try {
-    ticksPerQuarter(take.score_timebase?.ticks_per_quarter);
-    const scopeStartTick = scoreTick(take.scope_start_tick);
-    const scopeTerminalTick = scoreTick(take.scope_terminal_tick);
+    ticksPerQuarter(take.manifest.score_timebase?.ticks_per_quarter);
+    const scopeStartTick = scoreTick(take.manifest.scope.start_tick);
+    const scopeTerminalTick = scoreTick(take.manifest.scope.terminal_tick);
     if (scopeTerminalTick <= scopeStartTick) {
       return false;
     }
-    parseSavedTempoPlan(take.tempo_plan);
+    parseSavedTempoPlan(take.manifest.tempo_plan);
     if (
-      take.scope_type === 'RANGE' &&
-      (!take.scope_start_group_id || !take.scope_end_group_id)
+      take.manifest.scope.kind === 'RANGE' &&
+      (!take.manifest.scope.start_group_id || !take.manifest.scope.end_group_id)
     ) {
       return false;
     }
-    decodeRecordingTimebase(take.recording_timebase);
+    decodeRecordingTimebase(take.manifest.recording_timebase);
     return true;
   } catch {
     return false;
@@ -62,25 +65,25 @@ export function createVideoExportSessionFromSavedTake(
   if (take.deletion_status === 'DELETING') {
     return { status: 'unsupported', reason: 'take_deleting' };
   }
-  if (take.media_kind !== 'VIDEO') {
+  if (take.manifest.media.kind !== 'VIDEO') {
     return { status: 'unsupported', reason: 'video_required' };
   }
   if (!media.byteSize) {
     return { status: 'temporarily_unavailable', reason: 'empty_media' };
   }
   if (
-    !take.bundle_id ||
-    bundle.binding.bundleId !== take.bundle_id ||
-    bundle.binding.scoreId !== take.score_id ||
-    bundle.binding.revisionId !== take.revision_id ||
-    artifact.artifactId !== take.artifact_id
+    !take.manifest.practice_binding.bundle_id ||
+    bundle.binding.bundleId !== take.manifest.practice_binding.bundle_id ||
+    bundle.binding.scoreId !== take.manifest.practice_binding.score_id ||
+    bundle.binding.revisionId !== take.manifest.practice_binding.revision_id ||
+    artifact.artifactId !== take.manifest.artifact_id
   ) {
     return { status: 'unsupported', reason: 'artifact_identity_mismatch' };
   }
 
   try {
     if (
-      ticksPerQuarter(take.score_timebase?.ticks_per_quarter) !==
+      ticksPerQuarter(take.manifest.score_timebase?.ticks_per_quarter) !==
       artifact.ticksPerQuarter
     ) {
       return { status: 'unsupported', reason: 'score_timebase_mismatch' };
@@ -90,18 +93,20 @@ export function createVideoExportSessionFromSavedTake(
   }
 
   try {
-    const scopeStartTick = scoreTick(take.scope_start_tick);
-    const scopeTerminalTick = scoreTick(take.scope_terminal_tick);
+    const scopeStartTick = scoreTick(take.manifest.scope.start_tick);
+    const scopeTerminalTick = scoreTick(take.manifest.scope.terminal_tick);
     if (scopeTerminalTick <= scopeStartTick) {
       throw new Error('scope_terminal_tick_invalid');
     }
-    const tempoPlan = parseSavedTempoPlan(take.tempo_plan);
-    const recordingTimebase = decodeRecordingTimebase(take.recording_timebase);
-    const isRange = take.scope_type === 'RANGE';
+    const tempoPlan = parseSavedTempoPlan(take.manifest.tempo_plan);
+    const recordingTimebase = decodeRecordingTimebase(
+      take.manifest.recording_timebase,
+    );
+    const isRange = take.manifest.scope.kind === 'RANGE';
     let resolvedPracticeScope: ResolvedPracticeScope;
-    if (isRange) {
-      const scopeStartGroupId = take.scope_start_group_id;
-      const scopeEndGroupId = take.scope_end_group_id;
+    if (take.manifest.scope.kind === 'RANGE') {
+      const scopeStartGroupId = take.manifest.scope.start_group_id;
+      const scopeEndGroupId = take.manifest.scope.end_group_id;
       if (!scopeStartGroupId || !scopeEndGroupId) {
         return { status: 'unsupported', reason: 'scope_identity_missing' };
       }
@@ -154,17 +159,17 @@ export function createVideoExportSessionFromSavedTake(
       status: 'supported',
       session: {
         sessionId: take.take_id,
-        bundleId: take.bundle_id,
+        bundleId: take.manifest.practice_binding.bundle_id,
         scoreIdentity: {
-          scoreId: take.score_id,
-          revisionId: take.revision_id,
-          artifactId: take.artifact_id,
+          scoreId: take.manifest.practice_binding.score_id,
+          revisionId: take.manifest.practice_binding.revision_id,
+          artifactId: take.manifest.artifact_id,
         },
         video: {
           status: 'READY',
           kind: 'VIDEO',
           media,
-          mimeType: take.media_mime_type,
+          mimeType: take.manifest.media.mime_type,
         },
         scope,
         tempoPlan,

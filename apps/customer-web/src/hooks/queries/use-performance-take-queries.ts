@@ -10,8 +10,7 @@ import {
   performanceTakesApi,
   uploadMediaToSignedUrl,
   type RecordingTimebase,
-  type PerformanceTakeRead,
-  type PerformanceTakeUploadReservationRead,
+  type PerformanceTakeManifestRead,
   type PerformanceTakeTempoPlan,
   type PerformanceTakeUploadReservationRequest,
 } from '@/lib/api/performance-takes';
@@ -23,7 +22,7 @@ import { queryKeys } from '@/lib/query-client';
 
 export function usePerformanceTakes(
   params?: { score_id?: string; limit?: number; offset?: number },
-  enabled = true
+  enabled = true,
 ) {
   return useQuery({
     queryKey: queryKeys.performanceTakes.list(params),
@@ -93,7 +92,9 @@ export function useSavePerformanceTake() {
       const request: PerformanceTakeUploadReservationRequest = {
         client_request_id: input.clientRequestId,
         practice_binding: {
-          score_id: input.binding.scoreId, revision_id: input.binding.revisionId, bundle_id: input.binding.bundleId,
+          score_id: input.binding.scoreId,
+          revision_id: input.binding.revisionId,
+          bundle_id: input.binding.bundleId,
         },
         media: {
           kind: input.mediaKind,
@@ -116,11 +117,11 @@ export function useSavePerformanceTake() {
       const response = await performanceTakesApi.reserveUpload(request);
       const reservation = response.data;
       if (!reservation) throw new Error('Upload reservation is unavailable');
-      if (!reservationMatchesExecution(reservation, input)) {
+      if (!manifestMatchesExecution(reservation.manifest, input)) {
         if (reservation.status === 'RESERVED') {
           try {
             await performanceTakesApi.cancelUploadReservation(
-              reservation.reservation_id
+              reservation.reservation_id,
             );
           } catch {
             // Expiry processing retains cleanup ownership if cancellation is unavailable.
@@ -131,7 +132,8 @@ export function useSavePerformanceTake() {
       if (reservation.status === 'COMPLETED') {
         if (!reservation.take)
           throw new Error('Completed reservation has no saved take');
-        assertTakeMatchesExecution(reservation.take, input);
+        if (!manifestMatchesExecution(reservation.take.manifest, input))
+          throw new Error('PERFORMANCE_TAKE_PLAN_MISMATCH');
         return reservation.take;
       }
       if (reservation.status === 'RESERVED') {
@@ -142,12 +144,12 @@ export function useSavePerformanceTake() {
             target.url,
             target.method,
             target.headers,
-            input.media.blob
+            input.media.blob,
           );
         } catch (error) {
           try {
             await performanceTakesApi.cancelUploadReservation(
-              reservation.reservation_id
+              reservation.reservation_id,
             );
           } catch {
             // Reservation expiry processing retains cleanup ownership.
@@ -157,9 +159,13 @@ export function useSavePerformanceTake() {
       }
       // Unknown finalize outcomes retain the reservation for an idempotent retry.
       const finalized = await performanceTakesApi.finalizeTake(
-        reservation.reservation_id
+        reservation.reservation_id,
       );
-      assertTakeMatchesExecution(finalized.data, input);
+      if (
+        !finalized.data ||
+        !manifestMatchesExecution(finalized.data.manifest, input)
+      )
+        throw new Error('PERFORMANCE_TAKE_PLAN_MISMATCH');
       return finalized.data;
     },
     onSuccess: () => {
@@ -174,7 +180,7 @@ export function useSavePerformanceTake() {
       // Retain synchronously with the command, before React Query can schedule transport.
       const lease = input.media.retain();
       try {
-        return await mutation.mutateAsync({...input,media:lease});
+        return await mutation.mutateAsync({ ...input, media: lease });
       } finally {
         await releaseLocalMediaAsset(lease);
       }
@@ -184,7 +190,7 @@ export function useSavePerformanceTake() {
 
 function tempoMatchesExecution(
   actual: PerformanceTakeTempoPlan | undefined,
-  expected: PerformanceTakeTempoPlan
+  expected: PerformanceTakeTempoPlan,
 ): boolean {
   if (!actual?.selection || !Array.isArray(actual.segments)) return false;
   if (actual.selection.mode !== expected.selection.mode) return false;
@@ -207,57 +213,63 @@ function tempoMatchesExecution(
   );
 }
 
-function reservationMatchesExecution(
-  reservation: PerformanceTakeUploadReservationRead,
-  input: SavePerformanceTakeInput
+function manifestMatchesExecution(
+  manifest: PerformanceTakeManifestRead | undefined,
+  input: SavePerformanceTakeInput,
 ): boolean {
-  const scope = reservation.resolved_scope;
-  return (
-    scoreTimebaseMatchesExecution(
-      reservation.score_timebase?.ticks_per_quarter,
-      input.ticksPerQuarter
-    ) &&
-    reservation.metadata?.practice_binding?.bundle_id === input.binding.bundleId
-    && reservation.metadata.practice_binding.score_id === input.binding.scoreId
-    && reservation.metadata.practice_binding.revision_id === input.binding.revisionId &&
-    Boolean(scope) &&
-    scope.kind === input.scope.kind &&
-    scope.start_tick === input.scope.startTick &&
-    scope.terminal_tick === input.scope.terminalTick &&
-    (input.scope.kind !== 'RANGE' ||
-      (scope.kind === 'RANGE' &&
-        scope.start_group_id === input.scope.startGroupId &&
-        scope.end_group_id === input.scope.endGroupId)) &&
-    tempoMatchesExecution(reservation.resolved_tempo_plan, input.tempoPlan)
+  const scope = manifest?.scope;
+  return Boolean(
+    manifest &&
+      scope &&
+      scoreTimebaseMatchesExecution(
+        manifest.score_timebase?.ticks_per_quarter,
+        input.ticksPerQuarter,
+      ) &&
+      manifest.practice_binding?.bundle_id === input.binding.bundleId &&
+      manifest.practice_binding.score_id === input.binding.scoreId &&
+      manifest.practice_binding.revision_id === input.binding.revisionId &&
+      manifest.media?.kind === input.mediaKind &&
+      manifest.media.byte_size === input.media.byteSize &&
+      manifest.media.mime_type === normalizeCaptureMime(input.mimeType) &&
+      recordingTimebaseMatchesExecution(
+        manifest.recording_timebase,
+        input.recordingTimebase,
+      ) &&
+      scope.kind === input.scope.kind &&
+      scope.start_tick === input.scope.startTick &&
+      scope.terminal_tick === input.scope.terminalTick &&
+      (input.scope.kind !== 'RANGE' ||
+        (scope.kind === 'RANGE' &&
+          scope.start_group_id === input.scope.startGroupId &&
+          scope.end_group_id === input.scope.endGroupId)) &&
+      tempoMatchesExecution(manifest.tempo_plan, input.tempoPlan),
   );
-}
-
-function assertTakeMatchesExecution(
-  take: PerformanceTakeRead | undefined,
-  input: SavePerformanceTakeInput
-): asserts take is PerformanceTakeRead {
-  if (
-    !take ||
-    !scoreTimebaseMatchesExecution(
-      take.score_timebase?.ticks_per_quarter,
-      input.ticksPerQuarter
-    ) ||
-    take.bundle_id !== input.binding.bundleId || take.score_id !== input.binding.scoreId || take.revision_id !== input.binding.revisionId ||
-    take.scope_type !== input.scope.kind ||
-    take.scope_start_tick !== input.scope.startTick ||
-    take.scope_terminal_tick !== input.scope.terminalTick ||
-    (input.scope.kind === 'RANGE' &&
-      (take.scope_start_group_id !== input.scope.startGroupId ||
-        take.scope_end_group_id !== input.scope.endGroupId)) ||
-    !tempoMatchesExecution(take.tempo_plan, input.tempoPlan)
-  ) {
-    throw new Error('PERFORMANCE_TAKE_PLAN_MISMATCH');
-  }
 }
 
 function scoreTimebaseMatchesExecution(
   actual: number | undefined,
-  expected: number
+  expected: number,
 ): boolean {
   return Number.isSafeInteger(expected) && expected > 0 && actual === expected;
+}
+
+function recordingTimebaseMatchesExecution(
+  actual: RecordingTimebase | undefined,
+  expected: RecordingTimebase,
+): boolean {
+  return Boolean(
+    actual &&
+      actual.nominalMediaDurationUs === expected.nominalMediaDurationUs &&
+      Array.isArray(actual.activeSegments) &&
+      actual.activeSegments.length === expected.activeSegments.length &&
+      actual.activeSegments.every((segment, index) => {
+        const executed = expected.activeSegments[index];
+        return (
+          segment.performanceStartUs === executed.performanceStartUs &&
+          segment.performanceEndUs === executed.performanceEndUs &&
+          segment.mediaStartUs === executed.mediaStartUs &&
+          segment.mediaEndUs === executed.mediaEndUs
+        );
+      }),
+  );
 }

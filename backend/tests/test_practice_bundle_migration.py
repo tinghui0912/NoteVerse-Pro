@@ -52,6 +52,7 @@ def assert_current_bundle_schema(engine):
         "practice_bundles",
         "score_revision_practice_bindings",
         "practice_bundle_delete_outbox",
+        "performance_take_manifests",
         "performance_takes",
         "performance_take_upload_reservations",
     ]:
@@ -103,23 +104,12 @@ def test_fresh_foundation_schema_matches_models_and_revision_ownership(monkeypat
             assert {column["name"] for column in inspector.get_columns(name)} == set(
                 table.columns.keys()
             )
-        for name in ("performance_takes", "performance_take_upload_reservations"):
-            table = SQLModel.metadata.tables[name]
-            provenance = {
-                "practice_bundle_id",
-                "practice_score_uuid",
-                "practice_revision_uuid",
-                "practice_artifact_id",
-                "score_title_snapshot",
-            }
-            assert provenance <= set(table.columns.keys())
-            assert all(not table.c[column].nullable for column in provenance)
-            targets = {fk["referred_table"] for fk in inspector.get_foreign_keys(name)}
-            assert targets == (
-                {"users", "scores", "performance_take_upload_reservations"}
-                if name == "performance_takes"
-                else {"users", "scores"}
-            )
+        for name, targets in {
+            "performance_take_manifests": {"users"},
+            "performance_takes": {"scores", "performance_take_manifests"},
+            "performance_take_upload_reservations": {"users", "performance_take_manifests"},
+        }.items():
+            assert {fk["referred_table"] for fk in inspector.get_foreign_keys(name)} == targets
         with Session(engine) as db:
             user = User(email="schema@example.com", display_name="Schema", password_hash="test")
             db.add(user)

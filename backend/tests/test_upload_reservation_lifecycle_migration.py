@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from app.db.models import User
 from app.utils.timezone import utc_now_naive
 from tests.test_practice_bundle_migration import migration_database
-from tests.test_upload_reservation_migration import reservation_values
+from tests.test_upload_reservation_migration import reservation_values, manifest_values
 
 
 @pytest.mark.parametrize(
@@ -43,7 +43,12 @@ def test_fresh_schema_enforces_current_lifecycle_tuples(monkeypatch, status, lea
                 )
                 .returning(users.c.id)
             ).scalar_one()
-        values = {**reservation_values(user_id), "status": status}
+        manifests = sa.Table("performance_take_manifests", sa.MetaData(), autoload_with=engine)
+        with engine.begin() as connection:
+            manifest_id = connection.execute(
+                manifests.insert().values(**manifest_values(user_id)).returning(manifests.c.id)
+            ).scalar_one()
+        values = {**reservation_values(user_id, manifest_id), "status": status}
         if lease:
             values.update(
                 finalizing_token="token",

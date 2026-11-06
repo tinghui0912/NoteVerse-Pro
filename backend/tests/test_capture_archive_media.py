@@ -7,7 +7,7 @@ from sqlalchemy import select
 
 from app.api.deps import get_current_user, get_db
 from app.core.exceptions import ValidationException
-from app.db.models import PerformanceTake
+from app.db.models import PerformanceTake, PerformanceTakeManifest
 from app.main import app
 from app.modules.performance_takes.dependencies import (
     get_performance_take_service,
@@ -62,7 +62,11 @@ def reserve(client, kind, mime, size):
     return client.post(
         "/api/v1/performance-takes/upload-reservations",
         json={
-            "practice_binding": {"score_id":"score-uuid-10","revision_id":"revision-uuid-100","bundle_id":_bundle_id()},
+            "practice_binding": {
+                "score_id": "score-uuid-10",
+                "revision_id": "revision-uuid-100",
+                "bundle_id": _bundle_id(),
+            },
             "media": {"kind": kind, "mime_type": mime, "byte_size": size},
             "scope": {"kind": "FULL"},
             "client_request_id": "capture-archive",
@@ -91,7 +95,7 @@ def test_archive_admission_preserves_capture_container_kind(archive_client, kind
     assert response.status_code == (200 if accepted else 422), response.text
     if accepted:
         assert (
-            response.json()["data"]["metadata"]["media"]["mime_type"]
+            response.json()["data"]["manifest"]["media"]["mime_type"]
             == mime.split(";")[0].strip().lower()
         )
 
@@ -118,13 +122,19 @@ def test_video_archive_and_delivery_preserve_exact_raw_capture(
     )
     assert finalized.status_code == 200, finalized.text
     take = finalized.json()["data"]
-    assert (take["media_kind"], take["media_mime_type"], take["media_byte_size"]) == (
+    assert (
+        take["manifest"]["media"]["kind"],
+        take["manifest"]["media"]["mime_type"],
+        take["manifest"]["media"]["byte_size"],
+    ) == (
         "VIDEO",
         mime,
         len(content),
     )
     row = session.execute(
-        select(PerformanceTake).where(PerformanceTake.take_uuid == take["take_id"])
+        select(PerformanceTake)
+        .join(PerformanceTakeManifest)
+        .where(PerformanceTakeManifest.take_uuid == take["take_id"])
     ).scalar_one()
     assert row.media_object_key.endswith("." + extension)
     assert b"".join(storage.iter_bytes(row.media_object_key)) == content

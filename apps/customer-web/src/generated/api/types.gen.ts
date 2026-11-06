@@ -2902,6 +2902,33 @@ export type PerformanceTakeListResponse = {
 };
 
 /**
+ * PerformanceTakeManifestRead
+ */
+export type PerformanceTakeManifestRead = {
+    /**
+     * Artifact Id
+     */
+    artifact_id: string;
+    media: PerformanceTakeMediaMetadata;
+    practice_binding: PerformanceTakePracticeBinding;
+    recording_timebase: RecordingTimebase;
+    /**
+     * Scope
+     */
+    scope: ({
+        kind: 'FULL';
+    } & PerformanceTakeResolvedFullScope) | ({
+        kind: 'RANGE';
+    } & PerformanceTakeResolvedRangeScope);
+    score_timebase: PerformanceTakeScoreTimebase;
+    /**
+     * Score Title Snapshot
+     */
+    score_title_snapshot: string;
+    tempo_plan: PerformanceTakeTempoPlan;
+};
+
+/**
  * PerformanceTakeMediaMetadata
  */
 export type PerformanceTakeMediaMetadata = {
@@ -2994,14 +3021,6 @@ export type PerformanceTakeRangeScopeSelection = {
  */
 export type PerformanceTakeRead = {
     /**
-     * Artifact Id
-     */
-    artifact_id: string;
-    /**
-     * Bundle Id
-     */
-    bundle_id: string;
-    /**
      * Can Open Score
      */
     can_open_score?: boolean;
@@ -3017,57 +3036,11 @@ export type PerformanceTakeRead = {
      * Linked Score Id
      */
     linked_score_id?: string | null;
-    /**
-     * Media Byte Size
-     */
-    media_byte_size: number;
-    /**
-     * Media Kind
-     */
-    media_kind: string;
-    /**
-     * Media Mime Type
-     */
-    media_mime_type: string;
-    recording_timebase: RecordingTimebase;
-    /**
-     * Revision Id
-     */
-    revision_id: string;
-    /**
-     * Scope End Group Id
-     */
-    scope_end_group_id?: string | null;
-    /**
-     * Scope Start Group Id
-     */
-    scope_start_group_id?: string | null;
-    /**
-     * Scope Start Tick
-     */
-    scope_start_tick: number;
-    /**
-     * Scope Terminal Tick
-     */
-    scope_terminal_tick: number;
-    /**
-     * Scope Type
-     */
-    scope_type: string;
-    /**
-     * Score Id
-     */
-    score_id: string;
-    score_timebase: PerformanceTakeScoreTimebase;
-    /**
-     * Score Title Snapshot
-     */
-    score_title_snapshot: string;
+    manifest: PerformanceTakeManifestRead;
     /**
      * Take Id
      */
     take_id: string;
-    tempo_plan: PerformanceTakeTempoPlan;
 };
 
 /**
@@ -3163,49 +3136,14 @@ export type PerformanceTakeTempoPlanSegment = {
 };
 
 /**
- * PerformanceTakeUploadMetadata
- */
-export type PerformanceTakeUploadMetadata = {
-    media: PerformanceTakeMediaMetadata;
-    practice_binding: PerformanceTakePracticeBinding;
-    recording_timebase: RecordingTimebase;
-    /**
-     * Scope
-     */
-    scope: ({
-        kind: 'FULL';
-    } & PerformanceTakeFullScopeSelection) | ({
-        kind: 'RANGE';
-    } & PerformanceTakeRangeScopeSelection);
-    /**
-     * Tempo Selection
-     */
-    tempo_selection: ({
-        mode: 'SCORE';
-    } & ScoreTempoPlanSelection) | ({
-        mode: 'CUSTOM_FIXED_BPM';
-    } & CustomFixedBpmTempoPlanSelection);
-};
-
-/**
  * PerformanceTakeUploadReservationRead
  */
 export type PerformanceTakeUploadReservationRead = {
-    metadata: PerformanceTakeUploadMetadata;
+    manifest: PerformanceTakeManifestRead;
     /**
      * Reservation Id
      */
     reservation_id: string;
-    /**
-     * Resolved Scope
-     */
-    resolved_scope: ({
-        kind: 'FULL';
-    } & PerformanceTakeResolvedFullScope) | ({
-        kind: 'RANGE';
-    } & PerformanceTakeResolvedRangeScope);
-    resolved_tempo_plan: PerformanceTakeTempoPlan;
-    score_timebase: PerformanceTakeScoreTimebase;
     /**
      * Status
      */

@@ -1,12 +1,10 @@
 // @vitest-environment jsdom
 import { recordingSinkFixture } from '@/lib/practice/__fixtures__/recording-sink';
 import { localMediaAssetFixture } from '@/lib/practice/__fixtures__/local-media-asset';
-
 import React, { type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-
 import {
   performanceTakesApi,
   uploadMediaToSignedUrl,
@@ -16,7 +14,6 @@ import {
   type PerformanceTakeTempoPlan,
 } from '@/lib/api/performance-takes';
 import { useSavePerformanceTake } from '@/hooks/queries/use-performance-take-queries';
-
 vi.mock('@/lib/api/performance-takes', () => ({
   performanceTakesApi: {
     reserveUpload: vi.fn(),
@@ -29,7 +26,6 @@ vi.mock('@/lib/api/performance-takes', () => ({
   },
   uploadMediaToSignedUrl: vi.fn(),
 }));
-
 function createWrapper() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -40,28 +36,35 @@ function createWrapper() {
     );
   };
 }
-
 const tempoPlan: PerformanceTakeTempoPlan = {
   selection: { mode: 'SCORE' },
   segments: [{ startTick: 0, bpm: 120, source: 'MUSICXML' }],
 };
-
 const recordingTimebase: RecordingTimebase = {
   nominalMediaDurationUs: 1000000,
   activeSegments: [
-    { performanceStartUs: 0, performanceEndUs: 1000000, mediaStartUs: 0, mediaEndUs: 1000000 },
+    {
+      performanceStartUs: 0,
+      performanceEndUs: 1000000,
+      mediaStartUs: 0,
+      mediaEndUs: 1000000,
+    },
   ],
 };
-
 function createInput() {
   return {
     ticksPerQuarter: 1,
-    binding: { scoreId: 'score-1', revisionId: 'revision-1', bundleId: 'source-1' },
+    binding: {
+      scoreId: 'score-1',
+      revisionId: 'revision-1',
+      bundleId: 'source-1',
+    },
     clientRequestId: 'request-1',
     mediaKind: 'AUDIO' as const,
-    media: localMediaAssetFixture(new Blob(['RIFF....WAVE'], { type: 'audio/wav' })),
+    media: localMediaAssetFixture(
+      new Blob(['RIFF....WAVE'], { type: 'audio/wav' }),
+    ),
     mimeType: 'audio/wav',
-
     scope: {
       kind: 'FULL' as const,
       startTick: 0,
@@ -71,51 +74,41 @@ function createInput() {
     recordingTimebase,
   };
 }
-
 const savedTake: PerformanceTakeRead = {
-  score_timebase: { ticks_per_quarter: 1 },
   take_id: 'take-1',
-  bundle_id: 'source-1',
-  score_id: 'score-1',
-  score_title_snapshot: 'Etude',
-  revision_id: 'revision-1',
-  artifact_id: 'artifact-1',
-  media_kind: 'AUDIO',
-  media_mime_type: 'audio/wav',
-  media_byte_size: 12,
-
-  scope_type: 'FULL',
-  scope_start_tick: 0,
-  scope_terminal_tick: 4,
   deletion_status: 'ACTIVE',
-  tempo_plan: tempoPlan,
-  recording_timebase: recordingTimebase,
   created_at: '2026-09-21T00:00:00Z',
-};
-
-function reservation(
-  status: PerformanceTakeUploadReservationRead['status'] = 'RESERVED'
-): PerformanceTakeUploadReservationRead {
-  const input = createInput();
-  return {
+  manifest: {
+    artifact_id: 'artifact-1',
+    score_title_snapshot: 'Etude',
     score_timebase: { ticks_per_quarter: 1 },
+    tempo_plan: tempoPlan,
+    recording_timebase: recordingTimebase,
+    practice_binding: {
+      bundle_id: 'source-1',
+      score_id: 'score-1',
+      revision_id: 'revision-1',
+    },
+    media: {
+      kind: 'AUDIO',
+      mime_type: 'audio/wav',
+      byte_size: 12,
+    },
+    scope: {
+      kind: 'FULL',
+      start_tick: 0,
+      terminal_tick: 4,
+    },
+  },
+};
+function reservation(
+  status: PerformanceTakeUploadReservationRead['status'] = 'RESERVED',
+): PerformanceTakeUploadReservationRead {
+  return {
     reservation_id: 'upload-reservation-1',
     take_id: savedTake.take_id,
     status,
-    metadata: {
-      practice_binding: { score_id:'score-1',revision_id:'revision-1',bundle_id:'source-1' },
-      media: {
-        kind: input.mediaKind,
-        byte_size: input.media.byteSize,
-        mime_type: input.mimeType,
-
-      },
-      scope: { kind: 'FULL' },
-      tempo_selection: tempoPlan.selection,
-      recording_timebase: recordingTimebase,
-    },
-    resolved_scope: { kind: 'FULL', start_tick: 0, terminal_tick: 4 },
-    resolved_tempo_plan: tempoPlan,
+    manifest: structuredClone(savedTake.manifest),
     upload_target:
       status === 'RESERVED'
         ? {
@@ -128,7 +121,6 @@ function reservation(
     take: status === 'COMPLETED' ? savedTake : null,
   };
 }
-
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue({
@@ -139,7 +131,6 @@ beforeEach(() => {
     data: savedTake,
   } as never);
 });
-
 async function save() {
   const { result } = renderHook(() => useSavePerformanceTake(), {
     wrapper: createWrapper(),
@@ -150,7 +141,6 @@ async function save() {
   });
   return response;
 }
-
 describe('useSavePerformanceTake', () => {
   it.each(['success', 'upload-error', 'finalize-error'] as const)(
     'holds media after Review clear until Save %s settles',
@@ -158,17 +148,25 @@ describe('useSavePerformanceTake', () => {
       const capture = recordingSinkFixture();
       await capture.sink.append(new Blob(['raw capture']));
       const media = await capture.sink.seal('audio/wav');
+      const accepted = reservation();
+      accepted.manifest.media.byte_size = media.byteSize;
+      vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue({
+        data: accepted,
+      } as never);
+      vi.mocked(performanceTakesApi.finalizeTake).mockResolvedValue({
+        data: { ...savedTake, manifest: accepted.manifest },
+      } as never);
       let finish!: () => void, fail!: (error: Error) => void;
       vi.mocked(uploadMediaToSignedUrl).mockImplementation(
         () =>
           new Promise<void>((resolve, reject) => {
             finish = resolve;
             fail = reject;
-          })
+          }),
       );
       if (outcome === 'finalize-error')
         vi.mocked(performanceTakesApi.finalizeTake).mockRejectedValueOnce(
-          new Error('finalize failed')
+          new Error('finalize failed'),
         );
       const { result } = renderHook(() => useSavePerformanceTake(), {
         wrapper: createWrapper(),
@@ -178,7 +176,6 @@ describe('useSavePerformanceTake', () => {
         pending = result.current.mutateAsync({
           ...createInput(),
           media,
-
         });
       });
       await media.release();
@@ -192,23 +189,30 @@ describe('useSavePerformanceTake', () => {
       });
       expect(capture.exists()).toBe(false);
       expect(capture.remove).toHaveBeenCalledOnce();
-    }
+    },
   );
-
   it('sends metadata once to reserve, uploads to the target, and finalizes only its public identity', async () => {
     expect(await save()).toEqual(savedTake);
     expect(performanceTakesApi.reserveUpload).toHaveBeenCalledExactlyOnceWith({
       client_request_id: 'request-1',
-      ...reservation().metadata,
+      practice_binding: {
+        score_id: 'score-1',
+        revision_id: 'revision-1',
+        bundle_id: 'source-1',
+      },
+      media: savedTake.manifest.media,
+      scope: { kind: 'FULL' },
+      tempo_selection: tempoPlan.selection,
+      recording_timebase: recordingTimebase,
     });
     expect(uploadMediaToSignedUrl).toHaveBeenCalledExactlyOnceWith(
       '/uploads/staging.wav',
       'PUT',
       { 'content-type': 'audio/wav' },
-      createInput().media.blob
+      createInput().media.blob,
     );
     expect(performanceTakesApi.finalizeTake).toHaveBeenCalledExactlyOnceWith(
-      'upload-reservation-1'
+      'upload-reservation-1',
     );
     expect(performanceTakesApi.cancelUploadReservation).not.toHaveBeenCalled();
   });
@@ -223,11 +227,10 @@ describe('useSavePerformanceTake', () => {
       media: localMediaAssetFixture(raw),
     };
     const reserved = reservation();
-    reserved.metadata.media = {
+    reserved.manifest.media = {
       kind: 'VIDEO',
       byte_size: raw.size,
       mime_type: 'video/mp4',
-
     };
     reserved.upload_target = {
       url: '/uploads/staging.mp4',
@@ -241,9 +244,15 @@ describe('useSavePerformanceTake', () => {
     vi.mocked(performanceTakesApi.finalizeTake).mockResolvedValue({
       data: {
         ...savedTake,
-        media_kind: 'VIDEO',
-        media_mime_type: 'video/mp4',
-        media_byte_size: raw.size,
+        manifest: {
+          ...savedTake.manifest,
+          media: {
+            ...savedTake.manifest.media,
+            kind: 'VIDEO',
+            mime_type: 'video/mp4',
+            byte_size: raw.size,
+          },
+        },
       },
     } as never);
     const { result } = renderHook(() => useSavePerformanceTake(), {
@@ -253,14 +262,14 @@ describe('useSavePerformanceTake', () => {
       await result.current.mutateAsync(input);
     });
     expect(performanceTakesApi.reserveUpload).toHaveBeenCalledWith(
-      expect.objectContaining({ media: reserved.metadata.media })
+      expect.objectContaining({ media: reserved.manifest.media }),
     );
     expect(vi.mocked(uploadMediaToSignedUrl).mock.calls[0][3]).toBe(raw);
     expect(uploadMediaToSignedUrl).toHaveBeenCalledWith(
       '/uploads/staging.mp4',
       'PUT',
       { 'content-type': 'video/mp4' },
-      raw
+      raw,
     );
   });
   it('returns COMPLETED without another upload or finalize', async () => {
@@ -278,16 +287,16 @@ describe('useSavePerformanceTake', () => {
     expect(await save()).toEqual(savedTake);
     expect(uploadMediaToSignedUrl).not.toHaveBeenCalled();
     expect(performanceTakesApi.finalizeTake).toHaveBeenCalledExactlyOnceWith(
-      'upload-reservation-1'
+      'upload-reservation-1',
     );
   });
   it('cancels the public reservation after a failed binary upload', async () => {
     vi.mocked(uploadMediaToSignedUrl).mockRejectedValue(
-      new Error('upload failed')
+      new Error('upload failed'),
     );
     await expect(save()).rejects.toThrow('upload failed');
     expect(
-      performanceTakesApi.cancelUploadReservation
+      performanceTakesApi.cancelUploadReservation,
     ).toHaveBeenCalledExactlyOnceWith('upload-reservation-1');
     expect(performanceTakesApi.finalizeTake).not.toHaveBeenCalled();
   });
@@ -298,9 +307,9 @@ describe('useSavePerformanceTake', () => {
       await expect(save()).rejects.toBe(error);
       expect(uploadMediaToSignedUrl).toHaveBeenCalledOnce();
       expect(
-        performanceTakesApi.cancelUploadReservation
+        performanceTakesApi.cancelUploadReservation,
       ).not.toHaveBeenCalled();
-    }
+    },
   );
   it('reserves RANGE VIDEO metadata once', async () => {
     const input = {
@@ -315,7 +324,9 @@ describe('useSavePerformanceTake', () => {
       },
     };
     const accepted = reservation();
-    accepted.resolved_scope = {
+    accepted.manifest.media.kind = input.mediaKind;
+    accepted.manifest.media.kind = input.mediaKind;
+    accepted.manifest.scope = {
       kind: 'RANGE',
       start_tick: 1,
       terminal_tick: 3,
@@ -328,11 +339,18 @@ describe('useSavePerformanceTake', () => {
     vi.mocked(performanceTakesApi.finalizeTake).mockResolvedValue({
       data: {
         ...savedTake,
-        scope_type: 'RANGE',
-        scope_start_tick: 1,
-        scope_terminal_tick: 3,
-        scope_start_group_id: 'g1',
-        scope_end_group_id: 'g3',
+        manifest: {
+          ...savedTake.manifest,
+          media: { ...savedTake.manifest.media, kind: 'VIDEO' },
+          scope: {
+            ...savedTake.manifest.scope,
+            kind: 'RANGE',
+            start_tick: 1,
+            terminal_tick: 3,
+            start_group_id: 'g1',
+            end_group_id: 'g3',
+          },
+        },
       },
     } as never);
     const { result } = renderHook(() => useSavePerformanceTake(), {
@@ -345,14 +363,13 @@ describe('useSavePerformanceTake', () => {
       expect.objectContaining({
         media: expect.objectContaining({ kind: 'VIDEO' }),
         scope: { kind: 'RANGE', start_group_id: 'g1', end_group_id: 'g3' },
-      })
+      }),
     );
     expect(performanceTakesApi.finalizeTake).toHaveBeenCalledExactlyOnceWith(
-      'upload-reservation-1'
+      'upload-reservation-1',
     );
   });
 });
-
 describe('server canonical plan agreement before media upload', () => {
   const differences: [
     string,
@@ -361,43 +378,44 @@ describe('server canonical plan agreement before media upload', () => {
     [
       'score timebase',
       (value) => {
-        value.score_timebase.ticks_per_quarter = 60;
+        value.manifest.score_timebase.ticks_per_quarter = 60;
       },
     ],
     [
       'missing score timebase',
       (value) => {
-        Reflect.deleteProperty(value, 'score_timebase');
+        Reflect.deleteProperty(value.manifest, 'score_timebase');
       },
     ],
     [
       'unsafe score timebase',
       (value) => {
-        value.score_timebase.ticks_per_quarter = Number.MAX_SAFE_INTEGER + 1;
+        value.manifest.score_timebase.ticks_per_quarter =
+          Number.MAX_SAFE_INTEGER + 1;
       },
     ],
     [
       'source',
       (value) => {
-        value.metadata.practice_binding.bundle_id = 'different-source';
+        value.manifest.practice_binding.bundle_id = 'different-source';
       },
     ],
     [
       'scope start',
       (value) => {
-        value.resolved_scope.start_tick = 1;
+        value.manifest.scope.start_tick = 1;
       },
     ],
     [
       'scope terminal',
       (value) => {
-        value.resolved_scope.terminal_tick = 5;
+        value.manifest.scope.terminal_tick = 5;
       },
     ],
     [
       'scope selection',
       (value) => {
-        value.resolved_scope = {
+        value.manifest.scope = {
           kind: 'RANGE',
           start_tick: 0,
           terminal_tick: 4,
@@ -409,7 +427,7 @@ describe('server canonical plan agreement before media upload', () => {
     [
       'tempo selection',
       (value) => {
-        value.resolved_tempo_plan.selection = {
+        value.manifest.tempo_plan.selection = {
           mode: 'CUSTOM_FIXED_BPM',
           bpm: 120,
         };
@@ -418,25 +436,25 @@ describe('server canonical plan agreement before media upload', () => {
     [
       'tempo bpm',
       (value) => {
-        value.resolved_tempo_plan.segments[0].bpm = 121;
+        value.manifest.tempo_plan.segments[0].bpm = 121;
       },
     ],
     [
       'tempo position',
       (value) => {
-        value.resolved_tempo_plan.segments[0].startTick = 1;
+        value.manifest.tempo_plan.segments[0].startTick = 1;
       },
     ],
     [
       'tempo source',
       (value) => {
-        value.resolved_tempo_plan.segments[0].source = 'PRODUCT_DEFAULT';
+        value.manifest.tempo_plan.segments[0].source = 'PRODUCT_DEFAULT';
       },
     ],
     [
       'tempo segments',
       (value) => {
-        value.resolved_tempo_plan.segments.push({
+        value.manifest.tempo_plan.segments.push({
           startTick: 2,
           bpm: 120,
           source: 'MUSICXML',
@@ -454,27 +472,27 @@ describe('server canonical plan agreement before media upload', () => {
       } as never);
       await expect(save()).rejects.toThrow('PERFORMANCE_TAKE_PLAN_MISMATCH');
       expect(
-        performanceTakesApi.cancelUploadReservation
+        performanceTakesApi.cancelUploadReservation,
       ).toHaveBeenCalledExactlyOnceWith(accepted.reservation_id);
       expect(uploadMediaToSignedUrl).not.toHaveBeenCalled();
       expect(performanceTakesApi.finalizeTake).not.toHaveBeenCalled();
-    }
+    },
   );
   it('fails deterministically even when mismatch cancellation is unavailable', async () => {
     const accepted = structuredClone(reservation());
-    accepted.resolved_scope.terminal_tick = 5;
+    accepted.manifest.scope.terminal_tick = 5;
     vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue({
       data: accepted,
     } as never);
     vi.mocked(performanceTakesApi.cancelUploadReservation).mockRejectedValue(
-      new Error('offline')
+      new Error('offline'),
     );
     await expect(save()).rejects.toThrow('PERFORMANCE_TAKE_PLAN_MISMATCH');
     expect(uploadMediaToSignedUrl).not.toHaveBeenCalled();
   });
   it('does not finalize or cancel a mismatched FINALIZING reservation', async () => {
     const accepted = structuredClone(reservation('FINALIZING'));
-    accepted.resolved_scope.terminal_tick = 5;
+    accepted.manifest.scope.terminal_tick = 5;
     vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue({
       data: accepted,
     } as never);
@@ -487,26 +505,36 @@ describe('server canonical plan agreement before media upload', () => {
     async (field) => {
       const accepted = structuredClone(reservation('COMPLETED'));
       if (field === 'timebase')
-        accepted.take!.score_timebase.ticks_per_quarter = 60;
-      if (field === 'source') accepted.take!.bundle_id = 'different-source';
-      if (field === 'scope') accepted.take!.scope_terminal_tick = 5;
-      if (field === 'tempo') accepted.take!.tempo_plan.segments[0].bpm = 121;
+        accepted.take!.manifest.score_timebase.ticks_per_quarter = 60;
+      if (field === 'source')
+        accepted.take!.manifest.practice_binding.bundle_id = 'different-source';
+      if (field === 'scope') accepted.take!.manifest.scope.terminal_tick = 5;
+      if (field === 'tempo')
+        accepted.take!.manifest.tempo_plan.segments[0].bpm = 121;
       vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue({
         data: accepted,
       } as never);
       await expect(save()).rejects.toThrow('PERFORMANCE_TAKE_PLAN_MISMATCH');
       expect(uploadMediaToSignedUrl).not.toHaveBeenCalled();
       expect(performanceTakesApi.finalizeTake).not.toHaveBeenCalled();
-    }
+    },
   );
   it('checks freshly finalized Take truth before reporting saved success', async () => {
     vi.mocked(performanceTakesApi.finalizeTake).mockResolvedValue({
-      data: { ...savedTake, scope_terminal_tick: 5 },
+      data: {
+        ...savedTake,
+        manifest: {
+          ...savedTake.manifest,
+          scope: {
+            ...savedTake.manifest.scope,
+            terminal_tick: 5,
+          },
+        },
+      },
     } as never);
     await expect(save()).rejects.toThrow('PERFORMANCE_TAKE_PLAN_MISMATCH');
   });
 });
-
 it('compares raw custom selection even when rounded segment BPM is identical', async () => {
   const input = {
     ...createInput(),
@@ -516,7 +544,7 @@ it('compares raw custom selection even when rounded segment BPM is identical', a
     },
   };
   const accepted = structuredClone(reservation());
-  accepted.resolved_tempo_plan = {
+  accepted.manifest.tempo_plan = {
     selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 80.6 },
     segments: [{ startTick: 0, bpm: 81, source: 'CUSTOM' }],
   };
@@ -528,12 +556,11 @@ it('compares raw custom selection even when rounded segment BPM is identical', a
   });
   await act(async () => {
     await expect(result.current.mutateAsync(input)).rejects.toThrow(
-      'PERFORMANCE_TAKE_PLAN_MISMATCH'
+      'PERFORMANCE_TAKE_PLAN_MISMATCH',
     );
   });
   expect(uploadMediaToSignedUrl).not.toHaveBeenCalled();
 });
-
 it('requires exact RANGE group identities even when beats match', async () => {
   const input = {
     ...createInput(),
@@ -546,7 +573,7 @@ it('requires exact RANGE group identities even when beats match', async () => {
     },
   };
   const accepted = structuredClone(reservation());
-  accepted.resolved_scope = {
+  accepted.manifest.scope = {
     kind: 'RANGE',
     start_tick: 0,
     terminal_tick: 4,
@@ -561,22 +588,27 @@ it('requires exact RANGE group identities even when beats match', async () => {
   });
   await act(async () => {
     await expect(result.current.mutateAsync(input)).rejects.toThrow(
-      'PERFORMANCE_TAKE_PLAN_MISMATCH'
+      'PERFORMANCE_TAKE_PLAN_MISMATCH',
     );
   });
   expect(uploadMediaToSignedUrl).not.toHaveBeenCalled();
 });
-
 it('validates the executed grid locally without submitting it as reservation authority', async () => {
   const input = createInput();
   input.ticksPerQuarter = 60;
   const accepted = structuredClone(reservation());
-  accepted.score_timebase.ticks_per_quarter = 60;
+  accepted.manifest.score_timebase.ticks_per_quarter = 60;
   vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue({
     data: accepted,
   } as never);
   vi.mocked(performanceTakesApi.finalizeTake).mockResolvedValue({
-    data: { ...savedTake, score_timebase: { ticks_per_quarter: 60 } },
+    data: {
+      ...savedTake,
+      manifest: {
+        ...savedTake.manifest,
+        score_timebase: { ticks_per_quarter: 60 },
+      },
+    },
   } as never);
   const { result } = renderHook(() => useSavePerformanceTake(), {
     wrapper: createWrapper(),
@@ -589,10 +621,41 @@ it('validates the executed grid locally without submitting it as reservation aut
   expect(request).not.toHaveProperty('ticks_per_quarter');
   expect(request).not.toHaveProperty('ticksPerQuarter');
 });
-
 it('rejects a finalized Take on a different grid even when its tick values match', async () => {
   vi.mocked(performanceTakesApi.finalizeTake).mockResolvedValue({
-    data: { ...savedTake, score_timebase: { ticks_per_quarter: 60 } },
+    data: {
+      ...savedTake,
+      manifest: {
+        ...savedTake.manifest,
+        score_timebase: { ticks_per_quarter: 60 },
+      },
+    },
   } as never);
   await expect(save()).rejects.toThrow('PERFORMANCE_TAKE_PLAN_MISMATCH');
 });
+
+it.each(['RESERVED', 'COMPLETED'] as const)(
+  'uses common Manifest media/evidence agreement for %s',
+  async (status) => {
+    for (const change of [
+      (manifest: PerformanceTakeRead['manifest']) => {
+        manifest.media.byte_size += 1;
+      },
+      (manifest: PerformanceTakeRead['manifest']) => {
+        manifest.media.mime_type = 'audio/webm';
+      },
+      (manifest: PerformanceTakeRead['manifest']) => {
+        manifest.recording_timebase.nominalMediaDurationUs += 1;
+      },
+    ]) {
+      const accepted = structuredClone(reservation(status));
+      change(
+        status === 'COMPLETED' ? accepted.take!.manifest : accepted.manifest,
+      );
+      vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue({
+        data: accepted,
+      } as never);
+      await expect(save()).rejects.toThrow('PERFORMANCE_TAKE_PLAN_MISMATCH');
+    }
+  },
+);

@@ -1,10 +1,21 @@
 'use client';
-import { decodeRecordingTimebase, microsecondsToMilliseconds } from '@/lib/practice/recording/recording-timebase';
+import {
+  decodeRecordingTimebase,
+  microsecondsToMilliseconds,
+} from '@/lib/practice/recording/recording-timebase';
 
 import { captureMediaExtension } from '@/lib/practice/recording/media-policy';
 
 import React, { useState } from 'react';
-import { Calendar, Clock, Download, Music, Play, Radio, Trash2 } from 'lucide-react';
+import {
+  Calendar,
+  Clock,
+  Download,
+  Music,
+  Play,
+  Radio,
+  Trash2,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Link } from '@/i18n/routing';
@@ -31,7 +42,10 @@ import {
   usePerformanceTakes,
 } from '@/hooks/queries/use-performance-take-queries';
 import { PerformanceReplayPlayer } from '@/components/practice/performance-replay-player';
-import { performanceTakesApi, type PerformanceTakeRead } from '@/lib/api/performance-takes';
+import {
+  performanceTakesApi,
+  type PerformanceTakeRead,
+} from '@/lib/api/performance-takes';
 import type { PlayablePerformanceReplay } from '@/lib/practice/recording/performance-replay';
 import { hasSavedTakeVideoExportMetadata } from '@/lib/practice/video-export/saved-take-adapter';
 import { useToast } from '@/hooks/use-toast';
@@ -71,9 +85,9 @@ function formatDate(isoDate: string): string {
 
 function getTempoLabel(
   take: PerformanceTakeRead,
-  t: (key: string, values?: Record<string, string | number>) => string
+  t: (key: string, values?: Record<string, string | number>) => string,
 ): string | null {
-  const plan = take.tempo_plan;
+  const plan = take.manifest.tempo_plan;
   const selection = plan?.selection;
   const mode = selection?.mode?.toUpperCase();
 
@@ -86,7 +100,11 @@ function getTempoLabel(
 
   if (plan?.segments && plan.segments.length > 0) {
     const uniqueBpms = Array.from(
-      new Set(plan.segments.map((s) => s.bpm).filter((b): b is number => typeof b === 'number'))
+      new Set(
+        plan.segments
+          .map((s) => s.bpm)
+          .filter((b): b is number => typeof b === 'number'),
+      ),
     );
     if (uniqueBpms.length === 1) {
       return t('tempoScoreModeWithBpm', { bpm: uniqueBpms[0] });
@@ -123,22 +141,26 @@ function PerformanceTakeCard({
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
-  const scoreTitle = take.score_title_snapshot;
-  const scoreTitleNode = take.can_open_score && take.linked_score_id ? (
-    <Link
-      href={`/score/${take.linked_score_id}`}
-      className="truncate font-semibold text-gray-900 transition-colors hover:text-primary hover:underline"
-    >
-      {scoreTitle}
-    </Link>
-  ) : (
-    <span className="truncate font-semibold text-gray-900">{scoreTitle}</span>
-  );
+  const scoreTitle = take.manifest.score_title_snapshot;
+  const scoreTitleNode =
+    take.can_open_score && take.linked_score_id ? (
+      <Link
+        href={`/score/${take.linked_score_id}`}
+        className="truncate font-semibold text-gray-900 transition-colors hover:text-primary hover:underline"
+      >
+        {scoreTitle}
+      </Link>
+    ) : (
+      <span className="truncate font-semibold text-gray-900">{scoreTitle}</span>
+    );
 
   const isDeleting = take.deletion_status === 'DELETING' || isDeletePending;
 
   // Playback URL query - only active when playing this card and not being deleted.
-  const playbackQuery = usePerformanceTakePlayback(take.take_id, isPlaying && !isDeleting);
+  const playbackQuery = usePerformanceTakePlayback(
+    take.take_id,
+    isPlaying && !isDeleting,
+  );
 
   const handleDownload = async () => {
     try {
@@ -151,7 +173,7 @@ function PerformanceTakeCard({
       }
       const a = document.createElement('a');
       a.href = downloadUrl;
-      const ext = captureMediaExtension(take.media_mime_type);
+      const ext = captureMediaExtension(take.manifest.media.mime_type);
       a.download = `performance-${take.take_id}.${ext}`;
       document.body.appendChild(a);
       a.click();
@@ -164,27 +186,32 @@ function PerformanceTakeCard({
   };
 
   const replay: PlayablePerformanceReplay | null = playbackQuery.data?.data
-    ? take.media_kind === 'VIDEO'
+    ? take.manifest.media.kind === 'VIDEO'
       ? {
           kind: 'VIDEO_RECORDING',
           url: playbackQuery.data.data.playback_url,
-        recordingTimebase: decodeRecordingTimebase(take.recording_timebase),
-          contentType: take.media_mime_type,
-          byteSize: take.media_byte_size,
+          recordingTimebase: decodeRecordingTimebase(
+            take.manifest.recording_timebase,
+          ),
+          contentType: take.manifest.media.mime_type,
+          byteSize: take.manifest.media.byte_size,
         }
       : {
           kind: 'AUDIO_RECORDING',
           url: playbackQuery.data.data.playback_url,
-        recordingTimebase: decodeRecordingTimebase(take.recording_timebase),
-          contentType: take.media_mime_type,
+          recordingTimebase: decodeRecordingTimebase(
+            take.manifest.recording_timebase,
+          ),
+          contentType: take.manifest.media.mime_type,
         }
     : null;
 
-  const scopeLabel = take.scope_type === 'FULL'
-    ? t('scopeFull')
-    : take.scope_type === 'RANGE'
-      ? t('scopeSection')
-      : t('scopeUnavailable');
+  const scopeLabel =
+    take.manifest.scope.kind === 'FULL'
+      ? t('scopeFull')
+      : take.manifest.scope.kind === 'RANGE'
+        ? t('scopeSection')
+        : t('scopeUnavailable');
 
   const tempoLabel = getTempoLabel(take, t);
 
@@ -214,10 +241,15 @@ function PerformanceTakeCard({
                 </span>
                 <span className="flex items-center gap-1">
                   <Clock className="h-3.5 w-3.5" />
-                  {formatDuration(microsecondsToMilliseconds(take.recording_timebase.nominalMediaDurationUs))}
+                  {formatDuration(
+                    microsecondsToMilliseconds(
+                      take.manifest.recording_timebase.nominalMediaDurationUs,
+                    ),
+                  )}
                 </span>
                 <span className="rounded bg-gray-100 px-1.5 py-0.5 font-medium text-gray-600">
-                  {take.media_mime_type.split('/')[1]?.toUpperCase() || 'AUDIO'}
+                  {take.manifest.media.mime_type.split('/')[1]?.toUpperCase() ||
+                    'AUDIO'}
                 </span>
                 <span className="rounded bg-blue-50 px-1.5 py-0.5 font-medium text-blue-700">
                   {scopeLabel}
@@ -254,7 +286,7 @@ function PerformanceTakeCard({
                 <Download className="h-4 w-4" />
                 {downloading
                   ? common('downloading')
-                  : take.media_kind === 'VIDEO'
+                  : take.manifest.media.kind === 'VIDEO'
                     ? t('downloadVideo')
                     : t('downloadRecording')}
               </Button>
@@ -305,7 +337,9 @@ function PerformanceTakeCard({
           {isPlaying ? (
             <div className="mt-2 border-t border-gray-100 pt-3">
               {playbackQuery.isLoading ? (
-                <div className="py-2 text-xs text-gray-500">{common('loading')}</div>
+                <div className="py-2 text-xs text-gray-500">
+                  {common('loading')}
+                </div>
               ) : playbackQuery.isError ? (
                 <div className="flex items-center gap-2 py-2 text-xs text-red-600">
                   <span>{t('audioPlaybackFailed')}</span>
@@ -320,10 +354,7 @@ function PerformanceTakeCard({
                   </Button>
                 </div>
               ) : replay ? (
-                <PerformanceReplayPlayer
-                  replay={replay}
-                  autoStart={true}
-                />
+                <PerformanceReplayPlayer replay={replay} autoStart={true} />
               ) : null}
             </div>
           ) : null}
@@ -339,11 +370,12 @@ export default function MyPerformancesPage({
   searchParams?: Promise<{ page?: string }>;
 }) {
   const synchronousPageParam = readSynchronousPageParam(searchParams);
-  const resolvedParams = synchronousPageParam !== undefined
-    ? { page: synchronousPageParam }
-    : searchParams
-      ? React.use(searchParams)
-      : undefined;
+  const resolvedParams =
+    synchronousPageParam !== undefined
+      ? { page: synchronousPageParam }
+      : searchParams
+        ? React.use(searchParams)
+        : undefined;
   return <MyPerformancesPageContent searchParams={resolvedParams} />;
 }
 
@@ -353,7 +385,8 @@ function MyPerformancesPageContent({
   searchParams?: { page?: string };
 }) {
   const routerSearchParams = useSearchParams();
-  const pageParam = searchParams?.page ?? routerSearchParams?.get('page') ?? undefined;
+  const pageParam =
+    searchParams?.page ?? routerSearchParams?.get('page') ?? undefined;
   const rawPage = normalizePage(pageParam);
 
   const t = useTranslations('practice');
@@ -371,16 +404,19 @@ function MyPerformancesPageContent({
   const deleteTake = useDeletePerformanceTake();
 
   const [activeTakeId, setActiveTakeId] = useState<string | null>(null);
-  const [takePendingDelete, setTakePendingDelete] = useState<PerformanceTakeRead | null>(null);
+  const [takePendingDelete, setTakePendingDelete] =
+    useState<PerformanceTakeRead | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [deleteAcceptedAtByTakeId, setDeleteAcceptedAtByTakeId] = useState<Record<string, number>>(
-    {}
-  );
-  const [deleteObservedAtByTakeId, setDeleteObservedAtByTakeId] = useState<Record<string, number>>(
-    {}
-  );
+  const [deleteAcceptedAtByTakeId, setDeleteAcceptedAtByTakeId] = useState<
+    Record<string, number>
+  >({});
+  const [deleteObservedAtByTakeId, setDeleteObservedAtByTakeId] = useState<
+    Record<string, number>
+  >({});
   const [isPageVisible, setIsPageVisible] = useState(() =>
-    typeof document === 'undefined' ? true : document.visibilityState !== 'hidden'
+    typeof document === 'undefined'
+      ? true
+      : document.visibilityState !== 'hidden',
   );
   const [pollTick, setPollTick] = useState(() => Date.now());
 
@@ -394,37 +430,47 @@ function MyPerformancesPageContent({
       new Set(
         takes
           .filter((take) => take.deletion_status === 'DELETING')
-          .map((take) => take.take_id)
+          .map((take) => take.take_id),
       ),
-    [takes]
+    [takes],
   );
   const acceptedDeleteIds = React.useMemo(
     () => new Set(Object.keys(deleteAcceptedAtByTakeId)),
-    [deleteAcceptedAtByTakeId]
+    [deleteAcceptedAtByTakeId],
   );
-  const hasPendingDeletion = deletingTakeIds.size > 0 || acceptedDeleteIds.size > 0;
+  const hasPendingDeletion =
+    deletingTakeIds.size > 0 || acceptedDeleteIds.size > 0;
   const oldestAcceptedDeleteAt =
-    Object.values({ ...deleteObservedAtByTakeId, ...deleteAcceptedAtByTakeId }).length > 0
-      ? Math.min(...Object.values({ ...deleteObservedAtByTakeId, ...deleteAcceptedAtByTakeId }))
+    Object.values({ ...deleteObservedAtByTakeId, ...deleteAcceptedAtByTakeId })
+      .length > 0
+      ? Math.min(
+          ...Object.values({
+            ...deleteObservedAtByTakeId,
+            ...deleteAcceptedAtByTakeId,
+          }),
+        )
       : null;
   const showDeletionSlowNotice =
-    oldestAcceptedDeleteAt !== null && pollTick - oldestAcceptedDeleteAt >= DELETE_SLOW_NOTICE_MS;
+    oldestAcceptedDeleteAt !== null &&
+    pollTick - oldestAcceptedDeleteAt >= DELETE_SLOW_NOTICE_MS;
 
   const goToPage = React.useCallback(
     (nextPage: number) => {
       setActiveTakeId(null);
       const targetPage = Math.max(1, nextPage);
-      const search = targetPage > 1 ? `?page=${targetPage}` : '/my-performances';
+      const search =
+        targetPage > 1 ? `?page=${targetPage}` : '/my-performances';
       router.push(search);
     },
-    [router]
+    [router],
   );
 
   // If query succeeded and rawPage is beyond totalPages, normalize URL to totalPages
   React.useEffect(() => {
     if (takesQuery.isSuccess && total > 0 && rawPage > totalPages) {
       const targetPage = Math.max(1, totalPages);
-      const search = targetPage > 1 ? `?page=${targetPage}` : '/my-performances';
+      const search =
+        targetPage > 1 ? `?page=${targetPage}` : '/my-performances';
       router.push(search);
     }
   }, [takesQuery.isSuccess, total, totalPages, rawPage, router]);
@@ -438,7 +484,8 @@ function MyPerformancesPageContent({
 
     document.addEventListener('visibilitychange', onVisibilityChange);
     onVisibilityChange();
-    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+    return () =>
+      document.removeEventListener('visibilitychange', onVisibilityChange);
   }, []);
 
   React.useEffect(() => {
@@ -449,9 +496,11 @@ function MyPerformancesPageContent({
     const timeoutId = window.setTimeout(() => {
       setDeleteAcceptedAtByTakeId((prev) => {
         const next = Object.fromEntries(
-          Object.entries(prev).filter(([takeId]) => listedTakeIds.has(takeId))
+          Object.entries(prev).filter(([takeId]) => listedTakeIds.has(takeId)),
         );
-        return Object.keys(next).length === Object.keys(prev).length ? prev : next;
+        return Object.keys(next).length === Object.keys(prev).length
+          ? prev
+          : next;
       });
       setDeleteObservedAtByTakeId((prev) => {
         const next = { ...prev };
@@ -474,7 +523,9 @@ function MyPerformancesPageContent({
         return changed ? next : prev;
       });
 
-      setActiveTakeId((current) => (current && deletingTakeIds.has(current) ? null : current));
+      setActiveTakeId((current) =>
+        current && deletingTakeIds.has(current) ? null : current,
+      );
     }, 0);
 
     return () => window.clearTimeout(timeoutId);
@@ -576,10 +627,15 @@ function MyPerformancesPageContent({
               }
               isDeletePending={acceptedDeleteIds.has(take.take_id)}
               onPlay={() => {
-                if (take.deletion_status === 'DELETING' || acceptedDeleteIds.has(take.take_id)) {
+                if (
+                  take.deletion_status === 'DELETING' ||
+                  acceptedDeleteIds.has(take.take_id)
+                ) {
                   return;
                 }
-                setActiveTakeId((current) => (current === take.take_id ? null : take.take_id));
+                setActiveTakeId((current) =>
+                  current === take.take_id ? null : take.take_id,
+                );
               }}
               onDelete={() => {
                 setDeleteError(null);
@@ -612,11 +668,18 @@ function MyPerformancesPageContent({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('deletePerformanceTakeConfirmTitle')}</AlertDialogTitle>
-            <AlertDialogDescription>{t('deletePerformanceTakeConfirmDesc')}</AlertDialogDescription>
+            <AlertDialogTitle>
+              {t('deletePerformanceTakeConfirmTitle')}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('deletePerformanceTakeConfirmDesc')}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           {deleteError ? (
-            <div className="rounded-md bg-red-50 p-3 text-sm text-red-600" data-testid="delete-take-error">
+            <div
+              className="rounded-md bg-red-50 p-3 text-sm text-red-600"
+              data-testid="delete-take-error"
+            >
               {deleteError}
             </div>
           ) : null}
@@ -642,8 +705,14 @@ function MyPerformancesPageContent({
   );
 }
 
-function readSynchronousPageParam(searchParams: Promise<{ page?: string }> | undefined): string | undefined {
-  if (!searchParams || typeof searchParams !== 'object' || !('page' in searchParams)) {
+function readSynchronousPageParam(
+  searchParams: Promise<{ page?: string }> | undefined,
+): string | undefined {
+  if (
+    !searchParams ||
+    typeof searchParams !== 'object' ||
+    !('page' in searchParams)
+  ) {
     return undefined;
   }
   const page = searchParams.page;

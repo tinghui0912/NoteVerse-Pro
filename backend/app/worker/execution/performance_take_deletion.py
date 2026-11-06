@@ -7,6 +7,7 @@ import sys
 from sqlalchemy import select
 
 from app.core.background_tracing import record_current_attempt_failure
+from app.db.models.performance_take_manifest import PerformanceTakeManifest
 from app.db.models.performance_take import PerformanceTake
 from app.db.models.performance_take_delete_outbox import (
     PerformanceTakeDeleteOutbox,
@@ -106,7 +107,7 @@ def execute_performance_take_deletion_task(
             outbox = db.execute(
                 select(PerformanceTakeDeleteOutbox)
                 .where(PerformanceTakeDeleteOutbox.outbox_uuid == outbox_uuid)
-                .with_for_update()
+                .with_for_update(of=PerformanceTake)
             ).scalar_one_or_none()
             if outbox is None:
                 raise RuntimeError(
@@ -142,16 +143,17 @@ def execute_performance_take_deletion_task(
                 )
             take = db.execute(
                 select(PerformanceTake)
+                .join(PerformanceTakeManifest)
                 .where(
-                    PerformanceTake.take_uuid == payload.take_uuid,
-                    PerformanceTake.user_id == payload.user_id,
+                    PerformanceTakeManifest.take_uuid == payload.take_uuid,
+                    PerformanceTakeManifest.user_id == payload.user_id,
                 )
-                .with_for_update()
+                .with_for_update(of=PerformanceTake)
             ).scalar_one_or_none()
             if take is not None:
                 if (
                     take.media_object_key != payload.object_key
-                    or take.media_byte_size != payload.media_byte_size
+                    or take.manifest.media_byte_size != payload.media_byte_size
                     or take.storage_backend != payload.storage_backend
                 ):
                     raise RuntimeError(
@@ -177,8 +179,7 @@ def execute_performance_take_deletion_task(
                 attempt=payload.attempt,
             ):
                 raise RuntimeError(
-                    "performance take deletion outbox completion lease mismatch: "
-                    f"{outbox_uuid}"
+                    f"performance take deletion outbox completion lease mismatch: {outbox_uuid}"
                 )
             db.commit()
 

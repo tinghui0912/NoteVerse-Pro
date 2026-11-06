@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.db.models.performance_take_manifest import PerformanceTakeMediaKind
 
 from app.modules.performance_takes.upload_reservation.domain import UploadReservationStatus
 
@@ -7,13 +8,23 @@ from dataclasses import asdict
 from datetime import datetime, timedelta
 import hashlib
 import hmac
-import json
 from time import monotonic
 from uuid import uuid4
 
+from sqlalchemy import select
+from app.db.models.score import Score, ScoreDeletionStatus
+from app.modules.performance_takes.manifest import (
+    TakeManifest,
+    SUPPORTED_AUDIO_MIMES,
+    SUPPORTED_VIDEO_MIMES,
+)
+from app.modules.performance_takes.manifest_persistence import (
+    manifest_from_row,
+    manifest_to_row,
+    canonical_manifest_json,
+)
 from sqlalchemy.exc import DBAPIError, InterfaceError, IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from pydantic import BaseModel
 
 from app.core.config import settings
 from app.core.logger import logger
@@ -26,7 +37,6 @@ from app.db.session import AsyncSessionLocal
 from app.db.models.performance_take import (
     PerformanceTake,
     PerformanceTakeDeletionStatus,
-    PerformanceTakeMediaKind,
 )
 from app.db.models.performance_take_upload_reservation import (
     PerformanceTakeUploadReservation,
@@ -46,6 +56,7 @@ from app.modules.performance_takes.upload_reservation.persistence import (
 from app.modules.performance_takes.upload_reservation.domain import UploadReservationLifecycle
 from app.modules.performance_takes.repository import PerformanceTakeRepository
 from app.modules.performance_takes.schemas import (
+    PerformanceTakeManifestRead,
     PerformanceTakeRead,
     PerformanceTakeTempoPlan,
     PerformanceTakeUploadReservationRead,
@@ -72,20 +83,8 @@ from app.shared.constants import ErrorCode
 from app.storage.base import FileStorage
 from app.utils.timezone import utc_now_naive
 
-SUPPORTED_AUDIO_MIMES = {
-    "audio/webm",
-    "audio/mp4",
-    "audio/ogg",
-    "audio/wav",
-    "audio/x-wav",
-}
-SUPPORTED_VIDEO_MIMES = {
-    "video/webm",
-    "video/mp4",
-}
 MAX_TAKE_MEDIA_BYTES = 100 * 1024 * 1024
 MAX_TAKE_DURATION_US = 12 * 60 * 60 * 1_000_000
-MAX_TAKE_METADATA_JSON_BYTES = 64 * 1024
 TAKE_UPLOAD_RESERVATION_SECONDS = 3600
 TAKE_FINALIZING_LEASE_SECONDS = 15 * 60
 
@@ -104,7 +103,7 @@ def _clean_mime_type(mime_type: str) -> str:
     return mime_type.split(";")[0].strip().lower()
 
 
-def _supported_mimes_for_kind(media_kind: str) -> set[str]:
+def _supported_mimes_for_kind(media_kind: str) -> frozenset[str]:
     if media_kind == PerformanceTakeMediaKind.VIDEO.value:
         return SUPPORTED_VIDEO_MIMES
     return SUPPORTED_AUDIO_MIMES
@@ -158,19 +157,6 @@ def _verify_container_magic_bytes(header_bytes: bytes, mime_type: str, media_kin
     return False
 
 
-def _json_snapshot(
-    value: object | None, *, max_bytes: int = MAX_TAKE_METADATA_JSON_BYTES
-) -> str | None:
-    if value is None:
-        return None
-    if isinstance(value, BaseModel):
-        value = value.model_dump(mode="json", exclude_none=True)
-    encoded = json.dumps(value, sort_keys=True, separators=(",", ":"))
-    if len(encoded.encode("utf-8")) > max_bytes:
-        raise ValidationException(ErrorCode.VALIDATION_ERROR, field="metadata_size")
-    return encoded
-
-
 def _sha256_storage_object(storage: FileStorage, key: str) -> str:
     digest = hashlib.sha256()
     for chunk in storage.iter_bytes(key, chunk_size=1024 * 1024):
@@ -214,46 +200,6 @@ class PerformanceTakeUploadService:
             storage=storage,
         )
 
-    @staticmethod
-    def _reservation_metadata(
-        reservation: PerformanceTakeUploadReservation,
-    ) -> PerformanceTakeUploadMetadata:
-        scope = {
-            "kind": reservation.scope_type,
-        }
-        if reservation.scope_type == "RANGE":
-            scope.update(
-                start_group_id=reservation.scope_start_group_id,
-                end_group_id=reservation.scope_end_group_id,
-            )
-        return PerformanceTakeUploadMetadata.model_validate(
-            {
-                "practice_binding": {"score_id": reservation.practice_score_uuid, "revision_id": reservation.practice_revision_uuid, "bundle_id": reservation.practice_bundle_id},
-                "media": {
-                    "kind": reservation.media_kind,
-                    "byte_size": reservation.media_byte_size,
-                    "mime_type": reservation.media_mime_type,
-                },
-                "scope": scope,
-                "tempo_selection": json.loads(reservation.tempo_plan)["selection"],
-                "recording_timebase": json.loads(reservation.recording_timebase),
-            }
-        )
-
-    @staticmethod
-    def _reservation_resolved_scope(reservation: PerformanceTakeUploadReservation) -> dict:
-        scope = {
-            "kind": reservation.scope_type,
-            "start_tick": reservation.scope_start_tick,
-            "terminal_tick": reservation.scope_terminal_tick,
-        }
-        if reservation.scope_type == "RANGE":
-            scope.update(
-                start_group_id=reservation.scope_start_group_id,
-                end_group_id=reservation.scope_end_group_id,
-            )
-        return scope
-
     def _reservation_read(
         self,
         reservation: PerformanceTakeUploadReservation,
@@ -263,12 +209,9 @@ class PerformanceTakeUploadService:
     ) -> PerformanceTakeUploadReservationRead:
         return PerformanceTakeUploadReservationRead(
             reservation_id=reservation.reservation_uuid,
-            take_id=reservation.take_uuid,
+            take_id=manifest_from_row(reservation.manifest).take_uuid,
             status=reservation.status,
-            metadata=self._reservation_metadata(reservation),
-            resolved_scope=self._reservation_resolved_scope(reservation),
-            resolved_tempo_plan=json.loads(reservation.tempo_plan),
-            score_timebase={"ticks_per_quarter": reservation.ticks_per_quarter},
+            manifest=manifest_from_row(reservation.manifest).snapshot,
             upload_target=PerformanceTakeUploadTarget(
                 url=upload_target.upload_url,
                 method=upload_target.upload_method,
@@ -288,7 +231,7 @@ class PerformanceTakeUploadService:
     ) -> PerformanceTakeUploadReservationRead:
         return self._reservation_read(
             reservation,
-            take=await self.takes.get_take(db, take.user_id, take.take_uuid),
+            take=await self.takes.get_take(db, take.manifest.user_id, take.manifest.take_uuid),
         )
 
     async def _apply(
@@ -310,7 +253,7 @@ class PerformanceTakeUploadService:
                 db,
                 reservation_id=reservation.storage_reservation_id,
                 object_type="performance_take",
-                object_id=reservation.take_uuid,
+                object_id=reservation.manifest.take_uuid,
                 storage_key=effects.commit_storage_object_key,
                 auto_commit=False,
             )
@@ -457,7 +400,7 @@ class PerformanceTakeUploadService:
                 field="client_request_id",
                 details={"reason": f"client_request_id_{status.lower()}"},
             )
-        if self._reservation_metadata(reservation) != metadata:
+        if not manifest_from_row(reservation.manifest).agrees_with(metadata):
             raise ValidationException(
                 ErrorCode.VALIDATION_ERROR,
                 field="client_request_id",
@@ -484,7 +427,7 @@ class PerformanceTakeUploadService:
             raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="storage")
         upload_target = self.storage.upload_url(
             key=reservation.staging_object_key,
-            content_type=reservation.media_mime_type,
+            content_type=manifest_from_row(reservation.manifest).snapshot.media.mime_type,
             checksum_sha256="",
         )
         if upload_target is None:
@@ -498,8 +441,9 @@ class PerformanceTakeUploadService:
             ),
             now=now,
         )
+        response = self._reservation_read(reservation, upload_target=upload_target)
         await db.commit()
-        return self._reservation_read(reservation, upload_target=upload_target)
+        return response
 
     async def reserve_upload(
         self,
@@ -511,15 +455,16 @@ class PerformanceTakeUploadService:
             request.model_dump(exclude={"client_request_id"})
         )
         media = metadata.media
-        media.mime_type = _clean_mime_type(media.mime_type)
+        media = media.model_copy(update={"mime_type": _clean_mime_type(media.mime_type)})
+        metadata = metadata.model_copy(update={"media": media})
         if media.mime_type not in _supported_mimes_for_kind(media.kind):
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
         if metadata.recording_timebase.nominalMediaDurationUs > MAX_TAKE_DURATION_US:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="recording_timebase")
         if not 0 < media.byte_size <= MAX_TAKE_MEDIA_BYTES:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_byte_size")
-        _json_snapshot(metadata.tempo_selection)
-        _json_snapshot(metadata.recording_timebase)
+        canonical_manifest_json(metadata.tempo_selection.model_dump(mode="json"))
+        canonical_manifest_json(metadata.recording_timebase.model_dump(mode="json"))
         if self.storage is None:
             raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="storage")
         existing = await self.repository.get_reservation_by_client_request_id(
@@ -531,7 +476,11 @@ class PerformanceTakeUploadService:
         if existing is not None:
             return await self._replay_reservation(db, existing, metadata)
         authorized_bundle = await self.practice_bundle_service.authorize_bundle_for_save(
-            db, user_id, metadata.practice_binding.score_id, metadata.practice_binding.revision_id, metadata.practice_binding.bundle_id
+            db,
+            user_id,
+            metadata.practice_binding.score_id,
+            metadata.practice_binding.revision_id,
+            metadata.practice_binding.bundle_id,
         )
         bundle_ref = authorized_bundle.bundle_ref
         artifact = authorized_bundle.bundle.artifact.value
@@ -590,30 +539,36 @@ class PerformanceTakeUploadService:
         )
         now = utc_now_naive()
         put_expiry = self._put_url_expires_at(now)
+        manifest = TakeManifest(
+            take_uuid,
+            user_id,
+            PerformanceTakeManifestRead.model_validate(
+                {
+                    "practice_binding": {
+                        "bundle_id": bundle_ref.bundle_id,
+                        "score_id": authorized_bundle.score_uuid,
+                        "revision_id": authorized_bundle.revision_uuid,
+                    },
+                    "artifact_id": bundle_ref.artifact_id,
+                    "score_title_snapshot": authorized_bundle.score_title,
+                    "media": media,
+                    "score_timebase": {"ticks_per_quarter": score.ticks_per_quarter},
+                    "scope": {
+                        key: value for key, value in asdict(plan.scope).items() if value is not None
+                    },
+                    "tempo_plan": tempo_plan,
+                    "recording_timebase": metadata.recording_timebase,
+                }
+            ),
+        )
+        manifest_row = manifest_to_row(manifest)
         reservation = PerformanceTakeUploadReservation(
             user_id=user_id,
             client_request_id=request.client_request_id,
-            take_uuid=take_uuid,
-            linked_score_id=authorized_bundle.score_db_id,
-            practice_bundle_id=bundle_ref.bundle_id,
-            practice_score_uuid=authorized_bundle.score_uuid,
-            practice_revision_uuid=authorized_bundle.revision_uuid,
-            practice_artifact_id=bundle_ref.artifact_id,
-            score_title_snapshot=authorized_bundle.score_title,
-            scope_type=plan.scope.kind,
-            ticks_per_quarter=score.ticks_per_quarter,
-            scope_start_tick=plan.scope.start_tick,
-            scope_terminal_tick=plan.scope.terminal_tick,
-            scope_start_group_id=plan.scope.start_group_id,
-            scope_end_group_id=plan.scope.end_group_id,
-            tempo_plan=_json_snapshot(tempo_plan),
-            recording_timebase=_json_snapshot(metadata.recording_timebase),
-            media_kind=media.kind,
-            media_mime_type=media.mime_type,
-            media_byte_size=media.byte_size,
             storage_backend=self.storage.backend_name,
             staging_object_key=staging_key,
             storage_reservation_id=storage_reservation.reservation_id,
+            expires_at=now + timedelta(seconds=TAKE_UPLOAD_RESERVATION_SECONDS),
         )
         initialize_lifecycle(
             reservation,
@@ -623,7 +578,11 @@ class PerformanceTakeUploadService:
             ),
         )
         try:
+            await self.repository.create_manifest(db, manifest_row)
+            reservation.manifest_id = manifest_row.id
+            reservation.manifest = manifest_row
             await self.repository.create_reservation(db, reservation, auto_commit=False)
+            response = self._reservation_read(reservation, upload_target=upload_target)
             await db.commit()
         except IntegrityError:
             await db.rollback()
@@ -636,7 +595,10 @@ class PerformanceTakeUploadService:
             if winner is None:
                 raise
             return await self._replay_reservation(db, winner, metadata)
-        return self._reservation_read(reservation, upload_target=upload_target)
+        except Exception:
+            await db.rollback()
+            raise
+        return response
 
     async def cancel_upload_reservation(
         self,
@@ -677,8 +639,8 @@ class PerformanceTakeUploadService:
                     "take_uuid": take_uuid,
                     "stage": stage,
                     "elapsed_ms": round((monotonic() - started_at) * 1000, 1),
-                    "media_kind": reservation_snapshot["media_kind"],
-                    "media_byte_size": reservation_snapshot["media_byte_size"],
+                    "media_kind": manifest.snapshot.media.kind,
+                    "media_byte_size": manifest.snapshot.media.byte_size,
                     "storage_backend": self.storage.__class__.__name__
                     if self.storage is not None
                     else None,
@@ -693,7 +655,8 @@ class PerformanceTakeUploadService:
         )
         if reservation is None:
             raise ResourceNotFoundException("upload_reservation", reservation_id)
-        take_uuid = reservation.take_uuid
+        manifest = manifest_from_row(reservation.manifest)
+        take_uuid = manifest.take_uuid
         existing_take = await self.repository.get_by_reservation(db, user_id, reservation.id)
         lifecycle_from_row(reservation).assert_take_presence(existing_take is not None)
         if existing_take is not None:
@@ -715,9 +678,9 @@ class PerformanceTakeUploadService:
         finalizing_token = str(uuid4())
         finalizing_object_key = _build_final_candidate_object_key(
             reservation.user_id,
-            reservation.take_uuid,
+            manifest.take_uuid,
             finalizing_token,
-            reservation.media_mime_type,
+            manifest.snapshot.media.mime_type,
         )
         state = lifecycle_from_row(reservation)
         try:
@@ -742,42 +705,14 @@ class PerformanceTakeUploadService:
                 details={"status": state.status.value, "reason": error.code},
             ) from error
         await self._apply(db, reservation, transition, now=now)
-        self._reservation_read(reservation)  # Validate the complete persisted coordinate snapshot.
-        reservation_snapshot = {
-            "take_uuid": reservation.take_uuid,
-            "user_id": reservation.user_id,
-            "practice_bundle_id": reservation.practice_bundle_id,
-            "practice_score_uuid": reservation.practice_score_uuid,
-            "practice_revision_uuid": reservation.practice_revision_uuid,
-            "practice_artifact_id": reservation.practice_artifact_id,
-            "score_title_snapshot": reservation.score_title_snapshot,
-            "media_kind": reservation.media_kind,
-            "media_mime_type": reservation.media_mime_type,
-            "media_byte_size": reservation.media_byte_size,
-            "storage_backend": reservation.storage_backend,
-            "staging_object_key": reservation.staging_object_key,
-            "finalizing_object_key": reservation.finalizing_object_key,
-            "scope_type": reservation.scope_type,
-            "ticks_per_quarter": reservation.ticks_per_quarter,
-            "scope_start_tick": reservation.scope_start_tick,
-            "scope_terminal_tick": reservation.scope_terminal_tick,
-            "scope_start_group_id": reservation.scope_start_group_id,
-            "scope_end_group_id": reservation.scope_end_group_id,
-            "tempo_plan": reservation.tempo_plan,
-            "recording_timebase": reservation.recording_timebase,
-            "storage_reservation_id": reservation.storage_reservation_id,
-            "expires_at": reservation.expires_at,
-            "staging_cleanup_after": reservation.staging_cleanup_after,
-            "last_put_url_expires_at": reservation.last_put_url_expires_at,
-            "finalizing_token": finalizing_token,
-        }
+        staging_key = reservation.staging_object_key
+        storage_backend = reservation.storage_backend
+        reservation_expiry = reservation.expires_at
         await db.commit()
         log_stage("lease_acquired", started_at=finalize_started)
 
-        staging_exists = await asyncio.to_thread(
-            self.storage.exists, reservation_snapshot["staging_object_key"]
-        )
-        if reservation_snapshot["expires_at"] < now:
+        staging_exists = await asyncio.to_thread(self.storage.exists, staging_key)
+        if reservation_expiry < now:
             reservation = await self.repository.get_reservation_by_take_uuid(
                 db, user_id, take_uuid, lock=True
             )
@@ -801,7 +736,7 @@ class PerformanceTakeUploadService:
             await db.commit()
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="reservation_expired")
 
-        source_key = reservation_snapshot["staging_object_key"]
+        source_key = staging_key
         if not staging_exists:
             reservation = await self.repository.get_reservation_by_take_uuid(
                 db, user_id, take_uuid, lock=True
@@ -826,17 +761,17 @@ class PerformanceTakeUploadService:
                 await db.commit()
             raise ResourceNotFoundException(
                 "performance_take_media_object",
-                reservation_snapshot["take_uuid"],
+                take_uuid,
                 ErrorCode.FILE_NOT_FOUND,
             )
 
         metadata = await asyncio.to_thread(self.storage.object_metadata, source_key)
-        if metadata.size_bytes != reservation_snapshot["media_byte_size"]:
+        if metadata.size_bytes != manifest.snapshot.media.byte_size:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_byte_size")
         if (
             metadata.content_type is not None
             and metadata.content_type.split(";")[0].strip().lower()
-            != reservation_snapshot["media_mime_type"]
+            != manifest.snapshot.media.mime_type
         ):
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
 
@@ -846,19 +781,19 @@ class PerformanceTakeUploadService:
         )
         if not _verify_container_magic_bytes(
             header_bytes,
-            reservation_snapshot["media_mime_type"],
-            reservation_snapshot["media_kind"],
+            manifest.snapshot.media.mime_type,
+            manifest.snapshot.media.kind,
         ):
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
         verified_staging_sha256 = await asyncio.to_thread(
             _sha256_storage_object,
             self.storage,
-            reservation_snapshot["staging_object_key"],
+            staging_key,
         )
         log_stage("staging_verified", started_at=finalize_started)
         log_stage("staging_hash_complete", started_at=finalize_started)
 
-        candidate_key = reservation_snapshot["finalizing_object_key"]
+        candidate_key = finalizing_object_key
         try:
             await self._ensure_finalize_copy_lease(
                 db,
@@ -868,13 +803,13 @@ class PerformanceTakeUploadService:
             )
             await asyncio.to_thread(
                 self.storage.copy,
-                reservation_snapshot["staging_object_key"],
+                staging_key,
                 candidate_key,
             )
             candidate_metadata = await asyncio.to_thread(
                 self.storage.object_metadata, candidate_key
             )
-            if candidate_metadata.size_bytes != reservation_snapshot["media_byte_size"]:
+            if candidate_metadata.size_bytes != manifest.snapshot.media.byte_size:
                 raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_byte_size")
             log_stage("candidate_copy_complete", started_at=finalize_started)
             candidate_sha256 = await asyncio.to_thread(
@@ -970,32 +905,31 @@ class PerformanceTakeUploadService:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="reservation_expired")
 
         # Commit Take, reservation status, and Storage quota in ONE database transaction
-        take = PerformanceTake(
-            take_uuid=reservation_snapshot["take_uuid"],
-            user_id=reservation.user_id,
-            practice_bundle_id=reservation_snapshot["practice_bundle_id"],
-            practice_score_uuid=reservation_snapshot["practice_score_uuid"],
-            practice_revision_uuid=reservation_snapshot["practice_revision_uuid"],
-            practice_artifact_id=reservation_snapshot["practice_artifact_id"],
-            linked_score_id=reservation.linked_score_id,
-            score_title_snapshot=reservation_snapshot["score_title_snapshot"],
-            upload_reservation_id=reservation.id,
-            media_kind=PerformanceTakeMediaKind(reservation_snapshot["media_kind"]),
-            media_mime_type=reservation_snapshot["media_mime_type"],
-            media_byte_size=reservation_snapshot["media_byte_size"],
-            media_object_key=candidate_key,
-            storage_backend=reservation_snapshot["storage_backend"],
-            scope_type=reservation_snapshot["scope_type"],
-            ticks_per_quarter=reservation_snapshot["ticks_per_quarter"],
-            scope_start_tick=reservation_snapshot["scope_start_tick"],
-            scope_terminal_tick=reservation_snapshot["scope_terminal_tick"],
-            scope_start_group_id=reservation_snapshot["scope_start_group_id"],
-            scope_end_group_id=reservation_snapshot["scope_end_group_id"],
-            deletion_status=PerformanceTakeDeletionStatus.ACTIVE.value,
-            tempo_plan=reservation_snapshot["tempo_plan"],
-            recording_timebase=reservation_snapshot["recording_timebase"],
+        if manifest_from_row(reservation.manifest) != manifest:
+            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="manifest")
+        current_score = (
+            (
+                await db.execute(
+                    select(Score)
+                    .where(
+                        Score.score_uuid == manifest.snapshot.practice_binding.score_id,
+                        Score.deletion_status == ScoreDeletionStatus.ACTIVE,
+                    )
+                    .with_for_update(read=True, key_share=True)
+                )
+            )
+            .scalars()
+            .first()
         )
-        created = await self.repository.create_take(db, take, auto_commit=False)
+        take = PerformanceTake(
+            manifest_id=reservation.manifest_id,
+            manifest=reservation.manifest,
+            linked_score_id=current_score.id if current_score is not None else None,
+            media_object_key=candidate_key,
+            storage_backend=storage_backend,
+            deletion_status=PerformanceTakeDeletionStatus.ACTIVE.value,
+        )
+        await self.repository.create_take(db, take, auto_commit=False)
         current_now = utc_now_naive()
         await self._apply(
             db,
@@ -1031,4 +965,4 @@ class PerformanceTakeUploadService:
             ) from error
         log_stage("db_finalize_committed", started_at=finalize_started)
 
-        return await self.takes.get_take(db, user_id, created.take_uuid)
+        return await self.takes.get_take(db, user_id, take_uuid)

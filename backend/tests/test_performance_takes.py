@@ -39,6 +39,7 @@ from sqlmodel import SQLModel, create_engine
 from app.api.deps import get_current_user, get_db
 from app.core.exceptions import ValidationException, ResourceNotFoundException
 from app.db.models import (
+    PerformanceTakeManifest,
     PerformanceTake,
     PerformanceTakeDeletionStatus,
     PerformanceTakeDeleteOutbox,
@@ -73,6 +74,7 @@ from app.modules.performance_takes.dependencies import (
 from app.modules.performance_takes.service import PerformanceTakeService
 from app.modules.performance_takes.upload_reservation.service import PerformanceTakeUploadService
 from app.modules.performance_takes.schemas import PerformanceTakeUploadReservationRequest
+from app.modules.performance_takes.manifest_persistence import manifest_from_row
 from app.modules.practice.bundle.service import PracticeBundleService
 from app.modules.practice.bundle.repository import PracticeBundleRepository
 from app.modules.practice.bundle.domain import (
@@ -263,20 +265,23 @@ def _create_default_take(
     linked_score_id: int | None = 10,
 ) -> PerformanceTake:
     reservation = PerformanceTakeUploadReservation(
+        manifest=PerformanceTakeManifest(
+            user_id=user_id,
+            **_bundle_provenance(source),
+            take_uuid=take_uuid,
+            score_title_snapshot="Moonlight Sonata",
+            scope_type="FULL",
+            ticks_per_quarter=1,
+            scope_start_tick=0,
+            scope_terminal_tick=4,
+            tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
+            recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
+            media_kind="AUDIO",
+            media_mime_type="audio/webm",
+            media_byte_size=len(VALID_WEBM_BYTES),
+        ),
         user_id=user_id,
-        **_bundle_provenance(source),
         client_request_id=client_request_id,
-        take_uuid=take_uuid,
-        score_title_snapshot="Moonlight Sonata",
-        scope_type="FULL",
-        ticks_per_quarter=1,
-        scope_start_tick=0,
-        scope_terminal_tick=4,
-        tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
-        recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
-        media_kind="AUDIO",
-        media_mime_type="audio/webm",
-        media_byte_size=len(VALID_WEBM_BYTES),
         storage_backend="local",
         staging_object_key=media_object_key + ".staging",
         storage_reservation_id="quota-" + take_uuid,
@@ -297,23 +302,10 @@ def _create_default_take(
     session.add(reservation)
     session.flush()
     take = PerformanceTake(
-        take_uuid=take_uuid,
-        user_id=user_id,
-        **_bundle_provenance(source),
+        manifest=reservation.manifest,
         linked_score_id=linked_score_id,
-        score_title_snapshot="Moonlight Sonata",
-        upload_reservation_id=reservation.id,
-        media_kind=PerformanceTakeMediaKind.AUDIO,
-        media_mime_type="audio/webm",
-        media_byte_size=len(VALID_WEBM_BYTES),
         media_object_key=media_object_key,
         storage_backend="local",
-        scope_type="FULL",
-        ticks_per_quarter=1,
-        scope_start_tick=0,
-        scope_terminal_tick=4,
-        tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
-        recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
         deletion_status=PerformanceTakeDeletionStatus.ACTIVE,
     )
     session.add(take)
@@ -332,12 +324,12 @@ def test_invalid_stored_scope_reports_validation_error(test_env):
         take_uuid="invalid-stored-scope",
         media_object_key="test/invalid-stored-scope.webm",
     )
-    take.scope_type = "INVALID"
+    take.manifest.scope_type = "INVALID"
     service = PerformanceTakeService(storage=storage)
     with pytest.raises(ValidationException) as raised:
         service._to_read_dto(take)
     assert raised.value.code == ErrorCode.VALIDATION_ERROR
-    assert raised.value.details == {"field": "scope_type", "reason": "scope_type_invalid"}
+    assert raised.value.details == {"field": "manifest", "reason": "invalid_manifest"}
 
 
 def test_bundle_materialization_stores_and_reuses_exact_content(test_env):
@@ -404,11 +396,11 @@ def _create_take_delete_outbox(
 ) -> PerformanceTakeDeleteOutbox:
     outbox = PerformanceTakeDeleteOutbox(
         take_id=take.id,
-        take_uuid=take.take_uuid,
-        user_id=take.user_id,
+        take_uuid=take.manifest.take_uuid,
+        user_id=take.manifest.user_id,
         storage_backend=take.storage_backend,
         object_key=take.media_object_key,
-        media_byte_size=take.media_byte_size,
+        media_byte_size=take.manifest.media_byte_size,
         status=PerformanceTakeDeleteOutboxStatus.PENDING.value,
         next_attempt_at=datetime.now(timezone.utc).replace(tzinfo=None),
     )
@@ -791,7 +783,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         staging_object_key = _staging_key(session, auth_data["reservation_id"])
         assert take_id
         assert reservation_id
-        assert auth_data["metadata"]["practice_binding"] == {
+        assert auth_data["manifest"]["practice_binding"] == {
             "score_id": "score-uuid-10",
             "revision_id": DEFAULT_TAKE_REVISION_ID,
             "bundle_id": _bundle_id(),
@@ -826,22 +818,24 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         assert res_fin.status_code == 200, res_fin.text
         take_data = res_fin.json()["data"]
         assert take_data["take_id"] == take_id
-        assert take_data["bundle_id"] == _bundle_id()
-        assert take_data["score_id"] == "score-uuid-10"
-        assert take_data["revision_id"] == "revision-uuid-100"
-        assert take_data["score_title_snapshot"] == "Moonlight Sonata"
-        assert take_data["scope_type"] == "FULL"
-        assert take_data["media_byte_size"] == media_size
+        assert take_data["manifest"]["practice_binding"]["bundle_id"] == _bundle_id()
+        assert take_data["manifest"]["practice_binding"]["score_id"] == "score-uuid-10"
+        assert take_data["manifest"]["practice_binding"]["revision_id"] == "revision-uuid-100"
+        assert take_data["manifest"]["score_title_snapshot"] == "Moonlight Sonata"
+        assert take_data["manifest"]["scope"]["kind"] == "FULL"
+        assert take_data["manifest"]["media"]["byte_size"] == media_size
         assert take_data["deletion_status"] == "ACTIVE"
 
         # Final key is promoted to a token-owned candidate object. Staging may
         # remain until every issued PUT URL expires.
         take_row = session.execute(
-            select(PerformanceTake).where(PerformanceTake.take_uuid == take_id)
+            select(PerformanceTake)
+            .join(PerformanceTakeManifest)
+            .where(PerformanceTakeManifest.take_uuid == take_id)
         ).scalar_one()
         source = session.execute(
             select(PracticeBundleRecord).where(
-                PracticeBundleRecord.bundle_id == take_row.practice_bundle_id
+                PracticeBundleRecord.bundle_id == take_row.manifest.practice_bundle_id
             )
         ).scalar_one()
         assert source is not None
@@ -906,7 +900,10 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         )
         assert res_idempotent.status_code == 200
         assert res_idempotent.json()["data"]["take_id"] == take_id
-        assert res_idempotent.json()["data"]["score_id"] == "score-uuid-10"
+        assert (
+            res_idempotent.json()["data"]["manifest"]["practice_binding"]["score_id"]
+            == "score-uuid-10"
+        )
 
         conflicting_auth_req = {
             **auth_req,
@@ -938,14 +935,16 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         items = res_list.json()["data"]["items"]
         assert len(items) == 1
         assert items[0]["take_id"] == take_id
-        assert items[0]["score_id"] == "score-uuid-10"
-        assert items[0]["score_title_snapshot"] == "Moonlight Sonata"
+        assert items[0]["manifest"]["practice_binding"]["score_id"] == "score-uuid-10"
+        assert items[0]["manifest"]["score_title_snapshot"] == "Moonlight Sonata"
 
         # 8. Get take detail
         res_detail = client.get(f"/api/v1/performance-takes/{take_id}")
         assert res_detail.status_code == 200
         assert res_detail.json()["data"]["take_id"] == take_id
-        assert res_detail.json()["data"]["score_id"] == "score-uuid-10"
+        assert (
+            res_detail.json()["data"]["manifest"]["practice_binding"]["score_id"] == "score-uuid-10"
+        )
 
         # 9. Get playback URL
         res_play = client.get(f"/api/v1/performance-takes/{take_id}/playback-url")
@@ -1250,10 +1249,12 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
             "/api/v1/performance-takes/upload-reservations/" + reserved_upload_id + "/finalize"
         )
         assert res_fin.status_code == 200
-        assert res_fin.json()["data"]["score_title_snapshot"] == "Moonlight Sonata"
+        assert res_fin.json()["data"]["manifest"]["score_title_snapshot"] == "Moonlight Sonata"
 
         take_row = session.execute(
-            select(PerformanceTake).where(PerformanceTake.take_uuid == take_id)
+            select(PerformanceTake)
+            .join(PerformanceTakeManifest)
+            .where(PerformanceTakeManifest.take_uuid == take_id)
         ).scalar_one()
         final_key = take_row.media_object_key
         assert final_key.startswith(f"performance-takes/1/{take_id}/")
@@ -1263,7 +1264,7 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         res_init_list = client.get("/api/v1/performance-takes")
         assert res_init_list.status_code == 200
         init_item = res_init_list.json()["data"]["items"][0]
-        assert init_item["score_id"] == "score-uuid-10"
+        assert init_item["manifest"]["practice_binding"]["score_id"] == "score-uuid-10"
         assert init_item["linked_score_id"] == "score-uuid-10"
         assert init_item["can_open_score"] is True
 
@@ -1283,10 +1284,10 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         assert res_list_soft.status_code == 200
         item_soft = res_list_soft.json()["data"]["items"][0]
         assert item_soft["take_id"] == take_id
-        assert item_soft["score_id"] == "score-uuid-10"
-        assert item_soft["revision_id"] == "revision-uuid-100"
-        assert item_soft["artifact_id"] == DEFAULT_TAKE_ARTIFACT_ID
-        assert item_soft["score_title_snapshot"] == "Moonlight Sonata"
+        assert item_soft["manifest"]["practice_binding"]["score_id"] == "score-uuid-10"
+        assert item_soft["manifest"]["practice_binding"]["revision_id"] == "revision-uuid-100"
+        assert item_soft["manifest"]["artifact_id"] == DEFAULT_TAKE_ARTIFACT_ID
+        assert item_soft["manifest"]["score_title_snapshot"] == "Moonlight Sonata"
 
         # Playback still works during soft delete
         res_play_soft = client.get(f"/api/v1/performance-takes/{take_id}/playback-url")
@@ -1308,14 +1309,16 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
 
         # Verify in DB: take row is preserved with required binding provenance.
         take_in_db = session.execute(
-            select(PerformanceTake).where(PerformanceTake.take_uuid == take_id)
+            select(PerformanceTake)
+            .join(PerformanceTakeManifest)
+            .where(PerformanceTakeManifest.take_uuid == take_id)
         ).scalar_one_or_none()
         assert take_in_db is not None
         assert take_in_db.linked_score_id is None
-        assert take_in_db.score_title_snapshot == "Moonlight Sonata"
+        assert take_in_db.manifest.score_title_snapshot == "Moonlight Sonata"
         source = session.execute(
             select(PracticeBundleRecord).where(
-                PracticeBundleRecord.bundle_id == take_in_db.practice_bundle_id
+                PracticeBundleRecord.bundle_id == take_in_db.manifest.practice_bundle_id
             )
         ).scalar_one()
         assert source is not None
@@ -1336,10 +1339,10 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         assert res_list_hard.status_code == 200
         item_hard = res_list_hard.json()["data"]["items"][0]
         assert item_hard["take_id"] == take_id
-        assert item_hard["score_id"] == "score-uuid-10"
-        assert item_hard["revision_id"] == "revision-uuid-100"
-        assert item_hard["artifact_id"] == DEFAULT_TAKE_ARTIFACT_ID
-        assert item_hard["score_title_snapshot"] == "Moonlight Sonata"
+        assert item_hard["manifest"]["practice_binding"]["score_id"] == "score-uuid-10"
+        assert item_hard["manifest"]["practice_binding"]["revision_id"] == "revision-uuid-100"
+        assert item_hard["manifest"]["artifact_id"] == DEFAULT_TAKE_ARTIFACT_ID
+        assert item_hard["manifest"]["score_title_snapshot"] == "Moonlight Sonata"
         assert item_hard["linked_score_id"] is None
         assert item_hard["can_open_score"] is False
 
@@ -1349,7 +1352,7 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         assert "download_url" in res_play_hard.json()["data"]
         retained = client.get(f"/api/v1/performance-takes/{take_id}")
         assert retained.status_code == 200, retained.text
-        assert retained.json()["data"]["bundle_id"] == _bundle_id()
+        assert retained.json()["data"]["manifest"]["practice_binding"]["bundle_id"] == _bundle_id()
 
         # Deleting take returns 202 Accepted
         res_del = client.delete(f"/api/v1/performance-takes/{take_id}")
@@ -1545,7 +1548,7 @@ def test_cancel_upload_reservation(test_env, monkeypatch: pytest.MonkeyPatch):
                 PerformanceTakeUploadReservation.reservation_uuid == res_id
             )
         ).scalar_one()
-        practice_bundle_id = auth_before_cancel.practice_bundle_id
+        practice_bundle_id = auth_before_cancel.manifest.practice_bundle_id
         source = session.execute(
             select(PracticeBundleRecord).where(PracticeBundleRecord.bundle_id == practice_bundle_id)
         ).scalar_one()
@@ -1572,7 +1575,7 @@ def test_cancel_upload_reservation(test_env, monkeypatch: pytest.MonkeyPatch):
                 PerformanceTakeUploadReservation.reservation_uuid == res_id
             )
         ).scalar_one()
-        assert auth.practice_bundle_id == _bundle_id()
+        assert auth.manifest.practice_bundle_id == _bundle_id()
         auth.last_put_url_expires_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(
             minutes=1
         )
@@ -1868,7 +1871,11 @@ def test_finalize_safe_retry_idempotency(test_env):
 
         # Exactly 1 take row exists in DB
         takes = (
-            session.execute(select(PerformanceTake).where(PerformanceTake.take_uuid == take_id))
+            session.execute(
+                select(PerformanceTake)
+                .join(PerformanceTakeManifest)
+                .where(PerformanceTakeManifest.take_uuid == take_id)
+            )
             .scalars()
             .all()
         )
@@ -1964,7 +1971,9 @@ def test_finalize_recovers_first_post_storage_db_disconnect(test_env):
         assert first_post_copy_read["pending"] is False
         assert (
             session.execute(
-                select(PerformanceTake).where(PerformanceTake.take_uuid == auth_data["take_id"])
+                select(PerformanceTake)
+                .join(PerformanceTakeManifest)
+                .where(PerformanceTakeManifest.take_uuid == auth_data["take_id"])
             )
             .scalars()
             .one()
@@ -2053,15 +2062,17 @@ def test_finalize_range_video_preserves_scope_identity_and_recording_timebase(te
         )
         assert res_fin.status_code == 200, res_fin.text
         take_data = res_fin.json()["data"]
-        assert take_data["scope_type"] == "RANGE"
-        assert take_data["scope_start_tick"] == 4
-        assert take_data["scope_terminal_tick"] == 16
-        assert take_data["scope_start_group_id"] == "entry-4-e6a7532f4b2a"
-        assert take_data["scope_end_group_id"] == "entry-9-d7e908049e12"
-        assert "scopeIdentity" not in take_data["recording_timebase"]
-        assert take_data["tempo_plan"] == tempo_plan
+        assert take_data["manifest"]["scope"]["kind"] == "RANGE"
+        assert take_data["manifest"]["scope"]["start_tick"] == 4
+        assert take_data["manifest"]["scope"]["terminal_tick"] == 16
+        assert take_data["manifest"]["scope"]["start_group_id"] == "entry-4-e6a7532f4b2a"
+        assert take_data["manifest"]["scope"]["end_group_id"] == "entry-9-d7e908049e12"
+        assert "scopeIdentity" not in take_data["manifest"]["recording_timebase"]
+        assert take_data["manifest"]["tempo_plan"] == tempo_plan
         assert session.execute(
-            select(PerformanceTake).where(PerformanceTake.take_uuid == auth_data["take_id"])
+            select(PerformanceTake)
+            .join(PerformanceTakeManifest)
+            .where(PerformanceTakeManifest.take_uuid == auth_data["take_id"])
         ).scalar_one()
     finally:
         app.dependency_overrides.clear()
@@ -2137,7 +2148,9 @@ def test_finalize_rejects_candidate_when_staging_changes_after_validation(test_e
         assert res_fin.status_code == 422
         assert (
             session.execute(
-                select(PerformanceTake).where(PerformanceTake.take_uuid == auth_data["take_id"])
+                select(PerformanceTake)
+                .join(PerformanceTakeManifest)
+                .where(PerformanceTakeManifest.take_uuid == auth_data["take_id"])
             ).scalar_one_or_none()
             is None
         )
@@ -2202,13 +2215,15 @@ def test_video_take_finalize_uses_video_media_kind_and_candidate(test_env):
         )
         assert res_fin.status_code == 200, res_fin.text
         take_data = res_fin.json()["data"]
-        assert take_data["media_kind"] == "VIDEO"
-        assert take_data["media_mime_type"] == "video/webm"
+        assert take_data["manifest"]["media"]["kind"] == "VIDEO"
+        assert take_data["manifest"]["media"]["mime_type"] == "video/webm"
 
         take_row = session.execute(
-            select(PerformanceTake).where(PerformanceTake.take_uuid == auth_data["take_id"])
+            select(PerformanceTake)
+            .join(PerformanceTakeManifest)
+            .where(PerformanceTakeManifest.take_uuid == auth_data["take_id"])
         ).scalar_one()
-        assert take_row.media_kind == PerformanceTakeMediaKind.VIDEO
+        assert take_row.manifest.media_kind == PerformanceTakeMediaKind.VIDEO
         assert take_row.media_object_key.endswith(".webm")
         assert storage.exists(take_row.media_object_key)
         assert b"fake-browser-video-with-audio" in b"".join(
@@ -2236,21 +2251,23 @@ def test_reserve_finalizing_snapshot_retries_without_new_put(test_env):
     source = _create_default_bundle(session, _storage)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     auth = PerformanceTakeUploadReservation(
+        manifest=PerformanceTakeManifest(
+            user_id=user_1.id,
+            **_bundle_provenance(source),
+            take_uuid="take-finalizing-reserve",
+            score_title_snapshot="Moonlight Sonata",
+            scope_type="FULL",
+            ticks_per_quarter=1,
+            scope_start_tick=0,
+            scope_terminal_tick=4,
+            media_kind="AUDIO",
+            media_mime_type="audio/webm",
+            media_byte_size=len(VALID_WEBM_BYTES),
+            tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
+            recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
+        ),
         user_id=user_1.id,
-        **_bundle_provenance(source),
         client_request_id="req-finalizing-reserve",
-        take_uuid="take-finalizing-reserve",
-        linked_score_id=10,
-        score_title_snapshot="Moonlight Sonata",
-        scope_type="FULL",
-        ticks_per_quarter=1,
-        scope_start_tick=0,
-        scope_terminal_tick=4,
-        media_kind="AUDIO",
-        media_mime_type="audio/webm",
-        media_byte_size=len(VALID_WEBM_BYTES),
-        tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
-        recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
         storage_backend="local",
         staging_object_key="staging/performance-takes/1/finalizing-reserve/recording.webm",
         finalizing_object_key="performance-takes/1/finalizing-reserve/token.webm",
@@ -2347,7 +2364,7 @@ def test_crash_abandoned_after_reservation(test_env, monkeypatch: pytest.MonkeyP
                 PerformanceTakeUploadReservation.client_request_id == "req-abandoned-01"
             )
         ).scalar_one()
-        practice_bundle_id = auth.practice_bundle_id
+        practice_bundle_id = auth.manifest.practice_bundle_id
         source = session.execute(
             select(PracticeBundleRecord).where(PracticeBundleRecord.bundle_id == practice_bundle_id)
         ).scalar_one()
@@ -2376,7 +2393,7 @@ def test_crash_abandoned_after_reservation(test_env, monkeypatch: pytest.MonkeyP
 
         session.refresh(auth)
         assert auth.status == UploadReservationStatus.EXPIRED
-        assert auth.practice_bundle_id == _bundle_id()
+        assert auth.manifest.practice_bundle_id == _bundle_id()
         assert (
             session.execute(
                 select(PracticeBundleDeleteOutbox).where(
@@ -2542,7 +2559,7 @@ def test_archived_reservation_late_staging_put_is_cleaned_after_expiry(test_env)
         final_bytes = storage.read_bytes(
             session.execute(
                 select(PerformanceTake.media_object_key).where(
-                    PerformanceTake.upload_reservation_id == auth.id
+                    PerformanceTake.manifest_id == auth.manifest_id
                 )
             ).scalar_one()
         )
@@ -2572,7 +2589,7 @@ def test_archived_reservation_late_staging_put_is_cleaned_after_expiry(test_env)
             storage.read_bytes(
                 session.execute(
                     select(PerformanceTake.media_object_key).where(
-                        PerformanceTake.upload_reservation_id == auth.id
+                        PerformanceTake.manifest_id == auth.manifest_id
                     )
                 ).scalar_one()
             )
@@ -2639,18 +2656,20 @@ def test_score_deleted_between_reserve_and_finalize_preserves_provenance(test_en
         assert res_fin.status_code == 200, res_fin.text
         data = res_fin.json()["data"]
         assert data["take_id"] == take_id
-        assert data["score_id"] == "score-uuid-10"
-        assert data["revision_id"] == "revision-uuid-100"
-        assert data["artifact_id"] == DEFAULT_TAKE_ARTIFACT_ID
+        assert data["manifest"]["practice_binding"]["score_id"] == "score-uuid-10"
+        assert data["manifest"]["practice_binding"]["revision_id"] == "revision-uuid-100"
+        assert data["manifest"]["artifact_id"] == DEFAULT_TAKE_ARTIFACT_ID
         assert data["linked_score_id"] is None
         assert data["can_open_score"] is False
 
         take = session.execute(
-            select(PerformanceTake).where(PerformanceTake.take_uuid == take_id)
+            select(PerformanceTake)
+            .join(PerformanceTakeManifest)
+            .where(PerformanceTakeManifest.take_uuid == take_id)
         ).scalar_one()
         source = session.execute(
             select(PracticeBundleRecord).where(
-                PracticeBundleRecord.bundle_id == take.practice_bundle_id
+                PracticeBundleRecord.bundle_id == take.manifest.practice_bundle_id
             )
         ).scalar_one()
         assert source is not None
@@ -2661,13 +2680,13 @@ def test_score_deleted_between_reserve_and_finalize_preserves_provenance(test_en
 
         retained = client.get(f"/api/v1/performance-takes/{take_id}")
         assert retained.status_code == 200, retained.text
-        assert retained.json()["data"]["bundle_id"] == _bundle_id()
+        assert retained.json()["data"]["manifest"]["practice_binding"]["bundle_id"] == _bundle_id()
 
         # List takes exposes the durable historical source, but no live score link.
         res_list = client.get("/api/v1/performance-takes")
         assert res_list.status_code == 200
         item = res_list.json()["data"]["items"][0]
-        assert item["score_id"] == "score-uuid-10"
+        assert item["manifest"]["practice_binding"]["score_id"] == "score-uuid-10"
         assert item["linked_score_id"] is None
 
     finally:
@@ -2727,15 +2746,20 @@ def test_deletion_lifecycle_and_worker_retry(test_env, monkeypatch: pytest.Monke
         assert res_fin.status_code == 200
         auth_row = session.execute(
             select(PerformanceTakeUploadReservation).where(
-                PerformanceTakeUploadReservation.take_uuid == take_id
+                PerformanceTakeUploadReservation.manifest_id
+                == select(PerformanceTakeManifest.id)
+                .where(PerformanceTakeManifest.take_uuid == take_id)
+                .scalar_subquery()
             )
         ).scalar_one()
         assert auth_row.status == UploadReservationStatus.COMPLETED
-        assert auth_row.practice_bundle_id == _bundle_id()
+        assert auth_row.manifest.practice_bundle_id == _bundle_id()
         take_row = session.execute(
-            select(PerformanceTake).where(PerformanceTake.take_uuid == take_id)
+            select(PerformanceTake)
+            .join(PerformanceTakeManifest)
+            .where(PerformanceTakeManifest.take_uuid == take_id)
         ).scalar_one()
-        practice_bundle_id = take_row.practice_bundle_id
+        practice_bundle_id = take_row.manifest.practice_bundle_id
         source = session.execute(
             select(PracticeBundleRecord).where(PracticeBundleRecord.bundle_id == practice_bundle_id)
         ).scalar_one()
@@ -2777,7 +2801,9 @@ def test_deletion_lifecycle_and_worker_retry(test_env, monkeypatch: pytest.Monke
 
         # Take is still in DB, quota still charged
         take_db = session.execute(
-            select(PerformanceTake).where(PerformanceTake.take_uuid == take_id)
+            select(PerformanceTake)
+            .join(PerformanceTakeManifest)
+            .where(PerformanceTakeManifest.take_uuid == take_id)
         ).scalar_one_or_none()
         assert take_db is not None
         assert take_db.deletion_status == PerformanceTakeDeletionStatus.DELETING
@@ -2800,7 +2826,9 @@ def test_deletion_lifecycle_and_worker_retry(test_env, monkeypatch: pytest.Monke
         # Take deleted, quota released
         assert (
             session.execute(
-                select(PerformanceTake).where(PerformanceTake.take_uuid == take_id)
+                select(PerformanceTake)
+                .join(PerformanceTakeManifest)
+                .where(PerformanceTakeManifest.take_uuid == take_id)
             ).scalar_one_or_none()
             is None
         )
@@ -3139,23 +3167,25 @@ def test_bundle_gc_ignores_an_active_reservation_after_take_deletion(test_env, m
         media_object_key=media_key,
     )
     auth = PerformanceTakeUploadReservation(
+        manifest=PerformanceTakeManifest(
+            user_id=user_1.id,
+            **_bundle_provenance(source),
+            take_uuid="take-gc-active-auth-pending",
+            score_title_snapshot="Moonlight Sonata",
+            scope_type="FULL",
+            ticks_per_quarter=1,
+            scope_start_tick=0,
+            scope_terminal_tick=4,
+            scope_start_group_id=None,
+            scope_end_group_id=None,
+            tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
+            recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
+            media_kind="AUDIO",
+            media_mime_type="audio/webm",
+            media_byte_size=len(VALID_WEBM_BYTES),
+        ),
         user_id=user_1.id,
-        **_bundle_provenance(source),
         client_request_id="gc-active-auth",
-        take_uuid="take-gc-active-auth-pending",
-        linked_score_id=None,
-        score_title_snapshot="Moonlight Sonata",
-        scope_type="FULL",
-        ticks_per_quarter=1,
-        scope_start_tick=0,
-        scope_terminal_tick=4,
-        scope_start_group_id=None,
-        scope_end_group_id=None,
-        tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
-        recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
-        media_kind="AUDIO",
-        media_mime_type="audio/webm",
-        media_byte_size=len(VALID_WEBM_BYTES),
         storage_backend=storage.backend_name,
         staging_object_key="performance-takes/staging/gc-active-auth.webm",
         storage_reservation_id="reservation-gc-active-auth",
@@ -3246,7 +3276,7 @@ def test_reserve_does_not_reuse_bundle_pending_gc(test_env):
         ).scalar_one()
         source = session.execute(
             select(PracticeBundleRecord).where(
-                PracticeBundleRecord.bundle_id == auth.practice_bundle_id
+                PracticeBundleRecord.bundle_id == auth.manifest.practice_bundle_id
             )
         ).scalar_one()
         assert source is not None
@@ -3447,21 +3477,23 @@ def _expired_cleanup_auth(
 ) -> PerformanceTakeUploadReservation:
     expired_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=2)
     row = PerformanceTakeUploadReservation(
+        manifest=PerformanceTakeManifest(
+            user_id=user_id,
+            **_bundle_provenance(source),
+            take_uuid=f"take-{client_request_id}",
+            score_title_snapshot="Cleanup test",
+            scope_type="FULL",
+            ticks_per_quarter=1,
+            scope_start_tick=0,
+            scope_terminal_tick=4,
+            tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
+            recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
+            media_kind="AUDIO",
+            media_mime_type="audio/webm",
+            media_byte_size=len(VALID_WEBM_BYTES),
+        ),
         user_id=user_id,
-        **_bundle_provenance(source),
         client_request_id=client_request_id,
-        take_uuid=f"take-{client_request_id}",
-        linked_score_id=10,
-        score_title_snapshot="Cleanup test",
-        scope_type="FULL",
-        ticks_per_quarter=1,
-        scope_start_tick=0,
-        scope_terminal_tick=4,
-        tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
-        recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
-        media_kind="AUDIO",
-        media_mime_type="audio/webm",
-        media_byte_size=len(VALID_WEBM_BYTES),
         storage_backend="local",
         staging_object_key=staging_key,
         storage_reservation_id=f"reservation-{client_request_id}",
@@ -3601,21 +3633,23 @@ def test_finalize_copy_lease_rejects_expired_executor_before_storage_copy(test_e
     expired = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=1)
     source = _create_default_bundle(session, _storage)
     auth = PerformanceTakeUploadReservation(
+        manifest=PerformanceTakeManifest(
+            user_id=user_1.id,
+            **_bundle_provenance(source),
+            take_uuid="take-lease-expired-before-copy",
+            score_title_snapshot="Lease test",
+            scope_type="FULL",
+            ticks_per_quarter=1,
+            scope_start_tick=0,
+            scope_terminal_tick=4,
+            tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
+            recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
+            media_kind="AUDIO",
+            media_mime_type="audio/webm",
+            media_byte_size=len(VALID_WEBM_BYTES),
+        ),
         user_id=user_1.id,
-        **_bundle_provenance(source),
         client_request_id="lease-expired-before-copy",
-        take_uuid="take-lease-expired-before-copy",
-        linked_score_id=10,
-        score_title_snapshot="Lease test",
-        scope_type="FULL",
-        ticks_per_quarter=1,
-        scope_start_tick=0,
-        scope_terminal_tick=4,
-        tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
-        recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
-        media_kind="AUDIO",
-        media_mime_type="audio/webm",
-        media_byte_size=len(VALID_WEBM_BYTES),
         storage_backend="local",
         staging_object_key="staging/performance-takes/1/lease-expired/recording.webm",
         finalizing_object_key="performance-takes/1/lease-expired/recording.webm",
@@ -3633,7 +3667,7 @@ def test_finalize_copy_lease_rejects_expired_executor_before_storage_copy(test_e
             take_svc._ensure_finalize_copy_lease(
                 AsyncSessionAdapter(session),
                 user_id=user_1.id,
-                take_uuid=auth.take_uuid,
+                take_uuid=auth.manifest.take_uuid,
                 finalizing_token="expired-token",
             )
         )
@@ -3924,21 +3958,23 @@ def test_expired_finalizing_lease_records_candidate_before_retry(test_env):
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     candidate_key = "performance-takes/1/finalizing-expired/old-token.webm"
     auth = PerformanceTakeUploadReservation(
+        manifest=PerformanceTakeManifest(
+            user_id=user_1.id,
+            **_bundle_provenance(source),
+            take_uuid="finalizing-expired",
+            score_title_snapshot="Finalizing retry",
+            scope_type="FULL",
+            ticks_per_quarter=1,
+            scope_start_tick=0,
+            scope_terminal_tick=4,
+            tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
+            recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
+            media_kind="AUDIO",
+            media_mime_type="audio/webm",
+            media_byte_size=len(VALID_WEBM_BYTES),
+        ),
         user_id=user_1.id,
-        **_bundle_provenance(source),
         client_request_id="finalizing-expired-retry",
-        take_uuid="finalizing-expired",
-        linked_score_id=10,
-        score_title_snapshot="Finalizing retry",
-        scope_type="FULL",
-        ticks_per_quarter=1,
-        scope_start_tick=0,
-        scope_terminal_tick=4,
-        tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
-        recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
-        media_kind="AUDIO",
-        media_mime_type="audio/webm",
-        media_byte_size=len(VALID_WEBM_BYTES),
         storage_backend="local",
         staging_object_key="staging/performance-takes/1/finalizing-expired/recording.webm",
         finalizing_object_key=candidate_key,
@@ -4020,7 +4056,9 @@ def test_worker_handles_already_absent_object_idempotently(
         assert res_fin.status_code == 200
 
         take_row = session.execute(
-            select(PerformanceTake).where(PerformanceTake.take_uuid == take_id)
+            select(PerformanceTake)
+            .join(PerformanceTakeManifest)
+            .where(PerformanceTakeManifest.take_uuid == take_id)
         ).scalar_one()
         final_key = take_row.media_object_key
         assert final_key.startswith(f"performance-takes/1/{take_id}/")
@@ -4263,7 +4301,9 @@ def test_reservation_identity_metadata_replay_and_structural_take_lineage(test_e
             )
         ).scalar_one()
         assert first["reservation_id"] != row.storage_reservation_id
-        assert first["metadata"] == {k: v for k, v in request.items() if k != "client_request_id"}
+        assert manifest_from_row(row.manifest).agrees_with(
+            PerformanceTakeUploadReservationRequest.model_validate(request)
+        )
         repeated = client.post(
             "/api/v1/performance-takes/upload-reservations", json=request
         ).json()["data"]
@@ -4293,15 +4333,15 @@ def test_reservation_identity_metadata_replay_and_structural_take_lineage(test_e
         finalized = client.post(url)
         assert finalized.status_code == 200, finalized.text
         data = finalized.json()["data"]
-        assert data["media_kind"] == "VIDEO"
-        assert data["scope_start_group_id"] == request["scope"]["start_group_id"]
-        assert data["scope_end_group_id"] == request["scope"]["end_group_id"]
-        assert data["tempo_plan"] == first["resolved_tempo_plan"]
-        assert data["recording_timebase"] == request["recording_timebase"]
+        assert data["manifest"]["media"]["kind"] == "VIDEO"
+        assert data["manifest"]["scope"]["start_group_id"] == request["scope"]["start_group_id"]
+        assert data["manifest"]["scope"]["end_group_id"] == request["scope"]["end_group_id"]
+        assert data["manifest"]["tempo_plan"] == first["manifest"]["tempo_plan"]
+        assert data["manifest"]["recording_timebase"] == request["recording_timebase"]
         take = session.execute(
-            select(PerformanceTake).where(PerformanceTake.upload_reservation_id == row.id)
+            select(PerformanceTake).where(PerformanceTake.manifest_id == row.manifest_id)
         ).scalar_one()
-        assert take.take_uuid == first["take_id"]
+        assert take.manifest.take_uuid == first["take_id"]
         assert client.post(url).json()["data"] == data
         completed = client.post(
             "/api/v1/performance-takes/upload-reservations", json=request
@@ -4534,7 +4574,7 @@ def test_live_admission_and_save_snapshot_share_canonical_provenance(test_env):
         )
         assert reserved.status_code == 200, reserved.text
         reservation = session.execute(select(PerformanceTakeUploadReservation)).scalar_one()
-        assert reservation.practice_bundle_id == row.bundle_id
+        assert reservation.manifest.practice_bundle_id == row.bundle_id
         assert len(session.execute(select(PracticeBundleRecord)).scalars().all()) == 1
         take = _create_default_take(
             session,
@@ -4545,9 +4585,9 @@ def test_live_admission_and_save_snapshot_share_canonical_provenance(test_env):
             media_object_key="take.webm",
         )
         session.commit()
-        saved = client.get(f"/api/v1/performance-takes/{take.take_uuid}")
+        saved = client.get(f"/api/v1/performance-takes/{take.manifest.take_uuid}")
         assert saved.status_code == 200, saved.text
-        assert saved.json()["data"]["bundle_id"] == row.bundle_id
+        assert saved.json()["data"]["manifest"]["practice_binding"]["bundle_id"] == row.bundle_id
         storage.put_bytes(
             key=row.artifact_object_key, content=b"corrupt", content_type="application/json"
         )
@@ -4611,7 +4651,11 @@ def test_terminal_reservation_does_not_retain_orphan_bundle(test_env, monkeypatc
         take_uuid="terminal-source-take",
         media_object_key="terminal.webm",
     )
-    reservation = session.get(PerformanceTakeUploadReservation, take.upload_reservation_id)
+    reservation = session.scalar(
+        select(PerformanceTakeUploadReservation).where(
+            PerformanceTakeUploadReservation.manifest_id == take.manifest_id
+        )
+    )
     state = UploadReservationLifecycle.reserved(
         expires_at=datetime(2020, 1, 1), put_expires_at=datetime(2020, 1, 1)
     )
@@ -4629,7 +4673,7 @@ def test_terminal_reservation_does_not_retain_orphan_bundle(test_env, monkeypatc
     assert len(due) == 1
     assert _run_bundle_deletion(monkeypatch, session, storage, due[0])["status"] == "deleted"
     session.refresh(reservation)
-    assert reservation.practice_bundle_id == _bundle_id()
+    assert reservation.manifest.practice_bundle_id == _bundle_id()
 
 
 def test_bundle_orphan_scan_has_a_bounded_batch(test_env, monkeypatch):
@@ -4712,7 +4756,11 @@ def test_bundle_gc_ignores_active_reservation_after_revision_deletion(test_env, 
         take_uuid="active-source-take",
         media_object_key="active.webm",
     )
-    reservation = session.get(PerformanceTakeUploadReservation, take.upload_reservation_id)
+    reservation = session.scalar(
+        select(PerformanceTakeUploadReservation).where(
+            PerformanceTakeUploadReservation.manifest_id == take.manifest_id
+        )
+    )
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     state = UploadReservationLifecycle.reserved(
         expires_at=now + timedelta(hours=1), put_expires_at=now + timedelta(minutes=10)
@@ -4833,7 +4881,7 @@ def test_bound_bundle_authorization_preserves_admitted_representation_identity(t
             }
             reserved = client.post("/api/v1/performance-takes/upload-reservations", json=request)
             assert reserved.status_code == 200, reserved.text
-            assert reserved.json()["data"]["metadata"]["practice_binding"] == binding
+            assert reserved.json()["data"]["manifest"]["practice_binding"] == binding
             denied = client.post(
                 "/api/v1/performance-takes/upload-reservations",
                 json={
@@ -4854,7 +4902,7 @@ def test_bound_bundle_authorization_preserves_admitted_representation_identity(t
             )
             assert finalized.status_code == 200, finalized.text
             take = finalized.json()["data"]
-            assert take["bundle_id"] == row.bundle_id
+            assert take["manifest"]["practice_binding"]["bundle_id"] == row.bundle_id
         app.dependency_overrides[get_current_user] = lambda: other_user
         assert client.get(url).status_code == 403
         app.dependency_overrides[get_current_user] = lambda: user
@@ -4865,7 +4913,9 @@ def test_bound_bundle_authorization_preserves_admitted_representation_identity(t
         session.commit()
         assert client.get(url).status_code == 404
         assert (
-            client.get(f"/api/v1/performance-takes/{take['take_id']}").json()["data"]["bundle_id"]
+            client.get(f"/api/v1/performance-takes/{take['take_id']}").json()["data"]["manifest"][
+                "practice_binding"
+            ]["bundle_id"]
             == row.bundle_id
         )
         denied = client.post(
@@ -4976,20 +5026,26 @@ def test_reservation_derives_and_transfers_exact_bundle_plan(test_env, scope_kin
                 {"startTick": 6, "bpm": 90, "source": "MUSICXML"},
             ]
         expected_tempo = {"selection": selection, "segments": segments}
-        assert accepted["metadata"] == {
-            key: value for key, value in request.items() if key != "client_request_id"
+        assert manifest_from_row(row.manifest).agrees_with(
+            PerformanceTakeUploadReservationRequest.model_validate(request)
+        )
+        assert accepted["manifest"]["score_timebase"] == {
+            "ticks_per_quarter": artifact["ticksPerQuarter"]
         }
-        assert accepted["score_timebase"] == {"ticks_per_quarter": artifact["ticksPerQuarter"]}
-        assert row.ticks_per_quarter == artifact["ticksPerQuarter"]
-        assert accepted["resolved_scope"] == expected_scope
-        assert accepted["resolved_tempo_plan"] == expected_tempo == json.loads(row.tempo_plan)
-        assert (row.scope_start_tick, row.scope_terminal_tick) == (
+        assert row.manifest.ticks_per_quarter == artifact["ticksPerQuarter"]
+        assert accepted["manifest"]["scope"] == expected_scope
+        assert (
+            accepted["manifest"]["tempo_plan"]
+            == expected_tempo
+            == json.loads(row.manifest.tempo_plan)
+        )
+        assert (row.manifest.scope_start_tick, row.manifest.scope_terminal_tick) == (
             expected_scope["start_tick"],
             expected_scope["terminal_tick"],
         )
-        assert row.practice_bundle_id == ref.bundle_id
+        assert row.manifest.practice_bundle_id == ref.bundle_id
         if scope_kind == "FULL":
-            assert row.scope_start_group_id is row.scope_end_group_id is None
+            assert row.manifest.scope_start_group_id is row.manifest.scope_end_group_id is None
         # Another legitimate selection retains the same exact immutable source lineage.
         other = client.post(
             "/api/v1/performance-takes/upload-reservations",
@@ -5002,7 +5058,7 @@ def test_reservation_derives_and_transfers_exact_bundle_plan(test_env, scope_kin
         )
         assert other.status_code == 200, other.text
         assert {
-            value.practice_bundle_id
+            value.manifest.practice_bundle_id
             for value in session.execute(select(PerformanceTakeUploadReservation)).scalars()
         } == {ref.bundle_id}
         score = session.get(Score, 10)
@@ -5026,7 +5082,7 @@ def test_reservation_derives_and_transfers_exact_bundle_plan(test_env, scope_kin
         ):
             replay = client.post("/api/v1/performance-takes/upload-reservations", json=request)
             assert replay.status_code == 200, replay.text
-            assert replay.json()["data"]["resolved_tempo_plan"] == expected_tempo
+            assert replay.json()["data"]["manifest"]["tempo_plan"] == expected_tempo
             finalized = client.post(
                 f"/api/v1/performance-takes/upload-reservations/{row.reservation_uuid}/finalize"
             )
@@ -5035,32 +5091,38 @@ def test_reservation_derives_and_transfers_exact_bundle_plan(test_env, scope_kin
             completed = client.post("/api/v1/performance-takes/upload-reservations", json=request)
             assert completed.status_code == 200, completed.text
             assert completed.json()["data"]["take"] == take
-        assert take["bundle_id"] == ref.bundle_id
-        assert take["score_timebase"] == {"ticks_per_quarter": row.ticks_per_quarter}
+        assert take["manifest"]["practice_binding"]["bundle_id"] == ref.bundle_id
+        assert take["manifest"]["score_timebase"] == {
+            "ticks_per_quarter": row.manifest.ticks_per_quarter
+        }
         assert (
-            client.get(f"/api/v1/performance-takes/{take['take_id']}").json()["data"][
+            client.get(f"/api/v1/performance-takes/{take['take_id']}").json()["data"]["manifest"][
                 "score_timebase"
             ]
-            == take["score_timebase"]
+            == take["manifest"]["score_timebase"]
         )
         assert (
-            client.get("/api/v1/performance-takes").json()["data"]["items"][0]["score_timebase"]
-            == take["score_timebase"]
+            client.get("/api/v1/performance-takes").json()["data"]["items"][0]["manifest"][
+                "score_timebase"
+            ]
+            == take["manifest"]["score_timebase"]
         )
-        assert take["scope_start_tick"] == row.scope_start_tick
-        assert take["scope_terminal_tick"] == row.scope_terminal_tick
-        assert take["tempo_plan"] == expected_tempo
+        assert take["manifest"]["scope"]["start_tick"] == row.manifest.scope_start_tick
+        assert take["manifest"]["scope"]["terminal_tick"] == row.manifest.scope_terminal_tick
+        assert take["manifest"]["tempo_plan"] == expected_tempo
         saved = session.execute(
-            select(PerformanceTake).where(PerformanceTake.take_uuid == take["take_id"])
+            select(PerformanceTake)
+            .join(PerformanceTakeManifest)
+            .where(PerformanceTakeManifest.take_uuid == take["take_id"])
         ).scalar_one()
-        assert saved.practice_bundle_id == ref.bundle_id
-        assert saved.ticks_per_quarter == row.ticks_per_quarter
-        assert saved.scope_start_tick == row.scope_start_tick
-        assert saved.scope_terminal_tick == row.scope_terminal_tick
-        assert saved.tempo_plan == row.tempo_plan
+        assert saved.manifest.practice_bundle_id == ref.bundle_id
+        assert saved.manifest.ticks_per_quarter == row.manifest.ticks_per_quarter
+        assert saved.manifest.scope_start_tick == row.manifest.scope_start_tick
+        assert saved.manifest.scope_terminal_tick == row.manifest.scope_terminal_tick
+        assert saved.manifest.tempo_plan == row.manifest.tempo_plan
         read = client.get(f"/api/v1/performance-takes/{take['take_id']}")
         assert read.status_code == 200
-        assert read.json()["data"]["tempo_plan"] == expected_tempo
+        assert read.json()["data"]["manifest"]["tempo_plan"] == expected_tempo
 
 
 @pytest.mark.parametrize("status", ["FINALIZING", "COMPLETED"])
@@ -5114,11 +5176,15 @@ def test_cleanup_rejects_active_reservation_with_take_as_invariant_violation(tes
         take_uuid="corrupt-state",
         media_object_key="durable-object",
     )
-    row = session.get(PerformanceTakeUploadReservation, take.upload_reservation_id)
+    row = session.scalar(
+        select(PerformanceTakeUploadReservation).where(
+            PerformanceTakeUploadReservation.manifest_id == take.manifest_id
+        )
+    )
     # Deliberate cross-row corruption: individual tuple constraints cannot enforce
     # atomic Take creation. Cleanup must reject it instead of repairing it.
     row.status = "RESERVED"
-    row.practice_bundle_id = source.bundle_id
+    row.manifest.practice_bundle_id = source.bundle_id
     row.expires_at = datetime(2020, 1, 1)
     session.commit()
     with pytest.raises(ReservationInvariantError, match="atomic"):
@@ -5127,7 +5193,7 @@ def test_cleanup_rejects_active_reservation_with_take_as_invariant_violation(tes
         )
     session.rollback()
     session.refresh(row)
-    assert row.status == "RESERVED" and row.practice_bundle_id == source.bundle_id
+    assert row.status == "RESERVED" and row.manifest.practice_bundle_id == source.bundle_id
     service = _performance_take_service(session=session, storage=storage)
     from app.modules.performance_takes.schemas import PerformanceTakeUploadMetadata
 
@@ -5163,13 +5229,13 @@ def test_recording_microseconds_survive_reservation_finalize_and_take_reads(test
         response = client.post("/api/v1/performance-takes/upload-reservations", json=request)
         assert response.status_code == 200, response.text
         reserved = response.json()["data"]
-        assert reserved["metadata"]["recording_timebase"] == timebase
+        assert reserved["manifest"]["recording_timebase"] == timebase
         row = session.execute(
             select(PerformanceTakeUploadReservation).where(
                 PerformanceTakeUploadReservation.reservation_uuid == reserved["reservation_id"]
             )
         ).scalar_one()
-        assert json.loads(row.recording_timebase) == timebase
+        assert json.loads(row.manifest.recording_timebase) == timebase
         storage.put_bytes(
             key=row.staging_object_key, content=VALID_WEBM_BYTES, content_type="video/webm"
         )
@@ -5178,15 +5244,17 @@ def test_recording_microseconds_survive_reservation_finalize_and_take_reads(test
         )
         assert response.status_code == 200, response.text
         take = response.json()["data"]
-        assert take["recording_timebase"] == timebase
+        assert take["manifest"]["recording_timebase"] == timebase
         assert (
-            client.get(f"/api/v1/performance-takes/{take['take_id']}").json()["data"][
+            client.get(f"/api/v1/performance-takes/{take['take_id']}").json()["data"]["manifest"][
                 "recording_timebase"
             ]
             == timebase
         )
         assert (
-            client.get("/api/v1/performance-takes").json()["data"]["items"][0]["recording_timebase"]
+            client.get("/api/v1/performance-takes").json()["data"]["items"][0]["manifest"][
+                "recording_timebase"
+            ]
             == timebase
         )
 
@@ -5211,3 +5279,70 @@ def test_take_duration_admission_uses_exact_nominal_timebase(test_env, duration,
     with _reservation_client(session, storage, user) as (client, _):
         response = client.post("/api/v1/performance-takes/upload-reservations", json=request)
         assert response.status_code == status, response.text
+
+
+def test_failed_reserve_rolls_back_manifest_reservation_and_quota(test_env):
+    from app.modules.performance_takes.repository import PerformanceTakeRepository
+    from app.db.models.storage_usage import StorageUsageReservation
+
+    session, storage, user, _ = test_env
+    service = _performance_take_service(session=session, storage=storage)
+
+    class FailureAfterManifest(PerformanceTakeRepository):
+        async def create_reservation(self, db, reservation, *, auto_commit=True):
+            assert reservation.manifest_id is not None
+            await super().create_reservation(db, reservation, auto_commit=False)
+            raise RuntimeError("reservation transaction failed")
+
+    service.repository = FailureAfterManifest()
+    request = PerformanceTakeUploadReservationRequest.model_validate(_upload_intent())
+    with pytest.raises(RuntimeError, match="transaction failed"):
+        _run_async(service.reserve_upload(AsyncSessionAdapter(session), user.id, request))
+    assert session.scalar(select(PerformanceTakeManifest)) is None
+    assert session.scalar(select(PerformanceTakeUploadReservation)) is None
+    assert session.scalar(select(StorageUsageReservation)) is None
+    assert session.get(StorageUsageAccount, user.id).reserved_bytes == 0
+
+
+def test_take_deletion_retires_media_but_preserves_manifest_and_reservation(test_env, monkeypatch):
+    session, storage, user, _ = test_env
+    with _reservation_client(session, storage, user) as (client, _):
+        reserved_response = client.post(
+            "/api/v1/performance-takes/upload-reservations", json=_upload_intent()
+        )
+        assert reserved_response.status_code == 200, reserved_response.text
+        accepted = reserved_response.json()["data"]
+        reservation = session.scalar(
+            select(PerformanceTakeUploadReservation).where(
+                PerformanceTakeUploadReservation.reservation_uuid == accepted["reservation_id"]
+            )
+        )
+        manifest_id = reservation.manifest_id
+        before = manifest_from_row(reservation.manifest)
+        storage.put_bytes(
+            key=reservation.staging_object_key, content=VALID_WEBM_BYTES, content_type="audio/webm"
+        )
+        finalized = client.post(
+            f"/api/v1/performance-takes/upload-reservations/{accepted['reservation_id']}/finalize"
+        )
+        assert finalized.status_code == 200, finalized.text
+        take = session.scalar(select(PerformanceTake))
+        assert take.manifest_id == manifest_id
+        assert finalized.json()["data"]["manifest"] == accepted["manifest"]
+        final_key = take.media_object_key
+        deleted = client.delete(f"/api/v1/performance-takes/{accepted['take_id']}")
+        assert deleted.status_code == 202, deleted.text
+        outbox = session.scalar(select(PerformanceTakeDeleteOutbox))
+        assert (outbox.take_uuid, outbox.user_id, outbox.media_byte_size) == (
+            before.take_uuid,
+            before.user_id,
+            before.snapshot.media.byte_size,
+        )
+        outcome = _run_worker_deletion(monkeypatch, session, storage, outbox.outbox_uuid)
+        assert outcome["status"] == "deleted"
+        session.expire_all()
+        assert session.scalar(select(PerformanceTake)) is None
+        assert not storage.exists(final_key)
+        assert manifest_from_row(session.get(PerformanceTakeManifest, manifest_id)) == before
+        assert session.scalar(select(PerformanceTakeUploadReservation)).manifest_id == manifest_id
+        assert session.get(StorageUsageAccount, user.id).used_bytes == 0

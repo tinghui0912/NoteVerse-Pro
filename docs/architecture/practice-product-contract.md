@@ -1002,18 +1002,18 @@ without learner report statistics or saved learner-report navigation.
 ## PerformanceTake Upload Reservation
 
 ```text
-completed local recording -> immutable upload reservation -> direct binary upload
+completed local recording -> admitted Manifest + upload reservation -> direct binary upload
                          -> finalize(reservationId) -> durable PerformanceTake
 ```
 
 `POST /performance-takes/upload-reservations` captures client_request_id, practice_binding,
 media, scope selection, tempo selection and recording timebase once. Practice binding contains
 score_id, revision_id and bundle_id; media contains kind, canonical MIME and byte size. The
-reservation snapshots exact bundle provenance and score title under live save authorization.
+Manifest captures exact Bundle provenance and score title under live save authorization.
 Clients submit FULL or RANGE group IDs and SCORE or CUSTOM_FIXED_BPM selection;
 the server derives durable scope ticks, tempo segments and their shared score timebase
-from that exact bound Bundle. Response metadata describes intent/evidence; `score_timebase`,
-`resolved_scope` and `resolved_tempo_plan` describe the accepted coordinate snapshot.
+from that exact bound Bundle. Reservation and Take responses expose one `manifest` containing
+binding, artifact identity, title, media, resolved scope, score timebase, tempo plan and recording timebase.
 Before upload and before saved success, the browser verifies agreement with its
 executed Result session Plan and its artifact's `ticksPerQuarter`. Plan mismatch fails closed;
 a new RESERVED mismatch is cancelled best-effort without media upload.
@@ -1024,8 +1024,7 @@ the signed upload target. FINALIZING replay provides state, and COMPLETED replay
 the saved Take. The nested upload target is an ephemeral URL/method/headers/expiry capability.
 
 `POST /performance-takes/upload-reservations/{reservation_id}/finalize` has no body.
-It copies the persisted score timebase, canonical scope/tempo and recording evidence
-without Bundle reads or replanning. Live score deletion,
+It references the admitted immutable Manifest without Bundle reads or replanning. Live score deletion,
 access changes or head-revision changes do not invalidate an admitted reservation.
 `DELETE /performance-takes/upload-reservations/{reservation_id}` cancels a pending
 RESERVED reservation; CANCELLED cancellation is idempotent. FINALIZING, COMPLETED
@@ -1036,10 +1035,12 @@ UploadReservation is a persisted lifecycle aggregate. Its states are RESERVED,
 FINALIZING, COMPLETED, CANCELLED and EXPIRED.
 [Reservation architecture](performance-take-reservations.md) defines lifecycle,
 persistence, cleanup and object ownership.
-A unique, non-null Take foreign key establishes one reservation to at most one Take.
-The Take owns raw durable media and immutable provenance snapshots, never PracticeBundle.
-A committed reservation is self-contained even after Bundle GC. Playback/listing read the Take's
-metadata directly. The reservation is the sole owner of client_request_id.
+Reservation and Take reference the same immutable PerformanceTakeManifest row. A unique
+Take.manifest_id permits at most one Take per Manifest. Manifest owns the sole public Take UUID
+and saved-performance semantic facts; Take owns final durable media and library/deletion lifecycle.
+Neither retains PracticeBundle. Playback/listing consume Manifest facts after Bundle GC.
+Reservation alone owns client_request_id and upload lifecycle; its owner is database-constrained
+to match Manifest.user_id. Take deletion preserves Manifest and Reservation lineage.
 
 Finalization verifies staging existence, size, MIME/container and full SHA-256, copies
 to a token-owned candidate, and verifies candidate size and SHA-256 equality. A finite

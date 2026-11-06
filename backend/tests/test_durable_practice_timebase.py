@@ -15,7 +15,7 @@ from app.modules.performance_takes.schemas import (
 )
 
 MAX_SAFE = 2**53 - 1
-TABLES = ("performance_takes", "performance_take_upload_reservations")
+TABLES = ("performance_take_manifests",)
 INVALID = [
     {"ticks_per_quarter": 0},
     {"ticks_per_quarter": -1},
@@ -131,14 +131,19 @@ def test_client_cannot_choose_durable_score_timebase():
 
     payload = {
         "client_request_id": "request",
-        "practice_binding": {"score_id":"score","revision_id":"revision","bundle_id":"bundle"},
+        "practice_binding": {"score_id": "score", "revision_id": "revision", "bundle_id": "bundle"},
         "media": {"kind": "AUDIO", "byte_size": 1, "mime_type": "audio/webm"},
         "scope": {"kind": "FULL"},
         "tempo_selection": {"mode": "SCORE"},
         "recording_timebase": {
             "nominalMediaDurationUs": 1000000,
             "activeSegments": [
-                {"performanceStartUs": 0, "performanceEndUs": 1000000, "mediaStartUs": 0, "mediaEndUs": 1000000}
+                {
+                    "performanceStartUs": 0,
+                    "performanceEndUs": 1000000,
+                    "mediaStartUs": 0,
+                    "mediaEndUs": 1000000,
+                }
             ],
         },
     }

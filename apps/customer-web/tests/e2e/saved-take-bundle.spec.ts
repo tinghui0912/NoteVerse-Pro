@@ -53,7 +53,7 @@ for (const sourceState of ['LIVE', 'DELETED', 'MISMATCH'] as const) {
     });
     const media = Buffer.from(bytes);
     await page.route('**/api/v1/performance-takes/take-1', route => route.fulfill({
-      status: 200, contentType: 'application/json', body: JSON.stringify({ data: { ...take, media_byte_size: media.length } }),
+      status: 200, contentType: 'application/json', body: JSON.stringify({ data: { ...take, manifest: { ...take.manifest, media: { ...take.manifest.media, byte_size: media.length } } } }),
     }));
     await page.route('**/api/v1/performance-takes/take-1/media', route => route.fulfill({ status: 200, contentType: 'video/webm', body: media }));
     const sourceRequests: string[] = [];
@@ -66,7 +66,7 @@ for (const sourceState of ['LIVE', 'DELETED', 'MISMATCH'] as const) {
     await page.route('**/api/v1/practice/scores/*/revisions/*/bundle*', route => route.fulfill({
       status: sourceState === 'DELETED' ? 404 : 200, contentType: 'application/json',
       body: JSON.stringify(sourceState === 'DELETED' ? { public_code: 'resource_not_found' } : {
-        data: { binding:{score_id:take.score_id,revision_id:take.revision_id,bundle_id:sourceState === 'MISMATCH' ? 'another-bundle' : take.bundle_id}, artifact,
+        data: { binding:{score_id:take.manifest.practice_binding.score_id,revision_id:take.manifest.practice_binding.revision_id,bundle_id:sourceState === 'MISMATCH' ? 'another-bundle' : take.manifest.practice_binding.bundle_id}, artifact,
           notation: { musicxml: musicXml, mime_type: 'application/vnd.recordare.musicxml+xml' } },
       }),
     }));
@@ -117,7 +117,7 @@ for (const sourceState of ['LIVE', 'DELETED', 'MISMATCH'] as const) {
     // requesting this same exact identity, never a Take-owned or alternate source.
     expect(sourceRequests).toHaveLength(sourceState === 'LIVE' ? 1 : 2);
     for (const request of sourceRequests) {
-      expect(new URL(request).pathname).toBe(`/api/v1/practice/scores/${take.score_id}/revisions/${take.revision_id}/bundle`);
+      expect(new URL(request).pathname).toBe(`/api/v1/practice/scores/${take.manifest.practice_binding.score_id}/revisions/${take.manifest.practice_binding.revision_id}/bundle`);
       expect(new URL(request).searchParams.get('include_notation')).toBe('true');
     }
     expect(exportWrites).toEqual([]);
@@ -144,9 +144,9 @@ test('route exit during saved-media streaming aborts the writer and removes its 
     };
   });
   const bytes=Buffer.from('pending temporary bytes');
-  await page.route('**/api/v1/performance-takes/take-1',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({data:{...take,media_byte_size:bytes.length}})}));
+  await page.route('**/api/v1/performance-takes/take-1',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({data:{...take,manifest:{...take.manifest,media:{...take.manifest.media,byte_size:bytes.length}}}})}));
   await page.route('**/api/v1/performance-takes/take-1/media',route=>route.fulfill({status:200,contentType:'video/webm',body:bytes}));
-  await page.route('**/api/v1/practice/scores/*/revisions/*/bundle*',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({data:{binding:{score_id:take.score_id,revision_id:take.revision_id,bundle_id:take.bundle_id},artifact,notation:{musicxml:musicXml,mime_type:'application/vnd.recordare.musicxml+xml'}}})}));
+  await page.route('**/api/v1/practice/scores/*/revisions/*/bundle*',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({data:{binding:{score_id:take.manifest.practice_binding.score_id,revision_id:take.manifest.practice_binding.revision_id,bundle_id:take.manifest.practice_binding.bundle_id},artifact,notation:{musicxml:musicXml,mime_type:'application/vnd.recordare.musicxml+xml'}}})}));
   await page.goto('/en/my-performances/take-1/video-export');
   await expect.poll(()=>page.evaluate(()=>(window as unknown as {__savedMediaWrite:{pending:boolean}}).__savedMediaWrite.pending)).toBe(true);
   expect((await temporaryMediaFiles(page)).filter(name=>!name.endsWith('.crswap'))).toHaveLength(1);

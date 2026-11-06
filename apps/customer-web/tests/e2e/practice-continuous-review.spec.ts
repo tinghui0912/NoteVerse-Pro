@@ -381,11 +381,13 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
       accepted.resolved_tempo_plan = { ...accepted.resolved_tempo_plan,
         segments: accepted.resolved_tempo_plan.segments.map((segment, index) => index === 0 ? { ...segment, bpm: segment.bpm + 1 } : segment) };
     }
-    const { practice_binding, media, scope, tempo_selection, recording_timebase } = reservedRequest;
+    const { practice_binding, media, recording_timebase } = reservedRequest;
     return route.fulfill({ status: 200, contentType: 'application/json', body: apiResponse({
       reservation_id: 'upload-res-e2e-1', take_id: 'take-e2e-1', status: 'RESERVED',
-      metadata: { practice_binding, media, scope, tempo_selection, recording_timebase },
-      ...accepted,
+      manifest: { practice_binding, media, artifact_id: testArtifact.artifactId,
+        score_title_snapshot: 'Continuous Review Score', recording_timebase,
+        score_timebase: accepted.score_timebase, scope: accepted.resolved_scope,
+        tempo_plan: accepted.resolved_tempo_plan },
       upload_target: { url: '/api/v1/performance-takes/mock-upload/take-e2e-1', method: 'PUT',
         headers: { 'content-type': media.mime_type }, expires_in: 3600 },
     }) });
@@ -394,17 +396,18 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
     expect(route.request().postData()).toBeNull();
     expect(saveProtocol.events).toEqual(['RESERVATION', 'MEDIA_PUT']);
     saveProtocol.events.push('FINALIZE');
-    const { practice_binding, media, scope, recording_timebase } = reservedRequest;
+    const { practice_binding, media, recording_timebase } = reservedRequest;
     const { resolved_scope, resolved_tempo_plan } = acceptedPlan(reservedRequest);
-    const take: PerformanceTakeRead = {score_timebase: { ticks_per_quarter: testArtifact.ticksPerQuarter },
-      take_id: 'take-e2e-1', bundle_id: practice_binding.bundle_id, score_id: practice_binding.score_id, revision_id: practice_binding.revision_id,
-      artifact_id: testArtifact.artifactId, score_title_snapshot: 'Continuous Review Score',
-      media_kind: media.kind, media_mime_type: media.mime_type, media_byte_size: media.byte_size,
-      scope_type: scope.kind, scope_start_tick: resolved_scope.start_tick,
-      scope_terminal_tick: resolved_scope.terminal_tick,
-      scope_start_group_id: scope.kind === 'RANGE' ? scope.start_group_id : null,
-      scope_end_group_id: scope.kind === 'RANGE' ? scope.end_group_id : null,
-      tempo_plan: { selection: resolved_tempo_plan.selection, segments: resolved_tempo_plan.segments.map(segment => ({ ...segment })) }, recording_timebase, created_at: '2026-09-20T12:00:00Z',
+    const take: PerformanceTakeRead = {
+      take_id: 'take-e2e-1', created_at: '2026-09-20T12:00:00Z',
+      manifest: {
+        practice_binding, artifact_id: testArtifact.artifactId,
+        score_title_snapshot: 'Continuous Review Score', media,
+        score_timebase: { ticks_per_quarter: testArtifact.ticksPerQuarter },
+        scope: resolved_scope as PerformanceTakeRead['manifest']['scope'],
+        tempo_plan: { selection: resolved_tempo_plan.selection, segments: resolved_tempo_plan.segments.map(segment => ({ ...segment })) },
+        recording_timebase,
+      },
     };
     takesDatabase.push(take);
     return route.fulfill({ status: 200, contentType: 'application/json', body: apiResponse(take) });

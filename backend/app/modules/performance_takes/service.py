@@ -1,7 +1,7 @@
 from __future__ import annotations
+from app.db.models.performance_take_manifest import PerformanceTakeMediaKind
 
 
-import json
 from typing import Optional
 
 from sqlalchemy import select
@@ -14,21 +14,18 @@ from app.core.exceptions import (
 from app.db.models.performance_take import (
     PerformanceTake,
     PerformanceTakeDeletionStatus,
-    PerformanceTakeMediaKind,
 )
 from app.db.models.performance_take_delete_outbox import (
     PerformanceTakeDeleteOutbox,
     PerformanceTakeDeleteOutboxStatus,
 )
 from app.db.models.score import Score, ScoreDeletionStatus
+from app.modules.performance_takes.manifest_persistence import manifest_from_row
 from app.modules.performance_takes.repository import PerformanceTakeRepository
 from app.modules.performance_takes.schemas import (
     PerformanceTakeListResponse,
     PerformanceTakePlaybackRead,
     PerformanceTakeRead,
-    PerformanceTakeTempoPlan,
-    PerformanceTakeScoreTimebase,
-    RecordingTimebase,
 )
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.shared.constants import ErrorCode
@@ -78,16 +75,7 @@ class PerformanceTakeService:
         score: Score | None = None,
         can_open_score: bool = False,
     ) -> PerformanceTakeRead:
-        tempo_plan = PerformanceTakeTempoPlan.model_validate(json.loads(take.tempo_plan))
-        recording_timebase = RecordingTimebase.model_validate(json.loads(take.recording_timebase))
-
-        score_title_snapshot = take.score_title_snapshot
-        if not score_title_snapshot:
-            raise ValidationException(
-                ErrorCode.VALIDATION_ERROR,
-                field="score_title_snapshot",
-                details={"reason": "score_title_snapshot_required"},
-            )
+        manifest = manifest_from_row(take.manifest)
         linked_score_id = (
             score.score_uuid
             if can_open_score
@@ -96,36 +84,14 @@ class PerformanceTakeService:
             else None
         )
 
-        scope_type = take.scope_type
-        if scope_type not in {"FULL", "RANGE"}:
-            raise ValidationException(
-                ErrorCode.VALIDATION_ERROR,
-                field="scope_type",
-                details={"reason": "scope_type_invalid"},
-            )
         deletion_status = _status_value(take.deletion_status)
 
         return PerformanceTakeRead(
-            take_id=take.take_uuid,
-            bundle_id=take.practice_bundle_id,
-            score_id=take.practice_score_uuid,
-            revision_id=take.practice_revision_uuid,
-            artifact_id=take.practice_artifact_id,
-            score_title_snapshot=score_title_snapshot,
+            take_id=manifest.take_uuid,
+            manifest=manifest.snapshot,
             linked_score_id=linked_score_id,
             can_open_score=linked_score_id is not None,
-            media_kind=_media_kind_value(take.media_kind),
-            media_mime_type=take.media_mime_type,
-            media_byte_size=take.media_byte_size,
-            scope_type=scope_type,
-            scope_start_tick=take.scope_start_tick,
-            scope_terminal_tick=take.scope_terminal_tick,
-            scope_start_group_id=take.scope_start_group_id,
-            scope_end_group_id=take.scope_end_group_id,
             deletion_status=deletion_status,
-            tempo_plan=tempo_plan,
-            score_timebase=PerformanceTakeScoreTimebase(ticks_per_quarter=take.ticks_per_quarter),
-            recording_timebase=recording_timebase,
             created_at=take.created_at,
         )
 
@@ -233,26 +199,27 @@ class PerformanceTakeService:
         if self.storage is None:
             raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="storage")
 
+        manifest = manifest_from_row(take.manifest)
         playback_url = self.storage.download_url(
             take.media_object_key,
-            content_type=take.media_mime_type,
+            content_type=manifest.snapshot.media.mime_type,
         )
-        ext = _extension_for_mime(take.media_mime_type)
+        ext = _extension_for_mime(manifest.snapshot.media.mime_type)
         download_url = self.storage.download_url(
             take.media_object_key,
-            filename=f"performance-{take.take_uuid}.{ext}",
-            content_type=take.media_mime_type,
+            filename=f"performance-{manifest.take_uuid}.{ext}",
+            content_type=manifest.snapshot.media.mime_type,
         )
         if not playback_url or not download_url:
             raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="download_url")
 
         return PerformanceTakePlaybackRead(
-            take_id=take.take_uuid,
+            take_id=manifest.take_uuid,
             playback_url=playback_url,
             download_url=download_url,
-            media_kind=_media_kind_value(take.media_kind),
-            media_mime_type=take.media_mime_type,
-            media_byte_size=take.media_byte_size,
+            media_kind=_media_kind_value(manifest.snapshot.media.kind),
+            media_mime_type=manifest.snapshot.media.mime_type,
+            media_byte_size=manifest.snapshot.media.byte_size,
             expires_in=3600,
         )
 
@@ -273,11 +240,12 @@ class PerformanceTakeService:
             )
         if self.storage is None:
             raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="storage")
-        extension = _extension_for_mime(take.media_mime_type)
+        manifest = manifest_from_row(take.manifest)
+        extension = _extension_for_mime(manifest.snapshot.media.mime_type)
         return (
             take.media_object_key,
-            f"performance-{take.take_uuid}.{extension}",
-            take.media_mime_type,
+            f"performance-{manifest.take_uuid}.{extension}",
+            manifest.snapshot.media.mime_type,
         )
 
     async def delete_take(
@@ -295,14 +263,15 @@ class PerformanceTakeService:
         if _status_value(take.deletion_status) == PerformanceTakeDeletionStatus.DELETING.value:
             return {"status": "deleting", "take_id": take_id}
 
+        manifest = manifest_from_row(take.manifest)
         take.deletion_status = PerformanceTakeDeletionStatus.DELETING.value
         outbox = PerformanceTakeDeleteOutbox(
             take_id=take.id,
-            take_uuid=take.take_uuid,
-            user_id=take.user_id,
+            take_uuid=manifest.take_uuid,
+            user_id=manifest.user_id,
             storage_backend=take.storage_backend,
             object_key=take.media_object_key,
-            media_byte_size=take.media_byte_size,
+            media_byte_size=manifest.snapshot.media.byte_size,
             status=PerformanceTakeDeleteOutboxStatus.PENDING.value,
             next_attempt_at=utc_now_naive(),
         )

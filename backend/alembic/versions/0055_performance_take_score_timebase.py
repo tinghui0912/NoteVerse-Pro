@@ -8,10 +8,7 @@ down_revision = "0054_practice_score_ticks"
 branch_labels = None
 depends_on = None
 
-TABLE_CONSTRAINTS = (
-    ("performance_takes", "ck_performance_takes_score_coordinates"),
-    ("performance_take_upload_reservations", "ck_take_reservation_score_coordinates"),
-)
+TABLE_CONSTRAINTS = (("performance_take_manifests", "ck_take_manifest_score_coordinates"),)
 SCORE_COORDINATES = (
     "ticks_per_quarter > 0 AND ticks_per_quarter <= 9007199254740991 "
     "AND scope_start_tick >= 0 AND scope_start_tick <= 9007199254740991 "
@@ -26,7 +23,7 @@ def _require_empty_records() -> None:
     for table, _ in TABLE_CONSTRAINTS:
         if connection.execute(sa.text(f"SELECT 1 FROM {table} LIMIT 1")).first():
             raise RuntimeError(
-                "Score timebase contract requires empty development Take/reservation records."
+                "Score timebase contract requires empty development Manifest records."
             )
 
 

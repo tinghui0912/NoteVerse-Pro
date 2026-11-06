@@ -73,8 +73,8 @@ The [score schema](../../contracts/practice/score/artifact.schema.json) owns tra
 structure; Bundle envelope models reference its generated Python projection.
 
 Only ScoreRevisionPracticeBinding rows retain a Bundle. A READY Bundle with zero bindings
-is eligible for GC. Take and UploadReservation store immutable provenance snapshots
-without retaining Bundle rows or objects. The practice_bundle_delete_outbox worker
+is eligible for GC. Take and UploadReservation reference one immutable PerformanceTakeManifest, whose detached
+provenance strings retain neither Bundle rows nor objects. The practice_bundle_delete_outbox worker
 rechecks DELETING status and absence of bindings under the Bundle lock before deleting
 its exact physical objects. A new binding cannot attach to a DELETING Bundle.
 
@@ -84,9 +84,9 @@ New save admission accepts `practice_binding: {score_id, revision_id, bundle_id}
 Both binding creation and new save use lock_live_practice_mutation_access.
 Locks follow Score, Revision, selected access fact, binding, Bundle order. Admission reauthorizes the exact
 revision and verifies its exact READY bound Bundle before server-side canonical planning.
-Deletion that commits first denies a new save; admitted reservations retain their
-self-contained provenance, scope, tempo and score-timebase snapshot for replay/finalize.
-Take copies that snapshot without a new Bundle read.
+Deletion that commits first denies a new save. Admission creates an immutable
+PerformanceTakeManifest containing provenance, resolved scope/tempo and score timebase.
+Reservation and Take share that exact Manifest row; finalize requires no Bundle read.
 
 The browser bundle package validates the binding envelope and uses the generated structural
 decoder for the content-only artifact. It does not re-prove the backend musical graph. AdmittedPracticeBundle contains a readonly binding, deeply frozen artifact,

@@ -8,7 +8,7 @@ down_revision = "0053_practice_bundle_takes"
 branch_labels = None
 depends_on = None
 
-TABLES = ("performance_takes", "performance_take_upload_reservations")
+TABLES = ("performance_take_manifests",)
 
 
 def _require_empty_coordinate_records() -> None:
@@ -17,7 +17,7 @@ def _require_empty_coordinate_records() -> None:
     for table in TABLES:
         if connection.execute(sa.text(f"SELECT 1 FROM {table} LIMIT 1")).first():
             raise RuntimeError(
-                "Practice tick contract requires empty development Take/reservation records."
+                "Practice tick contract requires empty development Manifest records."
             )
 
 

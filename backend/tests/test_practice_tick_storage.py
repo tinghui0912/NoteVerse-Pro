@@ -21,7 +21,7 @@ def migration():
 
 def old_tables(connection):
     metadata = sa.MetaData()
-    for name in ("performance_takes", "performance_take_upload_reservations"):
+    for name in ("performance_take_manifests",):
         sa.Table(
             name,
             metadata,
@@ -37,7 +37,7 @@ def test_empty_development_storage_uses_lossless_integer_coordinates():
         old_tables(connection)
         with Operations.context(MigrationContext.configure(connection)):
             migration().upgrade()
-        for name in ("performance_takes", "performance_take_upload_reservations"):
+        for name in ("performance_take_manifests",):
             table = sa.Table(name, sa.MetaData(), autoload_with=connection)
             assert set(table.c.keys()) == {"scope_start_tick", "scope_terminal_tick"}
             connection.execute(
@@ -56,7 +56,7 @@ def test_gridless_coordinate_records_are_not_coerced():
     with sa.create_engine("sqlite://").begin() as connection:
         tables = old_tables(connection)
         connection.execute(
-            tables.tables["performance_takes"]
+            tables.tables["performance_take_manifests"]
             .insert()
             .values(scope_start_beat=1 / 3, scope_terminal_beat=1)
         )
@@ -64,5 +64,5 @@ def test_gridless_coordinate_records_are_not_coerced():
             with pytest.raises(RuntimeError, match="empty development"):
                 migration().upgrade()
         assert "scope_start_beat" in {
-            c["name"] for c in sa.inspect(connection).get_columns("performance_takes")
+            c["name"] for c in sa.inspect(connection).get_columns("performance_take_manifests")
         }

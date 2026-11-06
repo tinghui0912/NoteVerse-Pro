@@ -3,7 +3,6 @@
 import asyncio
 from datetime import timedelta
 from fractions import Fraction
-import json
 from app.utils.timezone import utc_now_naive
 from unittest.mock import patch
 
@@ -19,6 +18,7 @@ from app.db.models import (
     PerformanceTake,
     PerformanceTakeUploadReservation,
 )
+from app.modules.performance_takes.manifest_persistence import manifest_from_row
 from app.modules.performance_takes.upload_reservation.service import PerformanceTakeUploadService
 from app.modules.performance_takes.upload_reservation.domain import FinalizeLease
 from app.modules.performance_takes.upload_reservation.persistence import (
@@ -69,11 +69,11 @@ async def test_save_admission_commits_before_waiting_score_deletion(postgres_bun
             result = await asyncio.wait_for(reserve, 10)
             await asyncio.wait_for(deletion, 10)
             row = await service.repository.get_reservation_by_uuid(a, 1, result.reservation_id)
-            assert row.practice_bundle_id == request.practice_binding.bundle_id
-            assert row.practice_score_uuid == postgres_bundle[1].test_score_uuid
-            assert row.practice_revision_uuid == postgres_bundle[1].test_revision_uuid
-            assert row.practice_artifact_id == postgres_bundle[2].artifact.artifact_id
-            assert row.score_title_snapshot == "Source"
+            assert row.manifest.practice_bundle_id == request.practice_binding.bundle_id
+            assert row.manifest.practice_score_uuid == postgres_bundle[1].test_score_uuid
+            assert row.manifest.practice_revision_uuid == postgres_bundle[1].test_revision_uuid
+            assert row.manifest.practice_artifact_id == postgres_bundle[2].artifact.artifact_id
+            assert row.manifest.score_title_snapshot == "Source"
             score = await b.scalar(select(Score))
             assert score.deletion_status.value == "DELETING"
 
@@ -121,26 +121,14 @@ async def test_snapshot_replay_finalize_and_take_reads_survive_bundle_gc(postgre
     async with sessions() as db:
         accepted = await service.reserve_upload(db, 1, request)
         row = await service.repository.get_reservation_by_uuid(db, 1, accepted.reservation_id)
-        snapshot = {
-            key: getattr(row, key)
-            for key in (
-                "practice_bundle_id",
-                "practice_score_uuid",
-                "practice_revision_uuid",
-                "practice_artifact_id",
-                "score_title_snapshot",
-                "tempo_plan",
-                "ticks_per_quarter",
-                "scope_start_tick",
-                "scope_terminal_tick",
-            )
-        }
-        assert snapshot["ticks_per_quarter"] == 60
-        assert Fraction(snapshot["scope_start_tick"], snapshot["ticks_per_quarter"]) == Fraction(
-            1, 2
-        )
+        snapshot = manifest_from_row(row.manifest)
+        manifest_id = row.manifest_id
+        assert snapshot.snapshot.score_timebase.ticks_per_quarter == 60
         assert Fraction(
-            json.loads(snapshot["tempo_plan"])["segments"][-1]["startTick"], 60
+            snapshot.snapshot.scope.start_tick, snapshot.snapshot.score_timebase.ticks_per_quarter
+        ) == Fraction(1, 2)
+        assert Fraction(
+            snapshot.snapshot.tempo_plan.model_dump(mode="json")["segments"][-1]["startTick"], 60
         ) == Fraction(113, 60)
         storage.put_bytes(key=row.staging_object_key, content=MEDIA, content_type="audio/webm")
         score = await db.scalar(select(Score))
@@ -177,6 +165,10 @@ async def test_snapshot_replay_finalize_and_take_reads_survive_bundle_gc(postgre
         await db.commit()
 
         with (
+            patch(
+                "app.modules.performance_takes.upload_reservation.service.resolve_practice_score_plan",
+                side_effect=AssertionError("Manifest finalization does not plan"),
+            ),
             patch.object(
                 source,
                 "authorize_bundle_for_save",
@@ -190,20 +182,31 @@ async def test_snapshot_replay_finalize_and_take_reads_survive_bundle_gc(postgre
         ):
             replay = await service.reserve_upload(db, 1, request)
             assert replay.reservation_id == accepted.reservation_id
-            assert replay.metadata == accepted.metadata
-            assert replay.score_timebase == accepted.score_timebase
-            assert replay.score_timebase.ticks_per_quarter == 60
-            assert replay.resolved_scope == accepted.resolved_scope
-            assert replay.resolved_tempo_plan == accepted.resolved_tempo_plan
+            assert replay.manifest == accepted.manifest
+            assert replay.manifest.score_timebase == accepted.manifest.score_timebase
+            assert replay.manifest.score_timebase.ticks_per_quarter == 60
+            assert replay.manifest.scope == accepted.manifest.scope
+            assert replay.manifest.tempo_plan == accepted.manifest.tempo_plan
             take = await service.finalize_take(db, 1, accepted.reservation_id)
             completed = await service.reserve_upload(db, 1, request)
             assert completed.take == take
-            assert take.score_timebase.ticks_per_quarter == snapshot["ticks_per_quarter"]
-            assert take.scope_start_tick == snapshot["scope_start_tick"]
-            assert take.scope_terminal_tick == snapshot["scope_terminal_tick"]
-            assert take.tempo_plan.model_dump() == json.loads(snapshot["tempo_plan"])
-            assert take.bundle_id == snapshot["practice_bundle_id"]
-            assert take.score_title_snapshot == snapshot["score_title_snapshot"]
+            assert row.manifest_id == manifest_id
+            assert manifest_from_row(row.manifest) == snapshot
+            assert take.manifest == snapshot.snapshot
+            assert (
+                take.manifest.score_timebase.ticks_per_quarter
+                == snapshot.snapshot.score_timebase.ticks_per_quarter
+            )
+            assert take.manifest.scope.start_tick == snapshot.snapshot.scope.start_tick
+            assert take.manifest.scope.terminal_tick == snapshot.snapshot.scope.terminal_tick
+            assert take.manifest.tempo_plan.model_dump(
+                mode="json"
+            ) == snapshot.snapshot.tempo_plan.model_dump(mode="json")
+            assert (
+                take.manifest.practice_binding.bundle_id
+                == snapshot.snapshot.practice_binding.bundle_id
+            )
+            assert take.manifest.score_title_snapshot == snapshot.snapshot.score_title_snapshot
             assert take.linked_score_id is None and not take.can_open_score
             listed = await service.takes.list_takes(db, 1)
             assert listed.items == [take]
@@ -215,8 +218,8 @@ async def test_snapshot_replay_finalize_and_take_reads_survive_bundle_gc(postgre
                 and mime == "audio/webm"
             )
             stored = await db.scalar(select(PerformanceTake))
-            for key, value in snapshot.items():
-                assert getattr(stored, key) == value
+            assert stored.manifest_id == manifest_id
+            assert manifest_from_row(stored.manifest) == snapshot
 
 
 @pytest.mark.parametrize("status", ["RESERVED", "FINALIZING", "COMPLETED"])
@@ -263,11 +266,11 @@ async def test_revision_only_retention_with_existing_reservation_or_take(postgre
         )
         assert len(due) == 1
         assert source_row.status == "DELETING"
-        assert row.practice_bundle_id == request.practice_binding.bundle_id
+        assert row.manifest.practice_bundle_id == request.practice_binding.bundle_id
         assert row.status == status
         if status == "COMPLETED":
             take = await db.scalar(select(PerformanceTake))
-            assert take.practice_bundle_id == row.practice_bundle_id
+            assert take.manifest.practice_bundle_id == row.manifest.practice_bundle_id
         await db.commit()
         payload = await db.run_sync(lambda sync: practice_bundle_delete_service.claim(sync, due[0]))
         await db.commit()
@@ -286,12 +289,17 @@ async def test_revision_only_retention_with_existing_reservation_or_take(postgre
         await db.commit()
         assert await db.scalar(select(PracticeBundleRecord)) is None
         await db.refresh(row)
-        assert row.practice_bundle_id == request.practice_binding.bundle_id and row.status == status
+        assert (
+            row.manifest.practice_bundle_id == request.practice_binding.bundle_id
+            and row.status == status
+        )
         if status == "COMPLETED":
-            retained = await service.takes.get_take(db, 1, take.take_uuid)
-            assert retained.bundle_id == request.practice_binding.bundle_id
+            retained = await service.takes.get_take(db, 1, take.manifest.take_uuid)
+            assert (
+                retained.manifest.practice_binding.bundle_id == request.practice_binding.bundle_id
+            )
             assert (await service.takes.list_takes(db, 1)).items == [retained]
-            key, _, _ = await service.takes.get_media_delivery(db, 1, take.take_uuid)
+            key, _, _ = await service.takes.get_media_delivery(db, 1, take.manifest.take_uuid)
             assert storage.read_bytes(key) == MEDIA
 
 
@@ -320,7 +328,13 @@ async def test_save_holds_current_authorization_facts_until_commit(postgres_bund
         fact_id = fact.id
         await seed.commit()
     async with sessions() as a, sessions() as b, sessions() as observer:
-        admitted = await source.authorize_bundle_for_save(a,user_id,request.practice_binding.score_id,request.practice_binding.revision_id,request.practice_binding.bundle_id)
+        admitted = await source.authorize_bundle_for_save(
+            a,
+            user_id,
+            request.practice_binding.score_id,
+            request.practice_binding.revision_id,
+            request.practice_binding.bundle_id,
+        )
         assert admitted.bundle.bundle_id == request.practice_binding.bundle_id
         pid = await b.scalar(text("SELECT pg_backend_pid()"))
         fact_model = ScoreMembership
@@ -339,4 +353,10 @@ async def test_save_holds_current_authorization_facts_until_commit(postgres_bund
         await asyncio.wait_for(revocation, 10)
         await b.commit()
         with pytest.raises(UnauthorizedException):
-            await source.authorize_bundle_for_save(a,user_id,request.practice_binding.score_id,request.practice_binding.revision_id,request.practice_binding.bundle_id)
+            await source.authorize_bundle_for_save(
+                a,
+                user_id,
+                request.practice_binding.score_id,
+                request.practice_binding.revision_id,
+                request.practice_binding.bundle_id,
+            )

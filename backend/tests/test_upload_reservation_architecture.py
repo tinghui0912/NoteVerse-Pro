@@ -102,3 +102,19 @@ def test_one_orphan_codec_and_router_only_dispatches_commands():
     assert len(definitions) == 2
     assert all(path == MODULE / "upload_reservation/persistence.py" for path, _ in definitions)
     assert not any("upload_reservation.domain" in name for name in imports(MODULE / "router.py"))
+
+
+def test_manifest_semantics_and_persistence_have_explicit_dependency_owners():
+    assert imports(MODULE / "manifest.py") <= {"dataclasses", "schemas"}
+    dependencies = imports(MODULE / "manifest_persistence.py")
+    assert {"manifest", "schemas", "app.db.models.performance_take_manifest"} <= dependencies
+    for owner in ["service.py", "upload_reservation/service.py"]:
+        assert "app.modules.performance_takes.manifest_persistence" in imports(MODULE / owner)
+    # The upload aggregate consumes lifecycle facts independently of admitted archive metadata.
+    assert imports(MODULE / "upload_reservation/domain.py") <= {
+        "__future__",
+        "dataclasses",
+        "datetime",
+        "enum",
+        "typing",
+    }

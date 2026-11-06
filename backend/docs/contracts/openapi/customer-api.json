@@ -5814,6 +5814,66 @@
         "title": "PerformanceTakeListResponse",
         "type": "object"
       },
+      "PerformanceTakeManifestRead": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_id": {
+            "minLength": 1,
+            "title": "Artifact Id",
+            "type": "string"
+          },
+          "media": {
+            "$ref": "#/components/schemas/PerformanceTakeMediaMetadata"
+          },
+          "practice_binding": {
+            "$ref": "#/components/schemas/PerformanceTakePracticeBinding"
+          },
+          "recording_timebase": {
+            "$ref": "#/components/schemas/RecordingTimebase"
+          },
+          "scope": {
+            "discriminator": {
+              "mapping": {
+                "FULL": "#/components/schemas/PerformanceTakeResolvedFullScope",
+                "RANGE": "#/components/schemas/PerformanceTakeResolvedRangeScope"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PerformanceTakeResolvedFullScope"
+              },
+              {
+                "$ref": "#/components/schemas/PerformanceTakeResolvedRangeScope"
+              }
+            ],
+            "title": "Scope"
+          },
+          "score_timebase": {
+            "$ref": "#/components/schemas/PerformanceTakeScoreTimebase"
+          },
+          "score_title_snapshot": {
+            "minLength": 1,
+            "title": "Score Title Snapshot",
+            "type": "string"
+          },
+          "tempo_plan": {
+            "$ref": "#/components/schemas/PerformanceTakeTempoPlan"
+          }
+        },
+        "required": [
+          "practice_binding",
+          "artifact_id",
+          "score_title_snapshot",
+          "media",
+          "score_timebase",
+          "scope",
+          "tempo_plan",
+          "recording_timebase"
+        ],
+        "title": "PerformanceTakeManifestRead",
+        "type": "object"
+      },
       "PerformanceTakeMediaMetadata": {
         "additionalProperties": false,
         "properties": {
@@ -5951,14 +6011,6 @@
       "PerformanceTakeRead": {
         "additionalProperties": false,
         "properties": {
-          "artifact_id": {
-            "title": "Artifact Id",
-            "type": "string"
-          },
-          "bundle_id": {
-            "title": "Bundle Id",
-            "type": "string"
-          },
           "can_open_score": {
             "default": false,
             "title": "Can Open Score",
@@ -5985,99 +6037,17 @@
             ],
             "title": "Linked Score Id"
           },
-          "media_byte_size": {
-            "title": "Media Byte Size",
-            "type": "integer"
-          },
-          "media_kind": {
-            "title": "Media Kind",
-            "type": "string"
-          },
-          "media_mime_type": {
-            "title": "Media Mime Type",
-            "type": "string"
-          },
-          "recording_timebase": {
-            "$ref": "#/components/schemas/RecordingTimebase"
-          },
-          "revision_id": {
-            "title": "Revision Id",
-            "type": "string"
-          },
-          "scope_end_group_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Scope End Group Id"
-          },
-          "scope_start_group_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Scope Start Group Id"
-          },
-          "scope_start_tick": {
-            "maximum": 9007199254740991.0,
-            "minimum": 0.0,
-            "title": "Scope Start Tick",
-            "type": "integer"
-          },
-          "scope_terminal_tick": {
-            "exclusiveMinimum": 0.0,
-            "maximum": 9007199254740991.0,
-            "title": "Scope Terminal Tick",
-            "type": "integer"
-          },
-          "scope_type": {
-            "title": "Scope Type",
-            "type": "string"
-          },
-          "score_id": {
-            "title": "Score Id",
-            "type": "string"
-          },
-          "score_timebase": {
-            "$ref": "#/components/schemas/PerformanceTakeScoreTimebase"
-          },
-          "score_title_snapshot": {
-            "minLength": 1,
-            "title": "Score Title Snapshot",
-            "type": "string"
+          "manifest": {
+            "$ref": "#/components/schemas/PerformanceTakeManifestRead"
           },
           "take_id": {
             "title": "Take Id",
             "type": "string"
-          },
-          "tempo_plan": {
-            "$ref": "#/components/schemas/PerformanceTakeTempoPlan"
           }
         },
         "required": [
           "take_id",
-          "bundle_id",
-          "score_id",
-          "revision_id",
-          "artifact_id",
-          "score_title_snapshot",
-          "media_kind",
-          "media_mime_type",
-          "media_byte_size",
-          "scope_type",
-          "scope_start_tick",
-          "scope_terminal_tick",
-          "tempo_plan",
-          "score_timebase",
-          "recording_timebase",
+          "manifest",
           "created_at"
         ],
         "title": "PerformanceTakeRead",
@@ -6237,98 +6207,15 @@
         "title": "PerformanceTakeTempoPlanSegment",
         "type": "object"
       },
-      "PerformanceTakeUploadMetadata": {
-        "additionalProperties": false,
-        "properties": {
-          "media": {
-            "$ref": "#/components/schemas/PerformanceTakeMediaMetadata"
-          },
-          "practice_binding": {
-            "$ref": "#/components/schemas/PerformanceTakePracticeBinding"
-          },
-          "recording_timebase": {
-            "$ref": "#/components/schemas/RecordingTimebase"
-          },
-          "scope": {
-            "discriminator": {
-              "mapping": {
-                "FULL": "#/components/schemas/PerformanceTakeFullScopeSelection",
-                "RANGE": "#/components/schemas/PerformanceTakeRangeScopeSelection"
-              },
-              "propertyName": "kind"
-            },
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/PerformanceTakeFullScopeSelection"
-              },
-              {
-                "$ref": "#/components/schemas/PerformanceTakeRangeScopeSelection"
-              }
-            ],
-            "title": "Scope"
-          },
-          "tempo_selection": {
-            "discriminator": {
-              "mapping": {
-                "CUSTOM_FIXED_BPM": "#/components/schemas/CustomFixedBpmTempoPlanSelection",
-                "SCORE": "#/components/schemas/ScoreTempoPlanSelection"
-              },
-              "propertyName": "mode"
-            },
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/ScoreTempoPlanSelection"
-              },
-              {
-                "$ref": "#/components/schemas/CustomFixedBpmTempoPlanSelection"
-              }
-            ],
-            "title": "Tempo Selection"
-          }
-        },
-        "required": [
-          "practice_binding",
-          "media",
-          "scope",
-          "tempo_selection",
-          "recording_timebase"
-        ],
-        "title": "PerformanceTakeUploadMetadata",
-        "type": "object"
-      },
       "PerformanceTakeUploadReservationRead": {
         "additionalProperties": false,
         "properties": {
-          "metadata": {
-            "$ref": "#/components/schemas/PerformanceTakeUploadMetadata"
+          "manifest": {
+            "$ref": "#/components/schemas/PerformanceTakeManifestRead"
           },
           "reservation_id": {
             "title": "Reservation Id",
             "type": "string"
-          },
-          "resolved_scope": {
-            "discriminator": {
-              "mapping": {
-                "FULL": "#/components/schemas/PerformanceTakeResolvedFullScope",
-                "RANGE": "#/components/schemas/PerformanceTakeResolvedRangeScope"
-              },
-              "propertyName": "kind"
-            },
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/PerformanceTakeResolvedFullScope"
-              },
-              {
-                "$ref": "#/components/schemas/PerformanceTakeResolvedRangeScope"
-              }
-            ],
-            "title": "Resolved Scope"
-          },
-          "resolved_tempo_plan": {
-            "$ref": "#/components/schemas/PerformanceTakeTempoPlan"
-          },
-          "score_timebase": {
-            "$ref": "#/components/schemas/PerformanceTakeScoreTimebase"
           },
           "status": {
             "enum": [
@@ -6368,10 +6255,7 @@
           "reservation_id",
           "take_id",
           "status",
-          "metadata",
-          "resolved_scope",
-          "resolved_tempo_plan",
-          "score_timebase"
+          "manifest"
         ],
         "title": "PerformanceTakeUploadReservationRead",
         "type": "object"

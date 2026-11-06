@@ -10,33 +10,26 @@ from app.db.models import (
     User,
     PerformanceTakeUploadReservation,
     PerformanceTake,
-    PerformanceTakeMediaKind,
 )
 from app.utils.timezone import utc_now_naive
 from tests.test_practice_bundle_migration import migration_database, assert_current_bundle_schema
 
 
-def reservation_values(user_id):
+def manifest_values(user_id):
+    from tests.test_take_manifest import value
+    from app.modules.performance_takes.manifest_persistence import manifest_to_row
+
+    row = manifest_to_row(value())
+    row.user_id = user_id
+    return row.model_dump(exclude={"id"})
+
+
+def reservation_values(user_id, manifest_id):
     return PerformanceTakeUploadReservation(
         user_id=user_id,
+        manifest_id=manifest_id,
         reservation_uuid="reservation",
         client_request_id="request",
-        take_uuid="take",
-        practice_bundle_id="source-fingerprint",
-        practice_score_uuid="score",
-        practice_revision_uuid="revision",
-        practice_artifact_id="artifact",
-        score_title_snapshot="Title at admission",
-        scope_type="FULL",
-        ticks_per_quarter=1,
-        scope_start_tick=0,
-        scope_terminal_tick=4,
-        tempo_plan="{}",
-        recording_timebase="{}",
-
-        media_kind="AUDIO",
-        media_mime_type="audio/webm",
-        media_byte_size=10,
         storage_backend="local",
         staging_object_key="staging",
         storage_reservation_id="quota",
@@ -45,55 +38,78 @@ def reservation_values(user_id):
     ).model_dump(exclude={"id"})
 
 
-def test_fresh_reservation_and_take_store_provenance_without_a_source_row(monkeypatch):
+def test_fresh_manifest_shared_by_reservation_and_take(monkeypatch):
+    from app.db.models import PerformanceTakeManifest
+
     with migration_database(monkeypatch) as (engine, config):
         command.upgrade(config, "head")
         assert_current_bundle_schema(engine)
         with Session(engine) as db:
             user = User(email="snapshot@example.com", display_name="Snapshot", password_hash="test")
             db.add(user)
-            db.commit()
-            row = PerformanceTakeUploadReservation(**reservation_values(user.id))
-            db.add(row)
             db.flush()
-            take = PerformanceTake(
+            manifest = PerformanceTakeManifest(
                 user_id=user.id,
                 take_uuid="take",
-                upload_reservation_id=row.id,
-                practice_bundle_id=row.practice_bundle_id,
-                practice_score_uuid=row.practice_score_uuid,
-                practice_revision_uuid=row.practice_revision_uuid,
-                practice_artifact_id=row.practice_artifact_id,
-                score_title_snapshot=row.score_title_snapshot,
-                media_kind=PerformanceTakeMediaKind.AUDIO,
-                media_mime_type="audio/webm",
-                media_byte_size=10,
-                media_object_key="media",
-                storage_backend="local",
-
+                practice_bundle_id="bundle-fingerprint",
+                practice_score_uuid="score",
+                practice_revision_uuid="revision",
+                practice_artifact_id="artifact",
+                score_title_snapshot="Title at admission",
                 scope_type="FULL",
                 ticks_per_quarter=1,
                 scope_start_tick=0,
                 scope_terminal_tick=4,
                 tempo_plan="{}",
                 recording_timebase="{}",
+                media_kind="AUDIO",
+                media_mime_type="audio/webm",
+                media_byte_size=10,
             )
-            db.add(take)
+            db.add(manifest)
+            db.flush()
+            row = PerformanceTakeUploadReservation(
+                user_id=user.id,
+                manifest_id=manifest.id,
+                reservation_uuid="reservation",
+                client_request_id="request",
+                storage_backend="local",
+                staging_object_key="staging",
+                storage_reservation_id="quota",
+                expires_at=utc_now_naive() + timedelta(hours=1),
+                status="RESERVED",
+            )
+            take = PerformanceTake(
+                manifest_id=manifest.id, media_object_key="media", storage_backend="local"
+            )
+            db.add_all([row, take])
             db.commit()
-            db.refresh(take)
-            assert (
-                take.practice_bundle_id == "source-fingerprint"
-                and take.score_title_snapshot == "Title at admission"
-            )
+            assert row.manifest_id == take.manifest_id == manifest.id
             assert db.scalar(sa.text("SELECT count(*) FROM practice_bundles")) == 0
-            duplicate = PerformanceTake(
-                **{
-                    **take.model_dump(exclude={"id"}),
-                    "take_uuid": "duplicate",
-                    "media_object_key": "other",
-                }
+            db.add(
+                PerformanceTake(
+                    manifest_id=manifest.id, media_object_key="other", storage_backend="local"
+                )
             )
-            db.add(duplicate)
+            with pytest.raises(IntegrityError):
+                db.commit()
+            db.rollback()
+            other = User(email="other@example.com", display_name="Other", password_hash="test")
+            db.add(other)
+            db.flush()
+            db.add(
+                PerformanceTakeUploadReservation(
+                    user_id=other.id,
+                    manifest_id=manifest.id,
+                    reservation_uuid="other",
+                    client_request_id="request",
+                    storage_backend="local",
+                    staging_object_key="other-staging",
+                    storage_reservation_id="other-quota",
+                    expires_at=utc_now_naive() + timedelta(hours=1),
+                    status="RESERVED",
+                )
+            )
             with pytest.raises(IntegrityError):
                 db.commit()
             db.rollback()

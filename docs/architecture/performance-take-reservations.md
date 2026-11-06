@@ -5,7 +5,7 @@ UploadReservation is a persisted lifecycle aggregate. Its pure owner is
 HTTP DTOs carry intent and recording evidence. `PerformanceTakeUploadService`
 authorizes the exact bound Bundle, calls the Practice planner, orchestrates storage IO,
 and executes explicit transition effects. `PerformanceTakeService` owns the durable
-Take library: reads, playback, download and deletion from its own durable snapshots.
+Take library: reads, playback, download and deletion, using the shared immutable Manifest.
 
 ## Capture, archive and export
 
@@ -70,16 +70,33 @@ Copy and completion both check lease identity; completion also requires a live l
 
 New durable save admission authorizes and verifies a live exact bound Bundle under Score,
 Revision, selected access fact, Binding and Bundle locks. The lock order and delete/admit ordering
-belong to [Practice Bundle](practice-bundle.md#save-and-browser-admission). The reservation
-snapshots practice_bundle_id, practice_score_uuid, practice_revision_uuid, practice_artifact_id,
-score_title_snapshot and server-resolved scope/tempo. Provenance is immutable metadata,
-not Bundle ownership. A committed reservation finalizes independently of Bundle lifetime.
+belong to [Practice Bundle](practice-bundle.md#save-and-browser-admission).
 
-Take creation, reservation completion and quota commit share one database transaction.
-Cancellation/expiry release quota in one transaction. Finalize copies provenance, title,
-resolved scope/tempo and recording timebase without Bundle reads or replanning. Its live
-navigation FK follows ON DELETE SET NULL; the read projection decides whether navigation
-is currently authorized. Only revision bindings retain PracticeBundle; Take and Reservation do not retain it.
+`PerformanceTakeManifest` owns one immutable admitted saved-performance snapshot: public Take
+UUID, user identity, detached Bundle/Score/Revision/artifact provenance strings, title at admission,
+media kind/MIME/byte size, resolved scope, score timebase, tempo plan and RecordingTimebase.
+`manifest.py` exposes the frozen `TakeManifest` value; `manifest_persistence.py` is its single
+hydration and canonical JSON codec. Invalid persisted snapshots fail closed.
+
+Reservation and Take reference the exact same Manifest row. Reservation owns idempotency,
+quota hold, staging and finalize/cleanup lifecycle. Take owns final media locator/backend,
+live navigation pointer and library/deletion lifecycle. Manifest has no storage locator, upload
+state, navigation pointer or Bundle/Revision FK. Only revision bindings retain PracticeBundle.
+
+Reserve commits Manifest, Reservation and quota hold atomically. Concurrent equal client requests
+retain one of each. Both Reservation and Take responses expose the same nested `manifest`
+projection; their public `take_id` comes from Manifest.take_uuid. The composite Reservation
+Manifest/owner FK enforces agreement with its idempotency user. Take.manifest_id is unique.
+
+Finalization holds an immutable TakeManifest value across slow storage IO and creates a Take
+with its manifest_id and physical/library facts. Take creation, reservation completion and quota
+commit share one transaction. Finalize performs no Bundle read, authorization or replanning.
+It resolves an optional current Score navigation link by the Manifest score UUID; a missing or
+deleting Score produces a null pointer. Read-time Score access controls navigation.
+
+Take deletion snapshots a self-contained outbox payload, removes final media and the Take row,
+and releases quota. Manifest and Reservation remain as idempotency lineage. Cancellation and
+expiry preserve the same Manifest without introducing a separate Manifest cleanup lifecycle.
 
 ## Replay, cancellation and recovery
 
@@ -113,25 +130,16 @@ The save request and planning agreement are defined by the
 
 ## Durable Practice score timebase
 
-The reservation and Take persist `ticks_per_quarter BIGINT NOT NULL`. Their
-`score_timebase: { ticks_per_quarter }` API field is independent of
-`recording_timebase`, which maps integer performance microseconds to integer media
-microseconds. Its `nominalMediaDurationUs` is the sole nominal recording duration;
-Take and reservation rows have no separate duration column. Duration admission reads
-this validated timebase, and finalize copies its exact immutable coordinate payload.
-Scope and tempo positions share this one score coordinate system.
+The Manifest persists `ticks_per_quarter BIGINT NOT NULL`, exact resolved scope ticks and
+ordered tempo positions. Both response paths read `manifest.score_timebase`; the separate
+`manifest.recording_timebase` maps integer performance microseconds to integer media microseconds.
+Its `nominalMediaDurationUs` is the sole nominal recording duration authority.
 
-Admission reads the exact bound Bundle artifact's `ticksPerQuarter` while resolving the
-scope and tempo plan. Idempotent replay returns the persisted timebase. Finalize
-copies it from the reservation snapshot, without revision binding access or replanning.
-Take reads and lists retain the complete coordinate snapshot after Bundle GC.
+Admission derives scope, tempo and score grid from the exact bound Bundle. Replay and finalize
+consume that same immutable Manifest after Score/Revision deletion or Bundle GC. Manifest alone
+owns the positive JSON-safe grid and scope-coordinate database constraints.
 
-Both tables constrain positive JSON-safe `ticks_per_quarter`, nonnegative
-JSON-safe `scope_start_tick`, positive JSON-safe `scope_terminal_tick`, and
-`scope_terminal_tick >= scope_start_tick`. Stored API snapshots validate their
-score timebase, integer scope coordinates and ordered integer tempo positions.
-
-Browser save agreement compares the server's grid with the admitted artifact
-before uploading media. A mismatch follows reservation cancellation policy.
-Saved score-based export also requires matching artifact identity, score timebase
-and scope; coordinates are never rescaled to another artifact grid.
+Browser Save uses one manifest-level agreement function for Reservation and Take. It compares
+the server grid, binding, scope and tempo with executed Plan truth. A RESERVED mismatch follows
+cancellation policy before upload. Saved score-based export reauthorizes the revision Bundle
+and requires exact Manifest Bundle/artifact identity, score timebase and scope agreement.

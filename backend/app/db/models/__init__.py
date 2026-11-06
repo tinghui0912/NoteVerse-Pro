@@ -1,3 +1,4 @@
+from .performance_take_manifest import PerformanceTakeManifest, PerformanceTakeMediaKind
 from .user import User
 from .auth import AuthToken, EmailChangeRequest, PendingRegistration, RefreshToken
 from .file import StorageBlob, Upload
@@ -77,9 +78,12 @@ from .storage_usage import (
 from .performance_take import (
     PerformanceTake,
     PerformanceTakeDeletionStatus,
-    PerformanceTakeMediaKind,
 )
-from .practice_bundle import PracticeBundleRecord, PracticeBundleStatus, ScoreRevisionPracticeBinding
+from .practice_bundle import (
+    PracticeBundleRecord,
+    PracticeBundleStatus,
+    ScoreRevisionPracticeBinding,
+)
 from .practice_bundle_delete_outbox import (
     PracticeBundleDeleteOutbox,
     PracticeBundleDeleteOutboxStatus,
@@ -163,6 +167,7 @@ __all__ = [
     "StorageUsageEvent",
     "StorageUsageReservation",
     "StorageUsageReservationStatus",
+    "PerformanceTakeManifest",
     "PerformanceTake",
     "PerformanceTakeDeletionStatus",
     "PerformanceTakeMediaKind",

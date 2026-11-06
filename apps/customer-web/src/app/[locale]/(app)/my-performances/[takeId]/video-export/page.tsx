@@ -14,13 +14,12 @@ import { VideoExportStudio } from '@/components/practice/video-export-studio';
 import { VerovioScoreViewer } from '@/components/score-preview/verovio-score-viewer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { usePerformanceTakeDetail } from '@/hooks/queries/use-performance-take-queries';
+import { materializePerformanceTakeMedia } from '@/lib/practice/media/performance-take/materialize';
 import {
-  usePerformanceTakeDetail,
-} from '@/hooks/queries/use-performance-take-queries';
-import {
-  materializePerformanceTakeMedia,
-} from '@/lib/practice/media/performance-take/materialize';
-import { releaseLocalMediaAsset, type LocalMediaAsset } from '@/lib/practice/media/local-media-asset';
+  releaseLocalMediaAsset,
+  type LocalMediaAsset,
+} from '@/lib/practice/media/local-media-asset';
 import { downloadLocalMedia } from '@/lib/practice/media/download-local-media';
 import { ApiError } from '@/lib/api-client';
 import { useSavedTakeExportBundle } from '@/hooks/practice/use-saved-take-export-bundle';
@@ -33,11 +32,13 @@ import { PracticeVerovioAdapter } from '@/lib/practice/score-view/verovio-adapte
 
 function takeIdFromParams(params: ReturnType<typeof useParams>): string {
   const value = params?.takeId;
-  return Array.isArray(value) ? value[0] ?? '' : value ?? '';
+  return Array.isArray(value) ? (value[0] ?? '') : (value ?? '');
 }
 
 function isPermanentResourceError(error: unknown): boolean {
-  return error instanceof ApiError && (error.status === 403 || error.status === 404);
+  return (
+    error instanceof ApiError && (error.status === 403 || error.status === 404)
+  );
 }
 
 function SavedTakeExportUnavailable({
@@ -83,28 +84,50 @@ export default function SavedPerformanceVideoExportPage() {
   const take = takeQuery.data?.data ?? null;
   const isBaseEligible = Boolean(take && hasSavedTakeVideoExportMetadata(take));
 
-  const bundle = useSavedTakeExportBundle({
-    bundleId: take?.bundle_id ?? '', scoreId: take?.score_id ?? '', revisionId: take?.revision_id ?? '',
-    artifactId: take?.artifact_id ?? '',
-  }, { enabled: isBaseEligible });
+  const bundle = useSavedTakeExportBundle(
+    {
+      bundleId: take?.manifest.practice_binding.bundle_id ?? '',
+      scoreId: take?.manifest.practice_binding.score_id ?? '',
+      revisionId: take?.manifest.practice_binding.revision_id ?? '',
+      artifactId: take?.manifest.artifact_id ?? '',
+    },
+    { enabled: isBaseEligible },
+  );
   const bundleQuery = bundle.bundleQuery;
   const artifact = bundle.artifact;
 
-  const [downloadedMedia, setDownloadedMedia] = useState<{take: typeof take; nonce: number; handle: LocalMediaAsset} | null>(null);
-  const [mediaFailure, setMediaFailure] = useState<{take: typeof take; nonce: number; permanent: boolean} | null>(null);
+  const [downloadedMedia, setDownloadedMedia] = useState<{
+    take: typeof take;
+    nonce: number;
+    handle: LocalMediaAsset;
+  } | null>(null);
+  const [mediaFailure, setMediaFailure] = useState<{
+    take: typeof take;
+    nonce: number;
+    permanent: boolean;
+  } | null>(null);
   const [mediaProgress, setMediaProgress] = useState<{
     loadedBytes: number;
     totalBytes: number | null;
   }>({ loadedBytes: 0, totalBytes: null });
   const [mediaRetryNonce, setMediaRetryNonce] = useState(0);
-  const mediaHandle = downloadedMedia?.take === take && downloadedMedia.nonce === mediaRetryNonce ? downloadedMedia.handle : null;
-  const mediaError = mediaFailure?.take === take && mediaFailure.nonce === mediaRetryNonce;
+  const mediaHandle =
+    downloadedMedia?.take === take && downloadedMedia.nonce === mediaRetryNonce
+      ? downloadedMedia.handle
+      : null;
+  const mediaError =
+    mediaFailure?.take === take && mediaFailure.nonce === mediaRetryNonce;
   const mediaErrorPermanent = mediaError && mediaFailure.permanent;
   const [replayVideo, setReplayVideo] = useState<HTMLVideoElement | null>(null);
   const [mediaTimeMs, setMediaTimeMs] = useState(0);
-  const [scoreContainer, setScoreContainer] = useState<HTMLDivElement | null>(null);
+  const [scoreContainer, setScoreContainer] = useState<HTMLDivElement | null>(
+    null,
+  );
   const [isReplayPlaying, setIsReplayPlaying] = useState(false);
-  const adapter = useMemo(() => new PracticeVerovioAdapter(artifact), [artifact]);
+  const adapter = useMemo(
+    () => new PracticeVerovioAdapter(artifact),
+    [artifact],
+  );
   const adapterFactory = useCallback(() => adapter, [adapter]);
 
   useEffect(() => {
@@ -113,7 +136,10 @@ export default function SavedPerformanceVideoExportPage() {
     }
     const controller = new AbortController();
     let owned: LocalMediaAsset | null = null;
-    void materializePerformanceTakeMedia({ takeId: take.take_id, expectedByteSize: take.media_byte_size, expectedMimeType: take.media_mime_type,
+    void materializePerformanceTakeMedia({
+      takeId: take.take_id,
+      expectedByteSize: take.manifest.media.byte_size,
+      expectedMimeType: take.manifest.media.mime_type,
       signal: controller.signal,
       onProgress: (loadedBytes, totalBytes) => {
         if (!controller.signal.aborted) {
@@ -122,16 +148,26 @@ export default function SavedPerformanceVideoExportPage() {
       },
     })
       .then(async (handle) => {
-        if (controller.signal.aborted) { await releaseLocalMediaAsset(handle); return; }
+        if (controller.signal.aborted) {
+          await releaseLocalMediaAsset(handle);
+          return;
+        }
         owned = handle;
-        setDownloadedMedia({take, nonce: mediaRetryNonce, handle});
+        setDownloadedMedia({ take, nonce: mediaRetryNonce, handle });
       })
       .catch((error) => {
         if (!controller.signal.aborted) {
-          setMediaFailure({take,nonce:mediaRetryNonce,permanent:isPermanentResourceError(error)});
+          setMediaFailure({
+            take,
+            nonce: mediaRetryNonce,
+            permanent: isPermanentResourceError(error),
+          });
         }
       });
-    return () => { controller.abort(); if (owned) void releaseLocalMediaAsset(owned); };
+    return () => {
+      controller.abort();
+      if (owned) void releaseLocalMediaAsset(owned);
+    };
   }, [isBaseEligible, mediaRetryNonce, take]);
 
   useEffect(() => () => adapter.dispose(), [adapter]);
@@ -139,11 +175,10 @@ export default function SavedPerformanceVideoExportPage() {
   const isBundleReady = Boolean(bundle.artifact && bundle.musicXml);
   const sessionEligibility = useMemo(() => {
     if (!take || !mediaHandle || !artifact || !isBundleReady) return null;
-    return createVideoExportSessionFromSavedTake(
-      take,
-      mediaHandle,
-      { binding: bundle.binding!, artifact }
-    );
+    return createVideoExportSessionFromSavedTake(take, mediaHandle, {
+      binding: bundle.binding!,
+      artifact,
+    });
   }, [artifact, isBundleReady, mediaHandle, take, bundle.binding]);
   const session =
     sessionEligibility?.status === 'supported'
@@ -155,9 +190,11 @@ export default function SavedPerformanceVideoExportPage() {
     return {
       kind: 'VIDEO_RECORDING',
       media: mediaHandle,
-      contentType: take.media_mime_type,
+      contentType: take.manifest.media.mime_type,
       byteSize: mediaHandle.byteSize,
-      recordingTimebase: decodeRecordingTimebase(take.recording_timebase),
+      recordingTimebase: decodeRecordingTimebase(
+        take.manifest.recording_timebase,
+      ),
     };
   }, [take, mediaHandle]);
 
@@ -210,7 +247,9 @@ export default function SavedPerformanceVideoExportPage() {
             : t('savedTakeVideoExportTemporaryUnavailable')
         }
         backLabel={t('savedTakeVideoExportBack')}
-        retryLabel={mediaErrorPermanent ? undefined : t('savedTakeVideoExportRetry')}
+        retryLabel={
+          mediaErrorPermanent ? undefined : t('savedTakeVideoExportRetry')
+        }
         onRetry={
           mediaErrorPermanent
             ? undefined
@@ -225,8 +264,10 @@ export default function SavedPerformanceVideoExportPage() {
       />
     );
   }
-  const exportUnavailable = bundle.invalid || isPermanentResourceError(bundle.transportError)
-    || sessionEligibility?.status === 'unsupported';
+  const exportUnavailable =
+    bundle.invalid ||
+    isPermanentResourceError(bundle.transportError) ||
+    sessionEligibility?.status === 'unsupported';
   if (!replay) {
     return (
       <div className="mx-auto max-w-4xl space-y-6 px-4 py-8">
@@ -237,7 +278,8 @@ export default function SavedPerformanceVideoExportPage() {
               <p>
                 {t('savedTakeVideoExportLoadingMedia', {
                   progress: ` ${Math.round(
-                    (mediaProgress.loadedBytes / mediaProgress.totalBytes) * 100
+                    (mediaProgress.loadedBytes / mediaProgress.totalBytes) *
+                      100,
                   )}%`,
                 })}
               </p>
@@ -247,11 +289,15 @@ export default function SavedPerformanceVideoExportPage() {
             {mediaProgress.totalBytes ? (
               <progress
                 className="h-2 w-full max-w-sm"
-                value={Math.min(mediaProgress.loadedBytes, mediaProgress.totalBytes)}
+                value={Math.min(
+                  mediaProgress.loadedBytes,
+                  mediaProgress.totalBytes,
+                )}
                 max={mediaProgress.totalBytes}
                 aria-label={t('savedTakeVideoExportLoadingMedia', {
                   progress: `${Math.round(
-                    (mediaProgress.loadedBytes / mediaProgress.totalBytes) * 100
+                    (mediaProgress.loadedBytes / mediaProgress.totalBytes) *
+                      100,
                   )}%`,
                 })}
               />
@@ -269,9 +315,12 @@ export default function SavedPerformanceVideoExportPage() {
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
       <PageHeader
         title={t('savedTakeVideoExportTitle')}
-        description={take.score_title_snapshot}
+        description={take.manifest.score_title_snapshot}
         actions={
-          <Button variant="outline" onClick={() => router.push('/my-performances')}>
+          <Button
+            variant="outline"
+            onClick={() => router.push('/my-performances')}
+          >
             <ArrowLeft className="mr-2 h-4 w-4" />
             {t('savedTakeVideoExportBack')}
           </Button>
@@ -281,15 +330,28 @@ export default function SavedPerformanceVideoExportPage() {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">{t('savedTakeVideoExportRecording')}</CardTitle>
+            <CardTitle className="text-sm">
+              {t('savedTakeVideoExportRecording')}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <PerformanceReplayPlayer
               replay={replay}
-              actions={<Button onClick={() => {
-                void downloadLocalMedia(mediaHandle!, `performance-${take.take_id}.${captureMediaExtension(take.media_mime_type)}`);
-              }}>{t('downloadVideo')}</Button>}
-              onReplayTimeChange={(time) => setMediaTimeMs(Math.max(0, time ?? 0))}
+              actions={
+                <Button
+                  onClick={() => {
+                    void downloadLocalMedia(
+                      mediaHandle!,
+                      `performance-${take.take_id}.${captureMediaExtension(take.manifest.media.mime_type)}`,
+                    );
+                  }}
+                >
+                  {t('downloadVideo')}
+                </Button>
+              }
+              onReplayTimeChange={(time) =>
+                setMediaTimeMs(Math.max(0, time ?? 0))
+              }
               onPlaybackStateChange={setIsReplayPlaying}
               onVideoElementChange={setReplayVideo}
             />
@@ -297,43 +359,78 @@ export default function SavedPerformanceVideoExportPage() {
         </Card>
         <Card className="overflow-hidden">
           <CardHeader>
-            <CardTitle className="text-sm">{t('savedTakeVideoExportScore')}</CardTitle>
+            <CardTitle className="text-sm">
+              {t('savedTakeVideoExportScore')}
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            {exportUnavailable || bundle.isError ? <div className="space-y-3 p-8" role="status">
-              <p>{t(exportUnavailable ? 'savedTakeVideoExportRevisionUnavailable' : 'savedTakeVideoExportTemporaryUnavailable')}</p>
-              {!exportUnavailable && <Button onClick={() => { void bundleQuery.refetch(); }}>{t('savedTakeVideoExportRetry')}</Button>}
-            </div> : <VerovioScoreViewer
-              isLoading={bundle.isLoading}
-              xmlContent={xmlContent}
-              adapterFactory={adapterFactory}
-              onRendered={(_renderedAdapter, container) => setScoreContainer(container)}
-              className="max-h-[32rem] overflow-auto rounded-md border bg-white"
-              pagesClassName="gap-4 p-4"
-              pageClassName="w-full overflow-hidden bg-white"
-              svgClassName="w-full"
-              loadingContent={<div className="p-8 text-sm text-muted-foreground">{t('savedTakeVideoExportLoading')}</div>}
-              emptyContent={<div className="p-8 text-sm text-muted-foreground">{t('savedTakeVideoExportEmptyScore')}</div>}
-              renderError={(message) => <div className="p-8 text-sm text-destructive">{message}</div>}
-            />}
+            {exportUnavailable || bundle.isError ? (
+              <div className="space-y-3 p-8" role="status">
+                <p>
+                  {t(
+                    exportUnavailable
+                      ? 'savedTakeVideoExportRevisionUnavailable'
+                      : 'savedTakeVideoExportTemporaryUnavailable',
+                  )}
+                </p>
+                {!exportUnavailable && (
+                  <Button
+                    onClick={() => {
+                      void bundleQuery.refetch();
+                    }}
+                  >
+                    {t('savedTakeVideoExportRetry')}
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <VerovioScoreViewer
+                isLoading={bundle.isLoading}
+                xmlContent={xmlContent}
+                adapterFactory={adapterFactory}
+                onRendered={(_renderedAdapter, container) =>
+                  setScoreContainer(container)
+                }
+                className="max-h-[32rem] overflow-auto rounded-md border bg-white"
+                pagesClassName="gap-4 p-4"
+                pageClassName="w-full overflow-hidden bg-white"
+                svgClassName="w-full"
+                loadingContent={
+                  <div className="p-8 text-sm text-muted-foreground">
+                    {t('savedTakeVideoExportLoading')}
+                  </div>
+                }
+                emptyContent={
+                  <div className="p-8 text-sm text-muted-foreground">
+                    {t('savedTakeVideoExportEmptyScore')}
+                  </div>
+                }
+                renderError={(message) => (
+                  <div className="p-8 text-sm text-destructive">{message}</div>
+                )}
+              />
+            )}
           </CardContent>
         </Card>
       </div>
 
-      {session && artifact && xmlContent && <VideoExportStudio
-        session={session}
-        scoreContainer={scoreContainer}
-        adapter={adapter}
-        scoreEndTick={artifact.scoreEndTick} ticksPerQuarter={artifact.ticksPerQuarter}
-        isScoreIdentityConfirmed={isBundleReady}
-        xmlContent={xmlContent}
-        mediaTimeMs={mediaTimeMs}
-        isReplayPlaying={isReplayPlaying}
-        replayVideo={replayVideo}
-        open
-        collapsible={false}
-        onOpenChange={() => undefined}
-      />}
+      {session && artifact && xmlContent && (
+        <VideoExportStudio
+          session={session}
+          scoreContainer={scoreContainer}
+          adapter={adapter}
+          scoreEndTick={artifact.scoreEndTick}
+          ticksPerQuarter={artifact.ticksPerQuarter}
+          isScoreIdentityConfirmed={isBundleReady}
+          xmlContent={xmlContent}
+          mediaTimeMs={mediaTimeMs}
+          isReplayPlaying={isReplayPlaying}
+          replayVideo={replayVideo}
+          open
+          collapsible={false}
+          onOpenChange={() => undefined}
+        />
+      )}
     </div>
   );
 }

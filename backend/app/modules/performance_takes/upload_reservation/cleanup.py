@@ -71,7 +71,7 @@ class UploadReservationCleanupService:
                     continue
                 state = lifecycle_from_row(row)
                 take = db.scalar(
-                    select(PerformanceTake).where(PerformanceTake.upload_reservation_id == row.id)
+                    select(PerformanceTake).where(PerformanceTake.manifest_id == row.manifest_id)
                 )
                 state.assert_take_presence(take is not None, allow_deleted_take=True)
                 transition = state.recover_due(now=now)

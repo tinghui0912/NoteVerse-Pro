@@ -76,14 +76,69 @@ def upgrade() -> None:
     )
     op.create_table(
         "score_revision_practice_bindings",
-        sa.Column("revision_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=False),
-        sa.Column("bundle_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=False),
+        sa.Column(
+            "revision_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=False
+        ),
+        sa.Column(
+            "bundle_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=False
+        ),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(["revision_id"], ["score_revisions.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["bundle_id"], ["practice_bundles.id"], ondelete="RESTRICT"),
         sa.PrimaryKeyConstraint("revision_id"),
     )
-    op.create_index("ix_score_revision_practice_bindings_bundle_id", "score_revision_practice_bindings", ["bundle_id"])
+    op.create_index(
+        "ix_score_revision_practice_bindings_bundle_id",
+        "score_revision_practice_bindings",
+        ["bundle_id"],
+    )
+    op.create_table(
+        "performance_take_manifests",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            primary_key=True,
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("take_uuid", sa.String(length=36), nullable=False),
+        sa.Column("user_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=False),
+        sa.Column("practice_bundle_id", sa.String(length=128), nullable=False),
+        sa.Column("practice_score_uuid", sa.String(length=36), nullable=False),
+        sa.Column("practice_revision_uuid", sa.String(length=36), nullable=False),
+        sa.Column("practice_artifact_id", sa.String(length=128), nullable=False),
+        sa.Column("score_title_snapshot", sa.String(length=255), nullable=False),
+        sa.Column(
+            "media_kind", sa.Enum("AUDIO", "VIDEO", name="performancetakemediakind"), nullable=False
+        ),
+        sa.Column("media_mime_type", sa.String(length=64), nullable=False),
+        sa.Column("media_byte_size", sa.BigInteger(), nullable=False),
+        sa.Column("scope_type", sa.String(length=16), nullable=False),
+        sa.Column("scope_start_beat", sa.Float(), nullable=False),
+        sa.Column("scope_terminal_beat", sa.Float(), nullable=False),
+        sa.Column("scope_start_group_id", sa.String(length=128), nullable=True),
+        sa.Column("scope_end_group_id", sa.String(length=128), nullable=True),
+        sa.Column("tempo_plan", sa.Text(), nullable=False),
+        sa.Column("recording_timebase", sa.Text(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
+        sa.UniqueConstraint("id", "user_id", name="uq_take_manifest_id_owner"),
+        sa.CheckConstraint("scope_type IN ('FULL','RANGE')", name="ck_take_manifest_scope_type"),
+        sa.CheckConstraint("media_kind IN ('AUDIO','VIDEO')", name="ck_take_manifest_media_kind"),
+        sa.CheckConstraint("media_byte_size > 0", name="ck_take_manifest_media_size"),
+    )
+    op.create_index(
+        "ix_performance_take_manifests_take_uuid",
+        "performance_take_manifests",
+        ["take_uuid"],
+        unique=True,
+    )
+    op.create_index(
+        "ix_take_manifest_user_created", "performance_take_manifests", ["user_id", "created_at"]
+    )
+    op.create_index(
+        "ix_performance_take_manifests_user_id", "performance_take_manifests", ["user_id"]
+    )
     op.create_table(
         "performance_take_upload_reservations",
         sa.Column(
@@ -94,26 +149,7 @@ def upgrade() -> None:
         ),
         sa.Column("reservation_uuid", sa.String(length=36), nullable=False),
         sa.Column("user_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=False),
-        sa.Column("practice_bundle_id", sa.String(length=128), nullable=False),
-        sa.Column("practice_score_uuid", sa.String(length=36), nullable=False),
-        sa.Column("practice_revision_uuid", sa.String(length=36), nullable=False),
-        sa.Column("practice_artifact_id", sa.String(length=128), nullable=False),
         sa.Column("client_request_id", sa.String(length=128), nullable=False),
-        sa.Column("take_uuid", sa.String(length=36), nullable=False),
-        sa.Column(
-            "linked_score_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=True
-        ),
-        sa.Column("score_title_snapshot", sa.String(length=255), nullable=False),
-        sa.Column("scope_type", sa.String(length=16), nullable=False),
-        sa.Column("scope_start_beat", sa.Float(), nullable=False),
-        sa.Column("scope_terminal_beat", sa.Float(), nullable=False),
-        sa.Column("scope_start_group_id", sa.String(length=128), nullable=True),
-        sa.Column("scope_end_group_id", sa.String(length=128), nullable=True),
-        sa.Column("tempo_plan", sa.Text(), nullable=False),
-        sa.Column("recording_timebase", sa.Text(), nullable=False),
-        sa.Column("media_kind", sa.String(length=16), nullable=False),
-        sa.Column("media_mime_type", sa.String(length=64), nullable=False),
-        sa.Column("media_byte_size", sa.BigInteger(), nullable=False),
         sa.Column("storage_backend", sa.String(length=32), nullable=False),
         sa.Column("staging_object_key", sa.String(length=768), nullable=False),
         sa.Column("storage_reservation_id", sa.String(length=36), nullable=False),
@@ -136,16 +172,19 @@ def upgrade() -> None:
             "status IN ('RESERVED','FINALIZING','COMPLETED','CANCELLED','EXPIRED')",
             name="ck_take_reservation_status",
         ),
-        sa.ForeignKeyConstraint(
-            ["linked_score_id"],
-            ["scores.id"],
-            name="fk_take_upload_reservation_linked_score",
-            ondelete="SET NULL",
-        ),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint(
             "user_id", "client_request_id", name="uq_take_upload_reservation_user_client_request_id"
+        ),
+        sa.Column(
+            "manifest_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=False
+        ),
+        sa.ForeignKeyConstraint(
+            ["manifest_id", "user_id"],
+            ["performance_take_manifests.id", "performance_take_manifests.user_id"],
+            ondelete="CASCADE",
+            name="fk_take_reservation_manifest_owner",
         ),
     )
     op.create_index(
@@ -154,12 +193,7 @@ def upgrade() -> None:
         ["client_request_id"],
         unique=False,
     )
-    op.create_index(
-        op.f("ix_performance_take_upload_reservations_linked_score_id"),
-        "performance_take_upload_reservations",
-        ["linked_score_id"],
-        unique=False,
-    )
+
     op.create_index(
         op.f("ix_performance_take_upload_reservations_reservation_uuid"),
         "performance_take_upload_reservations",
@@ -172,12 +206,7 @@ def upgrade() -> None:
         ["storage_reservation_id"],
         unique=False,
     )
-    op.create_index(
-        op.f("ix_performance_take_upload_reservations_take_uuid"),
-        "performance_take_upload_reservations",
-        ["take_uuid"],
-        unique=False,
-    )
+
     op.create_index(
         op.f("ix_performance_take_upload_reservations_user_id"),
         "performance_take_upload_reservations",
@@ -190,6 +219,11 @@ def upgrade() -> None:
         ["status", "expires_at"],
         unique=False,
     )
+    op.create_index(
+        "ix_performance_take_upload_reservations_manifest_id",
+        "performance_take_upload_reservations",
+        ["manifest_id"],
+    )
     op.create_table(
         "performance_takes",
         sa.Column(
@@ -198,58 +232,26 @@ def upgrade() -> None:
             autoincrement=True,
             nullable=False,
         ),
-        sa.Column("take_uuid", sa.String(length=36), nullable=False),
-        sa.Column("user_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=False),
-        sa.Column("practice_bundle_id", sa.String(length=128), nullable=False),
-        sa.Column("practice_score_uuid", sa.String(length=36), nullable=False),
-        sa.Column("practice_revision_uuid", sa.String(length=36), nullable=False),
-        sa.Column("practice_artifact_id", sa.String(length=128), nullable=False),
         sa.Column(
             "linked_score_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=True
         ),
-        sa.Column("score_title_snapshot", sa.String(length=255), nullable=False),
-        sa.Column(
-            "upload_reservation_id",
-            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
-            nullable=False,
-        ),
-        sa.Column(
-            "media_kind", sa.Enum("AUDIO", "VIDEO", name="performancetakemediakind"), nullable=False
-        ),
-        sa.Column("media_mime_type", sa.String(length=64), nullable=False),
-        sa.Column("media_byte_size", sa.BigInteger(), nullable=False),
         sa.Column("media_object_key", sa.String(length=768), nullable=False),
         sa.Column("storage_backend", sa.String(length=32), nullable=False),
-        sa.Column("scope_type", sa.String(length=16), nullable=False),
-        sa.Column("scope_start_beat", sa.Float(), nullable=False),
-        sa.Column("scope_terminal_beat", sa.Float(), nullable=False),
-        sa.Column("scope_start_group_id", sa.String(length=128), nullable=True),
-        sa.Column("scope_end_group_id", sa.String(length=128), nullable=True),
-        sa.Column("tempo_plan", sa.Text(), nullable=False),
-        sa.Column("recording_timebase", sa.Text(), nullable=False),
         sa.Column("deletion_status", sa.String(length=16), nullable=False),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("updated_at", sa.DateTime(), nullable=False),
         sa.CheckConstraint(
             "deletion_status IN ('ACTIVE','DELETING')", name="ck_performance_takes_deletion_status"
         ),
-        sa.CheckConstraint(
-            "media_kind IN ('AUDIO','VIDEO')", name="ck_performance_takes_media_kind"
-        ),
-        sa.CheckConstraint(
-            "scope_type IN ('FULL','RANGE')", name="ck_performance_takes_scope_type"
-        ),
         sa.ForeignKeyConstraint(["linked_score_id"], ["scores.id"], ondelete="SET NULL"),
-        sa.ForeignKeyConstraint(
-            ["upload_reservation_id"],
-            ["performance_take_upload_reservations.id"],
-            ondelete="RESTRICT",
-        ),
-        sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint(
-            "upload_reservation_id", name="uq_performance_takes_upload_reservation"
+        sa.Column(
+            "manifest_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=False
         ),
+        sa.ForeignKeyConstraint(
+            ["manifest_id"], ["performance_take_manifests.id"], ondelete="CASCADE"
+        ),
+        sa.UniqueConstraint("manifest_id", name="uq_performance_takes_manifest"),
     )
     op.create_index(
         op.f("ix_performance_takes_linked_score_id"),
@@ -263,24 +265,7 @@ def upgrade() -> None:
         ["media_object_key"],
         unique=True,
     )
-    op.create_index(
-        op.f("ix_performance_takes_take_uuid"), "performance_takes", ["take_uuid"], unique=True
-    )
-    op.create_index(
-        "ix_performance_takes_user_created",
-        "performance_takes",
-        ["user_id", "created_at"],
-        unique=False,
-    )
-    op.create_index(
-        "ix_performance_takes_user_deletion_status",
-        "performance_takes",
-        ["user_id", "deletion_status"],
-        unique=False,
-    )
-    op.create_index(
-        op.f("ix_performance_takes_user_id"), "performance_takes", ["user_id"], unique=False
-    )
+
     op.create_table(
         "performance_take_delete_outbox",
         sa.Column(
