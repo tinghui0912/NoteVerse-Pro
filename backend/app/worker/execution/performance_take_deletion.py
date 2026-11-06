@@ -107,7 +107,7 @@ def execute_performance_take_deletion_task(
             outbox = db.execute(
                 select(PerformanceTakeDeleteOutbox)
                 .where(PerformanceTakeDeleteOutbox.outbox_uuid == outbox_uuid)
-                .with_for_update(of=PerformanceTake)
+                .with_for_update()
             ).scalar_one_or_none()
             if outbox is None:
                 raise RuntimeError(
