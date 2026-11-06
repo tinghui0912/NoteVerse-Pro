@@ -5,7 +5,7 @@ import type { PianoRawOutputs } from './raw-output-contract';
 import { decodeRobustPiano } from './robust-piano-decoder';
 import { ACOUSTIC_RUNTIME_CONTRACT as M } from '../generated/runtime-contract';
 import { AcousticAnalysisError, fail } from '../errors';
-import { assertAcousticIdentity, sha256 } from '../identity';
+import { assertAcousticRuntimeIdentity, sha256 } from '../identity';
 import { onlyFields } from '../validation';
 import type { AcousticInferenceInput, AcousticInferenceResult } from '../runtime/inference-types';
 import type { ModelAssetProgressCallback } from '../../../model-assets/types';
@@ -37,7 +37,7 @@ export class AcousticModelSession {
     this.busy = true;
     let session: ort.InferenceSession | null = null;
     try {
-      await assertAcousticIdentity();
+      await assertAcousticRuntimeIdentity();
       if(ort.env.versions.web !== M.runtime.packageVersion) fail('ORT_VERSION_MISMATCH');
       if (typeof navigator === 'undefined' || !navigator.gpu) fail('ACOUSTIC_WEBGPU_UNAVAILABLE');
       const asset = acousticModelAsset(modelUrl), started = performance.now();

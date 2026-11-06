@@ -4,8 +4,8 @@
   "sourceFiles": {
     "sourceAnalysis": {
       "path": "apps/customer-web/src/lib/practice/acoustic/runtime/source-analysis-runtime.ts",
-      "byteSize": 13041,
-      "sha256": "b9ce4414252dc3b46d50ea0d755e3379ccc4b9100b9249667b7119894958b47c",
+      "byteSize": 13055,
+      "sha256": "01f0cea2c5335e295b2a88577e6b301439dfb6a101a5b6dc34bdb1cd954c224c",
       "normalization": "UTF8_CRLF_TO_LF",
       "scope": "Sequential source windows produce immutable all-pitch observations with source sample identity, half-open ownership and analyzed-through coverage. Source event time and publication availability use separate clocks. No score, target or verdict enters source analysis."
     },

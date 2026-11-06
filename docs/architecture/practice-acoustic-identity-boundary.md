@@ -30,6 +30,11 @@ contracts and derives immutable [TS](../../apps/customer-web/src/lib/practice/ac
 and [Python](../../backend/app/modules/model_assets/generated/practice_acoustic_contract.py)
 projections. Delivery, verification, inference, decoder and source adapters consume
 those projections. `--check` rejects declaration, byte-attestation or projection drift.
+Evidence attestation is build/repository evidence and is validated by the generator
+and repository tests. It is not shipped as browser runtime data. The browser carries
+the runtime contract and generated runtime, evidence and composite digests needed
+to identify the configured analysis stack. The identity label derives from the
+model asset ID and version.
 
 Selected repository anchors are:
 
@@ -45,13 +50,15 @@ verify declared paths, bytes and SHA256. Text normalization is CRLF→LF only, f
 by UTF-8 encoding; FIR assets use exact binary bytes. Canonical JSON sorts object
 keys recursively and hashes its UTF-8 representation. The analysis identity hashes the canonical runtime and evidence digests. Adapter
 identities bind that analysis identity, rate-specific geometry and coefficient facts.
-Model delivery separately verifies model byte length and SHA256. Browser
-assertAcousticIdentity validates declarations/composites without filesystem access.
+Model delivery separately verifies model byte length and SHA256.
+`assertAcousticRuntimeIdentity` verifies the runtime declaration hash and its
+composite binding to the generator-produced evidence digest. Repository file bytes
+and evidence contents are validated by generator/Node tests.
 
 Selected source hashing is deliberate rather than transitive dependency attestation.
 Engine, worker/client, capture transport, input/controller, resource-policy and
 intervention implementations have their own runtime ownership and tests. They are
-outside the declared evidence-core provenance scope. A selected file can contain
+outside the declared selected evidence scope. A selected file can contain
 resource checks whose bytes are still covered by its file attestation.
 
 Source byte identity and semantic equivalence answer different questions. Any byte
@@ -93,7 +100,7 @@ qualification of any parameter. See the [parameter evidence](practice-acoustic-p
 The source executor preserves an Error cause directly and wraps a non-Error cause in
 `AcousticAnalysisError` with the closed `ACOUSTIC_INTERNAL_FAILURE` code. Adapter
 boundaries project known acoustic preparation and inference codes into typed causes.
-The selected-source bytes attest that executor behavior; core and adapter composite
+The selected-source bytes attest that executor behavior; analysis identity and source-adapter
 identities bind those bytes without changing model or FIR identities. Diagnostic source
 summaries carry no authority to classify application failures. See
 [failure boundaries](practice-failures.md).

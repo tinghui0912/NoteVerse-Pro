@@ -1,7 +1,7 @@
 import { ACOUSTIC_ANALYSIS_IDENTITY } from '../generated/runtime-contract';
 import { ACOUSTIC_RUNTIME_CONTRACT as M, ACOUSTIC_TARGET_SAMPLES_PER_MS } from '../generated/runtime-contract';
 import { AcousticAnalysisError, fail } from '../errors';
-import { assertAcousticIdentity } from '../identity';
+import { assertAcousticRuntimeIdentity } from '../identity';
 import { onlyFields, safeIndex } from '../validation';
 import { QualifiedSourceAdapter } from '../source/source-adapter';
 import { CAPTURE_TRANSPORT_BLOCK_SAMPLES } from '../source/capture-transport-contract';
@@ -49,7 +49,7 @@ export class SourceAnalysisRuntime {
   static async create(options: SourceAnalysisOptions): Promise<SourceAnalysisRuntime> {
     onlyFields(options, ['sourceDomainId', 'sourceSampleRateHz', 'coefficientBytes', 'worker', 'nowAvailabilityRuntimeMs', 'onPublication', 'onFailure']);
     if (!isAcousticDomainIdentity(options.sourceDomainId)) fail('INVALID_ACOUSTIC_DOMAIN');
-    await assertAcousticIdentity();
+    await assertAcousticRuntimeIdentity();
     const adapter = await QualifiedSourceAdapter.create(options.sourceSampleRateHz, options.coefficientBytes);
     return new SourceAnalysisRuntime(Object.freeze({ ...options, coefficientBytes: new Uint8Array() }), adapter);
   }

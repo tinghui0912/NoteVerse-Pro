@@ -7,7 +7,6 @@ export const ACOUSTIC_RUNTIME_CONTRACT = Object.freeze({
 "onsetThreshold": 0.3,
 "outputFrameRateHz": 100
 } as const),
-"identityName": "practice-acoustic-robust-browser@v1",
 "input": Object.freeze({
 "dtype": "float32",
 "name": "audio",
@@ -66,59 +65,11 @@ export const ACOUSTIC_RUNTIME_CONTRACT = Object.freeze({
 "ownedSamples": 9600
 } as const)
 } as const);
-export const ACOUSTIC_EVIDENCE_ATTESTATION = Object.freeze({
-"coefficientAssets": Object.freeze([Object.freeze({
-"scope": "Exact raw float32 little-endian FIR bytes declared by the runtime contract.",
-"sourceRateHz": 44100
-} as const), Object.freeze({
-"scope": "Exact raw float32 little-endian FIR bytes declared by the runtime contract.",
-"sourceRateHz": 48000
-} as const)] as const),
-"schemaVersion": 1,
-"scope": "Selected evidence-producing source implementations and exact shipped FIR assets; not an executable dependency closure.",
-"sourceFiles": Object.freeze({
-"decoder": Object.freeze({
-"byteSize": 2963,
-"normalization": "UTF8_CRLF_TO_LF",
-"path": "apps/customer-web/src/lib/practice/acoustic/model/robust-piano-decoder.ts",
-"scope": "Contiguous onset regions choose the first maximum, gate on frame support and retain the minimum confidence. Events sort by time then pitch.",
-"sha256": "fbe70e5a64dac97cb3109fabef88b13d79548f1bfc62b815d5720ae38feb82cf"
-} as const),
-"sourceAdapter": Object.freeze({
-"byteSize": 2788,
-"normalization": "UTF8_CRLF_TO_LF",
-"path": "apps/customer-web/src/lib/practice/acoustic/source/source-adapter.ts",
-"scope": "Rational FIR uses float32 products and each accumulation, persistent bounded source state, origin zeros only and no fitted shift or gain normalization.",
-"sha256": "0a35ad923f30e70abe8c7a7f2d2d3cc7ffd708356e0ad960a9a48bdda42670b5"
-} as const),
-"sourceAnalysis": Object.freeze({
-"byteSize": 13041,
-"normalization": "UTF8_CRLF_TO_LF",
-"path": "apps/customer-web/src/lib/practice/acoustic/runtime/source-analysis-runtime.ts",
-"scope": "Sequential source windows produce immutable all-pitch observations with source sample identity, half-open ownership and analyzed-through coverage. Source event time and publication availability use separate clocks. No score, target or verdict enters source analysis.",
-"sha256": "b9ce4414252dc3b46d50ea0d755e3379ccc4b9100b9249667b7119894958b47c"
-} as const),
-"sourcePublication": Object.freeze({
-"byteSize": 8461,
-"normalization": "UTF8_CRLF_TO_LF",
-"path": "apps/customer-web/src/lib/practice/acoustic/runtime/source-publication.ts",
-"scope": "Immutable source observations use half-open ownership and a publication clock independent of source event time.",
-"sha256": "5b01c9e2f4e05f31e96d67050d8dc0352de2b1659c916422d758980c40001dfc"
-} as const),
-"windowPlanner": Object.freeze({
-"byteSize": 2260,
-"normalization": "UTF8_CRLF_TO_LF",
-"path": "apps/customer-web/src/lib/practice/acoustic/runtime/window-planner.ts",
-"scope": "Half-open sample ownership uses real past and future context; final partial ownership shifts the full input without padding.",
-"sha256": "6e3cd261465b8517a02c4a82aaac8e2b8306e5a9cc86201de7a58690587a663b"
-} as const)
-} as const)
-} as const);
 export const ACOUSTIC_ANALYSIS_IDENTITY = Object.freeze({
 "identityName": "practice-acoustic-robust-browser@v1",
-"runtimeContractSha256": "e009b656bc73df18192d012d36170dcd9b5d05f9739bfa179293315baf1bb562",
-"evidenceAttestationSha256": "a02cde8335103152dd8949abdfb6868b890e59e12b7064572fa8884941978cb2",
-"analysisIdentitySha256": "242820728f9acccfe3bf2b1402ae79ccb0e14c6894e1a52a3f1637425d198e51"
+"runtimeContractSha256": "d469a156a0acbe34ab3e3285d4d6857824f0d71992deae4f3e2b1a03e839304f",
+"evidenceAttestationSha256": "5ac985faec8fce506a37d393959e5f04fb3464896a2c7edeb82517eb113c9b6b",
+"analysisIdentitySha256": "87f9ec2a352b8aa2eaa94326b66f5196946525dd11a48d1fe839b769a682c5b9"
 } as const);
 export const SOURCE_ADAPTER_CONTRACTS = Object.freeze({
 "44100": Object.freeze({
@@ -135,8 +86,8 @@ export const SOURCE_ADAPTER_CONTRACTS = Object.freeze({
 "realSourceLookaheadSamples": 28,
 "firstFullyRealOutputIndex": 10,
 "coefficientUrl": "/model-assets/practice-acoustic/fir-160-441.f32",
-"analysisIdentitySha256": "242820728f9acccfe3bf2b1402ae79ccb0e14c6894e1a52a3f1637425d198e51",
-"identitySha256": "baaba6e41f462b582a9722fde5d219dc5d4e34c061c9c6fb718f3c47017c8b2b"
+"analysisIdentitySha256": "87f9ec2a352b8aa2eaa94326b66f5196946525dd11a48d1fe839b769a682c5b9",
+"identitySha256": "f96ed0d07121a76c4fed01d9ef10123e1134487fb96ac3c87563c52a92adc406"
 } as const),
 "48000": Object.freeze({
 "coefficientAsset": Object.freeze({
@@ -152,8 +103,8 @@ export const SOURCE_ADAPTER_CONTRACTS = Object.freeze({
 "realSourceLookaheadSamples": 30,
 "firstFullyRealOutputIndex": 10,
 "coefficientUrl": "/model-assets/practice-acoustic/fir-1-3.f32",
-"analysisIdentitySha256": "242820728f9acccfe3bf2b1402ae79ccb0e14c6894e1a52a3f1637425d198e51",
-"identitySha256": "ac7c2707f1079f235d604dc08c7b6acef30218f32d2586c77ba1973f72b01f17"
+"analysisIdentitySha256": "87f9ec2a352b8aa2eaa94326b66f5196946525dd11a48d1fe839b769a682c5b9",
+"identitySha256": "de999b9f304caedc65b62a0cbfd2165d40ca606953004408ed2308331dcff60c"
 } as const)
 } as const);
 export const ACOUSTIC_MODEL_ASSET_DESCRIPTOR = Object.freeze({

@@ -2,6 +2,7 @@
 
 import copy
 import json
+import re
 import importlib.util
 from pathlib import Path
 
@@ -24,6 +25,30 @@ def test_current_contract_evidence_and_generated_projections_agree():
         assert (ROOT / name).read_text(encoding="utf-8") == content
     assert generator.projections(runtime, evidence) == generator.projections(
         copy.deepcopy(runtime), copy.deepcopy(evidence)
+    )
+
+
+def test_browser_projection_contains_only_product_runtime_exports():
+    ts = generator.projections(runtime, evidence)[
+        "apps/customer-web/src/lib/practice/acoustic/generated/runtime-contract.ts"
+    ]
+    assert set(re.findall(r"^export const (\w+) =", ts, re.MULTILINE)) == {
+        "ACOUSTIC_RUNTIME_CONTRACT",
+        "ACOUSTIC_ANALYSIS_IDENTITY",
+        "SOURCE_ADAPTER_CONTRACTS",
+        "ACOUSTIC_MODEL_ASSET_DESCRIPTOR",
+        "ACOUSTIC_TARGET_SAMPLES_PER_MS",
+    }
+    for source in evidence["sourceFiles"].values():
+        for field in ["path", "sha256", "scope"]:
+            assert source[field] not in ts
+
+
+def test_generated_identity_label_derives_from_the_deployed_asset():
+    from app.modules.model_assets.generated.practice_acoustic_contract import ANALYSIS_IDENTITY
+
+    assert ANALYSIS_IDENTITY["identityName"] == (
+        f"{runtime['model']['assetId']}@{runtime['model']['assetVersion']}"
     )
 
 

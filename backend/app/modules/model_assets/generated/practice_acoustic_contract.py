@@ -36,8 +36,8 @@ MODEL_ASSET_DESCRIPTOR = MappingProxyType(
 ANALYSIS_IDENTITY = MappingProxyType(
     {
         "identityName": "practice-acoustic-robust-browser@v1",
-        "runtimeContractSha256": "e009b656bc73df18192d012d36170dcd9b5d05f9739bfa179293315baf1bb562",
-        "evidenceAttestationSha256": "a02cde8335103152dd8949abdfb6868b890e59e12b7064572fa8884941978cb2",
-        "analysisIdentitySha256": "242820728f9acccfe3bf2b1402ae79ccb0e14c6894e1a52a3f1637425d198e51",
+        "runtimeContractSha256": "d469a156a0acbe34ab3e3285d4d6857824f0d71992deae4f3e2b1a03e839304f",
+        "evidenceAttestationSha256": "5ac985faec8fce506a37d393959e5f04fb3464896a2c7edeb82517eb113c9b6b",
+        "analysisIdentitySha256": "87f9ec2a352b8aa2eaa94326b66f5196946525dd11a48d1fe839b769a682c5b9",
     }
 )

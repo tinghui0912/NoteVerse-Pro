@@ -7,9 +7,9 @@ product qualification.
 
 ## Modules
 
-- `model/`: verified Robust asset loading, one ORT 1.20.1 WebGPU session/Worker,
-  transaction-local raw output interpretation and decoder A.
-- `source/`: 44.1k/48k FIR adapters, PCM Worklet/credits, capture chronology,
+- `model/`: verified Robust asset loading, one configured ORT session/Worker,
+  transaction-local raw output interpretation and piano decoding.
+- `source/`: qualified FIR adapters, PCM Worklet/credits, capture chronology,
   analysis-clone ownership and infrastructure-loss facts.
 - `runtime/`: source-domain analysis regions, real-context windows, bounded target
   PCM ring and sequential inference queue, immutable source observations.
@@ -47,16 +47,21 @@ immutable TS/Python projections consumed by delivery, inference, decoder and sou
 adapters. Its `--check` mode rejects drift. Analysis identity combines the canonical
 runtime and evidence digests; per-rate identity additionally binds rational geometry
 and exact coefficients. The package declaration matches the configured ORT version.
+Evidence attestation is build/repository evidence, validated by generator and Node
+checks. It is not shipped in browser runtime data. The browser carries generated
+evidence/composite digests as identity metadata and validates the runtime declaration
+and its composite binding. The identity label derives from the deployed asset ID
+and version.
 
 ## Model Identity
 
-The model is `practice-acoustic-robust-browser@v1`, served by
-`/model-assets/practice-acoustic/access`. Download and OPFS reads
-verify 98,689,283 bytes and SHA256
-`4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3`.
-FIR assets are under `public/model-assets/practice-acoustic/`.
-`model/robust-piano-decoder.ts` consumes the transaction-local raw output contract
-and explicit onset/frame thresholds .30/.05 from `contracts/practice/acoustic/runtime-contract.json`.
+The [canonical runtime contract](../../../../../../contracts/practice/acoustic/runtime-contract.json)
+owns all exact model identity, byte size, SHA, runtime version, descriptor and decoder
+configuration values. The stable `/model-assets/practice-acoustic/access` endpoint
+returns the configured byte identity and a short-lived delivery URL. Download and
+OPFS reads verify model byte size and SHA. Source adapters verify the configured
+FIR bytes. The piano decoder consumes the generated configuration and
+transaction-local raw output roles.
 
 ## Ownership, Clock and Bounds
 

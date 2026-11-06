@@ -80,7 +80,7 @@ def load_json(path: Path) -> dict:
 def validate(runtime: dict, evidence: dict, root: Path = ROOT) -> None:
     fields(
         runtime,
-        "schemaVersion identityName model runtime input outputs decoder window sourceAdapters",
+        "schemaVersion model runtime input outputs decoder window sourceAdapters",
     )
     if integer(runtime["schemaVersion"]) != 1:
         raise ValueError("Unsupported acoustic contract schema")
@@ -94,9 +94,7 @@ def validate(runtime: dict, evidence: dict, root: Path = ROOT) -> None:
         if not re.fullmatch(r"[a-z0-9][a-z0-9._-]{0,127}", model[key]):
             raise ValueError("Invalid model asset identity")
     sha(model["sha256"])
-    if runtime["identityName"] != f"{model['assetId']}@{model['assetVersion']}" or model[
-        "sha256"
-    ] not in model["storageKey"].split("/"):
+    if model["sha256"] not in model["storageKey"].split("/"):
         raise ValueError("Model identity and content-addressed locator must agree")
     engine = fields(
         runtime["runtime"],
@@ -244,7 +242,7 @@ def projections(runtime: dict, evidence: dict) -> dict[str, str]:
     evidence = json.loads(canonical_json(evidence))
     runtime_sha, evidence_sha = digest(runtime), digest(evidence)
     identity = {
-        "identityName": runtime["identityName"],
+        "identityName": f"{runtime['model']['assetId']}@{runtime['model']['assetVersion']}",
         "runtimeContractSha256": runtime_sha,
         "evidenceAttestationSha256": evidence_sha,
     }
@@ -277,7 +275,6 @@ def projections(runtime: dict, evidence: dict) -> dict[str, str]:
     ts = f"// {header}\n"
     for name, value in [
         ("ACOUSTIC_RUNTIME_CONTRACT", runtime),
-        ("ACOUSTIC_EVIDENCE_ATTESTATION", evidence),
         ("ACOUSTIC_ANALYSIS_IDENTITY", identity),
         ("SOURCE_ADAPTER_CONTRACTS", adapters),
         ("ACOUSTIC_MODEL_ASSET_DESCRIPTOR", descriptor),

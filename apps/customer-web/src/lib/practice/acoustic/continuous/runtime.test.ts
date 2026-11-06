@@ -13,7 +13,7 @@ import path from 'node:path';
 import { expect, it, vi } from 'vitest';
 import { evaluatePracticeInputCapabilities } from '../../input-capability';
 import { ACOUSTIC_RUNTIME_CONTRACT } from '../generated/runtime-contract';
-import { assertAcousticIdentity, canonicalJson, sha256 } from '../identity';
+import { assertAcousticRuntimeIdentity, canonicalJson, sha256 } from '../identity';
 import { sourceAdapterContract } from '../source/source-adapter-contract';
 import type { AcousticInferenceInput, AcousticInferencePort, AcousticInferenceResult } from '../runtime/inference-types';
 import { ACOUSTIC_RESOURCES } from '../runtime/resource-policy';
@@ -93,7 +93,7 @@ async function receipt(name: string, value: unknown): Promise<void> {
 }
 
 it('binds the exact acoustic core, source identities and finite resource ceilings', async () => {
-  await assertAcousticIdentity();
+  await assertAcousticRuntimeIdentity();
   expect(ACOUSTIC_RUNTIME_CONTRACT.window.ownedSamples + ACOUSTIC_RUNTIME_CONTRACT.window.futureContextSamples)
     .toBeLessThan(ACOUSTIC_RUNTIME_CONTRACT.input.shape[1]);
   for (const rate of [44100, 48000] as const) {
