@@ -1,6 +1,7 @@
 import { recordingSinkFixture } from '@/lib/practice/__fixtures__/recording-sink';
 import { localMediaAssetFixture } from '@/lib/practice/__fixtures__/local-media-asset';
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
+import { recordedPerformance } from '@/lib/practice/recording/recorded-performance';
 import type { PracticeScoreArtifact } from '@/lib/practice/score/artifact';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import { canonicalContinuousResultFixture } from '@/lib/practice/__fixtures__/continuous-result';
@@ -43,6 +44,11 @@ it('hands off canonical references without copying artifact, result or Blob byte
     session.recording.status === 'READY' && session.recording.media.blob,
   ).toBe(blob);
   expect(Object.isFrozen(session)).toBe(true);
+  expect(Object.keys(session).sort()).toEqual([
+    'musicXml',
+    'recording',
+    'result',
+  ]);
 });
 it.each(['bundleId', 'scoreId', 'revisionId', 'artifactId'] as const)(
   'rejects %s mismatch before Review ownership begins',
@@ -87,7 +93,8 @@ it('validates recording before accepting the typed completion', () => {
 it('retains before controller retirement, and final Review release removes media exactly once', async () => {
   const f = recordingSinkFixture();
   await f.sink.append(new Blob(['raw']));
-  const media = await f.sink.seal('video/webm');
+  const backing = await f.sink.seal('video/webm');
+  const media = { ...backing, retain: () => ({ ...backing.retain() }) };
   const recording = createPerformanceRecording({
     status: 'READY',
     kind: 'VIDEO',
@@ -107,6 +114,7 @@ it('retains before controller retirement, and final Review release removes media
     },
   });
   const result = canonicalContinuousResultFixture();
+  const retain = vi.spyOn(media, 'retain');
   expect(() =>
     createTransientReviewSession(
       { result, recording },
@@ -115,6 +123,18 @@ it('retains before controller retirement, and final Review release removes media
   ).toThrow();
   const session = createTransientReviewSession({ result, recording }, source);
   if (recording.status !== 'READY') throw new Error('Expected capture');
+  if (session.recording.status !== 'READY')
+    throw new Error('Expected Review capture');
+  const reviewRetain = vi.spyOn(session.recording.media, 'retain');
+  const reviewRelease = vi.spyOn(session.recording.media, 'release');
+  const paired = recordedPerformance(
+    session.result.executed,
+    session.recording,
+  );
+  expect(paired.executed).toBe(result.executed);
+  expect(paired.recording).toBe(session.recording);
+  expect(retain).toHaveBeenCalledExactlyOnceWith();
+  expect(reviewRetain).not.toHaveBeenCalled();
   await recording.media.release();
   expect(f.exists()).toBe(true);
   expect(
@@ -122,9 +142,21 @@ it('retains before controller retirement, and final Review release removes media
       (await session.recording.media.blob.text()),
   ).toBe('raw');
   await releaseTransientReviewSession(session);
+  expect(reviewRelease).toHaveBeenCalledExactlyOnceWith();
   await releaseTransientReviewSession(session);
   expect(f.exists()).toBe(false);
   expect(f.remove).toHaveBeenCalledOnce();
+});
+
+it.each([
+  { status: 'NOT_RECORDED' as const },
+  { status: 'UNAVAILABLE' as const, reason: 'RECORDING_STORAGE_UNAVAILABLE' },
+])('hands off $status without acquiring media', async (recording) => {
+  const result = canonicalContinuousResultFixture();
+  const session = createTransientReviewSession({ result, recording }, source);
+  expect(session).toEqual({ result, recording, musicXml: source.musicXml });
+  expect(session.recording).toBe(recording);
+  await expect(releaseTransientReviewSession(session)).resolves.toBeUndefined();
 });
 
 it('invalid handoff takes no reference and controller retirement deletes the media', async () => {

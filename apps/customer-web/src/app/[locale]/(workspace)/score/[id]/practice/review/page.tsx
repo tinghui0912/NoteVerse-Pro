@@ -56,11 +56,10 @@ import {
 import { PracticeVerovioAdapter } from '@/lib/practice/score-view/verovio-adapter';
 import { resolveReviewScoreState } from '@/lib/practice/review/review-score-state';
 import { recordedPerformanceReplay } from '@/lib/practice/recording/performance-replay';
+import { recordedPerformance } from '@/lib/practice/recording/recorded-performance';
 import { recordedPerformanceScoreTick } from '@/lib/practice/recording/recorded-performance-timeline';
 import { reviewViewModel } from '@/lib/practice/review/review-view-model';
 import { VideoExportStudio } from '@/components/practice/video-export-studio';
-
-const MAX_TAKE_MEDIA_BYTES = 100 * 1024 * 1024;
 
 function scoreIdFromParams(params: ReturnType<typeof useParams>): string {
   const id = params?.id;
@@ -82,7 +81,13 @@ export default function PracticeReviewPage({
   const reviewSession = workspace.reviewSession;
   const result = reviewSession?.result ?? null;
   const recording = reviewSession?.recording ?? null;
-  const recorded = reviewSession?.recorded ?? null;
+  const recorded = useMemo(
+    () =>
+      result && recording?.status === 'READY'
+        ? recordedPerformance(result.executed, recording)
+        : null,
+    [result, recording],
+  );
   const artifact = reviewSession?.result.executed.bundle.artifact ?? null;
   const xmlContent = reviewSession?.musicXml ?? null;
   const isValidCompletion = Boolean(
@@ -94,16 +99,10 @@ export default function PracticeReviewPage({
   );
   const isScoreIdentityConfirmed =
     isValidCompletion && scoreState?.status === 'READY';
-  const exportPerformance = useMemo(() => {
-    if (
-      !reviewSession ||
-      reviewSession.recording.status !== 'READY' ||
-      reviewSession.recording.kind !== 'VIDEO' ||
-      scoreState?.status !== 'READY'
-    )
-      return null;
-    return reviewSession.recorded;
-  }, [reviewSession, scoreState]);
+  const exportPerformance =
+    recorded?.recording.kind === 'VIDEO' && scoreState?.status === 'READY'
+      ? recorded
+      : null;
 
   const adapter = useMemo(
     () => new PracticeVerovioAdapter(artifact),
@@ -304,11 +303,6 @@ export default function PracticeReviewPage({
     }
     if (!clientRequestIdRef.current) {
       clientRequestIdRef.current = `take-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-    }
-    if (recorded.recording.media.byteSize > MAX_TAKE_MEDIA_BYTES) {
-      setSaveRecordingStatus('error');
-      setSaveRecordingErrorMessage(t('saveRecordingMediaTooLarge'));
-      return;
     }
     setSaveRecordingStatus('saving');
     setSaveRecordingErrorMessage(null);

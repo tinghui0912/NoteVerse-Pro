@@ -1,3 +1,5 @@
+import { ApiError } from '@/lib/api-client';
+import { recordedPerformanceReplay } from '@/lib/practice/recording/performance-replay';
 import { recordingSinkFixture } from '@/lib/practice/__fixtures__/recording-sink';
 import { localMediaAssetFixture } from '@/lib/practice/__fixtures__/local-media-asset';
 import {
@@ -102,8 +104,6 @@ const translationMocks = vi.hoisted(() => {
     exportScoreVideoUnavailableSync:
       '缺少可靠的录像与乐谱时间映射，暂不能合成。',
     exportScoreVideoUnsupportedBrowser: '当前浏览器不支持本地视频合成导出。',
-    saveRecordingMediaTooLarge:
-      '本次媒体超过 100 MiB，暂不能保存到云端。你可以先导出原始视频。',
     retryPractice: '重弹一次',
     playback: '练习回放',
     videoExportEntryTitle: '导出乐谱视频',
@@ -304,6 +304,17 @@ vi.mock('@/components/score-preview/verovio-score-viewer', () => ({
     );
   },
 }));
+
+vi.mock('@/lib/practice/recording/performance-replay', async (original) => {
+  const actual =
+    await original<
+      typeof import('@/lib/practice/recording/performance-replay')
+    >();
+  return {
+    ...actual,
+    recordedPerformanceReplay: vi.fn(actual.recordedPerformanceReplay),
+  };
+});
 
 vi.mock('@/components/practice/performance-replay-player', () => ({
   PerformanceReplayPlayer: () => {
@@ -517,6 +528,7 @@ describe('PracticeReviewPage', () => {
     currentMockArtifact = createMockArtifact();
     vi.restoreAllMocks();
     saveMutationMock.mutateAsync.mockReset();
+    vi.mocked(recordedPerformanceReplay).mockClear();
     videoExportMocks.exportVideo.mockReset();
     videoExportMocks.exportVideo.mockResolvedValue({
       media: localMediaAssetFixture(
@@ -1148,6 +1160,98 @@ describe('PracticeReviewPage', () => {
       1,
     );
   });
+
+  it('shares one borrowed Review pairing across replay, Save and VideoExport', async () => {
+    const backing = localMediaAssetFixture(
+      new Blob(['video'], { type: 'video/webm' }),
+    );
+    const media = { ...backing, retain: () => ({ ...backing.retain() }) };
+    const completion = createVideoCompletion({ media });
+    if (completion.recording.status !== 'READY')
+      throw new Error('Expected capture');
+    const retain = vi.spyOn(media, 'retain');
+    provideReview(completion);
+    const review = reviewWorkspace.reviewSession!;
+    if (review.recording.status !== 'READY')
+      throw new Error('Expected Review media');
+    const reviewRetain = vi.spyOn(review.recording.media, 'retain');
+    saveMutationMock.mutateAsync.mockResolvedValueOnce({
+      take_id: 'take-pairing',
+    });
+    const view = render(
+      <PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />,
+    );
+    const paired = vi.mocked(recordedPerformanceReplay).mock.calls[0][0];
+    expect(paired?.executed).toBe(review.result.executed);
+    expect(paired?.recording).toBe(review.recording);
+    fireEvent.click(screen.getByTestId('open-video-export-studio'));
+    expect(
+      videoExportMocks.getVideoExportReadiness.mock.calls.at(-1)![0]
+        .recordedPerformance,
+    ).toBe(paired);
+    fireEvent.click(screen.getByRole('button', { name: '保存录制' }));
+    await screen.findByText('已保存');
+    expect(saveMutationMock.mutateAsync).toHaveBeenCalledExactlyOnceWith({
+      clientRequestId: expect.any(String),
+      recordedPerformance: paired,
+    });
+    expect(
+      vi.mocked(recordedPerformanceReplay),
+    ).toHaveBeenCalledExactlyOnceWith(paired);
+    expect(retain).toHaveBeenCalledExactlyOnceWith();
+    expect(reviewRetain).not.toHaveBeenCalled();
+    view.unmount();
+    await releaseTransientReviewSession(review);
+    await completion.recording.media.release();
+  });
+
+  it.each(['accepted', 'rejected'] as const)(
+    'submits large READY media to server admission: %s',
+    async (outcome) => {
+      // A logical size exercises Save admission without allocating large media bytes.
+      const blob = new Blob(['video'], { type: 'video/webm' });
+      Object.defineProperty(blob, 'size', { value: 100 * 1024 * 1024 + 1 });
+      const completion = createVideoCompletion({ videoBlob: blob });
+      provideReview(completion);
+      if (outcome === 'accepted')
+        saveMutationMock.mutateAsync.mockResolvedValueOnce({
+          take_id: 'large-take',
+        });
+      else
+        saveMutationMock.mutateAsync.mockRejectedValueOnce(
+          new ApiError(409, 'STORAGE_QUOTA_EXCEEDED', 'STORAGE_QUOTA_EXCEEDED'),
+        );
+      const view = render(
+        <PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />,
+      );
+      fireEvent.click(screen.getByRole('button', { name: '保存录制' }));
+      await waitFor(() =>
+        expect(saveMutationMock.mutateAsync).toHaveBeenCalledOnce(),
+      );
+      const request = saveMutationMock.mutateAsync.mock.calls[0][0];
+      expect(Object.keys(request).sort()).toEqual([
+        'clientRequestId',
+        'recordedPerformance',
+      ]);
+      expect(request.recordedPerformance.recording.media.byteSize).toBe(
+        blob.size,
+      );
+      if (outcome === 'accepted') await screen.findByText('已保存');
+      else {
+        await screen.findByText('STORAGE_QUOTA_EXCEEDED');
+        expect(screen.queryByText('已保存')).toBeNull();
+        expect(
+          screen
+            .getByRole('button', { name: '重试保存' })
+            .hasAttribute('disabled'),
+        ).toBe(false);
+      }
+      view.unmount();
+      await releaseTransientReviewSession(reviewWorkspace.reviewSession);
+      if (completion.recording.status === 'READY')
+        await completion.recording.media.release();
+    },
+  );
 
   it('exports and saves ready video review media without using the audio blob', async () => {
     Object.defineProperty(URL, 'createObjectURL', {

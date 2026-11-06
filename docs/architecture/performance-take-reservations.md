@@ -28,8 +28,9 @@ it in finally, so leaving Review cannot remove an in-flight upload source.
 Original media download returns raw Capture/Take media with the corresponding file
 extension. VideoExport is a separate browser-local composition/download operation
 with its own encoder policy. Its composed score/video output is not the archive
-format and is not stored by PerformanceTake. The 100 MiB Take limit and upload
-reservation lifecycle remain independent of format selection.
+format and is not stored by PerformanceTake. The server owns Save admission, quota
+and storage limits. The browser submits Save without a local media-size ceiling
+and surfaces server rejection through the Save failure state.
 
 ## Lifecycle and persistence
 
@@ -55,12 +56,12 @@ than inferring them from prior status.
 
 ## Object ownership
 
-| Object | Owner |
-| --- | --- |
-| staging object | reservation |
-| current final candidate | current finalize lease |
-| abandoned or uncertain candidate | orphan cleanup list |
-| completed media object | `MediaBlob.object_key` |
+| Object                           | Owner                  |
+| -------------------------------- | ---------------------- |
+| staging object                   | reservation            |
+| current final candidate          | current finalize lease |
+| abandoned or uncertain candidate | orphan cleanup list    |
+| completed media object           | `MediaBlob.object_key` |
 
 Finalization verifies staging size, MIME/container and full SHA-256, copies to a
 unique token-owned candidate, and verifies candidate size and SHA-256 equality.

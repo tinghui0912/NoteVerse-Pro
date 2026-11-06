@@ -1,3 +1,4 @@
+import { recordedPerformance } from '@/lib/practice/recording/recorded-performance';
 import { expect, it } from 'vitest';
 import { executedPerformanceFromCompletion } from './executed-performance';
 import { continuousPracticePlan } from '@/lib/practice/__fixtures__/practice-plan';
@@ -52,8 +53,14 @@ it('keeps exact natural Session owners and passes one authority through Review a
     musicXml: '<score />',
   });
   expect(review.result).toBe(completion.result);
-  expect(review.recorded!.executed).toBe(executed);
-  expect(review.recorded!.recording).toBe(review.recording);
+  if (review.recording.status !== 'READY')
+    throw new Error('Expected recording');
+  const recorded = recordedPerformance(
+    review.result.executed,
+    review.recording,
+  );
+  expect(recorded.executed).toBe(executed);
+  expect(recorded.recording).toBe(review.recording);
   const saved = admitSavedRecordedPerformance(
     {
       ...take,
@@ -66,7 +73,7 @@ it('keeps exact natural Session owners and passes one authority through Review a
       },
     },
     plan.bundle,
-    review.recorded!.recording.media,
+    recorded.recording.media,
   );
   expect(saved.status).toBe('supported');
   if (saved.status !== 'supported') throw new Error(saved.reason);
@@ -74,9 +81,9 @@ it('keeps exact natural Session owners and passes one authority through Review a
     'executed',
     'recording',
   ]);
-  expect(saved.recordedPerformance).toEqual(review.recorded);
+  expect(saved.recordedPerformance).toEqual(recorded);
   expect(saved.recordedPerformance.recording.media).toBe(
-    review.recorded!.recording.media,
+    recorded.recording.media,
   );
   await releaseTransientReviewSession(review);
   await media.release();

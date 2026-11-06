@@ -345,7 +345,6 @@
   "noPerformancesDesc": "在连贯演奏结束后，点击“保存录制”，你的录音就会保存在这里。",
   "performanceTakeDeleted": "已删除该演奏",
   "saveRecordingFailed": "保存录制失败，请重试",
-  "saveRecordingMediaTooLarge": "本次媒体超过 100 MiB，暂不能保存到云端。你可以先导出原始视频。",
   "scoreFallback": "乐谱 #{id}",
   "loadMore": "加载更多",
   "noMorePerformances": "已加载全部演奏",

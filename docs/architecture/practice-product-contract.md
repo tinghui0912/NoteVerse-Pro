@@ -1098,8 +1098,9 @@ an explicit server operation and new save admission requires live revision-bindi
 `run/executed-performance.ts` owns completed score semantics. Natural completion
 creates this value once, retaining the Plan's canonical binding/artifact, scope and
 tempo references. `recording/recorded-performance.ts` pairs it with one READY
-recording. Review retains its recording media once and exposes that same pairing
-to Save, replay and VideoExport.
+recording. TransientReviewSession contains `{ result, recording, musicXml }` and
+retains its recording media once. For READY recording, the Review route derives one
+memoized pairing that borrows the retained recording for Save, replay and VideoExport.
 
 `archive/saved-performance.ts` is the saved Take API-to-domain admission boundary.
 It validates the Manifest against the reauthorized Bundle and materialized media;

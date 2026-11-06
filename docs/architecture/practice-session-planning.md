@@ -199,8 +199,10 @@ completion. Try Again creates no ReviewSession. Only View Review calls the works
 `handoffToReview(completion)` command. The command checks bundleId and artifact identity,
 validates the typed completion against the exact admitted artifact reference and
 stable binding identities, validates recording and non-empty notation, and builds
-`{ result, recording, recorded, musicXml }`. Artifact is read from result.executed.bundle.artifact.
-The recorded pairing references that executed value and the Review-owned READY recording. It releases PreparedPractice's binding
+`{ result, recording, musicXml }`. Artifact is read from result.executed.bundle.artifact.
+The Review route derives one memoized RecordedPerformance from result.executed and
+the Review-owned READY recording, borrowing its media reference for Save, replay and
+VideoExport. The handoff releases PreparedPractice's binding
 before navigation and retains the handoff in workspace memory.
 
 Review consumes that complete TransientReviewSession, not a Bundle query. Scope

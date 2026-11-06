@@ -1496,12 +1496,9 @@ describe('Practice bounded domain dependencies', () => {
     );
     for (const edge of sourceGraph.get(studio)!) {
       if (edge.target && relative(edge.target).startsWith('video-export/'))
-        expect([
-          'session.ts',
-          'export.ts',
-          'templates.ts',
-          'preview.tsx',
-        ]).toContain(path.basename(edge.target));
+        expect(['export.ts', 'templates.ts', 'preview.tsx']).toContain(
+          path.basename(edge.target),
+        );
     }
   });
 

@@ -345,7 +345,6 @@
   "noPerformancesDesc": "After completing a continuous performance, click 'Save Recording' to store your recording here.",
   "performanceTakeDeleted": "Performance deleted",
   "saveRecordingFailed": "Failed to save recording, please try again",
-  "saveRecordingMediaTooLarge": "This media is larger than 100 MiB and cannot be saved to the cloud yet. You can export the original video instead.",
   "scoreFallback": "Score #{id}",
   "loadMore": "Load More",
   "noMorePerformances": "All performances loaded",
