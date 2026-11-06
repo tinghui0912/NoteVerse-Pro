@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import replace
-from datetime import timedelta
 
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,9 +22,11 @@ from app.modules.async_operations.diagnostics import (
     apply_async_diagnostic,
     clear_async_diagnostic,
 )
-from app.modules.async_operations.delivery_policy import (
-    delivery_lease_expired,
-    exponential_retry_delay_seconds,
+from app.modules.async_operations.durable_delivery import (
+    ClaimAdmission,
+    DeliveryLifecyclePolicy,
+    DeliveryStatuses,
+    DurableDeliveryLifecycle,
 )
 from app.modules.score_assets import render_payloads
 from app.utils.timezone import utc_now_naive
@@ -34,6 +35,24 @@ from app.modules.revisions.presentation_demand import (
     lock_presentation_score,
     RevisionPresentationDemand,
 )
+
+
+def _delivery_lifecycle() -> DurableDeliveryLifecycle[RenderOutboxStatus]:
+    return DurableDeliveryLifecycle(
+        statuses=DeliveryStatuses(
+            pending=RenderOutboxStatus.PENDING,
+            dispatched=RenderOutboxStatus.DISPATCHED,
+            processing=RenderOutboxStatus.PROCESSING,
+            failed=RenderOutboxStatus.FAILED,
+            succeeded=RenderOutboxStatus.COMPLETED,
+        ),
+        policy=DeliveryLifecyclePolicy(
+            max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
+            retry_base_seconds=settings.RENDER_OUTBOX_RETRY_BASE_SECONDS,
+            dispatch_timeout_seconds=settings.RENDER_OUTBOX_DISPATCH_TIMEOUT_SECONDS,
+            processing_timeout_seconds=settings.RENDER_OUTBOX_PROCESSING_TIMEOUT_SECONDS,
+        ),
+    )
 
 
 async def create_revision_render_outbox(
@@ -240,14 +259,13 @@ class RenderOutboxService:
             self._exhaust_unavailable_resources(outbox)
             return None
         if demand == RevisionPresentationDemand.NOT_DEMANDED:
-            outbox.status = RenderOutboxStatus.SUPERSEDED
-            outbox.dispatched_at = None
-            outbox.started_at = None
-            outbox.completed_at = None
-            outbox.next_attempt_at = utc_now_naive()
-            outbox.last_error = None
+            _delivery_lifecycle().reset(
+                outbox,
+                status=RenderOutboxStatus.SUPERSEDED,
+                reset_attempts=False,
+                now=utc_now_naive(),
+            )
             clear_async_diagnostic(outbox)
-            outbox.updated_at = utc_now_naive()
             logger.bind(
                 event="revision_derivative.superseded",
                 score_id=outbox.score_id,
@@ -256,26 +274,17 @@ class RenderOutboxService:
                 operation_kind="render",
             ).info("revision_derivative.superseded")
             return None
-        if outbox.status == RenderOutboxStatus.FAILED and outbox.next_attempt_at > utc_now_naive():
+        lifecycle = _delivery_lifecycle()
+        if lifecycle.claim_admission(outbox, now=utc_now_naive()) is not ClaimAdmission.READY:
             return None
-        if outbox.attempt_count >= settings.RENDER_OUTBOX_MAX_ATTEMPTS:
-            return None
-
-        attempt = outbox.attempt_count + 1
         payload = self._build_payload(db, outbox)
         if payload is None:
             return None
-        payload = replace(
-            payload,
-            attempt=attempt,
-            max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
+        if not lifecycle.claim(outbox, now=utc_now_naive()):
+            return None
+        return replace(
+            payload, attempt=outbox.attempt_count, max_attempts=lifecycle.policy.max_attempts
         )
-        now = utc_now_naive()
-        outbox.status = RenderOutboxStatus.PROCESSING
-        outbox.attempt_count += 1
-        outbox.started_at = now
-        outbox.updated_at = now
-        return payload
 
     def _build_payload(
         self, db: Session, outbox: RenderOutbox
@@ -295,9 +304,9 @@ class RenderOutboxService:
 
     @staticmethod
     def _exhaust_unavailable_resources(outbox: RenderOutbox) -> None:
-        outbox.status = RenderOutboxStatus.FAILED
-        outbox.attempt_count = settings.RENDER_OUTBOX_MAX_ATTEMPTS
-        outbox.last_error = "Render outbox references unavailable resources"
+        _delivery_lifecycle().exhaust(
+            outbox, error="Render outbox references unavailable resources", now=utc_now_naive()
+        )
         apply_async_diagnostic(
             outbox,
             kind=AsyncOperationKindValue.RENDER,
@@ -307,31 +316,19 @@ class RenderOutboxService:
             attempts=outbox.attempt_count,
             max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
         )
-        outbox.updated_at = utc_now_naive()
 
     def complete(self, db: Session, outbox_uuid: str) -> None:
         outbox = self._get(db, outbox_uuid)
         if outbox is None:
             return
-        now = utc_now_naive()
-        outbox.status = RenderOutboxStatus.COMPLETED
-        outbox.completed_at = now
-        outbox.last_error = None
+        _delivery_lifecycle().complete(outbox, now=utc_now_naive())
         clear_async_diagnostic(outbox)
-        outbox.updated_at = now
 
     def fail(self, db: Session, outbox_uuid: str, error: str) -> None:
         outbox = self._get(db, outbox_uuid)
         if outbox is None:
             return
-        now = utc_now_naive()
-        delay = exponential_retry_delay_seconds(
-            base_seconds=settings.RENDER_OUTBOX_RETRY_BASE_SECONDS,
-            attempt_count=outbox.attempt_count,
-        )
-        outbox.status = RenderOutboxStatus.FAILED
-        outbox.next_attempt_at = now + timedelta(seconds=delay)
-        outbox.last_error = error[:4000]
+        _delivery_lifecycle().fail(outbox, error=error, now=utc_now_naive())
         apply_async_diagnostic(
             outbox,
             kind=AsyncOperationKindValue.RENDER,
@@ -345,7 +342,6 @@ class RenderOutboxService:
             attempts=outbox.attempt_count,
             max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
         )
-        outbox.updated_at = now
 
     def target_type(self, db: Session, outbox_uuid: str) -> RenderTargetType | None:
         return db.execute(
@@ -354,22 +350,17 @@ class RenderOutboxService:
 
     def mark_dispatched(self, db: Session, outbox_uuid: str) -> bool:
         outbox = self._get(db, outbox_uuid)
-        if outbox is None or not self._is_dispatchable(outbox):
+        if outbox is None or not _delivery_lifecycle().dispatch(outbox, now=utc_now_naive()):
             return False
-        now = utc_now_naive()
-        outbox.status = RenderOutboxStatus.DISPATCHED
-        outbox.dispatched_at = now
         clear_async_diagnostic(outbox)
-        outbox.updated_at = now
         return True
 
     def release_dispatch(self, db: Session, outbox_uuid: str, error: str) -> None:
         outbox = self._get(db, outbox_uuid)
-        if outbox is None or outbox.status != RenderOutboxStatus.DISPATCHED:
+        if outbox is None or not _delivery_lifecycle().release_dispatch(
+            outbox, error=error, now=utc_now_naive()
+        ):
             return
-        outbox.status = RenderOutboxStatus.PENDING
-        outbox.dispatched_at = None
-        outbox.last_error = error[:4000]
         apply_async_diagnostic(
             outbox,
             kind=AsyncOperationKindValue.RENDER,
@@ -379,7 +370,6 @@ class RenderOutboxService:
             attempts=outbox.attempt_count,
             max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
         )
-        outbox.updated_at = utc_now_naive()
 
     def recover_and_list_due(self, db: Session) -> list[str]:
         now = utc_now_naive()
@@ -396,19 +386,9 @@ class RenderOutboxService:
             .all()
         )
         for outbox in stale:
-            if delivery_lease_expired(
-                status=outbox.status,
-                dispatched_status=RenderOutboxStatus.DISPATCHED,
-                processing_status=RenderOutboxStatus.PROCESSING,
-                dispatched_at=outbox.dispatched_at,
-                started_at=outbox.started_at,
-                now=now,
-                dispatch_timeout_seconds=settings.RENDER_OUTBOX_DISPATCH_TIMEOUT_SECONDS,
-                processing_timeout_seconds=settings.RENDER_OUTBOX_PROCESSING_TIMEOUT_SECONDS,
+            if _delivery_lifecycle().recover_lease(
+                outbox, error="Render delivery lease expired", now=now
             ):
-                outbox.status = RenderOutboxStatus.FAILED
-                outbox.next_attempt_at = now
-                outbox.last_error = "Render delivery lease expired"
                 apply_async_diagnostic(
                     outbox,
                     kind=AsyncOperationKindValue.RENDER,
@@ -418,7 +398,6 @@ class RenderOutboxService:
                     attempts=outbox.attempt_count,
                     max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
                 )
-                outbox.updated_at = now
 
         due = (
             db.execute(
@@ -445,28 +424,13 @@ class RenderOutboxService:
             select(RenderOutbox).where(RenderOutbox.outbox_uuid == outbox_uuid).with_for_update()
         ).scalar_one_or_none()
 
-    @staticmethod
-    def _is_dispatchable(outbox: RenderOutbox) -> bool:
-        return (
-            outbox.status in {RenderOutboxStatus.PENDING, RenderOutboxStatus.FAILED}
-            and outbox.attempt_count < settings.RENDER_OUTBOX_MAX_ATTEMPTS
-            and outbox.next_attempt_at <= utc_now_naive()
-        )
-
 
 render_outbox_service = RenderOutboxService()
 
 
 def rearm_revision_outbox(outbox: RenderOutbox) -> None:
-    outbox.status = RenderOutboxStatus.PENDING
-    outbox.dispatched_at = None
-    outbox.started_at = None
-    outbox.completed_at = None
-    outbox.attempt_count = 0
-    outbox.next_attempt_at = utc_now_naive()
-    outbox.last_error = None
+    _delivery_lifecycle().rearm(outbox, now=utc_now_naive())
     clear_async_diagnostic(outbox)
-    outbox.updated_at = utc_now_naive()
     logger.bind(
         event="revision_derivative.reactivated",
         score_id=outbox.score_id,

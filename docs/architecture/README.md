@@ -6,6 +6,7 @@ accepted current decisions and their rationale.
 ## Runtime and Integrations
 
 - [Runtime Dependency Ownership](runtime/runtime-dependency-ownership.md)
+- [Durable Asynchronous Delivery](durable-asynchronous-delivery.md)
 - [Backend Settings Ownership](runtime/settings-ownership.md)
 - [Import Processing](runtime/import-processing.md)
 - [Kubernetes Application Runtime](runtime/k8s-application-runtime-contract.md)

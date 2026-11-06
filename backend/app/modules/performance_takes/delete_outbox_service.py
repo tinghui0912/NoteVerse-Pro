@@ -2,7 +2,6 @@ from __future__ import annotations
 
 
 from dataclasses import dataclass, replace
-from datetime import timedelta
 
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
@@ -12,16 +11,31 @@ from app.db.models import (
     PerformanceTakeDeleteOutbox,
     PerformanceTakeDeleteOutboxStatus,
 )
-from app.modules.async_operations.delivery_policy import (
-    delivery_lease_expired,
-    exponential_retry_delay_seconds,
+from app.modules.async_operations.durable_delivery import (
+    ClaimAdmission,
+    DeliveryLifecyclePolicy,
+    DeliveryStatuses,
+    DurableDeliveryLifecycle,
 )
 from app.utils.timezone import utc_now_naive
 
 
-def _status_value(status: object) -> str:
-    value = getattr(status, "value", status)
-    return str(value)
+def _delivery_lifecycle() -> DurableDeliveryLifecycle[str]:
+    return DurableDeliveryLifecycle(
+        statuses=DeliveryStatuses(
+            pending=PerformanceTakeDeleteOutboxStatus.PENDING.value,
+            dispatched=PerformanceTakeDeleteOutboxStatus.DISPATCHED.value,
+            processing=PerformanceTakeDeleteOutboxStatus.PROCESSING.value,
+            failed=PerformanceTakeDeleteOutboxStatus.FAILED.value,
+            succeeded=PerformanceTakeDeleteOutboxStatus.COMPLETED.value,
+        ),
+        policy=DeliveryLifecyclePolicy(
+            max_attempts=settings.PERFORMANCE_TAKE_DELETE_OUTBOX_MAX_ATTEMPTS,
+            retry_base_seconds=settings.PERFORMANCE_TAKE_DELETE_OUTBOX_RETRY_BASE_SECONDS,
+            dispatch_timeout_seconds=settings.PERFORMANCE_TAKE_DELETE_OUTBOX_DISPATCH_TIMEOUT_SECONDS,
+            processing_timeout_seconds=settings.PERFORMANCE_TAKE_DELETE_OUTBOX_PROCESSING_TIMEOUT_SECONDS,
+        ),
+    )
 
 
 @dataclass(frozen=True)
@@ -49,31 +63,18 @@ class PerformanceTakeDeleteOutboxService:
             .with_for_update()
             .execution_options(populate_existing=True)
         ).scalar_one_or_none()
-        if outbox is None or _status_value(outbox.status) in {
-            PerformanceTakeDeleteOutboxStatus.PROCESSING.value,
-            PerformanceTakeDeleteOutboxStatus.COMPLETED.value,
-        }:
+        if outbox is None:
             return None
-        if (
-            _status_value(outbox.status) == PerformanceTakeDeleteOutboxStatus.FAILED.value
-            and outbox.next_attempt_at > utc_now_naive()
-        ):
-            return None
-        if outbox.attempt_count >= settings.PERFORMANCE_TAKE_DELETE_OUTBOX_MAX_ATTEMPTS:
+        lifecycle = _delivery_lifecycle()
+        if lifecycle.claim_admission(outbox, now=utc_now_naive()) is not ClaimAdmission.READY:
             return None
 
-        attempt = outbox.attempt_count + 1
-        payload = replace(
-            self._build_payload(outbox),
-            attempt=attempt,
-            max_attempts=settings.PERFORMANCE_TAKE_DELETE_OUTBOX_MAX_ATTEMPTS,
+        payload = self._build_payload(outbox)
+        if not lifecycle.claim(outbox, now=utc_now_naive()):
+            return None
+        return replace(
+            payload, attempt=outbox.attempt_count, max_attempts=lifecycle.policy.max_attempts
         )
-        now = utc_now_naive()
-        outbox.status = PerformanceTakeDeleteOutboxStatus.PROCESSING.value
-        outbox.attempt_count += 1
-        outbox.started_at = now
-        outbox.updated_at = now
-        return payload
 
     def _build_payload(
         self,
@@ -94,20 +95,9 @@ class PerformanceTakeDeleteOutboxService:
         outbox = self._get(db, outbox_uuid, lock=True)
         if outbox is None:
             return False
-        if _status_value(outbox.status) == PerformanceTakeDeleteOutboxStatus.COMPLETED.value:
-            if attempt is not None and outbox.attempt_count != attempt:
-                return False
-            return True
-        if _status_value(outbox.status) != PerformanceTakeDeleteOutboxStatus.PROCESSING.value:
-            return False
-        if attempt is not None and outbox.attempt_count != attempt:
-            return False
-        now = utc_now_naive()
-        outbox.status = PerformanceTakeDeleteOutboxStatus.COMPLETED.value
-        outbox.completed_at = now
-        outbox.last_error = None
-        outbox.updated_at = now
-        return True
+        return _delivery_lifecycle().complete_attempt(
+            outbox, expected_attempt=attempt, now=utc_now_naive()
+        )
 
     def fail(
         self,
@@ -120,42 +110,20 @@ class PerformanceTakeDeleteOutboxService:
         outbox = self._get(db, outbox_uuid, lock=True)
         if outbox is None:
             return False
-        if _status_value(outbox.status) != PerformanceTakeDeleteOutboxStatus.PROCESSING.value:
-            return False
-        if attempt is not None and outbox.attempt_count != attempt:
-            return False
-        now = utc_now_naive()
-        delay = exponential_retry_delay_seconds(
-            base_seconds=settings.PERFORMANCE_TAKE_DELETE_OUTBOX_RETRY_BASE_SECONDS,
-            attempt_count=outbox.attempt_count,
+        return _delivery_lifecycle().fail_attempt(
+            outbox, expected_attempt=attempt, error=error, now=utc_now_naive()
         )
-        outbox.status = PerformanceTakeDeleteOutboxStatus.FAILED.value
-        outbox.next_attempt_at = now + timedelta(seconds=delay)
-        outbox.last_error = error[:4000]
-        outbox.updated_at = now
-        return True
 
     def mark_dispatched(self, db: Session, outbox_uuid: str) -> bool:
         outbox = self._get(db, outbox_uuid)
-        if outbox is None or not self._is_dispatchable(outbox):
+        if outbox is None or not _delivery_lifecycle().dispatch(outbox, now=utc_now_naive()):
             return False
-        now = utc_now_naive()
-        outbox.status = PerformanceTakeDeleteOutboxStatus.DISPATCHED.value
-        outbox.dispatched_at = now
-        outbox.updated_at = now
         return True
 
     def release_dispatch(self, db: Session, outbox_uuid: str, error: str) -> None:
         outbox = self._get(db, outbox_uuid)
-        if (
-            outbox is None
-            or _status_value(outbox.status) != PerformanceTakeDeleteOutboxStatus.DISPATCHED.value
-        ):
-            return
-        outbox.status = PerformanceTakeDeleteOutboxStatus.PENDING.value
-        outbox.dispatched_at = None
-        outbox.last_error = error[:4000]
-        outbox.updated_at = utc_now_naive()
+        if outbox is not None:
+            _delivery_lifecycle().release_dispatch(outbox, error=error, now=utc_now_naive())
 
     def recover_and_list_due(self, db: Session) -> list[str]:
         now = utc_now_naive()
@@ -170,24 +138,9 @@ class PerformanceTakeDeleteOutboxService:
             )
         ).scalars()
         for outbox in stale:
-            if delivery_lease_expired(
-                status=outbox.status,
-                dispatched_status=PerformanceTakeDeleteOutboxStatus.DISPATCHED.value,
-                processing_status=PerformanceTakeDeleteOutboxStatus.PROCESSING.value,
-                dispatched_at=outbox.dispatched_at,
-                started_at=outbox.started_at,
-                now=now,
-                dispatch_timeout_seconds=(
-                    settings.PERFORMANCE_TAKE_DELETE_OUTBOX_DISPATCH_TIMEOUT_SECONDS
-                ),
-                processing_timeout_seconds=(
-                    settings.PERFORMANCE_TAKE_DELETE_OUTBOX_PROCESSING_TIMEOUT_SECONDS
-                ),
-            ):
-                outbox.status = PerformanceTakeDeleteOutboxStatus.FAILED.value
-                outbox.next_attempt_at = now
-                outbox.last_error = "Performance take deletion lease expired"
-                outbox.updated_at = now
+            _delivery_lifecycle().recover_lease(
+                outbox, error="Performance take deletion lease expired", now=now
+            )
 
         due = db.execute(
             select(PerformanceTakeDeleteOutbox.outbox_uuid)
@@ -220,18 +173,6 @@ class PerformanceTakeDeleteOutboxService:
         if lock:
             statement = statement.with_for_update().execution_options(populate_existing=True)
         return db.execute(statement).scalar_one_or_none()
-
-    @staticmethod
-    def _is_dispatchable(outbox: PerformanceTakeDeleteOutbox) -> bool:
-        return (
-            _status_value(outbox.status)
-            in {
-                PerformanceTakeDeleteOutboxStatus.PENDING.value,
-                PerformanceTakeDeleteOutboxStatus.FAILED.value,
-            }
-            and outbox.attempt_count < settings.PERFORMANCE_TAKE_DELETE_OUTBOX_MAX_ATTEMPTS
-            and outbox.next_attempt_at <= utc_now_naive()
-        )
 
 
 performance_take_delete_outbox_service = PerformanceTakeDeleteOutboxService()
