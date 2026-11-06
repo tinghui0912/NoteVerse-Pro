@@ -1,7 +1,10 @@
+import { SOURCE_ADAPTER_CONTRACTS } from '../generated/runtime-contract';
 import { CaptureFailure, AudioContextFailure, isPracticeCausalFailure } from '@/lib/practice/failure/causal-failure';
 import { acousticBoundaryFailure } from '../failure-boundary';
 import type { CaptureConsumer, CaptureChunk } from './capture-types';
-import { fail, onlyFields, sourceRate } from '../model/model-contract';
+import { fail } from '../errors';
+import { onlyFields } from '../validation';
+import { sourceRate } from './source-adapter-contract';
 import { CAPTURE_TRANSPORT_BLOCK_SAMPLES, CAPTURE_TRANSPORT_READY_TIMEOUT_MS } from './capture-transport-contract';
 
 export type CaptureOwnership = 'OWNED_ANALYSIS' | 'BORROWED_SESSION_STREAM';
@@ -37,7 +40,7 @@ export class BrowserAcousticCapture {
     try {
       sourceRate(options.context.sampleRate);
       await options.context.audioWorklet.addModule(options.workletUrl);
-      node = new AudioWorkletNode(options.context, 'noteverse-practice-pcm');
+      node = new AudioWorkletNode(options.context, 'noteverse-practice-pcm', { processorOptions: { qualifiedSourceRates: Object.values(SOURCE_ADAPTER_CONTRACTS).map(contract => contract.sourceRateHz) } });
       source = options.context.createMediaStreamSource(stream); gain = options.context.createGain();
       gain.gain.value = 0;
       capture = new BrowserAcousticCapture(options.bridge, stream, options.context, source, node, gain, options.contextInterruption ?? 'FAIL');

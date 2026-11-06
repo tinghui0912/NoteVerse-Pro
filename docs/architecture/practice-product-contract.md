@@ -428,7 +428,7 @@ and old owned events fail closed. The shared source sequence validator retains o
 the previous window summary and capture origin, never publication or event history.
 
 The model is `practice-acoustic-robust-browser@v1`, delivered through
-`/model-assets/practice-acoustic-robust-browser-v1/access`. The acoustic README
+`/model-assets/practice-acoustic/access`. The acoustic README
 records its byte size, SHA256, decoder and resource bounds. Source adapters accept
 44.1kHz and 48kHz. Window inputs require real context; missing PCM is not padded.
 Input regions include overlapping context, while acoustic owned regions authorize

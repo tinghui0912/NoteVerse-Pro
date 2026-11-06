@@ -1,4 +1,8 @@
-import { ACOUSTIC_MODEL as M, ACOUSTIC_TARGET_SAMPLES_PER_MS, AcousticAnalysisError, assertAcousticIdentity, fail, onlyFields, safeIndex } from '../model/model-contract';
+import { ACOUSTIC_ANALYSIS_IDENTITY } from '../generated/runtime-contract';
+import { ACOUSTIC_RUNTIME_CONTRACT as M, ACOUSTIC_TARGET_SAMPLES_PER_MS } from '../generated/runtime-contract';
+import { AcousticAnalysisError, fail } from '../errors';
+import { assertAcousticIdentity } from '../identity';
+import { onlyFields, safeIndex } from '../validation';
 import { QualifiedSourceAdapter } from '../source/source-adapter';
 import { CAPTURE_TRANSPORT_BLOCK_SAMPLES } from '../source/capture-transport-contract';
 import { AcousticPcmRing, planWindow, type AnalysisRegion, type AcousticWindow } from './window-planner';
@@ -67,7 +71,7 @@ export class SourceAnalysisRuntime {
     try {
       safeIndex(sourceSampleIndex);
       if (!['PREROLL', 'IDLE'].includes(this.state) || this.base === null || this.active || sourceSampleIndex !== this.nextSource) fail('INVALID_ACOUSTIC_REGION_START');
-      const originTarget = (sourceSampleIndex - this.base) * M.sampleRateHz / this.adapter.rate;
+      const originTarget = (sourceSampleIndex - this.base) * M.input.sampleRateHz / this.adapter.rate;
       const region: AnalysisRegion = { index: this.nextRegion++, sourceStart: sourceSampleIndex, originTarget, nextWindow: 0, queuedEndTarget: originTarget };
       if (planWindow(region, this.counts.windowsQueued)!.startSample < this.ring.firstUsable) fail('ACOUSTIC_PREROLL_NOT_READY');
       this.regions.push(region); this.active = region; this.state = 'RUNNING'; this.counts.regionsStarted++;
@@ -79,7 +83,7 @@ export class SourceAnalysisRuntime {
     try {
       safeIndex(sourceSampleIndex);
       if (!this.active || this.state !== 'RUNNING' || sourceSampleIndex !== this.nextSource) fail('ACOUSTIC_REGION_NOT_RUNNING');
-      const endTarget = this.active.originTarget + (sourceSampleIndex - this.active.sourceStart) * M.sampleRateHz / this.adapter.rate;
+      const endTarget = this.active.originTarget + (sourceSampleIndex - this.active.sourceStart) * M.input.sampleRateHz / this.adapter.rate;
       if (endTarget < this.active.queuedEndTarget) fail('ACOUSTIC_REGION_END_MISMATCH');
       const region = this.active;
       region.sourceEnd = sourceSampleIndex; region.endTarget = endTarget;
@@ -99,7 +103,7 @@ export class SourceAnalysisRuntime {
   hasRegionWork(index: number): boolean { return this.regions.some(r => r.index === index) || this.queuedRegions.has(index); }
   get prerollReady(): boolean {
     if (!['PREROLL', 'IDLE'].includes(this.state) || this.base === null || this.failure) return false;
-    return (this.nextSource - this.base) * M.sampleRateHz / this.adapter.rate - (M.inputMs - M.futureMs) * ACOUSTIC_TARGET_SAMPLES_PER_MS >= this.ring.firstUsable;
+    return (this.nextSource - this.base) * M.input.sampleRateHz / this.adapter.rate - ((M.input.shape[1] / (M.input.sampleRateHz / 1000)) - (M.window.futureContextSamples / (M.input.sampleRateHz / 1000))) * ACOUSTIC_TARGET_SAMPLES_PER_MS >= this.ring.firstUsable;
   }
   attachCaptureCleanup(cleanup: () => void): () => void {
     this.guard(); if (this.cleanup) fail('ACOUSTIC_CAPTURE_ALREADY_ATTACHED');
@@ -126,7 +130,8 @@ export class SourceAnalysisRuntime {
     await this.options.worker.dispose(); await this.chain;
   }
   snapshot() {
-    return Object.freeze({ state: this.state, failureCode: this.failure?.message ?? null, acousticCoreIdentitySha256: M.identitySha256,
+    return Object.freeze({
+      state: this.state, failureCode: this.failure?.message ?? null, analysisIdentitySha256: ACOUSTIC_ANALYSIS_IDENTITY.analysisIdentitySha256,
       sourceAdapterIdentitySha256: this.adapter.identitySha256, sourceRateHz: this.adapter.rate, sourceBase: this.base,
       nextSourceSampleIndex: this.nextSource, activeRegion: this.active ? Object.freeze({ ...this.active }) : null,
       pendingRegions: this.regions.length, outstanding: this.outstanding, counts: Object.freeze({ ...this.counts }),

@@ -1,6 +1,6 @@
 import { expect, it, vi } from 'vitest';
 import { AcousticEngine } from './acoustic-engine';
-import { ACOUSTIC_MODEL as M, ACOUSTIC_TARGET_SAMPLES_PER_MS } from './model-contract';
+import { ACOUSTIC_RUNTIME_CONTRACT as M } from '../generated/runtime-contract';
 import { assertWindowGeometry } from './model-validation';
 import { workerRpcRig } from './__fixtures__/worker-rpc';
 import { ACOUSTIC_WORKER_RPC_SILENCE_TIMEOUT_MS as SILENCE } from './worker-liveness-policy';
@@ -43,16 +43,17 @@ it('prepare derives one unchanged smoke input from model geometry, without plann
     await engine.prepare('/verified-model');
     expect(worker.run).toHaveBeenCalledOnce();
     const [token, smoke] = worker.run.mock.calls[0];
-    const expectedEnd = M.inputSamples - M.futureMs * ACOUSTIC_TARGET_SAMPLES_PER_MS;
-    const expectedStart = expectedEnd - M.ownedMs * ACOUSTIC_TARGET_SAMPLES_PER_MS;
-    expect(smoke.pcm).toBeInstanceOf(Float32Array); expect(smoke.pcm).toHaveLength(M.inputSamples);
+    const expectedEnd = M.input.shape[1] - M.window.futureContextSamples;
+    const expectedStart = expectedEnd - M.window.ownedSamples;
+    expect(smoke.pcm).toBeInstanceOf(Float32Array); expect(smoke.pcm).toHaveLength(M.input.shape[1]);
     expect(smoke.pcm.every(sample => sample === 0)).toBe(true);
     expect(smoke.window).toEqual({ jobIndex: 0, regionIndex: 0, windowIndex: 0, ownedStartTarget: expectedStart,
-      ownedEndTarget: expectedEnd, startSample: 0, endSample: M.inputSamples });
-    expect(smoke.window.endSample - smoke.window.startSample).toBe(M.inputSamples);
-    expect(smoke.window.ownedEndTarget - smoke.window.ownedStartTarget).toBe(M.ownedMs * ACOUSTIC_TARGET_SAMPLES_PER_MS);
-    expect(smoke.window.endSample - smoke.window.ownedEndTarget - M.futureMs * ACOUSTIC_TARGET_SAMPLES_PER_MS).toBe(0);
-    expect([M.inputSamples, M.futureMs * ACOUSTIC_TARGET_SAMPLES_PER_MS, M.ownedMs * ACOUSTIC_TARGET_SAMPLES_PER_MS,
+      ownedEndTarget: expectedEnd, startSample: 0, endSample: M.input.shape[1]
+    });
+    expect(smoke.window.endSample - smoke.window.startSample).toBe(M.input.shape[1]);
+    expect(smoke.window.ownedEndTarget - smoke.window.ownedStartTarget).toBe(M.window.ownedSamples);
+    expect(smoke.window.endSample - smoke.window.ownedEndTarget - M.window.futureContextSamples).toBe(0);
+    expect([M.input.shape[1], M.window.futureContextSamples, M.window.ownedSamples,
       smoke.window.ownedStartTarget, smoke.window.ownedEndTarget, smoke.window.startSample, smoke.window.endSample, smoke.pcm.length])
       .toEqual([29120, 2720, 9600, 16800, 26400, 0, 29120, 29120]); // Secondary current characterization.
     expect(worker.beginSession).toHaveBeenCalledExactlyOnceWith(token);

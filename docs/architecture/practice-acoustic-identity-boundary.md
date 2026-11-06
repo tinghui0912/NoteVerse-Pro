@@ -4,8 +4,8 @@
 
 | Concern | Owner | Evidence meaning |
 | --- | --- | --- |
-| Model asset | model-contract and verified delivery | Exact ONNX bytes, descriptor and runtime configuration |
-| Decoder | robust-piano-decoder and core declaration | Qualified piano pitch/onset semantics |
+| Model asset | runtime-contract.json and generated verified delivery | Exact ONNX bytes, descriptor and runtime configuration |
+| Decoder | robust-piano-decoder and runtime decoder configuration | Qualified piano pitch/onset semantics |
 | Geometry, FIR and source mapping | planner, source adapter and FIR assets | Tensor context, half-open ownership and physical source coordinates |
 | Source publication | source runtime/publication | Immutable all-pitch observations and analyzed-through coverage |
 | Timing | Session timebase and segmented clock | Event-time mapping and explicit no-calibration policy |
@@ -18,8 +18,20 @@ its completed session; it carries no evidence-stack transport payload.
 
 ## Selected source and asset attestation
 
-The canonical acoustic core declaration binds model/decoder contracts, ownership,
-resampling and source publication. Selected repository anchors are:
+[runtime-contract.json](../../contracts/practice/acoustic/runtime-contract.json) owns configured
+acoustic runtime truth: model bytes and locator, ORT/provider, tensor descriptors,
+decoder configuration, sample geometry and qualified source adapters.
+[evidence-attestation.json](../../contracts/practice/acoustic/evidence-attestation.json)
+owns selected implementation attestations and scoped references to the exact runtime
+FIR assets. Binary identity is declared once in the runtime contract.
+
+The [generator](../../scripts/generate_practice_acoustic_contract.py) validates both
+contracts and derives immutable [TS](../../apps/customer-web/src/lib/practice/acoustic/generated/runtime-contract.ts)
+and [Python](../../backend/app/modules/model_assets/generated/practice_acoustic_contract.py)
+projections. Delivery, verification, inference, decoder and source adapters consume
+those projections. `--check` rejects declaration, byte-attestation or projection drift.
+
+Selected repository anchors are:
 
 - source-analysis-runtime.ts;
 - source-publication.ts, including acoustic domain identity admission;
@@ -28,11 +40,11 @@ resampling and source publication. Selected repository anchors are:
 - source-adapter.ts;
 - both shipped FIR coefficient assets.
 
-Node-side [file attestation tests](../../apps/customer-web/src/lib/practice/acoustic/model/acoustic-core-identity.test.ts)
+Node-side [file attestation tests](../../apps/customer-web/src/lib/practice/acoustic/identity.test.ts)
 verify declared paths, bytes and SHA256. Text normalization is CRLF→LF only, followed
 by UTF-8 encoding; FIR assets use exact binary bytes. Canonical JSON sorts object
-keys recursively and hashes its UTF-8 representation. Adapter composite identities
-bind that core hash, source-rate geometry, filter and implementation attestations.
+keys recursively and hashes its UTF-8 representation. The analysis identity hashes the canonical runtime and evidence digests. Adapter
+identities bind that analysis identity, rate-specific geometry and coefficient facts.
 Model delivery separately verifies model byte length and SHA256. Browser
 assertAcousticIdentity validates declarations/composites without filesystem access.
 
@@ -44,14 +56,14 @@ resource checks whose bytes are still covered by its file attestation.
 
 Source byte identity and semantic equivalence answer different questions. Any byte
 edit to a selected text source changes its attestation and mechanically propagates
-through core/composite hashes. Equal publication contents do not establish equal
-hashes. Conversely equal core hashes do not establish identical execution outcomes
+through evidence/composite hashes. Equal publication contents do not establish equal
+hashes. Conversely equal analysis hashes do not establish identical execution outcomes
 for dependencies outside the selected scope. Evidence-semantic review must consider
 the relevant declaration, selected sources and timing policy as well as hash guards.
 
 ## Evidence owners and timing
 
-`ACOUSTIC_ANALYSIS_IDENTITY` identifies the model/core/decoder contracts. Each
+`ACOUSTIC_ANALYSIS_IDENTITY` identifies the configured runtime and selected evidence. Each
 qualified source rate selects its source-adapter identity. `ContinuousMidiEvidence`
 owns its physical MIDI policy identity. Source analysis remains score/target/verdict
 blind, and source publication enforces canonical pitch/midiPitch identity before
@@ -66,11 +78,11 @@ actual mappings at their owners.
 
 Successful evidence semantics require correct source mapping, chronology, decoder
 behavior, immutable observation identity and half-open ownership. Relevant changes
-require review of core/adapter/timing identities. Artifact identity describes score
+require review of analysis/adapter/timing identities. Artifact identity describes score
 content; it is independent of acoustic model identity.
 
 Admission budgets, Worklet credits, worker silence/readiness deadlines, engine lease
-retirement and application interventions own availability. The evidence-core and
+retirement and application interventions own availability. The evidence and
 source-adapter declarations attest their selected algorithm sources and assets;
 they do not describe every runtime policy or availability outcome.
 Hash validation establishes drift resistance, not the reasonableness, optimality or

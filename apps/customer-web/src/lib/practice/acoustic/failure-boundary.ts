@@ -1,5 +1,5 @@
 import { AcousticFailure, CaptureFailure, InferenceFailure, isPracticeCausalFailure } from '@/lib/practice/failure/causal-failure';
-import { AcousticAnalysisError } from './model/model-contract';
+import { AcousticAnalysisError } from './errors';
 
 export function acousticBoundaryFailure(cause: unknown): Error {
   if (isPracticeCausalFailure(cause)) return cause;

@@ -1,5 +1,5 @@
 import { createAcousticModelWorker, type AcousticModelWorker } from './worker-client';
-import { ACOUSTIC_MODEL as M, ACOUSTIC_TARGET_SAMPLES_PER_MS } from './model-contract';
+import { ACOUSTIC_RUNTIME_CONTRACT as M } from '../generated/runtime-contract';
 import type { AcousticInferenceInput, AcousticInferencePort } from '../runtime/inference-types';
 import type { ModelAssetProgressCallback } from '../../../model-assets/types';
 
@@ -44,10 +44,14 @@ export class AcousticEngine {
         this.state = 'READY_IDLE';
         const smoke = await this.acquire();
         try {
-          const smokeOwnedEndTarget = M.inputSamples - M.futureMs * ACOUSTIC_TARGET_SAMPLES_PER_MS;
-          const smokeOwnedStartTarget = smokeOwnedEndTarget - M.ownedMs * ACOUSTIC_TARGET_SAMPLES_PER_MS;
-          await smoke.run({ pcm: new Float32Array(M.inputSamples), window: { jobIndex: 0, regionIndex: 0, windowIndex: 0,
-            ownedStartTarget: smokeOwnedStartTarget, ownedEndTarget: smokeOwnedEndTarget, startSample: 0, endSample: M.inputSamples } });
+          const smokeOwnedEndTarget = M.input.shape[1] - M.window.futureContextSamples;
+          const smokeOwnedStartTarget = smokeOwnedEndTarget - M.window.ownedSamples;
+          await smoke.run({
+            pcm: new Float32Array(M.input.shape[1]), window: {
+              jobIndex: 0, regionIndex: 0, windowIndex: 0,
+              ownedStartTarget: smokeOwnedStartTarget, ownedEndTarget: smokeOwnedEndTarget, startSample: 0, endSample: M.input.shape[1]
+            }
+          });
         } finally { await smoke.dispose(); }
       } catch (error) { this.fail(error); throw error; }
     })();

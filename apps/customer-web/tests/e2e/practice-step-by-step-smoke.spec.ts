@@ -1,3 +1,4 @@
+import { ACOUSTIC_MODEL_ASSET_DESCRIPTOR } from '../../src/lib/practice/acoustic/generated/runtime-contract';
 import type { PracticeScoreArtifact } from '../../src/lib/practice/score/artifact';
 import { installAcousticEngineFixture, openPreparedPractice, preparePracticeSetup, configurePractice, openPracticeSetup, selectPracticeConfiguration } from './support/practice-workspace';
 import { expect, test, type Page } from '@playwright/test';
@@ -8,7 +9,7 @@ import {
 
 const scoreId = 'practice-smoke-score';
 const revisionId = 'practice-smoke-revision';
-const practiceModelAccessPath = '/api/v1/model-assets/practice-acoustic-robust-browser-v1/access';
+const practiceModelAccessPath = '/api/v1/model-assets/practice-acoustic/access';
 
 const selectableMusicXml = `<?xml version="1.0" encoding="UTF-8"?>
 <score-partwise version="4.0">
@@ -239,12 +240,7 @@ async function setupPracticeMocks(
       status: 200,
       contentType: 'application/json',
       body: apiResponse({
-        schemaVersion: 1, ticksPerQuarter: 1,
-        assetId: 'practice-acoustic-robust-browser',
-        assetVersion: 'v1',
-        expectedByteSize: 98_689_283,
-        sha256: '4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3',
-        mediaType: 'application/octet-stream',
+        ...ACOUSTIC_MODEL_ASSET_DESCRIPTOR,
         downloadUrl: 'https://model-assets.example.test/practice-acoustic-robust-browser-v1.onnx?x-oss-signature-version=OSS4-HMAC-SHA256',
         downloadUrlExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
       }),

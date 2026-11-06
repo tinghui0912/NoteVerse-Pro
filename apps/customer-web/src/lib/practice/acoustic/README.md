@@ -36,15 +36,27 @@ The Continuous adapter imports only the publication type contract from
 targets or practice controllers. STEP assembles observations in `step/` and passes
 attempt evidence to `step/domain/`. Neither mode's domain imports this foundation.
 
+## Contract authority
+
+`contracts/practice/acoustic/runtime-contract.json` owns the configured model bytes,
+physical locator, runtime/provider, tensor descriptors, decoder configuration and
+sample geometry. `contracts/practice/acoustic/evidence-attestation.json` owns selected
+normalized implementation attestations and scoped references to raw FIR assets.
+`scripts/generate_practice_acoustic_contract.py` validates both and produces the
+immutable TS/Python projections consumed by delivery, inference, decoder and source
+adapters. Its `--check` mode rejects drift. Analysis identity combines the canonical
+runtime and evidence digests; per-rate identity additionally binds rational geometry
+and exact coefficients. The package declaration matches the configured ORT version.
+
 ## Model Identity
 
 The model is `practice-acoustic-robust-browser@v1`, served by
-`/model-assets/practice-acoustic-robust-browser-v1/access`. Download and OPFS reads
+`/model-assets/practice-acoustic/access`. Download and OPFS reads
 verify 98,689,283 bytes and SHA256
 `4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3`.
 FIR assets are under `public/model-assets/practice-acoustic/`.
 `model/robust-piano-decoder.ts` consumes the transaction-local raw output contract
-and explicit onset/frame thresholds .30/.05 from `model-contract.ts`.
+and explicit onset/frame thresholds .30/.05 from `contracts/practice/acoustic/runtime-contract.json`.
 
 ## Ownership, Clock and Bounds
 

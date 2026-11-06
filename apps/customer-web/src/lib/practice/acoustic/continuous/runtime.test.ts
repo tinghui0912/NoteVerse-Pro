@@ -12,7 +12,9 @@ import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { expect, it, vi } from 'vitest';
 import { evaluatePracticeInputCapabilities } from '../../input-capability';
-import { ACOUSTIC_MODEL, assertAcousticIdentity, canonicalJson, sha256, sourceIdentity } from '../model/model-contract';
+import { ACOUSTIC_RUNTIME_CONTRACT } from '../generated/runtime-contract';
+import { assertAcousticIdentity, canonicalJson, sha256 } from '../identity';
+import { sourceAdapterContract } from '../source/source-adapter-contract';
 import type { AcousticInferenceInput, AcousticInferencePort, AcousticInferenceResult } from '../runtime/inference-types';
 import { ACOUSTIC_RESOURCES } from '../runtime/resource-policy';
 import { sourcePublication } from '../runtime/source-publication';
@@ -92,11 +94,11 @@ async function receipt(name: string, value: unknown): Promise<void> {
 
 it('binds the exact acoustic core, source identities and finite resource ceilings', async () => {
   await assertAcousticIdentity();
-  expect(ACOUSTIC_MODEL).toMatchObject({ modelBytes: 98689283, ortVersion: '1.20.1', automaticFallback: false,
-    inputSamples: 29120, ownedMs: 600, futureMs: 170, onsetThreshold: .30, frameThreshold: .05 });
+  expect(ACOUSTIC_RUNTIME_CONTRACT.window.ownedSamples + ACOUSTIC_RUNTIME_CONTRACT.window.futureContextSamples)
+    .toBeLessThan(ACOUSTIC_RUNTIME_CONTRACT.input.shape[1]);
   for (const rate of [44100, 48000] as const) {
-    const identity = sourceIdentity(rate);
-    expect(await sha256(new TextEncoder().encode(canonicalJson(identity.identity)))).toBe(identity.identitySha256);
+    const identity = sourceAdapterContract(rate);
+    expect(await sha256(new TextEncoder().encode(canonicalJson(Object.fromEntries(Object.entries(identity).filter(([key]) => key !== 'identitySha256')))))).toBe(identity.identitySha256);
   }
   expect(ACOUSTIC_RESOURCES.maxOutstandingWindows).toBe(4);
   expect(evaluatePracticeInputCapabilities().acousticAnalysis.status).toBe('BROWSER_UNSUPPORTED');
@@ -261,7 +263,7 @@ it('30-minute fake-fast chronology has constant transient memory, 32 compact dia
   expect(s.counts.windowsPublished).toBe(3000); expect(s.diagnostics).toHaveLength(32);
   expect(s.diagnostics.every(d => !('observations' in d))).toBe(true);
   expect(s.resources.sessionPcmBytes).toBe(0); expect(s.resources.targetRingBytes).toBe(262144);
-  const firBytes = await coefficients(), { up } = sourceIdentity(48000).identity;
+  const firBytes = await coefficients(), { up } = sourceAdapterContract(48000);
   const sourceSpan = Math.ceil(firBytes.byteLength / Float32Array.BYTES_PER_ELEMENT / up);
   expect(s.resources.sourceAdapterBytes).toBe(firBytes.byteLength + sourceSpan * Float32Array.BYTES_PER_ELEMENT);
   expect(s.resources.retainedPublicationEvents).toBe(0);

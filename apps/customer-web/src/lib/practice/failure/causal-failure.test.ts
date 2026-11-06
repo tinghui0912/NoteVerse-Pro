@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import { DeviceFailure, MidiFailure, AudioContextFailure, CaptureFailure, AcousticFailure, InferenceFailure, RecordingFailure, SourceFailure, isPracticeCausalFailure } from './causal-failure';
-import { AcousticAnalysisError } from '../acoustic/model/model-contract';
+import { AcousticAnalysisError } from '../acoustic/errors';
 import { acousticBoundaryFailure } from '../acoustic/failure-boundary';
 
 it('closed causal categories retain original diagnostic cause without interpreting its text', () => {

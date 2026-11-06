@@ -3277,18 +3277,16 @@ export type PerformanceTempoEventRead = {
 
 /**
  * PracticeAcousticAccessRead
- *
- * The sole immutable browser Practice acoustic deployment.
  */
 export type PracticeAcousticAccessRead = {
     /**
      * Assetid
      */
-    assetId?: 'practice-acoustic-robust-browser';
+    assetId: string;
     /**
      * Assetversion
      */
-    assetVersion?: 'v1';
+    assetVersion: string;
     /**
      * Downloadurl
      */
@@ -3300,19 +3298,19 @@ export type PracticeAcousticAccessRead = {
     /**
      * Expectedbytesize
      */
-    expectedByteSize?: 98689283;
+    expectedByteSize: number;
     /**
      * Mediatype
      */
-    mediaType?: 'application/octet-stream';
+    mediaType: string;
     /**
      * Schemaversion
      */
-    schemaVersion?: 1;
+    schemaVersion: number;
     /**
      * Sha256
      */
-    sha256?: '4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3';
+    sha256: string;
 };
 
 /**
@@ -5928,30 +5926,30 @@ export type GetStorageUsageApiV1MeStorageUsageGetResponses = {
 
 export type GetStorageUsageApiV1MeStorageUsageGetResponse = GetStorageUsageApiV1MeStorageUsageGetResponses[keyof GetStorageUsageApiV1MeStorageUsageGetResponses];
 
-export type GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticRobustBrowserV1AccessGetData = {
+export type GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticAccessGetData = {
     body?: never;
     path?: never;
     query?: never;
-    url: '/api/v1/model-assets/practice-acoustic-robust-browser-v1/access';
+    url: '/api/v1/model-assets/practice-acoustic/access';
 };
 
-export type GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticRobustBrowserV1AccessGetErrors = {
+export type GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticAccessGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticRobustBrowserV1AccessGetError = GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticRobustBrowserV1AccessGetErrors[keyof GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticRobustBrowserV1AccessGetErrors];
+export type GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticAccessGetError = GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticAccessGetErrors[keyof GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticAccessGetErrors];
 
-export type GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticRobustBrowserV1AccessGetResponses = {
+export type GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticAccessGetResponses = {
     /**
      * Successful Response
      */
     200: ApiResponsePracticeAcousticAccessRead;
 };
 
-export type GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticRobustBrowserV1AccessGetResponse = GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticRobustBrowserV1AccessGetResponses[keyof GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticRobustBrowserV1AccessGetResponses];
+export type GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticAccessGetResponse = GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticAccessGetResponses[keyof GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticAccessGetResponses];
 
 export type ListMyScoresApiV1MyScoresGetData = {
     body?: never;

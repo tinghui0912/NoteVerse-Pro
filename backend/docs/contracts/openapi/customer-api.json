@@ -6482,17 +6482,13 @@
         "type": "object"
       },
       "PracticeAcousticAccessRead": {
-        "description": "The sole immutable browser Practice acoustic deployment.",
+        "additionalProperties": false,
         "properties": {
           "assetId": {
-            "const": "practice-acoustic-robust-browser",
-            "default": "practice-acoustic-robust-browser",
             "title": "Assetid",
             "type": "string"
           },
           "assetVersion": {
-            "const": "v1",
-            "default": "v1",
             "title": "Assetversion",
             "type": "string"
           },
@@ -6505,31 +6501,31 @@
             "type": "string"
           },
           "expectedByteSize": {
-            "const": 98689283,
-            "default": 98689283,
+            "exclusiveMinimum": 0.0,
             "title": "Expectedbytesize",
             "type": "integer"
           },
           "mediaType": {
-            "const": "application/octet-stream",
-            "default": "application/octet-stream",
             "title": "Mediatype",
             "type": "string"
           },
           "schemaVersion": {
-            "const": 1,
-            "default": 1,
+            "exclusiveMinimum": 0.0,
             "title": "Schemaversion",
             "type": "integer"
           },
           "sha256": {
-            "const": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
-            "default": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
             "title": "Sha256",
             "type": "string"
           }
         },
         "required": [
+          "schemaVersion",
+          "assetId",
+          "assetVersion",
+          "expectedByteSize",
+          "sha256",
+          "mediaType",
           "downloadUrl",
           "downloadUrlExpiresAt"
         ],
@@ -11535,10 +11531,10 @@
         ]
       }
     },
-    "/api/v1/model-assets/practice-acoustic-robust-browser-v1/access": {
+    "/api/v1/model-assets/practice-acoustic/access": {
       "get": {
         "description": "Asset delivery only; no server Practice execution.",
-        "operationId": "get_practice_acoustic_access_api_v1_model_assets_practice_acoustic_robust_browser_v1_access_get",
+        "operationId": "get_practice_acoustic_access_api_v1_model_assets_practice_acoustic_access_get",
         "parameters": [
           {
             "in": "cookie",

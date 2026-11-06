@@ -1,3 +1,4 @@
+import { SOURCE_ADAPTER_CONTRACTS } from '../generated/runtime-contract';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import { expect, it } from 'vitest';
@@ -15,7 +16,7 @@ async function fixture(rate = 48000) {
     registerProcessor: (_name: string, constructor: unknown) => { scope.Processor = constructor; } };
   const text = await readFile('src/lib/practice/acoustic/source/capture.worklet.js', 'utf8');
   vm.runInNewContext(text, scope);
-  const processor = new (scope.Processor as new () => Processor)();
+  const processor = new (scope.Processor as new (options: object) => Processor)({ processorOptions: { qualifiedSourceRates: Object.values(SOURCE_ADAPTER_CONTRACTS).map(contract => contract.sourceRateHz) } });
   const run = (frame: number, length: number, channels = 2) => {
     scope.currentFrame = frame; scope.currentTime = frame / rate;
     return processor.process([Array.from({ length: channels }, (_, c) => Float32Array.from({ length }, (_, i) => Math.fround((frame + i) % 211 / 211 + c * .1)))], []);

@@ -1,17 +1,24 @@
-"""Pydantic schemas for model asset delivery access."""
+"""Strict transport shape bound to the generated acoustic deployment descriptor."""
 
-from typing import Literal
-from pydantic import BaseModel
+from typing import Self
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+from app.modules.model_assets.generated.practice_acoustic_contract import MODEL_ASSET_DESCRIPTOR
 
 
 class PracticeAcousticAccessRead(BaseModel):
-    """The sole immutable browser Practice acoustic deployment."""
+    model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
 
-    schemaVersion: Literal[1] = 1
-    assetId: Literal["practice-acoustic-robust-browser"] = "practice-acoustic-robust-browser"
-    assetVersion: Literal["v1"] = "v1"
-    expectedByteSize: Literal[98_689_283] = 98_689_283
-    sha256: Literal["4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3"] = "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3"
-    mediaType: Literal["application/octet-stream"] = "application/octet-stream"
+    schemaVersion: int = Field(gt=0)
+    assetId: str
+    assetVersion: str
+    expectedByteSize: int = Field(gt=0)
+    sha256: str
+    mediaType: str
     downloadUrl: str
     downloadUrlExpiresAt: str
+
+    @model_validator(mode="after")
+    def validate_deployment(self) -> Self:
+        if self.model_dump(include=set(MODEL_ASSET_DESCRIPTOR)) != dict(MODEL_ASSET_DESCRIPTOR):
+            raise ValueError("Acoustic access identity does not match the configured deployment")
+        return self

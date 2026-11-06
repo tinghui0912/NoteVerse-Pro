@@ -1,6 +1,8 @@
 import type { ContinuousEvidencePublication } from '@/lib/practice/continuous/domain/evaluation/evidence-types';
 import { deliverSynchronously, type SourceAcousticPublication } from '../runtime/source-publication';
-import { ACOUSTIC_MODEL, ACOUSTIC_TARGET_SAMPLES_PER_MS, fail, previousFloat } from '../model/model-contract';
+import { ACOUSTIC_RUNTIME_CONTRACT, ACOUSTIC_TARGET_SAMPLES_PER_MS } from '../generated/runtime-contract';
+import { fail } from '../errors';
+import { previousFloat } from '../validation';
 
 export type AcousticPublicationSink = (publication: ContinuousEvidencePublication) => void;
 export type PerformanceSegment = { index: number; sourceStart: number; originTarget: number;
@@ -13,8 +15,8 @@ export function projectContinuousEvidence(input: SourceAcousticPublication, segm
   const samplesPerMs = ACOUSTIC_TARGET_SAMPLES_PER_MS;
   // The scheduler's integer window ordinal avoids cancelling fractional source
   // anchors. Geometry has one owner; event timing still uses source coordinates.
-  const start = segment.performanceStartMs + w.windowIndex * ACOUSTIC_MODEL.ownedMs;
-  const end = Math.min(start + ACOUSTIC_MODEL.ownedMs, segment.performanceEndMs ?? Infinity);
+  const start = segment.performanceStartMs + w.windowIndex * (ACOUSTIC_RUNTIME_CONTRACT.window.ownedSamples / (ACOUSTIC_RUNTIME_CONTRACT.input.sampleRateHz / 1000));
+  const end = Math.min(start + (ACOUSTIC_RUNTIME_CONTRACT.window.ownedSamples / (ACOUSTIC_RUNTIME_CONTRACT.input.sampleRateHz / 1000)), segment.performanceEndMs ?? Infinity);
   const inputStartMs = segment.performanceStartMs + (w.startSample - segment.originTarget) / samplesPerMs;
   const observations = input.observations.map(e => Object.freeze({
     observationId: `${input.sourceDomainId}:s${segment.index}:w${w.windowIndex}:p${e.midiPitch}:f${e.targetSample}`,

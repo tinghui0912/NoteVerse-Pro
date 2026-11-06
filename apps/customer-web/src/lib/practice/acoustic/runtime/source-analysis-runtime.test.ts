@@ -3,7 +3,8 @@ import { expect, it, vi } from 'vitest';
 import { SourceAnalysisRuntime } from './source-analysis-runtime';
 import { AcousticPcmRing, planWindow } from './window-planner';
 import { QualifiedSourceAdapter } from '../source/source-adapter';
-import { ACOUSTIC_MODEL as M, ACOUSTIC_TARGET_SAMPLES_PER_MS, sourceIdentity } from '../model/model-contract';
+import { ACOUSTIC_RUNTIME_CONTRACT as M, ACOUSTIC_TARGET_SAMPLES_PER_MS } from '../generated/runtime-contract';
+import { sourceAdapterContract } from '../source/source-adapter-contract';
 import { ACOUSTIC_RESOURCES as R } from './resource-policy';
 import { CAPTURE_TRANSPORT_BLOCK_SAMPLES } from '../source/capture-transport-contract';
 import { sourceObservationId, type SourceAcousticPublication } from './source-publication';
@@ -104,25 +105,25 @@ it.each([44100, 48000] as const)('%i: nonzero source base and partial region use
       + Math.ceil(coefficients.byteLength / Float32Array.BYTES_PER_ELEMENT / adapter.up) * Float32Array.BYTES_PER_ELEMENT);
     expect(runtime.snapshot().resources.sourceAdapterBytes).toBe(rate === 44100 ? 35508 : 488);
     await feed(base + 128); expect(runtime.prerollReady).toBe(false);
-    const firstEligibleDelta = Math.ceil(((M.inputMs - M.futureMs) * ACOUSTIC_TARGET_SAMPLES_PER_MS + adapter.firstFullyRealOutputIndex) * rate / M.sampleRateHz);
+    const firstEligibleDelta = Math.ceil((((M.input.shape[1] / (M.input.sampleRateHz / 1000)) - (M.window.futureContextSamples / (M.input.sampleRateHz / 1000))) * ACOUSTIC_TARGET_SAMPLES_PER_MS + adapter.firstFullyRealOutputIndex) * rate / M.input.sampleRateHz);
     await feed(base + firstEligibleDelta - 1); expect(runtime.prerollReady).toBe(false);
     await feed(base + firstEligibleDelta); expect(runtime.prerollReady).toBe(true);
     await feed(base + rate * 2 + 7); expect(runtime.prerollReady).toBe(true);
-    const sourceStart = next, originTarget = (sourceStart - base) * M.sampleRateHz / rate;
+    const sourceStart = next, originTarget = (sourceStart - base) * M.input.sampleRateHz / rate;
     runtime.beginAnalysisRegion(sourceStart);
     expect(runtime.snapshot()).toMatchObject({ sourceBase: base, activeRegion: { sourceStart, originTarget } });
     await feed(sourceStart + 257); const sourceEnd = next;
     runtime.endAnalysisRegion(sourceEnd);
-    const endTarget = originTarget + (sourceEnd - sourceStart) * M.sampleRateHz / rate;
+    const endTarget = originTarget + (sourceEnd - sourceStart) * M.input.sampleRateHz / rate;
     expect(runtime.snapshot()).toMatchObject({ activeRegion: null, pendingRegions: 1 });
     expect(publications).toEqual([]); runtime.finishRegions();
     await feed(sourceEnd + rate); await runtime.seal();
     expect(publications).toHaveLength(1);
     const p = publications[0];
     expect(p.window).toMatchObject({ jobIndex: 0, regionIndex: 0, windowIndex: 0, ownedStartTarget: originTarget, ownedEndTarget: endTarget });
-    expect(p.window.ownedEndTarget - p.window.ownedStartTarget).toBeLessThan(M.ownedMs * ACOUSTIC_TARGET_SAMPLES_PER_MS);
-    expect(p.ownedThroughSourceSample).toBe(base + endTarget * rate / M.sampleRateHz);
-    expect(p.observations[0].sourceEventSample).toBe((base * M.sampleRateHz + p.observations[0].targetSample * rate) / M.sampleRateHz);
+    expect(p.window.ownedEndTarget - p.window.ownedStartTarget).toBeLessThan(M.window.ownedSamples);
+    expect(p.ownedThroughSourceSample).toBe(base + endTarget * rate / M.input.sampleRateHz);
+    expect(p.observations[0].sourceEventSample).toBe((base * M.input.sampleRateHz + p.observations[0].targetSample * rate) / M.input.sampleRateHz);
     expect(p.observations[0].observationId).toBe(sourceObservationId('nonzero-base', p.window, 60, p.observations[0].targetSample));
     expect(runtime.snapshot()).toMatchObject({ state: 'SEALED', failureCode: null, outstanding: 0, pendingRegions: 0 });
   } finally { await runtime.dispose(); }
@@ -252,7 +253,7 @@ it('R07 append accepts the transport maximum and smaller splits, rejecting overs
 it('R01 valid source reaches four copied queued/active inputs; fifth fails before ring extraction/copy', async () => {
   const r = await resourceRig(), extract = vi.spyOn(AcousticPcmRing.prototype, 'extract');
   try {
-    expect(R.inputBytes).toBe(M.inputSamples * Float32Array.BYTES_PER_ELEMENT);
+    expect(R.inputBytes).toBe(M.input.shape[1] * Float32Array.BYTES_PER_ELEMENT);
     expect(Float32Array.BYTES_PER_ELEMENT).toBe(4); // JavaScript representation fact, not a product policy.
     expect(R.inputBytes).toBe(116480); // Secondary characterization of the current model payload.
     expect(R.targetRingSamples).toBe(65536); // R08 remains unchanged and unqualified.
@@ -307,7 +308,7 @@ for (const rate of [44100, 48000] as const) {
       }
       expect(indices).toEqual(Array.from({ length: 129 }, (_, index) => index));
       expect(worker.run).not.toHaveBeenCalled(); expect(publications).toEqual([]); expect(failure).not.toHaveBeenCalled();
-      runtime.finishRegions(); feed(source + Math.ceil(M.futureMs * rate / 1000) + sourceIdentity(rate).identity.realSourceLookaheadSamples + 3);
+      runtime.finishRegions(); feed(source + Math.ceil((M.window.futureContextSamples / (M.input.sampleRateHz / 1000)) * rate / 1000) + sourceAdapterContract(rate).realSourceLookaheadSamples + 3);
       await runtime.seal();
       expect(publications.map(p => [p.window.jobIndex, p.window.regionIndex, p.window.windowIndex])).toEqual([[0, first, 0]]);
       expect(worker.run).toHaveBeenCalledOnce(); expect(runtime.snapshot()).toMatchObject({ pendingRegions: 0, outstanding: 0,
@@ -324,7 +325,7 @@ for (const rate of [44100, 48000] as const) {
     let next = 0, extractedWithRetention = false;
     const extract = AcousticPcmRing.prototype.extract;
     const checked = vi.spyOn(AcousticPcmRing.prototype, 'extract').mockImplementation(function (this: AcousticPcmRing, start, end) {
-      expect(start).toBeGreaterThanOrEqual(this.firstRetained); expect(end - start).toBe(M.inputSamples);
+      expect(start).toBeGreaterThanOrEqual(this.firstRetained); expect(end - start).toBe(M.input.shape[1]);
       extractedWithRetention ||= this.firstRetained > 0; return extract.call(this, start, end);
     });
     const feed = (end: number) => { while (next < end) { const start = next; next = Math.min(end, next + CAPTURE_TRANSPORT_BLOCK_SAMPLES);
@@ -355,9 +356,9 @@ for (const rate of [44100, 48000] as const) {
 
 it('R02 source-discrete future horizon and retained-input bounds follow shipped adapter equations, not a replacement cap', () => {
   for (const rate of [44100, 48000] as const) {
-    const identity = sourceIdentity(rate).identity, { up, down, tapCount } = identity, center = (tapCount - 1) / 2;
+    const identity = sourceAdapterContract(rate), { up, down, tapCount } = identity, center = (tapCount - 1) / 2;
     expect(Math.ceil(center / up)).toBe(identity.realSourceLookaheadSamples);
-    const future = M.futureMs * M.sampleRateHz / 1000, lengths: number[] = [];
+    const future = (M.window.futureContextSamples / (M.input.sampleRateHz / 1000)) * M.input.sampleRateHz / 1000, lengths: number[] = [];
     // All rational source phases; translating by down adds exactly up target samples in exact arithmetic.
     for (let phase = 0; phase < down; phase++) {
       const end = Math.round(phase * up / down + future);
@@ -373,13 +374,14 @@ it('R02 source-discrete future horizon and retained-input bounds follow shipped 
     const blockOutputs = Math.ceil((CAPTURE_TRANSPORT_BLOCK_SAMPLES + 2 * emissionError) * up / down) + 1;
     const fifoSkew = Math.ceil(2 * geometryError);
     expect([blockOutputs, fifoSkew]).toEqual([rate === 44100 ? 746 : 685, 4]);
-    expect(M.inputSamples + blockOutputs + fifoSkew).toBeLessThan(R.targetRingSamples);
+    expect(M.input.shape[1] + blockOutputs + fifoSkew).toBeLessThan(R.targetRingSamples);
     // Numeric boundary probes supplement (not replace) the uniform Float64 inequalities.
     for (const endpoint of [rate * 8, 2 ** 32, 2 ** 48, Number.MAX_SAFE_INTEGER - horizon]) {
       for (const width of [1, 3, 128]) {
-        const start = endpoint - width, originTarget = start * M.sampleRateHz / rate;
+        const start = endpoint - width, originTarget = start * M.input.sampleRateHz / rate;
         const region = { index: 0, sourceStart: start, originTarget, nextWindow: 0, queuedEndTarget: originTarget,
-          sourceEnd: endpoint, endTarget: originTarget + width * M.sampleRateHz / rate };
+          sourceEnd: endpoint, endTarget: originTarget + width * M.input.sampleRateHz / rate
+        };
         const window = planWindow(region, 0)!;
         const received = Math.floor(((window.endSample - 1) * down + center) / up) + 1;
         expect(received - endpoint).toBeLessThanOrEqual(horizon);
@@ -419,28 +421,29 @@ it.each([44100, 48000] as const)('%i: real FIR PCM extraction shares the usable 
   ring.append(output);
   expect(ring.firstRetained).toBe(0);
   expect(ring.firstUsable).toBe(adapter.firstFullyRealOutputIndex);
-  expect(() => ring.extract(ring.firstUsable - 1, ring.firstUsable - 1 + M.inputSamples))
+  expect(() => ring.extract(ring.firstUsable - 1, ring.firstUsable - 1 + M.input.shape[1]))
     .toThrow('REAL_ACOUSTIC_CONTEXT_UNAVAILABLE');
-  expect(ring.extract(ring.firstUsable, ring.firstUsable + M.inputSamples))
-    .toEqual(output.slice(ring.firstUsable, ring.firstUsable + M.inputSamples));
+  expect(ring.extract(ring.firstUsable, ring.firstUsable + M.input.shape[1]))
+    .toEqual(output.slice(ring.firstUsable, ring.firstUsable + M.input.shape[1]));
   const tail = adapter.push(Float32Array.from({ length: rate * 4 }, (_, i) => (i % 17) / 32));
   ring.append(tail);
   const all = new Float32Array([...output, ...tail]);
   expect(ring.firstRetained).toBeGreaterThan(adapter.firstFullyRealOutputIndex);
   expect(ring.firstUsable).toBe(Math.max(adapter.firstFullyRealOutputIndex, ring.firstRetained));
-  expect(() => ring.extract(ring.firstUsable - 1, ring.firstUsable - 1 + M.inputSamples))
+  expect(() => ring.extract(ring.firstUsable - 1, ring.firstUsable - 1 + M.input.shape[1]))
     .toThrow('REAL_ACOUSTIC_CONTEXT_UNAVAILABLE');
-  expect(ring.extract(ring.firstUsable, ring.firstUsable + M.inputSamples))
-    .toEqual(all.slice(ring.firstUsable, ring.firstUsable + M.inputSamples));
+  expect(ring.extract(ring.firstUsable, ring.firstUsable + M.input.shape[1]))
+    .toEqual(all.slice(ring.firstUsable, ring.firstUsable + M.input.shape[1]));
 });
 
 it.each([44100, 48000] as const)('%i: region admission and real input extraction obey the adapter-owned usable boundary', async rate => {
   const coefficients = await readFile(`public/model-assets/practice-acoustic/${rate === 44100 ? 'fir-160-441' : 'fir-1-3'}.f32`);
   const adapter = await QualifiedSourceAdapter.create(rate, coefficients);
   const windowAt = (delta: number) => planWindow({ index: 0, sourceStart: delta,
-    originTarget: delta * M.sampleRateHz / rate, nextWindow: 0, queuedEndTarget: delta * M.sampleRateHz / rate }, 0)!;
-  let firstAdmitted = Math.floor((M.inputSamples - (M.ownedMs + M.futureMs) * ACOUSTIC_TARGET_SAMPLES_PER_MS
-    + adapter.firstFullyRealOutputIndex) * rate / M.sampleRateHz);
+    originTarget: delta * M.input.sampleRateHz / rate, nextWindow: 0, queuedEndTarget: delta * M.input.sampleRateHz / rate
+  }, 0)!;
+  let firstAdmitted = Math.floor((M.input.shape[1] - ((M.window.ownedSamples / (M.input.sampleRateHz / 1000)) + (M.window.futureContextSamples / (M.input.sampleRateHz / 1000))) * ACOUSTIC_TARGET_SAMPLES_PER_MS
+    + adapter.firstFullyRealOutputIndex) * rate / M.input.sampleRateHz);
   while (windowAt(firstAdmitted).startSample < adapter.firstFullyRealOutputIndex) firstAdmitted++;
   while (windowAt(firstAdmitted - 1).startSample >= adapter.firstFullyRealOutputIndex) firstAdmitted--;
   expect(windowAt(firstAdmitted - 1).startSample).toBeLessThan(adapter.firstFullyRealOutputIndex);
@@ -469,7 +472,7 @@ it.each([44100, 48000] as const)('%i: region admission and real input extraction
         expect(checked).not.toHaveBeenCalled(); expect(inputs).toEqual([]); expect(publications).toEqual([]);
       } else {
         expect(runtime.beginAnalysisRegion(next)).toBe(0);
-        await feed(firstAdmitted + rate * M.ownedMs / 1000); runtime.finishRegions();
+        await feed(firstAdmitted + rate * (M.window.ownedSamples / (M.input.sampleRateHz / 1000)) / 1000); runtime.finishRegions();
         const finalInputEnd = windowAt(firstAdmitted).endSample;
         const requiredRealSourceEnd = Math.floor(((finalInputEnd - 1) * adapter.down + adapter.center) / adapter.up) + 1;
         await feed(requiredRealSourceEnd); await runtime.seal();

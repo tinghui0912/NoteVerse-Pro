@@ -1,4 +1,4 @@
-import { AcousticAnalysisError, isAcousticAnalysisErrorCode, type AcousticAnalysisErrorCode } from './model-contract';
+import { AcousticAnalysisError, isAcousticAnalysisErrorCode, type AcousticAnalysisErrorCode } from '../errors';
 import { acousticBoundaryFailure } from '../failure-boundary';
 import { InferenceFailure } from '@/lib/practice/failure/causal-failure';
 import { ACOUSTIC_WORKER_RPC_SILENCE_TIMEOUT_MS } from './worker-liveness-policy';

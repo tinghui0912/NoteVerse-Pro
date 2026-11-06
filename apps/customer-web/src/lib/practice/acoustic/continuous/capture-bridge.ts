@@ -1,5 +1,6 @@
 import { ContinuousAcousticProjection } from './continuous-projection';
-import { fail, onlyFields, safeIndex } from '../model/model-contract';
+import { fail } from '../errors';
+import { onlyFields, safeIndex } from '../validation';
 import { ACOUSTIC_RESOURCES as R } from '../runtime/resource-policy';
 
 import type { CaptureChunk } from '../source/capture-types';

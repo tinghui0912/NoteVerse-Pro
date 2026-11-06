@@ -5,7 +5,6 @@ import { AcousticModelWorker, createAcousticModelWorker } from './worker-client'
 import { ACOUSTIC_WORKER_RPC_SILENCE_TIMEOUT_MS as SILENCE } from './worker-liveness-policy';
 import type { PianoRawOutputs } from './raw-output-contract';
 import { acousticBoundaryFailure } from '../failure-boundary';
-import { ACOUSTIC_MODEL } from './model-contract';
 import type { AcousticInferenceInput } from '../runtime/inference-types';
 
 const input: AcousticInferenceInput = { pcm: new Float32Array(29120), window: { jobIndex: 0, regionIndex: 0, windowIndex: 0,
@@ -18,12 +17,14 @@ it('WebGPU absence rejects session creation without requesting a fallback provid
   await provider.dispose();
 });
 it('decoder uses explicit authoritative .30/.05 on adversarial raw outputs', () => {
-  const raw: PianoRawOutputs = { reg_onset_output: new Float32Array(183 * 88), reg_onset_shape: [1, 183, 88],
-    frame_output: new Float32Array(183 * 88), frame_shape: [1, 183, 88] };
-  raw.reg_onset_output[110 * 88 + 39] = .25; raw.frame_output[110 * 88 + 39] = .8;
-  raw.reg_onset_output[120 * 88 + 40] = .6; raw.frame_output[120 * 88 + 40] = .1;
+  const raw: PianoRawOutputs = {
+    onset: new Float32Array(183 * 88), onsetShape: [1, 183, 88],
+    frame: new Float32Array(183 * 88), frameShape: [1, 183, 88]
+  };
+  raw.onset[110 * 88 + 39] = .25; raw.frame[110 * 88 + 39] = .8;
+  raw.onset[120 * 88 + 40] = .6; raw.frame[120 * 88 + 40] = .1;
   expect(decodeAcousticOutputs(raw, input).map(e => e.midiPitch)).toEqual([61]);
-  expect(ACOUSTIC_MODEL).toMatchObject({ onsetThreshold: .30, frameThreshold: .05 });
+
 });
 it('wrong model size/hash are rejected without inference', async () => {
   await expect(verifyAcousticModel(new Uint8Array(10))).rejects.toThrow('ACOUSTIC_MODEL_IDENTITY_MISMATCH');

@@ -2,7 +2,7 @@ import { expect, it } from 'vitest';
 import { isAcousticDomainIdentity, SourcePublicationSequence, sourceObservationId, sourcePublication } from './source-publication';
 import { planWindow } from './window-planner';
 import { ACOUSTIC_RESOURCES } from './resource-policy';
-import { ACOUSTIC_MODEL as M, ACOUSTIC_TARGET_SAMPLES_PER_MS } from '../model/model-contract';
+import { ACOUSTIC_RUNTIME_CONTRACT as M, ACOUSTIC_TARGET_SAMPLES_PER_MS } from '../generated/runtime-contract';
 import { projectContinuousEvidence } from '../continuous/publication';
 import { pianoMidiPitchToName } from '../model/robust-piano-decoder';
 
@@ -15,7 +15,7 @@ it.each([44100, 48000] as const)('%i: all88 canonical event identities retain ex
   expect(p.observations.map(o => [o.pitch, o.midiPitch, o.targetSample, o.confidence]))
     .toEqual(events.map(e => [e.pitch, e.midiPitch, e.targetSample, e.confidence]));
   expect(p.observations.map(o => o.observationId)).toEqual(events.map(e => sourceObservationId('source', window, e.midiPitch, e.targetSample)));
-  expect(p.observations.every(o => o.sourceEventSample === 20000 * rate / M.sampleRateHz)).toBe(true);
+  expect(p.observations.every(o => o.sourceEventSample === 20000 * rate / M.input.sampleRateHz)).toBe(true);
 });
 
 it.each([44100, 48000] as const)('%i: mismatched worker and direct-publication pairs fail at their existing integrity owners', rate => {
@@ -92,9 +92,9 @@ it.each([44100, 48000] as const)('%i: exclusive absolute frontier uses only sour
   const result = { events: [{ pitch: 'C4', midiPitch: 60, confidence: .8, onsetScore: .9, frameScore: .8, targetSample: 20000 }],
     inferenceMs: 1, decodeMs: 0, actualSessionRunCount: 1 };
   const p = sourcePublication('source', rate, 100000, window, result, 1234567);
-  expect(M.sampleRateHz).toBe(16000); // Secondary model declaration characterization, not a mapping owner.
-  expect(p.ownedThroughSourceSample).toBe(100000 + window.ownedEndTarget * rate / M.sampleRateHz);
-  expect(p.observations[0].sourceEventSample).toBe((100000 * M.sampleRateHz + result.events[0].targetSample * rate) / M.sampleRateHz);
+  expect(M.input.sampleRateHz).toBe(16000); // Secondary model declaration characterization, not a mapping owner.
+  expect(p.ownedThroughSourceSample).toBe(100000 + window.ownedEndTarget * rate / M.input.sampleRateHz);
+  expect(p.observations[0].sourceEventSample).toBe((100000 * M.input.sampleRateHz + result.events[0].targetSample * rate) / M.input.sampleRateHz);
   expect(new SourcePublicationSequence('source', rate).accept(p)).toBeNull();
   expect(Object.isFrozen(p)).toBe(true);
   expect(Object.isFrozen(p.window)).toBe(true);
@@ -109,11 +109,11 @@ it.each([44100, 48000] as const)('%i: event mapping retains safe-integer numerat
   const window = planWindow({ index: 0, sourceStart: 57600, originTarget: 19200, nextWindow: 0, queuedEndTarget: 0 }, 0)!;
   const event = { pitch: 'C4', midiPitch: 60, confidence: .8, onsetScore: .8, frameScore: .8, targetSample: 20000 };
   const result = { events: [event], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: 1 };
-  const base = Math.floor((Number.MAX_SAFE_INTEGER - event.targetSample * rate) / M.sampleRateHz);
-  const numerator = base * M.sampleRateHz + event.targetSample * rate;
+  const base = Math.floor((Number.MAX_SAFE_INTEGER - event.targetSample * rate) / M.input.sampleRateHz);
+  const numerator = base * M.input.sampleRateHz + event.targetSample * rate;
   expect(Number.isSafeInteger(numerator)).toBe(true);
-  expect(sourcePublication('source', rate, base, window, result, 0).observations[0].sourceEventSample).toBe(numerator / M.sampleRateHz);
-  expect(Number.isSafeInteger((base + 1) * M.sampleRateHz + event.targetSample * rate)).toBe(false);
+  expect(sourcePublication('source', rate, base, window, result, 0).observations[0].sourceEventSample).toBe(numerator / M.input.sampleRateHz);
+  expect(Number.isSafeInteger((base + 1) * M.input.sampleRateHz + event.targetSample * rate)).toBe(false);
   expect(() => sourcePublication('source', rate, base + 1, window, result, 0)).toThrow('ACOUSTIC_SOURCE_COORDINATE_OVERFLOW');
 });
 
@@ -191,21 +191,23 @@ it('accepts full then partial windows and contiguous region 1 with a physical so
   const partial = regionPublication(0, 1, 19200, 1, 32000);
   const next = regionPublication(1, 2, 40000);
   expect(partial.window.ownedStartTarget).toBe(full.window.ownedEndTarget);
-  expect(partial.window.ownedEndTarget).toBeLessThan(partial.window.ownedStartTarget + M.ownedMs * ACOUSTIC_TARGET_SAMPLES_PER_MS);
+  expect(partial.window.ownedEndTarget).toBeLessThan(partial.window.ownedStartTarget + M.window.ownedSamples);
   expect(next.window.ownedStartTarget).toBeGreaterThan(partial.window.ownedEndTarget);
   expect(() => { sequence.accept(full); sequence.accept(partial); sequence.accept(next); }).not.toThrow();
 });
 
 it.each([44100, 48000] as const)('%i: planner and source validation share target samples/ms while Continuous projection preserves partial half-open times', rate => {
   const originTarget = 32000, durationMs = 33.25; // Enough real past for a short final full model input.
-  const window = planWindow({ index: 0, sourceStart: 100000 + originTarget * rate / M.sampleRateHz, originTarget,
+  const window = planWindow({
+    index: 0, sourceStart: 100000 + originTarget * rate / M.input.sampleRateHz, originTarget,
     nextWindow: 0, queuedEndTarget: originTarget, endTarget: originTarget + durationMs * ACOUSTIC_TARGET_SAMPLES_PER_MS }, 0)!;
   const event = (targetSample: number) => ({ pitch: 'C4', midiPitch: 60, targetSample, confidence: .8, onsetScore: .9, frameScore: .8 });
   const p = sourcePublication('source', rate, 100000, window, { events: [event(originTarget), event(window.ownedEndTarget - 1), event(window.ownedEndTarget)],
     inferenceMs: 0, decodeMs: 0, actualSessionRunCount: 1 }, 1000);
   expect(new SourcePublicationSequence('source', rate).accept(p)).toBeNull();
   expect(p.observations.map(o => o.targetSample)).toEqual([originTarget, window.ownedEndTarget - 1]); // Exact half-open end excluded.
-  const projected = projectContinuousEvidence(p, { index: 0, sourceStart: 100000 + originTarget * rate / M.sampleRateHz,
+  const projected = projectContinuousEvidence(p, {
+    index: 0, sourceStart: 100000 + originTarget * rate / M.input.sampleRateHz,
     originTarget, performanceStartMs: 42.5, performanceEndMs: 42.5 + durationMs }, 'session');
   expect(projected.observations.map(o => o.performanceTimeMs)).toEqual([42.5, 75.6875]);
   expect(projected.observations.map(o => o.performanceTimeMs)).toEqual(p.observations.map(o =>

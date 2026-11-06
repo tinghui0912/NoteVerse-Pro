@@ -1,4 +1,5 @@
-import { fail, onlyFields, safeIndex } from '../model/model-contract';
+import { fail } from '../errors';
+import { onlyFields, safeIndex } from '../validation';
 import { CAPTURE_TRANSPORT_BLOCK_SAMPLES } from './capture-transport-contract';
 import type { CaptureChunk } from './capture-types';
 

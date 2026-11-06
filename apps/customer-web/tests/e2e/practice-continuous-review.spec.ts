@@ -1,3 +1,4 @@
+import { ACOUSTIC_MODEL_ASSET_DESCRIPTOR } from '../../src/lib/practice/acoustic/generated/runtime-contract';
 import { videoExportOutputFiles } from './support/video-export-output';
 import { resolvePracticeScope } from '../../src/lib/practice/planning/scope';
 import { resolvePracticeTempoPlan } from '../../src/lib/practice/planning/tempo';
@@ -112,9 +113,8 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
   await mockAuthenticatedSession(page);
   await mockRealtimeEvents(page);
 
-  await page.route('**/api/v1/model-assets/practice-acoustic-robust-browser-v1/access', route => route.fulfill({
-    contentType: 'application/json', body: apiResponse({ schemaVersion: 1, ticksPerQuarter: 1, assetId: 'practice-acoustic-robust-browser', assetVersion: 'v1',
-      expectedByteSize: 98689283, sha256: '4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3', mediaType: 'application/octet-stream',
+  await page.route('**/api/v1/model-assets/practice-acoustic/access', route => route.fulfill({
+    contentType: 'application/json', body: apiResponse({ ...ACOUSTIC_MODEL_ASSET_DESCRIPTOR,
       downloadUrl: 'https://example.test/controlled-model', downloadUrlExpiresAt: new Date(Date.now() + 3600000).toISOString() }),
   }));
   await page.addInitScript(({ denyMic, camera }) => {
@@ -533,7 +533,7 @@ test('warm microphone engine survives STEP End, next Start, Continuous completio
     return { loads, sessions, retiredSessions, terminations };
   });
   let accessRequests = 0;
-  page.on('request', request => { if (request.url().includes('/model-assets/practice-acoustic-robust-browser-v1/access')) accessRequests++; });
+  page.on('request', request => { if(request.url().includes('/model-assets/practice-acoustic/access')) accessRequests++; });
   await openPreparedPractice(page, scoreId, revisionId);
   await configurePractice(page, 'STEP', 'MICROPHONE');
   await expect.poll(engine).toEqual({ loads: 1, sessions: 1, retiredSessions: 1, terminations: 0 });
@@ -1407,7 +1407,7 @@ test('temporary session AudioContext suspension retains the capture graph and wa
   await setupContinuousPracticeMocks(page);
   const modelAccess: number[] = [];
   page.on('response', response => {
-    if (response.url().includes('/model-assets/practice-acoustic-robust-browser-v1/access')) modelAccess.push(response.status());
+    if(response.url().includes('/model-assets/practice-acoustic/access')) modelAccess.push(response.status());
   });
   const engine = () => page.evaluate(() => {
     const { loads, sessions, retiredSessions, terminations } = (window as unknown as {
@@ -1756,7 +1756,7 @@ test('microphone Setup acquires one fresh retained binding through both navigati
 test('Setup Start Practice waits for the previous microphone attempt retirement without failing or reloading', async ({page}) => {
   await setupContinuousPracticeMocks(page);
   let modelAccesses=0;
-  page.on('request',request=>{if(request.url().includes('/model-assets/practice-acoustic-robust-browser-v1/access'))modelAccesses++;});
+  page.on('request', request => { if(request.url().includes('/model-assets/practice-acoustic/access')) modelAccesses++; });
   await openPreparedPractice(page,scoreId,revisionId); await configurePractice(page,'STEP','MICROPHONE','OFF');
   await page.getByRole('button',{name:'开始',exact:true}).click();
   await expect(page.getByRole('status')).toContainText('弹奏当前高亮音');

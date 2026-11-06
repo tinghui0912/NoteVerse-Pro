@@ -4,7 +4,7 @@ import { pianoMidiPitchToName } from '../acoustic/model/robust-piano-decoder';
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import { sourcePublication, type SourceAcousticPublication } from '../acoustic/runtime/source-publication';
 import { planWindow } from '../acoustic/runtime/window-planner';
-import { ACOUSTIC_MODEL } from '../acoustic/model/model-contract';
+import { ACOUSTIC_RUNTIME_CONTRACT } from '../acoustic/generated/runtime-contract';
 import { ACOUSTIC_RESOURCES } from '../acoustic/runtime/resource-policy';
 import type { StepPianoKeyEvidence } from '@/lib/practice/step/domain/attempt';
 import type { PracticeScoreArtifact } from '@/lib/practice/score/artifact';
@@ -95,9 +95,9 @@ describe('score-blind H50 ownership over the canonical source stream', () => {
   it('seals across consecutive windows only after coverage, never on a wall timer', () => {
     vi.useFakeTimers();
     try {
-      expect(STEP_ACOUSTIC_GESTURE_MS).toBeLessThan(ACOUSTIC_MODEL.ownedMs);
+      expect(STEP_ACOUSTIC_GESTURE_MS).toBeLessThan((ACOUSTIC_RUNTIME_CONTRACT.window.ownedSamples / (ACOUSTIC_RUNTIME_CONTRACT.input.sampleRateHz / 1000)));
       const first = publication(0, [event(end - 3)]), second = publication(1, [event(end, 64, .3)], 999999);
-      expect(first.window.ownedEndTarget - first.window.ownedStartTarget).toBe(ACOUSTIC_MODEL.ownedMs * ACOUSTIC_MODEL.sampleRateHz / 1000);
+      expect(first.window.ownedEndTarget - first.window.ownedStartTarget).toBe((ACOUSTIC_RUNTIME_CONTRACT.window.ownedSamples / (ACOUSTIC_RUNTIME_CONTRACT.input.sampleRateHz / 1000)) * ACOUSTIC_RUNTIME_CONTRACT.input.sampleRateHz / 1000);
       expect(second.window.ownedStartTarget).toBe(first.window.ownedEndTarget);
       expect([first.window.windowIndex, second.window.windowIndex]).toEqual([0, 1]);
       const s = setup(); expect(s.assembler.accept(first)).toBeNull();
@@ -130,7 +130,7 @@ describe('score-blind H50 ownership over the canonical source stream', () => {
       queuedEndTarget: end / 3, endTarget: partialEnd / 3 }, 1)!;
     const partial = sourcePublication('source', 48000, 0, window, { events: [event(end, 64)],
       inferenceMs: 0, decodeMs: 0, actualSessionRunCount: 2 }, 1);
-    expect(window.ownedEndTarget - window.ownedStartTarget).toBeLessThan(ACOUSTIC_MODEL.ownedMs * ACOUSTIC_MODEL.sampleRateHz / 1000);
+    expect(window.ownedEndTarget - window.ownedStartTarget).toBeLessThan((ACOUSTIC_RUNTIME_CONTRACT.window.ownedSamples / (ACOUSTIC_RUNTIME_CONTRACT.input.sampleRateHz / 1000)) * ACOUSTIC_RUNTIME_CONTRACT.input.sampleRateHz / 1000);
     expect(s.assembler.accept(publication(0, [event(end - 3)]))).toBeNull();
     const sealed = s.assembler.accept(partial);
     expect(sealed?.observations.map(o => o.sourceEventSample)).toEqual([end - 3, end]);

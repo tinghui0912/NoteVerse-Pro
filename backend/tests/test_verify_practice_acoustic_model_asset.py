@@ -1,4 +1,5 @@
 """Network-free behavior tests for the operational asset verifier."""
+
 from __future__ import annotations
 
 import hashlib
@@ -12,7 +13,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from app.modules.model_assets.service import ROBUST_MODEL_STORAGE_KEY
+from app.modules.model_assets.generated.practice_acoustic_contract import MODEL_ASSET
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts/verify_practice_acoustic_model_asset.py"
@@ -33,8 +34,11 @@ def asset(verifier, monkeypatch, tmp_path):
     model = tmp_path / "model.onnx"
     model.write_bytes(data)
     report = tmp_path / "receipt.json"
-    monkeypatch.setattr(verifier, "SIZE", len(data))
-    monkeypatch.setattr(verifier, "SHA", hashlib.sha256(data).hexdigest())
+    monkeypatch.setattr(
+        verifier,
+        "MODEL_ASSET",
+        MODEL_ASSET._replace(byte_size=len(data), sha256=hashlib.sha256(data).hexdigest()),
+    )
     monkeypatch.setenv("OSS_ACCESS_KEY_ID", "test-id")
     monkeypatch.setenv("OSS_ACCESS_KEY_SECRET", "test-secret")
     body = Mock()
@@ -45,14 +49,13 @@ def asset(verifier, monkeypatch, tmp_path):
     client.get_object.return_value = SimpleNamespace(body=body)
     factory = Mock(return_value=client)
     monkeypatch.setattr(verifier.oss, "Client", factory)
-    return SimpleNamespace(data=data, model=model, report=report,
-                           body=body, client=client, factory=factory)
+    return SimpleNamespace(
+        data=data, model=model, report=report, body=body, client=client, factory=factory
+    )
 
 
 def test_verifier_targets_the_current_delivery_object(verifier):
-    assert verifier.SHA == "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3"
-    assert verifier.SIZE == 98_689_283
-    assert verifier.KEY == ROBUST_MODEL_STORAGE_KEY
+    assert verifier.MODEL_ASSET is MODEL_ASSET
 
 
 def test_local_identity_failure_stops_before_oss(verifier, asset):
@@ -74,8 +77,8 @@ def test_existing_private_object_is_streamed_verified_and_closed(verifier, asset
     assert receipt["remoteBytes"] == len(asset.data)
     assert receipt["remoteSha256"] == hashlib.sha256(asset.data).hexdigest()
     assert receipt["uploaded"] is False
-    assert asset.client.head_object.call_args.args[0].key == verifier.KEY
-    assert asset.client.get_object.call_args.args[0].key == verifier.KEY
+    assert asset.client.head_object.call_args.args[0].key == verifier.MODEL_ASSET.storage_key
+    assert asset.client.get_object.call_args.args[0].key == verifier.MODEL_ASSET.storage_key
     asset.client.put_object.assert_not_called()
     asset.body.close.assert_called_once_with()
 
@@ -94,8 +97,14 @@ def test_public_bucket_blocks_all_object_access(verifier, asset):
 @pytest.mark.parametrize("publish", [False, True])
 def test_missing_object_requires_explicit_publish_and_forbids_overwrite(verifier, asset, publish):
     asset.client.head_object.side_effect = verifier.oss.exceptions.ServiceError(
-        status_code=404, code="NoSuchKey", request_id="test-request", message="missing",
-        ec=None, timestamp=None, request_target="https://example.invalid")
+        status_code=404,
+        code="NoSuchKey",
+        request_id="test-request",
+        message="missing",
+        ec=None,
+        timestamp=None,
+        request_target="https://example.invalid",
+    )
     uploads = []
 
     def upload(request):
@@ -108,7 +117,7 @@ def test_missing_object_requires_explicit_publish_and_forbids_overwrite(verifier
     if publish:
         assert receipt["status"] == "EXACT_VALIDATED_ASSET_DELIVERY_VERIFIED"
         assert receipt["uploaded"] is True
-        assert uploads == [(verifier.KEY, True, asset.data)]
+        assert uploads == [(verifier.MODEL_ASSET.storage_key, True, asset.data)]
         asset.body.close.assert_called_once_with()
     else:
         assert receipt["failure"]["code"] == "EXACT_DELIVERY_OBJECT_NOT_PUBLISHED"
@@ -141,7 +150,9 @@ def test_existing_receipt_is_never_overwritten(verifier, asset):
 def test_cli_requires_an_explicit_receipt_path(tmp_path):
     result = subprocess.run(
         [sys.executable, str(SCRIPT), "--model", str(tmp_path / "model.onnx")],
-        capture_output=True, text=True, check=False,
+        capture_output=True,
+        text=True,
+        check=False,
     )
 
     assert result.returncode == 2

@@ -70,6 +70,7 @@ const domain = (file: string) => file.startsWith('score/') ? 'score'
 function dependencyAllowed(file: string, edge: Edge): boolean {
   const source = relative(file);
   const target = edge.target ? relative(edge.target) : null;
+  if (source.startsWith('acoustic/generated/')) return false;
   const presentationOwners = ['score-view/', 'review/', 'video-export/'];
   const apiNamespace = normalize(path.join(sourceRoot, 'lib/api'));
   const apiRoot = apiNamespace + '/';
@@ -107,7 +108,8 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
   if (source.startsWith('planning/')) return Boolean(target && (target.startsWith('planning/')
     || target.startsWith('score/') || target === 'metronome/metronome-plan.ts' || edge.typeOnly && target === 'recording/recording-mode.ts'));
   if (target === 'acoustic/continuous/capture-bridge.ts') return ['continuous/continuous-microphone-input.ts', 'continuous/continuous-input.ts'].includes(source);
-  if (source.startsWith('acoustic/runtime/')) return Boolean(target && ['acoustic/runtime/', 'acoustic/model/', 'acoustic/source/'].some(owner => target.startsWith(owner)));
+  if(source.startsWith('acoustic/generated/')) return false;
+  if(source.startsWith('acoustic/runtime/')) return Boolean(target?.startsWith('acoustic/') && !target.startsWith('acoustic/continuous/'));
   if (source === 'continuous/input/midi-evidence.ts') return target === 'continuous/input/midi-evidence-identity.ts'
     || edge.typeOnly && ['continuous/domain/clock-evidence-port.ts', 'continuous/domain/evaluation/evidence-types.ts', 'score/piano-key.ts'].includes(target ?? '');
   if (source.startsWith('device/')) return Boolean(target && (target.startsWith('device/') || edge.typeOnly && target === 'planning/resource-plan.ts' || target === 'session/session.ts'
@@ -359,6 +361,13 @@ describe('Practice bounded domain dependencies', () => {
       expect(dependencyAllowed(file, imports(file, `import type { Value } from '@/lib/practice/${target}';`)[0])).toBe(false);
     }
     expect(dependencyAllowed(file, imports(file, `import { useState } from 'react';`)[0])).toBe(false);
+  });
+
+  it('keeps generated acoustic configuration pure data at its package boundary', () => {
+    const file = path.join(practiceRoot, 'acoustic/generated/data-probe.ts');
+    for (const target of ['react', '@/lib/api/performance-takes', '@/lib/practice/session/session', '@/lib/practice/failure/causal-failure', '@/lib/practice/device/device-contract']) {
+      expect(dependencyAllowed(file, imports(file, `import type { Value } from '${target}';`)[0])).toBe(false);
+    }
   });
 
   it('enforces infrastructure and application direction on every production import', () => {

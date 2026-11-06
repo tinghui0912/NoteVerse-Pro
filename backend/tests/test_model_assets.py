@@ -13,6 +13,7 @@ from app.api.deps import get_current_user
 from app.db.models.user import User
 from app.modules.model_assets.router import get_model_asset_service, router
 from app.modules.model_assets.service import ModelAssetService
+from app.modules.model_assets.generated.practice_acoustic_contract import MODEL_ASSET_DESCRIPTOR
 from app.core.exception_handlers import register_exception_handlers
 
 app = FastAPI()
@@ -23,7 +24,9 @@ app.include_router(router, prefix="/api/v1/model-assets")
 def create_test_model_asset_service() -> ModelAssetService:
     """Create a ModelAssetService with offline credentials for hermetic testing."""
     cfg = oss.config.load_default()
-    cfg.credentials_provider = oss.credentials.StaticCredentialsProvider("test-ak-id", "test-ak-secret")
+    cfg.credentials_provider = oss.credentials.StaticCredentialsProvider(
+        "test-ak-id", "test-ak-secret"
+    )
     cfg.region = "cn-shenzhen"
     client = oss.Client(cfg)
     return ModelAssetService(
@@ -37,7 +40,7 @@ def create_test_model_asset_service() -> ModelAssetService:
 def test_model_asset_access_unauthenticated_returns_401() -> None:
     """Unauthenticated requests must be rejected with 401."""
     with TestClient(app) as client:
-        response = client.get("/api/v1/model-assets/practice-acoustic-robust-browser-v1/access")
+        response = client.get("/api/v1/model-assets/practice-acoustic/access")
         assert response.status_code == 401
 
 
@@ -56,7 +59,7 @@ def test_model_asset_access_authenticated_returns_descriptor() -> None:
 
     try:
         with TestClient(app) as client:
-            response = client.get("/api/v1/model-assets/practice-acoustic-robust-browser-v1/access")
+            response = client.get("/api/v1/model-assets/practice-acoustic/access")
             assert response.status_code == 200
 
             body = response.json()
@@ -64,16 +67,14 @@ def test_model_asset_access_authenticated_returns_descriptor() -> None:
             data = body.get("data")
             assert isinstance(data, dict)
 
-            # Exact frozen identity checks
-            assert data["schemaVersion"] == 1
-            assert data["assetId"] == "practice-acoustic-robust-browser"
-            assert data["assetVersion"] == "v1"
-            assert data["expectedByteSize"] == 98_689_283
-            assert data["sha256"] == "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3"
-            assert data["mediaType"] == "application/octet-stream"
+            assert {key: data[key] for key in MODEL_ASSET_DESCRIPTOR} == dict(
+                MODEL_ASSET_DESCRIPTOR
+            )
 
             download_url = data["downloadUrl"]
-            assert download_url.startswith("https://noteverse-model-assets.oss-cn-shenzhen.aliyuncs.com/")
+            assert download_url.startswith(
+                "https://noteverse-model-assets.oss-cn-shenzhen.aliyuncs.com/"
+            )
             assert "model.onnx" in download_url
 
             # Native Alibaba Cloud OSS V4 signature fields required
@@ -102,14 +103,11 @@ def test_model_asset_service_unit() -> None:
     service = create_test_model_asset_service()
     access = service.get_practice_acoustic_access()
 
-    assert access.schemaVersion == 1
-    assert access.assetId == "practice-acoustic-robust-browser"
-    assert access.assetVersion == "v1"
-    assert access.expectedByteSize == 98_689_283
-    assert access.sha256 == "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3"
-    assert access.mediaType == "application/octet-stream"
+    assert access.model_dump(include=set(MODEL_ASSET_DESCRIPTOR)) == dict(MODEL_ASSET_DESCRIPTOR)
 
-    assert access.downloadUrl.startswith("https://noteverse-model-assets.oss-cn-shenzhen.aliyuncs.com/")
+    assert access.downloadUrl.startswith(
+        "https://noteverse-model-assets.oss-cn-shenzhen.aliyuncs.com/"
+    )
     assert "x-oss-signature-version=OSS4-HMAC-SHA256" in access.downloadUrl
     assert "x-oss-signature=" in access.downloadUrl
     assert "X-Amz-Signature" not in access.downloadUrl

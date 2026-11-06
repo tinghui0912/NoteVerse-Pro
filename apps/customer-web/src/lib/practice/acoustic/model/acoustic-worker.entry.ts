@@ -1,6 +1,6 @@
-import { AcousticAnalysisError } from './model-contract';
+import { AcousticAnalysisError } from '../errors';
 import { AcousticModelSession } from './model-inference';
-import { onlyFields } from './model-contract';
+import { onlyFields } from '../validation';
 import type { AcousticInferenceInput } from '../runtime/inference-types';
 
 const inference = new AcousticModelSession();

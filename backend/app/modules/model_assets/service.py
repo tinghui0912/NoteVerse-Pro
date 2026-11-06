@@ -11,8 +11,10 @@ import alibabacloud_oss_v2 as oss
 from app.core.config import settings
 from app.modules.model_assets.schemas import PracticeAcousticAccessRead
 
-# Immutable storage identity only. Historical directory name is not a mode selector.
-ROBUST_MODEL_STORAGE_KEY = "models/continuous/robust-browser-v1/4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3/model.onnx"
+from app.modules.model_assets.generated.practice_acoustic_contract import (
+    MODEL_ASSET,
+    MODEL_ASSET_DESCRIPTOR,
+)
 
 
 class ModelAssetService:
@@ -28,9 +30,7 @@ class ModelAssetService:
         self.bucket = bucket or settings.ALIYUN_OSS_MODEL_BUCKET
         self.region = region or settings.ALIYUN_OSS_MODEL_REGION
         self.ttl_seconds = (
-            ttl_seconds
-            if ttl_seconds is not None
-            else settings.MODEL_ASSET_SIGNED_GET_TTL_SECONDS
+            ttl_seconds if ttl_seconds is not None else settings.MODEL_ASSET_SIGNED_GET_TTL_SECONDS
         )
         self._client = client
 
@@ -51,14 +51,19 @@ class ModelAssetService:
 
     def get_practice_acoustic_access(self) -> PracticeAcousticAccessRead:
         result = self.client.presign(
-            oss.models.GetObjectRequest(bucket=self.bucket, key=ROBUST_MODEL_STORAGE_KEY),
+            oss.models.GetObjectRequest(bucket=self.bucket, key=MODEL_ASSET.storage_key),
             expires=timedelta(seconds=self.ttl_seconds),
         )
         if not isinstance(result.expiration, datetime):
             raise RuntimeError("Unexpected model access expiration")
-        return PracticeAcousticAccessRead(
-            downloadUrl=result.url,
-            downloadUrlExpiresAt=result.expiration.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
+        return PracticeAcousticAccessRead.model_validate(
+            {
+                **MODEL_ASSET_DESCRIPTOR,
+                "downloadUrl": result.url,
+                "downloadUrlExpiresAt": result.expiration.astimezone(timezone.utc)
+                .isoformat()
+                .replace("+00:00", "Z"),
+            }
         )
 
 

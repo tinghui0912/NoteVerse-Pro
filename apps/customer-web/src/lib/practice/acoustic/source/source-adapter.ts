@@ -1,4 +1,6 @@
-import { canonicalJson, fail, sha256, sourceIdentity, sourceRate, type SourceRate } from '../model/model-contract';
+import { canonicalJson, sha256 } from '../identity';
+import { fail } from '../errors';
+import { sourceAdapterContract, sourceRate, type SourceRate } from './source-adapter-contract';
 
 /** Frozen float32 rational FIR; the source ring is independent of session length. */
 export class QualifiedSourceAdapter {
@@ -11,22 +13,19 @@ export class QualifiedSourceAdapter {
   readonly down: number;
   readonly center: number;
   private constructor(readonly rate: SourceRate, private readonly coefficients: Float32Array) {
-    const identity = sourceIdentity(rate);
+    const identity = sourceAdapterContract(rate);
     this.identitySha256 = identity.identitySha256;
-    this.up = rate === 44100 ? 160 : 1;
+    this.up = identity.up;
     this.ring = new Float32Array(Math.ceil(coefficients.length / this.up));
-    this.down = rate === 44100 ? 441 : 3;
+    this.down = identity.down;
     this.center = (coefficients.length - 1) / 2;
-    this.firstFullyRealOutputIndex = Math.ceil(this.center / this.down);
+    this.firstFullyRealOutputIndex = identity.firstFullyRealOutputIndex;
   }
   static async create(rateHz: number, bytes: Uint8Array): Promise<QualifiedSourceAdapter> {
-    const rate = sourceRate(rateHz), identity = sourceIdentity(rate);
-    const expected = rate === 44100
-      ? 'd54df355dba1e60395e165f0a44a3d016e25632af639be767c861e1bfd61e620'
-      : '0edd2896f0923a575a7f01fb2460b529409899e9ba187f213a36037f3ef9218f';
-    if (bytes.length !== (rate === 44100 ? 35284 : 244) || await sha256(bytes) !== expected) fail('FIR_IDENTITY_MISMATCH');
+    const rate = sourceRate(rateHz), identity = sourceAdapterContract(rate);
+    if(bytes.length !== identity.coefficientAsset.byteSize || await sha256(bytes) !== identity.coefficientAsset.sha256) fail('FIR_IDENTITY_MISMATCH');
     // The source identity is provenance, not a runtime policy selector.
-    if (await sha256(new TextEncoder().encode(canonicalJson(identity.identity))) !== identity.identitySha256) fail('SOURCE_ADAPTER_IDENTITY_MISMATCH');
+    if(await sha256(new TextEncoder().encode(canonicalJson(Object.fromEntries(Object.entries(identity).filter(([key]) => key !== 'identitySha256'))))) !== identity.identitySha256) fail('SOURCE_ADAPTER_IDENTITY_MISMATCH');
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     return new QualifiedSourceAdapter(rate, Float32Array.from({ length: bytes.length / 4 }, (_, i) => view.getFloat32(i * 4, true)));
   }
