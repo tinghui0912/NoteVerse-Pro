@@ -203,7 +203,7 @@ def test_malformed_chronology_fails_closed(body):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("body", BAD)
-async def test_chronology_failure_is_invalid_score_at_source_boundary(tmp_path, body):
+async def test_chronology_failure_is_invalid_score_at_bundle_boundary(tmp_path, body):
     path = tmp_path / "score.musicxml"
     path.write_bytes(score(body))
     service = bundle_service_for_notation(path.read_bytes())

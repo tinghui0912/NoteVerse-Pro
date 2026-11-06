@@ -344,7 +344,7 @@ describe('MyPerformancesPage', () => {
     expect(screen.getByText('暂无已保存的演奏')).toBeInTheDocument();
   });
 
-  it('renders retained source identity as a score link', () => {
+  it('renders retained score provenance as a score link', () => {
     mockQueryOverride = {
       data: {
         data: {
@@ -389,7 +389,7 @@ describe('MyPerformancesPage', () => {
     expect(screen.queryByText('原乐谱已删除')).not.toBeInTheDocument();
   });
 
-  it('renders retained source identity as plain text when live score is no longer accessible', () => {
+  it('renders retained score provenance as plain text when live score is no longer accessible', () => {
     mockQueryOverride = {
       data: {
         data: {

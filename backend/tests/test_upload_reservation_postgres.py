@@ -39,13 +39,13 @@ MEDIA = b"\x1a\x45\xdf\xa3" + b"reserved-recording"
 @pytest.mark.parametrize("command", ["cancel", "expire", "expire-finalizing"])
 @pytest.mark.asyncio
 async def test_terminal_transitions_atomically_release_quota_and_preserve_provenance(
-    postgres_source, command
+    postgres_bundle, command
 ):
     from unittest.mock import patch
     from app.db.models import PracticeBundleRecord
     from app.utils.timezone import utc_now_naive
 
-    sessions, source, storage, request = await setup_source(postgres_source)
+    sessions, source, storage, request = await setup_bundle(postgres_bundle)
     service = PerformanceTakeUploadService(storage=storage, practice_bundle_service=source)
     async with sessions() as db:
         reserved = await service.reserve_upload(db, 1, request)
@@ -98,10 +98,10 @@ async def test_terminal_transitions_atomically_release_quota_and_preserve_proven
 
 
 @pytest.mark.asyncio
-async def test_take_creation_completion_and_quota_commit_share_one_transaction(postgres_source):
+async def test_take_creation_completion_and_quota_commit_share_one_transaction(postgres_bundle):
     from unittest.mock import patch
 
-    sessions, source, storage, request = await setup_source(postgres_source)
+    sessions, source, storage, request = await setup_bundle(postgres_bundle)
     service = PerformanceTakeUploadService(storage=storage, practice_bundle_service=source)
     async with sessions() as db:
         reserved = await service.reserve_upload(db, 1, request)
@@ -127,8 +127,8 @@ async def test_take_creation_completion_and_quota_commit_share_one_transaction(p
         assert account.reserved_bytes == len(MEDIA) and account.used_bytes == 0
 
 
-async def setup_source(postgres_source):
-    engine, repository, bundle, storage = postgres_source
+async def setup_bundle(postgres_bundle):
+    engine, repository, bundle, storage = postgres_bundle
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     async with sessions() as db:
         db.add(
@@ -146,7 +146,7 @@ async def setup_source(postgres_source):
             )
         )
         await db.commit()
-        reference, verified_source = await repository.get_or_create(
+        reference, verified_bundle = await repository.get_or_create(
             db, bundle, revision_id=repository.test_revision_id
         )
     source = PracticeBundleService(repository=repository, storage=storage)
@@ -177,8 +177,8 @@ async def setup_source(postgres_source):
 
 
 @pytest.mark.asyncio
-async def test_two_creators_share_one_reservation_and_one_quota_hold(postgres_source):
-    sessions, source, storage, request = await setup_source(postgres_source)
+async def test_two_creators_share_one_reservation_and_one_quota_hold(postgres_bundle):
+    sessions, source, storage, request = await setup_bundle(postgres_bundle)
     both_absent = asyncio.Event()
     arrivals = 0
 
@@ -218,9 +218,9 @@ async def test_two_creators_share_one_reservation_and_one_quota_hold(postgres_so
 @pytest.mark.parametrize("takeover", [False, True])
 @pytest.mark.asyncio
 async def test_finalize_lease_blocks_concurrency_and_expired_takeover_preserves_one_take(
-    postgres_source, takeover
+    postgres_bundle, takeover
 ):
-    sessions, source, storage, request = await setup_source(postgres_source)
+    sessions, source, storage, request = await setup_bundle(postgres_bundle)
     service = PerformanceTakeUploadService(storage=storage, practice_bundle_service=source)
     async with sessions() as a:
         reserved = await service.reserve_upload(a, 1, request)
@@ -285,14 +285,14 @@ async def test_finalize_lease_blocks_concurrency_and_expired_takeover_preserves_
 
 
 @pytest.mark.asyncio
-async def test_exact_source_admission_lock_fences_owner_release_until_reservation_commit(
-    postgres_source,
+async def test_exact_bundle_admission_lock_fences_owner_release_until_reservation_commit(
+    postgres_bundle,
 ):
     from sqlalchemy import delete, text, update
     from app.db.models import Score, ScoreRevision, PracticeBundleRecord
     from app.modules.practice.bundle.retention import practice_bundle_delete_service
 
-    sessions, source, storage, request = await setup_source(postgres_source)
+    sessions, source, storage, request = await setup_bundle(postgres_bundle)
     service = PerformanceTakeUploadService(storage=storage, practice_bundle_service=source)
     admitted, release = asyncio.Event(), asyncio.Event()
     authorize = source.authorize_bundle_for_save
@@ -312,7 +312,7 @@ async def test_exact_source_admission_lock_fences_owner_release_until_reservatio
         async def delete_revision():
             await b.execute(update(Score).values(head_revision_id=None))
             await b.execute(
-                delete(ScoreRevision).where(ScoreRevision.id == postgres_source[1].test_revision_id)
+                delete(ScoreRevision).where(ScoreRevision.id == postgres_bundle[1].test_revision_id)
             )
 
         deletion = asyncio.create_task(delete_revision())
@@ -357,11 +357,11 @@ async def test_exact_source_admission_lock_fences_owner_release_until_reservatio
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("owner", ["reservation", "take"])
-async def test_durable_score_coordinate_constraints_in_postgres(postgres_source, owner):
+async def test_durable_score_coordinate_constraints_in_postgres(postgres_bundle, owner):
     from sqlalchemy import update
     from sqlalchemy.exc import IntegrityError
 
-    sessions, source, storage, request = await setup_source(postgres_source)
+    sessions, source, storage, request = await setup_bundle(postgres_bundle)
     service = PerformanceTakeUploadService(storage=storage, practice_bundle_service=source)
     async with sessions() as db:
         accepted = await service.reserve_upload(db, 1, request)

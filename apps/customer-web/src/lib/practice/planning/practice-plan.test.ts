@@ -28,7 +28,7 @@ const source = () => ({
   artifact: structuredClone(fixture) as PracticeScoreArtifact,
 });
 beforeEach(() => vi.restoreAllMocks());
-it("deterministically retains canonical source and artifact identities", () => {
+it("deterministically retains canonical Bundle and artifact identities", () => {
   const input = source();
   const first = planPractice(input, intent),
     second = planPractice(input, structuredClone(intent));
@@ -76,7 +76,7 @@ it("resolves FULL and RANGE and SCORE and CUSTOM_FIXED_BPM", () => {
     { startTick: 0, bpm: 100, source: "CUSTOM" },
   ]);
 });
-it.each(["", null, 123])("rejects invalid source id %s", (bundleId) => {
+it.each(["", null, 123])("rejects invalid Bundle id %s", (bundleId) => {
   expect(() =>
     planPractice({ ...source(), binding: {...source().binding, bundleId} } as never, intent),
   ).toThrow();

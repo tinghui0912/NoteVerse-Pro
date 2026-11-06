@@ -69,9 +69,9 @@ and key and retains the old candidate with a thirty-minute unknown-outcome grace
 Copy and completion both check lease identity; completion also requires a live lease.
 
 New durable save admission authorizes and verifies a live exact bound Bundle under Score,
-Revision, authorization-fact and binding and Bundle locks. The lock order and delete/admit ordering
-belong to [Practice Bundle](practice-bundle.md#durable-save-admission). The reservation
-snapshots bundle_id, practice_score_uuid, practice_revision_uuid, practice_artifact_id,
+Revision, selected access fact, Binding and Bundle locks. The lock order and delete/admit ordering
+belong to [Practice Bundle](practice-bundle.md#save-and-browser-admission). The reservation
+snapshots practice_bundle_id, practice_score_uuid, practice_revision_uuid, practice_artifact_id,
 score_title_snapshot and server-resolved scope/tempo. Provenance is immutable metadata,
 not Bundle ownership. A committed reservation finalizes independently of Bundle lifetime.
 
@@ -79,7 +79,7 @@ Take creation, reservation completion and quota commit share one database transa
 Cancellation/expiry release quota in one transaction. Finalize copies provenance, title,
 resolved scope/tempo and recording timebase without Bundle reads or replanning. Its live
 navigation FK follows ON DELETE SET NULL; the read projection decides whether navigation
-is currently authorized. PracticeBundle has only its ScoreRevision lifecycle owner.
+is currently authorized. Only revision bindings retain PracticeBundle; Take and Reservation do not retain it.
 
 ## Replay, cancellation and recovery
 

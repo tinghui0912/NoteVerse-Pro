@@ -1,4 +1,4 @@
-"""Practice Source dependency ownership at module boundaries."""
+"""Practice Bundle dependency ownership at module boundaries."""
 
 import ast
 from pathlib import Path
@@ -14,7 +14,7 @@ def imports(relative):
     ]
 
 
-def test_take_library_reads_its_own_provenance_without_source_persistence():
+def test_take_library_reads_its_own_provenance_without_bundle_persistence():
     dependencies = {
         node.module for node in imports("modules/performance_takes/service.py") if node.module
     }
@@ -26,7 +26,7 @@ def test_take_library_reads_its_own_provenance_without_source_persistence():
     assert not any(module.startswith("app.modules.performance_takes") for module in retention)
 
 
-def test_source_builder_consumes_compiler_and_score_projections():
+def test_bundle_compiler_consumes_compiler_and_score_projections():
     dependencies = {node.module for node in imports("modules/practice/bundle/compiler.py")}
     assert {
         "app.modules.practice.score.compiler.stable_ids",
@@ -53,16 +53,16 @@ def test_score_compiler_dependency_direction():
                 }
 
 
-def test_source_domain_is_independent_of_transport_and_persistence():
+def test_bundle_domain_is_independent_of_transport_and_persistence():
     assert all(
         not node.module or not node.module.startswith(("pydantic", "sqlalchemy", "fastapi", "app."))
         for node in imports("modules/practice/bundle/domain.py")
     )
 
 
-def test_source_service_delegates_durable_ownership_to_repository():
+def test_bundle_service_delegates_durable_ownership_to_repository():
     dependencies = {node.module for node in imports("modules/practice/bundle/service.py")}
-    assert {"repository", "compiler", "domain"} <= dependencies
+    assert {"repository", "compiler", "domain", "mutation_access"} <= dependencies
     repository = {node.module for node in imports("modules/practice/bundle/repository.py")}
     assert {"app.storage.base", "app.db.models.practice_bundle", "domain"} <= repository
     assert not any(

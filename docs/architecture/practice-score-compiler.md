@@ -13,8 +13,8 @@ canonical MusicXML
   -> timeline projection -> schemaVersion 1 artifact
 ```
 
-`compile_practice_score(prepared_musicxml)` is the Source-facing boundary. It parses
-written semantics once and delegates to the Practice projection. Source construction
+`compile_practice_score(prepared_musicxml)` is the Bundle compilation boundary. It parses
+written semantics once and delegates to the Practice projection. PracticeBundleCompiler
 uses the exact prepared bytes also delivered as notation.
 
 ## Projection boundary
@@ -55,14 +55,14 @@ SCORE planning applies the product 80 BPM policy before the first explicit tempo
 compilation does not insert that policy as notation. Meter, tempo, note and measure
 positions share the same canonical written axis.
 
-## Source and errors
+## Bundle admission and errors
 
 The canonical parser raises `MusicXMLSemanticError`. This boundary maps semantic
-errors and Practice support failures to `PracticeScoreInvalidError`; the Source
-service projects them as HTTP 422 `practice_score_invalid`. Transport schema and
+errors and Practice support failures to `PracticeScoreInvalidError`; PracticeBundleService
+projects them as HTTP 422 `practice_score_invalid`. Transport schema and
 browser parsing validate the artifact without repairing timing.
 
-`compiler/stable_ids.py` prepares render identity once per source build. Compiled
+`compiler/stable_ids.py` prepares render identity once per Bundle compilation. Compiled
 notes bind those identities to projected written facts. Timeline projection groups
 them into events, moments and physical attacks without parsing MusicXML. The frozen
 Practice domain values have no parsing or persistence dependencies. Compilation
@@ -73,7 +73,7 @@ The schemaVersion 1 artifact serializer owns canonical JSON and artifact content
 identity. The canonical MusicXML data fixture in `backend/tests/fixtures/musicxml/`
 supplies artifact tests and the repository contract checker. The browser fixture
 verifies the notation/event/moment projection against that transport contract.
-[Practice Bundle](practice-bundle.md) defines source identity and durable verification.
+[Practice Bundle](practice-bundle.md) defines content identity and durable verification.
 
 ## Renderer coordinate contract
 

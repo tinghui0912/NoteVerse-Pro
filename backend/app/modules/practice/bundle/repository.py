@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 from datetime import timedelta
+from enum import Enum
 from collections.abc import Callable, Awaitable
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -34,6 +35,11 @@ from .retention import practice_bundle_delete_service
 BUNDLE_CREATION_LEASE_SECONDS = 15 * 60
 
 
+class BundleRowLock(Enum):
+    SHARED_READ = "SHARED_READ"
+    MUTATION = "MUTATION"
+
+
 class PracticeBundleRepository:
     def __init__(self, storage: FileStorage):
         self.storage = storage
@@ -46,21 +52,25 @@ class PracticeBundleRepository:
             bundle.artifact_id,
         )
 
-    async def binding(self, db: AsyncSession, revision_id: int, *, lock: bool = False):
+    async def read_bound(self, db: AsyncSession, revision_id: int):
+        """Shared binding/content locks protect verified bytes until the request session ends."""
+        return await self._read_bound(db, revision_id, BundleRowLock.SHARED_READ)
+
+    async def read_bound_for_update(self, db: AsyncSession, revision_id: int):
+        """Exclusive binding/content locks participate in an admitted Practice mutation."""
+        return await self._read_bound(db, revision_id, BundleRowLock.MUTATION)
+
+    async def _read_bound(self, db: AsyncSession, revision_id: int, lock: BundleRowLock):
         statement = (
             select(ScoreRevisionPracticeBinding)
             .where(ScoreRevisionPracticeBinding.revision_id == revision_id)
+            .with_for_update(read=lock is BundleRowLock.SHARED_READ)
             .execution_options(populate_existing=True)
         )
-        if lock:
-            statement = statement.with_for_update()
-        return (await db.execute(statement)).scalar_one_or_none()
-
-    async def read_bound(self, db: AsyncSession, revision_id: int):
-        binding = await self.binding(db, revision_id, lock=True)
+        binding = (await db.execute(statement)).scalar_one_or_none()
         if binding is None:
             return None
-        row = await self._require_ready_row(db, binding.bundle_id, lock=True)
+        row = await self._require_ready_row(db, binding.bundle_id, lock)
         return self._reference(row), await self._read_verified_bundle(row)
 
     async def _lock_revision(self, db: AsyncSession, revision_id: int):
@@ -100,7 +110,7 @@ class PracticeBundleRepository:
     ):
         await self._lock_revision(db, revision_id)
         # Binding uniqueness is database authority.
-        bound = await self.read_bound(db, revision_id)
+        bound = await self.read_bound_for_update(db, revision_id)
         if bound is not None:
             return bound
         row = (
@@ -146,7 +156,7 @@ class PracticeBundleRepository:
                 if reauthorize is not None:
                     await reauthorize()
                 await self._lock_revision(db, revision_id)
-                bound = await self.read_bound(db, revision_id)
+                bound = await self.read_bound_for_update(db, revision_id)
                 if bound is not None:
                     return bound
                 row = (
@@ -198,7 +208,7 @@ class PracticeBundleRepository:
         await db.commit()
         return reference, verified
 
-    async def _require_ready_row(self, db: AsyncSession, bundle_id: int, *, lock: bool = False):
+    async def _require_ready_row(self, db: AsyncSession, bundle_id: int, lock: BundleRowLock):
         statement = (
             select(PracticeBundleRecord)
             .where(
@@ -207,8 +217,7 @@ class PracticeBundleRepository:
             )
             .execution_options(populate_existing=True)
         )
-        if lock:
-            statement = statement.with_for_update()
+        statement = statement.with_for_update(read=lock is BundleRowLock.SHARED_READ)
         row = (await db.execute(statement)).scalar_one_or_none()
         if row is None:
             raise ResourceNotFoundException(
@@ -224,7 +233,7 @@ class PracticeBundleRepository:
                     PracticeBundleRecord.bundle_id == bundle_id,
                     PracticeBundleRecord.status == PracticeBundleStatus.READY.value,
                 )
-                .with_for_update()
+                .with_for_update(read=True)
                 .execution_options(populate_existing=True)
             )
         ).scalar_one_or_none()

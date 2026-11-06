@@ -23,19 +23,19 @@ it('saved take rendering requests one verified source with notation', async () =
   await waitFor(() => expect(result.current.musicXml).toBe('<score />'));
   expect(api.exactSource).toHaveBeenCalledExactlyOnceWith('score', 'revision', true, expect.any(AbortSignal));
 });
-it.each(['scoreId', 'revisionId', 'artifactId'])('rejects saved source %s mismatch', async field => {
+it.each(['scoreId', 'revisionId', 'artifactId'])('rejects saved Bundle %s mismatch', async field => {
   const identity = { bundleId: 'source-1', scoreId: 'score', revisionId: 'revision', artifactId: fixture.artifactId, [field]: 'other' };
   const { result } = renderHook(() => useSavedTakeExportBundle(identity, {}), { wrapper: harness() });
   await waitFor(() => expect(result.current.invalid).toBe(true));
   expect(result.current.artifact).toBeNull(); expect(result.current.musicXml).toBeNull();
 });
 
-it('saved Take rejects a different source with identical artifact projections', async () => {
+it('saved Take rejects a different Bundle with identical artifact projections', async () => {
   const { result } = renderHook(() => useSavedTakeExportBundle({ bundleId: 'different', scoreId: 'score', revisionId: 'revision', artifactId: fixture.artifactId }, {}), { wrapper: harness() });
   await waitFor(() => expect(result.current.invalid).toBe(true));
 });
 
-it('missing source identity does not initiate a representation read', () => {
+it('missing Bundle identity does not initiate a representation read', () => {
   const { result } = renderHook(() => useSavedTakeExportBundle({ bundleId: '', scoreId: 'score', revisionId: 'revision', artifactId: fixture.artifactId }, {}), { wrapper: harness() });
   expect(result.current.artifact).toBeNull();expect(api.exactSource).not.toHaveBeenCalled();
 });
@@ -47,7 +47,7 @@ it.each(['scoreId', 'revisionId', 'artifactId'] as const)('saved Take requires i
   expect(result.current.artifact).toBeNull();
 });
 
-it('requires current authorization on entry and does not expose a previously cached Source', async () => {
+it('requires current authorization on entry and does not expose a previously cached Bundle', async () => {
   const identity = { bundleId: 'source-1', scoreId: 'score', revisionId: 'revision', artifactId: fixture.artifactId };
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   client.setQueryData([...queryKeys.savedTakeExport.bundle(identity.bundleId), identity], {

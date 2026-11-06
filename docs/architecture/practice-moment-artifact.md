@@ -9,7 +9,7 @@ domain model; generated API DTOs describe the transport boundary.
 The exact root fields are `schemaVersion`, `artifactId`,
 `ticksPerQuarter`, `notes`, `events`, `moments`, `meterSegments`,
 `scoreTempoSegments`, and `scoreEndTick`. All score positions/durations are
-nonnegative JSON-safe integer ticks on one source-local grid. `ticksPerQuarter` is
+nonnegative JSON-safe integer ticks on one artifact-local grid. `ticksPerQuarter` is
 positive and JSON-safe. Meter segments contain `startTick`, `numerator`, and
 `denominator`; tempo segments contain `startTick` and finite positive `bpm`.
 
@@ -81,11 +81,13 @@ from those compiled facts. Pydantic transport models reuse the canonical graph i
 The customer OpenAPI schema and generated browser DTOs describe schemaVersion 1.
 Committed backend/browser fixture tests verify deterministic payload agreement.
 
-[Practice Bundle](practice-bundle.md) supplies the domain artifact and optional
-prepared-MusicXML notation in one `/bundle` envelope with one bundle_id. Artifact content determines artifactId. PracticeBundleRecord
-persists the verified READY durable source with exact score/revision/artifact IDs and
-representation checksums. Live and saved consumers read that same source; its ownership
-and retention are defined by the Bundle contract.
+[Practice Bundle](practice-bundle.md) supplies the artifact and optional prepared
+MusicXML with an explicit revision binding in one `/bundle` envelope. Artifact content
+determines artifactId. PracticeBundleRecord owns content identity and representation
+checksums/physical facts. ScoreRevisionPracticeBinding owns the revision association.
+Take and Reservation own detached provenance snapshots without retaining Bundle.
+Bundle admission and saved score export authorize the exact revision binding; the Bundle
+contract defines authorization, durable verification and retention.
 
 StepPracticeSession owns its snapshot; its target, attempt and evidence
 snapshots carry numeric keys. Natural Continuous Result references its completed

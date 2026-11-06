@@ -243,7 +243,7 @@ def _create_default_bundle(
     return source
 
 
-def _source_provenance(source: PracticeBundleRecord) -> dict:
+def _bundle_provenance(source: PracticeBundleRecord) -> dict:
     return dict(
         practice_bundle_id=source.bundle_id,
         practice_score_uuid="score-uuid-10",
@@ -264,7 +264,7 @@ def _create_default_take(
 ) -> PerformanceTake:
     reservation = PerformanceTakeUploadReservation(
         user_id=user_id,
-        **_source_provenance(source),
+        **_bundle_provenance(source),
         client_request_id=client_request_id,
         take_uuid=take_uuid,
         score_title_snapshot="Moonlight Sonata",
@@ -299,7 +299,7 @@ def _create_default_take(
     take = PerformanceTake(
         take_uuid=take_uuid,
         user_id=user_id,
-        **_source_provenance(source),
+        **_bundle_provenance(source),
         linked_score_id=linked_score_id,
         score_title_snapshot="Moonlight Sonata",
         upload_reservation_id=reservation.id,
@@ -575,7 +575,7 @@ def _run_worker_deletion(
     return performance_take_deletion.execute_performance_take_deletion_task(None, outbox_uuid)
 
 
-def _run_source_deletion(
+def _run_bundle_deletion(
     monkeypatch: pytest.MonkeyPatch,
     session: Session,
     storage: LocalFileStorage,
@@ -850,18 +850,18 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         assert source.artifact_id == DEFAULT_TAKE_ARTIFACT_ID
         assert storage.exists(source.prepared_musicxml_object_key)
         assert storage.exists(source.artifact_object_key)
-        expected_source_value = _canonical_bundle(
+        expected_bundle_value = _canonical_bundle(
             "score-uuid-10", DEFAULT_TAKE_REVISION_ID, DEFAULT_TAKE_ARTIFACT_ID
         )
         assert (
             storage.read_bytes(source.prepared_musicxml_object_key)
-            == expected_source_value.prepared_musicxml.data
+            == expected_bundle_value.prepared_musicxml.data
         )
         assert (
             storage.read_bytes(source.artifact_object_key)
-            == expected_source_value.artifact.representation.data
+            == expected_bundle_value.artifact.representation.data
         )
-        assert source.bundle_id == expected_source_value.bundle_id
+        assert source.bundle_id == expected_bundle_value.bundle_id
 
         with patch.object(
             take_svc.practice_bundle_service.repository,
@@ -1078,7 +1078,7 @@ def test_score_access_and_validation(test_env):
         res = client.post("/api/v1/performance-takes/upload-reservations", json=req_bad_scope)
         assert res.status_code == 422
 
-        # A missing exact source fails closed
+        # A missing exact bound Bundle fails closed
         req_bad_score = {
             "practice_binding": {
                 "score_id": "score-uuid-10",
@@ -1098,7 +1098,7 @@ def test_score_access_and_validation(test_env):
         app.dependency_overrides.clear()
 
 
-def test_unowned_source_cannot_start_a_new_reservation(test_env):
+def test_unowned_bundle_cannot_start_a_new_reservation(test_env):
     session, storage, user, _ = test_env
     service = _performance_take_service(session=session, storage=storage)
     source = session.execute(select(PracticeBundleRecord)).scalar_one()
@@ -1259,7 +1259,7 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         assert final_key.startswith(f"performance-takes/1/{take_id}/")
         assert storage.exists(final_key)
 
-        # Initial list check: source identity is returned and live navigation is available.
+        # Initial list check: binding provenance is returned and live navigation is available.
         res_init_list = client.get("/api/v1/performance-takes")
         assert res_init_list.status_code == 200
         init_item = res_init_list.json()["data"]["items"][0]
@@ -1278,7 +1278,7 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         score_row = session.execute(select(Score).where(Score.id == 10)).scalar_one()
         assert score_row.deletion_status == ScoreDeletionStatus.DELETING
 
-        # Listing takes: source identity is retained even while the score is hidden/deleting.
+        # Listing takes: binding provenance is retained even while the score is hidden/deleting.
         res_list_soft = client.get("/api/v1/performance-takes")
         assert res_list_soft.status_code == 200
         item_soft = res_list_soft.json()["data"]["items"][0]
@@ -1306,7 +1306,7 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         retained_score = session.execute(select(Score).where(Score.id == 10)).scalar_one_or_none()
         assert retained_score is None
 
-        # Verify in DB: take row is preserved with required source identity.
+        # Verify in DB: take row is preserved with required binding provenance.
         take_in_db = session.execute(
             select(PerformanceTake).where(PerformanceTake.take_uuid == take_id)
         ).scalar_one_or_none()
@@ -1331,7 +1331,7 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         session.refresh(account)
         assert account.used_bytes == size
 
-        # Listing takes after score cleanup: exact source identity remains recoverable.
+        # Listing takes after score cleanup: exact binding provenance remains recoverable.
         res_list_hard = client.get("/api/v1/performance-takes")
         assert res_list_hard.status_code == 200
         item_hard = res_list_hard.json()["data"]["items"][0]
@@ -2237,7 +2237,7 @@ def test_reserve_finalizing_snapshot_retries_without_new_put(test_env):
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     auth = PerformanceTakeUploadReservation(
         user_id=user_1.id,
-        **_source_provenance(source),
+        **_bundle_provenance(source),
         client_request_id="req-finalizing-reserve",
         take_uuid="take-finalizing-reserve",
         linked_score_id=10,
@@ -2627,7 +2627,7 @@ def test_score_deleted_between_reserve_and_finalize_preserves_provenance(test_en
         storage.put_bytes(key=staging_key, content=content, content_type="audio/webm")
 
         # Simulate score becoming unavailable before client calls finalize. The
-        # upload reservation already references the durable source, so this
+        # upload reservation already references the durable Bundle, so this
         # save must still finish without requiring live Score access.
         session.execute(text("UPDATE scores SET deletion_status = 'DELETED' WHERE id = 10;"))
         session.commit()
@@ -2825,7 +2825,7 @@ def test_deletion_lifecycle_and_worker_retry(test_env, monkeypatch: pytest.Monke
         app.dependency_overrides.clear()
 
 
-def test_source_delete_outbox_retries_transient_storage_failure(
+def test_bundle_delete_outbox_retries_transient_storage_failure(
     test_env,
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -2851,7 +2851,7 @@ def test_source_delete_outbox_retries_transient_storage_failure(
                 raise ConnectionError("source object store timeout")
             return super().delete(key)
 
-    failed = _run_source_deletion(
+    failed = _run_bundle_deletion(
         monkeypatch,
         session,
         FailingSnapshotStorage(storage),
@@ -2867,7 +2867,7 @@ def test_source_delete_outbox_retries_transient_storage_failure(
 
     outbox.next_attempt_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=1)
     session.commit()
-    succeeded = _run_source_deletion(
+    succeeded = _run_bundle_deletion(
         monkeypatch,
         session,
         storage,
@@ -2881,7 +2881,7 @@ def test_source_delete_outbox_retries_transient_storage_failure(
     assert not storage.exists(artifact_key)
 
 
-def test_source_gc_marks_snapshot_deleting_until_completed(test_env):
+def test_bundle_gc_marks_snapshot_deleting_until_completed(test_env):
     session, storage, _user_1, _ = test_env
     source = _create_default_bundle(session, storage)
     practice_bundle_id = source.id
@@ -2951,7 +2951,7 @@ def test_stale_creating_snapshot_recovery_cleans_partial_objects(
     assert len(due) == len(variants)
 
     for outbox_uuid in due:
-        result = _run_source_deletion(monkeypatch, session, storage, outbox_uuid)
+        result = _run_bundle_deletion(monkeypatch, session, storage, outbox_uuid)
         assert result["status"] == "deleted"
 
     assert session.execute(select(PracticeBundleRecord)).scalars().all() == []
@@ -2960,7 +2960,7 @@ def test_stale_creating_snapshot_recovery_cleans_partial_objects(
         assert not storage.exists(f"practice-bundles/stale-{label}/artifact.json")
 
 
-def test_reservation_rejects_source_pending_gc(test_env):
+def test_reservation_rejects_bundle_pending_gc(test_env):
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = _performance_take_service(
@@ -3040,7 +3040,7 @@ def test_reservation_rejects_source_pending_gc(test_env):
         app.dependency_overrides.clear()
 
 
-def test_take_deletion_leaves_source_cleanup_to_its_revision_retention_owner(test_env, monkeypatch):
+def test_take_deletion_leaves_bundle_cleanup_to_its_revision_retention_owner(test_env, monkeypatch):
     session, storage, user_1, _ = test_env
     source = _create_default_bundle(session, storage)
     first_key = "performance-takes/final/gc-last-ref/first.webm"
@@ -3113,7 +3113,7 @@ def test_take_deletion_leaves_source_cleanup_to_its_revision_retention_owner(tes
     assert duplicate.id == source_outboxes[0].id
     session.commit()
 
-    source_result = _run_source_deletion(
+    source_result = _run_bundle_deletion(
         monkeypatch,
         session,
         storage,
@@ -3125,7 +3125,7 @@ def test_take_deletion_leaves_source_cleanup_to_its_revision_retention_owner(tes
     assert not storage.exists(source.artifact_object_key)
 
 
-def test_source_gc_ignores_an_active_reservation_after_take_deletion(test_env, monkeypatch):
+def test_bundle_gc_ignores_an_active_reservation_after_take_deletion(test_env, monkeypatch):
     session, storage, user_1, _ = test_env
     source = _create_default_bundle(session, storage)
     media_key = "performance-takes/final/gc-active-auth/take.webm"
@@ -3140,7 +3140,7 @@ def test_source_gc_ignores_an_active_reservation_after_take_deletion(test_env, m
     )
     auth = PerformanceTakeUploadReservation(
         user_id=user_1.id,
-        **_source_provenance(source),
+        **_bundle_provenance(source),
         client_request_id="gc-active-auth",
         take_uuid="take-gc-active-auth-pending",
         linked_score_id=None,
@@ -3191,12 +3191,12 @@ def test_source_gc_ignores_an_active_reservation_after_take_deletion(test_env, m
     assert outbox is not None
     session.commit()
 
-    source_result = _run_source_deletion(monkeypatch, session, storage, outbox.outbox_uuid)
+    source_result = _run_bundle_deletion(monkeypatch, session, storage, outbox.outbox_uuid)
     assert source_result["status"] == "deleted"
     assert session.get(PracticeBundleRecord, source.id) is None
 
 
-def test_reserve_does_not_reuse_source_pending_gc(test_env):
+def test_reserve_does_not_reuse_bundle_pending_gc(test_env):
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = _performance_take_service(
@@ -3448,7 +3448,7 @@ def _expired_cleanup_auth(
     expired_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=2)
     row = PerformanceTakeUploadReservation(
         user_id=user_id,
-        **_source_provenance(source),
+        **_bundle_provenance(source),
         client_request_id=client_request_id,
         take_uuid=f"take-{client_request_id}",
         linked_score_id=10,
@@ -3602,7 +3602,7 @@ def test_finalize_copy_lease_rejects_expired_executor_before_storage_copy(test_e
     source = _create_default_bundle(session, _storage)
     auth = PerformanceTakeUploadReservation(
         user_id=user_1.id,
-        **_source_provenance(source),
+        **_bundle_provenance(source),
         client_request_id="lease-expired-before-copy",
         take_uuid="take-lease-expired-before-copy",
         linked_score_id=10,
@@ -3925,7 +3925,7 @@ def test_expired_finalizing_lease_records_candidate_before_retry(test_env):
     candidate_key = "performance-takes/1/finalizing-expired/old-token.webm"
     auth = PerformanceTakeUploadReservation(
         user_id=user_1.id,
-        **_source_provenance(source),
+        **_bundle_provenance(source),
         client_request_id="finalizing-expired-retry",
         take_uuid="finalizing-expired",
         linked_score_id=10,
@@ -4159,7 +4159,7 @@ def _assert_performance_take_upgrade_state(
     try:
         inspector = inspect(engine_pg)
         tables = set(inspector.get_table_names())
-        from tests.test_practice_bundle_migration import assert_current_source_schema
+        from tests.test_practice_bundle_migration import assert_current_bundle_schema
 
         assert {
             "practice_bundles",
@@ -4167,7 +4167,7 @@ def _assert_performance_take_upgrade_state(
             "performance_take_upload_reservations",
             "practice_bundle_delete_outbox",
         } <= tables
-        assert_current_source_schema(engine_pg)
+        assert_current_bundle_schema(engine_pg)
         version_cols = {c["name"]: c for c in inspector.get_columns("alembic_version")}
         assert getattr(version_cols["version_num"]["type"], "length", None) == 128
 
@@ -4445,9 +4445,9 @@ def test_live_admission_and_save_snapshot_share_canonical_provenance(test_env):
     assets.canonical_source = AsyncMock(
         return_value=SimpleNamespace(storage_key="canonical.musicxml")
     )
-    source_service = PracticeBundleService(storage=storage, asset_repository=assets)
+    bundle_service = PracticeBundleService(storage=storage, asset_repository=assets)
     take_service = PerformanceTakeUploadService(
-        storage=storage, practice_bundle_service=source_service
+        storage=storage, practice_bundle_service=bundle_service
     )
 
     async def override_db():
@@ -4457,7 +4457,7 @@ def test_live_admission_and_save_snapshot_share_canonical_provenance(test_env):
         {
             get_db: override_db,
             get_current_user: lambda: user,
-            get_practice_bundle_service: lambda: source_service,
+            get_practice_bundle_service: lambda: bundle_service,
             get_performance_take_service: lambda: take_service.takes,
             get_performance_take_upload_service: lambda: take_service,
         }
@@ -4466,7 +4466,7 @@ def test_live_admission_and_save_snapshot_share_canonical_provenance(test_env):
     live_url = "/api/v1/practice/scores/score-uuid-10/revisions/revision-uuid-100/bundle"
     try:
         with patch.object(
-            source_service.compiler, "compile", wraps=source_service.compiler.compile
+            bundle_service.compiler, "compile", wraps=bundle_service.compiler.compile
         ) as build:
             artifact_only = client.get(live_url)
             assert artifact_only.status_code == 200, artifact_only.text
@@ -4560,7 +4560,7 @@ def test_live_admission_and_save_snapshot_share_canonical_provenance(test_env):
         app.dependency_overrides.clear()
 
 
-def test_live_revision_deletion_is_discovered_by_bounded_source_scan(test_env, monkeypatch):
+def test_live_revision_deletion_is_discovered_by_bounded_bundle_scan(test_env, monkeypatch):
     from app.core.config import settings
 
     monkeypatch.setattr(settings, "FILE_STORAGE_BACKEND", "local")
@@ -4591,13 +4591,13 @@ def test_live_revision_deletion_is_discovered_by_bounded_source_scan(test_env, m
         assert enqueue.call_count == 1
     session.commit()
     assert len(due) == 1
-    result = _run_source_deletion(monkeypatch, session, storage, due[0])
+    result = _run_bundle_deletion(monkeypatch, session, storage, due[0])
     assert result["status"] == "deleted"
     assert session.get(PracticeBundleRecord, source.id) is None
 
 
 @pytest.mark.parametrize("terminal", ["CANCELLED", "EXPIRED", "COMPLETED"])
-def test_terminal_reservation_does_not_retain_orphan_source(test_env, monkeypatch, terminal):
+def test_terminal_reservation_does_not_retain_orphan_bundle(test_env, monkeypatch, terminal):
     from app.core.config import settings
 
     monkeypatch.setattr(settings, "FILE_STORAGE_BACKEND", "local")
@@ -4627,12 +4627,12 @@ def test_terminal_reservation_does_not_retain_orphan_source(test_env, monkeypatc
     due = practice_bundle_delete_service.recover_and_list_due(session)
     session.commit()
     assert len(due) == 1
-    assert _run_source_deletion(monkeypatch, session, storage, due[0])["status"] == "deleted"
+    assert _run_bundle_deletion(monkeypatch, session, storage, due[0])["status"] == "deleted"
     session.refresh(reservation)
     assert reservation.practice_bundle_id == _bundle_id()
 
 
-def test_source_orphan_scan_has_a_bounded_batch(test_env, monkeypatch):
+def test_bundle_orphan_scan_has_a_bounded_batch(test_env, monkeypatch):
     from app.core.config import settings
 
     session, storage, _, _ = test_env
@@ -4694,13 +4694,13 @@ def test_incomplete_creation_releases_live_link_for_durable_cleanup(
     assert session.get(ScoreRevision, 100) is not None
     outbox = session.execute(select(PracticeBundleDeleteOutbox)).scalar_one()
     assert (
-        _run_source_deletion(monkeypatch, session, storage, outbox.outbox_uuid)["status"]
+        _run_bundle_deletion(monkeypatch, session, storage, outbox.outbox_uuid)["status"]
         == "deleted"
     )
 
 
 @pytest.mark.parametrize("status", ["RESERVED", "FINALIZING"])
-def test_source_gc_ignores_active_reservation_after_revision_deletion(test_env, status):
+def test_bundle_gc_ignores_active_reservation_after_revision_deletion(test_env, status):
     session, storage, user, _ = test_env
     source = _create_default_bundle(session, storage)
     session.add(ScoreRevisionPracticeBinding(revision_id=100, bundle_id=source.id))
@@ -4743,7 +4743,7 @@ def test_source_gc_ignores_active_reservation_after_revision_deletion(test_env, 
     assert source.status == "DELETING"
 
 
-def test_source_deletion_dispatch_publishes_registered_durable_operation(test_env, monkeypatch):
+def test_bundle_deletion_dispatch_publishes_registered_durable_operation(test_env, monkeypatch):
     from app.worker.dispatch import practice_bundle_deletion as dispatch
 
     session, storage, _, _ = test_env
@@ -4887,7 +4887,7 @@ def test_bound_bundle_authorization_preserves_admitted_representation_identity(t
         ("FULL", "DELAYED_TEMPO"),
     ],
 )
-def test_reservation_derives_and_transfers_exact_source_plan(test_env, scope_kind, tempo_case):
+def test_reservation_derives_and_transfers_exact_bundle_plan(test_env, scope_kind, tempo_case):
     from app.modules.practice.bundle.compiler import PracticeBundleCompiler
 
     session, storage, user, _ = test_env
@@ -4942,12 +4942,12 @@ def test_reservation_derives_and_transfers_exact_source_plan(test_env, scope_kin
             patch.object(
                 service.practice_bundle_service.compiler,
                 "compile",
-                side_effect=AssertionError("Save consumes exact source"),
+                side_effect=AssertionError("Save consumes exact bound Bundle"),
             ),
             patch.object(
                 service.practice_bundle_service,
                 "resolve_bundle",
-                side_effect=AssertionError("Save consumes exact source"),
+                side_effect=AssertionError("Save consumes exact bound Bundle"),
             ),
         ):
             response = client.post("/api/v1/performance-takes/upload-reservations", json=request)

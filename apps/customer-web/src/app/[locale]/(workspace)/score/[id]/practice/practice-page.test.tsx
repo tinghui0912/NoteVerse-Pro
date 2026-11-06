@@ -107,7 +107,7 @@ it.each(['score','revision','unpinned','configuration'] as const)('browser-known
   expect(fake.leaseEnabled).toHaveBeenLastCalledWith(false);expect(fake.step).not.toHaveBeenCalled();expect(fake.continuous).not.toHaveBeenCalled();
   expect(fake.sourceRequest).not.toHaveBeenCalled();expect(fake.scoreRequest).not.toHaveBeenCalled();expect(fake.router.push).not.toHaveBeenCalled();
 });
-it('admitted Practice renders and starts from owned representations while Score and Source services are unavailable', async()=>{
+it('admitted Practice renders and starts from owned representations while Score and Bundle services are unavailable', async()=>{
   await openPage();expect(fake.viewer.mock.calls.at(-1)![0].xmlContent).toBe('<score />');
   fireEvent.click(screen.getByRole('button',{name:practice.start}));await waitFor(()=>expect(health.listenerCount()).toBe(1));
   expect(fake.sourceRequest).not.toHaveBeenCalled();expect(fake.scoreRequest).not.toHaveBeenCalled();

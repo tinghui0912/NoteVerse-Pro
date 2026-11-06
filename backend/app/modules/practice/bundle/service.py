@@ -8,7 +8,7 @@ from app.core.exceptions import (
     ValidationException,
 )
 from app.db.model_utils import require_persisted_id
-from app.modules.score_access.policy import ScoreAccessPolicy
+from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.practice.score.piano_key import PracticeScoreInvalidError
 from app.shared.constants import ErrorCode
@@ -16,7 +16,7 @@ from app.storage import FileStorage, file_storage
 from .compiler import PracticeBundleCompiler
 from .domain import AuthorizedPracticeBundle
 from .repository import PracticeBundleRepository
-from .save_admission import lock_live_save_access
+from .mutation_access import lock_live_practice_mutation_access
 from .schemas import (
     PracticeBundleRead,
     PracticeBundleNotationRead,
@@ -46,12 +46,8 @@ class PracticeBundleService:
     async def resolve_bundle(
         self, db: AsyncSession, score_uuid: str, user_id: int, revision_uuid: str
     ):
-        access = await lock_live_save_access(
-            db,
-            self.access_policy,
-            user_id=user_id,
-            score_uuid=score_uuid,
-            revision_uuid=revision_uuid,
+        access = await self.access_policy.authorize(
+            db, score_uuid, ScoreAction.PRACTICE, user_id=user_id, revision_uuid=revision_uuid
         )
         score_id = require_persisted_id(access.score.id, entity="score")
         revision_id = require_persisted_id(access.revision.id, entity="revision")
@@ -71,17 +67,23 @@ class PracticeBundleService:
                 raise ExternalServiceException(
                     service="practice_bundle", code=ErrorCode.PRACTICE_BUNDLE_FAILED
                 ) from error
-            bound = await self.repository.get_or_create(
-                db,
-                candidate,
-                revision_id=revision_id,
-                reauthorize=lambda: lock_live_save_access(
+
+            async def reauthorize_binding_mutation():
+                nonlocal access
+                access = await lock_live_practice_mutation_access(
                     db,
                     self.access_policy,
                     user_id=user_id,
                     score_uuid=score_uuid,
                     revision_uuid=revision_uuid,
-                ),
+                )
+
+            await reauthorize_binding_mutation()
+            bound = await self.repository.get_or_create(
+                db,
+                candidate,
+                revision_id=revision_id,
+                reauthorize=reauthorize_binding_mutation,
             )
         reference, bundle = bound
         return AuthorizedPracticeBundle(
@@ -97,14 +99,14 @@ class PracticeBundleService:
     async def authorize_bundle_for_save(
         self, db: AsyncSession, user_id: int, score_uuid: str, revision_uuid: str, bundle_id: str
     ):
-        access = await lock_live_save_access(
+        access = await lock_live_practice_mutation_access(
             db,
             self.access_policy,
             user_id=user_id,
             score_uuid=score_uuid,
             revision_uuid=revision_uuid,
         )
-        bound = await self.repository.read_bound(
+        bound = await self.repository.read_bound_for_update(
             db, require_persisted_id(access.revision.id, entity="revision")
         )
         if bound is None or bound[0].bundle_id != bundle_id:
@@ -147,6 +149,5 @@ class PracticeBundleService:
         include_notation: bool = False,
     ):
         authorized = await self.resolve_bundle(db, score_uuid, user_id, revision_uuid)
-        result = self.bundle_read(authorized, include_notation=include_notation)
-        await db.commit()
-        return result
+        # The request session releases read locks on close; this read commits no mutation.
+        return self.bundle_read(authorized, include_notation=include_notation)

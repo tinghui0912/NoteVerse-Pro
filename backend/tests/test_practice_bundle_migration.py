@@ -1,4 +1,4 @@
-"""PostgreSQL upgrade and current durable source model agreement."""
+"""PostgreSQL upgrade and current durable Bundle model agreement."""
 
 from contextlib import contextmanager
 import os
@@ -46,7 +46,7 @@ def migration_database(monkeypatch):
         admin.dispose()
 
 
-def assert_current_source_schema(engine):
+def assert_current_bundle_schema(engine):
     inspector = sa.inspect(engine)
     for name in [
         "practice_bundles",
@@ -89,7 +89,7 @@ def test_fresh_foundation_schema_matches_models_and_revision_ownership(monkeypat
 
     with migration_database(monkeypatch) as (engine, config):
         command.upgrade(config, "head")
-        assert_current_source_schema(engine)
+        assert_current_bundle_schema(engine)
         inspector = sa.inspect(engine)
         assert set(inspector.get_table_names()) == set(SQLModel.metadata.tables) | {
             "alembic_version"

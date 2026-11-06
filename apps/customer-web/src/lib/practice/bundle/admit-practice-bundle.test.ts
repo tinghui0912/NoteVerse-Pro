@@ -70,7 +70,7 @@ it.each(['score_id', 'revision_id'] as const)(
   },
 );
 it.each([undefined, '', 1])(
-  'requires canonical source identity: %s',
+  'requires Bundle binding identity: %s',
   async (bundle_id) => {
     request.mockResolvedValue({
       data: {
@@ -105,7 +105,7 @@ it('strict artifact admission rejects malformed canonical ownership', async () =
     code: 'INVALID_SCORE',
   });
 });
-it('keeps transport/service failures distinct from deterministic invalid Source', async () => {
+it('keeps transport/service failures distinct from deterministic invalid Bundle', async () => {
   const cause = new Error('transport');
   request.mockRejectedValue(cause);
   await expect(load()).rejects.toMatchObject({

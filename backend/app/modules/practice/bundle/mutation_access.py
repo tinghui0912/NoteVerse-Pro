@@ -1,4 +1,4 @@
-"""Lock-bearing live authorization for a new durable save admission."""
+"""Lock-bearing live authorization for Practice binding and durable-save mutations."""
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,7 +14,7 @@ from app.modules.score_access.policy import ScoreAccessContext, ScoreAccessPolic
 from app.shared.constants import ErrorCode
 
 
-async def lock_live_save_access(
+async def lock_live_practice_mutation_access(
     db: AsyncSession,
     policy: ScoreAccessPolicy,
     *,

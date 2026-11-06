@@ -21,5 +21,10 @@ def authorize_test_revision(monkeypatch):
         revision=SimpleNamespace(id=2, revision_uuid="r"),
     )
     monkeypatch.setattr(
-        "app.modules.practice.bundle.service.lock_live_save_access", AsyncMock(return_value=access)
+        "app.modules.practice.bundle.service.lock_live_practice_mutation_access",
+        AsyncMock(return_value=access),
+    )
+    monkeypatch.setattr(
+        "app.modules.practice.bundle.service.ScoreAccessPolicy.authorize",
+        AsyncMock(return_value=access),
     )

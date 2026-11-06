@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useScoreDetail } from '@/hooks/queries/use-score-queries';
 
-/** Route metadata and revision pinning only; never admits a Practice Source. */
+/** Route metadata and revision pinning only; never admits a Practice Bundle. */
 export function usePracticeRouteScore(scoreId: string) {
   const router = useRouter(), pathname = usePathname(), query = useSearchParams();
   const scoreQuery = useScoreDetail(scoreId);

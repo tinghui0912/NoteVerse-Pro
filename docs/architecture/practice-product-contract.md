@@ -4,7 +4,7 @@
 
 Practice-ready validity belongs to the entire pinned score revision. The only current
 artifact is schemaVersion 1 with integer PracticePianoKey21..108. FULL/Section and STEP/Continuous
-consume that same valid artifact; source or scope never repairs an invalid revision.
+consume that same valid artifact; Bundle or scope never repairs an invalid revision.
 Setup requests it through the shared Bundle parser only when Start Practice is pressed,
 before resource acquisition. Invalid Practice Bundle disables attempt/session
 resources and shows an in-place score-unavailable state. Physical health remains binding-owned. See the
@@ -17,7 +17,7 @@ one revision and resolves one verified READY durable PracticeBundle containing s
 prepared notation representations. One `/bundle` request returns the revision `binding`, the
 artifact and prepared-MusicXML notation. Setup Start Practice admits this complete
 representation once. PreparedPractice owns it for browser-local execution; Practice
-and Review do not re-read Source or Score capability. Notation is a presentation input,
+and Review do not re-read Bundle or Score capability. Notation is a presentation input,
 not an evaluation input. [Practice Bundle](practice-bundle.md) owns server construction,
 verification and retention by its live ScoreRevision only.
 The backend also provides immutable model assets. Once the required
@@ -78,7 +78,7 @@ It creates a retained resource binding plus exact Bundle admission.
 
 Practice uses the admitted representation and verifies URL identity locally. Direct
 entry or full reload has no retained
-admission and shows Setup required, with no Source fallback or physical acquisition.
+admission and shows Setup required, with no Bundle fallback or physical acquisition.
 User navigation back to Setup retains the pinned revision and releases the binding.
 Review also releases physical resources; its Retry opens Setup for a fresh command.
 Candidate scope, tempo, metronome and live-feedback choices remain workspace-local.
@@ -136,7 +136,7 @@ through the same CTA. No failure automatically routes Practice to Setup.
 `PreparedPractice` binds exact bound Bundle provenance to mode/input/recording and its live
 binding. It is not persisted. Scope/tempo/metronome/live-feedback changes do not replace
 that binding. Practice starts attempts only with matching admission, verified exact
-Source, healthy roots, valid selection/plan and an available acoustic engine when needed.
+Bundle, healthy roots, valid selection/plan and an available acoustic engine when needed.
 
 ## Practice Environment
 
@@ -194,10 +194,10 @@ AdmittedPracticeBundle supplies bundleId, the parsed artifact and rendering Musi
 `PracticeIntent` contains only user choices: mode, input source, recording mode,
 scope, tempo selection and metronome enabled. STEP recording is OFF.
 
-The pure `planPractice(source, intent)` function produces an immutable `PracticePlan`.
-It freezes its own projections and reuses the source-admitted immutable artifact
+The pure `planPractice(bundle, intent)` function produces an immutable `PracticePlan`.
+It freezes its own projections and reuses the Bundle-admitted immutable artifact
 reference without mutating or cloning it.
-Its `source` projection contains bundleId and artifact, without MusicXML. It owns mode,
+Its `bundle` projection contains the revision binding and artifact, without MusicXML. It owns mode,
 resolved scope/tempo/metronome plans, immutable resource requirements and Continuous
 Count-In policy. Input and recording truth are owned by the resource plan. A candidate
 plan is pre-Start data; `executedPlan` is available only after explicit Start and stays
@@ -285,7 +285,7 @@ for leaf abandon and late preparation. Retirement settlement with accepted compl
 publishes COMPLETED once and retains its media owner; it does not hard-dispose that
 completion. Without natural completion, disposal finishes before READY. Route teardown
 and composition/admission replacement hard-dispose and reject late completion.
-Temporary Start-readiness changes do not replace an accepted source or execution.
+Temporary Start-readiness changes do not replace an accepted Bundle or execution.
 All retirement, disposal and late preparation work must settle before another controller can be
 constructed. Release failure blocks Start. Retry is accepted only after natural
 completion and reuses the exact executed plan after release; it requires current
@@ -429,7 +429,7 @@ the previous window summary and capture origin, never publication or event histo
 
 The model is `practice-acoustic-robust-browser@v1`, delivered through
 `/model-assets/practice-acoustic/access`. The acoustic README
-records its byte size, SHA256, decoder and resource bounds. Bundle adapters accept
+records its byte size, SHA256, decoder and resource bounds. Source adapters accept
 44.1kHz and 48kHz. Window inputs require real context; missing PCM is not padded.
 Input regions include overlapping context, while acoustic owned regions authorize
 observation publication. Window width does not define assignment finalization.
@@ -762,7 +762,7 @@ retain causal metadata separately from observations and user recordings.
 `ContinuousPerformanceResult` is an immutable in-memory value produced only by
 natural completion. It contains `{ session, evaluation }`. The completed session
 projection requires SCOPE_COMPLETED, lifecycle ENDED and performance ENDED. Its
-exact executed PracticePlan owns source, artifact, scope, tempo and input facts;
+exact executed PracticePlan owns binding, artifact, scope, tempo and input facts;
 its performance snapshot owns active elapsed time. Session updatedAtMs supplies
 completion metadata time. Result construction freezes its own session/performance
 shells and preserves exact Plan, Artifact and completed Evaluation references.
@@ -939,7 +939,7 @@ Recording OFF acquires no media. Microphone+AUDIO borrows a clone of the session
 stream; MIDI+AUDIO borrows a clone of the retained recording-microphone root. VIDEO uses camera video
 and the appropriate audio clone. Each owner releases only its own resources.
 
-Saved Performance Take archives AUDIO/VIDEO media with durable source identity,
+Saved Performance Take archives AUDIO/VIDEO media with durable binding provenance,
 scope, tempo and recording timebase. It does not persist Practice assignment,
 derived target summaries, metrics or implementation provenance. Review Save Recording is an
 explicit user action that reads only a READY recording and archive metadata.
@@ -959,7 +959,7 @@ can coexist with UNAVAILABLE recording. Neither failure invents or discards the 
 artifact's truth. The handoff is transient application state, not durable persistence.
 
 End, Retry and new attempt execution remove the old completion from the execution
-view. View Review is an explicit workspace transition: it validates completion/source
+view. View Review is an explicit workspace transition: it validates completion/Bundle
 identity, retains `{ result, recording, musicXml }` as one TransientReviewSession,
 and releases the prepared physical binding before navigation. Try Again creates no
 Review handoff. Artifact remains owned by the executed Plan; notation and owned media
@@ -1083,7 +1083,7 @@ cursor dimensions, staff mapping, colors and scroll thresholds are owned by the
 score-view primitives.
 
 `review/` consumes the workspace TransientReviewSession. Its constructor guarantees
-atomic source/result/artifact identity and complete notation. review-score-state.ts
+atomic binding/result/artifact identity and complete notation. review-score-state.ts
 projects cursor scope; Verovio owns rendering failures. review-replay.ts delegates
 synchronization to recording timebase; review-view-model.ts projects result metadata.
 The route owns save-recording mutation, navigation, leave confirmation and
@@ -1092,7 +1092,7 @@ an explicit server operation and new save admission requires live revision-bindi
 
 `video-export/session.ts` defines a neutral score/scope/tempo/video/timebase contract.
 The current-completion adapter consumes the transient handoff; the saved-Take adapter
-parses backend archive metadata and its authorized source. Both provide the same
+parses backend archive metadata and its reauthorized Bundle. Both provide the same
 session to source-neutral preview/render/export consumers. The current adapter's
 Review input is type-only; downstream render/export owns no result/evaluation/Practice
 capture lifecycle. The output recorder belongs to export. Floating-score styling is

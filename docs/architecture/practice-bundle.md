@@ -40,10 +40,20 @@ artifact: PracticeScoreArtifact
 notation: null | { musicxml, mime_type }
 ```
 
-The service authorizes the revision, then looks up its binding. An existing binding
-selects the verified READY Bundle without canonical revision source access, MusicXML
-materialization, ID preparation or compilation. An unbound revision is compiled and
-bound to a READY content-addressed Bundle. Database uniqueness and row locks arbitrate
+The service uses ScoreAccessPolicy PRACTICE authorization, then looks up the revision binding.
+Existing-binding reads acquire shared Binding/Bundle row locks, so readers coexist and
+GC cannot delete representation bytes during verification. They acquire no Score or
+membership write locks and do not enter mutation admission. The request session releases
+shared locks on close; the application read commits no domain mutation.
+
+An existing binding selects the verified READY Bundle without canonical revision source access, MusicXML
+materialization, ID preparation or compilation.
+
+An unbound revision is compiled after initial read authorization. Before binding mutation,
+lock_live_practice_mutation_access reauthorizes the live Score/Revision and selected
+access fact under locks, then the repository creates/reuses the content-addressed Bundle
+and binds the revision. A durable creation-lease commit is followed by fresh mutation
+reauthorization before binding. Database uniqueness and row locks arbitrate
 concurrent creation and binding. An existing binding wins over a new compiler candidate.
 
 Bundle ID possession is not authorization. There is no Bundle-ID-only authorization
@@ -68,7 +78,8 @@ its exact physical objects. A new binding cannot attach to a DELETING Bundle.
 ## Save and browser admission
 
 New save admission accepts `practice_binding: {score_id, revision_id, bundle_id}`.
-Locks follow Score, Revision, binding, Bundle order. Admission reauthorizes the exact
+Both binding creation and new save use lock_live_practice_mutation_access.
+Locks follow Score, Revision, selected access fact, binding, Bundle order. Admission reauthorizes the exact
 revision and verifies its exact READY bound Bundle before server-side canonical planning.
 Deletion that commits first denies a new save; admitted reservations retain their
 self-contained provenance, scope, tempo and score-timebase snapshot for replay/finalize.

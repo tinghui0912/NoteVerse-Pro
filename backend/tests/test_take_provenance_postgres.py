@@ -27,7 +27,7 @@ from app.modules.performance_takes.upload_reservation.persistence import (
 )
 from app.modules.practice.bundle.retention import practice_bundle_delete_service
 from app.modules.scores.lifecycle_service import ScoreLifecycleService
-from tests.test_upload_reservation_postgres import setup_source, MEDIA
+from tests.test_upload_reservation_postgres import setup_bundle, MEDIA
 
 pytest_plugins = ["tests.test_practice_bundle_postgres"]
 
@@ -41,8 +41,8 @@ async def wait_for_database_lock(observer, pid):
 
 
 @pytest.mark.asyncio
-async def test_save_admission_commits_before_waiting_score_deletion(postgres_source):
-    sessions, source, storage, request = await setup_source(postgres_source)
+async def test_save_admission_commits_before_waiting_score_deletion(postgres_bundle):
+    sessions, source, storage, request = await setup_bundle(postgres_bundle)
     service = PerformanceTakeUploadService(storage=storage, practice_bundle_service=source)
     admitted, release = asyncio.Event(), asyncio.Event()
     authorize = source.authorize_bundle_for_save
@@ -59,7 +59,7 @@ async def test_save_admission_commits_before_waiting_score_deletion(postgres_sou
             reserve = asyncio.create_task(service.reserve_upload(a, 1, request))
             await asyncio.wait_for(admitted.wait(), 10)
             deletion = asyncio.create_task(
-                ScoreLifecycleService().delete_score(b, postgres_source[1].test_score_uuid, 1)
+                ScoreLifecycleService().delete_score(b, postgres_bundle[1].test_score_uuid, 1)
             )
             try:
                 await wait_for_database_lock(observer, pid)
@@ -70,17 +70,17 @@ async def test_save_admission_commits_before_waiting_score_deletion(postgres_sou
             await asyncio.wait_for(deletion, 10)
             row = await service.repository.get_reservation_by_uuid(a, 1, result.reservation_id)
             assert row.practice_bundle_id == request.practice_binding.bundle_id
-            assert row.practice_score_uuid == postgres_source[1].test_score_uuid
-            assert row.practice_revision_uuid == postgres_source[1].test_revision_uuid
-            assert row.practice_artifact_id == postgres_source[2].artifact.artifact_id
+            assert row.practice_score_uuid == postgres_bundle[1].test_score_uuid
+            assert row.practice_revision_uuid == postgres_bundle[1].test_revision_uuid
+            assert row.practice_artifact_id == postgres_bundle[2].artifact.artifact_id
             assert row.score_title_snapshot == "Source"
             score = await b.scalar(select(Score))
             assert score.deletion_status.value == "DELETING"
 
 
 @pytest.mark.asyncio
-async def test_score_deletion_commit_denies_waiting_new_save(postgres_source):
-    sessions, source, storage, request = await setup_source(postgres_source)
+async def test_score_deletion_commit_denies_waiting_new_save(postgres_bundle):
+    sessions, source, storage, request = await setup_bundle(postgres_bundle)
     service = PerformanceTakeUploadService(storage=storage, practice_bundle_service=source)
     deleting, release = asyncio.Event(), asyncio.Event()
 
@@ -91,12 +91,12 @@ async def test_score_deletion_commit_denies_waiting_new_save(postgres_source):
             await super().commit()
 
     async with (
-        DeletionTransaction(postgres_source[0], expire_on_commit=False) as a,
+        DeletionTransaction(postgres_bundle[0], expire_on_commit=False) as a,
         sessions() as b,
         sessions() as observer,
     ):
         deletion = asyncio.create_task(
-            ScoreLifecycleService().delete_score(a, postgres_source[1].test_score_uuid, 1)
+            ScoreLifecycleService().delete_score(a, postgres_bundle[1].test_score_uuid, 1)
         )
         await asyncio.wait_for(deleting.wait(), 10)
         pid = await b.scalar(text("SELECT pg_backend_pid()"))
@@ -114,9 +114,9 @@ async def test_score_deletion_commit_denies_waiting_new_save(postgres_source):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("postgres_source", ["durable-practice-score.musicxml"], indirect=True)
-async def test_snapshot_replay_finalize_and_take_reads_survive_source_gc(postgres_source):
-    sessions, source, storage, request = await setup_source(postgres_source)
+@pytest.mark.parametrize("postgres_bundle", ["durable-practice-score.musicxml"], indirect=True)
+async def test_snapshot_replay_finalize_and_take_reads_survive_bundle_gc(postgres_bundle):
+    sessions, source, storage, request = await setup_bundle(postgres_bundle)
     service = PerformanceTakeUploadService(storage=storage, practice_bundle_service=source)
     async with sessions() as db:
         accepted = await service.reserve_upload(db, 1, request)
@@ -221,8 +221,8 @@ async def test_snapshot_replay_finalize_and_take_reads_survive_source_gc(postgre
 
 @pytest.mark.parametrize("status", ["RESERVED", "FINALIZING", "COMPLETED"])
 @pytest.mark.asyncio
-async def test_revision_only_retention_with_existing_reservation_or_take(postgres_source, status):
-    sessions, source, storage, request = await setup_source(postgres_source)
+async def test_revision_only_retention_with_existing_reservation_or_take(postgres_bundle, status):
+    sessions, source, storage, request = await setup_bundle(postgres_bundle)
     service = PerformanceTakeUploadService(storage=storage, practice_bundle_service=source)
     async with sessions() as db:
         accepted = await service.reserve_upload(db, 1, request)
@@ -297,13 +297,13 @@ async def test_revision_only_retention_with_existing_reservation_or_take(postgre
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("role", ["PRACTITIONER", "EDITOR"])
-async def test_save_holds_current_authorization_facts_until_commit(postgres_source, role):
+async def test_save_holds_current_authorization_facts_until_commit(postgres_bundle, role):
     from sqlalchemy import update
     from app.core.exceptions import UnauthorizedException
     from app.db.models import User, ScoreMembership
     from app.db.models.score_access import MembershipRole
 
-    sessions, source, _, request = await setup_source(postgres_source)
+    sessions, source, _, request = await setup_bundle(postgres_bundle)
     async with sessions() as seed:
         user = User(
             email="practitioner@example.com", display_name="Practitioner", password_hash="test"

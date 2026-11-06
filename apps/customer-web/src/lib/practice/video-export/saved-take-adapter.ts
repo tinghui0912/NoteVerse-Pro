@@ -128,7 +128,7 @@ export function createVideoExportSessionFromSavedTake(
     } else {
       resolvedPracticeScope = resolvePracticeScope(artifact, { kind: 'FULL' });
     }
-    // The Source validates group identity; persisted Take ticks remain the saved truth.
+    // The reauthorized Bundle artifact validates group identity; persisted Take ticks remain the saved truth.
     if (
       resolvedPracticeScope.startTick !== scopeStartTick ||
       resolvedPracticeScope.terminalTick !== scopeTerminalTick

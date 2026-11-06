@@ -13,7 +13,7 @@ from app.db.models import (
     PerformanceTakeMediaKind,
 )
 from app.utils.timezone import utc_now_naive
-from tests.test_practice_bundle_migration import migration_database, assert_current_source_schema
+from tests.test_practice_bundle_migration import migration_database, assert_current_bundle_schema
 
 
 def reservation_values(user_id):
@@ -48,7 +48,7 @@ def reservation_values(user_id):
 def test_fresh_reservation_and_take_store_provenance_without_a_source_row(monkeypatch):
     with migration_database(monkeypatch) as (engine, config):
         command.upgrade(config, "head")
-        assert_current_source_schema(engine)
+        assert_current_bundle_schema(engine)
         with Session(engine) as db:
             user = User(email="snapshot@example.com", display_name="Snapshot", password_hash="test")
             db.add(user)
