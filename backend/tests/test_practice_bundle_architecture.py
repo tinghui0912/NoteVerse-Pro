@@ -40,17 +40,40 @@ def test_bundle_compiler_consumes_compiler_and_score_projections():
     )
 
 
-def test_score_compiler_dependency_direction():
+def test_score_domain_depends_on_pure_constants_and_canonical_written_model():
     score = ROOT / "modules/practice/score"
     for path in score.rglob("*.py"):
+        if "generated" in path.parts:
+            continue
         for node in imports(path.relative_to(ROOT)):
             if node.level:
-                assert node.module in {"domain", "piano_key", "timeline", "time"}
+                assert node.module in {
+                    "domain",
+                    "piano_key",
+                    "timeline",
+                    "time",
+                    "generated.contract",
+                }
             elif node.module and node.module.startswith("app."):
+                if node.module.startswith("app.modules.practice.score.generated"):
+                    assert node.module == "app.modules.practice.score.generated.contract"
                 assert node.module.startswith("app.modules.practice.score.") or node.module in {
                     "app.score_semantics.musicxml_score",
                     "app.score_semantics.tempo_policy",
                 }
+            assert not node.module or not node.module.startswith(
+                ("pydantic", "sqlalchemy", "fastapi")
+            )
+    constants = imports("modules/practice/score/generated/contract.py")
+    assert not any(
+        node.module and node.module.startswith(("pydantic", "sqlalchemy", "fastapi"))
+        for node in constants
+    )
+
+
+def test_bundle_transport_consumes_the_generated_artifact_transport_owner():
+    dependencies = {node.module for node in imports("modules/practice/bundle/schemas.py")}
+    assert "app.modules.practice.score.generated" in dependencies
 
 
 def test_bundle_domain_is_independent_of_transport_and_persistence():

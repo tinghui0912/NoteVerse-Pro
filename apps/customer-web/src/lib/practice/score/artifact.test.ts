@@ -4,7 +4,7 @@ import { stepPracticePlan } from '@/lib/practice/__fixtures__/practice-plan';
 import { describe, expect, it } from 'vitest';
 import canonical from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import { artifactWithKeys } from '@/lib/practice/__fixtures__/piano-key-artifact';
-import { assertPracticeScoreArtifact, parsePracticeScoreArtifact, notesForIds, type PracticeScoreArtifact } from './artifact';
+import { notesForIds, type PracticeScoreArtifact } from './artifact';
 import { projectPracticeMomentView } from '@/lib/practice/score-view/moment-view';
 import { resolvePracticeScope } from '../planning/scope';
 import { StepPracticeSession } from '@/lib/practice/step/domain/practice-session';
@@ -24,7 +24,7 @@ function strikes(artifact: PracticeScoreArtifact) {
 }
 describe('one canonical Practice note graph and moment sequence', () => {
   it('accepts the deterministic producer fixture and exact canonical transport fields', () => {
-    assertPracticeScoreArtifact(fixture);
+
     expect(fixture.schemaVersion).toBe(1); expect(fixture.artifactId).toBe('practice-score-artifact:f302746d7229b692');
     expect(fixture.notes).toHaveLength(7);
     expect(new Set(fixture.notes.map(n => n.noteId)).size).toBe(fixture.notes.length);
@@ -35,7 +35,7 @@ describe('one canonical Practice note graph and moment sequence', () => {
   });
   it('two unison notation identities produce one STEP attack and one Continuous strike carrying both render IDs', () => {
     const value = unison(), before = structuredClone(value);
-    assertPracticeScoreArtifact(value);
+
     const attack = value.moments[0].attacks[0];
     expect(attack.noteIds).toHaveLength(2);
     expect(notesForIds(value, attack.noteIds).map(n => n.renderNoteId)).toEqual(['n1','lower-render']);
@@ -53,7 +53,7 @@ describe('one canonical Practice note graph and moment sequence', () => {
   });
   it('a C4/E4 chord owns exactly two attacks for both modes; continuation is never a second strike', () => {
     const value = artifactWithKeys([[60,64]]);
-    assertPracticeScoreArtifact(value);
+
     expect(value.moments[0].attacks.map(a => a.pianoKey)).toEqual([60,64]);
     expect(strikes(value).map(s => s.pianoKey)).toEqual([60,64]);
     const tied = structuredClone(fixture), moment = tied.moments[3];
@@ -69,71 +69,4 @@ describe('one canonical Practice note graph and moment sequence', () => {
     expect(resolvePracticeScope(fixture, { kind: 'FULL' })).toMatchObject({ startIndex: 0, endIndex: 4 });
     for (const moment of fixture.moments) expect(resolvePracticeScope(fixture, { kind: 'RANGE', startGroupId: moment.groupId, endGroupId: moment.groupId })).toMatchObject({ startTick: moment.onsetTick, terminalTick: moment.canonicalEndTick });
   });
-});
-
-type Corrupt = (value: PracticeScoreArtifact) => void;
-const corruptions: [string, Corrupt][] = [
-  ['dangling note', v => { v.moments[0].attacks[0].noteIds[0] = 'missing'; }],
-  ['duplicate canonical note', v => { v.notes.push(structuredClone(v.notes[0])); }],
-  ['duplicate render identity', v => { v.notes[1].renderNoteId = v.notes[0].renderNoteId; }],
-  ['wrong physical key reference', v => { v.moments[0].attacks[0].pianoKey = 62; }],
-  ['same note owned by two attacks', v => { v.moments[0].attacks.push({ ...v.moments[0].attacks[0], attackId: 'other', pianoKey: 62 }); }],
-  ['missing attack reference', v => { v.moments[0].attacks[0].noteIds.pop(); }],
-  ['duplicate reference', v => { v.moments[0].attacks[0].noteIds.push(v.moments[0].attacks[0].noteIds[0]); }],
-  ['duplicate attack identity', v => { v.moments[1].attacks[0].attackId = v.moments[0].attacks[0].attackId; }],
-  ['duplicate physical attack', v => { v.moments[0].attacks.push({ ...v.moments[0].attacks[0], attackId: 'second' }); }],
-  ['dangling event', v => { v.notes[0].eventId = 'missing'; }],
-  ['empty event', v => { v.events.splice(1, 0, { ...v.events[0], eventId: 'empty' }); }],
-  ['event/moment onset disagreement', v => { v.events[0].onsetTick = -1; }],
-  ['reordered chronology', v => { v.events.reverse(); }],
-  ['nonfinite event duration', v => { v.events[0].durationTicks = Infinity; }],
-  ['duplicate moment', v => { v.moments[1].groupId = v.moments[0].groupId; }],
-  ['moment chronology', v => { v.moments[1].onsetTick = .5; }],
-  ['missing moment', v => { v.moments.pop(); }],
-  ['bad canonical endpoint', v => { v.moments[0].canonicalEndTick += 1; }],
-  ['NaN endpoint', v => { v.moments[0].canonicalEndTick = NaN; }],
-  ['empty attacks', v => { v.moments[0].attacks = []; }],
-  ['missing continuation', v => { v.moments[3].continuationNoteIds = []; }],
-  ['duplicate continuation', v => { v.moments[3].continuationNoteIds.push(v.moments[3].continuationNoteIds[0]); }],
-  ['continuation owned as attack', v => { v.moments[3].attacks[0].noteIds.push(v.moments[3].continuationNoteIds[0]); }],
-  ['attack as continuation', v => { v.moments[0].continuationNoteIds.push(v.moments[0].attacks[0].noteIds[0]); }],
-  ['bad tie grammar', v => { Object.assign(v.notes[0], { tieTypes: ['other'] }); }],
-  ['unsupported schema version', v => { Object.assign(v, { schemaVersion: 999 }); }],
-  ['unknown top-level field', v => { Object.assign(v, { unexpectedField: [] }); }],
-  ['invalid score extent', v => { v.scoreEndTick = v.events[0].onsetTick; }],
-  ['empty revision', v => { v.notes = []; v.events = []; v.moments = []; }],
-];
-it.each(corruptions)('rejects %s without coercion, repair or mutation', (_label, corrupt) => {
-  const value = unison(); corrupt(value);
-  const before = structuredClone(value), json = JSON.stringify(value);
-  expect(() => assertPracticeScoreArtifact(value)).toThrow();
-  expect(value).toEqual(before); expect(JSON.stringify(value)).toBe(json);
-});
-it.each([20,109,60.5,NaN,Infinity,true,'60','C4'])('rejects a later unselected invalid key %s revision-wide', key => {
-  const value = structuredClone(fixture); Object.assign(value.notes.at(-1)!, { pianoKey: key });
-  expect(() => assertPracticeScoreArtifact(value)).toThrow();
-});
-
-it.each([{meterSegments:[]},{meterSegments:[{...fixture.meterSegments[0],startTick:1}]}])('strict parser rejects missing initial meter without repair',({meterSegments})=>{
-  const value={...structuredClone(fixture),meterSegments},before=structuredClone(value);
-  expect(()=>parsePracticeScoreArtifact(value)).toThrow(expect.objectContaining({code:'practice_score_invalid'}));
-  expect(value).toEqual(before);
-});
-it('strict parser admits explicit initial meter and physical notation without tonal metadata',()=>{
-  const value=structuredClone(fixture);expect(parsePracticeScoreArtifact(value)).toBe(value);
-  expect(value.meterSegments[0]).toEqual({startTick:0,numerator:3,denominator:4});
-  expect(Object.keys(value).sort()).toEqual(['schemaVersion','artifactId','notes','events','moments',
-    'meterSegments','scoreTempoSegments','scoreEndTick','ticksPerQuarter'].sort());
-});
-
-
-it('validates tie-chain endpoints on the canonical score-tick axis', () => {
-  const value = artifactWithKeys([[60], [60]]);
-  value.notes[0].tieTypes = ['start']; value.notes[1].tieTypes = ['stop'];
-  value.ticksPerQuarter = 10;
-  value.events[0].onsetTick = 1; value.events[0].durationTicks = 7;
-  value.events[1].onsetTick = 8; value.events[1].durationTicks = 10;
-  value.moments.pop(); value.moments[0].onsetTick = 1; value.moments[0].canonicalEndTick = 18;
-  value.scoreEndTick = 18;
-  expect(parsePracticeScoreArtifact(value)).toBe(value);
 });

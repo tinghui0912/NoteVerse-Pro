@@ -511,3 +511,37 @@ async def test_bound_readers_share_locks_and_fence_gc_during_verification(
                 await first_read
     finally:
         event.remove(engine.sync_engine, "before_cursor_execute", observe_sql)
+
+
+@pytest.mark.asyncio
+async def test_durable_bundle_rejects_graph_corruption_with_consistent_content_hashes(
+    postgres_bundle,
+):
+    import hashlib
+    from app.modules.practice.score.artifact import (
+        canonical_practice_artifact_bytes,
+        practice_artifact_id,
+    )
+    from app.modules.practice.bundle.domain import calculate_bundle_id
+
+    engine, repository, bundle, storage = postgres_bundle
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions() as db:
+        ref, _ = await repository.get_or_create(db, bundle, revision_id=repository.test_revision_id)
+        row = await db.get(PracticeBundleRecord, ref.id)
+        value = bundle.artifact.value
+        value["notes"][0]["eventId"] = "missing"
+        value["artifactId"] = practice_artifact_id(value)
+        data = canonical_practice_artifact_bytes(value)
+        storage.put_bytes(
+            key=row.artifact_object_key, content=data, content_type="application/json"
+        )
+        row.artifact_id = value["artifactId"]
+        row.artifact_byte_size = len(data)
+        row.artifact_sha256 = hashlib.sha256(data).hexdigest()
+        row.bundle_id = calculate_bundle_id(
+            row.artifact_schema_version, row.prepared_musicxml_sha256, row.artifact_sha256
+        )
+        await db.commit()
+        with pytest.raises(ValueError, match="dangling"):
+            await repository.read_bound(db, repository.test_revision_id)

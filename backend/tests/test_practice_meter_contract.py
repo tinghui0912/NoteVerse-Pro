@@ -8,7 +8,8 @@ from pydantic import ValidationError
 
 from app.core.exceptions import ValidationException
 from app.modules.practice.bundle.compiler import PracticeBundleCompiler
-from app.modules.practice.bundle.schemas import PracticeScoreArtifactRead
+from app.modules.practice.score.generated.artifact_transport import PracticeScoreArtifactRead
+from app.modules.practice.score.artifact_validation import validate_practice_score_artifact
 from app.modules.practice.score.piano_key import PracticeScoreInvalidError
 from app.modules.practice.score.domain import (
     MAX_JSON_SAFE_INTEGER,
@@ -132,13 +133,13 @@ def test_no_key_and_no_tempo_are_valid_but_delayed_explicit_tempo_is_retained():
         ],
     ],
 )
-def test_transport_rejects_missing_initial_meter_without_mutation(meters):
+def test_score_semantics_reject_missing_initial_meter_without_mutation(meters):
     from copy import deepcopy
 
     value = {**build(xml(time())).artifact.value, "meterSegments": meters}
     before = deepcopy(value)
-    with pytest.raises(ValidationError):
-        PracticeScoreArtifactRead.model_validate(value)
+    with pytest.raises(ValueError):
+        validate_practice_score_artifact(PracticeScoreArtifactRead.model_validate(value).model_dump())
     assert value == before
 
 
@@ -270,12 +271,12 @@ def test_artifact_transport_rejects_nonportable_meter_integers_without_coercion(
 
 
 def test_meter_openapi_exposes_portable_integer_bounds():
-    from app.modules.practice.bundle.schemas import PracticeScoreMeterSegmentRead
+    from app.modules.practice.score.generated.artifact_transport import PracticeScoreMeterSegmentRead
 
     properties = PracticeScoreMeterSegmentRead.model_json_schema()["properties"]
     for field in ("numerator", "denominator"):
         assert properties[field]["type"] == "integer"
-        assert properties[field]["exclusiveMinimum"] == 0
+        assert properties[field]["minimum"] == 1
         assert properties[field]["maximum"] == MAX_JSON_SAFE_INTEGER
 
 

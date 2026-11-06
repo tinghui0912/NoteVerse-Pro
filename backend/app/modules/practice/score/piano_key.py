@@ -1,15 +1,7 @@
 """The explicit NoteVerse Practice physical piano domain, independent of input source."""
 
 from numbers import Integral
-from typing import Annotated
-
-from pydantic import Field
-
-PRACTICE_PIANO_KEY_MIN = 21
-PRACTICE_PIANO_KEY_MAX = 108
-PracticePianoKey = Annotated[
-    int, Field(strict=True, ge=PRACTICE_PIANO_KEY_MIN, le=PRACTICE_PIANO_KEY_MAX)
-]
+from .generated.contract import PRACTICE_PIANO_KEY_MIN, PRACTICE_PIANO_KEY_MAX
 
 
 class PracticeScoreInvalidError(ValueError):

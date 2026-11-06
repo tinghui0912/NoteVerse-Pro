@@ -28,7 +28,7 @@ describe('video export session saved-take parsing', () => {
       expect(result.session.scoreIdentity).toEqual({
         scoreId: 'score-1',
         revisionId: 'revision-1',
-        artifactId: 'artifact-1',
+        artifactId: artifact.artifactId,
       });
       expect(result.session.recordingTimebase.activeSegments).toHaveLength(1);
     }

@@ -43,7 +43,7 @@ const selectableMusicXml = `<?xml version="1.0" encoding="UTF-8"?>
 
 const smokeArtifact: PracticeScoreArtifact = {
   schemaVersion: 1, ticksPerQuarter: 1,
-  artifactId: 'practice-score-artifact:smoke-test',
+  artifactId: 'practice-score-artifact:34ed2903bb7308b3',
    scoreEndTick: 4,
   notes: [60, 62, 64].map((pianoKey, i) => ({ noteId: `note-${i}`, eventId: `e-${i}`, pianoKey,
     renderNoteId: ['select-start-note', 'middle-note', 'select-end-note'][i], measureNumber: '1', staffId: '1', voiceId: '1', tieTypes: [] })),

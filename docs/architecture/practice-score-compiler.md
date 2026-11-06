@@ -59,8 +59,8 @@ positions share the same canonical written axis.
 
 The canonical parser raises `MusicXMLSemanticError`. This boundary maps semantic
 errors and Practice support failures to `PracticeScoreInvalidError`; PracticeBundleService
-projects them as HTTP 422 `practice_score_invalid`. Transport schema and
-browser parsing validate the artifact without repairing timing.
+projects them as HTTP 422 `practice_score_invalid`. The language-neutral score schema owns serialized structure. Generated Python/TS
+projections enforce structure; browser decoding does not reconstruct musical semantics.
 
 `compiler/stable_ids.py` prepares render identity once per Bundle compilation. Compiled
 notes bind those identities to projected written facts. Timeline projection groups
@@ -69,8 +69,11 @@ Practice domain values have no parsing or persistence dependencies. Compilation
 depends on the pure written model and Practice domain values; HTTP, persistence and
 PerformanceTake are outside this boundary.
 
-The schemaVersion 1 artifact serializer owns canonical JSON and artifact content
-identity. The canonical MusicXML data fixture in `backend/tests/fixtures/musicxml/`
+The artifact serializer owns canonical JSON and artifact content identity. Its schema
+version and serialized bounds come from generated pure contract constants. Backend
+artifact_validation.py maps decoded artifact facts to the canonical timeline validator;
+it remains independent of Pydantic transport. The browser consumes generated structure
+and backend-admitted graph truth. The canonical MusicXML data fixture in `backend/tests/fixtures/musicxml/`
 supplies artifact tests and the repository contract checker. The browser fixture
 verifies the notation/event/moment projection against that transport contract.
 [Practice Bundle](practice-bundle.md) defines content identity and durable verification.

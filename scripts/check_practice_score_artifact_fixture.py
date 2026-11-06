@@ -28,7 +28,7 @@ BROWSER_FIXTURE = (
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Compare the backend canonical PracticeScoreArtifact with the checked browser fixture."
+        description="Compare the backend canonical PracticeScoreArtifact with the checked deterministic producer fixture."
     )
     parser.add_argument(
         "--fixture-path", "--fixture", type=Path, default=BROWSER_FIXTURE
@@ -54,7 +54,7 @@ def main() -> int:
         BROWSER_FIXTURE.with_name("exact-practice-score-artifact.json"),
         CANONICAL_MUSICXML.with_name("exact-practice-score.musicxml"),
     )
-    print(f"canonical PracticeScoreArtifact fixture matches: {args.fixture_path}")
+    print(f"deterministic PracticeScoreArtifact producer fixture matches: {args.fixture_path}")
     return 0
 
 
@@ -79,7 +79,7 @@ def compare_fixture(fixture_path: Path, source: Path = CANONICAL_MUSICXML) -> No
             )
         )
         raise AssertionError(
-            f"Canonical PracticeScoreArtifact fixture drifted:\n{diff}"
+            f"PracticeScoreArtifact producer fixture drifted:\n{diff}"
         )
 
 

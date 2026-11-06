@@ -5,8 +5,8 @@ import os
 from pathlib import Path
 
 import pytest
-from pydantic import ValidationError
-from app.modules.practice.bundle.schemas import PracticeScoreArtifactRead
+from app.modules.practice.score.artifact_validation import validate_practice_score_artifact
+from app.modules.practice.score.generated.artifact_transport import PracticeScoreArtifactRead
 
 
 def canonical():
@@ -41,6 +41,7 @@ def unison():
 def test_single_canonical_notation_graph_retains_unison_and_continuation():
     value = unison()
     parsed = PracticeScoreArtifactRead.model_validate(value)
+    validate_practice_score_artifact(parsed.model_dump())
     assert parsed.schemaVersion == 1
     assert len(parsed.notes) == 8
     attack = parsed.moments[0].attacks[0]
@@ -132,6 +133,6 @@ def test_canonical_graph_rejects_corruption_without_repair(kind):
     elif kind == "unknown-field":
         value["unexpectedField"] = []
     before = json.dumps(value, sort_keys=True)
-    with pytest.raises(ValidationError):
-        PracticeScoreArtifactRead.model_validate(value)
+    with pytest.raises(ValueError):
+        validate_practice_score_artifact(PracticeScoreArtifactRead.model_validate(value).model_dump())
     assert json.dumps(value, sort_keys=True) == before

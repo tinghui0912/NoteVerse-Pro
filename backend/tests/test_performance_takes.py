@@ -379,7 +379,7 @@ def test_practice_bundle_artifact_identity_corruption_is_rejected(test_env):
     value = _canonical_bundle(
         "score-uuid-10", DEFAULT_TAKE_REVISION_ID, DEFAULT_TAKE_ARTIFACT_ID
     ).artifact.value
-    value["artifactId"] = "corrupt-artifact-identity"
+    value["artifactId"] = "practice-score-artifact:0000000000000000"
     changed = PracticeBundleRepresentation(
         canonical_practice_artifact_bytes(value), "application/json"
     )

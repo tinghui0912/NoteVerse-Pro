@@ -66,8 +66,11 @@ revisions make score export unavailable; raw Take playback and download remain i
 practice_bundles stores immutable representation fingerprints and physical locators,
 with CREATING, READY and DELETING lifecycle states. Objects use
 `practice-bundles/{bundle_id}/score.musicxml` and `artifact.json`.
-Every durable read verifies both exact byte counts and SHA256 values, artifact schema,
-artifactId, canonical JSON bytes and recomputed bundleId. Corruption fails closed.
+Every durable read verifies exact byte counts and SHA256 values, decodes generated
+artifact transport structure, validates the musical graph through backend score semantics,
+then verifies artifactId, canonical JSON bytes and recomputed bundleId. Corruption fails closed.
+The [score schema](../../contracts/practice/score/artifact.schema.json) owns transport
+structure; Bundle envelope models reference its generated Python projection.
 
 Only ScoreRevisionPracticeBinding rows retain a Bundle. A READY Bundle with zero bindings
 is eligible for GC. Take and UploadReservation store immutable provenance snapshots
@@ -85,8 +88,8 @@ Deletion that commits first denies a new save; admitted reservations retain thei
 self-contained provenance, scope, tempo and score-timebase snapshot for replay/finalize.
 Take copies that snapshot without a new Bundle read.
 
-The browser bundle package validates the generated transport envelope and content-only
-artifact. AdmittedPracticeBundle contains a readonly binding, deeply frozen artifact,
+The browser bundle package validates the binding envelope and uses the generated structural
+decoder for the content-only artifact. It does not re-prove the backend musical graph. AdmittedPracticeBundle contains a readonly binding, deeply frozen artifact,
 and prepared musicXml. PracticePlan carries the binding and artifact projection;
 notation remains admitted rendering/Review representation. Review, Save and VideoExport
 read executed binding truth rather than inferring ownership from artifact content.

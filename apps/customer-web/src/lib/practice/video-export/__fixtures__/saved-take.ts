@@ -17,7 +17,7 @@ export const take: PerformanceTakeRead = {score_timebase: { ticks_per_quarter: 1
   bundle_id: 'source-1',
   score_id: 'score-1',
   revision_id: 'revision-1',
-  artifact_id: 'artifact-1',
+  artifact_id: 'practice-score-artifact:7cfc80643d19fef4',
   score_title_snapshot: 'Etude',
   media_kind: 'VIDEO',
   media_mime_type: 'video/webm',
@@ -33,7 +33,7 @@ export const take: PerformanceTakeRead = {score_timebase: { ticks_per_quarter: 1
 };
 
 export const artifact: PracticeScoreArtifact = {
-  schemaVersion: 1, ticksPerQuarter: 1,   artifactId: 'artifact-1',
+  schemaVersion: 1, ticksPerQuarter: 1,   artifactId: 'practice-score-artifact:7cfc80643d19fef4',
   notes: [0,1].map(i => ({ noteId: `note-${i + 1}`, eventId: `event-${i + 1}`, pianoKey: 60,
     renderNoteId: `note-${i + 1}`, measureNumber: String(i + 1), staffId: '', voiceId: '', tieTypes: [] })),
   events: [0,1].map(i => ({ eventId: `event-${i + 1}`, onsetTick: i * 4, durationTicks: i ? 12 : 4 })),

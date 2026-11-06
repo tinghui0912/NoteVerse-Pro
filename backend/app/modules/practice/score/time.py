@@ -7,10 +7,10 @@ from math import lcm
 from typing import TypeAlias
 
 from .piano_key import PracticeScoreInvalidError
+from .generated.contract import MAX_JSON_SAFE_INTEGER
 
 ScoreTick: TypeAlias = int
 TicksPerQuarter: TypeAlias = int
-MAX_JSON_SAFE_INTEGER = 2**53 - 1
 
 
 def score_tick(value: object) -> ScoreTick:

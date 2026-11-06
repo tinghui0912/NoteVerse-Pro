@@ -8,8 +8,7 @@ from typing import Any, Sequence
 from .domain import PracticeScoreTimeline, PracticeTempoSegment
 from .timeline import assert_practice_timeline
 
-
-PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION = 1
+from .generated.contract import PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION
 
 
 def practice_score_artifact_from_timeline(

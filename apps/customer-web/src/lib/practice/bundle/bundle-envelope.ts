@@ -2,9 +2,9 @@ import type { PracticeBundleRead } from '@/generated/api/types.gen';
 import type { ApiResponse } from '@/lib/api-client';
 import { BundleFailure } from '@/lib/practice/failure/causal-failure';
 import {
-  parsePracticeScoreArtifact,
-  PracticeScoreContractError,
-} from '@/lib/practice/score/artifact';
+  decodePracticeScoreArtifact,
+  PracticeScoreStructureError,
+} from '@/lib/practice/contracts/generated/score-artifact';
 import type { AdmittedPracticeBundle } from './admitted-practice-bundle';
 
 type ExpectedBundle = { scoreId: string; revisionId: string } & (
@@ -32,14 +32,14 @@ export async function readPracticeBundle(
       (identity.kind === 'EXACT' &&
         (!identity.bundleId || value.binding?.bundle_id !== identity.bundleId))
     ) {
-      throw new PracticeScoreContractError('Practice bundle identity mismatch');
+      throw new PracticeScoreStructureError('Practice bundle identity mismatch');
     }
-    const artifact = parsePracticeScoreArtifact(value.artifact);
+    const artifact = decodePracticeScoreArtifact(value.artifact);
     if (
       identity.kind === 'EXACT' &&
       artifact.artifactId !== identity.artifactId
     ) {
-      throw new PracticeScoreContractError(
+      throw new PracticeScoreStructureError(
         'Practice bundle artifact identity mismatch',
       );
     }
@@ -49,7 +49,7 @@ export async function readPracticeBundle(
       typeof value.notation.musicxml !== 'string' ||
       !value.notation.musicxml.trim()
     ) {
-      throw new PracticeScoreContractError('Practice bundle notation required');
+      throw new PracticeScoreStructureError('Practice bundle notation required');
     }
     freezeRepresentation(artifact);
     return Object.freeze({
@@ -65,7 +65,7 @@ export async function readPracticeBundle(
     signal.throwIfAborted();
     if (cause instanceof BundleFailure) throw cause;
     const invalid =
-      cause instanceof PracticeScoreContractError ||
+      cause instanceof PracticeScoreStructureError ||
       Boolean(
         cause &&
           typeof cause === 'object' &&

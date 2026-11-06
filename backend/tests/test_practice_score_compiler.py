@@ -12,7 +12,7 @@ from app.modules.practice.score.compiler.stable_ids import prepare_musicxml_ids_
 from app.modules.practice.score.piano_key import PracticeScoreInvalidError
 from app.modules.practice.score.timeline import practice_timeline_from_compiled
 from app.modules.practice.bundle.compiler import PracticeBundleCompiler
-from app.modules.practice.bundle.schemas import PracticeScoreArtifactRead
+from app.modules.practice.score.generated.artifact_transport import PracticeScoreArtifactRead
 
 
 def meter(n=4, d=4):

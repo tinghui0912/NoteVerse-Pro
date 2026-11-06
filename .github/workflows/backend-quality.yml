@@ -11,7 +11,9 @@ on:
       - "apps/customer-web/src/lib/practice/__fixtures__/canonical-practice-score-artifact.json"
       - "docker/backend/Dockerfile.quality"
       - "docker/backend/Dockerfile.quality.dockerignore"
-      - "scripts/check_practice_score_artifact_contract.py"
+      - "scripts/check_practice_score_artifact_fixture.py"
+      - "scripts/generate_practice_score_contract.py"
+      - "contracts/practice/score/**"
       - "scripts/backend_quality_docker.ps1"
       - "scripts/quality.ps1"
       - ".github/workflows/backend-quality.yml"
@@ -25,7 +27,9 @@ on:
       - "apps/customer-web/src/lib/practice/__fixtures__/canonical-practice-score-artifact.json"
       - "docker/backend/Dockerfile.quality"
       - "docker/backend/Dockerfile.quality.dockerignore"
-      - "scripts/check_practice_score_artifact_contract.py"
+      - "scripts/check_practice_score_artifact_fixture.py"
+      - "scripts/generate_practice_score_contract.py"
+      - "contracts/practice/score/**"
       - "scripts/backend_quality_docker.ps1"
       - "scripts/quality.ps1"
       - ".github/workflows/backend-quality.yml"
@@ -150,15 +154,16 @@ jobs:
           LEGATO_REPO_PATH=$LEGATO_REPO_PATH
           EOF
 
-      - name: Enforce Practice score artifact contract
+      - name: Verify Practice score contract projections and producer fixture
         run: >-
           docker run --rm --network host --env-file "$QUALITY_ENV_FILE"
           -v "$GITHUB_WORKSPACE:/repo:ro"
           "$QUALITY_IMAGE" bash -c
           "cd /repo &&
           python scripts/generate_score_tempo_policy.py --check &&
-          PYTHONPATH=/repo/backend python scripts/check_practice_score_artifact_contract.py &&
-          PYTHONPATH=/repo/backend python scripts/check_practice_score_artifact_contract.py --self-test-missing-fixture"
+          python scripts/generate_practice_score_contract.py --check &&
+          PYTHONPATH=/repo/backend python scripts/check_practice_score_artifact_fixture.py &&
+          PYTHONPATH=/repo/backend python scripts/check_practice_score_artifact_fixture.py --self-test-missing-fixture"
 
       - name: Run Ruff
         run: docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -c "python -m ruff check app tests scripts"

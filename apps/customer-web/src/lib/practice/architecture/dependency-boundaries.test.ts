@@ -70,7 +70,7 @@ const domain = (file: string) => file.startsWith('score/') ? 'score'
 function dependencyAllowed(file: string, edge: Edge): boolean {
   const source = relative(file);
   const target = edge.target ? relative(edge.target) : null;
-  if (source.startsWith('acoustic/generated/')) return false;
+  if (source.startsWith('acoustic/generated/') || source.startsWith('contracts/generated/')) return false;
   const presentationOwners = ['score-view/', 'review/', 'video-export/'];
   const apiNamespace = normalize(path.join(sourceRoot, 'lib/api'));
   const apiRoot = apiNamespace + '/';
@@ -83,7 +83,7 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
     return materialization && Boolean(edge.target?.startsWith(apiRoot));
   }
 
-  if (source.startsWith('bundle/')) return Boolean(target?.startsWith('bundle/')
+  if (source.startsWith('bundle/')) return Boolean(target?.startsWith('contracts/generated/') || target?.startsWith('bundle/')
     || target?.startsWith('score/') || target?.startsWith('failure/')
     || edge.target === normalize(path.join(sourceRoot, 'lib/api/index.ts'))
     || edge.typeOnly && (edge.target === normalize(path.join(sourceRoot, 'lib/api-client.ts'))
@@ -147,7 +147,7 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
   }
   const owner = domain(source);
   const targetOwner = target ? domain(target) : null;
-  if (owner === 'score') return targetOwner === 'score' || edge.typeOnly && edge.target === normalize(path.join(sourceRoot, 'generated/api/types.gen.ts'));
+  if (owner === 'score') return target?.startsWith('contracts/generated/') || targetOwner === 'score' || edge.typeOnly && edge.target === normalize(path.join(sourceRoot, 'generated/api/types.gen.ts'));
   if (owner === 'session') return targetOwner === 'session' || Boolean(target?.startsWith('planning/')) && edge.typeOnly;
   if (owner) return targetOwner === 'score' || targetOwner === 'session' || Boolean(target?.startsWith('planning/')) || targetOwner === owner;
   for (const infrastructure of ['midi/', 'metronome/']) {
@@ -358,7 +358,7 @@ describe('Practice bounded domain dependencies', () => {
     expect([...constructions.keys()]).toEqual([normalize(ownerPath)]);
     expect([...constructions.get(normalize(ownerPath))!].sort()).toEqual(['ContinuousPracticeController', 'StepPracticeController']);
     const source = imports(path.join(practiceRoot, 'bundle/bundle-envelope.ts'));
-    expect(source.find(edge => edge.target?.endsWith('/score/artifact.ts'))?.bindings).toEqual(['parsePracticeScoreArtifact', 'PracticeScoreContractError']);
+    expect(source.find(edge => edge.target?.endsWith('/contracts/generated/score-artifact.ts'))?.bindings).toEqual(['decodePracticeScoreArtifact', 'PracticeScoreStructureError']);
   });
 
   it('keeps execution decisions independent of leaf controllers, browser resources and React', () => {
@@ -367,6 +367,15 @@ describe('Practice bounded domain dependencies', () => {
       expect(dependencyAllowed(file, imports(file, `import type { Value } from '@/lib/practice/${target}';`)[0])).toBe(false);
     }
     expect(dependencyAllowed(file, imports(file, `import { useState } from 'react';`)[0])).toBe(false);
+  });
+
+  it('keeps generated score structure independent of application and musical consumers', () => {
+    const file = path.join(practiceRoot, 'contracts/generated/boundary-probe.ts');
+    for (const owner of ['score', 'planning', 'bundle', 'step', 'continuous', 'application']) {
+      expect(dependencyAllowed(file, imports(file, `import type { Value } from '@/lib/practice/${owner}/boundary-probe';`)[0])).toBe(false);
+    }
+    const consumer=path.join(practiceRoot,'score/artifact.ts');
+    expect(imports(consumer).filter(edge=>edge.target?.includes('/contracts/generated/')).every(edge=>edge.typeOnly)).toBe(true);
   });
 
   it('keeps generated acoustic configuration pure data at its package boundary', () => {

@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - "contracts/score/tempo-policy.json"
+      - "contracts/practice/score/**"
+      - "scripts/generate_practice_score_contract.py"
       - "scripts/generate_score_tempo_policy.py"
       - "apps/customer-web/**"
       - "backend/docs/contracts/openapi/customer-api.json"
@@ -19,6 +21,8 @@ on:
   pull_request:
     paths:
       - "contracts/score/tempo-policy.json"
+      - "contracts/practice/score/**"
+      - "scripts/generate_practice_score_contract.py"
       - "scripts/generate_score_tempo_policy.py"
       - "apps/customer-web/**"
       - "backend/docs/contracts/openapi/customer-api.json"

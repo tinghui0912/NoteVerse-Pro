@@ -51,7 +51,7 @@ const sampleMusicXml = `<?xml version="1.0" encoding="UTF-8"?>
 
 const testArtifact: PracticeScoreArtifact = {
   schemaVersion: 1, ticksPerQuarter: 1,
-  artifactId: 'practice-score-artifact:continuous-test',
+  artifactId: 'practice-score-artifact:4d764e61bc0f58bf',
    scoreEndTick: 4,
   notes: [60, 62, 64].map((pianoKey, i) => ({ noteId: `note-${i}`, eventId: `e-${i}`, pianoKey,
     renderNoteId: ['note-c4', 'note-d4', 'note-e4'][i], measureNumber: '1', staffId: '1', voiceId: '1', tieTypes: [] })),

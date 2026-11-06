@@ -3,7 +3,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { parsePracticeScoreArtifact } from '../score/artifact';
+import { decodePracticeScoreArtifact } from '@/lib/practice/contracts/generated/score-artifact';
+import {  } from '@/lib/practice/score/artifact';
 import repeatArtifact from '../../../../tests/fixtures/musicxml/practice-simple-repeat.artifact.json';
 
 import { artifactWithKeys } from '../__fixtures__/piano-key-artifact';
@@ -58,7 +59,7 @@ describe('PracticeVerovioAdapter', () => {
 
 
 it('real Practice simple-repeat visual chronology aligns with the notation-order artifact', async () => {
-  const artifact = parsePracticeScoreArtifact(repeatArtifact);
+  const artifact = decodePracticeScoreArtifact(repeatArtifact);
   const xml = readFileSync(resolve(process.cwd(), '../../backend/tests/fixtures/musicxml/practice-simple-repeat.musicxml'), 'utf8');
   const adapter = new PracticeVerovioAdapter(artifact);
   try {

@@ -9,7 +9,7 @@ import { PracticeEnvironment } from '@/lib/practice/environment/practice-environ
 import PracticeSetupPage from './page';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
-import * as artifactContract from '@/lib/practice/score/artifact';
+import * as artifactContract from '@/lib/practice/contracts/generated/score-artifact';
 
 import * as bindingOwner from '@/lib/practice/device/practice-resource-binding';
 import { recordingProbeFixture } from '@/lib/practice/__fixtures__/recording-probe';
@@ -64,7 +64,7 @@ it('mount/configuration edits admit no source, acquire no physical roots and sta
   fireEvent.click(screen.getByRole('button',{name:messages.backToScore}));expect(navigation.push).toHaveBeenCalledWith('/score/score-id');
 });
 it('fresh Source parse precedes one physical acquisition, SAME-root validation, atomic commit and pinned navigation',async()=>{
-  const parse=vi.spyOn(artifactContract,'parsePracticeScoreArtifact'),r=await setup();selectMidi();await start();
+  const parse=vi.spyOn(artifactContract,'decodePracticeScoreArtifact'),r=await setup();selectMidi();await start();
   expect(admission.request).toHaveBeenCalledExactlyOnceWith('score-id','revision-id',true,expect.any(AbortSignal));
   expect(admission.events).toEqual(['source','acquire','capability']);expect(parse).toHaveBeenCalledOnce();expect(r.acquireMidi).toHaveBeenCalledOnce();
   expect(r.workspace.preparedPractice!.binding.borrowRoots()!.midi).toBe(r.midi.access);

@@ -6598,6 +6598,9 @@
         "additionalProperties": false,
         "properties": {
           "artifactId": {
+            "maxLength": 40,
+            "minLength": 40,
+            "pattern": "^practice-score-artifact:[0-9a-f]{16}$",
             "title": "Artifactid",
             "type": "string"
           },
@@ -6605,6 +6608,7 @@
             "items": {
               "$ref": "#/components/schemas/PracticeScoreEventRead"
             },
+            "minItems": 1,
             "title": "Events",
             "type": "array"
           },
@@ -6620,6 +6624,7 @@
             "items": {
               "$ref": "#/components/schemas/PracticeScoreMomentRead"
             },
+            "minItems": 1,
             "title": "Moments",
             "type": "array"
           },
@@ -6627,6 +6632,7 @@
             "items": {
               "$ref": "#/components/schemas/PracticeScoreNoteRead"
             },
+            "minItems": 1,
             "title": "Notes",
             "type": "array"
           },
@@ -6649,22 +6655,22 @@
             "type": "array"
           },
           "ticksPerQuarter": {
-            "exclusiveMinimum": 0.0,
             "maximum": 9007199254740991.0,
+            "minimum": 1.0,
             "title": "Ticksperquarter",
             "type": "integer"
           }
         },
         "required": [
-          "schemaVersion",
           "artifactId",
-          "notes",
           "events",
-          "moments",
           "meterSegments",
+          "moments",
+          "notes",
+          "schemaVersion",
+          "scoreEndTick",
           "scoreTempoSegments",
-          "ticksPerQuarter",
-          "scoreEndTick"
+          "ticksPerQuarter"
         ],
         "title": "PracticeScoreArtifactRead",
         "type": "object"
@@ -6673,13 +6679,16 @@
         "additionalProperties": false,
         "properties": {
           "attackId": {
+            "minLength": 1,
             "title": "Attackid",
             "type": "string"
           },
           "noteIds": {
             "items": {
+              "minLength": 1,
               "type": "string"
             },
+            "minItems": 1,
             "title": "Noteids",
             "type": "array"
           },
@@ -6692,8 +6701,8 @@
         },
         "required": [
           "attackId",
-          "pianoKey",
-          "noteIds"
+          "noteIds",
+          "pianoKey"
         ],
         "title": "PracticeScoreAttackRead",
         "type": "object"
@@ -6708,6 +6717,7 @@
             "type": "integer"
           },
           "eventId": {
+            "minLength": 1,
             "title": "Eventid",
             "type": "string"
           },
@@ -6719,9 +6729,9 @@
           }
         },
         "required": [
+          "durationTicks",
           "eventId",
-          "onsetTick",
-          "durationTicks"
+          "onsetTick"
         ],
         "title": "PracticeScoreEventRead",
         "type": "object"
@@ -6730,14 +6740,14 @@
         "additionalProperties": false,
         "properties": {
           "denominator": {
-            "exclusiveMinimum": 0.0,
             "maximum": 9007199254740991.0,
+            "minimum": 1.0,
             "title": "Denominator",
             "type": "integer"
           },
           "numerator": {
-            "exclusiveMinimum": 0.0,
             "maximum": 9007199254740991.0,
+            "minimum": 1.0,
             "title": "Numerator",
             "type": "integer"
           },
@@ -6749,9 +6759,9 @@
           }
         },
         "required": [
-          "startTick",
+          "denominator",
           "numerator",
-          "denominator"
+          "startTick"
         ],
         "title": "PracticeScoreMeterSegmentRead",
         "type": "object"
@@ -6763,6 +6773,7 @@
             "items": {
               "$ref": "#/components/schemas/PracticeScoreAttackRead"
             },
+            "minItems": 1,
             "title": "Attacks",
             "type": "array"
           },
@@ -6774,12 +6785,14 @@
           },
           "continuationNoteIds": {
             "items": {
+              "minLength": 1,
               "type": "string"
             },
             "title": "Continuationnoteids",
             "type": "array"
           },
           "groupId": {
+            "minLength": 1,
             "title": "Groupid",
             "type": "string"
           },
@@ -6791,11 +6804,11 @@
           }
         },
         "required": [
-          "groupId",
-          "onsetTick",
-          "canonicalEndTick",
           "attacks",
-          "continuationNoteIds"
+          "canonicalEndTick",
+          "continuationNoteIds",
+          "groupId",
+          "onsetTick"
         ],
         "title": "PracticeScoreMomentRead",
         "type": "object"
@@ -6804,6 +6817,7 @@
         "additionalProperties": false,
         "properties": {
           "eventId": {
+            "minLength": 1,
             "title": "Eventid",
             "type": "string"
           },
@@ -6812,6 +6826,7 @@
             "type": "string"
           },
           "noteId": {
+            "minLength": 1,
             "title": "Noteid",
             "type": "string"
           },
@@ -6822,6 +6837,7 @@
             "type": "integer"
           },
           "renderNoteId": {
+            "minLength": 1,
             "title": "Rendernoteid",
             "type": "string"
           },
@@ -6838,7 +6854,8 @@
               "type": "string"
             },
             "title": "Tietypes",
-            "type": "array"
+            "type": "array",
+            "uniqueItems": true
           },
           "voiceId": {
             "title": "Voiceid",
@@ -6846,14 +6863,14 @@
           }
         },
         "required": [
-          "noteId",
           "eventId",
+          "measureNumber",
+          "noteId",
           "pianoKey",
           "renderNoteId",
-          "measureNumber",
           "staffId",
-          "voiceId",
-          "tieTypes"
+          "tieTypes",
+          "voiceId"
         ],
         "title": "PracticeScoreNoteRead",
         "type": "object"
@@ -6862,6 +6879,7 @@
         "additionalProperties": false,
         "properties": {
           "bpm": {
+            "exclusiveMinimum": 0.0,
             "title": "Bpm",
             "type": "number"
           },
@@ -6873,8 +6891,8 @@
           }
         },
         "required": [
-          "startTick",
-          "bpm"
+          "bpm",
+          "startTick"
         ],
         "title": "PracticeScoreTempoSegmentRead",
         "type": "object"

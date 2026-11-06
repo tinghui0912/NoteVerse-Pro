@@ -57,7 +57,7 @@ callback handling retain their lifecycle ownership.
 
 ## Source and Presentation
 
-The complete Bundle admission boundary runs the canonical strict artifact parser once per response.
+The complete Bundle admission boundary runs the generated artifact structural decoder once per response.
 Invalid artifact, envelope identity or notation produces `BundleFailure.INVALID_SCORE`;
 transport/service failure produces `BundleFailure.LOAD_FAILED`. The load failure retains
 its transport cause for safe API error-code formatting and HTTP resource decisions.

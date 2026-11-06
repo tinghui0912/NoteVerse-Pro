@@ -17,10 +17,10 @@ from .compiler import PracticeBundleCompiler
 from .domain import AuthorizedPracticeBundle
 from .repository import PracticeBundleRepository
 from .mutation_access import lock_live_practice_mutation_access
+from app.modules.practice.score.generated.artifact_transport import PracticeScoreArtifactRead
 from .schemas import (
     PracticeBundleRead,
     PracticeBundleNotationRead,
-    PracticeScoreArtifactRead,
     ScoreRevisionPracticeBindingRead,
 )
 

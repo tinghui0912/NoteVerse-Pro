@@ -1,5 +1,4 @@
 import {
-  assertPracticeScoreArtifact,
   type PracticeScoreArtifact,
 } from '@/lib/practice/score/artifact';
 import { scoreTick } from '@/lib/practice/score/score-time';
@@ -33,7 +32,6 @@ export class PracticeVerovioAdapter extends VerovioScoreAdapter {
   override async loadMusicXml(xml: string) {
     if (!this.artifact)
       throw new Error('Practice artifact required for written rendering.');
-    assertPracticeScoreArtifact(this.artifact);
     await super.loadMusicXml(xml, {
       renderMidi: false,
       prepareGenericRenderIds: false,

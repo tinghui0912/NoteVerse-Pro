@@ -3,8 +3,10 @@
 ## Product domain
 
 PracticePianoKey is an integer MIDI key21..108:88 physical piano keys A0..C8.
-This is an explicit Practice product domain, owned by backend
-modules/practice/score/piano_key.py and browser practice/score/piano-key.ts.
+The language-neutral [Practice score schema](../../contracts/practice/score/artifact.schema.json)
+owns serialized numerical bounds. Pure generated Python constants and generated TypeScript
+constants supply backend score/piano_key.py and browser score/piano-key.ts. These adapters
+own domain behavior without independently declaring the numerical boundary.
 Enharmonic spelling belongs to notation; physical evaluation compares numeric keys.
 The domain is independent of input source and acoustic model vocabulary.
 
@@ -14,27 +16,27 @@ Every retained playable note, including continuations and unused sections, must 
 a valid key. Booleans, fractional values, strings and out-of-domain keys fail without
 coercion, clamping, transposition or filtering. Empty/no-target revisions fail.
 
-## Artifact and source boundary
+## Artifact and Bundle boundary
 
 [Artifact schemaVersion 1](practice-moment-artifact.md) owns canonical notes, events and
 chronological moments with physical attacks and continuation references. A key/onset
 has one attack containing all unison notation identities across voices/staves.
-Backend deterministic construction and browser strict parsing validate this graph.
+Backend Practice score semantics validate this graph. Browser admission checks only generated structure.
 Scope selects indexes/ticks from an admitted revision.
 
 PracticeBundleService exposes one `/bundle` resource containing the artifact, optional
 prepared-MusicXML notation and bundle_id. See [Practice Bundle](practice-bundle.md).
 Deterministic PracticeScoreInvalidError maps to422 practice_score_invalid; unexpected
 parser/storage/serialization/invariant failures map to503 practice_bundle_failed.
-Generated DTOs describe transport; the score artifact parser owns revision-wide semantic
-admission. Planning and mode execution consume that admitted runtime artifact.
+Generated transport models describe structure; the backend score semantic validator owns
+revision-wide musical admission. Planning and mode execution consume that admitted runtime artifact.
 
 `usePracticeRouteScore` pins revision identity from route/score metadata. Setup's explicit
 command invokes `admitPracticeBundle` for fresh complete Bundle admission before
 resource acquisition. Its successful PreparedPractice handoff carries exact bundleId
 and retained roots. Practice and Review reuse that admitted representation without
-Source reads.
-Without handoff it shows Setup required. Invalid Source fails Setup admission before acquisition.
+Bundle reads.
+Without handoff it shows Setup required. Invalid Bundle fails Setup admission before acquisition.
 Score correctness and retained physical health have distinct owners.
 
 ## Source adapters

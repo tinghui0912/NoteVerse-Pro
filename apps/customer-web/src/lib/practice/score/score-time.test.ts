@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import exact from '../__fixtures__/exact-practice-score-artifact.json';
-import { parsePracticeScoreArtifact } from './artifact';
+import { decodePracticeScoreArtifact } from '@/lib/practice/contracts/generated/score-artifact';
 import {
   measureDurationTicks,
   meterPulseTicks,
@@ -12,7 +12,7 @@ import { PracticeTempoTimeline, resolvePracticeTempoPlan } from '../planning/tem
 import { MetronomePulsePlanner } from '../metronome/metronome-pulse-planner';
 
 it('reads the backend-produced mixed-denominator, meter, tie, tempo and scope artifact', () => {
-  const artifact = parsePracticeScoreArtifact(exact);
+  const artifact = decodePracticeScoreArtifact(exact);
   expect(artifact.ticksPerQuarter).toBe(60);
   expect(artifact.events.map((e) => e.onsetTick)).toEqual([
     0, 20, 50, 62, 90, 110, 140,
@@ -64,10 +64,6 @@ it.each([0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1])(
   'rejects invalid timebase %s',
   (value) => expect(() => ticksPerQuarter(value)).toThrow()
 );
-it('rejects unsafe event ends and nonintegral meter pulses', () => {
-  const a = structuredClone(exact);
-  a.events[0].durationTicks = Number.MAX_SAFE_INTEGER;
-  a.events[0].onsetTick = 20;
-  expect(() => parsePracticeScoreArtifact(a)).toThrow();
+it('rejects nonintegral meter pulses at the runtime calculation boundary', () => {
   expect(() => meterPulseTicks({ denominator: 16 }, 6)).toThrow();
 });

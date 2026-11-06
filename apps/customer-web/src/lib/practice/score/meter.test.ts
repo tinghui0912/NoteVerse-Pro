@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import cases from '../__fixtures__/meter-duration-cases.json';
-import { measureDurationTicks, parsePracticeScoreArtifact, type PracticeScoreArtifact } from './artifact';
+import { decodePracticeScoreArtifact } from '@/lib/practice/contracts/generated/score-artifact';
+import { measureDurationTicks,  type PracticeScoreArtifact } from '@/lib/practice/score/artifact';
 import canonical from '../__fixtures__/canonical-practice-score-artifact.json';
 import { countInContractAt } from '../planning/count-in';
 import { resolvePracticeScope } from '../planning/scope';
@@ -18,7 +19,7 @@ describe('canonical meter facts and execution policy', () => {
     artifact.meterSegments = [{ startTick: 0, ...meter }];
     const before = structuredClone(artifact);
     expect(measureDurationTicks(meter, artifact.ticksPerQuarter)).toBeGreaterThan(0);
-    expect(parsePracticeScoreArtifact(artifact)).toBe(artifact);
+    expect(decodePracticeScoreArtifact(artifact)).toBe(artifact);
     expect(artifact).toEqual(before);
   });
   it.each(['numerator', 'denominator'] as const)('rejects a nonportable %s before duration projection', (field) => {
@@ -29,7 +30,7 @@ describe('canonical meter facts and execution policy', () => {
     expect(() => measureDurationTicks(meter, 1)).toThrow();
     const value = { ...structuredClone(canonical), meterSegments: [{ startTick: 0, ...meter }] };
     const before = structuredClone(value);
-    expect(() => parsePracticeScoreArtifact(value)).toThrow(expect.objectContaining({ code: 'practice_score_invalid' }));
+    expect(() => decodePracticeScoreArtifact(value)).toThrow(expect.objectContaining({ code: 'practice_score_invalid' }));
     expect(value).toEqual(before);
   });
   it('requires meter integers to retain exact semantics across JSON and browser Number', () => {
@@ -38,7 +39,7 @@ describe('canonical meter facts and execution policy', () => {
     expect(Number.isInteger(decoded.n)).toBe(true);
     expect(Number.isSafeInteger(decoded.n)).toBe(false);
     const value = { ...structuredClone(canonical), meterSegments: [{ startTick: 0, numerator: decoded.n, denominator: 4 }] };
-    expect(() => parsePracticeScoreArtifact(value)).toThrow(expect.objectContaining({ code: 'practice_score_invalid' }));
+    expect(() => decodePracticeScoreArtifact(value)).toThrow(expect.objectContaining({ code: 'practice_score_invalid' }));
   });
   it.each(cases)('derives canonical duration from $numerator/$denominator', ({ numerator, denominator, durationTicks, ticksPerQuarter }) => {
     expect(measureDurationTicks({ numerator, denominator }, ticksPerQuarter)).toBe(durationTicks);
@@ -50,8 +51,7 @@ describe('canonical meter facts and execution policy', () => {
     expect(countInContractAt(artifact, 0)).toEqual({ numerator, denominator, durationTicks: durationTicks * artifact.ticksPerQuarter, pulses });
   });
   it.each([
-    [], [{ startTick: 1, numerator: 4, denominator: 4 }],
-    [{ startTick: 0, numerator: 4, denominator: 4 }, { startTick: 0, numerator: 3, denominator: 4 }],
+    [],
     [{ startTick: -1, numerator: 4, denominator: 4 }],
     [{ startTick: 0, numerator: true, denominator: 4 }],
     [{ startTick: 0, numerator: 3.5, denominator: 4 }],
@@ -64,7 +64,7 @@ describe('canonical meter facts and execution policy', () => {
     [{ startTick: 0, numerator: 4, denominator: 4, unexpectedField: true }],
   ].map(meterSegments => ({ meterSegments })))('rejects malformed exact meter transport without mutation', ({ meterSegments }) => {
     const value = { ...structuredClone(canonical), meterSegments }, before = structuredClone(value);
-    expect(() => parsePracticeScoreArtifact(value)).toThrow(expect.objectContaining({ code: 'practice_score_invalid' }));
+    expect(() => decodePracticeScoreArtifact(value)).toThrow(expect.objectContaining({ code: 'practice_score_invalid' }));
     expect(value).toEqual(before);
   });
   it('requires every current root field without repairing the input', () => {
@@ -72,7 +72,7 @@ describe('canonical meter facts and execution policy', () => {
       const value = structuredClone(canonical);
       Reflect.deleteProperty(value, key);
       const before = structuredClone(value);
-      expect(() => parsePracticeScoreArtifact(value)).toThrow();
+      expect(() => decodePracticeScoreArtifact(value)).toThrow();
       expect(value).toEqual(before);
     }
   });
@@ -80,7 +80,7 @@ describe('canonical meter facts and execution policy', () => {
     const value = structuredClone(canonical) as PracticeScoreArtifact;
     value.notes[0].tieTypes = ['stop'];
     value.moments.shift();
-    parsePracticeScoreArtifact(value);
+    decodePracticeScoreArtifact(value);
     expect(value.events[0].onsetTick).toBe(0);
     expect(value.moments[0].onsetTick).toBe(2);
     expect(resolvePracticeScope(value, { kind: 'FULL' }).startTick).toBe(2);

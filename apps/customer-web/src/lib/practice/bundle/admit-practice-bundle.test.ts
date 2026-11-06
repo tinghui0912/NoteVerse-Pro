@@ -96,7 +96,7 @@ it.each([
     code: 'INVALID_SCORE',
   });
 });
-it('strict artifact admission rejects malformed canonical ownership', async () => {
+it('strict artifact admission rejects empty required notation structure', async () => {
   request.mockResolvedValue({
     data: { ...envelope().data, artifact: { ...fixture, notes: [] } },
   });

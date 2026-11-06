@@ -5,7 +5,7 @@
 Practice-ready validity belongs to the entire pinned score revision. The only current
 artifact is schemaVersion 1 with integer PracticePianoKey21..108. FULL/Section and STEP/Continuous
 consume that same valid artifact; Bundle or scope never repairs an invalid revision.
-Setup requests it through the shared Bundle parser only when Start Practice is pressed,
+Setup requests it through the generated artifact structural decoder in Bundle admission only when Start Practice is pressed,
 before resource acquisition. Invalid Practice Bundle disables attempt/session
 resources and shows an in-place score-unavailable state. Physical health remains binding-owned. See the
 [canonical contract](practice-piano-key-contract.md) for owners, error codes and versions.
@@ -231,7 +231,7 @@ Continuous strikes. Rendering resolves the canonical notation records by referen
 Scope uses the canonical moment groupId. STEP projects attack/continuation key sets;
 Continuous projects strike identity, performance time and render references from
 those same attacks. Read-only UI views materialize render IDs from canonical notes;
-they are not serialized target owners. Strict graph validation checks identities,
+they are not serialized target owners. Backend semantic graph validation checks identities,
 references, complete physical membership, chronology and endpoints without repair.
 See [canonical moment artifact](practice-moment-artifact.md).
 

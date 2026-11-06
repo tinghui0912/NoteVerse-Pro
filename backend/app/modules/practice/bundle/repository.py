@@ -29,7 +29,8 @@ from .domain import (
     PracticeBundleRepresentation,
     PracticeBundleRef,
 )
-from .schemas import PracticeScoreArtifactRead
+from app.modules.practice.score.generated.artifact_transport import PracticeScoreArtifactRead
+from app.modules.practice.score.artifact_validation import validate_practice_score_artifact
 from .retention import practice_bundle_delete_service
 
 BUNDLE_CREATION_LEASE_SECONDS = 15 * 60
@@ -266,6 +267,7 @@ class PracticeBundleRepository:
                     ErrorCode.VALIDATION_ERROR, field="practice_bundle", details={"reason": reason}
                 )
         artifact = PracticeScoreArtifactRead.model_validate_json(data.data)
+        validate_practice_score_artifact(artifact.model_dump())
         if (
             artifact.artifactId != practice_artifact_id(json.loads(data.data))
             or artifact.artifactId != row.artifact_id

@@ -1,7 +1,8 @@
+import { PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION } from '@/lib/practice/contracts/generated/score-artifact';
 import { localMediaAssetFixture } from '@/lib/practice/__fixtures__/local-media-asset';
 import { describe, expect, it } from 'vitest';
 
-import { PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION, type PracticeScoreArtifact } from '@/lib/practice/score/artifact';
+import { type PracticeScoreArtifact } from '@/lib/practice/score/artifact';
 import { resolvePracticeScopeCursorNoteIds } from '@/lib/practice/score-view/cursor-scope';
 import { resolveVideoExportPlaybackPosition } from '@/lib/practice/video-export/playback-position';
 import type { VideoExportSession } from '@/lib/practice/video-export/session';

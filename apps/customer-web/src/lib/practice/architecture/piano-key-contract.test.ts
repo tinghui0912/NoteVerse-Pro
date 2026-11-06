@@ -28,11 +28,6 @@ describe('canonical Practice ownership', () => {
     expect(read('apps/customer-web/src/lib/practice/score/artifact.ts')).not.toContain('@/generated/');
     expect(read('apps/customer-web/src/lib/practice/planning/scope.ts')).not.toContain('isPracticePianoKey');
   });
-  it('declares the durable score artifact schema at its domain owner', () => {
-    expect(read('apps/customer-web/src/lib/practice/score/artifact.ts')).toContain('PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION = 1');
-    expect(read('backend/app/modules/practice/bundle/schemas.py')).toContain('schemaVersion: Literal[1]');
-
-  });
   it('documents unique current parameter entries and explicit raw-work qualification', () => {
     const ledger = read('docs/architecture/practice-acoustic-parameter-provenance.md');
     const rows = ledger.split('\n').filter(line => /^\| [A-Z]\d{2} /.test(line));

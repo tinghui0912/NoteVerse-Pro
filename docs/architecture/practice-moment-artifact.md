@@ -2,9 +2,18 @@
 
 ## Contract and admission
 
-PracticeScoreArtifact uses schemaVersion 1. The transport accepts its exact fields
-and primitive types. The browser score package validates untrusted transport into its own
-domain model; generated API DTOs describe the transport boundary.
+[artifact.schema.json](../../contracts/practice/score/artifact.schema.json) is the single
+language-neutral authority for serialized structure: exact fields, required values,
+primitive types, bounds, enums, cardinality and artifactId format. The deterministic
+[generator](../../scripts/generate_practice_score_contract.py) produces strict Python
+transport models and TypeScript types/structural decoder. Generated projections are
+derived artifacts, not independent authorities; `--check` verifies agreement offline.
+
+The browser decoder validates untrusted JSON structure without coercion, repair,
+mutation or graph reconstruction. Bundle admission freezes the admitted representation.
+Backend `score/artifact_validation.py` reconstructs the timeline and delegates musical
+semantics to `assert_practice_timeline()`, then verifies artifact tempo chronology.
+`score/artifact.py` owns canonical bytes and artifact identity production.
 
 The exact root fields are `schemaVersion`, `artifactId`,
 `ticksPerQuarter`, `notes`, `events`, `moments`, `meterSegments`,
@@ -51,10 +60,9 @@ references disjoint from attacks. Pure tie-only onsets remain in the note/event
 graph. canonicalEndTick follows sounding attack-note ends through contiguous or
 overlapping same-key/staff/voice tie fragments using exact integer coordinates. Pickup notation begins on the nonnegative written axis.
 
-Strict validation checks exact fields, identities, references, complete membership,
+Backend semantic validation checks identities, references, complete membership,
 physical-key consistency, ordering and endpoints. Duplicate IDs/render identities,
-dangling or multiply owned references and malformed chronology fail closed. Parsing
-preserves input objects and primitive values without repair or coercion.
+dangling or multiply owned references and malformed chronology fail closed. Browser structural decoding preserves input objects and primitive values without repair or coercion.
 
 ## Mode, scope and rendering projections
 
@@ -77,9 +85,9 @@ through those references. Serialized target ownership remains in moments/attacks
 
 The [Practice score compiler](practice-score-compiler.md) supplies canonical note
 placement and timing. Timeline projection constructs deterministic notes/events/moments
-from those compiled facts. Pydantic transport models reuse the canonical graph invariant.
+from those compiled facts. Generated Pydantic transport models validate structure; backend semantic validation owns the graph invariant.
 The customer OpenAPI schema and generated browser DTOs describe schemaVersion 1.
-Committed backend/browser fixture tests verify deterministic payload agreement.
+The deterministic producer fixture check verifies payload stability independently of schema authority.
 
 [Practice Bundle](practice-bundle.md) supplies the artifact and optional prepared
 MusicXML with an explicit revision binding in one `/bundle` envelope. Artifact content
