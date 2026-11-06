@@ -219,7 +219,6 @@ GitHub Environment variables provide non-secret render values such as:
 *_S3_ENDPOINT_URL
 *_S3_REGION
 *_S3_BUCKET
-*_S3_PUBLIC_BASE_URL
 *_S3_FORCE_PATH_STYLE
 *_S3_PRESIGN_EXPIRE_SECONDS
 ```

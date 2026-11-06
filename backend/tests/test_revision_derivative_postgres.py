@@ -79,8 +79,8 @@ def test_preview_head_race_preserves_durable_demand(monkeypatch, tmp_path, order
                     revision_id=r1,
                     format=RevisionSourceFormat.MUSICXML,
 
-                    storage_key=stored.storage_key,
-                    filename=stored.filename,
+                    storage_key=stored.object_key,
+                    filename=stored.object_key.rsplit("/", 1)[-1],
                     mime_type="application/vnd.recordare.musicxml+xml",
                     sha256=fingerprint,
                     generator="test",

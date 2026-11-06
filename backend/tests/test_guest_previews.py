@@ -66,8 +66,8 @@ def add_page(session, storage, revision_id, asset_id):
         revision_id=revision_id,
         kind=RenderAssetKind.RENDERED_PAGE,
 
-        storage_key=stored.storage_key,
-        filename=stored.filename,
+        storage_key=stored.object_key,
+        filename=stored.object_key.rsplit("/", 1)[-1],
         mime_type="image/svg+xml",
         size_bytes=stored.size_bytes,
         sha256="a" * 64,
@@ -91,8 +91,8 @@ def add_audio(session, storage, revision_id):
             revision_id=revision_id,
             kind=PlaybackAssetKind.AUDIO,
 
-            storage_key=stored.storage_key,
-            filename=stored.filename,
+            storage_key=stored.object_key,
+            filename=stored.object_key.rsplit("/", 1)[-1],
             mime_type="audio/wav",
             size_bytes=stored.size_bytes,
             sha256="b" * 64,

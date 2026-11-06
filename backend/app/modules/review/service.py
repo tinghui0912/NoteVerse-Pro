@@ -166,8 +166,8 @@ class ReviewService:
                     source_uuid=source_uuid,
                     revision_id=revision_id,
                     format=RevisionSourceFormat.MUSICXML,
-                    storage_key=stored.storage_key,
-                    filename=stored.filename,
+                    storage_key=stored.object_key,
+                    filename=stored.object_key.rsplit("/", 1)[-1],
                     mime_type="application/vnd.recordare.musicxml+xml",
                     size_bytes=stored.size_bytes,
                     sha256=content_hash,
@@ -229,7 +229,7 @@ class ReviewService:
                 reservation.reservation_id,
                 object_type="score_revision_source",
                 object_id=source_uuid,
-                storage_key=stored.storage_key,
+                storage_key=stored.object_key,
             )
             for promoted in promoted_inputs:
                 await storage_usage_service.record_release(
@@ -256,7 +256,7 @@ class ReviewService:
             await db.rollback()
             if not business_committed:
                 try:
-                    self.storage.delete(stored.storage_key)
+                    self.storage.delete(stored.object_key)
                 except Exception:
                     pass
                 await storage_usage_service.release_reservation(db, reservation.reservation_id)
@@ -325,8 +325,8 @@ class ReviewService:
         )
         business_committed = False
         try:
-            artifact.storage_key = stored.storage_key
-            artifact.filename = stored.filename
+            artifact.storage_key = stored.object_key
+            artifact.filename = stored.object_key.rsplit("/", 1)[-1]
             artifact.mime_type = "application/vnd.recordare.musicxml+xml"
             artifact.size_bytes = stored.size_bytes
             artifact.sha256 = content_hash
@@ -342,7 +342,7 @@ class ReviewService:
             await db.rollback()
             if not business_committed:
                 try:
-                    self.storage.delete(stored.storage_key)
+                    self.storage.delete(stored.object_key)
                 except Exception:
                     pass
             raise
@@ -366,13 +366,13 @@ class ReviewService:
                 reason="review_musicxml_updated",
                 object_type="import_artifact",
                 object_id=artifact.artifact_uuid,
-                storage_key=stored.storage_key,
+                storage_key=stored.object_key,
             )
         except Exception:
             await db.rollback()
             raise
 
-        if old_storage_key != stored.storage_key:
+        if old_storage_key != stored.object_key:
             try:
                 self.storage.delete(old_storage_key)
             except Exception:

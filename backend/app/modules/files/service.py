@@ -4,7 +4,13 @@ from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.exceptions import ConflictException, FileException, ResourceNotFoundException, UnauthorizedException, ValidationException
+from app.core.exceptions import (
+    ConflictException,
+    FileException,
+    ResourceNotFoundException,
+    UnauthorizedException,
+    ValidationException,
+)
 from app.db.model_utils import require_persisted_id
 from app.db.models import StorageBlob, StorageUsageCategory, User
 from app.modules.files.repository import FilesRepository
@@ -14,10 +20,16 @@ from app.shared.constants import ErrorCode
 from app.storage import ObjectStorage, object_storage
 
 
+def blob_object_key(sha256: str, extension: str) -> str:
+    return f"blobs/{sha256[:2]}/{sha256}{extension}"
+
+
 class FilesService:
     """Own uploaded processing inputs; score source and derived delivery live elsewhere."""
 
-    def __init__(self, repository: FilesRepository | None = None, storage: ObjectStorage | None = None) -> None:
+    def __init__(
+        self, repository: FilesRepository | None = None, storage: ObjectStorage | None = None
+    ) -> None:
         self.repository = repository or FilesRepository()
         self.storage = storage or object_storage
 
@@ -25,7 +37,9 @@ class FilesService:
     def allowed_file(filename: str) -> bool:
         return "." in filename and filename.rsplit(".", 1)[1].lower() in settings.ALLOWED_EXTENSIONS
 
-    async def upload_file(self, db: AsyncSession, current_user: User, file: UploadFile) -> UploadFileRead:
+    async def upload_file(
+        self, db: AsyncSession, current_user: User, file: UploadFile
+    ) -> UploadFileRead:
         if not file.filename:
             raise ValidationException(code=ErrorCode.NO_FILE_SELECTED, field="file")
         if not self.allowed_file(file.filename):
@@ -51,33 +65,33 @@ class FilesService:
         blob = await self.repository.get_blob_by_sha256(db, file_hash)
         stored = None
         try:
-            blob_needs_current_storage = (
-                blob is None
-                or not self.storage.exists(blob.storage_key)
-            )
+            blob_needs_current_storage = blob is None or not self.storage.exists(blob.storage_key)
             if blob_needs_current_storage:
-                stored = self.storage.save_blob(
-                    content=content,
-                    sha256=file_hash,
-                    extension=extension,
-                    content_type=content_type,
-                )
+                key = blob_object_key(file_hash, extension)
+                if self.storage.exists(key):
+                    size_bytes = self.storage.size_bytes(key)
+                else:
+                    stored = self.storage.put_bytes(
+                        key=key, content=content, content_type=content_type
+                    )
+                    size_bytes = stored.size_bytes
+                filename = key.rsplit("/", 1)[-1]
                 if blob is None:
                     blob = await self.repository.create_blob(
                         db,
                         sha256=file_hash,
-                        storage_key=stored.storage_key,
-                        filename=stored.filename,
-                        size_bytes=stored.size_bytes,
+                        storage_key=key,
+                        filename=filename,
+                        size_bytes=size_bytes,
                         mime_type=content_type,
                     )
                 else:
                     blob = await self.repository.update_blob_storage(
                         db,
                         blob,
-                        storage_key=stored.storage_key,
-                        filename=stored.filename,
-                        size_bytes=stored.size_bytes,
+                        storage_key=key,
+                        filename=filename,
+                        size_bytes=size_bytes,
                         mime_type=content_type,
                     )
             if blob is None:
@@ -101,7 +115,7 @@ class FilesService:
             await db.rollback()
             if stored is not None:
                 try:
-                    self.storage.delete(stored.storage_key)
+                    self.storage.delete(stored.object_key)
                 except Exception:
                     pass
             await storage_usage_service.release_reservation(db, reservation.reservation_id)
@@ -130,11 +144,15 @@ class FilesService:
             raise ConflictException(ErrorCode.VALIDATION_ERROR, {"upload_id": upload.upload_uuid})
         blob = await db.get(StorageBlob, upload.blob_id)
         if blob is None:
-            raise ResourceNotFoundException("storage_blob", str(upload.blob_id), ErrorCode.FILE_NOT_FOUND)
+            raise ResourceNotFoundException(
+                "storage_blob", str(upload.blob_id), ErrorCode.FILE_NOT_FOUND
+            )
         size_bytes = blob.size_bytes
         storage_key = blob.storage_key
         upload_uuid = upload.upload_uuid
-        await self.repository.delete_upload_by_id(db, require_persisted_id(upload.id, entity="upload"))
+        await self.repository.delete_upload_by_id(
+            db, require_persisted_id(upload.id, entity="upload")
+        )
         await db.flush()
         blob_id = require_persisted_id(blob.id, entity="storage blob")
         should_delete_blob = await self.repository.blob_upload_count(db, blob_id) == 0

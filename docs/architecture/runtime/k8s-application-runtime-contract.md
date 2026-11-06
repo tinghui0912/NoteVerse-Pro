@@ -201,7 +201,6 @@ role-specific ConfigMaps for runtime-owned settings:
   - `S3_ENDPOINT_URL`;
   - `S3_REGION`;
   - `S3_BUCKET`;
-  - `S3_PUBLIC_BASE_URL`;
   - `S3_FORCE_PATH_STYLE`;
   - `OBJECT_STORAGE_SIGNED_URL_EXPIRE_SECONDS`;
 - shared runtime paths:

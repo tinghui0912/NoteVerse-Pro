@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from app.db.models import PlaybackAssetKind, ScorePlaybackAsset
 from app.processing.engines.playback import RenderedAudio
-from app.storage import StoredFile
+from app.storage import StoredObject
 
 
 @dataclass(frozen=True)
@@ -41,7 +41,7 @@ def build_playback_asset_record(
     revision_id: int,
     asset_kind: PlaybackAssetKind,
 
-    stored: StoredFile,
+    stored: StoredObject,
     audio: RenderedAudio,
     execution_manifest_id: int,
     source_fingerprint: str,
@@ -50,8 +50,8 @@ def build_playback_asset_record(
         asset_uuid=asset_uuid,
         revision_id=revision_id,
         kind=asset_kind,
-        storage_key=stored.storage_key,
-        filename=stored.filename,
+        storage_key=stored.object_key,
+        filename=stored.object_key.rsplit("/", 1)[-1],
         mime_type=audio.mime_type,
         size_bytes=stored.size_bytes,
         sha256=hashlib.sha256(audio.content).hexdigest(),

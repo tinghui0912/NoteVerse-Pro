@@ -78,8 +78,8 @@ def collaboration(score_service_session):
             revision_id=4001,
             format=RevisionSourceFormat.MUSICXML,
 
-            storage_key=xml.storage_key,
-            filename=xml.filename,
+            storage_key=xml.object_key,
+            filename=xml.object_key.rsplit("/", 1)[-1],
             mime_type="application/vnd.recordare.musicxml+xml",
             size_bytes=xml.size_bytes,
             sha256="a" * 64,
@@ -94,7 +94,7 @@ def collaboration(score_service_session):
             blob_uuid="trusted-blob",
             sha256="b" * 64,
 
-            storage_key=image.storage_key,
+            storage_key=image.object_key,
             filename="private-scan.png",
             mime_type="image/png",
             size_bytes=image.size_bytes,

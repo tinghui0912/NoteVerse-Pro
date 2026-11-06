@@ -212,7 +212,6 @@ jobs:
             --s3-endpoint-url "${{ vars.PRODUCTION_S3_ENDPOINT_URL }}" \
             --s3-region "${{ vars.PRODUCTION_S3_REGION }}" \
             --s3-bucket "${{ vars.PRODUCTION_S3_BUCKET }}" \
-            --s3-public-base-url "${{ vars.PRODUCTION_S3_PUBLIC_BASE_URL }}" \
             --s3-force-path-style "${{ vars.PRODUCTION_S3_FORCE_PATH_STYLE }}" \
             --s3-presign-expire-seconds "${{ vars.PRODUCTION_S3_PRESIGN_EXPIRE_SECONDS }}"
 

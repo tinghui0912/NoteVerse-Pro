@@ -8,14 +8,11 @@ from typing import Protocol
 
 
 @dataclass(frozen=True)
-class StoredFile:
-    """Metadata for a file stored by the storage adapter."""
+class StoredObject:
+    """Observed identity and byte size of an object write."""
 
-    storage_key: str
-    filename: str
-    path: str
+    object_key: str
     size_bytes: int
-    public_url: str | None = None
 
 
 @dataclass(frozen=True)
@@ -45,7 +42,7 @@ class ObjectStorage(Protocol):
         key: str,
         content: bytes,
         content_type: str | None = None,
-    ) -> StoredFile: ...
+    ) -> StoredObject: ...
 
     def exists(self, key: str) -> bool: ...
 
@@ -76,8 +73,6 @@ class ObjectStorage(Protocol):
 
     def delete(self, key: str) -> bool: ...
 
-    def public_url(self, key: str) -> str: ...
-
     def download_url(
         self,
         key: str,
@@ -88,23 +83,3 @@ class ObjectStorage(Protocol):
     ) -> str: ...
 
     def materialize_to_local(self, key: str, target_path: str) -> str: ...
-
-    def save_blob(
-        self,
-        *,
-        content: bytes,
-        sha256: str,
-        extension: str,
-        content_type: str | None = None,
-    ) -> StoredFile: ...
-
-    def save_avatar(
-        self,
-        *,
-        content: bytes,
-        filename: str,
-    ) -> StoredFile: ...
-
-    def avatar_url(self, filename: str) -> str: ...
-
-    def delete_avatar(self, filename: str) -> bool: ...

@@ -90,13 +90,13 @@ class ReviewThumbnailService:
                 content=content,
                 content_type=output["mime_type"],
             )
-            uploaded_key = stored.storage_key
+            uploaded_key = stored.object_key
             thumbnail = ImportArtifact(
                 artifact_uuid=artifact_uuid,
                 job_id=job_id,
                 kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
-                storage_key=stored.storage_key,
-                filename=stored.filename,
+                storage_key=stored.object_key,
+                filename=stored.object_key.rsplit("/", 1)[-1],
                 page_number=1,
                 size_bytes=stored.size_bytes,
                 mime_type=output["mime_type"],

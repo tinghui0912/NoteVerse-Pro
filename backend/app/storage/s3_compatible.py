@@ -8,21 +8,16 @@ from botocore.config import Config
 from collections.abc import Iterator
 
 from app.core.config import settings
-from app.storage.base import DirectUploadTarget, StoredFile, StoredObjectMetadata
+from app.storage.base import DirectUploadTarget, StoredObject, StoredObjectMetadata
 
 
 class S3CompatibleObjectStorage:
     """Object storage adapter for the S3-compatible wire protocol."""
 
-    score_prefix = "scores"
-    blob_prefix = "blobs"
-    avatar_prefix = "avatars"
-
     def __init__(self) -> None:
         self.bucket = settings.S3_BUCKET or ""
         self.endpoint_url = settings.S3_ENDPOINT_URL or ""
         self.region = settings.S3_REGION
-        self.public_base_url = settings.S3_PUBLIC_BASE_URL
         self._client = None
         self._signing_client = None
 
@@ -71,7 +66,7 @@ class S3CompatibleObjectStorage:
         key: str,
         content: bytes,
         content_type: str | None = None,
-    ) -> StoredFile:
+    ) -> StoredObject:
         normalized_key = self._normalize_key(key)
         kwargs = {
             "Bucket": self.bucket,
@@ -81,7 +76,7 @@ class S3CompatibleObjectStorage:
         if content_type:
             kwargs["ContentType"] = content_type
         self.client.put_object(**kwargs)
-        return self._stored_file(normalized_key, size_bytes=len(content))
+        return StoredObject(object_key=normalized_key, size_bytes=len(content))
 
     def exists(self, key: str) -> bool:
         normalized_key = self._normalize_key(key)
@@ -200,31 +195,7 @@ class S3CompatibleObjectStorage:
         copy_source = {"Bucket": self.bucket, "Key": source_normalized}
         self.client.copy_object(CopySource=copy_source, Bucket=self.bucket, Key=target_normalized)
 
-    def public_url(self, key: str) -> str:
-        normalized_key = self._normalize_key(key)
-        if self.public_base_url:
-            return f"{self.public_base_url.rstrip('/')}/{normalized_key}"
-        if self.endpoint_url:
-            endpoint = self.endpoint_url.replace("https://", "").replace("http://", "")
-            return f"https://{self.bucket}.{endpoint}/{normalized_key}"
-        return self.presign_get(normalized_key)
-
     def download_url(
-        self,
-        key: str,
-        *,
-        filename: str | None = None,
-        content_type: str | None = None,
-        expires_seconds: int | None = None,
-    ) -> str:
-        return self.presign_get(
-            key,
-            filename=filename,
-            content_type=content_type,
-            expires_seconds=expires_seconds,
-        )
-
-    def presign_get(
         self,
         key: str,
         *,
@@ -257,51 +228,6 @@ class S3CompatibleObjectStorage:
                 raise FileNotFoundError(normalized_key) from exc
             raise
         return target_abs
-
-    def save_blob(
-        self,
-        *,
-        content: bytes,
-        sha256: str,
-        extension: str,
-        content_type: str | None = None,
-    ) -> StoredFile:
-        key = f"{self.blob_prefix}/{sha256[:2]}/{sha256}{extension}"
-        if self.exists(key):
-            return self._stored_file(key, size_bytes=len(content))
-        return self.put_bytes(
-            key=key,
-            content=content,
-            content_type=content_type,
-        )
-
-    def save_avatar(
-        self,
-        *,
-        content: bytes,
-        filename: str,
-    ) -> StoredFile:
-        return self.put_bytes(
-            key=f"{self.avatar_prefix}/{filename}",
-            content=content,
-            content_type="image/jpeg",
-        )
-
-    def avatar_url(self, filename: str) -> str:
-        return self.public_url(f"{self.avatar_prefix}/{filename}")
-
-    def delete_avatar(self, filename: str) -> bool:
-        return self.delete(f"{self.avatar_prefix}/{filename}")
-
-    def _stored_file(self, key: str, *, size_bytes: int) -> StoredFile:
-        normalized_key = self._normalize_key(key)
-        return StoredFile(
-            storage_key=normalized_key,
-            filename=os.path.basename(normalized_key),
-            path=normalized_key,
-            size_bytes=size_bytes,
-            public_url=self.public_url(normalized_key),
-        )
 
     @staticmethod
     def _normalize_key(key: str) -> str:

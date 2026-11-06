@@ -202,8 +202,8 @@ with SessionLocal() as db:
             source_uuid=source_uuid,
             revision_id=revision_id,
             format=RevisionSourceFormat.MUSICXML,
-            storage_key=stored.storage_key,
-            filename=stored.filename,
+            storage_key=stored.object_key,
+            filename=stored.object_key.rsplit("/", 1)[-1],
             mime_type="application/vnd.recordare.musicxml+xml",
             size_bytes=stored.size_bytes,
             sha256=content_hash,
@@ -244,7 +244,7 @@ with SessionLocal() as db:
             reservation.reservation_id,
             object_type="score_revision_source",
             object_id=source_uuid,
-            storage_key=stored.storage_key,
+            storage_key=stored.object_key,
         )
         try:
             rebuild_metadata_sync(db, revision_id, object_storage)
@@ -260,7 +260,7 @@ with SessionLocal() as db:
         }}))
     except Exception:
         db.rollback()
-        object_storage.delete(stored.storage_key)
+        object_storage.delete(stored.object_key)
         storage_usage_service.release_reservation_sync(db, reservation.reservation_id)
         raise
 """

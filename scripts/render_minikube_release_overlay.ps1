@@ -35,7 +35,6 @@ $platformAdminImage = Get-RequiredEnv "NOTEVERSE_PLATFORM_ADMIN_IMAGE"
 $s3EndpointUrl = Get-RequiredEnv "NOTEVERSE_S3_ENDPOINT_URL"
 $s3Region = Get-RequiredEnv "NOTEVERSE_S3_REGION"
 $s3Bucket = Get-RequiredEnv "NOTEVERSE_S3_BUCKET"
-$s3PublicBaseUrl = Get-RequiredEnv "NOTEVERSE_S3_PUBLIC_BASE_URL"
 $s3ForcePathStyle = Get-RequiredEnv "NOTEVERSE_S3_FORCE_PATH_STYLE"
 
 $mailDefaultSender = "NoteVerse Pro <no-reply@$CustomerWebHost>"
@@ -64,7 +63,6 @@ $args = @(
     "--s3-endpoint-url", $s3EndpointUrl,
     "--s3-region", $s3Region,
     "--s3-bucket", $s3Bucket,
-    "--s3-public-base-url", $s3PublicBaseUrl,
     "--s3-force-path-style", $s3ForcePathStyle,
     "--s3-presign-expire-seconds", $S3PresignExpireSeconds
 )

@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user, get_db
 from app.core.exceptions import FileException, ValidationException
 from app.db.models import User
-from app.modules.account.avatar_service import AvatarService
+from app.modules.account.avatar_service import AvatarService, avatar_object_key
 from app.modules.account.dependencies import get_avatar_service, get_profile_service
 from app.modules.account.profile_service import ProfileService
 from app.modules.account.schemas import (
@@ -100,5 +100,5 @@ def read_avatar(filename: str, avatar_service: AvatarService = Depends(get_avata
     if not avatar_service.avatar_exists(filename):
         raise ResourceNotFoundException("avatar", filename)
     return RedirectResponse(
-        avatar_service.storage.download_url(f"avatars/{filename}", content_type="image/jpeg")
+        avatar_service.storage.download_url(avatar_object_key(filename), content_type="image/jpeg")
     )

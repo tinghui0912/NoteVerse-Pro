@@ -76,8 +76,8 @@ def revisions(score_service_session):
                 revision_id=revision.id,
                 format=RevisionSourceFormat.MUSICXML,
 
-                storage_key=stored.storage_key,
-                filename=stored.filename,
+                storage_key=stored.object_key,
+                filename=stored.object_key.rsplit("/", 1)[-1],
                 mime_type="application/vnd.recordare.musicxml+xml",
                 sha256=fingerprint,
                 generator="test",

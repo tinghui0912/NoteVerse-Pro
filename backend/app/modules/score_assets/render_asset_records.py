@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from app.db.models import ScoreRenderAsset
 from app.db.models.score import RenderAssetKind
-from app.storage import StoredFile
+from app.storage import StoredObject
 
 
 @dataclass(frozen=True)
@@ -46,7 +46,7 @@ def build_render_asset_record(
     asset_uuid: str,
     revision_id: int,
 
-    stored: StoredFile,
+    stored: StoredObject,
     mime_type: str,
     content: bytes,
     execution_manifest_id: int,
@@ -58,8 +58,8 @@ def build_render_asset_record(
         asset_uuid=asset_uuid,
         revision_id=revision_id,
         kind=RenderAssetKind.RENDERED_PAGE,
-        storage_key=stored.storage_key,
-        filename=stored.filename,
+        storage_key=stored.object_key,
+        filename=stored.object_key.rsplit("/", 1)[-1],
         mime_type=mime_type,
         size_bytes=stored.size_bytes,
         sha256=hashlib.sha256(content).hexdigest(),

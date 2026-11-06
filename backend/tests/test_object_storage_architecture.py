@@ -48,3 +48,47 @@ def test_one_object_namespace_and_required_direct_upload():
         isinstance(c, UniqueConstraint) and [x.name for x in c.columns] == ["object_key"]
         for c in SQLModel.metadata.tables["media_blobs"].constraints
     )
+
+
+def test_capability_surface_and_write_observation():
+    from dataclasses import fields, FrozenInstanceError
+    import pytest
+    from app.storage.base import StoredObject
+    from app.storage.s3_compatible import S3CompatibleObjectStorage
+    from tests.support.object_storage import InMemoryObjectStorage
+
+    expected = {
+        "put_bytes",
+        "exists",
+        "read_bytes",
+        "size_bytes",
+        "object_metadata",
+        "upload_url",
+        "iter_bytes",
+        "copy",
+        "delete",
+        "download_url",
+        "materialize_to_local",
+    }
+
+    def public_operations(owner):
+        return {
+            name
+            for name, value in vars(owner).items()
+            if not name.startswith("_") and callable(value)
+        }
+
+    assert public_operations(ObjectStorage) == expected
+    assert public_operations(S3CompatibleObjectStorage) == expected
+    assert public_operations(InMemoryObjectStorage) == expected
+    assert set(vars(S3CompatibleObjectStorage())) == {
+        "bucket",
+        "endpoint_url",
+        "region",
+        "_client",
+        "_signing_client",
+    }
+    assert [f.name for f in fields(StoredObject)] == ["object_key", "size_bytes"]
+    written = StoredObject("objects/one", 3)
+    with pytest.raises(FrozenInstanceError):
+        written.object_key = "objects/two"

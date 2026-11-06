@@ -155,8 +155,8 @@ class RevisionService:
                     source_uuid=source_uuid,
                     revision_id=revision_id,
                     format=RevisionSourceFormat.MUSICXML,
-                    storage_key=stored.storage_key,
-                    filename=stored.filename,
+                    storage_key=stored.object_key,
+                    filename=stored.object_key.rsplit("/", 1)[-1],
                     mime_type="application/vnd.recordare.musicxml+xml",
                     size_bytes=stored.size_bytes,
                     sha256=content_hash,
@@ -189,7 +189,7 @@ class RevisionService:
                 reservation.reservation_id,
                 object_type="score_revision_source",
                 object_id=source_uuid,
-                storage_key=stored.storage_key,
+                storage_key=stored.object_key,
             )
             await db.refresh(revision)
             actor = await db.get(User, user_id)
@@ -223,7 +223,7 @@ class RevisionService:
             await db.rollback()
             if not business_committed:
                 try:
-                    self.storage.delete(stored.storage_key)
+                    self.storage.delete(stored.object_key)
                 except Exception:
                     pass
                 await storage_usage_service.release_reservation(db, reservation.reservation_id)
@@ -325,8 +325,8 @@ class RevisionService:
                     source_uuid=source_uuid,
                     revision_id=revision_id,
                     format=RevisionSourceFormat.MUSICXML,
-                    storage_key=stored.storage_key,
-                    filename=stored.filename,
+                    storage_key=stored.object_key,
+                    filename=stored.object_key.rsplit("/", 1)[-1],
                     mime_type=source.mime_type,
                     size_bytes=stored.size_bytes,
                     sha256=content_hash,
@@ -371,7 +371,7 @@ class RevisionService:
                 reservation.reservation_id,
                 object_type="score_revision_source",
                 object_id=source_uuid,
-                storage_key=stored.storage_key,
+                storage_key=stored.object_key,
             )
             await db.refresh(revision)
             actor = await db.get(User, user_id)
@@ -405,7 +405,7 @@ class RevisionService:
             await db.rollback()
             if not business_committed:
                 try:
-                    self.storage.delete(stored.storage_key)
+                    self.storage.delete(stored.object_key)
                 except Exception:
                     pass
                 await storage_usage_service.release_reservation(db, reservation.reservation_id)

@@ -200,8 +200,8 @@ def _seed_score_with_source(
         revision_id=revision_id,
         format=RevisionSourceFormat.MUSICXML,
 
-        storage_key=stored.storage_key,
-        filename=stored.filename,
+        storage_key=stored.object_key,
+        filename=stored.object_key.rsplit("/", 1)[-1],
         mime_type="application/vnd.recordare.musicxml+xml",
         size_bytes=stored.size_bytes,
         sha256=content_hash,
@@ -641,8 +641,8 @@ async def test_score_delete_cleans_single_origin_import_job_storage(
             blob_uuid="origin-upload-blob",
             sha256="origin-upload-sha",
 
-            storage_key=upload.storage_key,
-            filename=upload.filename,
+            storage_key=upload.object_key,
+            filename=upload.object_key.rsplit("/", 1)[-1],
             size_bytes=upload.size_bytes,
             mime_type="image/png",
         ),
@@ -663,8 +663,8 @@ async def test_score_delete_cleans_single_origin_import_job_storage(
             job_id=1201,
             kind=ImportArtifactKind.REVIEW_MUSICXML.value,
 
-            storage_key=review_source.storage_key,
-            filename=review_source.filename,
+            storage_key=review_source.object_key,
+            filename=review_source.object_key.rsplit("/", 1)[-1],
             mime_type="application/vnd.recordare.musicxml+xml",
             size_bytes=review_source.size_bytes,
         )
@@ -688,7 +688,7 @@ async def test_score_delete_cleans_single_origin_import_job_storage(
         reason="seed_upload",
         object_type="upload",
         object_id="origin-upload-sha",
-        storage_key=upload.storage_key,
+        storage_key=upload.object_key,
     )
     storage_usage_service.record_allocation_sync(
         session,
@@ -698,11 +698,11 @@ async def test_score_delete_cleans_single_origin_import_job_storage(
         reason="seed_import_artifact",
         object_type="import_artifact",
         object_id="origin-review-source",
-        storage_key=review_source.storage_key,
+        storage_key=review_source.object_key,
     )
     source_storage_key = source.storage_key
-    upload_storage_key = upload.storage_key
-    review_source_storage_key = review_source.storage_key
+    upload_storage_key = upload.object_key
+    review_source_storage_key = review_source.object_key
 
     service = ScoreService(storage=storage)
     await service.delete(AsyncSessionAdapter(session), score.score_uuid, 1)
@@ -760,8 +760,8 @@ async def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
             blob_uuid="delete-owned-upload-blob",
             sha256="delete-owned-upload-sha",
 
-            storage_key=upload.storage_key,
-            filename=upload.filename,
+            storage_key=upload.object_key,
+            filename=upload.object_key.rsplit("/", 1)[-1],
             size_bytes=upload.size_bytes,
             mime_type="image/png",
         ),
@@ -780,8 +780,8 @@ async def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
             job_id=1001,
             kind=ImportArtifactKind.REVIEW_MUSICXML.value,
 
-            storage_key=review_source.storage_key,
-            filename=review_source.filename,
+            storage_key=review_source.object_key,
+            filename=review_source.object_key.rsplit("/", 1)[-1],
             mime_type="application/vnd.recordare.musicxml+xml",
             size_bytes=review_source.size_bytes,
         )
@@ -792,8 +792,8 @@ async def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
             job_id=1001,
             kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
 
-            storage_key=thumbnail.storage_key,
-            filename=thumbnail.filename,
+            storage_key=thumbnail.object_key,
+            filename=thumbnail.object_key.rsplit("/", 1)[-1],
             mime_type="image/png",
             size_bytes=thumbnail.size_bytes,
         )
@@ -807,7 +807,7 @@ async def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
         reason="seed_upload",
         object_type="upload",
         object_id="delete-owned-upload-sha",
-        storage_key=upload.storage_key,
+        storage_key=upload.object_key,
     )
     storage_usage_service.record_allocation_sync(
         session,
@@ -823,9 +823,9 @@ async def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
 
     assert session.get(ImportJob, 1001) is None
     assert session.get(Upload, 1002) is None
-    assert not storage.exists(upload.storage_key)
-    assert not storage.exists(review_source.storage_key)
-    assert not storage.exists(thumbnail.storage_key)
+    assert not storage.exists(upload.object_key)
+    assert not storage.exists(review_source.object_key)
+    assert not storage.exists(thumbnail.object_key)
     assert not any(key.startswith(f"jobs/{job_uuid}/") for key in storage.objects)
     account = session.get(StorageUsageAccount, 1)
     assert account is not None
@@ -871,8 +871,8 @@ async def test_import_job_delete_keeps_shared_upload_usage_and_storage(
                 blob_uuid="shared-upload-blob",
                 sha256="shared-upload-sha",
 
-                storage_key=upload.storage_key,
-                filename=upload.filename,
+                storage_key=upload.object_key,
+                filename=upload.object_key.rsplit("/", 1)[-1],
                 size_bytes=upload.size_bytes,
                 mime_type="image/png",
             ),
@@ -900,7 +900,7 @@ async def test_import_job_delete_keeps_shared_upload_usage_and_storage(
         reason="seed_upload",
         object_type="upload",
         object_id="shared-upload-sha",
-        storage_key=upload.storage_key,
+        storage_key=upload.object_key,
     )
 
     await ImportJobService(storage=storage).delete(
@@ -912,7 +912,70 @@ async def test_import_job_delete_keeps_shared_upload_usage_and_storage(
     assert session.get(ImportJob, 1101) is None
     assert session.get(ImportJob, 1102) is not None
     assert session.get(Upload, 1103) is not None
-    assert storage.exists(upload.storage_key)
+    assert storage.exists(upload.object_key)
     account = session.get(StorageUsageAccount, 1)
     assert account is not None
     assert account.used_bytes == upload.size_bytes
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("preexisting_object", [False, True])
+async def test_files_owns_sha_key_dedup_and_last_upload_deletion(storage_usage_session, monkeypatch, preexisting_object):
+    import io
+    import hashlib
+    from unittest.mock import Mock
+    from starlette.datastructures import UploadFile, Headers
+    from app.modules.files.service import blob_object_key
+    session, storage = storage_usage_session
+    _set_quota(session, 1024)
+    content = b"identical image bytes"
+    key = blob_object_key(hashlib.sha256(content).hexdigest(), ".png")
+    if preexisting_object:
+        storage.put_bytes(key=key, content=content, content_type="image/png")
+    put = Mock(wraps=storage.put_bytes)
+    monkeypatch.setattr(storage, "put_bytes", put)
+    service, db, user = FilesService(storage=storage), AsyncSessionAdapter(session), session.get(User, 1)
+    def upload(name):
+        return UploadFile(io.BytesIO(content), filename=name, headers=Headers({"content-type": "image/png"}))
+    first = await service.upload_file(db, user, upload("first.png"))
+    second = await service.upload_file(db, user, upload("second.png"))
+    blobs = session.scalars(select(StorageBlob)).all()
+    assert len(blobs) == 1 and blobs[0].storage_key == key
+    uploads = session.scalars(select(Upload)).all()
+    assert len(uploads) == 2 and all(row.blob_id == blobs[0].id for row in uploads)
+    assert put.call_count == (0 if preexisting_object else 1)
+    if not preexisting_object:
+        put.assert_called_once_with(key=key, content=content, content_type="image/png")
+    await service.delete_uploaded_file(db, user, first.file_id)
+    assert storage.exists(key)
+    await service.delete_uploaded_file(db, user, second.file_id)
+    assert not storage.exists(key)
+    assert not session.scalars(select(StorageBlob)).all()
+    account = session.get(StorageUsageAccount, 1)
+    assert account.used_bytes == account.reserved_bytes == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("preexisting_object", [False, True])
+async def test_files_failed_upload_retires_only_newly_written_bytes(storage_usage_session, monkeypatch, preexisting_object):
+    import io
+    import hashlib
+    from unittest.mock import AsyncMock
+    from starlette.datastructures import UploadFile, Headers
+    from app.core.exceptions import FileException
+    from app.modules.files.service import blob_object_key
+    session, storage = storage_usage_session
+    _set_quota(session, 1024)
+    content = b"image upload"
+    key = blob_object_key(hashlib.sha256(content).hexdigest(), ".png")
+    if preexisting_object:
+        storage.put_bytes(key=key, content=content, content_type="image/png")
+    service = FilesService(storage=storage)
+    monkeypatch.setattr(service.repository, "create_upload", AsyncMock(side_effect=RuntimeError("database write failed")))
+    upload = UploadFile(io.BytesIO(content), filename="image.png", headers=Headers({"content-type": "image/png"}))
+    with pytest.raises(FileException):
+        await service.upload_file(AsyncSessionAdapter(session), session.get(User, 1), upload)
+    assert storage.exists(key) is preexisting_object
+    assert not session.scalars(select(StorageBlob)).all()
+    account = session.get(StorageUsageAccount, 1)
+    assert account.used_bytes == account.reserved_bytes == 0

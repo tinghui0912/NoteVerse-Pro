@@ -133,7 +133,7 @@ class PlaybackGenerationService:
             await db.refresh(asset)
         except Exception:
             await db.rollback()
-            self._delete_storage_key_best_effort(stored.storage_key)
+            self._delete_storage_key_best_effort(stored.object_key)
             raise
 
         await storage_usage_service.record_allocation(
@@ -157,7 +157,7 @@ class PlaybackGenerationService:
                 object_id=previous_usage.asset_uuid,
                 storage_key=previous_usage.storage_key,
             )
-        if old_key and old_key != stored.storage_key:
+        if old_key and old_key != stored.object_key:
             self._delete_storage_key_best_effort(old_key)
         return asset
 
@@ -273,7 +273,7 @@ class PlaybackGenerationService:
             db.refresh(asset)
         except Exception:
             db.rollback()
-            self._delete_storage_key_best_effort(stored.storage_key)
+            self._delete_storage_key_best_effort(stored.object_key)
             raise
 
         storage_usage_service.record_allocation_sync(
@@ -297,7 +297,7 @@ class PlaybackGenerationService:
                 object_id=previous_usage.asset_uuid,
                 storage_key=previous_usage.storage_key,
             )
-        if old_key and old_key != stored.storage_key:
+        if old_key and old_key != stored.object_key:
             self._delete_storage_key_best_effort(old_key)
         return asset
 

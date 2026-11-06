@@ -16,7 +16,6 @@ class StorageSettings(BaseModel):
     S3_BUCKET: Optional[str] = None
     S3_ACCESS_KEY_ID: Optional[str] = None
     S3_SECRET_ACCESS_KEY: Optional[str] = None
-    S3_PUBLIC_BASE_URL: Optional[str] = None
     S3_FORCE_PATH_STYLE: bool = True
     OBJECT_STORAGE_SIGNED_URL_EXPIRE_SECONDS: int = Field(default=900, gt=0)
     WORK_ROOT: str = "data/work"
@@ -31,7 +30,7 @@ class StorageSettings(BaseModel):
             raise ValueError(f"{value} exists but is not a directory")
         return str(path)
 
-    @field_validator("S3_ENDPOINT_URL", "S3_SIGNED_ENDPOINT_URL", "S3_PUBLIC_BASE_URL")
+    @field_validator("S3_ENDPOINT_URL", "S3_SIGNED_ENDPOINT_URL")
     @classmethod
     def normalize_optional_url(cls, value: Optional[str]) -> Optional[str]:
         if not value:

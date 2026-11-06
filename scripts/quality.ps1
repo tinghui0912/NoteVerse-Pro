@@ -134,7 +134,6 @@ function Invoke-K8sReleaseOverlaySmokeCheck {
             --s3-endpoint-url "https://object-storage.noteverse.test" `
             --s3-region "auto" `
             --s3-bucket "noteverse-staging" `
-            --s3-public-base-url "https://objects.staging.noteverse.test" `
             --s3-force-path-style true `
             --s3-presign-expire-seconds 900
 

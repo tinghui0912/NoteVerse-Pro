@@ -293,7 +293,7 @@ class RevisionRenderService:
                     content=content,
                     content_type=output["mime_type"],
                 )
-                uploaded_keys.append(stored.storage_key)
+                uploaded_keys.append(stored.object_key)
                 new_records.append(
                     build_render_asset_record(
                         asset_uuid=artifact_uuid,

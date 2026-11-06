@@ -384,7 +384,6 @@ $env:NOTEVERSE_PLATFORM_ADMIN_IMAGE = "ghcr.io/<owner>/noteverse/platform-admin:
 $env:NOTEVERSE_S3_ENDPOINT_URL = "<s3-endpoint-url>"
 $env:NOTEVERSE_S3_REGION = "<s3-region>"
 $env:NOTEVERSE_S3_BUCKET = "<s3-bucket>"
-$env:NOTEVERSE_S3_PUBLIC_BASE_URL = "<s3-public-base-url>"
 $env:NOTEVERSE_S3_FORCE_PATH_STYLE = "false"
 
 .\scripts\render_minikube_release_overlay.ps1 -Output build/k8s-release/minikube -Overwrite

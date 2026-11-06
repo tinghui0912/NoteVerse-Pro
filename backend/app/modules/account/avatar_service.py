@@ -13,6 +13,10 @@ from app.db.models import User
 from app.storage import ObjectStorage, object_storage
 
 
+def avatar_object_key(filename: str) -> str:
+    return f"avatars/{filename}"
+
+
 class AvatarService:
     """Avatar image processing for account profile pictures."""
 
@@ -67,9 +71,10 @@ class AvatarService:
             final_filename = f"{user_id}_{file_hash}.jpg"
             output = io.BytesIO()
             canvas.save(output, "JPEG", quality=85, optimize=True)
-            self.storage.save_avatar(
+            self.storage.put_bytes(
                 content=output.getvalue(),
-                filename=final_filename,
+                key=avatar_object_key(final_filename),
+                content_type="image/jpeg",
             )
 
             logger.bind(
@@ -138,7 +143,7 @@ class AvatarService:
 
     def delete_avatar(self, filename: str) -> bool:
         try:
-            deleted = self.storage.delete_avatar(filename)
+            deleted = self.storage.delete(avatar_object_key(filename))
             if deleted:
                 logger.bind(
                     event="account.avatar.deleted",
@@ -154,7 +159,7 @@ class AvatarService:
 
     def avatar_exists(self, filename: str) -> bool:
         try:
-            return self.storage.exists(f"avatars/{filename}")
+            return self.storage.exists(avatar_object_key(filename))
         except Exception as exc:
             logger.bind(
                 event="account.avatar.exists_check_failed",

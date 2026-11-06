@@ -89,7 +89,6 @@ python scripts/render_k8s_release_overlay.py \
   --s3-endpoint-url https://object-storage.example.com \
   --s3-region auto \
   --s3-bucket noteverse-production \
-  --s3-public-base-url https://objects.noteverse.example.com \
   --s3-force-path-style true \
   --s3-presign-expire-seconds 900
 ```

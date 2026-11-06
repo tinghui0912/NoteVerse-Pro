@@ -116,4 +116,4 @@ def _store_job_output(
             content_type=mime_type,
         )
 
-    return stored.storage_key
+    return stored.object_key

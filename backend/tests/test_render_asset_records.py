@@ -8,7 +8,7 @@ from app.modules.score_assets.render_asset_records import (
     render_asset_usage,
     render_storage_key,
 )
-from app.storage import StoredFile
+from app.storage import StoredObject
 
 
 def test_render_storage_key_uses_profile_and_page_scoped_asset_path() -> None:
@@ -50,10 +50,8 @@ def test_build_render_asset_record_uses_storage_and_renderer_metadata() -> None:
         asset_uuid="asset-1",
         revision_id=17,
 
-        stored=StoredFile(
-            storage_key="scores/score-1/revisions/revision-1/renders/default/001-asset-1.svg",
-            filename="001-asset-1.svg",
-            path="/tmp/001-asset-1.svg",
+        stored=StoredObject(
+            object_key="scores/score-1/revisions/revision-1/renders/default/001-asset-1.svg",
             size_bytes=10,
         ),
         mime_type="image/svg+xml",

@@ -1,6 +1,10 @@
 # Durable ObjectStorage
 
-NoteVerse durable binary data uses one configured `ObjectStorage` namespace per deployment. Application services and workers depend on `app/storage/base.py`, its neutral capability DTOs, and the deployment composition root. Concrete provider selection belongs to infrastructure configuration.
+NoteVerse durable binary data uses one configured `ObjectStorage` namespace per deployment. The port is capability-only. Application services and workers depend on `app/storage/base.py`, its neutral capability DTOs, and the deployment composition root. Concrete provider selection belongs to infrastructure configuration.
+
+Feature modules own object identity, object keys, feature namespaces, MIME, deduplication and authorization/delivery policy. Files owns its content-hash upload key policy; Account owns avatar keys, JPEG processing and stable application URLs. `StoredObject` reports only the object key and byte size of a write.
+
+The durable namespace is private. Raw public object URLs are not part of the port. Delivery explicitly uses signed download capabilities or authorized application streaming/redirect endpoints.
 
 `app/storage/s3_compatible.py` implements the S3-compatible wire protocol. Direct upload is a required capability: a short-lived URL, HTTP method and request headers. Download capabilities are signed by the configured adapter. No database row selects a provider. Object keys are unique within the deployment namespace.
 

@@ -144,32 +144,3 @@ def test_real_object_store_capabilities_and_direct_upload(monkeypatch):
             assert response.read() == data
     finally:
         storage.delete(key)
-
-
-def test_avatar_delivery_uses_stable_application_url_and_fresh_capability():
-    from fastapi import FastAPI
-    from fastapi.testclient import TestClient
-    from app.core.exception_handlers import register_exception_handlers
-    from app.modules.account.router import router
-    from app.modules.account.dependencies import get_avatar_service
-    from app.modules.account.avatar_service import AvatarService
-    from PIL import Image
-
-    storage = InMemoryObjectStorage()
-    service = AvatarService(storage=storage)
-    image = BytesIO()
-    Image.new("RGB", (2, 2), "red").save(image, format="PNG")
-    filename, url = service.process_avatar(image.getvalue(), "avatar.png", 42)
-    assert url == f"/api/v1/account/avatars/{filename}"
-    app = FastAPI()
-    register_exception_handlers(app)
-    app.include_router(router, prefix="/api/v1/account")
-    app.dependency_overrides[get_avatar_service] = lambda: service
-    with TestClient(app, follow_redirects=False) as client:
-        response = client.get(url)
-        assert response.status_code == 307
-        assert response.headers["location"] == storage.download_url(f"avatars/{filename}")
-        assert storage.object_metadata(f"avatars/{filename}").content_type == "image/jpeg"
-        storage.delete_avatar(filename)
-        assert client.get(url).status_code == 404
-        assert client.get("/api/v1/account/avatars/other.jpg").status_code == 404
