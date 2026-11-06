@@ -20,6 +20,7 @@ export const recordingTimebase: RecordingTimebase = {
   ],
 };
 export const take: PerformanceTakeRead = {
+  archive_media: { mime_type: 'video/webm', byte_size: 10 },
   take_id: 'take-1',
   deletion_status: 'ACTIVE',
   created_at: '2026-09-26T00:00:00.000Z',
@@ -34,7 +35,7 @@ export const take: PerformanceTakeRead = {
       score_id: 'score-1',
       revision_id: 'revision-1',
     },
-    media: {
+    capture: {
       kind: 'VIDEO',
       mime_type: 'video/webm',
       byte_size: 10,

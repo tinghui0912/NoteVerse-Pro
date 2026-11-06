@@ -23,7 +23,7 @@ class TakeManifest:
             or self.user_id <= 0
         ):
             raise ValueError("Invalid saved-performance identity")
-        media = self.snapshot.media
+        media = self.snapshot.capture
         supported = SUPPORTED_VIDEO_MIMES if media.kind == "VIDEO" else SUPPORTED_AUDIO_MIMES
         if media.mime_type not in supported:
             raise ValueError("Manifest requires a canonical admitted media MIME")
@@ -33,7 +33,7 @@ class TakeManifest:
         scope = value.scope
         return (
             value.practice_binding == request.practice_binding
-            and value.media == request.media
+            and value.capture == request.media
             and scope.kind == request.scope.kind
             and (
                 scope.kind == "FULL"

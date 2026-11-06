@@ -109,10 +109,12 @@ def upgrade() -> None:
         sa.Column("practice_artifact_id", sa.String(length=128), nullable=False),
         sa.Column("score_title_snapshot", sa.String(length=255), nullable=False),
         sa.Column(
-            "media_kind", sa.Enum("AUDIO", "VIDEO", name="performancetakemediakind"), nullable=False
+            "capture_kind",
+            sa.Enum("AUDIO", "VIDEO", name="performancetakemediakind"),
+            nullable=False,
         ),
-        sa.Column("media_mime_type", sa.String(length=64), nullable=False),
-        sa.Column("media_byte_size", sa.BigInteger(), nullable=False),
+        sa.Column("capture_mime_type", sa.String(length=64), nullable=False),
+        sa.Column("capture_byte_size", sa.BigInteger(), nullable=False),
         sa.Column("scope_type", sa.String(length=16), nullable=False),
         sa.Column("scope_start_beat", sa.Float(), nullable=False),
         sa.Column("scope_terminal_beat", sa.Float(), nullable=False),
@@ -124,8 +126,10 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.UniqueConstraint("id", "user_id", name="uq_take_manifest_id_owner"),
         sa.CheckConstraint("scope_type IN ('FULL','RANGE')", name="ck_take_manifest_scope_type"),
-        sa.CheckConstraint("media_kind IN ('AUDIO','VIDEO')", name="ck_take_manifest_media_kind"),
-        sa.CheckConstraint("media_byte_size > 0", name="ck_take_manifest_media_size"),
+        sa.CheckConstraint(
+            "capture_kind IN ('AUDIO','VIDEO')", name="ck_take_manifest_capture_kind"
+        ),
+        sa.CheckConstraint("capture_byte_size > 0", name="ck_take_manifest_media_size"),
     )
     op.create_index(
         "ix_performance_take_manifests_take_uuid",
@@ -225,6 +229,32 @@ def upgrade() -> None:
         ["manifest_id"],
     )
     op.create_table(
+        "media_blobs",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            primary_key=True,
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("storage_backend", sa.String(32), nullable=False),
+        sa.Column("object_key", sa.String(768), nullable=False),
+        sa.Column("byte_size", sa.BigInteger(), nullable=False),
+        sa.Column("sha256", sa.String(64), nullable=False),
+        sa.Column("content_type", sa.String(64), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.UniqueConstraint("storage_backend", "object_key", name="uq_media_blob_locator"),
+        sa.CheckConstraint("byte_size > 0", name="ck_media_blob_positive_size"),
+        sa.CheckConstraint(
+            "length(trim(storage_backend)) > 0 AND length(trim(object_key)) > 0 AND length(trim(content_type)) > 0",
+            name="ck_media_blob_locator_type",
+        ),
+        sa.CheckConstraint(
+            "length(sha256) = 64 AND replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(sha256, '0', ''), '1', ''), '2', ''), '3', ''), '4', ''), '5', ''), '6', ''), '7', ''), '8', ''), '9', ''), 'a', ''), 'b', ''), 'c', ''), 'd', ''), 'e', ''), 'f', '') = ''",
+            name="ck_media_blob_digest",
+        ),
+    )
+    op.create_table(
         "performance_takes",
         sa.Column(
             "id",
@@ -235,8 +265,6 @@ def upgrade() -> None:
         sa.Column(
             "linked_score_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=True
         ),
-        sa.Column("media_object_key", sa.String(length=768), nullable=False),
-        sa.Column("storage_backend", sa.String(length=32), nullable=False),
         sa.Column("deletion_status", sa.String(length=16), nullable=False),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("updated_at", sa.DateTime(), nullable=False),
@@ -252,6 +280,11 @@ def upgrade() -> None:
             ["manifest_id"], ["performance_take_manifests.id"], ondelete="CASCADE"
         ),
         sa.UniqueConstraint("manifest_id", name="uq_performance_takes_manifest"),
+        sa.Column(
+            "media_blob_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=False
+        ),
+        sa.ForeignKeyConstraint(["media_blob_id"], ["media_blobs.id"], ondelete="RESTRICT"),
+        sa.UniqueConstraint("media_blob_id", name="uq_performance_takes_media_blob"),
     )
     op.create_index(
         op.f("ix_performance_takes_linked_score_id"),
@@ -259,13 +292,6 @@ def upgrade() -> None:
         ["linked_score_id"],
         unique=False,
     )
-    op.create_index(
-        op.f("ix_performance_takes_media_object_key"),
-        "performance_takes",
-        ["media_object_key"],
-        unique=True,
-    )
-
     op.create_table(
         "performance_take_delete_outbox",
         sa.Column(

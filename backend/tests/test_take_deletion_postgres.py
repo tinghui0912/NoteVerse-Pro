@@ -9,6 +9,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from app.db.models import (
+    MediaBlob,
     PerformanceTake,
     PerformanceTakeDeleteOutbox,
     PerformanceTakeManifest,
@@ -41,7 +42,8 @@ async def test_worker_completion_locks_outbox_and_take_separately_and_preserves_
         )
         take_read = await service.finalize_take(db, 1, accepted.reservation_id)
         take = await service.repository.get_by_uuid(db, 1, take_read.take_id)
-        take_id, final_key = take.id, take.media_object_key
+        take_id, final_key = take.id, take.media_blob.object_key
+        blob_id = take.media_blob_id
         await service.takes.delete_take(db, 1, take_read.take_id)
         outbox = await db.scalar(select(PerformanceTakeDeleteOutbox))
         outbox_id, outbox_uuid = outbox.id, outbox.outbox_uuid
@@ -79,6 +81,7 @@ async def test_worker_completion_locks_outbox_and_take_separately_and_preserves_
                     assert_lock(PerformanceTakeDeleteOutbox, outbox_id, blocked=True)
                     assert_lock(PerformanceTake, take_id, blocked=True)
                     assert_lock(PerformanceTakeManifest, manifest_id, blocked=False)
+                    assert_lock(MediaBlob, blob_id, blocked=False)
                     observations.append("Take locked; Manifest unlocked")
             return result
 
@@ -110,6 +113,7 @@ async def test_worker_completion_locks_outbox_and_take_separately_and_preserves_
         assert observations == ["outbox locked", "Take locked; Manifest unlocked"]
         with Session(engine) as db:
             assert db.get(PerformanceTake, take_id) is None
+            assert db.get(MediaBlob, blob_id) is None
             assert not storage.exists(final_key)
             assert manifest_from_row(db.get(PerformanceTakeManifest, manifest_id)) == manifest
             retained = db.scalar(select(PerformanceTakeUploadReservation))

@@ -87,7 +87,7 @@ def test_object_ownership_is_explicit_in_persistence_shape():
     columns = set(PerformanceTakeUploadReservation.__table__.columns.keys())
     assert {"staging_object_key", "finalizing_object_key", "orphan_final_object_keys"} <= columns
     assert "final_object_key" not in columns and "final_cleanup_completed_at" not in columns
-    assert "media_object_key" in PerformanceTake.__table__.columns
+    assert "media_blob_id" in PerformanceTake.__table__.columns
     assert "media_object_key" not in columns
 
 
@@ -108,8 +108,13 @@ def test_manifest_semantics_and_persistence_have_explicit_dependency_owners():
     assert imports(MODULE / "manifest.py") <= {"dataclasses", "schemas"}
     dependencies = imports(MODULE / "manifest_persistence.py")
     assert {"manifest", "schemas", "app.db.models.performance_take_manifest"} <= dependencies
-    for owner in ["service.py", "upload_reservation/service.py"]:
-        assert "app.modules.performance_takes.manifest_persistence" in imports(MODULE / owner)
+    assert "app.modules.performance_takes.aggregate" in imports(MODULE / "service.py")
+    assert "app.modules.performance_takes.manifest_persistence" in imports(
+        MODULE / "upload_reservation/service.py"
+    )
+    assert {"manifest_persistence", "app.modules.media.persistence"} <= imports(
+        MODULE / "aggregate.py"
+    )
     # The upload aggregate consumes lifecycle facts independently of admitted archive metadata.
     assert imports(MODULE / "upload_reservation/domain.py") <= {
         "__future__",

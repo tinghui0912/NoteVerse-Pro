@@ -2852,6 +2852,20 @@ export type PerformancePlanRequest = {
 };
 
 /**
+ * PerformanceTakeArchiveMediaRead
+ */
+export type PerformanceTakeArchiveMediaRead = {
+    /**
+     * Byte Size
+     */
+    byte_size: number;
+    /**
+     * Mime Type
+     */
+    mime_type: string;
+};
+
+/**
  * PerformanceTakeDeleteResponse
  */
 export type PerformanceTakeDeleteResponse = {
@@ -2909,7 +2923,7 @@ export type PerformanceTakeManifestRead = {
      * Artifact Id
      */
     artifact_id: string;
-    media: PerformanceTakeMediaMetadata;
+    capture: PerformanceTakeMediaMetadata;
     practice_binding: PerformanceTakePracticeBinding;
     recording_timebase: RecordingTimebase;
     /**
@@ -3020,6 +3034,7 @@ export type PerformanceTakeRangeScopeSelection = {
  * PerformanceTakeRead
  */
 export type PerformanceTakeRead = {
+    archive_media: PerformanceTakeArchiveMediaRead;
     /**
      * Can Open Score
      */

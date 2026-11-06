@@ -17,6 +17,7 @@ from sqlalchemy import (
 from sqlmodel import Field, Relationship, SQLModel
 from sqlalchemy.orm import relationship
 from .performance_take_manifest import PerformanceTakeManifest
+from .media_blob import MediaBlob
 
 from app.utils.timezone import utc_now_naive
 
@@ -35,6 +36,7 @@ class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
             "deletion_status IN ('ACTIVE','DELETING')", name="ck_performance_takes_deletion_status"
         ),
         UniqueConstraint("manifest_id", name="uq_performance_takes_manifest"),
+        UniqueConstraint("media_blob_id", name="uq_performance_takes_media_blob"),
     )
     id: Optional[int] = Field(
         default=None,
@@ -59,10 +61,12 @@ class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=True,
         ),
     )
-    media_object_key: str = Field(
-        sa_column=Column(String(768), unique=True, index=True, nullable=False)
+    media_blob_id: int = Field(
+        sa_column=Column(
+            bigint_pk_type, ForeignKey("media_blobs.id", ondelete="RESTRICT"), nullable=False
+        )
     )
-    storage_backend: str = Field(sa_column=Column(String(32), nullable=False))
+    media_blob: MediaBlob = Relationship(sa_relationship=relationship(MediaBlob, lazy="selectin"))
     deletion_status: str = Field(
         default=PerformanceTakeDeletionStatus.ACTIVE.value,
         sa_column=Column(

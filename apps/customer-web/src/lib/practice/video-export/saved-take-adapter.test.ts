@@ -41,9 +41,10 @@ describe('video export session saved-take parsing', () => {
     const result = createVideoExportSessionFromSavedTake(
       {
         ...take,
+        archive_media: { ...take.archive_media, mime_type: 'video/mp4' },
         manifest: {
           ...take.manifest,
-          media: { ...take.manifest.media, mime_type: 'video/mp4' },
+          capture: { ...take.manifest.capture, mime_type: 'video/mp4' },
         },
       },
       blob,
@@ -68,8 +69,8 @@ describe('video export session saved-take parsing', () => {
           ...take,
           manifest: {
             ...take.manifest,
-            media: {
-              ...take.manifest.media,
+            capture: {
+              ...take.manifest.capture,
               kind: 'AUDIO',
             },
           },

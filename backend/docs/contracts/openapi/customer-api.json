@@ -5743,6 +5743,26 @@
         "title": "PerformancePlanRequest",
         "type": "object"
       },
+      "PerformanceTakeArchiveMediaRead": {
+        "additionalProperties": false,
+        "properties": {
+          "byte_size": {
+            "exclusiveMinimum": 0.0,
+            "title": "Byte Size",
+            "type": "integer"
+          },
+          "mime_type": {
+            "title": "Mime Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mime_type",
+          "byte_size"
+        ],
+        "title": "PerformanceTakeArchiveMediaRead",
+        "type": "object"
+      },
       "PerformanceTakeDeleteResponse": {
         "additionalProperties": false,
         "properties": {
@@ -5822,7 +5842,7 @@
             "title": "Artifact Id",
             "type": "string"
           },
-          "media": {
+          "capture": {
             "$ref": "#/components/schemas/PerformanceTakeMediaMetadata"
           },
           "practice_binding": {
@@ -5865,7 +5885,7 @@
           "practice_binding",
           "artifact_id",
           "score_title_snapshot",
-          "media",
+          "capture",
           "score_timebase",
           "scope",
           "tempo_plan",
@@ -6011,6 +6031,9 @@
       "PerformanceTakeRead": {
         "additionalProperties": false,
         "properties": {
+          "archive_media": {
+            "$ref": "#/components/schemas/PerformanceTakeArchiveMediaRead"
+          },
           "can_open_score": {
             "default": false,
             "title": "Can Open Score",
@@ -6048,6 +6071,7 @@
         "required": [
           "take_id",
           "manifest",
+          "archive_media",
           "created_at"
         ],
         "title": "PerformanceTakeRead",

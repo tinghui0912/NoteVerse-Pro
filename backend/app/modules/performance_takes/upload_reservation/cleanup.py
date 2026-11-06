@@ -4,6 +4,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.core.logger import logger
+from app.db.models.media_blob import MediaBlob
 from app.db.models import PerformanceTake, PerformanceTakeUploadReservation
 from app.modules.performance_takes.upload_reservation.domain import UploadReservationStatus
 from app.modules.performance_takes.upload_reservation.persistence import (
@@ -87,8 +88,9 @@ class UploadReservationCleanupService:
                     candidate.key
                     for candidate in state.cleanup_candidates(now=now)
                     if db.scalar(
-                        select(PerformanceTake.id).where(
-                            PerformanceTake.media_object_key == candidate.key
+                        select(MediaBlob.id).where(
+                            MediaBlob.object_key == candidate.key,
+                            MediaBlob.storage_backend == storage.backend_name,
                         )
                     )
                     is None
@@ -125,8 +127,9 @@ class UploadReservationCleanupService:
                 # stale cleanup result.
                 referenced = set(
                     db.scalars(
-                        select(PerformanceTake.media_object_key).where(
-                            PerformanceTake.media_object_key.in_(absent)
+                        select(MediaBlob.object_key).where(
+                            MediaBlob.object_key.in_(absent),
+                            MediaBlob.storage_backend == storage.backend_name,
                         )
                     )
                 )

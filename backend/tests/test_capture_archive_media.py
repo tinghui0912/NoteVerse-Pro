@@ -95,7 +95,7 @@ def test_archive_admission_preserves_capture_container_kind(archive_client, kind
     assert response.status_code == (200 if accepted else 422), response.text
     if accepted:
         assert (
-            response.json()["data"]["manifest"]["media"]["mime_type"]
+            response.json()["data"]["manifest"]["capture"]["mime_type"]
             == mime.split(";")[0].strip().lower()
         )
 
@@ -123,9 +123,9 @@ def test_video_archive_and_delivery_preserve_exact_raw_capture(
     assert finalized.status_code == 200, finalized.text
     take = finalized.json()["data"]
     assert (
-        take["manifest"]["media"]["kind"],
-        take["manifest"]["media"]["mime_type"],
-        take["manifest"]["media"]["byte_size"],
+        take["manifest"]["capture"]["kind"],
+        take["archive_media"]["mime_type"],
+        take["archive_media"]["byte_size"],
     ) == (
         "VIDEO",
         mime,
@@ -136,8 +136,8 @@ def test_video_archive_and_delivery_preserve_exact_raw_capture(
         .join(PerformanceTakeManifest)
         .where(PerformanceTakeManifest.take_uuid == take["take_id"])
     ).scalar_one()
-    assert row.media_object_key.endswith("." + extension)
-    assert b"".join(storage.iter_bytes(row.media_object_key)) == content
+    assert row.media_blob.object_key.endswith("." + extension)
+    assert b"".join(storage.iter_bytes(row.media_blob.object_key)) == content
     playback = client.get(f"/api/v1/performance-takes/{take['take_id']}/playback-url")
     assert playback.status_code == 200, playback.text
     assert playback.json()["data"]["media_mime_type"] == mime

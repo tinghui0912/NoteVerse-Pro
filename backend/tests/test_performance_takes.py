@@ -39,6 +39,7 @@ from sqlmodel import SQLModel, create_engine
 from app.api.deps import get_current_user, get_db
 from app.core.exceptions import ValidationException, ResourceNotFoundException
 from app.db.models import (
+    MediaBlob,
     PerformanceTakeManifest,
     PerformanceTake,
     PerformanceTakeDeletionStatus,
@@ -276,9 +277,9 @@ def _create_default_take(
             scope_terminal_tick=4,
             tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
             recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
-            media_kind="AUDIO",
-            media_mime_type="audio/webm",
-            media_byte_size=len(VALID_WEBM_BYTES),
+            capture_kind="AUDIO",
+            capture_mime_type="audio/webm",
+            capture_byte_size=len(VALID_WEBM_BYTES),
         ),
         user_id=user_id,
         client_request_id=client_request_id,
@@ -304,9 +305,14 @@ def _create_default_take(
     take = PerformanceTake(
         manifest=reservation.manifest,
         linked_score_id=linked_score_id,
-        media_object_key=media_object_key,
-        storage_backend="local",
         deletion_status=PerformanceTakeDeletionStatus.ACTIVE,
+        media_blob=MediaBlob(
+            storage_backend="local",
+            object_key=media_object_key,
+            byte_size=len(VALID_WEBM_BYTES),
+            sha256=hashlib.sha256(VALID_WEBM_BYTES).hexdigest(),
+            content_type="audio/webm",
+        ),
     )
     session.add(take)
     session.flush()
@@ -398,9 +404,9 @@ def _create_take_delete_outbox(
         take_id=take.id,
         take_uuid=take.manifest.take_uuid,
         user_id=take.manifest.user_id,
-        storage_backend=take.storage_backend,
-        object_key=take.media_object_key,
-        media_byte_size=take.manifest.media_byte_size,
+        storage_backend=take.media_blob.storage_backend,
+        object_key=take.media_blob.object_key,
+        media_byte_size=take.media_blob.byte_size,
         status=PerformanceTakeDeleteOutboxStatus.PENDING.value,
         next_attempt_at=datetime.now(timezone.utc).replace(tzinfo=None),
     )
@@ -823,7 +829,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         assert take_data["manifest"]["practice_binding"]["revision_id"] == "revision-uuid-100"
         assert take_data["manifest"]["score_title_snapshot"] == "Moonlight Sonata"
         assert take_data["manifest"]["scope"]["kind"] == "FULL"
-        assert take_data["manifest"]["media"]["byte_size"] == media_size
+        assert take_data["manifest"]["capture"]["byte_size"] == media_size
         assert take_data["deletion_status"] == "ACTIVE"
 
         # Final key is promoted to a token-owned candidate object. Staging may
@@ -865,7 +871,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
             retained = client.get(f"/api/v1/performance-takes/{take_id}")
         assert retained.status_code == 200, retained.text
         assert retained.json()["data"] == take_data
-        final_object_key = take_row.media_object_key
+        final_object_key = take_row.media_blob.object_key
         assert final_object_key.startswith(f"performance-takes/1/{take_id}/")
         assert final_object_key != staging_object_key
         assert storage.exists(final_object_key)
@@ -1256,7 +1262,7 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
             .join(PerformanceTakeManifest)
             .where(PerformanceTakeManifest.take_uuid == take_id)
         ).scalar_one()
-        final_key = take_row.media_object_key
+        final_key = take_row.media_blob.object_key
         assert final_key.startswith(f"performance-takes/1/{take_id}/")
         assert storage.exists(final_key)
 
@@ -2215,19 +2221,19 @@ def test_video_take_finalize_uses_video_media_kind_and_candidate(test_env):
         )
         assert res_fin.status_code == 200, res_fin.text
         take_data = res_fin.json()["data"]
-        assert take_data["manifest"]["media"]["kind"] == "VIDEO"
-        assert take_data["manifest"]["media"]["mime_type"] == "video/webm"
+        assert take_data["manifest"]["capture"]["kind"] == "VIDEO"
+        assert take_data["manifest"]["capture"]["mime_type"] == "video/webm"
 
         take_row = session.execute(
             select(PerformanceTake)
             .join(PerformanceTakeManifest)
             .where(PerformanceTakeManifest.take_uuid == auth_data["take_id"])
         ).scalar_one()
-        assert take_row.manifest.media_kind == PerformanceTakeMediaKind.VIDEO
-        assert take_row.media_object_key.endswith(".webm")
-        assert storage.exists(take_row.media_object_key)
+        assert take_row.manifest.capture_kind == PerformanceTakeMediaKind.VIDEO
+        assert take_row.media_blob.object_key.endswith(".webm")
+        assert storage.exists(take_row.media_blob.object_key)
         assert b"fake-browser-video-with-audio" in b"".join(
-            storage.iter_bytes(take_row.media_object_key)
+            storage.iter_bytes(take_row.media_blob.object_key)
         )
 
         res_playback = client.get(f"/api/v1/performance-takes/{take_data['take_id']}/playback-url")
@@ -2260,9 +2266,9 @@ def test_reserve_finalizing_snapshot_retries_without_new_put(test_env):
             ticks_per_quarter=1,
             scope_start_tick=0,
             scope_terminal_tick=4,
-            media_kind="AUDIO",
-            media_mime_type="audio/webm",
-            media_byte_size=len(VALID_WEBM_BYTES),
+            capture_kind="AUDIO",
+            capture_mime_type="audio/webm",
+            capture_byte_size=len(VALID_WEBM_BYTES),
             tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
             recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
         ),
@@ -2558,9 +2564,9 @@ def test_archived_reservation_late_staging_put_is_cleaned_after_expiry(test_env)
         ).scalar_one()
         final_bytes = storage.read_bytes(
             session.execute(
-                select(PerformanceTake.media_object_key).where(
-                    PerformanceTake.manifest_id == auth.manifest_id
-                )
+                select(MediaBlob.object_key)
+                .join(PerformanceTake)
+                .where(PerformanceTake.manifest_id == auth.manifest_id)
             ).scalar_one()
         )
 
@@ -2588,9 +2594,9 @@ def test_archived_reservation_late_staging_put_is_cleaned_after_expiry(test_env)
         assert (
             storage.read_bytes(
                 session.execute(
-                    select(PerformanceTake.media_object_key).where(
-                        PerformanceTake.manifest_id == auth.manifest_id
-                    )
+                    select(MediaBlob.object_key)
+                    .join(PerformanceTake)
+                    .where(PerformanceTake.manifest_id == auth.manifest_id)
                 ).scalar_one()
             )
             == final_bytes
@@ -3180,9 +3186,9 @@ def test_bundle_gc_ignores_an_active_reservation_after_take_deletion(test_env, m
             scope_end_group_id=None,
             tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
             recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
-            media_kind="AUDIO",
-            media_mime_type="audio/webm",
-            media_byte_size=len(VALID_WEBM_BYTES),
+            capture_kind="AUDIO",
+            capture_mime_type="audio/webm",
+            capture_byte_size=len(VALID_WEBM_BYTES),
         ),
         user_id=user_1.id,
         client_request_id="gc-active-auth",
@@ -3488,9 +3494,9 @@ def _expired_cleanup_auth(
             scope_terminal_tick=4,
             tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
             recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
-            media_kind="AUDIO",
-            media_mime_type="audio/webm",
-            media_byte_size=len(VALID_WEBM_BYTES),
+            capture_kind="AUDIO",
+            capture_mime_type="audio/webm",
+            capture_byte_size=len(VALID_WEBM_BYTES),
         ),
         user_id=user_id,
         client_request_id=client_request_id,
@@ -3644,9 +3650,9 @@ def test_finalize_copy_lease_rejects_expired_executor_before_storage_copy(test_e
             scope_terminal_tick=4,
             tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
             recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
-            media_kind="AUDIO",
-            media_mime_type="audio/webm",
-            media_byte_size=len(VALID_WEBM_BYTES),
+            capture_kind="AUDIO",
+            capture_mime_type="audio/webm",
+            capture_byte_size=len(VALID_WEBM_BYTES),
         ),
         user_id=user_1.id,
         client_request_id="lease-expired-before-copy",
@@ -3969,9 +3975,9 @@ def test_expired_finalizing_lease_records_candidate_before_retry(test_env):
             scope_terminal_tick=4,
             tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
             recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
-            media_kind="AUDIO",
-            media_mime_type="audio/webm",
-            media_byte_size=len(VALID_WEBM_BYTES),
+            capture_kind="AUDIO",
+            capture_mime_type="audio/webm",
+            capture_byte_size=len(VALID_WEBM_BYTES),
         ),
         user_id=user_1.id,
         client_request_id="finalizing-expired-retry",
@@ -4060,7 +4066,7 @@ def test_worker_handles_already_absent_object_idempotently(
             .join(PerformanceTakeManifest)
             .where(PerformanceTakeManifest.take_uuid == take_id)
         ).scalar_one()
-        final_key = take_row.media_object_key
+        final_key = take_row.media_blob.object_key
         assert final_key.startswith(f"performance-takes/1/{take_id}/")
         assert storage.exists(final_key)
 
@@ -4333,7 +4339,7 @@ def test_reservation_identity_metadata_replay_and_structural_take_lineage(test_e
         finalized = client.post(url)
         assert finalized.status_code == 200, finalized.text
         data = finalized.json()["data"]
-        assert data["manifest"]["media"]["kind"] == "VIDEO"
+        assert data["manifest"]["capture"]["kind"] == "VIDEO"
         assert data["manifest"]["scope"]["start_group_id"] == request["scope"]["start_group_id"]
         assert data["manifest"]["scope"]["end_group_id"] == request["scope"]["end_group_id"]
         assert data["manifest"]["tempo_plan"] == first["manifest"]["tempo_plan"]
@@ -4468,6 +4474,7 @@ def test_finalize_unknown_commit_outcome_recovers_via_reservation_lineage(
         session.refresh(account)
         assert account.reserved_bytes == 0 and account.used_bytes == len(VALID_WEBM_BYTES)
         assert len(session.execute(select(PerformanceTake)).scalars().all()) == 1
+        assert len(session.execute(select(MediaBlob)).scalars().all()) == 1
 
 
 def test_live_admission_and_save_snapshot_share_canonical_provenance(test_env):
@@ -5329,14 +5336,14 @@ def test_take_deletion_retires_media_but_preserves_manifest_and_reservation(test
         take = session.scalar(select(PerformanceTake))
         assert take.manifest_id == manifest_id
         assert finalized.json()["data"]["manifest"] == accepted["manifest"]
-        final_key = take.media_object_key
+        final_key = take.media_blob.object_key
         deleted = client.delete(f"/api/v1/performance-takes/{accepted['take_id']}")
         assert deleted.status_code == 202, deleted.text
         outbox = session.scalar(select(PerformanceTakeDeleteOutbox))
         assert (outbox.take_uuid, outbox.user_id, outbox.media_byte_size) == (
             before.take_uuid,
             before.user_id,
-            before.snapshot.media.byte_size,
+            before.snapshot.capture.byte_size,
         )
         outcome = _run_worker_deletion(monkeypatch, session, storage, outbox.outbox_uuid)
         assert outcome["status"] == "deleted"
@@ -5346,3 +5353,102 @@ def test_take_deletion_retires_media_but_preserves_manifest_and_reservation(test
         assert manifest_from_row(session.get(PerformanceTakeManifest, manifest_id)) == before
         assert session.scalar(select(PerformanceTakeUploadReservation)).manifest_id == manifest_id
         assert session.get(StorageUsageAccount, user.id).used_bytes == 0
+
+
+def test_final_blob_sha_is_the_complete_candidate_and_actual_object_digest(test_env):
+    session, storage, user, _ = test_env
+    from app.modules.performance_takes.upload_reservation import service as module
+
+    hashes = {}
+    original = module._sha256_storage_object
+
+    def record(storage, key):
+        result = original(storage, key)
+        hashes[key] = result
+        return result
+
+    with (
+        _reservation_client(session, storage, user) as (client, _),
+        patch.object(module, "_sha256_storage_object", side_effect=record),
+    ):
+        accepted = client.post(
+            "/api/v1/performance-takes/upload-reservations", json=_upload_intent()
+        ).json()["data"]
+        storage.put_bytes(
+            key=_staging_key(session, accepted["reservation_id"]),
+            content=VALID_WEBM_BYTES,
+            content_type="audio/webm",
+        )
+        response = client.post(
+            f"/api/v1/performance-takes/upload-reservations/{accepted['reservation_id']}/finalize"
+        )
+        assert response.status_code == 200, response.text
+        take = session.scalar(select(PerformanceTake))
+        blob = take.media_blob
+        actual = storage.read_bytes(blob.object_key)
+        digest = hashlib.sha256(actual).hexdigest()
+        assert hashes[blob.object_key] == blob.sha256 == digest
+        assert blob.byte_size == len(actual) == take.manifest.capture_byte_size
+        assert response.json()["data"]["archive_media"] == {
+            "mime_type": blob.content_type,
+            "byte_size": blob.byte_size,
+        }
+        print("candidate_sha256=persisted_sha256=actual_sha256=" + digest)
+
+
+def test_same_size_candidate_corruption_has_no_blob_or_take(test_env):
+    session, storage, user, _ = test_env
+    original = storage.copy
+
+    def corrupt(source, target):
+        original(source, target)
+        storage.put_bytes(
+            key=target, content=VALID_WEBM_BYTES[:-1] + b"X", content_type="audio/webm"
+        )
+
+    with _reservation_client(session, storage, user) as (client, service):
+        accepted = client.post(
+            "/api/v1/performance-takes/upload-reservations", json=_upload_intent()
+        ).json()["data"]
+        storage.put_bytes(
+            key=_staging_key(session, accepted["reservation_id"]),
+            content=VALID_WEBM_BYTES,
+            content_type="audio/webm",
+        )
+        with (
+            patch.object(storage, "copy", side_effect=corrupt),
+            pytest.raises(ValidationException) as error,
+        ):
+            _run_async(
+                service.finalize_take(
+                    AsyncSessionAdapter(session), user.id, accepted["reservation_id"]
+                )
+            )
+        assert error.value.details["field"] == "media_checksum"
+        assert error.value.details["reason"] == "candidate_content_mismatch"
+        assert (
+            session.scalar(select(MediaBlob)) is None
+            and session.scalar(select(PerformanceTake)) is None
+        )
+        row = session.scalar(select(PerformanceTakeUploadReservation))
+        assert row.orphan_final_object_keys != "[]"
+        assert session.get(StorageUsageAccount, user.id).reserved_bytes == len(VALID_WEBM_BYTES)
+
+
+@pytest.mark.parametrize(
+    "field,bad", [("byte_size", 43), ("content_type", "audio/mp4"), ("sha256", "invalid")]
+)
+def test_take_read_rejects_corrupt_or_capture_mismatched_blob(test_env, field, bad):
+    session, storage, user, _ = test_env
+    source = _create_default_bundle(session, storage)
+    take = _create_default_take(
+        session,
+        user_id=user.id,
+        source=source,
+        client_request_id="corrupt-archive",
+        take_uuid="corrupt-archive",
+        media_object_key="corrupt.webm",
+    )
+    setattr(take.media_blob, field, bad)
+    with pytest.raises(ValidationException):
+        PerformanceTakeService(storage=storage)._to_read_dto(take)

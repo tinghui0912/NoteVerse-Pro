@@ -13,6 +13,9 @@ from uuid import uuid4
 
 from sqlalchemy import select
 from app.db.models.score import Score, ScoreDeletionStatus
+from app.modules.media.blob import MediaBlobFacts
+from app.modules.media.persistence import blob_to_row
+from app.modules.performance_takes.aggregate import SavedTakeFacts
 from app.modules.performance_takes.manifest import (
     TakeManifest,
     SUPPORTED_AUDIO_MIMES,
@@ -427,7 +430,7 @@ class PerformanceTakeUploadService:
             raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="storage")
         upload_target = self.storage.upload_url(
             key=reservation.staging_object_key,
-            content_type=manifest_from_row(reservation.manifest).snapshot.media.mime_type,
+            content_type=manifest_from_row(reservation.manifest).snapshot.capture.mime_type,
             checksum_sha256="",
         )
         if upload_target is None:
@@ -551,7 +554,7 @@ class PerformanceTakeUploadService:
                     },
                     "artifact_id": bundle_ref.artifact_id,
                     "score_title_snapshot": authorized_bundle.score_title,
-                    "media": media,
+                    "capture": media,
                     "score_timebase": {"ticks_per_quarter": score.ticks_per_quarter},
                     "scope": {
                         key: value for key, value in asdict(plan.scope).items() if value is not None
@@ -639,8 +642,8 @@ class PerformanceTakeUploadService:
                     "take_uuid": take_uuid,
                     "stage": stage,
                     "elapsed_ms": round((monotonic() - started_at) * 1000, 1),
-                    "media_kind": manifest.snapshot.media.kind,
-                    "media_byte_size": manifest.snapshot.media.byte_size,
+                    "media_kind": manifest.snapshot.capture.kind,
+                    "media_byte_size": manifest.snapshot.capture.byte_size,
                     "storage_backend": self.storage.__class__.__name__
                     if self.storage is not None
                     else None,
@@ -680,7 +683,7 @@ class PerformanceTakeUploadService:
             reservation.user_id,
             manifest.take_uuid,
             finalizing_token,
-            manifest.snapshot.media.mime_type,
+            manifest.snapshot.capture.mime_type,
         )
         state = lifecycle_from_row(reservation)
         try:
@@ -766,12 +769,12 @@ class PerformanceTakeUploadService:
             )
 
         metadata = await asyncio.to_thread(self.storage.object_metadata, source_key)
-        if metadata.size_bytes != manifest.snapshot.media.byte_size:
+        if metadata.size_bytes != manifest.snapshot.capture.byte_size:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_byte_size")
         if (
             metadata.content_type is not None
             and metadata.content_type.split(";")[0].strip().lower()
-            != manifest.snapshot.media.mime_type
+            != manifest.snapshot.capture.mime_type
         ):
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
 
@@ -781,8 +784,8 @@ class PerformanceTakeUploadService:
         )
         if not _verify_container_magic_bytes(
             header_bytes,
-            manifest.snapshot.media.mime_type,
-            manifest.snapshot.media.kind,
+            manifest.snapshot.capture.mime_type,
+            manifest.snapshot.capture.kind,
         ):
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
         verified_staging_sha256 = await asyncio.to_thread(
@@ -809,8 +812,14 @@ class PerformanceTakeUploadService:
             candidate_metadata = await asyncio.to_thread(
                 self.storage.object_metadata, candidate_key
             )
-            if candidate_metadata.size_bytes != manifest.snapshot.media.byte_size:
+            if candidate_metadata.size_bytes != manifest.snapshot.capture.byte_size:
                 raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_byte_size")
+            if (
+                candidate_metadata.content_type is not None
+                and _clean_mime_type(candidate_metadata.content_type)
+                != manifest.snapshot.capture.mime_type
+            ):
+                raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
             log_stage("candidate_copy_complete", started_at=finalize_started)
             candidate_sha256 = await asyncio.to_thread(
                 _sha256_storage_object,
@@ -904,7 +913,7 @@ class PerformanceTakeUploadService:
             await db.commit()
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="reservation_expired")
 
-        # Commit Take, reservation status, and Storage quota in ONE database transaction
+        # Commit Blob, Take, reservation completion and quota in one transaction.
         if manifest_from_row(reservation.manifest) != manifest:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="manifest")
         current_score = (
@@ -921,12 +930,23 @@ class PerformanceTakeUploadService:
             .scalars()
             .first()
         )
+        blob_facts = MediaBlobFacts(
+            storage_backend,
+            candidate_key,
+            candidate_metadata.size_bytes,
+            candidate_sha256,
+            manifest.snapshot.capture.mime_type,
+        )
+        SavedTakeFacts(manifest, blob_facts)
+        blob_row = blob_to_row(blob_facts)
+        db.add(blob_row)
+        await db.flush()
         take = PerformanceTake(
+            media_blob_id=blob_row.id,
+            media_blob=blob_row,
             manifest_id=reservation.manifest_id,
             manifest=reservation.manifest,
             linked_score_id=current_score.id if current_score is not None else None,
-            media_object_key=candidate_key,
-            storage_backend=storage_backend,
             deletion_status=PerformanceTakeDeletionStatus.ACTIVE.value,
         )
         await self.repository.create_take(db, take, auto_commit=False)

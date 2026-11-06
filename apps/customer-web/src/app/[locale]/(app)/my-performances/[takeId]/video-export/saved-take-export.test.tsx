@@ -156,8 +156,8 @@ it('owns one downloaded reference and releases it exactly once on unmount', asyn
   expect(calls.media).toHaveBeenCalledWith(
     expect.objectContaining({
       takeId: take.take_id,
-      expectedByteSize: take.manifest.media.byte_size,
-      expectedMimeType: take.manifest.media.mime_type,
+      expectedByteSize: take.manifest.capture.byte_size,
+      expectedMimeType: take.manifest.capture.mime_type,
       signal: expect.any(AbortSignal),
     }),
   );

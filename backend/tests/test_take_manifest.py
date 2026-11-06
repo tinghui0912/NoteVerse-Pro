@@ -26,7 +26,7 @@ def value():
                 },
                 "artifact_id": "artifact",
                 "score_title_snapshot": "Admission title",
-                "media": {"kind": "AUDIO", "mime_type": "audio/webm", "byte_size": 42},
+                "capture": {"kind": "AUDIO", "mime_type": "audio/webm", "byte_size": 42},
                 "score_timebase": {"ticks_per_quarter": 60},
                 "scope": {
                     "kind": "RANGE",
@@ -65,7 +65,7 @@ def test_immutable_manifest_round_trip_preserves_exact_admitted_truth():
     with pytest.raises(FrozenInstanceError):
         original.take_uuid = "changed"
     with pytest.raises(ValidationError):
-        original.snapshot.media.byte_size = 1
+        original.snapshot.capture.byte_size = 1
     with pytest.raises(ValidationError):
         original.snapshot.tempo_plan.segments[0].bpm = 60
     assert isinstance(original.snapshot.tempo_plan.segments, tuple)
@@ -81,11 +81,11 @@ def test_immutable_manifest_round_trip_preserves_exact_admitted_truth():
         ("practice_revision_uuid", ""),
         ("practice_artifact_id", ""),
         ("score_title_snapshot", ""),
-        ("media_kind", "TEXT"),
-        ("media_mime_type", "audio/webm;codecs=opus"),
-        ("media_mime_type", "video/mp4"),
-        ("media_byte_size", 0),
-        ("media_byte_size", True),
+        ("capture_kind", "TEXT"),
+        ("capture_mime_type", "audio/webm;codecs=opus"),
+        ("capture_mime_type", "video/mp4"),
+        ("capture_byte_size", 0),
+        ("capture_byte_size", True),
         ("ticks_per_quarter", 0),
         ("ticks_per_quarter", 2**53),
         ("scope_start_tick", -1),
@@ -120,7 +120,7 @@ def test_replay_compares_selection_against_exact_manifest_without_resolving_agai
     request = PerformanceTakeUploadMetadata.model_validate(
         {
             "practice_binding": accepted.practice_binding,
-            "media": accepted.media,
+            "media": accepted.capture,
             "scope": {"kind": "RANGE", "start_group_id": "start", "end_group_id": "end"},
             "tempo_selection": accepted.tempo_plan.selection,
             "recording_timebase": accepted.recording_timebase,

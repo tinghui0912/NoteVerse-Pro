@@ -20,7 +20,7 @@ from app.db.models.performance_take_delete_outbox import (
     PerformanceTakeDeleteOutboxStatus,
 )
 from app.db.models.score import Score, ScoreDeletionStatus
-from app.modules.performance_takes.manifest_persistence import manifest_from_row
+from app.modules.performance_takes.aggregate import take_from_row
 from app.modules.performance_takes.repository import PerformanceTakeRepository
 from app.modules.performance_takes.schemas import (
     PerformanceTakeListResponse,
@@ -75,7 +75,8 @@ class PerformanceTakeService:
         score: Score | None = None,
         can_open_score: bool = False,
     ) -> PerformanceTakeRead:
-        manifest = manifest_from_row(take.manifest)
+        facts = take_from_row(take)
+        manifest, blob = facts.manifest, facts.blob
         linked_score_id = (
             score.score_uuid
             if can_open_score
@@ -89,6 +90,7 @@ class PerformanceTakeService:
         return PerformanceTakeRead(
             take_id=manifest.take_uuid,
             manifest=manifest.snapshot,
+            archive_media={"mime_type": blob.content_type, "byte_size": blob.byte_size},
             linked_score_id=linked_score_id,
             can_open_score=linked_score_id is not None,
             deletion_status=deletion_status,
@@ -199,16 +201,17 @@ class PerformanceTakeService:
         if self.storage is None:
             raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="storage")
 
-        manifest = manifest_from_row(take.manifest)
+        facts = take_from_row(take)
+        manifest, blob = facts.manifest, facts.blob
         playback_url = self.storage.download_url(
-            take.media_object_key,
-            content_type=manifest.snapshot.media.mime_type,
+            blob.object_key,
+            content_type=blob.content_type,
         )
-        ext = _extension_for_mime(manifest.snapshot.media.mime_type)
+        ext = _extension_for_mime(blob.content_type)
         download_url = self.storage.download_url(
-            take.media_object_key,
+            blob.object_key,
             filename=f"performance-{manifest.take_uuid}.{ext}",
-            content_type=manifest.snapshot.media.mime_type,
+            content_type=blob.content_type,
         )
         if not playback_url or not download_url:
             raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="download_url")
@@ -217,9 +220,9 @@ class PerformanceTakeService:
             take_id=manifest.take_uuid,
             playback_url=playback_url,
             download_url=download_url,
-            media_kind=_media_kind_value(manifest.snapshot.media.kind),
-            media_mime_type=manifest.snapshot.media.mime_type,
-            media_byte_size=manifest.snapshot.media.byte_size,
+            media_kind=_media_kind_value(manifest.snapshot.capture.kind),
+            media_mime_type=blob.content_type,
+            media_byte_size=blob.byte_size,
             expires_in=3600,
         )
 
@@ -240,12 +243,13 @@ class PerformanceTakeService:
             )
         if self.storage is None:
             raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="storage")
-        manifest = manifest_from_row(take.manifest)
-        extension = _extension_for_mime(manifest.snapshot.media.mime_type)
+        facts = take_from_row(take)
+        manifest, blob = facts.manifest, facts.blob
+        extension = _extension_for_mime(blob.content_type)
         return (
-            take.media_object_key,
+            blob.object_key,
             f"performance-{manifest.take_uuid}.{extension}",
-            manifest.snapshot.media.mime_type,
+            blob.content_type,
         )
 
     async def delete_take(
@@ -263,15 +267,16 @@ class PerformanceTakeService:
         if _status_value(take.deletion_status) == PerformanceTakeDeletionStatus.DELETING.value:
             return {"status": "deleting", "take_id": take_id}
 
-        manifest = manifest_from_row(take.manifest)
+        facts = take_from_row(take)
+        manifest, blob = facts.manifest, facts.blob
         take.deletion_status = PerformanceTakeDeletionStatus.DELETING.value
         outbox = PerformanceTakeDeleteOutbox(
             take_id=take.id,
             take_uuid=manifest.take_uuid,
             user_id=manifest.user_id,
-            storage_backend=take.storage_backend,
-            object_key=take.media_object_key,
-            media_byte_size=manifest.snapshot.media.byte_size,
+            storage_backend=blob.storage_backend,
+            object_key=blob.object_key,
+            media_byte_size=blob.byte_size,
             status=PerformanceTakeDeleteOutboxStatus.PENDING.value,
             next_attempt_at=utc_now_naive(),
         )

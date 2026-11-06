@@ -1013,7 +1013,7 @@ Manifest captures exact Bundle provenance and score title under live save author
 Clients submit FULL or RANGE group IDs and SCORE or CUSTOM_FIXED_BPM selection;
 the server derives durable scope ticks, tempo segments and their shared score timebase
 from that exact bound Bundle. Reservation and Take responses expose one `manifest` containing
-binding, artifact identity, title, media, resolved scope, score timebase, tempo plan and recording timebase.
+binding, artifact identity, title, source `capture`, resolved scope, score timebase, tempo plan and recording timebase.
 Before upload and before saved success, the browser verifies agreement with its
 executed Result session Plan and its artifact's `ticksPerQuarter`. Plan mismatch fails closed;
 a new RESERVED mismatch is cancelled best-effort without media upload.
@@ -1037,8 +1037,9 @@ FINALIZING, COMPLETED, CANCELLED and EXPIRED.
 persistence, cleanup and object ownership.
 Reservation and Take reference the same immutable PerformanceTakeManifest row. A unique
 Take.manifest_id permits at most one Take per Manifest. Manifest owns the sole public Take UUID
-and saved-performance semantic facts; Take owns final durable media and library/deletion lifecycle.
-Neither retains PracticeBundle. Playback/listing consume Manifest facts after Bundle GC.
+and admitted performance/source Capture facts. MediaBlob owns verified durable server-byte facts;
+Take joins both and owns library/deletion lifecycle.
+Neither retains PracticeBundle. Playback/listing consume Manifest semantic facts and Blob physical facts after Bundle GC.
 Reservation alone owns client_request_id and upload lifecycle; its owner is database-constrained
 to match Manifest.user_id. Take deletion preserves Manifest and Reservation lineage.
 
@@ -1047,7 +1048,7 @@ to a token-owned candidate, and verifies candidate size and SHA-256 equality. A 
 finalizing lease guards concurrent execution; expired takeover records the prior
 candidate as an orphan. Unknown-outcome grace, reference-aware orphan deletion, late
 staging cleanup and database-disconnect recovery preserve safe retries. Take creation,
-reservation completion and quota commit are one transaction. Cancellation/expiry
+MediaBlob creation, reservation completion and quota commit are one transaction. Cancellation/expiry
 release the internal quota hold. Finalize retry returns the same Take and commits no
 additional quota. Final object ownership and immutable metadata do not depend on a
 second client payload.
@@ -1242,3 +1243,16 @@ No Capture bytes are streamed to the server while the user plays.
 
 Explicit tempo interpretation and the cross-runtime missing-tempo policy belong to
 [Score tempo semantics](score-tempo.md).
+
+## Saved media physical authority
+
+Manifest.capture is the source Capture admission snapshot. MediaBlob is the immutable durable
+archive observation: backend/key, exact bytes, canonical MIME and a SHA-256 computed by reading
+the complete candidate. PerformanceTake references one Manifest and one unique MediaBlob.
+There is no shared-hash deduplication, refcount or Blob upload lifecycle.
+
+Completed Take.archive_media exposes Blob MIME/size without locator/hash. Raw playback/download
+and saved media materialization use Blob facts; Capture kind and performance context remain
+Manifest facts. Take hydration rejects archive/Capture disagreement. DeleteOutbox snapshots the
+physical deletion operation; completion deletes Take and Blob together while retaining Manifest
+and Reservation. StorageUsage owns accounting, not byte-object identity.

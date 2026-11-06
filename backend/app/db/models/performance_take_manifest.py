@@ -36,8 +36,8 @@ class PerformanceTakeManifest(SQLModel, table=True):  # type: ignore[call-arg]
             name="ck_take_manifest_score_coordinates",
         ),
         CheckConstraint("scope_type IN ('FULL','RANGE')", name="ck_take_manifest_scope_type"),
-        CheckConstraint("media_kind IN ('AUDIO','VIDEO')", name="ck_take_manifest_media_kind"),
-        CheckConstraint("media_byte_size > 0", name="ck_take_manifest_media_size"),
+        CheckConstraint("capture_kind IN ('AUDIO','VIDEO')", name="ck_take_manifest_capture_kind"),
+        CheckConstraint("capture_byte_size > 0", name="ck_take_manifest_media_size"),
         Index("ix_take_manifest_user_created", "user_id", "created_at"),
     )
     id: Optional[int] = Field(
@@ -60,14 +60,14 @@ class PerformanceTakeManifest(SQLModel, table=True):  # type: ignore[call-arg]
     score_title_snapshot: str = Field(
         sa_column=Column(String(255), nullable=False),
     )
-    media_kind: PerformanceTakeMediaKind = Field(
+    capture_kind: PerformanceTakeMediaKind = Field(
         sa_column=Column(
             SAEnum(PerformanceTakeMediaKind, name="performancetakemediakind"),
             nullable=False,
         ),
     )
-    media_mime_type: str = Field(sa_column=Column(String(64), nullable=False))
-    media_byte_size: int = Field(sa_column=Column(BigInteger, nullable=False))
+    capture_mime_type: str = Field(sa_column=Column(String(64), nullable=False))
+    capture_byte_size: int = Field(sa_column=Column(BigInteger, nullable=False))
     scope_type: str = Field(
         sa_column=Column(String(16), nullable=False),
     )

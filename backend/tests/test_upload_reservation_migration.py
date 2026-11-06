@@ -1,5 +1,7 @@
 """Fresh PostgreSQL persistence for independent media provenance."""
 
+import hashlib
+from tests.test_performance_takes import VALID_WEBM_BYTES
 from datetime import timedelta
 import pytest
 import sqlalchemy as sa
@@ -7,6 +9,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from alembic import command
 from app.db.models import (
+    MediaBlob,
     User,
     PerformanceTakeUploadReservation,
     PerformanceTake,
@@ -62,9 +65,9 @@ def test_fresh_manifest_shared_by_reservation_and_take(monkeypatch):
                 scope_terminal_tick=4,
                 tempo_plan="{}",
                 recording_timebase="{}",
-                media_kind="AUDIO",
-                media_mime_type="audio/webm",
-                media_byte_size=10,
+                capture_kind="AUDIO",
+                capture_mime_type="audio/webm",
+                capture_byte_size=10,
             )
             db.add(manifest)
             db.flush()
@@ -80,7 +83,14 @@ def test_fresh_manifest_shared_by_reservation_and_take(monkeypatch):
                 status="RESERVED",
             )
             take = PerformanceTake(
-                manifest_id=manifest.id, media_object_key="media", storage_backend="local"
+                manifest_id=manifest.id,
+                media_blob=MediaBlob(
+                    storage_backend="local",
+                    object_key="media",
+                    byte_size=len(VALID_WEBM_BYTES),
+                    sha256=hashlib.sha256(VALID_WEBM_BYTES).hexdigest(),
+                    content_type="audio/webm",
+                ),
             )
             db.add_all([row, take])
             db.commit()
@@ -88,7 +98,14 @@ def test_fresh_manifest_shared_by_reservation_and_take(monkeypatch):
             assert db.scalar(sa.text("SELECT count(*) FROM practice_bundles")) == 0
             db.add(
                 PerformanceTake(
-                    manifest_id=manifest.id, media_object_key="other", storage_backend="local"
+                    manifest_id=manifest.id,
+                    media_blob=MediaBlob(
+                        storage_backend="local",
+                        object_key="other",
+                        byte_size=len(VALID_WEBM_BYTES),
+                        sha256=hashlib.sha256(VALID_WEBM_BYTES).hexdigest(),
+                        content_type="audio/webm",
+                    ),
                 )
             )
             with pytest.raises(IntegrityError):

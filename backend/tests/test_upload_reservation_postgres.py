@@ -11,7 +11,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.core.exceptions import ValidationException
-from app.db.models import StorageUsageAccount, StorageUsageCounter, StorageUsageCategory
+from app.db.models import MediaBlob, StorageUsageAccount, StorageUsageCounter, StorageUsageCategory
 from app.db.models.performance_take_manifest import PerformanceTakeManifest
 from app.db.models.performance_take import PerformanceTake
 from app.db.models.performance_take_upload_reservation import PerformanceTakeUploadReservation
@@ -125,6 +125,7 @@ async def test_take_creation_completion_and_quota_commit_share_one_transaction(p
         row = await service.repository.get_reservation_by_uuid(observer, 1, reserved.reservation_id)
         assert row.status == "FINALIZING" and row.manifest.practice_bundle_id == bundle_id
         assert await observer.scalar(select(func.count()).select_from(PerformanceTake)) == 0
+        assert await observer.scalar(select(func.count()).select_from(MediaBlob)) == 0
         account = await observer.get(StorageUsageAccount, 1)
         assert account.reserved_bytes == len(MEDIA) and account.used_bytes == 0
 
@@ -291,6 +292,7 @@ async def test_finalize_lease_blocks_concurrency_and_expired_takeover_preserves_
                 await first
     async with sessions() as db:
         assert await db.scalar(select(func.count()).select_from(PerformanceTake)) == 1
+        assert await db.scalar(select(func.count()).select_from(MediaBlob)) == 1
         row = await service.repository.get_reservation_by_uuid(db, 1, reserved.reservation_id)
         take = await service.repository.get_by_reservation(db, 1, row.id)
         assert take.manifest.take_uuid == reserved.take_id and row.status == "COMPLETED"
@@ -302,10 +304,14 @@ async def test_finalize_lease_blocks_concurrency_and_expired_takeover_preserves_
             and take.manifest.practice_bundle_id == bundle_id
         )
         assert row.reservation_uuid != row.storage_reservation_id
-        assert storage.read_bytes(take.media_object_key) == MEDIA
+        assert storage.read_bytes(take.media_blob.object_key) == MEDIA
+        import hashlib
+
+        assert take.media_blob.sha256 == hashlib.sha256(MEDIA).hexdigest()
+        assert take.media_blob.byte_size == len(MEDIA)
         if takeover:
             assert candidates[0] in row.orphan_final_object_keys
-            assert candidates[0] != take.media_object_key
+            assert candidates[0] != take.media_blob.object_key
         account = await db.get(StorageUsageAccount, 1)
         assert account.used_bytes == len(MEDIA) and account.reserved_bytes == 0
 

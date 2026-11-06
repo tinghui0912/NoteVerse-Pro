@@ -53,7 +53,7 @@ for (const sourceState of ['LIVE', 'DELETED', 'MISMATCH'] as const) {
     });
     const media = Buffer.from(bytes);
     await page.route('**/api/v1/performance-takes/take-1', route => route.fulfill({
-      status: 200, contentType: 'application/json', body: JSON.stringify({ data: { ...take, manifest: { ...take.manifest, media: { ...take.manifest.media, byte_size: media.length } } } }),
+      status: 200, contentType: 'application/json', body: JSON.stringify({ data: { ...take, archive_media: { ...take.archive_media, byte_size: media.length }, manifest: { ...take.manifest, capture: { ...take.manifest.capture, byte_size: media.length } } } }),
     }));
     await page.route('**/api/v1/performance-takes/take-1/media', route => route.fulfill({ status: 200, contentType: 'video/webm', body: media }));
     const sourceRequests: string[] = [];
@@ -144,7 +144,7 @@ test('route exit during saved-media streaming aborts the writer and removes its 
     };
   });
   const bytes=Buffer.from('pending temporary bytes');
-  await page.route('**/api/v1/performance-takes/take-1',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({data:{...take,manifest:{...take.manifest,media:{...take.manifest.media,byte_size:bytes.length}}}})}));
+  await page.route('**/api/v1/performance-takes/take-1',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({data:{...take,archive_media:{...take.archive_media,byte_size:bytes.length},manifest:{...take.manifest,capture:{...take.manifest.capture,byte_size:bytes.length}}}})}));
   await page.route('**/api/v1/performance-takes/take-1/media',route=>route.fulfill({status:200,contentType:'video/webm',body:bytes}));
   await page.route('**/api/v1/practice/scores/*/revisions/*/bundle*',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({data:{binding:{score_id:take.manifest.practice_binding.score_id,revision_id:take.manifest.practice_binding.revision_id,bundle_id:take.manifest.practice_binding.bundle_id},artifact,notation:{musicxml:musicXml,mime_type:'application/vnd.recordare.musicxml+xml'}}})}));
   await page.goto('/en/my-performances/take-1/video-export');

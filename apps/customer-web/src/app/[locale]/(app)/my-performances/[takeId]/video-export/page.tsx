@@ -138,8 +138,8 @@ export default function SavedPerformanceVideoExportPage() {
     let owned: LocalMediaAsset | null = null;
     void materializePerformanceTakeMedia({
       takeId: take.take_id,
-      expectedByteSize: take.manifest.media.byte_size,
-      expectedMimeType: take.manifest.media.mime_type,
+      expectedByteSize: take.archive_media.byte_size,
+      expectedMimeType: take.archive_media.mime_type,
       signal: controller.signal,
       onProgress: (loadedBytes, totalBytes) => {
         if (!controller.signal.aborted) {
@@ -190,7 +190,7 @@ export default function SavedPerformanceVideoExportPage() {
     return {
       kind: 'VIDEO_RECORDING',
       media: mediaHandle,
-      contentType: take.manifest.media.mime_type,
+      contentType: take.archive_media.mime_type,
       byteSize: mediaHandle.byteSize,
       recordingTimebase: decodeRecordingTimebase(
         take.manifest.recording_timebase,
@@ -342,7 +342,7 @@ export default function SavedPerformanceVideoExportPage() {
                   onClick={() => {
                     void downloadLocalMedia(
                       mediaHandle!,
-                      `performance-${take.take_id}.${captureMediaExtension(take.manifest.media.mime_type)}`,
+                      `performance-${take.take_id}.${captureMediaExtension(take.archive_media.mime_type)}`,
                     );
                   }}
                 >

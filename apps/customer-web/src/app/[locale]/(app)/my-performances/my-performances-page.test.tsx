@@ -174,6 +174,7 @@ const recordingTimebase: RecordingTimebase = {
 const fixture121Takes: PerformanceTakeRead[] = Array.from(
   { length: 121 },
   (_, i) => ({
+    archive_media: { mime_type: 'audio/webm', byte_size: 1024 * (i + 1) },
     deletion_status: 'ACTIVE',
     take_id: `take-${i + 1}`,
     created_at: new Date(1700000000000 - i * 60000).toISOString(),
@@ -188,7 +189,7 @@ const fixture121Takes: PerformanceTakeRead[] = Array.from(
         score_id: `score-uuid-${i + 1}`,
         revision_id: `rev-uuid-${i + 1}`,
       },
-      media: {
+      capture: {
         kind: 'AUDIO',
         mime_type: 'audio/webm',
         byte_size: 1024 * (i + 1),
@@ -376,6 +377,7 @@ describe('MyPerformancesPage', () => {
         data: {
           items: [
             {
+              archive_media: { mime_type: 'audio/webm', byte_size: 1024 },
               take_id: 'take-deleted-score',
               linked_score_id: 'score-retained-source',
               can_open_score: true,
@@ -391,7 +393,7 @@ describe('MyPerformancesPage', () => {
                   score_id: 'score-retained-source',
                   revision_id: 'revision-1',
                 },
-                media: {
+                capture: {
                   kind: 'AUDIO',
                   mime_type: 'audio/webm',
                   byte_size: 1024,
@@ -427,6 +429,7 @@ describe('MyPerformancesPage', () => {
         data: {
           items: [
             {
+              archive_media: { mime_type: 'audio/webm', byte_size: 1024 },
               take_id: 'take-deleted-score',
               linked_score_id: null,
               can_open_score: false,
@@ -442,7 +445,7 @@ describe('MyPerformancesPage', () => {
                   score_id: 'score-retained-source',
                   revision_id: 'revision-1',
                 },
-                media: {
+                capture: {
                   kind: 'AUDIO',
                   mime_type: 'audio/webm',
                   byte_size: 1024,
@@ -478,6 +481,7 @@ describe('MyPerformancesPage', () => {
         data: {
           items: [
             {
+              archive_media: { mime_type: 'audio/webm', byte_size: 1024 },
               take_id: 'take-1',
               created_at: new Date().toISOString(),
               manifest: {
@@ -491,7 +495,7 @@ describe('MyPerformancesPage', () => {
                   score_id: 'score-uuid-1',
                   revision_id: 'revision-1',
                 },
-                media: {
+                capture: {
                   kind: 'AUDIO',
                   mime_type: 'audio/webm',
                   byte_size: 1024,
@@ -538,6 +542,7 @@ describe('MyPerformancesPage', () => {
           data: {
             items: [
               {
+                archive_media: { mime_type: mimeType, byte_size: 2048 },
                 take_id: 'take-video-1',
                 created_at: new Date().toISOString(),
                 manifest: {
@@ -551,7 +556,7 @@ describe('MyPerformancesPage', () => {
                     score_id: 'score-uuid-1',
                     revision_id: 'revision-1',
                   },
-                  media: {
+                  capture: {
                     kind: 'VIDEO',
                     mime_type: mimeType,
                     byte_size: 2048,
@@ -618,6 +623,7 @@ describe('MyPerformancesPage', () => {
         data: {
           items: [
             {
+              archive_media: { mime_type: 'audio/webm', byte_size: 1024 },
               take_id: 'take-1',
               created_at: new Date().toISOString(),
               manifest: {
@@ -631,7 +637,7 @@ describe('MyPerformancesPage', () => {
                   score_id: 'score-uuid-1',
                   revision_id: 'revision-1',
                 },
-                media: {
+                capture: {
                   kind: 'AUDIO',
                   mime_type: 'audio/webm',
                   byte_size: 1024,
@@ -688,6 +694,7 @@ describe('MyPerformancesPage', () => {
         data: {
           items: [
             {
+              archive_media: { mime_type: 'audio/webm', byte_size: 1024 },
               take_id: 'take-1',
               created_at: new Date().toISOString(),
               manifest: {
@@ -701,7 +708,7 @@ describe('MyPerformancesPage', () => {
                   score_id: 'score-uuid-1',
                   revision_id: 'revision-1',
                 },
-                media: {
+                capture: {
                   kind: 'AUDIO',
                   mime_type: 'audio/webm',
                   byte_size: 1024,
@@ -1110,8 +1117,8 @@ describe('MyPerformancesPage', () => {
         manifest: {
           ...fixture121Takes[0].manifest,
           score_title_snapshot: 'Deleting Video',
-          media: {
-            ...fixture121Takes[0].manifest.media,
+          capture: {
+            ...fixture121Takes[0].manifest.capture,
             kind: 'VIDEO' as const,
             mime_type: 'video/webm',
           },

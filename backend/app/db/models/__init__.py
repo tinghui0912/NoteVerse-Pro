@@ -1,3 +1,4 @@
+from .media_blob import MediaBlob
 from .performance_take_manifest import PerformanceTakeManifest, PerformanceTakeMediaKind
 from .user import User
 from .auth import AuthToken, EmailChangeRequest, PendingRegistration, RefreshToken
@@ -168,6 +169,7 @@ __all__ = [
     "StorageUsageReservation",
     "StorageUsageReservationStatus",
     "PerformanceTakeManifest",
+    "MediaBlob",
     "PerformanceTake",
     "PerformanceTakeDeletionStatus",
     "PerformanceTakeMediaKind",

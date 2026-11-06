@@ -37,7 +37,7 @@ const completion = {
     status: 'READY' as const,
     kind: 'VIDEO' as const,
     media: localMediaAssetFixture(blob),
-    mimeType: take.manifest.media.mime_type,
+    mimeType: take.manifest.capture.mime_type,
 
     timebase: decodeRecordingTimebase(take.manifest.recording_timebase),
   },

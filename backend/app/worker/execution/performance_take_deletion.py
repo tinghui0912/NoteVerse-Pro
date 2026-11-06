@@ -13,6 +13,7 @@ from app.db.models.performance_take_delete_outbox import (
     PerformanceTakeDeleteOutbox,
     PerformanceTakeDeleteOutboxStatus,
 )
+from app.modules.performance_takes.aggregate import take_from_row
 from app.db.models.storage_usage import StorageUsageCategory
 from app.db.sync_session import get_worker_db
 from app.modules.performance_takes.delete_outbox_service import (
@@ -151,16 +152,19 @@ def execute_performance_take_deletion_task(
                 .with_for_update(of=PerformanceTake)
             ).scalar_one_or_none()
             if take is not None:
+                blob = take_from_row(take).blob
                 if (
-                    take.media_object_key != payload.object_key
-                    or take.manifest.media_byte_size != payload.media_byte_size
-                    or take.storage_backend != payload.storage_backend
+                    blob.object_key != payload.object_key
+                    or blob.byte_size != payload.media_byte_size
+                    or blob.storage_backend != payload.storage_backend
                 ):
                     raise RuntimeError(
                         "performance take deletion payload does not match locked take: "
                         f"{payload.take_uuid}"
                     )
                 db.delete(take)
+                db.flush()
+                db.delete(take.media_blob)
                 db.flush()
                 storage_usage_service.record_release_sync(
                     db,

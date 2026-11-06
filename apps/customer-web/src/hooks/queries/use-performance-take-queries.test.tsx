@@ -75,6 +75,7 @@ function createInput() {
   };
 }
 const savedTake: PerformanceTakeRead = {
+  archive_media: { mime_type: 'audio/wav', byte_size: 12 },
   take_id: 'take-1',
   deletion_status: 'ACTIVE',
   created_at: '2026-09-21T00:00:00Z',
@@ -89,7 +90,7 @@ const savedTake: PerformanceTakeRead = {
       score_id: 'score-1',
       revision_id: 'revision-1',
     },
-    media: {
+    capture: {
       kind: 'AUDIO',
       mime_type: 'audio/wav',
       byte_size: 12,
@@ -149,12 +150,19 @@ describe('useSavePerformanceTake', () => {
       await capture.sink.append(new Blob(['raw capture']));
       const media = await capture.sink.seal('audio/wav');
       const accepted = reservation();
-      accepted.manifest.media.byte_size = media.byteSize;
+      accepted.manifest.capture.byte_size = media.byteSize;
       vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue({
         data: accepted,
       } as never);
       vi.mocked(performanceTakesApi.finalizeTake).mockResolvedValue({
-        data: { ...savedTake, manifest: accepted.manifest },
+        data: {
+          ...savedTake,
+          manifest: accepted.manifest,
+          archive_media: {
+            mime_type: accepted.manifest.capture.mime_type,
+            byte_size: accepted.manifest.capture.byte_size,
+          },
+        },
       } as never);
       let finish!: () => void, fail!: (error: Error) => void;
       vi.mocked(uploadMediaToSignedUrl).mockImplementation(
@@ -200,7 +208,7 @@ describe('useSavePerformanceTake', () => {
         revision_id: 'revision-1',
         bundle_id: 'source-1',
       },
-      media: savedTake.manifest.media,
+      media: savedTake.manifest.capture,
       scope: { kind: 'FULL' },
       tempo_selection: tempoPlan.selection,
       recording_timebase: recordingTimebase,
@@ -227,7 +235,7 @@ describe('useSavePerformanceTake', () => {
       media: localMediaAssetFixture(raw),
     };
     const reserved = reservation();
-    reserved.manifest.media = {
+    reserved.manifest.capture = {
       kind: 'VIDEO',
       byte_size: raw.size,
       mime_type: 'video/mp4',
@@ -244,10 +252,11 @@ describe('useSavePerformanceTake', () => {
     vi.mocked(performanceTakesApi.finalizeTake).mockResolvedValue({
       data: {
         ...savedTake,
+        archive_media: { mime_type: 'video/mp4', byte_size: raw.size },
         manifest: {
           ...savedTake.manifest,
-          media: {
-            ...savedTake.manifest.media,
+          capture: {
+            ...savedTake.manifest.capture,
             kind: 'VIDEO',
             mime_type: 'video/mp4',
             byte_size: raw.size,
@@ -262,7 +271,7 @@ describe('useSavePerformanceTake', () => {
       await result.current.mutateAsync(input);
     });
     expect(performanceTakesApi.reserveUpload).toHaveBeenCalledWith(
-      expect.objectContaining({ media: reserved.manifest.media }),
+      expect.objectContaining({ media: reserved.manifest.capture }),
     );
     expect(vi.mocked(uploadMediaToSignedUrl).mock.calls[0][3]).toBe(raw);
     expect(uploadMediaToSignedUrl).toHaveBeenCalledWith(
@@ -324,8 +333,8 @@ describe('useSavePerformanceTake', () => {
       },
     };
     const accepted = reservation();
-    accepted.manifest.media.kind = input.mediaKind;
-    accepted.manifest.media.kind = input.mediaKind;
+    accepted.manifest.capture.kind = input.mediaKind;
+    accepted.manifest.capture.kind = input.mediaKind;
     accepted.manifest.scope = {
       kind: 'RANGE',
       start_tick: 1,
@@ -341,7 +350,7 @@ describe('useSavePerformanceTake', () => {
         ...savedTake,
         manifest: {
           ...savedTake.manifest,
-          media: { ...savedTake.manifest.media, kind: 'VIDEO' },
+          capture: { ...savedTake.manifest.capture, kind: 'VIDEO' },
           scope: {
             ...savedTake.manifest.scope,
             kind: 'RANGE',
@@ -639,10 +648,10 @@ it.each(['RESERVED', 'COMPLETED'] as const)(
   async (status) => {
     for (const change of [
       (manifest: PerformanceTakeRead['manifest']) => {
-        manifest.media.byte_size += 1;
+        manifest.capture.byte_size += 1;
       },
       (manifest: PerformanceTakeRead['manifest']) => {
-        manifest.media.mime_type = 'audio/webm';
+        manifest.capture.mime_type = 'audio/webm';
       },
       (manifest: PerformanceTakeRead['manifest']) => {
         manifest.recording_timebase.nominalMediaDurationUs += 1;
@@ -657,5 +666,18 @@ it.each(['RESERVED', 'COMPLETED'] as const)(
       } as never);
       await expect(save()).rejects.toThrow('PERFORMANCE_TAKE_PLAN_MISMATCH');
     }
+  },
+);
+
+it.each(['mime_type', 'byte_size'] as const)(
+  'rejects archived %s inconsistent with admitted Capture',
+  async (field) => {
+    const invalid = structuredClone(savedTake);
+    if (field === 'mime_type') invalid.archive_media.mime_type = 'audio/webm';
+    else invalid.archive_media.byte_size++;
+    vi.mocked(performanceTakesApi.finalizeTake).mockResolvedValue({
+      data: invalid,
+    } as never);
+    await expect(save()).rejects.toThrow('PERFORMANCE_TAKE_PLAN_MISMATCH');
   },
 );

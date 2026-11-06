@@ -11,6 +11,7 @@ import {
   uploadMediaToSignedUrl,
   type RecordingTimebase,
   type PerformanceTakeManifestRead,
+  type PerformanceTakeRead,
   type PerformanceTakeTempoPlan,
   type PerformanceTakeUploadReservationRequest,
 } from '@/lib/api/performance-takes';
@@ -132,7 +133,10 @@ export function useSavePerformanceTake() {
       if (reservation.status === 'COMPLETED') {
         if (!reservation.take)
           throw new Error('Completed reservation has no saved take');
-        if (!manifestMatchesExecution(reservation.take.manifest, input))
+        if (
+          !manifestMatchesExecution(reservation.take.manifest, input) ||
+          !archiveMatchesCapture(reservation.take)
+        )
           throw new Error('PERFORMANCE_TAKE_PLAN_MISMATCH');
         return reservation.take;
       }
@@ -163,7 +167,8 @@ export function useSavePerformanceTake() {
       );
       if (
         !finalized.data ||
-        !manifestMatchesExecution(finalized.data.manifest, input)
+        !manifestMatchesExecution(finalized.data.manifest, input) ||
+        !archiveMatchesCapture(finalized.data)
       )
         throw new Error('PERFORMANCE_TAKE_PLAN_MISMATCH');
       return finalized.data;
@@ -228,9 +233,9 @@ function manifestMatchesExecution(
       manifest.practice_binding?.bundle_id === input.binding.bundleId &&
       manifest.practice_binding.score_id === input.binding.scoreId &&
       manifest.practice_binding.revision_id === input.binding.revisionId &&
-      manifest.media?.kind === input.mediaKind &&
-      manifest.media.byte_size === input.media.byteSize &&
-      manifest.media.mime_type === normalizeCaptureMime(input.mimeType) &&
+      manifest.capture?.kind === input.mediaKind &&
+      manifest.capture.byte_size === input.media.byteSize &&
+      manifest.capture.mime_type === normalizeCaptureMime(input.mimeType) &&
       recordingTimebaseMatchesExecution(
         manifest.recording_timebase,
         input.recordingTimebase,
@@ -271,5 +276,12 @@ function recordingTimebaseMatchesExecution(
           segment.mediaEndUs === executed.mediaEndUs
         );
       }),
+  );
+}
+
+function archiveMatchesCapture(take: PerformanceTakeRead): boolean {
+  return (
+    take.archive_media?.mime_type === take.manifest.capture.mime_type &&
+    take.archive_media.byte_size === take.manifest.capture.byte_size
   );
 }

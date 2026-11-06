@@ -31,7 +31,7 @@ export function hasSavedTakeVideoExportMetadata(
 ): boolean {
   if (
     take.deletion_status === 'DELETING' ||
-    take.manifest.media.kind !== 'VIDEO'
+    take.manifest.capture.kind !== 'VIDEO'
   ) {
     return false;
   }
@@ -65,7 +65,7 @@ export function createVideoExportSessionFromSavedTake(
   if (take.deletion_status === 'DELETING') {
     return { status: 'unsupported', reason: 'take_deleting' };
   }
-  if (take.manifest.media.kind !== 'VIDEO') {
+  if (take.manifest.capture.kind !== 'VIDEO') {
     return { status: 'unsupported', reason: 'video_required' };
   }
   if (!media.byteSize) {
@@ -169,7 +169,7 @@ export function createVideoExportSessionFromSavedTake(
           status: 'READY',
           kind: 'VIDEO',
           media,
-          mimeType: take.manifest.media.mime_type,
+          mimeType: take.archive_media.mime_type,
         },
         scope,
         tempoPlan,

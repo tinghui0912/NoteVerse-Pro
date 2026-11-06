@@ -173,7 +173,7 @@ function PerformanceTakeCard({
       }
       const a = document.createElement('a');
       a.href = downloadUrl;
-      const ext = captureMediaExtension(take.manifest.media.mime_type);
+      const ext = captureMediaExtension(take.archive_media.mime_type);
       a.download = `performance-${take.take_id}.${ext}`;
       document.body.appendChild(a);
       a.click();
@@ -186,15 +186,15 @@ function PerformanceTakeCard({
   };
 
   const replay: PlayablePerformanceReplay | null = playbackQuery.data?.data
-    ? take.manifest.media.kind === 'VIDEO'
+    ? take.manifest.capture.kind === 'VIDEO'
       ? {
           kind: 'VIDEO_RECORDING',
           url: playbackQuery.data.data.playback_url,
           recordingTimebase: decodeRecordingTimebase(
             take.manifest.recording_timebase,
           ),
-          contentType: take.manifest.media.mime_type,
-          byteSize: take.manifest.media.byte_size,
+          contentType: take.archive_media.mime_type,
+          byteSize: take.archive_media.byte_size,
         }
       : {
           kind: 'AUDIO_RECORDING',
@@ -202,7 +202,7 @@ function PerformanceTakeCard({
           recordingTimebase: decodeRecordingTimebase(
             take.manifest.recording_timebase,
           ),
-          contentType: take.manifest.media.mime_type,
+          contentType: take.archive_media.mime_type,
         }
     : null;
 
@@ -248,7 +248,7 @@ function PerformanceTakeCard({
                   )}
                 </span>
                 <span className="rounded bg-gray-100 px-1.5 py-0.5 font-medium text-gray-600">
-                  {take.manifest.media.mime_type.split('/')[1]?.toUpperCase() ||
+                  {take.archive_media.mime_type.split('/')[1]?.toUpperCase() ||
                     'AUDIO'}
                 </span>
                 <span className="rounded bg-blue-50 px-1.5 py-0.5 font-medium text-blue-700">
@@ -286,7 +286,7 @@ function PerformanceTakeCard({
                 <Download className="h-4 w-4" />
                 {downloading
                   ? common('downloading')
-                  : take.manifest.media.kind === 'VIDEO'
+                  : take.manifest.capture.kind === 'VIDEO'
                     ? t('downloadVideo')
                     : t('downloadRecording')}
               </Button>

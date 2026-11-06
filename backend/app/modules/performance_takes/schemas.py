@@ -156,7 +156,7 @@ class PerformanceTakeManifestRead(StrictPerformanceTakeModel):
     practice_binding: PerformanceTakePracticeBinding
     artifact_id: str = Field(min_length=1)
     score_title_snapshot: str = Field(min_length=1)
-    media: PerformanceTakeMediaMetadata
+    capture: PerformanceTakeMediaMetadata
     score_timebase: PerformanceTakeScoreTimebase
     scope: PerformanceTakeResolvedFullScope | PerformanceTakeResolvedRangeScope = Field(
         discriminator="kind"
@@ -174,9 +174,15 @@ class PerformanceTakeUploadReservationRead(StrictPerformanceTakeModel):
     take: Optional["PerformanceTakeRead"] = None
 
 
+class PerformanceTakeArchiveMediaRead(StrictPerformanceTakeModel):
+    mime_type: str
+    byte_size: int = Field(strict=True, gt=0)
+
+
 class PerformanceTakeRead(StrictPerformanceTakeModel):
     take_id: str
     manifest: PerformanceTakeManifestRead
+    archive_media: PerformanceTakeArchiveMediaRead
     linked_score_id: Optional[str] = None
     can_open_score: bool = False
     deletion_status: str = "ACTIVE"
