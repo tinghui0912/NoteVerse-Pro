@@ -39,7 +39,6 @@ from app.core.exceptions import (
 from app.db.session import AsyncSessionLocal
 from app.db.models.performance_take import (
     PerformanceTake,
-    PerformanceTakeDeletionStatus,
 )
 from app.db.models.performance_take_upload_reservation import (
     PerformanceTakeUploadReservation,
@@ -931,7 +930,6 @@ class PerformanceTakeUploadService:
             manifest_id=reservation.manifest_id,
             manifest=reservation.manifest,
             linked_score_id=current_score.id if current_score is not None else None,
-            deletion_status=PerformanceTakeDeletionStatus.ACTIVE.value,
         )
         await self.repository.create_take(db, take, auto_commit=False)
         current_now = utc_now_naive()

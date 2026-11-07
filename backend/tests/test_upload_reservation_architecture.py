@@ -60,14 +60,12 @@ def test_lifecycle_writes_belong_to_persistence_adapter():
         assert "app.modules.performance_takes.upload_reservation.domain" in dependencies
 
 
-def test_take_library_and_deletion_are_distinct_application_owners():
+def test_archive_admission_and_physical_retirement_have_distinct_owners():
     from app.modules.performance_takes.service import PerformanceTakeService
     from app.modules.performance_takes.upload_reservation.service import (
         PerformanceTakeUploadService,
     )
-    from app.modules.performance_takes.delete_outbox_service import (
-        PerformanceTakeDeleteOutboxService,
-    )
+    from app.modules.storage_objects.retirement import StoredObjectRetirementDelivery
 
     assert {"list_takes", "get_take", "get_playback_url", "delete_take"} <= set(
         vars(PerformanceTakeService)
@@ -75,10 +73,9 @@ def test_take_library_and_deletion_are_distinct_application_owners():
     assert {"reserve_upload", "cancel_upload_reservation", "finalize_take"} <= set(
         vars(PerformanceTakeUploadService)
     )
-    assert not any(
-        "upload_reservation" in item for item in imports(MODULE / "delete_outbox_service.py")
+    assert {"claim", "fail", "mark_dispatched", "release_dispatch", "recover_and_list_due"} <= set(
+        vars(StoredObjectRetirementDelivery)
     )
-    assert "cleanup_expired_reservations" not in vars(PerformanceTakeDeleteOutboxService)
 
 
 def test_object_ownership_is_explicit_in_persistence_shape():

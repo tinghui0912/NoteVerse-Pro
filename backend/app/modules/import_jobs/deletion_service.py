@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 
 from sqlalchemy import delete as sa_delete
 from sqlalchemy import func, select
@@ -17,129 +16,73 @@ from app.db.models import (
 )
 from app.db.model_utils import require_persisted_id
 from app.modules.storage_usage.service import storage_usage_service
-from app.storage import ObjectStorage, object_storage
-
-
-@dataclass(frozen=True)
-class StoredObjectCleanup:
-    category: StorageUsageCategory
-    object_type: str
-    object_id: str
-    storage_key: str
-    bytes_count: int
-    reason: str
-    delete_storage: bool = True
+from app.modules.storage_objects.retirement import retire_after_release
 
 
 class ImportJobDeletionService:
     """Delete import-job rows and their owned temporary storage artifacts."""
 
-    def __init__(self, storage: ObjectStorage | None = None) -> None:
-        self.storage = storage or object_storage
-
     async def delete_job(self, db: AsyncSession, job: ImportJob, user_id: int) -> None:
-        job_id = require_persisted_id(job.id, entity="import job")
-        orphan_uploads = await self._orphan_uploads_after_job_delete(db, job_id)
-        cleanup_objects = await self._collect_delete_cleanup_objects(db, job_id, orphan_uploads)
-        object_ids_to_delete = self._object_ids_to_delete(orphan_uploads, cleanup_objects)
-        artifacts = list(
-            (await db.scalars(select(ImportArtifact).where(ImportArtifact.job_id == job_id))).all()
-        )
-        await db.delete(job)
-        await db.flush()
-        for artifact in artifacts:
-            await db.delete(artifact.stored_object)
-        await self._delete_orphan_upload_rows(db, orphan_uploads)
-        await self._delete_orphan_object_rows(db, object_ids_to_delete)
-        await db.commit()
-        await self._delete_storage_and_release_usage(db, user_id, cleanup_objects)
+        await self._release(db, job, user_id, delete_job=True)
 
     async def cleanup_binary_artifacts(
-        self,
-        db: AsyncSession,
-        job: ImportJob,
-        user_id: int,
+        self, db: AsyncSession, job: ImportJob, user_id: int
     ) -> None:
-        job_id = require_persisted_id(job.id, entity="import job")
-        orphan_uploads = await self._orphan_uploads_after_job_delete(db, job_id)
-        cleanup_objects = await self._collect_delete_cleanup_objects(db, job_id, orphan_uploads)
-        object_ids_to_delete = self._object_ids_to_delete(orphan_uploads, cleanup_objects)
-        artifacts = list(
-            (await db.scalars(select(ImportArtifact).where(ImportArtifact.job_id == job_id))).all()
-        )
-        await db.execute(sa_delete(ImportArtifact).where(ImportArtifact.job_id == job_id))
-        for artifact in artifacts:
-            await db.delete(artifact.stored_object)
-        await db.execute(sa_delete(ImportJobUpload).where(ImportJobUpload.job_id == job_id))
-        await db.flush()
-        await self._delete_orphan_upload_rows(db, orphan_uploads)
-        await self._delete_orphan_object_rows(db, object_ids_to_delete)
-        await db.commit()
-        await self._delete_storage_and_release_usage(db, user_id, cleanup_objects)
+        await self._release(db, job, user_id, delete_job=False)
 
-    async def _collect_delete_cleanup_objects(
-        self,
-        db: AsyncSession,
-        job_id: int,
-        orphan_uploads: list[tuple[Upload, StoredObject]],
-    ) -> list[StoredObjectCleanup]:
+    async def _release(self, db, job, user_id, *, delete_job):
+        job_id = require_persisted_id(job.id, entity="import job")
+        uploads = await self._orphan_uploads_after_job_delete(db, job_id)
         artifacts = list(
-            (await db.execute(select(ImportArtifact).where(ImportArtifact.job_id == job_id)))
-            .scalars()
-            .all()
+            (
+                await db.execute(select(ImportArtifact).where(ImportArtifact.job_id == job_id))
+            ).scalars()
         )
-        cleanup_objects = [
-            StoredObjectCleanup(
-                category=StorageUsageCategory.TEMP_IMPORT,
-                object_type="import_artifact",
-                object_id=artifact.artifact_uuid,
-                storage_key=artifact.stored_object.object_key,
-                bytes_count=artifact.stored_object.byte_size or 0,
-                reason="import_job_deleted",
-            )
-            for artifact in artifacts
+        ids = [item.stored_object_id for item in artifacts] + [
+            upload.stored_object_id for upload, _ in uploads
         ]
-        cleanup_objects.extend(
-            StoredObjectCleanup(
-                category=StorageUsageCategory.UPLOAD,
-                object_type="upload",
-                object_id=upload.upload_uuid,
-                storage_key=blob.object_key,
-                bytes_count=blob.byte_size,
+        releases = [
+            (
+                StorageUsageCategory.TEMP_IMPORT,
+                "import_artifact",
+                item.artifact_uuid,
+                item.stored_object.object_key,
+                item.stored_object.byte_size,
+            )
+            for item in artifacts
+        ]
+        releases += [
+            (
+                StorageUsageCategory.UPLOAD,
+                "upload",
+                upload.upload_uuid,
+                obj.object_key,
+                obj.byte_size,
+            )
+            for upload, obj in uploads
+        ]
+        if delete_job:
+            await db.delete(job)
+        else:
+            await db.execute(sa_delete(ImportArtifact).where(ImportArtifact.job_id == job_id))
+            await db.execute(sa_delete(ImportJobUpload).where(ImportJobUpload.job_id == job_id))
+        await db.flush()
+        for upload, _ in uploads:
+            await db.delete(upload)
+        await retire_after_release(db, *ids)
+        for category, kind, identity, key, size in releases:
+            await storage_usage_service.record_release(
+                db,
+                user_id=user_id,
+                category=category,
+                bytes_count=size,
                 reason="import_job_deleted",
-                delete_storage=False,
+                object_type=kind,
+                object_id=identity,
+                storage_key=key,
+                auto_commit=False,
             )
-            for upload, blob in orphan_uploads
-        )
-        seen_object_ids: set[int] = set()
-        for _upload, blob in orphan_uploads:
-            stored_object_id = require_persisted_id(blob.id, entity="stored object")
-            if stored_object_id in seen_object_ids:
-                continue
-            seen_object_ids.add(stored_object_id)
-            blob_ref_count = (
-                await db.execute(
-                    select(func.count(Upload.id)).where(Upload.stored_object_id == stored_object_id)
-                )
-            ).scalar_one()
-            orphan_count = sum(
-                1
-                for _candidate_upload, candidate_blob in orphan_uploads
-                if candidate_blob.id == stored_object_id
-            )
-            if blob_ref_count <= orphan_count:
-                cleanup_objects.append(
-                    StoredObjectCleanup(
-                        category=StorageUsageCategory.UPLOAD,
-                        object_type="stored_object",
-                        object_id=str(blob.id),
-                        storage_key=blob.object_key,
-                        bytes_count=0,
-                        reason="orphan_blob_deleted",
-                        delete_storage=True,
-                    )
-                )
-        return cleanup_objects
+        await db.commit()
 
     async def _orphan_uploads_after_job_delete(
         self,
@@ -177,53 +120,3 @@ class ImportJobDeletionService:
             if ref_count == 0 and input_ref_count == 0:
                 orphan_uploads.append((upload, _blob))
         return orphan_uploads
-
-    @staticmethod
-    def _object_ids_to_delete(
-        orphan_uploads: list[tuple[Upload, StoredObject]],
-        cleanup_objects: list[StoredObjectCleanup],
-    ) -> set[int]:
-        return {
-            require_persisted_id(blob.id, entity="stored object")
-            for _upload, blob in orphan_uploads
-            if any(
-                item.object_type == "stored_object" and item.object_id == str(blob.id)
-                for item in cleanup_objects
-            )
-        }
-
-    @staticmethod
-    async def _delete_orphan_upload_rows(
-        db: AsyncSession,
-        orphan_uploads: list[tuple[Upload, StoredObject]],
-    ) -> None:
-        for upload, _blob in orphan_uploads:
-            await db.delete(upload)
-        await db.flush()
-
-    @staticmethod
-    async def _delete_orphan_object_rows(db: AsyncSession, object_ids: set[int]) -> None:
-        for stored_object_id in object_ids:
-            blob = await db.get(StoredObject, stored_object_id)
-            if blob is not None:
-                await db.delete(blob)
-
-    async def _delete_storage_and_release_usage(
-        self,
-        db: AsyncSession,
-        user_id: int,
-        cleanup_objects: list[StoredObjectCleanup],
-    ) -> None:
-        for cleanup_object in cleanup_objects:
-            if cleanup_object.delete_storage:
-                self.storage.delete(cleanup_object.storage_key)
-            await storage_usage_service.record_release(
-                db,
-                user_id=user_id,
-                category=cleanup_object.category,
-                bytes_count=cleanup_object.bytes_count,
-                reason=cleanup_object.reason,
-                object_type=cleanup_object.object_type,
-                object_id=cleanup_object.object_id,
-                storage_key=cleanup_object.storage_key,
-            )

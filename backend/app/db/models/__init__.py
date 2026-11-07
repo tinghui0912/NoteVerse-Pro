@@ -78,24 +78,16 @@ from .storage_usage import (
 )
 from .performance_take import (
     PerformanceTake,
-    PerformanceTakeDeletionStatus,
 )
 from .practice_bundle import (
     PracticeBundleRecord,
     PracticeBundleStatus,
     ScoreRevisionPracticeBinding,
 )
-from .practice_bundle_delete_outbox import (
-    PracticeBundleDeleteOutbox,
-    PracticeBundleDeleteOutboxStatus,
-)
 from .performance_take_upload_reservation import (
     PerformanceTakeUploadReservation,
 )
-from .performance_take_delete_outbox import (
-    PerformanceTakeDeleteOutbox,
-    PerformanceTakeDeleteOutboxStatus,
-)
+from .stored_object_retirement import StoredObjectRetirement
 
 __all__ = [
     "User",
@@ -104,6 +96,7 @@ __all__ = [
     "PendingRegistration",
     "EmailChangeRequest",
     "StoredObject",
+    "StoredObjectRetirement",
     "Upload",
     "NotificationEvent",
     "OpsAuditEvent",
@@ -170,14 +163,9 @@ __all__ = [
     "StorageUsageReservationStatus",
     "PerformanceTakeManifest",
     "PerformanceTake",
-    "PerformanceTakeDeletionStatus",
     "PerformanceTakeMediaKind",
     "PracticeBundleRecord",
     "ScoreRevisionPracticeBinding",
     "PracticeBundleStatus",
-    "PracticeBundleDeleteOutbox",
-    "PracticeBundleDeleteOutboxStatus",
     "PerformanceTakeUploadReservation",
-    "PerformanceTakeDeleteOutbox",
-    "PerformanceTakeDeleteOutboxStatus",
 ]

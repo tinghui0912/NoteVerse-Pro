@@ -1,0 +1,41 @@
+from collections.abc import Iterable
+from uuid import uuid4
+from app.core.logger import logger
+from app.db.sync_session import get_worker_db
+from app.modules.storage_objects.retirement import retirement_delivery
+from app.task_queue.producer import send_durable_task
+from app.task_queue.tracing import DurableTraceContext
+
+
+def dispatch_stored_object_retirement(retirement_uuid: str) -> bool:
+    with get_worker_db() as db:
+        if not retirement_delivery.mark_dispatched(db, retirement_uuid):
+            return False
+    return send_durable_task(
+        task_name="app.worker.tasks.stored_object_retirement_task",
+        task_kwargs={"retirement_uuid": retirement_uuid},
+        task_id=uuid4().hex,
+        operation_kind="stored_object_retirement",
+        operation_id=retirement_uuid,
+        span_name="noteverse.stored_object_retirement.dispatch",
+        success_event="stored_object_retirement.dispatched",
+        failure_event="stored_object_retirement.dispatch_failed",
+        log_context={"resource_id": retirement_uuid},
+        trace_context=DurableTraceContext(traceparent=None, tracestate=None),
+        release_dispatch=lambda error: _release(retirement_uuid, error),
+    )
+
+
+def _release(uuid: str, error: str) -> None:
+    with get_worker_db() as db:
+        retirement_delivery.release_dispatch(db, uuid, error)
+
+
+def dispatch_retirements_best_effort(uuids: Iterable[str]) -> None:
+    for uuid in set(uuids):
+        try:
+            dispatch_stored_object_retirement(uuid)
+        except Exception:
+            logger.bind(resource_id=uuid).opt(exception=True).warning(
+                "stored_object_retirement.immediate_dispatch_failed"
+            )

@@ -43,7 +43,6 @@ def test_manifest_and_lifecycle_persistence_ownership():
         "manifest_id",
         "linked_score_id",
         "recording_object_id",
-        "deletion_status",
         "created_at",
         "updated_at",
     }

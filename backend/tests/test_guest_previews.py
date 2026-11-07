@@ -357,7 +357,7 @@ async def test_active_preview_retains_exact_presentation_until_pin_ends(
     add_audio(session, storage, 901)
     created = await previews.create(db, score.score_uuid, 1, GuestPreviewCreateRequest())
     add_head_b(session, score)
-    cleanup = DerivedAssetRetentionService(storage)
+    cleanup = DerivedAssetRetentionService()
     options = dict(score_id=score.id)
 
     async def run_cleanup():
@@ -382,4 +382,8 @@ async def test_active_preview_retains_exact_presentation_until_pin_ends(
     result = await run_cleanup()
     expected_deletions = 0 if end_pin == "revoked" else 1
     assert result.rendered_pages_deleted == result.playback_assets_deleted == expected_deletions
+    assert storage.exists(page_key)
+    from tests.support.retirement import drain_retirements
+
+    assert all(item["status"] == "completed" for item in drain_retirements(session, storage))
     assert not storage.exists(page_key)

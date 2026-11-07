@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.modules.storage_objects.retirement import retire_released_objects
 
 from dataclasses import dataclass
 from sqlalchemy import func, or_, select
@@ -30,14 +31,13 @@ from app.modules.scores.cleanup_records import StorageUsageReleaseRecord
 from app.modules.scores.deletion_failure_policy import ScoreDeletionFailurePolicy
 from app.modules.scores.repository import ScoreRepository
 from app.modules.storage_usage.service import storage_usage_service
-from app.storage import ObjectStorage, object_storage
 from app.utils.timezone import utc_now_naive
 
 
 @dataclass(frozen=True)
 class ScoreDeletionCleanupResult:
     scores_deleted: int = 0
-    storage_objects_deleted: int = 0
+    object_retirements_queued: int = 0
 
 
 class ScoreLifecycleService:
@@ -46,12 +46,10 @@ class ScoreLifecycleService:
     def __init__(
         self,
         repository: ScoreRepository | None = None,
-        storage: ObjectStorage | None = None,
         access_policy: ScoreAccessPolicy | None = None,
         deletion_failure_policy: ScoreDeletionFailurePolicy | None = None,
     ) -> None:
         self.repository = repository or ScoreRepository()
-        self.storage = storage or object_storage
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.deletion_failure_policy = deletion_failure_policy or ScoreDeletionFailurePolicy()
 
@@ -109,8 +107,8 @@ class ScoreLifecycleService:
                 continue
             total = ScoreDeletionCleanupResult(
                 scores_deleted=total.scores_deleted + result.scores_deleted,
-                storage_objects_deleted=(
-                    total.storage_objects_deleted + result.storage_objects_deleted
+                object_retirements_queued=(
+                    total.object_retirements_queued + result.object_retirements_queued
                 ),
             )
         return total
@@ -233,9 +231,7 @@ class ScoreLifecycleService:
         score.head_revision_id = None
         db.delete(score)
         db.flush()
-        for representation in representations:
-            db.delete(representation)
-        upload_keys_to_delete: set[str] = set()
+        released_ids = [representation.id for representation in representations]
         for upload_id in upload_ids_to_maybe_delete:
             import_refs = (
                 db.execute(
@@ -259,21 +255,11 @@ class ScoreLifecycleService:
             stored_object_id, object_key = objects_by_upload[upload_id]
             db.delete(upload)
             db.flush()
-            blob_refs = (
-                db.execute(
-                    select(func.count(Upload.id)).where(Upload.stored_object_id == stored_object_id)
-                )
-            ).scalar_one()
-            if blob_refs == 0:
-                blob = db.get(StoredObject, stored_object_id)
-                if blob is not None:
-                    db.delete(blob)
-                    upload_keys_to_delete.add(object_key)
-        import_cleanup = self._delete_originating_import_job_sync(
+            released_ids.append(stored_object_id)
+        import_cleanup, import_object_ids = self._delete_originating_import_job_sync(
             db,
             originating_job,
         )
-        db.commit()
         for release in usage_releases:
             storage_usage_service.record_release_sync(
                 db,
@@ -284,11 +270,8 @@ class ScoreLifecycleService:
                 object_type=release.object_type,
                 object_id=release.object_id,
                 storage_key=release.storage_key,
+                auto_commit=False,
             )
-        deleted_storage_count = 0
-        for key in storage_keys:
-            if self._delete_storage_best_effort(key):
-                deleted_storage_count += 1
         for release in import_cleanup:
             storage_usage_service.record_release_sync(
                 db,
@@ -299,24 +282,22 @@ class ScoreLifecycleService:
                 object_type=release.object_type,
                 object_id=release.object_id,
                 storage_key=release.storage_key,
+                auto_commit=False,
             )
-            if release.delete_storage and self._delete_storage_best_effort(release.storage_key):
-                deleted_storage_count += 1
-        for object_key in upload_keys_to_delete:
-            if self._delete_storage_best_effort(object_key):
-                deleted_storage_count += 1
+        operations = retire_released_objects(db, *(released_ids + import_object_ids))
+        db.commit()
         return ScoreDeletionCleanupResult(
             scores_deleted=1,
-            storage_objects_deleted=deleted_storage_count,
+            object_retirements_queued=len(operations),
         )
 
     def _delete_originating_import_job_sync(
         self,
         db: Session,
         job: ImportJob | None,
-    ) -> list[StorageUsageReleaseRecord]:
+    ) -> tuple[list[StorageUsageReleaseRecord], list[int]]:
         if job is None:
-            return []
+            return [], []
         job_id = require_persisted_id(job.id, entity="import job")
         artifact_rows = list(
             db.execute(
@@ -350,7 +331,6 @@ class ScoreLifecycleService:
                 object_type="import_artifact",
                 object_id=artifact_uuid,
                 storage_key=storage_key,
-                delete_storage=True,
             )
             for artifact_uuid, storage_key, size_bytes in artifact_rows
         ]
@@ -406,41 +386,13 @@ class ScoreLifecycleService:
         )
         db.delete(job)
         db.flush()
-        for stored_object in objects:
-            db.delete(stored_object)
-        seen_blob_ids: set[int] = set()
-        for (
-            upload_id,
-            _upload_uuid,
-            stored_object_id,
-            storage_key,
-            _size_bytes,
-        ) in orphan_uploads:
+        released_ids = [stored_object.id for stored_object in objects]
+        for upload_id, _upload_uuid, object_id, _key, _size in orphan_uploads:
             upload = db.get(Upload, upload_id)
             if upload is not None:
                 db.delete(upload)
-                db.flush()
-            if stored_object_id in seen_blob_ids:
-                continue
-            seen_blob_ids.add(stored_object_id)
-            blob_refs = db.execute(
-                select(func.count(Upload.id)).where(Upload.stored_object_id == stored_object_id)
-            ).scalar_one()
-            if blob_refs == 0:
-                blob = db.get(StoredObject, stored_object_id)
-                if blob is not None:
-                    db.delete(blob)
-                    cleanup.append(
-                        StorageUsageReleaseRecord(
-                            category=StorageUsageCategory.UPLOAD,
-                            bytes_count=0,
-                            object_type="stored_object",
-                            object_id=str(stored_object_id),
-                            storage_key=storage_key,
-                            delete_storage=True,
-                        )
-                    )
-        return cleanup
+                released_ids.append(object_id)
+        return cleanup, released_ids
 
     def _single_score_originating_job(
         self,
@@ -463,14 +415,6 @@ class ScoreLifecycleService:
         if sibling_count:
             return None
         return db.get(ImportJob, originating_job_id)
-
-    def _delete_storage_best_effort(self, storage_key: str) -> bool:
-        try:
-            self.storage.delete(storage_key)
-            return True
-        except Exception:
-            # Database deletion is authoritative; orphan cleanup retries storage removal.
-            return False
 
 
 score_lifecycle_service = ScoreLifecycleService()

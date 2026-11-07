@@ -9,7 +9,6 @@ from app.db.models.performance_take_manifest import PerformanceTakeManifest
 
 from app.db.models.performance_take import PerformanceTake
 from app.db.models.performance_take_upload_reservation import PerformanceTakeUploadReservation
-from app.db.models.performance_take_delete_outbox import PerformanceTakeDeleteOutbox
 
 
 class PerformanceTakeRepository:
@@ -122,17 +121,6 @@ class PerformanceTakeRepository:
         items = list(result.scalars().all())
         return items, total
 
-    async def delete_take(
-        self,
-        db: AsyncSession,
-        take: PerformanceTake,
-        *,
-        auto_commit: bool = True,
-    ) -> None:
-        await db.delete(take)
-        if auto_commit:
-            await db.commit()
-
     # Reservation methods
     async def create_reservation(
         self,
@@ -215,37 +203,6 @@ class PerformanceTakeRepository:
                 PerformanceTakeUploadReservation.reservation_uuid == reservation_uuid,
             )
             .execution_options(populate_existing=True)
-        )
-        if lock:
-            statement = statement.with_for_update()
-        result = await db.execute(statement)
-        return result.scalars().first()
-
-    # Outbox methods
-    async def create_delete_outbox(
-        self,
-        db: AsyncSession,
-        outbox: PerformanceTakeDeleteOutbox,
-        *,
-        auto_commit: bool = True,
-    ) -> PerformanceTakeDeleteOutbox:
-        db.add(outbox)
-        if auto_commit:
-            await db.commit()
-            await db.refresh(outbox)
-        else:
-            await db.flush()
-        return outbox
-
-    async def get_delete_outbox_by_take_uuid(
-        self,
-        db: AsyncSession,
-        take_uuid: str,
-        *,
-        lock: bool = False,
-    ) -> Optional[PerformanceTakeDeleteOutbox]:
-        statement = select(PerformanceTakeDeleteOutbox).where(
-            PerformanceTakeDeleteOutbox.take_uuid == take_uuid,
         )
         if lock:
             statement = statement.with_for_update()

@@ -12,4 +12,3 @@ class StorageUsageReleaseRecord:
     object_type: str
     object_id: str
     storage_key: str
-    delete_storage: bool = False

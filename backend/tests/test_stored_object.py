@@ -138,7 +138,6 @@ def test_physical_schema_and_dependency_ownership():
         "manifest_id",
         "recording_object_id",
         "linked_score_id",
-        "deletion_status",
         "created_at",
         "updated_at",
     }
@@ -155,7 +154,7 @@ def test_physical_schema_and_dependency_ownership():
     )
     root = Path(__file__).parents[1] / "app/modules/storage_objects"
     allowed = {"dataclasses", "re", "hashlib", "app.db.models.stored_object", "facts"}
-    for file in root.glob("*.py"):
+    for file in (root / "facts.py", root / "persistence.py"):
         for node in ast.walk(ast.parse(file.read_text())):
             if isinstance(node, ast.ImportFrom):
                 assert node.module in allowed

@@ -63,7 +63,7 @@ revisions make score export unavailable; raw Take playback and download remain i
 
 ## Durable verification and retention
 
-practice_bundles owns content identity and CREATING, READY and DELETING lifecycle states.
+practice_bundles owns content identity and CREATING and READY lifecycle states.
 It references exactly two StoredObjects: prepared_musicxml_object and artifact_object.
 Each StoredObject owns its representation locator, exact byte size, SHA256 and content type. Objects use
 `practice-bundles/{bundle_id}/score.musicxml` and `artifact.json`.
@@ -75,9 +75,9 @@ structure; Bundle envelope models reference its generated Python projection.
 
 Only ScoreRevisionPracticeBinding rows retain a Bundle. A READY Bundle with zero bindings
 is eligible for GC. Take and UploadReservation reference one immutable PerformanceTakeManifest, whose detached
-provenance strings retain neither Bundle rows nor objects. The practice_bundle_delete_outbox worker
-rechecks DELETING status and absence of bindings under the Bundle lock before deleting
-its exact physical objects. A new binding cannot attach to a DELETING Bundle.
+provenance strings retain neither Bundle rows nor objects. Bundle GC locks the Bundle, verifies the absence of bindings and removes the semantic row. It then queues each representation's StoredObject independently through the repo-wide reference authority in the same transaction. Another domain reference protects either object without blocking Bundle removal. Stale CREATING recovery uses the same release path.
+
+Binding creation and GC serialize through Bundle/Binding database locks. A binding that wins retains the Bundle. GC that wins removes that generation; subsequent construction uses normal content-addressed creation and safe StoredObject acquisition. Shared durable-read locks fence GC until representation verification completes. Physical deletion is owned by StoredObjectRetirement and never runs synchronously in Bundle GC.
 
 ## Save and browser admission
 

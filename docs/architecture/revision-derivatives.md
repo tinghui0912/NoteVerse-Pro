@@ -16,7 +16,7 @@ Other historical presentation rows, storage objects and derived usage are eligib
 cleanup immediately, even while the new head's render/audio are pending. Canonical
 MusicXML snapshots and PracticeBundle ownership are independent and remain durable.
 
-Post-save/restore cleanup and post-commit Preview revoke/delete cleanup are best effort.
+Post-save/restore cleanup and post-commit Preview revoke/delete cleanup release semantic asset references and accounting, then queue unreferenced StoredObjects for durable physical retirement.
 The daily Beat pass reconciles expired pins and remaining disposable presentation.
 Cleanup locks Score and reads its current head plus active pins; callers supply no head
 snapshot or history-window policy.

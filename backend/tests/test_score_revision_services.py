@@ -151,6 +151,9 @@ class AsyncSessionAdapter:
     def __init__(self, session: Session) -> None:
         self.session = session
 
+    async def run_sync(self, function, *args, **kwargs):
+        return function(self.session, *args, **kwargs)
+
     async def execute(self, statement, params=None, *args, **kwargs):
         return self.session.execute(statement, params=params, *args, **kwargs)
 
@@ -1479,7 +1482,7 @@ async def test_derived_asset_retention_protects_current_head_only(
             ]
         )
     session.commit()
-    service = DerivedAssetRetentionService(storage=storage)
+    service = DerivedAssetRetentionService()
 
     result = await service.cleanup_for_score(  # type: ignore[arg-type]
         AsyncSessionAdapter(session),
@@ -1491,6 +1494,11 @@ async def test_derived_asset_retention_protects_current_head_only(
     assert count_rows(session, ScoreRenderAsset, kind=RenderAssetKind.RENDERED_PAGE) == 1
     assert count_rows(session, ScorePlaybackAsset) == 1
     assert count_rows(session, ScoreRevisionSource, format=RevisionSourceFormat.MUSICXML) == 5
+    from tests.support.retirement import drain_retirements
+
+    assert result.object_retirements_queued == 8
+    assert all(storage.exists(key) for key in stored_keys.values())
+    assert all(item["status"] == "completed" for item in drain_retirements(session, storage))
     for number in (1, 2, 3, 4):
         assert not storage.exists(stored_keys[f"render-{number}"])
         assert not storage.exists(stored_keys[f"audio-{number}"])

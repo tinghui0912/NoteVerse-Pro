@@ -1039,8 +1039,8 @@ persistence, cleanup and object ownership.
 Reservation and Take reference the same immutable PerformanceTakeManifest row. A unique
 Take.manifest_id permits at most one Take per Manifest. Manifest owns the sole public Take UUID
 and admitted performance/source Capture facts. StoredObject owns verified durable server-byte facts;
-Take joins both and owns library/deletion lifecycle.
-Neither retains PracticeBundle. Playback/listing consume Manifest semantic facts and Blob physical facts after Bundle GC.
+Take joins both and owns library membership.
+Neither retains PracticeBundle. Playback/listing consume Manifest semantic facts and StoredObject physical facts after Bundle GC.
 Reservation alone owns client_request_id and upload lifecycle; its owner is database-constrained
 to match Manifest.user_id. Take deletion preserves Manifest and Reservation lineage.
 
@@ -1260,12 +1260,12 @@ Explicit tempo interpretation and the cross-runtime missing-tempo policy belong 
 ## Saved media physical authority
 
 Manifest.capture is the source Capture admission snapshot. StoredObject is the immutable durable
-archive observation: backend/key, exact bytes, canonical MIME and a SHA-256 computed by reading
-the complete candidate. PerformanceTake references one Manifest and one unique StoredObject.
+archive observation: object key, exact bytes, canonical MIME and a SHA-256 computed by reading
+the complete candidate. PerformanceTake references one Manifest and one recording StoredObject.
 There is no shared-hash deduplication, refcount or Blob upload lifecycle.
 
-Completed Take.archive_media exposes Blob MIME/size without locator/hash. Raw playback/download
-and saved media materialization use Blob facts; Capture kind and performance context remain
-Manifest facts. Take hydration rejects archive/Capture disagreement. DeleteOutbox snapshots the
-physical deletion operation; completion deletes Take and Blob together while retaining Manifest
-and Reservation. StorageUsage owns accounting, not byte-object identity.
+Completed Take.archive_media exposes StoredObject MIME/size without locator/hash. Raw playback/download
+and saved media materialization use StoredObject facts; Capture kind and performance context remain
+Manifest facts. Take hydration rejects archive/Capture disagreement. Take deletion releases semantic ownership
+and accounting while retaining Manifest and Reservation. StoredObjectRetirement queues physical deletion
+only after all semantic references disappear. StorageUsage owns accounting, not byte-object identity.

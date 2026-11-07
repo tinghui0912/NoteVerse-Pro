@@ -151,7 +151,7 @@ async def test_identical_content_across_scores_shares_one_bundle_two_bindings(po
 async def test_binding_cascade_retains_shared_bundle_until_last_revision_deleted(postgres_bundle):
     from sqlalchemy import delete
     from app.db.models import ScoreRevisionPracticeBinding
-    from app.modules.practice.bundle.retention import practice_bundle_delete_service
+    from app.modules.practice.bundle.retention import practice_bundle_retention
 
     engine, repository, bundle, storage = postgres_bundle
     sessions = async_sessionmaker(engine, expire_on_commit=False)
@@ -178,7 +178,7 @@ async def test_binding_cascade_retains_shared_bundle_until_last_revision_deleted
         assert await db.get(ScoreRevisionPracticeBinding, repository.test_revision_id) is None
         assert (
             await db.run_sync(
-                lambda sync: practice_bundle_delete_service.recover_unowned_ready(
+                lambda sync: practice_bundle_retention.collect_unowned_ready(
                     sync,
                 )
             )
@@ -188,43 +188,43 @@ async def test_binding_cascade_retains_shared_bundle_until_last_revision_deleted
         await db.execute(delete(ScoreRevision).where(ScoreRevision.id == second_id))
         await db.commit()
         due = await db.run_sync(
-            lambda sync: practice_bundle_delete_service.recover_unowned_ready(
+            lambda sync: practice_bundle_retention.collect_unowned_ready(
                 sync,
             )
         )
         await db.commit()
-        assert len(due) == 1
-        assert (await db.get(PracticeBundleRecord, ref.id)).status == "DELETING"
+        assert len(due) == 2
+        assert await db.get(PracticeBundleRecord, ref.id) is None
 
 
 @pytest.mark.asyncio
-async def test_gc_marked_bundle_cannot_receive_a_new_binding(postgres_bundle):
+async def test_collected_bundle_rebinds_only_through_fenced_object_adoption(postgres_bundle):
     from sqlalchemy import delete
-    from app.modules.practice.bundle.retention import practice_bundle_delete_service
+    from app.db.models import ScoreRevisionPracticeBinding, StoredObjectRetirement
+    from app.modules.practice.bundle.retention import practice_bundle_retention
 
     engine, repository, bundle, storage = postgres_bundle
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     async with sessions() as db:
         ref, _ = await repository.get_or_create(db, bundle, revision_id=repository.test_revision_id)
-        from app.db.models import ScoreRevisionPracticeBinding
-
         await db.execute(delete(ScoreRevisionPracticeBinding))
+        due = await db.run_sync(lambda sync: practice_bundle_retention.retire_unowned(sync, ref.id))
         await db.commit()
-        await db.run_sync(
-            lambda sync: practice_bundle_delete_service.enqueue_if_unowned(
-                sync,
-                ref.id,
-            )
+        assert len(due) == 2
+        rebound, verified = await repository.get_or_create(
+            db, bundle, revision_id=repository.test_revision_id
         )
-        await db.commit()
-        with pytest.raises(ValidationException):
-            await repository.get_or_create(db, bundle, revision_id=repository.test_revision_id)
-        await db.rollback()
+        assert verified.bundle_id == bundle.bundle_id
+        assert (await repository.read_bound(db, repository.test_revision_id))[0] == rebound
+        assert all(
+            op.status == "CANCELLED"
+            for op in (await db.scalars(select(StoredObjectRetirement))).all()
+        )
 
 
 @pytest.mark.asyncio
 async def test_binding_committed_before_gc_protects_the_bundle(postgres_bundle):
-    from app.modules.practice.bundle.retention import practice_bundle_delete_service
+    from app.modules.practice.bundle.retention import practice_bundle_retention
 
     engine, repository, bundle, storage = postgres_bundle
     sessions = async_sessionmaker(engine, expire_on_commit=False)
@@ -232,12 +232,12 @@ async def test_binding_committed_before_gc_protects_the_bundle(postgres_bundle):
         ref, _ = await repository.get_or_create(a, bundle, revision_id=repository.test_revision_id)
         assert (
             await b.run_sync(
-                lambda sync: practice_bundle_delete_service.enqueue_if_unowned(
+                lambda sync: practice_bundle_retention.retire_unowned(
                     sync,
                     ref.id,
                 )
             )
-            is None
+            == []
         )
         await b.commit()
         assert (await repository.read_bound(a, repository.test_revision_id))[0] == ref
@@ -265,7 +265,7 @@ async def test_durable_representation_corruption_fails_closed(postgres_bundle, r
 async def test_binding_and_gc_serialize_on_bundle_row(postgres_bundle, winner):
     from sqlalchemy import delete
     from app.db.models import ScoreRevisionPracticeBinding
-    from app.modules.practice.bundle.retention import practice_bundle_delete_service
+    from app.modules.practice.bundle.retention import practice_bundle_retention
 
     engine, repository, bundle, storage = postgres_bundle
     sessions = async_sessionmaker(engine, expire_on_commit=False)
@@ -296,7 +296,7 @@ async def test_binding_and_gc_serialize_on_bundle_row(postgres_bundle, winner):
                 await blocked(observer, pid)
                 assert not binding.done()
                 outbox = await gc.run_sync(
-                    lambda sync: practice_bundle_delete_service.enqueue_if_unowned(
+                    lambda sync: practice_bundle_retention.retire_unowned(
                         sync,
                         ref.id,
                     )
@@ -304,10 +304,9 @@ async def test_binding_and_gc_serialize_on_bundle_row(postgres_bundle, winner):
                 assert outbox is not None
             finally:
                 await gc.commit()
-            with pytest.raises(ValidationException):
-                await asyncio.wait_for(binding, 10)
-            await bind.rollback()
-            assert await bind.scalar(select(ScoreRevisionPracticeBinding)) is None
+            rebound, verified = await asyncio.wait_for(binding, 10)
+            assert verified.bundle_id == bundle.bundle_id
+            assert (await repository.read_bound(bind, repository.test_revision_id))[0] == rebound
     else:
         ready, release = asyncio.Event(), asyncio.Event()
 
@@ -329,7 +328,7 @@ async def test_binding_and_gc_serialize_on_bundle_row(postgres_bundle, winner):
             pid = await gc.scalar(text("SELECT pg_backend_pid()"))
             collecting = asyncio.create_task(
                 gc.run_sync(
-                    lambda sync: practice_bundle_delete_service.enqueue_if_unowned(
+                    lambda sync: practice_bundle_retention.retire_unowned(
                         sync,
                         ref.id,
                     )
@@ -341,7 +340,7 @@ async def test_binding_and_gc_serialize_on_bundle_row(postgres_bundle, winner):
             finally:
                 release.set()
             assert (await asyncio.wait_for(binding, 10))[0] == ref
-            assert await asyncio.wait_for(collecting, 10) is None
+            assert await asyncio.wait_for(collecting, 10) == []
             await gc.commit()
             assert (await repository.read_bound(gc, repository.test_revision_id))[0] == ref
 
@@ -351,7 +350,7 @@ async def test_interrupted_creation_has_durable_lease_for_orphan_cleanup(postgre
     from datetime import timedelta
     from unittest.mock import patch
     from app.db.models import ScoreRevisionPracticeBinding
-    from app.modules.practice.bundle.retention import practice_bundle_delete_service
+    from app.modules.practice.bundle.retention import practice_bundle_retention
     from app.utils.timezone import utc_now_naive
 
     engine, repository, bundle, storage = postgres_bundle
@@ -379,12 +378,12 @@ async def test_interrupted_creation_has_durable_lease_for_orphan_cleanup(postgre
         row.creation_expires_at = utc_now_naive() - timedelta(seconds=1)
         await db.commit()
         due = await db.run_sync(
-            lambda sync: practice_bundle_delete_service.recover_stale_creating(
+            lambda sync: practice_bundle_retention.recover_stale_creating(
                 sync,
             )
         )
         await db.commit()
-        assert len(due) == 1 and row.status == "DELETING"
+        assert len(due) == 2 and await db.scalar(select(PracticeBundleRecord)) is None
 
 
 @pytest.mark.asyncio
@@ -397,7 +396,7 @@ async def test_bound_readers_share_locks_and_fence_gc_during_verification(
     from app.db.models import ScoreMembership
     from app.db.models.score_access import MembershipRole
     from app.modules.practice.bundle.service import PracticeBundleService
-    from app.modules.practice.bundle.retention import practice_bundle_delete_service
+    from app.modules.practice.bundle.retention import practice_bundle_retention
 
     engine, repository, bundle, storage = postgres_bundle
     sessions = async_sessionmaker(engine, expire_on_commit=False)
@@ -495,7 +494,7 @@ async def test_bound_readers_share_locks_and_fence_gc_during_verification(
                     pid = await gc.scalar(text("SELECT pg_backend_pid()"))
                     collecting = asyncio.create_task(
                         gc.run_sync(
-                            lambda sync: practice_bundle_delete_service.enqueue_if_unowned(
+                            lambda sync: practice_bundle_retention.retire_unowned(
                                 sync,
                                 ref.id,
                             )
@@ -517,7 +516,7 @@ async def test_bound_readers_share_locks_and_fence_gc_during_verification(
                     assert (
                         await asyncio.wait_for(first_read, 10)
                     ).binding.bundle_id == ref.bundle_id
-                    assert await asyncio.wait_for(collecting, 10) is None
+                    assert await asyncio.wait_for(collecting, 10) == []
                     await gc.commit()
             finally:
                 release.set()

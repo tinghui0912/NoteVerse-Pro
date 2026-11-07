@@ -352,7 +352,7 @@ async def test_exact_bundle_admission_lock_fences_owner_release_until_reservatio
 ):
     from sqlalchemy import delete, text, update
     from app.db.models import Score, ScoreRevision, PracticeBundleRecord
-    from app.modules.practice.bundle.retention import practice_bundle_delete_service
+    from app.modules.practice.bundle.retention import practice_bundle_retention
 
     sessions, source, storage, request = await setup_bundle(postgres_bundle)
     service = PerformanceTakeUploadService(storage=storage, practice_bundle_service=source)
@@ -412,14 +412,14 @@ async def test_exact_bundle_admission_lock_fences_owner_release_until_reservatio
         assert (
             len(
                 await b.run_sync(
-                    lambda db: practice_bundle_delete_service.recover_unowned_ready(
+                    lambda db: practice_bundle_retention.collect_unowned_ready(
                         db,
                     )
                 )
             )
-            == 1
+            == 2
         )
-        assert row.status == "DELETING"
+        assert await b.get(PracticeBundleRecord, row.id) is None
 
 
 @pytest.mark.asyncio

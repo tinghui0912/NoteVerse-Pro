@@ -3,15 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import timedelta
 
-from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.logger import logger
-from app.db.models import StoredObject, StorageUsageCategory, Upload
+from app.db.models import StoredObject, StorageUsageCategory
 from app.modules.import_jobs.repository import SyncImportJobRepository
 from app.modules.storage_usage.service import storage_usage_service
-from app.storage import ObjectStorage, object_storage
+from app.modules.storage_objects.retirement import retire_released_objects
 from app.utils.timezone import utc_now_naive
 
 
@@ -24,10 +23,8 @@ class ImportJobMaintenanceService:
     def __init__(
         self,
         repository: SyncImportJobRepository | None = None,
-        storage: ObjectStorage | None = None,
     ) -> None:
         self.repository = repository or SyncImportJobRepository()
-        self.storage = storage or object_storage
 
     def run(self, db: Session) -> JobMaintenanceResult:
         return JobMaintenanceResult(
@@ -39,34 +36,27 @@ class ImportJobMaintenanceService:
         deleted = 0
         for upload in self.repository.list_orphan_uploads(db, cutoff):
             try:
-                blob = db.get(StoredObject, upload.stored_object_id)
-                if blob is None:
+                with db.begin_nested():
+                    blob = db.get(StoredObject, upload.stored_object_id)
+                    if blob is None:
+                        db.delete(upload)
+                        deleted += 1
+                        continue
+                    if upload.uploader_user_id is not None and blob.byte_size:
+                        storage_usage_service.record_release_sync(
+                            db,
+                            user_id=upload.uploader_user_id,
+                            category=StorageUsageCategory.UPLOAD,
+                            bytes_count=blob.byte_size,
+                            reason="orphan_upload_deleted",
+                            object_type="upload",
+                            object_id=upload.upload_uuid,
+                            storage_key=blob.object_key,
+                            auto_commit=False,
+                        )
                     db.delete(upload)
+                    retire_released_objects(db, blob.id)
                     deleted += 1
-                    continue
-                blob_ref_count = db.execute(
-                    select(func.count(Upload.id)).where(
-                        Upload.stored_object_id == upload.stored_object_id
-                    )
-                ).scalar_one()
-                should_delete_blob = blob_ref_count <= 1
-                if upload.uploader_user_id is not None and blob.byte_size:
-                    storage_usage_service.record_release_sync(
-                        db,
-                        user_id=upload.uploader_user_id,
-                        category=StorageUsageCategory.UPLOAD,
-                        bytes_count=blob.byte_size,
-                        reason="orphan_upload_deleted",
-                        object_type="upload",
-                        object_id=upload.upload_uuid,
-                        storage_key=blob.object_key,
-                    )
-                db.delete(upload)
-                if should_delete_blob:
-                    db.delete(blob)
-                    db.flush()
-                    self.storage.delete(blob.object_key)
-                deleted += 1
             except Exception as exc:
                 logger.bind(
                     event="import_job.orphan_upload_delete_failed",

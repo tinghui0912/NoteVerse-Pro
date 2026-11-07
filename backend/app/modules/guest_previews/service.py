@@ -122,9 +122,7 @@ class GuestPreviewService:
             db.add(preview)
         score_id = preview.score_id
         await db.commit()
-        await DerivedAssetRetentionService(storage=self.storage).cleanup_for_score_best_effort(
-            db, score_id=score_id
-        )
+        await DerivedAssetRetentionService().cleanup_for_score_best_effort(db, score_id=score_id)
         await db.refresh(preview)
         return self._read(preview)
 
@@ -133,9 +131,7 @@ class GuestPreviewService:
         score_id = preview.score_id
         await db.delete(preview)
         await db.commit()
-        await DerivedAssetRetentionService(storage=self.storage).cleanup_for_score_best_effort(
-            db, score_id=score_id
-        )
+        await DerivedAssetRetentionService().cleanup_for_score_best_effort(db, score_id=score_id)
 
     async def read(self, db: AsyncSession, token: str) -> GuestPreviewRead:
         preview, score = await self._authorize(db, token)

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.modules.storage_objects.retirement import retire_after_release, retire_released_objects
 
 import os
 import tempfile
@@ -115,38 +116,39 @@ class RevisionRenderService:
         try:
             for item in previous:
                 await db.delete(item)
-                await db.delete(item.stored_object)
+                await retire_after_release(db, item.stored_object_id)
             await db.flush()
             for item in new_records:
                 db.add(item)
+            for item in new_records:
+                await storage_usage_service.record_allocation(
+                    db,
+                    user_id=access.score.owner_user_id,
+                    category=StorageUsageCategory.DERIVED_RENDER,
+                    bytes_count=item.stored_object.byte_size or 0,
+                    reason="render_asset_created",
+                    object_type="score_render_asset",
+                    object_id=item.asset_uuid,
+                    storage_key=item.stored_object.object_key,
+                    auto_commit=False,
+                )
+            for usage in previous_usage:
+                await storage_usage_service.record_release(
+                    db,
+                    user_id=access.score.owner_user_id,
+                    category=StorageUsageCategory.DERIVED_RENDER,
+                    bytes_count=usage.size_bytes or 0,
+                    reason="render_asset_replaced",
+                    object_type="score_render_asset",
+                    object_id=usage.asset_uuid,
+                    storage_key=usage.storage_key,
+                    auto_commit=False,
+                )
             await db.commit()
         except Exception:
             await db.rollback()
             self._delete_storage_keys_best_effort(uploaded_keys)
             raise
-        for item in new_records:
-            await storage_usage_service.record_allocation(
-                db,
-                user_id=access.score.owner_user_id,
-                category=StorageUsageCategory.DERIVED_RENDER,
-                bytes_count=item.stored_object.byte_size or 0,
-                reason="render_asset_created",
-                object_type="score_render_asset",
-                object_id=item.asset_uuid,
-                storage_key=item.stored_object.object_key,
-            )
-        for usage in previous_usage:
-            await storage_usage_service.record_release(
-                db,
-                user_id=access.score.owner_user_id,
-                category=StorageUsageCategory.DERIVED_RENDER,
-                bytes_count=usage.size_bytes or 0,
-                reason="render_asset_replaced",
-                object_type="score_render_asset",
-                object_id=usage.asset_uuid,
-                storage_key=usage.storage_key,
-            )
-        self._delete_render_assets_best_effort(previous)
         return [self.asset_service.render_asset_read(item, revision) for item in new_records]
 
     def render_for_worker(
@@ -215,39 +217,40 @@ class RevisionRenderService:
             previous_usage = render_asset_usage(previous)
             for item in previous:
                 db.delete(item)
-                db.delete(item.stored_object)
+                retire_released_objects(db, item.stored_object_id)
             db.flush()
             for item in new_records:
                 db.add(item)
+            for item in new_records:
+                storage_usage_service.record_allocation_sync(
+                    db,
+                    user_id=score.owner_user_id,
+                    category=StorageUsageCategory.DERIVED_RENDER,
+                    bytes_count=item.stored_object.byte_size or 0,
+                    reason="render_asset_created",
+                    object_type="score_render_asset",
+                    object_id=item.asset_uuid,
+                    storage_key=item.stored_object.object_key,
+                    auto_commit=False,
+                )
+            for usage in previous_usage:
+                storage_usage_service.record_release_sync(
+                    db,
+                    user_id=score.owner_user_id,
+                    category=StorageUsageCategory.DERIVED_RENDER,
+                    bytes_count=usage.size_bytes or 0,
+                    reason="render_asset_replaced",
+                    object_type="score_render_asset",
+                    object_id=usage.asset_uuid,
+                    storage_key=usage.storage_key,
+                    auto_commit=False,
+                )
             db.commit()
         except Exception:
             db.rollback()
             self._delete_storage_keys_best_effort(uploaded_keys)
             raise
 
-        for item in new_records:
-            storage_usage_service.record_allocation_sync(
-                db,
-                user_id=score.owner_user_id,
-                category=StorageUsageCategory.DERIVED_RENDER,
-                bytes_count=item.stored_object.byte_size or 0,
-                reason="render_asset_created",
-                object_type="score_render_asset",
-                object_id=item.asset_uuid,
-                storage_key=item.stored_object.object_key,
-            )
-        for usage in previous_usage:
-            storage_usage_service.record_release_sync(
-                db,
-                user_id=score.owner_user_id,
-                category=StorageUsageCategory.DERIVED_RENDER,
-                bytes_count=usage.size_bytes or 0,
-                reason="render_asset_replaced",
-                object_type="score_render_asset",
-                object_id=usage.asset_uuid,
-                storage_key=usage.storage_key,
-            )
-        self._delete_render_assets_best_effort(previous)
         return new_records
 
     def _render_records(
@@ -310,9 +313,6 @@ class RevisionRenderService:
                     )
                 )
         return new_records
-
-    def _delete_render_assets_best_effort(self, assets: list[ScoreRenderAsset]) -> None:
-        self._delete_storage_keys_best_effort([item.stored_object.object_key for item in assets])
 
     def _delete_storage_keys_best_effort(self, storage_keys: list[str]) -> None:
         for key in storage_keys:

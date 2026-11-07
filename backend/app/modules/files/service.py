@@ -14,6 +14,7 @@ from app.core.exceptions import (
 from app.db.model_utils import require_persisted_id
 from app.db.models import StoredObject, StorageUsageCategory, User
 from app.modules.files.repository import FilesRepository
+from app.modules.storage_objects.retirement import retain_for_reference, retire_after_release
 from app.modules.storage_objects.persistence import object_from_bytes
 from app.modules.files.schemas import DeleteUploadedFileRead, UploadFileRead
 from app.modules.storage_usage.service import storage_usage_service
@@ -66,9 +67,16 @@ class FilesService:
             object_id=file_hash,
         )
         blob = await self.repository.get_upload_object_by_sha256(db, file_hash)
+        if blob is None:
+            key = blob_object_key(file_hash, extension)
+            blob = await self.repository.get_object_by_key(db, key)
+        if blob is not None:
+            blob = await db.run_sync(lambda sync: retain_for_reference(sync, blob.id))
         stored = None
         creates_object = blob is None
         try:
+            if blob is not None and (blob.sha256 != file_hash or blob.byte_size != len(content)):
+                raise ValueError("Upload key disagrees with immutable physical facts")
             if blob is None:
                 key = blob_object_key(file_hash, extension)
                 if self.storage.exists(key):
@@ -149,12 +157,7 @@ class FilesService:
         await self.repository.delete_upload_by_id(
             db, require_persisted_id(upload.id, entity="upload")
         )
-        await db.flush()
-        stored_object_id = require_persisted_id(blob.id, entity="stored object")
-        should_delete_blob = await self.repository.object_upload_count(db, stored_object_id) == 0
-        if should_delete_blob:
-            await self.repository.delete_object_by_id(db, stored_object_id)
-        await db.commit()
+        await retire_after_release(db, blob.id)
         await storage_usage_service.record_release(
             db,
             user_id=require_persisted_id(current_user.id, entity="user"),
@@ -164,12 +167,9 @@ class FilesService:
             object_type="upload",
             object_id=upload_uuid,
             storage_key=storage_key,
+            auto_commit=False,
         )
-        if should_delete_blob:
-            try:
-                self.storage.delete(storage_key)
-            except Exception as exc:
-                raise FileException(ErrorCode.FILE_DELETE_FAILED, filename) from exc
+        await db.commit()
         return DeleteUploadedFileRead(filename=filename)
 
 

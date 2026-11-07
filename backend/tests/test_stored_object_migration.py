@@ -332,7 +332,7 @@ def test_every_durable_representation_backfills_its_exact_reference(monkeypatch)
                 artifact_byte_size=3,
             )
             insert(manifest_to_row(value()))
-            insert(PerformanceTake(manifest_id=1), media_blob_id=1)
+            insert(PerformanceTake(manifest_id=1), media_blob_id=1, deletion_status="ACTIVE")
         command.upgrade(config, "head")
         current = tables(engine)
         with engine.connect() as db:

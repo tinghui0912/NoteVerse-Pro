@@ -78,6 +78,9 @@ class AsyncSessionAdapter:
     def __init__(self, session: Session) -> None:
         self.session = session
 
+    async def run_sync(self, function, *args, **kwargs):
+        return function(self.session, *args, **kwargs)
+
     async def execute(self, statement, params=None, *args, **kwargs):  # type: ignore[no-untyped-def]
         return self.session.execute(statement, params=params, *args, **kwargs)
 
@@ -570,6 +573,10 @@ async def test_score_delete_releases_source_usage_and_storage_object(
     assert account is not None
     assert account.used_bytes == 0
     assert counter.used_bytes == 0
+    assert storage.exists(source_storage_key)
+    from tests.support.retirement import drain_retirements
+
+    assert all(item["status"] == "completed" for item in drain_retirements(session, storage))
     assert not storage.exists(source_storage_key)
 
 
@@ -587,7 +594,7 @@ def test_score_deletion_cleanup_records_retry_state_on_failure(
     session.add(score)
     session.commit()
 
-    lifecycle = ScoreLifecycleService(storage=storage)
+    lifecycle = ScoreLifecycleService()
 
     def fail_cleanup(db: Session, cleanup_score: Score) -> object:
         _ = db, cleanup_score
@@ -719,6 +726,10 @@ async def test_score_delete_cleans_single_origin_import_job_storage(
     assert session.get(Score, score.id) is None
     assert session.get(ImportJob, 1201) is None
     assert session.get(Upload, 1202) is None
+    assert storage.exists(source_storage_key)
+    from tests.support.retirement import drain_retirements
+
+    assert all(item["status"] == "completed" for item in drain_retirements(session, storage))
     assert not storage.exists(source_storage_key)
     assert not storage.exists(upload_storage_key)
     assert not storage.exists(review_source_storage_key)
@@ -828,6 +839,10 @@ async def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
 
     assert session.get(ImportJob, 1001) is None
     assert session.get(Upload, 1002) is None
+    assert storage.exists(upload.object_key)
+    from tests.support.retirement import drain_retirements
+
+    assert all(item["status"] == "completed" for item in drain_retirements(session, storage))
     assert not storage.exists(upload.object_key)
     assert not storage.exists(review_source.object_key)
     assert not storage.exists(thumbnail.object_key)
@@ -962,6 +977,10 @@ async def test_files_owns_sha_key_dedup_and_last_upload_deletion(
     await service.delete_uploaded_file(db, user, first.file_id)
     assert storage.exists(key)
     await service.delete_uploaded_file(db, user, second.file_id)
+    assert storage.exists(key)
+    from tests.support.retirement import drain_retirements
+
+    assert drain_retirements(session, storage)[0]["status"] == "completed"
     assert not storage.exists(key)
     assert not session.scalars(select(StoredObject)).all()
     account = session.get(StorageUsageAccount, 1)

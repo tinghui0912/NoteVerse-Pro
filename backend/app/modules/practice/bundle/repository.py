@@ -9,7 +9,9 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.storage_objects.persistence import object_from_bytes, object_from_row
+from app.modules.storage_objects.persistence import object_from_row
+from app.modules.storage_objects.adoption import adopt_verified_object
+from app.modules.storage_objects.facts import StoredObjectFacts
 from app.core.exceptions import ValidationException, ResourceNotFoundException
 from app.db.model_utils import require_persisted_id
 from app.db.models import ScoreRevisionPracticeBinding, ScoreRevision, Score, ScoreDeletionStatus
@@ -32,7 +34,7 @@ from .domain import (
 )
 from app.modules.practice.score.generated.artifact_transport import PracticeScoreArtifactRead
 from app.modules.practice.score.artifact_validation import validate_practice_score_artifact
-from .retention import practice_bundle_delete_service
+from .retention import practice_bundle_retention
 
 BUNDLE_CREATION_LEASE_SECONDS = 15 * 60
 
@@ -124,27 +126,37 @@ class PracticeBundleRepository:
             )
         ).scalar_one_or_none()
         if row is None:
-            row = PracticeBundleRecord(
-                bundle_id=bundle.bundle_id,
-                artifact_id=bundle.artifact.artifact_id,
-                artifact_schema_version=bundle.artifact.schema_version,
-                prepared_musicxml_object=object_from_bytes(
-                    object_key=f"practice-bundles/{bundle.bundle_id}/score.musicxml",
-                    content=bundle.prepared_musicxml.data,
-                    content_type=bundle.prepared_musicxml.mime_type,
-                ),
-                artifact_object=object_from_bytes(
-                    object_key=f"practice-bundles/{bundle.bundle_id}/artifact.json",
-                    content=bundle.artifact.representation.data,
-                    content_type=bundle.artifact.representation.mime_type,
-                ),
-                status=PracticeBundleStatus.CREATING.value,
-                creation_expires_at=utc_now_naive()
-                + timedelta(seconds=BUNDLE_CREATION_LEASE_SECONDS),
-            )
             created = False
             try:
                 async with db.begin_nested():
+                    row = PracticeBundleRecord(
+                        bundle_id=bundle.bundle_id,
+                        artifact_id=bundle.artifact.artifact_id,
+                        artifact_schema_version=bundle.artifact.schema_version,
+                        prepared_musicxml_object=await db.run_sync(
+                            lambda sync: adopt_verified_object(
+                                sync,
+                                StoredObjectFacts.from_bytes(
+                                    object_key=f"practice-bundles/{bundle.bundle_id}/score.musicxml",
+                                    content=bundle.prepared_musicxml.data,
+                                    content_type=bundle.prepared_musicxml.mime_type,
+                                ),
+                            )
+                        ),
+                        artifact_object=await db.run_sync(
+                            lambda sync: adopt_verified_object(
+                                sync,
+                                StoredObjectFacts.from_bytes(
+                                    object_key=f"practice-bundles/{bundle.bundle_id}/artifact.json",
+                                    content=bundle.artifact.representation.data,
+                                    content_type=bundle.artifact.representation.mime_type,
+                                ),
+                            )
+                        ),
+                        status=PracticeBundleStatus.CREATING.value,
+                        creation_expires_at=utc_now_naive()
+                        + timedelta(seconds=BUNDLE_CREATION_LEASE_SECONDS),
+                    )
                     db.add(row)
                     await db.flush()
                 created = True
@@ -189,7 +201,7 @@ class PracticeBundleRepository:
                         raise ValueError("Practice bundle storage read-back mismatch")
             except Exception as error:
                 await db.run_sync(
-                    lambda sync: practice_bundle_delete_service.discard_creation(sync, row.id)
+                    lambda sync: practice_bundle_retention.discard_creation(sync, row.id)
                 )
                 await db.commit()
                 raise ValidationException(

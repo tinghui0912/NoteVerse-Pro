@@ -7,16 +7,16 @@ typed projection; group names do not imply a separate deployment or database.
 
 ## Ownership
 
-| Responsibility | Typed settings and consumers |
-| --- | --- |
-| HTTP identity and security | Service identity, browser CORS, trusted proxies, customer session security and token signing; API/shared HTTP adapters |
-| Data and queues | Async/sync database, queue and Beat scheduler settings; API, Worker and Beat according to role |
-| Storage and delivery | Storage, upload admission, model/render/playback delivery; storage and asset adapters |
-| Async policy | Import dispatch, mail delivery, task reliability, notification/realtime retention, score/performance-take deletion; domain services and Worker scans |
-| Worker execution | Worker runtime/model engine and playback settings; Worker startup and engines |
-| Account and frontend links | Transactional mail provider, account email links, public frontend URL; account/invite services |
-| Observability | Structured logging and explicit OTLP settings; API, control plane, exporter and Worker |
-| Interactive fingering | Fingering execution settings; API computation boundary |
+| Responsibility             | Typed settings and consumers                                                                                                                                               |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| HTTP identity and security | Service identity, browser CORS, trusted proxies, customer session security and token signing; API/shared HTTP adapters                                                     |
+| Data and queues            | Async/sync database, queue and Beat scheduler settings; API, Worker and Beat according to role                                                                             |
+| Storage and delivery       | Storage, upload admission, model/render/playback delivery; storage and asset adapters                                                                                      |
+| Async policy               | Import dispatch, mail delivery, task reliability, notification/realtime retention, score deletion, Bundle GC and StoredObject retirement; domain services and Worker scans |
+| Worker execution           | Worker runtime/model engine and playback settings; Worker startup and engines                                                                                              |
+| Account and frontend links | Transactional mail provider, account email links, public frontend URL; account/invite services                                                                             |
+| Observability              | Structured logging and explicit OTLP settings; API, control plane, exporter and Worker                                                                                     |
+| Interactive fingering      | Fingering execution settings; API computation boundary                                                                                                                     |
 
 Control-plane identity is loaded separately by `ControlPlaneRuntimeSettings`.
 Its cookie, CSRF and CORS policy does not inherit customer authentication.

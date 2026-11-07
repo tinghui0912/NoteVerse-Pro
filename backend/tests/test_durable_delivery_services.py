@@ -10,9 +10,7 @@ from sqlmodel import SQLModel, Session, create_engine
 from app.core.config import settings
 from app.db.models import (
     MailOutbox,
-    PerformanceTakeDeleteOutbox,
     PlaybackOutbox,
-    PracticeBundleDeleteOutbox,
     RenderOutbox,
     RenderTargetType,
 )
@@ -49,24 +47,6 @@ CASES = [
             recipient="reader@example.test",
             subject="test",
             text_body="body",
-        ),
-    ),
-    (
-        "performance_takes.delete_outbox_service",
-        "PerformanceTakeDeleteOutboxService",
-        "PERFORMANCE_TAKE_DELETE_OUTBOX",
-        PerformanceTakeDeleteOutbox,
-        dict(take_id=1, take_uuid="take", user_id=1, object_key="media", media_byte_size=5),
-    ),
-    (
-        "practice.bundle.retention",
-        "PracticeBundleDeleteService",
-        "PERFORMANCE_TAKE_DELETE_OUTBOX",
-        PracticeBundleDeleteOutbox,
-        dict(
-            bundle_id="bundle",
-            prepared_musicxml_object_key="notation",
-            artifact_object_key="artifact",
         ),
     ),
 ]
@@ -135,12 +115,7 @@ def test_domain_delivery_persists_dispatch_claim_retry_and_success(delivery):
     assert service.mark_dispatched(db, row.outbox_uuid)
     payload = service.claim(db, row.outbox_uuid)
     assert payload.attempt == row.attempt_count == 2
-    if isinstance(row, (PerformanceTakeDeleteOutbox, PracticeBundleDeleteOutbox)):
-        assert not service.complete(db, row.outbox_uuid, attempt=1)
-        assert not service.fail(db, row.outbox_uuid, "stale worker", attempt=1)
-        assert row.status == statuses.processing and row.attempt_count == 2
-        assert service.complete(db, row.outbox_uuid, attempt=2)
-    elif isinstance(row, MailOutbox):
+    if isinstance(row, MailOutbox):
         service.sent(db, row.outbox_uuid, provider_message_id="provider-message")
         assert row.text_body is None and row.html_body is None
         assert row.provider_message_id == "provider-message"

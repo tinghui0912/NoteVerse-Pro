@@ -52,9 +52,9 @@ def build_beat_schedule(settings: Settings) -> BeatSchedule:
             "task": "app.worker.tasks.run_playback_outbox_maintenance",
             "schedule": float(settings.PLAYBACK_OUTBOX_DISPATCH_INTERVAL_SECONDS),
         },
-        "performance-take-deletion-maintenance": {
-            "task": "app.worker.tasks.run_performance_take_deletion_maintenance",
-            "schedule": float(settings.PERFORMANCE_TAKE_DELETE_OUTBOX_DISPATCH_INTERVAL_SECONDS),
+        "stored-object-retirement-maintenance": {
+            "task": "app.worker.tasks.run_stored_object_retirement_maintenance",
+            "schedule": float(settings.STORED_OBJECT_RETIREMENT_DISPATCH_INTERVAL_SECONDS),
         },
         "mail-outbox-maintenance": {
             "task": "app.worker.tasks.run_mail_outbox_maintenance",

@@ -1,6 +1,6 @@
 from __future__ import annotations
 from app.modules.storage_objects.facts import StoredObjectFacts
-from app.modules.storage_objects.persistence import object_to_row
+from app.modules.storage_objects.adoption import adopt_verified_object
 
 from datetime import datetime
 from typing import Optional
@@ -34,8 +34,6 @@ from app.modules.score_assets.render_outbox_service import (
 )
 from app.shared.constants import ErrorCode
 from app.utils.timezone import utc_now_naive
-from app.storage import ObjectStorage, object_storage
-from app.core.logger import logger
 
 
 class SyncImportJobService:
@@ -43,9 +41,7 @@ class SyncImportJobService:
         self,
         repository: SyncImportJobRepository | None = None,
         notification_service: SyncNotificationService | None = None,
-        storage: ObjectStorage | None = None,
     ) -> None:
-        self.storage = storage or object_storage
         self.repository = repository or SyncImportJobRepository()
         self.notification_service = notification_service or sync_notification_service
 
@@ -230,20 +226,20 @@ class SyncImportJobService:
             artifact = ImportArtifact(
                 job_id=job_id,
                 kind=kind,
-                stored_object=object_to_row(
+                stored_object=adopt_verified_object(
+                    db,
                     StoredObjectFacts(
                         object_key=item["storage_key"],
                         byte_size=item["size"],
                         content_type=item["mime_type"],
                         sha256=item["sha256"],
-                    )
+                    ),
                 ),
                 filename=item["filename"],
                 page_number=item["page_number"],
             )
             db.add(artifact)
             created.append(artifact)
-        db.commit()
         for artifact_uuid, storage_key, size_bytes in previous:
             storage_usage_service.record_release_sync(
                 db,
@@ -254,6 +250,7 @@ class SyncImportJobService:
                 object_type="import_artifact",
                 object_id=artifact_uuid,
                 storage_key=storage_key,
+                auto_commit=False,
             )
         for artifact in created:
             storage_usage_service.record_allocation_sync(
@@ -265,17 +262,9 @@ class SyncImportJobService:
                 object_type="import_artifact",
                 object_id=artifact.artifact_uuid,
                 storage_key=artifact.stored_object.object_key,
+                auto_commit=False,
             )
-
-        current_keys = {artifact.stored_object.object_key for artifact in created}
-        for _artifact_uuid, key, _size in previous:
-            if key not in current_keys:
-                try:
-                    self.storage.delete(key)
-                except Exception as exc:
-                    logger.bind(event="import_job.artifact_delete_failed", storage_key=key).opt(
-                        exception=exc
-                    ).warning("Import artifact object deletion failed")
+        db.commit()
 
     def get_detail(self, db: Session, job_uuid: str) -> ImportJobDetail:
         job = self.repository.get_by_uuid(db, job_uuid)

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.modules.storage_objects.retirement import retire_after_release, retire_released_objects
 
 from dataclasses import dataclass
 
@@ -19,7 +20,6 @@ from app.db.models import (
 )
 from app.db.models.score import RenderAssetKind
 from app.modules.storage_usage.service import storage_usage_service
-from app.storage import ObjectStorage, object_storage
 from app.utils.timezone import utc_now_naive
 
 
@@ -36,13 +36,10 @@ def _active_preview_revisions(score_id: int):
 class DerivedAssetRetentionResult:
     rendered_pages_deleted: int = 0
     playback_assets_deleted: int = 0
-    storage_objects_deleted: int = 0
+    object_retirements_queued: int = 0
 
 
 class DerivedAssetRetentionService:
-    def __init__(self, storage: ObjectStorage | None = None) -> None:
-        self.storage = storage or object_storage
-
     async def cleanup_for_score_best_effort(
         self,
         db: AsyncSession,
@@ -101,16 +98,10 @@ class DerivedAssetRetentionService:
             (asset.asset_uuid, asset.stored_object.object_key, asset.stored_object.byte_size)
             for asset in playback_assets
         ]
-        storage_keys = [
-            asset.stored_object.object_key for asset in rendered_pages + playback_assets
-        ]
         for asset in rendered_pages:
             await db.delete(asset)
-            await db.delete(asset.stored_object)
         for asset in playback_assets:
             await db.delete(asset)
-            await db.delete(asset.stored_object)
-        await db.commit()
         if owner_user_id is not None:
             for asset_uuid, storage_key, size_bytes in render_usage:
                 await storage_usage_service.record_release(
@@ -122,6 +113,7 @@ class DerivedAssetRetentionService:
                     object_type="score_render_asset",
                     object_id=asset_uuid,
                     storage_key=storage_key,
+                    auto_commit=False,
                 )
             for asset_uuid, storage_key, size_bytes in audio_usage:
                 await storage_usage_service.record_release(
@@ -133,12 +125,16 @@ class DerivedAssetRetentionService:
                     object_type="score_playback_asset",
                     object_id=asset_uuid,
                     storage_key=storage_key,
+                    auto_commit=False,
                 )
-        deleted_objects = self._delete_storage_objects(storage_keys)
+        operations = await retire_after_release(
+            db, *(asset.stored_object_id for asset in rendered_pages + playback_assets)
+        )
+        await db.commit()
         return DerivedAssetRetentionResult(
             rendered_pages_deleted=len(rendered_pages),
             playback_assets_deleted=len(playback_assets),
-            storage_objects_deleted=deleted_objects,
+            object_retirements_queued=len(operations),
         )
 
     def cleanup_due_scores(self, db: Session) -> DerivedAssetRetentionResult:
@@ -157,8 +153,8 @@ class DerivedAssetRetentionService:
                 rendered_pages_deleted=total.rendered_pages_deleted + result.rendered_pages_deleted,
                 playback_assets_deleted=total.playback_assets_deleted
                 + result.playback_assets_deleted,
-                storage_objects_deleted=total.storage_objects_deleted
-                + result.storage_objects_deleted,
+                object_retirements_queued=total.object_retirements_queued
+                + result.object_retirements_queued,
             )
         return total
 
@@ -193,16 +189,10 @@ class DerivedAssetRetentionService:
             (asset.asset_uuid, asset.stored_object.object_key, asset.stored_object.byte_size)
             for asset in playback_assets
         ]
-        storage_keys = [
-            asset.stored_object.object_key for asset in rendered_pages + playback_assets
-        ]
         for asset in rendered_pages:
             db.delete(asset)
-            db.delete(asset.stored_object)
         for asset in playback_assets:
             db.delete(asset)
-            db.delete(asset.stored_object)
-        db.commit()
         if owner_user_id is not None:
             for asset_uuid, storage_key, size_bytes in render_usage:
                 storage_usage_service.record_release_sync(
@@ -214,6 +204,7 @@ class DerivedAssetRetentionService:
                     object_type="score_render_asset",
                     object_id=asset_uuid,
                     storage_key=storage_key,
+                    auto_commit=False,
                 )
             for asset_uuid, storage_key, size_bytes in audio_usage:
                 storage_usage_service.record_release_sync(
@@ -225,12 +216,16 @@ class DerivedAssetRetentionService:
                     object_type="score_playback_asset",
                     object_id=asset_uuid,
                     storage_key=storage_key,
+                    auto_commit=False,
                 )
-        deleted_objects = self._delete_storage_objects(storage_keys)
+        operations = retire_released_objects(
+            db, *(asset.stored_object_id for asset in rendered_pages + playback_assets)
+        )
+        db.commit()
         return DerivedAssetRetentionResult(
             rendered_pages_deleted=len(rendered_pages),
             playback_assets_deleted=len(playback_assets),
-            storage_objects_deleted=deleted_objects,
+            object_retirements_queued=len(operations),
         )
 
     @staticmethod
@@ -276,19 +271,6 @@ class DerivedAssetRetentionService:
         if protected_ids:
             statement = statement.where(col(ScorePlaybackAsset.revision_id).not_in(protected_ids))
         return statement
-
-    def _delete_storage_objects(self, storage_keys: list[str]) -> int:
-        deleted = 0
-        for key in storage_keys:
-            try:
-                if self.storage.delete(key):
-                    deleted += 1
-            except Exception as exc:
-                logger.bind(
-                    event="derived_asset_retention.storage_object_delete_failed",
-                    storage_key=key,
-                ).opt(exception=exc).warning("Derived asset storage object deletion failed")
-        return deleted
 
 
 derived_asset_retention_service = DerivedAssetRetentionService()

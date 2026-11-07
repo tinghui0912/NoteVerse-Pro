@@ -6,16 +6,16 @@ evolve independently.
 
 ## Package ownership
 
-| Path | Owns | Should not own |
-| --- | --- | --- |
-| `tasks.py` | Celery task registration, stable task names, task decorator options, and one-line delegation to execution handlers. | Database work, business workflows, retry/failure transitions, model/render/playback execution, or scheduler scan callbacks. |
-| `execution/` | The actual task execution workflows after Celery has invoked a task. This includes claim/run/complete/fail handling, attempt tracing, task-specific status logging, periodic dispatch recovery, and periodic cleanup scans. | Publishing a new Celery task for later delivery. |
-| `../modules/revisions/dispatch.py` | Shared API/Beat revision render and audio producers. | Task execution. |
-| `dispatch/` | Durable dispatch from database-backed pending work into Celery, including producer tracing and release-on-dispatch-failure handling. | Running the target task's business workflow. |
-| `task_runtime.py` | Shared task runtime helpers: task context binding, operation log binding, attempt tracing, scheduler lock coordination, and scheduler observability. | Task-specific business logic or dispatch routing. |
-| `../task_queue/schedule.py` | The mapping from recurring maintenance jobs to Celery task names and intervals. | Runtime option policy or scan callback implementation. |
-| `../task_queue/options.py` | Celery process behavior policy such as serializers, acknowledgement semantics, deadlines, worker lifecycle limits, broker/backend timeouts, and Beat schedule wiring. | Business task registration or environment-file ownership. |
-| `../task_queue/config.py` | Celery application assembly, optional task-module import, Beat state-file path, and Celery framework signal registration. | Task execution logic or task route examples for removed tasks. |
+| Path                               | Owns                                                                                                                                                                                                                        | Should not own                                                                                                              |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `tasks.py`                         | Celery task registration, stable task names, task decorator options, and one-line delegation to execution handlers.                                                                                                         | Database work, business workflows, retry/failure transitions, model/render/playback execution, or scheduler scan callbacks. |
+| `execution/`                       | The actual task execution workflows after Celery has invoked a task. This includes claim/run/complete/fail handling, attempt tracing, task-specific status logging, periodic dispatch recovery, and periodic cleanup scans. | Publishing a new Celery task for later delivery.                                                                            |
+| `../modules/revisions/dispatch.py` | Shared API/Beat revision render and audio producers.                                                                                                                                                                        | Task execution.                                                                                                             |
+| `dispatch/`                        | Durable dispatch from database-backed pending work into Celery, including producer tracing and release-on-dispatch-failure handling.                                                                                        | Running the target task's business workflow.                                                                                |
+| `task_runtime.py`                  | Shared task runtime helpers: task context binding, operation log binding, attempt tracing, scheduler lock coordination, and scheduler observability.                                                                        | Task-specific business logic or dispatch routing.                                                                           |
+| `../task_queue/schedule.py`        | The mapping from recurring maintenance jobs to Celery task names and intervals.                                                                                                                                             | Runtime option policy or scan callback implementation.                                                                      |
+| `../task_queue/options.py`         | Celery process behavior policy such as serializers, acknowledgement semantics, deadlines, worker lifecycle limits, broker/backend timeouts, and Beat schedule wiring.                                                       | Business task registration or environment-file ownership.                                                                   |
+| `../task_queue/config.py`          | Celery application assembly, optional task-module import, Beat state-file path, and Celery framework signal registration.                                                                                                   | Task execution logic or task route examples for removed tasks.                                                              |
 
 Revision transactions commit canonical snapshots and outboxes before immediate best-effort
 dispatch through the shared revision producer. Beat relays missed deliveries and recovers
@@ -53,12 +53,8 @@ expired dispatch/processing leases; it is not the normal-path scheduling delay.
 5. Add focused tests around the owning module instead of testing internals
    through `tasks.py`.
 
-## Durable Practice Source cleanup
+## Durable object retirement
 
-`practice_bundle_deletion_task` executes a `PracticeBundleDeleteOutbox` attempt.
-The maintenance dispatcher polls bounded orphan READY sources and expired CREATING
-sources independently of Take deletion. Only live ScoreRevision ownership retains
-READY sources; Takes and reservations keep provenance snapshots. Claim and locked execution both recheck
-ownership before exact representation deletion. Source retention owns this policy;
-score/revision deletion only releases the live foreign key through ON DELETE SET NULL.
-See [Practice Source](../../../docs/architecture/practice-bundle.md).
+`stored_object_retirement_task` executes a durable physical retirement attempt. Maintenance scans semantic Bundle GC/stale creation and the shared retirement queue. Bundle/Take and other domains release semantic references and accounting in their own transactions. The worker validates all StoredObject references and flushes FK-protected row deletion before ObjectStorage IO; operation attempts use DurableDeliveryLifecycle retry/lease rules plus a fresh fencing token.
+
+See [Object storage](../../../docs/architecture/object-storage.md).

@@ -42,15 +42,10 @@ from app.db.models import (
     StoredObject,
     PerformanceTakeManifest,
     PerformanceTake,
-    PerformanceTakeDeletionStatus,
-    PerformanceTakeDeleteOutbox,
-    PerformanceTakeDeleteOutboxStatus,
     PerformanceTakeMediaKind,
     PerformanceTakeUploadReservation,
     PracticeBundleRecord,
     ScoreRevisionPracticeBinding,
-    PracticeBundleDeleteOutbox,
-    PracticeBundleDeleteOutboxStatus,
     PracticeBundleStatus,
     Score,
     ScoreRevision,
@@ -62,12 +57,8 @@ from app.db.models import (
 )
 from app.db.models.score import RevisionOrigin, ScoreDeletionStatus
 from app.main import app
-from app.modules.performance_takes.delete_outbox_service import (
-    performance_take_delete_outbox_service,
-)
-from app.modules.practice.bundle.retention import (
-    practice_bundle_delete_service,
-)
+from app.db.models import StoredObjectRetirement
+from app.worker.execution import stored_object_retirement
 from app.modules.performance_takes.dependencies import (
     get_performance_take_service,
     get_performance_take_upload_service,
@@ -95,7 +86,6 @@ from app.modules.storage_usage.service import StorageUsageService
 from app.shared.error_codes import ErrorCode
 from app.storage.factory import get_object_storage
 from tests.support.object_storage import InMemoryObjectStorage
-from app.worker.execution import performance_take_deletion, practice_bundle_deletion
 
 VALID_WEBM_BYTES = b"\x1a\x45\xdf\xa3" + b"fake-webm-audio-binary-data-12345"
 DEFAULT_TAKE_REVISION_ID = "revision-uuid-100"
@@ -309,7 +299,6 @@ def _create_default_take(
     take = PerformanceTake(
         manifest=reservation.manifest,
         linked_score_id=linked_score_id,
-        deletion_status=PerformanceTakeDeletionStatus.ACTIVE,
         recording_object=StoredObject(
             object_key=media_object_key,
             byte_size=len(VALID_WEBM_BYTES),
@@ -399,25 +388,6 @@ def test_practice_bundle_artifact_identity_corruption_is_rejected(test_env):
             )
         )
     assert caught.value.details["reason"] == "artifact_identity_mismatch"
-
-
-def _create_take_delete_outbox(
-    session: Session,
-    take: PerformanceTake,
-) -> PerformanceTakeDeleteOutbox:
-    outbox = PerformanceTakeDeleteOutbox(
-        take_id=take.id,
-        take_uuid=take.manifest.take_uuid,
-        user_id=take.manifest.user_id,
-        object_key=take.recording_object.object_key,
-        media_byte_size=take.recording_object.byte_size,
-        status=PerformanceTakeDeleteOutboxStatus.PENDING.value,
-        next_attempt_at=datetime.now(timezone.utc).replace(tzinfo=None),
-    )
-    take.deletion_status = PerformanceTakeDeletionStatus.DELETING
-    session.add(outbox)
-    session.flush()
-    return outbox
 
 
 def test_performance_take_schema_accepts_score_tempo_selection() -> None:
@@ -561,40 +531,19 @@ class _TraceScope:
         return None
 
 
-def _run_worker_deletion(
-    monkeypatch: pytest.MonkeyPatch,
-    session: Session,
-    storage: InMemoryObjectStorage,
-    outbox_uuid: str,
-) -> dict[str, str]:
-    monkeypatch.setattr(
-        performance_take_deletion, "get_worker_db", lambda: _mock_worker_db(session)
-    )
-    monkeypatch.setattr(performance_take_deletion, "object_storage", storage)
-    monkeypatch.setattr(
-        performance_take_deletion, "start_attempt_trace", lambda **_kwargs: _TraceScope()
-    )
-    return performance_take_deletion.execute_performance_take_deletion_task(None, outbox_uuid)
+def _run_retirement(monkeypatch, session, storage, uuid):
+    @contextmanager
+    def transaction():
+        try:
+            yield session
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
 
-
-def _run_bundle_deletion(
-    monkeypatch: pytest.MonkeyPatch,
-    session: Session,
-    storage: InMemoryObjectStorage,
-    outbox_uuid: str,
-) -> dict[str, str]:
-    monkeypatch.setattr(
-        practice_bundle_deletion,
-        "get_worker_db",
-        lambda: _mock_worker_db(session),
-    )
-    monkeypatch.setattr(practice_bundle_deletion, "object_storage", storage)
-    monkeypatch.setattr(
-        practice_bundle_deletion,
-        "start_attempt_trace",
-        lambda **_kwargs: _TraceScope(),
-    )
-    return practice_bundle_deletion.execute_practice_bundle_deletion_task(None, outbox_uuid)
+    monkeypatch.setattr(stored_object_retirement, "get_worker_db", transaction)
+    monkeypatch.setattr(stored_object_retirement, "object_storage", storage)
+    return stored_object_retirement.execute_stored_object_retirement_task(None, uuid)
 
 
 @pytest.fixture
@@ -971,36 +920,24 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         assert media_content not in res_media_other_user.content
         app.dependency_overrides[get_current_user] = lambda: user_1
 
-        # 10. Delete take (P0-2 returns 202 Accepted, marks DELETING, writes outbox)
+        # Delete releases semantic ownership and queues physical retirement.
         res_del = client.delete(f"/api/v1/performance-takes/{take_id}")
         assert res_del.status_code == 202
         assert res_del.json()["data"]["status"] == "deleting"
         assert res_del.json()["data"]["take_id"] == take_id
 
-        # Verify take is DELETING
-        res_deleting = client.get(f"/api/v1/performance-takes/{take_id}")
-        assert res_deleting.status_code == 200
-        assert res_deleting.json()["data"]["deletion_status"] == "DELETING"
-
-        # Verify playback URL returns 404 while DELETING
-        res_play_deleting = client.get(f"/api/v1/performance-takes/{take_id}/playback-url")
-        assert res_play_deleting.status_code == 404
-        res_media_deleting = client.get(f"/api/v1/performance-takes/{take_id}/media")
-        assert res_media_deleting.status_code == 404
-
-        # Repeated delete returns 202 idempotently
-        res_del_repeat = client.delete(f"/api/v1/performance-takes/{take_id}")
-        assert res_del_repeat.status_code == 202
-        assert res_del_repeat.json()["data"]["status"] == "deleting"
-
-        # Execute worker outbox deletion task
-        outbox = session.execute(
-            select(PerformanceTakeDeleteOutbox).where(
-                PerformanceTakeDeleteOutbox.take_uuid == take_id
+        assert client.get(f"/api/v1/performance-takes/{take_id}").status_code == 404
+        assert client.get(f"/api/v1/performance-takes/{take_id}/playback-url").status_code == 404
+        assert client.get(f"/api/v1/performance-takes/{take_id}/media").status_code == 404
+        assert client.delete(f"/api/v1/performance-takes/{take_id}").status_code == 404
+        operation = session.scalar(
+            select(StoredObjectRetirement).where(
+                StoredObjectRetirement.object_key == final_object_key
             )
-        ).scalar_one()
-        worker_res = _run_worker_deletion(monkeypatch, session, storage, outbox.outbox_uuid)
-        assert worker_res["status"] == "deleted"
+        )
+        assert operation.status == "PENDING" and storage.exists(final_object_key)
+        worker_res = _run_retirement(monkeypatch, session, storage, operation.retirement_uuid)
+        assert worker_res["status"] == "completed"
 
         # Verify take is gone after worker completes
         res_after_del = client.get(f"/api/v1/performance-takes/{take_id}")
@@ -1206,7 +1143,7 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         storage=storage,
         storage_usage_service=storage_usage_svc,
     )
-    lifecycle_svc = ScoreLifecycleService(storage=storage)
+    lifecycle_svc = ScoreLifecycleService()
 
     async def override_db():
         yield AsyncSessionAdapter(session)
@@ -1356,104 +1293,18 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         res_del = client.delete(f"/api/v1/performance-takes/{take_id}")
         assert res_del.status_code == 202
 
-        # Run worker to complete deletion
-        outbox = session.execute(
-            select(PerformanceTakeDeleteOutbox).where(
-                PerformanceTakeDeleteOutbox.take_uuid == take_id
-            )
-        ).scalar_one()
-        worker_res = _run_worker_deletion(monkeypatch, session, storage, outbox.outbox_uuid)
-        assert worker_res["status"] == "deleted"
+        operation = session.scalar(
+            select(StoredObjectRetirement).where(StoredObjectRetirement.object_key == final_key)
+        )
+        assert session.scalar(select(PerformanceTake)) is None
+        assert (
+            _run_retirement(monkeypatch, session, storage, operation.retirement_uuid)["status"]
+            == "completed"
+        )
 
         assert not storage.exists(final_key)
         session.refresh(account)
         assert account.used_bytes == 0
-
-    finally:
-        app.dependency_overrides.clear()
-
-
-def test_duplicate_deletion_idempotency(test_env, monkeypatch: pytest.MonkeyPatch):
-    session, storage, user_1, user_2 = test_env
-    storage_usage_svc = StorageUsageService()
-    take_svc = _performance_take_service(
-        session=session,
-        storage=storage,
-        storage_usage_service=storage_usage_svc,
-    )
-
-    async def override_db():
-        yield AsyncSessionAdapter(session)
-
-    app.dependency_overrides[get_db] = override_db
-    app.dependency_overrides[get_current_user] = lambda: user_1
-    app.dependency_overrides[get_object_storage] = lambda: storage
-    app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
-    app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
-    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
-
-    client = PerformanceTakeTestClient(app)
-
-    try:
-        content = VALID_WEBM_BYTES
-        size = len(content)
-        auth_req = {
-            "practice_binding": {
-                "score_id": "score-uuid-10",
-                "revision_id": DEFAULT_TAKE_REVISION_ID,
-                "bundle_id": _bundle_id(),
-            },
-            "media": {"byte_size": size, "mime_type": "audio/webm"},
-            "scope": {"kind": "FULL"},
-            "client_request_id": "req-idemp-del",
-        }
-        res_auth = client.post("/api/v1/performance-takes/upload-reservations", json=auth_req)
-        take_id = res_auth.json()["data"]["take_id"]
-        res_id = res_auth.json()["data"]["reservation_id"]
-        staging_key = _staging_key(session, res_auth.json()["data"]["reservation_id"])
-        storage.put_bytes(key=staging_key, content=content, content_type="audio/webm")
-
-        reserved_upload_id = res_id
-        res_fin = client.post(
-            "/api/v1/performance-takes/upload-reservations/" + reserved_upload_id + "/finalize"
-        )
-        assert res_fin.status_code == 200
-
-        # First delete succeeds and returns 202
-        res_del1 = client.delete(f"/api/v1/performance-takes/{take_id}")
-        assert res_del1.status_code == 202
-
-        # Second delete while DELETING returns 202 idempotently
-        res_del2 = client.delete(f"/api/v1/performance-takes/{take_id}")
-        assert res_del2.status_code == 202
-
-        # Exactly 1 outbox record in DB
-        outboxes = (
-            session.execute(
-                select(PerformanceTakeDeleteOutbox).where(
-                    PerformanceTakeDeleteOutbox.take_uuid == take_id
-                )
-            )
-            .scalars()
-            .all()
-        )
-        assert len(outboxes) == 1
-
-        # Run worker deletion
-        worker_res = _run_worker_deletion(monkeypatch, session, storage, outboxes[0].outbox_uuid)
-        assert worker_res["status"] == "deleted"
-
-        # Account used_bytes is 0
-        account = session.get(StorageUsageAccount, 1)
-        session.refresh(account)
-        assert account.used_bytes == 0
-
-        # Third delete returns 404, does NOT double-release quota
-        res_del3 = client.delete(f"/api/v1/performance-takes/{take_id}")
-        assert res_del3.status_code == 404
-
-        session.refresh(account)
-        assert account.used_bytes == 0  # not negative!
 
     finally:
         app.dependency_overrides.clear()
@@ -1587,14 +1438,7 @@ def test_cancel_upload_reservation(test_env, monkeypatch: pytest.MonkeyPatch):
         session.commit()
         assert cleaned_count == 1
         assert not storage.exists(staging_key)
-        assert (
-            session.execute(
-                select(PracticeBundleDeleteOutbox).where(
-                    PracticeBundleDeleteOutbox.practice_bundle_id == practice_bundle_id
-                )
-            ).scalar_one_or_none()
-            is None
-        )
+        assert session.get(PracticeBundleRecord, practice_bundle_id) is not None
         retained = session.get(PracticeBundleRecord, practice_bundle_id)
         session.refresh(retained)
         assert retained.status == PracticeBundleStatus.READY.value
@@ -2390,14 +2234,7 @@ def test_crash_abandoned_after_reservation(test_env, monkeypatch: pytest.MonkeyP
         session.refresh(auth)
         assert auth.status == UploadReservationStatus.EXPIRED
         assert auth.manifest.practice_bundle_id == _bundle_id()
-        assert (
-            session.execute(
-                select(PracticeBundleDeleteOutbox).where(
-                    PracticeBundleDeleteOutbox.practice_bundle_id == practice_bundle_id
-                )
-            ).scalar_one_or_none()
-            is None
-        )
+        assert session.get(PracticeBundleRecord, practice_bundle_id) is not None
         retained = session.get(PracticeBundleRecord, practice_bundle_id)
         session.refresh(retained)
         assert retained.status == PracticeBundleStatus.READY.value
@@ -2687,700 +2524,6 @@ def test_score_deleted_between_reserve_and_finalize_preserves_provenance(test_en
 
     finally:
         app.dependency_overrides.clear()
-
-
-def test_deletion_lifecycle_and_worker_retry(test_env, monkeypatch: pytest.MonkeyPatch):
-    session, storage, user_1, _ = test_env
-    storage_usage_svc = StorageUsageService()
-    take_svc = _performance_take_service(
-        session=session,
-        storage=storage,
-        storage_usage_service=storage_usage_svc,
-    )
-
-    async def override_db():
-        yield AsyncSessionAdapter(session)
-
-    app.dependency_overrides[get_db] = override_db
-    app.dependency_overrides[get_current_user] = lambda: user_1
-    app.dependency_overrides[get_object_storage] = lambda: storage
-    app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
-    app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
-    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
-
-    client = PerformanceTakeTestClient(app)
-
-    try:
-        content = VALID_WEBM_BYTES
-        size = len(content)
-        auth_req = {
-            "practice_binding": {
-                "score_id": "score-uuid-10",
-                "revision_id": DEFAULT_TAKE_REVISION_ID,
-                "bundle_id": _bundle_id(),
-            },
-            "media": {"byte_size": size, "mime_type": "audio/webm"},
-            "scope": {"kind": "FULL"},
-            "client_request_id": "req-del-retry",
-            "tempo_selection": DEFAULT_TAKE_TEMPO_PLAN["selection"],
-            "recording_timebase": DEFAULT_TAKE_RECORDING_TIMEBASE,
-        }
-        res_auth = client.post("/api/v1/performance-takes/upload-reservations", json=auth_req)
-        auth_data = res_auth.json()["data"]
-        take_id = auth_data["take_id"]
-        res_id = auth_data["reservation_id"]
-        storage.put_bytes(
-            key=_staging_key(session, auth_data["reservation_id"]),
-            content=content,
-            content_type="audio/webm",
-        )
-
-        reserved_upload_id = res_id
-        res_fin = client.post(
-            "/api/v1/performance-takes/upload-reservations/" + reserved_upload_id + "/finalize"
-        )
-        assert res_fin.status_code == 200
-        auth_row = session.execute(
-            select(PerformanceTakeUploadReservation).where(
-                PerformanceTakeUploadReservation.manifest_id
-                == select(PerformanceTakeManifest.id)
-                .where(PerformanceTakeManifest.take_uuid == take_id)
-                .scalar_subquery()
-            )
-        ).scalar_one()
-        assert auth_row.status == UploadReservationStatus.COMPLETED
-        assert auth_row.manifest.practice_bundle_id == _bundle_id()
-        take_row = session.execute(
-            select(PerformanceTake)
-            .join(PerformanceTakeManifest)
-            .where(PerformanceTakeManifest.take_uuid == take_id)
-        ).scalar_one()
-        practice_bundle_id = take_row.manifest.practice_bundle_id
-        source = session.execute(
-            select(PracticeBundleRecord).where(PracticeBundleRecord.bundle_id == practice_bundle_id)
-        ).scalar_one()
-        practice_bundle_id = source.id
-        assert source is not None
-        musicxml_key = source.prepared_musicxml_object.object_key
-        artifact_key = source.artifact_object.object_key
-        assert storage.exists(musicxml_key)
-        assert storage.exists(artifact_key)
-
-        # Request deletion -> 202 Accepted
-        res_del = client.delete(f"/api/v1/performance-takes/{take_id}")
-        assert res_del.status_code == 202
-
-        outbox = session.execute(
-            select(PerformanceTakeDeleteOutbox).where(
-                PerformanceTakeDeleteOutbox.take_uuid == take_id
-            )
-        ).scalar_one()
-        assert outbox.status == PerformanceTakeDeleteOutboxStatus.PENDING
-        assert outbox.attempt_count == 0
-
-        # 1. Simulate worker failure: storage raises connection error
-        class FailingStorage(InMemoryObjectStorage):
-            def delete(self, key: str) -> None:
-                raise ConnectionError("Transient OSS deletion timeout")
-
-        failing_storage = FailingStorage(objects=storage.objects)
-        failing_res = _run_worker_deletion(
-            monkeypatch, session, failing_storage, outbox.outbox_uuid
-        )
-        assert failing_res["status"] == "failed"
-
-        # Outbox marked FAILED with backoff retry
-        session.refresh(outbox)
-        assert outbox.status == PerformanceTakeDeleteOutboxStatus.FAILED
-        assert outbox.attempt_count == 1
-        assert "Transient OSS deletion timeout" in (outbox.last_error or "")
-
-        # Take is still in DB, quota still charged
-        take_db = session.execute(
-            select(PerformanceTake)
-            .join(PerformanceTakeManifest)
-            .where(PerformanceTakeManifest.take_uuid == take_id)
-        ).scalar_one_or_none()
-        assert take_db is not None
-        assert take_db.deletion_status == PerformanceTakeDeletionStatus.DELETING
-        account = session.get(StorageUsageAccount, 1)
-        session.refresh(account)
-        assert account.used_bytes == size
-
-        # 2. Worker retry succeeds with healthy storage (advance next_attempt_at past delay)
-        outbox.next_attempt_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(
-            seconds=1
-        )
-        session.commit()
-        ok_res = _run_worker_deletion(monkeypatch, session, storage, outbox.outbox_uuid)
-        assert ok_res["status"] == "deleted"
-
-        # Outbox marked COMPLETED
-        session.refresh(outbox)
-        assert outbox.status == PerformanceTakeDeleteOutboxStatus.COMPLETED
-
-        # Take deleted, quota released
-        assert (
-            session.execute(
-                select(PerformanceTake)
-                .join(PerformanceTakeManifest)
-                .where(PerformanceTakeManifest.take_uuid == take_id)
-            ).scalar_one_or_none()
-            is None
-        )
-        session.refresh(account)
-        assert account.used_bytes == 0
-        assert (
-            session.execute(
-                select(PracticeBundleDeleteOutbox).where(
-                    PracticeBundleDeleteOutbox.practice_bundle_id == practice_bundle_id
-                )
-            ).scalar_one_or_none()
-            is None
-        )
-        retained = session.get(PracticeBundleRecord, practice_bundle_id)
-        session.refresh(retained)
-        assert retained.status == PracticeBundleStatus.READY.value
-        assert session.get(ScoreRevisionPracticeBinding, 100).bundle_id == retained.id
-        assert storage.exists(musicxml_key)
-        assert storage.exists(artifact_key)
-
-    finally:
-        app.dependency_overrides.clear()
-
-
-def test_bundle_delete_outbox_retries_transient_storage_failure(
-    test_env,
-    monkeypatch: pytest.MonkeyPatch,
-):
-    session, storage, _user_1, _ = test_env
-    source = _create_default_bundle(session, storage)
-    practice_bundle_id = source.id
-    musicxml_key = source.prepared_musicxml_object.object_key
-    artifact_key = source.artifact_object.object_key
-    outbox = practice_bundle_delete_service.enqueue_if_unowned(
-        session,
-        practice_bundle_id,
-    )
-    session.commit()
-    assert outbox is not None
-
-    class FailingSnapshotStorage(InMemoryObjectStorage):
-        def __init__(self, wrapped: InMemoryObjectStorage) -> None:
-            super().__init__(objects=wrapped.objects)
-
-        def delete(self, key: str) -> bool:
-            if key == musicxml_key:
-                raise ConnectionError("source object store timeout")
-            return super().delete(key)
-
-    failed = _run_bundle_deletion(
-        monkeypatch,
-        session,
-        FailingSnapshotStorage(storage),
-        outbox.outbox_uuid,
-    )
-    assert failed["status"] == "failed"
-    session.refresh(outbox)
-    assert outbox.status == PracticeBundleDeleteOutboxStatus.FAILED
-    assert "source object store timeout" in (outbox.last_error or "")
-    assert session.get(PracticeBundleRecord, practice_bundle_id) is not None
-    assert storage.exists(musicxml_key)
-    assert storage.exists(artifact_key)
-
-    outbox.next_attempt_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=1)
-    session.commit()
-    succeeded = _run_bundle_deletion(
-        monkeypatch,
-        session,
-        storage,
-        outbox.outbox_uuid,
-    )
-    assert succeeded["status"] == "deleted"
-    session.refresh(outbox)
-    assert outbox.status == PracticeBundleDeleteOutboxStatus.COMPLETED
-    assert session.get(PracticeBundleRecord, practice_bundle_id) is None
-    assert not storage.exists(musicxml_key)
-    assert not storage.exists(artifact_key)
-
-
-def test_bundle_gc_marks_snapshot_deleting_until_completed(test_env):
-    session, storage, _user_1, _ = test_env
-    source = _create_default_bundle(session, storage)
-    practice_bundle_id = source.id
-
-    outbox = practice_bundle_delete_service.enqueue_if_unowned(
-        session,
-        practice_bundle_id,
-    )
-    session.commit()
-
-    assert outbox is not None
-    session.refresh(source)
-    assert source.status == PracticeBundleStatus.DELETING.value
-
-
-def test_stale_creating_snapshot_recovery_cleans_partial_objects(
-    test_env,
-    monkeypatch: pytest.MonkeyPatch,
-):
-    session, storage, _user_1, _ = test_env
-    expired_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=1)
-    variants = [
-        ("none", False, False),
-        ("musicxml", True, False),
-        ("both", True, True),
-    ]
-    for label, has_musicxml, has_artifact in variants:
-        musicxml_key = f"practice-bundles/stale-{label}/score.musicxml"
-        artifact_key = f"practice-bundles/stale-{label}/artifact.json"
-        if has_musicxml:
-            storage.put_bytes(
-                key=musicxml_key,
-                content=b"<score-partwise />",
-                content_type="application/vnd.recordare.musicxml+xml",
-            )
-        if has_artifact:
-            storage.put_bytes(
-                key=artifact_key,
-                content=b"{}",
-                content_type="application/json",
-            )
-        source = PracticeBundleRecord(
-            bundle_id=f"stale-{label}",
-            revision_id=100,
-            practice_score_uuid="score-uuid-10",
-            practice_revision_uuid=DEFAULT_TAKE_REVISION_ID,
-            artifact_id=f"{DEFAULT_TAKE_ARTIFACT_ID}-{label}",
-            artifact_schema_version=1,
-            prepared_musicxml_object=StoredObject(
-                object_key=musicxml_key,
-                sha256=hashlib.sha256(b"<score-partwise />").hexdigest(),
-                byte_size=len(b"<score-partwise />"),
-                content_type="application/vnd.recordare.musicxml+xml",
-            ),
-            artifact_object=StoredObject(
-                object_key=artifact_key,
-                sha256=hashlib.sha256(b"{}").hexdigest(),
-                byte_size=len(b"{}"),
-                content_type="application/json",
-            ),
-            status=PracticeBundleStatus.CREATING.value,
-            creation_expires_at=expired_at,
-        )
-        session.add(source)
-        session.flush()
-
-    due = practice_bundle_delete_service.recover_stale_creating(
-        session,
-    )
-    session.commit()
-    assert len(due) == len(variants)
-
-    for outbox_uuid in due:
-        result = _run_bundle_deletion(monkeypatch, session, storage, outbox_uuid)
-        assert result["status"] == "deleted"
-
-    assert session.execute(select(PracticeBundleRecord)).scalars().all() == []
-    for label, _has_musicxml, _has_artifact in variants:
-        assert not storage.exists(f"practice-bundles/stale-{label}/score.musicxml")
-        assert not storage.exists(f"practice-bundles/stale-{label}/artifact.json")
-
-
-def test_reservation_rejects_bundle_pending_gc(test_env):
-    session, storage, user_1, _ = test_env
-    storage_usage_svc = StorageUsageService()
-    take_svc = _performance_take_service(
-        session=session,
-        storage=storage,
-        storage_usage_service=storage_usage_svc,
-    )
-
-    async def override_db():
-        yield AsyncSessionAdapter(session)
-
-    app.dependency_overrides[get_db] = override_db
-    app.dependency_overrides[get_current_user] = lambda: user_1
-    app.dependency_overrides[get_object_storage] = lambda: storage
-    app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
-    app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
-    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
-
-    client = PerformanceTakeTestClient(app)
-    try:
-        first_response = client.post(
-            "/api/v1/performance-takes/upload-reservations",
-            json={
-                "practice_binding": {
-                    "score_id": "score-uuid-10",
-                    "revision_id": DEFAULT_TAKE_REVISION_ID,
-                    "bundle_id": _bundle_id(),
-                },
-                "media": {
-                    "byte_size": len(VALID_WEBM_BYTES),
-                    "mime_type": "audio/webm",
-                },
-                "scope": {"kind": "FULL"},
-                "client_request_id": "req-source-pending-gc-first",
-                "tempo_selection": DEFAULT_TAKE_TEMPO_PLAN["selection"],
-                "recording_timebase": DEFAULT_TAKE_RECORDING_TIMEBASE,
-            },
-        )
-        assert first_response.status_code == 200
-        reservation_id = first_response.json()["data"]["reservation_id"]
-        cancel_response = client.delete(
-            f"/api/v1/performance-takes/upload-reservations/{reservation_id}"
-        )
-        assert cancel_response.status_code == 200
-        source = session.execute(select(PracticeBundleRecord)).scalar_one()
-        session.refresh(source)
-        assert source.status == PracticeBundleStatus.READY.value
-        source.status = PracticeBundleStatus.DELETING.value
-        session.commit()
-
-        response = client.post(
-            "/api/v1/performance-takes/upload-reservations",
-            json={
-                "practice_binding": {
-                    "score_id": "score-uuid-10",
-                    "revision_id": DEFAULT_TAKE_REVISION_ID,
-                    "bundle_id": _bundle_id(),
-                },
-                "media": {
-                    "byte_size": len(VALID_WEBM_BYTES),
-                    "mime_type": "audio/webm",
-                },
-                "scope": {"kind": "FULL"},
-                "client_request_id": "req-source-pending-gc",
-                "tempo_selection": DEFAULT_TAKE_TEMPO_PLAN["selection"],
-                "recording_timebase": DEFAULT_TAKE_RECORDING_TIMEBASE,
-            },
-        )
-        assert response.status_code >= 400
-        rejected_auth = session.execute(
-            select(PerformanceTakeUploadReservation).where(
-                PerformanceTakeUploadReservation.client_request_id == "req-source-pending-gc"
-            )
-        ).scalar_one_or_none()
-        assert rejected_auth is None
-    finally:
-        app.dependency_overrides.clear()
-
-
-def test_take_deletion_leaves_bundle_cleanup_to_its_revision_retention_owner(test_env, monkeypatch):
-    session, storage, user_1, _ = test_env
-    source = _create_default_bundle(session, storage)
-    first_key = "performance-takes/final/gc-last-ref/first.webm"
-    second_key = "performance-takes/final/gc-last-ref/second.webm"
-    storage.put_bytes(key=first_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
-    storage.put_bytes(key=second_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
-    first_take = _create_default_take(
-        session,
-        user_id=user_1.id,
-        source=source,
-        client_request_id="gc-last-ref-first",
-        take_uuid="take-gc-last-ref-first",
-        media_object_key=first_key,
-    )
-    second_take = _create_default_take(
-        session,
-        user_id=user_1.id,
-        source=source,
-        client_request_id="gc-last-ref-second",
-        take_uuid="take-gc-last-ref-second",
-        media_object_key=second_key,
-    )
-    first_outbox = _create_take_delete_outbox(session, first_take)
-    second_outbox = _create_take_delete_outbox(session, second_take)
-    session.commit()
-
-    first_result = _run_worker_deletion(monkeypatch, session, storage, first_outbox.outbox_uuid)
-    assert first_result["status"] == "deleted"
-    assert session.get(PracticeBundleRecord, source.id) is not None
-    assert (
-        session.execute(
-            select(PracticeBundleDeleteOutbox).where(
-                PracticeBundleDeleteOutbox.practice_bundle_id == source.id
-            )
-        ).scalar_one_or_none()
-        is None
-    )
-
-    second_result = _run_worker_deletion(monkeypatch, session, storage, second_outbox.outbox_uuid)
-    assert second_result["status"] == "deleted"
-    session.refresh(source)
-    assert source.status == PracticeBundleStatus.READY.value
-    assert session.execute(select(PracticeBundleDeleteOutbox)).scalars().all() == []
-    assert (
-        len(
-            practice_bundle_delete_service.recover_unowned_ready(
-                session,
-            )
-        )
-        == 1
-    )
-    assert source.status == PracticeBundleStatus.DELETING.value
-    source_outboxes = (
-        session.execute(
-            select(PracticeBundleDeleteOutbox).where(
-                PracticeBundleDeleteOutbox.practice_bundle_id == source.id
-            )
-        )
-        .scalars()
-        .all()
-    )
-    assert len(source_outboxes) == 1
-
-    duplicate = practice_bundle_delete_service.enqueue_if_unowned(
-        session,
-        source.id,
-    )
-    assert duplicate is not None
-    assert duplicate.id == source_outboxes[0].id
-    session.commit()
-
-    source_result = _run_bundle_deletion(
-        monkeypatch,
-        session,
-        storage,
-        source_outboxes[0].outbox_uuid,
-    )
-    assert source_result["status"] == "deleted"
-    assert session.get(PracticeBundleRecord, source.id) is None
-    assert not storage.exists(source.prepared_musicxml_object.object_key)
-    assert not storage.exists(source.artifact_object.object_key)
-
-
-def test_bundle_gc_ignores_an_active_reservation_after_take_deletion(test_env, monkeypatch):
-    session, storage, user_1, _ = test_env
-    source = _create_default_bundle(session, storage)
-    media_key = "performance-takes/final/gc-active-auth/take.webm"
-    storage.put_bytes(key=media_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
-    take = _create_default_take(
-        session,
-        user_id=user_1.id,
-        source=source,
-        client_request_id="gc-active-auth-take",
-        take_uuid="take-gc-active-auth",
-        media_object_key=media_key,
-    )
-    auth = PerformanceTakeUploadReservation(
-        manifest=PerformanceTakeManifest(
-            user_id=user_1.id,
-            **_bundle_provenance(source),
-            take_uuid="take-gc-active-auth-pending",
-            score_title_snapshot="Moonlight Sonata",
-            scope_type="FULL",
-            ticks_per_quarter=1,
-            scope_start_tick=0,
-            scope_terminal_tick=4,
-            scope_start_group_id=None,
-            scope_end_group_id=None,
-            tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
-            recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
-            capture_kind="AUDIO",
-            capture_mime_type="audio/webm",
-            capture_byte_size=len(VALID_WEBM_BYTES),
-        ),
-        user_id=user_1.id,
-        client_request_id="gc-active-auth",
-        staging_object_key="performance-takes/staging/gc-active-auth.webm",
-        storage_reservation_id="reservation-gc-active-auth",
-        status=UploadReservationStatus.RESERVED.value,
-        expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=5),
-        last_put_url_expires_at=datetime.now(timezone.utc).replace(tzinfo=None)
-        + timedelta(minutes=5),
-        staging_cleanup_after=datetime.now(timezone.utc).replace(tzinfo=None)
-        + timedelta(minutes=5),
-    )
-    session.add(auth)
-    take_outbox = _create_take_delete_outbox(session, take)
-    session.commit()
-
-    take_result = _run_worker_deletion(monkeypatch, session, storage, take_outbox.outbox_uuid)
-    assert take_result["status"] == "deleted"
-    session.refresh(source)
-    assert source.status == PracticeBundleStatus.READY.value
-    assert (
-        session.execute(
-            select(PracticeBundleDeleteOutbox).where(
-                PracticeBundleDeleteOutbox.practice_bundle_id == source.id
-            )
-        ).scalar_one_or_none()
-        is None
-    )
-
-    outbox = practice_bundle_delete_service.enqueue_if_unowned(
-        session,
-        source.id,
-    )
-    assert outbox is not None
-    session.commit()
-
-    source_result = _run_bundle_deletion(monkeypatch, session, storage, outbox.outbox_uuid)
-    assert source_result["status"] == "deleted"
-    assert session.get(PracticeBundleRecord, source.id) is None
-
-
-def test_reserve_does_not_reuse_bundle_pending_gc(test_env):
-    session, storage, user_1, _ = test_env
-    storage_usage_svc = StorageUsageService()
-    take_svc = _performance_take_service(
-        session=session,
-        storage=storage,
-        storage_usage_service=storage_usage_svc,
-    )
-
-    async def override_db():
-        yield AsyncSessionAdapter(session)
-
-    app.dependency_overrides[get_db] = override_db
-    app.dependency_overrides[get_current_user] = lambda: user_1
-    app.dependency_overrides[get_object_storage] = lambda: storage
-    app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
-    app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
-    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
-
-    client = PerformanceTakeTestClient(app)
-    try:
-        base_request = {
-            "practice_binding": {
-                "score_id": "score-uuid-10",
-                "revision_id": DEFAULT_TAKE_REVISION_ID,
-                "bundle_id": _bundle_id(),
-            },
-            "media": {
-                "byte_size": len(VALID_WEBM_BYTES),
-                "mime_type": "audio/webm",
-            },
-            "scope": {"kind": "FULL"},
-            "tempo_selection": DEFAULT_TAKE_TEMPO_PLAN["selection"],
-            "recording_timebase": DEFAULT_TAKE_RECORDING_TIMEBASE,
-        }
-        first = client.post(
-            "/api/v1/performance-takes/upload-reservations",
-            json={
-                **base_request,
-                "client_request_id": "req-source-source-created",
-            },
-        )
-        assert first.status_code == 200, first.text
-        auth = session.execute(
-            select(PerformanceTakeUploadReservation).where(
-                PerformanceTakeUploadReservation.client_request_id == "req-source-source-created"
-            )
-        ).scalar_one()
-        source = session.execute(
-            select(PracticeBundleRecord).where(
-                PracticeBundleRecord.bundle_id == auth.manifest.practice_bundle_id
-            )
-        ).scalar_one()
-        assert source is not None
-        apply_transition(
-            auth,
-            lifecycle_from_row(auth).cancel(now=datetime.now(timezone.utc).replace(tzinfo=None)),
-            now=datetime.now(timezone.utc).replace(tzinfo=None),
-        )
-        source.status = PracticeBundleStatus.DELETING.value
-        session.commit()
-
-        res = client.post(
-            "/api/v1/performance-takes/upload-reservations",
-            json={
-                **base_request,
-                "client_request_id": "req-source-source-not-ready",
-            },
-        )
-        assert res.status_code != 200
-        assert (
-            session.execute(
-                select(PerformanceTakeUploadReservation).where(
-                    PerformanceTakeUploadReservation.client_request_id
-                    == "req-source-source-not-ready"
-                )
-            ).scalar_one_or_none()
-            is None
-        )
-        session.refresh(source)
-        assert source.status == PracticeBundleStatus.DELETING.value
-    finally:
-        app.dependency_overrides.clear()
-
-
-def test_delete_outbox_late_fail_cannot_overwrite_completed_attempt(test_env):
-    session, _storage, user_1, _ = test_env
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
-    outbox = PerformanceTakeDeleteOutbox(
-        outbox_uuid="outbox-late-fail-001",
-        take_id=None,
-        take_uuid="take-late-fail-001",
-        user_id=user_1.id,
-        object_key="performance-takes/1/take-late-fail-001/recording.webm",
-        media_byte_size=123,
-        status=PerformanceTakeDeleteOutboxStatus.PENDING,
-        attempt_count=0,
-        max_attempts=5,
-        next_attempt_at=now,
-    )
-    session.add(outbox)
-    session.commit()
-
-    payload_a = performance_take_delete_outbox_service.claim(
-        session,
-        outbox.outbox_uuid,
-    )
-    assert payload_a is not None
-    assert payload_a.attempt == 1
-    session.commit()
-
-    outbox.status = PerformanceTakeDeleteOutboxStatus.FAILED
-    outbox.next_attempt_at = now - timedelta(seconds=1)
-    outbox.last_error = "lease expired"
-    session.commit()
-
-    payload_b = performance_take_delete_outbox_service.claim(
-        session,
-        outbox.outbox_uuid,
-    )
-    assert payload_b is not None
-    assert payload_b.attempt == 2
-    session.commit()
-
-    assert (
-        performance_take_delete_outbox_service.complete(
-            session,
-            outbox.outbox_uuid,
-            attempt=payload_b.attempt,
-        )
-        is True
-    )
-    session.commit()
-
-    assert (
-        performance_take_delete_outbox_service.complete(
-            session,
-            outbox.outbox_uuid,
-            attempt=payload_a.attempt,
-        )
-        is False
-    )
-    session.commit()
-
-    assert (
-        performance_take_delete_outbox_service.fail(
-            session,
-            outbox.outbox_uuid,
-            "stale worker failure",
-            attempt=payload_a.attempt,
-        )
-        is False
-    )
-    session.commit()
-
-    session.refresh(outbox)
-    assert outbox.status == PerformanceTakeDeleteOutboxStatus.COMPLETED
-    assert outbox.attempt_count == 2
-    assert outbox.last_error is None
 
 
 def test_expired_reservation_cleanup_releases_db_lock_before_storage_delete(test_env):
@@ -3993,97 +3136,6 @@ def test_expired_finalizing_lease_records_candidate_before_retry(test_env):
     assert candidate_key in (auth.orphan_final_object_keys or "")
 
 
-def test_worker_handles_already_absent_object_idempotently(
-    test_env, monkeypatch: pytest.MonkeyPatch
-):
-    session, storage, user_1, _ = test_env
-    storage_usage_svc = StorageUsageService()
-    take_svc = _performance_take_service(
-        session=session,
-        storage=storage,
-        storage_usage_service=storage_usage_svc,
-    )
-
-    async def override_db():
-        yield AsyncSessionAdapter(session)
-
-    app.dependency_overrides[get_db] = override_db
-    app.dependency_overrides[get_current_user] = lambda: user_1
-    app.dependency_overrides[get_object_storage] = lambda: storage
-    app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
-    app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
-    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
-
-    client = PerformanceTakeTestClient(app)
-
-    try:
-        content = VALID_WEBM_BYTES
-        size = len(content)
-        auth_req = {
-            "practice_binding": {
-                "score_id": "score-uuid-10",
-                "revision_id": DEFAULT_TAKE_REVISION_ID,
-                "bundle_id": _bundle_id(),
-            },
-            "media": {"byte_size": size, "mime_type": "audio/webm"},
-            "scope": {"kind": "FULL"},
-            "client_request_id": "req-oss-idemp",
-        }
-        res_auth = client.post("/api/v1/performance-takes/upload-reservations", json=auth_req)
-        auth_data = res_auth.json()["data"]
-        take_id = auth_data["take_id"]
-        res_id = auth_data["reservation_id"]
-        storage.put_bytes(
-            key=_staging_key(session, auth_data["reservation_id"]),
-            content=content,
-            content_type="audio/webm",
-        )
-
-        reserved_upload_id = res_id
-        res_fin = client.post(
-            "/api/v1/performance-takes/upload-reservations/" + reserved_upload_id + "/finalize"
-        )
-        assert res_fin.status_code == 200
-
-        take_row = session.execute(
-            select(PerformanceTake)
-            .join(PerformanceTakeManifest)
-            .where(PerformanceTakeManifest.take_uuid == take_id)
-        ).scalar_one()
-        final_key = take_row.recording_object.object_key
-        assert final_key.startswith(f"performance-takes/1/{take_id}/")
-        assert storage.exists(final_key)
-
-        res_del = client.delete(f"/api/v1/performance-takes/{take_id}")
-        assert res_del.status_code == 202
-
-        outbox = session.execute(
-            select(PerformanceTakeDeleteOutbox).where(
-                PerformanceTakeDeleteOutbox.take_uuid == take_id
-            )
-        ).scalar_one()
-
-        # Simulate a final object that is already absent before the worker runs.
-        # This verifies idempotent absent-object handling, not a real DB commit
-        # failure after successful object deletion.
-        storage.delete(final_key)
-        assert not storage.exists(final_key)
-
-        # Worker runs and handles absent file idempotently
-        worker_res = _run_worker_deletion(monkeypatch, session, storage, outbox.outbox_uuid)
-        assert worker_res["status"] == "deleted"
-
-        session.refresh(outbox)
-        assert outbox.status == PerformanceTakeDeleteOutboxStatus.COMPLETED
-
-        account = session.get(StorageUsageAccount, 1)
-        session.refresh(account)
-        assert account.used_bytes == 0
-
-    finally:
-        app.dependency_overrides.clear()
-
-
 def _normalise_psycopg_url(database_url: str) -> str:
     return database_url.replace("postgresql+asyncpg://", "postgresql://", 1).replace(
         "postgresql+psycopg://", "postgresql://", 1
@@ -4459,354 +3511,6 @@ def test_finalize_unknown_commit_outcome_recovers_via_reservation_lineage(
         assert account.reserved_bytes == 0 and account.used_bytes == len(VALID_WEBM_BYTES)
         assert len(session.execute(select(PerformanceTake)).scalars().all()) == 1
         assert len(session.execute(select(StoredObject)).scalars().all()) == 3
-
-
-def test_live_admission_and_save_snapshot_share_canonical_provenance(test_env):
-    from types import SimpleNamespace
-    from unittest.mock import AsyncMock, Mock
-    from app.modules.practice.bundle.router import get_practice_bundle_service
-    from app.modules.practice.bundle.compiler import PracticeBundleCompiler
-
-    session, storage, user, _ = test_env
-    canonical = (
-        Path(__file__).parent / "fixtures/musicxml/canonical-practice-score.musicxml"
-    ).read_bytes()
-    storage.put_bytes(key="canonical.musicxml", content=canonical, content_type="application/xml")
-    assets = Mock()
-    assets.canonical_source = AsyncMock(
-        return_value=SimpleNamespace(
-            stored_object=StoredObject(
-                object_key="canonical.musicxml",
-                byte_size=len(canonical),
-                sha256=hashlib.sha256(canonical).hexdigest(),
-                content_type="application/xml",
-            )
-        )
-    )
-    bundle_service = PracticeBundleService(storage=storage, asset_repository=assets)
-    take_service = PerformanceTakeUploadService(
-        storage=storage, practice_bundle_service=bundle_service
-    )
-
-    async def override_db():
-        yield AsyncSessionAdapter(session)
-
-    app.dependency_overrides.update(
-        {
-            get_db: override_db,
-            get_current_user: lambda: user,
-            get_practice_bundle_service: lambda: bundle_service,
-            get_performance_take_service: lambda: take_service.takes,
-            get_performance_take_upload_service: lambda: take_service,
-        }
-    )
-    client = PerformanceTakeTestClient(app)
-    live_url = "/api/v1/practice/scores/score-uuid-10/revisions/revision-uuid-100/bundle"
-    try:
-        with patch.object(
-            bundle_service.compiler, "compile", wraps=bundle_service.compiler.compile
-        ) as build:
-            artifact_only = client.get(live_url)
-            assert artifact_only.status_code == 200, artifact_only.text
-            build.assert_called_once()
-        payload = artifact_only.json()["data"]
-        assert payload["notation"] is None
-        row = session.execute(select(PracticeBundleRecord)).scalar_one()
-        assert row.status == "READY"
-        assert session.get(ScoreRevisionPracticeBinding, 100).bundle_id == row.id
-        assert row.bundle_id == payload["binding"]["bundle_id"]
-        expected = PracticeBundleCompiler().compile(canonical_musicxml=canonical)
-        assert row.bundle_id == expected.bundle_id
-        assert (
-            row.prepared_musicxml_object.object_key
-            == f"practice-bundles/{row.bundle_id}/score.musicxml"
-        )
-        assert row.artifact_object.object_key == f"practice-bundles/{row.bundle_id}/artifact.json"
-        assert (
-            storage.read_bytes(row.prepared_musicxml_object.object_key)
-            == expected.prepared_musicxml.data
-        )
-        assert (
-            storage.read_bytes(row.artifact_object.object_key)
-            == expected.artifact.representation.data
-        )
-        assert row.prepared_musicxml_object.sha256 == expected.prepared_musicxml.sha256
-        assert row.artifact_object.sha256 == expected.artifact.representation.sha256
-        assert row.prepared_musicxml_object.byte_size == expected.prepared_musicxml.byte_size
-        assert row.artifact_object.byte_size == expected.artifact.representation.byte_size
-        assert (
-            practice_bundle_delete_service.recover_unowned_ready(
-                session,
-            )
-            == []
-        )
-        assert (
-            practice_bundle_delete_service.enqueue_if_unowned(
-                session,
-                row.id,
-            )
-            is None
-        )
-        with patch.object(storage, "put_bytes", wraps=storage.put_bytes) as writes:
-            with_notation = client.get(live_url + "?include_notation=true")
-            again = client.get(live_url)
-            assert with_notation.status_code == again.status_code == 200
-            writes.assert_not_called()
-        assert (
-            with_notation.json()["data"]["binding"]["bundle_id"] == payload["binding"]["bundle_id"]
-        )
-        assert (
-            with_notation.json()["data"]["notation"]["musicxml"]
-            == expected.prepared_musicxml.content
-        )
-        assert len(session.execute(select(PracticeBundleRecord)).scalars().all()) == 1
-        reserved = client.post(
-            "/api/v1/performance-takes/upload-reservations",
-            json={
-                "practice_binding": {
-                    "score_id": "score-uuid-10",
-                    "revision_id": "revision-uuid-100",
-                    "bundle_id": row.bundle_id,
-                },
-                "media": {
-                    "byte_size": len(VALID_WEBM_BYTES),
-                    "mime_type": "audio/webm",
-                },
-                "scope": {"kind": "FULL"},
-                "client_request_id": "durable-source-reservation",
-            },
-        )
-        assert reserved.status_code == 200, reserved.text
-        reservation = session.execute(select(PerformanceTakeUploadReservation)).scalar_one()
-        assert reservation.manifest.practice_bundle_id == row.bundle_id
-        assert len(session.execute(select(PracticeBundleRecord)).scalars().all()) == 1
-        take = _create_default_take(
-            session,
-            user_id=user.id,
-            source=row,
-            client_request_id="saved-source",
-            take_uuid="saved-source-take",
-            media_object_key="take.webm",
-        )
-        session.commit()
-        saved = client.get(f"/api/v1/performance-takes/{take.manifest.take_uuid}")
-        assert saved.status_code == 200, saved.text
-        assert saved.json()["data"]["manifest"]["practice_binding"]["bundle_id"] == row.bundle_id
-        storage.put_bytes(
-            key=row.artifact_object.object_key, content=b"corrupt", content_type="application/json"
-        )
-        with patch.object(storage, "put_bytes", wraps=storage.put_bytes) as writes:
-            corrupt = client.get(live_url)
-            assert corrupt.status_code >= 400
-            writes.assert_not_called()
-        assert storage.read_bytes(row.artifact_object.object_key) == b"corrupt"
-    finally:
-        app.dependency_overrides.clear()
-
-
-def test_live_revision_deletion_is_discovered_by_bounded_bundle_scan(test_env, monkeypatch):
-
-    session, storage, _, _ = test_env
-    source = _create_default_bundle(session, storage)
-    session.add(ScoreRevisionPracticeBinding(revision_id=100, bundle_id=source.id))
-    session.commit()
-    assert (
-        practice_bundle_delete_service.recover_unowned_ready(
-            session,
-        )
-        == []
-    )
-    score = session.get(Score, 10)
-    score.head_revision_id = None
-    session.flush()
-    session.delete(session.get(ScoreRevision, 100))
-    session.commit()
-    session.refresh(source)
-    assert session.get(ScoreRevisionPracticeBinding, 100) is None
-    assert DEFAULT_TAKE_REVISION_ID == DEFAULT_TAKE_REVISION_ID
-    with patch.object(
-        practice_bundle_delete_service,
-        "enqueue_if_unowned",
-        wraps=practice_bundle_delete_service.enqueue_if_unowned,
-    ) as enqueue:
-        due = practice_bundle_delete_service.recover_and_list_due(session)
-        assert enqueue.call_count == 1
-    session.commit()
-    assert len(due) == 1
-    result = _run_bundle_deletion(monkeypatch, session, storage, due[0])
-    assert result["status"] == "deleted"
-    assert session.get(PracticeBundleRecord, source.id) is None
-
-
-@pytest.mark.parametrize("terminal", ["CANCELLED", "EXPIRED", "COMPLETED"])
-def test_terminal_reservation_does_not_retain_orphan_bundle(test_env, monkeypatch, terminal):
-
-    session, storage, user, _ = test_env
-    source = _create_default_bundle(session, storage)
-    take = _create_default_take(
-        session,
-        user_id=user.id,
-        source=source,
-        client_request_id="terminal-source",
-        take_uuid="terminal-source-take",
-        media_object_key="terminal.webm",
-    )
-    reservation = session.scalar(
-        select(PerformanceTakeUploadReservation).where(
-            PerformanceTakeUploadReservation.manifest_id == take.manifest_id
-        )
-    )
-    state = UploadReservationLifecycle.reserved(
-        expires_at=datetime(2020, 1, 1), put_expires_at=datetime(2020, 1, 1)
-    )
-    if terminal == "COMPLETED":
-        state = lifecycle_from_row(reservation)
-    elif terminal == "CANCELLED":
-        state = state.cancel(now=datetime(2020, 1, 1)).after
-    else:
-        state = state.expire(now=datetime(2020, 1, 1)).after
-    initialize_lifecycle(reservation, state)
-    session.delete(take)
-    session.commit()
-    due = practice_bundle_delete_service.recover_and_list_due(session)
-    session.commit()
-    assert len(due) == 1
-    assert _run_bundle_deletion(monkeypatch, session, storage, due[0])["status"] == "deleted"
-    session.refresh(reservation)
-    assert reservation.manifest.practice_bundle_id == _bundle_id()
-
-
-def test_bundle_orphan_scan_has_a_bounded_batch(test_env, monkeypatch):
-    from app.core.config import settings
-
-    session, storage, _, _ = test_env
-    for index in range(3):
-        _create_default_bundle(session, storage, prepared_suffix=b"\n" * (index + 1))
-    session.commit()
-    monkeypatch.setattr(settings, "PERFORMANCE_TAKE_DELETE_OUTBOX_DISPATCH_BATCH_SIZE", 2)
-    assert (
-        len(
-            practice_bundle_delete_service.recover_unowned_ready(
-                session,
-            )
-        )
-        == 2
-    )
-    assert (
-        len(
-            session.execute(
-                select(PracticeBundleRecord).where(PracticeBundleRecord.status == "READY")
-            )
-            .scalars()
-            .all()
-        )
-        == 1
-    )
-
-
-@pytest.mark.parametrize("failure_point", ["WRITE", "READ_BACK"])
-def test_incomplete_creation_releases_live_link_for_durable_cleanup(
-    test_env, monkeypatch, failure_point
-):
-    session, storage, _, _ = test_env
-    source = _canonical_bundle("score-uuid-10", DEFAULT_TAKE_REVISION_ID, DEFAULT_TAKE_ARTIFACT_ID)
-    repository = PracticeBundleRepository(storage)
-    original_put = storage.put_bytes
-    original_read = storage.read_bytes
-
-    def put(**kwargs):
-        if failure_point == "WRITE" and kwargs["key"].endswith("artifact.json"):
-            raise ConnectionError("Source object write unavailable")
-        return original_put(**kwargs)
-
-    def read(key):
-        value = original_read(key)
-        return b"invalid read-back" if failure_point == "READ_BACK" else value
-
-    with (
-        patch.object(storage, "put_bytes", side_effect=put),
-        patch.object(storage, "read_bytes", side_effect=read),
-    ):
-        with pytest.raises(ValidationException) as caught:
-            _run_async(
-                repository.get_or_create(AsyncSessionAdapter(session), source, revision_id=100)
-            )
-    assert caught.value.details["reason"] == "practice_bundle_storage_write_failed"
-    row = session.execute(select(PracticeBundleRecord)).scalar_one()
-    assert row.status == "DELETING"
-    assert session.get(ScoreRevisionPracticeBinding, 100) is None
-    assert session.get(ScoreRevision, 100) is not None
-    outbox = session.execute(select(PracticeBundleDeleteOutbox)).scalar_one()
-    assert (
-        _run_bundle_deletion(monkeypatch, session, storage, outbox.outbox_uuid)["status"]
-        == "deleted"
-    )
-
-
-@pytest.mark.parametrize("status", ["RESERVED", "FINALIZING"])
-def test_bundle_gc_ignores_active_reservation_after_revision_deletion(test_env, status):
-    session, storage, user, _ = test_env
-    source = _create_default_bundle(session, storage)
-    session.add(ScoreRevisionPracticeBinding(revision_id=100, bundle_id=source.id))
-    take = _create_default_take(
-        session,
-        user_id=user.id,
-        source=source,
-        client_request_id="active-source",
-        take_uuid="active-source-take",
-        media_object_key="active.webm",
-    )
-    reservation = session.scalar(
-        select(PerformanceTakeUploadReservation).where(
-            PerformanceTakeUploadReservation.manifest_id == take.manifest_id
-        )
-    )
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
-    state = UploadReservationLifecycle.reserved(
-        expires_at=now + timedelta(hours=1), put_expires_at=now + timedelta(minutes=10)
-    )
-    if status == "FINALIZING":
-        from app.modules.performance_takes.upload_reservation.domain import FinalizeLease
-
-        state = state.begin_finalize(
-            lease=FinalizeLease("token", "candidate", now + timedelta(minutes=15)), now=now
-        ).after
-    initialize_lifecycle(reservation, state)
-    session.delete(take)
-    score = session.get(Score, 10)
-    score.head_revision_id = None
-    session.flush()
-    session.delete(session.get(ScoreRevision, 100))
-    session.commit()
-    session.refresh(source)
-    assert session.get(ScoreRevisionPracticeBinding, 100) is None
-    assert (
-        len(
-            practice_bundle_delete_service.recover_unowned_ready(
-                session,
-            )
-        )
-        == 1
-    )
-    assert source.status == "DELETING"
-
-
-def test_bundle_deletion_dispatch_publishes_registered_durable_operation(test_env, monkeypatch):
-    from app.worker.dispatch import practice_bundle_deletion as dispatch
-
-    session, storage, _, _ = test_env
-    source = _create_default_bundle(session, storage)
-    outbox = practice_bundle_delete_service.enqueue_if_unowned(
-        session,
-        source.id,
-    )
-    session.commit()
-    monkeypatch.setattr(dispatch, "get_worker_db", lambda: _mock_worker_db(session))
-    with patch.object(dispatch, "send_durable_task", return_value=True) as send:
-        assert dispatch.dispatch_practice_bundle_deletion(outbox.outbox_uuid)
-    assert send.call_args.kwargs["task_name"] == "app.worker.tasks.practice_bundle_deletion_task"
-    assert send.call_args.kwargs["operation_kind"] == "practice_bundle_deletion"
-    assert send.call_args.kwargs["task_kwargs"] == {"outbox_uuid": outbox.outbox_uuid}
 
 
 def test_bound_bundle_authorization_preserves_admitted_representation_identity(test_env):
@@ -5342,14 +4046,14 @@ def test_take_deletion_retires_media_but_preserves_manifest_and_reservation(test
         final_key = take.recording_object.object_key
         deleted = client.delete(f"/api/v1/performance-takes/{accepted['take_id']}")
         assert deleted.status_code == 202, deleted.text
-        outbox = session.scalar(select(PerformanceTakeDeleteOutbox))
-        assert (outbox.take_uuid, outbox.user_id, outbox.media_byte_size) == (
-            before.take_uuid,
-            before.user_id,
-            before.snapshot.capture.byte_size,
+        operation = session.scalar(
+            select(StoredObjectRetirement).where(StoredObjectRetirement.object_key == final_key)
         )
-        outcome = _run_worker_deletion(monkeypatch, session, storage, outbox.outbox_uuid)
-        assert outcome["status"] == "deleted"
+        assert operation.byte_size == before.snapshot.capture.byte_size
+        assert session.scalar(select(PerformanceTake)) is None
+        assert session.get(StorageUsageAccount, user.id).used_bytes == 0
+        outcome = _run_retirement(monkeypatch, session, storage, operation.retirement_uuid)
+        assert outcome["status"] == "completed"
         session.expire_all()
         assert session.scalar(select(PerformanceTake)) is None
         assert not storage.exists(final_key)

@@ -10,17 +10,39 @@ NoteVerse uses one private `ObjectStorage` namespace per deployment. The capabil
 
 Upload, ImportArtifact, ScoreRevisionSource, ScoreRenderAsset and ScorePlaybackAsset reference `stored_object`. PerformanceTake references `recording_object` alongside its independent TakeManifest. PracticeBundle references `prepared_musicxml_object` and `artifact_object`. User references its current `avatar_object`. Their foreign keys restrict physical-row removal while any semantic reference remains.
 
-Features own object keys, namespaces, filenames, MIME policy, deduplication and delivery authorization. Upload deduplication selects only objects already referenced by Uploads; a matching SHA in another domain grants no reuse. StoredObject implies no global deduplication. Account creates an immutable processed-JPEG key and derives a stable application avatar URL from the current reference. The avatar endpoint issues a fresh signed download capability.
+Features own object keys, namespaces, filenames, MIME policy, deduplication and delivery authorization. Upload deduplication uses existing Upload references and the Files-owned deterministic key namespace. A pending-retirement object at that exact key is reacquired under the retirement fence; a matching SHA in another domain grants no reuse. StoredObject implies no global deduplication. Account creates an immutable processed-JPEG key and derives a stable application avatar URL from the current reference. The avatar endpoint issues a fresh signed download capability.
 
 TakeManifest.capture remains admitted browser provenance. Take aggregate admission verifies its MIME and byte size agree with the recording StoredObject. Finalize streams complete staging and copied candidate bytes, verifies both full hashes, then commits StoredObject, Take, reservation completion and quota atomically.
 
-## Locators and deletion
+## Semantic release and durable retirement
 
-Temporary upload staging, finalizing and orphan keys are reservation lifecycle locators, not StoredObjects. Delete-outbox keys are immutable operation snapshots. StorageUsage reservation/event keys are accounting/audit snapshots. These snapshots do not establish current physical facts.
+StoredObject may be shared across domains by exact physical identity. The real semantic foreign keys are the ownership authority; `modules/storage_objects/references.py` enumerates every such reference. Physical deletion never follows a local-domain-only reference count.
 
-Take and Bundle deletion retain their domain outboxes, payloads and retry policies. Workers check the domain lease/ownership, remove semantic and physical rows under foreign-key protection, delete snapshot objects, and atomically complete domain cleanup. Take Manifest and Reservation lineage remain.
+```text
 
-Files deletion, Avatar replacement/clear, Import cleanup, Score cleanup and derivative replacement/retention use their domain cleanup flows. Their synchronous or best-effort object deletion is not a shared durable retirement protocol. A failed post-commit storage delete can leave unreferenced bytes. Domain code never deliberately deletes bytes while retaining a live semantic reference to their StoredObject.
+Semantic reference release
+
+    → repo-wide reference authority
+
+    → last reference: StoredObjectRetirement
+
+    → DurableDeliveryLifecycle
+
+    → FK-validated StoredObject row deletion
+
+    → ObjectStorage delete
+
+```
+
+A domain removes and flushes its reference, releases its logical accounting and queues eligible retirement in the same transaction. Upload, Avatar, Import, Review artifacts, Render/Playback, derivative retention, Score cleanup, Take deletion and Bundle GC use this boundary. Take Manifest and Reservation lineage remain. Accounting belongs to the semantic allocation and does not wait for physical retirement.
+
+`retire_if_unreferenced` locks StoredObject and checks all semantic references before creating or rearming one operation. `retain_for_reference` locks the same row and its operation, cancels pending retirement and admits a new reference. A worker that wins the destructive lock completes before acquisition can continue; acquisition then follows normal object creation if the row is gone.
+
+The worker commits its claim separately. Its destructive transaction locks StoredObject then the retirement operation, verifies attempt count and token, compares snapshot facts, and checks all semantic references. A referenced object produces CANCELLED. Otherwise ORM deletion is flushed before storage IO, so every RESTRICT foreign key is validated before bytes can be deleted. Physical deletion and operation completion commit together. Storage failure rolls back row removal and records FAILED in a fresh transaction. An absent physical key is idempotent; an unexpectedly absent StoredObject fails closed without deleting the snapshot key.
+
+Retirement states are PENDING, DISPATCHED, PROCESSING, FAILED, COMPLETED and CANCELLED. Shared delivery policy owns retry, lease expiry, dispatch and reset. A fresh attempt token fences cancelled/rearmed work as well as lease takeover. Immediate dispatch is best effort; periodic maintenance is the durable recovery path.
+
+Temporary upload staging, finalizing and orphan keys are reservation lifecycle locators, not StoredObjects. Failed pre-admission writes use separate write compensation. Retirement snapshots and StorageUsage reservation/event keys are operation/accounting evidence, not current physical authority. Neither snapshot retains semantic ownership.
 
 ## Infrastructure and verification
 

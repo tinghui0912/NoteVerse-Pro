@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.modules.storage_objects.retirement import retire_released_objects
 
 from datetime import datetime
 
@@ -129,7 +130,7 @@ class SyncImportJobRepository:
         )
         for row in rows:
             db.delete(row)
-            db.delete(row.stored_object)
+            retire_released_objects(db, row.stored_object_id)
         db.flush()
 
     @staticmethod

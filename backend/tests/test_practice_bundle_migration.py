@@ -53,7 +53,7 @@ def assert_current_bundle_schema(engine):
     for name in [
         "practice_bundles",
         "score_revision_practice_bindings",
-        "practice_bundle_delete_outbox",
+        "stored_object_retirements",
         "stored_objects",
         "uploads",
         "import_artifacts",

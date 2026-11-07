@@ -10,14 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import (
     ResourceNotFoundException,
 )
-from app.db.models.performance_take import (
-    PerformanceTake,
-    PerformanceTakeDeletionStatus,
-)
-from app.db.models.performance_take_delete_outbox import (
-    PerformanceTakeDeleteOutbox,
-    PerformanceTakeDeleteOutboxStatus,
-)
+from app.db.models.performance_take import PerformanceTake
+from app.db.models import StorageUsageCategory
+from app.modules.storage_usage.service import storage_usage_service
+from app.modules.storage_objects.retirement import retire_after_release
 from app.db.models.score import Score, ScoreDeletionStatus
 from app.modules.performance_takes.aggregate import take_from_row
 from app.modules.performance_takes.repository import PerformanceTakeRepository
@@ -30,7 +26,6 @@ from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.shared.constants import ErrorCode
 from app.storage.base import ObjectStorage
 from app.storage.factory import object_storage
-from app.utils.timezone import utc_now_naive
 
 
 def _status_value(status: object) -> str:
@@ -85,15 +80,13 @@ class PerformanceTakeService:
             else None
         )
 
-        deletion_status = _status_value(take.deletion_status)
-
         return PerformanceTakeRead(
             take_id=manifest.take_uuid,
             manifest=manifest.snapshot,
             archive_media={"mime_type": blob.content_type, "byte_size": blob.byte_size},
             linked_score_id=linked_score_id,
             can_open_score=linked_score_id is not None,
-            deletion_status=deletion_status,
+            deletion_status="ACTIVE",
             created_at=take.created_at,
         )
 
@@ -190,10 +183,7 @@ class PerformanceTakeService:
         take_id: str,
     ) -> PerformanceTakePlaybackRead:
         take = await self.repository.get_by_uuid(db, user_id, take_id)
-        if (
-            take is None
-            or _status_value(take.deletion_status) == PerformanceTakeDeletionStatus.DELETING.value
-        ):
+        if take is None:
             raise ResourceNotFoundException(
                 "performance_take", take_id, ErrorCode.RESOURCE_NOT_FOUND
             )
@@ -229,10 +219,7 @@ class PerformanceTakeService:
     ) -> tuple[str, str, str]:
         """Return an authorized, server-streamed media target without exposing its object key."""
         take = await self.repository.get_by_uuid(db, user_id, take_id)
-        if (
-            take is None
-            or _status_value(take.deletion_status) == PerformanceTakeDeletionStatus.DELETING.value
-        ):
+        if take is None:
             raise ResourceNotFoundException(
                 "performance_take", take_id, ErrorCode.RESOURCE_NOT_FOUND
             )
@@ -257,31 +244,23 @@ class PerformanceTakeService:
                 "performance_take", take_id, ErrorCode.RESOURCE_NOT_FOUND
             )
 
-        if _status_value(take.deletion_status) == PerformanceTakeDeletionStatus.DELETING.value:
-            return {"status": "deleting", "take_id": take_id}
-
         facts = take_from_row(take)
-        manifest, blob = facts.manifest, facts.recording_object
-        take.deletion_status = PerformanceTakeDeletionStatus.DELETING.value
-        outbox = PerformanceTakeDeleteOutbox(
-            take_id=take.id,
-            take_uuid=manifest.take_uuid,
-            user_id=manifest.user_id,
-            object_key=blob.object_key,
-            media_byte_size=blob.byte_size,
-            status=PerformanceTakeDeleteOutboxStatus.PENDING.value,
-            next_attempt_at=utc_now_naive(),
+        object_id = take.recording_object_id
+        await db.delete(take)
+        operations = await retire_after_release(db, object_id)
+        await storage_usage_service.record_release(
+            db,
+            user_id=user_id,
+            category=StorageUsageCategory.UPLOAD,
+            bytes_count=facts.recording_object.byte_size,
+            reason="performance_take_deleted",
+            object_type="performance_take",
+            object_id=take_id,
+            storage_key=facts.recording_object.object_key,
+            auto_commit=False,
         )
-        await self.repository.create_delete_outbox(db, outbox, auto_commit=False)
         await db.commit()
+        from app.worker.dispatch.stored_object_retirement import dispatch_retirements_best_effort
 
-        try:
-            from app.worker.dispatch.performance_take_deletion import (
-                dispatch_performance_take_deletion,
-            )
-
-            dispatch_performance_take_deletion(outbox.outbox_uuid)
-        except Exception:
-            pass
-
+        dispatch_retirements_best_effort(operations)
         return {"status": "deleting", "take_id": take_id}

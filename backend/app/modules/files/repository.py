@@ -59,20 +59,8 @@ class FilesRepository:
         ).scalar_one()
         return int(import_refs) + int(input_refs)
 
-    async def object_upload_count(self, db: AsyncSession, stored_object_id: int) -> int:
-        return int(
-            (
-                await db.execute(
-                    select(func.count(Upload.id)).where(Upload.stored_object_id == stored_object_id)
-                )
-            ).scalar_one()
-        )
-
     async def delete_upload_by_id(self, db: AsyncSession, upload_id: int) -> None:
         await db.execute(delete(Upload).where(Upload.id == upload_id))
-
-    async def delete_object_by_id(self, db: AsyncSession, stored_object_id: int) -> None:
-        await db.execute(delete(StoredObject).where(StoredObject.id == stored_object_id))
 
 
 files_repository = FilesRepository()

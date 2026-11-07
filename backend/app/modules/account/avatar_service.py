@@ -13,6 +13,7 @@ from app.db.model_utils import require_persisted_id
 from app.db.models import User, StoredObject
 from app.modules.storage_objects.persistence import object_from_bytes
 from app.modules.account.avatar_presentation import avatar_url_for_user
+from app.modules.storage_objects.retirement import retire_after_release
 from app.storage import ObjectStorage, object_storage
 
 
@@ -110,31 +111,26 @@ class AvatarService:
         ).scalar_one()
         previous = user.avatar_object
         current = self.process_avatar(file_bytes=file_bytes, filename=filename, user_id=user_id)
+        committed = False
         try:
             user.avatar_object = current
             db.add(user)
+            if previous is not None:
+                await retire_after_release(db, previous.id)
             await db.commit()
+            committed = True
             await db.refresh(user)
         except Exception:
             await db.rollback()
-            self.delete_avatar(current.object_key.rsplit("/", 1)[-1])
+            if not committed:
+                try:
+                    self.storage.delete(current.object_key)
+                except Exception as cleanup_error:
+                    logger.bind(event="account.avatar.write_compensation_failed").opt(
+                        exception=cleanup_error
+                    ).warning("Unadmitted avatar cleanup failed")
             raise
-        await self._discard_avatar(db, previous)
         return current.object_key.rsplit("/", 1)[-1], avatar_url_for_user(user) or ""
-
-    async def _discard_avatar(self, db: AsyncSession, previous: StoredObject | None) -> None:
-        if previous is None:
-            return
-        key = previous.object_key
-        # Avatar references are explicit. A still-current avatar is never deleted.
-        owner = await db.scalar(
-            select(User.id).where(User.avatar_object_id == previous.id).limit(1)
-        )
-        if owner is not None:
-            return
-        await db.delete(previous)
-        await db.commit()
-        self.delete_avatar(key.rsplit("/", 1)[-1])
 
     async def clear_user_avatar(self, db: AsyncSession, user: User) -> bool:
         previous = user.avatar_object
@@ -142,8 +138,8 @@ class AvatarService:
             return False
         user.avatar_object = None
         user.avatar_object_id = None
+        await retire_after_release(db, previous.id)
         await db.commit()
-        await self._discard_avatar(db, previous)
         return True
 
     async def clear_missing_avatar_reference(self, db: AsyncSession, user: User) -> bool:
@@ -152,22 +148,6 @@ class AvatarService:
             return False
         await self.clear_user_avatar(db, user)
         return True
-
-    def delete_avatar(self, filename: str) -> bool:
-        try:
-            deleted = self.storage.delete(avatar_object_key(filename))
-            if deleted:
-                logger.bind(
-                    event="account.avatar.deleted",
-                    filename=filename,
-                ).info("Avatar deleted")
-            return deleted
-        except Exception as exc:
-            logger.bind(
-                event="account.avatar.deletion_failed",
-                filename=filename,
-            ).opt(exception=exc).error("Avatar deletion failed")
-            return False
 
     def avatar_exists(self, filename: str) -> bool:
         try:

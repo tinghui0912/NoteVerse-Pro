@@ -61,7 +61,7 @@ class RevisionService:
         self.repository = repository or ScoreRepository()
         self.asset_repository = asset_repository or ScoreAssetRepository()
         self.storage = storage or object_storage
-        self.derived_asset_retention = DerivedAssetRetentionService(self.storage)
+        self.derived_asset_retention = DerivedAssetRetentionService()
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.notification_service = notification_service or NotificationService()
         self.read_model = read_model or RevisionReadModel()

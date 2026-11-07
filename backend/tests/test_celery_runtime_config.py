@@ -9,7 +9,9 @@ from app.task_queue.options import build_celery_runtime_options
 def test_task_time_limits_form_ordered_shutdown_envelope() -> None:
     task_settings = get_task_reliability_settings()
 
-    assert get_worker_runtime_settings().PADDLEOCR_TIMEOUT_SECONDS <= task_settings.MAX_PROCESSING_TIME
+    assert (
+        get_worker_runtime_settings().PADDLEOCR_TIMEOUT_SECONDS <= task_settings.MAX_PROCESSING_TIME
+    )
     assert task_settings.MAX_PROCESSING_TIME < task_settings.CELERY_TASK_SOFT_TIME_LIMIT
     assert task_settings.CELERY_TASK_SOFT_TIME_LIMIT < task_settings.CELERY_TASK_TIME_LIMIT
 
@@ -54,8 +56,12 @@ def test_render_asset_delivery_maintenance_is_scheduled() -> None:
     derived_asset_schedule = celery_app.conf.beat_schedule["derived-asset-cleanup"]
     render_outbox_schedule = celery_app.conf.beat_schedule["render-outbox-maintenance"]
 
-    assert derived_asset_schedule["schedule"] == float(settings.DERIVED_ASSET_CLEANUP_INTERVAL_SECONDS)
-    assert render_outbox_schedule["schedule"] == float(settings.RENDER_OUTBOX_DISPATCH_INTERVAL_SECONDS)
+    assert derived_asset_schedule["schedule"] == float(
+        settings.DERIVED_ASSET_CLEANUP_INTERVAL_SECONDS
+    )
+    assert render_outbox_schedule["schedule"] == float(
+        settings.RENDER_OUTBOX_DISPATCH_INTERVAL_SECONDS
+    )
 
 
 def test_playback_delivery_maintenance_is_scheduled() -> None:
@@ -64,17 +70,12 @@ def test_playback_delivery_maintenance_is_scheduled() -> None:
     assert schedule["schedule"] == float(settings.PLAYBACK_OUTBOX_DISPATCH_INTERVAL_SECONDS)
 
 
-def test_performance_take_deletion_maintenance_is_scheduled() -> None:
-    schedule = celery_app.conf.beat_schedule[
-        "performance-take-deletion-maintenance"
-    ]
+def test_stored_object_retirement_maintenance_is_scheduled() -> None:
+    schedule = celery_app.conf.beat_schedule["stored-object-retirement-maintenance"]
 
-    assert (
-        schedule["task"]
-        == "app.worker.tasks.run_performance_take_deletion_maintenance"
-    )
+    assert schedule["task"] == "app.worker.tasks.run_stored_object_retirement_maintenance"
     assert schedule["schedule"] == float(
-        settings.PERFORMANCE_TAKE_DELETE_OUTBOX_DISPATCH_INTERVAL_SECONDS
+        settings.STORED_OBJECT_RETIREMENT_DISPATCH_INTERVAL_SECONDS
     )
 
 

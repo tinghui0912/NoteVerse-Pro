@@ -81,7 +81,7 @@ hydration and canonical JSON codec. Invalid persisted snapshots fail closed.
 
 Reservation and Take reference the exact same Manifest row. Reservation owns idempotency,
 quota hold, staging and finalize/cleanup lifecycle. Take joins one Manifest and one StoredObject
-and owns the live navigation pointer and library/deletion lifecycle. Manifest has no storage locator, upload
+and owns the live navigation pointer and library membership. Manifest has no storage locator, upload
 state, navigation pointer or Bundle/Revision FK. Only revision bindings retain PracticeBundle.
 
 Reserve commits Manifest, Reservation and quota hold atomically. Concurrent equal client requests
@@ -95,9 +95,7 @@ reservation completion and quota commit share one transaction. Finalize performs
 It resolves an optional current Score navigation link by the Manifest score UUID; a missing or
 deleting Score produces a null pointer. Read-time Score access controls navigation.
 
-Take deletion snapshots a self-contained outbox payload, removes final media, Take and StoredObject rows,
-and releases quota. Manifest and Reservation remain as idempotency lineage. Cancellation and
-expiry preserve the same Manifest without introducing a separate Manifest cleanup lifecycle.
+Take deletion removes semantic Take ownership and releases its logical quota in one transaction. It queues recording StoredObject retirement only when no semantic owner remains. Manifest and Reservation remain as idempotency lineage. Cancellation and expiry preserve the same Manifest without introducing a separate Manifest cleanup lifecycle.
 
 ## Replay, cancellation and recovery
 
@@ -117,14 +115,14 @@ Unexpected active-reservation/Take combinations are invariant violations.
 `UploadReservationCleanupService` performs bounded expiry/recovery scans and
 storage cleanup. It uses the same domain commands and explicit effects as the
 upload service. Recovery commits before slow storage IO. Staging cleanup waits
-until all issued upload capabilities have expired. Orphan deletion checks Take
-references and grace; acknowledgment rehydrates current state so extended grace
+until all issued upload capabilities have expired. Orphan deletion checks committed StoredObject
+identity and grace; acknowledgment rehydrates current state so extended grace
 cannot be erased by a stale result. Completed reservation cleanup also supports
 an intentionally deleted Take; it does not recreate that Take.
 
 Background cleanup consumes the same reservation lifecycle rules; it does not
-repair or invent reservation state. Take deletion outbox owns durable Take
-deletion only.
+repair or invent reservation state. Committed StoredObjects use the independent
+repo-wide durable retirement boundary.
 
 The save request and planning agreement are defined by the
 [Practice product contract](practice-product-contract.md#performancetake-upload-reservation).
@@ -162,8 +160,4 @@ Playback/download and Take.archive_media consume recording StoredObject MIME/siz
 that archive projection; reservation agreement uses Manifest.capture. Finalize responses also
 require archive/Capture consistency. Object key/hash stay private.
 
-DeleteOutbox is an operation snapshot, not current physical authority. Its locator and byte count
-come from StoredObject; identity/user come from Manifest. The worker locks Outbox then Take, validates
-StoredObject facts, deletes Take and StoredObject and commits quota release plus outbox completion atomically.
-Missing physical objects remain safe to retry. Manifest/Reservation lineage survives deletion.
-StorageUsage is an accounting ledger, never a playback locator authority.
+StoredObjectRetirement snapshots physical facts as operation evidence, not current physical authority. The worker locks StoredObject and the operation, validates the claim and all semantic references, then flushes the FK-protected row deletion before physical IO. Shared objects remain for their other owners. Missing physical bytes are idempotent; missing physical authority fails closed. StorageUsage is an accounting ledger, never a playback locator authority. Manifest/Reservation lineage survives semantic Take deletion and physical retirement.

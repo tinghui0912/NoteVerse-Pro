@@ -66,7 +66,7 @@ def execute_derived_asset_cleanup() -> dict[str, int]:
         return {
             "rendered_pages_deleted": result.rendered_pages_deleted,
             "playback_assets_deleted": result.playback_assets_deleted,
-            "storage_objects_deleted": result.storage_objects_deleted,
+            "object_retirements_queued": result.object_retirements_queued,
         }
 
     return run_scheduler_scan("derived_asset_cleanup", scan)
@@ -83,11 +83,11 @@ def execute_score_deletion_cleanup() -> dict[str, int]:
             "score_deletion.cleanup_completed",
             operation_kind="score_deletion",
             scores_deleted=result.scores_deleted,
-            storage_objects_deleted=result.storage_objects_deleted,
+            object_retirements_queued=result.object_retirements_queued,
         ).info("score_deletion.cleanup_completed")
         return {
             "scores_deleted": result.scores_deleted,
-            "storage_objects_deleted": result.storage_objects_deleted,
+            "object_retirements_queued": result.object_retirements_queued,
         }
 
     return run_scheduler_scan("score_deletion_cleanup", scan)

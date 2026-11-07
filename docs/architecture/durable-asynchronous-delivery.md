@@ -33,16 +33,13 @@ lifecycle field clearing without deciding whether domain work should be reactiva
 
 Domain responsibilities remain explicit:
 
-| Domain                    | Domain-owned semantics                                                                                                                                    |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Render / Playback         | Revision presentation demand, SUPERSEDED, resource admission, asset short circuits, payloads, revision/score locks and diagnostic classification          |
-| Mail                      | Expiry, EXPIRED/PERMANENT_FAILURE decisions, body availability and scrubbing, recipients, provider message identity and mail diagnostics; success is SENT |
-| Performance Take deletion | Take/StoredObject checks, physical deletion, quota release and atomic completion; success is COMPLETED                                                    |
-| Practice Bundle deletion  | Bundle ownership, CREATING/READY/DELETING scans, cancellation and its two object keys; success is COMPLETED                                               |
+| Domain                  | Domain-owned semantics                                                                                                                                    |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Render / Playback       | Revision presentation demand, SUPERSEDED, resource admission, asset short circuits, payloads, revision/score locks and diagnostic classification          |
+| Mail                    | Expiry, EXPIRED/PERMANENT_FAILURE decisions, body availability and scrubbing, recipients, provider message identity and mail diagnostics; success is SENT |
+| StoredObject retirement | Repo-wide reference checks, exact physical snapshots, CANCELLED when ownership exists, attempt-token fencing and physical deletion; success is COMPLETED  |
 
 Services own SQL predicates, row locks, maintenance ordering/batches and transactions.
 They project `apply_async_diagnostic()` / `clear_async_diagnostic()` after shared
 transitions. Render and Playback retain their exhaustion behavior; Mail selects
-permanent failure at its attempt limit. Take and Bundle deletion retain optional
-attempt fencing. Bundle deletion consumes the configured deletion delivery policy
-used by Take deletion. Tables, columns and persisted status values remain domain-owned.
+permanent failure at its attempt limit. StoredObject retirement combines shared attempt fencing with a fresh claim token, so cancellation/rearm cannot revive an earlier worker. Semantic Take deletion and Bundle GC release references and logical accounting in their own transactions; retirement owns physical IO independently. Tables, columns and terminal meaning remain domain-owned.

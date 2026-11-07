@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.modules.storage_objects.retirement import retire_released_objects
 from app.modules.storage_objects.facts import StoredObjectFacts
 from app.modules.storage_objects.persistence import object_to_row
 
@@ -112,9 +113,32 @@ class ReviewThumbnailService:
         try:
             for item in previous:
                 db.delete(item)
-                db.delete(item.stored_object)
+                retire_released_objects(db, item.stored_object_id)
             db.flush()
             db.add(thumbnail)
+            for artifact_uuid, storage_key, size_bytes in previous_usage:
+                storage_usage_service.record_release_sync(
+                    db,
+                    user_id=job.user_id,
+                    category=StorageUsageCategory.TEMP_IMPORT,
+                    bytes_count=size_bytes,
+                    reason="review_thumbnail_replaced",
+                    object_type="import_artifact",
+                    object_id=artifact_uuid,
+                    storage_key=storage_key,
+                    auto_commit=False,
+                )
+            storage_usage_service.record_allocation_sync(
+                db,
+                user_id=job.user_id,
+                category=StorageUsageCategory.TEMP_IMPORT,
+                bytes_count=thumbnail.stored_object.byte_size or 0,
+                reason="review_thumbnail_created",
+                object_type="import_artifact",
+                object_id=thumbnail.artifact_uuid,
+                storage_key=thumbnail.stored_object.object_key,
+                auto_commit=False,
+            )
             db.commit()
         except Exception:
             db.rollback()
@@ -125,33 +149,6 @@ class ReviewThumbnailService:
                     pass
             raise
 
-        for artifact_uuid, storage_key, size_bytes in previous_usage:
-            storage_usage_service.record_release_sync(
-                db,
-                user_id=job.user_id,
-                category=StorageUsageCategory.TEMP_IMPORT,
-                bytes_count=size_bytes,
-                reason="review_thumbnail_replaced",
-                object_type="import_artifact",
-                object_id=artifact_uuid,
-                storage_key=storage_key,
-            )
-        storage_usage_service.record_allocation_sync(
-            db,
-            user_id=job.user_id,
-            category=StorageUsageCategory.TEMP_IMPORT,
-            bytes_count=thumbnail.stored_object.byte_size or 0,
-            reason="review_thumbnail_created",
-            object_type="import_artifact",
-            object_id=thumbnail.artifact_uuid,
-            storage_key=thumbnail.stored_object.object_key,
-        )
-
-        for item in previous:
-            try:
-                self.storage.delete(item.stored_object.object_key)
-            except Exception:
-                pass
         return thumbnail.artifact_uuid
 
 

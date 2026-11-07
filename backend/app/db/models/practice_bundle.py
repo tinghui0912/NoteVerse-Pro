@@ -27,7 +27,6 @@ bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 class PracticeBundleStatus(str, enum.Enum):
     CREATING = "CREATING"
     READY = "READY"
-    DELETING = "DELETING"
 
 
 class PracticeBundleRecord(SQLModel, table=True):  # type: ignore[call-arg]
@@ -36,15 +35,13 @@ class PracticeBundleRecord(SQLModel, table=True):  # type: ignore[call-arg]
         UniqueConstraint("bundle_id", name="uq_practice_bundles_bundle_id"),
         UniqueConstraint("prepared_musicxml_object_id", name="uq_practice_bundles_musicxml_object"),
         UniqueConstraint("artifact_object_id", name="uq_practice_bundles_artifact_object"),
-        CheckConstraint(
-            "status IN ('CREATING', 'READY', 'DELETING')", name="ck_practice_bundles_status"
-        ),
+        CheckConstraint("status IN ('CREATING', 'READY')", name="ck_practice_bundles_status"),
         Index("ix_practice_bundles_status_creation", "status", "creation_expires_at"),
         CheckConstraint(
             "("
             "status = 'CREATING' AND creation_expires_at IS NOT NULL"
             ") OR ("
-            "status IN ('READY', 'DELETING') AND creation_expires_at IS NULL"
+            "status = 'READY' AND creation_expires_at IS NULL"
             ")",
             name="ck_practice_bundles_creation_lease",
         ),

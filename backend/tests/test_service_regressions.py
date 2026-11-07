@@ -5,7 +5,7 @@ import io
 import tempfile
 from datetime import timedelta
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, Mock, patch, call
+from unittest.mock import AsyncMock, MagicMock, Mock, patch, call
 
 import pytest
 from PIL import Image
@@ -192,7 +192,7 @@ def test_avatar_service_stores_processed_image_through_storage(mode: str) -> Non
             assert service.avatar_exists(filename)
             exists.assert_called_once_with(f"avatars/{filename}")
         with patch.object(storage, "delete", wraps=storage.delete) as delete:
-            assert service.delete_avatar(filename) is True
+            assert storage.delete(f"avatars/{filename}") is True
             delete.assert_called_once_with(f"avatars/{filename}")
 
 
@@ -222,7 +222,7 @@ def test_profile_payload_does_not_repair_missing_avatar_reference() -> None:
 
 
 @pytest.mark.asyncio
-async def test_avatar_service_replaces_user_avatar_and_deletes_old_file(
+async def test_avatar_service_replaces_user_avatar_and_queues_old_object(
     score_service_session,
 ) -> None:
     with tempfile.TemporaryDirectory():
@@ -255,6 +255,10 @@ async def test_avatar_service_replaces_user_avatar_and_deletes_old_file(
         assert filename.startswith("7_")
         assert avatar_url_for_user(user) == avatar_url
         assert storage.exists(f"avatars/{filename}")
+        assert storage.exists("avatars/old.jpg")
+        from tests.support.retirement import drain_retirements
+
+        assert drain_retirements(session, storage)[0]["status"] == "completed"
         assert not storage.exists("avatars/old.jpg")
         assert (
             user.avatar_object.sha256
@@ -281,12 +285,12 @@ def test_s3_storage_put_and_materialize() -> None:
             assert file_handle.read() == b"score"
 
 
-def test_import_job_maintenance_deletes_orphan_upload_file_and_row() -> None:
+def test_import_job_maintenance_releases_orphan_upload_and_queues_retirement() -> None:
     repository = Mock()
     storage = Mock()
     storage.delete.return_value = True
-    service = ImportJobMaintenanceService(repository=repository, storage=storage)
-    db = Mock()
+    service = ImportJobMaintenanceService(repository=repository)
+    db = MagicMock()
 
     upload = SimpleNamespace(
         id=3,
@@ -308,17 +312,22 @@ def test_import_job_maintenance_deletes_orphan_upload_file_and_row() -> None:
         patch(
             "app.modules.import_jobs.maintenance_service.storage_usage_service.record_release_sync"
         ) as release_usage,
+        patch(
+            "app.modules.import_jobs.maintenance_service.retire_released_objects",
+            return_value=["retirement"],
+        ) as retire,
     ):
         deleted = service.cleanup_orphan_uploads(db)
 
     assert deleted == 1
-    storage.delete.assert_called_once_with("blobs/or/orphan.png")
+    storage.delete.assert_not_called()
+    retire.assert_called_once_with(db, 9)
     release_usage.assert_called_once()
     assert release_usage.call_args.kwargs["user_id"] == 7
     assert release_usage.call_args.kwargs["bytes_count"] == 123
     assert release_usage.call_args.kwargs["storage_key"] == "blobs/or/orphan.png"
     db.delete.assert_any_call(upload)
-    db.delete.assert_any_call(blob)
+    assert [call.args[0] for call in db.delete.call_args_list] == [upload]
     db.commit.assert_called_once()
 
 
@@ -424,11 +433,13 @@ async def test_file_upload_restores_missing_immutable_object() -> None:
     storage.exists.return_value = False
     storage.put_bytes.return_value = ObjectWriteResult(object_key=key, size_bytes=5)
     db = AsyncMock()
+    db.run_sync.side_effect = lambda fn: fn(Mock())
     user = SimpleNamespace(id=1)
     upload = SimpleNamespace(
         filename="score.png", content_type="image/png", read=AsyncMock(return_value=b"score")
     )
     with (
+        patch("app.modules.files.service.retain_for_reference", return_value=existing) as retain,
         patch("app.modules.files.service.storage_usage_service.reserve") as reserve,
         patch("app.modules.files.service.storage_usage_service.commit_reservation") as commit,
     ):
@@ -440,6 +451,7 @@ async def test_file_upload_restores_missing_immutable_object() -> None:
     storage.exists.assert_called_once_with(key)
     storage.put_bytes.assert_called_once_with(key=key, content=b"score", content_type="image/png")
     assert existing.model_dump() == before
+    assert retain.call_args.args[1] == 3
     repository.create_upload.assert_awaited_once_with(
         db, stored_object_id=3, original_filename="score.png", uploader_user_id=1
     )
@@ -475,8 +487,6 @@ async def test_delete_uploaded_file_removes_owned_file_and_record() -> None:
     )
     repository.upload_reference_count = AsyncMock(return_value=0)
     repository.delete_upload_by_id = AsyncMock()
-    repository.object_upload_count = AsyncMock(return_value=0)
-    repository.delete_object_by_id = AsyncMock()
     service = FilesService(repository=repository)
     db = AsyncMock()
     db.get.return_value = SimpleNamespace(
@@ -495,14 +505,20 @@ async def test_delete_uploaded_file_removes_owned_file_and_record() -> None:
 
         storage = InMemoryObjectStorage()
         service = FilesService(repository=repository, storage=storage)
-        with patch(
-            "app.modules.files.service.storage_usage_service.record_release"
-        ) as release_usage:
+        with (
+            patch(
+                "app.modules.files.service.storage_usage_service.record_release"
+            ) as release_usage,
+            patch(
+                "app.modules.files.service.retire_after_release", return_value=["retirement"]
+            ) as retire,
+        ):
             result = await service.delete_uploaded_file(db, current_user, "owned.png")
 
     assert result.filename == "owned.png"
     repository.delete_upload_by_id.assert_awaited_once_with(db, 7)
-    repository.delete_object_by_id.assert_awaited_once_with(db, 5)
+    retire.assert_awaited_once_with(db, 5)
+    assert release_usage.call_args.kwargs["auto_commit"] is False
     release_usage.assert_awaited_once()
     db.commit.assert_awaited_once()
 
@@ -549,6 +565,6 @@ def test_avatar_delivery_uses_stable_application_url_and_fresh_capability():
             == [call(f"avatars/{filename}", content_type="image/jpeg")] * 2
         )
         assert storage.object_metadata(f"avatars/{filename}").content_type == "image/jpeg"
-        service.delete_avatar(filename)
+        storage.delete(f"avatars/{filename}")
         assert client.get(url).status_code == 404
         assert client.get("/api/v1/account/avatars/other.jpg").status_code == 404

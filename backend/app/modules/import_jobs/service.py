@@ -57,7 +57,7 @@ class ImportJobService:
         self.repository = repository or ImportJobRepository()
         self.submission_service = submission_service or ImportJobSubmissionService()
         self.storage = storage or object_storage
-        self.deletion_service = deletion_service or ImportJobDeletionService(self.storage)
+        self.deletion_service = deletion_service or ImportJobDeletionService()
 
     async def submit(
         self, current_user: User, request: ImportJobSubmitRequestLike

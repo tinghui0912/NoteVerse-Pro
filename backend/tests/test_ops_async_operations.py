@@ -111,6 +111,9 @@ class AsyncSessionAdapter:
     def __init__(self, session: Session) -> None:
         self.session = session
 
+    async def run_sync(self, function, *args, **kwargs):
+        return function(self.session, *args, **kwargs)
+
     def add(self, instance) -> None:
         self.session.add(instance)
 

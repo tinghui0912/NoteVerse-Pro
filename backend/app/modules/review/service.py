@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.modules.storage_objects.retirement import retire_after_release
 from app.modules.storage_objects.facts import StoredObjectFacts
 from app.modules.storage_objects.persistence import object_to_row
 
@@ -342,12 +343,34 @@ class ReviewService:
             )
             artifact.filename = stored.object_key.rsplit("/", 1)[-1]
             await db.flush()
-            await db.delete(previous_object)
+            await retire_after_release(db, previous_object.id)
             job.updated_at = utc_now_naive()
             await create_review_thumbnail_render_outbox(
                 db,
                 import_job_id=job_id,
                 source_fingerprint=content_hash,
+            )
+            await storage_usage_service.record_release(
+                db,
+                user_id=user_id,
+                category=StorageUsageCategory.TEMP_IMPORT,
+                bytes_count=old_size_bytes,
+                reason="review_musicxml_replaced",
+                object_type="import_artifact",
+                object_id=old_artifact_uuid,
+                storage_key=old_storage_key,
+                auto_commit=False,
+            )
+            await storage_usage_service.record_allocation(
+                db,
+                user_id=user_id,
+                category=StorageUsageCategory.TEMP_IMPORT,
+                bytes_count=stored.size_bytes,
+                reason="review_musicxml_updated",
+                object_type="import_artifact",
+                object_id=artifact.artifact_uuid,
+                storage_key=stored.object_key,
+                auto_commit=False,
             )
             await db.commit()
             business_committed = True
@@ -360,36 +383,6 @@ class ReviewService:
                     pass
             raise
 
-        try:
-            await storage_usage_service.record_release(
-                db,
-                user_id=user_id,
-                category=StorageUsageCategory.TEMP_IMPORT,
-                bytes_count=old_size_bytes,
-                reason="review_musicxml_replaced",
-                object_type="import_artifact",
-                object_id=old_artifact_uuid,
-                storage_key=old_storage_key,
-            )
-            await storage_usage_service.record_allocation(
-                db,
-                user_id=user_id,
-                category=StorageUsageCategory.TEMP_IMPORT,
-                bytes_count=stored.size_bytes,
-                reason="review_musicxml_updated",
-                object_type="import_artifact",
-                object_id=artifact.artifact_uuid,
-                storage_key=stored.object_key,
-            )
-        except Exception:
-            await db.rollback()
-            raise
-
-        if old_storage_key != stored.object_key:
-            try:
-                self.storage.delete(old_storage_key)
-            except Exception:
-                pass
         return await self.detail(db, job_uuid, user_id)
 
     @staticmethod

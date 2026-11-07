@@ -45,7 +45,9 @@ class StorageUsageService:
 
     async def get_usage(self, db: AsyncSession, user_id: int) -> StorageUsageRead:
         account = await self._ensure_account(db, user_id, lock=False)
-        counters = {counter.category: counter for counter in await self.repository.counters(db, user_id)}
+        counters = {
+            counter.category: counter for counter in await self.repository.counters(db, user_id)
+        }
         breakdown = [
             StorageUsageBreakdownRead(
                 category=category,
@@ -130,7 +132,9 @@ class StorageUsageService:
         if reservation.status != StorageUsageReservationStatus.RESERVED:
             return
         account = await self._ensure_account(db, reservation.user_id, lock=True)
-        counter = await self._ensure_counter(db, reservation.user_id, reservation.category, lock=True)
+        counter = await self._ensure_counter(
+            db, reservation.user_id, reservation.category, lock=True
+        )
         commit_reserved_usage(
             account=account,
             counter=counter,
@@ -165,7 +169,9 @@ class StorageUsageService:
         if reservation is None or reservation.status != StorageUsageReservationStatus.RESERVED:
             return
         account = await self._ensure_account(db, reservation.user_id, lock=True)
-        counter = await self._ensure_counter(db, reservation.user_id, reservation.category, lock=True)
+        counter = await self._ensure_counter(
+            db, reservation.user_id, reservation.category, lock=True
+        )
         release_reserved_usage(account=account, counter=counter, reservation=reservation)
         if auto_commit:
             await db.commit()
@@ -181,6 +187,7 @@ class StorageUsageService:
         object_type: str | None = None,
         object_id: str | None = None,
         storage_key: str | None = None,
+        auto_commit: bool = True,
     ) -> None:
         if bytes_count <= 0:
             return
@@ -193,13 +200,16 @@ class StorageUsageService:
             object_type=object_type,
             object_id=object_id,
             storage_key=storage_key,
+            auto_commit=auto_commit,
         )
+        await db.flush()
         await self.commit_reservation(
             db,
             handle.reservation_id,
             object_type=object_type,
             object_id=object_id,
             storage_key=storage_key,
+            auto_commit=auto_commit,
         )
 
     async def record_release(
@@ -252,6 +262,7 @@ class StorageUsageService:
         object_type: str | None = None,
         object_id: str | None = None,
         storage_key: str | None = None,
+        auto_commit: bool = True,
     ) -> StorageReservationHandle:
         if bytes_count <= 0:
             raise ValidationException(
@@ -279,7 +290,8 @@ class StorageUsageService:
             storage_key=storage_key,
         )
         db.add(reservation)
-        db.commit()
+        if auto_commit:
+            db.commit()
         return StorageReservationHandle(reservation.reservation_uuid, bytes_count)
 
     def commit_reservation_sync(
@@ -298,7 +310,9 @@ class StorageUsageService:
         if reservation.status != StorageUsageReservationStatus.RESERVED:
             return
         account = self._ensure_account_sync(db, reservation.user_id, lock=True)
-        counter = self._ensure_counter_sync(db, reservation.user_id, reservation.category, lock=True)
+        counter = self._ensure_counter_sync(
+            db, reservation.user_id, reservation.category, lock=True
+        )
         commit_reserved_usage(
             account=account,
             counter=counter,
@@ -333,7 +347,9 @@ class StorageUsageService:
         if reservation is None or reservation.status != StorageUsageReservationStatus.RESERVED:
             return
         account = self._ensure_account_sync(db, reservation.user_id, lock=True)
-        counter = self._ensure_counter_sync(db, reservation.user_id, reservation.category, lock=True)
+        counter = self._ensure_counter_sync(
+            db, reservation.user_id, reservation.category, lock=True
+        )
         release_reserved_usage(account=account, counter=counter, reservation=reservation)
         if auto_commit:
             db.commit()
@@ -349,6 +365,7 @@ class StorageUsageService:
         object_type: str | None = None,
         object_id: str | None = None,
         storage_key: str | None = None,
+        auto_commit: bool = True,
     ) -> None:
         if bytes_count <= 0:
             return
@@ -361,13 +378,16 @@ class StorageUsageService:
             object_type=object_type,
             object_id=object_id,
             storage_key=storage_key,
+            auto_commit=auto_commit,
         )
+        db.flush()
         self.commit_reservation_sync(
             db,
             handle.reservation_id,
             object_type=object_type,
             object_id=object_id,
             storage_key=storage_key,
+            auto_commit=auto_commit,
         )
 
     def record_release_sync(
@@ -510,5 +530,6 @@ class StorageUsageService:
             DEFAULT_PLAN_CODE,
             ErrorCode.QUOTA_CHECK_UNAVAILABLE,
         )
+
 
 storage_usage_service = StorageUsageService()

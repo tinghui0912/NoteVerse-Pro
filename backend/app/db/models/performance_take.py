@@ -1,17 +1,14 @@
 from __future__ import annotations
 
-import enum
 from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import (
     BigInteger,
     Column,
-    CheckConstraint,
     DateTime,
     ForeignKey,
     Integer,
-    String,
     UniqueConstraint,
 )
 from sqlmodel import Field, Relationship, SQLModel
@@ -24,17 +21,9 @@ from app.utils.timezone import utc_now_naive
 bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 
 
-class PerformanceTakeDeletionStatus(str, enum.Enum):
-    ACTIVE = "ACTIVE"
-    DELETING = "DELETING"
-
-
 class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "performance_takes"
     __table_args__ = (
-        CheckConstraint(
-            "deletion_status IN ('ACTIVE','DELETING')", name="ck_performance_takes_deletion_status"
-        ),
         UniqueConstraint("manifest_id", name="uq_performance_takes_manifest"),
         UniqueConstraint("recording_object_id", name="uq_performance_takes_recording_object"),
     )
@@ -68,14 +57,6 @@ class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
     )
     recording_object: StoredObject = Relationship(
         sa_relationship=relationship(StoredObject, lazy="selectin")
-    )
-    deletion_status: str = Field(
-        default=PerformanceTakeDeletionStatus.ACTIVE.value,
-        sa_column=Column(
-            String(16),
-            nullable=False,
-            default=PerformanceTakeDeletionStatus.ACTIVE.value,
-        ),
     )
     created_at: datetime = Field(
         default_factory=utc_now_naive,

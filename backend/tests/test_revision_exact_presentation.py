@@ -1,5 +1,7 @@
 """Head-exact delivery and owner-exact disposal of derived presentation."""
 
+from tests.support.retirement import drain_retirements
+
 from datetime import timedelta
 from unittest.mock import Mock
 
@@ -94,7 +96,7 @@ async def test_only_head_and_active_pins_protect_rows_objects_and_usage(revision
             )
         )
         db.commit()
-    cleanup = DerivedAssetRetentionService(storage)
+    cleanup = DerivedAssetRetentionService()
     if mode == "async":
         result = await cleanup.cleanup_for_score(AsyncSessionAdapter(db), score_id=score.id)
     elif mode == "sync":
@@ -103,9 +105,13 @@ async def test_only_head_and_active_pins_protect_rows_objects_and_usage(revision
         result = cleanup.cleanup_due_scores(db)
     protected = {rows[2].id} | ({rows[0].id} if pin == "active" else set())
     assert result.rendered_pages_deleted == result.playback_assets_deleted == 3 - len(protected)
-    assert result.storage_objects_deleted == 2 * (3 - len(protected))
+    assert result.object_retirements_queued == 2 * (3 - len(protected))
     for model in (ScoreRenderAsset, ScorePlaybackAsset):
         assert set(db.scalars(select(model.revision_id))) == protected
+    assert all(storage.exists(key) for key in keys.values())
+    outcomes = drain_retirements(db, storage)
+    assert len(outcomes) == result.object_retirements_queued
+    assert all(item["status"] == "completed" for item in outcomes)
     for (_, revision_id), key in keys.items():
         assert storage.exists(key) == (revision_id in protected)
     for category in (StorageUsageCategory.DERIVED_RENDER, StorageUsageCategory.DERIVED_AUDIO):
@@ -147,8 +153,8 @@ async def test_preview_command_releases_last_historical_pin_after_commit(
     db.commit()
     if cleanup_fails:
         monkeypatch.setattr(
-            DerivedAssetRetentionService,
-            "_delete_storage_objects",
+            storage,
+            "delete",
             Mock(side_effect=RuntimeError("cleanup unavailable")),
         )
     await getattr(service, command)(AsyncSessionAdapter(db), created.preview_id, 1)
@@ -156,8 +162,11 @@ async def test_preview_command_releases_last_historical_pin_after_commit(
     assert preview is None if command == "delete" else preview.revoked_at is not None
     assert db.scalar(select(func.count()).select_from(ScoreRenderAsset)) == 0
     assert db.scalar(select(func.count()).select_from(ScorePlaybackAsset)) == 0
-    if not cleanup_fails:
-        assert not any(storage.exists(key) for key in keys.values())
+    assert all(storage.exists(key) for key in keys.values())
+    outcomes = drain_retirements(db, storage)
+    assert len(outcomes) == 2
+    assert all(item["status"] == ("failed" if cleanup_fails else "completed") for item in outcomes)
+    assert all(storage.exists(key) == cleanup_fails for key in keys.values())
 
 
 @pytest.mark.asyncio
@@ -193,6 +202,10 @@ async def test_save_disposes_old_head_before_new_derivatives_are_ready(revisions
     )
     assert bool(db.scalar(select(ScoreRenderAsset))) == active_preview
     assert bool(db.scalar(select(ScorePlaybackAsset))) == active_preview
+    assert all(storage.exists(key) for key in keys.values())
+    outcomes = drain_retirements(db, storage)
+    assert len(outcomes) == (0 if active_preview else 2)
+    assert all(item["status"] == "completed" for item in outcomes)
     assert all(storage.exists(key) == active_preview for key in keys.values())
     if token:
         read = await previews.read(AsyncSessionAdapter(db), token)

@@ -71,7 +71,6 @@ class ScoreService:
         )
         self.lifecycle_service = lifecycle_service or ScoreLifecycleService(
             repository=self.repository,
-            storage=self.storage,
             access_policy=self.access_policy,
         )
 

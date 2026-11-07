@@ -25,7 +25,7 @@ from app.modules.performance_takes.upload_reservation.persistence import (
     initialize_lifecycle,
     lifecycle_from_row,
 )
-from app.modules.practice.bundle.retention import practice_bundle_delete_service
+from app.modules.practice.bundle.retention import practice_bundle_retention
 from app.modules.scores.lifecycle_service import ScoreLifecycleService
 from tests.test_upload_reservation_postgres import setup_bundle, MEDIA
 
@@ -141,25 +141,15 @@ async def test_snapshot_replay_finalize_and_take_reads_survive_bundle_gc(postgre
         await db.execute(delete(Score))
         await db.commit()
         due = await db.run_sync(
-            lambda sync: practice_bundle_delete_service.recover_unowned_ready(
+            lambda sync: practice_bundle_retention.collect_unowned_ready(
                 sync,
             )
         )
-        assert len(due) == 1
-        payload = await db.run_sync(lambda sync: practice_bundle_delete_service.claim(sync, due[0]))
-        await db.commit()
-        storage.delete(payload.prepared_musicxml_object_key)
-        storage.delete(payload.artifact_object_key)
-        await db.execute(
-            delete(PracticeBundleRecord).where(
-                PracticeBundleRecord.id == payload.practice_bundle_id
-            )
-        )
-        assert await db.run_sync(
-            lambda sync: practice_bundle_delete_service.complete(
-                sync, due[0], attempt=payload.attempt
-            )
-        )
+        assert len(due) == 2
+        from tests.support.retirement import drain_retirements
+
+        results = await db.run_sync(lambda sync: drain_retirements(sync, storage))
+        assert all(result["status"] == "completed" for result in results)
         await db.commit()
         assert await db.scalar(select(PracticeBundleRecord)) is None
         await db.commit()
@@ -248,7 +238,7 @@ async def test_revision_only_retention_with_existing_reservation_or_take(postgre
         source_row = await db.scalar(select(PracticeBundleRecord))
         assert (
             await db.run_sync(
-                lambda sync: practice_bundle_delete_service.recover_unowned_ready(
+                lambda sync: practice_bundle_retention.collect_unowned_ready(
                     sync,
                 )
             )
@@ -260,32 +250,22 @@ async def test_revision_only_retention_with_existing_reservation_or_take(postgre
         await db.execute(delete(ScoreRevision))
         await db.commit()
         due = await db.run_sync(
-            lambda sync: practice_bundle_delete_service.recover_unowned_ready(
+            lambda sync: practice_bundle_retention.collect_unowned_ready(
                 sync,
             )
         )
-        assert len(due) == 1
-        assert source_row.status == "DELETING"
+        assert len(due) == 2
+        assert await db.get(PracticeBundleRecord, source_row.id) is None
         assert row.manifest.practice_bundle_id == request.practice_binding.bundle_id
         assert row.status == status
         if status == "COMPLETED":
             take = await db.scalar(select(PerformanceTake))
             assert take.manifest.practice_bundle_id == row.manifest.practice_bundle_id
         await db.commit()
-        payload = await db.run_sync(lambda sync: practice_bundle_delete_service.claim(sync, due[0]))
-        await db.commit()
-        storage.delete(payload.prepared_musicxml_object_key)
-        storage.delete(payload.artifact_object_key)
-        await db.execute(
-            delete(PracticeBundleRecord).where(
-                PracticeBundleRecord.id == payload.practice_bundle_id
-            )
-        )
-        assert await db.run_sync(
-            lambda sync: practice_bundle_delete_service.complete(
-                sync, due[0], attempt=payload.attempt
-            )
-        )
+        from tests.support.retirement import drain_retirements
+
+        results = await db.run_sync(lambda sync: drain_retirements(sync, storage))
+        assert all(result["status"] == "completed" for result in results)
         await db.commit()
         assert await db.scalar(select(PracticeBundleRecord)) is None
         await db.refresh(row)
