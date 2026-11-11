@@ -23,10 +23,10 @@ export type SavedPerformanceAdmission =
   | { status: 'unsupported' | 'temporarily_unavailable'; reason: string };
 
 /** Display eligibility only; semantic admission happens once after all owners are available. */
-export function isSavedVideoCandidate(take: PerformanceTakeRead): boolean {
+export function isSavedCompositeVideoCandidate(take: PerformanceTakeRead): boolean {
   return (
     take.deletion_status !== 'DELETING' &&
-    take.manifest.capture.kind === 'VIDEO'
+    ["AUDIO", "VIDEO"].includes(take.manifest.capture.kind)
   );
 }
 export function admitSavedRecordedPerformance(

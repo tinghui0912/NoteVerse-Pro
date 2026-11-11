@@ -1,8 +1,12 @@
-import type { SvgRect } from '@/lib/practice/score-view/playhead-cursor';
+import type { SvgRect } from "@/lib/practice/score-view/playhead-cursor";
 
 export type Rect = { x: number; y: number; width: number; height: number };
 
-export function svgRectToCanvasRect(rect: SvgRect, viewport: SvgRect, imageRect: Rect): Rect {
+export function svgRectToCanvasRect(
+  rect: SvgRect,
+  viewport: SvgRect,
+  imageRect: Rect,
+): Rect {
   const scaleX = imageRect.width / viewport.width;
   const scaleY = imageRect.height / viewport.height;
   return {

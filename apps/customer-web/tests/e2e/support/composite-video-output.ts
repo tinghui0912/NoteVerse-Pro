@@ -1,11 +1,11 @@
 import type { Page } from "@playwright/test";
 
-export async function videoExportOutputFiles(page: Page): Promise<string[]> {
+export async function compositeVideoOutputFiles(page: Page): Promise<string[]> {
   return page.evaluate(async () => {
     try {
       const directory = await (
         await navigator.storage.getDirectory()
-      ).getDirectoryHandle("noteverse-video-export-output");
+      ).getDirectoryHandle("noteverse-composite-video-output");
       const names: string[] = [];
       for await (const entry of (
         directory as unknown as { values(): AsyncIterable<{ name: string }> }
@@ -21,7 +21,7 @@ export async function videoExportOutputFiles(page: Page): Promise<string[]> {
 }
 
 /** A deterministic native-OPFS write barrier exercises unmount during output IO. */
-export async function installVideoExportOutputBarrier(page: Page) {
+export async function installCompositeVideoOutputBarrier(page: Page) {
   await page.addInitScript(() => {
     const outputFiles = new WeakSet<FileSystemFileHandle>();
     let release!: () => void;
@@ -45,7 +45,8 @@ export async function installVideoExportOutputBarrier(page: Page) {
       ...args
     ) {
       const file = await getFile.apply(this, args);
-      if (this.name === "noteverse-video-export-output") outputFiles.add(file);
+      if (this.name === "noteverse-composite-video-output")
+        outputFiles.add(file);
       return file;
     };
     const create = FileSystemFileHandle.prototype.createWritable;

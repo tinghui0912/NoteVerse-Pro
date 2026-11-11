@@ -2,7 +2,7 @@ import { expect, it } from 'vitest';
 import {
   artifact,
   take,
-} from '@/lib/practice/video-export/__fixtures__/saved-take';
+} from "@/lib/practice/composite-video/__fixtures__/saved-take";
 import { localMediaAssetFixture } from '@/lib/practice/__fixtures__/local-media-asset';
 import { admitSavedRecordedPerformance } from './saved-performance';
 import {

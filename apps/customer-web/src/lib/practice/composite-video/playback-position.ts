@@ -1,33 +1,33 @@
-import { recordedPerformancePosition } from '@/lib/practice/recording/recorded-performance-timeline';
-import { cursorScopeFromExecutedPerformance } from '@/lib/practice/score-view/cursor-scope';
-import type { RecordedPerformance } from '@/lib/practice/recording/recorded-performance';
-import type { PracticeVerovioAdapter } from '@/lib/practice/score-view/verovio-adapter';
+import { recordedPerformancePosition } from "@/lib/practice/recording/recorded-performance-timeline";
+import { cursorScopeFromExecutedPerformance } from "@/lib/practice/score-view/cursor-scope";
+import type { RecordedPerformance } from "@/lib/practice/recording/recorded-performance";
+import type { PracticeVerovioAdapter } from "@/lib/practice/score-view/verovio-adapter";
 
-export type ResolveVideoExportPlaybackPositionInput = {
+export type ResolveCompositeVideoPlaybackPositionInput = {
   recordedPerformance: RecordedPerformance;
   adapter: Pick<
     PracticeVerovioAdapter,
-    'getCursorTimelineEntryForTickRange' | 'getPageWithElement'
+    "getCursorTimelineEntryForTickRange" | "getPageWithElement"
   >;
   pageNumberResolver?: (noteIds: readonly string[]) => number | null;
   mediaTimeMs: number;
   actualMediaDurationMs?: number | null;
 };
 
-export type VideoExportPlaybackPosition = {
+export type CompositeVideoPlaybackPosition = {
   perfTimeMs: number;
   scoreTick: number;
   pageNumber: number;
   noteIds: string[];
 };
 
-export function resolveVideoExportPlaybackPosition({
+export function resolveCompositeVideoPlaybackPosition({
   recordedPerformance,
   adapter,
   pageNumberResolver,
   mediaTimeMs,
   actualMediaDurationMs,
-}: ResolveVideoExportPlaybackPositionInput): VideoExportPlaybackPosition | null {
+}: ResolveCompositeVideoPlaybackPositionInput): CompositeVideoPlaybackPosition | null {
   const position = recordedPerformancePosition(
     recordedPerformance,
     mediaTimeMs,
@@ -43,7 +43,7 @@ export function resolveVideoExportPlaybackPosition({
     scoreTick,
     scope.startTick,
     scope.terminalTick,
-    scope.kind === 'RANGE' ? scope.allowedNoteIds : undefined,
+    scope.kind === "RANGE" ? scope.allowedNoteIds : undefined,
   );
   if (!entry || entry.noteIds.length === 0) {
     return null;

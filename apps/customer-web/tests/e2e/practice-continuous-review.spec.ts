@@ -1,5 +1,6 @@
+import { readFile } from "node:fs/promises";
 import { ACOUSTIC_MODEL_ASSET_DESCRIPTOR } from '../../src/lib/practice/acoustic/generated/runtime-contract';
-import { videoExportOutputFiles } from './support/video-export-output';
+import { compositeVideoOutputFiles } from "./support/composite-video-output";
 import { resolvePracticeScope } from '../../src/lib/practice/planning/scope';
 import { resolvePracticeTempoPlan } from '../../src/lib/practice/planning/tempo';
 import type { LibraryFolderTreeRead, PerformanceTakeRead, PerformanceTakeUploadReservationRequest } from "../../src/generated/api/types.gen";
@@ -55,7 +56,7 @@ const testArtifact: PracticeScoreArtifact = {
    scoreEndTick: 4,
   notes: [60, 62, 64].map((pianoKey, i) => ({ noteId: `note-${i}`, eventId: `e-${i}`, pianoKey,
     renderNoteId: ['note-c4', 'note-d4', 'note-e4'][i], measureNumber: '1', staffId: '1', voiceId: '1', tieTypes: [] })),
-  events: [0,1,2].map(i => ({ eventId: `e-${i}`, onsetTick: i, durationTicks: i === 2 ? 2 : 1 })),
+  events: [0,1,2].map((i) => ({ eventId: `e-${i}`, onsetTick: i, durationTicks: i === 2 ? 2 : 1 })),
   moments: [60,62,64].map((pianoKey,i) => ({ groupId: `group-${i}`, onsetTick: i, canonicalEndTick: i === 2 ? 4 : i+1,
     attacks: [{ attackId: `strike-${i}`, pianoKey, noteIds: [`note-${i}`] }], continuationNoteIds: [] })),
   meterSegments: [{ startTick: 0, numerator: 4, denominator: 4,   }],
@@ -91,7 +92,8 @@ type MediaMock = {
   audioStreams: MediaStream[];
   cameraStreams: MediaStream[];
   captureRoots: MediaStream[];
-  captureGraphs: Array<{ context: AudioContext; root: MediaStream; source: MediaStreamAudioSourceNode }>;
+  captureGraphs: Array<{ context: AudioContext; root: MediaStream; source: MediaStreamAudioSourceNode;
+  }>;
   requests: MediaStreamConstraints[];
   tracks: Array<{ track: MediaStreamTrack; stopCalls: number }>;
   resolveCamera: (() => void) | null;
@@ -100,20 +102,20 @@ type MediaMock = {
 async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {}) {
   const unmatched: string[] = [];
   unmatchedApiRequests.set(page, unmatched);
-  await page.route('**/api/v1/**', route => {
+  await page.route('**/api/v1/**', (route) => {
     unmatched.push(`${route.request().method()} ${route.request().url()}`);
     return route.fulfill({ status: 501, contentType: 'application/json', body: JSON.stringify({ success: false, public_code: 'unmocked_api' }) });
   });
   // Explicit navigation away from Practice also stays inside the mock backend.
-  await page.route('**/api/v1/library/folders', route => route.fulfill({ status: 200, contentType: 'application/json',
+  await page.route('**/api/v1/library/folders', (route) => route.fulfill({ status: 200, contentType: 'application/json',
     body: apiResponse({ folders: [], all_count: 0, favorite_count: 0, mastered_count: 0, recent_practice_count: 0, to_practice_count: 0 } satisfies LibraryFolderTreeRead) }));
-  await page.route('**/api/v1/library/entries?**', route => route.fulfill({ status: 200, contentType: 'application/json',
+  await page.route('**/api/v1/library/entries?**', (route) => route.fulfill({ status: 200, contentType: 'application/json',
     body: JSON.stringify({ success: true, data: [], pagination: { page: 1, page_size: 20, total: 0, total_pages: 0 } }) }));
   await installAcousticEngineFixture(page);
   await mockAuthenticatedSession(page);
   await mockRealtimeEvents(page);
 
-  await page.route('**/api/v1/model-assets/practice-acoustic/access', route => route.fulfill({
+  await page.route('**/api/v1/model-assets/practice-acoustic/access', (route) => route.fulfill({
     contentType: 'application/json', body: apiResponse({ ...ACOUSTIC_MODEL_ASSET_DESCRIPTOR,
       downloadUrl: 'https://example.test/controlled-model', downloadUrlExpiresAt: new Date(Date.now() + 3600000).toISOString() }),
   }));
@@ -122,7 +124,8 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
     const deviceCounts = { midi: 0 };
     (window as unknown as { __deviceCounts: typeof deviceCounts }).__deviceCounts = deviceCounts;
     const midiListeners = new Set<(event: { data: Uint8Array }) => void>();
-    (window as unknown as { __emitMidiNote: (note: number, velocity: number) => void }).__emitMidiNote = (
+    (window as unknown as { __emitMidiNote: (note: number, velocity: number) => void;
+        }).__emitMidiNote = (
       note: number,
       velocity: number
     ) => {
@@ -262,13 +265,13 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
       }
       const stream = new MediaStream(tracks); media.cameraStreams.push(stream); return stream;
     };
-    navigator.mediaDevices.getUserMedia = async constraints => {
+    navigator.mediaDevices.getUserMedia = async (constraints) => {
       media.requests.push(structuredClone(constraints ?? {}));
       if (!camera || !constraints?.video) { const stream = camera === 'NO_AUDIO' ? new MediaStream() : await audioOnly(constraints); media.audioStreams.push(stream); return stream; }
       if (camera === 'DENIED') throw new DOMException('Camera permission denied', 'NotAllowedError');
       cameraRequests++;
       if (camera === 'PENDING' && cameraRequests === 1) {
-        return new Promise<MediaStream>(resolve => {
+        return new Promise<MediaStream>((resolve) => {
           media.resolveCamera = () => {
             media.resolveCamera = null;
             resolve(cameraStream(constraints));
@@ -360,7 +363,8 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
       resolved_tempo_plan: resolvePracticeTempoPlan(testArtifact, request.tempo_selection),
     };
   }
-  await page.route('**/api/v1/performance-takes/upload-reservations', route => {
+  await page.route('**/api/v1/performance-takes/upload-reservations',
+    (route) => {
     expect(route.request().method()).toBe('POST');
     reservedRequest = route.request().postDataJSON();
     // The public write contract carries selections and evidence only.
@@ -392,7 +396,8 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
         headers: { 'content-type': media.mime_type }, expires_in: 3600 },
     }) });
   });
-  await page.route('**/api/v1/performance-takes/upload-reservations/upload-res-e2e-1/finalize', route => {
+  await page.route('**/api/v1/performance-takes/upload-reservations/upload-res-e2e-1/finalize',
+    (route) => {
     expect(route.request().postData()).toBeNull();
     expect(saveProtocol.events).toEqual(['RESERVATION', 'MEDIA_PUT']);
     saveProtocol.events.push('FINALIZE');
@@ -405,7 +410,7 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
         score_title_snapshot: 'Continuous Review Score', capture: media,
         score_timebase: { ticks_per_quarter: testArtifact.ticksPerQuarter },
         scope: resolved_scope as PerformanceTakeRead['manifest']['scope'],
-        tempo_plan: { selection: resolved_tempo_plan.selection, segments: resolved_tempo_plan.segments.map(segment => ({ ...segment })) },
+        tempo_plan: { selection: resolved_tempo_plan.selection, segments: resolved_tempo_plan.segments.map((segment) => ({ ...segment })) },
         recording_timebase,
       },
     };
@@ -413,14 +418,15 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
     return route.fulfill({ status: 200, contentType: 'application/json', body: apiResponse(take) });
   });
 
-  await page.route('**/api/v1/performance-takes/mock-upload/*', route => {
+  await page.route('**/api/v1/performance-takes/mock-upload/*', (route) => {
     expect(route.request().method()).toBe('PUT');
     expect(saveProtocol.events).toEqual(['RESERVATION']);
     expect(route.request().postDataBuffer()?.byteLength).toBe(reservedRequest.media.byte_size);
     saveProtocol.events.push('MEDIA_PUT');
     return route.fulfill({ status: 200 });
   });
-  await page.route('**/api/v1/performance-takes/upload-reservations/upload-res-e2e-1', route => {
+  await page.route('**/api/v1/performance-takes/upload-reservations/upload-res-e2e-1',
+    (route) => {
     expect(route.request().method()).toBe('DELETE');
     expect(saveProtocol.events).toEqual(['RESERVATION']);
     saveProtocol.events.push('CANCEL');
@@ -477,7 +483,8 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
   );
 
   // One Practice Source envelope supplies the artifact and requested notation.
-  await page.route(/\/api\/v1\/practice\/scores\/[^/]+\/revisions\/[^/]+\/bundle(?:\?.*)?$/, route =>
+  await page.route(/\/api\/v1\/practice\/scores\/[^/]+\/revisions\/[^/]+\/bundle(?:\?.*)?$/,
+    (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -498,7 +505,7 @@ function recordingOption(page: Page, mode: 'OFF' | 'AUDIO' | 'VIDEO') {
 test('first use requires explicit intent; full reload restores intent but requires live preparation', async ({ page }) => {
   await setupContinuousPracticeMocks(page);
   const sourceRequests: string[] = [];
-  page.on('request',request=>{if(request.url().includes('/practice/')&&request.url().includes('/bundle'))sourceRequests.push(request.url());});
+  page.on('request', (request) =>{if(request.url().includes('/practice/')&&request.url().includes('/bundle'))sourceRequests.push(request.url());});
   await page.goto(`/zh/score/${scoreId}/practice/setup?practiceRevisionId=${revisionId}`);
   const setup = page.getByTestId('practice-setup');
   await expect(setup).toBeVisible();
@@ -531,12 +538,13 @@ test('warm microphone engine survives STEP End, next Start, Continuous completio
   await setupContinuousPracticeMocks(page);
   const engine = () => page.evaluate(() => {
     const { loads, sessions, retiredSessions, terminations } = (window as unknown as {
-      __practiceAcousticEngineFixture: { loads: number; sessions: number; retiredSessions: number; terminations: number };
+      __practiceAcousticEngineFixture: { loads: number; sessions: number; retiredSessions: number; terminations: number;
+          };
     }).__practiceAcousticEngineFixture;
     return { loads, sessions, retiredSessions, terminations };
   });
   let accessRequests = 0;
-  page.on('request', request => { if(request.url().includes('/model-assets/practice-acoustic/access')) accessRequests++; });
+  page.on('request', (request) => { if(request.url().includes('/model-assets/practice-acoustic/access')) accessRequests++; });
   await openPreparedPractice(page, scoreId, revisionId);
   await configurePractice(page, 'STEP', 'MICROPHONE');
   await expect.poll(engine).toEqual({ loads: 1, sessions: 1, retiredSessions: 1, terminations: 0 });
@@ -670,17 +678,19 @@ async function expectCameraReady(page: Page, audioTracks: number) {
   for (const mode of ['OFF', 'AUDIO', 'VIDEO'] as const) await expect(recordingOption(page, mode)).toHaveCount(0);
   const preview = page.locator('video[aria-label="摄像头预览"]');
   await expect(preview).toBeVisible();
-  await expect.poll(() => preview.evaluate(element => {
+  await expect.poll(() => preview.evaluate((element) => {
     const stream = (element as HTMLVideoElement).srcObject as MediaStream | null;
     return { video: stream?.getVideoTracks().length, audio: stream?.getAudioTracks().length,
-      live: stream?.getTracks().every(track => track.readyState === 'live') };
+      live: stream?.getTracks().every((track) => track.readyState === 'live') };
   })).toEqual({ video: 1, audio: audioTracks, live: true });
 }
 
 async function expectCameraStopped(page: Page, trackCount: number) {
   await expect.poll(async () => {
     const { tracks } = await mediaState(page);
-    return tracks.length === trackCount && tracks.every(track => track.state === 'ended' && track.stopCalls > 0);
+    return (
+        tracks.length === trackCount && tracks.every((track) => track.state === 'ended' && track.stopCalls > 0)
+      );
   }).toBe(true);
 }
 
@@ -699,13 +709,14 @@ test.describe('Continuous VIDEO camera preparation', () => {
     await openCameraSetup(page, 'MIDI', 'READY'); await recordingOption(page, 'VIDEO').click();
     await page.evaluate(() => {
       const native = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices); let camera = 0;
-      navigator.mediaDevices.getUserMedia = async constraints => {
+      navigator.mediaDevices.getUserMedia = async (constraints) => {
         if (constraints?.video && ++camera > 1) throw new DOMException('revoked', 'NotAllowedError');
         return native(constraints);
       };
     });
     expect(await preparePracticeSetup(page)).toBe('READY'); await expectCameraReady(page, 0);
-    expect(await page.locator('video[aria-label="摄像头预览"]').evaluate(video =>
+    expect(await page.locator('video[aria-label="摄像头预览"]').evaluate(
+          (video) =>
       (video as HTMLVideoElement).srcObject === (window as unknown as {__practiceMedia:MediaMock}).__practiceMedia.cameraStreams[0])).toBe(true);
     expect((await mediaState(page)).requests).toHaveLength(2);
     await page.getByRole('button',{name:'开始',exact:true}).click();
@@ -718,7 +729,7 @@ test.describe('Continuous VIDEO camera preparation', () => {
     await openPracticeSetup(page); await selectPracticeConfiguration(page, 'CONTINUOUS', 'MIDI', 'AUDIO');
     await page.evaluate(() => {
       const native = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices); let requests = 0;
-      navigator.mediaDevices.getUserMedia = async constraints => {
+      navigator.mediaDevices.getUserMedia = async (constraints) => {
         if (++requests > 1) throw new DOMException('revoked', 'NotAllowedError'); return native(constraints);
       };
     });
@@ -726,7 +737,8 @@ test.describe('Continuous VIDEO camera preparation', () => {
     await expect(page.getByRole('button',{name:'录制麦克风正常',exact:true})).toHaveAttribute('data-device-health','HEALTHY');
     await page.getByRole('button',{name:'开始',exact:true}).click(); await expect(page.getByTestId('recording-indicator')).toBeVisible();
     expect((await mediaState(page)).requests).toHaveLength(1);
-    expect(await page.evaluate(() => (window as unknown as {__practiceAcousticEngineFixture:{loads:number}}).__practiceAcousticEngineFixture.loads)).toBe(0);
+    expect(await page.evaluate(() => (window as unknown as {__practiceAcousticEngineFixture:{loads:number};
+            }).__practiceAcousticEngineFixture.loads)).toBe(0);
   });
 
   test('MIDI requests camera video and real audio, then installs a live ready preview', async ({ page }) => {
@@ -759,7 +771,7 @@ test.describe('Continuous VIDEO camera preparation', () => {
     await expect(page.getByTestId('practice-setup').getByRole('alert')).toBeVisible();
     await expectVideoIntentBlocked(page);
     expect((await mediaState(page)).tracks).toEqual([]);
-    expect(await page.evaluate(() => (window as unknown as {__practiceMedia:MediaMock}).__practiceMedia.audioStreams.every(s=>s.getTracks().every(t=>t.readyState==='ended')))).toBe(true);
+    expect(await page.evaluate(() => (window as unknown as {__practiceMedia:MediaMock}).__practiceMedia.audioStreams.every((s) =>s.getTracks().every((t) =>t.readyState==='ended')))).toBe(true);
   });
 
   test('a stream without usable video is rejected and every acquired track is stopped', async ({ page }) => {
@@ -777,7 +789,7 @@ test.describe('Continuous VIDEO camera preparation', () => {
     await preparePracticeSetup(page);
     await expect(page.getByTestId('practice-setup').getByRole('alert')).toBeVisible();
     await expectVideoIntentBlocked(page);
-    expect((await mediaState(page)).tracks.every(track => track.state === 'ended')).toBe(true);
+    expect((await mediaState(page)).tracks.every((track) => track.state === 'ended')).toBe(true);
   });
 
   for (const change of ['input', 'mode'] as const) {
@@ -804,7 +816,7 @@ test.describe('Continuous VIDEO camera preparation', () => {
     await page.getByRole('link',{name:'NoteVerse Pro'}).click(); await expect(page).toHaveURL(/\/zh\/library/);
     await page.evaluate(() => (window as unknown as { __practiceMedia: MediaMock }).__practiceMedia.resolveCamera!());
     await expectCameraStopped(page,1);
-    expect(await page.evaluate(() => (window as unknown as {__practiceMedia:MediaMock}).__practiceMedia.audioStreams.every(s=>s.getTracks().every(t=>t.readyState==='ended')))).toBe(true);
+    expect(await page.evaluate(() => (window as unknown as {__practiceMedia:MediaMock}).__practiceMedia.audioStreams.every((s) =>s.getTracks().every((t) =>t.readyState==='ended')))).toBe(true);
     await expect(page.locator('video[aria-label="摄像头预览"]')).toHaveCount(0);
     await expect(page).toHaveURL(/\/zh\/library/);
   });
@@ -1015,7 +1027,7 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
   for (const state of ['COUNT_IN', 'PAUSED'] as const) test(`Continuous End during ${state} discards the session and returns Start without a dialog`, async ({ page }) => {
     await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
     const writes: string[] = [];
-    page.on('request', request => {
+    page.on('request', (request) => {
       if (request.url().includes('/performance-takes') && request.method() !== 'GET') writes.push(request.url());
     });
     await setupContinuousPracticeMocks(page);
@@ -1082,7 +1094,7 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     page,
   }, testInfo) => {
     const mediaWrites: { url: string; body: Record<string, unknown> | null }[] = [];
-    page.on('request', request => {
+    page.on('request', (request) => {
       if (request.method() === 'POST' && request.url().includes('/performance-takes')) mediaWrites.push({ url: request.url(), body: request.postData() ? request.postDataJSON() : null });
     });
     const protocol = await setupContinuousPracticeMocks(page);
@@ -1232,14 +1244,16 @@ for (const retirement of ['End', 'route teardown'] as const) test(`${retirement}
   await page.evaluate(() => { (window as unknown as { __practiceRecorderSettlement: { hold: boolean } }).__practiceRecorderSettlement.hold = true; });
   await page.clock.runFor(2200);
   // Recorder freeze follows the formal natural terminal latch; settlement remains deferred.
-  await expect.poll(() => page.evaluate(() => (window as unknown as { __practiceRecorderSettlement: { pending: number } }).__practiceRecorderSettlement.pending)).toBe(1);
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __practiceRecorderSettlement: { pending: number };
+              }).__practiceRecorderSettlement.pending)).toBe(1);
   await expect(page.getByRole('button', { name: '查看报告', exact: true })).toHaveCount(0);
   if (retirement === 'End') await page.getByRole('button', { name: '结束', exact: true }).click();
   else {
     await page.getByRole('button', { name: '返回练习设置', exact: true }).click();
     await expect(page).toHaveURL(/\/practice\/setup\?/);
   }
-  await page.evaluate(() => (window as unknown as { __practiceRecorderSettlement: { release(): void } }).__practiceRecorderSettlement.release());
+  await page.evaluate(() => (window as unknown as { __practiceRecorderSettlement: { release(): void };
+        }).__practiceRecorderSettlement.release());
   await page.clock.resume();
   if (retirement === 'End') {
     await expect(page.getByRole('button', { name: '查看报告', exact: true })).toBeVisible();
@@ -1254,11 +1268,12 @@ for (const retirement of ['End', 'route teardown'] as const) test(`${retirement}
   }
 });
 async function interruptRecordingTrack(page: Page, kind: 'audio' | 'video') {
-  return page.evaluate(kind => {
+  return page.evaluate((kind) => {
     const recorders = (window as unknown as { __nativePracticeRecorders: MediaRecorder[] }).__nativePracticeRecorders;
-    const active = recorders.findLast(recorder => recorder.state === 'recording');
+    const active = recorders.findLast(
+      (recorder) => recorder.state === 'recording');
     if (!active) throw new Error('No active recording pipeline');
-    const track = active.stream.getTracks().find(track => track.kind === kind)!;
+    const track = active.stream.getTracks().find((track) => track.kind === kind)!;
     track.stop(); track.dispatchEvent(new Event('ended')); return recorders.length;
   }, kind);
 }
@@ -1305,7 +1320,8 @@ test('Continuous analysis degradation preserves recording and completes Review w
   await expect(status).toHaveText('');
   await expect(page.getByTestId('recording-indicator')).toBeVisible();
   const sessions = await page.evaluate(() => {
-    const engine = (window as unknown as { __practiceAcousticEngineFixture: { sessions: number; fail(): void } }).__practiceAcousticEngineFixture;
+    const engine = (window as unknown as { __practiceAcousticEngineFixture: { sessions: number; fail(): void };
+      }).__practiceAcousticEngineFixture;
     engine.fail(); return engine.sessions;
   });
   const dialog = page.getByRole('alertdialog', { name: '音符分析已停止' });
@@ -1317,7 +1333,8 @@ test('Continuous analysis degradation preserves recording and completes Review w
   await expect(dialog).toHaveCount(0);
   await expect(status).toContainText('预备拍');
   await expect(page.getByRole('button', { name: '查看报告', exact: true })).toBeVisible({ timeout: 15000 });
-  expect(await page.evaluate(() => (window as unknown as { __practiceAcousticEngineFixture: { sessions: number } }).__practiceAcousticEngineFixture.sessions)).toBe(sessions);
+  expect(await page.evaluate(() => (window as unknown as { __practiceAcousticEngineFixture: { sessions: number };
+          }).__practiceAcousticEngineFixture.sessions)).toBe(sessions);
   await page.getByRole('button', { name: '查看报告', exact: true }).click();
   await page.waitForURL(`**/score/${scoreId}/practice/review`);
   await expect(page.getByRole('heading', { name: '临时演奏报告' })).toBeVisible();
@@ -1356,7 +1373,7 @@ test('recording-only mute passively recovers but waits for explicit Continue, wi
   await finishContinuousCountIn(page, 2000);
   await expect(page.getByTestId('recording-indicator')).toBeVisible();
   await page.evaluate(() => {
-    const recorder = (window as unknown as { __nativePracticeRecorders: MediaRecorder[] }).__nativePracticeRecorders.findLast(r => r.state === 'recording')!;
+    const recorder = (window as unknown as { __nativePracticeRecorders: MediaRecorder[] }).__nativePracticeRecorders.findLast((r) => r.state === 'recording')!;
     const track = recorder.stream.getAudioTracks()[0]; Object.defineProperty(track, 'muted', { configurable: true, value: true }); track.dispatchEvent(new Event('mute'));
   });
   const dialog = page.getByRole('alertdialog'); await expect(dialog).toHaveCount(1);
@@ -1365,7 +1382,7 @@ test('recording-only mute passively recovers but waits for explicit Continue, wi
   const time = await page.getByTestId('recording-indicator').innerText(); await page.clock.runFor(3000);
   await expect(page.getByTestId('recording-indicator')).toHaveText(time);
   await page.evaluate(() => {
-    const recorder = (window as unknown as { __nativePracticeRecorders: MediaRecorder[] }).__nativePracticeRecorders.findLast(r => r.state === 'paused')!;
+    const recorder = (window as unknown as { __nativePracticeRecorders: MediaRecorder[] }).__nativePracticeRecorders.findLast((r) => r.state === 'paused')!;
     const track = recorder.stream.getAudioTracks()[0]; Object.defineProperty(track, 'muted', { configurable: true, value: false }); track.dispatchEvent(new Event('unmute'));
   });
   await expect(dialog.getByRole('heading', { name: '录制设备已恢复' })).toBeVisible();
@@ -1385,7 +1402,7 @@ test('shared microphone interruption requires input recovery and never offers no
   await openPreparedPractice(page, scoreId, revisionId); await configurePractice(page, 'CONTINUOUS', 'MICROPHONE', 'AUDIO');
   await page.getByRole('button', { name: '开始', exact: true }).click(); await expect(page.getByRole('status')).toContainText('预备拍');
   await page.evaluate(() => {
-    const stream = (window as unknown as { __practiceMedia: MediaMock }).__practiceMedia.audioStreams.findLast(s => s.getAudioTracks().some(t => t.readyState === 'live'))!;
+    const stream = (window as unknown as { __practiceMedia: MediaMock }).__practiceMedia.audioStreams.findLast((s) => s.getAudioTracks().some((t) => t.readyState === 'live'))!;
     const track = stream.getAudioTracks()[0]; Object.defineProperty(track, 'muted', { configurable: true, value: true }); track.dispatchEvent(new Event('mute'));
   });
   const dialog = page.getByRole('alertdialog'); await expect(dialog).toHaveCount(1);
@@ -1393,14 +1410,14 @@ test('shared microphone interruption requires input recovery and never offers no
   await expect(dialog.getByRole('button', { name: '不录制并继续', exact: true })).toHaveCount(0);
   await expect(dialog.getByRole('button', { name: /检查/ })).toHaveCount(0);
   await page.evaluate(() => {
-    const stream = (window as unknown as { __practiceMedia: MediaMock }).__practiceMedia.audioStreams.findLast(s => s.getAudioTracks().some(t => t.readyState === 'live'))!;
+    const stream = (window as unknown as { __practiceMedia: MediaMock }).__practiceMedia.audioStreams.findLast((s) => s.getAudioTracks().some((t) => t.readyState === 'live'))!;
     const track = stream.getAudioTracks()[0]; Object.defineProperty(track, 'muted', { configurable: true, value: false }); track.dispatchEvent(new Event('unmute'));
   });
   await expect(dialog.getByRole('heading', { name: '输入设备已恢复' })).toBeVisible();
   await expect(page.getByRole('status')).toContainText('输入已中断，练习已暂停');
   await dialog.getByRole('button', { name: '继续', exact: true }).click(); await expect(dialog).toHaveCount(0);
   await page.evaluate(() => {
-    const stream = (window as unknown as { __practiceMedia: MediaMock }).__practiceMedia.audioStreams.findLast(s => s.getAudioTracks().some(t => t.readyState === 'live'))!;
+    const stream = (window as unknown as { __practiceMedia: MediaMock }).__practiceMedia.audioStreams.findLast((s) => s.getAudioTracks().some((t) => t.readyState === 'live'))!;
     const track = stream.getAudioTracks()[0]; track.stop(); track.dispatchEvent(new Event('ended'));
   });
   await expect(dialog).toHaveCount(1); await expect(dialog.getByRole('heading', { name: '输入设备已断开' })).toBeVisible();
@@ -1416,12 +1433,13 @@ test('temporary session AudioContext suspension retains the capture graph and wa
   await installAcousticCaptureFixture(page);
   await setupContinuousPracticeMocks(page);
   const modelAccess: number[] = [];
-  page.on('response', response => {
+  page.on('response', (response) => {
     if(response.url().includes('/model-assets/practice-acoustic/access')) modelAccess.push(response.status());
   });
   const engine = () => page.evaluate(() => {
     const { loads, sessions, retiredSessions, terminations } = (window as unknown as {
-      __practiceAcousticEngineFixture: { loads: number; sessions: number; retiredSessions: number; terminations: number };
+      __practiceAcousticEngineFixture: { loads: number; sessions: number; retiredSessions: number; terminations: number;
+          };
     }).__practiceAcousticEngineFixture;
     return { loads, sessions, retiredSessions, terminations };
   });
@@ -1433,26 +1451,26 @@ test('temporary session AudioContext suspension retains the capture graph and wa
   expect(await engine()).toEqual({ loads: 1, sessions: 1, retiredSessions: 1, terminations: 0 });
   const beforeStart = await page.evaluate(() => {
     const media = (window as unknown as { __practiceMedia: MediaMock }).__practiceMedia;
-    return media.captureGraphs.map(graph => graph.context.state);
+    return media.captureGraphs.map((graph) => graph.context.state);
   });
   expect(beforeStart).toEqual(['closed']); // Setup qualification owns and closes its own context.
   await start.click();
   await expect(page.getByTestId('practice-status')).toContainText('预备拍');
   expect(await engine()).toEqual({ loads: 1, sessions: 2, retiredSessions: 1, terminations: 0 });
   const identity = beforeStart.length;
-  const graph = () => page.evaluate(index => {
+  const graph = () => page.evaluate((index) => {
     const media = (window as unknown as { __practiceMedia: MediaMock }).__practiceMedia;
     const graph = media.captureGraphs[index];
     return { graphs: media.captureGraphs.length, state: graph.context.state,
       sourceUsesContext: graph.source.context === graph.context,
       borrowsPreparedRoot: graph.root === media.audioStreams[0],
-      rootLive: graph.root.getAudioTracks().every(track => track.readyState === 'live') };
+      rootLive: graph.root.getAudioTracks().every((track) => track.readyState === 'live') };
   }, identity);
   expect(await graph()).toEqual({ graphs: 2, state: 'running', sourceUsesContext: true, borrowsPreparedRoot: true, rootLive: true });
   const capture = await acousticCaptureWitness(page);
   expect(capture.opened).toBe(2); expect(capture.closed).toBe(1);
   // This is the newly connected session graph, not a generator or qualification context.
-  await page.evaluate(async index => {
+  await page.evaluate(async (index) => {
     await (window as unknown as { __practiceMedia: MediaMock }).__practiceMedia.captureGraphs[index].context.suspend();
   }, identity);
   const dialog = page.getByRole('alertdialog');
@@ -1460,7 +1478,7 @@ test('temporary session AudioContext suspension retains the capture graph and wa
   await expect(dialog.getByRole('button', { name: '不录制并继续', exact: true })).toHaveCount(0);
   expect(await graph()).toEqual({ graphs: 2, state: 'suspended', sourceUsesContext: true, borrowsPreparedRoot: true, rootLive: true });
   expect((await acousticCaptureWitness(page)).closed).toBe(1);
-  await page.evaluate(async index => {
+  await page.evaluate(async (index) => {
     await (window as unknown as { __practiceMedia: MediaMock }).__practiceMedia.captureGraphs[index].context.resume();
   }, identity);
   await expect(dialog.getByRole('heading', { name: '输入设备已恢复' })).toBeVisible();
@@ -1515,8 +1533,8 @@ test('same-page VIDEO attempts reuse device roots; Review departure closes them 
   await expect(page.getByRole('button', { name: '查看报告' })).toBeVisible();
   await page.clock.resume();
   await page.getByRole('button', { name: '查看报告' }).click(); await page.waitForURL('**/practice/review');
-  expect((await mediaState(page)).tracks.every(track => track.state === 'ended')).toBe(true);
-  expect(await page.evaluate(() => (window as unknown as { __practiceMedia: MediaMock }).__practiceMedia.audioStreams.every(stream => stream.getTracks().every(track => track.readyState === 'ended')))).toBe(true);
+  expect((await mediaState(page)).tracks.every((track) => track.state === 'ended')).toBe(true);
+  expect(await page.evaluate(() => (window as unknown as { __practiceMedia: MediaMock }).__practiceMedia.audioStreams.every((stream) => stream.getTracks().every((track) => track.readyState === 'ended')))).toBe(true);
   await page.getByRole('button', { name: '重弹一次', exact: true }).click();
   await expect(page.getByRole('alertdialog', { name: '离开临时演奏报告？' })).toBeVisible();
   await page.getByRole('button', { name: '确认离开', exact: true }).click();
@@ -1524,13 +1542,14 @@ test('same-page VIDEO attempts reuse device roots; Review departure closes them 
   expect(await preparePracticeSetup(page)).toBe('READY');
   await expect(start).toBeEnabled(); await expectCameraReady(page, 0);
   expect(await counts()).toEqual({ media: opened.media + 2, midi: opened.midi + 1 });
-  expect(await page.evaluate(() => (window as unknown as { __practiceAcousticEngineFixture: { loads: number } }).__practiceAcousticEngineFixture.loads)).toBe(0);
+  expect(await page.evaluate(() => (window as unknown as { __practiceAcousticEngineFixture: { loads: number };
+          }).__practiceAcousticEngineFixture.loads)).toBe(0);
 });
 
 async function changeInputRoot(page: Page, condition: 'mute' | 'unmute' | 'ended') {
-  await page.evaluate(condition => {
+  await page.evaluate((condition) => {
     const media = (window as unknown as { __practiceMedia: MediaMock }).__practiceMedia;
-    const track = media.audioStreams.findLast(stream => stream.getAudioTracks().some(track => track.readyState === 'live'))!.getAudioTracks()[0];
+    const track = media.audioStreams.findLast((stream) => stream.getAudioTracks().some((track) => track.readyState === 'live'))!.getAudioTracks()[0];
     if (condition === 'ended') track.stop();
     else Object.defineProperty(track, 'muted', { configurable: true, value: condition === 'mute' });
     track.dispatchEvent(new Event(condition));
@@ -1539,7 +1558,8 @@ async function changeInputRoot(page: Page, condition: 'mute' | 'unmute' | 'ended
 
 async function deviceAndEnvironmentCounts(page: Page) {
   return page.evaluate(() => {
-    const engine = (window as unknown as { __practiceAcousticEngineFixture: { loads: number; sessions: number } }).__practiceAcousticEngineFixture;
+    const engine = (window as unknown as { __practiceAcousticEngineFixture: { loads: number; sessions: number };
+      }).__practiceAcousticEngineFixture;
     return { media: (window as unknown as { __practiceMedia: MediaMock }).__practiceMedia.requests.length,
       midi: (window as unknown as { __deviceCounts: { midi: number } }).__deviceCounts.midi,
       engine: { loads: engine.loads, sessions: engine.sessions } };
@@ -1552,7 +1572,7 @@ test('STEP microphone temporary mute preserves the target and automatically re-a
   await page.getByRole('button', { name: '开始', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('弹奏当前高亮音');
   const status = page.getByTestId('practice-status');
-  await status.evaluate(element => element.setAttribute('data-surface-probe', 'retained-status'));
+  await status.evaluate((element) => element.setAttribute('data-surface-probe', 'retained-status'));
   const cursor = page.locator('[data-practice-playhead-cursor]'); await expect(cursor).toHaveCount(1);
   const target = await cursor.getAttribute('x'), counts = await deviceAndEnvironmentCounts(page);
   await changeInputRoot(page, 'mute');
@@ -1567,7 +1587,8 @@ test('STEP microphone temporary mute preserves the target and automatically re-a
   await expect(status.locator('[data-device-resource="inputMicrophone"]')).toHaveAttribute('data-device-health', 'HEALTHY');
   await expect(cursor).toHaveAttribute('x', target!); expect(await deviceAndEnvironmentCounts(page)).toEqual(counts);
   await page.evaluate(() => {
-    (window as unknown as { __practiceAcousticEngineFixture: { pitches: string[] } }).__practiceAcousticEngineFixture.pitches = ['C4'];
+    (window as unknown as { __practiceAcousticEngineFixture: { pitches: string[] };
+      }).__practiceAcousticEngineFixture.pitches = ['C4'];
   });
   await expect(cursor).not.toHaveAttribute('x', target!);
   await expect(page.getByRole('button', { name: '开始', exact: true })).toHaveCount(0);
@@ -1589,7 +1610,7 @@ async function observeStepContexts(page: Page) {
   });
 }
 async function stepContextStates(page: Page) {
-  return page.evaluate(() => (window as unknown as { __stepContexts: AudioContext[] }).__stepContexts.map(c => c.state));
+  return page.evaluate(() => (window as unknown as { __stepContexts: AudioContext[] }).__stepContexts.map((c) => c.state));
 }
 
 for (const fault of ['root', 'context'] as const) test(`STEP ${fault} failure retains position until End; current root admission controls the next Start`, async ({ page }) => {
@@ -1601,16 +1622,18 @@ for (const fault of ['root', 'context'] as const) test(`STEP ${fault} failure re
   await expect(page.getByRole('status')).toContainText('弹奏当前高亮音');
   const cursor = page.locator('[data-practice-playhead-cursor]'); await expect(cursor).toHaveCount(1);
   const initialTarget = await cursor.getAttribute('x');
-  await page.evaluate(() => { (window as unknown as { __practiceAcousticEngineFixture: { pitches: string[] } }).__practiceAcousticEngineFixture.pitches = ['C4']; });
+  await page.evaluate(() => { (window as unknown as { __practiceAcousticEngineFixture: { pitches: string[] };
+        }).__practiceAcousticEngineFixture.pitches = ['C4']; });
   await expect(cursor).not.toHaveAttribute('x', initialTarget!);
-  await page.evaluate(() => { (window as unknown as { __practiceAcousticEngineFixture: { pitches: string[] } }).__practiceAcousticEngineFixture.pitches = []; });
+  await page.evaluate(() => { (window as unknown as { __practiceAcousticEngineFixture: { pitches: string[] };
+        }).__practiceAcousticEngineFixture.pitches = []; });
   const target = await cursor.getAttribute('x'), counts = await deviceAndEnvironmentCounts(page), contexts = await stepContextStates(page);
   if (fault === 'root') await changeInputRoot(page, 'ended');
-  else await page.evaluate(async () => { await (window as unknown as { __stepContexts: AudioContext[] }).__stepContexts.findLast(c => c.state === 'running')!.suspend(); });
+  else await page.evaluate(async () => { await (window as unknown as { __stepContexts: AudioContext[] }).__stepContexts.findLast((c) => c.state === 'running')!.suspend(); });
   const dialog = page.getByRole('alertdialog', { name: '麦克风输入已停止' }); await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('button')).toHaveCount(1); await expect(cursor).toHaveAttribute('x', target!);
   await page.keyboard.press('Escape'); await expect(dialog).toBeVisible();
-  await expect.poll(async () => (await stepContextStates(page)).every(state => state === 'closed')).toBe(true);
+  await expect.poll(async () => (await stepContextStates(page)).every((state) => state === 'closed')).toBe(true);
   await dialog.getByRole('button', { name: '结束', exact: true }).click(); await expect(dialog).toHaveCount(0);
   const start = page.getByRole('button', { name: '开始', exact: true });
   if (fault === 'root') await expect(start).toBeDisabled();
@@ -1673,7 +1696,7 @@ test('denied Setup acquisition remains retryable only through its explicit comma
   await page.evaluate(()=>{
     const state={calls:0,allowed:false};(window as unknown as {__setupPermission:typeof state}).__setupPermission=state;
     const native=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
-    navigator.mediaDevices.getUserMedia=async constraints=>{state.calls++;if(!state.allowed)throw new DOMException('private','NotAllowedError');return native(constraints);};
+    navigator.mediaDevices.getUserMedia=async (constraints) =>{state.calls++;if(!state.allowed)throw new DOMException('private','NotAllowedError');return native(constraints);};
   });
   expect(await preparePracticeSetup(page)).toBe('BLOCKED');
   const calls=()=>page.evaluate(()=>(window as unknown as {__setupPermission:{calls:number}}).__setupPermission.calls);
@@ -1692,7 +1715,9 @@ test('existing MIDIAccess recovers naturally; denied fresh access is requalified
   await expect(start).toBeEnabled(); await start.click();
   await expect(page.locator('[data-practice-playhead-cursor]')).toHaveCount(1);
   const counts = await deviceAndEnvironmentCounts(page), cursor = page.locator('[data-practice-playhead-cursor]'), x = await cursor.getAttribute('x');
-  const connect = async (connected: boolean) => page.evaluate(value => (window as unknown as {__practiceMidi:{connect(value:boolean):void}}).__practiceMidi.connect(value), connected);
+  const connect = async (connected: boolean) => page.evaluate(
+      (value) => (window as unknown as {__practiceMidi:{connect(value:boolean):void};
+          }).__practiceMidi.connect(value), connected);
   await connect(false); await expect(page.getByRole('button', {name:'MIDI 键盘不可用',exact:true})).toBeVisible();
   await expect(cursor).toHaveAttribute('x', x!);
   await connect(true); await expect(page.getByRole('button', {name:'MIDI 键盘正常',exact:true})).toBeVisible();
@@ -1720,7 +1745,8 @@ for(const choice of ['End','navigation'] as const)test(`STEP terminal analysis i
   await expect(page.getByRole('status')).toContainText('弹奏当前高亮音');
   const cursor=page.locator('[data-practice-playhead-cursor]');await expect(cursor).toHaveCount(1);
   const x=await cursor.getAttribute('x'),before=await deviceAndEnvironmentCounts(page);
-  await page.evaluate(()=>(window as unknown as {__practiceAcousticEngineFixture:{fail():void}}).__practiceAcousticEngineFixture.fail());
+  await page.evaluate(()=>(window as unknown as {__practiceAcousticEngineFixture:{fail():void};
+        }).__practiceAcousticEngineFixture.fail());
   const dialog=page.getByRole('alertdialog',{name:'音符分析已停止'});await expect(dialog).toBeVisible();
   await expect(page.getByTestId('practice-status').locator('[data-device-resource="inputMicrophone"]')).toHaveAttribute('data-device-health', 'HEALTHY');
   await expect(dialog.getByRole('button')).toHaveCount(1);await expect(cursor).toHaveAttribute('x',x!);
@@ -1735,7 +1761,7 @@ for(const choice of ['End','navigation'] as const)test(`STEP terminal analysis i
     // Trigger actual client navigation, as a proxy for leaving through browser navigation while the dialog blocks pointer interaction.
     await page.getByRole('button',{name:'返回练习设置',includeHidden:true}).evaluate((button:HTMLButtonElement)=>button.click());
     await expect(page).toHaveURL(/\/practice\/setup\?/);await expect(dialog).toHaveCount(0);
-    expect(await page.evaluate(() => (window as unknown as {__practiceMedia:MediaMock}).__practiceMedia.audioStreams.every(stream => stream.getTracks().every(track => track.readyState === 'ended')))).toBe(true);
+    expect(await page.evaluate(() => (window as unknown as {__practiceMedia:MediaMock}).__practiceMedia.audioStreams.every((stream) => stream.getTracks().every((track) => track.readyState === 'ended')))).toBe(true);
   }
   expect((await deviceAndEnvironmentCounts(page)).engine.sessions).toBe(before.engine.sessions);
 });
@@ -1766,21 +1792,24 @@ test('microphone Setup acquires one fresh retained binding through both navigati
 test('Setup Start Practice waits for the previous microphone attempt retirement without failing or reloading', async ({page}) => {
   await setupContinuousPracticeMocks(page);
   let modelAccesses=0;
-  page.on('request', request => { if(request.url().includes('/model-assets/practice-acoustic/access')) modelAccesses++; });
+  page.on('request', (request) => { if(request.url().includes('/model-assets/practice-acoustic/access')) modelAccesses++; });
   await openPreparedPractice(page,scoreId,revisionId); await configurePractice(page,'STEP','MICROPHONE','OFF');
   await page.getByRole('button',{name:'开始',exact:true}).click();
   await expect(page.getByRole('status')).toContainText('弹奏当前高亮音');
   const before=await deviceAndEnvironmentCounts(page), accesses=modelAccesses;
-  await page.evaluate(()=>{(window as unknown as {__practiceAcousticEngineFixture:{holdRetirement:boolean}}).__practiceAcousticEngineFixture.holdRetirement=true;});
+  await page.evaluate(()=>{(window as unknown as {__practiceAcousticEngineFixture:{holdRetirement:boolean};
+      }).__practiceAcousticEngineFixture.holdRetirement=true;});
   await page.getByRole('button',{name:'返回练习设置',exact:true}).click();
   const setup=page.getByTestId('practice-setup'), prepare=setup.getByRole('button',{name:'开始练习',exact:true});
   await prepare.click();
-  await expect.poll(()=>page.evaluate(()=>(window as unknown as {__practiceAcousticEngineFixture:{pendingRetirements:number}}).__practiceAcousticEngineFixture.pendingRetirements)).toBe(1);
+  await expect.poll(()=>page.evaluate(()=>(window as unknown as {__practiceAcousticEngineFixture:{pendingRetirements:number};
+            }).__practiceAcousticEngineFixture.pendingRetirements)).toBe(1);
   await expect.poll(async()=>(await deviceAndEnvironmentCounts(page)).media).toBe(before.media+1);
   await expect(prepare).toBeDisabled(); await expect(prepare).toHaveAttribute('aria-busy','true');
   await expect(setup.getByRole('alert')).toHaveCount(0); await expect(setup.getByText('ACOUSTIC_ENGINE_NOT_IDLE',{exact:true})).toHaveCount(0);
   expect((await deviceAndEnvironmentCounts(page)).engine).toEqual(before.engine); expect(modelAccesses).toBe(accesses);
-  await page.evaluate(()=>(window as unknown as {__practiceAcousticEngineFixture:{releaseRetirement():void}}).__practiceAcousticEngineFixture.releaseRetirement());
+  await page.evaluate(()=>(window as unknown as {__practiceAcousticEngineFixture:{releaseRetirement():void};
+      }).__practiceAcousticEngineFixture.releaseRetirement());
   await expect(page).toHaveURL(new RegExp(`/practice\\?practiceRevisionId=${revisionId}$`));
   await page.getByRole('button',{name:'开始',exact:true}).click();
   await expect(page.getByRole('status')).toContainText('弹奏当前高亮音');
@@ -1831,13 +1860,13 @@ test('Review saves RANGE and CUSTOM selection with server planning agreement', a
 
 test('Setup microphone admission retains the exact stream across Start, End and natural Retry',async({page},testInfo)=>{
   const sourceRequests:string[]=[];
-  page.on('request',request=>{if(request.url().includes('/practice/')&&request.url().includes('/bundle'))sourceRequests.push(new URL(request.url()).pathname);});
+  page.on('request', (request) =>{if(request.url().includes('/practice/')&&request.url().includes('/bundle'))sourceRequests.push(new URL(request.url()).pathname);});
   await setupContinuousPracticeMocks(page);
   await page.goto(`/zh/score/${scoreId}/practice/setup?practiceRevisionId=${revisionId}`);
   await selectPracticeConfiguration(page,'STEP','MICROPHONE','OFF');
   expect((await mediaState(page)).requests).toHaveLength(0);expect(sourceRequests).toEqual([]);
   expect(await preparePracticeSetup(page)).toBe('READY');
-  const witness=()=>page.evaluate(()=>{const m=(window as unknown as {__practiceMedia:MediaMock}).__practiceMedia;return {acquisitions:m.requests.length,captures:m.captureRoots.length,same:m.captureRoots.every(s=>s===m.audioStreams[0]),live:m.audioStreams[0].getTracks().every(t=>t.readyState==='live')};});
+  const witness=()=>page.evaluate(()=>{const m=(window as unknown as {__practiceMedia:MediaMock}).__practiceMedia;return {acquisitions:m.requests.length,captures:m.captureRoots.length,same:m.captureRoots.every((s) =>s===m.audioStreams[0]),live:m.audioStreams[0].getTracks().every((t) =>t.readyState==='live')};});
   expect(await witness()).toMatchObject({acquisitions:1,captures:1,same:true,live:true});
   await page.getByRole('button',{name:'开始',exact:true}).click();await expect(page.getByRole('status')).toContainText('弹奏当前高亮音');
   await page.getByRole('button',{name:'结束',exact:true}).click();await expect(page.getByRole('button',{name:'开始',exact:true})).toBeEnabled();
@@ -1855,7 +1884,8 @@ test('one MIDI access supplies Setup validation and the exact Practice input obj
   await setupContinuousPracticeMocks(page);await openPreparedPractice(page,scoreId,revisionId);
   expect((await deviceAndEnvironmentCounts(page)).midi).toBe(1);
   await page.getByRole('button',{name:'开始',exact:true}).click();const cursor=page.locator('[data-practice-playhead-cursor]');await expect(cursor).toHaveCount(1);const x=await cursor.getAttribute('x');
-  await page.evaluate(()=>(window as unknown as {__emitMidiNote(note:number,velocity:number):void}).__emitMidiNote(60,100));await expect(cursor).not.toHaveAttribute('x',x!);
+  await page.evaluate(()=>(window as unknown as {__emitMidiNote(note:number,velocity:number):void;
+      }).__emitMidiNote(60,100));await expect(cursor).not.toHaveAttribute('x',x!);
   await page.getByRole('button',{name:'结束',exact:true}).click();await page.getByRole('button',{name:'开始',exact:true}).click();
   await expect(cursor).toHaveAttribute('x',x!);expect((await deviceAndEnvironmentCounts(page)).midi).toBe(1);
   await testInfo.attach('one-midi-access',{body:JSON.stringify(await deviceAndEnvironmentCounts(page)),contentType:'application/json'});
@@ -1864,17 +1894,22 @@ test('one MIDI access supplies Setup validation and the exact Practice input obj
 test('acoustic smoke failure rolls back the same acquired microphone before navigation',async({page})=>{
   await setupContinuousPracticeMocks(page);await page.goto(`/zh/score/${scoreId}/practice/setup?practiceRevisionId=${revisionId}`);
   await selectPracticeConfiguration(page,'STEP','MICROPHONE','OFF');
-  await page.evaluate(()=>(window as unknown as {__practiceAcousticEngineFixture:{failNextInference:boolean}}).__practiceAcousticEngineFixture.failNextInference=true);
+  await page.evaluate(()=>((
+        window as unknown as {__practiceAcousticEngineFixture:{failNextInference:boolean};
+        }).__practiceAcousticEngineFixture.failNextInference=true),
+  );
   expect(await preparePracticeSetup(page)).toBe('BLOCKED');
   expect((await mediaState(page)).requests).toHaveLength(1);
-  expect(await page.evaluate(()=>{const m=(window as unknown as {__practiceMedia:MediaMock}).__practiceMedia;return m.captureRoots.length===1&&m.captureRoots[0]===m.audioStreams[0]&&m.audioStreams[0].getTracks().every(t=>t.readyState==='ended');})).toBe(true);
+  expect(await page.evaluate(()=>{const m=(window as unknown as {__practiceMedia:MediaMock}).__practiceMedia;return (
+        m.captureRoots.length===1&&m.captureRoots[0]===m.audioStreams[0]&&m.audioStreams[0].getTracks().every((t) =>t.readyState==='ended')
+      );})).toBe(true);
   await expect(page).toHaveURL(/\/practice\/setup\?/);await expect(page.getByRole('button',{name:'开始',exact:true})).toHaveCount(0);
 });
 
 test('one complete Setup admission survives Score deletion through Practice, Review and local export; reload expires it', async ({ page }, testInfo) => {
   await setupContinuousPracticeMocks(page, { camera: 'READY' });
   const sourceRequests: string[] = [], scoreRequests: string[] = [];
-  page.on('request', request => {
+  page.on('request', (request) => {
     const url=new URL(request.url());
     if(url.pathname.startsWith('/api/v1/practice/') && url.pathname.includes('/bundle')) sourceRequests.push(request.url());
     if(url.pathname===`/api/v1/scores/${scoreId}`)scoreRequests.push(request.url());
@@ -1889,8 +1924,8 @@ test('one complete Setup admission survives Score deletion through Practice, Rev
   expect(admitted.searchParams.get('include_notation')).toBe('true');
   const admittedScoreReads=scoreRequests.length;
   // Any new authorization/read fails: the current browser flow already owns its input.
-  await page.route('**/api/v1/practice/**', route=>route.fulfill({status:410,contentType:'application/json',body:JSON.stringify({success:false,public_code:'not_found'})}));
-  await page.route(`**/api/v1/scores/${scoreId}`, route=>route.fulfill({status:404,contentType:'application/json',body:JSON.stringify({success:false,public_code:'not_found'})}));
+  await page.route('**/api/v1/practice/**', (route) =>route.fulfill({status:410,contentType:'application/json',body:JSON.stringify({success:false,public_code:'not_found'})}));
+  await page.route(`**/api/v1/scores/${scoreId}`, (route) =>route.fulfill({status:404,contentType:'application/json',body:JSON.stringify({success:false,public_code:'not_found'})}));
   await expect(page.getByRole('button',{name:'开始',exact:true})).toBeEnabled();
   await page.getByRole('button',{name:'开始',exact:true}).click();
   await expect(page.getByRole('button',{name:'查看报告',exact:true})).toBeVisible({timeout:15000});
@@ -1899,21 +1934,21 @@ test('one complete Setup admission survives Score deletion through Practice, Rev
   await expect(page.locator('[data-practice-review-page] svg[overflow="visible"]')).toBeVisible();
   await expect(page.locator('.practice-summary-note-unsupported')).toHaveCount(3);
   await page.getByRole('button',{name:'播放',exact:true}).click();
-  await expect.poll(()=>page.locator('video').first().evaluate(video=>(video as HTMLVideoElement).currentTime)).toBeGreaterThan(0);
+  await expect.poll(()=>page.locator('video').first().evaluate((video) =>(video as HTMLVideoElement).currentTime)).toBeGreaterThan(0);
   await page.getByRole('button',{name:'暂停',exact:true}).click();
   const exportWrites: string[] = [];
-  page.on('request', request => {
+  page.on('request', (request) => {
     if (['POST', 'PUT'].includes(request.method())) exportWrites.push(request.url());
   });
-  await page.getByTestId('open-video-export-studio').click();
-  await expect(page.getByTestId('generate-video-export')).toBeEnabled();
+  await page.getByTestId("open-composite-video-studio").click();
+  await expect(page.getByTestId("generate-composite-video")).toBeEnabled();
   const download=page.waitForEvent('download');
-  await page.getByTestId('generate-video-export').click();
-  await expect.poll(() => videoExportOutputFiles(page)).not.toEqual([]);
+  await page.getByTestId("generate-composite-video").click();
+  await expect.poll(() => compositeVideoOutputFiles(page)).not.toEqual([]);
   const exported=await download;
   expect(await exported.failure()).toBeNull();
-  await expect(page.getByTestId('video-export-success')).toBeVisible();
-  await expect.poll(() => videoExportOutputFiles(page)).toEqual([]);
+  await expect(page.getByTestId("composite-video-success")).toBeVisible();
+  await expect.poll(() => compositeVideoOutputFiles(page)).toEqual([]);
   expect(exportWrites).toEqual([]);
   await expect(page.locator('.practice-summary-note-unsupported')).toHaveCount(3);
   expect(sourceRequests).toHaveLength(1);expect(scoreRequests).toHaveLength(admittedScoreReads);
@@ -1938,7 +1973,8 @@ async function captureFileNames(page: Page): Promise<string[]> {
 
 test('real OPFS capture survives Review replay/save/raw download and reclaims only unlocked orphan files', async ({ page, context }, testInfo) => {
   const protocol = await setupContinuousPracticeMocks(page, { camera: 'READY' });
-  await page.route(`**/api/v1/scores/${scoreId}/revision-assets?**`, route => {
+  await page.route(`**/api/v1/scores/${scoreId}/revision-assets?**`,
+    (route) => {
     expect(new URL(route.request().url()).searchParams.get('revision_id')).toBe(revisionId);
     return route.fulfill({ status: 200, contentType: 'application/json', body: apiResponse({ revision_sources: [], render_assets: [] }) });
   });
@@ -1948,7 +1984,7 @@ test('real OPFS capture survives Review replay/save/raw download and reclaims on
     const create = FileSystemFileHandle.prototype.createWritable;
     FileSystemFileHandle.prototype.createWritable = async function (options) {
       const writer = await create.call(this, options), write = writer.write.bind(writer), name = this.name;
-      writer.write = async chunk => {
+      writer.write = async (chunk) => {
         if (chunk instanceof Blob) writes.push({ name, bytes: chunk.size });
         return write(chunk);
       };
@@ -1966,14 +2002,15 @@ test('real OPFS capture survives Review replay/save/raw download and reclaims on
   await peer.goto(new URL('/en', page.url()).href);
   const live = await peer.evaluate(async () => {
     const id = crypto.randomUUID(); let acquired!: () => void, release!: () => void;
-    const ready = new Promise<void>(resolve => { acquired = resolve; });
-    const retired = new Promise<void>(resolve => { release = resolve; });
+    const ready = new Promise<void>((resolve) => { acquired = resolve; });
+    const retired = new Promise<void>((resolve) => { release = resolve; });
     const held = navigator.locks.request(`noteverse-practice-capture:${id}`, async () => {
       const directory = await (await navigator.storage.getDirectory()).getDirectoryHandle('noteverse-practice-captures', { create: true });
       const writer = await (await directory.getFileHandle(id, { create: true })).createWritable();
       await writer.write(new Blob(['live-other-tab'])); await writer.close(); acquired(); await retired;
     });
-    (window as unknown as { __capturePeer: { release(): void; held: Promise<void> } }).__capturePeer = { release, held };
+    (window as unknown as { __capturePeer: { release(): void; held: Promise<void> };
+      }).__capturePeer = { release, held };
     await ready; return id;
   });
   await page.bringToFront();
@@ -1983,21 +2020,23 @@ test('real OPFS capture survives Review replay/save/raw download and reclaims on
   expect(await captureFileNames(page)).not.toContain(orphan);
   await page.getByRole('button', { name: '开始', exact: true }).click();
   await expect(page.getByTestId('recording-indicator')).toBeVisible();
-  const names = await captureFileNames(page), capture = names.find(name => name !== live)!;
+  const names = await captureFileNames(page), capture = names.find((name) => name !== live)!;
   expect(capture).toBeTruthy();
-  const written = () => page.evaluate(id => (window as unknown as { __captureWrites: Array<{ name: string; bytes: number }> }).__captureWrites
-    .filter(write => write.name === id).reduce((sum, write) => sum + write.bytes, 0), capture);
+  const written = () => page.evaluate(
+      (id) => (window as unknown as { __captureWrites: Array<{ name: string; bytes: number }>;
+          }).__captureWrites
+    .filter((write) => write.name === id).reduce((sum, write) => sum + write.bytes, 0), capture);
   await expect.poll(written).toBeGreaterThan(0);
   await page.getByRole('button', { name: '查看报告', exact: true }).click();
   await expect(page.getByRole('heading', { name: '临时演奏报告' })).toBeVisible();
   expect(await captureFileNames(page)).toEqual([live, capture].sort());
-  const size = await page.evaluate(async id => {
+  const size = await page.evaluate(async (id) => {
     const directory = await (await navigator.storage.getDirectory()).getDirectoryHandle('noteverse-practice-captures');
     return (await (await directory.getFileHandle(id)).getFile()).size;
   }, capture);
   expect(size).toBe(await written()); expect(size).toBeGreaterThan(0);
   await page.getByRole('button', { name: '播放', exact: true }).click();
-  await expect.poll(() => page.locator('video').first().evaluate(video => (video as HTMLVideoElement).currentTime)).toBeGreaterThan(0);
+  await expect.poll(() => page.locator('video').first().evaluate((video) => (video as HTMLVideoElement).currentTime)).toBeGreaterThan(0);
   await page.getByRole('button', { name: '暂停', exact: true }).click();
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: '下载原始录制', exact: true }).click();
@@ -2010,7 +2049,8 @@ test('real OPFS capture survives Review replay/save/raw download and reclaims on
   await expect(page.getByRole('heading', { name: 'Continuous Review Score', exact: true })).toBeVisible();
   await expect.poll(() => captureFileNames(page)).toEqual([live]);
   await peer.evaluate(async () => {
-    const owner = (window as unknown as { __capturePeer: { release(): void; held: Promise<void> } }).__capturePeer;
+    const owner = (window as unknown as { __capturePeer: { release(): void; held: Promise<void> };
+      }).__capturePeer;
     owner.release(); await owner.held;
   });
   await peer.close();
@@ -2020,3 +2060,151 @@ test('real OPFS capture survives Review replay/save/raw download and reclaims on
   expect(await captureFileNames(page)).toEqual([]);
   await testInfo.attach('opfs-capture-lifetime', { body: JSON.stringify({ capture, size, orphan, protectedPeer: live, save: protocol.events, remaining: [] }), contentType: 'application/json' });
 });
+
+for (const kind of ["VIDEO", "AUDIO"] as const) {
+  test(`${kind} Composite owns an independent decoder and generates a local score video`, async ({
+    page,
+  }, testInfo) => {
+    const protocol = await setupContinuousPracticeMocks(page, {
+      camera: "READY",
+    });
+    await page.goto(
+      `/zh/score/${scoreId}/practice/setup?practiceRevisionId=${revisionId}`,
+    );
+    await selectPracticeConfiguration(page, "CONTINUOUS", "MIDI", kind);
+    expect(await preparePracticeSetup(page)).toBe("READY");
+    await page.getByRole("button", { name: "开始", exact: true }).click();
+    await page.getByRole("button", { name: "查看报告", exact: true }).click();
+    await expect(
+      page.getByRole("heading", { name: "临时演奏报告" }),
+    ).toBeVisible();
+    const tag = kind === "VIDEO" ? "video" : "audio";
+    const raw = page.locator(`${tag}:not([data-composite-decoder])`);
+    await expect(raw).toHaveCount(1);
+    const originalDownload = page.waitForEvent("download");
+    await page
+      .getByRole("button", { name: "下载原始录制", exact: true })
+      .click();
+    const original = await originalDownload;
+    const originalBytes = await readFile((await original.path())!);
+    expect(originalBytes.length).toBeGreaterThan(0);
+    expect(original.suggestedFilename()).toContain(
+      kind === "VIDEO" ? "video" : "audio",
+    );
+    expect(protocol.events).toEqual([]);
+    await page.getByTestId("open-composite-video-studio").click();
+    const own = page.locator(`[data-composite-decoder="${kind}"]`);
+    const play = page.getByTestId("composite-preview-play");
+    await expect(play).toBeEnabled();
+    expect(await own.evaluate((element) => element.tagName)).toBe(
+      kind === "VIDEO" ? "VIDEO" : "AUDIO",
+    );
+    expect(
+      await own.evaluate((element) => (element as HTMLMediaElement).paused),
+    ).toBe(true);
+    await raw.evaluate(async (element) => {
+      const media = element as HTMLMediaElement;
+      media.currentTime = 0.3;
+      await media.play();
+    });
+    await expect
+      .poll(() =>
+        raw.evaluate((element) => (element as HTMLMediaElement).currentTime),
+      )
+      .toBeGreaterThan(0.3);
+    expect(
+      await own.evaluate(
+        (element) => (element as HTMLMediaElement).currentTime,
+      ),
+    ).toBe(0);
+    await raw.evaluate((element) => (element as HTMLMediaElement).pause());
+    const rawTime = await raw.evaluate(
+      (element) => (element as HTMLMediaElement).currentTime,
+    );
+    await page.getByRole("slider", { name: "合成预览位置" }).fill("500");
+    await expect
+      .poll(() =>
+        own.evaluate((element) => (element as HTMLMediaElement).currentTime),
+      )
+      .toBeCloseTo(0.5, 1);
+    await play.click();
+    await expect
+      .poll(() =>
+        own.evaluate((element) => (element as HTMLMediaElement).currentTime),
+      )
+      .toBeGreaterThan(0.5);
+    expect(
+      await raw.evaluate(
+        (element) => (element as HTMLMediaElement).currentTime,
+      ),
+    ).toBe(rawTime);
+    await play.click();
+    const writes: string[] = [];
+    const trackWrites = (request: import("@playwright/test").Request) => {
+      if (["POST", "PUT"].includes(request.method()))
+        writes.push(request.url());
+    };
+    page.on("request", trackWrites);
+    const compositeDownload = page.waitForEvent("download");
+    await page.getByTestId("generate-composite-video").click();
+    const composite = await compositeDownload;
+    expect(await composite.failure()).toBeNull();
+    const bytes = await readFile((await composite.path())!);
+    expect(bytes.length).toBeGreaterThan(0);
+    await expect(page.getByTestId("composite-video-success")).toBeVisible();
+    await expect.poll(() => compositeVideoOutputFiles(page)).toEqual([]);
+    expect(writes).toEqual([]);
+    page.off("request", trackWrites);
+    const output = await page.evaluate(async (bytes) => {
+      const url = URL.createObjectURL(
+        new Blob([new Uint8Array(bytes)], { type: "video/webm" }),
+      );
+      const video = document.createElement("video");
+      video.muted = true;
+      video.src = url;
+      try {
+        await new Promise<void>((resolve, reject) => {
+          video.onloadeddata = () => resolve();
+          video.onerror = () =>
+            reject(new Error("Composite output decode failed"));
+        });
+        await video.play();
+        const stream = (
+          video as HTMLVideoElement & { captureStream(): MediaStream }
+        ).captureStream();
+        const result = {
+          width: video.videoWidth,
+          height: video.videoHeight,
+          audioTracks: stream.getAudioTracks().length,
+        };
+        stream.getTracks().forEach((track) => track.stop());
+        return result;
+      } finally {
+        video.pause();
+        video.removeAttribute("src");
+        video.load();
+        URL.revokeObjectURL(url);
+      }
+    }, Array.from(bytes));
+    expect(output.width).toBeGreaterThan(0);
+    expect(output.height).toBeGreaterThan(0);
+    expect(output.audioTracks).toBe(1);
+    await page.getByRole("button", { name: "保存录制", exact: true }).click();
+    await expect(
+      page.getByRole("button", { name: "已保存", exact: true }),
+    ).toBeVisible();
+    expect(protocol.events).toEqual(["RESERVATION", "MEDIA_PUT", "FINALIZE"]);
+    expect(protocol.request?.media.kind).toBe(kind);
+    expect(protocol.request?.media.byte_size).toBe(originalBytes.length);
+    await testInfo.attach("independent-composite", {
+      body: JSON.stringify({
+        kind,
+        originalBytes: originalBytes.length,
+        compositeBytes: bytes.length,
+        output,
+        serverWritesDuringComposite: writes,
+      }),
+      contentType: "application/json",
+    });
+  });
+}

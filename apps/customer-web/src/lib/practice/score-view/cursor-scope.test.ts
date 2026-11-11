@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import { type PracticeScoreArtifact } from '@/lib/practice/score/artifact';
 import { resolvePracticeScopeCursorNoteIds } from '@/lib/practice/score-view/cursor-scope';
-import { resolveVideoExportPlaybackPosition } from '@/lib/practice/video-export/playback-position';
+import { resolveCompositeVideoPlaybackPosition } from "@/lib/practice/composite-video/playback-position";
 import { recordedPerformanceFixture } from '@/lib/practice/__fixtures__/recorded-performance';
 import { continuousPracticePlan } from '@/lib/practice/__fixtures__/practice-plan';
 import { PracticeVerovioAdapter } from './verovio-adapter';
@@ -145,7 +145,7 @@ describe('cursor selection scope', () => {
   });
 
   it('video export frame resolution uses the cursor selection scope in terminal tail', () => {
-    const frame = resolveVideoExportPlaybackPosition({
+    const frame = resolveCompositeVideoPlaybackPosition({
       recordedPerformance: performance(),
       adapter: {
         getCursorTimelineEntryForTickRange:

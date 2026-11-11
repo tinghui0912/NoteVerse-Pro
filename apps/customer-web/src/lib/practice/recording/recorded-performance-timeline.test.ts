@@ -2,8 +2,8 @@ import { expect, it } from 'vitest';
 import { recordedPerformanceScoreTick } from './recorded-performance-timeline';
 import { recordedPerformanceFixture } from '@/lib/practice/__fixtures__/recorded-performance';
 import { continuousPracticePlan } from '@/lib/practice/__fixtures__/practice-plan';
-import { artifact } from '@/lib/practice/video-export/__fixtures__/saved-take';
-import { resolveVideoExportPlaybackPosition } from '@/lib/practice/video-export/playback-position';
+import { artifact } from "@/lib/practice/composite-video/__fixtures__/saved-take";
+import { resolveCompositeVideoPlaybackPosition } from "@/lib/practice/composite-video/playback-position";
 it.each(['SCORE', 'CUSTOM_FIXED_BPM'] as const)(
   'shares the %s timeline between replay and video across pauses, ranges and decoded-duration correction',
   (mode) => {
@@ -54,7 +54,7 @@ it.each(['SCORE', 'CUSTOM_FIXED_BPM'] as const)(
         mediaTimeMs,
         5000,
       );
-      const exported = resolveVideoExportPlaybackPosition({
+      const exported = resolveCompositeVideoPlaybackPosition({
         recordedPerformance: performance,
         adapter,
         mediaTimeMs,

@@ -5,7 +5,7 @@ const CAPTURE_CONTAINERS = {
   VIDEO: ['video/webm', 'video/mp4'],
 } as const;
 
-/** Capture preferences are independent of the composed VideoExport encoder. */
+/** Capture preferences are independent of the composed CompositeVideo encoder. */
 export const VIDEO_CAPTURE_MIME_CANDIDATES = [
   'video/webm;codecs=vp9,opus',
   'video/webm;codecs=vp8,opus',

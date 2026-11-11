@@ -59,7 +59,8 @@ import { recordingPlaybackSource } from '@/lib/practice/recording/recording-play
 import { recordedPerformance } from '@/lib/practice/recording/recorded-performance';
 import { recordedPerformanceScoreTick } from '@/lib/practice/recording/recorded-performance-timeline';
 import { reviewViewModel } from '@/lib/practice/review/review-view-model';
-import { VideoExportStudio } from '@/components/practice/video-export-studio';
+import { compositeVideoInput } from "@/lib/practice/composite-video/input";
+import { CompositeVideoStudio } from "@/components/practice/composite-video-studio";
 
 function scoreIdFromParams(params: ReturnType<typeof useParams>): string {
   const id = params?.id;
@@ -99,10 +100,13 @@ export default function PracticeReviewPage({
   );
   const isScoreIdentityConfirmed =
     isValidCompletion && scoreState?.status === 'READY';
-  const exportPerformance =
-    recorded?.recording.kind === 'VIDEO' && scoreState?.status === 'READY'
-      ? recorded
-      : null;
+  const compositeInput = useMemo(
+    () =>
+      recorded && isScoreIdentityConfirmed && xmlContent
+        ? compositeVideoInput(recorded, xmlContent)
+        : null,
+    [recorded, isScoreIdentityConfirmed, xmlContent],
+  );
 
   const adapter = useMemo(
     () => new PracticeVerovioAdapter(artifact),
@@ -120,22 +124,13 @@ export default function PracticeReviewPage({
 
   const scoreContainerRef = useRef<HTMLDivElement | null>(null);
   const scoreRenderRevisionRef = useRef(0);
-  const [scoreContainer, setScoreContainer] = useState<HTMLDivElement | null>(
-    null,
-  );
-  const [videoExportPreviewTimeMs, setVideoExportPreviewTimeMs] = useState(0);
-  const [isRecordingPlaying, setIsRecordingPlaying] = useState(false);
-  const [recordingVideo, setRecordingVideo] = useState<HTMLVideoElement | null>(
-    null,
-  );
-  const latestMediaTimeMsRef = useRef(0);
   const [hasDownloadedOriginalRecording, setHasDownloadedOriginalRecording] =
     useState(false);
   const [leaveIntent, setLeaveIntent] = useState<'score' | 'practice' | null>(
     null,
   );
-  const [isVideoExportStudioOpen, setIsVideoExportStudioOpen] = useState(false);
-  const [isVideoExporting, setIsVideoExporting] = useState(false);
+  const [isCompositeVideoStudioOpen, setIsCompositeVideoStudioOpen] = useState(false);
+  const [isExportingCompositeVideo, setIsExportingCompositeVideo] = useState(false);
 
   const scoreNoteAnnotations = useMemo(() => {
     if (!isScoreIdentityConfirmed || !result?.evaluation) {
@@ -152,11 +147,7 @@ export default function PracticeReviewPage({
   const handleScoreRendered = useCallback(
     (_adapter: unknown, container: HTMLDivElement) => {
       scoreRenderRevisionRef.current += 1;
-      const isNewContainer = scoreContainerRef.current !== container;
       scoreContainerRef.current = container;
-      if (isNewContainer) {
-        setScoreContainer(container);
-      }
       if (!isScoreIdentityConfirmed) {
         annotationController.apply(
           container,
@@ -186,7 +177,6 @@ export default function PracticeReviewPage({
 
   const handleRecordingMediaTimeChange = useCallback(
     (mediaTimeMs: number | null, actualMediaDurationMs?: number | null) => {
-      latestMediaTimeMsRef.current = Math.max(0, mediaTimeMs ?? 0);
       const container = scoreContainerRef.current;
       if (!container || !result) return;
       if (
@@ -219,20 +209,7 @@ export default function PracticeReviewPage({
       isScoreIdentityConfirmed,
       playheadController,
       scoreState,
-    ],
-  );
-
-  const handleRecordingPlaybackStateChange = useCallback((playing: boolean) => {
-    setIsRecordingPlaying(playing);
-    if (!playing) {
-      setVideoExportPreviewTimeMs(latestMediaTimeMsRef.current);
-    }
-  }, []);
-
-  const handleRecordingSeekCommitted = useCallback((mediaTimeMs: number) => {
-    latestMediaTimeMsRef.current = Math.max(0, mediaTimeMs);
-    setVideoExportPreviewTimeMs(Math.max(0, mediaTimeMs));
-  }, []);
+    ]);
 
   useEffect(() => {
     const container = scoreContainerRef.current;
@@ -346,7 +323,7 @@ export default function PracticeReviewPage({
           saveRecordingStatus !== 'saved' &&
           !hasDownloadedOriginalRecording,
       );
-      if (hasUncommittedMedia || isVideoExporting) {
+      if (hasUncommittedMedia || isExportingCompositeVideo) {
         setLeaveIntent(target);
         return;
       }
@@ -355,7 +332,7 @@ export default function PracticeReviewPage({
     [
       recording,
       hasDownloadedOriginalRecording,
-      isVideoExporting,
+      isExportingCompositeVideo,
       performLeave,
       saveRecordingStatus,
     ],
@@ -374,7 +351,7 @@ export default function PracticeReviewPage({
       saveRecordingStatus !== 'saved' &&
       !hasDownloadedOriginalRecording,
   );
-  const leaveReviewDescription = isVideoExporting
+  const leaveReviewDescription = isExportingCompositeVideo
     ? hasUncommittedReviewMedia
       ? t('leaveReviewWhileExportingAndUnsavedDesc')
       : t('leaveReviewWhileExportingDesc')
@@ -495,9 +472,6 @@ export default function PracticeReviewPage({
               <RecordingPlaybackPlayer
                 source={playbackSource}
                 onMediaTimeChange={handleRecordingMediaTimeChange}
-                onPlaybackStateChange={handleRecordingPlaybackStateChange}
-                onMediaSeekCommitted={handleRecordingSeekCommitted}
-                onVideoElementChange={setRecordingVideo}
               />
             </CardContent>
           </Card>
@@ -687,20 +661,13 @@ export default function PracticeReviewPage({
         </CardContent>
       </Card>
 
-      {recording?.status === 'READY' && recording.kind === 'VIDEO' ? (
-        <VideoExportStudio
+      {compositeInput ? (
+        <CompositeVideoStudio
           key={result.localSessionId}
-          recordedPerformance={exportPerformance}
-          scoreContainer={scoreContainer}
-          adapter={adapter}
-          isScoreIdentityConfirmed={isScoreIdentityConfirmed}
-          xmlContent={xmlContent}
-          mediaTimeMs={videoExportPreviewTimeMs}
-          isRecordingPlaying={isRecordingPlaying}
-          recordingVideo={recordingVideo}
-          open={isVideoExportStudioOpen}
-          onOpenChange={setIsVideoExportStudioOpen}
-          onExportingChange={setIsVideoExporting}
+          input={compositeInput}
+          open={isCompositeVideoStudioOpen}
+          onOpenChange={setIsCompositeVideoStudioOpen}
+          onExportingChange={setIsExportingCompositeVideo}
         />
       ) : null}
       <AlertDialog

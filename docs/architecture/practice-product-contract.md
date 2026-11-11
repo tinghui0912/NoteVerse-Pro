@@ -60,7 +60,7 @@ controls and presentation preferences, with no inline editors for readiness-affe
 configuration. Unavailable admission stays on Practice with explicit Setup navigation;
 an active recording intervention keeps the current attempt while the user decides. STEP settings contains configuration navigation only. Continuous Live Feedback uses a labelled, keyboard-accessible Switch in Practice,
 not Setup. The switch controls score feedback visibility independently of readiness,
-session identity, inference, evaluation, Review and VideoExport. The preference
+session identity, inference, evaluation, Review and Composite Video. The preference
 persists with the profile and defaults to OFF.
 
 ## Preparation, Resource Binding and Attempt Lifetimes
@@ -186,7 +186,7 @@ Live note feedback is a presentation preference, mutable during ACTIVE/PAUSED.
 OFF removes live supported/unsupported decorations while retaining score, range
 and playhead. Evaluation and natural Result production operate independently of
 the feedback setting. ON/OFF does not restart a session or engine. Review always
-shows completed feedback; VideoExport always uses its clean-score contract.
+shows completed feedback; Composite Video always uses its clean-score contract.
 
 ## Session Planning
 
@@ -811,9 +811,9 @@ VIDEO requires successful recording admission before transport/count-in begins.
 LocalMediaAsset or a current signed playback URL, and optional RecordingTimebase.
 Review composes its published media time with the shared RecordedPerformance timeline
 and score playhead; evaluation annotations remain a separate controller. Save and
-VideoExport consume that same RecordedPerformance. Original AUDIO and VIDEO download
+Composite Video consume that same RecordedPerformance. Original AUDIO and VIDEO download
 preserves the admitted bytes and MIME extension through an independent download lease.
-VideoExport preview borrows the recording player's video element as its decode source.
+Composite preview owns an independent decoder and playback controls. Review playback does not supply its element or playback state.
 `PerformanceRecorder.prepare()` resolves only for admitted recording or OFF; missing
 or dead required tracks, permission/device loss, unsupported recorder/MIME, unavailable
 OPFS/Web Locks and storage initialization failure reject with stable recording preparation codes. Admission
@@ -1004,7 +1004,7 @@ performs no Bundle recovery. Saved media does not reconstruct a Practice Report.
 
 Save Recording persists media only through an explicit user action. It does not
 persist evaluation, metrics or provenance, and does not extend the report lifetime.
-My Performances is a saved media archive with playback/download/video-export actions,
+My Performances is a saved media archive with playback/download/composite-video actions,
 without learner report statistics or saved learner-report navigation.
 
 ## PerformanceTake Upload Reservation
@@ -1061,23 +1061,33 @@ release the internal quota hold. Finalize retry returns the same Take and commit
 additional quota. Final object ownership and immutable metadata do not depend on a
 second client payload.
 
-## Clean Video Export Score
+## Composite Video
 
-VideoExport is a browser-local composition/download capability. Its transient output
-is downloaded to the user's device. It owns no durable server asset and grants no
-sharing access. PerformanceTake owns the raw recording; Guest Preview is a separate
-authorization domain. Saved exports use `/my-performances/{takeId}/video-export`.
+Review combines the annotated score, original Recording Playback and a synchronized
+score playhead. Evaluation annotations are learner feedback, separate from Composite input.
 
-Review annotations remain ephemeral presentation of result.evaluation, with the
-same supported/green and unsupported/red targets as live Practice. VideoExport contains a clean musical score and its
-own playback cursor, never report annotations. Snapshot preparation strips report
-classes and existing active/playhead decorations from the cloned SVG only. Live
-Review annotations remain intact. Current recordings and saved takes share this
-clean-score contract. Both consume RecordedPerformance: one ExecutedPerformance
-paired with one READY recording, without evaluation or metrics. The common playback
-timeline maps recording media time through the executed scope and tempo to score ticks.
+`composite-video/` owns a browser-local derivative capability. Its immutable input is
+`{ recordedPerformance, musicXml }`, borrowing an admitted READY AUDIO or VIDEO recording.
+Clean score rendering starts directly from canonical MusicXML and the Practice artifact
+through a Composite-owned PracticeVerovioAdapter. Composite does not sanitize Review DOM,
+inspect the Review page, or clone learner-facing SVG. Its own hidden measurement host,
+SVG snapshots, geometry and bounded event-image cache belong to each operation. Only
+its own playhead is added to clean notation.
 
-## Score View, Review and VideoExport Ownership
+Preview owns an independent, initially paused audio/video decoder, source lease, object
+URL and play/pause/seek controls. Review's RecordingPlayback is a separate consumer.
+VIDEO uses a stable score-plus-performance-image layout; AUDIO uses a score-only visual
+layout with the original audio soundtrack. Both support landscape and portrait canvases.
+The RecordedPerformance timeline maps decoded media time through executed scope/tempo.
+
+Final export retains its own original media lease, owns its decoder and clean score model,
+combines canvas video with original recording audio through AudioContext, and records to
+local OPFS. Cancellation and failures dispose these resources and retire partial output.
+Generated Composite video is downloaded locally and is never uploaded or saved as a Take.
+Save always archives only the original recording. Saved AUDIO and VIDEO Takes enter through
+`/my-performances/{takeId}/score-video` after exact Bundle reauthorization/admission.
+
+## Score View, Review and Composite Video Ownership
 
 `score-view/` owns the Practice Verovio adapter, render identity, DOM render-ID
 lookup, cursor geometry, viewport scrolling, range overlay and evaluation note
@@ -1099,7 +1109,7 @@ projects cursor scope; Verovio owns rendering failures. The recorded-performance
 timeline owns replay synchronization; review-view-model.ts projects executed semantics
 and transient outcome metadata.
 The route owns save-recording mutation, navigation, leave confirmation and
-VideoExportStudio state, with no Bundle query or subscription. Save Recording remains
+CompositeVideoStudio state, with no Bundle query or subscription. Save Recording remains
 an explicit server operation and new save admission requires live revision-binding authorization.
 
 `run/executed-performance.ts` owns completed score semantics. Natural completion
@@ -1107,23 +1117,17 @@ creates this value once, retaining the Plan's canonical binding/artifact, scope 
 tempo references. `recording/recorded-performance.ts` pairs it with one READY
 recording. TransientReviewSession contains `{ result, recording, musicXml }` and
 retains its recording media once. For READY recording, the Review route derives one
-memoized pairing that borrows the retained recording for Save, replay and VideoExport.
+memoized pairing that borrows the retained recording for Save, replay and Composite Video.
 
 `archive/saved-performance.ts` is the saved Take API-to-domain admission boundary.
 It validates the Manifest against the reauthorized Bundle and materialized media;
 saved score replay and export share the admitted RecordedPerformance. Archive
 request projection and Manifest agreement live in `archive/take-admission.ts`.
-VideoExport accepts RecordedPerformance plus presentation inputs, without separate
-scope, tempo, score extent, tick resolution or recording timebase arguments.
-The output recorder belongs to export. Floating-score styling is presentation policy.
-
-VideoExport score snapshots consume canonical decoration constants and remove report
-classes and existing active/playhead nodes from the frozen clone only. Live Review
-annotations remain untouched; export inserts only its own playback cursor. Sharing
-retains 30fps, MIME preference, geometry, audio extraction, frame prefetch and abort
-behavior. No presentation context is imported by score, planning, session, STEP/Continuous domain,
-acoustic, result or recording owners. Concrete module imports define these boundaries
-without aggregate barrels or forwarding paths.
+CompositeVideoStudio accepts the cohesive CompositeVideoInput and open/export-operation
+callbacks. It receives no Review DOM, renderer, decoder, playback time or score-identity flag.
+The core owns its source lease and output recorder; Studio owns local download and retires
+the returned output after download. Score, planning, STEP/Continuous, acoustic, result and
+recording owners do not import Composite presentation.
 
 ## Meter, Pitch and Tempo Admission
 
@@ -1149,7 +1153,7 @@ identity; raw playback and download remain independent of revision lifetime.
 The [Practice Bundle contract](practice-bundle.md) defines identity, authorization and retention.
 Saved-performance admission validates persisted binding, artifact, scope, tempo,
 RecordingTimebase and capture/archive/local byte facts before producing the shared
-RecordedPerformance used by replay and VideoExport. MusicXML stays separate.
+RecordedPerformance used by replay and Composite Video. MusicXML stays separate.
 
 ## Capture and archive media contract
 
@@ -1160,7 +1164,7 @@ owns normalization, Video Capture preferences and raw-download extensions.
 MediaRecorder's actual MIME is authoritative; unsupported output cannot become READY.
 
 PerformanceTake archives the exact Capture bytes without transcoding. Original
-media download returns those raw bytes. VideoExport composes a separate browser-local
+media download returns those raw bytes. Composite Video composes a separate browser-local
 score/video derivative using its own output format policy; PerformanceTake does not
 archive that composed output.
 
@@ -1177,14 +1181,14 @@ Neither depends on Practice product domains.
 
 Recording owns Capture semantics and its RecordingSink port. The OPFS recording
 adapter maps media-storage admission errors into RecordingFailure. PerformanceTake
-owns durable archive semantics; VideoExport owns derivative composition. These
+owns durable archive semantics; Composite Video owns derivative composition. These
 consumers depend on shared media and do not own its generic byte infrastructure.
 
 All locally materialized performance media uses `LocalMediaAsset`: one handle owns
 one reference, its Blob view and its byte size. Retain returns an independently
 releasable handle. Release is idempotent, and the final reference retires the backing
 storage once. A retired handle cannot acquire another reference. MIME belongs to the
-recording or Take metadata. Replay, raw download and VideoExport consume the same
+recording or Take metadata. Replay, raw download and Composite Video consume the same
 media contract regardless of source.
 
 Production Capture requires OPFS and Web Locks. Selected AUDIO/VIDEO preparation
@@ -1205,10 +1209,10 @@ The controller owns the first sealed-media reference. Successful completion keep
 that owner beyond recorder/input cleanup. Review handoff validates identity before
 retaining a separate owner and never copies media bytes. Controller retirement
 releases its completion owner; clearing, replacing or leaving Review releases the
-Review owner. Save, original raw download and current-completion VideoExport retain
+Review owner. Save, original raw download and current-completion Composite Video retain
 independent temporary leases and release in finally. Original download revokes its
 object URL before release. RecordingPlayback holds its own lease until its element URL is revoked.
-VideoExportStudio holds one operation lease for both current and saved sessions,
+The Composite export core holds one operation lease for both current and saved inputs,
 including cancellation and route exit. The last owner removes the OPFS file.
 
 Preparation storage failures are recording preparation facts. Active write failure
@@ -1239,17 +1243,19 @@ Take remains durable authority; temporary local media is neither a cache nor a
 cross-reload session. Ordinary server playback URLs retain their independent contract.
 
 Archive remains explicit Review Save of raw Capture bytes into PerformanceTake.
-VideoExport source media is a LocalMediaAsset retained by Studio for the whole
+Composite Video source media is a LocalMediaAsset retained by the export core for the whole
 export operation. Encoded output chunks are incrementally appended in MediaRecorder
-event order to `noteverse-video-export-output`, using a finite 1000ms timeslice.
+event order to `noteverse-composite-video-output`, using a finite 1000ms timeslice.
 The operation never retains the complete encoded output in a JS chunk array.
 Stop drains all accepted writes before seal. The shared OPFS primitive validates
 exact byte accounting; seal uses the selected recorder MIME. Empty output fails closed.
 
-VideoExport returns `{ media: LocalMediaAsset, mimeType, durationMs }` for a new
-file-backed derivative. The caller owns that reference until download handoff is
-complete. Studio calls downloadLocalMedia, which retains its own download lease,
-then releases the result owner in finally, independently from its input-media lease.
+Composite Video returns `{ media: LocalMediaAsset, mimeType, durationMs }` for a new
+file-backed derivative. Local download streams it into a browser-owned Blob snapshot so
+OPFS retirement cannot invalidate an in-progress download. The caller owns the output reference until download handoff is
+complete. Studio calls downloadCompositeVideo, whose local snapshot uses downloadLocalMedia
+for the download handoff. Studio releases the result owner in finally, independently from
+the export core's input-media lease.
 Cancellation, encoding/write failure and unpublished sealed output retire their
 partial or final storage before failure returns. Missing OPFS/Web Locks/writer
 support fails unavailable without a memory fallback.

@@ -6,7 +6,7 @@ import { completedContinuousSessionFixture } from '@/lib/practice/__fixtures__/c
 import {
   artifact,
   take,
-} from '@/lib/practice/video-export/__fixtures__/saved-take';
+} from "@/lib/practice/composite-video/__fixtures__/saved-take";
 import { createNaturalContinuousCompletion } from '@/lib/practice/continuous/natural-completion';
 import { unavailableContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/session';
 import {

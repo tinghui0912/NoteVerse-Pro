@@ -30,7 +30,7 @@ vi.mock('@/hooks/use-toast', () => ({
 const translationMocks = vi.hoisted(() => {
   const practice: Record<string, string> = {
     myPerformances: '我的演奏',
-    videoExportOpenAction: '导出乐谱视频',
+    compositeVideoOpenAction: '导出乐谱视频',
     noPerformancesTitle: '暂无已保存的演奏',
     noPerformancesDesc:
       '在连贯演奏结束后，点击“保存演奏”，你的录音就会保存在这里。',
@@ -371,6 +371,12 @@ describe('MyPerformancesPage', () => {
     render(<MyPerformancesPage />);
     expect(screen.getByText('暂无已保存的演奏')).toBeInTheDocument();
   });
+  it('offers Score Video for a saved AUDIO recording independently of original playback/download', () => {
+    render(<MyPerformancesPage />);
+    expect(screen.getByTestId('composite-video-take-take-1')).toHaveAttribute('href', '/my-performances/take-1/score-video');
+    expect(screen.getByTestId('play-take-take-1')).toBeEnabled();
+    expect(screen.getByTestId('download-take-take-1')).toBeEnabled();
+  });
   it('renders retained score provenance as a score link', () => {
     mockQueryOverride = {
       data: {
@@ -587,10 +593,10 @@ describe('MyPerformancesPage', () => {
         screen.getByTestId('download-take-take-video-1'),
       ).toHaveTextContent('下载视频');
       expect(
-        screen.getByTestId('video-export-take-take-video-1'),
-      ).toHaveAttribute('href', '/my-performances/take-video-1/video-export');
+        screen.getByTestId("composite-video-take-take-video-1"),
+      ).toHaveAttribute('href', "/my-performances/take-video-1/score-video");
       expect(
-        screen.getByTestId('video-export-take-take-video-1'),
+        screen.getByTestId("composite-video-take-take-video-1"),
       ).toHaveTextContent('导出乐谱视频');
       fireEvent.click(screen.getByTestId('play-take-take-video-1'));
       expect(screen.getByText('Kind: VIDEO')).toBeInTheDocument();

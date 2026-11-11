@@ -35,16 +35,13 @@ const navigationMocks = vi.hoisted(() => ({
 
 const translationMocks = vi.hoisted(() => {
   const practice: Record<string, string> = {
-    videoExportPreviewCanvasLabel: '当前时间点画面预览',
-    videoExportPreviewPreparing: '预览准备中...',
-    videoExportPreviewSyncDesc: '预览与回放同步，不改变原始演奏录像。',
-    videoExportPreviewSavePng: '保存当前预览 PNG',
-    videoExportPreviewRetry: '重试预览',
-    videoExportPreviewFailed: '视频预览失败',
-    videoExportPreviewScoreFailed: '无法准备乐谱预览',
-    videoExportPreviewCanvasFailed: '无法创建预览画布',
-    videoExportPreviewDecodeFailed: '无法解码当前回放画面',
-    videoExportPreviewFrameBufferFailed: '无法创建预览帧缓冲区',
+    compositeVideoPreviewCanvasLabel: '当前时间点画面预览',
+    compositeVideoPreviewPreparing: '预览准备中...',
+    compositeVideoPreviewFailed: '视频预览失败',
+    compositeVideoPreviewScoreFailed: '无法准备乐谱预览',
+    compositeVideoPreviewCanvasFailed: '无法创建预览画布',
+    compositeVideoPreviewDecodeFailed: '无法解码当前回放画面',
+    compositeVideoPreviewFrameBufferFailed: '无法创建预览帧缓冲区',
 
     reviewTitle: '临时演奏报告',
     reviewExpiredTitle: '本次临时报告已失效',
@@ -107,47 +104,25 @@ const translationMocks = vi.hoisted(() => {
     exportScoreVideoUnsupportedBrowser: '当前浏览器不支持本地视频合成导出。',
     retryPractice: '重弹一次',
     playback: '练习回放',
-    videoExportEntryTitle: '导出乐谱视频',
-    videoExportEntryDesc: '在本地将动态乐谱与演奏画面合成并下载。',
-    videoExportOpenAction: '导出乐谱视频',
-    videoExportCollapseStudio: '收起制作工具',
-    videoExportTitle: '乐谱视频导出',
-    videoExportDesc:
+    compositeVideoEntryTitle: '导出乐谱视频',
+    compositeVideoEntryDesc: '在本地将动态乐谱与演奏画面合成并下载。',
+    compositeVideoOpenAction: '导出乐谱视频',
+    compositeVideoCollapseStudio: '收起制作工具',
+    compositeVideoTitle: '乐谱视频导出',
+    compositeVideoDesc:
       '在浏览器中将动态乐谱与演奏画面合成为视频并下载。导出不会上传或发布视频。',
-    videoExportOrientationStep: '1. 视频比例',
-    videoExportOrientationDesc: '选择导出视频的画布方向。',
-    videoExportLandscapeTitle: '横版 16:9',
-    videoExportLandscapeDesc: '适合横向演奏视频。',
-    videoExportPortraitTitle: '竖版 9:16',
-    videoExportPortraitDesc: '适合手机和竖屏视频。',
-    videoExportPresentationStep: '2. 乐谱呈现方式',
-    videoExportPresentationDesc: '选择乐谱与演奏画面的组合方式。',
-    videoExportSplitTitle: '分屏',
-    videoExportSplitDesc: '完整乐谱与演奏对照。',
-    videoExportFloatingTitle: '悬浮乐谱',
-    videoExportFloatingDesc: '演奏为主，动态乐谱叠加。',
-    videoExportDevPreview: '开发预览',
-    videoExportPositionStep: '3. 乐谱位置',
-    videoExportPositionDesc:
-      '悬浮乐谱会遮挡下方部分演奏画面，请确认未挡住您希望展示的手部、键盘或人物。',
-    videoExportAdjustPositionSize: '调整位置与大小',
-    videoExportTop: '顶部',
-    videoExportTopDesc: '靠近演奏画面上方。',
-    videoExportBottom: '底部',
-    videoExportBottomDesc: '靠近演奏画面下方。',
-    videoExportScoreSize: '乐谱大小',
-    videoExportSmall: '小',
-    videoExportMedium: '中',
-    videoExportLarge: '大',
-    videoExportPreviewTitle: '实时合成预览',
-    videoExportPreviewDesc: '与原始演奏回放同步。',
-    videoExportPreviewTime: '预览时间：{time}',
-    videoExportOutputTitle: '导出视频',
-    videoExportAction: '生成并下载视频',
-    videoExportTemplateSummary:
-      '{orientation} · {presentation} · {position} · 原始音轨',
-    videoExportTemplateSummaryWithoutPosition:
-      '{orientation} · {presentation} · 原始音轨',
+    compositeVideoOrientationStep: '1. 视频比例',
+    compositeVideoOrientationDesc: '选择导出视频的画布方向。',
+    compositeVideoLandscapeTitle: '横版 16:9',
+    compositeVideoLandscapeDesc: '适合横向演奏视频。',
+    compositeVideoPortraitTitle: '竖版 9:16',
+    compositeVideoPortraitDesc: '适合手机和竖屏视频。',
+    compositeVideoSplitTitle: '分屏',
+    compositeVideoSplitDesc: '完整乐谱与演奏对照。',
+    compositeVideoPreviewTitle: '实时合成预览',
+    compositeVideoPreviewDesc: '与原始演奏回放同步。',
+    compositeVideoOutputTitle: '导出视频',
+    compositeVideoAction: '生成并下载视频',
     leaveReviewTitle: '离开临时演奏报告？',
     leaveReviewDesc:
       '这份临时演奏报告离开后可能无法再次访问。合成视频下载不等于保存原始演奏。',
@@ -221,7 +196,7 @@ vi.mock('@/hooks/queries/use-performance-take-queries', () => ({
 const createMockArtifact = (overrides: Record<string, unknown> = {}) => ({
   schemaVersion: 1 as const,
   ticksPerQuarter: 1,
-  artifactId: 'art-1',
+  artifactId: "practice-score-artifact:0123456789abcdef",
   scoreEndTick: 20,
   notes: Array.from({ length: 5 }, (_, i) => ({
     noteId: `note-${i + 1}`,
@@ -339,14 +314,17 @@ vi.mock('@/components/practice/recording-playback-player', () => ({
   },
 }));
 
-const videoExportMocks = vi.hoisted(() => ({
-  exportVideo: vi.fn(),
-  getVideoExportReadiness: vi.fn(),
+const compositeVideoMocks = vi.hoisted(() => ({
+  exportCompositeVideo: vi.fn(),
+  getCompositeVideoReadiness: vi.fn(),
 }));
 
-vi.mock('@/lib/practice/video-export/export', () => ({
-  exportVideo: videoExportMocks.exportVideo,
-  getVideoExportReadiness: videoExportMocks.getVideoExportReadiness,
+vi.mock("@/lib/practice/composite-video/preview", () => ({
+  CompositeVideoPreview: () => null,
+}));
+vi.mock("@/lib/practice/composite-video/export", () => ({
+  exportCompositeVideo: compositeVideoMocks.exportCompositeVideo,
+  getCompositeVideoReadiness: compositeVideoMocks.getCompositeVideoReadiness,
 }));
 
 import PracticeReviewPage from './page';
@@ -548,35 +526,16 @@ describe('PracticeReviewPage', () => {
     vi.mocked(recordingPlaybackSource).mockClear();
     recordingPlayerMocks.render.mockClear();
     vi.mocked(recordedPerformanceScoreTick).mockClear();
-    videoExportMocks.exportVideo.mockReset();
-    videoExportMocks.exportVideo.mockResolvedValue({
+    compositeVideoMocks.exportCompositeVideo.mockReset();
+    compositeVideoMocks.exportCompositeVideo.mockResolvedValue({
       media: localMediaAssetFixture(
-        new Blob(['video-export'], { type: 'video/webm' }),
+        new Blob(["composite-video"], { type: 'video/webm' }),
       ),
       mimeType: 'video/webm',
       durationMs: 3000,
     });
-    videoExportMocks.getVideoExportReadiness.mockImplementation(
-      ({
-        recordedPerformance,
-        isScoreIdentityConfirmed,
-        xmlContent,
-        scoreContainer,
-      }: {
-        recordedPerformance?: { recording: { status: string } } | null;
-        isScoreIdentityConfirmed: boolean;
-        xmlContent: string | null;
-        scoreContainer: HTMLElement | null;
-      }) => {
-        if (recordedPerformance?.recording.status !== 'READY') {
-          return { ok: false, reason: 'video_not_ready' };
-        }
-        if (!isScoreIdentityConfirmed)
-          return { ok: false, reason: 'score_identity_mismatch' };
-        if (!xmlContent || !scoreContainer)
-          return { ok: false, reason: 'score_not_ready' };
-        return { ok: true, mimeType: 'video/webm' };
-      },
+    compositeVideoMocks.getCompositeVideoReadiness.mockReturnValue({ ok: true, mimeType: 'video/webm',
+    },
     );
   });
 
@@ -1180,12 +1139,14 @@ describe('PracticeReviewPage', () => {
     );
   });
 
-  it('shares one borrowed Review pairing across replay, Save and VideoExport', async () => {
+  it.each(['AUDIO', 'VIDEO'] as const)("shares one borrowed %s Review pairing across replay, Save and Composite Video", async (kind) => {
     const backing = localMediaAssetFixture(
-      new Blob(['video'], { type: 'video/webm' }),
+      new Blob(['original recording'], { type: kind === 'AUDIO' ? 'audio/webm' : 'video/webm' }),
     );
     const media = { ...backing, retain: () => ({ ...backing.retain() }) };
-    const completion = createVideoCompletion({ media });
+    const videoCompletion = createVideoCompletion({ media });
+    if (videoCompletion.recording.status !== 'READY') throw new Error('Expected capture');
+    const completion: ContinuousPracticeCompletion = { ...videoCompletion, recording: { ...videoCompletion.recording, kind, mimeType: backing.blob.type } };
     if (completion.recording.status !== 'READY')
       throw new Error('Expected capture');
     const retain = vi.spyOn(media, 'retain');
@@ -1211,13 +1172,13 @@ describe('PracticeReviewPage', () => {
     ]);
     expect(player.source.media).toBe(review.recording.media);
     expect(player.source.recordingTimebase).toBe(review.recording.timebase);
-    fireEvent.click(screen.getByTestId('open-video-export-studio'));
+    fireEvent.click(screen.getByTestId("open-composite-video-studio"));
     expect(
-      videoExportMocks.getVideoExportReadiness.mock.calls.at(-1)![0]
+      compositeVideoMocks.getCompositeVideoReadiness.mock.calls.at(-1)![0]
         .recordedPerformance,
     ).not.toBeNull();
     const paired =
-      videoExportMocks.getVideoExportReadiness.mock.calls.at(-1)![0]
+      compositeVideoMocks.getCompositeVideoReadiness.mock.calls.at(-1)![0]
         .recordedPerformance;
     expect(paired.executed).toBe(review.result.executed);
     expect(paired.recording).toBe(review.recording);
@@ -1342,7 +1303,7 @@ describe('PracticeReviewPage', () => {
       );
       expect(retain).toHaveBeenCalledExactlyOnceWith();
       expect(saveMutationMock.mutateAsync).not.toHaveBeenCalled();
-      expect(videoExportMocks.exportVideo).not.toHaveBeenCalled();
+      expect(compositeVideoMocks.exportCompositeVideo).not.toHaveBeenCalled();
       fireEvent.click(screen.getByRole('button', { name: '返回乐谱' }));
       expect(navigationMocks.push).toHaveBeenLastCalledWith('/score/score-123');
       expect(screen.queryByRole('button', { name: '确认离开' })).toBeNull();
@@ -1355,7 +1316,7 @@ describe('PracticeReviewPage', () => {
   it('exports and saves ready video review media without using the audio blob', async () => {
     Object.defineProperty(URL, 'createObjectURL', {
       configurable: true,
-      value: vi.fn(() => 'blob:video-export'),
+      value: vi.fn(() => "blob:composite-video"),
     });
     Object.defineProperty(URL, 'revokeObjectURL', {
       configurable: true,
@@ -1414,7 +1375,7 @@ describe('PracticeReviewPage', () => {
 
     await screen.findByText('已保存');
     await waitFor(() => {
-      expect(revokeObjectURL).toHaveBeenCalledWith('blob:video-export');
+      expect(revokeObjectURL).toHaveBeenCalledWith("blob:composite-video");
     });
   });
 
@@ -1423,7 +1384,7 @@ describe('PracticeReviewPage', () => {
       configurable: true,
       value: vi.fn((blob: Blob) =>
         blob.type === 'video/webm' && blob.size === 12
-          ? 'blob:video-export'
+          ? "blob:composite-video"
           : 'blob:raw-video',
       ),
     });
@@ -1446,12 +1407,12 @@ describe('PracticeReviewPage', () => {
     render(
       <PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />,
     );
-    fireEvent.click(screen.getByTestId('open-video-export-studio'));
+    fireEvent.click(screen.getByTestId("open-composite-video-studio"));
 
-    fireEvent.click(screen.getByTestId('generate-video-export'));
+    fireEvent.click(screen.getByTestId("generate-composite-video"));
 
     await waitFor(() => {
-      expect(videoExportMocks.exportVideo).toHaveBeenCalled();
+      expect(compositeVideoMocks.exportCompositeVideo).toHaveBeenCalled();
     });
     expect(createObjectURL).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'video/webm' }),
@@ -1472,7 +1433,7 @@ describe('PracticeReviewPage', () => {
   });
 
   it.each(['success', 'error', 'abort'] as const)(
-    'keeps its source after Review clear until VideoExport %s settles',
+    "keeps its source after Review clear until CompositeVideo %s settles",
     async (outcome) => {
       const capture = recordingSinkFixture();
       await capture.sink.append(new Blob(['raw video']));
@@ -1480,30 +1441,37 @@ describe('PracticeReviewPage', () => {
       provideReview(createVideoCompletion({ videoBlob: media.blob, media }));
       await media.release();
       let resolve!: (
-          output: import('@/lib/practice/video-export/export').VideoExportResult,
+          output: import("@/lib/practice/composite-video/export").CompositeVideoResult,
         ) => void,
         reject!: (error: Error) => void;
-      videoExportMocks.exportVideo.mockImplementation(
-        () =>
-          new Promise((yes, no) => {
+      compositeVideoMocks.exportCompositeVideo.mockImplementation(
+        (options: {
+          input: import("@/lib/practice/composite-video/input").CompositeVideoInput;
+        }) => {
+          // The mocked operation models the core-owned source lease; the real
+          // encoder/OPFS suite exercises this same lifetime through exportCompositeVideo.
+          const lease =
+            options.input.recordedPerformance.recording.media.retain();
+          return new Promise((yes, no) => {
             resolve = yes;
             reject = no;
-          }),
+          }).finally(() => lease.release());
+        },
       );
       const view = render(
         <PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />,
       );
-      fireEvent.click(screen.getByTestId('open-video-export-studio'));
-      fireEvent.click(screen.getByTestId('generate-video-export'));
+      fireEvent.click(screen.getByTestId("open-composite-video-studio"));
+      fireEvent.click(screen.getByTestId("generate-composite-video"));
       await waitFor(() =>
-        expect(videoExportMocks.exportVideo).toHaveBeenCalledOnce(),
+        expect(compositeVideoMocks.exportCompositeVideo).toHaveBeenCalledOnce(),
       );
       await act(async () => {
         await reviewWorkspace.clearReviewSession();
       });
       view.unmount();
       expect(capture.exists()).toBe(true);
-      const signal = videoExportMocks.exportVideo.mock.calls[0][0]
+      const signal = compositeVideoMocks.exportCompositeVideo.mock.calls[0][0]
         .signal as AbortSignal;
       expect(signal.aborted).toBe(true);
       await act(async () => {
@@ -1530,10 +1498,10 @@ describe('PracticeReviewPage', () => {
   it('prevents parallel score-video exports and aborts the active export when cancelled', async () => {
     const resolveExportRef: Array<
       (
-        value: import('@/lib/practice/video-export/export').VideoExportResult,
+        value: import("@/lib/practice/composite-video/export").CompositeVideoResult,
       ) => void
     > = [];
-    videoExportMocks.exportVideo.mockImplementation(
+    compositeVideoMocks.exportCompositeVideo.mockImplementation(
       (_options: {
         signal: AbortSignal;
         onProgress?: (progress: { ratio: number }) => void;
@@ -1549,24 +1517,24 @@ describe('PracticeReviewPage', () => {
     render(
       <PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />,
     );
-    fireEvent.click(screen.getByTestId('open-video-export-studio'));
+    fireEvent.click(screen.getByTestId("open-composite-video-studio"));
 
-    const exportButton = screen.getByTestId('generate-video-export');
+    const exportButton = screen.getByTestId("generate-composite-video");
     fireEvent.click(exportButton);
     fireEvent.click(exportButton);
 
-    await screen.findByTestId('video-export-progress');
-    expect(videoExportMocks.exportVideo).toHaveBeenCalledTimes(1);
+    await screen.findByTestId("composite-video-progress");
+    expect(compositeVideoMocks.exportCompositeVideo).toHaveBeenCalledTimes(1);
     expect(exportButton).toBeDisabled();
 
-    const signal = videoExportMocks.exportVideo.mock.calls[0][0]
+    const signal = compositeVideoMocks.exportCompositeVideo.mock.calls[0][0]
       .signal as AbortSignal;
     fireEvent.click(screen.getByRole('button', { name: '取消合成' }));
     expect(signal.aborted).toBe(true);
 
     resolveExportRef[0]?.({
       media: localMediaAssetFixture(
-        new Blob(['video-export'], { type: 'video/webm' }),
+        new Blob(["composite-video"], { type: 'video/webm' }),
       ),
       mimeType: 'video/webm',
       durationMs: 3000,
@@ -1582,7 +1550,7 @@ describe('PracticeReviewPage', () => {
       configurable: true,
       value: vi.fn(),
     });
-    videoExportMocks.exportVideo.mockRejectedValueOnce(
+    compositeVideoMocks.exportCompositeVideo.mockRejectedValueOnce(
       new Error('encoder failed'),
     );
     provideReview(createVideoCompletion());
@@ -1593,10 +1561,10 @@ describe('PracticeReviewPage', () => {
     render(
       <PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />,
     );
-    fireEvent.click(screen.getByTestId('open-video-export-studio'));
-    fireEvent.click(screen.getByTestId('generate-video-export'));
+    fireEvent.click(screen.getByTestId("open-composite-video-studio"));
+    fireEvent.click(screen.getByTestId("generate-composite-video"));
 
-    await screen.findByTestId('video-export-error');
+    await screen.findByTestId("composite-video-error");
     expect(screen.getByText('encoder failed')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: '下载原始录制' }));
@@ -1652,92 +1620,29 @@ describe('PracticeReviewPage', () => {
     download.mockRestore();
   });
 
-  it('keeps video orientation and score presentation independent when deriving export configs', async () => {
-    provideReview(createVideoCompletion());
-
-    render(
-      <PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />,
-    );
-
-    expect(screen.getByTestId('original-performance-card')).toBeInTheDocument();
-    expect(screen.getByTestId('video-export-entry-card')).toBeInTheDocument();
-    expect(screen.queryByTestId('video-export-studio')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('open-video-export-studio'));
-    expect(screen.getByTestId('video-export-studio')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByTestId('video-export-orientation-portrait'));
-    fireEvent.click(screen.getByTestId('video-export-presentation-floating'));
-    fireEvent.click(
-      screen.getByTestId('video-export-floating-advanced-toggle'),
-    );
-    fireEvent.click(
-      screen.getByTestId('video-export-floating-position-bottom'),
-    );
-    fireEvent.click(screen.getByTestId('video-export-floating-size-large'));
-
-    expect(
-      screen.getByTestId('video-export-floating-position-bottom'),
-    ).toHaveAttribute('aria-pressed', 'true');
-    expect(
-      screen.getByTestId('video-export-floating-size-large'),
-    ).toHaveAttribute('aria-pressed', 'true');
-
-    fireEvent.click(screen.getByTestId('generate-video-export'));
-    await waitFor(() =>
-      expect(videoExportMocks.exportVideo).toHaveBeenCalled(),
-    );
-    expect(videoExportMocks.exportVideo.mock.calls.at(-1)?.[0].config).toEqual({
-      orientation: 'portrait',
-      presentation: { kind: 'floating', position: 'bottom', size: 'large' },
-    });
-
-    fireEvent.click(screen.getByTestId('video-export-presentation-split'));
-    fireEvent.click(screen.getByTestId('generate-video-export'));
-    await waitFor(() =>
-      expect(videoExportMocks.exportVideo).toHaveBeenCalledTimes(2),
-    );
-    expect(videoExportMocks.exportVideo.mock.calls.at(-1)?.[0].config).toEqual({
-      orientation: 'portrait',
-      presentation: { kind: 'split' },
-    });
-    expect(
-      screen.queryByTestId('video-export-floating-position-bottom'),
-    ).not.toBeInTheDocument();
-  });
-
-  it('keeps export selections when the studio is collapsed and reopened', () => {
+  it("keeps the chosen output orientation across collapse and reopen", async () => {
     provideReview(createVideoCompletion());
     render(
       <PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />,
     );
 
-    fireEvent.click(screen.getByTestId('open-video-export-studio'));
-    fireEvent.click(screen.getByTestId('video-export-orientation-portrait'));
-    fireEvent.click(screen.getByTestId('video-export-presentation-floating'));
+    fireEvent.click(screen.getByTestId("open-composite-video-studio"));
+    fireEvent.click(screen.getByTestId("composite-video-orientation-portrait"));
+    fireEvent.click(screen.getByTestId("collapse-composite-video-studio"));
     fireEvent.click(
-      screen.getByTestId('video-export-floating-advanced-toggle'),
-    );
+      screen.getByTestId("open-composite-video-studio"));
+    expect(
+      screen.getByTestId("composite-video-orientation-portrait"),
+    ).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(
-      screen.getByTestId('video-export-floating-position-bottom'),
+      screen.getByTestId("generate-composite-video"),
     );
-    fireEvent.click(screen.getByTestId('video-export-floating-size-large'));
-    fireEvent.click(screen.getByTestId('collapse-video-export-studio'));
-
-    expect(screen.getByTestId('video-export-entry-card')).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('open-video-export-studio'));
+    await waitFor(() =>
+      expect(compositeVideoMocks.exportCompositeVideo).toHaveBeenCalled());
 
     expect(
-      screen.getByTestId('video-export-orientation-portrait'),
-    ).toHaveAttribute('aria-pressed', 'true');
-    expect(
-      screen.getByTestId('video-export-presentation-floating'),
-    ).toHaveAttribute('aria-pressed', 'true');
-    expect(
-      screen.getByTestId('video-export-floating-position-bottom'),
-    ).toHaveAttribute('aria-pressed', 'true');
-    expect(
-      screen.getByTestId('video-export-floating-size-large'),
-    ).toHaveAttribute('aria-pressed', 'true');
+      compositeVideoMocks.exportCompositeVideo.mock.calls.at(-1)![0].config,
+    ).toEqual({ orientation: "portrait" });
   });
 });
 
@@ -1779,3 +1684,8 @@ function createVideoCompletion({
     },
   };
 }
+
+vi.mock('@/lib/practice/composite-video/download', async () => {
+  const { downloadLocalMedia } = await import('@/lib/practice/media/download-local-media');
+  return { downloadCompositeVideo: downloadLocalMedia };
+});

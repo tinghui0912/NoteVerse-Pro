@@ -5,19 +5,19 @@ import {
 } from "@/lib/practice/media/opfs-media-file";
 
 /** Temporary browser-generated derivatives have their own byte-storage lifetime. */
-export async function openVideoExportOutputMedia(
+export async function openCompositeVideoOutputMedia(
   signal?: AbortSignal,
   platform?: OpfsMediaStoragePlatform,
 ): Promise<OpfsMediaFile> {
   try {
     return await openOpfsMediaFile(
-      "noteverse-video-export-output",
+      "noteverse-composite-video-output",
       signal,
       platform,
     );
   } catch (cause) {
     if (signal?.aborted)
       throw new DOMException("Export cancelled", "AbortError");
-    throw new Error("video_export_unavailable:output_storage", { cause });
+    throw new Error("composite_video_unavailable:output_storage", { cause });
   }
 }

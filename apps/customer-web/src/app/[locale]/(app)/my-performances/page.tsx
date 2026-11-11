@@ -44,7 +44,7 @@ import {
   type PerformanceTakeRead,
 } from '@/lib/api/performance-takes';
 import type { RecordingPlaybackSource } from '@/lib/practice/recording/recording-playback';
-import { isSavedVideoCandidate } from '@/lib/practice/archive/saved-performance';
+import { isSavedCompositeVideoCandidate } from '@/lib/practice/archive/saved-performance';
 import { useToast } from '@/hooks/use-toast';
 
 const DELETE_POLL_INTERVAL_MS = 2500;
@@ -280,13 +280,13 @@ function PerformanceTakeCard({
                     : t('downloadRecording')}
               </Button>
 
-              {isSavedVideoCandidate(take) ? (
+              {isSavedCompositeVideoCandidate(take) ? (
                 <Button asChild variant="outline" size="sm" className="gap-1.5">
                   <Link
-                    href={`/my-performances/${take.take_id}/video-export`}
-                    data-testid={`video-export-take-${take.take_id}`}
+                    href={`/my-performances/${take.take_id}/score-video`}
+                    data-testid={`composite-video-take-${take.take_id}`}
                   >
-                    {t('videoExportOpenAction')}
+                    {t("compositeVideoOpenAction")}
                   </Link>
                 </Button>
               ) : null}

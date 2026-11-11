@@ -3,7 +3,7 @@ import { admitSavedRecordedPerformance } from './saved-performance';
 import {
   artifact,
   take,
-} from '@/lib/practice/video-export/__fixtures__/saved-take';
+} from "@/lib/practice/composite-video/__fixtures__/saved-take";
 import { localMediaAssetFixture } from '@/lib/practice/__fixtures__/local-media-asset';
 import { recordingPlaybackSource } from '@/lib/practice/recording/recording-playback';
 const bundle = {
