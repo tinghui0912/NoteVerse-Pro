@@ -373,7 +373,12 @@ async def test_interrupted_creation_has_durable_lease_for_orphan_cleanup(postgre
     async with sessions() as db:
         row = await db.scalar(select(PracticeBundleRecord))
         assert row.status == "CREATING" and row.creation_expires_at is not None
-        assert storage.exists(row.prepared_musicxml_object.object_key)
+        from app.db.models import ObjectWriteIntent, StoredObject
+
+        assert row.prepared_musicxml_object_id is None and row.artifact_object_id is None
+        intent = await db.scalar(select(ObjectWriteIntent))
+        assert intent.status == "PREPARED" and storage.exists(intent.object_key)
+        assert await db.scalar(select(StoredObject)) is None
         assert await db.scalar(select(ScoreRevisionPracticeBinding)) is None
         row.creation_expires_at = utc_now_naive() - timedelta(seconds=1)
         await db.commit()
@@ -383,7 +388,9 @@ async def test_interrupted_creation_has_durable_lease_for_orphan_cleanup(postgre
             )
         )
         await db.commit()
-        assert len(due) == 2 and await db.scalar(select(PracticeBundleRecord)) is None
+        assert due == [] and await db.scalar(select(PracticeBundleRecord)) is None
+        assert await db.scalar(select(StoredObject)) is None
+        assert storage.exists(intent.object_key)
 
 
 @pytest.mark.asyncio

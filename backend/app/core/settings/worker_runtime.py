@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
+from .object_writes import ObjectWriteSettings
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -14,6 +15,7 @@ from .worker_model_engine import WorkerModelEngineSettings
 
 
 class WorkerRuntimeSettings(
+    ObjectWriteSettings,
     PlaybackSettings,
     StoredObjectRetirementSettings,
     WorkerModelEngineSettings,

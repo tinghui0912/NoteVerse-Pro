@@ -54,6 +54,7 @@ def assert_current_bundle_schema(engine):
         "practice_bundles",
         "score_revision_practice_bindings",
         "stored_object_retirements",
+        "object_write_intents",
         "stored_objects",
         "uploads",
         "import_artifacts",

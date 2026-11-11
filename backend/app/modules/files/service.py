@@ -14,8 +14,8 @@ from app.core.exceptions import (
 from app.db.model_utils import require_persisted_id
 from app.db.models import StoredObject, StorageUsageCategory, User
 from app.modules.files.repository import FilesRepository
-from app.modules.storage_objects.retirement import retain_for_reference, retire_after_release
-from app.modules.storage_objects.persistence import object_from_bytes
+from app.modules.storage_objects.retirement import retire_after_release
+from app.modules.storage_objects.writes import write_object_async, adopt_written_object
 from app.modules.files.schemas import DeleteUploadedFileRead, UploadFileRead
 from app.modules.storage_usage.service import storage_usage_service
 from app.shared.constants import ErrorCode
@@ -67,38 +67,14 @@ class FilesService:
             object_id=file_hash,
         )
         blob = await self.repository.get_upload_object_by_sha256(db, file_hash)
-        if blob is None:
-            key = blob_object_key(file_hash, extension)
-            blob = await self.repository.get_object_by_key(db, key)
+        key = blob.object_key if blob is not None else blob_object_key(file_hash, extension)
         if blob is not None:
-            blob = await db.run_sync(lambda sync: retain_for_reference(sync, blob.id))
-        stored = None
-        creates_object = blob is None
+            content_type = blob.content_type
         try:
-            if blob is not None and (blob.sha256 != file_hash or blob.byte_size != len(content)):
-                raise ValueError("Upload key disagrees with immutable physical facts")
-            if blob is None:
-                key = blob_object_key(file_hash, extension)
-                if self.storage.exists(key):
-                    if self.storage.read_bytes(key) != content:
-                        raise ValueError("Upload object bytes disagree with content key")
-                    content_type = self.storage.object_metadata(key).content_type or content_type
-                else:
-                    stored = self.storage.put_bytes(
-                        key=key, content=content, content_type=content_type
-                    )
-                blob = object_from_bytes(object_key=key, content=content, content_type=content_type)
-                db.add(blob)
-                await db.flush()
-            elif not self.storage.exists(blob.object_key):
-                if len(content) != blob.byte_size:
-                    raise ValueError("Upload object byte facts disagree")
-                stored = self.storage.put_bytes(
-                    key=blob.object_key, content=content, content_type=blob.content_type
-                )
-            if blob is None:
-                raise FileException(code=ErrorCode.FILE_SAVE_FAILED, filename=file.filename)
-            persisted_blob = blob
+            written = await write_object_async(
+                db, self.storage, key=key, content=content, content_type=content_type
+            )
+            persisted_blob = await db.run_sync(lambda sync: adopt_written_object(sync, written))
             upload = await self.repository.create_upload(
                 db,
                 stored_object_id=require_persisted_id(persisted_blob.id, entity="stored object"),
@@ -114,14 +90,6 @@ class FilesService:
             )
         except Exception as exc:
             await db.rollback()
-            if stored is not None and creates_object:
-                try:
-                    # A concurrent Upload may have committed the same domain-local key.
-                    committed = await self.repository.get_object_by_key(db, stored.object_key)
-                    if committed is None:
-                        self.storage.delete(stored.object_key)
-                except Exception:
-                    pass
             await storage_usage_service.release_reservation(db, reservation.reservation_id)
             if isinstance(exc, FileException):
                 raise

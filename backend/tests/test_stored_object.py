@@ -83,7 +83,7 @@ def test_every_semantic_owner_has_explicit_physical_references():
         }
         assert actual == columns
         for column in columns:
-            assert owner.__table__.c[column].nullable is (owner is User)
+            assert owner.__table__.c[column].nullable is (owner in (User, PracticeBundleRecord))
 
 
 @pytest.mark.parametrize(

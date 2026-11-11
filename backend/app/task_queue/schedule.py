@@ -52,6 +52,10 @@ def build_beat_schedule(settings: Settings) -> BeatSchedule:
             "task": "app.worker.tasks.run_playback_outbox_maintenance",
             "schedule": float(settings.PLAYBACK_OUTBOX_DISPATCH_INTERVAL_SECONDS),
         },
+        "object-write-cleanup-maintenance": {
+            "task": "app.worker.tasks.run_object_write_cleanup_maintenance",
+            "schedule": float(settings.OBJECT_WRITE_CLEANUP_DISPATCH_INTERVAL_SECONDS),
+        },
         "stored-object-retirement-maintenance": {
             "task": "app.worker.tasks.run_stored_object_retirement_maintenance",
             "schedule": float(settings.STORED_OBJECT_RETIREMENT_DISPATCH_INTERVAL_SECONDS),

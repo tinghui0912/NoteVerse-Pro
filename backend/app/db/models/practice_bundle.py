@@ -39,9 +39,9 @@ class PracticeBundleRecord(SQLModel, table=True):  # type: ignore[call-arg]
         Index("ix_practice_bundles_status_creation", "status", "creation_expires_at"),
         CheckConstraint(
             "("
-            "status = 'CREATING' AND creation_expires_at IS NOT NULL"
+            "status = 'CREATING' AND creation_expires_at IS NOT NULL AND prepared_musicxml_object_id IS NULL AND artifact_object_id IS NULL"
             ") OR ("
-            "status = 'READY' AND creation_expires_at IS NULL"
+            "status = 'READY' AND creation_expires_at IS NULL AND prepared_musicxml_object_id IS NOT NULL AND artifact_object_id IS NOT NULL"
             ")",
             name="ck_practice_bundles_creation_lease",
         ),
@@ -54,24 +54,26 @@ class PracticeBundleRecord(SQLModel, table=True):  # type: ignore[call-arg]
     bundle_id: str = Field(sa_column=Column(String(128), nullable=False))
     artifact_id: str = Field(sa_column=Column(String(128), nullable=False))
     artifact_schema_version: int = Field(sa_column=Column(Integer, nullable=False))
-    prepared_musicxml_object_id: int = Field(
+    prepared_musicxml_object_id: Optional[int] = Field(
+        default=None,
         sa_column=Column(
-            bigint_pk_type, ForeignKey("stored_objects.id", ondelete="RESTRICT"), nullable=False
-        )
+            bigint_pk_type, ForeignKey("stored_objects.id", ondelete="RESTRICT"), nullable=True
+        ),
     )
-    prepared_musicxml_object: StoredObject = Relationship(
+    prepared_musicxml_object: Optional[StoredObject] = Relationship(
         sa_relationship=relationship(
             StoredObject,
             foreign_keys="PracticeBundleRecord.prepared_musicxml_object_id",
             lazy="selectin",
         )
     )
-    artifact_object_id: int = Field(
+    artifact_object_id: Optional[int] = Field(
+        default=None,
         sa_column=Column(
-            bigint_pk_type, ForeignKey("stored_objects.id", ondelete="RESTRICT"), nullable=False
-        )
+            bigint_pk_type, ForeignKey("stored_objects.id", ondelete="RESTRICT"), nullable=True
+        ),
     )
-    artifact_object: StoredObject = Relationship(
+    artifact_object: Optional[StoredObject] = Relationship(
         sa_relationship=relationship(
             StoredObject, foreign_keys="PracticeBundleRecord.artifact_object_id", lazy="selectin"
         )

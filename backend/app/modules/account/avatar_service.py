@@ -10,8 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logger import logger
 from app.db.model_utils import require_persisted_id
-from app.db.models import User, StoredObject
-from app.modules.storage_objects.persistence import object_from_bytes
+from app.db.models import User
+from app.modules.storage_objects.writes import write_object_async, adopt_written_object
 from app.modules.account.avatar_presentation import avatar_url_for_user
 from app.modules.storage_objects.retirement import retire_after_release
 from app.storage import ObjectStorage, object_storage
@@ -45,7 +45,7 @@ class AvatarService:
         file_bytes: bytes,
         filename: str,
         user_id: int,
-    ) -> StoredObject:
+    ) -> tuple[str, bytes]:
         if not self.is_allowed_extension(filename):
             raise ValueError("Unsupported file format")
         if not self.validate_file_size(file_bytes):
@@ -68,22 +68,7 @@ class AvatarService:
             canvas.save(output, "JPEG", quality=85, optimize=True)
             content = output.getvalue()
             final_filename = f"{user_id}_{hashlib.sha256(content).hexdigest()}_{uuid4().hex}.jpg"
-            self.storage.put_bytes(
-                content=content,
-                key=avatar_object_key(final_filename),
-                content_type="image/jpeg",
-            )
-
-            logger.bind(
-                event="account.avatar.saved",
-                user_id=user_id,
-                filename=final_filename,
-            ).info("Avatar saved")
-            return object_from_bytes(
-                object_key=avatar_object_key(final_filename),
-                content=content,
-                content_type="image/jpeg",
-            )
+            return avatar_object_key(final_filename), content
         except Exception as exc:
             logger.bind(
                 event="account.avatar.processing_failed",
@@ -101,6 +86,12 @@ class AvatarService:
         filename: str,
     ) -> tuple[str, str]:
         user_id = require_persisted_id(user.id, entity="user")
+        key, content = self.process_avatar(
+            file_bytes=file_bytes, filename=filename, user_id=user_id
+        )
+        written = await write_object_async(
+            db, self.storage, key=key, content=content, content_type="image/jpeg"
+        )
         user = (
             await db.execute(
                 select(User)
@@ -110,25 +101,16 @@ class AvatarService:
             )
         ).scalar_one()
         previous = user.avatar_object
-        current = self.process_avatar(file_bytes=file_bytes, filename=filename, user_id=user_id)
-        committed = False
         try:
+            current = await db.run_sync(lambda sync: adopt_written_object(sync, written))
             user.avatar_object = current
             db.add(user)
             if previous is not None:
                 await retire_after_release(db, previous.id)
             await db.commit()
-            committed = True
             await db.refresh(user)
         except Exception:
             await db.rollback()
-            if not committed:
-                try:
-                    self.storage.delete(current.object_key)
-                except Exception as cleanup_error:
-                    logger.bind(event="account.avatar.write_compensation_failed").opt(
-                        exception=cleanup_error
-                    ).warning("Unadmitted avatar cleanup failed")
             raise
         return current.object_key.rsplit("/", 1)[-1], avatar_url_for_user(user) or ""
 

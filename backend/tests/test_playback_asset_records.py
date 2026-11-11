@@ -8,7 +8,7 @@ from app.modules.playback.asset_records import (
     playback_storage_key,
 )
 from app.processing.engines.playback import RenderedAudio
-from app.storage import ObjectWriteResult
+from app.modules.storage_objects.persistence import object_from_bytes
 
 
 def test_playback_storage_key_uses_revision_scoped_asset_path() -> None:
@@ -46,9 +46,10 @@ def test_build_playback_asset_record_uses_rendered_audio_metadata() -> None:
         asset_uuid="asset-1",
         revision_id=17,
         asset_kind=PlaybackAssetKind.AUDIO,
-        stored=ObjectWriteResult(
+        stored_object=object_from_bytes(
             object_key="scores/score-1/revisions/revision-1/playback/asset-1.wav",
-            size_bytes=10,
+            content=b"audio-data",
+            content_type="audio/wav",
         ),
         audio=RenderedAudio(
             content=b"audio-data",

@@ -1,9 +1,7 @@
 from __future__ import annotations
 from app.modules.storage_objects.retirement import retire_released_objects
-from app.modules.storage_objects.facts import StoredObjectFacts
-from app.modules.storage_objects.persistence import object_to_row
+from app.modules.storage_objects.writes import write_object, adopt_written_object
 
-import hashlib
 import os
 import tempfile
 import uuid
@@ -55,19 +53,6 @@ class ReviewThumbnailService:
         ):
             return None
 
-        previous = list(
-            db.execute(
-                select(ImportArtifact).where(
-                    ImportArtifact.job_id == job_id,
-                    ImportArtifact.kind == ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
-                )
-            ).scalars()
-        )
-        previous_usage = [
-            (item.artifact_uuid, item.stored_object.object_key, item.stored_object.byte_size or 0)
-            for item in previous
-        ]
-        uploaded_key: str | None = None
         os.makedirs(settings.WORK_ROOT, exist_ok=True)
         with tempfile.TemporaryDirectory(dir=settings.WORK_ROOT) as work_dir:
             xml_path = os.path.join(work_dir, "score.musicxml")
@@ -88,28 +73,52 @@ class ReviewThumbnailService:
                 f"jobs/{job_uuid}/{ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value}/"
                 f"001-{artifact_uuid}{extension}"
             )
-            stored = self.storage.put_bytes(
+            stored = write_object(
+                db,
+                self.storage,
                 key=key,
                 content=content,
                 content_type=output["mime_type"],
             )
-            uploaded_key = stored.object_key
+            job = db.execute(
+                select(type(job))
+                .where(type(job).id == job_id)
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            ).scalar_one()
+            current_xml = db.execute(
+                select(ImportArtifact).where(
+                    ImportArtifact.job_id == job_id,
+                    ImportArtifact.kind == ImportArtifactKind.REVIEW_MUSICXML.value,
+                )
+            ).scalar_one_or_none()
+            if current_xml is None or (
+                expected_source_fingerprint is not None
+                and current_xml.stored_object.sha256 != expected_source_fingerprint
+            ):
+                db.rollback()
+                return None
             thumbnail = ImportArtifact(
                 artifact_uuid=artifact_uuid,
                 job_id=job_id,
                 kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
-                stored_object=object_to_row(
-                    StoredObjectFacts(
-                        object_key=stored.object_key,
-                        byte_size=len(content),
-                        content_type=output["mime_type"],
-                        sha256=hashlib.sha256(content).hexdigest(),
-                    )
-                ),
+                stored_object=adopt_written_object(db, stored),
                 filename=stored.object_key.rsplit("/", 1)[-1],
                 page_number=1,
             )
 
+        previous = list(
+            db.execute(
+                select(ImportArtifact).where(
+                    ImportArtifact.job_id == job_id,
+                    ImportArtifact.kind == ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
+                )
+            ).scalars()
+        )
+        previous_usage = [
+            (item.artifact_uuid, item.stored_object.object_key, item.stored_object.byte_size or 0)
+            for item in previous
+        ]
         try:
             for item in previous:
                 db.delete(item)
@@ -142,11 +151,6 @@ class ReviewThumbnailService:
             db.commit()
         except Exception:
             db.rollback()
-            if uploaded_key:
-                try:
-                    self.storage.delete(uploaded_key)
-                except Exception:
-                    pass
             raise
 
         return thumbnail.artifact_uuid

@@ -10,8 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.storage_objects.persistence import object_from_row
-from app.modules.storage_objects.adoption import adopt_verified_object
-from app.modules.storage_objects.facts import StoredObjectFacts
+from app.modules.storage_objects.writes import write_object_async, adopt_written_object
 from app.core.exceptions import ValidationException, ResourceNotFoundException
 from app.db.model_utils import require_persisted_id
 from app.db.models import ScoreRevisionPracticeBinding, ScoreRevision, Score, ScoreDeletionStatus
@@ -133,26 +132,6 @@ class PracticeBundleRepository:
                         bundle_id=bundle.bundle_id,
                         artifact_id=bundle.artifact.artifact_id,
                         artifact_schema_version=bundle.artifact.schema_version,
-                        prepared_musicxml_object=await db.run_sync(
-                            lambda sync: adopt_verified_object(
-                                sync,
-                                StoredObjectFacts.from_bytes(
-                                    object_key=f"practice-bundles/{bundle.bundle_id}/score.musicxml",
-                                    content=bundle.prepared_musicxml.data,
-                                    content_type=bundle.prepared_musicxml.mime_type,
-                                ),
-                            )
-                        ),
-                        artifact_object=await db.run_sync(
-                            lambda sync: adopt_verified_object(
-                                sync,
-                                StoredObjectFacts.from_bytes(
-                                    object_key=f"practice-bundles/{bundle.bundle_id}/artifact.json",
-                                    content=bundle.artifact.representation.data,
-                                    content_type=bundle.artifact.representation.mime_type,
-                                ),
-                            )
-                        ),
                         status=PracticeBundleStatus.CREATING.value,
                         creation_expires_at=utc_now_naive()
                         + timedelta(seconds=BUNDLE_CREATION_LEASE_SECONDS),
@@ -186,22 +165,33 @@ class PracticeBundleRepository:
                     )
                 ).scalar_one()
         if row.status == PracticeBundleStatus.CREATING.value:
+            creation_id = row.id
+            # Persist the null-FK creation lease before prewriting. Each write owns
+            # a committed intent and releases request read/admission locks.
+            await db.commit()
+            receipts = []
             try:
-                for key, representation in [
-                    (row.prepared_musicxml_object.object_key, bundle.prepared_musicxml),
-                    (row.artifact_object.object_key, bundle.artifact.representation),
+                for suffix, representation in [
+                    ("score.musicxml", bundle.prepared_musicxml),
+                    ("artifact.json", bundle.artifact.representation),
                 ]:
-                    await asyncio.to_thread(
-                        self.storage.put_bytes,
-                        key=key,
+                    receipt = await write_object_async(
+                        db,
+                        self.storage,
+                        key=f"practice-bundles/{bundle.bundle_id}/{suffix}",
                         content=representation.data,
                         content_type=representation.mime_type,
                     )
-                    if await asyncio.to_thread(self.storage.read_bytes, key) != representation.data:
+                    if (
+                        await asyncio.to_thread(self.storage.read_bytes, receipt.object_key)
+                        != representation.data
+                    ):
                         raise ValueError("Practice bundle storage read-back mismatch")
+                    receipts.append(receipt)
             except Exception as error:
+                await db.rollback()
                 await db.run_sync(
-                    lambda sync: practice_bundle_retention.discard_creation(sync, row.id)
+                    lambda sync: practice_bundle_retention.discard_creation(sync, creation_id)
                 )
                 await db.commit()
                 raise ValidationException(
@@ -209,8 +199,38 @@ class PracticeBundleRepository:
                     field="practice_bundle",
                     details={"reason": "practice_bundle_storage_write_failed"},
                 ) from error
-            row.status, row.creation_expires_at = PracticeBundleStatus.READY.value, None
-            await db.flush()
+            if reauthorize is not None:
+                await reauthorize()
+            await self._lock_revision(db, revision_id)
+            bound = await self.read_bound_for_update(db, revision_id)
+            if bound is not None:
+                return bound
+            row = (
+                await db.execute(
+                    select(PracticeBundleRecord)
+                    .where(PracticeBundleRecord.id == creation_id)
+                    .with_for_update()
+                    .execution_options(populate_existing=True)
+                )
+            ).scalar_one_or_none()
+            if row is None:
+                raise ValidationException(
+                    ErrorCode.STORAGE_BACKEND_UNAVAILABLE,
+                    field="practice_bundle",
+                    details={"reason": "creation_lease_lost"},
+                )
+            if row.status == PracticeBundleStatus.CREATING.value:
+                if row.creation_expires_at <= utc_now_naive():
+                    raise ValueError("Bundle creation lease expired")
+                prepared_object = await db.run_sync(
+                    lambda sync: adopt_written_object(sync, receipts[0])
+                )
+                artifact_object = await db.run_sync(
+                    lambda sync: adopt_written_object(sync, receipts[1])
+                )
+                row.prepared_musicxml_object, row.artifact_object = prepared_object, artifact_object
+                row.status, row.creation_expires_at = PracticeBundleStatus.READY.value, None
+                await db.flush()
         if row.status != PracticeBundleStatus.READY.value:
             raise ValidationException(
                 ErrorCode.STORAGE_BACKEND_UNAVAILABLE,
@@ -260,6 +280,8 @@ class PracticeBundleRepository:
         return await self._read_verified_bundle(row)
 
     async def _read_verified_bundle(self, row: PracticeBundleRecord) -> PracticeBundle:
+        if row.prepared_musicxml_object is None or row.artifact_object is None:
+            raise ValueError("READY Bundle requires both physical representations")
         xml_facts = object_from_row(row.prepared_musicxml_object)
         artifact_facts = object_from_row(row.artifact_object)
         if (

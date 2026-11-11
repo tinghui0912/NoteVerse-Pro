@@ -8,7 +8,7 @@ from app.modules.score_assets.render_asset_records import (
     render_asset_usage,
     render_storage_key,
 )
-from app.storage import ObjectWriteResult
+from app.modules.storage_objects.persistence import object_from_bytes
 
 
 def test_render_storage_key_uses_profile_and_page_scoped_asset_path() -> None:
@@ -48,12 +48,11 @@ def test_build_render_asset_record_uses_storage_and_renderer_metadata() -> None:
     asset = build_render_asset_record(
         asset_uuid="asset-1",
         revision_id=17,
-        stored=ObjectWriteResult(
+        stored_object=object_from_bytes(
             object_key="scores/score-1/revisions/revision-1/renders/default/001-asset-1.svg",
-            size_bytes=7,
+            content=b"<svg />",
+            content_type="image/svg+xml",
         ),
-        mime_type="image/svg+xml",
-        content=b"<svg />",
         execution_manifest_id=19,
         page_number=1,
         profile="default",

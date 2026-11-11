@@ -16,8 +16,7 @@ from app.core.exceptions import (
 )
 from app.db.models.user import User
 from app.db.models.import_job import ImportJobState
-from app.modules.files.service import FilesService, blob_object_key
-from app.storage import ObjectWriteResult
+from app.modules.files.service import FilesService
 import hashlib
 from app.modules.account.avatar_service import AvatarService
 from app.modules.account.avatar_presentation import avatar_url_for_user
@@ -112,48 +111,41 @@ def test_object_storage_rejects_path_traversal_keys() -> None:
             storage.put_bytes(key="../escape.txt", content=b"bad")
 
 
-def test_files_recorder_uploads_task_output_to_storage_key() -> None:
-    with tempfile.TemporaryDirectory() as temp_dir:
-        storage = InMemoryObjectStorage()
-        output_path = os.path.join(temp_dir, "preview-01.svg")
-        with open(output_path, "w", encoding="utf-8") as file_handle:
-            file_handle.write("<svg />")
+@pytest.mark.parametrize(
+    "kind,extension,content,mime",
+    [
+        ("preview_image", "svg", b"<svg />", "image/svg+xml"),
+        (ImportArtifactKind.REVIEW_MUSICXML, "jpg", b"jpg", "image/jpeg"),
+    ],
+)
+def test_files_recorder_persists_intent_before_upload(
+    score_service_session, monkeypatch, tmp_path, kind, extension, content, mime
+):
+    from contextlib import contextmanager
+    from app.db.models import ObjectWriteIntent
+    from sqlalchemy import select
 
-        with patch("app.pipeline.files_recorder.object_storage", storage):
-            item = _build_file_item(
-                "task-1",
-                "preview_image",
-                output_path,
-                page=1,
-            )
+    db, storage = score_service_session
 
-        assert (
-            item["storage_key"] == f"jobs/task-1/preview_image/{item['sha256']}/001-preview-01.svg"
-        )
-        assert item["filename"] == "001-preview-01.svg"
-        assert item["page_number"] == 1
-        assert item["mime_type"] == "image/svg+xml"
-        assert item["size"] == 7
-        assert storage.exists(item["storage_key"])
+    @contextmanager
+    def session():
+        yield db
+        db.commit()
 
-
-def test_files_recorder_uses_file_kind_values_in_storage_keys() -> None:
-    with tempfile.TemporaryDirectory() as temp_dir:
-        storage = InMemoryObjectStorage()
-        output_path = os.path.join(temp_dir, "input.jpg")
-        with open(output_path, "wb") as file_handle:
-            file_handle.write(b"jpg")
-
-        with patch("app.pipeline.files_recorder.object_storage", storage):
-            item = _build_file_item(
-                "task-1",
-                ImportArtifactKind.REVIEW_MUSICXML,
-                output_path,
-                page=1,
-            )
-
-        assert item["storage_key"] == f"jobs/task-1/review_musicxml/{item['sha256']}/001-input.jpg"
-        assert "ImportArtifactKind" not in item["storage_key"]
+    monkeypatch.setattr("app.pipeline.files_recorder.get_worker_db", session)
+    monkeypatch.setattr("app.pipeline.files_recorder.object_storage", storage)
+    path = tmp_path / f"output.{extension}"
+    path.write_bytes(content)
+    item = _build_file_item("task-1", kind, str(path), page=1)
+    row = db.scalar(select(ObjectWriteIntent))
+    assert set(item) == {"write_intent_uuid", "write_token", "filename", "page_number"}
+    assert item["write_intent_uuid"] == row.intent_uuid and item["write_token"] == row.write_token
+    assert row.status == "WRITTEN" and row.content_type == mime
+    assert (
+        row.object_key
+        == f"jobs/task-1/{getattr(kind, 'value', kind)}/{hashlib.sha256(content).hexdigest()}/001-output.{extension}"
+    )
+    assert row.byte_size == len(content) and storage.read_bytes(row.object_key) == content
 
 
 @pytest.mark.parametrize("mode", ("RGB", "RGBA", "L"))
@@ -167,27 +159,27 @@ def test_avatar_service_stores_processed_image_through_storage(mode: str) -> Non
         image_bytes = io.BytesIO()
         image.save(image_bytes, format="PNG")
 
-        avatar_object = service.process_avatar(
+        avatar_key, avatar_bytes = service.process_avatar(
             file_bytes=image_bytes.getvalue(),
             filename="avatar.png",
             user_id=7,
         )
 
-        filename = avatar_object.object_key.rsplit("/", 1)[-1]
-        avatar_url = avatar_url_for_user(User(avatar_object=avatar_object))
-        put.assert_called_once()
-        assert put.call_args.kwargs["key"] == f"avatars/{filename}"
-        assert put.call_args.kwargs["content_type"] == "image/jpeg"
+        filename = avatar_key.rsplit("/", 1)[-1]
+        avatar_url = f"/api/v1/account/avatars/{filename}"
+        put.assert_not_called()
         assert filename.startswith("7_")
         assert filename.endswith(".jpg")
         assert avatar_url == f"/api/v1/account/avatars/{filename}"
-        with Image.open(io.BytesIO(storage.read_bytes(f"avatars/{filename}"))) as avatar:
+        with Image.open(io.BytesIO(avatar_bytes)) as avatar:
             assert avatar.format == "JPEG"
             assert avatar.mode == "RGB"
             assert avatar.size == (200, 200)
             # A wide image is fitted and centered on the white avatar canvas.
             assert avatar.getpixel((100, 50)) == (255, 255, 255)
             assert avatar.getpixel((100, 100)) != (255, 255, 255)
+        assert not storage.exists(avatar_key)
+        storage.put_bytes(key=avatar_key, content=avatar_bytes, content_type="image/jpeg")
         with patch.object(storage, "exists", wraps=storage.exists) as exists:
             assert service.avatar_exists(filename)
             exists.assert_called_once_with(f"avatars/{filename}")
@@ -421,41 +413,27 @@ def test_import_job_submission_rejects_upload_owned_by_another_user() -> None:
 
 
 @pytest.mark.asyncio
-async def test_file_upload_restores_missing_immutable_object() -> None:
-    key = blob_object_key(hashlib.sha256(b"score").hexdigest(), ".png")
-    existing = object_from_bytes(object_key=key, content=b"score", content_type="image/png")
-    existing.id = 3
-    before = existing.model_dump()
-    repository = Mock()
-    repository.get_upload_object_by_sha256 = AsyncMock(return_value=existing)
-    repository.create_upload = AsyncMock(return_value=SimpleNamespace(upload_uuid="upload-1"))
-    storage = Mock()
-    storage.exists.return_value = False
-    storage.put_bytes.return_value = ObjectWriteResult(object_key=key, size_bytes=5)
-    db = AsyncMock()
-    db.run_sync.side_effect = lambda fn: fn(Mock())
-    user = SimpleNamespace(id=1)
-    upload = SimpleNamespace(
-        filename="score.png", content_type="image/png", read=AsyncMock(return_value=b"score")
+async def test_file_upload_reuses_committed_exact_object_without_rewriting(score_service_session):
+    from fastapi import UploadFile
+    from sqlalchemy import select
+    from app.db.models import Upload
+
+    session, storage = score_service_session
+    service = FilesService(storage=storage)
+    user = session.get(User, 1)
+    await service.upload_file(
+        AsyncSessionAdapter(session),
+        user,
+        UploadFile(filename="first.png", file=io.BytesIO(b"score")),
     )
-    with (
-        patch("app.modules.files.service.retain_for_reference", return_value=existing) as retain,
-        patch("app.modules.files.service.storage_usage_service.reserve") as reserve,
-        patch("app.modules.files.service.storage_usage_service.commit_reservation") as commit,
-    ):
-        reserve.return_value = SimpleNamespace(reservation_id="reservation-1")
-        result = await FilesService(repository=repository, storage=storage).upload_file(
-            db, user, upload
-        )
-    assert result.file_id == "upload-1" and result.filename == "score.png" and result.size == 5
-    storage.exists.assert_called_once_with(key)
-    storage.put_bytes.assert_called_once_with(key=key, content=b"score", content_type="image/png")
-    assert existing.model_dump() == before
-    assert retain.call_args.args[1] == 3
-    repository.create_upload.assert_awaited_once_with(
-        db, stored_object_id=3, original_filename="score.png", uploader_user_id=1
+    storage.put_bytes = Mock(wraps=storage.put_bytes)
+    second = await service.upload_file(
+        AsyncSessionAdapter(session),
+        user,
+        UploadFile(filename="second.png", file=io.BytesIO(b"score")),
     )
-    commit.assert_awaited_once()
+    assert second.size == 5 and storage.put_bytes.call_count == 0
+    assert len({row.stored_object_id for row in session.scalars(select(Upload))}) == 1
 
 
 @pytest.mark.asyncio
@@ -523,7 +501,7 @@ async def test_delete_uploaded_file_removes_owned_file_and_record() -> None:
     db.commit.assert_awaited_once()
 
 
-def test_avatar_delivery_uses_stable_application_url_and_fresh_capability():
+def test_avatar_delivery_uses_stable_application_url_and_fresh_capability(score_service_session):
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
     from app.core.exception_handlers import register_exception_handlers
@@ -536,8 +514,12 @@ def test_avatar_delivery_uses_stable_application_url_and_fresh_capability():
     service = AvatarService(storage=storage)
     image = io.BytesIO()
     Image.new("RGB", (2, 2), "red").save(image, format="PNG")
-    current = service.process_avatar(image.getvalue(), "avatar.png", 42)
-    filename = current.object_key.rsplit("/", 1)[-1]
+    avatar_key, avatar_bytes = service.process_avatar(image.getvalue(), "avatar.png", 42)
+    filename = avatar_key.rsplit("/", 1)[-1]
+    storage.put_bytes(key=avatar_key, content=avatar_bytes, content_type="image/jpeg")
+    current = object_from_bytes(
+        object_key=avatar_key, content=avatar_bytes, content_type="image/jpeg"
+    )
     url = avatar_url_for_user(User(avatar_object=current))
     assert url == f"/api/v1/account/avatars/{filename}"
     app = FastAPI()

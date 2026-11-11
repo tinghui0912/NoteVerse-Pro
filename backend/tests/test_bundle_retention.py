@@ -79,20 +79,23 @@ def test_bindings_protect_bundle_and_detached_take_lineage_does_not(test_env):
     assert db.get(StoredObject, take.recording_object_id) is not None
 
 
-def test_stale_creation_recovers_partial_objects_through_same_retirement(test_env):
+def test_stale_creation_lease_has_no_physical_authority(test_env):
     db, storage, _, _ = test_env
-    bundle = _create_default_bundle(db, storage)
+    bundle = PracticeBundleRecord(
+        bundle_id="creating",
+        artifact_id="artifact",
+        artifact_schema_version=1,
+        status="CREATING",
+        creation_expires_at=utc_now_naive() - timedelta(seconds=1),
+    )
+    db.add(bundle)
+    db.commit()
     identity = bundle.id
-    keys = (bundle.prepared_musicxml_object.object_key, bundle.artifact_object.object_key)
-    storage.delete(keys[1])
-    bundle.status = "CREATING"
-    bundle.creation_expires_at = utc_now_naive() - timedelta(seconds=1)
+    assert bundle.prepared_musicxml_object_id is None and bundle.artifact_object_id is None
+    assert practice_bundle_retention.recover_stale_creating(db) == []
     db.commit()
-    due = practice_bundle_retention.recover_stale_creating(db)
-    db.commit()
-    assert len(due) == 2 and db.get(PracticeBundleRecord, identity) is None
-    assert all(result["status"] == "completed" for result in drain_retirements(db, storage))
-    assert not any(storage.exists(key) for key in keys)
+    assert db.get(PracticeBundleRecord, identity) is None
+    assert db.scalar(select(StoredObject)) is None
 
 
 def test_ready_bundle_gc_has_its_own_bounded_batch(test_env, monkeypatch):
@@ -129,5 +132,13 @@ def test_creation_write_failure_queues_both_representations_without_binding(test
     assert error.value.details["reason"] == "practice_bundle_storage_write_failed"
     assert db.scalar(select(PracticeBundleRecord)) is None
     assert db.get(ScoreRevisionPracticeBinding, 100) is None
-    assert len(db.scalars(select(StoredObjectRetirement)).all()) == 2
-    assert all(result["status"] == "completed" for result in drain_retirements(db, storage))
+    from app.db.models import ObjectWriteIntent
+    from tests.support.write_cleanup import drain_write_cleanup
+
+    assert db.scalar(select(StoredObject)) is None
+    assert db.scalar(select(StoredObjectRetirement)) is None
+    assert sorted(row.status for row in db.scalars(select(ObjectWriteIntent))) == [
+        "PREPARED",
+        "WRITTEN",
+    ]
+    assert all(result["status"] == "cleaned" for result in drain_write_cleanup(db, storage))

@@ -97,6 +97,7 @@ __all__ = [
     "EmailChangeRequest",
     "StoredObject",
     "StoredObjectRetirement",
+    "ObjectWriteIntent",
     "Upload",
     "NotificationEvent",
     "OpsAuditEvent",
@@ -169,3 +170,5 @@ __all__ = [
     "PracticeBundleStatus",
     "PerformanceTakeUploadReservation",
 ]
+
+from .object_write_intent import ObjectWriteIntent

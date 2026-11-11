@@ -971,7 +971,7 @@ async def test_files_owns_sha_key_dedup_and_last_upload_deletion(
     assert len(blobs) == 1 and blobs[0].object_key == key
     uploads = session.scalars(select(Upload)).all()
     assert len(uploads) == 2 and all(row.stored_object_id == blobs[0].id for row in uploads)
-    assert put.call_count == (0 if preexisting_object else 1)
+    assert put.call_count == 1
     if not preexisting_object:
         put.assert_called_once_with(key=key, content=content, content_type="image/png")
     await service.delete_uploaded_file(db, user, first.file_id)
@@ -1016,7 +1016,14 @@ async def test_files_failed_upload_retires_only_newly_written_bytes(
     )
     with pytest.raises(FileException):
         await service.upload_file(AsyncSessionAdapter(session), session.get(User, 1), upload)
-    assert storage.exists(key) is preexisting_object
+    assert storage.exists(key)
+    from app.db.models import ObjectWriteIntent
+    from tests.support.write_cleanup import drain_write_cleanup
+
+    row = session.scalar(select(ObjectWriteIntent))
+    assert row.status == "WRITTEN" and session.scalar(select(StoredObject)) is None
+    assert drain_write_cleanup(session, storage)[0]["status"] == "cleaned"
+    assert not storage.exists(key)
     assert not session.scalars(select(StoredObject)).all()
     account = session.get(StorageUsageAccount, 1)
     assert account.used_bytes == account.reserved_bytes == 0

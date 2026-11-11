@@ -288,6 +288,8 @@ def check_celery_tasks(_: bool = False) -> CheckResult:
             "app.worker.tasks.run_render_outbox_maintenance",
             "app.worker.tasks.playback_outbox_task",
             "app.worker.tasks.run_playback_outbox_maintenance",
+            "app.worker.tasks.object_write_cleanup_task",
+            "app.worker.tasks.run_object_write_cleanup_maintenance",
             "app.worker.tasks.stored_object_retirement_task",
             "app.worker.tasks.run_stored_object_retirement_maintenance",
             "app.worker.tasks.run_job_maintenance",

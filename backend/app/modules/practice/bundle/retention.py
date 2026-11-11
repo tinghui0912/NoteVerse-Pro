@@ -24,7 +24,7 @@ class PracticeBundleRetention:
             return []
         ids = (bundle.prepared_musicxml_object_id, bundle.artifact_object_id)
         db.delete(bundle)
-        return retire_released_objects(db, *ids)
+        return retire_released_objects(db, *(identity for identity in ids if identity is not None))
 
     def retire_unowned(self, db, bundle_id):
         row = db.execute(

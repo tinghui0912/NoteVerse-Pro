@@ -1,6 +1,8 @@
 from __future__ import annotations
 from app.modules.storage_objects.retirement import retire_after_release, retire_released_objects
 
+from app.modules.storage_objects.writes import write_object, adopt_written_object
+
 import os
 import tempfile
 import uuid
@@ -90,19 +92,35 @@ class RevisionRenderService:
 
         uploaded_keys: list[str] = []
         try:
+            source_key = source.stored_object.object_key
+            pages = await db.run_sync(
+                lambda sync: self._render_records(
+                    sync,
+                    score_uuid=score_uuid,
+                    revision_uuid=revision_uuid,
+                    revision_id=revision_id,
+                    canonical_storage_key=source_key,
+                    profile=profile,
+                    uploaded_keys=uploaded_keys,
+                )
+            )
+            access = await self.access_policy.authorize(
+                db, score_uuid, ScoreAction.EDIT, user_id=user_id, revision_uuid=revision_uuid
+            )
             manifest = await get_or_create_execution_manifest_async(
                 db, build_render_execution_manifest()
             )
             execution_manifest_id = require_persisted_id(manifest.id, entity="execution manifest")
-            new_records = self._render_records(
-                score_uuid=score_uuid,
-                revision_uuid=revision_uuid,
-                revision_id=revision_id,
-                canonical_storage_key=source.stored_object.object_key,
-                profile=profile,
-                execution_manifest_id=execution_manifest_id,
-                uploaded_keys=uploaded_keys,
-            )
+            new_records = []
+            for item in pages:
+                physical = await db.run_sync(
+                    lambda sync: adopt_written_object(sync, item.pop("written"))
+                )
+                new_records.append(
+                    build_render_asset_record(
+                        stored_object=physical, execution_manifest_id=execution_manifest_id, **item
+                    )
+                )
         except Exception:
             await db.rollback()
             raise
@@ -147,7 +165,6 @@ class RevisionRenderService:
             await db.commit()
         except Exception:
             await db.rollback()
-            self._delete_storage_keys_best_effort(uploaded_keys)
             raise
         return [self.asset_service.render_asset_read(item, revision) for item in new_records]
 
@@ -194,17 +211,31 @@ class RevisionRenderService:
 
         uploaded_keys: list[str] = []
         try:
-            manifest = get_or_create_execution_manifest(db, build_render_execution_manifest())
-            execution_manifest_id = require_persisted_id(manifest.id, entity="execution manifest")
-            new_records = self._render_records(
+            pages = self._render_records(
+                db,
                 score_uuid=score_uuid,
                 revision_uuid=revision_uuid,
                 revision_id=revision_id,
                 canonical_storage_key=source.stored_object.object_key,
                 profile=profile,
-                execution_manifest_id=execution_manifest_id,
                 uploaded_keys=uploaded_keys,
             )
+            score = db.execute(
+                select(Score)
+                .where(Score.id == score.id, Score.deletion_status == ScoreDeletionStatus.ACTIVE)
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            ).scalar_one()
+            manifest = get_or_create_execution_manifest(db, build_render_execution_manifest())
+            execution_manifest_id = require_persisted_id(manifest.id, entity="execution manifest")
+            new_records = [
+                build_render_asset_record(
+                    stored_object=adopt_written_object(db, item.pop("written")),
+                    execution_manifest_id=execution_manifest_id,
+                    **item,
+                )
+                for item in pages
+            ]
             previous = list(
                 db.execute(
                     select(ScoreRenderAsset).where(
@@ -248,23 +279,22 @@ class RevisionRenderService:
             db.commit()
         except Exception:
             db.rollback()
-            self._delete_storage_keys_best_effort(uploaded_keys)
             raise
 
         return new_records
 
     def _render_records(
         self,
+        db: Session,
         *,
         score_uuid: str,
         revision_uuid: str,
         revision_id: int,
         canonical_storage_key: str,
         profile: str,
-        execution_manifest_id: int,
         uploaded_keys: list[str],
-    ) -> list[ScoreRenderAsset]:
-        new_records: list[ScoreRenderAsset] = []
+    ) -> list[dict]:
+        new_records: list[dict] = []
         os.makedirs(settings.WORK_ROOT, exist_ok=True)
         with tempfile.TemporaryDirectory(dir=settings.WORK_ROOT) as work_dir:
             xml_path = os.path.join(work_dir, "score.musicxml")
@@ -293,30 +323,22 @@ class RevisionRenderService:
                     asset_uuid=artifact_uuid,
                     extension=extension,
                 )
-                stored = self.storage.put_bytes(
+                stored = write_object(
+                    db,
+                    self.storage,
                     key=key,
                     content=content,
                     content_type=output["mime_type"],
                 )
                 uploaded_keys.append(stored.object_key)
                 new_records.append(
-                    build_render_asset_record(
+                    dict(
                         asset_uuid=artifact_uuid,
                         revision_id=revision_id,
-                        stored=stored,
-                        mime_type=output["mime_type"],
-                        content=content,
-                        execution_manifest_id=execution_manifest_id,
+                        written=stored,
                         page_number=page,
                         profile=profile,
                         generator=generator,
                     )
                 )
         return new_records
-
-    def _delete_storage_keys_best_effort(self, storage_keys: list[str]) -> None:
-        for key in storage_keys:
-            try:
-                self.storage.delete(key)
-            except Exception:
-                pass

@@ -15,6 +15,7 @@ from app.modules.account.profile_service import ProfileService
 from app.modules.auth.schemas import User as UserRead
 from app.modules.files.service import FilesService
 from app.modules.storage_objects.persistence import object_from_bytes
+from app.modules.storage_objects.writes import write_object
 from tests.support.retirement import drain_retirements
 from app.db.models import StoredObjectRetirement
 from tests.test_score_revision_services import score_service_session as score_service_session
@@ -164,13 +165,13 @@ async def test_import_artifact_replacement_uses_complete_immutable_object_facts(
     worker = SyncImportJobService()
 
     def item(key, content):
-        storage.put_bytes(key=key, content=content, content_type="application/xml")
+        written = write_object(
+            db, storage, key=key, content=content, content_type="application/xml"
+        )
         return dict(
-            storage_key=key,
+            write_intent_uuid=written.intent_uuid,
+            write_token=written.write_token,
             filename="score.xml",
-            size=len(content),
-            sha256=hashlib.sha256(content).hexdigest(),
-            mime_type="application/xml",
             page_number=None,
         )
 
@@ -362,24 +363,20 @@ def test_derived_replacement_commits_new_asset_and_old_retirement_atomically(
         service = RevisionRenderService(storage=storage)
         model, category = ScoreRenderAsset, StorageUsageCategory.DERIVED_RENDER
 
-        def records(**kwargs):
+        def records(session, **kwargs):
             key = f"scores/replace/render/{uuid4()}.svg"
-            storage.put_bytes(key=key, content=b"<svg />", content_type="image/svg+xml")
+            written = write_object(
+                session, storage, key=key, content=b"<svg />", content_type="image/svg+xml"
+            )
             kwargs["uploaded_keys"].append(key)
             return [
-                ScoreRenderAsset(
+                dict(
                     asset_uuid=str(uuid4()),
                     revision_id=922,
-                    kind="RENDERED_PAGE",
-                    stored_object=object_from_bytes(
-                        object_key=key, content=b"<svg />", content_type="image/svg+xml"
-                    ),
-                    filename="page.svg",
+                    written=written,
                     page_number=1,
-                    render_profile="default",
+                    profile="default",
                     generator="test",
-                    generator_version="1",
-                    execution_manifest_id=kwargs["execution_manifest_id"],
                 )
             ]
 

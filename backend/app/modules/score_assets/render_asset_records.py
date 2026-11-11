@@ -1,13 +1,10 @@
 from __future__ import annotations
-from app.modules.storage_objects.facts import StoredObjectFacts
-from app.modules.storage_objects.persistence import object_to_row
 
-import hashlib
 from dataclasses import dataclass
 
 from app.db.models import ScoreRenderAsset
 from app.db.models.score import RenderAssetKind
-from app.storage import ObjectWriteResult
+from app.db.models.stored_object import StoredObject
 
 
 @dataclass(frozen=True)
@@ -47,9 +44,7 @@ def build_render_asset_record(
     *,
     asset_uuid: str,
     revision_id: int,
-    stored: ObjectWriteResult,
-    mime_type: str,
-    content: bytes,
+    stored_object: StoredObject,
     execution_manifest_id: int,
     page_number: int,
     profile: str,
@@ -59,15 +54,8 @@ def build_render_asset_record(
         asset_uuid=asset_uuid,
         revision_id=revision_id,
         kind=RenderAssetKind.RENDERED_PAGE,
-        stored_object=object_to_row(
-            StoredObjectFacts(
-                object_key=stored.object_key,
-                content_type=mime_type,
-                byte_size=len(content),
-                sha256=hashlib.sha256(content).hexdigest(),
-            )
-        ),
-        filename=stored.object_key.rsplit("/", 1)[-1],
+        stored_object=stored_object,
+        filename=stored_object.object_key.rsplit("/", 1)[-1],
         execution_manifest_id=execution_manifest_id,
         page_number=page_number,
         render_profile=profile,

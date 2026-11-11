@@ -105,3 +105,18 @@ def execute_stored_object_retirement_maintenance() -> dict[str, int]:
         }
 
     return run_scheduler_scan("stored_object_retirement", scan)
+
+
+def execute_object_write_cleanup_maintenance() -> dict[str, int]:
+    from app.modules.storage_objects.writes import write_cleanup_delivery
+    from app.worker.dispatch.object_write_cleanup import dispatch_object_write_cleanup
+
+    def scan():
+        with get_worker_db() as db:
+            due = write_cleanup_delivery.recover_and_list_due(db)
+        return {
+            "due": len(due),
+            "dispatched": sum(1 for uuid in due if dispatch_object_write_cleanup(uuid)),
+        }
+
+    return run_scheduler_scan("object_write_cleanup", scan)

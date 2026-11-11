@@ -4,9 +4,7 @@ from typing import Optional, TypedDict
 
 
 class ImportJobStoredArtifactItem(TypedDict):
-    storage_key: str
+    write_intent_uuid: str
+    write_token: str
     filename: str
     page_number: Optional[int]
-    size: int
-    mime_type: str
-    sha256: str

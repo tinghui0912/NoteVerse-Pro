@@ -13,6 +13,8 @@ from typing import List
 
 from app.modules.import_jobs.artifact_records import ImportJobStoredArtifactItem
 from app.storage import object_storage
+from app.modules.storage_objects.writes import write_object
+from app.db.sync_session import get_worker_db
 
 
 def _kind_value(kind: object) -> str:
@@ -83,17 +85,16 @@ def _build_file_item(
     mime_type = _guess_mime_type(abs_path)
     with open(abs_path, "rb") as file_handle:
         content = file_handle.read()
-    size = len(content)
     sha256 = hashlib.sha256(content).hexdigest()
     filename = f"{page:03d}-{os.path.basename(abs_path)}"
     storage_key = f"jobs/{job_id}/{normalized_kind}/{sha256}/{filename}"
-    object_storage.put_bytes(key=storage_key, content=content, content_type=mime_type)
-
+    with get_worker_db() as db:
+        written = write_object(
+            db, object_storage, key=storage_key, content=content, content_type=mime_type
+        )
     return {
-        "storage_key": storage_key,
+        "write_intent_uuid": written.intent_uuid,
+        "write_token": written.write_token,
         "filename": os.path.basename(storage_key),
         "page_number": page,
-        "mime_type": mime_type,
-        "size": size,
-        "sha256": sha256,
     }

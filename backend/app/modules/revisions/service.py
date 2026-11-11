@@ -1,6 +1,5 @@
 from __future__ import annotations
-from app.modules.storage_objects.facts import StoredObjectFacts
-from app.modules.storage_objects.persistence import object_to_row
+from app.modules.storage_objects.writes import write_object_async, adopt_written_object
 
 import hashlib
 import uuid
@@ -129,7 +128,9 @@ class RevisionService:
         )
         business_committed = False
         try:
-            stored = self.storage.put_bytes(
+            stored = await write_object_async(
+                db,
+                self.storage,
                 key=key,
                 content=content,
                 content_type="application/vnd.recordare.musicxml+xml",
@@ -138,6 +139,16 @@ class RevisionService:
             await storage_usage_service.release_reservation(db, reservation.reservation_id)
             raise
         try:
+            access = await self.access_policy.authorize(
+                db, score_uuid, ScoreAction.EDIT, user_id=user_id
+            )
+            score = await self.repository.get(db, access.score.score_uuid, lock=True)
+            if score is None:
+                raise ResourceNotFoundException("score", score_uuid, ErrorCode.SCORE_NOT_FOUND)
+            await db.refresh(score)
+            current_head = await db.get(ScoreRevision, score.head_revision_id)
+            if current_head is None or current_head.id != head.id:
+                raise ConflictException(ErrorCode.REVISION_CONFLICT, {"score_id": score_uuid})
             source_uuid = str(uuid.uuid4())
             revision = ScoreRevision(
                 revision_uuid=revision_uuid,
@@ -157,13 +168,8 @@ class RevisionService:
                     source_uuid=source_uuid,
                     revision_id=revision_id,
                     format=RevisionSourceFormat.MUSICXML,
-                    stored_object=object_to_row(
-                        StoredObjectFacts(
-                            object_key=stored.object_key,
-                            content_type="application/vnd.recordare.musicxml+xml",
-                            byte_size=len(content),
-                            sha256=content_hash,
-                        )
+                    stored_object=await db.run_sync(
+                        lambda sync: adopt_written_object(sync, stored)
                     ),
                     filename=stored.object_key.rsplit("/", 1)[-1],
                     generator="editor",
@@ -187,16 +193,18 @@ class RevisionService:
             score.head_revision_id = revision_id
             score.version += 1
             score.updated_at = utc_now_naive()
-            await db.commit()
-            business_committed = True
-            await revision_derivative_service.dispatch_after_commit(derivative_work)
             await storage_usage_service.commit_reservation(
                 db,
                 reservation.reservation_id,
                 object_type="score_revision_source",
                 object_id=source_uuid,
                 storage_key=stored.object_key,
+                auto_commit=False,
             )
+            await db.commit()
+            business_committed = True
+            await revision_derivative_service.dispatch_after_commit(derivative_work)
+
             await db.refresh(revision)
             actor = await db.get(User, user_id)
             if actor is not None:
@@ -228,10 +236,6 @@ class RevisionService:
         except Exception:
             await db.rollback()
             if not business_committed:
-                try:
-                    self.storage.delete(stored.object_key)
-                except Exception:
-                    pass
                 await storage_usage_service.release_reservation(db, reservation.reservation_id)
             raise
 
@@ -304,7 +308,9 @@ class RevisionService:
         )
         business_committed = False
         try:
-            stored = self.storage.put_bytes(
+            stored = await write_object_async(
+                db,
+                self.storage,
                 key=key,
                 content=content,
                 content_type="application/vnd.recordare.musicxml+xml",
@@ -313,6 +319,16 @@ class RevisionService:
             await storage_usage_service.release_reservation(db, reservation.reservation_id)
             raise
         try:
+            access = await self.access_policy.authorize(
+                db, score_uuid, ScoreAction.EDIT, user_id=user_id
+            )
+            score = await self.repository.get(db, access.score.score_uuid, lock=True)
+            if score is None:
+                raise ResourceNotFoundException("score", score_uuid, ErrorCode.SCORE_NOT_FOUND)
+            await db.refresh(score)
+            current_head = await db.get(ScoreRevision, score.head_revision_id)
+            if current_head is None or current_head.id != head.id:
+                raise ConflictException(ErrorCode.REVISION_CONFLICT, {"score_id": score_uuid})
             source_uuid = str(uuid.uuid4())
             revision = ScoreRevision(
                 revision_uuid=new_revision_uuid,
@@ -331,13 +347,8 @@ class RevisionService:
                     source_uuid=source_uuid,
                     revision_id=revision_id,
                     format=RevisionSourceFormat.MUSICXML,
-                    stored_object=object_to_row(
-                        StoredObjectFacts(
-                            object_key=stored.object_key,
-                            content_type=source.stored_object.content_type,
-                            byte_size=len(content),
-                            sha256=content_hash,
-                        )
+                    stored_object=await db.run_sync(
+                        lambda sync: adopt_written_object(sync, stored)
                     ),
                     filename=stored.object_key.rsplit("/", 1)[-1],
                     generator="restore",
@@ -373,16 +384,18 @@ class RevisionService:
             score.head_revision_id = revision_id
             score.version += 1
             score.updated_at = utc_now_naive()
-            await db.commit()
-            business_committed = True
-            await revision_derivative_service.dispatch_after_commit(derivative_work)
             await storage_usage_service.commit_reservation(
                 db,
                 reservation.reservation_id,
                 object_type="score_revision_source",
                 object_id=source_uuid,
                 storage_key=stored.object_key,
+                auto_commit=False,
             )
+            await db.commit()
+            business_committed = True
+            await revision_derivative_service.dispatch_after_commit(derivative_work)
+
             await db.refresh(revision)
             actor = await db.get(User, user_id)
             if actor is not None:
@@ -414,10 +427,6 @@ class RevisionService:
         except Exception:
             await db.rollback()
             if not business_committed:
-                try:
-                    self.storage.delete(stored.object_key)
-                except Exception:
-                    pass
                 await storage_usage_service.release_reservation(db, reservation.reservation_id)
             raise
 

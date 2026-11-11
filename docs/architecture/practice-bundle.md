@@ -52,8 +52,7 @@ materialization, ID preparation or compilation.
 An unbound revision is compiled after initial read authorization. Before binding mutation,
 lock_live_practice_mutation_access reauthorizes the live Score/Revision and selected
 access fact under locks, then the repository creates/reuses the content-addressed Bundle
-and binds the revision. A durable creation-lease commit is followed by fresh mutation
-reauthorization before binding. Database uniqueness and row locks arbitrate
+and binds the revision. The null-FK creation lease commits before both representations are written through durable ObjectWriteIntents. The intent lock covers physical put and WRITTEN persistence. After both writes and exact read-back checks, fresh mutation reauthorization precedes Bundle locking, adoption of both WRITTEN intents, READY and binding creation in one semantic transaction. A partial write creates no StoredObject authority; its intent owns cleanup. Database uniqueness and row locks arbitrate
 concurrent creation and binding. An existing binding wins over a new compiler candidate.
 
 Bundle ID possession is not authorization. There is no Bundle-ID-only authorization
@@ -64,7 +63,9 @@ revisions make score export unavailable; raw Take playback and download remain i
 ## Durable verification and retention
 
 practice_bundles owns content identity and CREATING and READY lifecycle states.
-It references exactly two StoredObjects: prepared_musicxml_object and artifact_object.
+CREATING requires a finite creation lease and null prepared_musicxml_object_id/artifact_object_id.
+READY requires both physical references and no creation lease. A creation lease is not physical authority.
+A READY Bundle references exactly two StoredObjects: prepared_musicxml_object and artifact_object.
 Each StoredObject owns its representation locator, exact byte size, SHA256 and content type. Objects use
 `practice-bundles/{bundle_id}/score.musicxml` and `artifact.json`.
 Every durable read verifies exact byte counts and SHA256 values, decodes generated
@@ -75,7 +76,7 @@ structure; Bundle envelope models reference its generated Python projection.
 
 Only ScoreRevisionPracticeBinding rows retain a Bundle. A READY Bundle with zero bindings
 is eligible for GC. Take and UploadReservation reference one immutable PerformanceTakeManifest, whose detached
-provenance strings retain neither Bundle rows nor objects. Bundle GC locks the Bundle, verifies the absence of bindings and removes the semantic row. It then queues each representation's StoredObject independently through the repo-wide reference authority in the same transaction. Another domain reference protects either object without blocking Bundle removal. Stale CREATING recovery uses the same release path.
+provenance strings retain neither Bundle rows nor objects. Bundle GC locks the Bundle, verifies the absence of bindings and removes the semantic row. It then queues each representation's StoredObject independently through the repo-wide reference authority in the same transaction. Another domain reference protects either object without blocking Bundle removal. Stale CREATING recovery removes the semantic lease; its unadopted physical writes remain independently owned by ObjectWriteIntent.
 
 Binding creation and GC serialize through Bundle/Binding database locks. A binding that wins retains the Bundle. GC that wins removes that generation; subsequent construction uses normal content-addressed creation and safe StoredObject acquisition. Shared durable-read locks fence GC until representation verification completes. Physical deletion is owned by StoredObjectRetirement and never runs synchronously in Bundle GC.
 

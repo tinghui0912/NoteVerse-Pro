@@ -1,6 +1,9 @@
 from __future__ import annotations
-from app.modules.storage_objects.facts import StoredObjectFacts
-from app.modules.storage_objects.adoption import adopt_verified_object
+from app.modules.storage_objects.writes import (
+    adopt_written_object,
+    receipt_for_intent,
+    ObjectWriteReceipt,
+)
 
 from datetime import datetime
 from typing import Optional
@@ -9,7 +12,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.model_utils import require_persisted_id
-from app.db.models import ExecutionManifest, ImportArtifact, ImportJobStep, StorageUsageCategory
+from app.db.models import (
+    ImportJob,
+    ExecutionManifest,
+    ImportArtifact,
+    ImportJobStep,
+    StorageUsageCategory,
+)
 from app.db.models.import_job import ImportJobState, ImportJobStepStatus
 from app.modules.async_operations.diagnostics import (
     AsyncOperationKindValue,
@@ -207,7 +216,12 @@ class SyncImportJobService:
         kind: str,
         items: list[ImportJobStoredArtifactItem],
     ) -> None:
-        job = self.repository.get_by_uuid(db, job_uuid)
+        job = db.execute(
+            select(ImportJob)
+            .where(ImportJob.job_uuid == job_uuid)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        ).scalar_one_or_none()
         if not job:
             raise ValueError(f"Job {job_uuid} not found")
         job_id = require_persisted_id(job.id, entity="import job")
@@ -226,13 +240,12 @@ class SyncImportJobService:
             artifact = ImportArtifact(
                 job_id=job_id,
                 kind=kind,
-                stored_object=adopt_verified_object(
+                stored_object=adopt_written_object(
                     db,
-                    StoredObjectFacts(
-                        object_key=item["storage_key"],
-                        byte_size=item["size"],
-                        content_type=item["mime_type"],
-                        sha256=item["sha256"],
+                    ObjectWriteReceipt(
+                        item["write_intent_uuid"],
+                        item["write_token"],
+                        receipt_for_intent(db, item["write_intent_uuid"]).facts,
                     ),
                 ),
                 filename=item["filename"],

@@ -1,6 +1,12 @@
 from __future__ import annotations
 from app.modules.storage_objects.retirement import retire_after_release, retire_released_objects
 
+from app.modules.storage_objects.writes import (
+    write_object,
+    write_object_async,
+    adopt_written_object,
+)
+
 import uuid
 
 from sqlalchemy import select
@@ -92,7 +98,9 @@ class PlaybackGenerationService:
         source_content = self.storage.read_bytes(source.stored_object.object_key)
         audio = self.renderer.render(source_content)
         asset_uuid = str(uuid.uuid4())
-        stored = self.storage.put_bytes(
+        stored = await write_object_async(
+            db,
+            self.storage,
             key=playback_storage_key(
                 score_uuid=score_uuid,
                 revision_uuid=revision_uuid,
@@ -102,6 +110,14 @@ class PlaybackGenerationService:
             content=audio.content,
             content_type=audio.mime_type,
         )
+        score = (
+            await db.execute(
+                select(Score)
+                .where(Score.id == score.id, Score.deletion_status == ScoreDeletionStatus.ACTIVE)
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+        ).scalar_one()
         previous = (
             await db.execute(
                 select(ScorePlaybackAsset).where(
@@ -124,7 +140,7 @@ class PlaybackGenerationService:
                 asset_uuid=asset_uuid,
                 revision_id=revision_id,
                 asset_kind=asset_kind,
-                stored=stored,
+                stored_object=await db.run_sync(lambda sync: adopt_written_object(sync, stored)),
                 audio=audio,
                 execution_manifest_id=execution_manifest_id,
                 source_fingerprint=source_fingerprint,
@@ -156,7 +172,6 @@ class PlaybackGenerationService:
             await db.commit()
         except Exception:
             await db.rollback()
-            self._delete_storage_key_best_effort(stored.object_key)
             raise
 
         await db.refresh(asset)
@@ -226,7 +241,9 @@ class PlaybackGenerationService:
     ) -> ScorePlaybackAsset:
         audio = self.renderer.render(source)
         asset_uuid = str(uuid.uuid4())
-        stored = self.storage.put_bytes(
+        stored = write_object(
+            db,
+            self.storage,
             key=playback_storage_key(
                 score_uuid=score_uuid,
                 revision_uuid=revision_uuid,
@@ -236,6 +253,15 @@ class PlaybackGenerationService:
             content=audio.content,
             content_type=audio.mime_type,
         )
+        score = db.execute(
+            select(Score)
+            .join(ScoreRevision, ScoreRevision.score_id == Score.id)
+            .where(
+                ScoreRevision.id == revision_id, Score.deletion_status == ScoreDeletionStatus.ACTIVE
+            )
+            .with_for_update(of=Score)
+            .execution_options(populate_existing=True)
+        ).scalar_one()
         previous = db.execute(
             select(ScorePlaybackAsset).where(
                 ScorePlaybackAsset.revision_id == revision_id,
@@ -264,7 +290,7 @@ class PlaybackGenerationService:
                 asset_uuid=asset_uuid,
                 revision_id=revision_id,
                 asset_kind=asset_kind,
-                stored=stored,
+                stored_object=adopt_written_object(db, stored),
                 audio=audio,
                 execution_manifest_id=execution_manifest_id,
                 source_fingerprint=source_fingerprint,
@@ -296,14 +322,7 @@ class PlaybackGenerationService:
             db.commit()
         except Exception:
             db.rollback()
-            self._delete_storage_key_best_effort(stored.object_key)
             raise
 
         db.refresh(asset)
         return asset
-
-    def _delete_storage_key_best_effort(self, storage_key: str) -> None:
-        try:
-            self.storage.delete(storage_key)
-        except Exception:
-            pass

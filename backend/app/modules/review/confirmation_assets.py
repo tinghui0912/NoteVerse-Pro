@@ -1,8 +1,10 @@
 from __future__ import annotations
-from app.modules.storage_objects.facts import StoredObjectFacts
-from app.modules.storage_objects.persistence import object_to_row
+from app.modules.storage_objects.writes import (
+    ObjectWriteReceipt,
+    write_object_async,
+    adopt_written_object,
+)
 
-import hashlib
 import uuid
 from dataclasses import dataclass
 
@@ -32,15 +34,15 @@ class PromotedScoreInputUsage:
     size_bytes: int
 
 
-async def copy_review_thumbnail_to_score_revision(
-    db: AsyncSession,
-    *,
-    storage: ObjectStorage,
-    job_id: int,
-    score_uuid: str,
-    revision_uuid: str,
-    revision_id: int,
-) -> None:
+@dataclass(frozen=True)
+class ReviewThumbnailWrite:
+    written: ObjectWriteReceipt
+    artifact_uuid: str
+
+
+async def prewrite_review_thumbnail(
+    db: AsyncSession, *, storage: ObjectStorage, job_id: int, score_uuid: str, revision_uuid: str
+) -> ReviewThumbnailWrite | None:
     thumbnail = (
         await db.execute(
             select(ImportArtifact)
@@ -53,32 +55,33 @@ async def copy_review_thumbnail_to_score_revision(
         )
     ).scalar_one_or_none()
     if thumbnail is None:
-        return
+        return None
     content = storage.read_bytes(thumbnail.stored_object.object_key)
     artifact_uuid = str(uuid.uuid4())
     extension = "." + thumbnail.filename.rsplit(".", 1)[-1] if "." in thumbnail.filename else ".svg"
-    stored = storage.put_bytes(
-        key=(
-            f"scores/{score_uuid}/revisions/{revision_uuid}/renders/"
-            f"default/001-{artifact_uuid}{extension}"
-        ),
+    written = await write_object_async(
+        db,
+        storage,
+        key=f"scores/{score_uuid}/revisions/{revision_uuid}/renders/default/001-{artifact_uuid}{extension}",
         content=content,
-        content_type=thumbnail.stored_object.content_type or "image/svg+xml",
+        content_type=thumbnail.stored_object.content_type,
     )
+    return ReviewThumbnailWrite(written, artifact_uuid)
+
+
+async def adopt_review_thumbnail(
+    db: AsyncSession, prepared: ReviewThumbnailWrite | None, *, revision_id: int
+) -> None:
+    if prepared is None:
+        return
+    physical = await db.run_sync(lambda sync: adopt_written_object(sync, prepared.written))
     db.add(
         ScoreRenderAsset(
-            asset_uuid=artifact_uuid,
+            asset_uuid=prepared.artifact_uuid,
             revision_id=revision_id,
             kind=RenderAssetKind.RENDERED_PAGE,
-            stored_object=object_to_row(
-                StoredObjectFacts(
-                    object_key=stored.object_key,
-                    content_type=thumbnail.stored_object.content_type or "image/svg+xml",
-                    byte_size=len(content),
-                    sha256=hashlib.sha256(content).hexdigest(),
-                )
-            ),
-            filename=stored.object_key.rsplit("/", 1)[-1],
+            stored_object=physical,
+            filename=physical.object_key.rsplit("/", 1)[-1],
             page_number=1,
             render_profile="default",
             generator="review-thumbnail",

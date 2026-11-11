@@ -1,7 +1,6 @@
 from __future__ import annotations
 from app.modules.storage_objects.retirement import retire_after_release
-from app.modules.storage_objects.facts import StoredObjectFacts
-from app.modules.storage_objects.persistence import object_to_row
+from app.modules.storage_objects.writes import write_object_async, adopt_written_object
 
 import hashlib
 import uuid
@@ -36,7 +35,8 @@ from app.modules.score_assets.render_outbox_service import (
 from app.modules.notifications.service import NotificationTypes
 from app.modules.revisions.derivatives import revision_derivative_service
 from app.modules.review.confirmation_assets import (
-    copy_review_thumbnail_to_score_revision,
+    prewrite_review_thumbnail,
+    adopt_review_thumbnail,
     promote_uploads_to_score_inputs,
 )
 from app.modules.review.read_model import ReviewReadModel
@@ -127,15 +127,38 @@ class ReviewService:
         )
         business_committed = False
         try:
-            stored = self.storage.put_bytes(
+            stored = await write_object_async(
+                db,
+                self.storage,
                 key=key,
                 content=content,
                 content_type="application/vnd.recordare.musicxml+xml",
+            )
+            thumbnail_write = await prewrite_review_thumbnail(
+                db,
+                storage=self.storage,
+                job_id=require_persisted_id(job.id, entity="import job"),
+                score_uuid=score_uuid,
+                revision_uuid=revision_uuid,
             )
         except Exception:
             await storage_usage_service.release_reservation(db, reservation.reservation_id)
             raise
 
+        job = (
+            await db.execute(
+                select(ImportJob)
+                .where(ImportJob.job_uuid == job_uuid)
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+        ).scalar_one()
+        if job.score_id is not None:
+            existing = await db.get(Score, job.score_id)
+            if existing is not None:
+                return ReviewConfirmRead(score_id=existing.score_uuid)
+        if job.user_id != user_id or job.state != ImportJobState.PENDING_REVIEW:
+            raise ConflictException(ErrorCode.VALIDATION_ERROR, {"job_id": job_uuid})
         business_committed = False
         try:
             score = Score(
@@ -169,13 +192,8 @@ class ReviewService:
                     source_uuid=source_uuid,
                     revision_id=revision_id,
                     format=RevisionSourceFormat.MUSICXML,
-                    stored_object=object_to_row(
-                        StoredObjectFacts(
-                            object_key=stored.object_key,
-                            content_type="application/vnd.recordare.musicxml+xml",
-                            byte_size=len(content),
-                            sha256=content_hash,
-                        )
+                    stored_object=await db.run_sync(
+                        lambda sync: adopt_written_object(sync, stored)
                     ),
                     filename=stored.object_key.rsplit("/", 1)[-1],
                     generator="review-confirm",
@@ -183,14 +201,7 @@ class ReviewService:
                     created_at=now,
                 )
             )
-            await copy_review_thumbnail_to_score_revision(
-                db,
-                storage=self.storage,
-                job_id=require_persisted_id(job.id, entity="import job"),
-                score_uuid=score_uuid,
-                revision_uuid=revision_uuid,
-                revision_id=revision_id,
-            )
+            await adopt_review_thumbnail(db, thumbnail_write, revision_id=revision_id)
             promoted_inputs = await promote_uploads_to_score_inputs(
                 db,
                 job_id=require_persisted_id(job.id, entity="import job"),
@@ -228,16 +239,18 @@ class ReviewService:
                 score_uuid=score_uuid,
                 score_title=title,
             )
-            await db.commit()
-            business_committed = True
-            await revision_derivative_service.dispatch_after_commit(derivative_work)
             await storage_usage_service.commit_reservation(
                 db,
                 reservation.reservation_id,
                 object_type="score_revision_source",
                 object_id=source_uuid,
                 storage_key=stored.object_key,
+                auto_commit=False,
             )
+            await db.commit()
+            business_committed = True
+            await revision_derivative_service.dispatch_after_commit(derivative_work)
+
             for promoted in promoted_inputs:
                 await storage_usage_service.record_release(
                     db,
@@ -262,10 +275,6 @@ class ReviewService:
         except Exception:
             await db.rollback()
             if not business_committed:
-                try:
-                    self.storage.delete(stored.object_key)
-                except Exception:
-                    pass
                 await storage_usage_service.release_reservation(db, reservation.reservation_id)
             raise
 
@@ -322,24 +331,41 @@ class ReviewService:
         if artifact is None:
             raise ResourceNotFoundException("import_artifact", job_uuid, ErrorCode.XML_NOT_FOUND)
 
-        previous_object = artifact.stored_object
-        old_artifact_uuid = artifact.artifact_uuid
-        old_storage_key = artifact.stored_object.object_key
-        old_size_bytes = artifact.stored_object.byte_size or 0
-        stored = self.storage.put_bytes(
+        stored = await write_object_async(
+            db,
+            self.storage,
             key=f"jobs/{job_uuid}/{ImportArtifactKind.REVIEW_MUSICXML.value}/{uuid.uuid4()}.musicxml",
             content=content,
             content_type="application/vnd.recordare.musicxml+xml",
         )
-        business_committed = False
-        try:
-            artifact.stored_object = object_to_row(
-                StoredObjectFacts(
-                    object_key=stored.object_key,
-                    content_type="application/vnd.recordare.musicxml+xml",
-                    byte_size=len(content),
-                    sha256=content_hash,
+        job = (
+            await db.execute(
+                select(ImportJob)
+                .where(ImportJob.id == job_id)
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+        ).scalar_one()
+        if job.user_id != user_id or job.state != ImportJobState.PENDING_REVIEW:
+            raise ConflictException(ErrorCode.VALIDATION_ERROR, {"job_id": job_uuid})
+        artifact = (
+            await db.execute(
+                select(ImportArtifact)
+                .where(
+                    ImportArtifact.job_id == job_id,
+                    ImportArtifact.kind == ImportArtifactKind.REVIEW_MUSICXML.value,
                 )
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+        ).scalar_one()
+        previous_object = artifact.stored_object
+        old_artifact_uuid = artifact.artifact_uuid
+        old_storage_key = artifact.stored_object.object_key
+        old_size_bytes = artifact.stored_object.byte_size or 0
+        try:
+            artifact.stored_object = await db.run_sync(
+                lambda sync: adopt_written_object(sync, stored)
             )
             artifact.filename = stored.object_key.rsplit("/", 1)[-1]
             await db.flush()
@@ -373,14 +399,8 @@ class ReviewService:
                 auto_commit=False,
             )
             await db.commit()
-            business_committed = True
         except Exception:
             await db.rollback()
-            if not business_committed:
-                try:
-                    self.storage.delete(stored.object_key)
-                except Exception:
-                    pass
             raise
 
         return await self.detail(db, job_uuid, user_id)

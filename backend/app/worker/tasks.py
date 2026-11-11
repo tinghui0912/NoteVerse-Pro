@@ -3,6 +3,8 @@
 from app.modules.import_jobs.schemas import PipelineExecutionSuccessResult
 from app.pipeline.context import CeleryTaskLike
 from app.task_queue.config import celery_app
+from app.worker.execution.object_write_cleanup import execute_object_write_cleanup_task
+from app.worker.execution.maintenance_dispatch import execute_object_write_cleanup_maintenance
 from app.worker.execution.import_job import execute_import_job_task
 from app.worker.execution.mail_outbox import execute_mail_outbox_task
 from app.worker.execution.maintenance_cleanup import (
@@ -128,3 +130,13 @@ def run_mail_outbox_maintenance() -> dict[str, int]:
 def run_mail_outbox_cleanup() -> dict[str, int]:
     """Delete terminal mail records after their retention window."""
     return execute_mail_outbox_cleanup()
+
+
+@celery_app.task(name="app.worker.tasks.object_write_cleanup_task", bind=True, ignore_result=True)
+def object_write_cleanup_task(self: CeleryTaskLike, intent_uuid: str) -> dict[str, str]:
+    return execute_object_write_cleanup_task(self, intent_uuid)
+
+
+@celery_app.task(name="app.worker.tasks.run_object_write_cleanup_maintenance")
+def run_object_write_cleanup_maintenance() -> dict[str, int]:
+    return execute_object_write_cleanup_maintenance()

@@ -1,6 +1,5 @@
 from __future__ import annotations
-from app.modules.storage_objects.facts import StoredObjectFacts
-from app.modules.storage_objects.persistence import object_to_row
+from app.modules.storage_objects.writes import write_object, adopt_written_object
 
 import hashlib
 import uuid
@@ -72,7 +71,9 @@ class SyncConfirmedScoreCreationService:
             object_type="score_revision_source",
         )
         try:
-            stored = self.storage.put_bytes(
+            stored = write_object(
+                db,
+                self.storage,
                 key=storage_key,
                 content=content,
                 content_type="application/vnd.recordare.musicxml+xml",
@@ -81,6 +82,16 @@ class SyncConfirmedScoreCreationService:
             storage_usage_service.release_reservation_sync(db, reservation.reservation_id)
             raise
 
+        job = db.execute(
+            select(ImportJob)
+            .where(ImportJob.job_uuid == job_uuid)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        ).scalar_one()
+        if job.score_id is not None:
+            existing = db.get(Score, job.score_id)
+            if existing is not None:
+                return existing.score_uuid
         business_committed = False
         try:
             now = utc_now_naive()
@@ -143,14 +154,7 @@ class SyncConfirmedScoreCreationService:
                     source_uuid=source_uuid,
                     revision_id=revision_id,
                     format=RevisionSourceFormat.MUSICXML,
-                    stored_object=object_to_row(
-                        StoredObjectFacts(
-                            object_key=stored.object_key,
-                            content_type="application/vnd.recordare.musicxml+xml",
-                            byte_size=len(content),
-                            sha256=content_hash,
-                        )
-                    ),
+                    stored_object=adopt_written_object(db, stored),
                     filename=stored.object_key.rsplit("/", 1)[-1],
                     generator="omr-pipeline",
                     generator_version="1",
@@ -174,16 +178,18 @@ class SyncConfirmedScoreCreationService:
             score.head_revision_id = revision_id
             job.score_id = score_id
             job.updated_at = now
-            db.commit()
-            business_committed = True
-            revision_derivative_service.dispatch_after_commit_sync(derivative_work)
             storage_usage_service.commit_reservation_sync(
                 db,
                 reservation.reservation_id,
                 object_type="score_revision_source",
                 object_id=source_uuid,
                 storage_key=stored.object_key,
+                auto_commit=False,
             )
+            db.commit()
+            business_committed = True
+            revision_derivative_service.dispatch_after_commit_sync(derivative_work)
+
             try:
                 rebuild_metadata_sync(db, revision_id, self.storage)
             except Exception:
@@ -193,10 +199,6 @@ class SyncConfirmedScoreCreationService:
         except Exception:
             db.rollback()
             if not business_committed:
-                try:
-                    self.storage.delete(stored.object_key)
-                except Exception:
-                    pass
                 storage_usage_service.release_reservation_sync(db, reservation.reservation_id)
             raise
 

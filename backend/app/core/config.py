@@ -1,6 +1,7 @@
 """Application settings and configuration validation."""
 
 from pathlib import Path
+from app.core.settings.object_writes import ObjectWriteSettings
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.core.settings.observability import ObservabilitySettings
@@ -35,6 +36,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
 class Settings(
+    ObjectWriteSettings,
     AccountEmailLinkSettings,
     AsyncDatabaseSettings,
     BeatSchedulerSettings,
