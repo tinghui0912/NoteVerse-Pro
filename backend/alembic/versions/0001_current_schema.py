@@ -1,0 +1,2886 @@
+"""Current application database schema and required reference data."""
+
+from datetime import datetime, timezone
+
+from alembic import op
+import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
+
+revision = "0001_current_schema"
+down_revision = None
+branch_labels = None
+depends_on = None
+
+GENRE_TAGS = (
+    ("classical", "scoreStyles.genre.classical", 10),
+    ("pop", "scoreStyles.genre.pop", 20),
+    ("jazz", "scoreStyles.genre.jazz", 30),
+    ("rock", "scoreStyles.genre.rock", 40),
+    ("folk", "scoreStyles.genre.folk", 50),
+    ("blues", "scoreStyles.genre.blues", 60),
+    ("soundtrack", "scoreStyles.genre.soundtrack", 70),
+    ("anime_game", "scoreStyles.genre.animeGame", 80),
+    ("religious", "scoreStyles.genre.religious", 90),
+    ("latin", "scoreStyles.genre.latin", 100),
+    ("children", "scoreStyles.genre.children", 110),
+    ("original", "scoreStyles.genre.original", 120),
+    ("other", "scoreStyles.genre.other", 130),
+)
+
+
+def _seed_taxonomy_baseline() -> None:
+    taxonomy_categories = sa.table(
+        "taxonomy_categories",
+        sa.column("id", sa.BigInteger()),
+        sa.column("code", sa.String()),
+        sa.column("name_key", sa.String()),
+        sa.column("sort_order", sa.Integer()),
+        sa.column("is_active", sa.Boolean()),
+        sa.column("created_at", sa.DateTime()),
+    )
+    taxonomy_tags = sa.table(
+        "taxonomy_tags",
+        sa.column("category_id", sa.BigInteger()),
+        sa.column("code", sa.String()),
+        sa.column("name_key", sa.String()),
+        sa.column("aliases", sa.JSON()),
+        sa.column("sort_order", sa.Integer()),
+        sa.column("is_active", sa.Boolean()),
+        sa.column("created_at", sa.DateTime()),
+    )
+    bind = op.get_bind()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    op.bulk_insert(
+        taxonomy_categories,
+        [
+            {
+                "code": "genre",
+                "name_key": "scoreStyles.category.genre",
+                "sort_order": 10,
+                "is_active": True,
+                "created_at": now,
+            }
+        ],
+    )
+    category_id = bind.execute(
+        sa.text("SELECT id FROM taxonomy_categories WHERE code = 'genre'")
+    ).scalar_one()
+    op.bulk_insert(
+        taxonomy_tags,
+        [
+            {
+                "category_id": category_id,
+                "code": code,
+                "name_key": name_key,
+                "aliases": [],
+                "sort_order": sort_order,
+                "is_active": True,
+                "created_at": now,
+            }
+            for code, name_key, sort_order in GENRE_TAGS
+        ],
+    )
+
+
+def upgrade() -> None:
+    postgresql.ENUM(
+        "PENDING", "DISPATCHED", "PROCESSING", "COMPLETED", "FAILED", name="importdispatchstatus"
+    ).create(op.get_bind(), checkfirst=False)
+    postgresql.ENUM(
+        "PENDING", "RUNNING", "PENDING_REVIEW", "CONFIRMED", "FAILURE", name="importjobstate"
+    ).create(op.get_bind(), checkfirst=False)
+    postgresql.ENUM("PENDING", "RUNNING", "COMPLETED", "FAILED", name="importjobstepstatus").create(
+        op.get_bind(), checkfirst=False
+    )
+    postgresql.ENUM(
+        "PENDING", "ACCEPTED", "REVOKED", "EXPIRED", "DECLINED", name="invitestatus"
+    ).create(op.get_bind(), checkfirst=False)
+    postgresql.ENUM("SELF_ADDED", name="libraryentrysourcetype").create(
+        op.get_bind(), checkfirst=False
+    )
+    postgresql.ENUM("TO_PRACTICE", "IN_PROGRESS", "MASTERED", name="librarypracticestate").create(
+        op.get_bind(), checkfirst=False
+    )
+    postgresql.ENUM(
+        "PENDING",
+        "DISPATCHED",
+        "PROCESSING",
+        "SENT",
+        "FAILED",
+        "PERMANENT_FAILURE",
+        "EXPIRED",
+        name="mailoutboxstatus",
+    ).create(op.get_bind(), checkfirst=False)
+    postgresql.ENUM("VIEWER", "PRACTITIONER", "EDITOR", name="membershiprole").create(
+        op.get_bind(), checkfirst=False
+    )
+    postgresql.ENUM("PENDING", "READY", "FAILED", name="metadatastatus").create(
+        op.get_bind(), checkfirst=False
+    )
+    postgresql.ENUM("local_password", "oidc", name="operatoridentityprovider").create(
+        op.get_bind(), checkfirst=False
+    )
+    postgresql.ENUM("platform_operator", name="operatorrole").create(
+        op.get_bind(), checkfirst=False
+    )
+    postgresql.ENUM("active", "disabled", name="operatorstatus").create(
+        op.get_bind(), checkfirst=False
+    )
+    postgresql.ENUM("AUDIO", "VIDEO", name="performancetakemediakind").create(
+        op.get_bind(), checkfirst=False
+    )
+    postgresql.ENUM("AUDIO", name="playbackassetkind").create(op.get_bind(), checkfirst=False)
+    postgresql.ENUM(
+        "PENDING",
+        "DISPATCHED",
+        "PROCESSING",
+        "COMPLETED",
+        "FAILED",
+        "SUPERSEDED",
+        name="playbackoutboxstatus",
+    ).create(op.get_bind(), checkfirst=False)
+    postgresql.ENUM("RENDERED_PAGE", name="renderassetkind").create(op.get_bind(), checkfirst=False)
+    postgresql.ENUM(
+        "PENDING",
+        "DISPATCHED",
+        "PROCESSING",
+        "COMPLETED",
+        "FAILED",
+        "SUPERSEDED",
+        name="renderoutboxstatus",
+    ).create(op.get_bind(), checkfirst=False)
+    postgresql.ENUM("SCORE_REVISION", "REVIEW_THUMBNAIL", name="rendertargettype").create(
+        op.get_bind(), checkfirst=False
+    )
+    postgresql.ENUM("OMR", "EDIT", "IMPORT", name="revisionorigin").create(
+        op.get_bind(), checkfirst=False
+    )
+    postgresql.ENUM("MUSICXML", name="revisionsourceformat").create(op.get_bind(), checkfirst=False)
+    postgresql.ENUM("ACTIVE", "DELETING", "DELETED", name="scoredeletionstatus").create(
+        op.get_bind(), checkfirst=False
+    )
+    postgresql.ENUM(
+        "SOURCE",
+        "UPLOAD",
+        "INPUT_ASSET",
+        "DERIVED_RENDER",
+        "DERIVED_AUDIO",
+        "TEMP_IMPORT",
+        name="storageusagecategory",
+    ).create(op.get_bind(), checkfirst=False)
+    postgresql.ENUM(
+        "RESERVED", "COMMITTED", "RELEASED", name="storageusagereservationstatus"
+    ).create(op.get_bind(), checkfirst=False)
+    op.create_table(
+        "execution_manifests",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("sha256", sa.String(length=64), nullable=False),
+        sa.Column(
+            "manifest",
+            sa.JSON().with_variant(postgresql.JSONB(astext_type=sa.Text()), "postgresql"),
+            nullable=False,
+        ),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.PrimaryKeyConstraint("id", name="pk_execution_manifests"),
+        sa.UniqueConstraint("sha256", name="uq_execution_manifests_sha256"),
+    )
+    op.create_table(
+        "mail_outbox",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("outbox_uuid", sa.String(length=36), nullable=False),
+        sa.Column("category", sa.String(length=64), nullable=False),
+        sa.Column("dedupe_key", sa.String(length=160), nullable=False),
+        sa.Column("originating_request_id", sa.String(length=64), nullable=True),
+        sa.Column("traceparent", sa.String(length=55), nullable=True),
+        sa.Column("tracestate", sa.String(length=512), nullable=True),
+        sa.Column("recipient", sa.String(length=320), nullable=False),
+        sa.Column("subject", sa.String(length=255), nullable=False),
+        sa.Column("text_body", sa.Text(), nullable=True),
+        sa.Column("html_body", sa.Text(), nullable=True),
+        sa.Column(
+            "status",
+            postgresql.ENUM(
+                "PENDING",
+                "DISPATCHED",
+                "PROCESSING",
+                "SENT",
+                "FAILED",
+                "PERMANENT_FAILURE",
+                "EXPIRED",
+                name="mailoutboxstatus",
+                create_type=False,
+            ),
+            nullable=False,
+        ),
+        sa.Column("attempt_count", sa.Integer(), nullable=False),
+        sa.Column("next_attempt_at", sa.DateTime(), nullable=False),
+        sa.Column("expires_at", sa.DateTime(), nullable=True),
+        sa.Column("dispatched_at", sa.DateTime(), nullable=True),
+        sa.Column("started_at", sa.DateTime(), nullable=True),
+        sa.Column("completed_at", sa.DateTime(), nullable=True),
+        sa.Column("provider_message_id", sa.String(length=128), nullable=True),
+        sa.Column("last_error", sa.Text(), nullable=True),
+        sa.Column("internal_error_code", sa.String(length=128), nullable=True),
+        sa.Column("internal_error_stage", sa.String(length=64), nullable=True),
+        sa.Column("internal_error_class", sa.String(length=32), nullable=True),
+        sa.Column("internal_error_retryable", sa.Boolean(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.CheckConstraint("attempt_count >= 0", name="ck_mail_outbox_attempt_count"),
+        sa.PrimaryKeyConstraint("id", name="pk_mail_outbox"),
+        sa.UniqueConstraint("dedupe_key", name="uq_mail_outbox_dedupe_key"),
+        sa.UniqueConstraint("outbox_uuid", name="uq_mail_outbox_outbox_uuid"),
+    )
+    op.create_index("idx_mail_outbox_created", "mail_outbox", ["created_at"], unique=False)
+    op.create_index(
+        "idx_mail_outbox_dispatched", "mail_outbox", ["status", "dispatched_at"], unique=False
+    )
+    op.create_index(
+        "idx_mail_outbox_status_available",
+        "mail_outbox",
+        ["status", "next_attempt_at"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_mail_outbox_originating_request_id"),
+        "mail_outbox",
+        ["originating_request_id"],
+        unique=False,
+    )
+    op.create_table(
+        "object_write_intents",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("intent_uuid", sa.String(length=36), nullable=False),
+        sa.Column("object_key", sa.String(length=768), nullable=False),
+        sa.Column("byte_size", sa.BigInteger(), nullable=False),
+        sa.Column("sha256", sa.String(length=64), nullable=False),
+        sa.Column("content_type", sa.String(length=255), nullable=False),
+        sa.Column("status", sa.String(length=24), nullable=False),
+        sa.Column("write_token", sa.String(length=36), nullable=False),
+        sa.Column("write_expires_at", sa.DateTime(), nullable=False),
+        sa.Column("written_at", sa.DateTime(), nullable=True),
+        sa.Column("attempt_count", sa.Integer(), nullable=False),
+        sa.Column("attempt_token", sa.String(length=36), nullable=True),
+        sa.Column("next_attempt_at", sa.DateTime(), nullable=False),
+        sa.Column("dispatched_at", sa.DateTime(), nullable=True),
+        sa.Column("started_at", sa.DateTime(), nullable=True),
+        sa.Column("completed_at", sa.DateTime(), nullable=True),
+        sa.Column("last_error", sa.Text(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.CheckConstraint(
+            "status IN ('PREPARED','WRITTEN','ADOPTED','CLEANUP_PENDING','CLEANUP_DISPATCHED','CLEANUP_PROCESSING','CLEANUP_FAILED','CLEANED')",
+            name="ck_object_write_intent_status",
+        ),
+        sa.CheckConstraint("attempt_count >= 0", name="ck_object_write_intent_attempts"),
+        sa.PrimaryKeyConstraint("id", name="pk_object_write_intents"),
+        sa.UniqueConstraint("intent_uuid", name="uq_object_write_intents_intent_uuid"),
+        sa.UniqueConstraint("object_key", name="uq_object_write_intent_key"),
+    )
+    op.create_index(
+        "ix_object_write_intent_due",
+        "object_write_intents",
+        ["status", "next_attempt_at"],
+        unique=False,
+    )
+    op.create_table(
+        "operators",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("operator_uuid", sa.String(length=36), nullable=False),
+        sa.Column("display_name", sa.String(length=128), nullable=False),
+        sa.Column(
+            "role",
+            postgresql.ENUM("platform_operator", name="operatorrole", create_type=False),
+            nullable=False,
+        ),
+        sa.Column(
+            "status",
+            postgresql.ENUM("active", "disabled", name="operatorstatus", create_type=False),
+            nullable=False,
+        ),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.PrimaryKeyConstraint("id", name="pk_operators"),
+        sa.UniqueConstraint("operator_uuid", name="uq_operators_operator_uuid"),
+    )
+    op.create_index("idx_operators_status", "operators", ["status"], unique=False)
+    op.create_table(
+        "pending_registrations",
+        sa.Column("id", sa.BigInteger(), nullable=False),
+        sa.Column("email", sa.String(length=255), nullable=False),
+        sa.Column("display_name", sa.String(length=128), nullable=False),
+        sa.Column("password_hash", sa.String(length=255), nullable=False),
+        sa.Column("token_hash", sa.String(length=64), nullable=False),
+        sa.Column("resend_count", sa.Integer(), nullable=False),
+        sa.Column("attempt_count", sa.Integer(), nullable=False),
+        sa.Column("user_agent", sa.String(length=512), nullable=True),
+        sa.Column("ip_address", sa.String(length=64), nullable=True),
+        sa.Column("expires_at", sa.DateTime(), nullable=False),
+        sa.Column("consumed_at", sa.DateTime(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.PrimaryKeyConstraint("id", name="pk_pending_registrations"),
+    )
+    op.create_index(
+        "idx_pending_registrations_consumed", "pending_registrations", ["consumed_at"], unique=False
+    )
+    op.create_index(
+        "idx_pending_registrations_email", "pending_registrations", ["email"], unique=True
+    )
+    op.create_index(
+        "idx_pending_registrations_expires", "pending_registrations", ["expires_at"], unique=False
+    )
+    op.create_index(
+        "idx_pending_registrations_token_hash", "pending_registrations", ["token_hash"], unique=True
+    )
+    op.create_table(
+        "scheduler_heartbeats",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("job_key", sa.String(length=80), nullable=False),
+        sa.Column("last_started_at", sa.DateTime(), nullable=True),
+        sa.Column("last_success_at", sa.DateTime(), nullable=True),
+        sa.Column("last_failure_at", sa.DateTime(), nullable=True),
+        sa.Column("last_duration_ms", sa.Integer(), nullable=False),
+        sa.Column("last_due_count", sa.Integer(), nullable=False),
+        sa.Column("last_dispatched_count", sa.Integer(), nullable=False),
+        sa.Column("total_duration_ms", sa.Integer(), nullable=False),
+        sa.Column("total_due_count", sa.Integer(), nullable=False),
+        sa.Column("total_dispatched_count", sa.Integer(), nullable=False),
+        sa.Column("lock_acquired_count", sa.Integer(), nullable=False),
+        sa.Column("lock_skipped_count", sa.Integer(), nullable=False),
+        sa.Column("last_lock_skipped_at", sa.DateTime(), nullable=True),
+        sa.Column("success_count", sa.Integer(), nullable=False),
+        sa.Column("failure_count", sa.Integer(), nullable=False),
+        sa.Column("last_error", sa.Text(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.PrimaryKeyConstraint("id", name="pk_scheduler_heartbeats"),
+    )
+    op.create_index(
+        "idx_scheduler_heartbeats_job_key", "scheduler_heartbeats", ["job_key"], unique=True
+    )
+    op.create_index(
+        "idx_scheduler_heartbeats_last_success",
+        "scheduler_heartbeats",
+        ["last_success_at"],
+        unique=False,
+    )
+    op.create_table(
+        "scheduler_leader_statuses",
+        sa.Column("scheduler_name", sa.String(length=80), nullable=False),
+        sa.Column("last_acquired_at", sa.DateTime(), nullable=True),
+        sa.Column("last_heartbeat_at", sa.DateTime(), nullable=True),
+        sa.Column("last_standby_at", sa.DateTime(), nullable=True),
+        sa.Column("last_child_exit_at", sa.DateTime(), nullable=True),
+        sa.Column("acquired_count", sa.Integer(), nullable=False),
+        sa.Column("standby_count", sa.Integer(), nullable=False),
+        sa.Column("child_exit_count", sa.Integer(), nullable=False),
+        sa.Column("last_error", sa.Text(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.PrimaryKeyConstraint("scheduler_name", name="pk_scheduler_leader_statuses"),
+    )
+    op.create_table(
+        "storage_quota_policies",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("plan_code", sa.String(length=64), nullable=False),
+        sa.Column("quota_limit_bytes", sa.BigInteger(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.PrimaryKeyConstraint("id", name="pk_storage_quota_policies"),
+        sa.UniqueConstraint("plan_code", name="uq_storage_quota_policies_plan_code"),
+    )
+    op.create_table(
+        "stored_objects",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("object_key", sa.String(length=768), nullable=False),
+        sa.Column("byte_size", sa.BigInteger(), nullable=False),
+        sa.Column("sha256", sa.String(length=64), nullable=False),
+        sa.Column("content_type", sa.String(length=255), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.CheckConstraint(
+            "length(sha256) = 64 AND replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(sha256, '0', ''), '1', ''), '2', ''), '3', ''), '4', ''), '5', ''), '6', ''), '7', ''), '8', ''), '9', ''), 'a', ''), 'b', ''), 'c', ''), 'd', ''), 'e', ''), 'f', '') = ''",
+            name="ck_stored_object_digest",
+        ),
+        sa.CheckConstraint("byte_size >= 0", name="ck_stored_object_nonnegative_size"),
+        sa.CheckConstraint(
+            "length(trim(object_key)) > 0 AND length(trim(content_type)) > 0",
+            name="ck_stored_object_locator_type",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_stored_objects"),
+        sa.UniqueConstraint("object_key", name="uq_stored_object_locator"),
+    )
+    op.create_index("ix_stored_objects_sha256", "stored_objects", ["sha256"], unique=False)
+    op.create_table(
+        "taxonomy_categories",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("code", sa.String(length=64), nullable=False),
+        sa.Column("name_key", sa.String(length=128), nullable=False),
+        sa.Column("sort_order", sa.Integer(), nullable=False),
+        sa.Column("is_active", sa.Boolean(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.PrimaryKeyConstraint("id", name="pk_taxonomy_categories"),
+        sa.UniqueConstraint("code", name="uq_taxonomy_categories_code"),
+    )
+    op.create_index(
+        "idx_taxonomy_categories_active_sort",
+        "taxonomy_categories",
+        ["is_active", "sort_order"],
+        unique=False,
+    )
+    op.create_table(
+        "operator_identities",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("identity_uuid", sa.String(length=36), nullable=False),
+        sa.Column("operator_id", sa.BigInteger(), nullable=False),
+        sa.Column(
+            "provider",
+            postgresql.ENUM(
+                "local_password", "oidc", name="operatoridentityprovider", create_type=False
+            ),
+            nullable=False,
+        ),
+        sa.Column("issuer", sa.String(length=255), nullable=False),
+        sa.Column("subject", sa.String(length=255), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("last_authenticated_at", sa.DateTime(), nullable=True),
+        sa.ForeignKeyConstraint(
+            ["operator_id"],
+            ["operators.id"],
+            name="fk_operator_identities_operator_id_operators",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_operator_identities"),
+        sa.UniqueConstraint("identity_uuid", name="uq_operator_identities_identity_uuid"),
+        sa.UniqueConstraint(
+            "provider", "issuer", "subject", name="uq_operator_identities_provider_issuer_subject"
+        ),
+    )
+    op.create_index(
+        "idx_operator_identities_operator", "operator_identities", ["operator_id"], unique=False
+    )
+    op.create_table(
+        "ops_audit_events",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("event_uuid", sa.String(length=36), nullable=False),
+        sa.Column("actor_operator_id", sa.BigInteger(), nullable=True),
+        sa.Column("actor_identity_provider", sa.String(length=64), nullable=True),
+        sa.Column("actor_identity_issuer", sa.String(length=255), nullable=True),
+        sa.Column("actor_identity_subject", sa.String(length=255), nullable=True),
+        sa.Column("action", sa.String(length=64), nullable=False),
+        sa.Column("operation_kind", sa.String(length=40), nullable=False),
+        sa.Column("operation_id", sa.String(length=128), nullable=False),
+        sa.Column("outcome", sa.String(length=32), nullable=False),
+        sa.Column("error_code", sa.String(length=80), nullable=True),
+        sa.Column("reason", sa.String(length=500), nullable=True),
+        sa.Column("request_id", sa.String(length=128), nullable=True),
+        sa.Column("peer_address", sa.String(length=64), nullable=True),
+        sa.Column("client_address", sa.String(length=64), nullable=True),
+        sa.Column("previous_state", sa.String(length=128), nullable=True),
+        sa.Column("new_state", sa.String(length=128), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["actor_operator_id"],
+            ["operators.id"],
+            name="fk_ops_audit_events_actor_operator_id_operators",
+            ondelete="SET NULL",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_ops_audit_events"),
+        sa.UniqueConstraint("event_uuid", name="uq_ops_audit_events_event_uuid"),
+    )
+    op.create_index(
+        "idx_ops_audit_events_action_created",
+        "ops_audit_events",
+        ["action", "created_at"],
+        unique=False,
+    )
+    op.create_index(
+        "idx_ops_audit_events_actor_created",
+        "ops_audit_events",
+        ["actor_operator_id", "created_at"],
+        unique=False,
+    )
+    op.create_index(
+        "idx_ops_audit_events_operation",
+        "ops_audit_events",
+        ["operation_kind", "operation_id"],
+        unique=False,
+    )
+    op.create_table(
+        "practice_bundles",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("bundle_id", sa.String(length=128), nullable=False),
+        sa.Column("artifact_id", sa.String(length=128), nullable=False),
+        sa.Column("artifact_schema_version", sa.Integer(), nullable=False),
+        sa.Column(
+            "prepared_musicxml_object_id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            nullable=True,
+        ),
+        sa.Column(
+            "artifact_object_id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            nullable=True,
+        ),
+        sa.Column("status", sa.String(length=16), nullable=False),
+        sa.Column("creation_expires_at", sa.DateTime(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.CheckConstraint(
+            "(status = 'CREATING' AND creation_expires_at IS NOT NULL AND prepared_musicxml_object_id IS NULL AND artifact_object_id IS NULL) OR (status = 'READY' AND creation_expires_at IS NULL AND prepared_musicxml_object_id IS NOT NULL AND artifact_object_id IS NOT NULL)",
+            name="ck_practice_bundles_creation_lease",
+        ),
+        sa.CheckConstraint("status IN ('CREATING', 'READY')", name="ck_practice_bundles_status"),
+        sa.ForeignKeyConstraint(
+            ["artifact_object_id"],
+            ["stored_objects.id"],
+            name="fk_practice_bundles_artifact_object_id_stored_objects",
+            ondelete="RESTRICT",
+        ),
+        sa.ForeignKeyConstraint(
+            ["prepared_musicxml_object_id"],
+            ["stored_objects.id"],
+            name="fk_practice_bundles_prepared_musicxml_object_id_stored_objects",
+            ondelete="RESTRICT",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_practice_bundles"),
+        sa.UniqueConstraint("artifact_object_id", name="uq_practice_bundles_artifact_object"),
+        sa.UniqueConstraint("bundle_id", name="uq_practice_bundles_bundle_id"),
+        sa.UniqueConstraint(
+            "prepared_musicxml_object_id", name="uq_practice_bundles_musicxml_object"
+        ),
+    )
+    op.create_index(
+        "ix_practice_bundles_status_creation",
+        "practice_bundles",
+        ["status", "creation_expires_at"],
+        unique=False,
+    )
+    op.create_table(
+        "stored_object_retirements",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("retirement_uuid", sa.String(length=36), nullable=False),
+        sa.Column("stored_object_id", sa.BigInteger(), nullable=True),
+        sa.Column("object_key", sa.String(length=768), nullable=False),
+        sa.Column("byte_size", sa.BigInteger(), nullable=False),
+        sa.Column("sha256", sa.String(length=64), nullable=False),
+        sa.Column("content_type", sa.String(length=255), nullable=False),
+        sa.Column("status", sa.String(length=24), nullable=False),
+        sa.Column("attempt_count", sa.Integer(), nullable=False),
+        sa.Column("attempt_token", sa.String(length=36), nullable=True),
+        sa.Column("next_attempt_at", sa.DateTime(), nullable=False),
+        sa.Column("dispatched_at", sa.DateTime(), nullable=True),
+        sa.Column("started_at", sa.DateTime(), nullable=True),
+        sa.Column("completed_at", sa.DateTime(), nullable=True),
+        sa.Column("last_error", sa.Text(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.CheckConstraint(
+            "status IN ('PENDING','DISPATCHED','PROCESSING','FAILED','COMPLETED','CANCELLED')",
+            name="ck_object_retirement_status",
+        ),
+        sa.CheckConstraint("attempt_count >= 0", name="ck_object_retirement_attempts"),
+        sa.ForeignKeyConstraint(
+            ["stored_object_id"],
+            ["stored_objects.id"],
+            name="fk_stored_object_retirements_stored_object_id_stored_objects",
+            ondelete="SET NULL",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_stored_object_retirements"),
+        sa.UniqueConstraint("retirement_uuid", name="uq_stored_object_retirements_retirement_uuid"),
+        sa.UniqueConstraint("stored_object_id", name="uq_object_retirement_object"),
+    )
+    op.create_index(
+        "ix_object_retirement_due",
+        "stored_object_retirements",
+        ["status", "next_attempt_at"],
+        unique=False,
+    )
+    op.create_table(
+        "taxonomy_tags",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("category_id", sa.BigInteger(), nullable=False),
+        sa.Column("code", sa.String(length=64), nullable=False),
+        sa.Column("name_key", sa.String(length=128), nullable=False),
+        sa.Column(
+            "aliases",
+            sa.JSON().with_variant(postgresql.JSONB(astext_type=sa.Text()), "postgresql"),
+            nullable=False,
+        ),
+        sa.Column("sort_order", sa.Integer(), nullable=False),
+        sa.Column("is_active", sa.Boolean(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["category_id"],
+            ["taxonomy_categories.id"],
+            name="fk_taxonomy_tags_category_id_taxonomy_categories",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_taxonomy_tags"),
+        sa.UniqueConstraint("category_id", "code", name="uq_taxonomy_tags_category_code"),
+    )
+    op.create_index(
+        "idx_taxonomy_tags_category_active_sort",
+        "taxonomy_tags",
+        ["category_id", "is_active", "sort_order"],
+        unique=False,
+    )
+    op.create_table(
+        "users",
+        sa.Column("id", sa.BigInteger(), nullable=False),
+        sa.Column("display_name", sa.String(length=128), nullable=True),
+        sa.Column("email", sa.String(length=255), nullable=False),
+        sa.Column("password_hash", sa.String(length=255), nullable=False),
+        sa.Column("is_active", sa.Boolean(), nullable=False),
+        sa.Column("email_verified_at", sa.DateTime(), nullable=False),
+        sa.Column("last_login", sa.DateTime(), nullable=True),
+        sa.Column("password_changed_at", sa.DateTime(), nullable=True),
+        sa.Column("avatar_object_id", sa.BigInteger(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["avatar_object_id"],
+            ["stored_objects.id"],
+            name="fk_users_avatar_object_id_stored_objects",
+            ondelete="RESTRICT",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_users"),
+        sa.UniqueConstraint("display_name", name="uq_users_display_name"),
+        sa.UniqueConstraint("email", name="uq_users_email"),
+    )
+    op.create_index(op.f("ix_users_avatar_object_id"), "users", ["avatar_object_id"], unique=False)
+    op.create_table(
+        "auth_tokens",
+        sa.Column("id", sa.BigInteger(), nullable=False),
+        sa.Column("user_id", sa.BigInteger(), nullable=False),
+        sa.Column("purpose", sa.String(length=64), nullable=False),
+        sa.Column("token_hash", sa.String(length=64), nullable=False),
+        sa.Column("user_agent", sa.String(length=512), nullable=True),
+        sa.Column("ip_address", sa.String(length=64), nullable=True),
+        sa.Column("expires_at", sa.DateTime(), nullable=False),
+        sa.Column("used_at", sa.DateTime(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["user_id"], ["users.id"], name="fk_auth_tokens_user_id_users", ondelete="CASCADE"
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_auth_tokens"),
+        sa.UniqueConstraint("token_hash", name="uq_auth_tokens_token_hash"),
+    )
+    op.create_index("idx_auth_tokens_expires", "auth_tokens", ["expires_at"], unique=False)
+    op.create_index("idx_auth_tokens_used", "auth_tokens", ["used_at"], unique=False)
+    op.create_index(
+        "idx_auth_tokens_user_purpose", "auth_tokens", ["user_id", "purpose"], unique=False
+    )
+    op.create_table(
+        "email_change_requests",
+        sa.Column("id", sa.BigInteger(), nullable=False),
+        sa.Column("user_id", sa.BigInteger(), nullable=False),
+        sa.Column("new_email", sa.String(length=255), nullable=False),
+        sa.Column("token_hash", sa.String(length=64), nullable=False),
+        sa.Column("locale", sa.String(length=8), nullable=False),
+        sa.Column("user_agent", sa.String(length=512), nullable=True),
+        sa.Column("ip_address", sa.String(length=64), nullable=True),
+        sa.Column("expires_at", sa.DateTime(), nullable=False),
+        sa.Column("consumed_at", sa.DateTime(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["user_id"],
+            ["users.id"],
+            name="fk_email_change_requests_user_id_users",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_email_change_requests"),
+    )
+    op.create_index(
+        "idx_email_change_requests_consumed", "email_change_requests", ["consumed_at"], unique=False
+    )
+    op.create_index(
+        "idx_email_change_requests_expires", "email_change_requests", ["expires_at"], unique=False
+    )
+    op.create_index(
+        "idx_email_change_requests_new_email", "email_change_requests", ["new_email"], unique=False
+    )
+    op.create_index(
+        "idx_email_change_requests_token_hash", "email_change_requests", ["token_hash"], unique=True
+    )
+    op.create_index(
+        "idx_email_change_requests_user_created",
+        "email_change_requests",
+        ["user_id", "created_at"],
+        unique=False,
+    )
+    op.create_table(
+        "import_jobs",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("job_uuid", sa.String(length=36), nullable=False),
+        sa.Column("user_id", sa.BigInteger(), nullable=False),
+        sa.Column(
+            "state",
+            postgresql.ENUM(
+                "PENDING",
+                "RUNNING",
+                "PENDING_REVIEW",
+                "CONFIRMED",
+                "FAILURE",
+                name="importjobstate",
+                create_type=False,
+            ),
+            nullable=False,
+        ),
+        sa.Column("progress", sa.Integer(), nullable=False),
+        sa.Column("current_step", sa.String(length=64), nullable=True),
+        sa.Column("idempotency_key", sa.String(length=128), nullable=True),
+        sa.Column("originating_request_id", sa.String(length=64), nullable=True),
+        sa.Column("traceparent", sa.String(length=55), nullable=True),
+        sa.Column("tracestate", sa.String(length=512), nullable=True),
+        sa.Column(
+            "requested_options",
+            sa.JSON().with_variant(postgresql.JSONB(astext_type=sa.Text()), "postgresql"),
+            nullable=True,
+        ),
+        sa.Column("execution_manifest_id", sa.BigInteger(), nullable=True),
+        sa.Column(
+            "dispatch_status",
+            postgresql.ENUM(
+                "PENDING",
+                "DISPATCHED",
+                "PROCESSING",
+                "COMPLETED",
+                "FAILED",
+                name="importdispatchstatus",
+                create_type=False,
+            ),
+            nullable=False,
+        ),
+        sa.Column("dispatch_attempt_count", sa.Integer(), nullable=False),
+        sa.Column("publish_attempt_count", sa.Integer(), nullable=False),
+        sa.Column("next_dispatch_at", sa.DateTime(), nullable=False),
+        sa.Column("dispatched_at", sa.DateTime(), nullable=True),
+        sa.Column("dispatch_started_at", sa.DateTime(), nullable=True),
+        sa.Column("dispatch_completed_at", sa.DateTime(), nullable=True),
+        sa.Column("dispatch_error", sa.Text(), nullable=True),
+        sa.Column("internal_error_code", sa.String(length=128), nullable=True),
+        sa.Column("internal_error_stage", sa.String(length=64), nullable=True),
+        sa.Column("internal_error_class", sa.String(length=32), nullable=True),
+        sa.Column("internal_error_retryable", sa.Boolean(), nullable=True),
+        sa.Column("code", sa.String(length=64), nullable=True),
+        sa.Column("error", sa.Text(), nullable=True),
+        sa.Column("error_type", sa.String(length=64), nullable=True),
+        sa.Column("requested_at", sa.DateTime(), nullable=True),
+        sa.Column("started_at", sa.DateTime(), nullable=True),
+        sa.Column("last_heartbeat_at", sa.DateTime(), nullable=True),
+        sa.Column("finished_at", sa.DateTime(), nullable=True),
+        sa.Column("score_id", sa.BigInteger(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.CheckConstraint(
+            "dispatch_attempt_count >= 0", name="ck_import_jobs_dispatch_attempt_count"
+        ),
+        sa.CheckConstraint(
+            "publish_attempt_count >= 0", name="ck_import_jobs_publish_attempt_count"
+        ),
+        sa.ForeignKeyConstraint(
+            ["execution_manifest_id"],
+            ["execution_manifests.id"],
+            name="fk_import_jobs_execution_manifest_id_execution_manifests",
+        ),
+        sa.ForeignKeyConstraint(["user_id"], ["users.id"], name="fk_import_jobs_user_id_users"),
+        sa.PrimaryKeyConstraint("id", name="pk_import_jobs"),
+        sa.UniqueConstraint("job_uuid", name="uq_import_jobs_job_uuid"),
+        sa.UniqueConstraint(
+            "user_id", "idempotency_key", name="uq_import_jobs_user_idempotency_key"
+        ),
+    )
+    op.create_index(
+        "idx_import_jobs_dispatch_due",
+        "import_jobs",
+        ["dispatch_status", "next_dispatch_at"],
+        unique=False,
+    )
+    op.create_index("idx_import_jobs_state", "import_jobs", ["state"], unique=False)
+    op.create_index(
+        "idx_import_jobs_user_created", "import_jobs", ["user_id", "created_at"], unique=False
+    )
+    op.create_index(
+        op.f("ix_import_jobs_execution_manifest_id"),
+        "import_jobs",
+        ["execution_manifest_id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_import_jobs_originating_request_id"),
+        "import_jobs",
+        ["originating_request_id"],
+        unique=False,
+    )
+    op.create_table(
+        "notification_events",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("notification_uuid", sa.String(length=36), nullable=False),
+        sa.Column("recipient_user_id", sa.BigInteger(), nullable=False),
+        sa.Column("actor_user_id", sa.BigInteger(), nullable=True),
+        sa.Column("type", sa.String(length=80), nullable=False),
+        sa.Column("dedupe_key", sa.String(length=160), nullable=True),
+        sa.Column("resource_type", sa.String(length=40), nullable=False),
+        sa.Column("resource_id", sa.String(length=128), nullable=True),
+        sa.Column("score_id", sa.String(length=36), nullable=True),
+        sa.Column("title", sa.String(length=255), nullable=False),
+        sa.Column("body", sa.String(length=1024), nullable=True),
+        sa.Column("data", sa.JSON(), nullable=False),
+        sa.Column("read_at", sa.DateTime(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["actor_user_id"], ["users.id"], name="fk_notification_events_actor_user_id_users"
+        ),
+        sa.ForeignKeyConstraint(
+            ["recipient_user_id"],
+            ["users.id"],
+            name="fk_notification_events_recipient_user_id_users",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_notification_events"),
+        sa.UniqueConstraint("dedupe_key", name="uq_notification_events_dedupe_key"),
+        sa.UniqueConstraint("notification_uuid", name="uq_notification_events_notification_uuid"),
+    )
+    op.create_index(
+        "idx_notification_events_recipient_created",
+        "notification_events",
+        ["recipient_user_id", "created_at"],
+        unique=False,
+    )
+    op.create_index(
+        "idx_notification_events_recipient_read",
+        "notification_events",
+        ["recipient_user_id", "read_at"],
+        unique=False,
+    )
+    op.create_index(
+        "idx_notification_events_resource",
+        "notification_events",
+        ["resource_type", "resource_id"],
+        unique=False,
+    )
+    op.create_table(
+        "operator_password_credentials",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("identity_id", sa.BigInteger(), nullable=False),
+        sa.Column("password_hash", sa.String(length=255), nullable=False),
+        sa.Column("password_changed_at", sa.DateTime(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["identity_id"],
+            ["operator_identities.id"],
+            name="fk_operator_password_credentials_identity",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_operator_password_credentials"),
+        sa.UniqueConstraint("identity_id", name="uq_operator_password_credentials_identity_id"),
+    )
+    op.create_table(
+        "operator_sessions",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("session_uuid", sa.String(length=36), nullable=False),
+        sa.Column("identity_id", sa.BigInteger(), nullable=False),
+        sa.Column("operator_id", sa.BigInteger(), nullable=False),
+        sa.Column("token_hash", sa.String(length=64), nullable=False),
+        sa.Column("user_agent", sa.String(length=512), nullable=True),
+        sa.Column("ip_address", sa.String(length=64), nullable=True),
+        sa.Column("authenticated_at", sa.DateTime(), nullable=False),
+        sa.Column("expires_at", sa.DateTime(), nullable=False),
+        sa.Column("revoked_at", sa.DateTime(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("last_used_at", sa.DateTime(), nullable=True),
+        sa.ForeignKeyConstraint(
+            ["identity_id"],
+            ["operator_identities.id"],
+            name="fk_operator_sessions_identity_id_operator_identities",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["operator_id"],
+            ["operators.id"],
+            name="fk_operator_sessions_operator_id_operators",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_operator_sessions"),
+        sa.UniqueConstraint("session_uuid", name="uq_operator_sessions_session_uuid"),
+        sa.UniqueConstraint("token_hash", name="uq_operator_sessions_token_hash"),
+    )
+    op.create_index(
+        "idx_operator_sessions_expires", "operator_sessions", ["expires_at"], unique=False
+    )
+    op.create_index(
+        "idx_operator_sessions_operator_created",
+        "operator_sessions",
+        ["operator_id", "created_at"],
+        unique=False,
+    )
+    op.create_index(
+        "idx_operator_sessions_revoked", "operator_sessions", ["revoked_at"], unique=False
+    )
+    op.create_table(
+        "performance_take_manifests",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("user_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=False),
+        sa.Column("take_uuid", sa.String(length=36), nullable=False),
+        sa.Column("practice_bundle_id", sa.String(length=128), nullable=False),
+        sa.Column("practice_score_uuid", sa.String(length=36), nullable=False),
+        sa.Column("practice_revision_uuid", sa.String(length=36), nullable=False),
+        sa.Column("practice_artifact_id", sa.String(length=128), nullable=False),
+        sa.Column("score_title_snapshot", sa.String(length=255), nullable=False),
+        sa.Column(
+            "capture_kind",
+            postgresql.ENUM("AUDIO", "VIDEO", name="performancetakemediakind", create_type=False),
+            nullable=False,
+        ),
+        sa.Column("capture_mime_type", sa.String(length=64), nullable=False),
+        sa.Column("capture_byte_size", sa.BigInteger(), nullable=False),
+        sa.Column("scope_type", sa.String(length=16), nullable=False),
+        sa.Column("ticks_per_quarter", sa.BigInteger(), nullable=False),
+        sa.Column("scope_start_tick", sa.BigInteger(), nullable=False),
+        sa.Column("scope_terminal_tick", sa.BigInteger(), nullable=False),
+        sa.Column("scope_start_group_id", sa.String(length=128), nullable=True),
+        sa.Column("scope_end_group_id", sa.String(length=128), nullable=True),
+        sa.Column("tempo_plan", sa.Text(), nullable=False),
+        sa.Column("recording_timebase", sa.Text(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.CheckConstraint(
+            "capture_kind IN ('AUDIO','VIDEO')", name="ck_take_manifest_capture_kind"
+        ),
+        sa.CheckConstraint("scope_type IN ('FULL','RANGE')", name="ck_take_manifest_scope_type"),
+        sa.CheckConstraint("capture_byte_size > 0", name="ck_take_manifest_media_size"),
+        sa.CheckConstraint(
+            "ticks_per_quarter > 0 AND ticks_per_quarter <= 9007199254740991 AND scope_start_tick >= 0 AND scope_start_tick <= 9007199254740991 AND scope_terminal_tick > 0 AND scope_terminal_tick <= 9007199254740991 AND scope_terminal_tick >= scope_start_tick",
+            name="ck_take_manifest_score_coordinates",
+        ),
+        sa.ForeignKeyConstraint(
+            ["user_id"],
+            ["users.id"],
+            name="fk_performance_take_manifests_user_id_users",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_performance_take_manifests"),
+        sa.UniqueConstraint("id", "user_id", name="uq_take_manifest_id_owner"),
+    )
+    op.create_index(
+        op.f("ix_performance_take_manifests_take_uuid"),
+        "performance_take_manifests",
+        ["take_uuid"],
+        unique=True,
+    )
+    op.create_index(
+        op.f("ix_performance_take_manifests_user_id"),
+        "performance_take_manifests",
+        ["user_id"],
+        unique=False,
+    )
+    op.create_index(
+        "ix_take_manifest_user_created",
+        "performance_take_manifests",
+        ["user_id", "created_at"],
+        unique=False,
+    )
+    op.create_table(
+        "realtime_events",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("event_uuid", sa.String(length=36), nullable=False),
+        sa.Column("recipient_user_id", sa.BigInteger(), nullable=False),
+        sa.Column("type", sa.String(length=96), nullable=False),
+        sa.Column("resource_type", sa.String(length=40), nullable=True),
+        sa.Column("resource_id", sa.String(length=128), nullable=True),
+        sa.Column("score_id", sa.String(length=36), nullable=True),
+        sa.Column("revision_id", sa.String(length=36), nullable=True),
+        sa.Column("payload", sa.JSON(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["recipient_user_id"],
+            ["users.id"],
+            name="fk_realtime_events_recipient_user_id_users",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_realtime_events"),
+        sa.UniqueConstraint("event_uuid", name="uq_realtime_events_event_uuid"),
+    )
+    op.create_index(
+        "idx_realtime_events_recipient_created",
+        "realtime_events",
+        ["recipient_user_id", "created_at"],
+        unique=False,
+    )
+    op.create_index(
+        "idx_realtime_events_recipient_id",
+        "realtime_events",
+        ["recipient_user_id", "id"],
+        unique=False,
+    )
+    op.create_index("idx_realtime_events_score", "realtime_events", ["score_id"], unique=False)
+    op.create_index("idx_realtime_events_type", "realtime_events", ["type"], unique=False)
+    op.create_table(
+        "refresh_tokens",
+        sa.Column("id", sa.BigInteger(), nullable=False),
+        sa.Column("user_id", sa.BigInteger(), nullable=False),
+        sa.Column("token_hash", sa.String(length=64), nullable=False),
+        sa.Column("device_id", sa.String(length=64), nullable=True),
+        sa.Column("user_agent", sa.String(length=512), nullable=True),
+        sa.Column("ip_address", sa.String(length=64), nullable=True),
+        sa.Column("expires_at", sa.DateTime(), nullable=False),
+        sa.Column("revoked_at", sa.DateTime(), nullable=True),
+        sa.Column("replaced_by_token_id", sa.BigInteger(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("last_used_at", sa.DateTime(), nullable=True),
+        sa.ForeignKeyConstraint(
+            ["user_id"], ["users.id"], name="fk_refresh_tokens_user_id_users", ondelete="CASCADE"
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_refresh_tokens"),
+        sa.UniqueConstraint("token_hash", name="uq_refresh_tokens_token_hash"),
+    )
+    op.create_index("idx_refresh_tokens_expires", "refresh_tokens", ["expires_at"], unique=False)
+    op.create_index("idx_refresh_tokens_revoked", "refresh_tokens", ["revoked_at"], unique=False)
+    op.create_index(
+        "idx_refresh_tokens_user_created", "refresh_tokens", ["user_id", "created_at"], unique=False
+    )
+    op.create_table(
+        "score_library_folders",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("folder_uuid", sa.String(length=36), nullable=False),
+        sa.Column("user_id", sa.BigInteger(), nullable=False),
+        sa.Column("parent_folder_id", sa.BigInteger(), nullable=True),
+        sa.Column("name", sa.String(length=255), nullable=False),
+        sa.Column("position", sa.Integer(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.Column("deleted_at", sa.DateTime(), nullable=True),
+        sa.CheckConstraint("position >= 0", name="ck_score_library_folders_position"),
+        sa.ForeignKeyConstraint(
+            ["user_id"], ["users.id"], name="fk_score_library_folders_user_id_users"
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_score_library_folders"),
+        sa.UniqueConstraint("folder_uuid", name="uq_score_library_folders_folder_uuid"),
+        sa.UniqueConstraint("user_id", "id", name="uq_score_library_folders_user_id_id"),
+    )
+    op.create_index(
+        "idx_score_library_folders_user_parent",
+        "score_library_folders",
+        ["user_id", "parent_folder_id"],
+        unique=False,
+    )
+    op.create_index(
+        "uq_score_library_folders_active_name",
+        "score_library_folders",
+        ["user_id", "parent_folder_id", "name"],
+        unique=True,
+        postgresql_where=sa.text("deleted_at IS NULL"),
+        sqlite_where=sa.text("deleted_at IS NULL"),
+    )
+    op.create_table(
+        "storage_usage_accounts",
+        sa.Column("user_id", sa.BigInteger(), nullable=False),
+        sa.Column("plan_code", sa.String(length=64), nullable=False),
+        sa.Column("used_bytes", sa.BigInteger(), nullable=False),
+        sa.Column("reserved_bytes", sa.BigInteger(), nullable=False),
+        sa.Column("quota_limit_bytes", sa.BigInteger(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.CheckConstraint(
+            "quota_limit_bytes >= 0", name="ck_storage_usage_accounts_limit_non_negative"
+        ),
+        sa.CheckConstraint(
+            "reserved_bytes >= 0", name="ck_storage_usage_accounts_reserved_non_negative"
+        ),
+        sa.CheckConstraint("used_bytes >= 0", name="ck_storage_usage_accounts_used_non_negative"),
+        sa.ForeignKeyConstraint(
+            ["user_id"],
+            ["users.id"],
+            name="fk_storage_usage_accounts_user_id_users",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("user_id", name="pk_storage_usage_accounts"),
+    )
+    op.create_table(
+        "storage_usage_counters",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("user_id", sa.BigInteger(), nullable=False),
+        sa.Column(
+            "category",
+            postgresql.ENUM(
+                "SOURCE",
+                "UPLOAD",
+                "INPUT_ASSET",
+                "DERIVED_RENDER",
+                "DERIVED_AUDIO",
+                "TEMP_IMPORT",
+                name="storageusagecategory",
+                create_type=False,
+            ),
+            nullable=False,
+        ),
+        sa.Column("used_bytes", sa.BigInteger(), nullable=False),
+        sa.Column("reserved_bytes", sa.BigInteger(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.CheckConstraint(
+            "reserved_bytes >= 0", name="ck_storage_usage_counters_reserved_non_negative"
+        ),
+        sa.CheckConstraint("used_bytes >= 0", name="ck_storage_usage_counters_used_non_negative"),
+        sa.ForeignKeyConstraint(
+            ["user_id"],
+            ["users.id"],
+            name="fk_storage_usage_counters_user_id_users",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_storage_usage_counters"),
+        sa.UniqueConstraint("user_id", "category", name="uq_storage_usage_counters_user_category"),
+    )
+    op.create_index(
+        "idx_storage_usage_counters_user", "storage_usage_counters", ["user_id"], unique=False
+    )
+    op.create_table(
+        "storage_usage_events",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("user_id", sa.BigInteger(), nullable=False),
+        sa.Column(
+            "category",
+            postgresql.ENUM(
+                "SOURCE",
+                "UPLOAD",
+                "INPUT_ASSET",
+                "DERIVED_RENDER",
+                "DERIVED_AUDIO",
+                "TEMP_IMPORT",
+                name="storageusagecategory",
+                create_type=False,
+            ),
+            nullable=False,
+        ),
+        sa.Column("delta_bytes", sa.BigInteger(), nullable=False),
+        sa.Column("counts_toward_quota", sa.Boolean(), nullable=False),
+        sa.Column("reason", sa.String(length=64), nullable=False),
+        sa.Column("object_type", sa.String(length=64), nullable=True),
+        sa.Column("object_id", sa.String(length=128), nullable=True),
+        sa.Column("storage_key", sa.String(length=768), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["user_id"],
+            ["users.id"],
+            name="fk_storage_usage_events_user_id_users",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_storage_usage_events"),
+    )
+    op.create_index(
+        "idx_storage_usage_events_object",
+        "storage_usage_events",
+        ["object_type", "object_id"],
+        unique=False,
+    )
+    op.create_index(
+        "idx_storage_usage_events_user_created",
+        "storage_usage_events",
+        ["user_id", "created_at"],
+        unique=False,
+    )
+    op.create_table(
+        "storage_usage_reservations",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("reservation_uuid", sa.String(length=36), nullable=False),
+        sa.Column("user_id", sa.BigInteger(), nullable=False),
+        sa.Column(
+            "category",
+            postgresql.ENUM(
+                "SOURCE",
+                "UPLOAD",
+                "INPUT_ASSET",
+                "DERIVED_RENDER",
+                "DERIVED_AUDIO",
+                "TEMP_IMPORT",
+                name="storageusagecategory",
+                create_type=False,
+            ),
+            nullable=False,
+        ),
+        sa.Column("bytes_reserved", sa.BigInteger(), nullable=False),
+        sa.Column("counts_toward_quota", sa.Boolean(), nullable=False),
+        sa.Column(
+            "status",
+            postgresql.ENUM(
+                "RESERVED",
+                "COMMITTED",
+                "RELEASED",
+                name="storageusagereservationstatus",
+                create_type=False,
+            ),
+            nullable=False,
+        ),
+        sa.Column("reason", sa.String(length=64), nullable=False),
+        sa.Column("object_type", sa.String(length=64), nullable=True),
+        sa.Column("object_id", sa.String(length=128), nullable=True),
+        sa.Column("storage_key", sa.String(length=768), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.CheckConstraint(
+            "bytes_reserved >= 0", name="ck_storage_usage_reservations_bytes_non_negative"
+        ),
+        sa.ForeignKeyConstraint(
+            ["user_id"],
+            ["users.id"],
+            name="fk_storage_usage_reservations_user_id_users",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_storage_usage_reservations"),
+        sa.UniqueConstraint(
+            "reservation_uuid", name="uq_storage_usage_reservations_reservation_uuid"
+        ),
+    )
+    op.create_index(
+        "idx_storage_usage_reservations_user_status",
+        "storage_usage_reservations",
+        ["user_id", "status"],
+        unique=False,
+    )
+    op.create_table(
+        "uploads",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("upload_uuid", sa.String(length=36), nullable=False),
+        sa.Column("stored_object_id", sa.BigInteger(), nullable=False),
+        sa.Column("original_filename", sa.String(length=255), nullable=False),
+        sa.Column("uploader_user_id", sa.BigInteger(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["stored_object_id"],
+            ["stored_objects.id"],
+            name="fk_uploads_stored_object_id_stored_objects",
+            ondelete="RESTRICT",
+        ),
+        sa.ForeignKeyConstraint(
+            ["uploader_user_id"], ["users.id"], name="fk_uploads_uploader_user_id_users"
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_uploads"),
+        sa.UniqueConstraint("upload_uuid", name="uq_uploads_upload_uuid"),
+    )
+    op.create_index("idx_uploads_stored_object", "uploads", ["stored_object_id"], unique=False)
+    op.create_index(
+        "idx_uploads_user_created", "uploads", ["uploader_user_id", "created_at"], unique=False
+    )
+    op.create_table(
+        "import_artifacts",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("artifact_uuid", sa.String(length=36), nullable=False),
+        sa.Column("job_id", sa.BigInteger(), nullable=False),
+        sa.Column("kind", sa.String(length=64), nullable=False),
+        sa.Column(
+            "stored_object_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=False
+        ),
+        sa.Column("filename", sa.String(length=255), nullable=False),
+        sa.Column("page_number", sa.Integer(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["job_id"],
+            ["import_jobs.id"],
+            name="fk_import_artifacts_job_id_import_jobs",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["stored_object_id"],
+            ["stored_objects.id"],
+            name="fk_import_artifacts_stored_object_id_stored_objects",
+            ondelete="RESTRICT",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_import_artifacts"),
+        sa.UniqueConstraint("artifact_uuid", name="uq_import_artifacts_artifact_uuid"),
+        sa.UniqueConstraint("stored_object_id", name="uq_import_artifacts_stored_object"),
+    )
+    op.create_index(
+        "idx_import_artifacts_job_kind", "import_artifacts", ["job_id", "kind"], unique=False
+    )
+    op.create_table(
+        "import_job_steps",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("job_id", sa.BigInteger(), nullable=False),
+        sa.Column("name", sa.String(length=64), nullable=False),
+        sa.Column(
+            "status",
+            postgresql.ENUM(
+                "PENDING",
+                "RUNNING",
+                "COMPLETED",
+                "FAILED",
+                name="importjobstepstatus",
+                create_type=False,
+            ),
+            nullable=False,
+        ),
+        sa.Column("start_time", sa.DateTime(), nullable=True),
+        sa.Column("end_time", sa.DateTime(), nullable=True),
+        sa.Column("step_order", sa.Integer(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["job_id"],
+            ["import_jobs.id"],
+            name="fk_import_job_steps_job_id_import_jobs",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_import_job_steps"),
+        sa.UniqueConstraint("job_id", "name", name="uq_import_job_steps_job_name"),
+    )
+    op.create_index(
+        "idx_import_job_steps_job_order", "import_job_steps", ["job_id", "step_order"], unique=False
+    )
+    op.create_table(
+        "import_job_uploads",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("job_id", sa.BigInteger(), nullable=False),
+        sa.Column("upload_id", sa.BigInteger(), nullable=False),
+        sa.Column("page_number", sa.Integer(), nullable=False),
+        sa.Column("sort_order", sa.Integer(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["job_id"],
+            ["import_jobs.id"],
+            name="fk_import_job_uploads_job_id_import_jobs",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["upload_id"], ["uploads.id"], name="fk_import_job_uploads_upload_id_uploads"
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_import_job_uploads"),
+        sa.UniqueConstraint("job_id", "upload_id", name="uq_import_job_uploads_job_upload"),
+    )
+    op.create_index("idx_import_job_uploads_job", "import_job_uploads", ["job_id"], unique=False)
+    op.create_table(
+        "performance_take_upload_reservations",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("reservation_uuid", sa.String(length=36), nullable=False),
+        sa.Column("user_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=False),
+        sa.Column(
+            "manifest_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=False
+        ),
+        sa.Column("client_request_id", sa.String(length=128), nullable=False),
+        sa.Column("staging_object_key", sa.String(length=768), nullable=False),
+        sa.Column("storage_reservation_id", sa.String(length=36), nullable=False),
+        sa.Column("expires_at", sa.DateTime(), nullable=False),
+        sa.Column("last_put_url_expires_at", sa.DateTime(), nullable=True),
+        sa.Column("staging_cleanup_after", sa.DateTime(), nullable=True),
+        sa.Column("staging_cleanup_completed_at", sa.DateTime(), nullable=True),
+        sa.Column("finalizing_object_key", sa.String(length=768), nullable=True),
+        sa.Column("orphan_final_object_keys", sa.Text(), nullable=False),
+        sa.Column("finalizing_token", sa.String(length=36), nullable=True),
+        sa.Column("finalizing_expires_at", sa.DateTime(), nullable=True),
+        sa.Column("status", sa.String(length=24), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.CheckConstraint(
+            "(status = 'FINALIZING' AND finalizing_token IS NOT NULL AND finalizing_object_key IS NOT NULL AND finalizing_expires_at IS NOT NULL) OR (status != 'FINALIZING' AND finalizing_token IS NULL AND finalizing_object_key IS NULL AND finalizing_expires_at IS NULL)",
+            name="ck_take_reservation_finalize_lease",
+        ),
+        sa.CheckConstraint(
+            "status IN ('RESERVED','FINALIZING','COMPLETED','CANCELLED','EXPIRED')",
+            name="ck_take_reservation_status",
+        ),
+        sa.ForeignKeyConstraint(
+            ["manifest_id", "user_id"],
+            ["performance_take_manifests.id", "performance_take_manifests.user_id"],
+            name="fk_take_reservation_manifest_owner",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["user_id"],
+            ["users.id"],
+            name="fk_performance_take_upload_reservations_user_id_users",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_performance_take_upload_reservations"),
+        sa.UniqueConstraint(
+            "user_id", "client_request_id", name="uq_take_upload_reservation_user_client_request_id"
+        ),
+    )
+    op.create_index(
+        op.f("ix_performance_take_upload_reservations_client_request_id"),
+        "performance_take_upload_reservations",
+        ["client_request_id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_performance_take_upload_reservations_manifest_id"),
+        "performance_take_upload_reservations",
+        ["manifest_id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_performance_take_upload_reservations_reservation_uuid"),
+        "performance_take_upload_reservations",
+        ["reservation_uuid"],
+        unique=True,
+    )
+    op.create_index(
+        op.f("ix_performance_take_upload_reservations_storage_reservation_id"),
+        "performance_take_upload_reservations",
+        ["storage_reservation_id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_performance_take_upload_reservations_user_id"),
+        "performance_take_upload_reservations",
+        ["user_id"],
+        unique=False,
+    )
+    op.create_index(
+        "ix_take_upload_reservation_status_expires",
+        "performance_take_upload_reservations",
+        ["status", "expires_at"],
+        unique=False,
+    )
+    op.create_table(
+        "scores",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("score_uuid", sa.String(length=36), nullable=False),
+        sa.Column("owner_user_id", sa.BigInteger(), nullable=False),
+        sa.Column("title", sa.String(length=255), nullable=False),
+        sa.Column("head_revision_id", sa.BigInteger(), nullable=True),
+        sa.Column("originating_job_id", sa.BigInteger(), nullable=True),
+        sa.Column("version", sa.Integer(), nullable=False),
+        sa.Column(
+            "deletion_status",
+            postgresql.ENUM(
+                "ACTIVE", "DELETING", "DELETED", name="scoredeletionstatus", create_type=False
+            ),
+            nullable=False,
+        ),
+        sa.Column("deleted_at", sa.DateTime(), nullable=True),
+        sa.Column("deletion_requested_at", sa.DateTime(), nullable=True),
+        sa.Column("deletion_request_id", sa.String(length=64), nullable=True),
+        sa.Column("cleanup_completed_at", sa.DateTime(), nullable=True),
+        sa.Column("cleanup_attempt_count", sa.Integer(), nullable=False),
+        sa.Column("next_cleanup_at", sa.DateTime(), nullable=True),
+        sa.Column("deletion_error", sa.Text(), nullable=True),
+        sa.Column("internal_error_code", sa.String(length=128), nullable=True),
+        sa.Column("internal_error_stage", sa.String(length=64), nullable=True),
+        sa.Column("internal_error_class", sa.String(length=32), nullable=True),
+        sa.Column("internal_error_retryable", sa.Boolean(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.CheckConstraint("version >= 1", name="ck_scores_version_positive"),
+        sa.ForeignKeyConstraint(
+            ["originating_job_id"],
+            ["import_jobs.id"],
+            name="fk_scores_originating_job_id_import_jobs",
+            ondelete="SET NULL",
+        ),
+        sa.ForeignKeyConstraint(
+            ["owner_user_id"], ["users.id"], name="fk_scores_owner_user_id_users"
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_scores"),
+        sa.UniqueConstraint("originating_job_id", name="uq_scores_originating_job_id"),
+        sa.UniqueConstraint("score_uuid", name="uq_scores_score_uuid"),
+    )
+    op.create_index(
+        "idx_scores_deletion_cleanup_due",
+        "scores",
+        ["deletion_status", "next_cleanup_at", "deletion_requested_at"],
+        unique=False,
+    )
+    op.create_index(
+        "idx_scores_deletion_request_id", "scores", ["deletion_request_id"], unique=False
+    )
+    op.create_index(
+        "idx_scores_owner_deletion_updated",
+        "scores",
+        ["owner_user_id", "deletion_status", "updated_at"],
+        unique=False,
+    )
+    op.create_index(
+        "idx_scores_owner_updated", "scores", ["owner_user_id", "updated_at"], unique=False
+    )
+    op.create_table(
+        "performance_takes",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column(
+            "manifest_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=False
+        ),
+        sa.Column(
+            "linked_score_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=True
+        ),
+        sa.Column(
+            "recording_object_id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            nullable=False,
+        ),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["linked_score_id"],
+            ["scores.id"],
+            name="fk_performance_takes_linked_score_id_scores",
+            ondelete="SET NULL",
+        ),
+        sa.ForeignKeyConstraint(
+            ["manifest_id"],
+            ["performance_take_manifests.id"],
+            name="fk_performance_takes_manifest_id_performance_take_manifests",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["recording_object_id"],
+            ["stored_objects.id"],
+            name="fk_performance_takes_recording_object_id_stored_objects",
+            ondelete="RESTRICT",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_performance_takes"),
+        sa.UniqueConstraint("manifest_id", name="uq_performance_takes_manifest"),
+        sa.UniqueConstraint("recording_object_id", name="uq_performance_takes_recording_object"),
+    )
+    op.create_index(
+        op.f("ix_performance_takes_linked_score_id"),
+        "performance_takes",
+        ["linked_score_id"],
+        unique=False,
+    )
+    op.create_table(
+        "score_input_assets",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("asset_uuid", sa.String(length=36), nullable=False),
+        sa.Column("score_id", sa.BigInteger(), nullable=False),
+        sa.Column("upload_id", sa.BigInteger(), nullable=False),
+        sa.Column("purpose", sa.String(length=32), nullable=False),
+        sa.Column("page_number", sa.Integer(), nullable=True),
+        sa.Column("sort_order", sa.Integer(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["score_id"],
+            ["scores.id"],
+            name="fk_score_input_assets_score_id_scores",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["upload_id"],
+            ["uploads.id"],
+            name="fk_score_input_assets_upload_id_uploads",
+            ondelete="RESTRICT",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_score_input_assets"),
+        sa.UniqueConstraint("asset_uuid", name="uq_score_input_assets_asset_uuid"),
+        sa.UniqueConstraint("score_id", "upload_id", name="uq_score_input_assets_score_upload"),
+    )
+    op.create_index(
+        "idx_score_input_assets_score_order",
+        "score_input_assets",
+        ["score_id", "sort_order"],
+        unique=False,
+    )
+    op.create_index(
+        "idx_score_input_assets_upload", "score_input_assets", ["upload_id"], unique=False
+    )
+    op.create_table(
+        "score_invites",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("invite_uuid", sa.String(length=36), nullable=False),
+        sa.Column("score_id", sa.BigInteger(), nullable=False),
+        sa.Column("token_hash", sa.String(length=64), nullable=False),
+        sa.Column("email", sa.String(length=255), nullable=True),
+        sa.Column(
+            "role",
+            postgresql.ENUM(
+                "VIEWER", "PRACTITIONER", "EDITOR", name="membershiprole", create_type=False
+            ),
+            nullable=False,
+        ),
+        sa.Column(
+            "status",
+            postgresql.ENUM(
+                "PENDING",
+                "ACCEPTED",
+                "REVOKED",
+                "EXPIRED",
+                "DECLINED",
+                name="invitestatus",
+                create_type=False,
+            ),
+            nullable=False,
+        ),
+        sa.Column("created_by_user_id", sa.BigInteger(), nullable=False),
+        sa.Column("accepted_by_user_id", sa.BigInteger(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("expires_at", sa.DateTime(), nullable=True),
+        sa.Column("accepted_at", sa.DateTime(), nullable=True),
+        sa.Column("revoked_at", sa.DateTime(), nullable=True),
+        sa.Column("declined_at", sa.DateTime(), nullable=True),
+        sa.ForeignKeyConstraint(
+            ["accepted_by_user_id"], ["users.id"], name="fk_score_invites_accepted_by_user_id_users"
+        ),
+        sa.ForeignKeyConstraint(
+            ["created_by_user_id"], ["users.id"], name="fk_score_invites_created_by_user_id_users"
+        ),
+        sa.ForeignKeyConstraint(
+            ["score_id"], ["scores.id"], name="fk_score_invites_score_id_scores", ondelete="CASCADE"
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_score_invites"),
+        sa.UniqueConstraint("invite_uuid", name="uq_score_invites_invite_uuid"),
+    )
+    op.create_index(
+        "idx_score_invites_email_status", "score_invites", ["email", "status"], unique=False
+    )
+    op.create_index(
+        "idx_score_invites_score_created", "score_invites", ["score_id", "created_at"], unique=False
+    )
+    op.create_index("idx_score_invites_token_hash", "score_invites", ["token_hash"], unique=True)
+    op.create_table(
+        "score_library_entries",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("entry_uuid", sa.String(length=36), nullable=False),
+        sa.Column("user_id", sa.BigInteger(), nullable=False),
+        sa.Column("score_id", sa.BigInteger(), nullable=False),
+        sa.Column(
+            "source_type",
+            postgresql.ENUM("SELF_ADDED", name="libraryentrysourcetype", create_type=False),
+            nullable=False,
+        ),
+        sa.Column("folder_id", sa.BigInteger(), nullable=True),
+        sa.Column("is_favorite", sa.Boolean(), nullable=False),
+        sa.Column(
+            "practice_state",
+            postgresql.ENUM(
+                "TO_PRACTICE",
+                "IN_PROGRESS",
+                "MASTERED",
+                name="librarypracticestate",
+                create_type=False,
+            ),
+            nullable=False,
+        ),
+        sa.Column("last_practiced_at", sa.DateTime(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.Column("deleted_at", sa.DateTime(), nullable=True),
+        sa.ForeignKeyConstraint(
+            ["folder_id"],
+            ["score_library_folders.id"],
+            name="fk_score_library_entries_folder_id_score_library_folders",
+        ),
+        sa.ForeignKeyConstraint(
+            ["score_id"],
+            ["scores.id"],
+            name="fk_score_library_entries_score_id_scores",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["user_id"], ["users.id"], name="fk_score_library_entries_user_id_users"
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_score_library_entries"),
+    )
+    op.create_index(
+        "idx_score_library_entries_user_favorite",
+        "score_library_entries",
+        ["user_id", "is_favorite"],
+        unique=False,
+    )
+    op.create_index(
+        "idx_score_library_entries_user_folder",
+        "score_library_entries",
+        ["user_id", "folder_id"],
+        unique=False,
+    )
+    op.create_index(
+        "idx_score_library_entries_user_practice_state",
+        "score_library_entries",
+        ["user_id", "practice_state"],
+        unique=False,
+    )
+    op.create_index(
+        "idx_score_library_entries_user_practiced",
+        "score_library_entries",
+        ["user_id", "last_practiced_at"],
+        unique=False,
+    )
+    op.create_index(
+        "idx_score_library_entries_user_updated",
+        "score_library_entries",
+        ["user_id", "updated_at"],
+        unique=False,
+    )
+    op.create_index(
+        "uq_score_library_entries_active_source",
+        "score_library_entries",
+        ["user_id", "score_id", "source_type"],
+        unique=True,
+        postgresql_where=sa.text("deleted_at IS NULL"),
+        sqlite_where=sa.text("deleted_at IS NULL"),
+    )
+    op.create_index(
+        "uq_score_library_entries_active_uuid",
+        "score_library_entries",
+        ["entry_uuid"],
+        unique=True,
+        postgresql_where=sa.text("deleted_at IS NULL"),
+        sqlite_where=sa.text("deleted_at IS NULL"),
+    )
+    op.create_table(
+        "score_memberships",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("score_id", sa.BigInteger(), nullable=False),
+        sa.Column("user_id", sa.BigInteger(), nullable=False),
+        sa.Column(
+            "role",
+            postgresql.ENUM(
+                "VIEWER", "PRACTITIONER", "EDITOR", name="membershiprole", create_type=False
+            ),
+            nullable=False,
+        ),
+        sa.Column("created_by_user_id", sa.BigInteger(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("revoked_at", sa.DateTime(), nullable=True),
+        sa.ForeignKeyConstraint(
+            ["created_by_user_id"],
+            ["users.id"],
+            name="fk_score_memberships_created_by_user_id_users",
+        ),
+        sa.ForeignKeyConstraint(
+            ["score_id"],
+            ["scores.id"],
+            name="fk_score_memberships_score_id_scores",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["user_id"], ["users.id"], name="fk_score_memberships_user_id_users"
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_score_memberships"),
+        sa.UniqueConstraint("score_id", "user_id", name="uq_score_memberships_score_user"),
+    )
+    op.create_index(
+        "idx_score_memberships_user_active",
+        "score_memberships",
+        ["user_id", "revoked_at"],
+        unique=False,
+    )
+    op.create_table(
+        "score_revisions",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("revision_uuid", sa.String(length=36), nullable=False),
+        sa.Column("score_id", sa.BigInteger(), nullable=False),
+        sa.Column("revision_number", sa.Integer(), nullable=False),
+        sa.Column("content_hash", sa.String(length=64), nullable=False),
+        sa.Column("idempotency_key", sa.String(length=128), nullable=True),
+        sa.Column(
+            "origin",
+            postgresql.ENUM("OMR", "EDIT", "IMPORT", name="revisionorigin", create_type=False),
+            nullable=False,
+        ),
+        sa.Column("created_by_user_id", sa.BigInteger(), nullable=True),
+        sa.Column("created_by_job_id", sa.BigInteger(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.CheckConstraint("revision_number >= 1", name="ck_score_revisions_number_positive"),
+        sa.ForeignKeyConstraint(
+            ["created_by_job_id"],
+            ["import_jobs.id"],
+            name="fk_score_revisions_created_by_job_id_import_jobs",
+            ondelete="SET NULL",
+        ),
+        sa.ForeignKeyConstraint(
+            ["created_by_user_id"],
+            ["users.id"],
+            name="fk_score_revisions_created_by_user_id_users",
+            ondelete="SET NULL",
+        ),
+        sa.ForeignKeyConstraint(
+            ["score_id"],
+            ["scores.id"],
+            name="fk_score_revisions_score_id_scores",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_score_revisions"),
+        sa.UniqueConstraint("revision_uuid", name="uq_score_revisions_revision_uuid"),
+        sa.UniqueConstraint("score_id", "id", name="uq_score_revisions_score_id_id"),
+        sa.UniqueConstraint(
+            "score_id", "idempotency_key", name="uq_score_revisions_score_idempotency_key"
+        ),
+        sa.UniqueConstraint("score_id", "revision_number", name="uq_score_revisions_score_number"),
+    )
+    op.create_index(
+        "idx_score_revisions_score_created",
+        "score_revisions",
+        ["score_id", "created_at"],
+        unique=False,
+    )
+    op.create_table(
+        "score_taxonomy_tags",
+        sa.Column("score_id", sa.BigInteger(), nullable=False),
+        sa.Column("tag_id", sa.BigInteger(), nullable=False),
+        sa.Column("source", sa.String(length=32), nullable=False),
+        sa.Column("confidence", sa.Float(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["score_id"],
+            ["scores.id"],
+            name="fk_score_taxonomy_tags_score_id_scores",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["tag_id"],
+            ["taxonomy_tags.id"],
+            name="fk_score_taxonomy_tags_tag_id_taxonomy_tags",
+            ondelete="RESTRICT",
+        ),
+        sa.PrimaryKeyConstraint("score_id", "tag_id", name="pk_score_taxonomy_tags"),
+    )
+    op.create_index(
+        "idx_score_taxonomy_tags_tag_score",
+        "score_taxonomy_tags",
+        ["tag_id", "score_id"],
+        unique=False,
+    )
+    op.create_table(
+        "playback_outbox",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("outbox_uuid", sa.String(length=36), nullable=False),
+        sa.Column("score_id", sa.BigInteger(), nullable=False),
+        sa.Column("revision_id", sa.BigInteger(), nullable=False),
+        sa.Column("requested_by_user_id", sa.BigInteger(), nullable=True),
+        sa.Column("originating_request_id", sa.String(length=64), nullable=True),
+        sa.Column("traceparent", sa.String(length=55), nullable=True),
+        sa.Column("tracestate", sa.String(length=512), nullable=True),
+        sa.Column("source_fingerprint", sa.String(length=64), nullable=False),
+        sa.Column(
+            "asset_kind",
+            postgresql.ENUM("AUDIO", name="playbackassetkind", create_type=False),
+            nullable=False,
+        ),
+        sa.Column(
+            "status",
+            postgresql.ENUM(
+                "PENDING",
+                "DISPATCHED",
+                "PROCESSING",
+                "COMPLETED",
+                "FAILED",
+                "SUPERSEDED",
+                name="playbackoutboxstatus",
+                create_type=False,
+            ),
+            nullable=False,
+        ),
+        sa.Column("attempt_count", sa.Integer(), nullable=False),
+        sa.Column("next_attempt_at", sa.DateTime(), nullable=False),
+        sa.Column("dispatched_at", sa.DateTime(), nullable=True),
+        sa.Column("started_at", sa.DateTime(), nullable=True),
+        sa.Column("completed_at", sa.DateTime(), nullable=True),
+        sa.Column("last_error", sa.Text(), nullable=True),
+        sa.Column("internal_error_code", sa.String(length=128), nullable=True),
+        sa.Column("internal_error_stage", sa.String(length=64), nullable=True),
+        sa.Column("internal_error_class", sa.String(length=32), nullable=True),
+        sa.Column("internal_error_retryable", sa.Boolean(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.CheckConstraint("attempt_count >= 0", name="ck_playback_outbox_attempt_count"),
+        sa.ForeignKeyConstraint(
+            ["requested_by_user_id"],
+            ["users.id"],
+            name="fk_playback_outbox_requested_by_user_id_users",
+            ondelete="SET NULL",
+        ),
+        sa.ForeignKeyConstraint(
+            ["revision_id"],
+            ["score_revisions.id"],
+            name="fk_playback_outbox_revision_id_score_revisions",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["score_id"],
+            ["scores.id"],
+            name="fk_playback_outbox_score_id_scores",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_playback_outbox"),
+        sa.UniqueConstraint("outbox_uuid", name="uq_playback_outbox_outbox_uuid"),
+        sa.UniqueConstraint("revision_id", "asset_kind", name="uq_playback_outbox_revision_kind"),
+    )
+    op.create_index(
+        "idx_playback_outbox_dispatched",
+        "playback_outbox",
+        ["status", "dispatched_at"],
+        unique=False,
+    )
+    op.create_index(
+        "idx_playback_outbox_status_available",
+        "playback_outbox",
+        ["status", "next_attempt_at"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_playback_outbox_originating_request_id"),
+        "playback_outbox",
+        ["originating_request_id"],
+        unique=False,
+    )
+    op.create_table(
+        "render_outbox",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("outbox_uuid", sa.String(length=36), nullable=False),
+        sa.Column(
+            "target_type",
+            postgresql.ENUM(
+                "SCORE_REVISION", "REVIEW_THUMBNAIL", name="rendertargettype", create_type=False
+            ),
+            nullable=False,
+        ),
+        sa.Column("score_id", sa.BigInteger(), nullable=True),
+        sa.Column("revision_id", sa.BigInteger(), nullable=True),
+        sa.Column("import_job_id", sa.BigInteger(), nullable=True),
+        sa.Column("source_fingerprint", sa.String(length=64), nullable=False),
+        sa.Column("requested_by_user_id", sa.BigInteger(), nullable=True),
+        sa.Column("originating_request_id", sa.String(length=64), nullable=True),
+        sa.Column("traceparent", sa.String(length=55), nullable=True),
+        sa.Column("tracestate", sa.String(length=512), nullable=True),
+        sa.Column("render_profile", sa.String(length=128), nullable=False),
+        sa.Column(
+            "status",
+            postgresql.ENUM(
+                "PENDING",
+                "DISPATCHED",
+                "PROCESSING",
+                "COMPLETED",
+                "FAILED",
+                "SUPERSEDED",
+                name="renderoutboxstatus",
+                create_type=False,
+            ),
+            nullable=False,
+        ),
+        sa.Column("attempt_count", sa.Integer(), nullable=False),
+        sa.Column("next_attempt_at", sa.DateTime(), nullable=False),
+        sa.Column("dispatched_at", sa.DateTime(), nullable=True),
+        sa.Column("started_at", sa.DateTime(), nullable=True),
+        sa.Column("completed_at", sa.DateTime(), nullable=True),
+        sa.Column("last_error", sa.Text(), nullable=True),
+        sa.Column("internal_error_code", sa.String(length=128), nullable=True),
+        sa.Column("internal_error_stage", sa.String(length=64), nullable=True),
+        sa.Column("internal_error_class", sa.String(length=32), nullable=True),
+        sa.Column("internal_error_retryable", sa.Boolean(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.CheckConstraint(
+            "(target_type = 'SCORE_REVISION' AND score_id IS NOT NULL AND revision_id IS NOT NULL AND import_job_id IS NULL) OR (target_type = 'REVIEW_THUMBNAIL' AND score_id IS NULL AND revision_id IS NULL AND import_job_id IS NOT NULL)",
+            name="ck_render_outbox_target",
+        ),
+        sa.CheckConstraint("attempt_count >= 0", name="ck_render_outbox_attempt_count"),
+        sa.ForeignKeyConstraint(
+            ["import_job_id"],
+            ["import_jobs.id"],
+            name="fk_render_outbox_import_job_id_import_jobs",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["requested_by_user_id"],
+            ["users.id"],
+            name="fk_render_outbox_requested_by_user_id_users",
+            ondelete="SET NULL",
+        ),
+        sa.ForeignKeyConstraint(
+            ["revision_id"],
+            ["score_revisions.id"],
+            name="fk_render_outbox_revision_id_score_revisions",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["score_id"], ["scores.id"], name="fk_render_outbox_score_id_scores", ondelete="CASCADE"
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_render_outbox"),
+        sa.UniqueConstraint(
+            "import_job_id",
+            "render_profile",
+            "source_fingerprint",
+            name="uq_render_outbox_review_source",
+        ),
+        sa.UniqueConstraint("outbox_uuid", name="uq_render_outbox_outbox_uuid"),
+        sa.UniqueConstraint(
+            "revision_id", "render_profile", name="uq_render_outbox_revision_profile"
+        ),
+    )
+    op.create_index(
+        "idx_render_outbox_dispatched", "render_outbox", ["status", "dispatched_at"], unique=False
+    )
+    op.create_index(
+        "idx_render_outbox_status_available",
+        "render_outbox",
+        ["status", "next_attempt_at"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_render_outbox_originating_request_id"),
+        "render_outbox",
+        ["originating_request_id"],
+        unique=False,
+    )
+    op.create_table(
+        "score_guest_preview_grants",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("preview_uuid", sa.String(length=36), nullable=False),
+        sa.Column("score_id", sa.BigInteger(), nullable=False),
+        sa.Column("revision_id", sa.BigInteger(), nullable=False),
+        sa.Column("token_hash", sa.String(length=64), nullable=False),
+        sa.Column("expires_at", sa.DateTime(), nullable=False),
+        sa.Column("revoked_at", sa.DateTime(), nullable=True),
+        sa.Column("created_by_user_id", sa.BigInteger(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["created_by_user_id"],
+            ["users.id"],
+            name="fk_score_guest_preview_grants_created_by_user_id_users",
+        ),
+        sa.ForeignKeyConstraint(
+            ["score_id", "revision_id"],
+            ["score_revisions.score_id", "score_revisions.id"],
+            name="fk_guest_preview_score_revision",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["score_id"],
+            ["scores.id"],
+            name="fk_score_guest_preview_grants_score_id_scores",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_score_guest_preview_grants"),
+        sa.UniqueConstraint("preview_uuid", name="uq_score_guest_preview_grants_preview_uuid"),
+    )
+    op.create_index(
+        "idx_score_guest_previews_score_created",
+        "score_guest_preview_grants",
+        ["score_id", "created_at"],
+        unique=False,
+    )
+    op.create_index(
+        "idx_score_guest_previews_token_hash",
+        "score_guest_preview_grants",
+        ["token_hash"],
+        unique=True,
+    )
+    op.create_table(
+        "score_playback_assets",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("asset_uuid", sa.String(length=36), nullable=False),
+        sa.Column("revision_id", sa.BigInteger(), nullable=False),
+        sa.Column(
+            "kind",
+            postgresql.ENUM("AUDIO", name="playbackassetkind", create_type=False),
+            nullable=False,
+        ),
+        sa.Column(
+            "stored_object_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=False
+        ),
+        sa.Column("filename", sa.String(length=255), nullable=False),
+        sa.Column("execution_manifest_id", sa.BigInteger(), nullable=True),
+        sa.Column("duration_ms", sa.BigInteger(), nullable=True),
+        sa.Column("source_fingerprint", sa.String(length=64), nullable=False),
+        sa.Column("generator", sa.String(length=64), nullable=False),
+        sa.Column("generator_version", sa.String(length=64), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["execution_manifest_id"],
+            ["execution_manifests.id"],
+            name="fk_score_playback_assets_execution_manifest",
+            ondelete="SET NULL",
+        ),
+        sa.ForeignKeyConstraint(
+            ["revision_id"],
+            ["score_revisions.id"],
+            name="fk_score_playback_assets_revision_id_score_revisions",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["stored_object_id"],
+            ["stored_objects.id"],
+            name="fk_score_playback_assets_stored_object_id_stored_objects",
+            ondelete="RESTRICT",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_score_playback_assets"),
+        sa.UniqueConstraint("asset_uuid", name="uq_score_playback_assets_asset_uuid"),
+        sa.UniqueConstraint("revision_id", "kind", name="uq_score_playback_assets_revision_kind"),
+        sa.UniqueConstraint("stored_object_id", name="uq_score_playback_assets_stored_object"),
+    )
+    op.create_index(
+        "idx_score_playback_assets_revision_kind",
+        "score_playback_assets",
+        ["revision_id", "kind"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_score_playback_assets_execution_manifest_id"),
+        "score_playback_assets",
+        ["execution_manifest_id"],
+        unique=False,
+    )
+    op.create_table(
+        "score_render_assets",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("asset_uuid", sa.String(length=36), nullable=False),
+        sa.Column("revision_id", sa.BigInteger(), nullable=False),
+        sa.Column(
+            "kind",
+            postgresql.ENUM("RENDERED_PAGE", name="renderassetkind", create_type=False),
+            nullable=False,
+        ),
+        sa.Column(
+            "stored_object_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=False
+        ),
+        sa.Column("filename", sa.String(length=255), nullable=False),
+        sa.Column("execution_manifest_id", sa.BigInteger(), nullable=True),
+        sa.Column("page_number", sa.Integer(), nullable=True),
+        sa.Column("render_profile", sa.String(length=128), nullable=True),
+        sa.Column("generator", sa.String(length=64), nullable=False),
+        sa.Column("generator_version", sa.String(length=64), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.CheckConstraint(
+            "kind != 'RENDERED_PAGE' OR (render_profile IS NOT NULL AND page_number IS NOT NULL)",
+            name="ck_score_render_assets_rendered_page_fields",
+        ),
+        sa.ForeignKeyConstraint(
+            ["execution_manifest_id"],
+            ["execution_manifests.id"],
+            name="fk_score_render_assets_execution_manifest",
+            ondelete="SET NULL",
+        ),
+        sa.ForeignKeyConstraint(
+            ["revision_id"],
+            ["score_revisions.id"],
+            name="fk_score_render_assets_revision_id_score_revisions",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["stored_object_id"],
+            ["stored_objects.id"],
+            name="fk_score_render_assets_stored_object_id_stored_objects",
+            ondelete="RESTRICT",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_score_render_assets"),
+        sa.UniqueConstraint("asset_uuid", name="uq_score_render_assets_asset_uuid"),
+        sa.UniqueConstraint(
+            "revision_id",
+            "kind",
+            "render_profile",
+            "page_number",
+            name="uq_score_render_assets_rendered_variant",
+        ),
+        sa.UniqueConstraint("stored_object_id", name="uq_score_render_assets_stored_object"),
+    )
+    op.create_index(
+        "idx_score_render_assets_revision_kind",
+        "score_render_assets",
+        ["revision_id", "kind"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_score_render_assets_execution_manifest_id"),
+        "score_render_assets",
+        ["execution_manifest_id"],
+        unique=False,
+    )
+    op.create_table(
+        "score_revision_events",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("event_uuid", sa.String(length=36), nullable=False),
+        sa.Column("score_id", sa.BigInteger(), nullable=False),
+        sa.Column("revision_id", sa.BigInteger(), nullable=False),
+        sa.Column("target_revision_id", sa.BigInteger(), nullable=True),
+        sa.Column("actor_user_id", sa.BigInteger(), nullable=True),
+        sa.Column("type", sa.String(length=40), nullable=False),
+        sa.Column("note", sa.String(length=500), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["actor_user_id"],
+            ["users.id"],
+            name="fk_score_revision_events_actor_user_id_users",
+            ondelete="SET NULL",
+        ),
+        sa.ForeignKeyConstraint(
+            ["revision_id"],
+            ["score_revisions.id"],
+            name="fk_score_revision_events_revision_id_score_revisions",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["score_id"],
+            ["scores.id"],
+            name="fk_score_revision_events_score_id_scores",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["target_revision_id"],
+            ["score_revisions.id"],
+            name="fk_score_revision_events_target_revision_id_score_revisions",
+            ondelete="SET NULL",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_score_revision_events"),
+        sa.UniqueConstraint("event_uuid", name="uq_score_revision_events_event_uuid"),
+    )
+    op.create_index(
+        "idx_score_revision_events_revision", "score_revision_events", ["revision_id"], unique=False
+    )
+    op.create_index(
+        "idx_score_revision_events_score_created",
+        "score_revision_events",
+        ["score_id", "created_at"],
+        unique=False,
+    )
+    op.create_index(
+        "idx_score_revision_events_target_revision",
+        "score_revision_events",
+        ["target_revision_id"],
+        unique=False,
+    )
+    op.create_table(
+        "score_revision_metadata",
+        sa.Column("revision_id", sa.BigInteger(), nullable=False),
+        sa.Column(
+            "status",
+            postgresql.ENUM("PENDING", "READY", "FAILED", name="metadatastatus", create_type=False),
+            nullable=False,
+        ),
+        sa.Column("measure_count", sa.Integer(), nullable=True),
+        sa.Column("playback_duration_ms", sa.BigInteger(), nullable=True),
+        sa.Column("part_count", sa.Integer(), nullable=True),
+        sa.Column("primary_key_fifths", sa.Integer(), nullable=True),
+        sa.Column("primary_mode", sa.String(length=32), nullable=True),
+        sa.Column(
+            "key_signature_events",
+            sa.JSON().with_variant(postgresql.JSONB(astext_type=sa.Text()), "postgresql"),
+            nullable=False,
+        ),
+        sa.Column(
+            "time_signature_events",
+            sa.JSON().with_variant(postgresql.JSONB(astext_type=sa.Text()), "postgresql"),
+            nullable=False,
+        ),
+        sa.Column(
+            "tempo_events",
+            sa.JSON().with_variant(postgresql.JSONB(astext_type=sa.Text()), "postgresql"),
+            nullable=False,
+        ),
+        sa.Column("extractor_version", sa.String(length=64), nullable=False),
+        sa.Column("error_code", sa.String(length=64), nullable=True),
+        sa.Column("computed_at", sa.DateTime(), nullable=True),
+        sa.CheckConstraint(
+            "status != 'FAILED' OR error_code IS NOT NULL",
+            name="ck_score_revision_metadata_failed_with_error",
+        ),
+        sa.CheckConstraint(
+            "status != 'READY' OR error_code IS NULL",
+            name="ck_score_revision_metadata_ready_without_error",
+        ),
+        sa.ForeignKeyConstraint(
+            ["revision_id"],
+            ["score_revisions.id"],
+            name="fk_score_revision_metadata_revision_id_score_revisions",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("revision_id", name="pk_score_revision_metadata"),
+    )
+    op.create_index(
+        "idx_score_revision_metadata_measure_count",
+        "score_revision_metadata",
+        ["measure_count"],
+        unique=False,
+    )
+    op.create_index(
+        "idx_score_revision_metadata_status", "score_revision_metadata", ["status"], unique=False
+    )
+    op.create_table(
+        "score_revision_notes",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("score_id", sa.BigInteger(), nullable=False),
+        sa.Column("revision_id", sa.BigInteger(), nullable=False),
+        sa.Column("author_user_id", sa.BigInteger(), nullable=True),
+        sa.Column("note", sa.String(length=500), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["author_user_id"],
+            ["users.id"],
+            name="fk_score_revision_notes_author_user_id_users",
+            ondelete="SET NULL",
+        ),
+        sa.ForeignKeyConstraint(
+            ["revision_id"],
+            ["score_revisions.id"],
+            name="fk_score_revision_notes_revision_id_score_revisions",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["score_id"],
+            ["scores.id"],
+            name="fk_score_revision_notes_score_id_scores",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_score_revision_notes"),
+        sa.UniqueConstraint("revision_id", name="uq_score_revision_notes_revision"),
+    )
+    op.create_index(
+        "idx_score_revision_notes_score_updated",
+        "score_revision_notes",
+        ["score_id", "updated_at"],
+        unique=False,
+    )
+    op.create_table(
+        "score_revision_practice_bindings",
+        sa.Column(
+            "revision_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=False
+        ),
+        sa.Column(
+            "bundle_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=False
+        ),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["bundle_id"],
+            ["practice_bundles.id"],
+            name="fk_score_revision_practice_bindings_bundle_id_practice_bundles",
+            ondelete="RESTRICT",
+        ),
+        sa.ForeignKeyConstraint(
+            ["revision_id"],
+            ["score_revisions.id"],
+            name="fk_score_revision_practice_bindings_revision_id_score_revisions",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("revision_id", name="pk_score_revision_practice_bindings"),
+    )
+    op.create_index(
+        op.f("ix_score_revision_practice_bindings_bundle_id"),
+        "score_revision_practice_bindings",
+        ["bundle_id"],
+        unique=False,
+    )
+    op.create_table(
+        "score_revision_sources",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("source_uuid", sa.String(length=36), nullable=False),
+        sa.Column("revision_id", sa.BigInteger(), nullable=False),
+        sa.Column(
+            "format",
+            postgresql.ENUM("MUSICXML", name="revisionsourceformat", create_type=False),
+            nullable=False,
+        ),
+        sa.Column(
+            "stored_object_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=False
+        ),
+        sa.Column("filename", sa.String(length=255), nullable=False),
+        sa.Column("generator", sa.String(length=64), nullable=False),
+        sa.Column("generator_version", sa.String(length=64), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["revision_id"],
+            ["score_revisions.id"],
+            name="fk_score_revision_sources_revision_id_score_revisions",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["stored_object_id"],
+            ["stored_objects.id"],
+            name="fk_score_revision_sources_stored_object_id_stored_objects",
+            ondelete="RESTRICT",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_score_revision_sources"),
+        sa.UniqueConstraint(
+            "revision_id", "format", name="uq_score_revision_sources_revision_format"
+        ),
+        sa.UniqueConstraint("source_uuid", name="uq_score_revision_sources_source_uuid"),
+        sa.UniqueConstraint("stored_object_id", name="uq_score_revision_sources_stored_object"),
+    )
+    op.create_index(
+        "idx_score_revision_sources_revision_format",
+        "score_revision_sources",
+        ["revision_id", "format"],
+        unique=False,
+    )
+    op.create_foreign_key(
+        "fk_import_jobs_score_id",
+        "import_jobs",
+        "scores",
+        ["score_id"],
+        ["id"],
+        ondelete="SET NULL",
+        use_alter=True,
+    )
+    op.create_foreign_key(
+        "fk_refresh_tokens_replaced_by_token_id_refresh_tokens",
+        "refresh_tokens",
+        "refresh_tokens",
+        ["replaced_by_token_id"],
+        ["id"],
+    )
+    op.create_foreign_key(
+        "fk_score_library_folders_parent_folder_id_score_library_folders",
+        "score_library_folders",
+        "score_library_folders",
+        ["parent_folder_id"],
+        ["id"],
+    )
+    op.create_foreign_key(
+        "fk_scores_head_revision",
+        "scores",
+        "score_revisions",
+        ["id", "head_revision_id"],
+        ["score_id", "id"],
+        use_alter=True,
+    )
+    _seed_taxonomy_baseline()
+    op.execute(
+        sa.text(
+            "INSERT INTO storage_quota_policies (plan_code, quota_limit_bytes, created_at, updated_at) VALUES ('FREE', 104857600, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+        )
+    )
+
+
+def downgrade() -> None:
+    op.drop_constraint("fk_scores_head_revision", "scores", type_="foreignkey")
+    op.drop_constraint(
+        "fk_score_library_folders_parent_folder_id_score_library_folders",
+        "score_library_folders",
+        type_="foreignkey",
+    )
+    op.drop_constraint(
+        "fk_refresh_tokens_replaced_by_token_id_refresh_tokens",
+        "refresh_tokens",
+        type_="foreignkey",
+    )
+    op.drop_constraint("fk_import_jobs_score_id", "import_jobs", type_="foreignkey")
+    op.drop_index("idx_score_revision_sources_revision_format", table_name="score_revision_sources")
+    op.drop_table("score_revision_sources")
+    op.drop_index(
+        op.f("ix_score_revision_practice_bindings_bundle_id"),
+        table_name="score_revision_practice_bindings",
+    )
+    op.drop_table("score_revision_practice_bindings")
+    op.drop_index("idx_score_revision_notes_score_updated", table_name="score_revision_notes")
+    op.drop_table("score_revision_notes")
+    op.drop_index("idx_score_revision_metadata_status", table_name="score_revision_metadata")
+    op.drop_index("idx_score_revision_metadata_measure_count", table_name="score_revision_metadata")
+    op.drop_table("score_revision_metadata")
+    op.drop_index("idx_score_revision_events_target_revision", table_name="score_revision_events")
+    op.drop_index("idx_score_revision_events_score_created", table_name="score_revision_events")
+    op.drop_index("idx_score_revision_events_revision", table_name="score_revision_events")
+    op.drop_table("score_revision_events")
+    op.drop_index(
+        op.f("ix_score_render_assets_execution_manifest_id"), table_name="score_render_assets"
+    )
+    op.drop_index("idx_score_render_assets_revision_kind", table_name="score_render_assets")
+    op.drop_table("score_render_assets")
+    op.drop_index(
+        op.f("ix_score_playback_assets_execution_manifest_id"), table_name="score_playback_assets"
+    )
+    op.drop_index("idx_score_playback_assets_revision_kind", table_name="score_playback_assets")
+    op.drop_table("score_playback_assets")
+    op.drop_index("idx_score_guest_previews_token_hash", table_name="score_guest_preview_grants")
+    op.drop_index("idx_score_guest_previews_score_created", table_name="score_guest_preview_grants")
+    op.drop_table("score_guest_preview_grants")
+    op.drop_index(op.f("ix_render_outbox_originating_request_id"), table_name="render_outbox")
+    op.drop_index("idx_render_outbox_status_available", table_name="render_outbox")
+    op.drop_index("idx_render_outbox_dispatched", table_name="render_outbox")
+    op.drop_table("render_outbox")
+    op.drop_index(op.f("ix_playback_outbox_originating_request_id"), table_name="playback_outbox")
+    op.drop_index("idx_playback_outbox_status_available", table_name="playback_outbox")
+    op.drop_index("idx_playback_outbox_dispatched", table_name="playback_outbox")
+    op.drop_table("playback_outbox")
+    op.drop_index("idx_score_taxonomy_tags_tag_score", table_name="score_taxonomy_tags")
+    op.drop_table("score_taxonomy_tags")
+    op.drop_index("idx_score_revisions_score_created", table_name="score_revisions")
+    op.drop_table("score_revisions")
+    op.drop_index("idx_score_memberships_user_active", table_name="score_memberships")
+    op.drop_table("score_memberships")
+    op.drop_index(
+        "uq_score_library_entries_active_uuid",
+        table_name="score_library_entries",
+        postgresql_where=sa.text("deleted_at IS NULL"),
+        sqlite_where=sa.text("deleted_at IS NULL"),
+    )
+    op.drop_index(
+        "uq_score_library_entries_active_source",
+        table_name="score_library_entries",
+        postgresql_where=sa.text("deleted_at IS NULL"),
+        sqlite_where=sa.text("deleted_at IS NULL"),
+    )
+    op.drop_index("idx_score_library_entries_user_updated", table_name="score_library_entries")
+    op.drop_index("idx_score_library_entries_user_practiced", table_name="score_library_entries")
+    op.drop_index(
+        "idx_score_library_entries_user_practice_state", table_name="score_library_entries"
+    )
+    op.drop_index("idx_score_library_entries_user_folder", table_name="score_library_entries")
+    op.drop_index("idx_score_library_entries_user_favorite", table_name="score_library_entries")
+    op.drop_table("score_library_entries")
+    op.drop_index("idx_score_invites_token_hash", table_name="score_invites")
+    op.drop_index("idx_score_invites_score_created", table_name="score_invites")
+    op.drop_index("idx_score_invites_email_status", table_name="score_invites")
+    op.drop_table("score_invites")
+    op.drop_index("idx_score_input_assets_upload", table_name="score_input_assets")
+    op.drop_index("idx_score_input_assets_score_order", table_name="score_input_assets")
+    op.drop_table("score_input_assets")
+    op.drop_index(op.f("ix_performance_takes_linked_score_id"), table_name="performance_takes")
+    op.drop_table("performance_takes")
+    op.drop_index("idx_scores_owner_updated", table_name="scores")
+    op.drop_index("idx_scores_owner_deletion_updated", table_name="scores")
+    op.drop_index("idx_scores_deletion_request_id", table_name="scores")
+    op.drop_index("idx_scores_deletion_cleanup_due", table_name="scores")
+    op.drop_table("scores")
+    op.drop_index(
+        "ix_take_upload_reservation_status_expires",
+        table_name="performance_take_upload_reservations",
+    )
+    op.drop_index(
+        op.f("ix_performance_take_upload_reservations_user_id"),
+        table_name="performance_take_upload_reservations",
+    )
+    op.drop_index(
+        op.f("ix_performance_take_upload_reservations_storage_reservation_id"),
+        table_name="performance_take_upload_reservations",
+    )
+    op.drop_index(
+        op.f("ix_performance_take_upload_reservations_reservation_uuid"),
+        table_name="performance_take_upload_reservations",
+    )
+    op.drop_index(
+        op.f("ix_performance_take_upload_reservations_manifest_id"),
+        table_name="performance_take_upload_reservations",
+    )
+    op.drop_index(
+        op.f("ix_performance_take_upload_reservations_client_request_id"),
+        table_name="performance_take_upload_reservations",
+    )
+    op.drop_table("performance_take_upload_reservations")
+    op.drop_index("idx_import_job_uploads_job", table_name="import_job_uploads")
+    op.drop_table("import_job_uploads")
+    op.drop_index("idx_import_job_steps_job_order", table_name="import_job_steps")
+    op.drop_table("import_job_steps")
+    op.drop_index("idx_import_artifacts_job_kind", table_name="import_artifacts")
+    op.drop_table("import_artifacts")
+    op.drop_index("idx_uploads_user_created", table_name="uploads")
+    op.drop_index("idx_uploads_stored_object", table_name="uploads")
+    op.drop_table("uploads")
+    op.drop_index(
+        "idx_storage_usage_reservations_user_status", table_name="storage_usage_reservations"
+    )
+    op.drop_table("storage_usage_reservations")
+    op.drop_index("idx_storage_usage_events_user_created", table_name="storage_usage_events")
+    op.drop_index("idx_storage_usage_events_object", table_name="storage_usage_events")
+    op.drop_table("storage_usage_events")
+    op.drop_index("idx_storage_usage_counters_user", table_name="storage_usage_counters")
+    op.drop_table("storage_usage_counters")
+    op.drop_table("storage_usage_accounts")
+    op.drop_index(
+        "uq_score_library_folders_active_name",
+        table_name="score_library_folders",
+        postgresql_where=sa.text("deleted_at IS NULL"),
+        sqlite_where=sa.text("deleted_at IS NULL"),
+    )
+    op.drop_index("idx_score_library_folders_user_parent", table_name="score_library_folders")
+    op.drop_table("score_library_folders")
+    op.drop_index("idx_refresh_tokens_user_created", table_name="refresh_tokens")
+    op.drop_index("idx_refresh_tokens_revoked", table_name="refresh_tokens")
+    op.drop_index("idx_refresh_tokens_expires", table_name="refresh_tokens")
+    op.drop_table("refresh_tokens")
+    op.drop_index("idx_realtime_events_type", table_name="realtime_events")
+    op.drop_index("idx_realtime_events_score", table_name="realtime_events")
+    op.drop_index("idx_realtime_events_recipient_id", table_name="realtime_events")
+    op.drop_index("idx_realtime_events_recipient_created", table_name="realtime_events")
+    op.drop_table("realtime_events")
+    op.drop_index("ix_take_manifest_user_created", table_name="performance_take_manifests")
+    op.drop_index(
+        op.f("ix_performance_take_manifests_user_id"), table_name="performance_take_manifests"
+    )
+    op.drop_index(
+        op.f("ix_performance_take_manifests_take_uuid"), table_name="performance_take_manifests"
+    )
+    op.drop_table("performance_take_manifests")
+    op.drop_index("idx_operator_sessions_revoked", table_name="operator_sessions")
+    op.drop_index("idx_operator_sessions_operator_created", table_name="operator_sessions")
+    op.drop_index("idx_operator_sessions_expires", table_name="operator_sessions")
+    op.drop_table("operator_sessions")
+    op.drop_table("operator_password_credentials")
+    op.drop_index("idx_notification_events_resource", table_name="notification_events")
+    op.drop_index("idx_notification_events_recipient_read", table_name="notification_events")
+    op.drop_index("idx_notification_events_recipient_created", table_name="notification_events")
+    op.drop_table("notification_events")
+    op.drop_index(op.f("ix_import_jobs_originating_request_id"), table_name="import_jobs")
+    op.drop_index(op.f("ix_import_jobs_execution_manifest_id"), table_name="import_jobs")
+    op.drop_index("idx_import_jobs_user_created", table_name="import_jobs")
+    op.drop_index("idx_import_jobs_state", table_name="import_jobs")
+    op.drop_index("idx_import_jobs_dispatch_due", table_name="import_jobs")
+    op.drop_table("import_jobs")
+    op.drop_index("idx_email_change_requests_user_created", table_name="email_change_requests")
+    op.drop_index("idx_email_change_requests_token_hash", table_name="email_change_requests")
+    op.drop_index("idx_email_change_requests_new_email", table_name="email_change_requests")
+    op.drop_index("idx_email_change_requests_expires", table_name="email_change_requests")
+    op.drop_index("idx_email_change_requests_consumed", table_name="email_change_requests")
+    op.drop_table("email_change_requests")
+    op.drop_index("idx_auth_tokens_user_purpose", table_name="auth_tokens")
+    op.drop_index("idx_auth_tokens_used", table_name="auth_tokens")
+    op.drop_index("idx_auth_tokens_expires", table_name="auth_tokens")
+    op.drop_table("auth_tokens")
+    op.drop_index(op.f("ix_users_avatar_object_id"), table_name="users")
+    op.drop_table("users")
+    op.drop_index("idx_taxonomy_tags_category_active_sort", table_name="taxonomy_tags")
+    op.drop_table("taxonomy_tags")
+    op.drop_index("ix_object_retirement_due", table_name="stored_object_retirements")
+    op.drop_table("stored_object_retirements")
+    op.drop_index("ix_practice_bundles_status_creation", table_name="practice_bundles")
+    op.drop_table("practice_bundles")
+    op.drop_index("idx_ops_audit_events_operation", table_name="ops_audit_events")
+    op.drop_index("idx_ops_audit_events_actor_created", table_name="ops_audit_events")
+    op.drop_index("idx_ops_audit_events_action_created", table_name="ops_audit_events")
+    op.drop_table("ops_audit_events")
+    op.drop_index("idx_operator_identities_operator", table_name="operator_identities")
+    op.drop_table("operator_identities")
+    op.drop_index("idx_taxonomy_categories_active_sort", table_name="taxonomy_categories")
+    op.drop_table("taxonomy_categories")
+    op.drop_index("ix_stored_objects_sha256", table_name="stored_objects")
+    op.drop_table("stored_objects")
+    op.drop_table("storage_quota_policies")
+    op.drop_table("scheduler_leader_statuses")
+    op.drop_index("idx_scheduler_heartbeats_last_success", table_name="scheduler_heartbeats")
+    op.drop_index("idx_scheduler_heartbeats_job_key", table_name="scheduler_heartbeats")
+    op.drop_table("scheduler_heartbeats")
+    op.drop_index("idx_pending_registrations_token_hash", table_name="pending_registrations")
+    op.drop_index("idx_pending_registrations_expires", table_name="pending_registrations")
+    op.drop_index("idx_pending_registrations_email", table_name="pending_registrations")
+    op.drop_index("idx_pending_registrations_consumed", table_name="pending_registrations")
+    op.drop_table("pending_registrations")
+    op.drop_index("idx_operators_status", table_name="operators")
+    op.drop_table("operators")
+    op.drop_index("ix_object_write_intent_due", table_name="object_write_intents")
+    op.drop_table("object_write_intents")
+    op.drop_index(op.f("ix_mail_outbox_originating_request_id"), table_name="mail_outbox")
+    op.drop_index("idx_mail_outbox_status_available", table_name="mail_outbox")
+    op.drop_index("idx_mail_outbox_dispatched", table_name="mail_outbox")
+    op.drop_index("idx_mail_outbox_created", table_name="mail_outbox")
+    op.drop_table("mail_outbox")
+    op.drop_table("execution_manifests")
+    postgresql.ENUM(name="importdispatchstatus").drop(op.get_bind(), checkfirst=False)
+    postgresql.ENUM(name="importjobstate").drop(op.get_bind(), checkfirst=False)
+    postgresql.ENUM(name="importjobstepstatus").drop(op.get_bind(), checkfirst=False)
+    postgresql.ENUM(name="invitestatus").drop(op.get_bind(), checkfirst=False)
+    postgresql.ENUM(name="libraryentrysourcetype").drop(op.get_bind(), checkfirst=False)
+    postgresql.ENUM(name="librarypracticestate").drop(op.get_bind(), checkfirst=False)
+    postgresql.ENUM(name="mailoutboxstatus").drop(op.get_bind(), checkfirst=False)
+    postgresql.ENUM(name="membershiprole").drop(op.get_bind(), checkfirst=False)
+    postgresql.ENUM(name="metadatastatus").drop(op.get_bind(), checkfirst=False)
+    postgresql.ENUM(name="operatoridentityprovider").drop(op.get_bind(), checkfirst=False)
+    postgresql.ENUM(name="operatorrole").drop(op.get_bind(), checkfirst=False)
+    postgresql.ENUM(name="operatorstatus").drop(op.get_bind(), checkfirst=False)
+    postgresql.ENUM(name="performancetakemediakind").drop(op.get_bind(), checkfirst=False)
+    postgresql.ENUM(name="playbackassetkind").drop(op.get_bind(), checkfirst=False)
+    postgresql.ENUM(name="playbackoutboxstatus").drop(op.get_bind(), checkfirst=False)
+    postgresql.ENUM(name="renderassetkind").drop(op.get_bind(), checkfirst=False)
+    postgresql.ENUM(name="renderoutboxstatus").drop(op.get_bind(), checkfirst=False)
+    postgresql.ENUM(name="rendertargettype").drop(op.get_bind(), checkfirst=False)
+    postgresql.ENUM(name="revisionorigin").drop(op.get_bind(), checkfirst=False)
+    postgresql.ENUM(name="revisionsourceformat").drop(op.get_bind(), checkfirst=False)
+    postgresql.ENUM(name="scoredeletionstatus").drop(op.get_bind(), checkfirst=False)
+    postgresql.ENUM(name="storageusagecategory").drop(op.get_bind(), checkfirst=False)
+    postgresql.ENUM(name="storageusagereservationstatus").drop(op.get_bind(), checkfirst=False)

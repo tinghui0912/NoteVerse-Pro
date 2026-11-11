@@ -19,7 +19,6 @@ from app.modules.performance_takes.upload_reservation.persistence import (
 
 import asyncio
 from contextlib import contextmanager
-from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import hashlib
 import json
@@ -30,7 +29,7 @@ from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import event, inspect, select, text
+from sqlalchemy import event, select, text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
@@ -413,21 +412,6 @@ def test_performance_take_schema_accepts_score_tempo_selection() -> None:
     )
 
     assert request.tempo_selection.mode == "SCORE"
-
-
-POSTGRES_MIGRATION_EMPTY_URL_ENV = "NOTEVERSE_TEST_POSTGRES_MIGRATION_EMPTY_URL"
-POSTGRES_MIGRATION_RESTRICTED_ALEMBIC_URL_ENV = (
-    "NOTEVERSE_TEST_POSTGRES_MIGRATION_RESTRICTED_ALEMBIC_URL"
-)
-POSTGRES_TEST_DATABASE_PREFIX = "noteverse_test_"
-
-
-@dataclass(frozen=True)
-class PostgresMigrationTestDatabase:
-    database_name: str
-    psycopg_url: str
-    sqlalchemy_sync_url: str
-    alembic_async_url: str
 
 
 class AsyncSessionAdapter:
@@ -3134,160 +3118,6 @@ def test_expired_finalizing_lease_records_candidate_before_retry(test_env):
     assert auth.finalizing_token is None
     assert auth.finalizing_object_key is None
     assert candidate_key in (auth.orphan_final_object_keys or "")
-
-
-def _normalise_psycopg_url(database_url: str) -> str:
-    return database_url.replace("postgresql+asyncpg://", "postgresql://", 1).replace(
-        "postgresql+psycopg://", "postgresql://", 1
-    )
-
-
-def _postgres_sqlalchemy_url(database_url: str, *, driver: str) -> str:
-    normalized = _normalise_psycopg_url(database_url)
-    return normalized.replace("postgresql://", f"postgresql+{driver}://", 1)
-
-
-def _postgres_migration_test_database(env_var: str) -> PostgresMigrationTestDatabase:
-    import psycopg
-
-    database_url = os.environ.get(env_var)
-    if not database_url:
-        pytest.skip(
-            f"PostgreSQL migration test NOT VERIFIED: set {env_var} to an explicit "
-            "dedicated PostgreSQL test database URL."
-        )
-
-    normalized = _normalise_psycopg_url(database_url.strip())
-    if not normalized.startswith("postgresql://"):
-        pytest.skip(f"PostgreSQL migration test NOT VERIFIED: {env_var} must use a PostgreSQL URL.")
-
-    conn = psycopg.connect(normalized, autocommit=True, connect_timeout=3)
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT current_database(), current_user, rolsuper, rolcreatedb
-                FROM pg_roles
-                WHERE rolname = current_user
-                """
-            )
-            database_name, _user_name, is_superuser, can_create_db = cur.fetchone()
-            if not str(database_name).startswith(POSTGRES_TEST_DATABASE_PREFIX):
-                pytest.skip(
-                    "PostgreSQL migration test NOT VERIFIED: target database name must "
-                    f"start with {POSTGRES_TEST_DATABASE_PREFIX!r}."
-                )
-            if is_superuser or can_create_db:
-                pytest.skip(
-                    "PostgreSQL migration test NOT VERIFIED: test user must not be "
-                    "SUPERUSER and must not have CREATEDB."
-                )
-    finally:
-        conn.close()
-
-    return PostgresMigrationTestDatabase(
-        database_name=database_name,
-        psycopg_url=normalized,
-        sqlalchemy_sync_url=_postgres_sqlalchemy_url(normalized, driver="psycopg"),
-        alembic_async_url=_postgres_sqlalchemy_url(normalized, driver="psycopg"),
-    )
-
-
-def _assert_postgres_database_empty(database_url: str) -> None:
-    import psycopg
-
-    conn = psycopg.connect(database_url, autocommit=True, connect_timeout=3)
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT table_name
-                FROM information_schema.tables
-                WHERE table_schema = 'public'
-                """
-            )
-            tables = [row[0] for row in cur.fetchall()]
-            if tables:
-                pytest.skip(
-                    "PostgreSQL migration test NOT VERIFIED: target test database is "
-                    f"not empty; rebuild the isolated test container/database. Tables: {tables}"
-                )
-    finally:
-        conn.close()
-
-
-def _alembic_config(database_url: str):
-    from alembic.config import Config
-
-    alembic_dir = str(Path(__file__).resolve().parents[1] / "alembic")
-    cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
-    cfg.set_main_option("script_location", alembic_dir)
-    cfg.set_main_option("sqlalchemy.url", database_url)
-    return cfg
-
-
-def _assert_performance_take_upgrade_state(
-    *, alembic_async_url: str, sqlalchemy_sync_url: str
-) -> None:
-    from alembic import command
-
-    command.upgrade(
-        _alembic_config(alembic_async_url),
-        "0053_practice_bundle_takes",
-    )
-    engine_pg = create_engine(sqlalchemy_sync_url)
-    try:
-        inspector = inspect(engine_pg)
-        tables = set(inspector.get_table_names())
-        from tests.test_practice_bundle_migration import assert_current_bundle_schema
-
-        assert {
-            "practice_bundles",
-            "performance_takes",
-            "performance_take_upload_reservations",
-            "practice_bundle_delete_outbox",
-        } <= tables
-        assert_current_bundle_schema(engine_pg)
-        version_cols = {c["name"]: c for c in inspector.get_columns("alembic_version")}
-        assert getattr(version_cols["version_num"]["type"], "length", None) == 128
-
-    finally:
-        engine_pg.dispose()
-
-
-def test_empty_postgresql_database_initializes_with_wide_alembic_version_table():
-    """Run the real migration chain from a pre-provisioned empty PostgreSQL database."""
-
-    from alembic import command
-
-    pg = _postgres_migration_test_database(POSTGRES_MIGRATION_EMPTY_URL_ENV)
-    _assert_postgres_database_empty(pg.psycopg_url)
-    command.upgrade(
-        _alembic_config(pg.alembic_async_url),
-        "0053_practice_bundle_takes",
-    )
-    engine_pg = create_engine(pg.sqlalchemy_sync_url)
-    try:
-        inspector = inspect(engine_pg)
-        version_cols = {c["name"]: c for c in inspector.get_columns("alembic_version")}
-        assert getattr(version_cols["version_num"]["type"], "length", None) == 128
-        assert "performance_takes" in inspector.get_table_names()
-    finally:
-        engine_pg.dispose()
-
-
-def test_postgresql_version_table_widening_permission_error_is_not_swallowed():
-    """A permission failure while widening alembic_version must abort before migrations."""
-
-    from alembic import command
-    from sqlalchemy.exc import DBAPIError
-
-    pg = _postgres_migration_test_database(POSTGRES_MIGRATION_RESTRICTED_ALEMBIC_URL_ENV)
-    with pytest.raises((DBAPIError, PermissionError, RuntimeError)):
-        command.upgrade(
-            _alembic_config(pg.alembic_async_url),
-            "0053_practice_bundle_takes",
-        )
 
 
 @contextmanager

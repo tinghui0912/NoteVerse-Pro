@@ -6,8 +6,8 @@ from alembic import command
 from sqlalchemy.exc import IntegrityError
 from app.db.models import User
 from app.utils.timezone import utc_now_naive
-from tests.test_practice_bundle_migration import migration_database
-from tests.test_upload_reservation_migration import reservation_values, manifest_values
+from tests.support.postgres_schema import postgres_schema_database
+from tests.test_performance_take_schema import reservation_values, manifest_values
 
 
 @pytest.mark.parametrize(
@@ -27,7 +27,7 @@ from tests.test_upload_reservation_migration import reservation_values, manifest
     ],
 )
 def test_fresh_schema_enforces_current_lifecycle_tuples(monkeypatch, status, lease, valid):
-    with migration_database(monkeypatch) as (engine, config):
+    with postgres_schema_database(monkeypatch) as (engine, config):
         command.upgrade(config, "head")
         users = sa.Table("users", sa.MetaData(), autoload_with=engine)
         reservations = sa.Table(

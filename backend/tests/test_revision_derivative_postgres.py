@@ -30,13 +30,13 @@ from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.score_assets.render_outbox_service import render_outbox_service
 from app.modules.playback.outbox_service import playback_outbox_service
 from tests.support.object_storage import InMemoryObjectStorage
-from tests.test_practice_bundle_migration import migration_database
+from tests.support.postgres_schema import postgres_schema_database
 from tests.test_score_revision_services import AsyncSessionAdapter, MUSICXML_2
 
 
 @pytest.mark.parametrize("order", ["worker_first", "preview_first"])
 def test_preview_head_race_preserves_durable_demand(monkeypatch, tmp_path, order):
-    with migration_database(monkeypatch) as (engine, config):
+    with postgres_schema_database(monkeypatch) as (engine, config):
         command.upgrade(config, "head")
         enums = {item["name"]: item["labels"] for item in sa.inspect(engine).get_enums()}
         assert enums["renderoutboxstatus"] == [status.value for status in RenderOutboxStatus]

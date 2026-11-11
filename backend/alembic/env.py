@@ -26,6 +26,7 @@ target_metadata = SQLModel.metadata
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
+
 def _alembic_database_url(url: str) -> str:
     if url.startswith("postgresql://"):
         return url.replace("postgresql://", "postgresql+psycopg://", 1)
@@ -41,14 +42,7 @@ POSTGRESQL_ALEMBIC_VERSION_LENGTH = 128
 
 
 def _prepare_postgresql_version_table(connection: Connection) -> None:
-    """Ensure PostgreSQL's Alembic version table can store project revision ids.
-
-    Alembic's default version_num width is 32 characters, while this repository
-    already has revision identifiers up to 40 characters.  We create the table
-    explicitly for fresh PostgreSQL databases and widen existing shorter tables
-    before Alembic starts its migration transaction.  Any failure must abort the
-    run so PostgreSQL does not continue after an aborted DDL transaction.
-    """
+    """Project semantic revision identifiers use a 128-character version column."""
 
     inspector = inspect(connection)
     if not inspector.has_table("alembic_version"):
@@ -68,14 +62,8 @@ def _prepare_postgresql_version_table(connection: Connection) -> None:
     if version_num is None:
         raise RuntimeError("Existing alembic_version table is missing version_num column")
 
-    current_length = getattr(version_num["type"], "length", None)
-    if current_length is None or current_length < POSTGRESQL_ALEMBIC_VERSION_LENGTH:
-        connection.execute(
-            text(
-                "ALTER TABLE alembic_version "
-                f"ALTER COLUMN version_num TYPE VARCHAR({POSTGRESQL_ALEMBIC_VERSION_LENGTH})"
-            )
-        )
+    if getattr(version_num["type"], "length", None) != POSTGRESQL_ALEMBIC_VERSION_LENGTH:
+        raise RuntimeError("alembic_version.version_num must use the project 128-character policy")
 
 
 def run_migrations_offline() -> None:

@@ -10,11 +10,11 @@ from sqlalchemy.exc import IntegrityError
 from app.db.models import ScoreGuestPreviewGrant, Score, ScoreRevision, User
 from app.db.models.score import RevisionOrigin
 from app.utils.timezone import utc_now_naive
-from tests.test_practice_bundle_migration import migration_database
+from tests.support.postgres_schema import postgres_schema_database
 
 
 def test_fresh_postgres_preview_constraints_and_cascade(monkeypatch):
-    with migration_database(monkeypatch) as (engine, config):
+    with postgres_schema_database(monkeypatch) as (engine, config):
         command.upgrade(config, "head")
         inspector = sa.inspect(engine)
         table = ScoreGuestPreviewGrant.__table__
@@ -83,11 +83,3 @@ def test_fresh_postgres_preview_constraints_and_cascade(monkeypatch):
             db.delete(ra)
             db.commit()
             assert db.scalar(sa.select(sa.func.count()).select_from(table)) == 0
-        # Current access origins are runtime authorities, not a retired session DB enum.
-        with engine.connect() as connection:
-            enums = connection.scalars(
-                sa.text(
-                    "SELECT typname FROM pg_type JOIN pg_namespace ON pg_namespace.oid=pg_type.typnamespace WHERE nspname=current_schema() AND typtype='e'"
-                )
-            ).all()
-            assert "accessorigin" not in enums

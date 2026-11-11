@@ -15,7 +15,7 @@ from app.db.models import (
     PerformanceTake,
 )
 from app.utils.timezone import utc_now_naive
-from tests.test_practice_bundle_migration import migration_database, assert_current_bundle_schema
+from tests.support.postgres_schema import postgres_schema_database
 
 
 def manifest_values(user_id):
@@ -43,9 +43,8 @@ def reservation_values(user_id, manifest_id):
 def test_fresh_manifest_shared_by_reservation_and_take(monkeypatch):
     from app.db.models import PerformanceTakeManifest
 
-    with migration_database(monkeypatch) as (engine, config):
+    with postgres_schema_database(monkeypatch) as (engine, config):
         command.upgrade(config, "head")
-        assert_current_bundle_schema(engine)
         with Session(engine) as db:
             user = User(email="snapshot@example.com", display_name="Snapshot", password_hash="test")
             db.add(user)
@@ -125,3 +124,59 @@ def test_fresh_manifest_shared_by_reservation_and_take(monkeypatch):
             with pytest.raises(IntegrityError):
                 db.commit()
             db.rollback()
+
+
+def test_manifest_coordinates_are_exact_bounded_integers(monkeypatch):
+    from app.db.models import PerformanceTakeManifest
+    from fractions import Fraction
+
+    with postgres_schema_database(monkeypatch) as (engine, config):
+        command.upgrade(config, "head")
+        with Session(engine) as db:
+            user = User(
+                email="coordinates@example.com", display_name="Coordinates", password_hash="test"
+            )
+            db.add(user)
+            db.flush()
+            values = manifest_values(user.id) | {
+                "ticks_per_quarter": 60,
+                "scope_start_tick": 30,
+                "scope_terminal_tick": 113,
+            }
+            row = PerformanceTakeManifest(**values)
+            db.add(row)
+            db.commit()
+            db.refresh(row)
+            assert Fraction(row.scope_start_tick, row.ticks_per_quarter) == Fraction(1, 2)
+            assert Fraction(row.scope_terminal_tick, row.ticks_per_quarter) == Fraction(113, 60)
+            for patch in [
+                {"ticks_per_quarter": 0},
+                {"ticks_per_quarter": -1},
+                {"ticks_per_quarter": 9007199254740992},
+                {"scope_start_tick": -1},
+                {"scope_start_tick": 9007199254740992},
+                {"scope_terminal_tick": 0},
+                {"scope_terminal_tick": -1},
+                {"scope_terminal_tick": 9007199254740992},
+                {"scope_start_tick": 114},
+            ]:
+                with pytest.raises(IntegrityError) as error:
+                    db.execute(
+                        sa.update(PerformanceTakeManifest)
+                        .where(PerformanceTakeManifest.id == row.id)
+                        .values(**patch)
+                    )
+                    db.commit()
+                assert error.value.orig.sqlstate == "23514"
+                db.rollback()
+            db.execute(
+                sa.update(PerformanceTakeManifest)
+                .where(PerformanceTakeManifest.id == row.id)
+                .values(scope_start_tick=9007199254740990, scope_terminal_tick=9007199254740991)
+            )
+            db.commit()
+            db.refresh(row)
+            assert (row.scope_start_tick, row.scope_terminal_tick) == (
+                9007199254740990,
+                9007199254740991,
+            )

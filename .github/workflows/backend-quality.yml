@@ -205,6 +205,12 @@ jobs:
       - name: Run database migrations
         run: docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -c "python -m alembic upgrade head"
 
+      - name: Verify fresh PostgreSQL schema contract
+        run: >-
+          docker run --rm --network host --env-file "$QUALITY_ENV_FILE"
+          -e NOTEVERSE_TEST_PRACTICE_BUNDLE_POSTGRES_URL="$DATABASE_URL"
+          "$QUALITY_IMAGE" python -m pytest tests/test_database_schema.py -q
+
       - name: Run full backend pytest
         run: >-
           docker run --rm --network host --env-file "$QUALITY_ENV_FILE"

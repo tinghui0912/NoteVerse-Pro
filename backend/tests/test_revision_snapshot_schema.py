@@ -10,11 +10,11 @@ from sqlalchemy.orm import Session
 from app.db.models import Score, ScoreRevision, ScoreGuestPreviewGrant, User
 from app.db.models.score import RevisionOrigin
 from app.utils.timezone import utc_now_naive
-from tests.test_practice_bundle_migration import migration_database
+from tests.support.postgres_schema import postgres_schema_database
 
 
 def test_fresh_snapshot_schema_and_same_score_references(monkeypatch):
-    with migration_database(monkeypatch) as (engine, config):
+    with postgres_schema_database(monkeypatch) as (engine, config):
         command.upgrade(config, "head")
         inspector = sa.inspect(engine)
         columns = {column["name"]: column for column in inspector.get_columns("score_revisions")}
