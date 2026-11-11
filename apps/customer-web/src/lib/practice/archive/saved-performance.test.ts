@@ -5,7 +5,7 @@ import {
   take,
 } from '@/lib/practice/video-export/__fixtures__/saved-take';
 import { localMediaAssetFixture } from '@/lib/practice/__fixtures__/local-media-asset';
-import { recordedPerformanceReplay } from '@/lib/practice/recording/performance-replay';
+import { recordingPlaybackSource } from '@/lib/practice/recording/recording-playback';
 const bundle = {
   binding: {
     scoreId: 'score-1',
@@ -36,10 +36,10 @@ it('admits exactly one recording with canonical artifact and durable scope/tempo
   });
   expect(p.executed.tempoPlan).toEqual(take.manifest.tempo_plan);
   expect(p.recording.timebase).toEqual(take.manifest.recording_timebase);
-  expect(recordedPerformanceReplay(p)?.recordingTimebase).toBe(
+  expect(recordingPlaybackSource(p.recording)?.recordingTimebase).toBe(
     p.recording.timebase,
   );
-  expect(recordedPerformanceReplay(p)?.media).toBe(handle);
+  expect(recordingPlaybackSource(p.recording)?.media).toBe(handle);
 });
 it('validates range identity and ticks before admitting the persisted selection', () => {
   const value = structuredClone(take);

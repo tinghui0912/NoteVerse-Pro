@@ -39,7 +39,7 @@ vi.mock('./playback-position', () => ({
 }));
 
 import { VideoExportPreview } from './preview';
-import { captureReplayVideoFrame } from './preview';
+import { captureRecordingVideoFrame } from './preview';
 
 const recordedPerformance = recordedPerformanceFixture();
 
@@ -72,7 +72,7 @@ describe('VideoExportPreview', () => {
               orientation: 'landscape',
               presentation: { kind: 'split' },
             }}
-            replayVideo={null}
+            recordingVideo={null}
           />
         </NextIntlClientProvider>,
       );
@@ -109,7 +109,7 @@ describe('VideoExportPreview', () => {
               orientation: 'landscape',
               presentation: { kind: 'split' },
             }}
-            replayVideo={null}
+            recordingVideo={null}
           />
         </NextIntlClientProvider>,
       );
@@ -151,7 +151,7 @@ describe('VideoExportPreview', () => {
         adapter={{} as never}
         mediaTimeMs={1250}
         config={{ orientation: 'landscape', presentation: { kind: 'split' } }}
-        replayVideo={video}
+        recordingVideo={video}
       />,
     );
 
@@ -167,7 +167,7 @@ describe('VideoExportPreview', () => {
         adapter={{} as never}
         mediaTimeMs={1250}
         config={{ orientation: 'portrait', presentation: { kind: 'split' } }}
-        replayVideo={video}
+        recordingVideo={video}
       />,
     );
 
@@ -200,7 +200,7 @@ describe('VideoExportPreview', () => {
           orientation: 'portrait',
           presentation: { kind: 'floating', position: 'bottom', size: 'large' },
         }}
-        replayVideo={video}
+        recordingVideo={video}
       />,
     );
 
@@ -261,7 +261,7 @@ describe('VideoExportPreview', () => {
         adapter={{} as never}
         mediaTimeMs={1000}
         config={{ orientation: 'landscape', presentation: { kind: 'split' } }}
-        replayVideo={video}
+        recordingVideo={video}
         onFrameCommitted={onFrameCommitted}
       />,
     );
@@ -284,7 +284,7 @@ describe('VideoExportPreview', () => {
       configurable: true,
       value: 1.05,
     });
-    const source = captureReplayVideoFrame(video, { current: null });
+    const source = captureRecordingVideoFrame(video, { current: null });
     expect(source.mediaTimeMs).toBe(1050);
     expect(source.canvas).toBeInstanceOf(HTMLCanvasElement);
   });

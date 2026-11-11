@@ -89,8 +89,8 @@ function studio() {
       isScoreIdentityConfirmed
       xmlContent="<score />"
       mediaTimeMs={0}
-      isReplayPlaying={false}
-      replayVideo={null}
+      isRecordingPlaying={false}
+      recordingVideo={null}
       open
       onOpenChange={vi.fn()}
       onExportingChange={exporting}

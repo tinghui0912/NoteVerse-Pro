@@ -427,7 +427,7 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
           [
             'recording/recording-artifact.ts',
             'recording/recording-timebase.ts',
-            'recording/performance-replay.ts',
+            'recording/recording-playback.ts',
             'recording/recorded-performance.ts',
             'recording/recorded-performance-timeline.ts',
           ].includes(target) ||
@@ -510,6 +510,16 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
       edge.bindings.every((name) =>
         ['RecordingTimebase', 'RecordingActiveSegment'].includes(name),
       )
+    );
+  if (source === 'recording/recording-playback.ts')
+    return Boolean(
+      edge.typeOnly &&
+        target &&
+        [
+          'recording/recording-artifact.ts',
+          'recording/recording-timebase.ts',
+          'media/local-media-asset.ts',
+        ].includes(target),
     );
   if (source.startsWith('recording/'))
     return Boolean(
@@ -1383,13 +1393,50 @@ describe('Practice bounded domain dependencies', () => {
     }
   });
 
+  it('keeps raw recording playback independent of execution and Review composition', () => {
+    const source = path.join(practiceRoot, 'recording/recording-playback.ts');
+    for (const target of [
+      'review/transient-review-session',
+      'result/continuous-performance-result',
+      'video-export/export',
+      'archive/saved-performance',
+      'run/executed-performance',
+      'recording/recorded-performance',
+    ]) {
+      expect(
+        dependencyAllowed(
+          source,
+          imports(
+            source,
+            `import type { Contract } from '@/lib/practice/${target}';`,
+          )[0],
+        ),
+      ).toBe(false);
+    }
+    const player = path.join(
+      sourceRoot,
+      'components/practice/recording-playback-player.tsx',
+    );
+    const allowed = new Set([
+      '@/lib/practice/recording/recording-playback',
+      '@/lib/practice/recording/recording-timebase',
+      '@/lib/practice/media/local-media-asset',
+      '@/components/ui/button',
+      'react',
+      'lucide-react',
+      'next-intl',
+    ]);
+    for (const edge of imports(player))
+      expect(allowed.has(edge.specifier), edge.specifier).toBe(true);
+  });
+
   it('exposes concrete result/recording owners with explicit entry points', () => {
     for (const file of [
       'result/continuous-performance-result.ts',
       'recording/recording-artifact.ts',
       'recording/recording-timebase.ts',
       'recording/performance-recorder.ts',
-      'recording/performance-replay.ts',
+      'recording/recording-playback.ts',
       'continuous/completion.ts',
       'review/transient-review-session.ts',
     ]) {

@@ -802,11 +802,18 @@ Confidence remains evidence metadata without another uncalibrated threshold.
 
 ## Recording Artifact
 
-`recording/` owns recording semantics, recorder resource lifecycle, replay descriptors and
+`recording/` owns recording semantics, recorder resource lifecycle, original recording playback sources and
 media-to-performance synchronization. `PerformanceRecording` is a discriminated
 NOT_RECORDED / UNAVAILABLE / READY artifact. Only READY carries AUDIO/VIDEO kind,
 LocalMediaAsset, MIME and an immutable recording timebase. Selecting AUDIO or
 VIDEO requires successful recording admission before transport/count-in begins.
+`RecordingPlaybackPlayer` consumes only an original recording source: AUDIO/VIDEO,
+LocalMediaAsset or a current signed playback URL, and optional RecordingTimebase.
+Review composes its published media time with the shared RecordedPerformance timeline
+and score playhead; evaluation annotations remain a separate controller. Save and
+VideoExport consume that same RecordedPerformance. Original AUDIO and VIDEO download
+preserves the admitted bytes and MIME extension through an independent download lease.
+VideoExport preview borrows the recording player's video element as its decode source.
 `PerformanceRecorder.prepare()` resolves only for admitted recording or OFF; missing
 or dead required tracks, permission/device loss, unsupported recorder/MIME, unavailable
 OPFS/Web Locks and storage initialization failure reject with stable recording preparation codes. Admission
@@ -1200,7 +1207,7 @@ retaining a separate owner and never copies media bytes. Controller retirement
 releases its completion owner; clearing, replacing or leaving Review releases the
 Review owner. Save, original raw download and current-completion VideoExport retain
 independent temporary leases and release in finally. Original download revokes its
-object URL before release. Replay holds its own lease until its element URL is revoked.
+object URL before release. RecordingPlayback holds its own lease until its element URL is revoked.
 VideoExportStudio holds one operation lease for both current and saved sessions,
 including cancellation and route exit. The last owner removes the OPFS file.
 

@@ -38,12 +38,12 @@ import {
   usePerformanceTakePlayback,
   usePerformanceTakes,
 } from '@/hooks/queries/use-performance-take-queries';
-import { PerformanceReplayPlayer } from '@/components/practice/performance-replay-player';
+import { RecordingPlaybackPlayer } from '@/components/practice/recording-playback-player';
 import {
   performanceTakesApi,
   type PerformanceTakeRead,
 } from '@/lib/api/performance-takes';
-import type { PlayablePerformanceReplay } from '@/lib/practice/recording/performance-replay';
+import type { RecordingPlaybackSource } from '@/lib/practice/recording/recording-playback';
 import { isSavedVideoCandidate } from '@/lib/practice/archive/saved-performance';
 import { useToast } from '@/hooks/use-toast';
 
@@ -182,18 +182,16 @@ function PerformanceTakeCard({
     }
   };
 
-  const replay: PlayablePerformanceReplay | null = playbackQuery.data?.data
+  const playbackSource: RecordingPlaybackSource | null = playbackQuery.data
+    ?.data
     ? take.manifest.capture.kind === 'VIDEO'
       ? {
-          kind: 'VIDEO_RECORDING',
+          kind: 'VIDEO',
           url: playbackQuery.data.data.playback_url,
-          contentType: take.archive_media.mime_type,
-          byteSize: take.archive_media.byte_size,
         }
       : {
-          kind: 'AUDIO_RECORDING',
+          kind: 'AUDIO',
           url: playbackQuery.data.data.playback_url,
-          contentType: take.archive_media.mime_type,
         }
     : null;
 
@@ -344,8 +342,11 @@ function PerformanceTakeCard({
                     {common('tryAgain')}
                   </Button>
                 </div>
-              ) : replay ? (
-                <PerformanceReplayPlayer replay={replay} autoStart={true} />
+              ) : playbackSource ? (
+                <RecordingPlaybackPlayer
+                  source={playbackSource}
+                  autoStart={true}
+                />
               ) : null}
             </div>
           ) : null}

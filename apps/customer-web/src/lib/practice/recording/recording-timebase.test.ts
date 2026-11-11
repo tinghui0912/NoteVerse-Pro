@@ -6,7 +6,7 @@ import {
   millisecondsToMicroseconds,
   microsecondsToMilliseconds,
   mediaTimeUsToPerformanceTimeUs,
-  replayMediaTimeMsToPerformanceTimeMs,
+  recordingMediaTimeMsToPerformanceTimeMs,
 } from './recording-timebase';
 
 const cases = JSON.parse(
@@ -94,10 +94,10 @@ describe('integer media mapping', () => {
     expect(mediaTimeUsToPerformanceTimeUs(1000000, timebase)).toBe(1100000);
     expect(mediaTimeUsToPerformanceTimeUs(1000001, timebase)).toBe(3100001);
     expect(mediaTimeUsToPerformanceTimeUs(2000000, timebase)).toBe(4100000);
-    expect(replayMediaTimeMsToPerformanceTimeMs(1000.001, timebase)).toBe(
+    expect(recordingMediaTimeMsToPerformanceTimeMs(1000.001, timebase)).toBe(
       3100.001,
     );
-    expect(replayMediaTimeMsToPerformanceTimeMs(0, null)).toBeNull();
+    expect(recordingMediaTimeMsToPerformanceTimeMs(0, null)).toBeNull();
   });
   it('keeps a large performance origin exact without an unsafe intermediate sum', () => {
     const end = Number.MAX_SAFE_INTEGER;

@@ -30,7 +30,7 @@ import {
 import { PageHeader } from '@/components/page';
 import { PreviewLoading } from '@/components/loading';
 import { EmptyState } from '@/components/states/empty-state';
-import { PerformanceReplayPlayer } from '@/components/practice/performance-replay-player';
+import { RecordingPlaybackPlayer } from '@/components/practice/recording-playback-player';
 import { VerovioScoreViewer } from '@/components/score-preview/verovio-score-viewer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -55,7 +55,7 @@ import {
 } from '@/lib/practice/score-view/evaluation-annotations';
 import { PracticeVerovioAdapter } from '@/lib/practice/score-view/verovio-adapter';
 import { resolveReviewScoreState } from '@/lib/practice/review/review-score-state';
-import { recordedPerformanceReplay } from '@/lib/practice/recording/performance-replay';
+import { recordingPlaybackSource } from '@/lib/practice/recording/recording-playback';
 import { recordedPerformance } from '@/lib/practice/recording/recorded-performance';
 import { recordedPerformanceScoreTick } from '@/lib/practice/recording/recorded-performance-timeline';
 import { reviewViewModel } from '@/lib/practice/review/review-view-model';
@@ -124,10 +124,12 @@ export default function PracticeReviewPage({
     null,
   );
   const [videoExportPreviewTimeMs, setVideoExportPreviewTimeMs] = useState(0);
-  const [isReplayPlaying, setIsReplayPlaying] = useState(false);
-  const [replayVideo, setReplayVideo] = useState<HTMLVideoElement | null>(null);
-  const latestReplayTimeMsRef = useRef(0);
-  const [hasExportedOriginalMedia, setHasExportedOriginalMedia] =
+  const [isRecordingPlaying, setIsRecordingPlaying] = useState(false);
+  const [recordingVideo, setRecordingVideo] = useState<HTMLVideoElement | null>(
+    null,
+  );
+  const latestMediaTimeMsRef = useRef(0);
+  const [hasDownloadedOriginalRecording, setHasDownloadedOriginalRecording] =
     useState(false);
   const [leaveIntent, setLeaveIntent] = useState<'score' | 'practice' | null>(
     null,
@@ -182,13 +184,13 @@ export default function PracticeReviewPage({
     [annotationController, isScoreIdentityConfirmed, scoreNoteAnnotations],
   );
 
-  const handleReplayTimeChange = useCallback(
-    (replayTimeMs: number | null, actualMediaDurationMs?: number | null) => {
-      latestReplayTimeMsRef.current = Math.max(0, replayTimeMs ?? 0);
+  const handleRecordingMediaTimeChange = useCallback(
+    (mediaTimeMs: number | null, actualMediaDurationMs?: number | null) => {
+      latestMediaTimeMsRef.current = Math.max(0, mediaTimeMs ?? 0);
       const container = scoreContainerRef.current;
       if (!container || !result) return;
       if (
-        replayTimeMs === null ||
+        mediaTimeMs === null ||
         recording?.status !== 'READY' ||
         !isScoreIdentityConfirmed ||
         scoreState?.status !== 'READY'
@@ -199,7 +201,7 @@ export default function PracticeReviewPage({
       const scoreTick = recorded
         ? recordedPerformanceScoreTick(
             recorded,
-            replayTimeMs,
+            mediaTimeMs,
             actualMediaDurationMs,
           )
         : null;
@@ -220,16 +222,16 @@ export default function PracticeReviewPage({
     ],
   );
 
-  const handleReplayPlaybackStateChange = useCallback((playing: boolean) => {
-    setIsReplayPlaying(playing);
+  const handleRecordingPlaybackStateChange = useCallback((playing: boolean) => {
+    setIsRecordingPlaying(playing);
     if (!playing) {
-      setVideoExportPreviewTimeMs(latestReplayTimeMsRef.current);
+      setVideoExportPreviewTimeMs(latestMediaTimeMsRef.current);
     }
   }, []);
 
-  const handleReplaySeekCommitted = useCallback((replayTimeMs: number) => {
-    latestReplayTimeMsRef.current = Math.max(0, replayTimeMs);
-    setVideoExportPreviewTimeMs(Math.max(0, replayTimeMs));
+  const handleRecordingSeekCommitted = useCallback((mediaTimeMs: number) => {
+    latestMediaTimeMsRef.current = Math.max(0, mediaTimeMs);
+    setVideoExportPreviewTimeMs(Math.max(0, mediaTimeMs));
   }, []);
 
   useEffect(() => {
@@ -266,7 +268,11 @@ export default function PracticeReviewPage({
     scoreNoteAnnotations,
   ]);
 
-  const replay = useMemo(() => recordedPerformanceReplay(recorded), [recorded]);
+  const playbackSource = useMemo(
+    () =>
+      recordingPlaybackSource(recording?.status === 'READY' ? recording : null),
+    [recording],
+  );
 
   const clientRequestIdRef = useRef<string | null>(null);
   const [saveRecordingStatus, setSaveRecordingStatus] = useState<
@@ -277,19 +283,15 @@ export default function PracticeReviewPage({
   >(null);
   const saveRecordingMutation = useSavePerformanceTake();
 
-  const handleExportOriginalVideo = useCallback(async () => {
-    if (
-      recording?.status !== 'READY' ||
-      recording.kind !== 'VIDEO' ||
-      recording.media.blob.size <= 0
-    ) {
+  const handleDownloadOriginalRecording = useCallback(async () => {
+    if (recording?.status !== 'READY' || recording.media.blob.size <= 0) {
       return;
     }
     await downloadLocalMedia(
       recording.media,
-      `performance-video-${Date.now()}.${captureMediaExtension(recording.mimeType)}`,
+      `performance-${recording.kind.toLowerCase()}-${Date.now()}.${captureMediaExtension(recording.mimeType)}`,
     );
-    setHasExportedOriginalMedia(true);
+    setHasDownloadedOriginalRecording(true);
   }, [recording]);
 
   const handleSaveRecording = useCallback(async () => {
@@ -342,7 +344,7 @@ export default function PracticeReviewPage({
       const hasUncommittedMedia = Boolean(
         recording?.status === 'READY' &&
           saveRecordingStatus !== 'saved' &&
-          !hasExportedOriginalMedia,
+          !hasDownloadedOriginalRecording,
       );
       if (hasUncommittedMedia || isVideoExporting) {
         setLeaveIntent(target);
@@ -352,7 +354,7 @@ export default function PracticeReviewPage({
     },
     [
       recording,
-      hasExportedOriginalMedia,
+      hasDownloadedOriginalRecording,
       isVideoExporting,
       performLeave,
       saveRecordingStatus,
@@ -370,7 +372,7 @@ export default function PracticeReviewPage({
   const hasUncommittedReviewMedia = Boolean(
     recording?.status === 'READY' &&
       saveRecordingStatus !== 'saved' &&
-      !hasExportedOriginalMedia,
+      !hasDownloadedOriginalRecording,
   );
   const leaveReviewDescription = isVideoExporting
     ? hasUncommittedReviewMedia
@@ -480,8 +482,8 @@ export default function PracticeReviewPage({
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-        {/* Synchronized Replay Player / Recording Status */}
-        {replay ? (
+        {/* Original recording playback publishes media time for Review synchronization. */}
+        {playbackSource ? (
           <Card className="rounded-lg bg-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -490,12 +492,12 @@ export default function PracticeReviewPage({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <PerformanceReplayPlayer
-                replay={replay}
-                onReplayTimeChange={handleReplayTimeChange}
-                onPlaybackStateChange={handleReplayPlaybackStateChange}
-                onReplaySeekCommitted={handleReplaySeekCommitted}
-                onVideoElementChange={setReplayVideo}
+              <RecordingPlaybackPlayer
+                source={playbackSource}
+                onMediaTimeChange={handleRecordingMediaTimeChange}
+                onPlaybackStateChange={handleRecordingPlaybackStateChange}
+                onMediaSeekCommitted={handleRecordingSeekCommitted}
+                onVideoElementChange={setRecordingVideo}
               />
             </CardContent>
           </Card>
@@ -608,14 +610,14 @@ export default function PracticeReviewPage({
           </p>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center gap-2">
-          {recording?.status === 'READY' && recording.kind === 'VIDEO' ? (
+          {recording?.status === 'READY' ? (
             <Button
               size="sm"
               variant="outline"
-              onClick={handleExportOriginalVideo}
+              onClick={handleDownloadOriginalRecording}
             >
               <Download className="mr-1.5 h-4 w-4" />
-              {t('exportOriginalVideo')}
+              {t('downloadOriginalRecording')}
             </Button>
           ) : null}
           {recorded ? (
@@ -694,8 +696,8 @@ export default function PracticeReviewPage({
           isScoreIdentityConfirmed={isScoreIdentityConfirmed}
           xmlContent={xmlContent}
           mediaTimeMs={videoExportPreviewTimeMs}
-          isReplayPlaying={isReplayPlaying}
-          replayVideo={replayVideo}
+          isRecordingPlaying={isRecordingPlaying}
+          recordingVideo={recordingVideo}
           open={isVideoExportStudioOpen}
           onOpenChange={setIsVideoExportStudioOpen}
           onExportingChange={setIsVideoExporting}

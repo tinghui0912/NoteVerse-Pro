@@ -120,18 +120,18 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockRouterPush }),
   useSearchParams: () => ({ get: () => null }),
 }));
-vi.mock('@/components/practice/performance-replay-player', () => ({
-  PerformanceReplayPlayer: ({
-    replay,
+vi.mock('@/components/practice/recording-playback-player', () => ({
+  RecordingPlaybackPlayer: ({
+    source,
   }: {
-    replay: {
+    source: {
       kind?: string;
       url?: string;
     };
   }) => (
-    <div data-testid="performance-replay-player">
-      <span>Kind: {replay.kind}</span>
-      <span>Replaying: {replay.url}</span>
+    <div data-testid="recording-playback-player">
+      <span>Kind: {source.kind}</span>
+      <span>Replaying: {source.url}</span>
     </div>
   ),
 }));
@@ -522,7 +522,7 @@ describe('MyPerformancesPage', () => {
     const { rerender } = render(<MyPerformancesPage />);
     const playBtn = screen.getByTestId('play-take-take-1');
     fireEvent.click(playBtn);
-    expect(screen.getByTestId('performance-replay-player')).toBeInTheDocument();
+    expect(screen.getByTestId('recording-playback-player')).toBeInTheDocument();
     expect(
       screen.getByText('Replaying: https://oss.example.com/play-1.webm'),
     ).toBeInTheDocument();
@@ -535,7 +535,7 @@ describe('MyPerformancesPage', () => {
     expect(mockPlaybackQuery.refetch).toHaveBeenCalled();
   });
   it.each(['video/webm', 'video/mp4'])(
-    'offers %s raw video replay/download and the local video export route',
+    'offers %s raw video source/download and the local video export route',
     async (mimeType) => {
       mockQueryOverride = {
         data: {
@@ -593,7 +593,7 @@ describe('MyPerformancesPage', () => {
         screen.getByTestId('video-export-take-take-video-1'),
       ).toHaveTextContent('导出乐谱视频');
       fireEvent.click(screen.getByTestId('play-take-take-video-1'));
-      expect(screen.getByText('Kind: VIDEO_RECORDING')).toBeInTheDocument();
+      expect(screen.getByText('Kind: VIDEO')).toBeInTheDocument();
       const extension = mimeType === 'video/mp4' ? 'mp4' : 'webm';
       mockApi.getPlaybackUrl.mockResolvedValueOnce({
         data: {
@@ -867,12 +867,12 @@ describe('MyPerformancesPage', () => {
       const playBtn = screen.getByTestId('play-take-take-1');
       fireEvent.click(playBtn);
       expect(
-        screen.getByTestId('performance-replay-player'),
+        screen.getByTestId('recording-playback-player'),
       ).toBeInTheDocument();
       // Page change stops playback
       rerender(<MyPerformancesPage searchParams={pageParams('2')} />);
       expect(
-        screen.queryByTestId('performance-replay-player'),
+        screen.queryByTestId('recording-playback-player'),
       ).not.toBeInTheDocument();
     });
     it('labels saved ranges without requiring a detached source timebase', () => {
@@ -1087,7 +1087,7 @@ describe('MyPerformancesPage', () => {
       render(<MyPerformancesPage searchParams={pageParams('1')} />);
       fireEvent.click(screen.getByTestId('play-take-take-audio-delete'));
       expect(
-        screen.getByTestId('performance-replay-player'),
+        screen.getByTestId('recording-playback-player'),
       ).toBeInTheDocument();
       fireEvent.click(screen.getByTestId('delete-take-take-audio-delete'));
       fireEvent.click(screen.getByTestId('confirm-delete-take-button'));
@@ -1097,7 +1097,7 @@ describe('MyPerformancesPage', () => {
         );
       });
       expect(
-        screen.queryByTestId('performance-replay-player'),
+        screen.queryByTestId('recording-playback-player'),
       ).not.toBeInTheDocument();
       await waitFor(() => {
         expect(
@@ -1106,7 +1106,7 @@ describe('MyPerformancesPage', () => {
       });
       fireEvent.click(screen.getByTestId('play-take-take-other-active'));
       expect(
-        screen.getByTestId('performance-replay-player'),
+        screen.getByTestId('recording-playback-player'),
       ).toBeInTheDocument();
     });
     it('stops playback when deleting the active VIDEO take', async () => {
@@ -1141,7 +1141,7 @@ describe('MyPerformancesPage', () => {
       };
       render(<MyPerformancesPage searchParams={pageParams('1')} />);
       fireEvent.click(screen.getByTestId('play-take-take-video-delete'));
-      expect(screen.getByText('Kind: VIDEO_RECORDING')).toBeInTheDocument();
+      expect(screen.getByText('Kind: VIDEO')).toBeInTheDocument();
       fireEvent.click(screen.getByTestId('delete-take-take-video-delete'));
       fireEvent.click(screen.getByTestId('confirm-delete-take-button'));
       await waitFor(() => {
@@ -1150,7 +1150,7 @@ describe('MyPerformancesPage', () => {
         );
       });
       expect(
-        screen.queryByTestId('performance-replay-player'),
+        screen.queryByTestId('recording-playback-player'),
       ).not.toBeInTheDocument();
       await waitFor(() => {
         expect(

@@ -1,23 +1,9 @@
 import { expect, it } from 'vitest';
-import { recordedPerformanceReplay } from './performance-replay';
 import { recordedPerformanceScoreTick } from './recorded-performance-timeline';
 import { recordedPerformanceFixture } from '@/lib/practice/__fixtures__/recorded-performance';
 import { continuousPracticePlan } from '@/lib/practice/__fixtures__/practice-plan';
 import { artifact } from '@/lib/practice/video-export/__fixtures__/saved-take';
 import { resolveVideoExportPlaybackPosition } from '@/lib/practice/video-export/playback-position';
-it.each(['AUDIO', 'VIDEO'] as const)(
-  'projects %s without cloning or acquiring bytes',
-  (kind) => {
-    const base = recordedPerformanceFixture();
-    const performance = { ...base, recording: { ...base.recording, kind } };
-    expect(recordedPerformanceReplay(performance)).toMatchObject({
-      kind: kind + '_RECORDING',
-      media: base.recording.media,
-      recordingTimebase: base.recording.timebase,
-    });
-    expect(recordedPerformanceReplay(null)).toBeNull();
-  },
-);
 it.each(['SCORE', 'CUSTOM_FIXED_BPM'] as const)(
   'shares the %s timeline between replay and video across pauses, ranges and decoded-duration correction',
   (mode) => {

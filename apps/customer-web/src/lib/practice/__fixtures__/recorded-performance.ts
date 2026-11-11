@@ -1,10 +1,8 @@
+import type { ReadyPerformanceRecording } from '@/lib/practice/recording/recording-artifact';
 import { continuousPracticePlan } from './practice-plan';
 import { completedContinuousSessionFixture } from './continuous-result';
 import { executedPerformanceFromCompletion } from '@/lib/practice/run/executed-performance';
-import {
-  recordedPerformance,
-  type ReadyPerformanceRecording,
-} from '@/lib/practice/recording/recorded-performance';
+import { recordedPerformance } from '@/lib/practice/recording/recorded-performance';
 import type { ContinuousPracticePlan } from '@/lib/practice/planning/practice-plan';
 import { artifact } from '@/lib/practice/video-export/__fixtures__/saved-take';
 import { localMediaAssetFixture } from './local-media-asset';

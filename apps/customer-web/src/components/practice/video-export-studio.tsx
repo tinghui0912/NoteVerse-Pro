@@ -146,8 +146,8 @@ export function VideoExportStudio({
   isScoreIdentityConfirmed,
   xmlContent,
   mediaTimeMs,
-  isReplayPlaying,
-  replayVideo,
+  isRecordingPlaying,
+  recordingVideo,
   open,
   onOpenChange,
   onExportingChange,
@@ -159,8 +159,8 @@ export function VideoExportStudio({
   isScoreIdentityConfirmed: boolean;
   xmlContent: string | null;
   mediaTimeMs: number;
-  isReplayPlaying: boolean;
-  replayVideo: HTMLVideoElement | null;
+  isRecordingPlaying: boolean;
+  recordingVideo: HTMLVideoElement | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onExportingChange?: (exporting: boolean) => void;
@@ -189,7 +189,7 @@ export function VideoExportStudio({
   const splitExportAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    const video = replayVideo;
+    const video = recordingVideo;
     if (!video || !recordedPerformance) return;
 
     const syncOrientationFromMetadata = () => {
@@ -206,13 +206,13 @@ export function VideoExportStudio({
     video.addEventListener('loadedmetadata', syncOrientationFromMetadata);
     return () =>
       video.removeEventListener('loadedmetadata', syncOrientationFromMetadata);
-  }, [replayVideo, recordedPerformance]);
+  }, [recordingVideo, recordedPerformance]);
 
   const videoOrientation =
     recordedPerformance &&
     orientationPreference.performance === recordedPerformance
       ? orientationPreference.value
-      : initialVideoExportOrientation(replayVideo);
+      : initialVideoExportOrientation(recordingVideo);
 
   const videoExportConfig = useMemo<VideoExportConfig>(() => {
     if (scorePresentation === 'floating') {
@@ -616,8 +616,8 @@ export function VideoExportStudio({
             adapter={adapter}
             mediaTimeMs={mediaTimeMs}
             config={videoExportConfig}
-            isReplayPlaying={isReplayPlaying}
-            replayVideo={replayVideo}
+            isRecordingPlaying={isRecordingPlaying}
+            recordingVideo={recordingVideo}
             onFrameCommitted={setPreviewFrameTimeMs}
           />
         </section>

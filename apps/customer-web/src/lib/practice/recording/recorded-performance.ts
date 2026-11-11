@@ -1,12 +1,8 @@
 import type { ExecutedPerformance } from '@/lib/practice/run/executed-performance';
 import {
   assertPerformanceRecording,
-  type PerformanceRecording,
+  type ReadyPerformanceRecording,
 } from './recording-artifact';
-export type ReadyPerformanceRecording = Extract<
-  PerformanceRecording,
-  { status: 'READY' }
->;
 /** Pairing borrows its recording owner's reference; it does not acquire media. */
 export type RecordedPerformance = Readonly<{
   executed: ExecutedPerformance;

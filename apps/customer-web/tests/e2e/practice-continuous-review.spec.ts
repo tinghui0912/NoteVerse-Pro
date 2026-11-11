@@ -997,8 +997,8 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     await expect(page.getByRole('heading', { name: '临时演奏报告' })).toBeVisible();
 
     // Verify player is present and ready to replay
-    await expect(page.getByRole('button', { name: '回放' })).toBeVisible();
-    await expect(page.getByRole('slider', { name: '回放位置' })).toBeVisible();
+    await expect(page.getByRole('button', { name: '播放' })).toBeVisible();
+    await expect(page.getByRole('slider', { name: '录制位置' })).toBeVisible();
   });
 
   test('CONTINUOUS_PLAY + MIDI with microphone denied blocks AUDIO setup without fallback or a result', async ({ page }) => {
@@ -1113,6 +1113,13 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     await expect(page.getByRole('heading', { name: '临时演奏报告' })).toBeVisible();
 
     // Verify "保存录制" button is visible and enabled
+    const originalDownload = page.waitForEvent('download');
+    await page.getByRole('button', { name: '下载原始录制', exact: true }).click();
+    const original = await originalDownload;
+    expect(await original.failure()).toBeNull();
+    expect(original.suggestedFilename()).toMatch(/^performance-audio-.*\.webm$/);
+    expect(mediaWrites).toEqual([]);
+
     const saveButton = page.getByRole('button', { name: '保存录制' });
     await expect(saveButton).toBeVisible();
     await expect(saveButton).toBeEnabled();
@@ -1130,7 +1137,7 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     expect(protocol.request?.tempo_selection).toEqual({ mode: 'SCORE' });
     await testInfo.attach('save-protocol', { body: JSON.stringify(protocol, null, 2), contentType: 'application/json' });
     expect(mediaWrites).toHaveLength(2);
-    expect(mediaWrites[0].body).toHaveProperty('source');
+    expect(mediaWrites[0].body?.practice_binding).toEqual({ score_id: scoreId, revision_id: revisionId, bundle_id: 'bundle-1' });
     expect(mediaWrites[1].body).toBeNull();
 
     // Click "查看我的演奏" button
@@ -1149,7 +1156,7 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
 
     // Click play
     await page.getByTestId('play-take-take-e2e-1').click();
-    await expect(page.getByRole('slider', { name: '回放位置' })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('slider', { name: '录制位置' })).toBeVisible({ timeout: 10_000 });
 
     // Click delete
     await page.getByTestId('delete-take-take-e2e-1').click();
@@ -1238,7 +1245,7 @@ for (const retirement of ['End', 'route teardown'] as const) test(`${retirement}
     await expect(page.getByRole('button', { name: '查看报告', exact: true })).toBeVisible();
     await page.getByRole('button', { name: '查看报告', exact: true }).click();
     await page.waitForURL(`**/score/${scoreId}/practice/review`);
-    await expect(page.getByRole('button', { name: '回放', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: '播放', exact: true })).toBeVisible();
     await expect(page.getByText('本次录音不可用', { exact: true })).toHaveCount(0);
   } else {
     await expect(page.getByRole('button', { name: '查看报告', exact: true })).toHaveCount(0);
@@ -1315,7 +1322,7 @@ test('Continuous analysis degradation preserves recording and completes Review w
   await page.waitForURL(`**/score/${scoreId}/practice/review`);
   await expect(page.getByRole('heading', { name: '临时演奏报告' })).toBeVisible();
   await expect(page.getByText('未能完成可靠的练习评估。', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: '回放', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '播放', exact: true })).toBeVisible();
   await expect(page.getByText('本次录音不可用', { exact: true })).toHaveCount(0);
 });
 
@@ -1891,7 +1898,7 @@ test('one complete Setup admission survives Score deletion through Practice, Rev
   await expect(page.getByRole('heading',{name:'临时演奏报告'})).toBeVisible();
   await expect(page.locator('[data-practice-review-page] svg[overflow="visible"]')).toBeVisible();
   await expect(page.locator('.practice-summary-note-unsupported')).toHaveCount(3);
-  await page.getByRole('button',{name:'回放',exact:true}).click();
+  await page.getByRole('button',{name:'播放',exact:true}).click();
   await expect.poll(()=>page.locator('video').first().evaluate(video=>(video as HTMLVideoElement).currentTime)).toBeGreaterThan(0);
   await page.getByRole('button',{name:'暂停',exact:true}).click();
   const exportWrites: string[] = [];
@@ -1989,11 +1996,11 @@ test('real OPFS capture survives Review replay/save/raw download and reclaims on
     return (await (await directory.getFileHandle(id)).getFile()).size;
   }, capture);
   expect(size).toBe(await written()); expect(size).toBeGreaterThan(0);
-  await page.getByRole('button', { name: '回放', exact: true }).click();
+  await page.getByRole('button', { name: '播放', exact: true }).click();
   await expect.poll(() => page.locator('video').first().evaluate(video => (video as HTMLVideoElement).currentTime)).toBeGreaterThan(0);
   await page.getByRole('button', { name: '暂停', exact: true }).click();
   const download = page.waitForEvent('download');
-  await page.getByRole('button', { name: '导出原始视频', exact: true }).click();
+  await page.getByRole('button', { name: '下载原始录制', exact: true }).click();
   expect(await (await download).failure()).toBeNull();
   await page.getByRole('button', { name: '保存录制', exact: true }).click();
   await expect(page.getByRole('button', { name: '已保存', exact: true })).toBeVisible();

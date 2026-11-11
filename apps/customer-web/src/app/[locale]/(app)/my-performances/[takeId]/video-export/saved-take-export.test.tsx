@@ -41,10 +41,10 @@ vi.mock('@/lib/api-client', async (original) => ({
 vi.mock('@/lib/practice/media/performance-take/materialize', () => ({
   materializePerformanceTakeMedia: calls.media,
 }));
-vi.mock('@/components/practice/performance-replay-player', () => ({
-  PerformanceReplayPlayer: (props: { actions: React.ReactNode }) => {
+vi.mock('@/components/practice/recording-playback-player', () => ({
+  RecordingPlaybackPlayer: (props: { actions: React.ReactNode }) => {
     calls.player(props);
-    return <div data-testid="raw-replay">{props.actions}</div>;
+    return <div data-testid="raw-source">{props.actions}</div>;
   },
 }));
 vi.mock('@/components/practice/video-export-studio', () => ({
@@ -108,26 +108,26 @@ it('loads exact currently authorized Bundle for optional saved score export', as
     { include_notation: true },
     { signal: expect.any(AbortSignal) },
   );
-  expect(calls.player.mock.calls.at(-1)![0].replay.media.blob).toBe(blob);
+  expect(calls.player.mock.calls.at(-1)![0].source.media.blob).toBe(blob);
   const recorded = calls.studio.mock.calls.at(-1)![0].recordedPerformance;
-  expect(calls.player.mock.calls.at(-1)![0].replay.media).toBe(
+  expect(calls.player.mock.calls.at(-1)![0].source.media).toBe(
     recorded.recording.media,
   );
-  expect(calls.player.mock.calls.at(-1)![0].replay.recordingTimebase).toBe(
+  expect(calls.player.mock.calls.at(-1)![0].source.recordingTimebase).toBe(
     recorded.recording.timebase,
   );
 });
 it.each([403, 404])(
-  'keeps raw replay and download usable when Bundle authorization returns %s',
+  'keeps raw source and download usable when Bundle authorization returns %s',
   async (status) => {
     calls.get.mockRejectedValue(
       new ApiError(status, 'resource_not_found', 'Unavailable'),
     );
     openPage();
-    await screen.findByTestId('raw-replay');
+    await screen.findByTestId('raw-source');
     await screen.findByText(practice.savedTakeVideoExportRevisionUnavailable);
     expect(screen.queryByTestId('score-export')).toBeNull();
-    expect(calls.player.mock.calls.at(-1)![0].replay.media.blob).toBe(blob);
+    expect(calls.player.mock.calls.at(-1)![0].source.media.blob).toBe(blob);
     fireEvent.click(
       screen.getByRole('button', { name: practice.downloadVideo }),
     );
@@ -155,7 +155,7 @@ it('refuses different exact representation identity while retaining raw media', 
   });
   openPage();
   await screen.findByText(practice.savedTakeVideoExportRevisionUnavailable);
-  expect(screen.getByTestId('raw-replay')).toBeVisible();
+  expect(screen.getByTestId('raw-source')).toBeVisible();
   expect(screen.queryByTestId('score-export')).toBeNull();
 });
 it('owns one downloaded reference and releases it exactly once on unmount', async () => {
@@ -163,7 +163,7 @@ it('owns one downloaded reference and releases it exactly once on unmount', asyn
     media = createLocalMediaAsset(blob, remove);
   calls.media.mockResolvedValue(media);
   const view = openPage();
-  await screen.findByTestId('raw-replay');
+  await screen.findByTestId('raw-source');
   expect(calls.media).toHaveBeenCalledWith(
     expect.objectContaining({
       takeId: take.take_id,
@@ -206,7 +206,7 @@ it('failed download retries with a new operation and owns only the successful me
   fireEvent.click(
     screen.getByRole('button', { name: practice.savedTakeVideoExportRetry }),
   );
-  await screen.findByTestId('raw-replay');
+  await screen.findByTestId('raw-source');
   expect(calls.media).toHaveBeenCalledTimes(2);
   expect(calls.media.mock.calls[0][0].signal.aborted).toBe(true);
   view.unmount();

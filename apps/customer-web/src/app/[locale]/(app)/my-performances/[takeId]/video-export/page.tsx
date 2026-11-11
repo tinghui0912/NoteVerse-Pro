@@ -8,7 +8,7 @@ import { useTranslations } from 'next-intl';
 import { useParams, useRouter } from 'next/navigation';
 
 import { PageHeader } from '@/components/page';
-import { PerformanceReplayPlayer } from '@/components/practice/performance-replay-player';
+import { RecordingPlaybackPlayer } from '@/components/practice/recording-playback-player';
 import { VideoExportStudio } from '@/components/practice/video-export-studio';
 import { VerovioScoreViewer } from '@/components/score-preview/verovio-score-viewer';
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,7 @@ import {
 import { downloadLocalMedia } from '@/lib/practice/media/download-local-media';
 import { ApiError } from '@/lib/api-client';
 import { useSavedTakeExportBundle } from '@/hooks/practice/use-saved-take-export-bundle';
-import { recordedPerformanceReplay } from '@/lib/practice/recording/performance-replay';
+import { recordingPlaybackSource } from '@/lib/practice/recording/recording-playback';
 import {
   admitSavedRecordedPerformance,
   isSavedVideoCandidate,
@@ -117,12 +117,14 @@ export default function SavedPerformanceVideoExportPage() {
   const mediaError =
     mediaFailure?.take === take && mediaFailure.nonce === mediaRetryNonce;
   const mediaErrorPermanent = mediaError && mediaFailure.permanent;
-  const [replayVideo, setReplayVideo] = useState<HTMLVideoElement | null>(null);
+  const [recordingVideo, setRecordingVideo] = useState<HTMLVideoElement | null>(
+    null,
+  );
   const [mediaTimeMs, setMediaTimeMs] = useState(0);
   const [scoreContainer, setScoreContainer] = useState<HTMLDivElement | null>(
     null,
   );
-  const [isReplayPlaying, setIsReplayPlaying] = useState(false);
+  const [isRecordingPlaying, setIsRecordingPlaying] = useState(false);
   const adapter = useMemo(
     () => new PracticeVerovioAdapter(artifact),
     [artifact],
@@ -186,14 +188,13 @@ export default function SavedPerformanceVideoExportPage() {
   const recorded =
     admission?.status === 'supported' ? admission.recordedPerformance : null;
 
-  const replay = useMemo(
+  const playbackSource = useMemo(
     () =>
-      recordedPerformanceReplay(recorded) ??
+      recordingPlaybackSource(recorded?.recording ?? null) ??
       (mediaHandle && take
         ? {
-            kind: 'VIDEO_RECORDING' as const,
+            kind: 'VIDEO' as const,
             media: mediaHandle,
-            contentType: take.archive_media.mime_type,
           }
         : null),
     [recorded, mediaHandle, take],
@@ -269,7 +270,7 @@ export default function SavedPerformanceVideoExportPage() {
     bundle.invalid ||
     isPermanentResourceError(bundle.transportError) ||
     admission?.status === 'unsupported';
-  if (!replay) {
+  if (!playbackSource) {
     return (
       <div className="mx-auto max-w-4xl space-y-6 px-4 py-8">
         <PageHeader title={t('savedTakeVideoExportTitle')} />
@@ -336,8 +337,8 @@ export default function SavedPerformanceVideoExportPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <PerformanceReplayPlayer
-              replay={replay}
+            <RecordingPlaybackPlayer
+              source={playbackSource}
               actions={
                 <Button
                   onClick={() => {
@@ -350,11 +351,11 @@ export default function SavedPerformanceVideoExportPage() {
                   {t('downloadVideo')}
                 </Button>
               }
-              onReplayTimeChange={(time) =>
+              onMediaTimeChange={(time) =>
                 setMediaTimeMs(Math.max(0, time ?? 0))
               }
-              onPlaybackStateChange={setIsReplayPlaying}
-              onVideoElementChange={setReplayVideo}
+              onPlaybackStateChange={setIsRecordingPlaying}
+              onVideoElementChange={setRecordingVideo}
             />
           </CardContent>
         </Card>
@@ -423,8 +424,8 @@ export default function SavedPerformanceVideoExportPage() {
           isScoreIdentityConfirmed={isBundleReady}
           xmlContent={xmlContent}
           mediaTimeMs={mediaTimeMs}
-          isReplayPlaying={isReplayPlaying}
-          replayVideo={replayVideo}
+          isRecordingPlaying={isRecordingPlaying}
+          recordingVideo={recordingVideo}
           open
           collapsible={false}
           onOpenChange={() => undefined}

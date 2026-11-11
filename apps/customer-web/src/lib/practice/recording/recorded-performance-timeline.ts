@@ -1,5 +1,5 @@
 import type { RecordedPerformance } from './recorded-performance';
-import { replayMediaTimeMsToPerformanceTimeMs } from './recording-timebase';
+import { recordingMediaTimeMsToPerformanceTimeMs } from './recording-timebase';
 import { PracticeTempoTimeline } from '@/lib/practice/planning/tempo';
 
 export function recordedPerformancePosition(
@@ -8,7 +8,7 @@ export function recordedPerformancePosition(
   actualMediaDurationMs?: number | null,
 ): Readonly<{ performanceTimeMs: number; scoreTick: number }> | null {
   if (mediaTimeMs === null) return null;
-  const performanceTimeMs = replayMediaTimeMsToPerformanceTimeMs(
+  const performanceTimeMs = recordingMediaTimeMsToPerformanceTimeMs(
     mediaTimeMs,
     performance.recording.timebase,
     actualMediaDurationMs,

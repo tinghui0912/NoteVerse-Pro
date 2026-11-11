@@ -20,6 +20,11 @@ export type PerformanceRecording =
       timebase: RecordingTimebase;
     }>;
 
+export type ReadyPerformanceRecording = Extract<
+  PerformanceRecording,
+  { status: 'READY' }
+>;
+
 export function assertPerformanceRecording(
   recording: PerformanceRecording,
 ): void {

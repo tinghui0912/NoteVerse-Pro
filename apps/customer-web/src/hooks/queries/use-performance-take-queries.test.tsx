@@ -1,9 +1,7 @@
+import type { ReadyPerformanceRecording } from '@/lib/practice/recording/recording-artifact';
 import { planPractice } from '@/lib/practice/planning/practice-plan';
 import type { ExecutedPerformance } from '@/lib/practice/run/executed-performance';
-import {
-  recordedPerformance,
-  type ReadyPerformanceRecording,
-} from '@/lib/practice/recording/recorded-performance';
+import { recordedPerformance } from '@/lib/practice/recording/recorded-performance';
 import { recordedPerformanceFixture } from '@/lib/practice/__fixtures__/recorded-performance';
 import { artifact as videoArtifact } from '@/lib/practice/video-export/__fixtures__/saved-take';
 // @vitest-environment jsdom

@@ -31,8 +31,8 @@ type RenderableVideo = HTMLVideoElement & {
 };
 
 /**
- * The preview is a view of the replay player's video element. It never owns
- * media playback, seeks, audio, or an object URL of its own.
+ * VideoExport preview borrows the original recording player's video element
+ * as its decode source. The recording player owns playback, seeks and audio.
  */
 export function VideoExportPreview({
   recordedPerformance,
@@ -40,8 +40,8 @@ export function VideoExportPreview({
   adapter,
   mediaTimeMs,
   config,
-  isReplayPlaying = false,
-  replayVideo,
+  isRecordingPlaying = false,
+  recordingVideo,
   onFrameCommitted,
 }: {
   recordedPerformance: RecordedPerformance;
@@ -49,8 +49,8 @@ export function VideoExportPreview({
   adapter: PracticeVerovioAdapter;
   mediaTimeMs: number;
   config: VideoExportConfig;
-  isReplayPlaying?: boolean;
-  replayVideo: HTMLVideoElement | null;
+  isRecordingPlaying?: boolean;
+  recordingVideo: HTMLVideoElement | null;
   onFrameCommitted?: (mediaTimeMs: number) => void;
 }) {
   const t = useTranslations('practice');
@@ -65,7 +65,7 @@ export function VideoExportPreview({
   const frameCallbackRef = useRef<number | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const disposedRef = useRef(false);
-  const isPlayingRef = useRef(isReplayPlaying);
+  const isPlayingRef = useRef(isRecordingPlaying);
   const configRef = useRef(config);
   const mediaTimeRef = useRef(mediaTimeMs);
   const [status, setStatus] = useState<PreviewStatus>('idle');
@@ -90,7 +90,7 @@ export function VideoExportPreview({
   }, []);
 
   const clearFrameScheduler = useCallback(() => {
-    const video = replayVideo as RenderableVideo | null;
+    const video = recordingVideo as RenderableVideo | null;
     if (frameCallbackRef.current !== null) {
       video?.cancelVideoFrameCallback?.(frameCallbackRef.current);
       frameCallbackRef.current = null;
@@ -99,7 +99,7 @@ export function VideoExportPreview({
       window.cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
     }
-  }, [replayVideo]);
+  }, [recordingVideo]);
 
   const commitStagingFrame = useCallback(
     (layout: ReturnType<typeof getVideoExportLayout>) => {
@@ -128,7 +128,7 @@ export function VideoExportPreview({
         const request = pendingRequestRef.current;
         pendingRequestRef.current = null;
         const scorePages = scorePagesRef.current;
-        const sourceVideo = replayVideo;
+        const sourceVideo = recordingVideo;
         const stagingCanvas = stagingCanvasRef.current;
         if (!scorePages || !sourceVideo || !stagingCanvas) continue;
 
@@ -143,12 +143,12 @@ export function VideoExportPreview({
 
         try {
           if (!isPlayingRef.current) {
-            await waitForReplayVideoFrame(
+            await waitForRecordingVideoFrame(
               sourceVideo,
               t('videoExportPreviewDecodeFailed'),
             );
           }
-          const frozenSource = captureReplayVideoFrame(
+          const frozenSource = captureRecordingVideoFrame(
             sourceVideo,
             sourceFrameCanvasRef,
           );
@@ -214,13 +214,14 @@ export function VideoExportPreview({
     commitStagingFrame,
     recordedPerformance,
     onFrameCommitted,
-    replayVideo,
+    recordingVideo,
     t,
   ]);
 
   const enqueuePreview = useCallback(
     (nextTimeMs: number) => {
-      if (disposedRef.current || !replayVideo || !scorePagesRef.current) return;
+      if (disposedRef.current || !recordingVideo || !scorePagesRef.current)
+        return;
       pendingRequestRef.current = {
         mediaTimeMs: Math.max(0, nextTimeMs),
         config: configRef.current,
@@ -228,7 +229,7 @@ export function VideoExportPreview({
       };
       void drainPreviewQueue();
     },
-    [drainPreviewQueue, replayVideo],
+    [drainPreviewQueue, recordingVideo],
   );
 
   useEffect(() => {
@@ -258,8 +259,8 @@ export function VideoExportPreview({
         setStatus('ready');
         initialPreviewQueuedRef.current = true;
         enqueuePreview(
-          replayVideo?.currentTime
-            ? replayVideo.currentTime * 1000
+          recordingVideo?.currentTime
+            ? recordingVideo.currentTime * 1000
             : mediaTimeRef.current,
         );
       } catch (cause) {
@@ -293,7 +294,7 @@ export function VideoExportPreview({
   }, [
     clearFrameScheduler,
     enqueuePreview,
-    replayVideo,
+    recordingVideo,
     recordedPerformance,
     retryNonce,
     scoreContainer,
@@ -308,33 +309,36 @@ export function VideoExportPreview({
     configRef.current = config;
     if (scorePagesRef.current) {
       enqueuePreview(
-        replayVideo?.currentTime ? replayVideo.currentTime * 1000 : mediaTimeMs,
+        recordingVideo?.currentTime
+          ? recordingVideo.currentTime * 1000
+          : mediaTimeMs,
       );
     }
-  }, [config, enqueuePreview, mediaTimeMs, replayVideo]);
+  }, [config, enqueuePreview, mediaTimeMs, recordingVideo]);
 
   useEffect(() => {
-    isPlayingRef.current = isReplayPlaying;
+    isPlayingRef.current = isRecordingPlaying;
     clearFrameScheduler();
-    if (!isReplayPlaying || status !== 'ready' || !replayVideo) {
-      if (!isReplayPlaying && status === 'ready') {
+    if (!isRecordingPlaying || status !== 'ready' || !recordingVideo) {
+      if (!isRecordingPlaying && status === 'ready') {
         if (initialPreviewQueuedRef.current) {
           initialPreviewQueuedRef.current = false;
           return;
         }
         enqueuePreview(
-          replayVideo?.currentTime
-            ? replayVideo.currentTime * 1000
+          recordingVideo?.currentTime
+            ? recordingVideo.currentTime * 1000
             : mediaTimeRef.current,
         );
       }
       return;
     }
 
-    const video = replayVideo as RenderableVideo;
+    const video = recordingVideo as RenderableVideo;
     const renderCurrentFrame = () => {
-      if (disposedRef.current || !isPlayingRef.current || !replayVideo) return;
-      enqueuePreview(replayVideo.currentTime * 1000);
+      if (disposedRef.current || !isPlayingRef.current || !recordingVideo)
+        return;
+      enqueuePreview(recordingVideo.currentTime * 1000);
     };
 
     if (typeof video.requestVideoFrameCallback === 'function') {
@@ -360,8 +364,8 @@ export function VideoExportPreview({
   }, [
     clearFrameScheduler,
     enqueuePreview,
-    isReplayPlaying,
-    replayVideo,
+    isRecordingPlaying,
+    recordingVideo,
     status,
   ]);
 
@@ -410,7 +414,7 @@ export function VideoExportPreview({
   );
 }
 
-function waitForReplayVideoFrame(
+function waitForRecordingVideoFrame(
   video: HTMLVideoElement,
   decodeError: string,
 ): Promise<void> {
@@ -442,7 +446,7 @@ function waitForReplayVideoFrame(
   });
 }
 
-export function captureReplayVideoFrame(
+export function captureRecordingVideoFrame(
   video: HTMLVideoElement,
   canvasRef: React.MutableRefObject<HTMLCanvasElement | null>,
 ): { canvas: HTMLCanvasElement; mediaTimeMs: number } {

@@ -115,7 +115,7 @@ export function mediaTimeUsToPerformanceTimeUs(
 }
 
 /** Browser-only adaptation of decoded container time to the exact nominal recording axis. */
-export function replayMediaTimeMsToPerformanceTimeMs(
+export function recordingMediaTimeMsToPerformanceTimeMs(
   mediaTimeMs: number,
   timebase?: RecordingTimebase | null,
   actualMediaDurationMs?: number | null,

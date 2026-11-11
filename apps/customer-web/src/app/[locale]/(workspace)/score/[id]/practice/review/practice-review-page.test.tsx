@@ -1,5 +1,6 @@
 import { ApiError } from '@/lib/api-client';
-import { recordedPerformanceReplay } from '@/lib/practice/recording/performance-replay';
+import { recordedPerformanceScoreTick } from '@/lib/practice/recording/recorded-performance-timeline';
+import { recordingPlaybackSource } from '@/lib/practice/recording/recording-playback';
 import { recordingSinkFixture } from '@/lib/practice/__fixtures__/recording-sink';
 import { localMediaAssetFixture } from '@/lib/practice/__fixtures__/local-media-asset';
 import {
@@ -89,7 +90,7 @@ const translationMocks = vi.hoisted(() => {
     saveRecordingSuccessDesc: '可以稍后在已保存录制中查看。',
     saveRecordingFailedTitle: '保存失败',
     saveRecordingFailedDesc: '暂时无法保存这次演奏，请稍后重试。',
-    exportOriginalVideo: '导出原始视频',
+    downloadOriginalRecording: '下载原始录制',
     exportScoreVideo: '导出乐谱＋视频',
     exportScoreVideoProgressTitle: '正在合成乐谱＋演奏视频',
     exportScoreVideoProgressDesc: '已处理 {progress}%。请保持页面打开。',
@@ -305,20 +306,36 @@ vi.mock('@/components/score-preview/verovio-score-viewer', () => ({
   },
 }));
 
-vi.mock('@/lib/practice/recording/performance-replay', async (original) => {
+vi.mock(
+  '@/lib/practice/recording/recorded-performance-timeline',
+  async (original) => {
+    const actual =
+      await original<
+        typeof import('@/lib/practice/recording/recorded-performance-timeline')
+      >();
+    return {
+      ...actual,
+      recordedPerformanceScoreTick: vi.fn(actual.recordedPerformanceScoreTick),
+    };
+  },
+);
+
+vi.mock('@/lib/practice/recording/recording-playback', async (original) => {
   const actual =
     await original<
-      typeof import('@/lib/practice/recording/performance-replay')
+      typeof import('@/lib/practice/recording/recording-playback')
     >();
   return {
     ...actual,
-    recordedPerformanceReplay: vi.fn(actual.recordedPerformanceReplay),
+    recordingPlaybackSource: vi.fn(actual.recordingPlaybackSource),
   };
 });
 
-vi.mock('@/components/practice/performance-replay-player', () => ({
-  PerformanceReplayPlayer: () => {
-    return <div data-testid="mock-replay-player">Mock Replay Player</div>;
+const recordingPlayerMocks = vi.hoisted(() => ({ render: vi.fn() }));
+vi.mock('@/components/practice/recording-playback-player', () => ({
+  RecordingPlaybackPlayer: (props: unknown) => {
+    recordingPlayerMocks.render(props);
+    return <div data-testid="mock-recording-player">Mock Recording Player</div>;
   },
 }));
 
@@ -528,7 +545,9 @@ describe('PracticeReviewPage', () => {
     currentMockArtifact = createMockArtifact();
     vi.restoreAllMocks();
     saveMutationMock.mutateAsync.mockReset();
-    vi.mocked(recordedPerformanceReplay).mockClear();
+    vi.mocked(recordingPlaybackSource).mockClear();
+    recordingPlayerMocks.render.mockClear();
+    vi.mocked(recordedPerformanceScoreTick).mockClear();
     videoExportMocks.exportVideo.mockReset();
     videoExportMocks.exportVideo.mockResolvedValue({
       media: localMediaAssetFixture(
@@ -792,7 +811,7 @@ describe('PracticeReviewPage', () => {
     }
 
     // Player should be rendered
-    expect(screen.getByTestId('mock-replay-player')).toBeDefined();
+    expect(screen.getByTestId('mock-recording-player')).toBeDefined();
     expect(screen.getByTestId('mock-verovio-viewer')).toBeDefined();
 
     // Clicking retry button clears completion and routes to Setup for a fresh retained binding
@@ -979,7 +998,7 @@ describe('PracticeReviewPage', () => {
           name: /目标音结果|目标音识别|额外演奏/,
         }),
       ).toBeNull();
-      expect(screen.getByTestId('mock-replay-player')).toBeDefined();
+      expect(screen.getByTestId('mock-recording-player')).toBeDefined();
 
       // Verify note-by-note strike annotation:
       // Green (matched): note-c4, note-e4, note-g4, note-c5
@@ -1042,7 +1061,7 @@ describe('PracticeReviewPage', () => {
     expect(
       screen.getByText('本次演奏的识别分析不可用，仍可回放录制。'),
     ).toBeDefined();
-    expect(screen.getByTestId('mock-replay-player')).toBeDefined();
+    expect(screen.getByTestId('mock-recording-player')).toBeDefined();
     expect(
       screen.queryByRole('region', { name: /目标音结果|目标音识别|额外演奏/ }),
     ).toBeNull();
@@ -1072,7 +1091,7 @@ describe('PracticeReviewPage', () => {
 
     expect(screen.getByText('本次录音不可用')).toBeDefined();
     expect(screen.getByText('未授予麦克风权限')).toBeDefined();
-    expect(screen.queryByTestId('mock-replay-player')).toBeNull();
+    expect(screen.queryByTestId('mock-recording-player')).toBeNull();
 
     // When audio is UNAVAILABLE, Save Performance button is disabled
     const saveBtn = screen.getByRole('button', { name: '保存录制' });
@@ -1181,23 +1200,42 @@ describe('PracticeReviewPage', () => {
     const view = render(
       <PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />,
     );
-    const paired = vi.mocked(recordedPerformanceReplay).mock.calls[0][0];
-    expect(paired?.executed).toBe(review.result.executed);
-    expect(paired?.recording).toBe(review.recording);
+    expect(vi.mocked(recordingPlaybackSource)).toHaveBeenCalledExactlyOnceWith(
+      review.recording,
+    );
+    const player = recordingPlayerMocks.render.mock.calls.at(-1)![0];
+    expect(Object.keys(player.source).sort()).toEqual([
+      'kind',
+      'media',
+      'recordingTimebase',
+    ]);
+    expect(player.source.media).toBe(review.recording.media);
+    expect(player.source.recordingTimebase).toBe(review.recording.timebase);
     fireEvent.click(screen.getByTestId('open-video-export-studio'));
     expect(
       videoExportMocks.getVideoExportReadiness.mock.calls.at(-1)![0]
         .recordedPerformance,
-    ).toBe(paired);
+    ).not.toBeNull();
+    const paired =
+      videoExportMocks.getVideoExportReadiness.mock.calls.at(-1)![0]
+        .recordedPerformance;
+    expect(paired.executed).toBe(review.result.executed);
+    expect(paired.recording).toBe(review.recording);
+    act(() => player.onMediaTimeChange(500, 3000));
+    expect(recordedPerformanceScoreTick).toHaveBeenLastCalledWith(
+      paired,
+      500,
+      3000,
+    );
     fireEvent.click(screen.getByRole('button', { name: '保存录制' }));
     await screen.findByText('已保存');
     expect(saveMutationMock.mutateAsync).toHaveBeenCalledExactlyOnceWith({
       clientRequestId: expect.any(String),
       recordedPerformance: paired,
     });
-    expect(
-      vi.mocked(recordedPerformanceReplay),
-    ).toHaveBeenCalledExactlyOnceWith(paired);
+    expect(vi.mocked(recordingPlaybackSource)).toHaveBeenCalledExactlyOnceWith(
+      review.recording,
+    );
     expect(retain).toHaveBeenCalledExactlyOnceWith();
     expect(reviewRetain).not.toHaveBeenCalled();
     view.unmount();
@@ -1253,6 +1291,67 @@ describe('PracticeReviewPage', () => {
     },
   );
 
+  it.each([
+    ['AUDIO', 'audio/webm', 'webm'],
+    ['AUDIO', 'audio/mp4', 'mp4'],
+    ['VIDEO', 'video/webm', 'webm'],
+    ['VIDEO', 'video/mp4', 'mp4'],
+  ] as const)(
+    'downloads exact original %s %s bytes and preserves them independently of Save/export',
+    async (kind, mimeType, extension) => {
+      const blob = new Blob(['original recording'], { type: mimeType });
+      const base = createVideoCompletion();
+      if (base.recording.status !== 'READY')
+        throw new Error('Expected recording');
+      const backing = localMediaAssetFixture(blob);
+      const media = { ...backing, retain: () => ({ ...backing.retain() }) };
+      const completion = {
+        ...base,
+        recording: { ...base.recording, kind, mimeType, media },
+      };
+      provideReview(completion);
+      const review = reviewWorkspace.reviewSession!;
+      if (review.recording.status !== 'READY')
+        throw new Error('Expected Review recording');
+      const retain = vi.spyOn(review.recording.media, 'retain');
+      vi.spyOn(URL, 'createObjectURL').mockReturnValue(
+        'blob:original-recording',
+      );
+      vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+      const click = vi
+        .spyOn(HTMLAnchorElement.prototype, 'click')
+        .mockImplementation(() => {});
+      const view = render(
+        <PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />,
+      );
+      fireEvent.click(screen.getByRole('button', { name: '返回乐谱' }));
+      expect(
+        screen.getByRole('button', { name: '确认离开' }),
+      ).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: '继续查看' }));
+      fireEvent.click(screen.getByRole('button', { name: '下载原始录制' }));
+      await waitFor(() =>
+        expect(URL.revokeObjectURL).toHaveBeenCalledWith(
+          'blob:original-recording',
+        ),
+      );
+      expect(URL.createObjectURL).toHaveBeenCalledExactlyOnceWith(blob);
+      expect(click).toHaveBeenCalledOnce();
+      expect((click.mock.instances[0] as HTMLAnchorElement).download).toMatch(
+        new RegExp(`^performance-${kind.toLowerCase()}-.*\\.${extension}$`),
+      );
+      expect(retain).toHaveBeenCalledExactlyOnceWith();
+      expect(saveMutationMock.mutateAsync).not.toHaveBeenCalled();
+      expect(videoExportMocks.exportVideo).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('button', { name: '返回乐谱' }));
+      expect(navigationMocks.push).toHaveBeenLastCalledWith('/score/score-123');
+      expect(screen.queryByRole('button', { name: '确认离开' })).toBeNull();
+      view.unmount();
+      await releaseTransientReviewSession(review);
+      await completion.recording.media.release();
+    },
+  );
+
   it('exports and saves ready video review media without using the audio blob', async () => {
     Object.defineProperty(URL, 'createObjectURL', {
       configurable: true,
@@ -1304,7 +1403,7 @@ describe('PracticeReviewPage', () => {
       <PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: '导出原始视频' }));
+    fireEvent.click(screen.getByRole('button', { name: '下载原始录制' }));
     expect(createObjectURL).toHaveBeenCalledWith(videoBlob);
 
     fireEvent.click(screen.getByRole('button', { name: '保存录制' }));
@@ -1359,7 +1458,7 @@ describe('PracticeReviewPage', () => {
     );
     expect(clickSpy).toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: '导出原始视频' }));
+    fireEvent.click(screen.getByRole('button', { name: '下载原始录制' }));
     expect(createObjectURL).toHaveBeenCalledWith(videoBlob);
 
     fireEvent.click(screen.getByRole('button', { name: '保存录制' }));
@@ -1500,7 +1599,7 @@ describe('PracticeReviewPage', () => {
     await screen.findByTestId('video-export-error');
     expect(screen.getByText('encoder failed')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: '导出原始视频' }));
+    fireEvent.click(screen.getByRole('button', { name: '下载原始录制' }));
     expect(URL.createObjectURL).toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: '保存录制' }));
@@ -1533,7 +1632,7 @@ describe('PracticeReviewPage', () => {
       <PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: '导出原始视频' }));
+    fireEvent.click(screen.getByRole('button', { name: '下载原始录制' }));
     expect(URL.createObjectURL).toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: '保存录制' }));

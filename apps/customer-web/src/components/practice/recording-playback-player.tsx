@@ -8,49 +8,49 @@ import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import type { PlayablePerformanceReplay } from '@/lib/practice/recording/performance-replay';
+import type { RecordingPlaybackSource } from '@/lib/practice/recording/recording-playback';
 
-type PerformanceReplayPlayerProps = {
-  replay: PlayablePerformanceReplay;
-  onReplayTimeChange?: (
-    replayTimeMs: number | null,
+type RecordingPlaybackPlayerProps = {
+  source: RecordingPlaybackSource;
+  onMediaTimeChange?: (
+    mediaTimeMs: number | null,
     actualDurationMs?: number | null,
   ) => void;
   onPlaybackStateChange?: (playing: boolean) => void;
-  onReplaySeekCommitted?: (replayTimeMs: number) => void;
+  onMediaSeekCommitted?: (mediaTimeMs: number) => void;
   onVideoElementChange?: (video: HTMLVideoElement | null) => void;
   autoStart?: boolean;
   actions?: ReactNode;
 };
 
-export function PerformanceReplayPlayer({
-  replay,
-  onReplayTimeChange,
+export function RecordingPlaybackPlayer({
+  source,
+  onMediaTimeChange,
   onPlaybackStateChange,
-  onReplaySeekCommitted,
+  onMediaSeekCommitted,
   onVideoElementChange,
   autoStart = false,
   actions,
-}: PerformanceReplayPlayerProps) {
-  if (replay.kind === 'AUDIO_RECORDING') {
+}: RecordingPlaybackPlayerProps) {
+  if (source.kind === 'AUDIO') {
     return (
-      <AudioPerformanceReplayPlayer
-        replay={replay}
-        onReplayTimeChange={onReplayTimeChange}
+      <AudioRecordingPlaybackPlayer
+        source={source}
+        onMediaTimeChange={onMediaTimeChange}
         onPlaybackStateChange={onPlaybackStateChange}
-        onReplaySeekCommitted={onReplaySeekCommitted}
+        onMediaSeekCommitted={onMediaSeekCommitted}
         autoStart={autoStart}
         actions={actions}
       />
     );
   }
-  if (replay.kind === 'VIDEO_RECORDING') {
+  if (source.kind === 'VIDEO') {
     return (
-      <VideoPerformanceReplayPlayer
-        replay={replay}
-        onReplayTimeChange={onReplayTimeChange}
+      <VideoRecordingPlaybackPlayer
+        source={source}
+        onMediaTimeChange={onMediaTimeChange}
         onPlaybackStateChange={onPlaybackStateChange}
-        onReplaySeekCommitted={onReplaySeekCommitted}
+        onMediaSeekCommitted={onMediaSeekCommitted}
         onVideoElementChange={onVideoElementChange}
         autoStart={autoStart}
         actions={actions}
@@ -60,35 +60,35 @@ export function PerformanceReplayPlayer({
   return null;
 }
 
-type AudioPerformanceReplay = Extract<
-  PlayablePerformanceReplay,
-  { kind: 'AUDIO_RECORDING' }
+type AudioRecordingPlaybackSource = Extract<
+  RecordingPlaybackSource,
+  { kind: 'AUDIO' }
 >;
-type VideoPerformanceReplay = Extract<
-  PlayablePerformanceReplay,
-  { kind: 'VIDEO_RECORDING' }
+type VideoRecordingPlaybackSource = Extract<
+  RecordingPlaybackSource,
+  { kind: 'VIDEO' }
 >;
 
-function AudioPerformanceReplayPlayer({
-  replay,
-  onReplayTimeChange,
+function AudioRecordingPlaybackPlayer({
+  source,
+  onMediaTimeChange,
   onPlaybackStateChange,
-  onReplaySeekCommitted,
+  onMediaSeekCommitted,
   autoStart,
   actions,
 }: {
-  replay: AudioPerformanceReplay;
-  onReplayTimeChange?: (
-    replayTimeMs: number | null,
+  source: AudioRecordingPlaybackSource;
+  onMediaTimeChange?: (
+    mediaTimeMs: number | null,
     actualDurationMs?: number | null,
   ) => void;
   onPlaybackStateChange?: (playing: boolean) => void;
-  onReplaySeekCommitted?: (replayTimeMs: number) => void;
+  onMediaSeekCommitted?: (mediaTimeMs: number) => void;
   autoStart: boolean;
   actions?: ReactNode;
 }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const mediaSource = replay.url ?? replay.media?.blob;
+  const mediaSource = source.url ?? source.media?.blob;
   const autoStartedSourceRef = useRef<Blob | string | null>(null);
   const pendingAutoPlaySourceRef = useRef<Blob | string | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -97,10 +97,10 @@ function AudioPerformanceReplayPlayer({
   const [currentMs, setCurrentMs] = useState(0);
   const [actualDurationMs, setActualDurationMs] = useState<number | null>(null);
   const [hasPlaybackError, setHasPlaybackError] = useState(false);
-  const onReplayTimeChangeRef = useRef(onReplayTimeChange);
+  const onMediaTimeChangeRef = useRef(onMediaTimeChange);
   useEffect(() => {
-    onReplayTimeChangeRef.current = onReplayTimeChange;
-  }, [onReplayTimeChange]);
+    onMediaTimeChangeRef.current = onMediaTimeChange;
+  }, [onMediaTimeChange]);
 
   if (prevMediaSource !== mediaSource) {
     setPrevMediaSource(mediaSource);
@@ -110,16 +110,16 @@ function AudioPerformanceReplayPlayer({
 
   const effectiveDurationMs =
     actualDurationMs ??
-    (replay.recordingTimebase
+    (source.recordingTimebase
       ? microsecondsToMilliseconds(
-          replay.recordingTimebase.nominalMediaDurationUs,
+          source.recordingTimebase.nominalMediaDurationUs,
         )
       : 0);
 
   const publishTime = useCallback(
     (timeMs: number, durationOverrideMs?: number | null) => {
       const durationMs = durationOverrideMs ?? effectiveDurationMs;
-      const boundedTimeMs = boundReplayTime(timeMs, durationMs);
+      const boundedTimeMs = boundMediaTime(timeMs, durationMs);
       setCurrentMs(boundedTimeMs);
       if (
         durationOverrideMs !== undefined &&
@@ -129,12 +129,12 @@ function AudioPerformanceReplayPlayer({
       }
       const reportedDurationMs = durationOverrideMs ?? actualDurationMs;
       if (reportedDurationMs !== null) {
-        onReplayTimeChange?.(boundedTimeMs, reportedDurationMs);
+        onMediaTimeChange?.(boundedTimeMs, reportedDurationMs);
       } else {
-        onReplayTimeChange?.(boundedTimeMs);
+        onMediaTimeChange?.(boundedTimeMs);
       }
     },
-    [actualDurationMs, effectiveDurationMs, onReplayTimeChange],
+    [actualDurationMs, effectiveDurationMs, onMediaTimeChange],
   );
 
   const updateActualDuration = useCallback((audio: HTMLAudioElement) => {
@@ -189,9 +189,9 @@ function AudioPerformanceReplayPlayer({
     if (!audio) {
       return undefined;
     }
-    const lease = replay.media?.retain();
-    const audioUrl = replay.url
-      ? replay.url
+    const lease = source.media?.retain();
+    const audioUrl = source.url
+      ? source.url
       : lease
         ? URL.createObjectURL(lease.blob)
         : '';
@@ -204,13 +204,13 @@ function AudioPerformanceReplayPlayer({
       audio.pause();
       audio.removeAttribute('src');
       audio.load();
-      if (!replay.url && audioUrl) {
+      if (!source.url && audioUrl) {
         URL.revokeObjectURL(audioUrl);
       }
       if (lease) void releaseLocalMediaAsset(lease);
-      onReplayTimeChangeRef.current?.(null);
+      onMediaTimeChangeRef.current?.(null);
     };
-  }, [replay.media, replay.url, stopRenderTicker]);
+  }, [source.media, source.url, stopRenderTicker]);
 
   const startAudioPlayback = useCallback(() => {
     const audio = audioRef.current;
@@ -257,7 +257,7 @@ function AudioPerformanceReplayPlayer({
   const seek = useCallback(
     (nextTimeMs: number) => {
       const audio = audioRef.current;
-      const boundedTimeMs = boundReplayTime(nextTimeMs, effectiveDurationMs);
+      const boundedTimeMs = boundMediaTime(nextTimeMs, effectiveDurationMs);
       if (audio) {
         audio.currentTime = boundedTimeMs / 1000;
       }
@@ -267,13 +267,13 @@ function AudioPerformanceReplayPlayer({
   );
 
   return (
-    <ReplayChrome
+    <RecordingPlaybackChrome
       currentMs={currentMs}
       durationMs={effectiveDurationMs}
       isPlaying={isPlaying}
       onTogglePlayback={togglePlayback}
       onSeek={seek}
-      onSeekCommitted={onReplaySeekCommitted}
+      onSeekCommitted={onMediaSeekCommitted}
       actions={actions}
       hasPlaybackError={hasPlaybackError}
     >
@@ -323,32 +323,32 @@ function AudioPerformanceReplayPlayer({
           onPlaybackStateChange?.(false);
         }}
       />
-    </ReplayChrome>
+    </RecordingPlaybackChrome>
   );
 }
 
-function VideoPerformanceReplayPlayer({
-  replay,
-  onReplayTimeChange,
+function VideoRecordingPlaybackPlayer({
+  source,
+  onMediaTimeChange,
   onPlaybackStateChange,
-  onReplaySeekCommitted,
+  onMediaSeekCommitted,
   onVideoElementChange,
   autoStart,
   actions,
 }: {
-  replay: VideoPerformanceReplay;
-  onReplayTimeChange?: (
-    replayTimeMs: number | null,
+  source: VideoRecordingPlaybackSource;
+  onMediaTimeChange?: (
+    mediaTimeMs: number | null,
     actualDurationMs?: number | null,
   ) => void;
   onPlaybackStateChange?: (playing: boolean) => void;
-  onReplaySeekCommitted?: (replayTimeMs: number) => void;
+  onMediaSeekCommitted?: (mediaTimeMs: number) => void;
   onVideoElementChange?: (video: HTMLVideoElement | null) => void;
   autoStart: boolean;
   actions?: ReactNode;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const mediaSource = replay.url ?? replay.media?.blob;
+  const mediaSource = source.url ?? source.media?.blob;
   const autoStartedSourceRef = useRef<Blob | string | null>(null);
   const pendingAutoPlaySourceRef = useRef<Blob | string | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -357,10 +357,10 @@ function VideoPerformanceReplayPlayer({
   const [currentMs, setCurrentMs] = useState(0);
   const [actualDurationMs, setActualDurationMs] = useState<number | null>(null);
   const [hasPlaybackError, setHasPlaybackError] = useState(false);
-  const onReplayTimeChangeRef = useRef(onReplayTimeChange);
+  const onMediaTimeChangeRef = useRef(onMediaTimeChange);
   useEffect(() => {
-    onReplayTimeChangeRef.current = onReplayTimeChange;
-  }, [onReplayTimeChange]);
+    onMediaTimeChangeRef.current = onMediaTimeChange;
+  }, [onMediaTimeChange]);
   const handleVideoRef = useCallback(
     (element: HTMLVideoElement | null) => {
       videoRef.current = element;
@@ -377,16 +377,16 @@ function VideoPerformanceReplayPlayer({
 
   const effectiveDurationMs =
     actualDurationMs ??
-    (replay.recordingTimebase
+    (source.recordingTimebase
       ? microsecondsToMilliseconds(
-          replay.recordingTimebase.nominalMediaDurationUs,
+          source.recordingTimebase.nominalMediaDurationUs,
         )
       : 0);
 
   const publishTime = useCallback(
     (timeMs: number, durationOverrideMs?: number | null) => {
       const durationMs = durationOverrideMs ?? effectiveDurationMs;
-      const boundedTimeMs = boundReplayTime(timeMs, durationMs);
+      const boundedTimeMs = boundMediaTime(timeMs, durationMs);
       setCurrentMs(boundedTimeMs);
       if (
         durationOverrideMs !== undefined &&
@@ -396,12 +396,12 @@ function VideoPerformanceReplayPlayer({
       }
       const reportedDurationMs = durationOverrideMs ?? actualDurationMs;
       if (reportedDurationMs !== null) {
-        onReplayTimeChange?.(boundedTimeMs, reportedDurationMs);
+        onMediaTimeChange?.(boundedTimeMs, reportedDurationMs);
       } else {
-        onReplayTimeChange?.(boundedTimeMs);
+        onMediaTimeChange?.(boundedTimeMs);
       }
     },
-    [actualDurationMs, effectiveDurationMs, onReplayTimeChange],
+    [actualDurationMs, effectiveDurationMs, onMediaTimeChange],
   );
 
   const updateActualDuration = useCallback((video: HTMLVideoElement) => {
@@ -456,9 +456,9 @@ function VideoPerformanceReplayPlayer({
     if (!video) {
       return undefined;
     }
-    const lease = replay.media?.retain();
-    const videoUrl = replay.url
-      ? replay.url
+    const lease = source.media?.retain();
+    const videoUrl = source.url
+      ? source.url
       : lease
         ? URL.createObjectURL(lease.blob)
         : '';
@@ -471,13 +471,13 @@ function VideoPerformanceReplayPlayer({
       video.pause();
       video.removeAttribute('src');
       video.load();
-      if (!replay.url && videoUrl) {
+      if (!source.url && videoUrl) {
         URL.revokeObjectURL(videoUrl);
       }
       if (lease) void releaseLocalMediaAsset(lease);
-      onReplayTimeChangeRef.current?.(null);
+      onMediaTimeChangeRef.current?.(null);
     };
-  }, [replay.media, replay.url, stopRenderTicker]);
+  }, [source.media, source.url, stopRenderTicker]);
 
   const startVideoPlayback = useCallback(() => {
     const video = videoRef.current;
@@ -524,7 +524,7 @@ function VideoPerformanceReplayPlayer({
   const seek = useCallback(
     (nextTimeMs: number) => {
       const video = videoRef.current;
-      const boundedTimeMs = boundReplayTime(nextTimeMs, effectiveDurationMs);
+      const boundedTimeMs = boundMediaTime(nextTimeMs, effectiveDurationMs);
       if (video) {
         video.currentTime = boundedTimeMs / 1000;
       }
@@ -534,13 +534,13 @@ function VideoPerformanceReplayPlayer({
   );
 
   return (
-    <ReplayChrome
+    <RecordingPlaybackChrome
       currentMs={currentMs}
       durationMs={effectiveDurationMs}
       isPlaying={isPlaying}
       onTogglePlayback={togglePlayback}
       onSeek={seek}
-      onSeekCommitted={onReplaySeekCommitted}
+      onSeekCommitted={onMediaSeekCommitted}
       actions={actions}
       hasPlaybackError={hasPlaybackError}
     >
@@ -591,11 +591,11 @@ function VideoPerformanceReplayPlayer({
           onPlaybackStateChange?.(false);
         }}
       />
-    </ReplayChrome>
+    </RecordingPlaybackChrome>
   );
 }
 
-function ReplayChrome({
+function RecordingPlaybackChrome({
   children,
   currentMs,
   durationMs,
@@ -617,8 +617,8 @@ function ReplayChrome({
   hasPlaybackError?: boolean;
 }) {
   const t = useTranslations('practice');
-  const durationLabel = formatReplayTime(durationMs);
-  const currentLabel = formatReplayTime(currentMs);
+  const durationLabel = formatMediaTime(durationMs);
+  const currentLabel = formatMediaTime(currentMs);
   return (
     <div className="space-y-3">
       {children}
@@ -634,7 +634,7 @@ function ReplayChrome({
           min={0}
           max={Math.max(0, Math.round(durationMs))}
           step={50}
-          value={Math.round(boundReplayTime(currentMs, durationMs))}
+          value={Math.round(boundMediaTime(currentMs, durationMs))}
           onChange={(event) => onSeek(Number(event.currentTarget.value))}
           onPointerUp={(event) =>
             onSeekCommitted?.(Number(event.currentTarget.value))
@@ -652,7 +652,7 @@ function ReplayChrome({
             }
           }}
           className="h-2 w-full accent-orange-500"
-          aria-label={t('replaySeek')}
+          aria-label={t('recordingSeek')}
           disabled={hasPlaybackError || durationMs <= 0}
         />
         <span>{durationLabel}</span>
@@ -671,7 +671,7 @@ function ReplayChrome({
           ) : (
             <Play className="mr-2 h-4 w-4" />
           )}
-          {isPlaying ? t('pauseReplay') : t('playReplay')}
+          {isPlaying ? t('pauseRecording') : t('playRecording')}
         </Button>
         {actions ? <div className="shrink-0">{actions}</div> : null}
       </div>
@@ -679,7 +679,7 @@ function ReplayChrome({
   );
 }
 
-function boundReplayTime(timeMs: number, durationMs: number) {
+function boundMediaTime(timeMs: number, durationMs: number) {
   return Math.min(
     Math.max(Number.isFinite(timeMs) ? timeMs : 0, 0),
     Math.max(0, durationMs),
@@ -692,7 +692,7 @@ function finiteMediaDurationMs(media: HTMLMediaElement) {
     : null;
 }
 
-function formatReplayTime(timeMs: number) {
+function formatMediaTime(timeMs: number) {
   const totalSeconds = Math.max(0, Math.floor(timeMs / 1000));
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
