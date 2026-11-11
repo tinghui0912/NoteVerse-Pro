@@ -29,7 +29,10 @@ class User(SQLModel, table=True):  # type: ignore[call-arg]
     avatar_object_id: Optional[int] = Field(
         default=None,
         sa_column=Column(
-            BigInteger, ForeignKey("stored_objects.id", ondelete="RESTRICT"), nullable=True
+            BigInteger,
+            ForeignKey("stored_objects.id", ondelete="RESTRICT"),
+            nullable=True,
+            index=True,
         ),
     )
     avatar_object: Optional[StoredObject] = Relationship(

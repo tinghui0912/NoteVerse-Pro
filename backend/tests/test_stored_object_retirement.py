@@ -5,7 +5,7 @@ from datetime import timedelta
 from unittest.mock import Mock
 
 import pytest
-from sqlalchemy import create_engine, event, select
+from sqlalchemy import UniqueConstraint, create_engine, event, select
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel
@@ -257,6 +257,21 @@ def test_reference_registry_classifies_every_real_foreign_key():
                     actual.add(identity)
     assert actual == semantic and len(semantic) == 9
     assert operations == {("stored_object_retirements", "stored_object_id")}
+
+
+def test_every_semantic_reference_has_a_leading_column_lookup_path():
+    for column in SEMANTIC_REFERENCES:
+        unique = any(
+            isinstance(constraint, UniqueConstraint)
+            and tuple(constraint.columns.keys()) == (column.name,)
+            for constraint in column.table.constraints
+        )
+        indexed = any(
+            index.expressions[0] is column
+            and index.dialect_options["postgresql"].get("where") is None
+            for index in column.table.indexes
+        )
+        assert unique or indexed, f"{column.table.name}.{column.name} needs a leading-column index"
 
 
 @pytest.mark.parametrize("broker_accepts", [False, True])
