@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Literal, Optional, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from .recording_timebase import RecordingTimebase
 from app.modules.practice.planning.score_plan import MIN_PRACTICE_TEMPO_BPM, MAX_PRACTICE_TEMPO_BPM
 
 
@@ -48,43 +49,6 @@ class PerformanceTakeTempoPlan(StrictPerformanceTakeModel):
         for previous, current in zip(self.segments, self.segments[1:]):
             if current.startTick <= previous.startTick:
                 raise ValueError("tempo plan segments must be strictly ordered")
-        return self
-
-
-class RecordingActiveSegment(StrictPerformanceTakeModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    performanceStartUs: int = Field(strict=True, ge=0, le=2**53 - 1)
-    performanceEndUs: int = Field(strict=True, gt=0, le=2**53 - 1)
-    mediaStartUs: int = Field(strict=True, ge=0, le=2**53 - 1)
-    mediaEndUs: int = Field(strict=True, gt=0, le=2**53 - 1)
-
-    @model_validator(mode="after")
-    def validate_segment(self) -> "RecordingActiveSegment":
-        if self.performanceEndUs <= self.performanceStartUs or self.mediaEndUs <= self.mediaStartUs:
-            raise ValueError("active segment durations must be positive")
-        if self.performanceEndUs - self.performanceStartUs != self.mediaEndUs - self.mediaStartUs:
-            raise ValueError("active performance and media durations must match exactly")
-        return self
-
-
-class RecordingTimebase(StrictPerformanceTakeModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    nominalMediaDurationUs: int = Field(strict=True, gt=0, le=2**53 - 1)
-    activeSegments: tuple[RecordingActiveSegment, ...] = Field(min_length=1)
-
-    @model_validator(mode="after")
-    def validate_timebase(self) -> "RecordingTimebase":
-        if self.activeSegments[0].mediaStartUs != 0:
-            raise ValueError("first media segment must start at zero")
-        if self.activeSegments[-1].mediaEndUs != self.nominalMediaDurationUs:
-            raise ValueError("nominal media duration must match final media end exactly")
-        for previous, current in zip(self.activeSegments, self.activeSegments[1:]):
-            if current.performanceStartUs < previous.performanceEndUs:
-                raise ValueError("performance segments must not overlap")
-            if current.mediaStartUs != previous.mediaEndUs:
-                raise ValueError("media segments must be exactly contiguous")
         return self
 
 

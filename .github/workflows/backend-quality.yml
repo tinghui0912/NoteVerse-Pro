@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
     paths:
+      - "contracts/practice/recording-timebase.schema.json"
+      - "scripts/generate_practice_recording_timebase_contract.py"
       - "contracts/practice/recording-media-policy.json"
       - "scripts/generate_practice_recording_media_policy.py"
       - "contracts/score/tempo-policy.json"
@@ -22,6 +24,8 @@ on:
       - ".github/scripts/*.py"
   pull_request:
     paths:
+      - "contracts/practice/recording-timebase.schema.json"
+      - "scripts/generate_practice_recording_timebase_contract.py"
       - "contracts/practice/recording-media-policy.json"
       - "scripts/generate_practice_recording_media_policy.py"
       - "contracts/score/tempo-policy.json"
@@ -166,6 +170,7 @@ jobs:
           "cd /repo &&
           python scripts/generate_score_tempo_policy.py --check &&
           python scripts/generate_practice_recording_media_policy.py --check &&
+          python scripts/generate_practice_recording_timebase_contract.py --check &&
           python scripts/generate_practice_score_contract.py --check &&
           PYTHONPATH=/repo/backend python scripts/check_practice_score_artifact_fixture.py &&
           PYTHONPATH=/repo/backend python scripts/check_practice_score_artifact_fixture.py --self-test-missing-fixture"

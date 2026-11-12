@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
     paths:
+      - "contracts/practice/recording-timebase.schema.json"
+      - "scripts/generate_practice_recording_timebase_contract.py"
       - "contracts/practice/recording-media-policy.json"
       - "scripts/generate_practice_recording_media_policy.py"
       - "contracts/score/tempo-policy.json"
@@ -22,6 +24,8 @@ on:
       - "docs/governance/dependency-maintenance-policy.md"
   pull_request:
     paths:
+      - "contracts/practice/recording-timebase.schema.json"
+      - "scripts/generate_practice_recording_timebase_contract.py"
       - "contracts/practice/recording-media-policy.json"
       - "scripts/generate_practice_recording_media_policy.py"
       - "contracts/score/tempo-policy.json"
@@ -65,6 +69,10 @@ jobs:
       - name: Verify original Recording Media Policy projections
         working-directory: .
         run: python3 scripts/generate_practice_recording_media_policy.py --check
+
+      - name: Verify RecordingTimebase structural projections
+        working-directory: .
+        run: python3 scripts/generate_practice_recording_timebase_contract.py --check
 
       - name: Test Customer Web CI policy
         working-directory: .

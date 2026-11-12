@@ -498,24 +498,26 @@ class RecordingMediaWorkflowTests(unittest.TestCase):
             for event in ['push', 'pull_request']:
                 block = re.search(r'^  ' + event + r':\n(.*?)(?=^  [a-z_]+:|^\S|\Z)', triggers, re.M | re.S)
                 self.assertIsNotNone(block)
-                for path in ['contracts/practice/recording-media-policy.json', 'scripts/generate_practice_recording_media_policy.py']:
+                for path in ['contracts/practice/recording-media-policy.json', 'scripts/generate_practice_recording_media_policy.py', 'contracts/practice/recording-timebase.schema.json', 'scripts/generate_practice_recording_timebase_contract.py']:
                     self.assertIn('      - "' + path + '"', block.group(1))
 
-    def test_customer_policy_check_runs_from_root_before_quality_reuse_and_types(self):
+    def test_customer_recording_checks_run_from_root_before_quality_reuse_and_types(self):
         root = Path(__file__).resolve().parents[2]
         text = (root / '.github/workflows/customer-web-quality.yml').read_text(encoding='utf-8')
-        block = next(part for part in text.split('      - name: ') if 'run: python3 scripts/generate_practice_recording_media_policy.py --check' in part)
-        self.assertIn('working-directory: .', block)
-        self.assertNotIn('        if:', block)
-        self.assertLess(text.index(block), text.index('      - name: Verify reusable PR Quality proof'))
-        self.assertLess(text.index(block), text.index('      - name: Run TypeScript checks'))
+        for script in ['generate_practice_recording_media_policy.py', 'generate_practice_recording_timebase_contract.py']:
+            block = next(part for part in text.split('      - name: ') if 'run: python3 scripts/' + script + ' --check' in part)
+            self.assertIn('working-directory: .', block)
+            self.assertNotIn('        if:', block)
+            self.assertLess(text.index(block), text.index('      - name: Verify reusable PR Quality proof'))
+            self.assertLess(text.index(block), text.index('      - name: Run TypeScript checks'))
 
-    def test_backend_checks_recording_policy_with_practice_projections_from_root(self):
+    def test_backend_checks_recording_contracts_with_practice_projections_from_root(self):
         root = Path(__file__).resolve().parents[2]
         text = (root / '.github/workflows/backend-quality.yml').read_text(encoding='utf-8')
-        block = next(part for part in text.split('      - name: ') if 'python scripts/generate_practice_recording_media_policy.py --check' in part)
-        self.assertIn('cd /repo &&', block)
-        self.assertIn('python scripts/generate_practice_score_contract.py --check', block)
+        for script in ['generate_practice_recording_media_policy.py', 'generate_practice_recording_timebase_contract.py']:
+            block = next(part for part in text.split('      - name: ') if 'python scripts/' + script + ' --check' in part)
+            self.assertIn('cd /repo &&', block)
+            self.assertIn('python scripts/generate_practice_score_contract.py --check', block)
 
 
 if __name__ == "__main__":

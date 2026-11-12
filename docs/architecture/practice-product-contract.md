@@ -939,9 +939,10 @@ integer microseconds, scales actual to nominal coordinates using exact BigInt pr
 and nearest-integer division with ties upward, then maps through the active segments.
 A shared media boundary selects the preceding performance endpoint. Presentation and
 score-tempo integration convert the resulting performance microseconds to milliseconds.
-The actual container duration never changes the durable timebase. The shared executable
-contract is `contracts/practice/recording-timebase-cases.json`, consumed by Python and
-TypeScript tests.
+The actual container duration never changes the durable timebase. `contracts/practice/recording-timebase.schema.json` owns structural fields and primitive
+bounds through generated Python/TypeScript projections. Both runtimes independently
+validate duration/rate and chronology semantics; `recording-timebase-cases.json` supplies
+the shared semantic conformance evidence.
 
 Recording OFF acquires no media. Microphone+AUDIO borrows a clone of the session
 stream; MIDI+AUDIO borrows a clone of the retained recording-microphone root. VIDEO uses camera video

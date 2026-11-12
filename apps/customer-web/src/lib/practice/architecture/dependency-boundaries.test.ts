@@ -146,6 +146,7 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
   const source = relative(file);
   const target = edge.target ? relative(edge.target) : null;
   if (
+    source.startsWith('recording/generated/') ||
     source.startsWith('acoustic/generated/') ||
     source.startsWith('contracts/generated/')
   )
@@ -499,18 +500,6 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
           ) ||
           target.startsWith('continuous/domain/evaluation/') ||
           (edge.typeOnly && target === 'continuous/domain/session.ts')),
-    );
-  if (
-    source.startsWith('recording/') &&
-    edge.typeOnly &&
-    edge.target ===
-      normalize(path.join(sourceRoot, 'generated/api/types.gen.ts'))
-  )
-    return (
-      edge.bindings.length > 0 &&
-      edge.bindings.every((name) =>
-        ['RecordingTimebase', 'RecordingActiveSegment'].includes(name),
-      )
     );
   if (source === 'recording/recording-playback.ts')
     return Boolean(
