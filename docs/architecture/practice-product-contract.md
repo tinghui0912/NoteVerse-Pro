@@ -1019,6 +1019,11 @@ completed local recording -> admitted Manifest + upload reservation -> direct bi
 media, scope selection, tempo selection and recording timebase once. Practice binding contains
 score_id, revision_id and bundle_id; media contains kind, canonical MIME and byte size. The
 Manifest captures exact Bundle provenance and score title under live save authorization.
+Custom Fixed BPM is finite and strictly positive; its exact value is retained in the
+resolved CUSTOM segment. Runtime timing validates representability for the particular
+score and tempo. The numeric editor has no product maximum and retains invalid drafts
+locally without changing the selection.
+
 Clients submit FULL or RANGE group IDs and SCORE or CUSTOM_FIXED_BPM selection;
 the server derives durable scope ticks, tempo segments and their shared score timebase
 from that exact bound Bundle. Reservation and Take responses expose one `manifest` containing

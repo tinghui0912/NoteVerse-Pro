@@ -1,28 +1,28 @@
-import { DEFAULT_SCORE_TEMPO_BPM } from '@/lib/score/tempo-policy';
-import canonical from '../__fixtures__/canonical-practice-score-artifact.json';
-import { decodePracticeScoreArtifact } from '@/lib/practice/contracts/generated/score-artifact';
-import { leadingRestArtifact } from '@/lib/practice/__fixtures__/leading-rest-artifact';
-import { PracticeScoreArtifact } from '@/lib/practice/score/artifact';
+import { DEFAULT_SCORE_TEMPO_BPM } from "@/lib/score/tempo-policy";
+import canonical from "../__fixtures__/canonical-practice-score-artifact.json";
+import { decodePracticeScoreArtifact } from "@/lib/practice/contracts/generated/score-artifact";
+import { leadingRestArtifact } from "@/lib/practice/__fixtures__/leading-rest-artifact";
+import { PracticeScoreArtifact } from "@/lib/practice/score/artifact";
 import {
-  clampCustomTempo,
   effectiveScoreTempoAtTick,
   hasExplicitScoreTempo,
   hasScoreTempoChanges,
   initialScoreTempoBpm,
   isCustomTempoValid,
-  MAX_PRACTICE_TEMPO_BPM,
-  MIN_PRACTICE_TEMPO_BPM,
   PracticeTempoTimeline,
+  ticksToMs,
   resolvePracticeTempoPlan,
-} from '@/lib/practice/planning/tempo';
-import { describe, expect, it } from 'vitest';
+} from "@/lib/practice/planning/tempo";
+import { describe, expect, it } from "vitest";
 
-function createMockArtifact(scoreTempoSegments: { startTick: number; bpm: number }[]): PracticeScoreArtifact {
+function createMockArtifact(
+  scoreTempoSegments: { startTick: number; bpm: number }[],
+): PracticeScoreArtifact {
   return {
-    schemaVersion: 1, ticksPerQuarter: 1,
+    schemaVersion: 1,
+    ticksPerQuarter: 1,
 
-
-    artifactId: 'test-artifact',
+    artifactId: "test-artifact",
     notes: [],
     events: [],
     moments: [],
@@ -33,59 +33,67 @@ function createMockArtifact(scoreTempoSegments: { startTick: number; bpm: number
   };
 }
 
-describe('practice-tempo', () => {
-  describe('constants & validation', () => {
-    it('defines standard boundaries and product default', () => {
+describe("practice-tempo", () => {
+  describe("custom tempo admission", () => {
+    it("keeps the Score default at 80 BPM", () => {
       expect(DEFAULT_SCORE_TEMPO_BPM).toBe(80);
-      expect(MIN_PRACTICE_TEMPO_BPM).toBe(40);
-      expect(MAX_PRACTICE_TEMPO_BPM).toBe(240);
     });
-
-    it('validates custom bpm range', () => {
-      expect(isCustomTempoValid(40)).toBe(true);
-      expect(isCustomTempoValid(240)).toBe(true);
-      expect(isCustomTempoValid(120)).toBe(true);
-      expect(isCustomTempoValid(39)).toBe(false);
-      expect(isCustomTempoValid(241)).toBe(false);
-      expect(isCustomTempoValid(NaN)).toBe(false);
-      expect(isCustomTempoValid(Infinity)).toBe(false);
+    it.each([
+      20,
+      20.5,
+      39.99,
+      80.5,
+      240.01,
+      300.25,
+      Number.MIN_VALUE,
+      Number.MAX_VALUE,
+    ])("admits positive finite BPM %s exactly", (bpm) => {
+      expect(isCustomTempoValid(bpm)).toBe(true);
+      const selection = { mode: "CUSTOM_FIXED_BPM" as const, bpm };
+      const plan = resolvePracticeTempoPlan(createMockArtifact([]), selection);
+      expect(plan.selection).toBe(selection);
+      expect(plan.segments).toEqual([{ startTick: 0, bpm, source: "CUSTOM" }]);
     });
-
-    it('clamps custom bpm', () => {
-      expect(clampCustomTempo(30)).toBe(40);
-      expect(clampCustomTempo(300)).toBe(240);
-      expect(clampCustomTempo(120.4)).toBe(120);
-      expect(clampCustomTempo(120.6)).toBe(121);
-      expect(() => clampCustomTempo(NaN)).toThrow();
-    });
+    it.each([0, -1, NaN, Infinity, -Infinity])(
+      "rejects invalid custom BPM %s",
+      (bpm) => {
+        expect(isCustomTempoValid(bpm)).toBe(false);
+        expect(() =>
+          resolvePracticeTempoPlan(createMockArtifact([]), {
+            mode: "CUSTOM_FIXED_BPM",
+            bpm,
+          }),
+        ).toThrow();
+      },
+    );
   });
 
-  describe('resolvePracticeTempoPlan', () => {
-    it('resolves SCORE mode with empty scoreTempoSegments to PRODUCT_DEFAULT 80 BPM', () => {
+  describe("resolvePracticeTempoPlan", () => {
+    it("resolves SCORE mode with empty scoreTempoSegments to PRODUCT_DEFAULT 80 BPM", () => {
       const artifact = createMockArtifact([]);
-      const plan = resolvePracticeTempoPlan(artifact, { mode: 'SCORE' });
+      const plan = resolvePracticeTempoPlan(artifact, { mode: "SCORE" });
 
       expect(plan).toEqual({
-        selection: { mode: 'SCORE' },
-        segments: [{ startTick: 0, bpm: 80, source: 'PRODUCT_DEFAULT' }],
+        selection: { mode: "SCORE" },
+        segments: [{ startTick: 0, bpm: 80, source: "PRODUCT_DEFAULT" }],
       });
       expect(hasExplicitScoreTempo(artifact)).toBe(false);
       expect(initialScoreTempoBpm(artifact)).toBe(80);
       expect(hasScoreTempoChanges(artifact)).toBe(false);
     });
 
-    it('resolves SCORE mode with explicit tempo starting at tick 0 to MUSICXML', () => {
+    it("resolves SCORE mode with explicit tempo starting at tick 0 to MUSICXML", () => {
       const artifact = createMockArtifact([
         { startTick: 0, bpm: 112 },
         { startTick: 8, bpm: 96 },
       ]);
-      const plan = resolvePracticeTempoPlan(artifact, { mode: 'SCORE' });
+      const plan = resolvePracticeTempoPlan(artifact, { mode: "SCORE" });
 
       expect(plan).toEqual({
-        selection: { mode: 'SCORE' },
+        selection: { mode: "SCORE" },
         segments: [
-          { startTick: 0, bpm: 112, source: 'MUSICXML' },
-          { startTick: 8, bpm: 96, source: 'MUSICXML' },
+          { startTick: 0, bpm: 112, source: "MUSICXML" },
+          { startTick: 8, bpm: 96, source: "MUSICXML" },
         ],
       });
       expect(hasExplicitScoreTempo(artifact)).toBe(true);
@@ -93,17 +101,15 @@ describe('practice-tempo', () => {
       expect(hasScoreTempoChanges(artifact)).toBe(true);
     });
 
-    it('resolves SCORE mode with first tempo starting at tick > 0 by prepending default 80 BPM at tick 0', () => {
-      const artifact = createMockArtifact([
-        { startTick: 4, bpm: 100 },
-      ]);
-      const plan = resolvePracticeTempoPlan(artifact, { mode: 'SCORE' });
+    it("resolves SCORE mode with first tempo starting at tick > 0 by prepending default 80 BPM at tick 0", () => {
+      const artifact = createMockArtifact([{ startTick: 4, bpm: 100 }]);
+      const plan = resolvePracticeTempoPlan(artifact, { mode: "SCORE" });
 
       expect(plan).toEqual({
-        selection: { mode: 'SCORE' },
+        selection: { mode: "SCORE" },
         segments: [
-          { startTick: 0, bpm: 80, source: 'PRODUCT_DEFAULT' },
-          { startTick: 4, bpm: 100, source: 'MUSICXML' },
+          { startTick: 0, bpm: 80, source: "PRODUCT_DEFAULT" },
+          { startTick: 4, bpm: 100, source: "MUSICXML" },
         ],
       });
       expect(hasExplicitScoreTempo(artifact)).toBe(true);
@@ -111,49 +117,42 @@ describe('practice-tempo', () => {
       expect(hasScoreTempoChanges(artifact)).toBe(false);
     });
 
-    it('resolves CUSTOM_FIXED_BPM mode across entire practice score', () => {
+    it("resolves CUSTOM_FIXED_BPM mode across entire practice score", () => {
       const artifact = createMockArtifact([
         { startTick: 0, bpm: 140 },
         { startTick: 8, bpm: 120 },
       ]);
-      const plan = resolvePracticeTempoPlan(artifact, { mode: 'CUSTOM_FIXED_BPM', bpm: 60 });
+      const plan = resolvePracticeTempoPlan(artifact, {
+        mode: "CUSTOM_FIXED_BPM",
+        bpm: 60,
+      });
 
       expect(plan).toEqual({
-        selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 60 },
-        segments: [{ startTick: 0, bpm: 60, source: 'CUSTOM' }],
+        selection: { mode: "CUSTOM_FIXED_BPM", bpm: 60 },
+        segments: [{ startTick: 0, bpm: 60, source: "CUSTOM" }],
       });
-    });
-
-    it('rejects invalid custom bpm', () => {
-      const artifact = createMockArtifact([]);
-      expect(() =>
-        resolvePracticeTempoPlan(artifact, { mode: 'CUSTOM_FIXED_BPM', bpm: 20 })
-      ).toThrowError(/Custom practice tempo must be between 40 and 240/);
-      expect(() =>
-        resolvePracticeTempoPlan(artifact, { mode: 'CUSTOM_FIXED_BPM', bpm: 300 })
-      ).toThrowError(/Custom practice tempo must be between 40 and 240/);
     });
   });
 
-  describe('effectiveScoreTempoAtTick', () => {
-    it('returns default 80 with PRODUCT_DEFAULT source if artifact has no tempo segments', () => {
+  describe("effectiveScoreTempoAtTick", () => {
+    it("returns default 80 with PRODUCT_DEFAULT source if artifact has no tempo segments", () => {
       const artifact = createMockArtifact([]);
       const eff = effectiveScoreTempoAtTick(artifact, 0);
       expect(eff).toEqual({
         bpm: 80,
-        source: 'PRODUCT_DEFAULT',
+        source: "PRODUCT_DEFAULT",
         hasSubsequentScoreTempoChanges: false,
         isDefault: true,
         hasSubsequentChanges: false,
       });
     });
 
-    it('returns default 80 with PRODUCT_DEFAULT source and hasSubsequentScoreTempoChanges if first explicit tempo is at tick > 0', () => {
+    it("returns default 80 with PRODUCT_DEFAULT source and hasSubsequentScoreTempoChanges if first explicit tempo is at tick > 0", () => {
       const artifact = createMockArtifact([{ startTick: 4, bpm: 120 }]);
       const eff = effectiveScoreTempoAtTick(artifact, 0);
       expect(eff).toEqual({
         bpm: 80,
-        source: 'PRODUCT_DEFAULT',
+        source: "PRODUCT_DEFAULT",
         hasSubsequentScoreTempoChanges: true,
         nextScoreTempoTick: 4,
         isDefault: true,
@@ -162,12 +161,12 @@ describe('practice-tempo', () => {
       });
     });
 
-    it('returns active tempo with MUSICXML source when scopeStartTick reaches explicit tempo', () => {
+    it("returns active tempo with MUSICXML source when scopeStartTick reaches explicit tempo", () => {
       const artifact = createMockArtifact([{ startTick: 4, bpm: 120 }]);
       const eff = effectiveScoreTempoAtTick(artifact, 4);
       expect(eff).toEqual({
         bpm: 120,
-        source: 'MUSICXML',
+        source: "MUSICXML",
         hasSubsequentScoreTempoChanges: false,
         nextScoreTempoTick: undefined,
         isDefault: false,
@@ -176,7 +175,7 @@ describe('practice-tempo', () => {
       });
     });
 
-    it('returns active tempo at scopeStartTick when multiple tempo segments exist', () => {
+    it("returns active tempo at scopeStartTick when multiple tempo segments exist", () => {
       const artifact = createMockArtifact([
         { startTick: 0, bpm: 100 },
         { startTick: 8, bpm: 120 },
@@ -184,32 +183,32 @@ describe('practice-tempo', () => {
       ]);
       const effAt0 = effectiveScoreTempoAtTick(artifact, 0);
       expect(effAt0.bpm).toBe(100);
-      expect(effAt0.source).toBe('MUSICXML');
+      expect(effAt0.source).toBe("MUSICXML");
       expect(effAt0.hasSubsequentScoreTempoChanges).toBe(true);
       expect(effAt0.nextScoreTempoTick).toBe(8);
 
       const effAt10 = effectiveScoreTempoAtTick(artifact, 10);
       expect(effAt10.bpm).toBe(120);
-      expect(effAt10.source).toBe('MUSICXML');
+      expect(effAt10.source).toBe("MUSICXML");
       expect(effAt10.hasSubsequentScoreTempoChanges).toBe(true);
       expect(effAt10.nextScoreTempoTick).toBe(16);
 
       const effAt20 = effectiveScoreTempoAtTick(artifact, 20);
       expect(effAt20.bpm).toBe(90);
-      expect(effAt20.source).toBe('MUSICXML');
+      expect(effAt20.source).toBe("MUSICXML");
       expect(effAt20.hasSubsequentScoreTempoChanges).toBe(false);
       expect(effAt20.nextScoreTempoTick).toBeUndefined();
     });
   });
 
-  describe('PracticeTempoTimeline', () => {
-    it('calculates tickToTimeMs, timeMsToTick, and bpmAtTick accurately across tempo changes', () => {
+  describe("PracticeTempoTimeline", () => {
+    it("calculates tickToTimeMs, timeMsToTick, and bpmAtTick accurately across tempo changes", () => {
       const plan = resolvePracticeTempoPlan(
         createMockArtifact([
           { startTick: 0, bpm: 120 }, // 1 tick = 500ms
-          { startTick: 4, bpm: 60 },  // 1 tick = 1000ms
+          { startTick: 4, bpm: 60 }, // 1 tick = 1000ms
         ]),
-        { mode: 'SCORE' }
+        { mode: "SCORE" },
       );
       const timeline = new PracticeTempoTimeline(plan, 8, 1);
 
@@ -238,19 +237,67 @@ describe('practice-tempo', () => {
 });
 
 it("resolves score tempo at the first playable onset after a leading rest", () => {
-    // Effective tempo at start of practice (tick 2.0)
-    const tempoInfo = effectiveScoreTempoAtTick(leadingRestArtifact, leadingRestArtifact.moments[0].onsetTick);
-    expect(tempoInfo.bpm).toBe(100);
-    expect(tempoInfo.source).toBe('MUSICXML');
-
+  // Effective tempo at start of practice (tick 2.0)
+  const tempoInfo = effectiveScoreTempoAtTick(
+    leadingRestArtifact,
+    leadingRestArtifact.moments[0].onsetTick,
+  );
+  expect(tempoInfo.bpm).toBe(100);
+  expect(tempoInfo.source).toBe("MUSICXML");
 });
 
-it.each([{scoreTempoSegments:[]},{scoreTempoSegments:[{startTick:3,bpm:100}]}])('admitted explicit meter supports optional and delayed score tempo',({scoreTempoSegments})=>{
-  const artifact=decodePracticeScoreArtifact({...structuredClone(canonical),scoreTempoSegments});
-  const plan=resolvePracticeTempoPlan(artifact,{mode:'SCORE'});
-  expect(plan.segments[0]).toEqual({startTick:0,bpm:80,source:'PRODUCT_DEFAULT'});
-  expect(plan.segments.slice(1)).toEqual(scoreTempoSegments.map(t=>({...t,source:'MUSICXML'})));
-  const timeline=new PracticeTempoTimeline(plan,artifact.scoreEndTick, artifact.ticksPerQuarter);
-  expect(timeline.bpmAtTick(0)).toBe(80);
-  if(scoreTempoSegments.length)expect(timeline.bpmAtTick(3)).toBe(100);
+it.each([
+  { scoreTempoSegments: [] },
+  { scoreTempoSegments: [{ startTick: 3, bpm: 100 }] },
+])(
+  "admitted explicit meter supports optional and delayed score tempo",
+  ({ scoreTempoSegments }) => {
+    const artifact = decodePracticeScoreArtifact({
+      ...structuredClone(canonical),
+      scoreTempoSegments,
+    });
+    const plan = resolvePracticeTempoPlan(artifact, { mode: "SCORE" });
+    expect(plan.segments[0]).toEqual({
+      startTick: 0,
+      bpm: 80,
+      source: "PRODUCT_DEFAULT",
+    });
+    expect(plan.segments.slice(1)).toEqual(
+      scoreTempoSegments.map((t) => ({ ...t, source: "MUSICXML" })),
+    );
+    const timeline = new PracticeTempoTimeline(
+      plan,
+      artifact.scoreEndTick,
+      artifact.ticksPerQuarter,
+    );
+    expect(timeline.bpmAtTick(0)).toBe(80);
+    if (scoreTempoSegments.length) expect(timeline.bpmAtTick(3)).toBe(100);
+  },
+);
+
+it("admits positive tempo independently of contextual runtime duration representability", () => {
+  const selection = {
+    mode: "CUSTOM_FIXED_BPM" as const,
+    bpm: Number.MIN_VALUE,
+  };
+  const plan = resolvePracticeTempoPlan(createMockArtifact([]), selection);
+  expect(plan.segments[0].bpm).toBe(selection.bpm);
+  expect(ticksToMs(0, selection.bpm, 1)).toBe(0);
+  expect(() => ticksToMs(1, selection.bpm, 1)).toThrow(
+    "Unrepresentable Practice runtime duration",
+  );
+  expect(() => new PracticeTempoTimeline(plan, 1, 1)).toThrow(
+    "Unrepresentable Practice runtime duration",
+  );
+  const largeScore = Number.MAX_SAFE_INTEGER;
+  const slowPlan = resolvePracticeTempoPlan(createMockArtifact([]), {
+    mode: "CUSTOM_FIXED_BPM",
+    bpm: 1e-300,
+  });
+  expect(() => new PracticeTempoTimeline(slowPlan, largeScore, 1)).toThrow(
+    "Unrepresentable Practice runtime duration",
+  );
+  expect(new PracticeTempoTimeline(slowPlan, 1, 1).durationMs).toBe(
+    60000 / 1e-300,
+  );
 });

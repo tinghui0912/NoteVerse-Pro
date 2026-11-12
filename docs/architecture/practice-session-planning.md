@@ -428,8 +428,8 @@ RANGE spans its selected start onset to its selected end canonicalEndTick.
 
 The server resolves a score-wide tempo plan: missing initial MusicXML tempo uses
 PRODUCT_DEFAULT 80 quarter-note BPM; explicit segments remain MUSICXML. CUSTOM_FIXED_BPM accepts
-finite 40–240 BPM, retains the raw selection and rounds the segment BPM upward at
-positive half-integers, matching browser Math.round. Scope does not trim tempo.
+finite positive BPM and retains the exact value in the CUSTOM segment. Runtime timing
+validates numerical representability for the selected score and tempo. Scope does not trim tempo.
 
 Both language implementations consume the same concrete expected
 [planning cases](../../contracts/practice/score-planning-cases.json). Reservation and Take

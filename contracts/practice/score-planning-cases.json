@@ -717,7 +717,7 @@
           "segments": [
             {
               "startTick": 0,
-              "bpm": 81,
+              "bpm": 80.5,
               "source": "CUSTOM"
             }
           ]
@@ -769,7 +769,7 @@
           "segments": [
             {
               "startTick": 0,
-              "bpm": 82,
+              "bpm": 81.5,
               "source": "CUSTOM"
             }
           ]
@@ -821,7 +821,7 @@
           "segments": [
             {
               "startTick": 0,
-              "bpm": 41,
+              "bpm": 40.5,
               "source": "CUSTOM"
             }
           ]
@@ -873,7 +873,7 @@
           "segments": [
             {
               "startTick": 0,
-              "bpm": 240,
+              "bpm": 239.5,
               "source": "CUSTOM"
             }
           ]
@@ -925,7 +925,7 @@
           "segments": [
             {
               "startTick": 0,
-              "bpm": 80,
+              "bpm": 80.49999999999999,
               "source": "CUSTOM"
             }
           ]
@@ -977,7 +977,7 @@
           "segments": [
             {
               "startTick": 0,
-              "bpm": 81,
+              "bpm": 80.50000000000001,
               "source": "CUSTOM"
             }
           ]
@@ -985,7 +985,7 @@
       }
     },
     {
-      "name": "CUSTOM invalid 39.99",
+      "name": "CUSTOM 39.99",
       "score": {
         "moments": [
           {
@@ -1015,10 +1015,29 @@
         "mode": "CUSTOM_FIXED_BPM",
         "bpm": 39.99
       },
-      "error": "tempo_selection"
+      "expected": {
+        "scope": {
+          "kind": "FULL",
+          "startTick": 10,
+          "terminalTick": 64
+        },
+        "tempoPlan": {
+          "selection": {
+            "mode": "CUSTOM_FIXED_BPM",
+            "bpm": 39.99
+          },
+          "segments": [
+            {
+              "startTick": 0,
+              "bpm": 39.99,
+              "source": "CUSTOM"
+            }
+          ]
+        }
+      }
     },
     {
-      "name": "CUSTOM invalid 240.01",
+      "name": "CUSTOM 240.01",
       "score": {
         "moments": [
           {
@@ -1047,6 +1066,247 @@
       "tempoSelection": {
         "mode": "CUSTOM_FIXED_BPM",
         "bpm": 240.01
+      },
+      "expected": {
+        "scope": {
+          "kind": "FULL",
+          "startTick": 10,
+          "terminalTick": 64
+        },
+        "tempoPlan": {
+          "selection": {
+            "mode": "CUSTOM_FIXED_BPM",
+            "bpm": 240.01
+          },
+          "segments": [
+            {
+              "startTick": 0,
+              "bpm": 240.01,
+              "source": "CUSTOM"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "CUSTOM 20",
+      "score": {
+        "moments": [
+          {
+            "groupId": "g0",
+            "onsetTick": 10,
+            "canonicalEndTick": 40
+          },
+          {
+            "groupId": "g1",
+            "onsetTick": 16,
+            "canonicalEndTick": 24
+          },
+          {
+            "groupId": "g2",
+            "onsetTick": 36,
+            "canonicalEndTick": 48
+          }
+        ],
+        "scoreEndTick": 64,
+        "scoreTempoSegments": [],
+        "ticksPerQuarter": 4
+      },
+      "scope": {
+        "kind": "FULL"
+      },
+      "tempoSelection": {
+        "mode": "CUSTOM_FIXED_BPM",
+        "bpm": 20
+      },
+      "expected": {
+        "scope": {
+          "kind": "FULL",
+          "startTick": 10,
+          "terminalTick": 64
+        },
+        "tempoPlan": {
+          "selection": {
+            "mode": "CUSTOM_FIXED_BPM",
+            "bpm": 20
+          },
+          "segments": [
+            {
+              "startTick": 0,
+              "bpm": 20,
+              "source": "CUSTOM"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "CUSTOM 20.5",
+      "score": {
+        "moments": [
+          {
+            "groupId": "g0",
+            "onsetTick": 10,
+            "canonicalEndTick": 40
+          },
+          {
+            "groupId": "g1",
+            "onsetTick": 16,
+            "canonicalEndTick": 24
+          },
+          {
+            "groupId": "g2",
+            "onsetTick": 36,
+            "canonicalEndTick": 48
+          }
+        ],
+        "scoreEndTick": 64,
+        "scoreTempoSegments": [],
+        "ticksPerQuarter": 4
+      },
+      "scope": {
+        "kind": "FULL"
+      },
+      "tempoSelection": {
+        "mode": "CUSTOM_FIXED_BPM",
+        "bpm": 20.5
+      },
+      "expected": {
+        "scope": {
+          "kind": "FULL",
+          "startTick": 10,
+          "terminalTick": 64
+        },
+        "tempoPlan": {
+          "selection": {
+            "mode": "CUSTOM_FIXED_BPM",
+            "bpm": 20.5
+          },
+          "segments": [
+            {
+              "startTick": 0,
+              "bpm": 20.5,
+              "source": "CUSTOM"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "CUSTOM 300.25",
+      "score": {
+        "moments": [
+          {
+            "groupId": "g0",
+            "onsetTick": 10,
+            "canonicalEndTick": 40
+          },
+          {
+            "groupId": "g1",
+            "onsetTick": 16,
+            "canonicalEndTick": 24
+          },
+          {
+            "groupId": "g2",
+            "onsetTick": 36,
+            "canonicalEndTick": 48
+          }
+        ],
+        "scoreEndTick": 64,
+        "scoreTempoSegments": [],
+        "ticksPerQuarter": 4
+      },
+      "scope": {
+        "kind": "FULL"
+      },
+      "tempoSelection": {
+        "mode": "CUSTOM_FIXED_BPM",
+        "bpm": 300.25
+      },
+      "expected": {
+        "scope": {
+          "kind": "FULL",
+          "startTick": 10,
+          "terminalTick": 64
+        },
+        "tempoPlan": {
+          "selection": {
+            "mode": "CUSTOM_FIXED_BPM",
+            "bpm": 300.25
+          },
+          "segments": [
+            {
+              "startTick": 0,
+              "bpm": 300.25,
+              "source": "CUSTOM"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "CUSTOM 0",
+      "score": {
+        "moments": [
+          {
+            "groupId": "g0",
+            "onsetTick": 10,
+            "canonicalEndTick": 40
+          },
+          {
+            "groupId": "g1",
+            "onsetTick": 16,
+            "canonicalEndTick": 24
+          },
+          {
+            "groupId": "g2",
+            "onsetTick": 36,
+            "canonicalEndTick": 48
+          }
+        ],
+        "scoreEndTick": 64,
+        "scoreTempoSegments": [],
+        "ticksPerQuarter": 4
+      },
+      "scope": {
+        "kind": "FULL"
+      },
+      "tempoSelection": {
+        "mode": "CUSTOM_FIXED_BPM",
+        "bpm": 0
+      },
+      "error": "tempo_selection"
+    },
+    {
+      "name": "CUSTOM -1",
+      "score": {
+        "moments": [
+          {
+            "groupId": "g0",
+            "onsetTick": 10,
+            "canonicalEndTick": 40
+          },
+          {
+            "groupId": "g1",
+            "onsetTick": 16,
+            "canonicalEndTick": 24
+          },
+          {
+            "groupId": "g2",
+            "onsetTick": 36,
+            "canonicalEndTick": 48
+          }
+        ],
+        "scoreEndTick": 64,
+        "scoreTempoSegments": [],
+        "ticksPerQuarter": 4
+      },
+      "scope": {
+        "kind": "FULL"
+      },
+      "tempoSelection": {
+        "mode": "CUSTOM_FIXED_BPM",
+        "bpm": -1
       },
       "error": "tempo_selection"
     }

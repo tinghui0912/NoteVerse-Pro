@@ -3537,7 +3537,7 @@ def test_reservation_derives_and_transfers_exact_bundle_plan(test_env, scope_kin
         if scope_kind == "RANGE":
             expected_scope = {**scope, "start_tick": 4, "terminal_tick": 9}
         if tempo_case == "CUSTOM":
-            segments = [{"startTick": 0, "bpm": 81, "source": "CUSTOM"}]
+            segments = [{"startTick": 0, "bpm": selection["bpm"], "source": "CUSTOM"}]
         elif tempo_case == "NO_TEMPO":
             segments = [{"startTick": 0, "bpm": 80, "source": "PRODUCT_DEFAULT"}]
         elif tempo_case == "DELAYED_TEMPO":
@@ -3989,6 +3989,72 @@ def test_finalize_requires_exact_admitted_object_size(
         session.refresh(account)
         assert account.used_bytes == 0
         assert account.reserved_bytes == len(VALID_WEBM_BYTES)
+
+
+@pytest.mark.parametrize("bpm", [20.5, 80.5, 300.25])
+def test_exact_custom_tempo_survives_reserve_replay_finalize_and_reads(test_env, bpm):
+    import math
+
+    session, storage, user, _ = test_env
+    request = _upload_intent()
+    request["tempo_selection"] = {"mode": "CUSTOM_FIXED_BPM", "bpm": bpm}
+    expected = {
+        "selection": request["tempo_selection"],
+        "segments": [{"startTick": 0, "bpm": bpm, "source": "CUSTOM"}],
+    }
+    with _reservation_client(session, storage, user) as (client, service):
+        response = client.post("/api/v1/performance-takes/upload-reservations", json=request)
+        assert response.status_code == 200, response.text
+        accepted = response.json()["data"]
+        assert accepted["manifest"]["tempo_plan"] == expected
+        row = session.scalar(select(PerformanceTakeUploadReservation))
+        manifest = manifest_from_row(row.manifest)
+        assert manifest.snapshot.tempo_plan.selection.bpm == bpm
+        assert manifest.snapshot.tempo_plan.segments[0].bpm == bpm
+        assert json.loads(row.manifest.manifest_json)["manifest"]["tempo_plan"] == expected
+        assert row.manifest.manifest_sha256 == manifest.document_sha256
+        with (
+            patch.object(
+                service.practice_bundle_service,
+                "authorize_bundle_for_save",
+                side_effect=AssertionError("Replay uses admitted semantics"),
+            ),
+            patch(
+                "app.modules.performance_takes.upload_reservation.service.resolve_practice_score_plan",
+                side_effect=AssertionError("Replay does not plan"),
+            ),
+        ):
+            replay = client.post("/api/v1/performance-takes/upload-reservations", json=request)
+            assert replay.status_code == 200, replay.text
+            assert replay.json()["data"]["reservation_id"] == accepted["reservation_id"]
+            assert replay.json()["data"]["manifest"] == accepted["manifest"]
+            changed = {
+                **request,
+                "tempo_selection": {
+                    "mode": "CUSTOM_FIXED_BPM",
+                    "bpm": math.nextafter(bpm, math.inf),
+                },
+            }
+            assert (
+                client.post(
+                    "/api/v1/performance-takes/upload-reservations", json=changed
+                ).status_code
+                == 422
+            )
+        storage.put_bytes(
+            key=row.staging_object_key, content=VALID_WEBM_BYTES, content_type="video/webm"
+        )
+        finalized = client.post(
+            f"/api/v1/performance-takes/upload-reservations/{accepted['reservation_id']}/finalize"
+        )
+        assert finalized.status_code == 200, finalized.text
+        assert finalized.json()["data"]["manifest"] == accepted["manifest"]
+        detail = client.get(f"/api/v1/performance-takes/{accepted['take_id']}")
+        assert detail.status_code == 200, detail.text
+        assert detail.json()["data"]["manifest"]["tempo_plan"] == expected
+        listed = client.get("/api/v1/performance-takes")
+        assert listed.status_code == 200, listed.text
+        assert listed.json()["data"]["items"][0]["manifest"]["tempo_plan"] == expected
 
 
 def test_failed_reserve_rolls_back_manifest_reservation_and_quota(test_env):

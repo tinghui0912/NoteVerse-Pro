@@ -1,13 +1,12 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { MIN_PRACTICE_TEMPO_BPM, MAX_PRACTICE_TEMPO_BPM } from '@/lib/practice/planning/tempo';
 import { CONTINUOUS_ASSIGNMENT_WINDOW_MS } from '@/lib/practice/continuous/domain/evaluation/finalization-policy';
 import { benchmarkTempo, characterizeCase, expectedPattern, fixedTimeline, offsetSweepMs, patternFamilies,
   runSyntheticBenchmark, spacingGrid, tempoGrid, tieCase, transitionCases } from './policy-benchmark';
 import { assertResearchReport, envelope, type SyntheticReport } from './research-report';
 
 describe('production timing policy characterization', () => {
-  it('uses product tempo endpoints and the full deterministic offset matrix', () => {
-    expect(tempoGrid).toEqual([MIN_PRACTICE_TEMPO_BPM, 60, 80, 100, 120, 160, 200, MAX_PRACTICE_TEMPO_BPM]);
+  it('uses the sampled tempo grid and the full deterministic offset matrix', () => {
+    expect(tempoGrid).toEqual([40, 60, 80, 100, 120, 160, 200, 240]);
     expect(spacingGrid).toEqual([2, 1, 0.5, 1 / 3, 0.25]);
     expect(offsetSweepMs).toEqual([0, ...[10, 25, 50, 75, 100, 125, 150, 200, 249, 250, 251, 300].flatMap(ms => [-ms, ms])]);
   });

@@ -1,4 +1,4 @@
-import { PracticeTempoTimeline, MIN_PRACTICE_TEMPO_BPM, MAX_PRACTICE_TEMPO_BPM } from '@/lib/practice/planning/tempo';
+import { PracticeTempoTimeline } from '@/lib/practice/planning/tempo';
 import { ContinuousAssignmentFinalizer } from '@/lib/practice/continuous/domain/evaluation/assignment-finalizer';
 import { assertCompletedAssignment } from '@/lib/practice/continuous/domain/evaluation/assignment-projection';
 import { directObservationClaimants, directStrikeCohort, directStrikeFrontier } from '@/lib/practice/continuous/domain/evaluation/finalization-policy';
@@ -7,7 +7,7 @@ import type { ContinuousEvidencePublication } from '@/lib/practice/continuous/do
 import { envelope, type SyntheticCase, type SyntheticReport, type SensitivityRow } from './research-report';
 import { productionPolicy } from './production-policy';
 
-export const tempoGrid = [MIN_PRACTICE_TEMPO_BPM, 60, 80, 100, 120, 160, 200, MAX_PRACTICE_TEMPO_BPM];
+export const tempoGrid = [40, 60, 80, 100, 120, 160, 200, 240];
 export const spacingGrid = [2, 1, 1 / 2, 1 / 3, 1 / 4];
 export const offsetSweepMs = [0, ...[10, 25, 50, 75, 100, 125, 150, 200, 249, 250, 251, 300].flatMap(ms => [-ms, ms])];
 export const patternFamilies = {

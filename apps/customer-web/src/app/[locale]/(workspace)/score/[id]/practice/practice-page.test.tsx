@@ -87,7 +87,7 @@ it.each(['STEP_BY_STEP', 'CONTINUOUS_PLAY'] as const)('%s locks scope/range/temp
   await waitFor(() => expect(health.listenerCount()).toBe(1));
   expect(screen.getByRole('button', { name: practice.rangeSelectionStart })).toBeDisabled();
   fireEvent.click(screen.getByRole('button', { name: practice.tempoButton }));
-  expect(screen.getByRole('slider')).toBeDisabled();
+  expect(screen.getByRole('spinbutton', { name: 'BPM input' })).toBeDisabled();
   expect(fake.viewer.mock.calls.at(-1)![0].onRenderNoteClick).toBeUndefined();
 });
 it.each(['analysisIntervention', 'infrastructureIntervention'] as const)('STEP %s End uses current admission, with no independent Setup latch', async field => {
@@ -127,7 +127,7 @@ it('STEP PREPARING exposes End and locks scope/tempo without accepting another S
   await waitFor(() => expect(release).toBeTypeOf('function'));
   expect(screen.getByRole('button', { name: practice.rangeSelectionStart })).toBeDisabled();
   expect(screen.getByRole('button', { name: practice.finish })).toBeEnabled();
-  fireEvent.click(screen.getByRole('button', { name: practice.tempoButton })); expect(screen.getByRole('slider')).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: practice.tempoButton })); expect(screen.getByRole('spinbutton', { name: 'BPM input' })).toBeDisabled();
   await act(async () => { release(); });
 });
 

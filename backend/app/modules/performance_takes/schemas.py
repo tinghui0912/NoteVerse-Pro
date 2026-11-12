@@ -5,7 +5,6 @@ from typing import Literal, Optional, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from .recording_timebase import RecordingTimebase
-from app.modules.practice.planning.score_plan import MIN_PRACTICE_TEMPO_BPM, MAX_PRACTICE_TEMPO_BPM
 
 
 class StrictPerformanceTakeModel(BaseModel):
@@ -24,9 +23,7 @@ class ScoreTempoPlanSelection(StrictPerformanceTakeModel):
 
 class CustomFixedBpmTempoPlanSelection(StrictPerformanceTakeModel):
     mode: Literal["CUSTOM_FIXED_BPM"]
-    bpm: float = Field(
-        strict=True, ge=MIN_PRACTICE_TEMPO_BPM, le=MAX_PRACTICE_TEMPO_BPM, allow_inf_nan=False
-    )
+    bpm: float = Field(strict=True, gt=0, allow_inf_nan=False)
 
 
 TempoPlanSelection = ScoreTempoPlanSelection | CustomFixedBpmTempoPlanSelection

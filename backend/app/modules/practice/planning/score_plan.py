@@ -16,9 +16,6 @@ from app.modules.practice.score.time import (
 
 from app.score_semantics.tempo_policy import DEFAULT_SCORE_TEMPO_BPM
 
-MIN_PRACTICE_TEMPO_BPM = 40
-MAX_PRACTICE_TEMPO_BPM = 240
-
 
 class PracticePlanningError(ValueError):
     def __init__(self, field: Literal["scope", "tempo_selection"], detail: str):
@@ -130,18 +127,11 @@ def _resolve_tempo(
 ) -> ResolvedPracticeTempoPlan:
     if isinstance(selection, CustomTempoSelection):
         bpm = selection.bpm
-        if (
-            type(bpm) not in (int, float)
-            or not math.isfinite(bpm)
-            or not MIN_PRACTICE_TEMPO_BPM <= bpm <= MAX_PRACTICE_TEMPO_BPM
-        ):
+        if type(bpm) not in (int, float) or not math.isfinite(bpm) or bpm <= 0:
             raise PracticePlanningError(
-                "tempo_selection", "Custom BPM is outside the finite product domain"
+                "tempo_selection", "Custom BPM must be a finite positive number"
             )
-        # Positive JavaScript Math.round ties go upward; retain the raw selection.
-        integer = math.floor(bpm)
-        rounded = integer + int(bpm - integer >= 0.5)
-        return ResolvedPracticeTempoPlan(selection, (ResolvedTempoSegment(0, rounded, "CUSTOM"),))
+        return ResolvedPracticeTempoPlan(selection, (ResolvedTempoSegment(0, bpm, "CUSTOM"),))
     if not isinstance(selection, ScoreTempoSelection):
         raise PracticePlanningError("tempo_selection", "Invalid tempo selection")
     if any(

@@ -599,20 +599,20 @@ describe('server canonical plan agreement before media upload', () => {
     await expect(save()).rejects.toThrow('PERFORMANCE_TAKE_PLAN_MISMATCH');
   });
 });
-it('compares raw custom selection even when rounded segment BPM is identical', async () => {
+it('requires exact fractional custom selection agreement', async () => {
   const input = createInput({
     recording: {},
     executed: {
       tempoPlan: {
         selection: { mode: 'CUSTOM_FIXED_BPM' as const, bpm: 80.5 },
-        segments: [{ startTick: 0, bpm: 81, source: 'CUSTOM' as const }],
+        segments: [{ startTick: 0, bpm: 80.5, source: 'CUSTOM' as const }],
       },
     },
   });
   const accepted = structuredClone(reservation());
   accepted.manifest.tempo_plan = {
     selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 80.6 },
-    segments: [{ startTick: 0, bpm: 81, source: 'CUSTOM' }],
+    segments: [{ startTick: 0, bpm: 80.5, source: 'CUSTOM' }],
   };
   vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue({
     data: accepted,

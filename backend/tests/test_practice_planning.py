@@ -71,10 +71,30 @@ def test_shared_score_planning_contract(case):
     } == case["expected"]
 
 
-@pytest.mark.parametrize("bpm", [True, "120", float("nan"), float("inf"), -float("inf")])
-def test_custom_selection_requires_a_finite_numeric_product_value(bpm):
+@pytest.mark.parametrize("bpm", [0, -1, True, "120", float("nan"), float("inf"), -float("inf")])
+def test_custom_selection_requires_a_finite_positive_number(bpm):
     with pytest.raises(PracticePlanningError):
         resolve({**CASES[0], "tempoSelection": {"mode": "CUSTOM_FIXED_BPM", "bpm": bpm}})
+
+
+@pytest.mark.parametrize("bpm", [20, 20.5, 80.5, 300.25, 5e-324, 1.7976931348623157e308])
+def test_custom_planning_and_take_selection_preserve_exact_positive_bpm(bpm):
+    from app.modules.performance_takes.schemas import CustomFixedBpmTempoPlanSelection
+
+    selection = CustomFixedBpmTempoPlanSelection(mode="CUSTOM_FIXED_BPM", bpm=bpm)
+    assert selection.bpm == bpm
+    plan = resolve({**CASES[0], "tempoSelection": selection.model_dump()})
+    assert plan.tempo_plan.selection.bpm == bpm
+    assert plan.tempo_plan.segments[0].bpm == bpm
+
+
+@pytest.mark.parametrize("bpm", [0, -1, True, "120", float("nan"), float("inf"), -float("inf")])
+def test_take_custom_selection_requires_strict_positive_finite_bpm(bpm):
+    from pydantic import ValidationError
+    from app.modules.performance_takes.schemas import CustomFixedBpmTempoPlanSelection
+
+    with pytest.raises(ValidationError):
+        CustomFixedBpmTempoPlanSelection(mode="CUSTOM_FIXED_BPM", bpm=bpm)
 
 
 def test_resolved_planning_values_are_immutable():

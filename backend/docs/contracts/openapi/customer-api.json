@@ -3363,8 +3363,7 @@
         "additionalProperties": false,
         "properties": {
           "bpm": {
-            "maximum": 240.0,
-            "minimum": 40.0,
+            "exclusiveMinimum": 0.0,
             "title": "Bpm",
             "type": "number"
           },
