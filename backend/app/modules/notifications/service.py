@@ -196,13 +196,10 @@ class NotificationService:
         return await self._event_read(db, event)
 
     async def mark_all_read(self, db: AsyncSession, user_id: int) -> NotificationUnreadCountRead:
-        events = await self.repository.list_for_user(db, user_id, limit=200)
         now = utc_now_naive()
-        for event in events:
-            if event.read_at is None:
-                event.read_at = now
+        await self.repository.mark_all_read_for_user(db, user_id, read_at=now)
         await db.commit()
-        return NotificationUnreadCountRead(count=0)
+        return NotificationUnreadCountRead(count=await self.repository.unread_count(db, user_id))
 
     async def cleanup_expired_events(
         self, db: AsyncSession, *, retention_days: int | None = None

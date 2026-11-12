@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
@@ -24,7 +24,9 @@ class NotificationRepository:
                     .order_by(notification_created_col.desc())
                     .limit(limit)
                 )
-            ).scalars().all()
+            )
+            .scalars()
+            .all()
         )
 
     async def unread_count(self, db: AsyncSession, user_id: int) -> int:
@@ -36,9 +38,20 @@ class NotificationRepository:
         )
         return int(result.scalar_one())
 
-    async def by_uuid(
-        self, db: AsyncSession, notification_uuid: str
-    ) -> NotificationEvent | None:
+    async def mark_all_read_for_user(
+        self, db: AsyncSession, user_id: int, *, read_at: datetime
+    ) -> int:
+        result = await db.execute(
+            update(NotificationEvent)
+            .where(
+                NotificationEvent.recipient_user_id == user_id,
+                col(NotificationEvent.read_at).is_(None),
+            )
+            .values(read_at=read_at)
+        )
+        return int(result.rowcount or 0)
+
+    async def by_uuid(self, db: AsyncSession, notification_uuid: str) -> NotificationEvent | None:
         return (
             await db.execute(
                 select(NotificationEvent).where(
@@ -47,14 +60,10 @@ class NotificationRepository:
             )
         ).scalar_one_or_none()
 
-    async def by_dedupe_key(
-        self, db: AsyncSession, dedupe_key: str
-    ) -> NotificationEvent | None:
+    async def by_dedupe_key(self, db: AsyncSession, dedupe_key: str) -> NotificationEvent | None:
         return (
             await db.execute(
-                select(NotificationEvent).where(
-                    NotificationEvent.dedupe_key == dedupe_key
-                )
+                select(NotificationEvent).where(NotificationEvent.dedupe_key == dedupe_key)
             )
         ).scalar_one_or_none()
 
