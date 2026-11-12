@@ -3805,12 +3805,67 @@ def test_recording_microseconds_survive_reservation_finalize_and_take_reads(test
         )
 
 
-@pytest.mark.parametrize(
-    "duration, status", [(12 * 60 * 60 * 1_000_000, 200), (12 * 60 * 60 * 1_000_000 + 1, 422)]
-)
-def test_take_duration_admission_uses_exact_nominal_timebase(test_env, duration, status):
+@pytest.mark.parametrize("available_delta", [-1, 0, 1])
+def test_reservation_capacity_uses_exact_available_quota(test_env, available_delta):
+    from app.db.models.storage_usage import StorageUsageReservation
+
+    session, storage, user, _ = test_env
+    requested_bytes = 101 * 1024 * 1024
+    account = session.get(StorageUsageAccount, user.id)
+    counter = session.scalar(
+        select(StorageUsageCounter).where(
+            StorageUsageCounter.user_id == user.id,
+            StorageUsageCounter.category == StorageUsageCategory.UPLOAD,
+        )
+    )
+    account.used_bytes = counter.used_bytes = 9 * 1024 * 1024
+    held_bytes = 5 * 1024 * 1024
+    _run_async(
+        StorageUsageService().reserve(
+            AsyncSessionAdapter(session),
+            user_id=user.id,
+            category=StorageUsageCategory.UPLOAD,
+            bytes_count=held_bytes,
+            reason="another_upload",
+        )
+    )
+    account.quota_limit_bytes = account.used_bytes + held_bytes + requested_bytes + available_delta
+    session.commit()
+    request = _upload_intent()
+    request["media"]["byte_size"] = requested_bytes
+    with _reservation_client(session, storage, user) as (client, _):
+        response = client.post("/api/v1/performance-takes/upload-reservations", json=request)
+        session.refresh(account)
+        session.refresh(counter)
+        if available_delta < 0:
+            assert response.status_code == 422, response.text
+            assert response.json()["public_code"] == "storage_quota_exceeded"
+            assert session.scalar(select(PerformanceTakeManifest)) is None
+            assert session.scalar(select(PerformanceTakeUploadReservation)) is None
+            assert account.reserved_bytes == counter.reserved_bytes == held_bytes
+        else:
+            assert response.status_code == 200, response.text
+            accepted = response.json()["data"]
+            assert accepted["manifest"]["capture"]["byte_size"] == requested_bytes
+            row = session.scalar(select(PerformanceTakeUploadReservation))
+            hold = session.scalar(
+                select(StorageUsageReservation).where(
+                    StorageUsageReservation.reservation_uuid == row.storage_reservation_id
+                )
+            )
+            assert hold.bytes_reserved == requested_bytes
+            assert account.reserved_bytes == counter.reserved_bytes == held_bytes + requested_bytes
+            repeated = client.post("/api/v1/performance-takes/upload-reservations", json=request)
+            assert repeated.status_code == 200, repeated.text
+            assert repeated.json()["data"]["reservation_id"] == accepted["reservation_id"]
+            session.refresh(account)
+            assert account.reserved_bytes == held_bytes + requested_bytes
+
+
+def test_reservation_admits_structurally_valid_long_recording_timebase(test_env):
     session, storage, user, _ = test_env
     request = _upload_intent()
+    duration = 18 * 60 * 60 * 1_000_000 + 137
     request["recording_timebase"] = {
         "nominalMediaDurationUs": duration,
         "activeSegments": [
@@ -3824,7 +3879,103 @@ def test_take_duration_admission_uses_exact_nominal_timebase(test_env, duration,
     }
     with _reservation_client(session, storage, user) as (client, _):
         response = client.post("/api/v1/performance-takes/upload-reservations", json=request)
-        assert response.status_code == status, response.text
+        assert response.status_code == 200, response.text
+        assert (
+            response.json()["data"]["manifest"]["recording_timebase"]
+            == request["recording_timebase"]
+        )
+        row = session.scalar(select(PerformanceTakeUploadReservation))
+        assert (
+            manifest_from_row(row.manifest).snapshot.recording_timebase.nominalMediaDurationUs
+            == duration
+        )
+
+
+def test_segmented_recording_manifest_round_trips_through_reserve_finalize_and_read(test_env):
+    session, storage, user, _ = test_env
+    request = _upload_intent()
+    timebase = {
+        "nominalMediaDurationUs": 1024 * 1000,
+        "activeSegments": [
+            {
+                "performanceStartUs": index * 1001,
+                "performanceEndUs": index * 1001 + 1000,
+                "mediaStartUs": index * 1000,
+                "mediaEndUs": (index + 1) * 1000,
+            }
+            for index in range(1024)
+        ],
+    }
+    request["recording_timebase"] = timebase
+    with _reservation_client(session, storage, user) as (client, _):
+        response = client.post("/api/v1/performance-takes/upload-reservations", json=request)
+        assert response.status_code == 200, response.text
+        accepted = response.json()["data"]
+        assert accepted["manifest"]["recording_timebase"] == timebase
+        row = session.scalar(select(PerformanceTakeUploadReservation))
+        assert len(row.manifest.recording_timebase.encode("utf-8")) > 64 * 1024
+        assert json.loads(row.manifest.recording_timebase) == timebase
+        assert (
+            manifest_from_row(row.manifest).snapshot.recording_timebase.model_dump(mode="json")
+            == timebase
+        )
+        storage.put_bytes(
+            key=row.staging_object_key, content=VALID_WEBM_BYTES, content_type="video/webm"
+        )
+        finalized = client.post(
+            f"/api/v1/performance-takes/upload-reservations/{accepted['reservation_id']}/finalize"
+        )
+        assert finalized.status_code == 200, finalized.text
+        assert finalized.json()["data"]["manifest"] == accepted["manifest"]
+        detail = client.get(f"/api/v1/performance-takes/{accepted['take_id']}")
+        assert detail.status_code == 200, detail.text
+        assert detail.json()["data"]["manifest"] == accepted["manifest"]
+
+
+@pytest.mark.parametrize(
+    "object_stage, expected_status", [("staging", "FINALIZING"), ("candidate", "RESERVED")]
+)
+@pytest.mark.parametrize("size_delta", [-1, 1])
+def test_finalize_requires_exact_admitted_object_size(
+    test_env, monkeypatch, object_stage, expected_status, size_delta
+):
+    session, storage, user, _ = test_env
+    different_bytes = VALID_WEBM_BYTES[:-1] if size_delta < 0 else VALID_WEBM_BYTES + b"x"
+    with _reservation_client(session, storage, user) as (client, _):
+        response = client.post(
+            "/api/v1/performance-takes/upload-reservations", json=_upload_intent()
+        )
+        assert response.status_code == 200, response.text
+        accepted = response.json()["data"]
+        row = session.scalar(select(PerformanceTakeUploadReservation))
+        object_ids = set(session.scalars(select(StoredObject.id)))
+        storage.put_bytes(
+            key=row.staging_object_key,
+            content=different_bytes if object_stage == "staging" else VALID_WEBM_BYTES,
+            content_type="video/webm",
+        )
+        if object_stage == "candidate":
+            copy = storage.copy
+
+            def copy_with_different_size(source_key, target_key):
+                copy(source_key, target_key)
+                storage.put_bytes(
+                    key=target_key, content=different_bytes, content_type="video/webm"
+                )
+
+            monkeypatch.setattr(storage, "copy", copy_with_different_size)
+        finalized = client.post(
+            f"/api/v1/performance-takes/upload-reservations/{accepted['reservation_id']}/finalize"
+        )
+        assert finalized.status_code == 422, finalized.text
+        assert session.scalar(select(PerformanceTake)) is None
+        assert set(session.scalars(select(StoredObject.id))) == object_ids
+        session.refresh(row)
+        assert row.status == expected_status
+        account = session.get(StorageUsageAccount, user.id)
+        session.refresh(account)
+        assert account.used_bytes == 0
+        assert account.reserved_bytes == len(VALID_WEBM_BYTES)
 
 
 def test_failed_reserve_rolls_back_manifest_reservation_and_quota(test_env):

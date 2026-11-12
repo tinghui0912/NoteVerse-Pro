@@ -5,17 +5,9 @@ from app.db.models.performance_take_manifest import PerformanceTakeManifest
 from .manifest import TakeManifest
 from .schemas import PerformanceTakeManifestRead
 
-MAX_MANIFEST_JSON_BYTES = 64 * 1024
-
 
 def canonical_manifest_json(value: object) -> str:
-    encoded = json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False)
-    if len(encoded.encode("utf-8")) > MAX_MANIFEST_JSON_BYTES:
-        from app.core.exceptions import ValidationException
-        from app.shared.constants import ErrorCode
-
-        raise ValidationException(ErrorCode.VALIDATION_ERROR, field="metadata_size")
-    return encoded
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False)
 
 
 def _hydrate_manifest(row: PerformanceTakeManifest) -> TakeManifest:

@@ -27,8 +27,15 @@ The saved aggregate requires those independently admitted facts to agree.
 Save retains a recording lease before async reserve/PUT/finalize and releases it in
 finally. Original download returns exact original AUDIO or VIDEO recording bytes.
 Composite Video independently renders clean score plus original recording into a local
-derivative video. It is never uploaded or persisted as the Take. Server admission,
-quota and storage policies govern Save; browser Save has no separate media-size ceiling.
+derivative video. It is never uploaded or persisted as the Take.
+
+PerformanceTake has no product-level per-file byte-size or recording-duration ceiling.
+Capture byte size is positive, and `StorageUsageService.reserve` admits the exact bytes
+against the user's available StorageQuota. Insufficient capacity returns
+`storage_quota_exceeded`. RecordingTimebase duration and segments follow their structural
+and representational invariants. Manifest JSON uses deterministic canonical serialization
+without a semantic byte-size ceiling. Finalize verifies actual stored object size,
+Content-Type, container signature and full SHA-256 against the admitted recording facts.
 
 ## Lifecycle and persistence
 

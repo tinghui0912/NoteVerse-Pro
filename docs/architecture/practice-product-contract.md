@@ -1039,6 +1039,13 @@ RESERVED reservation; CANCELLED cancellation is idempotent. FINALIZING, COMPLETE
 and EXPIRED cannot report successful cancellation. Both routes use the user-scoped public upload UUID, independently of the
 backend-internal `storage_reservation_id` quota handle. Object keys remain server-owned.
 
+PerformanceTake has no product-level per-file byte-size or recording-duration ceiling.
+Positive exact media bytes are admitted through `StorageUsageService.reserve` against
+available StorageQuota; insufficient capacity returns `storage_quota_exceeded`.
+RecordingTimebase duration is governed by structural and representational validity.
+Canonical Manifest JSON serialization has no semantic byte-size ceiling. Finalize verifies
+actual stored object size, content type, container signature and full SHA-256.
+
 UploadReservation is a persisted lifecycle aggregate. Its states are RESERVED,
 FINALIZING, COMPLETED, CANCELLED and EXPIRED.
 [Reservation architecture](performance-take-reservations.md) defines lifecycle,

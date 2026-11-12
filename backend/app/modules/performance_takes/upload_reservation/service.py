@@ -25,7 +25,6 @@ from app.modules.performance_takes.recording_media_policy import (
 from app.modules.performance_takes.manifest_persistence import (
     manifest_from_row,
     manifest_to_row,
-    canonical_manifest_json,
 )
 from sqlalchemy.exc import DBAPIError, InterfaceError, IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -87,8 +86,6 @@ from app.storage.base import ObjectStorage
 from app.storage.factory import object_storage
 from app.utils.timezone import utc_now_naive
 
-MAX_TAKE_MEDIA_BYTES = 100 * 1024 * 1024
-MAX_TAKE_DURATION_US = 12 * 60 * 60 * 1_000_000
 TAKE_UPLOAD_RESERVATION_SECONDS = 3600
 TAKE_FINALIZING_LEASE_SECONDS = 15 * 60
 
@@ -412,12 +409,8 @@ class PerformanceTakeUploadService:
         metadata = metadata.model_copy(update={"media": media})
         if not is_supported_capture_mime(media.kind, media.mime_type):
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
-        if metadata.recording_timebase.nominalMediaDurationUs > MAX_TAKE_DURATION_US:
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="recording_timebase")
-        if not 0 < media.byte_size <= MAX_TAKE_MEDIA_BYTES:
+        if media.byte_size <= 0:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_byte_size")
-        canonical_manifest_json(metadata.tempo_selection.model_dump(mode="json"))
-        canonical_manifest_json(metadata.recording_timebase.model_dump(mode="json"))
         existing = await self.repository.get_reservation_by_client_request_id(
             db,
             user_id,
