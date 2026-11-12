@@ -2852,27 +2852,13 @@ export type PerformancePlanRequest = {
 };
 
 /**
- * PerformanceTakeArchiveMediaRead
- */
-export type PerformanceTakeArchiveMediaRead = {
-    /**
-     * Byte Size
-     */
-    byte_size: number;
-    /**
-     * Mime Type
-     */
-    mime_type: string;
-};
-
-/**
  * PerformanceTakeDeleteResponse
  */
 export type PerformanceTakeDeleteResponse = {
     /**
-     * Status
+     * Deleted
      */
-    status: string;
+    deleted?: true;
     /**
      * Take Id
      */
@@ -2973,18 +2959,6 @@ export type PerformanceTakePlaybackRead = {
      */
     expires_in: number;
     /**
-     * Media Byte Size
-     */
-    media_byte_size: number;
-    /**
-     * Media Kind
-     */
-    media_kind: string;
-    /**
-     * Media Mime Type
-     */
-    media_mime_type: string;
-    /**
      * Playback Url
      */
     playback_url: string;
@@ -3034,7 +3008,6 @@ export type PerformanceTakeRangeScopeSelection = {
  * PerformanceTakeRead
  */
 export type PerformanceTakeRead = {
-    archive_media: PerformanceTakeArchiveMediaRead;
     /**
      * Can Open Score
      */
@@ -3044,18 +3017,29 @@ export type PerformanceTakeRead = {
      */
     created_at: string;
     /**
-     * Deletion Status
-     */
-    deletion_status?: string;
-    /**
      * Linked Score Id
      */
     linked_score_id?: string | null;
     manifest: PerformanceTakeManifestRead;
+    recording_media: PerformanceTakeRecordingMediaRead;
     /**
      * Take Id
      */
     take_id: string;
+};
+
+/**
+ * PerformanceTakeRecordingMediaRead
+ */
+export type PerformanceTakeRecordingMediaRead = {
+    /**
+     * Byte Size
+     */
+    byte_size: number;
+    /**
+     * Mime Type
+     */
+    mime_type: string;
 };
 
 /**
@@ -6127,7 +6111,7 @@ export type DeleteTakeApiV1PerformanceTakesTakeIdDeleteResponses = {
     /**
      * Successful Response
      */
-    202: ApiResponsePerformanceTakeDeleteResponse;
+    200: ApiResponsePerformanceTakeDeleteResponse;
 };
 
 export type DeleteTakeApiV1PerformanceTakesTakeIdDeleteResponse = DeleteTakeApiV1PerformanceTakesTakeIdDeleteResponses[keyof DeleteTakeApiV1PerformanceTakesTakeIdDeleteResponses];

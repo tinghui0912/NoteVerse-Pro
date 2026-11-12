@@ -947,10 +947,10 @@ Recording OFF acquires no media. Microphone+AUDIO borrows a clone of the session
 stream; MIDI+AUDIO borrows a clone of the retained recording-microphone root. VIDEO uses camera video
 and the appropriate audio clone. Each owner releases only its own resources.
 
-Saved Performance Take archives AUDIO/VIDEO media with durable binding provenance,
+A saved PerformanceTake retains exact original AUDIO/VIDEO recording media with durable binding provenance,
 scope, tempo and recording timebase. It does not persist Practice assignment,
 derived target summaries, metrics or implementation provenance. Review Save Recording is an
-explicit user action that reads only a READY recording and archive metadata.
+explicit user action that reads only a READY recording and Save metadata.
 Completion, Review mount and Review exit never create a PerformanceTake.
 
 ## Transient Completion Handoff
@@ -1004,7 +1004,7 @@ performs no Bundle recovery. Saved media does not reconstruct a Practice Report.
 
 Save Recording persists media only through an explicit user action. It does not
 persist evaluation, metrics or provenance, and does not extend the report lifetime.
-My Performances is a saved media archive with playback/download/composite-video actions,
+My Performances is a saved Take library with playback/download/composite-video actions,
 without learner report statistics or saved learner-report navigation.
 
 ## PerformanceTake Upload Reservation
@@ -1084,7 +1084,7 @@ Final export retains its own original media lease, owns its decoder and clean sc
 combines canvas video with original recording audio through AudioContext, and records to
 local OPFS. Cancellation and failures dispose these resources and retire partial output.
 Generated Composite video is downloaded locally and is never uploaded or saved as a Take.
-Save always archives only the original recording. Saved AUDIO and VIDEO Takes enter through
+Save persists only the exact original recording. Saved AUDIO and VIDEO Takes enter through
 `/my-performances/{takeId}/score-video` after exact Bundle reauthorization/admission.
 
 ## Score View, Review and Composite Video Ownership
@@ -1119,10 +1119,10 @@ recording. TransientReviewSession contains `{ result, recording, musicXml }` and
 retains its recording media once. For READY recording, the Review route derives one
 memoized pairing that borrows the retained recording for Save, replay and Composite Video.
 
-`archive/saved-performance.ts` is the saved Take API-to-domain admission boundary.
+`saved-take/admission.ts` is the saved Take API-to-domain admission boundary.
 It validates the Manifest against the reauthorized Bundle and materialized media;
-saved score replay and export share the admitted RecordedPerformance. Archive
-request projection and Manifest agreement live in `archive/take-admission.ts`.
+saved score replay and export share the admitted RecordedPerformance. Save
+request projection and Manifest agreement live in `saved-take/save.ts`.
 CompositeVideoStudio accepts the cohesive CompositeVideoInput and open/export-operation
 callbacks. It receives no Review DOM, renderer, decoder, playback time or score-identity flag.
 The core owns its source lease and output recorder; Studio owns local download and retires
@@ -1146,27 +1146,27 @@ STEP has no count-in.
 Continuous Result carries its ExecutedPerformance created once from natural completion.
 Review validates the exact admitted binding and artifact reference. Save submits
 `practice_binding: {score_id, revision_id, bundle_id}` through the RecordedPerformance
-archive transport projection. Server Manifest agreement is checked against that same value.
+Save transport projection. Server Manifest agreement is checked against that same value.
 A Take stores immutable Bundle/Score/Revision/artifact provenance without retaining Bundle.
 Saved score export reauthorizes the revision binding and verifies exact Bundle/artifact
 identity; raw playback and download remain independent of revision lifetime.
 The [Practice Bundle contract](practice-bundle.md) defines identity, authorization and retention.
 Saved-performance admission validates persisted binding, artifact, scope, tempo,
-RecordingTimebase and capture/archive/local byte facts before producing the shared
+RecordingTimebase and Capture/committed recording/local byte facts before producing the shared
 RecordedPerformance used by replay and Composite Video. MusicXML stays separate.
 
-## Capture and archive media contract
+## Capture and saved recording media contract
 
 Capture is raw browser recording, incrementally written through RecordingSink to OPFS.
-READY capture has an archiveable media kind and
+READY capture has a supported recording kind and
 container: VIDEO WebM/MP4, or AUDIO WebM/MP4/Ogg/WAV/x-WAV. The recording media policy
 owns normalization, Video Capture preferences and raw-download extensions.
 MediaRecorder's actual MIME is authoritative; unsupported output cannot become READY.
 
-PerformanceTake archives the exact Capture bytes without transcoding. Original
+PerformanceTake retains the exact original recording bytes without transcoding. Original
 media download returns those raw bytes. Composite Video composes a separate browser-local
 score/video derivative using its own output format policy; PerformanceTake does not
-archive that composed output.
+persist that composed output.
 
 ## Local Performance Media Storage and Ownership
 
@@ -1181,7 +1181,7 @@ Neither depends on Practice product domains.
 
 Recording owns Capture semantics and its RecordingSink port. The OPFS recording
 adapter maps media-storage admission errors into RecordingFailure. PerformanceTake
-owns durable archive semantics; Composite Video owns derivative composition. These
+owns durable saved Take semantics; Composite Video owns derivative composition. These
 consumers depend on shared media and do not own its generic byte infrastructure.
 
 All locally materialized performance media uses `LocalMediaAsset`: one handle owns
@@ -1242,7 +1242,7 @@ held files. The page owns one downloaded handle and releases stale results immed
 Take remains durable authority; temporary local media is neither a cache nor a
 cross-reload session. Ordinary server playback URLs retain their independent contract.
 
-Archive remains explicit Review Save of raw Capture bytes into PerformanceTake.
+Save explicitly persists the original recording bytes as a PerformanceTake.
 Composite Video source media is a LocalMediaAsset retained by the export core for the whole
 export operation. Encoded output chunks are incrementally appended in MediaRecorder
 event order to `noteverse-composite-video-output`, using a finite 1000ms timeslice.
@@ -1273,12 +1273,26 @@ Explicit tempo interpretation and the cross-runtime missing-tempo policy belong 
 ## Saved media physical authority
 
 Manifest.capture is the source Capture admission snapshot. StoredObject is the immutable durable
-archive observation: object key, exact bytes, canonical MIME and a SHA-256 computed by reading
+recording observation: object key, exact bytes, canonical MIME and a SHA-256 computed by reading
 the complete candidate. PerformanceTake references one Manifest and one recording StoredObject.
 There is no shared-hash deduplication, refcount or Blob upload lifecycle.
 
-Completed Take.archive_media exposes StoredObject MIME/size without locator/hash. Raw playback/download
+Completed Take.recording_media exposes StoredObject MIME/size without locator/hash. Raw playback/download
 and saved media materialization use StoredObject facts; Capture kind and performance context remain
-Manifest facts. Take hydration rejects archive/Capture disagreement. Take deletion releases semantic ownership
+Manifest facts. Take hydration rejects recording/Capture disagreement. Take deletion releases semantic ownership
 and accounting while retaining Manifest and Reservation. StoredObjectRetirement queues physical deletion
 only after all semantic references disappear. StorageUsage owns accounting, not byte-object identity.
+
+## Saved Take public resource
+
+A PerformanceTake references one immutable admitted Manifest and one original recording
+StoredObject, plus optional live Score navigation and library membership. `recording_media`
+projects verified StoredObject MIME and byte size. `manifest.capture` remains the admitted
+browser evidence; saved Take admission verifies agreement between those authorities.
+Playback responses carry only take_id, playback_url, download_url and expires_in.
+
+DELETE completes semantic Take deletion and logical quota release transactionally before
+HTTP 200 `{ take_id, deleted: true }`. The Take is absent from reads, playback and lists
+immediately. StoredObjectRetirement independently converges physical cleanup without a
+Take-level deletion status. My Performances updates cached lists/totals, clears the
+removed Take's playback/detail caches and invalidates list/storage usage without polling.

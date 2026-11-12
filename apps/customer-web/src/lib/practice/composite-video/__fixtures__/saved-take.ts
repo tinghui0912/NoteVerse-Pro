@@ -20,9 +20,9 @@ const recordingTimebase: RecordingTimebase = {
   ],
 };
 export const take: PerformanceTakeRead = {
-  archive_media: { mime_type: "video/webm", byte_size: 10 },
+  recording_media: { mime_type: "video/webm", byte_size: 10 },
   take_id: "take-1",
-  deletion_status: "ACTIVE",
+
   created_at: "2026-09-26T00:00:00.000Z",
   manifest: {
     artifact_id: "practice-score-artifact:7cfc80643d19fef4",

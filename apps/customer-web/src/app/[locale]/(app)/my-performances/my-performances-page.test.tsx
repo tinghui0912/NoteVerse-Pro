@@ -38,13 +38,8 @@ const translationMocks = vi.hoisted(() => {
     deletePerformanceTakeConfirmTitle: '确定要删除这条演奏记录吗？',
     deletePerformanceTakeConfirmDesc:
       '删除后，该录音将从云端永久移除，无法恢复。',
-    takeDeletingStatus: '删除中',
-    deletePerformanceTakeAcceptedTitle: '删除请求已接受',
-    deletePerformanceTakeAcceptedDesc:
-      '删除请求已接受，正在后台清理并释放配额。',
-    deleteStillProcessingTitle: '删除仍在后台处理中',
-    deleteStillProcessingDesc:
-      '对象存储和配额清理还没有完成。你可以稍后刷新，页面会继续自动更新。',
+    deletePerformanceTakeSuccessTitle: '已删除该演奏',
+    deletePerformanceTakeSuccessDesc: '已删除保存的演奏并释放存储配额。',
     downloadRecording: '下载录音',
     downloadVideo: '下载视频',
     performanceTakeDeleted: '已删除该演奏',
@@ -145,9 +140,6 @@ const mockPlaybackQuery = vi.hoisted(() => ({
       take_id: 'take-1',
       playback_url: 'https://oss.example.com/play-1.webm',
       download_url: 'https://oss.example.com/download-1.webm',
-      media_kind: 'AUDIO',
-      media_mime_type: 'audio/webm',
-      media_byte_size: 1024,
       expires_in: 3600,
     },
   },
@@ -174,8 +166,8 @@ const recordingTimebase: RecordingTimebase = {
 const fixture121Takes: PerformanceTakeRead[] = Array.from(
   { length: 121 },
   (_, i) => ({
-    archive_media: { mime_type: 'audio/webm', byte_size: 1024 * (i + 1) },
-    deletion_status: 'ACTIVE',
+    recording_media: { mime_type: 'audio/webm', byte_size: 1024 * (i + 1) },
+
     take_id: `take-${i + 1}`,
     created_at: new Date(1700000000000 - i * 60000).toISOString(),
     manifest: {
@@ -334,8 +326,6 @@ describe('MyPerformancesPage', () => {
     currentTakesTotal = 121;
     mockPlaybackQuery.isLoading = false;
     mockPlaybackQuery.isError = false;
-    mockPlaybackQuery.data.data.media_kind = 'AUDIO';
-    mockPlaybackQuery.data.data.media_mime_type = 'audio/webm';
     mockDeleteTakeMutation.isPending = false;
   });
   it('renders loading state', () => {
@@ -373,7 +363,10 @@ describe('MyPerformancesPage', () => {
   });
   it('offers Score Video for a saved AUDIO recording independently of original playback/download', () => {
     render(<MyPerformancesPage />);
-    expect(screen.getByTestId('composite-video-take-take-1')).toHaveAttribute('href', '/my-performances/take-1/score-video');
+    expect(screen.getByTestId('composite-video-take-take-1')).toHaveAttribute(
+      'href',
+      '/my-performances/take-1/score-video',
+    );
     expect(screen.getByTestId('play-take-take-1')).toBeEnabled();
     expect(screen.getByTestId('download-take-take-1')).toBeEnabled();
   });
@@ -383,7 +376,7 @@ describe('MyPerformancesPage', () => {
         data: {
           items: [
             {
-              archive_media: { mime_type: 'audio/webm', byte_size: 1024 },
+              recording_media: { mime_type: 'audio/webm', byte_size: 1024 },
               take_id: 'take-deleted-score',
               linked_score_id: 'score-retained-source',
               can_open_score: true,
@@ -435,7 +428,7 @@ describe('MyPerformancesPage', () => {
         data: {
           items: [
             {
-              archive_media: { mime_type: 'audio/webm', byte_size: 1024 },
+              recording_media: { mime_type: 'audio/webm', byte_size: 1024 },
               take_id: 'take-deleted-score',
               linked_score_id: null,
               can_open_score: false,
@@ -487,7 +480,7 @@ describe('MyPerformancesPage', () => {
         data: {
           items: [
             {
-              archive_media: { mime_type: 'audio/webm', byte_size: 1024 },
+              recording_media: { mime_type: 'audio/webm', byte_size: 1024 },
               take_id: 'take-1',
               created_at: new Date().toISOString(),
               manifest: {
@@ -548,7 +541,7 @@ describe('MyPerformancesPage', () => {
           data: {
             items: [
               {
-                archive_media: { mime_type: mimeType, byte_size: 2048 },
+                recording_media: { mime_type: mimeType, byte_size: 2048 },
                 take_id: 'take-video-1',
                 created_at: new Date().toISOString(),
                 manifest: {
@@ -586,17 +579,15 @@ describe('MyPerformancesPage', () => {
         isSuccess: true,
         refetch: vi.fn(),
       };
-      mockPlaybackQuery.data.data.media_kind = 'VIDEO';
-      mockPlaybackQuery.data.data.media_mime_type = mimeType;
       render(<MyPerformancesPage />);
       expect(
         screen.getByTestId('download-take-take-video-1'),
       ).toHaveTextContent('下载视频');
       expect(
-        screen.getByTestId("composite-video-take-take-video-1"),
-      ).toHaveAttribute('href', "/my-performances/take-video-1/score-video");
+        screen.getByTestId('composite-video-take-take-video-1'),
+      ).toHaveAttribute('href', '/my-performances/take-video-1/score-video');
       expect(
-        screen.getByTestId("composite-video-take-take-video-1"),
+        screen.getByTestId('composite-video-take-take-video-1'),
       ).toHaveTextContent('导出乐谱视频');
       fireEvent.click(screen.getByTestId('play-take-take-video-1'));
       expect(screen.getByText('Kind: VIDEO')).toBeInTheDocument();
@@ -605,8 +596,6 @@ describe('MyPerformancesPage', () => {
         data: {
           playback_url: `https://oss.example.com/raw.${extension}`,
           download_url: `https://oss.example.com/raw.${extension}`,
-          media_kind: 'VIDEO',
-          media_mime_type: mimeType,
         },
       });
       const click = vi
@@ -629,7 +618,7 @@ describe('MyPerformancesPage', () => {
         data: {
           items: [
             {
-              archive_media: { mime_type: 'audio/webm', byte_size: 1024 },
+              recording_media: { mime_type: 'audio/webm', byte_size: 1024 },
               take_id: 'take-1',
               created_at: new Date().toISOString(),
               manifest: {
@@ -700,7 +689,7 @@ describe('MyPerformancesPage', () => {
         data: {
           items: [
             {
-              archive_media: { mime_type: 'audio/webm', byte_size: 1024 },
+              recording_media: { mime_type: 'audio/webm', byte_size: 1024 },
               take_id: 'take-1',
               created_at: new Date().toISOString(),
               manifest: {
@@ -888,63 +877,24 @@ describe('MyPerformancesPage', () => {
       // Full item:
       expect(screen.getAllByText('全曲演奏').length).toBeGreaterThan(0);
     });
-    it('renders deleting badge and disables actions when take is in DELETING status', () => {
-      mockQueryOverride = {
-        data: {
-          data: {
-            items: [
-              {
-                ...fixture121Takes[0],
-                take_id: 'take-deleting-1',
-                deletion_status: 'DELETING' as const,
-              },
-            ],
-            total: 1,
-            limit: 20,
-            offset: 0,
-            has_more: false,
+    it.each(['AUDIO', 'VIDEO'] as const)(
+      'removes a deleted %s Take immediately, stops its playback and keeps other Takes playable',
+      async (kind) => {
+        const selected = {
+          ...fixture121Takes[0],
+          manifest: {
+            ...fixture121Takes[0].manifest,
+            capture: { ...fixture121Takes[0].manifest.capture, kind },
           },
-        },
-        isLoading: false,
-        isError: false,
-        isSuccess: true,
-        refetch: vi.fn(),
-      };
-      render(<MyPerformancesPage searchParams={pageParams('1')} />);
-      // Badge visible
-      expect(
-        screen.getByTestId('deleting-badge-take-deleting-1'),
-      ).toBeInTheDocument();
-      expect(screen.getByText('删除中')).toBeInTheDocument();
-      // Action buttons disabled
-      expect(screen.getByTestId('play-take-take-deleting-1')).toBeDisabled();
-      expect(
-        screen.getByTestId('download-take-take-deleting-1'),
-      ).toBeDisabled();
-      expect(screen.getByTestId('delete-take-take-deleting-1')).toBeDisabled();
-      mockQueryOverride = null;
-    });
-    it('polls after DELETE 202, keeps processing state while backend returns DELETING, then removes the card', async () => {
-      vi.useFakeTimers();
-      const activeTake = {
-        ...fixture121Takes[0],
-        take_id: 'take-delete-flow',
-        deletion_status: 'ACTIVE' as const,
-        manifest: {
-          ...fixture121Takes[0].manifest,
-          score_title_snapshot: 'Delete Flow',
-        },
-      };
-      const deletingTake = {
-        ...activeTake,
-        deletion_status: 'DELETING' as const,
-      };
-      enableReactiveQueryResponses([
-        {
+        };
+        const other = fixture121Takes[1];
+        const response = (
+          items: PerformanceTakeRead[],
+        ): MockTakesQueryResult => ({
           data: {
             data: {
-              items: [activeTake],
-              total: 1,
+              items,
+              total: items.length,
               limit: 20,
               offset: 0,
               has_more: false,
@@ -954,217 +904,61 @@ describe('MyPerformancesPage', () => {
           isError: false,
           isSuccess: true,
           refetch: vi.fn(),
-        },
-        {
-          data: {
-            data: {
-              items: [deletingTake],
-              total: 1,
-              limit: 20,
-              offset: 0,
-              has_more: false,
-            },
-          },
-          isLoading: false,
-          isError: false,
-          isSuccess: true,
-          refetch: vi.fn(),
-        },
-        {
-          data: {
-            data: {
-              items: [],
-              total: 0,
-              limit: 20,
-              offset: 0,
-              has_more: false,
-            },
-          },
-          isLoading: false,
-          isError: false,
-          isSuccess: true,
-          refetch: vi.fn(),
-        },
-      ]);
-      render(<MyPerformancesPage searchParams={pageParams('1')} />);
-      fireEvent.click(screen.getByTestId('delete-take-take-delete-flow'));
-      fireEvent.click(screen.getByTestId('confirm-delete-take-button'));
-      await act(async () => {
-        await Promise.resolve();
-        await Promise.resolve();
-      });
-      expect(
-        screen.getByTestId('deleting-badge-take-delete-flow'),
-      ).toBeInTheDocument();
-      expect(screen.getByTestId('play-take-take-delete-flow')).toBeDisabled();
-      expect(
-        screen.getByTestId('download-take-take-delete-flow'),
-      ).toBeDisabled();
-      expect(screen.getByTestId('delete-take-take-delete-flow')).toBeDisabled();
-      await act(async () => {
-        vi.advanceTimersByTime(2500);
-      });
-      await act(async () => {
-        await Promise.resolve();
-      });
-      expect(screen.queryByText('Delete Flow')).not.toBeInTheDocument();
-      expect(screen.getByText('暂无已保存的演奏')).toBeInTheDocument();
-    });
-    it('does not claim success when deletion remains DELETING and stops polling after unmount', async () => {
-      vi.useFakeTimers();
-      const deletingTake = {
-        ...fixture121Takes[0],
-        take_id: 'take-slow-delete',
-        deletion_status: 'DELETING' as const,
-        manifest: {
-          ...fixture121Takes[0].manifest,
-          score_title_snapshot: 'Slow Delete',
-        },
-      };
-      const refetch = vi.fn(async () => undefined);
-      mockQueryOverride = {
-        data: {
-          data: {
-            items: [deletingTake],
-            total: 1,
-            limit: 20,
-            offset: 0,
-            has_more: false,
-          },
-        },
-        isLoading: false,
-        isError: false,
-        isSuccess: true,
-        refetch,
-      };
-      const rendered = render(
-        <MyPerformancesPage searchParams={pageParams('1')} />,
+        });
+        enableReactiveQueryResponses([
+          response([selected, other]),
+          response([other]),
+        ]);
+        mockDeleteTakeMutation.mutateAsync.mockImplementationOnce(async () => {
+          mockReactiveQueryIndex = 1;
+          notifyReactiveQuery();
+          return { data: { take_id: selected.take_id, deleted: true } };
+        });
+        render(<MyPerformancesPage />);
+        fireEvent.click(screen.getByTestId('play-take-take-1'));
+        expect(screen.getByText(`Kind: ${kind}`)).toBeInTheDocument();
+        fireEvent.click(screen.getByTestId('delete-take-take-1'));
+        fireEvent.click(screen.getByTestId('confirm-delete-take-button'));
+        await waitFor(() =>
+          expect(
+            screen.queryByTestId('play-take-take-1'),
+          ).not.toBeInTheDocument(),
+        );
+        expect(
+          screen.queryByTestId('recording-playback-player'),
+        ).not.toBeInTheDocument();
+        expect(
+          screen.queryByTestId('confirm-delete-take-button'),
+        ).not.toBeInTheDocument();
+        fireEvent.click(screen.getByTestId('play-take-take-2'));
+        expect(
+          screen.getByTestId('recording-playback-player'),
+        ).toBeInTheDocument();
+        vi.useFakeTimers();
+        const calls = mockUsePerformanceTakes.mock.calls.length;
+        act(() => {
+          vi.advanceTimersByTime(60000);
+        });
+        expect(mockUsePerformanceTakes.mock.calls.length).toBe(calls);
+      },
+    );
+    it('keeps only an HTTP mutation-pending state and allows retry after rejection', async () => {
+      let reject!: (error: Error) => void;
+      mockDeleteTakeMutation.mutateAsync.mockImplementationOnce(
+        () =>
+          new Promise((_, no) => {
+            reject = no;
+          }),
       );
-      expect(screen.getByText('Slow Delete')).toBeInTheDocument();
-      await act(async () => {
-        vi.advanceTimersByTime(30000);
-      });
-      expect(
-        screen.getByTestId('delete-still-processing-notice'),
-      ).toBeInTheDocument();
-      expect(screen.getByText('删除仍在后台处理中')).toBeInTheDocument();
-      expect(screen.queryByText('已删除该演奏')).not.toBeInTheDocument();
-      const callsBeforeUnmount = refetch.mock.calls.length;
-      rendered.unmount();
-      await act(async () => {
-        vi.advanceTimersByTime(10000);
-      });
-      expect(refetch.mock.calls.length).toBe(callsBeforeUnmount);
-    });
-    it('stops playback when deleting the active AUDIO take and leaves other active takes playable', async () => {
-      const audioTake = {
-        ...fixture121Takes[0],
-        take_id: 'take-audio-delete',
-        deletion_status: 'ACTIVE' as const,
-        manifest: {
-          ...fixture121Takes[0].manifest,
-          score_title_snapshot: 'Deleting Audio',
-        },
-      };
-      const otherTake = {
-        ...fixture121Takes[1],
-        take_id: 'take-other-active',
-        deletion_status: 'ACTIVE' as const,
-        manifest: {
-          ...fixture121Takes[1].manifest,
-          score_title_snapshot: 'Other Active',
-        },
-      };
-      mockQueryOverride = {
-        data: {
-          data: {
-            items: [audioTake, otherTake],
-            total: 2,
-            limit: 20,
-            offset: 0,
-            has_more: false,
-          },
-        },
-        isLoading: false,
-        isError: false,
-        isSuccess: true,
-        refetch: vi.fn(),
-      };
-      render(<MyPerformancesPage searchParams={pageParams('1')} />);
-      fireEvent.click(screen.getByTestId('play-take-take-audio-delete'));
-      expect(
-        screen.getByTestId('recording-playback-player'),
-      ).toBeInTheDocument();
-      fireEvent.click(screen.getByTestId('delete-take-take-audio-delete'));
+      render(<MyPerformancesPage />);
+      fireEvent.click(screen.getByTestId('delete-take-take-1'));
       fireEvent.click(screen.getByTestId('confirm-delete-take-button'));
-      await waitFor(() => {
-        expect(mockDeleteTakeMutation.mutateAsync).toHaveBeenCalledWith(
-          'take-audio-delete',
-        );
-      });
-      expect(
-        screen.queryByTestId('recording-playback-player'),
-      ).not.toBeInTheDocument();
-      await waitFor(() => {
-        expect(
-          screen.getByTestId('play-take-take-audio-delete'),
-        ).toBeDisabled();
-      });
-      fireEvent.click(screen.getByTestId('play-take-take-other-active'));
-      expect(
-        screen.getByTestId('recording-playback-player'),
-      ).toBeInTheDocument();
+      expect(screen.getByTestId('play-take-take-1')).toBeInTheDocument();
+      await act(async () => reject(new Error('Delete denied')));
+      expect(screen.getByTestId('delete-take-error')).toBeInTheDocument();
+      expect(screen.getByTestId('confirm-delete-take-button')).toBeEnabled();
     });
-    it('stops playback when deleting the active VIDEO take', async () => {
-      const videoTake = {
-        ...fixture121Takes[0],
-        take_id: 'take-video-delete',
-        deletion_status: 'ACTIVE' as const,
-        manifest: {
-          ...fixture121Takes[0].manifest,
-          score_title_snapshot: 'Deleting Video',
-          capture: {
-            ...fixture121Takes[0].manifest.capture,
-            kind: 'VIDEO' as const,
-            mime_type: 'video/webm',
-          },
-        },
-      };
-      mockQueryOverride = {
-        data: {
-          data: {
-            items: [videoTake],
-            total: 1,
-            limit: 20,
-            offset: 0,
-            has_more: false,
-          },
-        },
-        isLoading: false,
-        isError: false,
-        isSuccess: true,
-        refetch: vi.fn(),
-      };
-      render(<MyPerformancesPage searchParams={pageParams('1')} />);
-      fireEvent.click(screen.getByTestId('play-take-take-video-delete'));
-      expect(screen.getByText('Kind: VIDEO')).toBeInTheDocument();
-      fireEvent.click(screen.getByTestId('delete-take-take-video-delete'));
-      fireEvent.click(screen.getByTestId('confirm-delete-take-button'));
-      await waitFor(() => {
-        expect(mockDeleteTakeMutation.mutateAsync).toHaveBeenCalledWith(
-          'take-video-delete',
-        );
-      });
-      expect(
-        screen.queryByTestId('recording-playback-player'),
-      ).not.toBeInTheDocument();
-      await waitFor(() => {
-        expect(
-          screen.getByTestId('play-take-take-video-delete'),
-        ).toBeDisabled();
-      });
-    });
-    it('shows accepted toast when take deletion is confirmed', async () => {
+    it('shows completed deletion toast when take deletion is confirmed', async () => {
       mockToast.mockClear();
       render(<MyPerformancesPage searchParams={pageParams('1')} />);
       const deleteBtn = screen.getByTestId('delete-take-take-1');
@@ -1176,8 +970,8 @@ describe('MyPerformancesPage', () => {
           'take-1',
         );
         expect(mockToast).toHaveBeenCalledWith({
-          title: '删除请求已接受',
-          description: '删除请求已接受，正在后台清理并释放配额。',
+          title: '已删除该演奏',
+          description: '已删除保存的演奏并释放存储配额。',
         });
       });
     });

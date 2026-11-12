@@ -13,7 +13,7 @@ import {
   createTransientReviewSession,
   releaseTransientReviewSession,
 } from '@/lib/practice/review/transient-review-session';
-import { admitSavedRecordedPerformance } from '@/lib/practice/archive/saved-performance';
+import { admitSavedRecordedPerformance } from '@/lib/practice/saved-take/admission';
 import { localMediaAssetFixture } from '@/lib/practice/__fixtures__/local-media-asset';
 
 it('keeps exact natural Session owners and passes one authority through Review and recording', async () => {

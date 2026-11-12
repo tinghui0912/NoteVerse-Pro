@@ -3,7 +3,7 @@ import { planPractice } from '@/lib/practice/planning/practice-plan';
 import type { ExecutedPerformance } from '@/lib/practice/run/executed-performance';
 import { recordedPerformance } from '@/lib/practice/recording/recorded-performance';
 import { recordedPerformanceFixture } from '@/lib/practice/__fixtures__/recorded-performance';
-import { artifact as videoArtifact } from "@/lib/practice/composite-video/__fixtures__/saved-take";
+import { artifact as videoArtifact } from '@/lib/practice/composite-video/__fixtures__/saved-take';
 // @vitest-environment jsdom
 import { recordingSinkFixture } from '@/lib/practice/__fixtures__/recording-sink';
 import { localMediaAssetFixture } from '@/lib/practice/__fixtures__/local-media-asset';
@@ -19,7 +19,10 @@ import {
   type RecordingTimebase,
   type PerformanceTakeTempoPlan,
 } from '@/lib/api/performance-takes';
-import { useSavePerformanceTake } from '@/hooks/queries/use-performance-take-queries';
+import {
+  useSavePerformanceTake,
+  useDeletePerformanceTake,
+} from '@/hooks/queries/use-performance-take-queries';
 vi.mock('@/lib/api/performance-takes', () => ({
   performanceTakesApi: {
     reserveUpload: vi.fn(),
@@ -107,9 +110,9 @@ function createInput(
   };
 }
 const savedTake: PerformanceTakeRead = {
-  archive_media: { mime_type: 'audio/wav', byte_size: 12 },
+  recording_media: { mime_type: 'audio/wav', byte_size: 12 },
   take_id: 'take-1',
-  deletion_status: 'ACTIVE',
+
   created_at: '2026-09-21T00:00:00Z',
   manifest: {
     artifact_id: videoArtifact.artifactId,
@@ -190,7 +193,7 @@ describe('useSavePerformanceTake', () => {
         data: {
           ...savedTake,
           manifest: accepted.manifest,
-          archive_media: {
+          recording_media: {
             mime_type: accepted.manifest.capture.mime_type,
             byte_size: accepted.manifest.capture.byte_size,
           },
@@ -255,7 +258,7 @@ describe('useSavePerformanceTake', () => {
     );
     expect(performanceTakesApi.cancelUploadReservation).not.toHaveBeenCalled();
   });
-  it('archives MP4 capture bytes directly while normalizing only the request MIME', async () => {
+  it('saves exact original MP4 recording bytes directly while normalizing only the request MIME', async () => {
     const raw = new Blob(['raw captured mp4'], {
       type: 'video/mp4;codecs=avc1',
     });
@@ -285,7 +288,7 @@ describe('useSavePerformanceTake', () => {
     vi.mocked(performanceTakesApi.finalizeTake).mockResolvedValue({
       data: {
         ...savedTake,
-        archive_media: { mime_type: 'video/mp4', byte_size: raw.size },
+        recording_media: { mime_type: 'video/mp4', byte_size: raw.size },
         manifest: {
           ...savedTake.manifest,
           capture: {
@@ -392,7 +395,10 @@ describe('useSavePerformanceTake', () => {
     vi.mocked(performanceTakesApi.finalizeTake).mockResolvedValue({
       data: {
         ...savedTake,
-        archive_media: { ...savedTake.archive_media, mime_type: 'video/webm' },
+        recording_media: {
+          ...savedTake.recording_media,
+          mime_type: 'video/webm',
+        },
         manifest: {
           ...savedTake.manifest,
           capture: {
@@ -739,14 +745,181 @@ it.each(['RESERVED', 'COMPLETED'] as const)(
 );
 
 it.each(['mime_type', 'byte_size'] as const)(
-  'rejects archived %s inconsistent with admitted Capture',
+  'rejects saved recording %s inconsistent with admitted Capture',
   async (field) => {
     const invalid = structuredClone(savedTake);
-    if (field === 'mime_type') invalid.archive_media.mime_type = 'audio/webm';
-    else invalid.archive_media.byte_size++;
+    if (field === 'mime_type') invalid.recording_media.mime_type = 'audio/webm';
+    else invalid.recording_media.byte_size++;
     vi.mocked(performanceTakesApi.finalizeTake).mockResolvedValue({
       data: invalid,
     } as never);
     await expect(save()).rejects.toThrow('PERFORMANCE_TAKE_PLAN_MISMATCH');
   },
 );
+
+describe('semantic Take deletion cache admission', () => {
+  it('removes the resource and corrects paginated totals before background list refresh completes', async () => {
+    const { queryKeys } = await import('@/lib/query-client');
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+    const first = queryKeys.performanceTakes.list({ limit: 1, offset: 0 });
+    const second = queryKeys.performanceTakes.list({ limit: 1, offset: 1 });
+    const matching = queryKeys.performanceTakes.list({ score_id: 'score-1' });
+    const unrelated = queryKeys.performanceTakes.list({ score_id: 'score-2' });
+    const other = { ...savedTake, take_id: 'other' };
+    const list = (items: PerformanceTakeRead[], total: number, offset = 0) => ({
+      data: {
+        items,
+        total,
+        limit: 1,
+        offset,
+        has_more: offset + items.length < total,
+      },
+    });
+    client.setQueryData(first, list([savedTake], 2));
+    client.setQueryData(second, list([other], 2, 1));
+    client.setQueryData(matching, list([savedTake], 1));
+    client.setQueryData(unrelated, list([other], 1));
+    client.setQueryData(queryKeys.performanceTakes.detail('take-1'), {
+      data: savedTake,
+    });
+    client.setQueryData(queryKeys.performanceTakes.playbackUrl('take-1'), {
+      data: { playback_url: 'signed-deleted' },
+    });
+    client.setQueryData(queryKeys.performanceTakes.playbackUrl('other'), {
+      data: { playback_url: 'signed-other' },
+    });
+    const invalidate = vi
+      .spyOn(client, 'invalidateQueries')
+      .mockImplementation(() => new Promise(() => {}));
+    vi.mocked(performanceTakesApi.deleteTake).mockResolvedValue({
+      data: { take_id: 'take-1', deleted: true },
+    } as never);
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    const hook = renderHook(() => useDeletePerformanceTake(), { wrapper });
+    await act(async () => {
+      await hook.result.current.mutateAsync('take-1');
+    });
+    expect(client.getQueryData(first)).toMatchObject({
+      data: { items: [], total: 1, has_more: true },
+    });
+    expect(client.getQueryData(second)).toMatchObject({
+      data: { items: [other], total: 1, has_more: false },
+    });
+    expect(client.getQueryData(matching)).toMatchObject({
+      data: { items: [], total: 0 },
+    });
+    expect(client.getQueryData(unrelated)).toMatchObject({
+      data: { items: [other], total: 1 },
+    });
+    expect(
+      client.getQueryData(queryKeys.performanceTakes.detail('take-1')),
+    ).toBeUndefined();
+    expect(
+      client.getQueryData(queryKeys.performanceTakes.playbackUrl('take-1')),
+    ).toBeUndefined();
+    expect(
+      client.getQueryData(queryKeys.performanceTakes.playbackUrl('other')),
+    ).toMatchObject({ data: { playback_url: 'signed-other' } });
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: queryKeys.storageUsage.all,
+    });
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: queryKeys.performanceTakes.lists(),
+    });
+    hook.unmount();
+    client.clear();
+  });
+
+  it('keeps cached semantic authority when DELETE is rejected', async () => {
+    const { queryKeys } = await import('@/lib/query-client');
+    const client = new QueryClient({
+      defaultOptions: { mutations: { retry: false } },
+    });
+    const key = queryKeys.performanceTakes.list();
+    const cached = { data: { items: [savedTake], total: 1 } };
+    client.setQueryData(key, cached);
+    const invalidate = vi.spyOn(client, 'invalidateQueries');
+    vi.mocked(performanceTakesApi.deleteTake).mockRejectedValue(
+      new Error('denied'),
+    );
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    const hook = renderHook(() => useDeletePerformanceTake(), { wrapper });
+    await act(async () => {
+      await expect(hook.result.current.mutateAsync('take-1')).rejects.toThrow(
+        'denied',
+      );
+    });
+    expect(client.getQueryData(key)).toEqual(cached);
+    expect(invalidate).not.toHaveBeenCalled();
+    hook.unmount();
+    client.clear();
+  });
+});
+
+it('cancels stale deleted-resource/list reads while another Take playback remains live', async () => {
+  const { queryKeys } = await import('@/lib/query-client');
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  const key = queryKeys.performanceTakes.list();
+  client.setQueryData(key, {
+    data: { items: [savedTake], total: 1, offset: 0 },
+  });
+  let listSignal!: AbortSignal, otherSignal!: AbortSignal;
+  let finishList!: (data: unknown) => void,
+    finishOther!: (data: unknown) => void;
+  const stale = client
+    .fetchQuery({
+      queryKey: key,
+      queryFn: ({ signal }) => {
+        listSignal = signal;
+        return new Promise((resolve) => {
+          finishList = resolve;
+        });
+      },
+    })
+    .catch(() => undefined);
+  const other = client.fetchQuery({
+    queryKey: queryKeys.performanceTakes.playbackUrl('other'),
+    queryFn: ({ signal }) => {
+      otherSignal = signal;
+      return new Promise((resolve) => {
+        finishOther = resolve;
+      });
+    },
+  });
+  vi.spyOn(client, 'invalidateQueries').mockResolvedValue();
+  vi.mocked(performanceTakesApi.deleteTake).mockResolvedValue({
+    data: { take_id: 'take-1', deleted: true },
+  } as never);
+  const wrapper = ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  );
+  const hook = renderHook(() => useDeletePerformanceTake(), { wrapper });
+  await act(async () => {
+    await hook.result.current.mutateAsync('take-1');
+  });
+  expect(listSignal.aborted).toBe(true);
+  expect(otherSignal.aborted).toBe(false);
+  finishList({ data: { items: [savedTake], total: 1 } });
+  finishOther({ data: { playback_url: 'other-signed-recording' } });
+  await stale;
+  await other;
+  expect(client.getQueryData(key)).toMatchObject({
+    data: { items: [], total: 0 },
+  });
+  expect(
+    client.getQueryData(queryKeys.performanceTakes.playbackUrl('other')),
+  ).toMatchObject({ data: { playback_url: 'other-signed-recording' } });
+  hook.unmount();
+  client.clear();
+});

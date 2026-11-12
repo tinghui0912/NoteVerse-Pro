@@ -338,11 +338,6 @@
   "pagination": "Page {page} of {totalPages}",
   "previousPage": "Previous",
   "nextPage": "Next",
-  "takeDeletingStatus": "Deleting",
-  "deletePerformanceTakeAcceptedTitle": "Deletion Request Accepted",
-  "deletePerformanceTakeAcceptedDesc": "Deletion request accepted. Cleaning up in the background and releasing storage quota.",
-  "deleteStillProcessingTitle": "Deletion is still running in the background",
-  "deleteStillProcessingDesc": "Object storage and quota cleanup have not finished yet. You can refresh later; this page will keep checking.",
   "leaveReviewTitle": "Leave this temporary performance report?",
   "leaveReviewDesc": "This temporary performance report may not be available after you leave. Downloading a composed video does not save the original performance.",
   "leaveReviewUnsavedMediaDesc": "The original recording has not been saved as a performance yet. Leaving or restarting may make this temporary media unavailable; downloading a composed video does not save the original performance.",
@@ -385,5 +380,7 @@
   "compositeVideoPreviewDecodeFailed": "Unable to decode the replay frame",
   "compositeVideoPreviewFrameBufferFailed": "Unable to create the preview frame buffer",
   "compositeVideoPreviewSeek": "Composite preview position",
-  "compositeVideoScoreOnlyDesc": "Clean score video with your original audio."
+  "compositeVideoScoreOnlyDesc": "Clean score video with your original audio.",
+  "deletePerformanceTakeSuccessTitle": "Performance Deleted",
+  "deletePerformanceTakeSuccessDesc": "The saved Take is deleted and its storage quota is released."
 }

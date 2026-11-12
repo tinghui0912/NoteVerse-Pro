@@ -173,11 +173,11 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
           target.startsWith('planning/') ||
           (edge.typeOnly && target === 'continuous/domain/session.ts')),
     );
-  if (source.startsWith('archive/'))
+  if (source.startsWith('saved-take/'))
     return Boolean(
       (target &&
         [
-          'archive/',
+          'saved-take/',
           'recording/',
           'run/',
           'planning/',
@@ -1401,7 +1401,7 @@ describe('Practice bounded domain dependencies', () => {
       'review/transient-review-session',
       'result/continuous-performance-result',
       "composite-video/export",
-      'archive/saved-performance',
+      'saved-take/admission',
       'run/executed-performance',
       'recording/recorded-performance',
     ]) {
@@ -1690,7 +1690,7 @@ describe('Practice bounded domain dependencies', () => {
             "result/",
             "continuous/",
             "step/",
-            "archive/",
+            "saved-take/",
             "api/",
           ].some((owner) => target.startsWith(owner)),
           file + " -> " + target,
@@ -1774,7 +1774,7 @@ describe('Practice bounded domain dependencies', () => {
         '@/app/page',
         '@/lib/api/performance-takes',
         '@/generated/api/types.gen',
-        '@/lib/practice/archive/saved-performance',
+        '@/lib/practice/saved-take/admission',
         "@/lib/practice/composite-video/export",
       ]) {
         expect(
@@ -1787,11 +1787,11 @@ describe('Practice bounded domain dependencies', () => {
       }
     }
     for (const edge of imports(
-      path.join(practiceRoot, 'archive/saved-performance.ts'),
+      path.join(practiceRoot, 'saved-take/admission.ts'),
     )) {
       expect(
         dependencyAllowed(
-          path.join(practiceRoot, 'archive/saved-performance.ts'),
+          path.join(practiceRoot, 'saved-take/admission.ts'),
           edge,
         ),
       ).toBe(true);
@@ -2974,4 +2974,14 @@ it('Recording consumes its Capture sink port and adapter', () => {
   expect(
     recorder.some((edge) => edge.bindings.includes('openOpfsRecordingSink')),
   ).toBe(true);
+});
+
+
+it('routes saved Take transport through its current semantic owner', () => {
+  expect(existsSync(path.join(practiceRoot, 'saved-take/admission.ts'))).toBe(true);
+  expect(existsSync(path.join(practiceRoot, 'saved-take/save.ts'))).toBe(true);
+  expect(existsSync(path.join(practiceRoot, 'archive'))).toBe(false);
+  for (const [file, edges] of sourceGraph)
+    for (const edge of edges)
+      expect(edge.specifier.startsWith('@/lib/practice/archive/'), file).toBe(false);
 });

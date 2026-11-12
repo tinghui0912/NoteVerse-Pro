@@ -755,7 +755,6 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         assert take_data["manifest"]["score_title_snapshot"] == "Moonlight Sonata"
         assert take_data["manifest"]["scope"]["kind"] == "FULL"
         assert take_data["manifest"]["capture"]["byte_size"] == media_size
-        assert take_data["deletion_status"] == "ACTIVE"
 
         # Final key is promoted to a token-owned candidate object. Staging may
         # remain until every issued PUT URL expires.
@@ -884,7 +883,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         assert "playback_url" in play_data
         assert "download_url" in play_data
 
-        # Historical share production uses the authenticated same-origin
+        # Saved recording materialization uses the authenticated same-origin
         # stream instead of relying on cross-origin signed-URL fetch/CORS.
         res_media = client.get(f"/api/v1/performance-takes/{take_id}/media")
         assert res_media.status_code == 200
@@ -906,8 +905,8 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
 
         # Delete releases semantic ownership and queues physical retirement.
         res_del = client.delete(f"/api/v1/performance-takes/{take_id}")
-        assert res_del.status_code == 202
-        assert res_del.json()["data"]["status"] == "deleting"
+        assert res_del.status_code == 200
+        assert res_del.json()["data"]["deleted"] is True
         assert res_del.json()["data"]["take_id"] == take_id
 
         assert client.get(f"/api/v1/performance-takes/{take_id}").status_code == 404
@@ -920,6 +919,10 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
             )
         )
         assert operation.status == "PENDING" and storage.exists(final_object_key)
+        assert session.scalar(select(PerformanceTake)) is None
+        assert client.get("/api/v1/performance-takes").json()["data"]["items"] == []
+        session.refresh(account)
+        assert account.used_bytes == 0
         worker_res = _run_retirement(monkeypatch, session, storage, operation.retirement_uuid)
         assert worker_res["status"] == "completed"
 
@@ -1273,9 +1276,9 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         assert retained.status_code == 200, retained.text
         assert retained.json()["data"]["manifest"]["practice_binding"]["bundle_id"] == _bundle_id()
 
-        # Deleting take returns 202 Accepted
+        # Deleting the semantic Take returns 200 OK
         res_del = client.delete(f"/api/v1/performance-takes/{take_id}")
-        assert res_del.status_code == 202
+        assert res_del.status_code == 200
 
         operation = session.scalar(
             select(StoredObjectRetirement).where(StoredObjectRetirement.object_key == final_key)
@@ -2058,8 +2061,7 @@ def test_video_take_finalize_uses_video_media_kind_and_candidate(test_env):
         res_playback = client.get(f"/api/v1/performance-takes/{take_data['take_id']}/playback-url")
         assert res_playback.status_code == 200
         playback_data = res_playback.json()["data"]
-        assert playback_data["media_kind"] == "VIDEO"
-        assert playback_data["media_mime_type"] == "video/webm"
+        assert set(playback_data) == {"take_id", "playback_url", "download_url", "expires_in"}
 
         conflict_req = {**auth_req, "media_kind": "AUDIO"}
         res_conflict = client.post(
@@ -2319,7 +2321,7 @@ def test_expired_reservation_staging_delete_failure_is_retryable(test_env, monke
         app.dependency_overrides.clear()
 
 
-def test_archived_reservation_late_staging_put_is_cleaned_after_expiry(test_env):
+def test_completed_reservation_late_staging_put_is_cleaned_after_expiry(test_env):
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = _performance_take_service(
@@ -3875,7 +3877,16 @@ def test_take_deletion_retires_media_but_preserves_manifest_and_reservation(test
         assert finalized.json()["data"]["manifest"] == accepted["manifest"]
         final_key = take.recording_object.object_key
         deleted = client.delete(f"/api/v1/performance-takes/{accepted['take_id']}")
-        assert deleted.status_code == 202, deleted.text
+        assert deleted.status_code == 200, deleted.text
+        assert deleted.json()["data"] == {"take_id": accepted["take_id"], "deleted": True}
+        assert session.scalar(select(PerformanceTake)) is None
+        for suffix in ["", "/playback-url", "/media"]:
+            assert (
+                client.get(f"/api/v1/performance-takes/{accepted['take_id']}{suffix}").status_code
+                == 404
+            )
+        assert client.get("/api/v1/performance-takes").json()["data"]["items"] == []
+        assert storage.exists(final_key)
         operation = session.scalar(
             select(StoredObjectRetirement).where(StoredObjectRetirement.object_key == final_key)
         )
@@ -3926,7 +3937,7 @@ def test_final_blob_sha_is_the_complete_candidate_and_actual_object_digest(test_
         digest = hashlib.sha256(actual).hexdigest()
         assert hashes[blob.object_key] == blob.sha256 == digest
         assert blob.byte_size == len(actual) == take.manifest.capture_byte_size
-        assert response.json()["data"]["archive_media"] == {
+        assert response.json()["data"]["recording_media"] == {
             "mime_type": blob.content_type,
             "byte_size": blob.byte_size,
         }
@@ -3982,8 +3993,8 @@ def test_take_read_rejects_corrupt_or_capture_mismatched_blob(test_env, field, b
         session,
         user_id=user.id,
         source=source,
-        client_request_id="corrupt-archive",
-        take_uuid="corrupt-archive",
+        client_request_id="corrupt-recording",
+        take_uuid="corrupt-recording",
         media_object_key="corrupt.webm",
     )
     setattr(take.recording_object, field, bad)

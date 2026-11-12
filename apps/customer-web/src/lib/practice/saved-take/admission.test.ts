@@ -1,9 +1,9 @@
 import { expect, it } from 'vitest';
-import { admitSavedRecordedPerformance } from './saved-performance';
+import { admitSavedRecordedPerformance } from './admission';
 import {
   artifact,
   take,
-} from "@/lib/practice/composite-video/__fixtures__/saved-take";
+} from '@/lib/practice/composite-video/__fixtures__/saved-take';
 import { localMediaAssetFixture } from '@/lib/practice/__fixtures__/local-media-asset';
 import { recordingPlaybackSource } from '@/lib/practice/recording/recording-playback';
 const bundle = {
@@ -62,12 +62,6 @@ it('validates range identity and ticks before admitting the persisted selection'
     });
 });
 const corruptions: [string, (value: typeof take) => void][] = [
-  [
-    'deleting',
-    (v) => {
-      v.deletion_status = 'DELETING';
-    },
-  ],
   [
     'bundle',
     (v) => {
@@ -225,9 +219,9 @@ const corruptions: [string, (value: typeof take) => void][] = [
     },
   ],
   [
-    'archive MIME',
+    'recording MIME',
     (v) => {
-      v.archive_media.mime_type = 'audio/wav';
+      v.recording_media.mime_type = 'audio/wav';
     },
   ],
   [
@@ -237,9 +231,9 @@ const corruptions: [string, (value: typeof take) => void][] = [
     },
   ],
   [
-    'archive size',
+    'recording size',
     (v) => {
-      v.archive_media.byte_size++;
+      v.recording_media.byte_size++;
     },
   ],
 ];

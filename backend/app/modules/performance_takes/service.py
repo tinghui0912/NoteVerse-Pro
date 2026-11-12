@@ -1,5 +1,4 @@
 from __future__ import annotations
-from app.db.models.performance_take_manifest import PerformanceTakeMediaKind
 
 
 from typing import Optional
@@ -18,6 +17,7 @@ from app.db.models.score import Score, ScoreDeletionStatus
 from app.modules.performance_takes.aggregate import take_from_row
 from app.modules.performance_takes.repository import PerformanceTakeRepository
 from app.modules.performance_takes.schemas import (
+    PerformanceTakeDeleteResponse,
     PerformanceTakeListResponse,
     PerformanceTakePlaybackRead,
     PerformanceTakeRead,
@@ -26,16 +26,6 @@ from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.shared.constants import ErrorCode
 from app.storage.base import ObjectStorage
 from app.storage.factory import object_storage
-
-
-def _status_value(status: object) -> str:
-    value = getattr(status, "value", status)
-    return str(value)
-
-
-def _media_kind_value(media_kind: object) -> str:
-    value = getattr(media_kind, "value", media_kind)
-    return str(value or PerformanceTakeMediaKind.AUDIO.value).upper()
 
 
 def _extension_for_mime(mime_type: str) -> str:
@@ -71,7 +61,7 @@ class PerformanceTakeService:
         can_open_score: bool = False,
     ) -> PerformanceTakeRead:
         facts = take_from_row(take)
-        manifest, blob = facts.manifest, facts.recording_object
+        manifest, recording = facts.manifest, facts.recording_object
         linked_score_id = (
             score.score_uuid
             if can_open_score
@@ -83,10 +73,9 @@ class PerformanceTakeService:
         return PerformanceTakeRead(
             take_id=manifest.take_uuid,
             manifest=manifest.snapshot,
-            archive_media={"mime_type": blob.content_type, "byte_size": blob.byte_size},
+            recording_media={"mime_type": recording.content_type, "byte_size": recording.byte_size},
             linked_score_id=linked_score_id,
             can_open_score=linked_score_id is not None,
-            deletion_status="ACTIVE",
             created_at=take.created_at,
         )
 
@@ -189,25 +178,22 @@ class PerformanceTakeService:
             )
 
         facts = take_from_row(take)
-        manifest, blob = facts.manifest, facts.recording_object
+        manifest, recording = facts.manifest, facts.recording_object
         playback_url = self.storage.download_url(
-            blob.object_key,
-            content_type=blob.content_type,
+            recording.object_key,
+            content_type=recording.content_type,
         )
-        ext = _extension_for_mime(blob.content_type)
+        ext = _extension_for_mime(recording.content_type)
         download_url = self.storage.download_url(
-            blob.object_key,
+            recording.object_key,
             filename=f"performance-{manifest.take_uuid}.{ext}",
-            content_type=blob.content_type,
+            content_type=recording.content_type,
         )
 
         return PerformanceTakePlaybackRead(
             take_id=manifest.take_uuid,
             playback_url=playback_url,
             download_url=download_url,
-            media_kind=_media_kind_value(manifest.snapshot.capture.kind),
-            media_mime_type=blob.content_type,
-            media_byte_size=blob.byte_size,
             expires_in=3600,
         )
 
@@ -224,12 +210,12 @@ class PerformanceTakeService:
                 "performance_take", take_id, ErrorCode.RESOURCE_NOT_FOUND
             )
         facts = take_from_row(take)
-        manifest, blob = facts.manifest, facts.recording_object
-        extension = _extension_for_mime(blob.content_type)
+        manifest, recording = facts.manifest, facts.recording_object
+        extension = _extension_for_mime(recording.content_type)
         return (
-            blob.object_key,
+            recording.object_key,
             f"performance-{manifest.take_uuid}.{extension}",
-            blob.content_type,
+            recording.content_type,
         )
 
     async def delete_take(
@@ -237,7 +223,7 @@ class PerformanceTakeService:
         db: AsyncSession,
         user_id: int,
         take_id: str,
-    ) -> dict[str, str]:
+    ) -> PerformanceTakeDeleteResponse:
         take = await self.repository.get_by_uuid(db, user_id, take_id, lock=True)
         if take is None:
             raise ResourceNotFoundException(
@@ -263,4 +249,4 @@ class PerformanceTakeService:
         from app.worker.dispatch.stored_object_retirement import dispatch_retirements_best_effort
 
         dispatch_retirements_best_effort(operations)
-        return {"status": "deleting", "take_id": take_id}
+        return PerformanceTakeDeleteResponse(take_id=take_id)

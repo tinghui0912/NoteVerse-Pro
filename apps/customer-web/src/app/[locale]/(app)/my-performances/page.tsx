@@ -44,11 +44,8 @@ import {
   type PerformanceTakeRead,
 } from '@/lib/api/performance-takes';
 import type { RecordingPlaybackSource } from '@/lib/practice/recording/recording-playback';
-import { isSavedCompositeVideoCandidate } from '@/lib/practice/archive/saved-performance';
+import { isSavedCompositeVideoCandidate } from '@/lib/practice/saved-take/admission';
 import { useToast } from '@/hooks/use-toast';
-
-const DELETE_POLL_INTERVAL_MS = 2500;
-const DELETE_SLOW_NOTICE_MS = 30000;
 
 function normalizePage(value?: string | number): number {
   const page = Math.floor(Number(value ?? 1));
@@ -151,12 +148,10 @@ function PerformanceTakeCard({
       <span className="truncate font-semibold text-gray-900">{scoreTitle}</span>
     );
 
-  const isDeleting = take.deletion_status === 'DELETING' || isDeletePending;
-
   // Playback URL query - only active when playing this card and not being deleted.
   const playbackQuery = usePerformanceTakePlayback(
     take.take_id,
-    isPlaying && !isDeleting,
+    isPlaying && !isDeletePending,
   );
 
   const handleDownload = async () => {
@@ -170,7 +165,7 @@ function PerformanceTakeCard({
       }
       const a = document.createElement('a');
       a.href = downloadUrl;
-      const ext = captureMediaExtension(take.archive_media.mime_type);
+      const ext = captureMediaExtension(take.recording_media.mime_type);
       a.download = `performance-${take.take_id}.${ext}`;
       document.body.appendChild(a);
       a.click();
@@ -213,14 +208,6 @@ function PerformanceTakeCard({
               <div className="flex items-center gap-2">
                 <Music className="h-5 w-5 flex-shrink-0 text-primary" />
                 {scoreTitleNode}
-                {isDeleting ? (
-                  <span
-                    className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20"
-                    data-testid={`deleting-badge-${take.take_id}`}
-                  >
-                    {t('takeDeletingStatus')}
-                  </span>
-                ) : null}
               </div>
 
               <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
@@ -237,8 +224,9 @@ function PerformanceTakeCard({
                   )}
                 </span>
                 <span className="rounded bg-gray-100 px-1.5 py-0.5 font-medium text-gray-600">
-                  {take.archive_media.mime_type.split('/')[1]?.toUpperCase() ||
-                    'AUDIO'}
+                  {take.recording_media.mime_type
+                    .split('/')[1]
+                    ?.toUpperCase() || 'AUDIO'}
                 </span>
                 <span className="rounded bg-blue-50 px-1.5 py-0.5 font-medium text-blue-700">
                   {scopeLabel}
@@ -257,7 +245,7 @@ function PerformanceTakeCard({
                 size="sm"
                 className="gap-1.5"
                 onClick={onPlay}
-                disabled={isDeleting}
+                disabled={isDeletePending}
                 data-testid={`play-take-${take.take_id}`}
               >
                 <Play className="h-4 w-4" />
@@ -269,7 +257,7 @@ function PerformanceTakeCard({
                 size="sm"
                 className="gap-1.5"
                 onClick={handleDownload}
-                disabled={downloading || isDeleting}
+                disabled={downloading || isDeletePending}
                 data-testid={`download-take-${take.take_id}`}
               >
                 <Download className="h-4 w-4" />
@@ -286,7 +274,7 @@ function PerformanceTakeCard({
                     href={`/my-performances/${take.take_id}/score-video`}
                     data-testid={`composite-video-take-${take.take_id}`}
                   >
-                    {t("compositeVideoOpenAction")}
+                    {t('compositeVideoOpenAction')}
                   </Link>
                 </Button>
               ) : null}
@@ -296,7 +284,7 @@ function PerformanceTakeCard({
                 size="sm"
                 className="text-red-600 hover:bg-red-50 hover:text-red-700"
                 onClick={onDelete}
-                disabled={isDeleting}
+                disabled={isDeletePending}
                 data-testid={`delete-take-${take.take_id}`}
               >
                 <Trash2 className="h-4 w-4" />
@@ -392,60 +380,17 @@ function MyPerformancesPageContent({
     limit: pageSize,
     offset: (rawPage - 1) * pageSize,
   });
-  const refetchTakes = takesQuery.refetch;
   const deleteTake = useDeletePerformanceTake();
 
   const [activeTakeId, setActiveTakeId] = useState<string | null>(null);
   const [takePendingDelete, setTakePendingDelete] =
     useState<PerformanceTakeRead | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [deleteAcceptedAtByTakeId, setDeleteAcceptedAtByTakeId] = useState<
-    Record<string, number>
-  >({});
-  const [deleteObservedAtByTakeId, setDeleteObservedAtByTakeId] = useState<
-    Record<string, number>
-  >({});
-  const [isPageVisible, setIsPageVisible] = useState(() =>
-    typeof document === 'undefined'
-      ? true
-      : document.visibilityState !== 'hidden',
-  );
-  const [pollTick, setPollTick] = useState(() => Date.now());
-
   const total = takesQuery.data?.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const currentPage = Math.min(rawPage, totalPages);
   const queryItems = takesQuery.data?.data?.items;
   const takes = React.useMemo(() => queryItems ?? [], [queryItems]);
-  const deletingTakeIds = React.useMemo(
-    () =>
-      new Set(
-        takes
-          .filter((take) => take.deletion_status === 'DELETING')
-          .map((take) => take.take_id),
-      ),
-    [takes],
-  );
-  const acceptedDeleteIds = React.useMemo(
-    () => new Set(Object.keys(deleteAcceptedAtByTakeId)),
-    [deleteAcceptedAtByTakeId],
-  );
-  const hasPendingDeletion =
-    deletingTakeIds.size > 0 || acceptedDeleteIds.size > 0;
-  const oldestAcceptedDeleteAt =
-    Object.values({ ...deleteObservedAtByTakeId, ...deleteAcceptedAtByTakeId })
-      .length > 0
-      ? Math.min(
-          ...Object.values({
-            ...deleteObservedAtByTakeId,
-            ...deleteAcceptedAtByTakeId,
-          }),
-        )
-      : null;
-  const showDeletionSlowNotice =
-    oldestAcceptedDeleteAt !== null &&
-    pollTick - oldestAcceptedDeleteAt >= DELETE_SLOW_NOTICE_MS;
-
   const goToPage = React.useCallback(
     (nextPage: number) => {
       setActiveTakeId(null);
@@ -459,83 +404,13 @@ function MyPerformancesPageContent({
 
   // If query succeeded and rawPage is beyond totalPages, normalize URL to totalPages
   React.useEffect(() => {
-    if (takesQuery.isSuccess && total > 0 && rawPage > totalPages) {
+    if (takesQuery.isSuccess && rawPage > totalPages) {
       const targetPage = Math.max(1, totalPages);
       const search =
         targetPage > 1 ? `?page=${targetPage}` : '/my-performances';
       router.push(search);
     }
   }, [takesQuery.isSuccess, total, totalPages, rawPage, router]);
-
-  React.useEffect(() => {
-    if (typeof document === 'undefined') return;
-
-    const onVisibilityChange = () => {
-      setIsPageVisible(document.visibilityState !== 'hidden');
-    };
-
-    document.addEventListener('visibilitychange', onVisibilityChange);
-    onVisibilityChange();
-    return () =>
-      document.removeEventListener('visibilitychange', onVisibilityChange);
-  }, []);
-
-  React.useEffect(() => {
-    if (!takesQuery.isSuccess) return;
-
-    const listedTakeIds = new Set(takes.map((take) => take.take_id));
-    const now = Date.now();
-    const timeoutId = window.setTimeout(() => {
-      setDeleteAcceptedAtByTakeId((prev) => {
-        const next = Object.fromEntries(
-          Object.entries(prev).filter(([takeId]) => listedTakeIds.has(takeId)),
-        );
-        return Object.keys(next).length === Object.keys(prev).length
-          ? prev
-          : next;
-      });
-      setDeleteObservedAtByTakeId((prev) => {
-        const next = { ...prev };
-        let changed = false;
-
-        for (const takeId of Object.keys(next)) {
-          if (!listedTakeIds.has(takeId) || !deletingTakeIds.has(takeId)) {
-            delete next[takeId];
-            changed = true;
-          }
-        }
-
-        for (const takeId of deletingTakeIds) {
-          if (!next[takeId]) {
-            next[takeId] = now;
-            changed = true;
-          }
-        }
-
-        return changed ? next : prev;
-      });
-
-      setActiveTakeId((current) =>
-        current && deletingTakeIds.has(current) ? null : current,
-      );
-    }, 0);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [deletingTakeIds, takes, takesQuery.isSuccess]);
-
-  const effectiveActiveTakeId =
-    activeTakeId && deletingTakeIds.has(activeTakeId) ? null : activeTakeId;
-
-  React.useEffect(() => {
-    if (!hasPendingDeletion || !isPageVisible) return;
-
-    const intervalId = window.setInterval(() => {
-      setPollTick(Date.now());
-      void refetchTakes();
-    }, DELETE_POLL_INTERVAL_MS);
-
-    return () => window.clearInterval(intervalId);
-  }, [hasPendingDeletion, isPageVisible, refetchTakes]);
 
   const canGoPrevious = currentPage > 1;
   const canGoNext = currentPage < totalPages;
@@ -549,16 +424,12 @@ function MyPerformancesPageContent({
     }
     try {
       await deleteTake.mutateAsync(takeId);
-      setDeleteAcceptedAtByTakeId((prev) => ({
-        ...prev,
-        [takeId]: Date.now(),
-      }));
+      setActiveTakeId((current) => (current === takeId ? null : current));
       setTakePendingDelete(null);
       toast({
-        title: t('deletePerformanceTakeAcceptedTitle'),
-        description: t('deletePerformanceTakeAcceptedDesc'),
+        title: t('deletePerformanceTakeSuccessTitle'),
+        description: t('deletePerformanceTakeSuccessDesc'),
       });
-      void refetchTakes();
     } catch {
       setDeleteError(t('deleteFailedRetry'));
     }
@@ -588,43 +459,16 @@ function MyPerformancesPageContent({
         />
       ) : (
         <div className="flex flex-col gap-4">
-          {showDeletionSlowNotice ? (
-            <div
-              className="flex flex-col gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 sm:flex-row sm:items-center sm:justify-between"
-              data-testid="delete-still-processing-notice"
-            >
-              <div>
-                <p className="font-medium">{t('deleteStillProcessingTitle')}</p>
-                <p className="mt-0.5">{t('deleteStillProcessingDesc')}</p>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => refetchTakes()}
-                data-testid="refresh-deleting-takes"
-              >
-                {common('refresh')}
-              </Button>
-            </div>
-          ) : null}
-
           {takes.map((take) => (
             <PerformanceTakeCard
               key={take.take_id}
               take={take}
-              isPlaying={
-                effectiveActiveTakeId === take.take_id &&
-                take.deletion_status !== 'DELETING' &&
-                !acceptedDeleteIds.has(take.take_id)
+              isPlaying={activeTakeId === take.take_id}
+              isDeletePending={
+                deleteTake.isPending &&
+                takePendingDelete?.take_id === take.take_id
               }
-              isDeletePending={acceptedDeleteIds.has(take.take_id)}
               onPlay={() => {
-                if (
-                  take.deletion_status === 'DELETING' ||
-                  acceptedDeleteIds.has(take.take_id)
-                ) {
-                  return;
-                }
                 setActiveTakeId((current) =>
                   current === take.take_id ? null : take.take_id,
                 );

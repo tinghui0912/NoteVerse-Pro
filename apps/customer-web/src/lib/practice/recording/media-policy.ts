@@ -17,7 +17,7 @@ export function normalizeCaptureMime(mimeType: string): string {
   return mimeType.split(';')[0].trim().toLowerCase();
 }
 
-export function isArchiveableCaptureMime(kind: CaptureMediaKind, mimeType: string): boolean {
+export function isSupportedCaptureMime(kind: CaptureMediaKind, mimeType: string): boolean {
   return (CAPTURE_CONTAINERS[kind] as readonly string[]).includes(normalizeCaptureMime(mimeType));
 }
 

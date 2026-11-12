@@ -148,7 +148,7 @@ async def stream_take_media(
 
 @router.delete(
     "/{take_id}",
-    status_code=status.HTTP_202_ACCEPTED,
+    status_code=status.HTTP_200_OK,
     response_model=APIResponse[PerformanceTakeDeleteResponse],
 )
 async def delete_take(
@@ -159,4 +159,4 @@ async def delete_take(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     data = await service.delete_take(db, user_id, take_id)
-    return success_response(data=data, message="Performance take deletion accepted")
+    return success_response(data=data, message="Performance take deleted")

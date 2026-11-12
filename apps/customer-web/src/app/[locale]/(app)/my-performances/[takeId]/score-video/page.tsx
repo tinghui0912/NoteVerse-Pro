@@ -27,7 +27,7 @@ import { recordingPlaybackSource } from "@/lib/practice/recording/recording-play
 import {
   admitSavedRecordedPerformance,
   isSavedCompositeVideoCandidate,
-} from "@/lib/practice/archive/saved-performance";
+} from "@/lib/practice/saved-take/admission";
 import { PracticeVerovioAdapter } from "@/lib/practice/score-view/verovio-adapter";
 
 function takeIdFromParams(params: ReturnType<typeof useParams>): string {
@@ -132,8 +132,8 @@ export default function SavedPerformanceCompositeVideoPage() {
     let owned: LocalMediaAsset | null = null;
     void materializePerformanceTakeMedia({
       takeId: take.take_id,
-      expectedByteSize: take.archive_media.byte_size,
-      expectedMimeType: take.archive_media.mime_type,
+      expectedByteSize: take.recording_media.byte_size,
+      expectedMimeType: take.recording_media.mime_type,
       signal: controller.signal,
       onProgress: (loadedBytes, totalBytes) => {
         if (!controller.signal.aborted) {
@@ -346,7 +346,7 @@ export default function SavedPerformanceCompositeVideoPage() {
                   onClick={() => {
                     void downloadLocalMedia(
                       mediaHandle!,
-                      `performance-${take.take_id}.${captureMediaExtension(take.archive_media.mime_type)}`,
+                      `performance-${take.take_id}.${captureMediaExtension(take.recording_media.mime_type)}`,
                     );
                   }}
                 >

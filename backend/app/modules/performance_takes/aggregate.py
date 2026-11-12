@@ -21,7 +21,7 @@ class SavedTakeFacts:
             capture.byte_size != self.recording_object.byte_size
             or capture.mime_type != self.recording_object.content_type
         ):
-            raise ValueError("Archived bytes must preserve the admitted Capture")
+            raise ValueError("Saved recording bytes must preserve the admitted Capture")
 
 
 def take_from_row(row: PerformanceTake) -> SavedTakeFacts:
@@ -31,5 +31,7 @@ def take_from_row(row: PerformanceTake) -> SavedTakeFacts:
         )
     except (ValueError, TypeError, AttributeError) as error:
         raise ValidationException(
-            ErrorCode.VALIDATION_ERROR, field="stored_object", details={"reason": "invalid_archive"}
+            ErrorCode.VALIDATION_ERROR,
+            field="stored_object",
+            details={"reason": "invalid_recording_object"},
         ) from error

@@ -2,7 +2,7 @@
 import { recordingSinkFixture, memoryRecordingSinkFactory } from '@/lib/practice/__fixtures__/recording-sink';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { isArchiveableCaptureMime, normalizeCaptureMime } from './media-policy';
+import { isSupportedCaptureMime, normalizeCaptureMime } from './media-policy';
 import { opfsStoreFixture } from '../__fixtures__/opfs-store';
 import { openOpfsRecordingSink } from './opfs-recording-sink';
 import { PerformanceRecorder } from './performance-recorder';
@@ -116,7 +116,7 @@ describe('PerformanceRecorder', () => {
       await recorder.prepare({ audioRoot: createStream(), cameraStream: createStream([createTrack('video')]) });
       recorder.startIfReady(0); await recorder.freeze(1000);
       const result = await recorder.finalize();
-      if (isArchiveableCaptureMime(mode, mimeType)) {
+      if (isSupportedCaptureMime(mode, mimeType)) {
         expect(result.status).toBe('READY');
         if (result.status !== 'READY') throw new Error('Expected capture');
         expect(result.mimeType).toBe(mimeType);

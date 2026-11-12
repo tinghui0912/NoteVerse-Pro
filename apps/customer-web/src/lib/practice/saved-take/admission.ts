@@ -18,25 +18,23 @@ import type {
   ResolvedPracticeTempoPlan,
 } from '@/lib/practice/planning/tempo';
 
-export type SavedPerformanceAdmission =
+export type SavedTakeAdmission =
   | { status: 'supported'; recordedPerformance: RecordedPerformance }
   | { status: 'unsupported' | 'temporarily_unavailable'; reason: string };
 
 /** Display eligibility only; semantic admission happens once after all owners are available. */
-export function isSavedCompositeVideoCandidate(take: PerformanceTakeRead): boolean {
-  return (
-    take.deletion_status !== 'DELETING' &&
-    ["AUDIO", "VIDEO"].includes(take.manifest.capture.kind)
-  );
+export function isSavedCompositeVideoCandidate(
+  take: PerformanceTakeRead,
+): boolean {
+  return ['AUDIO', 'VIDEO'].includes(take.manifest.capture.kind);
 }
 export function admitSavedRecordedPerformance(
   take: PerformanceTakeRead,
   bundle: PracticePlanBundle,
   media: LocalMediaAsset,
-): SavedPerformanceAdmission {
+): SavedTakeAdmission {
   try {
-    if (take.deletion_status === 'DELETING') throw new Error('take_deleting');
-    const { manifest, archive_media: archive } = take;
+    const { manifest, recording_media: recordingMedia } = take;
     const { artifact, binding } = bundle;
     const saved = manifest.practice_binding;
     if (
@@ -95,11 +93,11 @@ export function admitSavedRecordedPerformance(
     const capture = manifest.capture;
     if (
       capture.mime_type !== normalizeCaptureMime(capture.mime_type) ||
-      archive.mime_type !== capture.mime_type ||
-      archive.byte_size !== capture.byte_size ||
-      media.byteSize !== archive.byte_size
+      recordingMedia.mime_type !== capture.mime_type ||
+      recordingMedia.byte_size !== capture.byte_size ||
+      media.byteSize !== recordingMedia.byte_size
     )
-      throw new Error('capture_archive_mismatch');
+      throw new Error('capture_recording_mismatch');
     const executed: ExecutedPerformance = Object.freeze({
       bundle: Object.freeze({ binding, artifact }),
       scope: Object.freeze(scope),

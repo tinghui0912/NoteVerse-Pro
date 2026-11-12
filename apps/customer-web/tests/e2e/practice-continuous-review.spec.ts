@@ -404,7 +404,7 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
     const { practice_binding, media, recording_timebase } = reservedRequest;
     const { resolved_scope, resolved_tempo_plan } = acceptedPlan(reservedRequest);
     const take: PerformanceTakeRead = {
-      take_id: 'take-e2e-1', archive_media: { mime_type: media.mime_type, byte_size: media.byte_size }, created_at: '2026-09-20T12:00:00Z',
+      take_id: 'take-e2e-1', recording_media: { mime_type: media.mime_type, byte_size: media.byte_size }, created_at: '2026-09-20T12:00:00Z',
       manifest: {
         practice_binding, artifact_id: testArtifact.artifactId,
         score_title_snapshot: 'Continuous Review Score', capture: media,
@@ -441,9 +441,6 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
         take_id: 'take-e2e-1',
         playback_url: 'https://mock-oss.noteverse.com/play.webm',
         download_url: 'https://mock-oss.noteverse.com/download.webm',
-        media_kind: 'AUDIO',
-        media_mime_type: 'audio/webm',
-        media_byte_size: 1024,
         expires_in: 3600,
       }),
     })
@@ -456,7 +453,7 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: apiResponse({ deleted: true }),
+        body: apiResponse({ take_id: 'take-e2e-1', deleted: true }),
       });
     }
     return route.continue();
@@ -1090,18 +1087,18 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     expect(disallowedRequests).toEqual([]);
   });
 
-  test('CONTINUOUS_PLAY + Audio: Save recording, direct upload, view in My Performances, and delete', async ({
+  for (const kind of ['AUDIO', 'VIDEO'] as const) test(`Saved ${kind}: exact original download, Save, My Performances playback and immediate semantic deletion`, async ({
     page,
   }, testInfo) => {
     const mediaWrites: { url: string; body: Record<string, unknown> | null }[] = [];
     page.on('request', (request) => {
       if (request.method() === 'POST' && request.url().includes('/performance-takes')) mediaWrites.push({ url: request.url(), body: request.postData() ? request.postDataJSON() : null });
     });
-    const protocol = await setupContinuousPracticeMocks(page);
+    const protocol = await setupContinuousPracticeMocks(page, { camera: 'READY' });
     await openPreparedPractice(page, scoreId, revisionId);
 
     // Switch to continuous mode
-    await configurePractice(page, 'CONTINUOUS', 'MIDI', 'AUDIO');
+    await configurePractice(page, 'CONTINUOUS', 'MIDI', kind);
 
     // Start practice
     const startButton = page.getByRole('button', { name: '开始', exact: true });
@@ -1129,7 +1126,7 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     await page.getByRole('button', { name: '下载原始录制', exact: true }).click();
     const original = await originalDownload;
     expect(await original.failure()).toBeNull();
-    expect(original.suggestedFilename()).toMatch(/^performance-audio-.*\.webm$/);
+    expect(original.suggestedFilename()).toMatch(new RegExp(`^performance-${kind.toLowerCase()}-.*\\.webm$`));
     expect(mediaWrites).toEqual([]);
 
     const saveButton = page.getByRole('button', { name: '保存录制' });
@@ -1180,7 +1177,9 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     const confirmDeleteBtn = page.getByRole('button', { name: '删除' });
     await confirmDeleteBtn.click();
 
-    // Verify empty state is rendered
+    // Semantic deletion is complete at the successful response; no physical-retirement wait.
+    await expect(page.getByTestId('play-take-take-e2e-1')).toHaveCount(0);
+    await expect(page.locator('audio, video')).toHaveCount(0);
     await expect(page.getByText('暂无已保存的演奏')).toBeVisible({ timeout: 10_000 });
   });
 

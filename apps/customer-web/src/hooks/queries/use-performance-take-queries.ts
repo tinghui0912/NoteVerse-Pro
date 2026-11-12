@@ -3,9 +3,9 @@ import { recordedPerformance } from '@/lib/practice/recording/recorded-performan
 import {
   performanceTakeUploadRequest,
   takeManifestAgreesWithRecordedPerformance,
-  archivedTakeAgreesWithRecordedPerformance,
+  savedTakeAgreesWithRecordedPerformance,
   type SavePerformanceTakeInput,
-} from '@/lib/practice/archive/take-admission';
+} from '@/lib/practice/saved-take/save';
 
 import { releaseLocalMediaAsset } from '@/lib/practice/media/local-media-asset';
 
@@ -14,7 +14,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   performanceTakesApi,
   uploadMediaToSignedUrl,
+  type PerformanceTakeListResponse,
+  type PerformanceTakeRead,
 } from '@/lib/api/performance-takes';
+import type { ApiResponse } from '@/lib/api-client';
 import { queryKeys } from '@/lib/query-client';
 
 export function usePerformanceTakes(
@@ -48,11 +51,84 @@ export function useDeletePerformanceTake() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (takeId: string) => performanceTakesApi.deleteTake(takeId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.performanceTakes.all,
+    onSuccess: async (_response, takeId) => {
+      await Promise.all([
+        queryClient.cancelQueries({
+          queryKey: queryKeys.performanceTakes.lists(),
+        }),
+        queryClient.cancelQueries({
+          queryKey: queryKeys.performanceTakes.detail(takeId),
+          exact: true,
+        }),
+        queryClient.cancelQueries({
+          queryKey: queryKeys.performanceTakes.playbackUrl(takeId),
+          exact: true,
+        }),
+      ]);
+      const lists = queryClient.getQueriesData<
+        ApiResponse<PerformanceTakeListResponse>
+      >({
+        queryKey: queryKeys.performanceTakes.lists(),
       });
-      queryClient.invalidateQueries({ queryKey: queryKeys.storageUsage.all });
+      const take =
+        queryClient.getQueryData<ApiResponse<PerformanceTakeRead>>(
+          queryKeys.performanceTakes.detail(takeId),
+        )?.data ??
+        lists
+          .flatMap(([, value]) => value?.data?.items ?? [])
+          .find((item) => item.take_id === takeId);
+      const matchingScoreFilters = new Set(
+        lists.flatMap(([key, value]) => {
+          const filter = (key[2] ?? {}) as { score_id?: string };
+          return filter.score_id &&
+            value?.data?.items.some((item) => item.take_id === takeId)
+            ? [filter.score_id]
+            : [];
+        }),
+      );
+      for (const [key] of lists) {
+        const filter = (key[2] ?? {}) as { score_id?: string };
+        const belongs =
+          !filter.score_id ||
+          filter.score_id === take?.linked_score_id ||
+          matchingScoreFilters.has(filter.score_id);
+        queryClient.setQueryData<ApiResponse<PerformanceTakeListResponse>>(
+          key,
+          (previous) => {
+            if (!previous?.data) return previous;
+            const data = previous.data;
+            const items = data.items.filter((item) => item.take_id !== takeId);
+            const total = Math.max(
+              0,
+              data.total -
+                (belongs || items.length !== data.items.length ? 1 : 0),
+            );
+            return {
+              ...previous,
+              data: {
+                ...data,
+                items,
+                total,
+                has_more: (data.offset ?? 0) + items.length < total,
+              },
+            };
+          },
+        );
+      }
+      queryClient.removeQueries({
+        queryKey: queryKeys.performanceTakes.detail(takeId),
+        exact: true,
+      });
+      queryClient.removeQueries({
+        queryKey: queryKeys.performanceTakes.playbackUrl(takeId),
+        exact: true,
+      });
+      void Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.performanceTakes.lists(),
+        }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.storageUsage.all }),
+      ]);
     },
   });
 }
@@ -91,7 +167,7 @@ export function useSavePerformanceTake() {
             reservation.take.manifest,
             input.recordedPerformance,
           ) ||
-          !archivedTakeAgreesWithRecordedPerformance(
+          !savedTakeAgreesWithRecordedPerformance(
             reservation.take,
             input.recordedPerformance,
           )
@@ -130,7 +206,7 @@ export function useSavePerformanceTake() {
           finalized.data.manifest,
           input.recordedPerformance,
         ) ||
-        !archivedTakeAgreesWithRecordedPerformance(
+        !savedTakeAgreesWithRecordedPerformance(
           finalized.data,
           input.recordedPerformance,
         )

@@ -1,7 +1,7 @@
 import { RecordingFailure } from '@/lib/practice/failure/causal-failure';
 import { recordingBrowserFailure } from '@/lib/practice/failure/browser-failures';
 import type { PracticeRecordingMode } from './recording-mode';
-import { isArchiveableCaptureMime, VIDEO_CAPTURE_MIME_CANDIDATES } from './media-policy';
+import { isSupportedCaptureMime, VIDEO_CAPTURE_MIME_CANDIDATES } from './media-policy';
 import { openOpfsRecordingSink } from './opfs-recording-sink';
 import type { LocalMediaAsset } from '@/lib/practice/media/local-media-asset';
 import type { RecordingSinkFactory } from './recording-sink';
@@ -39,7 +39,7 @@ export async function probeRecording(mode: Exclude<PracticeRecordingMode, 'OFF'>
     signal.addEventListener('abort', abort, { once: true });
     if (signal.aborted) { abort(); return; }
     recorder.onerror = () => finish(new RecordingFailure('RECORDING_PROBE_FAILED'));
-    recorder.onstop = () => finish(isArchiveableCaptureMime(mode, recorder.mimeType) ? undefined
+    recorder.onstop = () => finish(isSupportedCaptureMime(mode, recorder.mimeType) ? undefined
       : new RecordingFailure(mode === 'VIDEO' ? 'VIDEO_RECORDER_UNSUPPORTED' : 'MEDIA_RECORDER_UNSUPPORTED'));
     try { recorder.start(); recorder.stop(); } catch { finish(new RecordingFailure('RECORDING_PROBE_FAILED')); }
   });

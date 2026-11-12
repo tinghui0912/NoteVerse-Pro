@@ -4,7 +4,7 @@ import {
   type RecordingTimebase,
 } from './recording-timebase';
 import {
-  isArchiveableCaptureMime,
+  isSupportedCaptureMime,
   type CaptureMediaKind,
 } from './media-policy';
 import type { LocalMediaAsset } from '@/lib/practice/media/local-media-asset';
@@ -49,7 +49,7 @@ export function assertPerformanceRecording(
     recording.media.byteSize <= 0 ||
     typeof recording.mimeType !== 'string' ||
     !recording.mimeType ||
-    !isArchiveableCaptureMime(recording.kind, recording.mimeType) ||
+    !isSupportedCaptureMime(recording.kind, recording.mimeType) ||
     typeof recording.media.retain !== 'function' ||
     typeof recording.media.release !== 'function' ||
     Object.keys(recording).sort().join() !==

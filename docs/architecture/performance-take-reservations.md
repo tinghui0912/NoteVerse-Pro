@@ -7,30 +7,26 @@ authorizes the exact bound Bundle, calls the Practice planner, orchestrates stor
 and executes explicit transition effects. `PerformanceTakeService` owns the durable
 Take library: reads, playback, download and deletion, using the shared immutable Manifest.
 
-## Capture, archive and export
+## Capture, saved recording and Composite Video
 
-Capture is the raw browser MediaRecorder artifact, incrementally written to a temporary
-OPFS file under explicit browser-local ownership. Practice admits an archiveable
-browser-supported container and validates the recorder's actual MIME before producing
-READY capture. VIDEO supports WebM and MP4; AUDIO supports WebM, MP4, Ogg, WAV and
-x-WAV. Codec parameters may remain on the capture MIME; archive requests normalize
-the container MIME without introducing codec policy.
+Capture is browser-produced recording evidence before Save. READY recording owns
+AUDIO or VIDEO original media, a LocalMediaAsset and its RecordingTimebase. Capture
+supports the current browser container policy; codec parameters normalize to the
+container MIME for Save admission without transcoding or changing the accepted MIME set.
 
-Archive is an explicit Save of those exact capture bytes as a PerformanceTake.
-Signed upload, staging verification and the final object preserve the raw bytes and
-container; there is no transcoding or recomposition. WebM requires its EBML header;
-MP4 audio/video requires the ISO BMFF `ftyp` box signature at byte offset four.
-Media kind and storage Content-Type must agree with the admitted container.
+PerformanceTake is a durable saved Take retaining the exact original recording bytes.
+Signed upload, staging verification and the final recording object preserve those bytes
+and container. WebM requires its EBML header; MP4 audio/video requires the ISO BMFF
+`ftyp` signature at byte offset four. Media kind and Content-Type agree with the
+admitted container. Manifest.capture records browser evidence admitted by the server;
+recording_media projects the committed recording StoredObject's verified MIME and size.
+The saved aggregate requires those independently admitted facts to agree.
 
-Save retains a temporary media lease before scheduling reserve/PUT/finalize and releases
-it in finally, so leaving Review cannot remove an in-flight upload source.
-
-Original media download returns raw Capture/Take media with the corresponding file
-extension. VideoExport is a separate browser-local composition/download operation
-with its own encoder policy. Its composed score/video output is not the archive
-format and is not stored by PerformanceTake. The server owns Save admission, quota
-and storage limits. The browser submits Save without a local media-size ceiling
-and surfaces server rejection through the Save failure state.
+Save retains a recording lease before async reserve/PUT/finalize and releases it in
+finally. Original download returns exact original AUDIO or VIDEO recording bytes.
+Composite Video independently renders clean score plus original recording into a local
+derivative video. It is never uploaded or persisted as the Take. Server admission,
+quota and storage policies govern Save; browser Save has no separate media-size ceiling.
 
 ## Lifecycle and persistence
 
@@ -156,8 +152,19 @@ complete candidate read proves its hash equals the container-validated staging b
 metadata supplies no authoritative digest. Missing adapter content type uses admitted canonical
 Capture MIME after byte/container verification. Raw bytes are preserved without transcoding.
 
-Playback/download and Take.archive_media consume recording StoredObject MIME/size. Saved OPFS materialization uses
-that archive projection; reservation agreement uses Manifest.capture. Finalize responses also
-require archive/Capture consistency. Object key/hash stay private.
+Playback/download and Take.recording_media consume recording StoredObject MIME/size. Saved OPFS materialization uses
+that recording-media projection; reservation agreement uses Manifest.capture. Finalize responses also
+require recording/Capture consistency. Object key/hash stay private.
 
 StoredObjectRetirement snapshots physical facts as operation evidence, not current physical authority. The worker locks StoredObject and the operation, validates the claim and all semantic references, then flushes the FK-protected row deletion before physical IO. Shared objects remain for their other owners. Missing physical bytes are idempotent; missing physical authority fails closed. StorageUsage is an accounting ledger, never a playback locator authority. Manifest/Reservation lineage survives semantic Take deletion and physical retirement.
+
+## Semantic deletion and physical retirement
+
+Successful DELETE returns HTTP 200 in the normal success envelope with
+`{ take_id, deleted: true }`. The transaction removes the PerformanceTake row and
+releases logical quota before the response. Detail, playback-url and media return 404,
+and lists omit the Take. Manifest and Reservation retain their idempotency lineage.
+StoredObjectRetirement owns asynchronous physical cleanup; its pending state and
+operation identity are not Take API state. Physical bytes may remain until retirement
+converges. My Performances removes the deleted resource from React Query caches,
+invalidates list and storage-usage queries and closes confirmation without polling.

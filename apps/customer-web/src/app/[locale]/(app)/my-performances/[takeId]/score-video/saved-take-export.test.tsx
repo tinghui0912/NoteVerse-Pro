@@ -220,7 +220,7 @@ it("admits a saved AUDIO Take into the same independent Composite input", async 
   try {
     take.manifest.capture.kind = "AUDIO";
     take.manifest.capture.mime_type = "audio/webm";
-    take.archive_media.mime_type = "audio/webm";
+    take.recording_media.mime_type = "audio/webm";
     const audio = new Blob(["raw audio!"], { type: "audio/webm" });
     calls.media.mockResolvedValueOnce(localMediaAssetFixture(audio));
     const view = openPage();

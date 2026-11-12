@@ -11,7 +11,7 @@ import { CompositeVideoStudio } from "./composite-video-studio";
 import { exportCompositeVideo } from "@/lib/practice/composite-video/export";
 import { downloadCompositeVideo } from "@/lib/practice/composite-video/download";
 import { createLocalMediaAsset } from "@/lib/practice/media/local-media-asset";
-import { admitSavedRecordedPerformance } from "@/lib/practice/archive/saved-performance";
+import { admitSavedRecordedPerformance } from "@/lib/practice/saved-take/admission";
 import {
   take,
   artifact,

@@ -174,7 +174,7 @@ class PerformanceTakeUploadReservationRead(StrictPerformanceTakeModel):
     take: Optional["PerformanceTakeRead"] = None
 
 
-class PerformanceTakeArchiveMediaRead(StrictPerformanceTakeModel):
+class PerformanceTakeRecordingMediaRead(StrictPerformanceTakeModel):
     mime_type: str
     byte_size: int = Field(strict=True, gt=0)
 
@@ -182,10 +182,9 @@ class PerformanceTakeArchiveMediaRead(StrictPerformanceTakeModel):
 class PerformanceTakeRead(StrictPerformanceTakeModel):
     take_id: str
     manifest: PerformanceTakeManifestRead
-    archive_media: PerformanceTakeArchiveMediaRead
+    recording_media: PerformanceTakeRecordingMediaRead
     linked_score_id: Optional[str] = None
     can_open_score: bool = False
-    deletion_status: str = "ACTIVE"
     created_at: datetime
 
 
@@ -193,15 +192,12 @@ class PerformanceTakePlaybackRead(StrictPerformanceTakeModel):
     take_id: str
     playback_url: str
     download_url: str
-    media_kind: str
-    media_mime_type: str
-    media_byte_size: int
     expires_in: int
 
 
 class PerformanceTakeDeleteResponse(StrictPerformanceTakeModel):
-    status: str
     take_id: str
+    deleted: Literal[True] = True
 
 
 class PerformanceTakeListResponse(StrictPerformanceTakeModel):

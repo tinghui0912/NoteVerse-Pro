@@ -32,7 +32,7 @@ WEBM_BYTES = b"\x1a\x45\xdf\xa3" + b"raw-capture"
 
 
 @pytest.fixture
-def archive_client(test_env):
+def recording_client(test_env):
     session, storage, user, _ = test_env
     usage = StorageUsageService()
     service = _performance_take_service(
@@ -69,7 +69,7 @@ def reserve(client, kind, mime, size):
             },
             "media": {"kind": kind, "mime_type": mime, "byte_size": size},
             "scope": {"kind": "FULL"},
-            "client_request_id": "capture-archive",
+            "client_request_id": "capture-recording",
         },
     )
 
@@ -89,8 +89,10 @@ def reserve(client, kind, mime, size):
         ],
     ],
 )
-def test_archive_admission_preserves_capture_container_kind(archive_client, kind, mime, accepted):
-    client, _, _, _ = archive_client
+def test_recording_admission_preserves_capture_container_kind(
+    recording_client, kind, mime, accepted
+):
+    client, _, _, _ = recording_client
     response = reserve(client, kind, mime, 32)
     assert response.status_code == (200 if accepted else 422), response.text
     if accepted:
@@ -107,10 +109,10 @@ def test_archive_admission_preserves_capture_container_kind(archive_client, kind
         ("video/webm", WEBM_BYTES, "webm"),
     ],
 )
-def test_video_archive_and_delivery_preserve_exact_raw_capture(
-    archive_client, mime, content, extension
+def test_video_recording_and_delivery_preserve_exact_raw_capture(
+    recording_client, mime, content, extension
 ):
-    client, session, storage, service = archive_client
+    client, session, storage, service = recording_client
     reserved = reserve(client, "VIDEO", mime + ";codecs=browser-selected", len(content))
     assert reserved.status_code == 200, reserved.text
     data = reserved.json()["data"]
@@ -124,8 +126,8 @@ def test_video_archive_and_delivery_preserve_exact_raw_capture(
     take = finalized.json()["data"]
     assert (
         take["manifest"]["capture"]["kind"],
-        take["archive_media"]["mime_type"],
-        take["archive_media"]["byte_size"],
+        take["recording_media"]["mime_type"],
+        take["recording_media"]["byte_size"],
     ) == (
         "VIDEO",
         mime,
@@ -140,7 +142,7 @@ def test_video_archive_and_delivery_preserve_exact_raw_capture(
     assert b"".join(storage.iter_bytes(row.recording_object.object_key)) == content
     playback = client.get(f"/api/v1/performance-takes/{take['take_id']}/playback-url")
     assert playback.status_code == 200, playback.text
-    assert playback.json()["data"]["media_mime_type"] == mime
+    assert set(playback.json()["data"]) == {"take_id", "playback_url", "download_url", "expires_in"}
     assert playback.json()["data"]["download_url"]
     media = client.get(f"/api/v1/performance-takes/{take['take_id']}/media")
     assert media.status_code == 200, media.text
@@ -165,9 +167,9 @@ def test_video_archive_and_delivery_preserve_exact_raw_capture(
 )
 @pytest.mark.parametrize("boundary", ["HTTP", "SERVICE"])
 def test_video_finalize_rejects_wrong_container_or_storage_content_type(
-    archive_client, mime, stored_mime, content, boundary
+    recording_client, mime, stored_mime, content, boundary
 ):
-    client, session, storage, service = archive_client
+    client, session, storage, service = recording_client
     data = reserve(client, "VIDEO", mime, len(content)).json()["data"]
     storage.put_bytes(
         key=_staging_key(session, data["reservation_id"]), content=content, content_type=stored_mime

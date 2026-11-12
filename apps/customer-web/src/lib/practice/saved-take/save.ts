@@ -136,13 +136,13 @@ function recordingTimebaseMatchesExecution(
   );
 }
 
-export function archivedTakeAgreesWithRecordedPerformance(
+export function savedTakeAgreesWithRecordedPerformance(
   take: PerformanceTakeRead,
   performance: RecordedPerformance,
 ): boolean {
   return (
     takeManifestAgreesWithRecordedPerformance(take.manifest, performance) &&
-    take.archive_media?.mime_type === take.manifest.capture.mime_type &&
-    take.archive_media.byte_size === take.manifest.capture.byte_size
+    take.recording_media?.mime_type === take.manifest.capture.mime_type &&
+    take.recording_media.byte_size === take.manifest.capture.byte_size
   );
 }

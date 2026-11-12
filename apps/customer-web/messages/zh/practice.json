@@ -338,11 +338,6 @@
   "pagination": "第 {page} / {totalPages} 页",
   "previousPage": "上一页",
   "nextPage": "下一页",
-  "takeDeletingStatus": "删除中",
-  "deletePerformanceTakeAcceptedTitle": "删除请求已接受",
-  "deletePerformanceTakeAcceptedDesc": "删除请求已接受，正在后台清理并释放配额。",
-  "deleteStillProcessingTitle": "删除仍在后台处理中",
-  "deleteStillProcessingDesc": "对象存储和配额清理还没有完成。你可以稍后刷新，页面会继续自动更新。",
   "leaveReviewTitle": "离开临时演奏报告？",
   "leaveReviewDesc": "这份临时演奏报告离开后可能无法再次访问。合成视频下载不等于保存原始演奏。",
   "leaveReviewUnsavedMediaDesc": "原始录音或录像尚未保存为正式演奏。离开或重新练习后，这份临时媒体可能无法再次访问；合成视频下载不等于保存原始演奏。",
@@ -385,5 +380,7 @@
   "compositeVideoPreviewDecodeFailed": "无法解码当前回放画面",
   "compositeVideoPreviewFrameBufferFailed": "无法创建预览帧缓冲区",
   "compositeVideoPreviewSeek": "合成预览位置",
-  "compositeVideoScoreOnlyDesc": "以干净乐谱为画面，保留原始录音。"
+  "compositeVideoScoreOnlyDesc": "以干净乐谱为画面，保留原始录音。",
+  "deletePerformanceTakeSuccessTitle": "已删除该演奏",
+  "deletePerformanceTakeSuccessDesc": "已删除保存的演奏并释放存储配额。"
 }
