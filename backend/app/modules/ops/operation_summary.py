@@ -10,6 +10,7 @@ from app.core.config import settings
 from app.db.models import (
     ImportDispatchStatus,
     ImportJob,
+    ImportDispatch,
     ImportJobState,
     MailOutbox,
     MailOutboxStatus,
@@ -43,7 +44,9 @@ class AsyncOperationSummaryQuery:
     ) -> AsyncOperationsSummaryRead:
         rows = await self.summary_rows(db, kinds=kinds, filters=filters)
         total_statuses: Counter[AsyncOperationStatus] = Counter()
-        kind_statuses: dict[AsyncOperationKind, Counter[AsyncOperationStatus]] = defaultdict(Counter)
+        kind_statuses: dict[AsyncOperationKind, Counter[AsyncOperationStatus]] = defaultdict(
+            Counter
+        )
         total = 0
         for row_kind, row_status, count in rows:
             total += count
@@ -104,21 +107,21 @@ class AsyncOperationSummaryQuery:
             ),
             (
                 (ImportJob.state == ImportJobState.RUNNING)
-                | (ImportJob.dispatch_status == ImportDispatchStatus.PROCESSING),
+                | (ImportDispatch.status == ImportDispatchStatus.PROCESSING),
                 AsyncOperationStatus.PROCESSING.value,
             ),
             (
-                ImportJob.dispatch_status == ImportDispatchStatus.DISPATCHED,
+                ImportDispatch.status == ImportDispatchStatus.DISPATCHED,
                 AsyncOperationStatus.DISPATCHED.value,
             ),
             (
                 (ImportJob.state == ImportJobState.FAILURE)
-                & (ImportJob.dispatch_attempt_count >= settings.IMPORT_DISPATCH_MAX_ATTEMPTS),
+                & (ImportDispatch.attempt_count >= settings.IMPORT_DISPATCH_MAX_ATTEMPTS),
                 AsyncOperationStatus.EXHAUSTED.value,
             ),
             (ImportJob.state == ImportJobState.FAILURE, AsyncOperationStatus.FAILED.value),
             (
-                ImportJob.dispatch_status == ImportDispatchStatus.FAILED,
+                ImportDispatch.status == ImportDispatchStatus.FAILED,
                 AsyncOperationStatus.RETRYING.value,
             ),
             else_=AsyncOperationStatus.QUEUED.value,
@@ -126,7 +129,10 @@ class AsyncOperationSummaryQuery:
         predicates = summary_predicates(
             filters,
             status_expr=status_expr,
-            error_class_expr=ImportJob.internal_error_class,
+            error_class_expr=case(
+                (ImportJob.state == ImportJobState.FAILURE, ImportJob.internal_error_class),
+                else_=ImportDispatch.internal_error_class,
+            ),
             resource_type_expr=literal("import_job"),
             created_at_expr=ImportJob.created_at,
             updated_at_expr=ImportJob.updated_at,
@@ -134,6 +140,7 @@ class AsyncOperationSummaryQuery:
         result = await db.execute(
             select(status_expr.label("status"), func.count())
             .select_from(ImportJob)
+            .join(ImportDispatch, ImportDispatch.job_id == ImportJob.id)
             .where(*predicates)
             .group_by(status_expr)
         )
@@ -200,8 +207,14 @@ class AsyncOperationSummaryQuery:
     ) -> list[tuple[AsyncOperationKind, AsyncOperationStatus, int]]:
         status_expr = case(
             (MailOutbox.status == MailOutboxStatus.SENT, AsyncOperationStatus.SUCCEEDED.value),
-            (MailOutbox.status == MailOutboxStatus.PROCESSING, AsyncOperationStatus.PROCESSING.value),
-            (MailOutbox.status == MailOutboxStatus.DISPATCHED, AsyncOperationStatus.DISPATCHED.value),
+            (
+                MailOutbox.status == MailOutboxStatus.PROCESSING,
+                AsyncOperationStatus.PROCESSING.value,
+            ),
+            (
+                MailOutbox.status == MailOutboxStatus.DISPATCHED,
+                AsyncOperationStatus.DISPATCHED.value,
+            ),
             (
                 MailOutbox.status == MailOutboxStatus.PERMANENT_FAILURE,
                 AsyncOperationStatus.PERMANENT_FAILED.value,

@@ -210,6 +210,7 @@ class StructuredLogFieldPolicy:
             "noise_samples",
             "notification_type",
             "onset",
+            "operation_id",
             "operation_kind",
             "originating_request_id",
             "original_length",

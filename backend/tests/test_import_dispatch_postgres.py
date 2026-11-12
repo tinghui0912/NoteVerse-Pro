@@ -1,0 +1,188 @@
+"""Real PostgreSQL ownership constraints and concurrent Import lease authority."""
+
+from datetime import timedelta
+
+import pytest
+import sqlalchemy as sa
+from alembic import command
+from sqlmodel import Session
+
+from app.db.models import (
+    ImportDispatch,
+    ImportDispatchStatus,
+    ImportJob,
+    ImportJobState,
+    ImportJobUpload,
+    StoredObject,
+    Upload,
+    User,
+)
+from app.modules.import_jobs.dispatch_service import (
+    ImportDispatchService,
+    require_current_attempt,
+    StaleImportDispatchAttempt,
+)
+from app.modules.import_jobs.worker_service import SyncImportJobService
+from app.utils.timezone import utc_now_naive
+from tests.support.postgres_schema import postgres_schema_database
+
+
+def test_fresh_import_schema_ownership_token_constraints_and_cascade(monkeypatch):
+    with postgres_schema_database(monkeypatch) as (engine, config):
+        command.upgrade(config, "head")
+        inspector = sa.inspect(engine)
+        assert {c["name"] for c in inspector.get_columns("import_jobs")} == {
+            "id",
+            "job_uuid",
+            "user_id",
+            "state",
+            "progress",
+            "current_step",
+            "idempotency_key",
+            "requested_options",
+            "execution_manifest_id",
+            "internal_error_code",
+            "internal_error_stage",
+            "internal_error_class",
+            "internal_error_retryable",
+            "code",
+            "error",
+            "error_type",
+            "requested_at",
+            "started_at",
+            "last_heartbeat_at",
+            "finished_at",
+            "score_id",
+            "created_at",
+            "updated_at",
+        }
+        assert {c["name"] for c in inspector.get_columns("import_dispatches")} == {
+            "id",
+            "dispatch_uuid",
+            "job_id",
+            "originating_request_id",
+            "traceparent",
+            "tracestate",
+            "status",
+            "attempt_count",
+            "next_attempt_at",
+            "dispatched_at",
+            "started_at",
+            "completed_at",
+            "last_error",
+            "attempt_token",
+            "internal_error_code",
+            "internal_error_stage",
+            "internal_error_class",
+            "internal_error_retryable",
+            "created_at",
+            "updated_at",
+        }
+        fks = inspector.get_foreign_keys("import_dispatches")
+        assert len(fks) == 1 and fks[0]["constrained_columns"] == ["job_id"]
+        assert (
+            fks[0]["referred_table"] == "import_jobs" and fks[0]["options"]["ondelete"] == "CASCADE"
+        )
+        indexes = inspector.get_indexes("import_dispatches")
+        assert any(i["column_names"] == ["status", "next_attempt_at"] for i in indexes)
+        assert any(i["column_names"] == ["originating_request_id"] for i in indexes)
+        with Session(engine) as db:
+            db.add(User(id=1, email="import@example.com", password_hash="test"))
+            db.flush()
+            job = ImportJob(job_uuid="import-pg", user_id=1, state=ImportJobState.PENDING)
+            db.add(job)
+            db.flush()
+            row = ImportDispatch(job_id=job.id)
+            db.add(row)
+            db.commit()
+            job_id, dispatch_uuid = job.id, row.dispatch_uuid
+            for values in [
+                dict(attempt_count=-1),
+                dict(status=ImportDispatchStatus.PROCESSING),
+                dict(attempt_token="unclaimed"),
+            ]:
+                with pytest.raises(sa.exc.IntegrityError):
+                    with db.begin_nested():
+                        db.execute(
+                            sa.update(ImportDispatch)
+                            .where(ImportDispatch.id == row.id)
+                            .values(**values)
+                        )
+            for duplicate in [
+                ImportDispatch(job_id=job_id),
+                ImportDispatch(job_id=999999),
+                ImportDispatch(job_id=job_id, dispatch_uuid=dispatch_uuid),
+            ]:
+                with pytest.raises(sa.exc.IntegrityError):
+                    with db.begin_nested():
+                        db.add(duplicate)
+                        db.flush()
+            # Exercise dispatch UUID uniqueness independently of unique job ownership.
+            other = ImportJob(job_uuid="other-pg", user_id=1, state=ImportJobState.PENDING)
+            db.add(other)
+            db.flush()
+            with pytest.raises(sa.exc.IntegrityError):
+                with db.begin_nested():
+                    db.add(ImportDispatch(job_id=other.id, dispatch_uuid=dispatch_uuid))
+                    db.flush()
+            db.execute(sa.delete(ImportJob).where(ImportJob.id == job_id))
+            db.commit()
+            assert (
+                db.scalar(
+                    sa.select(ImportDispatch).where(ImportDispatch.dispatch_uuid == dispatch_uuid)
+                )
+                is None
+            )
+
+
+def test_mutation_lock_excludes_recovery_and_reclaimed_attempt_fences_cached_worker(monkeypatch):
+    with postgres_schema_database(monkeypatch) as (engine, config):
+        command.upgrade(config, "head")
+        with Session(engine) as setup:
+            setup.add(User(id=1, email="lease@example.com", password_hash="test"))
+            setup.flush()
+            job = ImportJob(job_uuid="lease-pg", user_id=1, state=ImportJobState.PENDING)
+            physical = StoredObject(
+                object_key="input.png", sha256="a" * 64, byte_size=3, content_type="image/png"
+            )
+            setup.add_all([job, physical])
+            setup.flush()
+            upload = Upload(
+                upload_uuid="input",
+                stored_object_id=physical.id,
+                uploader_user_id=1,
+                original_filename="input.png",
+            )
+            setup.add(upload)
+            setup.flush()
+            setup.add(
+                ImportJobUpload(job_id=job.id, upload_id=upload.id, sort_order=1, page_number=1)
+            )
+            row = ImportDispatch(job_id=job.id)
+            setup.add(row)
+            setup.commit()
+            service = ImportDispatchService()
+            first = service.claim(setup, row.dispatch_uuid).lease
+            setup.commit()
+            row.started_at = utc_now_naive() - timedelta(
+                seconds=service.lifecycle().policy.processing_timeout_seconds + 1
+            )
+            setup.add(row)
+            setup.commit()
+        with Session(engine, expire_on_commit=False) as worker, Session(engine) as recovery:
+            current = require_current_attempt(worker, first)
+            assert current.job_uuid == "lease-pg"
+            assert service.recover_and_list_due(recovery) == []  # Dispatch row is worker-locked.
+            current.progress = 37
+            worker.commit()
+            assert service.recover_and_list_due(recovery) == [first.dispatch_uuid]
+            second = service.claim(recovery, first.dispatch_uuid).lease
+            recovery.commit()
+            assert second.attempt == first.attempt + 1 and second.token != first.token
+            # populate_existing defeats an identity-map copy of the first attempt.
+            with pytest.raises(StaleImportDispatchAttempt):
+                SyncImportJobService().update_progress(worker, first, "RUNNING", 99)
+            worker.rollback()
+            SyncImportJobService().update_progress(recovery, second, "RUNNING", 21)
+            worker.expire_all()
+            assert worker.scalar(sa.select(ImportJob)).progress == 21

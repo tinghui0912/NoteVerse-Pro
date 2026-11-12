@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.db.models.import_dispatch import ImportDispatch
 
 import uuid
 
@@ -126,9 +127,6 @@ class ImportJobSubmissionService:
                 state=ImportJobState.PENDING,
                 progress=0,
                 idempotency_key=idempotency_key,
-                originating_request_id=get_request_id(),
-                traceparent=traceparent,
-                tracestate=tracestate,
                 requested_options=self._storage_options(request.options),
                 requested_at=now,
                 created_at=now,
@@ -137,6 +135,14 @@ class ImportJobSubmissionService:
             db.add(job)
             db.flush()
             job_id = require_persisted_id(job.id, entity="import job")
+            db.add(
+                ImportDispatch(
+                    job_id=job_id,
+                    originating_request_id=get_request_id(),
+                    traceparent=traceparent,
+                    tracestate=tracestate,
+                )
+            )
 
             for index, file_id in enumerate(request.file_ids, 1):
                 upload = sync_import_job_service.repository.get_upload_by_uuid(db, file_id)

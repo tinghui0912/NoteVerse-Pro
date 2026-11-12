@@ -797,35 +797,12 @@ def upgrade() -> None:
         sa.Column("progress", sa.Integer(), nullable=False),
         sa.Column("current_step", sa.String(length=64), nullable=True),
         sa.Column("idempotency_key", sa.String(length=128), nullable=True),
-        sa.Column("originating_request_id", sa.String(length=64), nullable=True),
-        sa.Column("traceparent", sa.String(length=55), nullable=True),
-        sa.Column("tracestate", sa.String(length=512), nullable=True),
         sa.Column(
             "requested_options",
             sa.JSON().with_variant(postgresql.JSONB(astext_type=sa.Text()), "postgresql"),
             nullable=True,
         ),
         sa.Column("execution_manifest_id", sa.BigInteger(), nullable=True),
-        sa.Column(
-            "dispatch_status",
-            postgresql.ENUM(
-                "PENDING",
-                "DISPATCHED",
-                "PROCESSING",
-                "COMPLETED",
-                "FAILED",
-                name="importdispatchstatus",
-                create_type=False,
-            ),
-            nullable=False,
-        ),
-        sa.Column("dispatch_attempt_count", sa.Integer(), nullable=False),
-        sa.Column("publish_attempt_count", sa.Integer(), nullable=False),
-        sa.Column("next_dispatch_at", sa.DateTime(), nullable=False),
-        sa.Column("dispatched_at", sa.DateTime(), nullable=True),
-        sa.Column("dispatch_started_at", sa.DateTime(), nullable=True),
-        sa.Column("dispatch_completed_at", sa.DateTime(), nullable=True),
-        sa.Column("dispatch_error", sa.Text(), nullable=True),
         sa.Column("internal_error_code", sa.String(length=128), nullable=True),
         sa.Column("internal_error_stage", sa.String(length=64), nullable=True),
         sa.Column("internal_error_class", sa.String(length=32), nullable=True),
@@ -840,12 +817,6 @@ def upgrade() -> None:
         sa.Column("score_id", sa.BigInteger(), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("updated_at", sa.DateTime(), nullable=False),
-        sa.CheckConstraint(
-            "dispatch_attempt_count >= 0", name="ck_import_jobs_dispatch_attempt_count"
-        ),
-        sa.CheckConstraint(
-            "publish_attempt_count >= 0", name="ck_import_jobs_publish_attempt_count"
-        ),
         sa.ForeignKeyConstraint(
             ["execution_manifest_id"],
             ["execution_manifests.id"],
@@ -858,10 +829,67 @@ def upgrade() -> None:
             "user_id", "idempotency_key", name="uq_import_jobs_user_idempotency_key"
         ),
     )
+    op.create_table(
+        "import_dispatches",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("dispatch_uuid", sa.String(36), nullable=False),
+        sa.Column("job_id", sa.BigInteger(), nullable=False),
+        sa.Column("originating_request_id", sa.String(64)),
+        sa.Column("traceparent", sa.String(55)),
+        sa.Column("tracestate", sa.String(512)),
+        sa.Column(
+            "status",
+            postgresql.ENUM(
+                "PENDING",
+                "DISPATCHED",
+                "PROCESSING",
+                "COMPLETED",
+                "FAILED",
+                name="importdispatchstatus",
+                create_type=False,
+            ),
+            nullable=False,
+        ),
+        sa.Column("attempt_count", sa.Integer(), nullable=False),
+        sa.Column("next_attempt_at", sa.DateTime(), nullable=False),
+        sa.Column("dispatched_at", sa.DateTime()),
+        sa.Column("started_at", sa.DateTime()),
+        sa.Column("completed_at", sa.DateTime()),
+        sa.Column("last_error", sa.Text()),
+        sa.Column("attempt_token", sa.String(36)),
+        sa.Column("internal_error_code", sa.String(128)),
+        sa.Column("internal_error_stage", sa.String(64)),
+        sa.Column("internal_error_class", sa.String(32)),
+        sa.Column("internal_error_retryable", sa.Boolean()),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.CheckConstraint("attempt_count >= 0", name="ck_import_dispatch_attempt_count"),
+        sa.CheckConstraint(
+            "(status = 'PROCESSING' AND attempt_token IS NOT NULL) OR (status <> 'PROCESSING' AND attempt_token IS NULL)",
+            name="ck_import_dispatch_attempt_token",
+        ),
+        sa.ForeignKeyConstraint(
+            ["job_id"],
+            ["import_jobs.id"],
+            name="fk_import_dispatches_job_id_import_jobs",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_import_dispatches"),
+        sa.UniqueConstraint("dispatch_uuid", name="uq_import_dispatches_dispatch_uuid"),
+        sa.UniqueConstraint("job_id", name="uq_import_dispatches_job_id"),
+    )
     op.create_index(
-        "idx_import_jobs_dispatch_due",
-        "import_jobs",
-        ["dispatch_status", "next_dispatch_at"],
+        "idx_import_dispatch_due", "import_dispatches", ["status", "next_attempt_at"], unique=False
+    )
+    op.create_index(
+        op.f("ix_import_dispatches_originating_request_id"),
+        "import_dispatches",
+        ["originating_request_id"],
         unique=False,
     )
     op.create_index("idx_import_jobs_state", "import_jobs", ["state"], unique=False)
@@ -872,12 +900,6 @@ def upgrade() -> None:
         op.f("ix_import_jobs_execution_manifest_id"),
         "import_jobs",
         ["execution_manifest_id"],
-        unique=False,
-    )
-    op.create_index(
-        op.f("ix_import_jobs_originating_request_id"),
-        "import_jobs",
-        ["originating_request_id"],
         unique=False,
     )
     op.create_table(
@@ -2778,11 +2800,14 @@ def downgrade() -> None:
     op.drop_index("idx_notification_events_recipient_read", table_name="notification_events")
     op.drop_index("idx_notification_events_recipient_created", table_name="notification_events")
     op.drop_table("notification_events")
-    op.drop_index(op.f("ix_import_jobs_originating_request_id"), table_name="import_jobs")
     op.drop_index(op.f("ix_import_jobs_execution_manifest_id"), table_name="import_jobs")
     op.drop_index("idx_import_jobs_user_created", table_name="import_jobs")
     op.drop_index("idx_import_jobs_state", table_name="import_jobs")
-    op.drop_index("idx_import_jobs_dispatch_due", table_name="import_jobs")
+    op.drop_index(
+        op.f("ix_import_dispatches_originating_request_id"), table_name="import_dispatches"
+    )
+    op.drop_index("idx_import_dispatch_due", table_name="import_dispatches")
+    op.drop_table("import_dispatches")
     op.drop_table("import_jobs")
     op.drop_index("idx_email_change_requests_user_created", table_name="email_change_requests")
     op.drop_index("idx_email_change_requests_token_hash", table_name="email_change_requests")

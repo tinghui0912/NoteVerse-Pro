@@ -1,11 +1,10 @@
 """Celery task entrypoints for NoteVerse background work."""
 
-from app.modules.import_jobs.schemas import PipelineExecutionSuccessResult
 from app.pipeline.context import CeleryTaskLike
 from app.task_queue.config import celery_app
 from app.worker.execution.object_write_cleanup import execute_object_write_cleanup_task
 from app.worker.execution.maintenance_dispatch import execute_object_write_cleanup_maintenance
-from app.worker.execution.import_job import execute_import_job_task
+from app.worker.execution.import_job import execute_import_dispatch_task
 from app.worker.execution.mail_outbox import execute_mail_outbox_task
 from app.worker.execution.maintenance_cleanup import (
     execute_derived_asset_cleanup,
@@ -29,16 +28,16 @@ from app.worker.execution.render_outbox import execute_render_outbox_task
 
 @celery_app.task(
     bind=True,
-    name="app.worker.tasks.process_images_job",
+    name="app.worker.tasks.import_dispatch_task",
     acks_late=True,
     reject_on_worker_lost=True,
 )
-def process_images_job(
+def import_dispatch_task(
     self: CeleryTaskLike,
-    job_uuid: str,
-) -> PipelineExecutionSuccessResult:
+    dispatch_uuid: str,
+) -> dict[str, object]:
     """Run the score import pipeline for one or more input images."""
-    return execute_import_job_task(self, job_uuid)
+    return execute_import_dispatch_task(self, dispatch_uuid)
 
 
 @celery_app.task(name="app.worker.tasks.send_mail_outbox_task", bind=True, ignore_result=True)

@@ -1,12 +1,27 @@
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import Mock
+from app.modules.import_jobs.dispatch_service import (
+    ImportExecutionLease,
+    StaleImportDispatchAttempt,
+)
+from app.modules.import_jobs import worker_service
 
 import pytest
 
 from app.db.models.import_job import ImportJobState, ImportJobStepStatus
 from app.modules.import_jobs.worker_service import SyncImportJobService
 from app.shared.constants import ErrorCode
+
+
+LEASE = ImportExecutionLease("dispatch-1", "job-1", 2, "token")
+
+
+@pytest.fixture(autouse=True)
+def fence(monkeypatch):
+    guard = Mock(side_effect=StaleImportDispatchAttempt("stale"))
+    monkeypatch.setattr(worker_service, "require_current_attempt", guard)
+    return guard
 
 
 def _job(*, state: ImportJobState = ImportJobState.RUNNING) -> SimpleNamespace:
@@ -24,7 +39,6 @@ def _job(*, state: ImportJobState = ImportJobState.RUNNING) -> SimpleNamespace:
         last_heartbeat_at=None,
         finished_at=None,
         updated_at=None,
-        dispatch_attempt_count=2,
         requested_options={"title": "Imported score"},
         internal_error_code="old-code",
         internal_error_stage="old-stage",
@@ -34,6 +48,9 @@ def _job(*, state: ImportJobState = ImportJobState.RUNNING) -> SimpleNamespace:
 
 
 def _service_with_job(job: object | None) -> tuple[SyncImportJobService, Mock, Mock]:
+    if job is not None:
+        worker_service.require_current_attempt.side_effect = None
+        worker_service.require_current_attempt.return_value = job
     repository = Mock()
     repository.get_by_uuid.return_value = job
     notifications = Mock()
@@ -61,7 +78,7 @@ def test_update_progress_records_state_and_preserves_existing_started_time() -> 
 
     service.update_progress(
         database,
-        "job-1",
+        LEASE,
         ImportJobState.RUNNING,
         60,
         current_step="ocr",
@@ -75,33 +92,20 @@ def test_update_progress_records_state_and_preserves_existing_started_time() -> 
     assert job.code == "processing"
     assert job.started_at == started_at
     assert job.last_heartbeat_at is not None
-    database.expire_all.assert_called_once()
-    assert database.commit.call_count == 2
+    assert database.commit.call_count == 1
 
-    service.update_progress(database, "job-1", "RUNNING", 70, started_at=started_at)
+    service.update_progress(database, LEASE, "RUNNING", 70, started_at=started_at)
 
     assert job.progress == 70
     assert job.started_at == started_at
 
 
-def test_update_progress_ignores_a_job_that_no_longer_exists() -> None:
-    service, _repository, _notifications = _service_with_job(None)
+def test_update_progress_rejects_stale_execution() -> None:
+    service, _, _ = _service_with_job(None)
     database = _database()
-
-    service.update_progress(database, "missing-job", "RUNNING", 50)
-
-    database.expire_all.assert_called_once()
-    database.commit.assert_called_once()
-
-
-def test_session_reset_rolls_back_after_a_commit_error() -> None:
-    database = _database()
-    database.commit.side_effect = RuntimeError("database connection lost")
-
-    SyncImportJobService._reset_session(database)
-
-    database.expire_all.assert_called_once()
-    database.rollback.assert_called_once()
+    with pytest.raises(StaleImportDispatchAttempt):
+        service.update_progress(database, LEASE, "RUNNING", 50)
+    database.commit.assert_not_called()
 
 
 def test_finalize_success_marks_job_ready_and_notifies_owner() -> None:
@@ -109,7 +113,7 @@ def test_finalize_success_marks_job_ready_and_notifies_owner() -> None:
     service, _repository, notifications = _service_with_job(job)
     database = _database()
 
-    service.finalize_success(database, "job-1")
+    service.finalize_success(database, LEASE)
 
     assert job.state == ImportJobState.PENDING_REVIEW
     assert job.progress == 100
@@ -133,7 +137,7 @@ def test_finalize_failure_records_diagnostic_and_notifies_owner() -> None:
 
     service.finalize_failure(
         database,
-        "job-1",
+        LEASE,
         error="worker timeout while processing image",
         error_type="TimeoutError",
         code=ErrorCode.TASK_TIMEOUT,
@@ -153,19 +157,14 @@ def test_finalize_failure_records_diagnostic_and_notifies_owner() -> None:
     )
 
 
-def test_terminal_updates_ignore_jobs_that_no_longer_exist() -> None:
-    service, _repository, notifications = _service_with_job(None)
+def test_terminal_updates_reject_stale_execution() -> None:
+    service, _, notifications = _service_with_job(None)
     database = _database()
-
-    service.finalize_success(database, "missing-job")
-    service.finalize_failure(
-        database,
-        "missing-job",
-        error="worker timeout",
-        error_type="TimeoutError",
-    )
-
-    assert database.commit.call_count == 2
+    with pytest.raises(StaleImportDispatchAttempt):
+        service.finalize_success(database, LEASE)
+    with pytest.raises(StaleImportDispatchAttempt):
+        service.finalize_failure(database, LEASE, error="timeout", error_type="TimeoutError")
+    database.commit.assert_not_called()
     notifications.notify_import_completed_best_effort.assert_not_called()
     notifications.notify_import_failed_best_effort.assert_not_called()
 
@@ -178,7 +177,7 @@ def test_upsert_step_creates_and_updates_a_named_step() -> None:
 
     created = service.upsert_step(
         database,
-        "job-1",
+        LEASE,
         "ocr",
         "running",
         step_order=2,
@@ -201,7 +200,7 @@ def test_upsert_step_creates_and_updates_a_named_step() -> None:
 
     updated = service.upsert_step(
         database,
-        "job-1",
+        LEASE,
         "ocr",
         ImportJobStepStatus.COMPLETED,
         end_time=completed_at,
@@ -217,5 +216,5 @@ def test_upsert_step_creates_and_updates_a_named_step() -> None:
 def test_upsert_step_rejects_missing_jobs() -> None:
     service, _repository, _notifications = _service_with_job(None)
 
-    with pytest.raises(ValueError, match="Job missing-job not found"):
-        service.upsert_step(_database(), "missing-job", "ocr", "RUNNING")
+    with pytest.raises(StaleImportDispatchAttempt):
+        service.upsert_step(_database(), LEASE, "ocr", "RUNNING")

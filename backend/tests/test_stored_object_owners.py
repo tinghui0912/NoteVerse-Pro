@@ -1,3 +1,4 @@
+from tests.support.import_execution import processing_lease
 import hashlib
 import io
 from unittest.mock import Mock
@@ -175,7 +176,9 @@ async def test_import_artifact_replacement_uses_complete_immutable_object_facts(
             page_number=None,
         )
 
-    worker.replace_artifacts(db, job.job_uuid, "review_musicxml", [item("jobs/first", b"first")])
+    worker.replace_artifacts(
+        db, processing_lease(db, job), "review_musicxml", [item("jobs/first", b"first")]
+    )
     first = db.scalar(select(ImportArtifact))
     first_object, first_key = first.stored_object, first.stored_object.object_key
     from app.modules.storage_objects.persistence import object_from_row
@@ -185,7 +188,9 @@ async def test_import_artifact_replacement_uses_complete_immutable_object_facts(
         monkeypatch.setattr(
             storage, "delete", Mock(side_effect=OSError("object store unavailable"))
         )
-    worker.replace_artifacts(db, job.job_uuid, "review_musicxml", [item("jobs/second", b"second")])
+    worker.replace_artifacts(
+        db, processing_lease(db, job), "review_musicxml", [item("jobs/second", b"second")]
+    )
     current = db.scalar(select(ImportArtifact))
     assert current.stored_object is not first_object
     assert object_from_row(first_object) == first_facts

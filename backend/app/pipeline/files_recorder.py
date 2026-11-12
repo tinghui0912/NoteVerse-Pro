@@ -12,6 +12,7 @@ from enum import Enum
 from typing import List
 
 from app.modules.import_jobs.artifact_records import ImportJobStoredArtifactItem
+from app.modules.import_jobs.dispatch_service import ImportExecutionLease, require_current_attempt
 from app.storage import object_storage
 from app.modules.storage_objects.writes import write_object
 from app.db.sync_session import get_worker_db
@@ -47,15 +48,15 @@ def _guess_mime_type(path: str) -> str:
 
 
 def replace_files(
-    job_id: str,
+    lease: ImportExecutionLease,
     kind: object,
     abs_paths: List[str],
 ) -> None:
     """
-    Write file records to the unified files table for a worker task.
+    Write and adopt Import artifacts for the current execution lease.
 
     Args:
-        job_id: Job UUID.
+        lease: Current authorized Import execution attempt.
         kind: Import artifact kind, for example `original_image`.
         abs_paths: Absolute file paths to record.
 
@@ -66,13 +67,15 @@ def replace_files(
     from app.db.sync_session import get_worker_db
     from app.modules.import_jobs.worker_service import sync_import_job_service
 
+    with get_worker_db() as db:
+        require_current_attempt(db, lease)
     normalized_kind = _kind_value(kind)
     items: List[ImportJobStoredArtifactItem] = [
-        _build_file_item(job_id, normalized_kind, p, i + 1) for i, p in enumerate(abs_paths)
+        _build_file_item(lease.job_uuid, normalized_kind, p, i + 1) for i, p in enumerate(abs_paths)
     ]
 
     with get_worker_db() as db:
-        sync_import_job_service.replace_artifacts(db, job_id, normalized_kind, items)
+        sync_import_job_service.replace_artifacts(db, lease, normalized_kind, items)
 
 
 def _build_file_item(

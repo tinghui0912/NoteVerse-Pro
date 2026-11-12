@@ -17,7 +17,9 @@ from app.core.exceptions import (
     ValidationException,
 )
 from app.db.model_utils import require_persisted_id
+from tests.support.import_execution import processing_lease
 from app.db.models import (
+    ImportDispatch,
     ImportJob,
     ImportJobUpload,
     ImportDispatchStatus,
@@ -448,8 +450,8 @@ def test_completed_job_notifies_owner_when_ready_for_review(
     session.commit()
     job_service = SyncImportJobService()
 
-    job_service.finalize_success(session, "job-complete-notification")
-    job_service.finalize_success(session, "job-complete-notification")
+    job_service.finalize_success(session, processing_lease(session, session.get(ImportJob, 11)))
+    job_service.finalize_success(session, processing_lease(session, session.get(ImportJob, 11)))
 
     notification = one_row(
         session,
@@ -486,14 +488,14 @@ def test_failed_job_notifies_owner_once(
 
     job_service.finalize_failure(
         session,
-        "job-failure-notification",
+        processing_lease(session, session.get(ImportJob, 12)),
         error="OCR failed",
         error_type="PipelineError",
         code=ErrorCode.UNKNOWN_ERROR,
     )
     job_service.finalize_failure(
         session,
-        "job-failure-notification",
+        processing_lease(session, session.get(ImportJob, 12)),
         error="OCR failed again",
         error_type="PipelineError",
         code=ErrorCode.UNKNOWN_ERROR,
@@ -1827,15 +1829,18 @@ def test_import_dispatch_claim_reconstructs_persisted_request(
     session.add(ImportJobUpload(job_id=501, upload_id=502, page_number=1, sort_order=1))
     session.commit()
 
-    payload = ImportDispatchService().claim(session, job.job_uuid)
+    dispatch = ImportDispatch(job_id=job.id)
+    session.add(dispatch)
+    session.commit()
+    payload = ImportDispatchService().claim(session, dispatch.dispatch_uuid)
     session.commit()
 
     assert payload is not None
     assert payload.job_uuid == job.job_uuid
     assert payload.storage_keys == ["blobs/qu/queued-upload-sha.png"]
     assert payload.options == {"title": "Queued score"}
-    assert job.dispatch_status == ImportDispatchStatus.PROCESSING
-    assert job.dispatch_attempt_count == 1
+    assert dispatch.status == ImportDispatchStatus.PROCESSING
+    assert dispatch.attempt_count == 1
 
 
 def test_import_dispatch_recovers_stale_worker_without_failing_business_job(
@@ -1850,25 +1855,30 @@ def test_import_dispatch_recovers_stale_worker_without_failing_business_job(
         state=ImportJobState.RUNNING,
         progress=65,
         current_step="ocr",
-        dispatch_status=ImportDispatchStatus.PROCESSING,
-        dispatch_attempt_count=1,
-        dispatch_started_at=now - timedelta(hours=1),
-        next_dispatch_at=now - timedelta(minutes=1),
     )
     session.add(job)
     session.commit()
 
-    due = ImportDispatchService().recover_and_claim_due(session)
+    dispatch = ImportDispatch(
+        job_id=job.id,
+        status=ImportDispatchStatus.PROCESSING,
+        attempt_count=1,
+        attempt_token="token",
+        started_at=now - timedelta(hours=1),
+    )
+    session.add(dispatch)
+    session.commit()
+    due = ImportDispatchService().recover_and_list_due(session)
 
-    assert due == [job.job_uuid]
+    assert due == [dispatch.dispatch_uuid]
     assert job.state == ImportJobState.PENDING
-    assert job.dispatch_status == ImportDispatchStatus.DISPATCHED
+    assert dispatch.status == ImportDispatchStatus.FAILED
     assert job.progress == 0
     assert job.current_step is None
     assert job.error is None
 
 
-def test_import_dispatch_publish_failure_uses_exponential_backoff(
+def test_import_dispatch_publish_release_preserves_domain_and_attempt(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
@@ -1878,21 +1888,26 @@ def test_import_dispatch_publish_failure_uses_exponential_backoff(
         job_uuid="broker-backoff-job",
         user_id=1,
         state=ImportJobState.PENDING,
-        dispatch_status=ImportDispatchStatus.DISPATCHED,
-        dispatched_at=now,
-        next_dispatch_at=now,
     )
     session.add(job)
     session.commit()
 
-    ImportDispatchService().release_dispatch(session, job.job_uuid, "broker unavailable")
+    dispatch = ImportDispatch(
+        job_id=job.id,
+        status=ImportDispatchStatus.DISPATCHED,
+        dispatched_at=now,
+        next_attempt_at=now,
+    )
+    session.add(dispatch)
+    session.commit()
+    ImportDispatchService().release_dispatch(session, dispatch.dispatch_uuid, "broker unavailable")
     session.commit()
 
     assert job.state == ImportJobState.PENDING
-    assert job.dispatch_status == ImportDispatchStatus.PENDING
-    assert job.publish_attempt_count == 1
-    assert job.next_dispatch_at > now
-    assert job.dispatch_error == "broker unavailable"
+    assert dispatch.status == ImportDispatchStatus.PENDING
+    assert dispatch.attempt_count == 0
+    assert dispatch.next_attempt_at == now
+    assert dispatch.last_error == "broker unavailable"
 
 
 @pytest.mark.asyncio

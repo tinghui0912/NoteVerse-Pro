@@ -71,11 +71,7 @@ class LoggingContractVisitor(ast.NodeVisitor):
 
 
 def _python_files() -> list[Path]:
-    return sorted(
-        path
-        for path in APP_ROOT.rglob("*.py")
-        if "__pycache__" not in path.parts
-    )
+    return sorted(path for path in APP_ROOT.rglob("*.py") if "__pycache__" not in path.parts)
 
 
 def test_application_logs_use_structured_logger_contract() -> None:
@@ -106,7 +102,9 @@ def test_bound_log_fields_are_classified_by_the_field_policy() -> None:
                 continue
             for keyword in node.keywords:
                 if keyword.arg and keyword.arg not in classified:
-                    unclassified.append(f"{path.relative_to(APP_ROOT.parent)}:{node.lineno}:{keyword.arg}")
+                    unclassified.append(
+                        f"{path.relative_to(APP_ROOT.parent)}:{node.lineno}:{keyword.arg}"
+                    )
 
     assert not unclassified, "Unclassified structured log fields:\n" + "\n".join(unclassified)
 
@@ -122,6 +120,9 @@ def test_json_logs_omit_unknown_and_sensitive_extra_fields() -> None:
         "extra": {
             "event": "test.failed",
             "score_id": "score-1",
+            "operation_id": "dispatch-1",
+            "job_id": "import-1",
+            "attempt_token": "private-lease-token",
             "storage_key": "scores/private.musicxml",
             "image_path": "/tmp/private.png",
             "unreviewed_field": "must-not-escape",
@@ -132,6 +133,9 @@ def test_json_logs_omit_unknown_and_sensitive_extra_fields() -> None:
 
     assert payload["event"] == "test.failed"
     assert payload["score_id"] == "score-1"
+    assert payload["operation_id"] == "dispatch-1"
+    assert payload["job_id"] == "import-1"
+    assert "attempt_token" not in payload
     assert "storage_key" not in payload
     assert "image_path" not in payload
     assert "unreviewed_field" not in payload

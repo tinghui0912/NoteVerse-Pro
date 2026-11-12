@@ -13,6 +13,7 @@ from app.core.config import settings
 from app.db.models import (
     ImportDispatchStatus,
     ImportJob,
+    ImportDispatch,
     ImportJobState,
     MailOutbox,
     MailOutboxStatus,
@@ -181,8 +182,8 @@ async def _oldest_open_age_lines(db: AsyncSession) -> list[str]:
             "import",
             await _oldest_age_seconds(
                 db,
-                select(func.min(ImportJob.created_at)).where(
-                    ImportJob.dispatch_status != ImportDispatchStatus.COMPLETED
+                select(func.min(ImportDispatch.created_at)).where(
+                    ImportDispatch.status != ImportDispatchStatus.COMPLETED
                 ),
                 now=now,
             ),
@@ -242,8 +243,8 @@ async def _oldest_processing_age_lines(db: AsyncSession) -> list[str]:
             "import",
             await _oldest_age_seconds(
                 db,
-                select(func.min(ImportJob.dispatch_started_at)).where(
-                    ImportJob.dispatch_status == ImportDispatchStatus.PROCESSING
+                select(func.min(ImportDispatch.started_at)).where(
+                    ImportDispatch.status == ImportDispatchStatus.PROCESSING
                 ),
                 now=now,
             ),
@@ -300,15 +301,15 @@ async def _completed_duration_average_lines(db: AsyncSession) -> list[str]:
                 select(
                     func.avg(
                         _duration_seconds(
-                            ImportJob.dispatch_started_at,
-                            ImportJob.dispatch_completed_at,
+                            ImportDispatch.started_at,
+                            ImportDispatch.completed_at,
                         )
                     )
                 ).where(
-                    ImportJob.dispatch_status == ImportDispatchStatus.COMPLETED,
-                    ImportJob.dispatch_started_at.is_not(None),
-                    ImportJob.dispatch_completed_at.is_not(None),
-                    ImportJob.dispatch_completed_at >= cutoff,
+                    ImportDispatch.status == ImportDispatchStatus.COMPLETED,
+                    ImportDispatch.started_at.is_not(None),
+                    ImportDispatch.completed_at.is_not(None),
+                    ImportDispatch.completed_at >= cutoff,
                 ),
             ),
         ),
@@ -536,13 +537,15 @@ async def _scheduler_lag_lines(db: AsyncSession) -> list[str]:
             "import",
             await _oldest_age_seconds(
                 db,
-                select(func.min(ImportJob.next_dispatch_at)).where(
+                select(func.min(ImportDispatch.next_attempt_at))
+                .join(ImportJob, ImportJob.id == ImportDispatch.job_id)
+                .where(
                     ImportJob.state == ImportJobState.PENDING,
-                    ImportJob.dispatch_status.in_(
+                    ImportDispatch.status.in_(
                         (ImportDispatchStatus.PENDING, ImportDispatchStatus.FAILED)
                     ),
-                    ImportJob.next_dispatch_at <= now,
-                    ImportJob.dispatch_attempt_count < settings.IMPORT_DISPATCH_MAX_ATTEMPTS,
+                    ImportDispatch.next_attempt_at <= now,
+                    ImportDispatch.attempt_count < settings.IMPORT_DISPATCH_MAX_ATTEMPTS,
                 ),
                 now=now,
             ),

@@ -1,20 +1,6 @@
 """
 Unified database-backed step tracking for worker jobs.
 
-Usage pattern inside a task:
-    from app.db.sync_session import get_worker_db
-    from app.modules.import_jobs.worker_service import sync_import_job_service
-
-    def _upsert(name, **kw):
-        with get_worker_db() as db:
-            sync_import_job_service.upsert_step(db, job_id, name=name, **kw)
-
-    # order_map is generated dynamically by Pipeline.build_order_map().
-    tracker = StepTracker(job_id, _upsert, order_map)
-    tracker.on_progress("ocr")
-    ...
-    tracker.complete_last(final_step_name="ocr_completed")
-
 The tracker is intentionally stateless and independent of Flask or FastAPI.
 The caller supplies the `_upsert` function, including database session handling.
 """
@@ -24,6 +10,7 @@ from __future__ import annotations
 from typing import Callable, Dict, Optional, Set
 
 from app.core.logger import logger
+from app.modules.import_jobs.dispatch_service import StaleImportDispatchAttempt
 from app.utils.timezone import utc_now_naive
 
 
@@ -60,15 +47,23 @@ class StepTracker:
         if not step:
             return
 
-        if self.last_step is None and step != "initialization" and "initialization" in self.order_map:
+        if (
+            self.last_step is None
+            and step != "initialization"
+            and "initialization" in self.order_map
+        ):
             try:
-                init_order = self.order_map["initialization"] if "initialization" in self.order_map else None
+                init_order = (
+                    self.order_map["initialization"] if "initialization" in self.order_map else None
+                )
                 self._upsert(
                     "initialization",
                     status="completed",
                     end_time=utc_now_naive(),
                     step_order=init_order,
                 )
+            except StaleImportDispatchAttempt:
+                raise
             except Exception as exc:
                 logger.bind(
                     event="import_pipeline.tracker_initialization_complete_failed",
@@ -84,6 +79,8 @@ class StepTracker:
                     status="completed",
                     end_time=utc_now_naive(),
                 )
+            except StaleImportDispatchAttempt:
+                raise
             except Exception as exc:
                 logger.bind(
                     event="import_pipeline.tracker_previous_step_complete_failed",
@@ -104,6 +101,8 @@ class StepTracker:
                 )
             else:
                 self._upsert(step, status="running")
+        except StaleImportDispatchAttempt:
+            raise
         except Exception as exc:
             logger.bind(
                 event="import_pipeline.tracker_step_running_failed",
@@ -130,6 +129,8 @@ class StepTracker:
                     status="completed",
                     end_time=now,
                 )
+            except StaleImportDispatchAttempt:
+                raise
             except Exception as exc:
                 logger.bind(
                     event="import_pipeline.tracker_last_step_complete_failed",
@@ -147,6 +148,8 @@ class StepTracker:
                     end_time=now,
                     step_order=self.order_map.get(final_step_name),
                 )
+            except StaleImportDispatchAttempt:
+                raise
             except Exception as exc:
                 logger.bind(
                     event="import_pipeline.tracker_final_step_create_failed",
@@ -178,6 +181,8 @@ class StepTracker:
                         end_time=utc_now_naive(),
                         step_order=self.order_map.get("initialization"),
                     )
+        except StaleImportDispatchAttempt:
+            raise
         except Exception as exc:
             failed_step = step_name or "initialization"
             logger.bind(

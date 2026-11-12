@@ -282,7 +282,7 @@ def check_celery_tasks(_: bool = False) -> CheckResult:
 
         celery_app.loader.import_default_modules()
         required = {
-            "app.worker.tasks.process_images_job",
+            "app.worker.tasks.import_dispatch_task",
             "app.worker.tasks.run_import_dispatch_maintenance",
             "app.worker.tasks.render_outbox_task",
             "app.worker.tasks.run_render_outbox_maintenance",

@@ -8,6 +8,7 @@ from sqlmodel import col
 
 from app.db.models import (
     ImportJob,
+    ImportDispatch,
     MailOutbox,
     PlaybackOutbox,
     RenderOutbox,
@@ -79,7 +80,9 @@ class OpsAsyncOperationQueryService:
         operations: list[AsyncOperationRead] = []
         for source_kind in selected_query_operation_kinds(kind):
             operations.extend(await self._operations_for_kind(db, source_kind, limit=source_limit))
-        operations = [operation for operation in operations if matches_operation_filters(operation, filters)]
+        operations = [
+            operation for operation in operations if matches_operation_filters(operation, filters)
+        ]
         sorted_operations = sorted(
             operations,
             key=lambda operation: operation.updated_at or operation.created_at or datetime.min,
@@ -124,9 +127,14 @@ class OpsAsyncOperationQueryService:
         limit: int,
     ) -> list[AsyncOperationRead]:
         rows = (
-            await db.execute(select(ImportJob).order_by(col(ImportJob.updated_at).desc()).limit(limit))
-        ).scalars()
-        return [read_import_operation(job) for job in rows]
+            await db.execute(
+                select(ImportJob, ImportDispatch)
+                .join(ImportDispatch, ImportDispatch.job_id == ImportJob.id)
+                .order_by(col(ImportJob.updated_at).desc())
+                .limit(limit)
+            )
+        ).all()
+        return [read_import_operation(job, dispatch) for job, dispatch in rows]
 
     async def _operations_for_kind(
         self,
@@ -180,7 +188,9 @@ class OpsAsyncOperationQueryService:
         limit: int,
     ) -> list[AsyncOperationRead]:
         rows = (
-            await db.execute(select(MailOutbox).order_by(col(MailOutbox.updated_at).desc()).limit(limit))
+            await db.execute(
+                select(MailOutbox).order_by(col(MailOutbox.updated_at).desc()).limit(limit)
+            )
         ).scalars()
         return [read_mail_operation(outbox) for outbox in rows]
 

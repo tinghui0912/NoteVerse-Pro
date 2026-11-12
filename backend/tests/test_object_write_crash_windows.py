@@ -148,6 +148,13 @@ def test_import_artifact_handoff_failure_leaves_intent_until_cleanup(
     from app.modules.import_jobs.worker_service import sync_import_job_service
 
     db, storage = score_service_session
+    from app.db.models import ImportJob
+    from tests.support.import_execution import processing_lease
+
+    job = ImportJob(job_uuid="artifact-handoff", user_id=1, state="PENDING")
+    db.add(job)
+    db.commit()
+    lease = processing_lease(db, job)
 
     @contextmanager
     def session():
@@ -169,7 +176,7 @@ def test_import_artifact_handoff_failure_leaves_intent_until_cleanup(
     path = tmp_path / "review.musicxml"
     path.write_bytes(MUSICXML_1)
     with pytest.raises(RuntimeError, match="artifact adoption failed"):
-        files_recorder.replace_files("job", "review_musicxml", [str(path)])
+        files_recorder.replace_files(lease, "review_musicxml", [str(path)])
     row = db.scalar(select(ObjectWriteIntent))
     assert row.status == "WRITTEN" and row.sha256 == hashlib.sha256(MUSICXML_1).hexdigest()
     assert db.scalar(select(ImportArtifact)) is None and db.scalar(select(StoredObject)) is None

@@ -53,7 +53,9 @@ def test_attempt_spans_restore_the_same_durable_parent_for_each_retry(
     spans = exporter.get_finished_spans()
     assert len(spans) == 2
     assert len({span.context.span_id for span in spans}) == 2
-    assert {span.context.trace_id for span in spans} == {int("0123456789abcdef0123456789abcdef", 16)}
+    assert {span.context.trace_id for span in spans} == {
+        int("0123456789abcdef0123456789abcdef", 16)
+    }
     assert {span.parent.span_id for span in spans if span.parent is not None} == {
         int("0123456789abcdef", 16)
     }
@@ -140,15 +142,23 @@ def test_relay_dispatch_log_is_emitted_inside_its_producer_span(
             log_contexts.append(get_otel_trace_context())
 
     monkeypatch.setattr(import_jobs, "get_worker_db", fake_db)
+    monkeypatch.setattr(import_jobs.import_dispatch_service, "mark_dispatched", lambda *_: True)
     monkeypatch.setattr(
         import_jobs,
-        "import_trace_context",
-        lambda _db, _job_uuid: DurableTraceContext(traceparent=TRACEPARENT, tracestate=None),
+        "import_dispatch_trace_context",
+        lambda _db, _dispatch_uuid: DurableTraceContext(traceparent=TRACEPARENT, tracestate=None),
     )
-    monkeypatch.setattr(dispatch_runtime.celery_app, "send_task", lambda *_args, **_kwargs: None)
+    published = []
+    monkeypatch.setattr(
+        dispatch_runtime.celery_app,
+        "send_task",
+        lambda *args, **kwargs: published.append((args, kwargs)),
+    )
     monkeypatch.setattr(dispatch_runtime, "logger", CapturingLogger())
 
-    assert import_jobs.dispatch_import_job("job-1")
+    assert import_jobs.dispatch_import_dispatch("dispatch-1")
+    assert published[0][0] == ("app.worker.tasks.import_dispatch_task",)
+    assert published[0][1]["kwargs"] == {"dispatch_uuid": "dispatch-1"}
 
     assert len(log_contexts) == 1
     assert log_contexts[0]["trace_id"] == "0123456789abcdef0123456789abcdef"

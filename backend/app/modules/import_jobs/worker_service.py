@@ -13,7 +13,6 @@ from sqlalchemy.orm import Session
 
 from app.db.model_utils import require_persisted_id
 from app.db.models import (
-    ImportJob,
     ExecutionManifest,
     ImportArtifact,
     ImportJobStep,
@@ -27,6 +26,7 @@ from app.modules.async_operations.diagnostics import (
     clear_async_diagnostic,
 )
 from app.modules.import_jobs.public_errors import public_import_job_error
+from app.modules.import_jobs.dispatch_service import ImportExecutionLease, require_current_attempt
 from app.modules.import_jobs.repository import SyncImportJobRepository
 from app.modules.import_jobs.artifact_records import ImportJobStoredArtifactItem
 from app.modules.import_jobs.schemas import (
@@ -54,18 +54,10 @@ class SyncImportJobService:
         self.repository = repository or SyncImportJobRepository()
         self.notification_service = notification_service or sync_notification_service
 
-    @staticmethod
-    def _reset_session(db: Session) -> None:
-        db.expire_all()
-        try:
-            db.commit()
-        except Exception:
-            db.rollback()
-
     def update_progress(
         self,
         db: Session,
-        job_uuid: str,
+        lease: ImportExecutionLease,
         state: ImportJobState | str,
         progress: int,
         current_step: Optional[str] = None,
@@ -74,10 +66,7 @@ class SyncImportJobService:
         error_type: Optional[str] = None,
         started_at: Optional[datetime] = None,
     ) -> None:
-        self._reset_session(db)
-        job = self.repository.get_by_uuid(db, job_uuid)
-        if not job:
-            return
+        job = require_current_attempt(db, lease)
         job.state = state if isinstance(state, ImportJobState) else ImportJobState(state)
         job.progress = progress
         job.current_step = current_step or job.current_step
@@ -94,13 +83,10 @@ class SyncImportJobService:
     def finalize_success(
         self,
         db: Session,
-        job_uuid: str,
+        lease: ImportExecutionLease,
         total_time_seconds: Optional[int] = None,
     ) -> None:
-        self._reset_session(db)
-        job = self.repository.get_by_uuid(db, job_uuid)
-        if not job:
-            return
+        job = require_current_attempt(db, lease)
         now = utc_now_naive()
         job.state = ImportJobState.PENDING_REVIEW
         job.progress = 100
@@ -121,20 +107,18 @@ class SyncImportJobService:
                 source_fingerprint=review_xml.stored_object.sha256,
             )
         db.commit()
+        require_current_attempt(db, lease)
         self._notify_success(db, job)
 
     def finalize_failure(
         self,
         db: Session,
-        job_uuid: str,
+        lease: ImportExecutionLease,
         error: str,
         error_type: str,
         code: Optional[str] = None,
     ) -> None:
-        self._reset_session(db)
-        job = self.repository.get_by_uuid(db, job_uuid)
-        if not job:
-            return
+        job = require_current_attempt(db, lease)
         now = utc_now_naive()
         job.state = ImportJobState.FAILURE
         job.progress = 0
@@ -147,13 +131,14 @@ class SyncImportJobService:
             status=AsyncOperationStatusValue.FAILED,
             raw_status=job.state.value,
             last_error=job.error,
-            attempts=job.dispatch_attempt_count,
+            attempts=lease.attempt,
             max_attempts=None,
         )
         job.last_heartbeat_at = now
         job.finished_at = now
         job.updated_at = now
         db.commit()
+        require_current_attempt(db, lease)
         self.notification_service.notify_import_failed_best_effort(
             db,
             job_uuid=job.job_uuid,
@@ -173,17 +158,14 @@ class SyncImportJobService:
     def upsert_step(
         self,
         db: Session,
-        job_uuid: str,
+        lease: ImportExecutionLease,
         name: str,
         status: ImportJobStepStatus | str,
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
         step_order: Optional[int] = None,
     ) -> ImportJobStep:
-        self._reset_session(db)
-        job = self.repository.get_by_uuid(db, job_uuid)
-        if not job:
-            raise ValueError(f"Job {job_uuid} not found")
+        job = require_current_attempt(db, lease)
         job_id = require_persisted_id(job.id, entity="import job")
         step = self.repository.get_step(db, job_id, name)
         normalized = (
@@ -212,18 +194,11 @@ class SyncImportJobService:
     def replace_artifacts(
         self,
         db: Session,
-        job_uuid: str,
+        lease: ImportExecutionLease,
         kind: str,
         items: list[ImportJobStoredArtifactItem],
     ) -> None:
-        job = db.execute(
-            select(ImportJob)
-            .where(ImportJob.job_uuid == job_uuid)
-            .with_for_update()
-            .execution_options(populate_existing=True)
-        ).scalar_one_or_none()
-        if not job:
-            raise ValueError(f"Job {job_uuid} not found")
+        job = require_current_attempt(db, lease)
         job_id = require_persisted_id(job.id, entity="import job")
         previous = [
             (

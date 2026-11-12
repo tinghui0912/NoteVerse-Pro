@@ -24,11 +24,11 @@ def execute_import_dispatch_maintenance() -> dict[str, int]:
 
     def scan() -> dict[str, int]:
         with get_worker_db() as db:
-            due = import_dispatch_service.recover_and_claim_due(db)
+            due = import_dispatch_service.recover_and_list_due(db)
 
-        from app.worker.dispatch.import_jobs import dispatch_import_job
+        from app.worker.dispatch.import_jobs import dispatch_import_dispatch
 
-        dispatched = sum(1 for job_uuid in due if dispatch_import_job(job_uuid))
+        dispatched = sum(1 for dispatch_uuid in due if dispatch_import_dispatch(dispatch_uuid))
         return {"due": len(due), "dispatched": dispatched}
 
     return run_scheduler_scan("import_dispatch", scan)

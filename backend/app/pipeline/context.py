@@ -11,6 +11,10 @@ from app.core.config import settings
 from app.core.logger import logger
 from app.core.settings.task_reliability import get_task_reliability_settings
 from app.modules.import_jobs.schemas import ImportJobProcessingOptions
+from app.modules.import_jobs.dispatch_service import (
+    ImportExecutionLease,
+    StaleImportDispatchAttempt,
+)
 from app.processing.engines.omr import OmrSuccessResult
 from app.modules.import_jobs.worker_service import sync_import_job_service as job_service
 from app.pipeline.files_recorder import replace_files
@@ -52,7 +56,7 @@ def _default_job_options() -> ImportJobProcessingOptions:
 class JobContext:
     """Mutable import-job state shared across pipeline steps."""
 
-    job_id: str
+    lease: ImportExecutionLease
     db: Session
     celery_task: CeleryTaskLike
     image_paths: List[str]
@@ -71,12 +75,16 @@ class JobContext:
     _tracker: StepTracker | None = None
     _order_map: dict[str, int] = field(default_factory=dict)
 
+    @property
+    def job_id(self) -> str:
+        return self.lease.job_uuid
+
     def __post_init__(self):
         """Initialize derived paths and timeout state."""
         max_time = int(get_task_reliability_settings().MAX_PROCESSING_TIME)
         self._deadline = self._start_ts + max_time
 
-        self.job_temp = os.path.join(settings.WORK_ROOT, self.job_id)
+        self.job_temp = os.path.join(settings.WORK_ROOT, self.job_id, self.lease.token)
         self.raw_dir = os.path.join(self.job_temp, "raw")
         self.omr_dir = os.path.join(self.job_temp, "omr")
 
@@ -90,7 +98,9 @@ class JobContext:
     def _upsert(self, name: str, **kwargs) -> None:
         """Persist step-tracking state."""
         try:
-            job_service.upsert_step(self.db, self.job_id, name=name, **kwargs)
+            job_service.upsert_step(self.db, self.lease, name=name, **kwargs)
+        except StaleImportDispatchAttempt:
+            raise
         except Exception as exc:
             logger.bind(
                 event="import_pipeline.step_state_upsert_failed",
@@ -109,7 +119,7 @@ class JobContext:
         try:
             job_service.update_progress(
                 self.db,
-                self.job_id,
+                self.lease,
                 state,
                 prog,
                 current_step=kw.get("current_step"),
@@ -117,6 +127,8 @@ class JobContext:
                 error=kw.get("error"),
                 started_at=kw.get("started_at"),
             )
+        except StaleImportDispatchAttempt:
+            raise
         except Exception as exc:
             logger.bind(
                 event="import_pipeline.progress_update_failed",
@@ -132,6 +144,8 @@ class JobContext:
             step = kw.get("current_step")
             if step and self._tracker:
                 self._tracker.on_progress(step)
+        except StaleImportDispatchAttempt:
+            raise
         except Exception as exc:
             logger.bind(
                 event="import_pipeline.tracker_progress_failed",
@@ -162,6 +176,8 @@ class JobContext:
         try:
             if self._tracker:
                 self._tracker.complete_last(final_step_name="ocr_completed")
+        except StaleImportDispatchAttempt:
+            raise
         except Exception as exc:
             logger.bind(
                 event="import_pipeline.tracker_complete_failed",
@@ -171,11 +187,9 @@ class JobContext:
 
         if not self.main_xml or not os.path.exists(self.main_xml):
             raise FileNotFoundError("Canonical MusicXML was not produced")
-        replace_files(self.job_id, ImportArtifactKind.REVIEW_MUSICXML, [self.main_xml])
+        replace_files(self.lease, ImportArtifactKind.REVIEW_MUSICXML, [self.main_xml])
         total_time = int(time.time() - self._start_ts)
-        job_service.finalize_success(
-            self.db, self.job_id, total_time_seconds=total_time
-        )
+        job_service.finalize_success(self.db, self.lease, total_time_seconds=total_time)
         logger.bind(
             event="import_pipeline.job_completed",
             job_id=self.job_id,

@@ -6,7 +6,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import ImportJob, MailOutbox, PlaybackOutbox, RenderOutbox
+from app.db.models import ImportDispatch, MailOutbox, PlaybackOutbox, RenderOutbox
 
 
 @dataclass(frozen=True)
@@ -15,12 +15,12 @@ class DurableTraceContext:
     tracestate: str | None
 
 
-def import_trace_context(db: Session, job_uuid: str) -> DurableTraceContext:
+def import_dispatch_trace_context(db: Session, dispatch_uuid: str) -> DurableTraceContext:
     return _trace_context_for(
         db,
-        traceparent_column=ImportJob.traceparent,
-        tracestate_column=ImportJob.tracestate,
-        identity_filter=ImportJob.job_uuid == job_uuid,
+        traceparent_column=ImportDispatch.traceparent,
+        tracestate_column=ImportDispatch.tracestate,
+        identity_filter=ImportDispatch.dispatch_uuid == dispatch_uuid,
     )
 
 

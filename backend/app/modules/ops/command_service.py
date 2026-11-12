@@ -7,8 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ResourceNotFoundException, ValidationException
 from app.db.models import (
-    ImportDispatchStatus,
     ImportJob,
+    ImportDispatch,
     ImportJobState,
     MailOutbox,
     MailOutboxStatus,
@@ -70,46 +70,56 @@ class OpsAsyncOperationCommandService:
         raise ValidationException(code=ErrorCode.VALIDATION_ERROR, field="kind")
 
     async def _retry_import(self, db: AsyncSession, operation_id: str) -> RetryOperationResult:
+        dispatch = (
+            await db.execute(
+                select(ImportDispatch)
+                .join(ImportJob, ImportDispatch.job_id == ImportJob.id)
+                .where(ImportJob.job_uuid == operation_id)
+                .with_for_update(of=ImportDispatch)
+            )
+        ).scalar_one_or_none()
+        if dispatch is None:
+            raise ResourceNotFoundException("async_operation", operation_id)
         job = (
             await db.execute(
-                select(ImportJob).where(ImportJob.job_uuid == operation_id).with_for_update()
+                select(ImportJob).where(ImportJob.id == dispatch.job_id).with_for_update()
             )
         ).scalar_one_or_none()
         if job is None:
             raise ResourceNotFoundException("async_operation", operation_id)
-        previous_state = f"{job.state.value}/{job.dispatch_status.value}"
-        if job.state in {ImportJobState.RUNNING, ImportJobState.PENDING_REVIEW, ImportJobState.CONFIRMED}:
+        previous_state = f"{job.state.value}/{dispatch.status.value}"
+        if job.state in {
+            ImportJobState.RUNNING,
+            ImportJobState.PENDING_REVIEW,
+            ImportJobState.CONFIRMED,
+        }:
             raise ValidationException(
                 code=ErrorCode.VALIDATION_ERROR,
                 field="status",
-                details={"status": import_operation_status(job).value},
+                details={"status": import_operation_status(job, dispatch).value},
             )
         now = utc_now_naive()
-        job.state = ImportJobState.PENDING
-        job.progress = 0
-        job.current_step = None
-        job.dispatch_status = ImportDispatchStatus.PENDING
-        job.dispatch_attempt_count = 0
-        job.publish_attempt_count = 0
-        job.next_dispatch_at = now
-        job.dispatched_at = None
-        job.dispatch_started_at = None
-        job.dispatch_completed_at = None
-        job.dispatch_error = None
-        clear_async_diagnostic(job)
-        job.error = None
-        job.error_type = None
-        job.started_at = None
-        job.finished_at = None
-        job.updated_at = now
+        from app.modules.import_jobs.dispatch_service import import_dispatch_service
+
+        await db.run_sync(
+            lambda sync_db: import_dispatch_service.reset_execution(sync_db, job, now)
+        )
+        import_dispatch_service.lifecycle().rearm(dispatch, now=now)
+        dispatch.attempt_token = None
+        clear_async_diagnostic(dispatch)
         await db.commit()
         await db.refresh(job)
-        return RetryOperationResult(operation=read_import_operation(job), previous_state=previous_state)
+        await db.refresh(dispatch)
+        return RetryOperationResult(
+            operation=read_import_operation(job, dispatch), previous_state=previous_state
+        )
 
     async def _retry_render(self, db: AsyncSession, operation_id: str) -> RetryOperationResult:
         outbox = (
             await db.execute(
-                select(RenderOutbox).where(RenderOutbox.outbox_uuid == operation_id).with_for_update()
+                select(RenderOutbox)
+                .where(RenderOutbox.outbox_uuid == operation_id)
+                .with_for_update()
             )
         ).scalar_one_or_none()
         if outbox is None:
@@ -137,7 +147,9 @@ class OpsAsyncOperationCommandService:
         outbox.updated_at = now
         await db.commit()
         await db.refresh(outbox)
-        return RetryOperationResult(operation=read_render_operation(outbox), previous_state=previous_state)
+        return RetryOperationResult(
+            operation=read_render_operation(outbox), previous_state=previous_state
+        )
 
     async def _retry_playback(self, db: AsyncSession, operation_id: str) -> RetryOperationResult:
         outbox = (
@@ -172,7 +184,9 @@ class OpsAsyncOperationCommandService:
         outbox.updated_at = now
         await db.commit()
         await db.refresh(outbox)
-        return RetryOperationResult(operation=read_playback_operation(outbox), previous_state=previous_state)
+        return RetryOperationResult(
+            operation=read_playback_operation(outbox), previous_state=previous_state
+        )
 
     async def _retry_mail(self, db: AsyncSession, operation_id: str) -> RetryOperationResult:
         outbox = (
@@ -213,9 +227,13 @@ class OpsAsyncOperationCommandService:
         outbox.updated_at = now
         await db.commit()
         await db.refresh(outbox)
-        return RetryOperationResult(operation=read_mail_operation(outbox), previous_state=previous_state)
+        return RetryOperationResult(
+            operation=read_mail_operation(outbox), previous_state=previous_state
+        )
 
-    async def _retry_score_deletion(self, db: AsyncSession, operation_id: str) -> RetryOperationResult:
+    async def _retry_score_deletion(
+        self, db: AsyncSession, operation_id: str
+    ) -> RetryOperationResult:
         score = (
             await db.execute(
                 select(Score).where(Score.score_uuid == operation_id).with_for_update()

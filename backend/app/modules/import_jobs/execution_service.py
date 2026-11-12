@@ -4,6 +4,11 @@ from celery.exceptions import SoftTimeLimitExceeded
 
 from app.core.exceptions import PipelineException
 from app.core.logger import logger
+from app.modules.import_jobs.dispatch_service import (
+    ImportExecutionLease,
+    StaleImportDispatchAttempt,
+    require_current_attempt,
+)
 from app.db.sync_session import get_worker_db
 from app.modules.import_jobs.schemas import (
     ImportJobProcessingOptions,
@@ -43,16 +48,19 @@ class ImportJobExecutionService:
     def run_pipeline(
         self,
         celery_task: CeleryTaskLike,
-        job_id: str,
+        lease: ImportExecutionLease,
         storage_keys: list[str],
         options: ImportJobProcessingOptions | None = None,
     ) -> PipelineExecutionSuccessResult:
+        job_id = lease.job_uuid
         try:
+            with get_worker_db() as db:
+                require_current_attempt(db, lease)
             image_paths = self._resolve_input_paths(storage_keys)
             with get_worker_db() as db:
-                bind_import_job_execution_manifest(db, job_id)
+                bind_import_job_execution_manifest(db, lease)
                 context = JobContext(
-                    job_id=job_id,
+                    lease=lease,
                     db=db,
                     celery_task=celery_task,
                     image_paths=image_paths,
@@ -70,12 +78,15 @@ class ImportJobExecutionService:
                 logger.bind(
                     event="import_job.pipeline_started",
                     job_id=job_id,
+                    operation_id=lease.dispatch_uuid,
                     pipeline=repr(pipeline),
                 ).info("Import job pipeline started")
                 pipeline.run(context)
                 context.status("RUNNING", "completed", 100, current_step="ocr_completed")
                 context.complete()
                 return {"success": True, "job_id": job_id}
+        except StaleImportDispatchAttempt:
+            raise
         except Exception as exc:
             code = self.get_error_code(exc)
             logger.bind(
@@ -88,11 +99,13 @@ class ImportJobExecutionService:
                 with get_worker_db() as db:
                     sync_import_job_service.finalize_failure(
                         db,
-                        job_id,
+                        lease,
                         error=code,
                         error_type=type(exc).__name__,
                         code=code,
                     )
+            except StaleImportDispatchAttempt:
+                raise
             except Exception:
                 pass
             raise

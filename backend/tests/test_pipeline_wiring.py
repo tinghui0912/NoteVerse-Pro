@@ -10,6 +10,7 @@ from unittest.mock import patch
 
 import pytest
 
+from app.modules.import_jobs.dispatch_service import ImportExecutionLease
 from app.pipeline import PipelineBuilder
 from app.pipeline.steps.input import CopyImageStep
 from app.pipeline.steps.normalize import XmlNormalizeStep
@@ -56,7 +57,7 @@ def test_job_context_complete_records_review_musicxml_without_creating_score() -
             file_handle.write("<score-partwise />")
 
         ctx = JobContext(
-            job_id="job-review-boundary",
+            lease=ImportExecutionLease("dispatch", "job-review-boundary", 1, "token"),
             db=SimpleNamespace(),
             celery_task=SimpleNamespace(
                 request=SimpleNamespace(id="job-review-boundary"),
@@ -74,7 +75,7 @@ def test_job_context_complete_records_review_musicxml_without_creating_score() -
                 ctx.complete()
 
         replace_files_mock.assert_called_once_with(
-            "job-review-boundary",
+            ctx.lease,
             ImportArtifactKind.REVIEW_MUSICXML,
             [main_xml],
         )

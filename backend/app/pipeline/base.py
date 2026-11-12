@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, List
 
 from app.core.exceptions import TimeoutException
 from app.core.logger import logger
+from app.modules.import_jobs.dispatch_service import StaleImportDispatchAttempt
 
 if TYPE_CHECKING:
     from .context import JobContext
@@ -75,6 +76,8 @@ class Pipeline:
                     step=step.name,
                     progress=step.progress_end,
                 ).info("Import pipeline step completed")
+            except StaleImportDispatchAttempt:
+                raise
             except Exception as exc:
                 logger.bind(
                     event="import_pipeline.step_failed",
@@ -96,6 +99,8 @@ class Pipeline:
         for step in reversed(executed_steps):
             try:
                 step.rollback(ctx)
+            except StaleImportDispatchAttempt:
+                raise
             except Exception as exc:
                 logger.bind(
                     event="import_pipeline.step_rollback_failed",

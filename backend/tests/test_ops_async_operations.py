@@ -13,6 +13,7 @@ from sqlmodel import SQLModel, Session, create_engine, select
 from app.core.config import settings
 from app.api.deps import get_db
 from app.db.models import (
+    ImportDispatch,
     ImportDispatchStatus,
     ImportJob,
     ImportJobState,
@@ -912,9 +913,11 @@ def test_ops_api_retry_rejects_confirmed_import_job_and_records_audit(
         job_uuid="00000000-0000-0000-0000-000000000101",
         user_id=1,
         state=ImportJobState.CONFIRMED,
-        dispatch_status=ImportDispatchStatus.COMPLETED,
     )
     ops_session.add(job)
+    ops_session.flush()
+    dispatch = ImportDispatch(job_id=job.id, status=ImportDispatchStatus.COMPLETED)
+    ops_session.add(dispatch)
     ops_session.commit()
 
     _override_ops_dependencies(ops_session, authorized=True)
@@ -946,9 +949,11 @@ def test_ops_api_retry_rejects_completed_render_outbox_and_records_audit(
         job_uuid="00000000-0000-0000-0000-000000000102",
         user_id=1,
         state=ImportJobState.PENDING_REVIEW,
-        dispatch_status=ImportDispatchStatus.COMPLETED,
     )
     ops_session.add(job)
+    ops_session.flush()
+    dispatch = ImportDispatch(job_id=job.id, status=ImportDispatchStatus.COMPLETED)
+    ops_session.add(dispatch)
     ops_session.commit()
     outbox = RenderOutbox(
         outbox_uuid="00000000-0000-0000-0000-000000000202",
@@ -1019,18 +1024,13 @@ def test_ops_api_admin_can_retry_failed_import_job(
     client: TestClient,
     ops_session: Session,
 ) -> None:
-    next_dispatch_at = utc_now_naive() + timedelta(hours=1)
+    next_attempt_at = utc_now_naive() + timedelta(hours=1)
     job = ImportJob(
         job_uuid="00000000-0000-0000-0000-000000000111",
         user_id=1,
         state=ImportJobState.FAILURE,
         progress=80,
         current_step="render",
-        dispatch_status=ImportDispatchStatus.FAILED,
-        dispatch_attempt_count=4,
-        publish_attempt_count=2,
-        next_dispatch_at=next_dispatch_at,
-        dispatch_error="redis unavailable",
         internal_error_code="import_transient_failure",
         internal_error_stage="dispatch",
         internal_error_class=AsyncOperationErrorClass.TRANSIENT.value,
@@ -1041,6 +1041,16 @@ def test_ops_api_admin_can_retry_failed_import_job(
         finished_at=utc_now_naive(),
     )
     ops_session.add(job)
+    ops_session.flush()
+    dispatch = ImportDispatch(job_id=job.id, status=ImportDispatchStatus.COMPLETED)
+    ops_session.add(dispatch)
+    ops_session.commit()
+
+    dispatch.status = ImportDispatchStatus.FAILED
+    dispatch.attempt_count = 4
+    dispatch.next_attempt_at = next_attempt_at
+    dispatch.last_error = "redis unavailable"
+    ops_session.add(dispatch)
     ops_session.commit()
 
     _override_ops_dependencies(ops_session, authorized=True)
@@ -1059,12 +1069,12 @@ def test_ops_api_admin_can_retry_failed_import_job(
     assert data["status"] == "queued"
     ops_session.refresh(job)
     assert job.state == ImportJobState.PENDING
-    assert job.dispatch_status == ImportDispatchStatus.PENDING
+    ops_session.refresh(dispatch)
+    assert dispatch.status == ImportDispatchStatus.PENDING
     assert job.progress == 0
     assert job.current_step is None
-    assert job.dispatch_attempt_count == 0
-    assert job.publish_attempt_count == 0
-    assert job.dispatch_error is None
+    assert dispatch.attempt_count == 0
+    assert dispatch.last_error is None
     assert job.internal_error_code is None
     assert job.internal_error_stage is None
     assert job.internal_error_class is None
@@ -1087,9 +1097,11 @@ def test_ops_api_admin_can_retry_failed_render_outbox(
         job_uuid="00000000-0000-0000-0000-000000000112",
         user_id=1,
         state=ImportJobState.PENDING_REVIEW,
-        dispatch_status=ImportDispatchStatus.COMPLETED,
     )
     ops_session.add(job)
+    ops_session.flush()
+    dispatch = ImportDispatch(job_id=job.id, status=ImportDispatchStatus.COMPLETED)
+    ops_session.add(dispatch)
     ops_session.commit()
     outbox = RenderOutbox(
         outbox_uuid="00000000-0000-0000-0000-000000000212",

@@ -1,5 +1,7 @@
 from sqlmodel import SQLModel, Session, create_engine, select
 
+from tests.support.import_execution import processing_lease
+
 from app.db.execution_manifests import manifest_sha256
 from app.db.models import ExecutionManifest, ImportJob, ImportJobState
 from app.modules.import_jobs import execution_manifest
@@ -38,8 +40,12 @@ def test_import_jobs_reuse_one_execution_manifest_and_preserve_first_binding(mon
         session.add_all((first_job, second_job))
         session.commit()
 
-        execution_manifest.bind_import_job_execution_manifest(session, first_job.job_uuid)
-        execution_manifest.bind_import_job_execution_manifest(session, second_job.job_uuid)
+        execution_manifest.bind_import_job_execution_manifest(
+            session, processing_lease(session, first_job)
+        )
+        execution_manifest.bind_import_job_execution_manifest(
+            session, processing_lease(session, second_job)
+        )
 
         manifests = list(session.exec(select(ExecutionManifest)))
         session.refresh(first_job)
@@ -52,7 +58,9 @@ def test_import_jobs_reuse_one_execution_manifest_and_preserve_first_binding(mon
         monkeypatch.setattr(
             execution_manifest, "build_omr_manifest", lambda: _manifest("different")
         )
-        execution_manifest.bind_import_job_execution_manifest(session, first_job.job_uuid)
+        execution_manifest.bind_import_job_execution_manifest(
+            session, processing_lease(session, first_job)
+        )
         session.refresh(first_job)
         assert first_job.execution_manifest_id == manifests[0].id
         assert len(list(session.exec(select(ExecutionManifest)))) == 1
@@ -67,7 +75,9 @@ def test_import_job_detail_exposes_manifest_digest_without_manifest_contents(mon
         job = _job("job-detail")
         session.add(job)
         session.commit()
-        execution_manifest.bind_import_job_execution_manifest(session, job.job_uuid)
+        execution_manifest.bind_import_job_execution_manifest(
+            session, processing_lease(session, job)
+        )
 
         detail = SyncImportJobService().get_detail(session, job.job_uuid)
         assert detail["execution_manifest_sha256"] == manifest_sha256(_manifest())

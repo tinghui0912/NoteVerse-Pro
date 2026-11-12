@@ -1,7 +1,7 @@
 # NoteVerseSchedulerLagHigh
 
 This alert means one async operation kind has due records whose
-`next_attempt_at` or `next_dispatch_at` has passed, but the scheduler has not
+`next_attempt_at` has passed, but the scheduler has not
 dispatched them within the expected window.
 
 ## User Impact

@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.db.models import (
     ImportDispatchStatus,
     ImportJob,
+    ImportDispatch,
     ImportJobState,
     MailOutbox,
     MailOutboxStatus,
@@ -30,20 +31,20 @@ from app.modules.ops.schemas import (
 from app.utils.timezone import utc_now_naive
 
 
-def read_import_operation(job: ImportJob) -> AsyncOperationRead:
+def read_import_operation(job: ImportJob, dispatch: ImportDispatch) -> AsyncOperationRead:
     return AsyncOperationRead(
         operation_id=job.job_uuid,
         kind=AsyncOperationKind.IMPORT,
         resource_type="import_job",
         resource_id=job.job_uuid,
-        originating_request_id=job.originating_request_id,
-        status=import_operation_status(job),
-        raw_status=f"{job.state.value}/{job.dispatch_status.value}",
-        attempts=job.dispatch_attempt_count,
+        originating_request_id=dispatch.originating_request_id,
+        status=import_operation_status(job, dispatch),
+        raw_status=f"{job.state.value}/{dispatch.status.value}",
+        attempts=dispatch.attempt_count,
         max_attempts=settings.IMPORT_DISPATCH_MAX_ATTEMPTS,
-        next_attempt_at=job.next_dispatch_at,
-        error_class=stored_error_class(job),
-        diagnostic=stored_diagnostic(job),
+        next_attempt_at=dispatch.next_attempt_at,
+        error_class=stored_error_class(job if job.state == ImportJobState.FAILURE else dispatch),
+        diagnostic=stored_diagnostic(job if job.state == ImportJobState.FAILURE else dispatch),
         created_at=job.created_at,
         updated_at=job.updated_at,
     )
@@ -192,18 +193,18 @@ def summary_result_rows(
     return [(kind, AsyncOperationStatus(str(status)), int(count)) for status, count in rows]
 
 
-def import_operation_status(job: ImportJob) -> AsyncOperationStatus:
+def import_operation_status(job: ImportJob, dispatch: ImportDispatch) -> AsyncOperationStatus:
     if job.state in {ImportJobState.PENDING_REVIEW, ImportJobState.CONFIRMED}:
         return AsyncOperationStatus.SUCCEEDED
-    if job.state == ImportJobState.RUNNING or job.dispatch_status == ImportDispatchStatus.PROCESSING:
+    if job.state == ImportJobState.RUNNING or dispatch.status == ImportDispatchStatus.PROCESSING:
         return AsyncOperationStatus.PROCESSING
-    if job.dispatch_status == ImportDispatchStatus.DISPATCHED:
+    if dispatch.status == ImportDispatchStatus.DISPATCHED:
         return AsyncOperationStatus.DISPATCHED
     if job.state == ImportJobState.FAILURE:
-        if job.dispatch_attempt_count >= settings.IMPORT_DISPATCH_MAX_ATTEMPTS:
+        if dispatch.attempt_count >= settings.IMPORT_DISPATCH_MAX_ATTEMPTS:
             return AsyncOperationStatus.EXHAUSTED
         return AsyncOperationStatus.FAILED
-    if job.dispatch_status == ImportDispatchStatus.FAILED:
+    if dispatch.status == ImportDispatchStatus.FAILED:
         return AsyncOperationStatus.RETRYING
     return AsyncOperationStatus.QUEUED
 

@@ -1,3 +1,4 @@
+from .import_dispatch import ImportDispatch, ImportDispatchStatus
 from .stored_object import StoredObject
 from .performance_take_manifest import PerformanceTakeManifest
 from .user import User
@@ -27,7 +28,6 @@ from .library import (
 from .import_job import (
     ImportArtifact,
     ImportJob,
-    ImportDispatchStatus,
     ImportJobState,
     ImportJobStep,
     ImportJobStepStatus,
@@ -118,8 +118,9 @@ __all__ = [
     "ScoreLibraryEntry",
     "ScoreLibraryFolder",
     "ImportArtifact",
-    "ImportJob",
+    "ImportDispatch",
     "ImportDispatchStatus",
+    "ImportJob",
     "ImportJobState",
     "ImportJobStep",
     "ImportJobStepStatus",
