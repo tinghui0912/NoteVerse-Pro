@@ -1137,7 +1137,6 @@ def upgrade() -> None:
         ),
         sa.Column("folder_uuid", sa.String(length=36), nullable=False),
         sa.Column("user_id", sa.BigInteger(), nullable=False),
-        sa.Column("parent_folder_id", sa.BigInteger(), nullable=True),
         sa.Column("name", sa.String(length=255), nullable=False),
         sa.Column("position", sa.Integer(), nullable=False),
         sa.Column("created_at", sa.DateTime(), nullable=False),
@@ -1149,18 +1148,11 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id", name="pk_score_library_folders"),
         sa.UniqueConstraint("folder_uuid", name="uq_score_library_folders_folder_uuid"),
-        sa.UniqueConstraint("user_id", "id", name="uq_score_library_folders_user_id_id"),
-    )
-    op.create_index(
-        "idx_score_library_folders_user_parent",
-        "score_library_folders",
-        ["user_id", "parent_folder_id"],
-        unique=False,
     )
     op.create_index(
         "uq_score_library_folders_active_name",
         "score_library_folders",
-        ["user_id", "parent_folder_id", "name"],
+        ["user_id", "name"],
         unique=True,
         postgresql_where=sa.text("deleted_at IS NULL"),
         sqlite_where=sa.text("deleted_at IS NULL"),
@@ -2610,13 +2602,6 @@ def upgrade() -> None:
         ["id"],
     )
     op.create_foreign_key(
-        "fk_score_library_folders_parent_folder_id_score_library_folders",
-        "score_library_folders",
-        "score_library_folders",
-        ["parent_folder_id"],
-        ["id"],
-    )
-    op.create_foreign_key(
         "fk_scores_head_revision",
         "scores",
         "score_revisions",
@@ -2634,11 +2619,6 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_constraint("fk_scores_head_revision", "scores", type_="foreignkey")
-    op.drop_constraint(
-        "fk_score_library_folders_parent_folder_id_score_library_folders",
-        "score_library_folders",
-        type_="foreignkey",
-    )
     op.drop_constraint(
         "fk_refresh_tokens_replaced_by_token_id_refresh_tokens",
         "refresh_tokens",
@@ -2772,7 +2752,6 @@ def downgrade() -> None:
         postgresql_where=sa.text("deleted_at IS NULL"),
         sqlite_where=sa.text("deleted_at IS NULL"),
     )
-    op.drop_index("idx_score_library_folders_user_parent", table_name="score_library_folders")
     op.drop_table("score_library_folders")
     op.drop_index("idx_refresh_tokens_user_created", table_name="refresh_tokens")
     op.drop_index("idx_refresh_tokens_revoked", table_name="refresh_tokens")

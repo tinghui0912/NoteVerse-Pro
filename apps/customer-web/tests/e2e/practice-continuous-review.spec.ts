@@ -3,7 +3,7 @@ import { ACOUSTIC_MODEL_ASSET_DESCRIPTOR } from '../../src/lib/practice/acoustic
 import { compositeVideoOutputFiles } from "./support/composite-video-output";
 import { resolvePracticeScope } from '../../src/lib/practice/planning/scope';
 import { resolvePracticeTempoPlan } from '../../src/lib/practice/planning/tempo';
-import type { LibraryFolderTreeRead, PerformanceTakeRead, PerformanceTakeUploadReservationRequest } from "../../src/generated/api/types.gen";
+import type { LibraryFolderOverviewRead, PerformanceTakeRead, PerformanceTakeUploadReservationRequest } from "../../src/generated/api/types.gen";
 import type { PracticeScoreArtifact } from '../../src/lib/practice/score/artifact';
 import { installAcousticEngineFixture, openPreparedPractice, preparePracticeSetup, configurePractice, openPracticeSetup, selectPracticeConfiguration } from './support/practice-workspace';
 import { expect, test, type Page } from '@playwright/test';
@@ -108,7 +108,7 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
   });
   // Explicit navigation away from Practice also stays inside the mock backend.
   await page.route('**/api/v1/library/folders', (route) => route.fulfill({ status: 200, contentType: 'application/json',
-    body: apiResponse({ folders: [], all_count: 0, favorite_count: 0, mastered_count: 0, recent_practice_count: 0, to_practice_count: 0 } satisfies LibraryFolderTreeRead) }));
+    body: apiResponse({ folders: [], all_count: 0, favorite_count: 0, mastered_count: 0, recent_practice_count: 0, to_practice_count: 0 } satisfies LibraryFolderOverviewRead) }));
   await page.route('**/api/v1/library/entries?**', (route) => route.fulfill({ status: 200, contentType: 'application/json',
     body: JSON.stringify({ success: true, data: [], pagination: { page: 1, page_size: 20, total: 0, total_pages: 0 } }) }));
   await installAcousticEngineFixture(page);

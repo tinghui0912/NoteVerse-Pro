@@ -537,9 +537,9 @@ export type ApiResponseLibraryEntryRead = {
 };
 
 /**
- * APIResponse[LibraryFolderRead]
+ * APIResponse[LibraryFolderOverviewRead]
  */
-export type ApiResponseLibraryFolderRead = {
+export type ApiResponseLibraryFolderOverviewRead = {
     /**
      * Code
      *
@@ -549,7 +549,7 @@ export type ApiResponseLibraryFolderRead = {
     /**
      * Response payload
      */
-    data?: LibraryFolderRead | null;
+    data?: LibraryFolderOverviewRead | null;
     /**
      * Message
      *
@@ -565,9 +565,9 @@ export type ApiResponseLibraryFolderRead = {
 };
 
 /**
- * APIResponse[LibraryFolderTreeRead]
+ * APIResponse[LibraryFolderRead]
  */
-export type ApiResponseLibraryFolderTreeRead = {
+export type ApiResponseLibraryFolderRead = {
     /**
      * Code
      *
@@ -577,7 +577,7 @@ export type ApiResponseLibraryFolderTreeRead = {
     /**
      * Response payload
      */
-    data?: LibraryFolderTreeRead | null;
+    data?: LibraryFolderRead | null;
     /**
      * Message
      *
@@ -1733,7 +1733,7 @@ export type FingeringResultRead = {
 /**
  * FolderDeleteMode
  */
-export type FolderDeleteMode = 'MOVE_CONTENTS_TO_PARENT' | 'MOVE_CONTENTS_TO_ROOT' | 'TRASH_CONTENTS';
+export type FolderDeleteMode = 'MOVE_CONTENTS_TO_ROOT' | 'TRASH_CONTENTS';
 
 /**
  * ForgotPasswordRequest
@@ -2386,54 +2386,12 @@ export type LibraryFolderCreateRequest = {
      * Name
      */
     name: string;
-    /**
-     * Parent Folder Id
-     */
-    parent_folder_id?: string | null;
 };
 
 /**
- * LibraryFolderRead
+ * LibraryFolderOverviewRead
  */
-export type LibraryFolderRead = {
-    /**
-     * Created At
-     */
-    created_at: string;
-    /**
-     * Direct Count
-     */
-    direct_count: number;
-    /**
-     * Folder Id
-     */
-    folder_id: string;
-    /**
-     * Name
-     */
-    name: string;
-    /**
-     * Parent Folder Id
-     */
-    parent_folder_id: string | null;
-    /**
-     * Position
-     */
-    position: number;
-    /**
-     * Recursive Count
-     */
-    recursive_count: number;
-    /**
-     * Updated At
-     */
-    updated_at: string;
-};
-
-/**
- * LibraryFolderTreeRead
- */
-export type LibraryFolderTreeRead = {
+export type LibraryFolderOverviewRead = {
     /**
      * All Count
      */
@@ -2461,6 +2419,36 @@ export type LibraryFolderTreeRead = {
 };
 
 /**
+ * LibraryFolderRead
+ */
+export type LibraryFolderRead = {
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Folder Id
+     */
+    folder_id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Position
+     */
+    position: number;
+    /**
+     * Score Count
+     */
+    score_count: number;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+};
+
+/**
  * LibraryFolderUpdateRequest
  */
 export type LibraryFolderUpdateRequest = {
@@ -2468,10 +2456,6 @@ export type LibraryFolderUpdateRequest = {
      * Name
      */
     name?: string | null;
-    /**
-     * Parent Folder Id
-     */
-    parent_folder_id?: string | null;
     /**
      * Position
      */
@@ -5306,7 +5290,7 @@ export type ListLibraryFoldersApiV1LibraryFoldersGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseLibraryFolderTreeRead;
+    200: ApiResponseLibraryFolderOverviewRead;
 };
 
 export type ListLibraryFoldersApiV1LibraryFoldersGetResponse = ListLibraryFoldersApiV1LibraryFoldersGetResponses[keyof ListLibraryFoldersApiV1LibraryFoldersGetResponses];

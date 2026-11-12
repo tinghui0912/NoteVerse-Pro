@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -41,18 +41,6 @@ class LibraryRepository:
                 col(ScoreLibraryFolder.deleted_at).is_(None),
             )
             .order_by(ScoreLibraryFolder.position, ScoreLibraryFolder.name)
-        )
-        return list(rows.scalars().all())
-
-    async def folder_children(
-        self, db: AsyncSession, user_id: int, parent_id: int | None
-    ) -> list[ScoreLibraryFolder]:
-        rows = await db.execute(
-            select(ScoreLibraryFolder).where(
-                ScoreLibraryFolder.user_id == user_id,
-                ScoreLibraryFolder.parent_folder_id == parent_id,
-                col(ScoreLibraryFolder.deleted_at).is_(None),
-            )
         )
         return list(rows.scalars().all())
 
@@ -208,7 +196,7 @@ class LibraryRepository:
         user_id: int,
         *,
         view: LibraryView,
-        folder_ids: set[int] | None,
+        folder_id: int | None,
         search: str | None,
         sort: LibrarySort,
         page: int,
@@ -228,8 +216,8 @@ class LibraryRepository:
             filters.append(ScoreLibraryEntry.practice_state == LibraryPracticeState.TO_PRACTICE)
         elif view == LibraryView.MASTERED:
             filters.append(ScoreLibraryEntry.practice_state == LibraryPracticeState.MASTERED)
-        if folder_ids is not None:
-            filters.append(col(ScoreLibraryEntry.folder_id).in_(folder_ids))
+        if folder_id is not None:
+            filters.append(ScoreLibraryEntry.folder_id == folder_id)
         if search:
             filters.append(score_title_col.ilike(f"%{search}%"))
 
@@ -255,7 +243,9 @@ class LibraryRepository:
         rows = await db.execute(
             select(ScoreLibraryEntry, Score, ScoreRevisionMetadata)
             .join(Score, Score.id == ScoreLibraryEntry.score_id)
-            .outerjoin(ScoreRevisionMetadata, ScoreRevisionMetadata.revision_id == Score.head_revision_id)
+            .outerjoin(
+                ScoreRevisionMetadata, ScoreRevisionMetadata.revision_id == Score.head_revision_id
+            )
             .where(*filters)
             .order_by(*order_by)
             .offset((page - 1) * page_size)
@@ -263,17 +253,14 @@ class LibraryRepository:
         )
         return list(rows.all()), total
 
-    async def entries_in_folder_ids(
-        self, db: AsyncSession, user_id: int, folder_ids: set[int]
+    async def entries_in_folder(
+        self, db: AsyncSession, user_id: int, folder_id: int
     ) -> list[ScoreLibraryEntry]:
-        if not folder_ids:
-            return []
         rows = await db.execute(
             select(ScoreLibraryEntry).where(
                 ScoreLibraryEntry.user_id == user_id,
                 col(ScoreLibraryEntry.deleted_at).is_(None),
-                col(ScoreLibraryEntry.folder_id).in_(folder_ids),
+                ScoreLibraryEntry.folder_id == folder_id,
             )
         )
         return list(rows.scalars().all())
-

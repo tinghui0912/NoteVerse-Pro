@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import type { LucideIcon } from 'lucide-react';
-import { Folder, FolderInput, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { Folder, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { SectionLoading } from '@/components/loading';
@@ -28,7 +28,6 @@ interface LibrarySidebarProps {
   quickNodes: LibraryVirtualNode[];
   practiceNodes: LibraryVirtualNode[];
   folders: LibraryFolderRead[];
-  folderDepth: (folder: LibraryFolderRead) => number;
   foldersLoading: boolean;
   foldersError: unknown;
   createFolderPending: boolean;
@@ -48,7 +47,6 @@ export function LibrarySidebar({
   quickNodes,
   practiceNodes,
   folders,
-  folderDepth,
   foldersLoading,
   foldersError,
   createFolderPending,
@@ -112,10 +110,10 @@ export function LibrarySidebar({
                 <div
                   key={folder.folder_id}
                   className={cn(
-                    'flex w-full items-center justify-between rounded-lg py-1.5 pr-1 text-left text-sm hover:bg-muted',
-                    folder.folder_id === currentFolderId && 'bg-primary/10 text-primary'
+                    'flex w-full items-center justify-between rounded-lg py-1.5 pl-3 pr-1 text-left text-sm hover:bg-muted',
+                    folder.folder_id === currentFolderId &&
+                      'bg-primary/10 text-primary',
                   )}
-                  style={{ paddingLeft: 12 + folderDepth(folder) * 16 }}
                 >
                   <button
                     className="flex min-w-0 flex-1 items-center gap-2 py-0.5 text-left"
@@ -125,7 +123,7 @@ export function LibrarySidebar({
                     <span className="truncate">{folder.name}</span>
                   </button>
                   <span className="px-2 text-xs text-muted-foreground">
-                    {folder.recursive_count}
+                    {folder.score_count}
                   </span>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -133,6 +131,7 @@ export function LibrarySidebar({
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7"
+                        aria-label={t('moreActions')}
                         onClick={(event) => event.stopPropagation()}
                       >
                         <MoreHorizontal className="h-4 w-4" />
@@ -142,10 +141,6 @@ export function LibrarySidebar({
                       <DropdownMenuItem onClick={() => onEditFolder(folder)}>
                         <Pencil className="h-4 w-4" />
                         {t('renameFolder')}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onEditFolder(folder)}>
-                        <FolderInput className="h-4 w-4" />
-                        {t('moveFolder')}
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className="text-destructive focus:text-destructive"
@@ -195,7 +190,7 @@ function SidebarNodeGroup({
                 'flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm',
                 !currentFolderId && currentView === node.view
                   ? 'bg-primary/10 text-primary'
-                  : 'hover:bg-muted'
+                  : 'hover:bg-muted',
               )}
               onClick={() => onNavigateView(node.view)}
             >
@@ -211,4 +206,3 @@ function SidebarNodeGroup({
     </div>
   );
 }
-

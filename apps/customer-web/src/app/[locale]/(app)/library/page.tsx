@@ -1,13 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import {
-  CheckCircle2,
-  Clock3,
-  Music,
-  Star,
-  Target,
-} from 'lucide-react';
+import { CheckCircle2, Clock3, Music, Star, Target } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { LibraryBulkActions } from '@/components/library/library-bulk-actions';
@@ -39,16 +33,9 @@ import {
   useUpdateLibraryFolder,
 } from '@/hooks/queries/use-library-queries';
 import {
-  folderDepth,
-  folderDescendantIds,
-  folderLevel,
-  folderSubtreeHeight,
-  MAX_LIBRARY_FOLDER_LEVEL,
+  buildLibraryHref,
   normalizeLibraryView,
   sortedLibraryFolders,
-} from '@/lib/library/folder-tree';
-import {
-  buildLibraryHref,
   normalizeLibrarySort,
   normalizePage,
   type UserSettableLibraryPracticeState,
@@ -106,26 +93,33 @@ export default function LibraryPage({
     normalizeLibrarySort(params.sort),
     page,
   ].join('\u0000');
-  const [selectionState, setSelectionState] = useState<LibrarySelectionState>(() => ({
-    scopeKey: selectionScopeKey,
-    batchMode: false,
-    selectedEntryIds: [],
-  }));
+  const [selectionState, setSelectionState] = useState<LibrarySelectionState>(
+    () => ({
+      scopeKey: selectionScopeKey,
+      batchMode: false,
+      selectedEntryIds: [],
+    }),
+  );
   const activeSelectionState =
     selectionState.scopeKey === selectionScopeKey
       ? selectionState
       : { scopeKey: selectionScopeKey, batchMode: false, selectedEntryIds: [] };
   const batchMode = activeSelectionState.batchMode;
   const selectedEntryIds = activeSelectionState.selectedEntryIds;
-  const [moveTargetFolderId, setMoveTargetFolderId] = useState<string>(ROOT_FOLDER_VALUE);
+  const [moveTargetFolderId, setMoveTargetFolderId] =
+    useState<string>(ROOT_FOLDER_VALUE);
   const [folderForm, setFolderForm] = useState<FolderFormState | null>(null);
   const [folderName, setFolderName] = useState('');
-  const [folderParentId, setFolderParentId] = useState<string>(ROOT_FOLDER_VALUE);
-  const [deleteTarget, setDeleteTarget] = useState<LibraryFolderRead | null>(null);
-  const [deleteMode, setDeleteMode] = useState<FolderDeleteMode>('MOVE_CONTENTS_TO_PARENT');
+  const [deleteTarget, setDeleteTarget] = useState<LibraryFolderRead | null>(
+    null,
+  );
+  const [deleteMode, setDeleteMode] = useState<FolderDeleteMode>(
+    'MOVE_CONTENTS_TO_ROOT',
+  );
   const [searchInput, setSearchInput] = useState(params.search ?? '');
   const [entryAction, setEntryAction] = useState<EntryActionState>(null);
-  const [practiceState, setPracticeState] = useState<UserSettableLibraryPracticeState>('TO_PRACTICE');
+  const [practiceState, setPracticeState] =
+    useState<UserSettableLibraryPracticeState>('TO_PRACTICE');
   const createFolder = useCreateLibraryFolder();
   const updateFolder = useUpdateLibraryFolder();
   const deleteFolder = useDeleteLibraryFolder();
@@ -143,20 +137,31 @@ export default function LibraryPage({
   });
   const folders = useMemo(
     () => foldersQuery.data?.data?.folders ?? [],
-    [foldersQuery.data?.data?.folders]
+    [foldersQuery.data?.data?.folders],
   );
   const entries = useMemo(
     () => entriesQuery.data?.data ?? [],
-    [entriesQuery.data?.data]
+    [entriesQuery.data?.data],
   );
   const pagination = entriesQuery.data?.pagination;
   const canGoPrevious = pagination ? pagination.page > 1 : false;
-  const canGoNext = pagination ? pagination.page < pagination.total_pages : false;
-  const selectedFolder = folders.find((folder) => folder.folder_id === folderId);
-  const selectedEntrySet = useMemo(() => new Set(selectedEntryIds), [selectedEntryIds]);
-  const visibleEntryIds = useMemo(() => entries.map((entry) => entry.entry_id), [entries]);
+  const canGoNext = pagination
+    ? pagination.page < pagination.total_pages
+    : false;
+  const selectedFolder = folders.find(
+    (folder) => folder.folder_id === folderId,
+  );
+  const selectedEntrySet = useMemo(
+    () => new Set(selectedEntryIds),
+    [selectedEntryIds],
+  );
+  const visibleEntryIds = useMemo(
+    () => entries.map((entry) => entry.entry_id),
+    [entries],
+  );
   const allVisibleSelected =
-    visibleEntryIds.length > 0 && visibleEntryIds.every((entryId) => selectedEntrySet.has(entryId));
+    visibleEntryIds.length > 0 &&
+    visibleEntryIds.every((entryId) => selectedEntrySet.has(entryId));
   const mutationError =
     createFolder.error ??
     updateFolder.error ??
@@ -164,18 +169,18 @@ export default function LibraryPage({
     moveEntries.error ??
     trashEntries.error ??
     setEntriesPracticeState.error;
-  const folderTree = foldersQuery.data?.data;
+  const folderOverview = foldersQuery.data?.data;
   const quickNodes = [
     {
       view: 'all' as const,
       label: t('allScores'),
-      count: folderTree?.all_count ?? 0,
+      count: folderOverview?.all_count ?? 0,
       icon: Music,
     },
     {
       view: 'favorites' as const,
       label: t('favorites'),
-      count: folderTree?.favorite_count ?? 0,
+      count: folderOverview?.favorite_count ?? 0,
       icon: Star,
     },
   ];
@@ -184,49 +189,35 @@ export default function LibraryPage({
     {
       view: 'recent_practice' as const,
       label: t('recentPractice'),
-      count: folderTree?.recent_practice_count ?? 0,
+      count: folderOverview?.recent_practice_count ?? 0,
       icon: Clock3,
     },
     {
       view: 'to_practice' as const,
       label: t('toPractice'),
-      count: folderTree?.to_practice_count ?? 0,
+      count: folderOverview?.to_practice_count ?? 0,
       icon: Target,
     },
     {
       view: 'mastered' as const,
       label: t('mastered'),
-      count: folderTree?.mastered_count ?? 0,
+      count: folderOverview?.mastered_count ?? 0,
       icon: CheckCircle2,
     },
   ];
 
-  const sortedFolders = useMemo(
-    () => sortedLibraryFolders(folders),
-    [folders]
-  );
-  const selectableParentFolders = useMemo(() => {
-    if (!folderForm || folderForm.mode === 'create') {
-      return sortedFolders.filter(
-        (folder) => folderLevel(folder, folders) < MAX_LIBRARY_FOLDER_LEVEL
-      );
-    }
-    const excludedIds = folderDescendantIds(folderForm.folder, folders);
-    excludedIds.add(folderForm.folder.folder_id);
-    const subtreeHeight = folderSubtreeHeight(folderForm.folder, folders);
-    return sortedFolders.filter(
-      (folder) =>
-        !excludedIds.has(folder.folder_id) &&
-        folderDepth(folder, folders) + subtreeHeight < MAX_LIBRARY_FOLDER_LEVEL
-    );
-  }, [folderForm, sortedFolders, folders]);
+  const sortedFolders = useMemo(() => sortedLibraryFolders(folders), [folders]);
 
-  const navigate = (next: { view?: LibraryView; folder?: string | null; page?: number }) => {
+  const navigate = (next: {
+    view?: LibraryView;
+    folder?: string | null;
+    page?: number;
+  }) => {
     router.push(
       buildLibraryHref(
         { view, folderId, search: params.search, sort: params.sort },
-        next
-      )
+        next,
+      ),
     );
   };
   const navigateWithFilters = (next: {
@@ -237,8 +228,8 @@ export default function LibraryPage({
     router.push(
       buildLibraryHref(
         { view, folderId, search: params.search, sort: params.sort },
-        next
-      )
+        next,
+      ),
     );
   };
   const submitSearch = (event: React.FormEvent<HTMLFormElement>) => {
@@ -248,70 +239,65 @@ export default function LibraryPage({
   const openCreateFolderDialog = () => {
     setFolderForm({ mode: 'create', folder: null });
     setFolderName('');
-    const currentFolder = folders.find((folder) => folder.folder_id === folderId);
-    setFolderParentId(
-      currentFolder && folderLevel(currentFolder, folders) < MAX_LIBRARY_FOLDER_LEVEL
-        ? currentFolder.folder_id
-        : ROOT_FOLDER_VALUE
-    );
   };
   const openEditFolderDialog = (folder: LibraryFolderRead) => {
     setFolderForm({ mode: 'edit', folder });
     setFolderName(folder.name);
-    setFolderParentId(folder.parent_folder_id ?? ROOT_FOLDER_VALUE);
   };
   const closeFolderDialog = () => {
     setFolderForm(null);
     setFolderName('');
-    setFolderParentId(ROOT_FOLDER_VALUE);
   };
   const submitFolderForm = () => {
     const name = folderName.trim();
     if (!folderForm || !name) return;
-    const parent_folder_id = folderParentId === ROOT_FOLDER_VALUE ? null : folderParentId;
     if (folderForm.mode === 'create') {
-      createFolder.mutate(
-        { name, parent_folder_id },
-        { onSuccess: closeFolderDialog }
-      );
+      createFolder.mutate({ name }, { onSuccess: closeFolderDialog });
       return;
     }
     updateFolder.mutate(
       {
         folderId: folderForm.folder.folder_id,
         name,
-        parent_folder_id,
       },
-      { onSuccess: closeFolderDialog }
+      { onSuccess: closeFolderDialog },
     );
   };
   const confirmDeleteFolder = () => {
     if (!deleteTarget) return;
-    const deletedIds = folderDescendantIds(deleteTarget, folders);
-    deletedIds.add(deleteTarget.folder_id);
     deleteFolder.mutate(
       { folderId: deleteTarget.folder_id, mode: deleteMode },
       {
         onSuccess: () => {
-          if (folderId && deletedIds.has(folderId)) navigate({ view: 'all', folder: null });
+          if (folderId === deleteTarget.folder_id)
+            navigate({ view: 'all', folder: null });
           setDeleteTarget(null);
         },
-      }
+      },
     );
   };
-  const updateSelectionState = (updater: (current: LibrarySelectionState) => LibrarySelectionState) => {
+  const updateSelectionState = (
+    updater: (current: LibrarySelectionState) => LibrarySelectionState,
+  ) => {
     setSelectionState((current) =>
       updater(
         current.scopeKey === selectionScopeKey
           ? current
-          : { scopeKey: selectionScopeKey, batchMode: false, selectedEntryIds: [] }
-      )
+          : {
+              scopeKey: selectionScopeKey,
+              batchMode: false,
+              selectedEntryIds: [],
+            },
+      ),
     );
   };
-  const setSelectedEntryIds = (next: string[] | ((current: string[]) => string[])) => {
+  const setSelectedEntryIds = (
+    next: string[] | ((current: string[]) => string[]),
+  ) => {
     updateSelectionState((current) => ({
       ...current,
-      selectedEntryIds: typeof next === 'function' ? next(current.selectedEntryIds) : next,
+      selectedEntryIds:
+        typeof next === 'function' ? next(current.selectedEntryIds) : next,
     }));
   };
   const setBatchMode = (next: boolean | ((current: boolean) => boolean)) => {
@@ -322,7 +308,7 @@ export default function LibraryPage({
   };
   const toggleEntrySelection = (entryId: string, checked: boolean) => {
     setSelectedEntryIds((current) =>
-      checked ? [...current, entryId] : current.filter((id) => id !== entryId)
+      checked ? [...current, entryId] : current.filter((id) => id !== entryId),
     );
   };
   const toggleVisibleEntries = (checked: boolean) => {
@@ -330,10 +316,14 @@ export default function LibraryPage({
   };
   const clearSelection = () => setSelectedEntryIds([]);
   const closeEntryAction = () => setEntryAction(null);
-  const entryActionIds = entryAction?.entry ? [entryAction.entry.entry_id] : selectedEntryIds;
+  const entryActionIds = entryAction?.entry
+    ? [entryAction.entry.entry_id]
+    : selectedEntryIds;
   const entryActionCount = entryActionIds.length;
   const openPracticeStateAction = (entry: LibraryEntryRead | null) => {
-    setPracticeState(entry?.practice_state === 'MASTERED' ? 'MASTERED' : 'TO_PRACTICE');
+    setPracticeState(
+      entry?.practice_state === 'MASTERED' ? 'MASTERED' : 'TO_PRACTICE',
+    );
     setEntryAction({ type: 'practice', entry });
   };
   const openMoveAction = (entry: LibraryEntryRead | null) => {
@@ -352,30 +342,36 @@ export default function LibraryPage({
     moveEntries.mutate(
       {
         entry_ids: entryActionIds,
-        target_folder_id: moveTargetFolderId === ROOT_FOLDER_VALUE ? null : moveTargetFolderId,
+        target_folder_id:
+          moveTargetFolderId === ROOT_FOLDER_VALUE ? null : moveTargetFolderId,
       },
-      { onSuccess: onEntryActionSuccess }
+      { onSuccess: onEntryActionSuccess },
     );
   };
   const setPracticeStateForActionEntries = () => {
     if (!entryActionIds.length) return;
     setEntriesPracticeState.mutate(
       { entry_ids: entryActionIds, practice_state: practiceState },
-      { onSuccess: onEntryActionSuccess }
+      { onSuccess: onEntryActionSuccess },
     );
   };
   const trashActionEntries = () => {
     if (!entryActionIds.length) return;
-    trashEntries.mutate({ entry_ids: entryActionIds }, { onSuccess: onEntryActionSuccess });
+    trashEntries.mutate(
+      { entry_ids: entryActionIds },
+      { onSuccess: onEntryActionSuccess },
+    );
   };
-  const viewTitle = selectedFolder?.name ?? {
-    all: t('allScores'),
-    favorites: t('favorites'),
-    recent_practice: t('recentPractice'),
-    to_practice: t('toPractice'),
-    mastered: t('mastered'),
-    trash: t('trash'),
-  }[view];
+  const viewTitle =
+    selectedFolder?.name ??
+    {
+      all: t('allScores'),
+      favorites: t('favorites'),
+      recent_practice: t('recentPractice'),
+      to_practice: t('toPractice'),
+      mastered: t('mastered'),
+      trash: t('trash'),
+    }[view];
   const practiceStateLabel = (practiceState: LibraryPracticeState) =>
     ({
       TO_PRACTICE: t('practiceStateToPractice'),
@@ -384,7 +380,7 @@ export default function LibraryPage({
     })[practiceState];
   const formatUserFacingError = (
     error: unknown,
-    fallback = t('loadFailedDescription')
+    fallback = t('loadFailedDescription'),
   ) => userFacingErrorMessage(errors, error, fallback);
   const retryEntries = () => {
     void entriesQuery.refetch();
@@ -406,171 +402,177 @@ export default function LibraryPage({
       <PageHeader
         title={t('title')}
         description={t('subtitle')}
-        actions={<Button onClick={() => router.push('/upload')}>{t('uploadScore')}</Button>}
+        actions={
+          <Button onClick={() => router.push('/upload')}>
+            {t('uploadScore')}
+          </Button>
+        }
       />
       <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-          <LibrarySidebar
-            currentView={view}
-            currentFolderId={folderId}
-            quickNodes={quickNodes}
-            practiceNodes={practiceNodes}
-            folders={sortedFolders}
-            folderDepth={(folder) => folderDepth(folder, folders)}
-            foldersLoading={foldersQuery.isLoading}
-            foldersError={foldersQuery.isError ? foldersQuery.error : null}
-            createFolderPending={createFolder.isPending}
-            onCreateFolder={openCreateFolderDialog}
-            onRetryFolders={() => void foldersQuery.refetch()}
-            onNavigateView={(nextView) => navigate({ view: nextView, folder: null })}
-            onNavigateFolder={(nextFolderId) => navigate({ folder: nextFolderId })}
-            onEditFolder={openEditFolderDialog}
-            onDeleteFolder={setDeleteTarget}
-            errorMessage={(error) => formatUserFacingError(error)}
-            t={t}
-          />
-          <section>
-            <div className="mb-5 flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-2xl font-bold">
-                  {viewTitle}
-                </h2>
-                {pagination ? (
-                  <p className="text-sm text-muted-foreground">
-                    {t('totalScores', { count: pagination.total })}
-                  </p>
-                ) : null}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {entries.length ? (
-                  <Button
-                    variant={batchMode ? 'secondary' : 'outline'}
-                    onClick={() => {
-                      setBatchMode((current) => !current);
-                      setSelectedEntryIds([]);
-                    }}
-                  >
-                    {batchMode ? t('cancelBatchEdit') : t('batchEdit')}
-                  </Button>
-                ) : null}
-              </div>
+        <LibrarySidebar
+          currentView={view}
+          currentFolderId={folderId}
+          quickNodes={quickNodes}
+          practiceNodes={practiceNodes}
+          folders={sortedFolders}
+          foldersLoading={foldersQuery.isLoading}
+          foldersError={foldersQuery.isError ? foldersQuery.error : null}
+          createFolderPending={createFolder.isPending}
+          onCreateFolder={openCreateFolderDialog}
+          onRetryFolders={() => void foldersQuery.refetch()}
+          onNavigateView={(nextView) =>
+            navigate({ view: nextView, folder: null })
+          }
+          onNavigateFolder={(nextFolderId) =>
+            navigate({ folder: nextFolderId })
+          }
+          onEditFolder={openEditFolderDialog}
+          onDeleteFolder={setDeleteTarget}
+          errorMessage={(error) => formatUserFacingError(error)}
+          t={t}
+        />
+        <section>
+          <div className="mb-5 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-2xl font-bold">{viewTitle}</h2>
+              {pagination ? (
+                <p className="text-sm text-muted-foreground">
+                  {t('totalScores', { count: pagination.total })}
+                </p>
+              ) : null}
             </div>
-            {!batchMode ? (
+            <div className="flex flex-wrap gap-2">
+              {entries.length ? (
+                <Button
+                  variant={batchMode ? 'secondary' : 'outline'}
+                  onClick={() => {
+                    setBatchMode((current) => !current);
+                    setSelectedEntryIds([]);
+                  }}
+                >
+                  {batchMode ? t('cancelBatchEdit') : t('batchEdit')}
+                </Button>
+              ) : null}
+            </div>
+          </div>
+          {!batchMode ? (
             <LibraryFilterBar
               searchInput={searchInput}
               sort={normalizeLibrarySort(params.sort)}
               hasSearch={Boolean(params.search)}
               onSearchInputChange={setSearchInput}
               onSubmit={submitSearch}
-              onSortChange={(value) => navigateWithFilters({ sort: value, page: 1 })}
+              onSortChange={(value) =>
+                navigateWithFilters({ sort: value, page: 1 })
+              }
               onClearSearch={() => {
                 setSearchInput('');
                 navigateWithFilters({ search: null, page: 1 });
               }}
               t={t}
             />
-            ) : null}
-            {mutationError ? (
-              <SectionErrorState
-                title={t('operationFailed')}
-                description={formatUserFacingError(mutationError, t('operationFailedDescription'))}
-                className="mb-5"
-              />
-            ) : null}
-            {batchMode && entries.length ? (
-              <LibraryBulkActions
-                selectedCount={selectedEntryIds.length}
-                allSelected={allVisibleSelected}
-                pending={
-                  moveEntries.isPending ||
-                  trashEntries.isPending ||
-                  setEntriesPracticeState.isPending
-                }
-                onToggleSelectAll={toggleVisibleEntries}
-                onOpenPracticeStateDialog={() => openPracticeStateAction(null)}
-                onOpenMoveDialog={() => openMoveAction(null)}
-                onOpenDeleteDialog={() => openDeleteAction(null)}
-                t={t}
-              />
-            ) : null}
-            {entriesQuery.isLoading ? (
-              <SectionLoading label={t('loadingEntries')} className="py-20" />
-            ) : entriesQuery.isError ? (
-              <SectionErrorState
-                title={t('entriesLoadFailed')}
-                description={formatUserFacingError(entriesQuery.error)}
-                retryLabel={t('retry')}
-                onRetry={retryEntries}
-              />
-            ) : entries.length ? (
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {entries.map((entry) => (
-                  <LibraryEntryCard
-                    key={entry.entry_id}
-                    entry={entry}
-                    batchMode={batchMode}
-                    selected={selectedEntrySet.has(entry.entry_id)}
-                    updatePending={setEntriesPracticeState.isPending}
-                    movePending={moveEntries.isPending}
-                    practiceStateLabel={practiceStateLabel}
-                    onOpen={() =>
-                      router.push(
-                        `/score/${entry.score_id}?from=${
-                          'my-scores'
-                        }`
-                      )
-                    }
-                    onToggleSelection={(checked) =>
-                      toggleEntrySelection(entry.entry_id, checked)
-                    }
-                    onOpenPracticeStateDialog={() => openPracticeStateAction(entry)}
-                    onOpenMoveDialog={() => openMoveAction(entry)}
-                    onOpenDeleteDialog={() => openDeleteAction(entry)}
-                    t={t}
-                  />
-                ))}
-              </div>
-            ) : (
-              <Card className="rounded-2xl">
-                <CardContent>
-                  <EmptyState
-                    icon={Music}
-                    title={emptyMessage}
-                    className="py-20"
-                    action={
-                      !folderId && view === 'all' && !params.search ? (
-                        <Button onClick={() => router.push('/upload')}>
-                          {t('uploadScore')}
-                        </Button>
-                      ) : null
-                    }
-                  />
-                </CardContent>
-              </Card>
-            )}
-            {pagination && pagination.total_pages > 1 ? (
-              <PaginationControls
-                page={pagination.page}
-                totalPages={pagination.total_pages}
-                canGoPrevious={canGoPrevious}
-                canGoNext={canGoNext}
-                onPageChange={(nextPage) => navigateWithFilters({ page: nextPage })}
-                t={t}
-              />
-            ) : null}
-          </section>
+          ) : null}
+          {mutationError ? (
+            <SectionErrorState
+              title={t('operationFailed')}
+              description={formatUserFacingError(
+                mutationError,
+                t('operationFailedDescription'),
+              )}
+              className="mb-5"
+            />
+          ) : null}
+          {batchMode && entries.length ? (
+            <LibraryBulkActions
+              selectedCount={selectedEntryIds.length}
+              allSelected={allVisibleSelected}
+              pending={
+                moveEntries.isPending ||
+                trashEntries.isPending ||
+                setEntriesPracticeState.isPending
+              }
+              onToggleSelectAll={toggleVisibleEntries}
+              onOpenPracticeStateDialog={() => openPracticeStateAction(null)}
+              onOpenMoveDialog={() => openMoveAction(null)}
+              onOpenDeleteDialog={() => openDeleteAction(null)}
+              t={t}
+            />
+          ) : null}
+          {entriesQuery.isLoading ? (
+            <SectionLoading label={t('loadingEntries')} className="py-20" />
+          ) : entriesQuery.isError ? (
+            <SectionErrorState
+              title={t('entriesLoadFailed')}
+              description={formatUserFacingError(entriesQuery.error)}
+              retryLabel={t('retry')}
+              onRetry={retryEntries}
+            />
+          ) : entries.length ? (
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {entries.map((entry) => (
+                <LibraryEntryCard
+                  key={entry.entry_id}
+                  entry={entry}
+                  batchMode={batchMode}
+                  selected={selectedEntrySet.has(entry.entry_id)}
+                  updatePending={setEntriesPracticeState.isPending}
+                  movePending={moveEntries.isPending}
+                  practiceStateLabel={practiceStateLabel}
+                  onOpen={() =>
+                    router.push(`/score/${entry.score_id}?from=${'my-scores'}`)
+                  }
+                  onToggleSelection={(checked) =>
+                    toggleEntrySelection(entry.entry_id, checked)
+                  }
+                  onOpenPracticeStateDialog={() =>
+                    openPracticeStateAction(entry)
+                  }
+                  onOpenMoveDialog={() => openMoveAction(entry)}
+                  onOpenDeleteDialog={() => openDeleteAction(entry)}
+                  t={t}
+                />
+              ))}
+            </div>
+          ) : (
+            <Card className="rounded-2xl">
+              <CardContent>
+                <EmptyState
+                  icon={Music}
+                  title={emptyMessage}
+                  className="py-20"
+                  action={
+                    !folderId && view === 'all' && !params.search ? (
+                      <Button onClick={() => router.push('/upload')}>
+                        {t('uploadScore')}
+                      </Button>
+                    ) : null
+                  }
+                />
+              </CardContent>
+            </Card>
+          )}
+          {pagination && pagination.total_pages > 1 ? (
+            <PaginationControls
+              page={pagination.page}
+              totalPages={pagination.total_pages}
+              canGoPrevious={canGoPrevious}
+              canGoNext={canGoNext}
+              onPageChange={(nextPage) =>
+                navigateWithFilters({ page: nextPage })
+              }
+              t={t}
+            />
+          ) : null}
+        </section>
       </div>
       <LibraryFolderDialog
         open={folderForm !== null}
         mode={folderForm?.mode ?? 'create'}
         folderName={folderName}
-        folderParentId={folderParentId}
-        rootFolderValue={ROOT_FOLDER_VALUE}
-        parentFolders={selectableParentFolders}
         createPending={createFolder.isPending}
         updatePending={updateFolder.isPending}
         onOpenChange={(open) => !open && closeFolderDialog()}
         onFolderNameChange={setFolderName}
-        onFolderParentChange={setFolderParentId}
         onSubmit={submitFolderForm}
         onCancel={closeFolderDialog}
         t={t}
@@ -625,5 +627,3 @@ export default function LibraryPage({
     </div>
   );
 }
-
-

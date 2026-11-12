@@ -1,4 +1,4 @@
-﻿from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
@@ -17,7 +17,7 @@ from app.modules.library.schemas import (
     LibraryEntryRead,
     LibraryFolderRead,
     LibraryFolderDeleteRequest,
-    LibraryFolderTreeRead,
+    LibraryFolderOverviewRead,
     LibraryFolderUpdateRequest,
     LibraryOwnedScoreBatchRequest,
     LibraryOwnedScoreBatchRead,
@@ -26,19 +26,24 @@ from app.modules.library.schemas import (
 )
 from app.modules.library.service import LibraryService
 from app.shared.constants import SuccessCode
-from app.shared.responses import APIResponse, PaginatedResponse, paginated_response, success_response
+from app.shared.responses import (
+    APIResponse,
+    PaginatedResponse,
+    paginated_response,
+    success_response,
+)
 
 router = APIRouter()
 
 
-@router.get("/folders", response_model=APIResponse[LibraryFolderTreeRead])
+@router.get("/folders", response_model=APIResponse[LibraryFolderOverviewRead])
 async def list_library_folders(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     service: LibraryService = Depends(get_library_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    result = await service.folder_tree(db, user_id)
+    result = await service.folder_overview(db, user_id)
     return success_response(data=result)
 
 
@@ -70,7 +75,7 @@ async def update_library_folder(
 @router.delete("/folders/{folder_id}", response_model=APIResponse[None])
 async def delete_library_folder(
     folder_id: str,
-    mode: FolderDeleteMode = Query(FolderDeleteMode.MOVE_CONTENTS_TO_PARENT),
+    mode: FolderDeleteMode = Query(FolderDeleteMode.MOVE_CONTENTS_TO_ROOT),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     service: LibraryService = Depends(get_library_service),
@@ -115,7 +120,9 @@ async def batch_move_library_entries(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     moved = await service.batch_move(db, user_id, request)
-    return success_response(data=LibraryBatchMoveRead(moved=moved), message=SuccessCode.UPDATE_SUCCESS)
+    return success_response(
+        data=LibraryBatchMoveRead(moved=moved), message=SuccessCode.UPDATE_SUCCESS
+    )
 
 
 @router.post("/entries/batch-favorite", response_model=APIResponse[LibraryBatchUpdateRead])
@@ -127,7 +134,9 @@ async def batch_favorite_library_entries(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     updated = await service.batch_set_favorite(db, user_id, request)
-    return success_response(data=LibraryBatchUpdateRead(updated=updated), message=SuccessCode.UPDATE_SUCCESS)
+    return success_response(
+        data=LibraryBatchUpdateRead(updated=updated), message=SuccessCode.UPDATE_SUCCESS
+    )
 
 
 @router.post("/entries/batch-trash", response_model=APIResponse[LibraryBatchUpdateRead])
@@ -139,7 +148,9 @@ async def batch_trash_library_entries(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     updated = await service.batch_trash(db, user_id, request)
-    return success_response(data=LibraryBatchUpdateRead(updated=updated), message=SuccessCode.UPDATE_SUCCESS)
+    return success_response(
+        data=LibraryBatchUpdateRead(updated=updated), message=SuccessCode.UPDATE_SUCCESS
+    )
 
 
 @router.post("/entries/batch-add-owned", response_model=APIResponse[LibraryOwnedScoreBatchRead])
@@ -165,7 +176,9 @@ async def batch_practice_state_library_entries(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     updated = await service.batch_set_practice_state(db, user_id, request)
-    return success_response(data=LibraryBatchUpdateRead(updated=updated), message=SuccessCode.UPDATE_SUCCESS)
+    return success_response(
+        data=LibraryBatchUpdateRead(updated=updated), message=SuccessCode.UPDATE_SUCCESS
+    )
 
 
 @router.patch("/entries/{entry_id}", response_model=APIResponse[LibraryEntryRead])
@@ -179,4 +192,3 @@ async def update_library_entry(
     user_id = require_persisted_id(current_user.id, entity="user")
     result = await service.update_entry(db, user_id, entry_id, request)
     return success_response(data=result, message=SuccessCode.UPDATE_SUCCESS)
-

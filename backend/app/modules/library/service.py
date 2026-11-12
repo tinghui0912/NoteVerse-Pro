@@ -8,7 +8,6 @@ from app.core.exceptions import (
     ResourceAlreadyExistsException,
     ResourceNotFoundException,
     UnauthorizedException,
-    ValidationException,
 )
 from app.db.model_utils import require_persisted_id
 from app.db.models import (
@@ -21,13 +20,6 @@ from app.db.models import (
     ScoreRevision,
     ScoreRevisionMetadata,
 )
-from app.modules.library.folder_tree import (
-    LibraryFolderCounts,
-    build_folder_tree_read,
-    descendant_folder_ids,
-    folder_level,
-    subtree_height,
-)
 from app.modules.library.repository import LibraryRepository
 from app.modules.library.schemas import (
     FolderDeleteMode,
@@ -39,7 +31,7 @@ from app.modules.library.schemas import (
     LibraryFolderCreateRequest,
     LibraryFolderDeleteRequest,
     LibraryFolderRead,
-    LibraryFolderTreeRead,
+    LibraryFolderOverviewRead,
     LibraryFolderUpdateRequest,
     LibraryOwnedScoreBatchRequest,
     LibrarySort,
@@ -52,13 +44,10 @@ from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.score_assets.schemas import ScoreDerivedAssetRead, ScoreDerivedAssetsRead
 from app.modules.scores.repository import ScoreRepository
 from app.modules.scores.schemas import ScoreTaxonomyTagRead
-from app.shared.constants import ErrorCode
 from app.utils.timezone import utc_now_naive
 
 
 class LibraryService:
-    MAX_FOLDER_LEVEL = 2
-
     def __init__(
         self,
         repository: LibraryRepository | None = None,
@@ -103,7 +92,7 @@ class LibraryService:
         db.add(entry)
         return entry
 
-    async def folder_tree(self, db: AsyncSession, user_id: int) -> LibraryFolderTreeRead:
+    async def folder_overview(self, db: AsyncSession, user_id: int) -> LibraryFolderOverviewRead:
         folders = await self.repository.folders(db, user_id)
         (
             all_count,
@@ -111,32 +100,35 @@ class LibraryService:
             recent_practice_count,
             to_practice_count,
             mastered_count,
-            direct_counts,
+            score_counts,
         ) = await self.repository.counts(db, user_id)
-        return build_folder_tree_read(
-            folders,
-            LibraryFolderCounts(
-                all_count=all_count,
-                favorite_count=favorite_count,
-                recent_practice_count=recent_practice_count,
-                to_practice_count=to_practice_count,
-                mastered_count=mastered_count,
-                direct_counts=direct_counts,
-            ),
+        return LibraryFolderOverviewRead(
+            all_count=all_count,
+            favorite_count=favorite_count,
+            recent_practice_count=recent_practice_count,
+            to_practice_count=to_practice_count,
+            mastered_count=mastered_count,
+            folders=[
+                LibraryFolderRead(
+                    folder_id=folder.folder_uuid,
+                    name=folder.name,
+                    position=folder.position,
+                    score_count=score_counts.get(
+                        require_persisted_id(folder.id, entity="library folder"), 0
+                    ),
+                    created_at=folder.created_at,
+                    updated_at=folder.updated_at,
+                )
+                for folder in folders
+            ],
         )
 
     async def create_folder(
         self, db: AsyncSession, user_id: int, request: LibraryFolderCreateRequest
     ) -> LibraryFolderRead:
-        parent = await self._optional_folder(db, user_id, request.parent_folder_id)
-        folders = await self.repository.folders(db, user_id)
-        parent_id = require_persisted_id(parent.id, entity="library folder") if parent else None
-        if folder_level(folders, parent_id) + 1 > self.MAX_FOLDER_LEVEL:
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="parent_folder_id")
         now = utc_now_naive()
         folder = ScoreLibraryFolder(
             user_id=user_id,
-            parent_folder_id=parent_id,
             name=request.name,
             created_at=now,
             updated_at=now,
@@ -159,23 +151,10 @@ class LibraryService:
         folder = await self.repository.folder_by_uuid(db, user_id, folder_uuid, lock=True)
         if not folder:
             raise ResourceNotFoundException("library_folder", folder_uuid)
-        folders = await self.repository.folders(db, user_id)
-        folder_id = require_persisted_id(folder.id, entity="library folder")
         if request.name is not None:
             folder.name = request.name
         if request.position is not None:
             folder.position = request.position
-        if "parent_folder_id" in request.model_fields_set:
-            parent = await self._optional_folder(db, user_id, request.parent_folder_id)
-            parent_id = require_persisted_id(parent.id, entity="library folder") if parent else None
-            if parent_id == folder_id or parent_id in descendant_folder_ids(folders, folder_id):
-                raise ValidationException(ErrorCode.VALIDATION_ERROR, field="parent_folder_id")
-            if (
-                folder_level(folders, parent_id) + subtree_height(folders, folder_id)
-                > self.MAX_FOLDER_LEVEL
-            ):
-                raise ValidationException(ErrorCode.VALIDATION_ERROR, field="parent_folder_id")
-            folder.parent_folder_id = parent_id
         folder.updated_at = utc_now_naive()
         try:
             await db.commit()
@@ -195,23 +174,14 @@ class LibraryService:
         if not folder:
             raise ResourceNotFoundException("library_folder", folder_uuid)
         folder_id = require_persisted_id(folder.id, entity="library folder")
-        folders = await self.repository.folders(db, user_id)
-        descendant_ids = descendant_folder_ids(folders, folder_id)
-        affected_folder_ids = {folder_id, *descendant_ids}
-        target_parent_id = None
-        if request.mode == FolderDeleteMode.MOVE_CONTENTS_TO_PARENT:
-            target_parent_id = folder.parent_folder_id
         now = utc_now_naive()
-        for child in folders:
-            child_id = require_persisted_id(child.id, entity="library folder")
-            if child_id in descendant_ids or child_id == folder_id:
-                child.deleted_at = now
-                child.updated_at = now
-        for entry in await self.repository.entries_in_folder_ids(db, user_id, affected_folder_ids):
+        folder.deleted_at = now
+        folder.updated_at = now
+        for entry in await self.repository.entries_in_folder(db, user_id, folder_id):
             if request.mode == FolderDeleteMode.TRASH_CONTENTS:
                 entry.deleted_at = now
             else:
-                entry.folder_id = target_parent_id
+                entry.folder_id = None
             entry.updated_at = now
         await db.commit()
 
@@ -228,19 +198,14 @@ class LibraryService:
         page_size: int,
     ) -> tuple[list[LibraryEntryRead], int]:
         folder = await self._optional_folder(db, user_id, folder_id)
-        folder_ids = None
-        if folder:
-            folders = await self.repository.folders(db, user_id)
-            selected_folder_id = require_persisted_id(folder.id, entity="library folder")
-            folder_ids = {
-                selected_folder_id,
-                *descendant_folder_ids(folders, selected_folder_id),
-            }
+        selected_folder_id = (
+            require_persisted_id(folder.id, entity="library folder") if folder else None
+        )
         rows, total = await self.repository.list_entries(
             db,
             user_id,
             view=view,
-            folder_ids=folder_ids,
+            folder_id=selected_folder_id,
             search=search,
             sort=sort,
             page=page,
@@ -459,8 +424,8 @@ class LibraryService:
     async def _folder_read(
         self, db: AsyncSession, user_id: int, folder_uuid: str
     ) -> LibraryFolderRead:
-        tree = await self.folder_tree(db, user_id)
-        for folder in tree.folders:
+        overview = await self.folder_overview(db, user_id)
+        for folder in overview.folders:
             if folder.folder_id == folder_uuid:
                 return folder
         raise ResourceNotFoundException("library_folder", folder_uuid)

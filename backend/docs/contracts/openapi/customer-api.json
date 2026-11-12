@@ -1122,6 +1122,65 @@
         "title": "APIResponse[LibraryEntryRead]",
         "type": "object"
       },
+      "APIResponse_LibraryFolderOverviewRead_": {
+        "examples": [
+          {
+            "data": {
+              "id": 1,
+              "name": "Example task"
+            },
+            "message": "Operation succeeded",
+            "success": true
+          }
+        ],
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Business code",
+            "title": "Code"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LibraryFolderOverviewRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Response payload"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable message",
+            "title": "Message"
+          },
+          "success": {
+            "description": "Whether the request succeeded",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "title": "APIResponse[LibraryFolderOverviewRead]",
+        "type": "object"
+      },
       "APIResponse_LibraryFolderRead_": {
         "examples": [
           {
@@ -1179,65 +1238,6 @@
           "success"
         ],
         "title": "APIResponse[LibraryFolderRead]",
-        "type": "object"
-      },
-      "APIResponse_LibraryFolderTreeRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/LibraryFolderTreeRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[LibraryFolderTreeRead]",
         "type": "object"
       },
       "APIResponse_LibraryOwnedScoreBatchRead_": {
@@ -3503,7 +3503,6 @@
       },
       "FolderDeleteMode": {
         "enum": [
-          "MOVE_CONTENTS_TO_PARENT",
           "MOVE_CONTENTS_TO_ROOT",
           "TRASH_CONTENTS"
         ],
@@ -4832,23 +4831,13 @@
         "type": "object"
       },
       "LibraryFolderCreateRequest": {
+        "additionalProperties": false,
         "properties": {
           "name": {
             "maxLength": 255,
             "minLength": 1,
             "title": "Name",
             "type": "string"
-          },
-          "parent_folder_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Parent Folder Id"
           }
         },
         "required": [
@@ -4857,64 +4846,7 @@
         "title": "LibraryFolderCreateRequest",
         "type": "object"
       },
-      "LibraryFolderRead": {
-        "properties": {
-          "created_at": {
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "direct_count": {
-            "title": "Direct Count",
-            "type": "integer"
-          },
-          "folder_id": {
-            "title": "Folder Id",
-            "type": "string"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "parent_folder_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Parent Folder Id"
-          },
-          "position": {
-            "title": "Position",
-            "type": "integer"
-          },
-          "recursive_count": {
-            "title": "Recursive Count",
-            "type": "integer"
-          },
-          "updated_at": {
-            "format": "date-time",
-            "title": "Updated At",
-            "type": "string"
-          }
-        },
-        "required": [
-          "folder_id",
-          "parent_folder_id",
-          "name",
-          "position",
-          "direct_count",
-          "recursive_count",
-          "created_at",
-          "updated_at"
-        ],
-        "title": "LibraryFolderRead",
-        "type": "object"
-      },
-      "LibraryFolderTreeRead": {
+      "LibraryFolderOverviewRead": {
         "properties": {
           "all_count": {
             "title": "All Count",
@@ -4952,10 +4884,51 @@
           "mastered_count",
           "folders"
         ],
-        "title": "LibraryFolderTreeRead",
+        "title": "LibraryFolderOverviewRead",
+        "type": "object"
+      },
+      "LibraryFolderRead": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "folder_id": {
+            "title": "Folder Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          },
+          "score_count": {
+            "title": "Score Count",
+            "type": "integer"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "folder_id",
+          "name",
+          "position",
+          "score_count",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "LibraryFolderRead",
         "type": "object"
       },
       "LibraryFolderUpdateRequest": {
+        "additionalProperties": false,
         "properties": {
           "name": {
             "anyOf": [
@@ -4969,17 +4942,6 @@
               }
             ],
             "title": "Name"
-          },
-          "parent_folder_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Parent Folder Id"
           },
           "position": {
             "anyOf": [
@@ -10227,7 +10189,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_LibraryFolderTreeRead_"
+                  "$ref": "#/components/schemas/APIResponse_LibraryFolderOverviewRead_"
                 }
               }
             },
@@ -10326,7 +10288,7 @@
             "required": false,
             "schema": {
               "$ref": "#/components/schemas/FolderDeleteMode",
-              "default": "MOVE_CONTENTS_TO_PARENT"
+              "default": "MOVE_CONTENTS_TO_ROOT"
             }
           },
           {

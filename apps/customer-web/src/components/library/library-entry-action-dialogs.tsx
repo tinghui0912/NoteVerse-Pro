@@ -62,7 +62,7 @@ const practiceStateOptions: UserSettableLibraryPracticeState[] = [
 
 function practiceStateLabel(
   value: LibraryPracticeState,
-  t: (key: string, values?: Record<string, string | number>) => string
+  t: (key: string, values?: Record<string, string | number>) => string,
 ) {
   return {
     TO_PRACTICE: t('practiceStateToPractice'),
@@ -86,12 +86,16 @@ export function LibraryPracticeStateDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t('markAsTitle')}</DialogTitle>
-          <DialogDescription>{t('markAsDescription', { count })}</DialogDescription>
+          <DialogDescription>
+            {t('markAsDescription', { count })}
+          </DialogDescription>
         </DialogHeader>
         <RadioGroup
           className="grid gap-3"
           value={value}
-          onValueChange={(next) => onValueChange(next as UserSettableLibraryPracticeState)}
+          onValueChange={(next) =>
+            onValueChange(next as UserSettableLibraryPracticeState)
+          }
         >
           {practiceStateOptions.map((option) => (
             <Label
@@ -99,8 +103,13 @@ export function LibraryPracticeStateDialog({
               className="flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3"
               htmlFor={`library-practice-${option}`}
             >
-              <RadioGroupItem id={`library-practice-${option}`} value={option} />
-              <span className="font-medium">{practiceStateLabel(option, t)}</span>
+              <RadioGroupItem
+                id={`library-practice-${option}`}
+                value={option}
+              />
+              <span className="font-medium">
+                {practiceStateLabel(option, t)}
+              </span>
             </Label>
           ))}
         </RadioGroup>
@@ -134,7 +143,9 @@ export function LibraryMoveEntriesDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{t('moveToTitle')}</DialogTitle>
-          <DialogDescription>{t('moveToDescription', { count })}</DialogDescription>
+          <DialogDescription>
+            {t('moveToDescription', { count })}
+          </DialogDescription>
         </DialogHeader>
         <RadioGroup
           className="max-h-[360px] overflow-y-auto rounded-2xl border p-2"
@@ -159,7 +170,9 @@ export function LibraryMoveEntriesDialog({
                 value={folder.folder_id}
               />
               <span className="flex-1 font-medium">{folder.name}</span>
-              <span className="text-sm text-muted-foreground">{folder.recursive_count}</span>
+              <span className="text-sm text-muted-foreground">
+                {folder.score_count}
+              </span>
             </Label>
           ))}
         </RadioGroup>
@@ -208,4 +221,3 @@ export function LibraryDeleteEntriesDialog({
     </AlertDialog>
   );
 }
-

@@ -44,21 +44,25 @@ export function LibraryDeleteFolderDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>{t('deleteFolderTitle')}</AlertDialogTitle>
           <AlertDialogDescription>
-            {folder ? t('deleteFolderDescription', { name: folder.name }) : null}
+            {folder
+              ? t('deleteFolderDescription', { name: folder.name })
+              : null}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <div className="space-y-2">
           <label className="text-sm font-medium" htmlFor="library-delete-mode">
             {t('deleteModeLabel')}
           </label>
-          <Select value={deleteMode} onValueChange={(value) => onDeleteModeChange(value as FolderDeleteMode)}>
+          <Select
+            value={deleteMode}
+            onValueChange={(value) =>
+              onDeleteModeChange(value as FolderDeleteMode)
+            }
+          >
             <SelectTrigger id="library-delete-mode">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="MOVE_CONTENTS_TO_PARENT">
-                {t('deleteModeMoveToParent')}
-              </SelectItem>
               <SelectItem value="MOVE_CONTENTS_TO_ROOT">
                 {t('deleteModeMoveToRoot')}
               </SelectItem>

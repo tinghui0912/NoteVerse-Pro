@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import enum
 import uuid
@@ -16,7 +16,6 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
-    UniqueConstraint,
     text,
 )
 from sqlmodel import Field, SQLModel
@@ -40,12 +39,9 @@ class ScoreLibraryFolder(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "score_library_folders"
     __table_args__ = (
         CheckConstraint("position >= 0", name="ck_score_library_folders_position"),
-        UniqueConstraint("user_id", "id", name="uq_score_library_folders_user_id_id"),
-        Index("idx_score_library_folders_user_parent", "user_id", "parent_folder_id"),
         Index(
             "uq_score_library_folders_active_name",
             "user_id",
-            "parent_folder_id",
             "name",
             unique=True,
             postgresql_where=text("deleted_at IS NULL"),
@@ -62,10 +58,6 @@ class ScoreLibraryFolder(SQLModel, table=True):  # type: ignore[call-arg]
         sa_column=Column(String(36), unique=True, nullable=False),
     )
     user_id: int = Field(sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=False))
-    parent_folder_id: Optional[int] = Field(
-        default=None,
-        sa_column=Column(BigInteger, ForeignKey("score_library_folders.id")),
-    )
     name: str = Field(sa_column=Column(String(255), nullable=False))
     position: int = Field(default=0, sa_column=Column(Integer, default=0, nullable=False))
     created_at: datetime = Field(
@@ -163,4 +155,3 @@ class ScoreLibraryEntry(SQLModel, table=True):  # type: ignore[call-arg]
         ),
     )
     deleted_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-

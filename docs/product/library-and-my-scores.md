@@ -12,6 +12,11 @@ management surfaces.
 - favorite, practice, and remove-from-library actions;
 - does not imply score ownership.
 
+Library folders are a flat, user-owned organization layer. A score entry is
+either unfiled at Library root or assigned to one folder. Folders cannot contain
+folders. Active folder names are unique within a user's Library. Deleting a
+folder either moves its entries to Library root or moves them to Trash.
+
 `/my-scores` is the creator workspace:
 
 - scores owned by the current user;

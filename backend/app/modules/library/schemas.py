@@ -1,9 +1,9 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.db.models import LibraryEntrySourceType, LibraryPracticeState
 from app.modules.metadata.schemas import MetadataRead
@@ -29,34 +29,42 @@ class LibrarySort(str, Enum):
 
 
 class FolderDeleteMode(str, Enum):
-    MOVE_CONTENTS_TO_PARENT = "MOVE_CONTENTS_TO_PARENT"
     MOVE_CONTENTS_TO_ROOT = "MOVE_CONTENTS_TO_ROOT"
     TRASH_CONTENTS = "TRASH_CONTENTS"
 
 
 class LibraryFolderCreateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str = Field(min_length=1, max_length=255)
-    parent_folder_id: str | None = None
 
     @field_validator("name")
     @classmethod
     def normalize_name(cls, value: str) -> str:
-        return value.strip()
+        value = value.strip()
+        if not value:
+            raise ValueError("folder name must not be blank")
+        return value
 
 
 class LibraryFolderUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str | None = Field(default=None, min_length=1, max_length=255)
-    parent_folder_id: str | None = None
     position: int | None = Field(default=None, ge=0)
 
     @field_validator("name")
     @classmethod
     def normalize_name(cls, value: str | None) -> str | None:
-        return value.strip() if value is not None else None
+        if value is not None:
+            value = value.strip()
+            if not value:
+                raise ValueError("folder name must not be blank")
+        return value
 
 
 class LibraryFolderDeleteRequest(BaseModel):
-    mode: FolderDeleteMode = FolderDeleteMode.MOVE_CONTENTS_TO_PARENT
+    mode: FolderDeleteMode = FolderDeleteMode.MOVE_CONTENTS_TO_ROOT
 
 
 class LibraryEntryBatchMoveRequest(BaseModel):
@@ -90,9 +98,7 @@ class LibraryEntryBatchPracticeStateRequest(BaseModel):
 
     @field_validator("practice_state")
     @classmethod
-    def reject_system_practice_state(
-        cls, value: LibraryPracticeState
-    ) -> LibraryPracticeState:
+    def reject_system_practice_state(cls, value: LibraryPracticeState) -> LibraryPracticeState:
         if value == LibraryPracticeState.IN_PROGRESS:
             raise ValueError("IN_PROGRESS is managed by practice activity")
         return value
@@ -114,16 +120,14 @@ class LibraryEntryUpdateRequest(BaseModel):
 
 class LibraryFolderRead(BaseModel):
     folder_id: str
-    parent_folder_id: str | None
     name: str
     position: int
-    direct_count: int
-    recursive_count: int
+    score_count: int
     created_at: datetime
     updated_at: datetime
 
 
-class LibraryFolderTreeRead(BaseModel):
+class LibraryFolderOverviewRead(BaseModel):
     all_count: int
     favorite_count: int
     recent_practice_count: int
@@ -148,5 +152,3 @@ class LibraryEntryRead(BaseModel):
     last_practiced_at: datetime | None
     created_at: datetime
     updated_at: datetime
-
-
