@@ -18,6 +18,7 @@ from app.db.models import (
 from app.modules.ops.operation_filters import AsyncOperationFilters
 from app.modules.ops.operation_projection import (
     matches_operation_filters,
+    import_operation_updated_at_sql,
     read_import_operation,
     read_mail_operation,
     read_playback_operation,
@@ -130,7 +131,7 @@ class OpsAsyncOperationQueryService:
             await db.execute(
                 select(ImportJob, ImportDispatch)
                 .join(ImportDispatch, ImportDispatch.job_id == ImportJob.id)
-                .order_by(col(ImportJob.updated_at).desc())
+                .order_by(import_operation_updated_at_sql().desc())
                 .limit(limit)
             )
         ).all()

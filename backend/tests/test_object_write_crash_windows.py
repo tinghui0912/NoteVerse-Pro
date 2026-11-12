@@ -10,6 +10,8 @@ from sqlalchemy import select
 from app.db.models import (
     ScoreRevision,
     ImportJob,
+    ImportDispatch,
+    ImportDispatchStatus,
     ImportArtifact,
     ObjectWriteIntent,
     Score,
@@ -40,6 +42,7 @@ async def test_review_confirm_source_and_thumbnail_survive_failed_semantic_adopt
     job = ImportJob(job_uuid="dual-write", user_id=1, state=ImportJobState.PENDING_REVIEW)
     db.add(job)
     db.flush()
+    db.add(ImportDispatch(job_id=job.id, status=ImportDispatchStatus.COMPLETED))
     key = "jobs/dual-write/thumbnail.svg"
     storage.put_bytes(key=key, content=b"<svg />", content_type="image/svg+xml")
     db.add(

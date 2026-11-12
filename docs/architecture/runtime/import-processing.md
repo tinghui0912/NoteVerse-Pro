@@ -8,7 +8,10 @@ creates its canonical revision.
 Each Job has one `ImportDispatch`, created atomically with the Job and its upload
 links. The dispatch owns broker/worker delivery status, attempt count, lease,
 delivery diagnostics, originating request correlation and W3C trace context.
-`dispatch_uuid` identifies the durable command; `job_uuid` identifies the import.
+`dispatch_uuid` identifies the async delivery operation in worker tracing and
+control-plane operations; `job_uuid` identifies its Import domain resource.
+Operation creation time belongs to Dispatch; its update time is the later Job or
+Dispatch update.
 
 `DurableDeliveryLifecycle` owns dispatch admission, claim, release, completion,
 lease recovery and exhaustion. Maintenance recovers expired leases and lists due
@@ -28,9 +31,14 @@ Expired DISPATCHED work leaves Job progress untouched. Expired PROCESSING work
 with an unfinished Job resets attempt-local execution state and steps when
 attempts remain, preserving uploads, options and execution-manifest binding.
 Exhaustion records a domain failure for unfinished work. A durable PENDING_REVIEW,
-FAILURE or CONFIRMED outcome completes delivery reconciliation and is never reset
-or re-executed. An Import FAILURE can coexist with ImportDispatch COMPLETED when
-the command finishes with a domain failure.
+FAILURE or CONFIRMED outcome reconciles an in-flight command as COMPLETED and is
+never reset or re-executed. An Import FAILURE can coexist with ImportDispatch COMPLETED when
+the command finishes with a domain failure, including on its final allowed
+attempt. Ops reports FAILED with Job diagnostics for that outcome. Delivery
+FAILED with exhausted attempts reports EXHAUSTED with Dispatch diagnostics.
+Completed and exhausted deliveries retain their terminal state under duplicate
+claim/dispatch calls. Deletion and owned binary cleanup lock Dispatch before
+reloading and locking Job, then reject a Job that is currently RUNNING.
 
 Orphan-storage maintenance uses configured retention bounds. Operational
 remediation uses the isolated control-plane API and audited policy; public errors

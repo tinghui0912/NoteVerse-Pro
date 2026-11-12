@@ -73,16 +73,19 @@ class OpsAsyncOperationCommandService:
         dispatch = (
             await db.execute(
                 select(ImportDispatch)
-                .join(ImportJob, ImportDispatch.job_id == ImportJob.id)
-                .where(ImportJob.job_uuid == operation_id)
-                .with_for_update(of=ImportDispatch)
+                .where(ImportDispatch.dispatch_uuid == operation_id)
+                .with_for_update()
+                .execution_options(populate_existing=True)
             )
         ).scalar_one_or_none()
         if dispatch is None:
             raise ResourceNotFoundException("async_operation", operation_id)
         job = (
             await db.execute(
-                select(ImportJob).where(ImportJob.id == dispatch.job_id).with_for_update()
+                select(ImportJob)
+                .where(ImportJob.id == dispatch.job_id)
+                .with_for_update()
+                .execution_options(populate_existing=True)
             )
         ).scalar_one_or_none()
         if job is None:

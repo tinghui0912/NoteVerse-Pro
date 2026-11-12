@@ -4,14 +4,11 @@ from collections import Counter, defaultdict
 
 from sqlalchemy import case, func, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import col
 
 from app.core.config import settings
 from app.db.models import (
-    ImportDispatchStatus,
     ImportJob,
     ImportDispatch,
-    ImportJobState,
     MailOutbox,
     MailOutboxStatus,
     PlaybackOutbox,
@@ -22,6 +19,9 @@ from app.db.models import (
 from app.modules.ops.operation_filters import AsyncOperationFilters
 from app.modules.ops.operation_projection import (
     outbox_operation_status_sql,
+    import_operation_status_sql,
+    import_operation_error_class_sql,
+    import_operation_updated_at_sql,
     status_counts,
     summary_predicates,
     summary_result_rows,
@@ -100,42 +100,14 @@ class AsyncOperationSummaryQuery:
         db: AsyncSession,
         filters: AsyncOperationFilters,
     ) -> list[tuple[AsyncOperationKind, AsyncOperationStatus, int]]:
-        status_expr = case(
-            (
-                col(ImportJob.state).in_([ImportJobState.PENDING_REVIEW, ImportJobState.CONFIRMED]),
-                AsyncOperationStatus.SUCCEEDED.value,
-            ),
-            (
-                (ImportJob.state == ImportJobState.RUNNING)
-                | (ImportDispatch.status == ImportDispatchStatus.PROCESSING),
-                AsyncOperationStatus.PROCESSING.value,
-            ),
-            (
-                ImportDispatch.status == ImportDispatchStatus.DISPATCHED,
-                AsyncOperationStatus.DISPATCHED.value,
-            ),
-            (
-                (ImportJob.state == ImportJobState.FAILURE)
-                & (ImportDispatch.attempt_count >= settings.IMPORT_DISPATCH_MAX_ATTEMPTS),
-                AsyncOperationStatus.EXHAUSTED.value,
-            ),
-            (ImportJob.state == ImportJobState.FAILURE, AsyncOperationStatus.FAILED.value),
-            (
-                ImportDispatch.status == ImportDispatchStatus.FAILED,
-                AsyncOperationStatus.RETRYING.value,
-            ),
-            else_=AsyncOperationStatus.QUEUED.value,
-        )
+        status_expr = import_operation_status_sql()
         predicates = summary_predicates(
             filters,
             status_expr=status_expr,
-            error_class_expr=case(
-                (ImportJob.state == ImportJobState.FAILURE, ImportJob.internal_error_class),
-                else_=ImportDispatch.internal_error_class,
-            ),
+            error_class_expr=import_operation_error_class_sql(),
             resource_type_expr=literal("import_job"),
-            created_at_expr=ImportJob.created_at,
-            updated_at_expr=ImportJob.updated_at,
+            created_at_expr=ImportDispatch.created_at,
+            updated_at_expr=import_operation_updated_at_sql(),
         )
         result = await db.execute(
             select(status_expr.label("status"), func.count())

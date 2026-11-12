@@ -225,6 +225,17 @@ def test_exhausted_processing_has_distinct_delivery_and_domain_outcomes(setup_de
     assert row.internal_error_code and job.internal_error_code
     assert job.state == ImportJobState.FAILURE and job.finished_at
     assert job.error_type == "ImportDispatchFailure"
+    from app.modules.ops.operation_projection import read_import_operation
+
+    projected = read_import_operation(job, row)
+    assert projected.status.value == "exhausted"
+    assert projected.diagnostic.code == row.internal_error_code
+    before = (row.status, row.attempt_count, row.completed_at, row.updated_at)
+    assert ImportDispatchService().claim(db, row.dispatch_uuid) is None
+    assert not ImportDispatchService().mark_dispatched(db, row.dispatch_uuid)
+    db.commit()
+    assert (row.status, row.attempt_count, row.completed_at, row.updated_at) == before
+    assert ImportDispatchService().recover_and_list_due(db) == []
 
 
 @pytest.mark.parametrize(
@@ -478,3 +489,31 @@ def test_worker_completes_delivery_after_durable_domain_outcome(
         assert job.state == ImportJobState.PENDING_REVIEW
     assert row.status == ImportDispatchStatus.COMPLETED and row.attempt_token is None
     assert ImportDispatchService().recover_and_list_due(db) == []
+
+
+def test_final_attempt_domain_failure_completes_delivery_and_preserves_terminal_timestamps(
+    setup_delivery,
+):
+    from app.modules.ops.operation_projection import read_import_operation
+
+    db, _, job, row = setup_delivery
+    row.attempt_count = dispatch_module.settings.IMPORT_DISPATCH_MAX_ATTEMPTS - 1
+    db.add(row)
+    db.commit()
+    lease = claim(db, row)
+    assert lease.attempt == dispatch_module.settings.IMPORT_DISPATCH_MAX_ATTEMPTS
+    SyncImportJobService(notification_service=Mock()).finalize_failure(
+        db, lease, "OMR failed", "PipelineError"
+    )
+    assert read_import_operation(job, row).status.value == "failed"
+    ImportDispatchService().complete(db, lease)
+    db.commit()
+    projected = read_import_operation(job, row)
+    assert projected.status.value == "failed"
+    assert projected.diagnostic.code == job.internal_error_code
+    assert row.status == ImportDispatchStatus.COMPLETED and row.completed_at is not None
+    before = (row.status, row.attempt_count, row.completed_at, row.updated_at)
+    assert not ImportDispatchService().mark_dispatched(db, row.dispatch_uuid)
+    assert ImportDispatchService().claim(db, row.dispatch_uuid) is None
+    db.commit()
+    assert (row.status, row.attempt_count, row.completed_at, row.updated_at) == before

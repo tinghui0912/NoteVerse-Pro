@@ -22,6 +22,8 @@ from app.db.models import (
     PlaybackOutbox,
     PlaybackOutboxStatus,
     ImportJob,
+    ImportDispatch,
+    ImportDispatchStatus,
     ScoreDeletionStatus,
     ScorePlaybackAsset,
 )
@@ -390,6 +392,8 @@ async def test_business_commit_precedes_immediate_dispatch_and_broker_failure_is
                 requested_options={"title": "Confirmed"},
             )
         )
+        db.commit()
+        db.add(ImportDispatch(job_id=850, status=ImportDispatchStatus.COMPLETED))
         db.commit()
         await ReviewService(storage=storage).confirm(
             async_db, "confirm-demand", 1, ReviewConfirmRequest(content=MUSICXML_2)

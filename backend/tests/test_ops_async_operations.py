@@ -923,7 +923,7 @@ def test_ops_api_retry_rejects_confirmed_import_job_and_records_audit(
     _override_ops_dependencies(ops_session, authorized=True)
     try:
         response = client.post(
-            f"/api/v1/ops/async-operations/import/{job.job_uuid}/retry",
+            f"/api/v1/ops/async-operations/import/{dispatch.dispatch_uuid}/retry",
             json={"reason": "Validate the confirmed import state."},
         )
     finally:
@@ -936,7 +936,7 @@ def test_ops_api_retry_rejects_confirmed_import_job_and_records_audit(
     assert job.state == ImportJobState.CONFIRMED
     audit_event = ops_session.exec(select(OpsAuditEvent)).one()
     assert audit_event.operation_kind == "import"
-    assert audit_event.operation_id == job.job_uuid
+    assert audit_event.operation_id == dispatch.dispatch_uuid
     assert audit_event.outcome == "failed"
     assert audit_event.error_code == "validation_error"
 
@@ -1056,7 +1056,7 @@ def test_ops_api_admin_can_retry_failed_import_job(
     _override_ops_dependencies(ops_session, authorized=True)
     try:
         response = client.post(
-            f"/api/v1/ops/async-operations/import/{job.job_uuid}/retry",
+            f"/api/v1/ops/async-operations/import/{dispatch.dispatch_uuid}/retry",
             json={"reason": "Retry after import infrastructure recovery."},
         )
     finally:
@@ -1065,7 +1065,8 @@ def test_ops_api_admin_can_retry_failed_import_job(
     assert response.status_code == 200
     data = response.json()["data"]
     assert data["kind"] == "import"
-    assert data["operation_id"] == job.job_uuid
+    assert data["operation_id"] == dispatch.dispatch_uuid
+    assert data["resource_id"] == job.job_uuid
     assert data["status"] == "queued"
     ops_session.refresh(job)
     assert job.state == ImportJobState.PENDING
@@ -1085,7 +1086,7 @@ def test_ops_api_admin_can_retry_failed_import_job(
     assert job.finished_at is None
     audit_event = ops_session.exec(select(OpsAuditEvent)).one()
     assert audit_event.operation_kind == "import"
-    assert audit_event.operation_id == job.job_uuid
+    assert audit_event.operation_id == dispatch.dispatch_uuid
     assert audit_event.outcome == "succeeded"
 
 

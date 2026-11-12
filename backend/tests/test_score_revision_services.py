@@ -898,6 +898,8 @@ async def test_review_confirm_creates_active_score_once(
             data={"job_id": "job-confirm-review", "job_title": "Confirmed Score"},
         )
     )
+    session.flush()
+    session.add(ImportDispatch(job_id=14, status=ImportDispatchStatus.COMPLETED))
     session.commit()
     session.add(
         ImportArtifact(
@@ -2650,6 +2652,8 @@ async def test_review_semantic_admission_precedes_storage(score_service_session,
             id=14, job_uuid="admission-review", user_id=1, state=ImportJobState.PENDING_REVIEW
         )
     )
+    session.flush()
+    session.add(ImportDispatch(job_id=14, status=ImportDispatchStatus.COMPLETED))
     session.commit()
     artifact = ImportArtifact(
         job_id=14,
@@ -2720,6 +2724,8 @@ async def test_service_hash_and_storage_use_exact_admitted_bytes(score_service_s
                 id=14, job_uuid="admission-review", user_id=1, state=ImportJobState.PENDING_REVIEW
             )
         )
+        session.flush()
+        session.add(ImportDispatch(job_id=14, status=ImportDispatchStatus.COMPLETED))
         session.commit()
     with patch.object(storage, "put_bytes", wraps=storage.put_bytes) as put:
         if operation == "revision":
@@ -2817,6 +2823,8 @@ async def test_admitted_revision_survives_unsupported_metadata_projection(score_
             id=14, job_uuid="admission-review", user_id=1, state=ImportJobState.PENDING_REVIEW
         )
     )
+    session.flush()
+    session.add(ImportDispatch(job_id=14, status=ImportDispatchStatus.COMPLETED))
     session.commit()
     content = MUSICXML_2.replace(
         "</attributes>", "<key><key-step>B</key-step><key-alter>-1</key-alter></key></attributes>"

@@ -46,6 +46,13 @@ TERMINAL_IMPORT_STATES = {
 }
 
 
+def import_delivery_exhausted(dispatch: ImportDispatch) -> bool:
+    return (
+        dispatch.status == ImportDispatchStatus.FAILED
+        and dispatch.attempt_count >= settings.IMPORT_DISPATCH_MAX_ATTEMPTS
+    )
+
+
 @dataclass(frozen=True)
 class ImportExecutionLease:
     dispatch_uuid: str
@@ -130,13 +137,15 @@ class ImportDispatchService:
 
     def mark_dispatched(self, db: Session, dispatch_uuid: str) -> bool:
         row = lock_dispatch(db, dispatch_uuid)
-        if row is None:
+        if (
+            row is None
+            or row.status == ImportDispatchStatus.COMPLETED
+            or import_delivery_exhausted(row)
+        ):
             return False
         job = lock_dispatch_job(db, row)
         if job.state in TERMINAL_IMPORT_STATES:
-            self.lifecycle().complete(row, now=utc_now_naive())
-            row.attempt_token = None
-            clear_async_diagnostic(row)
+            self._reconcile_terminal_attempt(row, now=utc_now_naive())
             return False
         if job.state != ImportJobState.PENDING or not self.lifecycle().dispatch(
             row, now=utc_now_naive()
@@ -147,17 +156,19 @@ class ImportDispatchService:
 
     def claim(self, db: Session, dispatch_uuid: str) -> ImportDispatchPayload | None:
         row = lock_dispatch(db, dispatch_uuid)
-        if row is None:
+        if (
+            row is None
+            or row.status == ImportDispatchStatus.COMPLETED
+            or import_delivery_exhausted(row)
+        ):
             return None
         lifecycle, now = self.lifecycle(), utc_now_naive()
-        admission = lifecycle.claim_admission(row, now=now)
-        if admission is ClaimAdmission.INACTIVE or admission is ClaimAdmission.NOT_DUE:
-            return None
         job = lock_dispatch_job(db, row)
         if job.state in TERMINAL_IMPORT_STATES:
-            lifecycle.complete(row, now=now)
-            row.attempt_token = None
-            clear_async_diagnostic(row)
+            self._reconcile_terminal_attempt(row, now=now)
+            return None
+        admission = lifecycle.claim_admission(row, now=now)
+        if admission is ClaimAdmission.INACTIVE or admission is ClaimAdmission.NOT_DUE:
             return None
         if admission is ClaimAdmission.EXHAUSTED:
             self._exhaust(row, job, "Import worker delivery attempts exhausted", now)
@@ -195,6 +206,13 @@ class ImportDispatchService:
             row.traceparent,
             row.tracestate,
         )
+
+    def _reconcile_terminal_attempt(self, row: ImportDispatch, *, now: datetime) -> None:
+        # Only an in-flight command can be reconciled with its durable domain outcome.
+        if row.status in (ImportDispatchStatus.DISPATCHED, ImportDispatchStatus.PROCESSING):
+            self.lifecycle().complete(row, now=now)
+            row.attempt_token = None
+            clear_async_diagnostic(row)
 
     def complete(self, db: Session, lease: ImportExecutionLease) -> None:
         job = require_current_attempt(db, lease)

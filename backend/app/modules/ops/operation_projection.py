@@ -4,6 +4,7 @@ from collections import Counter
 from datetime import datetime
 
 from sqlalchemy import case
+from sqlmodel import col
 
 from app.core.config import settings
 from app.db.models import (
@@ -19,6 +20,7 @@ from app.db.models import (
     RenderOutboxStatus,
     Score,
 )
+from app.modules.import_jobs.dispatch_service import import_delivery_exhausted
 from app.modules.ops.operation_filters import AsyncOperationFilters
 from app.modules.ops.schemas import (
     AsyncOperationDiagnostic,
@@ -32,8 +34,13 @@ from app.utils.timezone import utc_now_naive
 
 
 def read_import_operation(job: ImportJob, dispatch: ImportDispatch) -> AsyncOperationRead:
+    diagnostic_owner = (
+        dispatch
+        if import_delivery_exhausted(dispatch) or job.state != ImportJobState.FAILURE
+        else job
+    )
     return AsyncOperationRead(
-        operation_id=job.job_uuid,
+        operation_id=dispatch.dispatch_uuid,
         kind=AsyncOperationKind.IMPORT,
         resource_type="import_job",
         resource_id=job.job_uuid,
@@ -43,10 +50,10 @@ def read_import_operation(job: ImportJob, dispatch: ImportDispatch) -> AsyncOper
         attempts=dispatch.attempt_count,
         max_attempts=settings.IMPORT_DISPATCH_MAX_ATTEMPTS,
         next_attempt_at=dispatch.next_attempt_at,
-        error_class=stored_error_class(job if job.state == ImportJobState.FAILURE else dispatch),
-        diagnostic=stored_diagnostic(job if job.state == ImportJobState.FAILURE else dispatch),
-        created_at=job.created_at,
-        updated_at=job.updated_at,
+        error_class=stored_error_class(diagnostic_owner),
+        diagnostic=stored_diagnostic(diagnostic_owner),
+        created_at=dispatch.created_at,
+        updated_at=max(job.updated_at, dispatch.updated_at),
     )
 
 
@@ -193,24 +200,61 @@ def summary_result_rows(
     return [(kind, AsyncOperationStatus(str(status)), int(count)) for status, count in rows]
 
 
+def import_operation_updated_at_sql():
+    return case(
+        (ImportJob.updated_at >= ImportDispatch.updated_at, ImportJob.updated_at),
+        else_=ImportDispatch.updated_at,
+    )
+
+
+def import_delivery_exhausted_sql():
+    return (ImportDispatch.status == ImportDispatchStatus.FAILED) & (
+        ImportDispatch.attempt_count >= settings.IMPORT_DISPATCH_MAX_ATTEMPTS
+    )
+
+
+def import_operation_status_sql():
+    return case(
+        (
+            col(ImportJob.state).in_([ImportJobState.PENDING_REVIEW, ImportJobState.CONFIRMED]),
+            AsyncOperationStatus.SUCCEEDED.value,
+        ),
+        (import_delivery_exhausted_sql(), AsyncOperationStatus.EXHAUSTED.value),
+        (ImportJob.state == ImportJobState.FAILURE, AsyncOperationStatus.FAILED.value),
+        else_=outbox_operation_status_sql(
+            ImportDispatch.status,
+            ImportDispatch.attempt_count,
+            settings.IMPORT_DISPATCH_MAX_ATTEMPTS,
+            ImportDispatch.next_attempt_at,
+        ),
+    )
+
+
+def import_operation_error_class_sql():
+    return case(
+        (import_delivery_exhausted_sql(), ImportDispatch.internal_error_class),
+        (ImportJob.state == ImportJobState.FAILURE, ImportJob.internal_error_class),
+        else_=ImportDispatch.internal_error_class,
+    )
+
+
 def import_operation_status(job: ImportJob, dispatch: ImportDispatch) -> AsyncOperationStatus:
     if job.state in {ImportJobState.PENDING_REVIEW, ImportJobState.CONFIRMED}:
         return AsyncOperationStatus.SUCCEEDED
-    if job.state == ImportJobState.RUNNING or dispatch.status == ImportDispatchStatus.PROCESSING:
-        return AsyncOperationStatus.PROCESSING
-    if dispatch.status == ImportDispatchStatus.DISPATCHED:
-        return AsyncOperationStatus.DISPATCHED
+    if import_delivery_exhausted(dispatch):
+        return AsyncOperationStatus.EXHAUSTED
     if job.state == ImportJobState.FAILURE:
-        if dispatch.attempt_count >= settings.IMPORT_DISPATCH_MAX_ATTEMPTS:
-            return AsyncOperationStatus.EXHAUSTED
         return AsyncOperationStatus.FAILED
-    if dispatch.status == ImportDispatchStatus.FAILED:
-        return AsyncOperationStatus.RETRYING
-    return AsyncOperationStatus.QUEUED
+    return outbox_operation_status(
+        dispatch.status,
+        attempts=dispatch.attempt_count,
+        max_attempts=settings.IMPORT_DISPATCH_MAX_ATTEMPTS,
+        next_attempt_at=dispatch.next_attempt_at,
+    )
 
 
 def outbox_operation_status(
-    status: RenderOutboxStatus | PlaybackOutboxStatus,
+    status: RenderOutboxStatus | PlaybackOutboxStatus | ImportDispatchStatus,
     *,
     attempts: int,
     max_attempts: int,

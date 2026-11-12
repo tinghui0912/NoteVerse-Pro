@@ -186,3 +186,93 @@ def test_mutation_lock_excludes_recovery_and_reclaimed_attempt_fences_cached_wor
             SyncImportJobService().update_progress(recovery, second, "RUNNING", 21)
             worker.expire_all()
             assert worker.scalar(sa.select(ImportJob)).progress == 21
+
+
+@pytest.mark.parametrize("becomes_running", [False, True])
+def test_deletion_contends_on_dispatch_before_job_and_rechecks_state(monkeypatch, becomes_running):
+    import asyncio
+    from queue import Queue
+    from threading import Thread, Event
+    from time import monotonic
+    from app.core.exceptions import ValidationException
+    from app.modules.import_jobs.deletion_service import ImportJobDeletionService
+    from app.shared.constants import ErrorCode
+    from tests.test_score_revision_services import AsyncSessionAdapter
+
+    with postgres_schema_database(monkeypatch) as (engine, config):
+        command.upgrade(config, "head")
+        with Session(engine) as setup:
+            setup.add(User(id=1, email="delete@example.com", password_hash="test"))
+            setup.flush()
+            job = ImportJob(job_uuid="delete-job", user_id=1, state=ImportJobState.PENDING)
+            setup.add(job)
+            setup.flush()
+            setup.add(ImportDispatch(job_id=job.id))
+            setup.commit()
+            job_id = job.id
+        ready, result, start = Queue(), Queue(), Event()
+
+        def delete_in_session():
+            try:
+                with Session(engine, expire_on_commit=False) as deleting:
+                    stale_job = deleting.get(ImportJob, job_id)
+                    pid = deleting.scalar(sa.text("SELECT pg_backend_pid()"))
+                    ready.put(pid)
+                    assert start.wait(10)
+                    asyncio.run(
+                        ImportJobDeletionService().delete_job(
+                            AsyncSessionAdapter(deleting), stale_job, 1
+                        )
+                    )
+                result.put(None)
+            except BaseException as exc:
+                result.put(exc)
+
+        with Session(engine) as worker:
+            worker.scalar(
+                sa.select(ImportDispatch).where(ImportDispatch.job_id == job_id).with_for_update()
+            )
+            worker_pid = worker.scalar(sa.text("SELECT pg_backend_pid()"))
+            thread = Thread(target=delete_in_session)
+            thread.start()
+            try:
+                deleting_pid = ready.get(timeout=10)
+                start.set()
+                deadline = monotonic() + 10
+                with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as observer:
+                    while True:
+                        blocked = observer.scalar(
+                            sa.text("SELECT :worker = ANY(pg_blocking_pids(:deleting))"),
+                            {"worker": worker_pid, "deleting": deleting_pid},
+                        )
+                        if blocked:
+                            break
+                        assert monotonic() < deadline, (
+                            "Deletion must contend on the held dispatch lock"
+                        )
+                # If deletion held Job before waiting on Dispatch, NOWAIT would fail.
+                current = worker.scalar(
+                    sa.select(ImportJob).where(ImportJob.id == job_id).with_for_update(nowait=True)
+                )
+                if becomes_running:
+                    current.state = ImportJobState.RUNNING
+                    worker.add(current)
+                worker.commit()
+            finally:
+                start.set()
+                worker.rollback()
+                thread.join(timeout=10)
+            assert not thread.is_alive(), "Deletion must finish after Dispatch lock release"
+            error = result.get(timeout=1)
+            with Session(engine) as check:
+                if becomes_running:
+                    assert (
+                        isinstance(error, ValidationException)
+                        and error.code == ErrorCode.JOB_RUNNING
+                    )
+                    assert check.get(ImportJob, job_id).state == ImportJobState.RUNNING
+                    assert check.scalar(sa.select(ImportDispatch)) is not None
+                else:
+                    assert error is None
+                    assert check.get(ImportJob, job_id) is None
+                    assert check.scalar(sa.select(ImportDispatch)) is None

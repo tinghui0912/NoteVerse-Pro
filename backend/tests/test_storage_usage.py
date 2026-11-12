@@ -16,6 +16,7 @@ from app.core.exceptions import ResourceNotFoundException, ValidationException
 from app.db.models import (
     ImportArtifact,
     ImportJob,
+    ImportDispatch,
     ImportJobUpload,
     Score,
     ScoreRevision,
@@ -785,6 +786,7 @@ async def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
         ]
     )
     session.commit()
+    session.add(ImportDispatch(job_id=1001))
     session.add(ImportJobUpload(job_id=1001, upload_id=1002, page_number=1, sort_order=1))
     session.add(
         ImportArtifact(
@@ -904,6 +906,8 @@ async def test_import_job_delete_keeps_shared_upload_usage_and_storage(
     session.commit()
     session.add_all(
         [
+            ImportDispatch(job_id=1101),
+            ImportDispatch(job_id=1102),
             ImportJobUpload(job_id=1101, upload_id=1103, page_number=1, sort_order=1),
             ImportJobUpload(job_id=1102, upload_id=1103, page_number=1, sort_order=1),
         ]

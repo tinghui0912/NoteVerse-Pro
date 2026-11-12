@@ -4,6 +4,7 @@ import pytest
 from sqlalchemy import select
 from app.db.models import (
     ImportJob,
+    ImportDispatch,
     ImportArtifact,
     StoredObjectRetirement,
     StoredObject,
@@ -32,6 +33,7 @@ async def test_import_release_accounts_atomically_and_protects_other_owners(
     job = ImportJob(job_uuid="release-job", user_id=1, state=ImportJobState.PENDING_REVIEW)
     db.add(job)
     db.flush()
+    db.add(ImportDispatch(job_id=job.id))
     content = b"verified import"
     obj = object_from_bytes(object_key="jobs/committed", content=content, content_type="image/jpeg")
     db.add(obj)
@@ -74,3 +76,41 @@ async def test_import_release_accounts_atomically_and_protects_other_owners(
         assert drain_retirements(db, storage)[0]["status"] == "completed"
         assert db.get(StoredObject, identity) is None
         assert not storage.exists("jobs/committed")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("keep_job", [False, True])
+async def test_import_release_rechecks_locked_job_state(score_service_session, keep_job):
+    from types import SimpleNamespace
+    from app.core.exceptions import ValidationException
+    from app.shared.constants import ErrorCode
+
+    db, _ = score_service_session
+    job = ImportJob(job_uuid="running-job", user_id=1, state=ImportJobState.RUNNING)
+    db.add(job)
+    db.flush()
+    db.add(ImportDispatch(job_id=job.id))
+    db.commit()
+    caller = SimpleNamespace(id=job.id, job_uuid=job.job_uuid, state=ImportJobState.PENDING)
+    service = ImportJobDeletionService()
+    release = service.cleanup_binary_artifacts if keep_job else service.delete_job
+    with pytest.raises(ValidationException) as error:
+        await release(AsyncSessionAdapter(db), caller, 1)
+    assert error.value.code == ErrorCode.JOB_RUNNING
+    assert db.get(ImportJob, job.id).state == ImportJobState.RUNNING
+    assert db.scalar(select(ImportDispatch)) is not None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("keep_job", [False, True])
+async def test_import_release_requires_delivery_ownership(score_service_session, keep_job):
+    db, _ = score_service_session
+    job = ImportJob(job_uuid="missing-delivery", user_id=1, state=ImportJobState.FAILURE)
+    db.add(job)
+    db.commit()
+    identity = job.id
+    service = ImportJobDeletionService()
+    release = service.cleanup_binary_artifacts if keep_job else service.delete_job
+    with pytest.raises(RuntimeError, match="requires a durable dispatch"):
+        await release(AsyncSessionAdapter(db), job, 1)
+    assert db.get(ImportJob, identity) is not None

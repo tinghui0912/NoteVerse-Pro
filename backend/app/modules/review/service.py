@@ -18,6 +18,7 @@ from app.db.models import (
     LibraryEntrySourceType,
     ImportArtifact,
     ImportJob,
+    ImportDispatch,
     NotificationEvent,
     Score,
     ScoreRevision,
@@ -84,15 +85,30 @@ class ReviewService:
         user_id: int,
         request: ReviewConfirmRequest,
     ) -> ReviewConfirmRead:
+        # Confirmation can release owned binaries; acquire its delivery lock first.
+        dispatch = (
+            await db.execute(
+                select(ImportDispatch)
+                .join(ImportJob, ImportJob.id == ImportDispatch.job_id)
+                .where(ImportJob.job_uuid == job_uuid)
+                .with_for_update(of=ImportDispatch)
+                .execution_options(populate_existing=True)
+            )
+        ).scalar_one_or_none()
         job = (
             await db.execute(
-                select(ImportJob).where(ImportJob.job_uuid == job_uuid).with_for_update()
+                select(ImportJob)
+                .where(ImportJob.job_uuid == job_uuid)
+                .with_for_update()
+                .execution_options(populate_existing=True)
             )
         ).scalar_one_or_none()
         if not job:
             raise ResourceNotFoundException("job", job_uuid, ErrorCode.JOB_NOT_FOUND)
         if job.user_id != user_id:
             raise UnauthorizedException(ErrorCode.NO_ACCESS, {"job_id": job_uuid})
+        if dispatch is None:
+            raise RuntimeError("Import job requires a durable dispatch")
         if job.score_id is not None:
             score = await db.get(Score, job.score_id)
             if score:
