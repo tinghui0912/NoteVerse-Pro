@@ -515,8 +515,7 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
     return Boolean(
       target &&
         (target.startsWith('recording/') ||
-          ['score/',
-            "contracts/generated/", 'planning/', 'media/', 'run/'].some((owner) =>
+          ['score/', 'planning/', 'media/', 'run/'].some((owner) =>
             target.startsWith(owner),
           )),
     );
