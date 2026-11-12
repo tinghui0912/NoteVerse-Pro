@@ -12,7 +12,7 @@ Import processing and stable user-owned scores have different identities and lif
 
 1. `ImportJob` owns submission, progress, steps, retries, heartbeat, stale recovery,
    idempotency, and processing errors.
-2. `Score` is the stable user-owned resource and owns title, taxonomy tags, and its current
+2. `Score` is the stable user-owned resource and owns title, genres, and its current
    head revision pointer.
 3. A job may fail without producing a score. Once normalized review MusicXML exists, the
    job enters `PENDING_REVIEW` and stores that output as a job artifact. It does not create

@@ -1914,9 +1914,9 @@ export type ImportJobBatchStatusRead = {
  */
 export type ImportJobProcessingOptions = {
     /**
-     * Taxonomy Tags
+     * Genres
      */
-    taxonomy_tags?: Array<ScoreTaxonomyTagInput>;
+    genres?: Array<string>;
     /**
      * Title
      */
@@ -1939,6 +1939,10 @@ export type ImportJobRead = {
      * Finished At
      */
     finished_at?: string | null;
+    /**
+     * Genres
+     */
+    genres?: Array<string>;
     /**
      * Job Id
      */
@@ -1968,10 +1972,6 @@ export type ImportJobRead = {
      */
     started_at?: string | null;
     state: ImportJobState;
-    /**
-     * Taxonomy Tags
-     */
-    taxonomy_tags?: Array<ScoreTaxonomyTagInput>;
     thumbnail?: ImportArtifactRead | null;
     /**
      * Title
@@ -1992,6 +1992,10 @@ export type ImportJobReviewRead = {
      */
     created_at: string;
     /**
+     * Genres
+     */
+    genres: Array<string>;
+    /**
      * Job Id
      */
     job_id: string;
@@ -2005,12 +2009,6 @@ export type ImportJobReviewRead = {
      */
     score_id?: string | null;
     state: ImportJobState;
-    /**
-     * Taxonomy Tags
-     */
-    taxonomy_tags: Array<{
-        [key: string]: string;
-    }>;
     /**
      * Title
      */
@@ -2330,6 +2328,10 @@ export type LibraryEntryRead = {
      */
     folder_id: string | null;
     /**
+     * Genres
+     */
+    genres: Array<string>;
+    /**
      * Is Favorite
      */
     is_favorite: boolean;
@@ -2344,10 +2346,6 @@ export type LibraryEntryRead = {
      */
     score_id: string;
     source_type: LibraryEntrySourceType;
-    /**
-     * Taxonomy Tags
-     */
-    taxonomy_tags: Array<ScoreTaxonomyTagRead>;
     /**
      * Title
      */
@@ -3697,9 +3695,9 @@ export type ReviewConfirmRequest = {
      */
     content: string;
     /**
-     * Taxonomy Tags
+     * Genres
      */
-    taxonomy_tags?: Array<ScoreTaxonomyTagInput> | null;
+    genres?: Array<string> | null;
     /**
      * Title
      */
@@ -4043,6 +4041,10 @@ export type ScoreRead = {
     created_at: string;
     derived_assets: ScoreDerivedAssetsRead;
     /**
+     * Genres
+     */
+    genres: Array<string>;
+    /**
      * Head Revision Id
      */
     head_revision_id: string | null;
@@ -4059,10 +4061,6 @@ export type ScoreRead = {
      * Score Id
      */
     score_id: string;
-    /**
-     * Taxonomy Tags
-     */
-    taxonomy_tags: Array<ScoreTaxonomyTagRead>;
     /**
      * Title
      */
@@ -4110,42 +4108,6 @@ export type ScoreRevisionPracticeBindingRead = {
 };
 
 /**
- * ScoreTaxonomyTagInput
- */
-export type ScoreTaxonomyTagInput = {
-    /**
-     * Category
-     */
-    category: string;
-    /**
-     * Code
-     */
-    code: string;
-};
-
-/**
- * ScoreTaxonomyTagRead
- */
-export type ScoreTaxonomyTagRead = {
-    /**
-     * Category
-     */
-    category: string;
-    /**
-     * Code
-     */
-    code: string;
-    /**
-     * Confidence
-     */
-    confidence: number | null;
-    /**
-     * Source
-     */
-    source: string;
-};
-
-/**
  * ScoreTempoPlanSelection
  */
 export type ScoreTempoPlanSelection = {
@@ -4164,9 +4126,9 @@ export type ScoreUpdateRequest = {
      */
     expected_version: number;
     /**
-     * Taxonomy Tags
+     * Genres
      */
-    taxonomy_tags?: Array<ScoreTaxonomyTagInput> | null;
+    genres?: Array<string> | null;
     /**
      * Title
      */

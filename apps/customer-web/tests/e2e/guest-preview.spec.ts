@@ -27,7 +27,7 @@ for (const loggedIn of [false, true]) {
 
 test('owner creates an expiring preview and an anonymous browser opens it', async ({ page, browser }) => {
   await mockAuthenticatedSession(page); await mockRealtimeEvents(page);
-  const score = { score_id: 'preview-owner-score', title: 'Owner Score', taxonomy_tags: [], version: 1, head_revision_id: 'revision-a', metadata: null, input_assets: [], in_library: false,
+  const score = { score_id: 'preview-owner-score', title: 'Owner Score', genres: [], version: 1, head_revision_id: 'revision-a', metadata: null, input_assets: [], in_library: false,
     derived_assets: { preview: { status: 'pending', asset_id: null }, audio: { status: 'pending', asset_id: null } },
     capabilities: { can_view: true, can_edit: true, can_delete: true, can_manage_guest_previews: true, can_manage_members: true, can_download: true, can_practice: true }, created_at: '2026-06-20T00:00:00Z', updated_at: '2026-06-20T00:00:00Z' };
   await page.route('**/api/v1/scores/preview-owner-score', (route) => route.fulfill({ json: { success: true, data: score } }));

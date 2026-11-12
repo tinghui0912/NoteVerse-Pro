@@ -77,7 +77,7 @@ test('Next proxy submits and reads an authenticated score import job', async ({ 
       idempotency_key: 'integration-score-import-001',
       options: {
         title: 'Integration score',
-        taxonomy_tags: [{ category: 'genre', code: 'soundtrack' }],
+        genres: ['soundtrack'],
       },
     },
   });
@@ -91,6 +91,6 @@ test('Next proxy submits and reads an authenticated score import job', async ({ 
   expect(jobBody.data.job_id).toBe(importJobBody.data.job_id);
   expect(jobBody.data.state).toBe('PENDING');
   expect(jobBody.data.title).toBe('Integration score');
-  expect(jobBody.data.taxonomy_tags).toEqual([{ category: 'genre', code: 'soundtrack' }]);
+  expect(jobBody.data.genres).toEqual(['soundtrack']);
 });
 

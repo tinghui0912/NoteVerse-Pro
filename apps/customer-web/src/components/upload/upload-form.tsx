@@ -24,13 +24,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { SCORE_GENRE_TAGS, taxonomyTagKey, type ScoreTaxonomyTagValue } from '@/lib/score/taxonomy';
+import { SCORE_GENRES, type ScoreGenreCode } from '@/lib/score/genres';
 import { cn } from '@/lib/utils';
 
 interface UploadFormProps {
   files: UploadableFile[];
   scoreName: string;
-  taxonomyTags: ScoreTaxonomyTagValue[];
+  genres: ScoreGenreCode[];
   isProcessing: boolean;
   isUploading: boolean;
   isSubmitting: boolean;
@@ -41,7 +41,7 @@ interface UploadFormProps {
   onClearFiles: () => void;
   onRemoveFile: (index: number) => void;
   onScoreNameChange: (name: string) => void;
-  onTaxonomyTagsChange: (tags: ScoreTaxonomyTagValue[]) => void;
+  onGenresChange: (tags: ScoreGenreCode[]) => void;
   onSubmit: () => void;
 }
 
@@ -82,14 +82,12 @@ export function UploadForm(props: UploadFormProps) {
     setPreviewStartIndex(index);
     setPreviewOpen(true);
   };
-  const selectedTagKeys = new Set(props.taxonomyTags.map(taxonomyTagKey));
-  const toggleGenreTag = (tag: ScoreTaxonomyTagValue) => {
+  const selectedGenres = new Set(props.genres);
+  const toggleGenre = (tag: ScoreGenreCode) => {
     if (props.isProcessing) return;
-    const key = taxonomyTagKey(tag);
-    props.onTaxonomyTagsChange(
-      selectedTagKeys.has(key)
-        ? props.taxonomyTags.filter((item) => taxonomyTagKey(item) !== key)
-        : [...props.taxonomyTags, tag]
+    const key = tag;
+    props.onGenresChange(
+      selectedGenres.has(key) ? props.genres.filter((item) => item !== key) : [...props.genres, tag]
     );
   };
 
@@ -112,13 +110,13 @@ export function UploadForm(props: UploadFormProps) {
             <div className="space-y-3">
               <Label>{t('styleTagsLabel')}</Label>
               <div className="flex flex-wrap gap-2">
-                {SCORE_GENRE_TAGS.map((tag) => {
-                  const selected = selectedTagKeys.has(taxonomyTagKey(tag));
+                {SCORE_GENRES.map((tag) => {
+                  const selected = selectedGenres.has(tag);
                   return (
                     <button
-                      key={taxonomyTagKey(tag)}
+                      key={tag}
                       type="button"
-                      onClick={() => toggleGenreTag(tag)}
+                      onClick={() => toggleGenre(tag)}
                       disabled={props.isProcessing}
                       aria-pressed={selected}
                       className={cn(
@@ -128,7 +126,7 @@ export function UploadForm(props: UploadFormProps) {
                           : 'border-gray-200 bg-white text-gray-700 hover:border-orange-200 hover:bg-orange-50'
                       )}
                     >
-                      {scoreStyles(tag.code)}
+                      {scoreStyles(tag)}
                     </button>
                   );
                 })}
@@ -141,14 +139,20 @@ export function UploadForm(props: UploadFormProps) {
             {...getRootProps()}
             className={cn(
               'rounded-2xl border-2 border-dashed p-4 transition-colors cursor-pointer bg-gray-50',
-              isDragActive ? 'border-primary bg-orange-50' : 'border-gray-200 hover:border-gray-300',
+              isDragActive
+                ? 'border-primary bg-orange-50'
+                : 'border-gray-200 hover:border-gray-300',
               props.isProcessing && 'pointer-events-none opacity-50'
             )}
           >
             <input {...getInputProps()} />
             {props.files.length > 0 ? (
               <AlertDialog>
-                <AlertDialogTrigger asChild><div><DropzoneContent /></div></AlertDialogTrigger>
+                <AlertDialogTrigger asChild>
+                  <div>
+                    <DropzoneContent />
+                  </div>
+                </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>{t('reselectConfirmTitle')}</AlertDialogTitle>
@@ -160,12 +164,16 @@ export function UploadForm(props: UploadFormProps) {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-            ) : <DropzoneContent />}
+            ) : (
+              <DropzoneContent />
+            )}
           </div>
 
           {props.files.length > 0 && (
             <div className="space-y-4 text-left">
-              <h3 className="font-semibold text-gray-800">{t('selectedImages')} ({props.files.length})</h3>
+              <h3 className="font-semibold text-gray-800">
+                {t('selectedImages')} ({props.files.length})
+              </h3>
               <div className="flex flex-wrap gap-4">
                 {props.files.map((item, index) => (
                   <div
@@ -173,14 +181,25 @@ export function UploadForm(props: UploadFormProps) {
                     className="relative h-32 w-32 rounded-lg border-2 border-muted overflow-hidden group shadow-md cursor-pointer"
                     onClick={() => showPreview(index)}
                   >
-                    <Image src={item.preview} alt={item.file.name} fill unoptimized className="object-cover transition-transform duration-300 group-hover:scale-110" />
+                    <Image
+                      src={item.preview}
+                      alt={item.file.name}
+                      fill
+                      unoptimized
+                      className="object-cover transition-transform duration-300 group-hover:scale-110"
+                    />
                     {item.status === 'uploading' && (
                       <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                         <LoadingSpinner size="md" className="text-white" />
                       </div>
                     )}
                     {item.status === 'uploaded' && (
-                      <div className="absolute top-1 left-1 bg-green-500 text-white text-xs px-1 rounded" aria-label={t('uploadedStatus')}>✓</div>
+                      <div
+                        className="absolute top-1 left-1 bg-green-500 text-white text-xs px-1 rounded"
+                        aria-label={t('uploadedStatus')}
+                      >
+                        ✓
+                      </div>
                     )}
                     {item.status === 'error' && (
                       <div className="absolute inset-0 bg-red-500/50 flex items-center justify-center">
@@ -229,14 +248,29 @@ export function UploadForm(props: UploadFormProps) {
               className="w-full max-w-xs bg-orange-500 hover:bg-orange-600 text-white font-semibold"
               disabled={props.files.length === 0 || props.isProcessing}
             >
-              {props.isUploading ? <InlineLoading label={t('uploading')} />
-                : props.isSubmitting ? <InlineLoading label={props.taskProgress > 0 ? t('processingProgress', { progress: props.taskProgress }) : t('awaitingProcessing')} />
-                  : t('startRecognition')}
+              {props.isUploading ? (
+                <InlineLoading label={t('uploading')} />
+              ) : props.isSubmitting ? (
+                <InlineLoading
+                  label={
+                    props.taskProgress > 0
+                      ? t('processingProgress', { progress: props.taskProgress })
+                      : t('awaitingProcessing')
+                  }
+                />
+              ) : (
+                t('startRecognition')
+              )}
             </Button>
           </div>
         </CardContent>
       </Card>
-      <UploadPreviewDialog files={props.files} open={previewOpen} startIndex={previewStartIndex} onOpenChange={setPreviewOpen} />
+      <UploadPreviewDialog
+        files={props.files}
+        open={previewOpen}
+        startIndex={previewStartIndex}
+        onOpenChange={setPreviewOpen}
+      />
     </>
   );
 }

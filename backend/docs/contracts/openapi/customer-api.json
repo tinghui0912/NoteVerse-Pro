@@ -3799,11 +3799,11 @@
       "ImportJobProcessingOptions": {
         "additionalProperties": false,
         "properties": {
-          "taxonomy_tags": {
+          "genres": {
             "items": {
-              "$ref": "#/components/schemas/ScoreTaxonomyTagInput"
+              "type": "string"
             },
-            "title": "Taxonomy Tags",
+            "title": "Genres",
             "type": "array"
           },
           "title": {
@@ -3848,6 +3848,14 @@
               }
             ],
             "title": "Finished At"
+          },
+          "genres": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Genres",
+            "type": "array"
           },
           "job_id": {
             "title": "Job Id",
@@ -3912,14 +3920,6 @@
           "state": {
             "$ref": "#/components/schemas/ImportJobState"
           },
-          "taxonomy_tags": {
-            "default": [],
-            "items": {
-              "$ref": "#/components/schemas/ScoreTaxonomyTagInput"
-            },
-            "title": "Taxonomy Tags",
-            "type": "array"
-          },
           "thumbnail": {
             "anyOf": [
               {
@@ -3968,6 +3968,13 @@
             "title": "Created At",
             "type": "string"
           },
+          "genres": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Genres",
+            "type": "array"
+          },
           "job_id": {
             "title": "Job Id",
             "type": "string"
@@ -4003,16 +4010,6 @@
           "state": {
             "$ref": "#/components/schemas/ImportJobState"
           },
-          "taxonomy_tags": {
-            "items": {
-              "additionalProperties": {
-                "type": "string"
-              },
-              "type": "object"
-            },
-            "title": "Taxonomy Tags",
-            "type": "array"
-          },
           "title": {
             "anyOf": [
               {
@@ -4033,7 +4030,7 @@
         "required": [
           "job_id",
           "state",
-          "taxonomy_tags",
+          "genres",
           "original_images",
           "created_at",
           "updated_at"
@@ -4712,6 +4709,13 @@
             ],
             "title": "Folder Id"
           },
+          "genres": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Genres",
+            "type": "array"
+          },
           "is_favorite": {
             "title": "Is Favorite",
             "type": "boolean"
@@ -4748,13 +4752,6 @@
           "source_type": {
             "$ref": "#/components/schemas/LibraryEntrySourceType"
           },
-          "taxonomy_tags": {
-            "items": {
-              "$ref": "#/components/schemas/ScoreTaxonomyTagRead"
-            },
-            "title": "Taxonomy Tags",
-            "type": "array"
-          },
           "title": {
             "title": "Title",
             "type": "string"
@@ -4783,7 +4780,7 @@
           "folder_id",
           "title",
           "derived_assets",
-          "taxonomy_tags",
+          "genres",
           "metadata",
           "is_favorite",
           "practice_state",
@@ -7157,11 +7154,11 @@
             "title": "Content",
             "type": "string"
           },
-          "taxonomy_tags": {
+          "genres": {
             "anyOf": [
               {
                 "items": {
-                  "$ref": "#/components/schemas/ScoreTaxonomyTagInput"
+                  "type": "string"
                 },
                 "type": "array"
               },
@@ -7169,7 +7166,7 @@
                 "type": "null"
               }
             ],
-            "title": "Taxonomy Tags"
+            "title": "Genres"
           },
           "title": {
             "anyOf": [
@@ -7830,6 +7827,13 @@
           "derived_assets": {
             "$ref": "#/components/schemas/ScoreDerivedAssetsRead"
           },
+          "genres": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Genres",
+            "type": "array"
+          },
           "head_revision_id": {
             "anyOf": [
               {
@@ -7866,13 +7870,6 @@
             "title": "Score Id",
             "type": "string"
           },
-          "taxonomy_tags": {
-            "items": {
-              "$ref": "#/components/schemas/ScoreTaxonomyTagRead"
-            },
-            "title": "Taxonomy Tags",
-            "type": "array"
-          },
           "title": {
             "title": "Title",
             "type": "string"
@@ -7890,7 +7887,7 @@
         "required": [
           "score_id",
           "title",
-          "taxonomy_tags",
+          "genres",
           "version",
           "head_revision_id",
           "derived_assets",
@@ -7952,61 +7949,6 @@
         "title": "ScoreRevisionPracticeBindingRead",
         "type": "object"
       },
-      "ScoreTaxonomyTagInput": {
-        "properties": {
-          "category": {
-            "maxLength": 64,
-            "title": "Category",
-            "type": "string"
-          },
-          "code": {
-            "maxLength": 64,
-            "title": "Code",
-            "type": "string"
-          }
-        },
-        "required": [
-          "category",
-          "code"
-        ],
-        "title": "ScoreTaxonomyTagInput",
-        "type": "object"
-      },
-      "ScoreTaxonomyTagRead": {
-        "properties": {
-          "category": {
-            "title": "Category",
-            "type": "string"
-          },
-          "code": {
-            "title": "Code",
-            "type": "string"
-          },
-          "confidence": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Confidence"
-          },
-          "source": {
-            "title": "Source",
-            "type": "string"
-          }
-        },
-        "required": [
-          "category",
-          "code",
-          "source",
-          "confidence"
-        ],
-        "title": "ScoreTaxonomyTagRead",
-        "type": "object"
-      },
       "ScoreTempoPlanSelection": {
         "additionalProperties": false,
         "properties": {
@@ -8030,11 +7972,11 @@
             "title": "Expected Version",
             "type": "integer"
           },
-          "taxonomy_tags": {
+          "genres": {
             "anyOf": [
               {
                 "items": {
-                  "$ref": "#/components/schemas/ScoreTaxonomyTagInput"
+                  "type": "string"
                 },
                 "type": "array"
               },
@@ -8042,7 +7984,7 @@
                 "type": "null"
               }
             ],
-            "title": "Taxonomy Tags"
+            "title": "Genres"
           },
           "title": {
             "anyOf": [

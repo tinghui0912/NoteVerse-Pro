@@ -14,6 +14,7 @@ from app.db.model_utils import require_persisted_id
 from app.db.models import ImportArtifact, ImportJob, ImportJobUpload, Score, StoredObject, Upload
 from app.db.models.import_job import ImportJobState
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
+from app.modules.import_jobs.schemas import processing_options_adapter
 from app.modules.review.schemas import (
     ImportJobReviewRead,
     ReviewArtifactRead,
@@ -48,7 +49,7 @@ class ReviewReadModel:
                     state=job.state,
                     score_id=score.score_uuid,
                     title=score.title,
-                    taxonomy_tags=[],
+                    genres=score.genres,
                     musicxml=None,
                     original_images=[],
                     created_at=job.created_at,
@@ -85,15 +86,16 @@ class ReviewReadModel:
         content = self.storage.read_bytes(musicxml_artifact.stored_object.object_key).decode(
             "utf-8"
         )
-        options = job.requested_options if isinstance(job.requested_options, dict) else {}
+        options = processing_options_adapter.validate_python(
+            job.requested_options if job.requested_options is not None else {}
+        )
         title = options.get("title")
-        taxonomy_tags = options.get("taxonomy_tags")
         original_images = await self.upload_reads(db, job_id)
         return ImportJobReviewRead(
             job_id=job.job_uuid,
             state=job.state,
             title=title if isinstance(title, str) else None,
-            taxonomy_tags=taxonomy_tags if isinstance(taxonomy_tags, list) else [],
+            genres=options.get("genres", []),
             musicxml=ReviewMusicXmlRead(
                 artifact_id=musicxml_artifact.artifact_uuid,
                 content=content,

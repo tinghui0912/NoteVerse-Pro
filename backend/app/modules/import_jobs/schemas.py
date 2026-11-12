@@ -3,15 +3,16 @@ from __future__ import annotations
 from datetime import datetime
 from typing import List, Optional, Protocol, TypedDict
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator, with_config
 
 from app.db.models.import_job import ImportJobState
-from app.modules.scores.schemas import ScoreTaxonomyTagInput
+from app.modules.scores.genres import Genres
 
 
+@with_config(ConfigDict(extra="forbid"))
 class ImportJobProcessingOptions(TypedDict, total=False):
     title: str
-    taxonomy_tags: list[ScoreTaxonomyTagInput]
+    genres: Genres
 
 
 class ImportJobSubmitRequestLike(Protocol):
@@ -47,7 +48,7 @@ class ImportJobRead(BaseModel):
     progress: int
     score_id: str | None = None
     title: str | None = None
-    taxonomy_tags: list[ScoreTaxonomyTagInput] = []
+    genres: Genres = []
     thumbnail: ImportArtifactRead | None = None
     created_at: str | None = None
     updated_at: str | None = None
@@ -109,7 +110,7 @@ class ImportJobDetail(TypedDict, total=False):
     state: ImportJobState | str
     progress: int
     title: Optional[str]
-    taxonomy_tags: list[dict[str, str]]
+    genres: list[str]
     thumbnail: Optional[ImportJobThumbnailItem]
     created_at: Optional[str]
     updated_at: Optional[str]
@@ -133,22 +134,6 @@ class ImportJobSubmitRequest(BaseModel):
     idempotency_key: Optional[str] = Field(default=None, min_length=8, max_length=128)
     options: Optional[ImportJobProcessingOptions] = None
 
-    @field_validator("options")
-    @classmethod
-    def validate_options(
-        cls, value: Optional[ImportJobProcessingOptions]
-    ) -> Optional[ImportJobProcessingOptions]:
-        if value is None:
-            return None
-        taxonomy_tags = value.get("taxonomy_tags")
-        if taxonomy_tags is not None:
-            normalized_tags: list[ScoreTaxonomyTagInput] = []
-            for tag in taxonomy_tags:
-                normalized = ScoreTaxonomyTagInput.model_validate(tag)
-                normalized_tags.append(normalized)
-            value["taxonomy_tags"] = normalized_tags
-        return value
-
     @field_validator("idempotency_key")
     @classmethod
     def normalize_idempotency_key(cls, value: Optional[str]) -> Optional[str]:
@@ -167,3 +152,6 @@ class ImportJobStatusUpdate(TypedDict, total=False):
     error_type: Optional[str]
     code: Optional[str]
     started_at: Optional[datetime]
+
+
+processing_options_adapter = TypeAdapter(ImportJobProcessingOptions)

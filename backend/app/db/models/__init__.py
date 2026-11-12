@@ -47,9 +47,6 @@ from .score import (
     ScoreRevision,
     ScoreRevisionMetadata,
     ScoreRevisionSource,
-    ScoreTaxonomyTag,
-    TaxonomyCategory,
-    TaxonomyTag,
 )
 from .score_access import (
     AccessOrigin,
@@ -138,9 +135,6 @@ __all__ = [
     "ScoreRevision",
     "ScoreRevisionMetadata",
     "ScoreRevisionSource",
-    "ScoreTaxonomyTag",
-    "TaxonomyCategory",
-    "TaxonomyTag",
     "AccessOrigin",
     "InviteStatus",
     "MembershipRole",

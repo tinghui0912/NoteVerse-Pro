@@ -21,7 +21,10 @@ import { scoresApi } from '@/lib/api';
 import { formatApiDateTime } from '@/lib/date-time';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { parseScoreDetailSource } from '@/lib/score-detail/navigation';
-import { isDerivedAssetPreparing, playableAudioRevisionId } from '@/lib/score-detail/derived-assets';
+import {
+  isDerivedAssetPreparing,
+  playableAudioRevisionId,
+} from '@/lib/score-detail/derived-assets';
 import { scoreThumbnailUrl } from '@/lib/score-detail/thumbnail';
 
 function ScorePageContent({ id, source }: { id: string; source: 'my-scores' | null }) {
@@ -91,46 +94,52 @@ function ScorePageContent({ id, source }: { id: string; source: 'my-scores' | nu
           imageCountStatus={previewAsset.status}
           metadata={score.metadata}
           scoreId={score.score_id}
-          taxonomyTags={score.taxonomy_tags}
+          genres={score.genres}
           title={scoreTitle}
           updatedAt={score.updated_at}
           version={score.version}
         />
       ),
     },
-    score.capabilities.can_edit ? {
-      value: 'versions',
-      label: t('versionsAction'),
-      content: (
-        <ScoreVersionsPanel
-          canRestore={score.capabilities.can_edit}
-          headRevisionId={score.head_revision_id}
-          scoreId={score.score_id}
-        />
-      ),
-    } : null,
-    score.capabilities.can_manage_guest_previews ? {
-      value: 'guest-preview',
-      label: t('guestPreviewAction'),
-      content: (
-        <div className="rounded-2xl border bg-white p-5 shadow-sm sm:p-6">
-          <ScoreGuestPreviewPanel scoreId={score.score_id} />
-        </div>
-      ),
-    } : null,
-    score.capabilities.can_manage_members ? {
-      value: 'collaboration',
-      label: t('collaborationAction'),
-      content: (
-        <div className="rounded-2xl border bg-white p-5 shadow-sm sm:p-6">
-          <ScoreCollaborationPanel scoreId={score.score_id} scoreTitle={scoreTitle} />
-        </div>
-      ),
-    } : null,
+    score.capabilities.can_edit
+      ? {
+          value: 'versions',
+          label: t('versionsAction'),
+          content: (
+            <ScoreVersionsPanel
+              canRestore={score.capabilities.can_edit}
+              headRevisionId={score.head_revision_id}
+              scoreId={score.score_id}
+            />
+          ),
+        }
+      : null,
+    score.capabilities.can_manage_guest_previews
+      ? {
+          value: 'guest-preview',
+          label: t('guestPreviewAction'),
+          content: (
+            <div className="rounded-2xl border bg-white p-5 shadow-sm sm:p-6">
+              <ScoreGuestPreviewPanel scoreId={score.score_id} />
+            </div>
+          ),
+        }
+      : null,
+    score.capabilities.can_manage_members
+      ? {
+          value: 'collaboration',
+          label: t('collaborationAction'),
+          content: (
+            <div className="rounded-2xl border bg-white p-5 shadow-sm sm:p-6">
+              <ScoreCollaborationPanel scoreId={score.score_id} scoreTitle={scoreTitle} />
+            </div>
+          ),
+        }
+      : null,
   ].filter((tab): tab is NonNullable<typeof tab> => Boolean(tab));
   const requestedTab = searchParams.get('tab');
   const activeTab = tabs.some((tab) => tab.value === requestedTab)
-    ? requestedTab ?? tabs[0].value
+    ? (requestedTab ?? tabs[0].value)
     : tabs[0].value;
   const handleTabChange = (value: string) => {
     const nextParams = new URLSearchParams(searchParams.toString());
@@ -145,33 +154,33 @@ function ScorePageContent({ id, source }: { id: string; source: 'my-scores' | nu
           <ScoreBreadcrumbs scoreTitle={scoreTitle} source={source} />
           <ScoreDetailHero
             title={scoreTitle}
-            thumbnailUrl={previewAsset.status === 'ready' ? scoreThumbnailUrl(previewAsset.asset_id) : null}
+            thumbnailUrl={
+              previewAsset.status === 'ready' ? scoreThumbnailUrl(previewAsset.asset_id) : null
+            }
             thumbnailLoading={imagePreparing}
             playbackAudioSrc={playbackAudioSrc}
             playbackEnabled={Boolean(playbackAudioSrc)}
             playbackLoading={audioPreparing}
             playbackVisible={score.capabilities.can_practice}
-            actions={(
+            actions={
               <ScoreHeroActions
                 imagePreparing={imagePreparing}
                 revisionAssets={resources.revisionAssets}
                 revisionId={score.head_revision_id}
                 scoreId={score.score_id}
               />
-            )}
-            meta={(
+            }
+            meta={
               <>
-                <span>{t('lastModifiedTime')} {formatApiDateTime(score.updated_at)}</span>
+                <span>
+                  {t('lastModifiedTime')} {formatApiDateTime(score.updated_at)}
+                </span>
                 <span aria-hidden="true">·</span>
                 <span>{t('versionLabel', { version: score.version })}</span>
               </>
-            )}
+            }
           />
-          <ScoreDetailTabs
-            tabs={tabs}
-            value={activeTab}
-            onValueChange={handleTabChange}
-          />
+          <ScoreDetailTabs tabs={tabs} value={activeTab} onValueChange={handleTabChange} />
         </div>
       </ScoreSurface>
     </ScoreCapabilityProvider>

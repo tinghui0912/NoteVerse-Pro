@@ -24,7 +24,7 @@ def test_score_openapi_keeps_read_model_fields_required(client: TestClient) -> N
         "ScoreRead": {
             "score_id",
             "title",
-            "taxonomy_tags",
+            "genres",
             "version",
             "head_revision_id",
             "derived_assets",
@@ -35,7 +35,6 @@ def test_score_openapi_keeps_read_model_fields_required(client: TestClient) -> N
             "updated_at",
             "capabilities",
         },
-        "ScoreTaxonomyTagRead": {"category", "code", "source", "confidence"},
     }
 
     for schema_name, fields in expected_required_fields.items():

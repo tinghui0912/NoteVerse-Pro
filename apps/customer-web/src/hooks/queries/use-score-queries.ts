@@ -39,11 +39,7 @@ export function useScoreRevisionAssets(
   return useQuery({
     queryKey: queryKeys.scores.revisionAssets(scoreId, options?.revisionId),
     queryFn: ({ signal }) =>
-      scoresApi.revisionAssets(
-        scoreId,
-        { revision_id: options?.revisionId },
-        signal
-      ),
+      scoresApi.revisionAssets(scoreId, { revision_id: options?.revisionId }, signal),
     enabled: (options?.enabled ?? true) && Boolean(scoreId),
   });
 }
@@ -51,13 +47,15 @@ export function useScoreRevisionAssets(
 export function useUpdateScore() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ scoreId, ...input }: {
+    mutationFn: ({
+      scoreId,
+      ...input
+    }: {
       scoreId: string;
       title?: string;
-      taxonomy_tags?: Array<{ category: string; code: string }>;
+      genres?: string[];
       expected_version: number;
-    }) =>
-      scoresApi.update(scoreId, input),
+    }) => scoresApi.update(scoreId, input),
     onSuccess: (response) => {
       const score = response.data;
       if (score) queryClient.setQueryData(queryKeys.scores.detail(score.score_id), response);
@@ -68,12 +66,23 @@ export function useUpdateScore() {
 export function useCreateRevision() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ scoreId, ...input }: { scoreId: string; content: string; expected_head_revision_id: string; idempotency_key?: string }) =>
-      scoresApi.createRevision(scoreId, input),
+    mutationFn: ({
+      scoreId,
+      ...input
+    }: {
+      scoreId: string;
+      content: string;
+      expected_head_revision_id: string;
+      idempotency_key?: string;
+    }) => scoresApi.createRevision(scoreId, input),
     onSuccess: (_response, variables) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.scores.detail(variables.scoreId) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.revisions(variables.scoreId) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.revisionAssets(variables.scoreId) });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.scores.revisions(variables.scoreId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.scores.revisionAssets(variables.scoreId),
+      });
       void queryClient.invalidateQueries({ queryKey: queryKeys.myScores.lists() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.library.entries() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.storageUsage.current() });
@@ -84,12 +93,23 @@ export function useCreateRevision() {
 export function useRestoreRevision() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ scoreId, revisionId, note }: { scoreId: string; revisionId: string; note?: string | null }) =>
-      scoresApi.restoreRevision(scoreId, revisionId, { note }),
+    mutationFn: ({
+      scoreId,
+      revisionId,
+      note,
+    }: {
+      scoreId: string;
+      revisionId: string;
+      note?: string | null;
+    }) => scoresApi.restoreRevision(scoreId, revisionId, { note }),
     onSuccess: (_response, variables) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.scores.detail(variables.scoreId) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.revisions(variables.scoreId) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.revisionAssets(variables.scoreId) });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.scores.revisions(variables.scoreId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.scores.revisionAssets(variables.scoreId),
+      });
       void queryClient.invalidateQueries({ queryKey: queryKeys.myScores.lists() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.library.entries() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.storageUsage.current() });
@@ -110,14 +130,19 @@ export function useUpdateRevisionNote() {
       note?: string | null;
     }) => scoresApi.updateRevisionNote(scoreId, revisionId, { note }),
     onSuccess: (_response, variables) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.revisions(variables.scoreId) });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.scores.revisions(variables.scoreId),
+      });
     },
   });
 }
 
 export function useGenerateScoreFingering() {
   return useMutation({
-    mutationFn: ({ scoreId, ...input }: {
+    mutationFn: ({
+      scoreId,
+      ...input
+    }: {
       scoreId: string;
       content: string;
       hand_size?: FingeringRequest['hand_size'];

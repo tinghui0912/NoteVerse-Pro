@@ -11,6 +11,26 @@ from app.core.exceptions import (
 from app.db.models.import_job import ImportJobState
 from app.modules.import_jobs.service import ImportJobService
 from app.shared.constants import ErrorCode
+from pydantic import ValidationError
+
+
+@pytest.mark.asyncio
+async def test_retry_rejects_invalid_persisted_genres_before_submission():
+    job = SimpleNamespace(
+        id=17,
+        job_uuid="job",
+        user_id=7,
+        state=ImportJobState.FAILURE,
+        requested_options={"genres": ["unknown"]},
+    )
+    service, _ = _service_with_job(job)
+    rows = Mock()
+    rows.scalars.return_value.all.return_value = ["upload"]
+    database = Mock(execute=AsyncMock(return_value=rows))
+    service.submission_service = Mock(submit=AsyncMock())
+    with pytest.raises(ValidationError):
+        await service.retry(database, "job", SimpleNamespace(id=7), 7)
+    service.submission_service.submit.assert_not_awaited()
 
 
 def _service_with_job(job: object | None) -> tuple[ImportJobService, Mock]:
@@ -73,7 +93,7 @@ async def test_retry_requires_original_uploads_and_preserves_processing_options(
         job_uuid="job-1",
         state=ImportJobState.FAILURE,
         user_id=7,
-        requested_options={"title": "Recovered score"},
+        requested_options={"title": "Recovered score", "genres": ["jazz", "classical", "jazz"]},
     )
     service, _repository = _service_with_job(job)
     database = Mock()
@@ -104,7 +124,7 @@ async def test_retry_requires_original_uploads_and_preserves_processing_options(
     submitted_user, retry_request = submission.submit.await_args.args
     assert submitted_user is user
     assert retry_request.file_ids == ["upload-1", "upload-2"]
-    assert retry_request.options == {"title": "Recovered score"}
+    assert retry_request.options == {"title": "Recovered score", "genres": ["classical", "jazz"]}
     assert retry_request.idempotency_key is None
 
 

@@ -3,6 +3,10 @@
 This document is the current product-facing summary for the two score
 management surfaces.
 
+A Score owns an ordered unique list of known genre codes. It may have zero or
+more genres selected from the current vocabulary, with no numeric genre-count
+limit. Library and Review display the Score's genres.
+
 ## Product Split
 
 `/library` is the learner's personal library:

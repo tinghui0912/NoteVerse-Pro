@@ -6,7 +6,7 @@ test('My Scores keeps owned scores, processing, review and failed views with lib
   await mockRealtimeEvents(page);
   const scoreRequests: string[] = [];
   const score = {
-    score_id: 'owned-score', title: 'Owned sonata', taxonomy_tags: [], version: 1,
+    score_id: 'owned-score', title: 'Owned sonata', genres: [], version: 1,
     head_revision_id: 'revision', in_library: false, metadata: null, input_assets: [],
     derived_assets: {
       preview: { status: 'pending', asset_id: null },
@@ -56,7 +56,7 @@ test('My Scores shows a neutral current-head thumbnail until exact presentation 
   await mockAuthenticatedSession(page); await mockRealtimeEvents(page);
   let ready=false;
   await page.route('**/api/v1/my-scores?*', route => route.fulfill({ json: { success:true,
-    data:[{ score_id:'head-score', title:'Head owned score', taxonomy_tags:[], version:2, head_revision_id:'r2',
+    data:[{ score_id:'head-score', title:'Head owned score', genres:[], version:2, head_revision_id:'r2',
       metadata:null, input_assets:[], in_library:false, created_at:'2026-06-20T00:00:00Z', updated_at:'2026-06-21T00:00:00Z',
       capabilities:{can_view:true,can_edit:true,can_delete:true,can_manage_guest_previews:true,can_manage_members:true,can_download:true,can_practice:true},
       derived_assets:{preview:{status:ready?'ready':'pending',asset_id:ready?'r2-image':null},audio:{status:'pending',asset_id:null}}}],

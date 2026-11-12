@@ -21,12 +21,8 @@ import { useToast } from '@/hooks/use-toast';
 import { formatApiDateTime } from '@/lib/date-time';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { formatKeySignature } from '@/lib/score/metadata-display';
-import {
-  SCORE_GENRE_TAGS,
-  taxonomyTagKey,
-  type ScoreTaxonomyTagValue,
-} from '@/lib/score/taxonomy';
-import type { MetadataRead, ScoreTaxonomyTagRead } from '@/generated/api';
+import { SCORE_GENRES, knownGenres, isScoreGenre, type ScoreGenreCode } from '@/lib/score/genres';
+import type { MetadataRead } from '@/generated/api';
 
 interface ScoreInfoPanelProps {
   canEditTitle?: boolean;
@@ -35,26 +31,10 @@ interface ScoreInfoPanelProps {
   imageCountStatus?: 'pending' | 'processing' | 'ready' | 'unavailable';
   metadata?: MetadataRead | null;
   scoreId?: string;
-  taxonomyTags: ScoreTaxonomyTagRead[];
+  genres: string[];
   title: string;
   updatedAt?: string | null;
   version?: number;
-}
-
-function normalizeGenreTags(tags: ScoreTaxonomyTagRead[] | ScoreTaxonomyTagValue[]) {
-  const keys = new Set<string>();
-  const result: ScoreTaxonomyTagValue[] = [];
-  for (const tag of tags) {
-    const match = SCORE_GENRE_TAGS.find(
-      (item) => item.category === tag.category && item.code === tag.code
-    );
-    if (!match) continue;
-    const key = taxonomyTagKey(match);
-    if (keys.has(key)) continue;
-    keys.add(key);
-    result.push(match);
-  }
-  return result;
 }
 
 export function ScoreInfoPanel({
@@ -64,7 +44,7 @@ export function ScoreInfoPanel({
   imageCountStatus = 'ready',
   metadata,
   scoreId,
-  taxonomyTags,
+  genres,
   title: currentTitle,
   updatedAt,
   version = 1,
@@ -82,18 +62,26 @@ export function ScoreInfoPanel({
   const [title, setTitle] = useState(currentTitle);
   const [editing, setEditing] = useState(false);
 
-  const serverTags = normalizeGenreTags(taxonomyTags);
-  const serverKey = serverTags.map(taxonomyTagKey).join('|');
+  const serverGenres = knownGenres(genres);
+  const serverKey = serverGenres.join('|');
   const [optimistic, setOptimistic] = useState<{
     serverKey: string;
-    tags: ScoreTaxonomyTagValue[];
+    genres: ScoreGenreCode[];
   } | null>(null);
-  const selectedTags = optimistic?.serverKey === serverKey ? optimistic.tags : serverTags;
-  const selectedKeys = new Set(selectedTags.map(taxonomyTagKey));
-  const availableTags = SCORE_GENRE_TAGS.filter((tag) => !selectedKeys.has(taxonomyTagKey(tag)));
-  const imageCountLabel = imageCountStatus === 'pending' || imageCountStatus === 'processing'
-    ? <span aria-label={t('totalPages')} className="inline-block h-4 w-12 animate-pulse rounded bg-muted" />
-    : imageCountStatus === 'unavailable' ? '-' : t('pageCount', { count: imageCount });
+  const selectedGenres = optimistic?.serverKey === serverKey ? optimistic.genres : serverGenres;
+  const selectedKeys = new Set(selectedGenres);
+  const availableGenres = SCORE_GENRES.filter((tag) => !selectedKeys.has(tag));
+  const imageCountLabel =
+    imageCountStatus === 'pending' || imageCountStatus === 'processing' ? (
+      <span
+        aria-label={t('totalPages')}
+        className="inline-block h-4 w-12 animate-pulse rounded bg-muted"
+      />
+    ) : imageCountStatus === 'unavailable' ? (
+      '-'
+    ) : (
+      t('pageCount', { count: imageCount })
+    );
 
   useEffect(() => {
     if (editing) {
@@ -110,7 +98,11 @@ export function ScoreInfoPanel({
       return;
     }
     if (!nextTitle) {
-      toast({ variant: 'destructive', title: t('nameEmptyTitle'), description: t('nameEmptyDesc') });
+      toast({
+        variant: 'destructive',
+        title: t('nameEmptyTitle'),
+        description: t('nameEmptyDesc'),
+      });
       setTitle(currentTitle);
       setEditing(false);
       return;
@@ -122,29 +114,30 @@ export function ScoreInfoPanel({
           toast({ title: t('saveSuccess'), description: t('scoreInfoUpdated') });
           setEditing(false);
         },
-        onError: (error) => toast({
-          variant: 'destructive',
-          title: t('saveFailed'),
-          description: userFacingErrorMessage(errors, error, t('saveFailedDesc')),
-        }),
+        onError: (error) =>
+          toast({
+            variant: 'destructive',
+            title: t('saveFailed'),
+            description: userFacingErrorMessage(errors, error, t('saveFailedDesc')),
+          }),
       }
     );
   };
 
-  const saveTags = (nextTags: ScoreTaxonomyTagValue[]) => {
+  const saveGenres = (nextGenres: ScoreGenreCode[]) => {
     if (!scoreId || mutation.isPending) return;
-    const previousTags = selectedTags;
-    setOptimistic({ serverKey, tags: nextTags });
+    const previousGenres = selectedGenres;
+    setOptimistic({ serverKey, genres: nextGenres });
     mutation.mutate(
       {
         scoreId,
-        taxonomy_tags: nextTags.map((tag) => ({ category: tag.category, code: tag.code })),
+        genres: knownGenres(nextGenres),
         expected_version: version,
       },
       {
         onSuccess: () => toast({ title: t('saveSuccess'), description: t('styleTagsUpdated') }),
         onError: (error) => {
-          setOptimistic({ serverKey, tags: previousTags });
+          setOptimistic({ serverKey, genres: previousGenres });
           toast({
             variant: 'destructive',
             title: t('saveFailed'),
@@ -155,14 +148,13 @@ export function ScoreInfoPanel({
     );
   };
 
-  const addTag = (code: string) => {
-    const tag = SCORE_GENRE_TAGS.find((item) => item.code === code);
-    if (!tag || selectedKeys.has(taxonomyTagKey(tag))) return;
-    saveTags([...selectedTags, tag]);
+  const addGenre = (code: string) => {
+    if (!isScoreGenre(code) || selectedKeys.has(code)) return;
+    saveGenres([...selectedGenres, code]);
   };
 
-  const removeTag = (tag: ScoreTaxonomyTagValue) => {
-    saveTags(selectedTags.filter((item) => taxonomyTagKey(item) !== taxonomyTagKey(tag)));
+  const removeGenre = (tag: ScoreGenreCode) => {
+    saveGenres(selectedGenres.filter((item) => item !== tag));
   };
 
   return (
@@ -173,7 +165,9 @@ export function ScoreInfoPanel({
       <CardContent className="space-y-5">
         <div className="grid gap-4 text-sm sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="score-title" className="text-muted-foreground">{t('scoreName')}</Label>
+            <Label htmlFor="score-title" className="text-muted-foreground">
+              {t('scoreName')}
+            </Label>
             {editing ? (
               <Input
                 ref={inputRef}
@@ -233,7 +227,10 @@ export function ScoreInfoPanel({
           {createdAt ? (
             <div className="space-y-1.5">
               <span className="text-sm text-muted-foreground">{t('uploadTime')}</span>
-              <time dateTime={createdAt} className="block min-h-10 rounded-md border bg-muted/30 px-3 py-2 font-medium">
+              <time
+                dateTime={createdAt}
+                className="block min-h-10 rounded-md border bg-muted/30 px-3 py-2 font-medium"
+              >
                 {formatApiDateTime(createdAt, locale)}
               </time>
             </div>
@@ -241,7 +238,10 @@ export function ScoreInfoPanel({
           {updatedAt ? (
             <div className="space-y-1.5">
               <span className="text-sm text-muted-foreground">{t('lastModifiedTime')}</span>
-              <time dateTime={updatedAt} className="block min-h-10 rounded-md border bg-muted/30 px-3 py-2 font-medium">
+              <time
+                dateTime={updatedAt}
+                className="block min-h-10 rounded-md border bg-muted/30 px-3 py-2 font-medium"
+              >
                 {formatApiDateTime(updatedAt, locale)}
               </time>
             </div>
@@ -251,38 +251,43 @@ export function ScoreInfoPanel({
         <div className="space-y-3 border-t pt-5">
           <Label>{t('scoreStyles')}</Label>
           <div className="flex flex-wrap gap-2">
-            {selectedTags.length > 0 ? selectedTags.map((tag) => (
-              <span
-                key={taxonomyTagKey(tag)}
-                className="inline-flex items-center gap-1 rounded-full border border-orange-200 bg-orange-50 px-3 py-1.5 text-sm font-medium text-orange-700"
-              >
-                {scoreStyles(tag.code)}
-                {canEditStyles ? (
-                  <button
-                    type="button"
-                    onClick={() => removeTag(tag)}
-                    disabled={mutation.isPending}
-                    aria-label={t('removeStyleTag', { name: scoreStyles(tag.code) })}
-                    className="rounded-full p-0.5 hover:bg-orange-100 disabled:opacity-50"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                ) : null}
-              </span>
-            )) : (
+            {selectedGenres.length > 0 ? (
+              selectedGenres.map((tag) => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center gap-1 rounded-full border border-orange-200 bg-orange-50 px-3 py-1.5 text-sm font-medium text-orange-700"
+                >
+                  {scoreStyles(tag)}
+                  {canEditStyles ? (
+                    <button
+                      type="button"
+                      onClick={() => removeGenre(tag)}
+                      disabled={mutation.isPending}
+                      aria-label={t('removeStyleTag', { name: scoreStyles(tag) })}
+                      className="rounded-full p-0.5 hover:bg-orange-100 disabled:opacity-50"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  ) : null}
+                </span>
+              ))
+            ) : (
               <p className="text-sm text-muted-foreground">{t('noStyleTags')}</p>
             )}
           </div>
           {canEditStyles ? (
             <div className="flex gap-2">
-              <Select onValueChange={addTag} disabled={mutation.isPending || availableTags.length === 0}>
+              <Select
+                onValueChange={addGenre}
+                disabled={mutation.isPending || availableGenres.length === 0}
+              >
                 <SelectTrigger className="bg-white">
                   <SelectValue placeholder={t('addStyleTagPlaceholder')} />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableTags.map((tag) => (
-                    <SelectItem key={taxonomyTagKey(tag)} value={tag.code}>
-                      {scoreStyles(tag.code)}
+                  {availableGenres.map((tag) => (
+                    <SelectItem key={tag} value={tag}>
+                      {scoreStyles(tag)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -290,8 +295,8 @@ export function ScoreInfoPanel({
               <Button
                 type="button"
                 variant="outline"
-                disabled={mutation.isPending || selectedTags.length === 0}
-                onClick={() => saveTags([])}
+                disabled={mutation.isPending || selectedGenres.length === 0}
+                onClick={() => saveGenres([])}
               >
                 {t('clearStyleTags')}
               </Button>

@@ -169,7 +169,7 @@ review output.
 Own stable score resources and immutable revision creation:
 
 - score list/detail/update/delete/archive;
-- score title, taxonomy tags, state, and version;
+- score title, genres, state, and version;
 - head and approved revision pointers;
 - first score creation after review confirmation yields canonical MusicXML;
 - revision append, same-base no-op detection, base-revision conflict checks, and

@@ -199,7 +199,7 @@ test('failed processing notification opens the matching upload job', async ({ pa
           progress: 0,
           current_step: 'ocr',
           title: 'Failed upload',
-          taxonomy_tags: [],
+          genres: [],
           thumbnail_artifact_id: null,
           created_at: '2026-07-01T09:00:00Z',
           updated_at: '2026-07-01T09:20:00Z',

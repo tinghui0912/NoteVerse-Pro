@@ -1,7 +1,5 @@
 """Current application database schema and required reference data."""
 
-from datetime import datetime, timezone
-
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
@@ -10,76 +8,6 @@ revision = "0001_current_schema"
 down_revision = None
 branch_labels = None
 depends_on = None
-
-GENRE_TAGS = (
-    ("classical", "scoreStyles.genre.classical", 10),
-    ("pop", "scoreStyles.genre.pop", 20),
-    ("jazz", "scoreStyles.genre.jazz", 30),
-    ("rock", "scoreStyles.genre.rock", 40),
-    ("folk", "scoreStyles.genre.folk", 50),
-    ("blues", "scoreStyles.genre.blues", 60),
-    ("soundtrack", "scoreStyles.genre.soundtrack", 70),
-    ("anime_game", "scoreStyles.genre.animeGame", 80),
-    ("religious", "scoreStyles.genre.religious", 90),
-    ("latin", "scoreStyles.genre.latin", 100),
-    ("children", "scoreStyles.genre.children", 110),
-    ("original", "scoreStyles.genre.original", 120),
-    ("other", "scoreStyles.genre.other", 130),
-)
-
-
-def _seed_taxonomy_baseline() -> None:
-    taxonomy_categories = sa.table(
-        "taxonomy_categories",
-        sa.column("id", sa.BigInteger()),
-        sa.column("code", sa.String()),
-        sa.column("name_key", sa.String()),
-        sa.column("sort_order", sa.Integer()),
-        sa.column("is_active", sa.Boolean()),
-        sa.column("created_at", sa.DateTime()),
-    )
-    taxonomy_tags = sa.table(
-        "taxonomy_tags",
-        sa.column("category_id", sa.BigInteger()),
-        sa.column("code", sa.String()),
-        sa.column("name_key", sa.String()),
-        sa.column("aliases", sa.JSON()),
-        sa.column("sort_order", sa.Integer()),
-        sa.column("is_active", sa.Boolean()),
-        sa.column("created_at", sa.DateTime()),
-    )
-    bind = op.get_bind()
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
-    op.bulk_insert(
-        taxonomy_categories,
-        [
-            {
-                "code": "genre",
-                "name_key": "scoreStyles.category.genre",
-                "sort_order": 10,
-                "is_active": True,
-                "created_at": now,
-            }
-        ],
-    )
-    category_id = bind.execute(
-        sa.text("SELECT id FROM taxonomy_categories WHERE code = 'genre'")
-    ).scalar_one()
-    op.bulk_insert(
-        taxonomy_tags,
-        [
-            {
-                "category_id": category_id,
-                "code": code,
-                "name_key": name_key,
-                "aliases": [],
-                "sort_order": sort_order,
-                "is_active": True,
-                "created_at": now,
-            }
-            for code, name_key, sort_order in GENRE_TAGS
-        ],
-    )
 
 
 def upgrade() -> None:
@@ -444,28 +372,6 @@ def upgrade() -> None:
     )
     op.create_index("ix_stored_objects_sha256", "stored_objects", ["sha256"], unique=False)
     op.create_table(
-        "taxonomy_categories",
-        sa.Column(
-            "id",
-            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
-            autoincrement=True,
-            nullable=False,
-        ),
-        sa.Column("code", sa.String(length=64), nullable=False),
-        sa.Column("name_key", sa.String(length=128), nullable=False),
-        sa.Column("sort_order", sa.Integer(), nullable=False),
-        sa.Column("is_active", sa.Boolean(), nullable=False),
-        sa.Column("created_at", sa.DateTime(), nullable=False),
-        sa.PrimaryKeyConstraint("id", name="pk_taxonomy_categories"),
-        sa.UniqueConstraint("code", name="uq_taxonomy_categories_code"),
-    )
-    op.create_index(
-        "idx_taxonomy_categories_active_sort",
-        "taxonomy_categories",
-        ["is_active", "sort_order"],
-        unique=False,
-    )
-    op.create_table(
         "operator_identities",
         sa.Column(
             "id",
@@ -650,40 +556,6 @@ def upgrade() -> None:
         "ix_object_retirement_due",
         "stored_object_retirements",
         ["status", "next_attempt_at"],
-        unique=False,
-    )
-    op.create_table(
-        "taxonomy_tags",
-        sa.Column(
-            "id",
-            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
-            autoincrement=True,
-            nullable=False,
-        ),
-        sa.Column("category_id", sa.BigInteger(), nullable=False),
-        sa.Column("code", sa.String(length=64), nullable=False),
-        sa.Column("name_key", sa.String(length=128), nullable=False),
-        sa.Column(
-            "aliases",
-            sa.JSON().with_variant(postgresql.JSONB(astext_type=sa.Text()), "postgresql"),
-            nullable=False,
-        ),
-        sa.Column("sort_order", sa.Integer(), nullable=False),
-        sa.Column("is_active", sa.Boolean(), nullable=False),
-        sa.Column("created_at", sa.DateTime(), nullable=False),
-        sa.ForeignKeyConstraint(
-            ["category_id"],
-            ["taxonomy_categories.id"],
-            name="fk_taxonomy_tags_category_id_taxonomy_categories",
-            ondelete="CASCADE",
-        ),
-        sa.PrimaryKeyConstraint("id", name="pk_taxonomy_tags"),
-        sa.UniqueConstraint("category_id", "code", name="uq_taxonomy_tags_category_code"),
-    )
-    op.create_index(
-        "idx_taxonomy_tags_category_active_sort",
-        "taxonomy_tags",
-        ["category_id", "is_active", "sort_order"],
         unique=False,
     )
     op.create_table(
@@ -1563,6 +1435,11 @@ def upgrade() -> None:
         sa.Column("score_uuid", sa.String(length=36), nullable=False),
         sa.Column("owner_user_id", sa.BigInteger(), nullable=False),
         sa.Column("title", sa.String(length=255), nullable=False),
+        sa.Column(
+            "genres",
+            sa.JSON().with_variant(postgresql.JSONB(astext_type=sa.Text()), "postgresql"),
+            nullable=False,
+        ),
         sa.Column("head_revision_id", sa.BigInteger(), nullable=True),
         sa.Column("originating_job_id", sa.BigInteger(), nullable=True),
         sa.Column("version", sa.Integer(), nullable=False),
@@ -1955,33 +1832,6 @@ def upgrade() -> None:
         "idx_score_revisions_score_created",
         "score_revisions",
         ["score_id", "created_at"],
-        unique=False,
-    )
-    op.create_table(
-        "score_taxonomy_tags",
-        sa.Column("score_id", sa.BigInteger(), nullable=False),
-        sa.Column("tag_id", sa.BigInteger(), nullable=False),
-        sa.Column("source", sa.String(length=32), nullable=False),
-        sa.Column("confidence", sa.Float(), nullable=True),
-        sa.Column("created_at", sa.DateTime(), nullable=False),
-        sa.ForeignKeyConstraint(
-            ["score_id"],
-            ["scores.id"],
-            name="fk_score_taxonomy_tags_score_id_scores",
-            ondelete="CASCADE",
-        ),
-        sa.ForeignKeyConstraint(
-            ["tag_id"],
-            ["taxonomy_tags.id"],
-            name="fk_score_taxonomy_tags_tag_id_taxonomy_tags",
-            ondelete="RESTRICT",
-        ),
-        sa.PrimaryKeyConstraint("score_id", "tag_id", name="pk_score_taxonomy_tags"),
-    )
-    op.create_index(
-        "idx_score_taxonomy_tags_tag_score",
-        "score_taxonomy_tags",
-        ["tag_id", "score_id"],
         unique=False,
     )
     op.create_table(
@@ -2609,7 +2459,6 @@ def upgrade() -> None:
         ["score_id", "id"],
         use_alter=True,
     )
-    _seed_taxonomy_baseline()
     op.execute(
         sa.text(
             "INSERT INTO storage_quota_policies (plan_code, quota_limit_bytes, created_at, updated_at) VALUES ('FREE', 104857600, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
@@ -2662,8 +2511,6 @@ def downgrade() -> None:
     op.drop_index("idx_playback_outbox_status_available", table_name="playback_outbox")
     op.drop_index("idx_playback_outbox_dispatched", table_name="playback_outbox")
     op.drop_table("playback_outbox")
-    op.drop_index("idx_score_taxonomy_tags_tag_score", table_name="score_taxonomy_tags")
-    op.drop_table("score_taxonomy_tags")
     op.drop_index("idx_score_revisions_score_created", table_name="score_revisions")
     op.drop_table("score_revisions")
     op.drop_index("idx_score_memberships_user_active", table_name="score_memberships")
@@ -2800,8 +2647,6 @@ def downgrade() -> None:
     op.drop_table("auth_tokens")
     op.drop_index(op.f("ix_users_avatar_object_id"), table_name="users")
     op.drop_table("users")
-    op.drop_index("idx_taxonomy_tags_category_active_sort", table_name="taxonomy_tags")
-    op.drop_table("taxonomy_tags")
     op.drop_index("ix_object_retirement_due", table_name="stored_object_retirements")
     op.drop_table("stored_object_retirements")
     op.drop_index("ix_practice_bundles_status_creation", table_name="practice_bundles")
@@ -2812,8 +2657,6 @@ def downgrade() -> None:
     op.drop_table("ops_audit_events")
     op.drop_index("idx_operator_identities_operator", table_name="operator_identities")
     op.drop_table("operator_identities")
-    op.drop_index("idx_taxonomy_categories_active_sort", table_name="taxonomy_categories")
-    op.drop_table("taxonomy_categories")
     op.drop_index("ix_stored_objects_sha256", table_name="stored_objects")
     op.drop_table("stored_objects")
     op.drop_table("storage_quota_policies")

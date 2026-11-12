@@ -9,7 +9,7 @@ const musicXml = '<?xml version="1.0"?><score-partwise version="4.0"><part-list>
 test('score detail uses lightweight hero layout and lazy playback', async ({ page }) => {
   await mockAuthenticatedSession(page);
   await mockRealtimeEvents(page);
-  const score = { score_id: scoreId, title: 'Layout Score', taxonomy_tags: [{ category: 'genre', code: 'classical', source: 'USER', confidence: null }], version: 1,
+  const score = { score_id: scoreId, title: 'Layout Score', genres: ['classical'], version: 1,
     head_revision_id: revisionId, originating_job_id: 'job-1', metadata: null,
     derived_assets: {
       preview: { status: 'pending', asset_id: null },
@@ -45,7 +45,7 @@ test('Score head presentation progresses neutrally to exact READY assets through
     Object.assign(window, { emitScoreEvent: (data: string) => sources.forEach(source => source.dispatchEvent(new MessageEvent('score.derived_asset.updated', { data }))), scoreEventCount: () => sources.length });
   });
   const score: ScoreRead = { score_id: 'exact-score', title: 'Exact head score', head_revision_id: 'r2',
-    version: 2, taxonomy_tags: [], metadata: null, input_assets: [], in_library: false,
+    version: 2, genres: [], metadata: null, input_assets: [], in_library: false,
     created_at: '2026-06-20T00:00:00Z', updated_at: '2026-06-21T00:00:00Z',
     capabilities: { can_view: true, can_edit: true, can_delete: true, can_manage_guest_previews: true, can_manage_members: true, can_download: true, can_practice: true },
     derived_assets: { preview: { status: 'pending', asset_id: null }, audio: { status: 'pending', asset_id: null } },

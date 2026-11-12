@@ -174,40 +174,12 @@ def assert_schema_parity(engine):
 
 def assert_bootstrap(engine):
     with engine.connect() as connection:
-        category = connection.execute(
-            sa.text("SELECT id, code, name_key, sort_order, is_active FROM taxonomy_categories")
-        ).one()
-        assert tuple(category[1:]) == ("genre", "scoreStyles.category.genre", 10, True)
-        tags = connection.execute(
-            sa.text(
-                "SELECT category_id, code, sort_order, is_active, aliases FROM taxonomy_tags ORDER BY sort_order"
-            )
-        ).all()
-        assert [row.code for row in tags] == [
-            "classical",
-            "pop",
-            "jazz",
-            "rock",
-            "folk",
-            "blues",
-            "soundtrack",
-            "anime_game",
-            "religious",
-            "latin",
-            "children",
-            "original",
-            "other",
-        ]
-        assert [row.sort_order for row in tags] == list(range(10, 140, 10))
-        assert all(
-            row.category_id == category.id and row.is_active and row.aliases == [] for row in tags
-        )
         assert connection.execute(
             sa.text("SELECT plan_code, quota_limit_bytes FROM storage_quota_policies")
         ).all() == [("FREE", 104857600)]
         # Bootstrap includes reference data only, not users or operational history.
         for table in SQLModel.metadata.tables:
-            if table not in {"taxonomy_categories", "taxonomy_tags", "storage_quota_policies"}:
+            if table not in {"storage_quota_policies"}:
                 assert connection.scalar(sa.text(f'SELECT count(*) FROM "{table}"')) == 0
 
 

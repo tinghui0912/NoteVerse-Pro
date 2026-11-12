@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.db.models.import_job import ImportJobState
-from app.modules.scores.schemas import ScoreTaxonomyTagInput
+from app.modules.scores.genres import Genres
 
 
 class ReviewArtifactRead(BaseModel):
@@ -27,7 +27,7 @@ class ImportJobReviewRead(BaseModel):
     state: ImportJobState
     score_id: str | None = None
     title: str | None = None
-    taxonomy_tags: list[dict[str, str]]
+    genres: Genres
     musicxml: ReviewMusicXmlRead | None = None
     original_images: list[ReviewArtifactRead]
     created_at: datetime
@@ -39,17 +39,7 @@ class ReviewConfirmRequest(BaseModel):
 
     content: str = Field(min_length=1)
     title: str | None = Field(default=None, min_length=1, max_length=255)
-    taxonomy_tags: list[ScoreTaxonomyTagInput] | None = None
-
-    @field_validator("taxonomy_tags")
-    @classmethod
-    def normalize_taxonomy_tags(
-        cls,
-        value: list[ScoreTaxonomyTagInput] | None,
-    ) -> list[ScoreTaxonomyTagInput] | None:
-        if value is None:
-            return None
-        return value
+    genres: Genres | None = None
 
 
 class ReviewConfirmRead(BaseModel):

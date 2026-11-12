@@ -296,7 +296,7 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
         updated_at: '2026-08-24T00:00:00Z',
         in_library: true,
         input_assets: [],
-        taxonomy_tags: [],
+        genres: [],
         metadata: null,
 
         derived_assets: {
@@ -331,7 +331,7 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
         updated_at: '2026-08-24T00:00:00Z',
         in_library: true,
         input_assets: [],
-        taxonomy_tags: [],
+        genres: [],
         metadata: null,
 
         derived_assets: {

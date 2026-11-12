@@ -28,7 +28,6 @@ from app.modules.import_jobs.execution_service import ImportJobExecutionService
 from app.modules.import_jobs.maintenance_service import ImportJobMaintenanceService
 from app.modules.import_jobs.worker_service import sync_import_job_service
 from app.modules.import_jobs.submission_service import ImportJobSubmissionService
-from app.modules.scores.schemas import ScoreTaxonomyTagInput
 from app.pipeline.files_recorder import _build_file_item
 from app.shared.constants import ErrorCode
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
@@ -367,19 +366,19 @@ async def test_import_job_submission_reuses_existing_idempotency_key() -> None:
     ensure_mock.assert_not_called()
 
 
-def test_import_job_submission_serializes_taxonomy_tags_for_json_storage() -> None:
+def test_import_job_submission_serializes_genres_for_json_storage() -> None:
     service = ImportJobSubmissionService()
 
     options = {
         "title": "Once Again",
-        "taxonomy_tags": [
-            ScoreTaxonomyTagInput(category="genre", code="soundtrack"),
+        "genres": [
+            "soundtrack",
         ],
     }
 
     assert service._storage_options(options) == {
         "title": "Once Again",
-        "taxonomy_tags": [{"category": "genre", "code": "soundtrack"}],
+        "genres": ["soundtrack"],
     }
 
 

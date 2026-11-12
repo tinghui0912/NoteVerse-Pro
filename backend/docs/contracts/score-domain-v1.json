@@ -108,7 +108,7 @@
     "review_confirm_request": {
       "content": "<score-partwise />",
       "title": "optional title",
-      "taxonomy_tags": []
+      "genres": []
     },
     "create_revision_request": {
       "expected_head_revision_id": "revision-uuid",

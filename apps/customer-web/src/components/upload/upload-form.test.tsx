@@ -8,12 +8,13 @@ import { UploadForm } from './upload-form';
 import common from '@/../messages/en/common.json';
 import scoreStyles from '@/../messages/en/scoreStyles.json';
 import upload from '@/../messages/en/upload.json';
+import { SCORE_GENRES, type ScoreGenreCode } from '@/lib/score/genres';
 
 function renderForm(overrides: Partial<ComponentProps<typeof UploadForm>> = {}) {
   const props: ComponentProps<typeof UploadForm> = {
     files: [],
     scoreName: '',
-    taxonomyTags: [],
+    genres: [],
     isProcessing: false,
     isUploading: false,
     isSubmitting: false,
@@ -24,7 +25,7 @@ function renderForm(overrides: Partial<ComponentProps<typeof UploadForm>> = {}) 
     onClearFiles: vi.fn(),
     onRemoveFile: vi.fn(),
     onScoreNameChange: vi.fn(),
-    onTaxonomyTagsChange: vi.fn(),
+    onGenresChange: vi.fn(),
     onSubmit: vi.fn(),
     ...overrides,
   };
@@ -50,6 +51,30 @@ afterEach(() => {
 });
 
 describe('UploadForm with real react-dropzone', () => {
+  it('selects every genre and removes a selection by code identity', () => {
+    const view = renderForm();
+    let selected: ScoreGenreCode[] = [];
+    for (const code of SCORE_GENRES) {
+      fireEvent.click(screen.getByRole('button', { name: scoreStyles.genre[code] }));
+      selected = vi.mocked(view.props.onGenresChange).mock.lastCall![0];
+      view.rerender(
+        <NextIntlClientProvider locale="en" messages={{ common, scoreStyles, upload }}>
+          <UploadForm {...view.props} genres={selected} />
+        </NextIntlClientProvider>
+      );
+    }
+    expect(selected).toEqual(SCORE_GENRES);
+    for (const code of SCORE_GENRES) {
+      expect(screen.getByRole('button', { name: scoreStyles.genre[code] })).toHaveAttribute(
+        'aria-pressed',
+        'true'
+      );
+    }
+    fireEvent.click(screen.getByRole('button', { name: scoreStyles.genre.jazz }));
+    expect(view.props.onGenresChange).toHaveBeenLastCalledWith(
+      SCORE_GENRES.filter((code) => code !== 'jazz')
+    );
+  });
   it('passes a dropped PNG to the application as a browser File exactly once', async () => {
     const { props, dropzone } = renderForm();
     const file = new File(['score'], 'score.png', { type: 'image/png' });
@@ -78,7 +103,9 @@ describe('UploadForm with real react-dropzone', () => {
       new File(['text'], 'score.txt', { type: 'text/plain' }),
     ];
 
-    await act(async () => fireEvent.change(input, { target: { files: [...accepted, ...rejected] } }));
+    await act(async () =>
+      fireEvent.change(input, { target: { files: [...accepted, ...rejected] } })
+    );
 
     await waitFor(() => expect(props.onFilesAdded).toHaveBeenCalledTimes(1));
     expect(vi.mocked(props.onFilesAdded).mock.calls[0][0]).toEqual(accepted);

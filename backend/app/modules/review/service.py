@@ -49,7 +49,7 @@ from app.modules.review.schemas import (
 )
 from app.modules.scores.repository import ScoreRepository
 from app.processing.musicxml.admission import admit_musicxml_document
-from app.modules.scores.taxonomy import ordered_unique_pairs
+from app.modules.import_jobs.schemas import processing_options_adapter
 from app.modules.storage_usage.service import storage_usage_service
 from app.shared.constants import ErrorCode
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
@@ -131,7 +131,7 @@ class ReviewService:
         revision_uuid = str(uuid.uuid4())
         now = utc_now_naive()
         title = self._confirmed_title(job, request)
-        taxonomy_pairs = self._confirmed_taxonomy_pairs(job, request)
+        genres = self._confirmed_genres(job, request)
         key = f"scores/{score_uuid}/revisions/{revision_uuid}/score.musicxml"
         reservation = await storage_usage_service.reserve(
             db,
@@ -181,6 +181,7 @@ class ReviewService:
                 score_uuid=score_uuid,
                 owner_user_id=user_id,
                 title=title,
+                genres=genres,
                 originating_job_id=require_persisted_id(job.id, entity="import job"),
                 created_at=now,
                 updated_at=now,
@@ -238,7 +239,6 @@ class ReviewService:
                 source_fingerprint=content_hash,
             )
             score.head_revision_id = revision_id
-            await self.score_repository.replace_taxonomy_tags(db, score_id, taxonomy_pairs)
             await self.library_service.ensure_entry(
                 db,
                 user_id=user_id,
@@ -464,27 +464,13 @@ class ReviewService:
         )
 
     @staticmethod
-    def _confirmed_taxonomy_pairs(
-        job: ImportJob,
-        request: ReviewConfirmRequest,
-    ) -> list[tuple[str, str]]:
-        if request.taxonomy_tags is not None:
-            return ordered_unique_pairs(
-                (item.category, item.code) for item in request.taxonomy_tags
-            )
-        options = job.requested_options if isinstance(job.requested_options, dict) else {}
-        requested_tags = options.get("taxonomy_tags")
-        if not isinstance(requested_tags, list):
-            return []
-        pairs: list[tuple[str, str]] = []
-        for tag in requested_tags:
-            if not isinstance(tag, dict):
-                continue
-            category = tag.get("category")
-            code = tag.get("code")
-            if isinstance(category, str) and isinstance(code, str):
-                pairs.append((category, code))
-        return ordered_unique_pairs(pairs)
+    def _confirmed_genres(job: ImportJob, request: ReviewConfirmRequest) -> list[str]:
+        if request.genres is not None:
+            return request.genres
+        options = processing_options_adapter.validate_python(
+            job.requested_options if job.requested_options is not None else {}
+        )
+        return options.get("genres", [])
 
 
 review_service = ReviewService()

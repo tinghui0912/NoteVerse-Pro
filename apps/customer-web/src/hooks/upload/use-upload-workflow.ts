@@ -8,7 +8,7 @@ import { useImportJobDetail, useSubmitImportJob } from '@/hooks/queries/use-impo
 import { useToast } from '@/hooks/use-toast';
 import { filesApi, importJobsApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
-import { isGenreTag, type ScoreTaxonomyTagValue } from '@/lib/score/taxonomy';
+import { knownGenres, type ScoreGenreCode } from '@/lib/score/genres';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { reportUnexpectedClientError } from '@/lib/observability';
 import { getCompletedJobRoute, type UploadableFile } from '@/lib/upload/upload-workflow';
@@ -130,25 +130,32 @@ export function useUploadWorkflow() {
   const filesRef = useRef<UploadableFile[]>([]);
   const submissionKeyRef = useRef<string | null>(null);
   const [scoreName, setScoreName] = useState('');
-  const [taxonomyTags, setTaxonomyTags] = useState<ScoreTaxonomyTagValue[]>([]);
+  const [genres, setGenres] = useState<ScoreGenreCode[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [taskState, dispatchTask] = useReducer(uploadTaskReducer, initialTaskState);
-  const { currentJobId, isSubmitting, pollInterval, pollStartTime, taskError, taskProgress } = taskState;
+  const { currentJobId, isSubmitting, pollInterval, pollStartTime, taskError, taskProgress } =
+    taskState;
   const urlJobId = searchParams.get('job_id');
-  const translateTaskError = useCallback((codeOrMessage: string | null | undefined, fallback: string) => {
-    if (!codeOrMessage) return fallback;
-    if (errors.has(codeOrMessage as never)) return errors(codeOrMessage as never);
-    if (t.has(codeOrMessage as never)) return t(codeOrMessage as never);
-    return fallback;
-  }, [errors, t]);
+  const translateTaskError = useCallback(
+    (codeOrMessage: string | null | undefined, fallback: string) => {
+      if (!codeOrMessage) return fallback;
+      if (errors.has(codeOrMessage as never)) return errors(codeOrMessage as never);
+      if (t.has(codeOrMessage as never)) return t(codeOrMessage as never);
+      return fallback;
+    },
+    [errors, t]
+  );
 
-  const setTrackedFiles = useCallback((next: UploadableFile[] | ((current: UploadableFile[]) => UploadableFile[])) => {
-    setFiles((current) => {
-      const value = typeof next === 'function' ? next(current) : next;
-      filesRef.current = value;
-      return value;
-    });
-  }, []);
+  const setTrackedFiles = useCallback(
+    (next: UploadableFile[] | ((current: UploadableFile[]) => UploadableFile[])) => {
+      setFiles((current) => {
+        const value = typeof next === 'function' ? next(current) : next;
+        filesRef.current = value;
+        return value;
+      });
+    },
+    []
+  );
 
   const clearFiles = useCallback(() => {
     filesRef.current.forEach(({ preview }) => revokePreview(preview));
@@ -156,25 +163,31 @@ export function useUploadWorkflow() {
     submissionKeyRef.current = null;
   }, [setTrackedFiles]);
 
-  const appendFiles = useCallback((acceptedFiles: File[]) => {
-    submissionKeyRef.current = null;
-    const additions = acceptedFiles.map<UploadableFile>((file) => ({
-      file,
-      preview: URL.createObjectURL(file),
-      status: 'pending',
-    }));
-    setTrackedFiles((current) => [...current, ...additions]);
-  }, [setTrackedFiles]);
+  const appendFiles = useCallback(
+    (acceptedFiles: File[]) => {
+      submissionKeyRef.current = null;
+      const additions = acceptedFiles.map<UploadableFile>((file) => ({
+        file,
+        preview: URL.createObjectURL(file),
+        status: 'pending',
+      }));
+      setTrackedFiles((current) => [...current, ...additions]);
+    },
+    [setTrackedFiles]
+  );
 
-  const removeFile = useCallback((index: number) => {
-    submissionKeyRef.current = null;
-    setTrackedFiles((current) => {
-      const next = [...current];
-      const [removed] = next.splice(index, 1);
-      if (removed) revokePreview(removed.preview);
-      return next;
-    });
-  }, [setTrackedFiles]);
+  const removeFile = useCallback(
+    (index: number) => {
+      submissionKeyRef.current = null;
+      setTrackedFiles((current) => {
+        const next = [...current];
+        const [removed] = next.splice(index, 1);
+        if (removed) revokePreview(removed.preview);
+        return next;
+      });
+    },
+    [setTrackedFiles]
+  );
 
   const { data: statusResponse } = useImportJobDetail(currentJobId ?? '', {
     enabled: Boolean(currentJobId) && pollInterval !== false,
@@ -209,7 +222,16 @@ export function useUploadWorkflow() {
         message: translateTaskError(job.public_code, t('taskProcessingFailed')),
       });
     }
-  }, [clearFiles, currentJobId, pollStartTime, router, statusResponse?.data, t, toast, translateTaskError]);
+  }, [
+    clearFiles,
+    currentJobId,
+    pollStartTime,
+    router,
+    statusResponse?.data,
+    t,
+    toast,
+    translateTaskError,
+  ]);
 
   useEffect(() => {
     if (!urlJobId) return;
@@ -223,8 +245,8 @@ export function useUploadWorkflow() {
         if (!data || controller.signal.aborted) return;
 
         if (data.title) setScoreName(data.title);
-        if (data.taxonomy_tags) {
-          setTaxonomyTags(data.taxonomy_tags.filter(isGenreTag));
+        if (data.genres) {
+          setGenres(knownGenres(data.genres));
         }
 
         const originalImages = data.original_images ?? [];
@@ -240,9 +262,13 @@ export function useUploadWorkflow() {
           const originalImage = originalImages[index];
           const fallbackName = originalImage.filename;
           restoredFiles.push({
-            file: new File([], originalImage.original_filename || fallbackName || `image_${index + 1}.png`, {
-              type: 'image/png',
-            }),
+            file: new File(
+              [],
+              originalImage.original_filename || fallbackName || `image_${index + 1}.png`,
+              {
+                type: 'image/png',
+              }
+            ),
             preview,
             status: 'uploaded',
             fileId: originalImage.upload_id ?? undefined,
@@ -280,9 +306,12 @@ export function useUploadWorkflow() {
     };
   }, [setTrackedFiles, t, translateTaskError, urlJobId]);
 
-  useEffect(() => () => {
-    filesRef.current.forEach(({ preview }) => revokePreview(preview));
-  }, []);
+  useEffect(
+    () => () => {
+      filesRef.current.forEach(({ preview }) => revokePreview(preview));
+    },
+    []
+  );
 
   const startRecognition = useCallback(async () => {
     if (filesRef.current.length === 0) return;
@@ -299,24 +328,30 @@ export function useUploadWorkflow() {
         }
         if (currentFile.file.size === 0) {
           const message = t('restoredFileUnavailable', { name: currentFile.file.name });
-          setTrackedFiles((current) => current.map((item, itemIndex) =>
-            itemIndex === index ? { ...item, status: 'error', error: message } : item
-          ));
+          setTrackedFiles((current) =>
+            current.map((item, itemIndex) =>
+              itemIndex === index ? { ...item, status: 'error', error: message } : item
+            )
+          );
           throw new UserFacingUploadError(message);
         }
 
-        setTrackedFiles((current) => current.map((item, itemIndex) =>
-          itemIndex === index ? { ...item, status: 'uploading' } : item
-        ));
+        setTrackedFiles((current) =>
+          current.map((item, itemIndex) =>
+            itemIndex === index ? { ...item, status: 'uploading' } : item
+          )
+        );
         try {
           const response = await filesApi.uploadFile(currentFile.file);
           const fileId = response.data?.file_id;
           if (!fileId) throw new Error(tCommon('operationFailed'));
           uploadedFileIds.push(fileId);
           void queryClient.invalidateQueries({ queryKey: queryKeys.storageUsage.current() });
-          setTrackedFiles((current) => current.map((item, itemIndex) =>
-            itemIndex === index ? { ...item, status: 'uploaded', fileId } : item
-          ));
+          setTrackedFiles((current) =>
+            current.map((item, itemIndex) =>
+              itemIndex === index ? { ...item, status: 'uploaded', fileId } : item
+            )
+          );
         } catch (error) {
           reportUnexpectedClientError(error, {
             area: 'upload',
@@ -325,9 +360,11 @@ export function useUploadWorkflow() {
             file_size: currentFile.file.size,
           });
           const message = userFacingErrorMessage(errors, error, tCommon('operationFailed'));
-          setTrackedFiles((current) => current.map((item, itemIndex) =>
-            itemIndex === index ? { ...item, status: 'error', error: message } : item
-          ));
+          setTrackedFiles((current) =>
+            current.map((item, itemIndex) =>
+              itemIndex === index ? { ...item, status: 'error', error: message } : item
+            )
+          );
           throw new UserFacingUploadError(message);
         }
       }
@@ -340,7 +377,7 @@ export function useUploadWorkflow() {
         idempotencyKey: submissionKeyRef.current,
         options: {
           title: scoreName || undefined,
-          taxonomy_tags: taxonomyTags.map(({ category, code }) => ({ category, code })),
+          genres: knownGenres(genres),
         },
       });
       const jobId = response.data?.job_id;
@@ -354,14 +391,25 @@ export function useUploadWorkflow() {
         action: 'start_recognition',
         file_count: filesRef.current.length,
       });
-      const message = error instanceof UserFacingUploadError && error.message
+      const message =
+        error instanceof UserFacingUploadError && error.message
           ? error.message
           : userFacingErrorMessage(errors, error, t('processingFailed'));
       toast({ title: t('submitFailed'), description: message, variant: 'destructive' });
       setIsUploading(false);
       dispatchTask({ type: 'submit_failed' });
     }
-  }, [errors, queryClient, scoreName, setTrackedFiles, submitJobMutation, t, taxonomyTags, tCommon, toast]);
+  }, [
+    errors,
+    queryClient,
+    scoreName,
+    setTrackedFiles,
+    submitJobMutation,
+    t,
+    genres,
+    tCommon,
+    toast,
+  ]);
 
   return {
     appendFiles,
@@ -373,11 +421,11 @@ export function useUploadWorkflow() {
     removeFile,
     scoreName,
     setScoreName,
-    setTaxonomyTags,
+    setGenres,
     startRecognition,
     taskError,
     taskErrorMessage: taskError ?? '',
     taskProgress,
-    taxonomyTags,
+    genres,
   };
 }

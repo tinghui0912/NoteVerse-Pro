@@ -77,7 +77,7 @@ docker compose -f docker-compose.backend-dev.yml up api worker beat
 The database uses one standalone [current-schema baseline](alembic/versions/0001_current_schema.py).
 Run `alembic upgrade head` against an empty application schema. Pre-release environments
 with a revision outside this baseline require recreation. The baseline installs the
-current taxonomy and FREE quota reference data; it does not install users or history.
+current FREE quota policy; it does not install users or history.
 [PostgreSQL schema tests](tests/test_database_schema.py) compare the complete fresh
 schema with ORM metadata and verify bootstrap, teardown and re-creation. Backend CI
 runs this schema contract explicitly against its dedicated PostgreSQL service.

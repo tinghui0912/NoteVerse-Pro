@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,6 +21,7 @@ from app.modules.import_jobs.repository import ImportJobRepository
 from app.modules.import_jobs.schemas import (
     ImportJobDetail,
     ImportJobProcessingOptions,
+    processing_options_adapter,
     ImportJobStatusEntry,
     ImportJobSubmitRequestLike,
     ImportJobSubmitResult,
@@ -85,8 +85,8 @@ class ImportJobService:
         if not file_ids:
             raise ResourceNotFoundException("job_upload", job_uuid, ErrorCode.FILE_NOT_FOUND)
         options = (
-            cast(ImportJobProcessingOptions, job.requested_options)
-            if isinstance(job.requested_options, dict)
+            processing_options_adapter.validate_python(job.requested_options)
+            if job.requested_options is not None
             else None
         )
         return await self.submission_service.submit(

@@ -6,7 +6,6 @@ import uuid
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from sqlmodel import col
 
 from app.db.model_utils import require_persisted_id
 from app.db.models import (
@@ -16,15 +15,12 @@ from app.db.models import (
     ScoreRevisionMetadata,
     ScoreRevisionSource,
     StorageUsageCategory,
-    ScoreTaxonomyTag,
-    TaxonomyCategory,
-    TaxonomyTag,
 )
 from app.db.models.score import MetadataStatus, RevisionOrigin, RevisionSourceFormat
 from app.storage import ObjectStorage, object_storage
 from app.modules.metadata.service import rebuild_metadata_sync
 from app.modules.revisions.derivatives import revision_derivative_service
-from app.modules.scores.taxonomy import TAXONOMY_SORT_ORDER, ordered_unique_pairs
+from app.modules.scores.genres import ordered_unique_genres
 from app.modules.storage_usage.service import storage_usage_service
 from app.processing.musicxml.admission import admit_musicxml_document
 from app.utils.timezone import utc_now_naive
@@ -43,7 +39,7 @@ class SyncConfirmedScoreCreationService:
         musicxml_path: str,
         *,
         title: str | None = None,
-        taxonomy_tags: list[tuple[str, str]] | None = None,
+        genres: list[str] | None = None,
     ) -> str:
         job = db.execute(
             select(ImportJob).where(ImportJob.job_uuid == job_uuid).with_for_update()
@@ -99,6 +95,7 @@ class SyncConfirmedScoreCreationService:
                 score_uuid=score_uuid,
                 owner_user_id=job.user_id,
                 title=(title or "Untitled score").strip(),
+                genres=ordered_unique_genres(genres or []),
                 originating_job_id=require_persisted_id(job.id, entity="import job"),
                 created_at=now,
                 updated_at=now,
@@ -106,34 +103,6 @@ class SyncConfirmedScoreCreationService:
             db.add(score)
             db.flush()
             score_id = require_persisted_id(score.id, entity="score")
-            normalized_tags = ordered_unique_pairs(taxonomy_tags or [])
-            if normalized_tags:
-                tag_rows = db.execute(
-                    select(TaxonomyCategory.code, TaxonomyTag.code, TaxonomyTag.id)
-                    .join(TaxonomyCategory, TaxonomyTag.category_id == TaxonomyCategory.id)
-                    .where(
-                        col(TaxonomyCategory.is_active).is_(True),
-                        col(TaxonomyTag.is_active).is_(True),
-                    )
-                ).all()
-                tag_ids = {(category, code): tag_id for category, code, tag_id in tag_rows}
-                missing = [
-                    f"{category}:{code}"
-                    for category, code in normalized_tags
-                    if (category, code) not in tag_ids
-                ]
-                if missing:
-                    raise ValueError(f"Taxonomy tags are not seeded: {', '.join(missing)}")
-                for category, code in sorted(
-                    normalized_tags, key=lambda item: TAXONOMY_SORT_ORDER[item]
-                ):
-                    db.add(
-                        ScoreTaxonomyTag(
-                            score_id=score_id,
-                            tag_id=tag_ids[(category, code)],
-                            source="USER",
-                        )
-                    )
             revision = ScoreRevision(
                 revision_uuid=revision_uuid,
                 score_id=score_id,

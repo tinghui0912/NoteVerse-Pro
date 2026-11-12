@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.modules.import_jobs.schemas import processing_options_adapter
 from app.modules.storage_objects.writes import (
     adopt_written_object,
     receipt_for_intent,
@@ -269,9 +270,10 @@ class SyncImportJobService:
             else None
         )
         manifest_digest = manifest.sha256 if manifest is not None else None
-        requested_options = job.requested_options or {}
+        requested_options = processing_options_adapter.validate_python(
+            job.requested_options if job.requested_options is not None else {}
+        )
         requested_title = requested_options.get("title")
-        requested_taxonomy_tags = requested_options.get("taxonomy_tags")
         artifacts = self.repository.list_artifacts(db, job_id)
         thumbnail_artifact = next(
             (
@@ -288,9 +290,7 @@ class SyncImportJobService:
             "state": job.state,
             "progress": job.progress,
             "title": requested_title if isinstance(requested_title, str) else None,
-            "taxonomy_tags": (
-                requested_taxonomy_tags if isinstance(requested_taxonomy_tags, list) else []
-            ),
+            "genres": requested_options.get("genres", []),
             "thumbnail": (
                 {
                     "artifact_id": thumbnail_artifact.artifact_uuid,

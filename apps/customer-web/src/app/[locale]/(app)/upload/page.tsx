@@ -17,7 +17,7 @@ function UploadPageContent() {
       <UploadForm
         files={workflow.files}
         scoreName={workflow.scoreName}
-        taxonomyTags={workflow.taxonomyTags}
+        genres={workflow.genres}
         isProcessing={workflow.isProcessing}
         isUploading={workflow.isUploading}
         isSubmitting={workflow.isSubmitting}
@@ -28,7 +28,7 @@ function UploadPageContent() {
         onClearFiles={workflow.clearFiles}
         onRemoveFile={workflow.removeFile}
         onScoreNameChange={workflow.setScoreName}
-        onTaxonomyTagsChange={workflow.setTaxonomyTags}
+        onGenresChange={workflow.setGenres}
         onSubmit={workflow.startRecognition}
       />
     </div>

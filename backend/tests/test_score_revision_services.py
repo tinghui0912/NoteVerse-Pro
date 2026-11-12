@@ -538,7 +538,7 @@ async def test_review_detail_reads_pending_job_artifacts(
             state=ImportJobState.PENDING_REVIEW,
             requested_options={
                 "title": "Review Score",
-                "taxonomy_tags": [{"category": "level", "code": "beginner"}],
+                "genres": ["jazz"],
             },
         )
     )
@@ -586,7 +586,7 @@ async def test_review_detail_reads_pending_job_artifacts(
 
     assert detail.job_id == "job-review"
     assert detail.title == "Review Score"
-    assert detail.taxonomy_tags == [{"category": "level", "code": "beginner"}]
+    assert detail.genres == ["jazz"]
     assert detail.musicxml.artifact_id == "review-musicxml-artifact"
     assert detail.musicxml.content == MUSICXML_1.decode("utf-8")
     assert detail.original_images[0].artifact_id == "upload:130"

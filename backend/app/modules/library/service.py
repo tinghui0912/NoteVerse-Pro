@@ -43,7 +43,6 @@ from app.modules.score_assets.derived_assets import score_derived_assets
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.score_assets.schemas import ScoreDerivedAssetRead, ScoreDerivedAssetsRead
 from app.modules.scores.repository import ScoreRepository
-from app.modules.scores.schemas import ScoreTaxonomyTagRead
 from app.utils.timezone import utc_now_naive
 
 
@@ -345,7 +344,6 @@ class LibraryService:
         head = (
             await db.get(ScoreRevision, score.head_revision_id) if score.head_revision_id else None
         )
-        score_id = require_persisted_id(score.id, entity="score")
         derived_assets = (
             await score_derived_assets(db, self.asset_repository, revision=head)
             if head
@@ -361,17 +359,7 @@ class LibraryService:
             folder_id=await self._folder_uuid(db, entry.folder_id),
             title=score.title,
             derived_assets=derived_assets,
-            taxonomy_tags=[
-                ScoreTaxonomyTagRead(
-                    category=category,
-                    code=code,
-                    source=source,
-                    confidence=confidence,
-                )
-                for category, code, source, confidence in await self.score_repository.taxonomy_tags(
-                    db, score_id
-                )
-            ],
+            genres=score.genres,
             metadata=(
                 MetadataProjectionService.to_read(head, projection) if head and projection else None
             ),
