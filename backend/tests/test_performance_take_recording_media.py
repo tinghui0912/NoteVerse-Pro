@@ -2,6 +2,7 @@
 
 from unittest.mock import patch
 import hashlib
+import json
 
 from app.modules.performance_takes.generated.recording_media_policy import CAPTURE_CONTAINERS
 from tests.support.recording_media import SIGNATURE_HEADERS
@@ -207,7 +208,14 @@ def test_unsupported_committed_recording_fails_closed_before_signed_delivery(rec
     )
     assert finalized.status_code == 200, finalized.text
     row = session.scalar(select(PerformanceTake))
-    row.manifest.capture_mime_type = "audio/unknown"
+    document = json.loads(row.manifest.manifest_json)
+    document["manifest"]["capture"]["mime_type"] = "audio/unknown"
+    row.manifest.manifest_json = json.dumps(
+        document, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    )
+    row.manifest.manifest_sha256 = hashlib.sha256(
+        row.manifest.manifest_json.encode("utf-8")
+    ).hexdigest()
     row.recording_object.content_type = "audio/unknown"
     session.commit()
     with patch.object(

@@ -69,11 +69,23 @@ async def test_save_admission_commits_before_waiting_score_deletion(postgres_bun
             result = await asyncio.wait_for(reserve, 10)
             await asyncio.wait_for(deletion, 10)
             row = await service.repository.get_reservation_by_uuid(a, 1, result.reservation_id)
-            assert row.manifest.practice_bundle_id == request.practice_binding.bundle_id
-            assert row.manifest.practice_score_uuid == postgres_bundle[1].test_score_uuid
-            assert row.manifest.practice_revision_uuid == postgres_bundle[1].test_revision_uuid
-            assert row.manifest.practice_artifact_id == postgres_bundle[2].artifact.artifact_id
-            assert row.manifest.score_title_snapshot == "Source"
+            assert (
+                manifest_from_row(row.manifest).snapshot.practice_binding.bundle_id
+                == request.practice_binding.bundle_id
+            )
+            assert (
+                manifest_from_row(row.manifest).snapshot.practice_binding.score_id
+                == postgres_bundle[1].test_score_uuid
+            )
+            assert (
+                manifest_from_row(row.manifest).snapshot.practice_binding.revision_id
+                == postgres_bundle[1].test_revision_uuid
+            )
+            assert (
+                manifest_from_row(row.manifest).snapshot.artifact_id
+                == postgres_bundle[2].artifact.artifact_id
+            )
+            assert manifest_from_row(row.manifest).snapshot.score_title_snapshot == "Source"
             score = await b.scalar(select(Score))
             assert score.deletion_status.value == "DELETING"
 
@@ -256,11 +268,17 @@ async def test_revision_only_retention_with_existing_reservation_or_take(postgre
         )
         assert len(due) == 2
         assert await db.get(PracticeBundleRecord, source_row.id) is None
-        assert row.manifest.practice_bundle_id == request.practice_binding.bundle_id
+        assert (
+            manifest_from_row(row.manifest).snapshot.practice_binding.bundle_id
+            == request.practice_binding.bundle_id
+        )
         assert row.status == status
         if status == "COMPLETED":
             take = await db.scalar(select(PerformanceTake))
-            assert take.manifest.practice_bundle_id == row.manifest.practice_bundle_id
+            assert (
+                manifest_from_row(take.manifest).snapshot.practice_binding.bundle_id
+                == manifest_from_row(row.manifest).snapshot.practice_binding.bundle_id
+            )
         await db.commit()
         from tests.support.retirement import drain_retirements
 
@@ -270,7 +288,8 @@ async def test_revision_only_retention_with_existing_reservation_or_take(postgre
         assert await db.scalar(select(PracticeBundleRecord)) is None
         await db.refresh(row)
         assert (
-            row.manifest.practice_bundle_id == request.practice_binding.bundle_id
+            manifest_from_row(row.manifest).snapshot.practice_binding.bundle_id
+            == request.practice_binding.bundle_id
             and row.status == status
         )
         if status == "COMPLETED":

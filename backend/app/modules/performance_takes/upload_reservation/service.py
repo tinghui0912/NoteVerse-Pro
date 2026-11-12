@@ -354,7 +354,7 @@ class PerformanceTakeUploadService:
                 field="client_request_id",
                 details={"reason": f"client_request_id_{status.lower()}"},
             )
-        if not manifest_from_row(reservation.manifest).agrees_with(metadata):
+        if manifest_from_row(reservation.manifest).admitted_upload_metadata != metadata:
             raise ValidationException(
                 ErrorCode.VALIDATION_ERROR,
                 field="client_request_id",
@@ -409,8 +409,6 @@ class PerformanceTakeUploadService:
         metadata = metadata.model_copy(update={"media": media})
         if not is_supported_capture_mime(media.kind, media.mime_type):
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
-        if media.byte_size <= 0:
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_byte_size")
         existing = await self.repository.get_reservation_by_client_request_id(
             db,
             user_id,

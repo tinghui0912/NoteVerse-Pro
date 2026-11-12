@@ -6,7 +6,7 @@ from datetime import timedelta
 import pytest
 import sqlalchemy as sa
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, DataError
 from alembic import command
 from app.db.models import (
     StoredObject,
@@ -49,24 +49,7 @@ def test_fresh_manifest_shared_by_reservation_and_take(monkeypatch):
             user = User(email="snapshot@example.com", display_name="Snapshot", password_hash="test")
             db.add(user)
             db.flush()
-            manifest = PerformanceTakeManifest(
-                user_id=user.id,
-                take_uuid="take",
-                practice_bundle_id="bundle-fingerprint",
-                practice_score_uuid="score",
-                practice_revision_uuid="revision",
-                practice_artifact_id="artifact",
-                score_title_snapshot="Title at admission",
-                scope_type="FULL",
-                ticks_per_quarter=1,
-                scope_start_tick=0,
-                scope_terminal_tick=4,
-                tempo_plan="{}",
-                recording_timebase="{}",
-                capture_kind="AUDIO",
-                capture_mime_type="audio/webm",
-                capture_byte_size=10,
-            )
+            manifest = PerformanceTakeManifest(**manifest_values(user.id))
             db.add(manifest)
             db.flush()
             row = PerformanceTakeUploadReservation(
@@ -126,57 +109,48 @@ def test_fresh_manifest_shared_by_reservation_and_take(monkeypatch):
             db.rollback()
 
 
-def test_manifest_coordinates_are_exact_bounded_integers(monkeypatch):
+def test_manifest_document_schema_and_digest_constraints(monkeypatch):
     from app.db.models import PerformanceTakeManifest
-    from fractions import Fraction
+    from app.modules.performance_takes.manifest_persistence import manifest_from_row
 
     with postgres_schema_database(monkeypatch) as (engine, config):
         command.upgrade(config, "head")
+        inspector = sa.inspect(engine)
+        assert {c["name"] for c in inspector.get_columns("performance_take_manifests")} == {
+            "id",
+            "user_id",
+            "take_uuid",
+            "manifest_json",
+            "manifest_sha256",
+            "created_at",
+        }
         with Session(engine) as db:
             user = User(
-                email="coordinates@example.com", display_name="Coordinates", password_hash="test"
+                email="documents@example.com", display_name="Documents", password_hash="test"
             )
             db.add(user)
             db.flush()
-            values = manifest_values(user.id) | {
-                "ticks_per_quarter": 60,
-                "scope_start_tick": 30,
-                "scope_terminal_tick": 113,
-            }
-            row = PerformanceTakeManifest(**values)
-            db.add(row)
+            first = PerformanceTakeManifest(**manifest_values(user.id))
+            second = PerformanceTakeManifest(
+                **(manifest_values(user.id) | {"take_uuid": "another-take"})
+            )
+            db.add_all([first, second])
             db.commit()
-            db.refresh(row)
-            assert Fraction(row.scope_start_tick, row.ticks_per_quarter) == Fraction(1, 2)
-            assert Fraction(row.scope_terminal_tick, row.ticks_per_quarter) == Fraction(113, 60)
-            for patch in [
-                {"ticks_per_quarter": 0},
-                {"ticks_per_quarter": -1},
-                {"ticks_per_quarter": 9007199254740992},
-                {"scope_start_tick": -1},
-                {"scope_start_tick": 9007199254740992},
-                {"scope_terminal_tick": 0},
-                {"scope_terminal_tick": -1},
-                {"scope_terminal_tick": 9007199254740992},
-                {"scope_start_tick": 114},
-            ]:
-                with pytest.raises(IntegrityError) as error:
+            assert first.manifest_json == second.manifest_json
+            assert first.manifest_sha256 == second.manifest_sha256
+            assert first.id != second.id
+            assert manifest_from_row(first).snapshot == manifest_from_row(second).snapshot
+            for digest, sqlstate in [("a" * 63, "23514"), ("a" * 65, "22001")]:
+                with pytest.raises((IntegrityError, DataError)) as error:
                     db.execute(
                         sa.update(PerformanceTakeManifest)
-                        .where(PerformanceTakeManifest.id == row.id)
-                        .values(**patch)
+                        .where(PerformanceTakeManifest.id == first.id)
+                        .values(manifest_sha256=digest)
                     )
                     db.commit()
-                assert error.value.orig.sqlstate == "23514"
+                assert error.value.orig.sqlstate == sqlstate
                 db.rollback()
-            db.execute(
-                sa.update(PerformanceTakeManifest)
-                .where(PerformanceTakeManifest.id == row.id)
-                .values(scope_start_tick=9007199254740990, scope_terminal_tick=9007199254740991)
-            )
-            db.commit()
-            db.refresh(row)
-            assert (row.scope_start_tick, row.scope_terminal_tick) == (
-                9007199254740990,
-                9007199254740991,
-            )
+            db.add(PerformanceTakeManifest(**manifest_values(user.id)))
+            with pytest.raises(IntegrityError):
+                db.commit()
+            db.rollback()

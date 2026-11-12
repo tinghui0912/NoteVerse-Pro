@@ -57,7 +57,7 @@ async def test_terminal_transitions_atomically_release_quota_and_preserve_proven
     async with sessions() as db:
         reserved = await service.reserve_upload(db, 1, request)
         row = await service.repository.get_reservation_by_uuid(db, 1, reserved.reservation_id)
-        bundle_id = row.manifest.practice_bundle_id
+        bundle_id = manifest_from_row(row.manifest).snapshot.practice_binding.bundle_id
         assert (
             await db.scalar(
                 select(PracticeBundleRecord).where(PracticeBundleRecord.bundle_id == bundle_id)
@@ -76,7 +76,7 @@ async def test_terminal_transitions_atomically_release_quota_and_preserve_proven
                 ).after,
             )
             await db.commit()
-            assert row.manifest.practice_bundle_id == bundle_id
+            assert manifest_from_row(row.manifest).snapshot.practice_binding.bundle_id == bundle_id
         if command == "cancel":
             await service.cancel_upload_reservation(db, 1, reserved.reservation_id)
             # Idempotent cancellation does not release quota twice.
@@ -94,7 +94,7 @@ async def test_terminal_transitions_atomically_release_quota_and_preserve_proven
                 )
         await db.refresh(row)
         assert row.status == ("CANCELLED" if command == "cancel" else "EXPIRED")
-        assert row.manifest.practice_bundle_id == bundle_id
+        assert manifest_from_row(row.manifest).snapshot.practice_binding.bundle_id == bundle_id
         assert (
             row.finalizing_token is row.finalizing_object_key is row.finalizing_expires_at is None
         )
@@ -113,7 +113,7 @@ async def test_take_creation_completion_and_quota_commit_share_one_transaction(p
     async with sessions() as db:
         reserved = await service.reserve_upload(db, 1, request)
         row = await service.repository.get_reservation_by_uuid(db, 1, reserved.reservation_id)
-        bundle_id = row.manifest.practice_bundle_id
+        bundle_id = manifest_from_row(row.manifest).snapshot.practice_binding.bundle_id
         storage.put_bytes(key=row.staging_object_key, content=MEDIA, content_type="audio/webm")
         await db.commit()
 
@@ -128,7 +128,10 @@ async def test_take_creation_completion_and_quota_commit_share_one_transaction(p
         await db.rollback()
     async with sessions() as observer:
         row = await service.repository.get_reservation_by_uuid(observer, 1, reserved.reservation_id)
-        assert row.status == "FINALIZING" and row.manifest.practice_bundle_id == bundle_id
+        assert (
+            row.status == "FINALIZING"
+            and manifest_from_row(row.manifest).snapshot.practice_binding.bundle_id == bundle_id
+        )
         assert await observer.scalar(select(func.count()).select_from(PerformanceTake)) == 0
         bundle_objects = set(
             (
@@ -255,7 +258,7 @@ async def test_finalize_lease_blocks_concurrency_and_expired_takeover_preserves_
     async with sessions() as a:
         reserved = await service.reserve_upload(a, 1, request)
         row = await service.repository.get_reservation_by_uuid(a, 1, reserved.reservation_id)
-        bundle_id = row.manifest.practice_bundle_id
+        bundle_id = manifest_from_row(row.manifest).snapshot.practice_binding.bundle_id
         admitted_manifest = manifest_from_row(row.manifest)
         manifest_id = row.manifest_id
         storage.put_bytes(key=row.staging_object_key, content=MEDIA, content_type="audio/webm")
@@ -330,8 +333,8 @@ async def test_finalize_lease_blocks_concurrency_and_expired_takeover_preserves_
         assert manifest_from_row(row.manifest) == admitted_manifest
         assert manifest_from_row(take.manifest) == admitted_manifest
         assert (
-            row.manifest.practice_bundle_id == bundle_id
-            and take.manifest.practice_bundle_id == bundle_id
+            manifest_from_row(row.manifest).snapshot.practice_binding.bundle_id == bundle_id
+            and manifest_from_row(take.manifest).snapshot.practice_binding.bundle_id == bundle_id
         )
         assert row.reservation_uuid != row.storage_reservation_id
         assert storage.read_bytes(take.recording_object.object_key) == MEDIA
@@ -403,7 +406,10 @@ async def test_exact_bundle_admission_lock_fences_owner_release_until_reservatio
 
         assert await b.scalar(select(ScoreRevisionPracticeBinding)) is None
         reservation = (await b.execute(select(PerformanceTakeUploadReservation))).scalar_one()
-        assert reservation.manifest.practice_bundle_id == row.bundle_id
+        assert (
+            manifest_from_row(reservation.manifest).snapshot.practice_binding.bundle_id
+            == row.bundle_id
+        )
         assert (
             result.manifest.practice_binding.bundle_id
             == row.bundle_id
@@ -424,9 +430,10 @@ async def test_exact_bundle_admission_lock_fences_owner_release_until_reservatio
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("owner", ["reservation", "take"])
-async def test_durable_score_coordinate_constraints_in_postgres(postgres_bundle, owner):
-    from sqlalchemy import update
-    from sqlalchemy.exc import IntegrityError
+async def test_persisted_manifest_coordinate_corruption_fails_closed(postgres_bundle, owner):
+    from app.core.exceptions import ValidationException
+    import hashlib
+    import json
 
     sessions, source, storage, request = await setup_bundle(postgres_bundle)
     service = PerformanceTakeUploadService(storage=storage, practice_bundle_service=source)
@@ -441,18 +448,31 @@ async def test_durable_score_coordinate_constraints_in_postgres(postgres_bundle,
             )
             await service.finalize_take(db, 1, accepted.reservation_id)
         await db.commit()
+        document_json = reservation.manifest.manifest_json
         invalid = [
-            {"ticks_per_quarter": 0},
-            {"ticks_per_quarter": -1},
-            {"ticks_per_quarter": 2**53},
-            {"scope_start_tick": -1},
-            {"scope_start_tick": 2**53},
-            {"scope_terminal_tick": 0},
-            {"scope_terminal_tick": -1},
-            {"scope_terminal_tick": 2**53},
-            {"scope_start_tick": 114, "scope_terminal_tick": 113},
+            ("score_timebase", "ticks_per_quarter", 0),
+            ("score_timebase", "ticks_per_quarter", -1),
+            ("score_timebase", "ticks_per_quarter", 2**53),
+            ("scope", "start_tick", -1),
+            ("scope", "start_tick", 2**53),
+            ("scope", "terminal_tick", 0),
+            ("scope", "terminal_tick", -1),
+            ("scope", "terminal_tick", 2**53),
+            ("scope", "start_tick", 2**53 - 1),
         ]
-        for values in invalid:
-            with pytest.raises(IntegrityError, match="score_coordinates"):
-                async with db.begin_nested():
-                    await db.execute(update(PerformanceTakeManifest).values(**values))
+        for section, field, bad in invalid:
+            document = json.loads(document_json)
+            document["manifest"][section][field] = bad
+            corrupted = json.dumps(
+                document, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+            )
+            reservation.manifest.manifest_json = corrupted
+            reservation.manifest.manifest_sha256 = hashlib.sha256(
+                corrupted.encode("utf-8")
+            ).hexdigest()
+            await db.commit()
+            with pytest.raises(ValidationException):
+                await service.reserve_upload(db, 1, request)
+            if owner == "take":
+                with pytest.raises(ValidationException):
+                    await service.takes.get_take(db, 1, accepted.take_id)

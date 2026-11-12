@@ -126,9 +126,6 @@ def upgrade() -> None:
     postgresql.ENUM("active", "disabled", name="operatorstatus").create(
         op.get_bind(), checkfirst=False
     )
-    postgresql.ENUM("AUDIO", "VIDEO", name="performancetakemediakind").create(
-        op.get_bind(), checkfirst=False
-    )
     postgresql.ENUM("AUDIO", name="playbackassetkind").create(op.get_bind(), checkfirst=False)
     postgresql.ENUM(
         "PENDING",
@@ -1013,36 +1010,10 @@ def upgrade() -> None:
         ),
         sa.Column("user_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=False),
         sa.Column("take_uuid", sa.String(length=36), nullable=False),
-        sa.Column("practice_bundle_id", sa.String(length=128), nullable=False),
-        sa.Column("practice_score_uuid", sa.String(length=36), nullable=False),
-        sa.Column("practice_revision_uuid", sa.String(length=36), nullable=False),
-        sa.Column("practice_artifact_id", sa.String(length=128), nullable=False),
-        sa.Column("score_title_snapshot", sa.String(length=255), nullable=False),
-        sa.Column(
-            "capture_kind",
-            postgresql.ENUM("AUDIO", "VIDEO", name="performancetakemediakind", create_type=False),
-            nullable=False,
-        ),
-        sa.Column("capture_mime_type", sa.String(length=64), nullable=False),
-        sa.Column("capture_byte_size", sa.BigInteger(), nullable=False),
-        sa.Column("scope_type", sa.String(length=16), nullable=False),
-        sa.Column("ticks_per_quarter", sa.BigInteger(), nullable=False),
-        sa.Column("scope_start_tick", sa.BigInteger(), nullable=False),
-        sa.Column("scope_terminal_tick", sa.BigInteger(), nullable=False),
-        sa.Column("scope_start_group_id", sa.String(length=128), nullable=True),
-        sa.Column("scope_end_group_id", sa.String(length=128), nullable=True),
-        sa.Column("tempo_plan", sa.Text(), nullable=False),
-        sa.Column("recording_timebase", sa.Text(), nullable=False),
+        sa.Column("manifest_json", sa.Text(), nullable=False),
+        sa.Column("manifest_sha256", sa.String(length=64), nullable=False),
         sa.Column("created_at", sa.DateTime(), nullable=False),
-        sa.CheckConstraint(
-            "capture_kind IN ('AUDIO','VIDEO')", name="ck_take_manifest_capture_kind"
-        ),
-        sa.CheckConstraint("scope_type IN ('FULL','RANGE')", name="ck_take_manifest_scope_type"),
-        sa.CheckConstraint("capture_byte_size > 0", name="ck_take_manifest_media_size"),
-        sa.CheckConstraint(
-            "ticks_per_quarter > 0 AND ticks_per_quarter <= 9007199254740991 AND scope_start_tick >= 0 AND scope_start_tick <= 9007199254740991 AND scope_terminal_tick > 0 AND scope_terminal_tick <= 9007199254740991 AND scope_terminal_tick >= scope_start_tick",
-            name="ck_take_manifest_score_coordinates",
-        ),
+        sa.CheckConstraint("length(manifest_sha256) = 64", name="ck_take_manifest_digest_length"),
         sa.ForeignKeyConstraint(
             ["user_id"],
             ["users.id"],
@@ -2873,7 +2844,6 @@ def downgrade() -> None:
     postgresql.ENUM(name="operatoridentityprovider").drop(op.get_bind(), checkfirst=False)
     postgresql.ENUM(name="operatorrole").drop(op.get_bind(), checkfirst=False)
     postgresql.ENUM(name="operatorstatus").drop(op.get_bind(), checkfirst=False)
-    postgresql.ENUM(name="performancetakemediakind").drop(op.get_bind(), checkfirst=False)
     postgresql.ENUM(name="playbackassetkind").drop(op.get_bind(), checkfirst=False)
     postgresql.ENUM(name="playbackoutboxstatus").drop(op.get_bind(), checkfirst=False)
     postgresql.ENUM(name="renderassetkind").drop(op.get_bind(), checkfirst=False)

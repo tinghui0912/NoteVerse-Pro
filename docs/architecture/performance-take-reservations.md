@@ -81,8 +81,13 @@ belong to [Practice Bundle](practice-bundle.md#save-and-browser-admission).
 `PerformanceTakeManifest` owns one immutable admitted saved-performance snapshot: public Take
 UUID, user identity, detached Bundle/Score/Revision/artifact provenance strings, title at admission,
 `capture` kind/MIME/byte size admitted from the browser, resolved scope, score timebase, tempo plan and RecordingTimebase.
-`manifest.py` exposes the frozen `TakeManifest` value; `manifest_persistence.py` is its single
-hydration and canonical JSON codec. Invalid persisted snapshots fail closed.
+`manifest.py` owns the frozen `TakeManifest` value and its versioned canonical document:
+`{"schemaVersion":1,"manifest":...}`. It owns encoding, decoding and SHA-256 of the exact
+canonical UTF-8 document bytes. The row stores `id`, `user_id`, `take_uuid`, `manifest_json`,
+`manifest_sha256` and `created_at`. The digest is a non-unique integrity fingerprint,
+independent of StoredObject's physical-byte SHA. `manifest_persistence.py` maps the value
+and row, requiring exact canonical representation and digest agreement. Invalid documents
+fail closed. API responses project the semantic snapshot without persistence fields.
 
 Reservation and Take reference the exact same Manifest row. Reservation owns idempotency,
 quota hold, staging and finalize/cleanup lifecycle. Take joins one Manifest and one StoredObject
@@ -105,6 +110,8 @@ Take deletion removes semantic Take ownership and releases its logical quota in 
 ## Replay, cancellation and recovery
 
 Equal normalized request intent/evidence replays the same reservation. RESERVED
+replay compares the Manifest's typed `admitted_upload_metadata` projection with request
+metadata, without Bundle reauthorization or planning. RESERVED
 can refresh the upload capability; FINALIZING returns state without a new upload;
 COMPLETED returns the same Take. Changed metadata conflicts. CANCELLED/EXPIRED
 cannot be reopened with the same client request ID.

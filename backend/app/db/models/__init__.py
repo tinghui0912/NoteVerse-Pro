@@ -1,5 +1,5 @@
 from .stored_object import StoredObject
-from .performance_take_manifest import PerformanceTakeManifest, PerformanceTakeMediaKind
+from .performance_take_manifest import PerformanceTakeManifest
 from .user import User
 from .auth import AuthToken, EmailChangeRequest, PendingRegistration, RefreshToken
 from .file import Upload
@@ -164,7 +164,6 @@ __all__ = [
     "StorageUsageReservationStatus",
     "PerformanceTakeManifest",
     "PerformanceTake",
-    "PerformanceTakeMediaKind",
     "PracticeBundleRecord",
     "ScoreRevisionPracticeBinding",
     "PracticeBundleStatus",

@@ -8,7 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from app.db.models.performance_take_manifest import PerformanceTakeMediaKind
+from typing import get_args
+from app.modules.performance_takes.schemas import PerformanceTakeMediaMetadata
 from app.modules.performance_takes.generated.recording_media_policy import CAPTURE_CONTAINERS
 from app.modules.performance_takes.recording_media_policy import (
     capture_extension,
@@ -34,7 +35,7 @@ def test_canonical_policy_has_exact_stable_immutable_projections():
         assert (ROOT / path).read_text(encoding="utf-8") == content
     assert generator.projections(dict(reversed(list(policy.items())))) == expected
     assert {row.kind for row in CAPTURE_CONTAINERS} == {
-        kind.value for kind in PerformanceTakeMediaKind
+        *get_args(PerformanceTakeMediaMetadata.model_fields["kind"].annotation)
     }
     with pytest.raises(AttributeError):
         CAPTURE_CONTAINERS[0].mime_type = "audio/other"

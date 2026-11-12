@@ -41,7 +41,6 @@ from app.db.models import (
     StoredObject,
     PerformanceTakeManifest,
     PerformanceTake,
-    PerformanceTakeMediaKind,
     PerformanceTakeUploadReservation,
     PracticeBundleRecord,
     ScoreRevisionPracticeBinding,
@@ -65,7 +64,12 @@ from app.modules.performance_takes.dependencies import (
 from app.modules.performance_takes.service import PerformanceTakeService
 from app.modules.performance_takes.upload_reservation.service import PerformanceTakeUploadService
 from app.modules.performance_takes.schemas import PerformanceTakeUploadReservationRequest
-from app.modules.performance_takes.manifest_persistence import manifest_from_row
+from app.modules.performance_takes.manifest import TakeManifest
+from app.modules.performance_takes.schemas import (
+    PerformanceTakeManifestRead,
+    PerformanceTakeUploadMetadata,
+)
+from app.modules.performance_takes.manifest_persistence import manifest_from_row, manifest_to_row
 from app.modules.practice.bundle.service import PracticeBundleService
 from app.modules.practice.bundle.repository import PracticeBundleRepository
 from app.modules.practice.bundle.domain import (
@@ -240,12 +244,32 @@ def _create_default_bundle(
     return source
 
 
-def _bundle_provenance(source: PracticeBundleRecord) -> dict:
-    return dict(
-        practice_bundle_id=source.bundle_id,
-        practice_score_uuid="score-uuid-10",
-        practice_revision_uuid=DEFAULT_TAKE_REVISION_ID,
-        practice_artifact_id=source.artifact_id,
+def _manifest_row(source: PracticeBundleRecord, *, user_id: int, take_uuid: str, title: str):
+    return manifest_to_row(
+        TakeManifest(
+            take_uuid,
+            user_id,
+            PerformanceTakeManifestRead.model_validate(
+                {
+                    "practice_binding": {
+                        "bundle_id": source.bundle_id,
+                        "score_id": "score-uuid-10",
+                        "revision_id": DEFAULT_TAKE_REVISION_ID,
+                    },
+                    "artifact_id": source.artifact_id,
+                    "score_title_snapshot": title,
+                    "capture": {
+                        "kind": "AUDIO",
+                        "mime_type": "audio/webm",
+                        "byte_size": len(VALID_WEBM_BYTES),
+                    },
+                    "score_timebase": {"ticks_per_quarter": 1},
+                    "scope": {"kind": "FULL", "start_tick": 0, "terminal_tick": 4},
+                    "tempo_plan": DEFAULT_TAKE_TEMPO_PLAN,
+                    "recording_timebase": DEFAULT_TAKE_RECORDING_TIMEBASE,
+                }
+            ),
+        )
     )
 
 
@@ -260,20 +284,8 @@ def _create_default_take(
     linked_score_id: int | None = 10,
 ) -> PerformanceTake:
     reservation = PerformanceTakeUploadReservation(
-        manifest=PerformanceTakeManifest(
-            user_id=user_id,
-            **_bundle_provenance(source),
-            take_uuid=take_uuid,
-            score_title_snapshot="Moonlight Sonata",
-            scope_type="FULL",
-            ticks_per_quarter=1,
-            scope_start_tick=0,
-            scope_terminal_tick=4,
-            tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
-            recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
-            capture_kind="AUDIO",
-            capture_mime_type="audio/webm",
-            capture_byte_size=len(VALID_WEBM_BYTES),
+        manifest=_manifest_row(
+            source, user_id=user_id, take_uuid=take_uuid, title="Moonlight Sonata"
         ),
         user_id=user_id,
         client_request_id=client_request_id,
@@ -321,7 +333,9 @@ def test_invalid_stored_scope_reports_validation_error(test_env):
         take_uuid="invalid-stored-scope",
         media_object_key="test/invalid-stored-scope.webm",
     )
-    take.manifest.scope_type = "INVALID"
+    document = json.loads(take.manifest.manifest_json)
+    document["manifest"]["scope"]["kind"] = "INVALID"
+    take.manifest.manifest_json = json.dumps(document)
     service = PerformanceTakeService(storage=storage)
     with pytest.raises(ValidationException) as raised:
         service._to_read_dto(take)
@@ -765,7 +779,8 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         ).scalar_one()
         source = session.execute(
             select(PracticeBundleRecord).where(
-                PracticeBundleRecord.bundle_id == take_row.manifest.practice_bundle_id
+                PracticeBundleRecord.bundle_id
+                == manifest_from_row(take_row.manifest).snapshot.practice_binding.bundle_id
             )
         ).scalar_one()
         assert source is not None
@@ -1237,10 +1252,14 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         ).scalar_one_or_none()
         assert take_in_db is not None
         assert take_in_db.linked_score_id is None
-        assert take_in_db.manifest.score_title_snapshot == "Moonlight Sonata"
+        assert (
+            manifest_from_row(take_in_db.manifest).snapshot.score_title_snapshot
+            == "Moonlight Sonata"
+        )
         source = session.execute(
             select(PracticeBundleRecord).where(
-                PracticeBundleRecord.bundle_id == take_in_db.manifest.practice_bundle_id
+                PracticeBundleRecord.bundle_id
+                == manifest_from_row(take_in_db.manifest).snapshot.practice_binding.bundle_id
             )
         ).scalar_one()
         assert source is not None
@@ -1384,7 +1403,9 @@ def test_cancel_upload_reservation(test_env, monkeypatch: pytest.MonkeyPatch):
                 PerformanceTakeUploadReservation.reservation_uuid == res_id
             )
         ).scalar_one()
-        practice_bundle_id = auth_before_cancel.manifest.practice_bundle_id
+        practice_bundle_id = manifest_from_row(
+            auth_before_cancel.manifest
+        ).snapshot.practice_binding.bundle_id
         source = session.execute(
             select(PracticeBundleRecord).where(PracticeBundleRecord.bundle_id == practice_bundle_id)
         ).scalar_one()
@@ -1411,7 +1432,7 @@ def test_cancel_upload_reservation(test_env, monkeypatch: pytest.MonkeyPatch):
                 PerformanceTakeUploadReservation.reservation_uuid == res_id
             )
         ).scalar_one()
-        assert auth.manifest.practice_bundle_id == _bundle_id()
+        assert manifest_from_row(auth.manifest).snapshot.practice_binding.bundle_id == _bundle_id()
         auth.last_put_url_expires_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(
             minutes=1
         )
@@ -2051,7 +2072,7 @@ def test_video_take_finalize_uses_video_media_kind_and_candidate(test_env):
             .join(PerformanceTakeManifest)
             .where(PerformanceTakeManifest.take_uuid == auth_data["take_id"])
         ).scalar_one()
-        assert take_row.manifest.capture_kind == PerformanceTakeMediaKind.VIDEO
+        assert manifest_from_row(take_row.manifest).snapshot.capture.kind == "VIDEO"
         assert take_row.recording_object.object_key.endswith(".webm")
         assert storage.exists(take_row.recording_object.object_key)
         assert b"fake-browser-video-with-audio" in b"".join(
@@ -2078,20 +2099,8 @@ def test_reserve_finalizing_snapshot_retries_without_new_put(test_env):
     source = _create_default_bundle(session, _storage)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     auth = PerformanceTakeUploadReservation(
-        manifest=PerformanceTakeManifest(
-            user_id=user_1.id,
-            **_bundle_provenance(source),
-            take_uuid="take-finalizing-reserve",
-            score_title_snapshot="Moonlight Sonata",
-            scope_type="FULL",
-            ticks_per_quarter=1,
-            scope_start_tick=0,
-            scope_terminal_tick=4,
-            capture_kind="AUDIO",
-            capture_mime_type="audio/webm",
-            capture_byte_size=len(VALID_WEBM_BYTES),
-            tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
-            recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
+        manifest=_manifest_row(
+            source, user_id=user_1.id, take_uuid="take-finalizing-reserve", title="Moonlight Sonata"
         ),
         user_id=user_1.id,
         client_request_id="req-finalizing-reserve",
@@ -2190,7 +2199,7 @@ def test_crash_abandoned_after_reservation(test_env, monkeypatch: pytest.MonkeyP
                 PerformanceTakeUploadReservation.client_request_id == "req-abandoned-01"
             )
         ).scalar_one()
-        practice_bundle_id = auth.manifest.practice_bundle_id
+        practice_bundle_id = manifest_from_row(auth.manifest).snapshot.practice_binding.bundle_id
         source = session.execute(
             select(PracticeBundleRecord).where(PracticeBundleRecord.bundle_id == practice_bundle_id)
         ).scalar_one()
@@ -2219,7 +2228,7 @@ def test_crash_abandoned_after_reservation(test_env, monkeypatch: pytest.MonkeyP
 
         session.refresh(auth)
         assert auth.status == UploadReservationStatus.EXPIRED
-        assert auth.manifest.practice_bundle_id == _bundle_id()
+        assert manifest_from_row(auth.manifest).snapshot.practice_binding.bundle_id == _bundle_id()
         assert session.get(PracticeBundleRecord, practice_bundle_id) is not None
         retained = session.get(PracticeBundleRecord, practice_bundle_id)
         session.refresh(retained)
@@ -2488,7 +2497,8 @@ def test_score_deleted_between_reserve_and_finalize_preserves_provenance(test_en
         ).scalar_one()
         source = session.execute(
             select(PracticeBundleRecord).where(
-                PracticeBundleRecord.bundle_id == take.manifest.practice_bundle_id
+                PracticeBundleRecord.bundle_id
+                == manifest_from_row(take.manifest).snapshot.practice_binding.bundle_id
             )
         ).scalar_one()
         assert source is not None
@@ -2599,20 +2609,8 @@ def _expired_cleanup_auth(
 ) -> PerformanceTakeUploadReservation:
     expired_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=2)
     row = PerformanceTakeUploadReservation(
-        manifest=PerformanceTakeManifest(
-            user_id=user_id,
-            **_bundle_provenance(source),
-            take_uuid=f"take-{client_request_id}",
-            score_title_snapshot="Cleanup test",
-            scope_type="FULL",
-            ticks_per_quarter=1,
-            scope_start_tick=0,
-            scope_terminal_tick=4,
-            tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
-            recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
-            capture_kind="AUDIO",
-            capture_mime_type="audio/webm",
-            capture_byte_size=len(VALID_WEBM_BYTES),
+        manifest=_manifest_row(
+            source, user_id=user_id, take_uuid=f"take-{client_request_id}", title="Cleanup test"
         ),
         user_id=user_id,
         client_request_id=client_request_id,
@@ -2754,20 +2752,11 @@ def test_finalize_copy_lease_rejects_expired_executor_before_storage_copy(test_e
     expired = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=1)
     source = _create_default_bundle(session, _storage)
     auth = PerformanceTakeUploadReservation(
-        manifest=PerformanceTakeManifest(
+        manifest=_manifest_row(
+            source,
             user_id=user_1.id,
-            **_bundle_provenance(source),
             take_uuid="take-lease-expired-before-copy",
-            score_title_snapshot="Lease test",
-            scope_type="FULL",
-            ticks_per_quarter=1,
-            scope_start_tick=0,
-            scope_terminal_tick=4,
-            tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
-            recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
-            capture_kind="AUDIO",
-            capture_mime_type="audio/webm",
-            capture_byte_size=len(VALID_WEBM_BYTES),
+            title="Lease test",
         ),
         user_id=user_1.id,
         client_request_id="lease-expired-before-copy",
@@ -3078,20 +3067,8 @@ def test_expired_finalizing_lease_records_candidate_before_retry(test_env):
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     candidate_key = "performance-takes/1/finalizing-expired/old-token.webm"
     auth = PerformanceTakeUploadReservation(
-        manifest=PerformanceTakeManifest(
-            user_id=user_1.id,
-            **_bundle_provenance(source),
-            take_uuid="finalizing-expired",
-            score_title_snapshot="Finalizing retry",
-            scope_type="FULL",
-            ticks_per_quarter=1,
-            scope_start_tick=0,
-            scope_terminal_tick=4,
-            tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
-            recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
-            capture_kind="AUDIO",
-            capture_mime_type="audio/webm",
-            capture_byte_size=len(VALID_WEBM_BYTES),
+        manifest=_manifest_row(
+            source, user_id=user_1.id, take_uuid="finalizing-expired", title="Finalizing retry"
         ),
         user_id=user_1.id,
         client_request_id="finalizing-expired-retry",
@@ -3175,8 +3152,10 @@ def test_reservation_identity_metadata_replay_and_structural_take_lineage(test_e
             )
         ).scalar_one()
         assert first["reservation_id"] != row.storage_reservation_id
-        assert manifest_from_row(row.manifest).agrees_with(
-            PerformanceTakeUploadReservationRequest.model_validate(request)
+        assert manifest_from_row(
+            row.manifest
+        ).admitted_upload_metadata == PerformanceTakeUploadMetadata.model_validate(
+            {key: value for key, value in request.items() if key != "client_request_id"}
         )
         repeated = client.post(
             "/api/v1/performance-takes/upload-reservations", json=request
@@ -3572,26 +3551,38 @@ def test_reservation_derives_and_transfers_exact_bundle_plan(test_env, scope_kin
                 {"startTick": 6, "bpm": 90, "source": "MUSICXML"},
             ]
         expected_tempo = {"selection": selection, "segments": segments}
-        assert manifest_from_row(row.manifest).agrees_with(
-            PerformanceTakeUploadReservationRequest.model_validate(request)
+        assert manifest_from_row(
+            row.manifest
+        ).admitted_upload_metadata == PerformanceTakeUploadMetadata.model_validate(
+            {key: value for key, value in request.items() if key != "client_request_id"}
         )
         assert accepted["manifest"]["score_timebase"] == {
             "ticks_per_quarter": artifact["ticksPerQuarter"]
         }
-        assert row.manifest.ticks_per_quarter == artifact["ticksPerQuarter"]
+        assert (
+            manifest_from_row(row.manifest).snapshot.score_timebase.ticks_per_quarter
+            == artifact["ticksPerQuarter"]
+        )
         assert accepted["manifest"]["scope"] == expected_scope
         assert (
             accepted["manifest"]["tempo_plan"]
             == expected_tempo
-            == json.loads(row.manifest.tempo_plan)
+            == json.loads(row.manifest.manifest_json)["manifest"]["tempo_plan"]
         )
-        assert (row.manifest.scope_start_tick, row.manifest.scope_terminal_tick) == (
+        assert (
+            manifest_from_row(row.manifest).snapshot.scope.start_tick,
+            manifest_from_row(row.manifest).snapshot.scope.terminal_tick,
+        ) == (
             expected_scope["start_tick"],
             expected_scope["terminal_tick"],
         )
-        assert row.manifest.practice_bundle_id == ref.bundle_id
+        assert manifest_from_row(row.manifest).snapshot.practice_binding.bundle_id == ref.bundle_id
         if scope_kind == "FULL":
-            assert row.manifest.scope_start_group_id is row.manifest.scope_end_group_id is None
+            assert set(manifest_from_row(row.manifest).snapshot.scope.model_dump()) == {
+                "kind",
+                "start_tick",
+                "terminal_tick",
+            }
         # Another legitimate selection retains the same exact immutable source lineage.
         other = client.post(
             "/api/v1/performance-takes/upload-reservations",
@@ -3604,7 +3595,7 @@ def test_reservation_derives_and_transfers_exact_bundle_plan(test_env, scope_kin
         )
         assert other.status_code == 200, other.text
         assert {
-            value.manifest.practice_bundle_id
+            manifest_from_row(value.manifest).snapshot.practice_binding.bundle_id
             for value in session.execute(select(PerformanceTakeUploadReservation)).scalars()
         } == {ref.bundle_id}
         score = session.get(Score, 10)
@@ -3639,7 +3630,9 @@ def test_reservation_derives_and_transfers_exact_bundle_plan(test_env, scope_kin
             assert completed.json()["data"]["take"] == take
         assert take["manifest"]["practice_binding"]["bundle_id"] == ref.bundle_id
         assert take["manifest"]["score_timebase"] == {
-            "ticks_per_quarter": row.manifest.ticks_per_quarter
+            "ticks_per_quarter": manifest_from_row(
+                row.manifest
+            ).snapshot.score_timebase.ticks_per_quarter
         }
         assert (
             client.get(f"/api/v1/performance-takes/{take['take_id']}").json()["data"]["manifest"][
@@ -3653,19 +3646,37 @@ def test_reservation_derives_and_transfers_exact_bundle_plan(test_env, scope_kin
             ]
             == take["manifest"]["score_timebase"]
         )
-        assert take["manifest"]["scope"]["start_tick"] == row.manifest.scope_start_tick
-        assert take["manifest"]["scope"]["terminal_tick"] == row.manifest.scope_terminal_tick
+        assert (
+            take["manifest"]["scope"]["start_tick"]
+            == manifest_from_row(row.manifest).snapshot.scope.start_tick
+        )
+        assert (
+            take["manifest"]["scope"]["terminal_tick"]
+            == manifest_from_row(row.manifest).snapshot.scope.terminal_tick
+        )
         assert take["manifest"]["tempo_plan"] == expected_tempo
         saved = session.execute(
             select(PerformanceTake)
             .join(PerformanceTakeManifest)
             .where(PerformanceTakeManifest.take_uuid == take["take_id"])
         ).scalar_one()
-        assert saved.manifest.practice_bundle_id == ref.bundle_id
-        assert saved.manifest.ticks_per_quarter == row.manifest.ticks_per_quarter
-        assert saved.manifest.scope_start_tick == row.manifest.scope_start_tick
-        assert saved.manifest.scope_terminal_tick == row.manifest.scope_terminal_tick
-        assert saved.manifest.tempo_plan == row.manifest.tempo_plan
+        assert (
+            manifest_from_row(saved.manifest).snapshot.practice_binding.bundle_id == ref.bundle_id
+        )
+        assert (
+            manifest_from_row(saved.manifest).snapshot.score_timebase.ticks_per_quarter
+            == manifest_from_row(row.manifest).snapshot.score_timebase.ticks_per_quarter
+        )
+        assert (
+            manifest_from_row(saved.manifest).snapshot.scope.start_tick
+            == manifest_from_row(row.manifest).snapshot.scope.start_tick
+        )
+        assert (
+            manifest_from_row(saved.manifest).snapshot.scope.terminal_tick
+            == manifest_from_row(row.manifest).snapshot.scope.terminal_tick
+        )
+        assert saved.manifest.manifest_json == row.manifest.manifest_json
+        assert saved.manifest.manifest_sha256 == row.manifest.manifest_sha256
         read = client.get(f"/api/v1/performance-takes/{take['take_id']}")
         assert read.status_code == 200
         assert read.json()["data"]["manifest"]["tempo_plan"] == expected_tempo
@@ -3730,7 +3741,6 @@ def test_cleanup_rejects_active_reservation_with_take_as_invariant_violation(tes
     # Deliberate cross-row corruption: individual tuple constraints cannot enforce
     # atomic Take creation. Cleanup must reject it instead of repairing it.
     row.status = "RESERVED"
-    row.manifest.practice_bundle_id = source.bundle_id
     row.expires_at = datetime(2020, 1, 1)
     session.commit()
     with pytest.raises(ReservationInvariantError, match="atomic"):
@@ -3739,7 +3749,10 @@ def test_cleanup_rejects_active_reservation_with_take_as_invariant_violation(tes
         )
     session.rollback()
     session.refresh(row)
-    assert row.status == "RESERVED" and row.manifest.practice_bundle_id == source.bundle_id
+    assert (
+        row.status == "RESERVED"
+        and manifest_from_row(row.manifest).snapshot.practice_binding.bundle_id == source.bundle_id
+    )
     service = _performance_take_service(session=session, storage=storage)
     from app.modules.performance_takes.schemas import PerformanceTakeUploadMetadata
 
@@ -3781,7 +3794,7 @@ def test_recording_microseconds_survive_reservation_finalize_and_take_reads(test
                 PerformanceTakeUploadReservation.reservation_uuid == reserved["reservation_id"]
             )
         ).scalar_one()
-        assert json.loads(row.manifest.recording_timebase) == timebase
+        assert json.loads(row.manifest.manifest_json)["manifest"]["recording_timebase"] == timebase
         storage.put_bytes(
             key=row.staging_object_key, content=VALID_WEBM_BYTES, content_type="video/webm"
         )
@@ -3913,8 +3926,8 @@ def test_segmented_recording_manifest_round_trips_through_reserve_finalize_and_r
         accepted = response.json()["data"]
         assert accepted["manifest"]["recording_timebase"] == timebase
         row = session.scalar(select(PerformanceTakeUploadReservation))
-        assert len(row.manifest.recording_timebase.encode("utf-8")) > 64 * 1024
-        assert json.loads(row.manifest.recording_timebase) == timebase
+        assert len(row.manifest.manifest_json.encode("utf-8")) > 64 * 1024
+        assert json.loads(row.manifest.manifest_json)["manifest"]["recording_timebase"] == timebase
         assert (
             manifest_from_row(row.manifest).snapshot.recording_timebase.model_dump(mode="json")
             == timebase
@@ -4087,7 +4100,11 @@ def test_final_blob_sha_is_the_complete_candidate_and_actual_object_digest(test_
         actual = storage.read_bytes(blob.object_key)
         digest = hashlib.sha256(actual).hexdigest()
         assert hashes[blob.object_key] == blob.sha256 == digest
-        assert blob.byte_size == len(actual) == take.manifest.capture_byte_size
+        assert (
+            blob.byte_size
+            == len(actual)
+            == manifest_from_row(take.manifest).snapshot.capture.byte_size
+        )
         assert response.json()["data"]["recording_media"] == {
             "mime_type": blob.content_type,
             "byte_size": blob.byte_size,

@@ -2,6 +2,7 @@
 
 from dataclasses import FrozenInstanceError
 import json
+import hashlib
 import pytest
 from pydantic import ValidationError
 from app.core.exceptions import ValidationException
@@ -59,9 +60,12 @@ def test_immutable_manifest_round_trip_preserves_exact_admitted_truth():
     original = value()
     row = manifest_to_row(original)
     assert manifest_from_row(row) == original
-    assert row.tempo_plan == json.dumps(
-        original.snapshot.tempo_plan.model_dump(mode="json"), sort_keys=True, separators=(",", ":")
-    )
+    assert json.loads(row.manifest_json) == {
+        "schemaVersion": 1,
+        "manifest": original.snapshot.model_dump(mode="json"),
+    }
+    assert row.manifest_json == original.canonical_document_json
+    assert row.manifest_sha256 == hashlib.sha256(row.manifest_json.encode("utf-8")).hexdigest()
     with pytest.raises(FrozenInstanceError):
         original.take_uuid = "changed"
     with pytest.raises(ValidationError):
@@ -71,47 +75,150 @@ def test_immutable_manifest_round_trip_preserves_exact_admitted_truth():
     assert isinstance(original.snapshot.tempo_plan.segments, tuple)
 
 
+def test_equivalent_semantic_values_have_identical_document_bytes_and_digest():
+    original = value()
+    snapshot = original.snapshot.model_dump(mode="json")
+    equivalent = TakeManifest(
+        "separate-take",
+        2,
+        PerformanceTakeManifestRead.model_validate(dict(reversed(list(snapshot.items())))),
+    )
+    assert equivalent.canonical_document_json.encode(
+        "utf-8"
+    ) == original.canonical_document_json.encode("utf-8")
+    assert equivalent.document_sha256 == original.document_sha256
+    snapshot["score_title_snapshot"] = "演奏 Café"
+    changed = TakeManifest("take", 1, PerformanceTakeManifestRead.model_validate(snapshot))
+    assert "演奏 Café" in changed.canonical_document_json
+    assert changed.document_sha256 != original.document_sha256
+    assert TakeManifest.from_document("take", 1, changed.canonical_document_json) == changed
+
+
 @pytest.mark.parametrize(
-    "field,bad",
+    "path,bad",
     [
-        ("take_uuid", ""),
-        ("user_id", 0),
-        ("practice_bundle_id", ""),
-        ("practice_score_uuid", ""),
-        ("practice_revision_uuid", ""),
-        ("practice_artifact_id", ""),
-        ("score_title_snapshot", ""),
-        ("capture_kind", "TEXT"),
-        ("capture_mime_type", "audio/webm;codecs=opus"),
-        ("capture_mime_type", "video/mp4"),
-        ("capture_byte_size", 0),
-        ("capture_byte_size", True),
-        ("ticks_per_quarter", 0),
-        ("ticks_per_quarter", 2**53),
-        ("scope_start_tick", -1),
-        ("scope_terminal_tick", 29),
-        ("scope_type", "INVALID"),
-        ("scope_start_group_id", None),
-        ("tempo_plan", "{}"),
-        ("tempo_plan", '{"selection":{"mode":"SCORE"},"segments":[]}'),
-        ("recording_timebase", "{}"),
-        ("recording_timebase", "not-json"),
+        (("practice_binding", "bundle_id"), ""),
+        (("practice_binding", "score_id"), ""),
+        (("practice_binding", "revision_id"), ""),
+        (("artifact_id",), ""),
+        (("score_title_snapshot",), ""),
+        (("capture", "kind"), "TEXT"),
+        (("capture", "mime_type"), "audio/webm;codecs=opus"),
+        (("capture", "mime_type"), "video/mp4"),
+        (("capture", "byte_size"), 0),
+        (("capture", "byte_size"), True),
+        (("score_timebase", "ticks_per_quarter"), 0),
+        (("score_timebase", "ticks_per_quarter"), 2**53),
+        (("scope", "start_tick"), -1),
+        (("scope", "terminal_tick"), 29),
+        (("scope", "kind"), "INVALID"),
+        (("scope", "start_group_id"), None),
+        (("tempo_plan",), {}),
+        (("tempo_plan", "segments"), []),
+        (("recording_timebase",), {}),
     ],
 )
-def test_corrupt_manifest_fails_closed(field, bad):
+def test_semantically_corrupt_document_fails_closed_with_matching_digest(path, bad):
+    row = manifest_to_row(value())
+    document = json.loads(row.manifest_json)
+    target = document["manifest"]
+    for key in path[:-1]:
+        target = target[key]
+    target[path[-1]] = bad
+    row.manifest_json = json.dumps(
+        document, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    )
+    row.manifest_sha256 = hashlib.sha256(row.manifest_json.encode("utf-8")).hexdigest()
+    with pytest.raises(ValidationException):
+        manifest_from_row(row)
+
+
+@pytest.mark.parametrize(
+    "document",
+    [
+        "not-json",
+        "[]",
+        "{}",
+        '{"schemaVersion":1}',
+        '{"schemaVersion":1,"manifest":{},"extra":0}',
+        '{"schemaVersion":2,"manifest":{}}',
+        '{"schemaVersion":true,"manifest":{}}',
+        '{"schemaVersion":1.0,"manifest":{}}',
+        '{"schemaVersion":NaN,"manifest":{}}',
+        '{"schemaVersion":Infinity,"manifest":{}}',
+        '{"schemaVersion":-Infinity,"manifest":{}}',
+    ],
+)
+def test_malformed_or_unsupported_document_fails_closed(document):
+    row = manifest_to_row(value())
+    row.manifest_json = document
+    row.manifest_sha256 = hashlib.sha256(document.encode("utf-8")).hexdigest()
+    with pytest.raises(ValidationException):
+        manifest_from_row(row)
+
+
+@pytest.mark.parametrize("version", [0, 2, True, 1.0, "1", None])
+def test_document_version_requires_the_supported_exact_integer(version):
+    row = manifest_to_row(value())
+    document = json.loads(row.manifest_json)
+    document["schemaVersion"] = version
+    row.manifest_json = json.dumps(
+        document, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    )
+    row.manifest_sha256 = hashlib.sha256(row.manifest_json.encode("utf-8")).hexdigest()
+    with pytest.raises(ValidationException):
+        manifest_from_row(row)
+
+
+@pytest.mark.parametrize("change", ["missing-version", "extra-field"])
+def test_document_envelope_requires_exact_fields(change):
+    row = manifest_to_row(value())
+    document = json.loads(row.manifest_json)
+    if change == "missing-version":
+        del document["schemaVersion"]
+    else:
+        document["unexpected"] = 1
+    row.manifest_json = json.dumps(
+        document, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    )
+    row.manifest_sha256 = hashlib.sha256(row.manifest_json.encode("utf-8")).hexdigest()
+    with pytest.raises(ValidationException):
+        manifest_from_row(row)
+
+
+@pytest.mark.parametrize("digest", ["0" * 64, "A" * 64, "g" * 64, "a" * 63, "a" * 65, "", None])
+def test_document_requires_exact_lowercase_sha256_agreement(digest):
+    row = manifest_to_row(value())
+    row.manifest_sha256 = digest
+    with pytest.raises(ValidationException):
+        manifest_from_row(row)
+
+
+@pytest.mark.parametrize("formatting", ["whitespace", "ordering", "duplicate-key"])
+def test_persisted_document_requires_exact_canonical_bytes(formatting):
+    row = manifest_to_row(value())
+    document = json.loads(row.manifest_json)
+    if formatting == "whitespace":
+        row.manifest_json = json.dumps(document, indent=2)
+    elif formatting == "ordering":
+        row.manifest_json = json.dumps(
+            dict(reversed(list(document.items()))), separators=(",", ":")
+        )
+    else:
+        row.manifest_json = row.manifest_json.replace(
+            '"schemaVersion":1', '"schemaVersion":1,"schemaVersion":1'
+        )
+    row.manifest_sha256 = hashlib.sha256(row.manifest_json.encode("utf-8")).hexdigest()
+    with pytest.raises(ValidationException):
+        manifest_from_row(row)
+
+
+@pytest.mark.parametrize("field,bad", [("take_uuid", ""), ("user_id", 0)])
+def test_manifest_relational_identity_is_validated(field, bad):
     row = manifest_to_row(value())
     setattr(row, field, bad)
     with pytest.raises(ValidationException):
         manifest_from_row(row)
-
-
-def test_full_scope_has_no_range_identity():
-    row = manifest_to_row(value())
-    row.scope_type = "FULL"
-    with pytest.raises(ValidationException):
-        manifest_from_row(row)
-    row.scope_start_group_id = row.scope_end_group_id = None
-    assert manifest_from_row(row).snapshot.scope.kind == "FULL"
 
 
 def test_replay_compares_selection_against_exact_manifest_without_resolving_again():
@@ -126,7 +233,7 @@ def test_replay_compares_selection_against_exact_manifest_without_resolving_agai
             "recording_timebase": accepted.recording_timebase,
         }
     )
-    assert manifest.agrees_with(request)
+    assert manifest.admitted_upload_metadata == request
     for update in [
         {"scope": {"kind": "FULL"}},
         {"scope": {"kind": "RANGE", "start_group_id": "other", "end_group_id": "end"}},
@@ -140,8 +247,18 @@ def test_replay_compares_selection_against_exact_manifest_without_resolving_agai
             }
         },
     ]:
-        assert not manifest.agrees_with(
-            PerformanceTakeUploadMetadata.model_validate(
-                {**request.model_dump(mode="json"), **update}
-            )
+        assert manifest.admitted_upload_metadata != PerformanceTakeUploadMetadata.model_validate(
+            {**request.model_dump(mode="json"), **update}
         )
+
+
+def test_replay_projection_contains_request_semantics_independently_of_resolved_facts():
+    manifest = value()
+    snapshot = manifest.snapshot.model_dump(mode="json")
+    snapshot.update(artifact_id="another-artifact", score_title_snapshot="Another title")
+    snapshot["score_timebase"]["ticks_per_quarter"] = 120
+    snapshot["scope"].update(start_tick=31, terminal_tick=114)
+    snapshot["tempo_plan"]["segments"] = [{"startTick": 0, "bpm": 80, "source": "MUSICXML"}]
+    resolved = TakeManifest("take", 1, PerformanceTakeManifestRead.model_validate(snapshot))
+    assert resolved.document_sha256 != manifest.document_sha256
+    assert resolved.admitted_upload_metadata == manifest.admitted_upload_metadata

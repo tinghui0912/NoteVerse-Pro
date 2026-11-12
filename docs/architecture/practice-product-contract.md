@@ -1052,7 +1052,10 @@ FINALIZING, COMPLETED, CANCELLED and EXPIRED.
 persistence, cleanup and object ownership.
 Reservation and Take reference the same immutable PerformanceTakeManifest row. A unique
 Take.manifest_id permits at most one Take per Manifest. Manifest owns the sole public Take UUID
-and admitted performance/source Capture facts. StoredObject owns verified durable server-byte facts;
+and admitted performance/source Capture facts in one canonical versioned
+`{"schemaVersion":1,"manifest":...}` document. `manifest_sha256` fingerprints its exact
+canonical UTF-8 bytes for persistence integrity; API responses expose the semantic snapshot.
+StoredObject owns verified durable server-byte facts and its separate physical-byte SHA;
 Take joins both and owns library membership.
 Neither retains PracticeBundle. Playback/listing consume Manifest semantic facts and StoredObject physical facts after Bundle GC.
 Reservation alone owns client_request_id and upload lifecycle; its owner is database-constrained
