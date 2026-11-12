@@ -1,3 +1,4 @@
+import { CAPTURE_CONTAINERS } from './generated/media-policy';
 // @vitest-environment jsdom
 import { recordingSinkFixture, memoryRecordingSinkFactory } from '@/lib/practice/__fixtures__/recording-sink';
 
@@ -98,11 +99,10 @@ describe('PerformanceRecorder', () => {
   });
 
   it.each([
-    ['AUDIO', 'audio/webm;codecs=opus'], ['AUDIO', 'audio/mp4'], ['AUDIO', 'audio/ogg'],
-    ['AUDIO', 'audio/wav'], ['AUDIO', 'audio/x-wav'],
-    ['VIDEO', 'video/webm;codecs=vp8,opus'], ['VIDEO', 'video/mp4;codecs=avc1'],
+    ...CAPTURE_CONTAINERS.map(({ kind, mimeType }) =>
+      [kind, `${mimeType};codecs=browser-selected`] as const),
     ['AUDIO', 'audio/unknown'], ['VIDEO', 'video/quicktime'], ['VIDEO', 'audio/mp4'], ['AUDIO', ''],
-  ] as const)('finalizes %s actual MIME %s only when it is archiveable', async (mode, mimeType) => {
+  ] as const)('finalizes %s actual MIME %s only when it is policy-admitted', async (mode, mimeType) => {
     behavior.mimeType = mimeType;
     vi.stubGlobal('MediaStream', class {
       constructor(private tracks: MediaStreamTrack[]) {}

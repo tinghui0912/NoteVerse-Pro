@@ -1,34 +1,28 @@
-export type CaptureMediaKind = 'AUDIO' | 'VIDEO';
+import { CAPTURE_CONTAINERS } from './generated/media-policy';
+import type { CaptureMediaKind } from './generated/media-policy';
 
-const CAPTURE_CONTAINERS = {
-  AUDIO: ['audio/webm', 'audio/mp4', 'audio/ogg', 'audio/wav', 'audio/x-wav'],
-  VIDEO: ['video/webm', 'video/mp4'],
-} as const;
-
-/** Capture preferences are independent of the composed CompositeVideo encoder. */
-export const VIDEO_CAPTURE_MIME_CANDIDATES = [
-  'video/webm;codecs=vp9,opus',
-  'video/webm;codecs=vp8,opus',
-  'video/webm',
-  'video/mp4',
-] as const;
+export { VIDEO_CAPTURE_MIME_CANDIDATES } from './generated/media-policy';
+export type { CaptureMediaKind } from './generated/media-policy';
 
 export function normalizeCaptureMime(mimeType: string): string {
-  return mimeType.split(';')[0].trim().toLowerCase();
+  return mimeType.split(';', 1)[0].trim().toLowerCase();
 }
 
-export function isSupportedCaptureMime(kind: CaptureMediaKind, mimeType: string): boolean {
-  return (CAPTURE_CONTAINERS[kind] as readonly string[]).includes(normalizeCaptureMime(mimeType));
+export function isSupportedCaptureMime(
+  kind: CaptureMediaKind,
+  mimeType: string,
+): boolean {
+  const canonical = normalizeCaptureMime(mimeType);
+  return CAPTURE_CONTAINERS.some(
+    (container) => container.kind === kind && container.mimeType === canonical,
+  );
 }
 
 export function captureMediaExtension(mimeType: string): string {
-  const container = normalizeCaptureMime(mimeType);
-  const extensions: Record<string, string> = {
-    'audio/webm': 'webm', 'video/webm': 'webm',
-    'audio/mp4': 'mp4', 'video/mp4': 'mp4',
-    'audio/ogg': 'ogg', 'audio/wav': 'wav', 'audio/x-wav': 'wav',
-  };
-  const extension = extensions[container];
-  if (!extension) throw new Error('Unsupported capture container.');
-  return extension;
+  const canonical = normalizeCaptureMime(mimeType);
+  const descriptor = CAPTURE_CONTAINERS.find(
+    (container) => container.mimeType === canonical,
+  );
+  if (!descriptor) throw new Error('Unsupported capture container.');
+  return descriptor.extension;
 }

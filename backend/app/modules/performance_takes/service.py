@@ -15,6 +15,7 @@ from app.modules.storage_usage.service import storage_usage_service
 from app.modules.storage_objects.retirement import retire_after_release
 from app.db.models.score import Score, ScoreDeletionStatus
 from app.modules.performance_takes.aggregate import take_from_row
+from app.modules.performance_takes.recording_media_policy import capture_extension
 from app.modules.performance_takes.repository import PerformanceTakeRepository
 from app.modules.performance_takes.schemas import (
     PerformanceTakeDeleteResponse,
@@ -26,20 +27,6 @@ from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.shared.constants import ErrorCode
 from app.storage.base import ObjectStorage
 from app.storage.factory import object_storage
-
-
-def _extension_for_mime(mime_type: str) -> str:
-    cleaned = mime_type.split(";")[0].strip().lower()
-    mapping = {
-        "audio/webm": "webm",
-        "audio/mp4": "mp4",
-        "audio/ogg": "ogg",
-        "audio/wav": "wav",
-        "audio/x-wav": "wav",
-        "video/webm": "webm",
-        "video/mp4": "mp4",
-    }
-    return mapping.get(cleaned, "webm")
 
 
 class PerformanceTakeService:
@@ -183,7 +170,7 @@ class PerformanceTakeService:
             recording.object_key,
             content_type=recording.content_type,
         )
-        ext = _extension_for_mime(recording.content_type)
+        ext = capture_extension(manifest.snapshot.capture.kind, recording.content_type)
         download_url = self.storage.download_url(
             recording.object_key,
             filename=f"performance-{manifest.take_uuid}.{ext}",
@@ -211,7 +198,7 @@ class PerformanceTakeService:
             )
         facts = take_from_row(take)
         manifest, recording = facts.manifest, facts.recording_object
-        extension = _extension_for_mime(recording.content_type)
+        extension = capture_extension(manifest.snapshot.capture.kind, recording.content_type)
         return (
             recording.object_key,
             f"performance-{manifest.take_uuid}.{extension}",

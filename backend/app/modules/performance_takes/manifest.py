@@ -3,10 +3,7 @@
 from dataclasses import dataclass
 from .schemas import PerformanceTakeManifestRead, PerformanceTakeUploadMetadata
 
-SUPPORTED_AUDIO_MIMES = frozenset(
-    {"audio/webm", "audio/mp4", "audio/ogg", "audio/wav", "audio/x-wav"}
-)
-SUPPORTED_VIDEO_MIMES = frozenset({"video/webm", "video/mp4"})
+from .recording_media_policy import is_supported_capture_mime, normalize_capture_mime
 
 
 @dataclass(frozen=True)
@@ -24,8 +21,9 @@ class TakeManifest:
         ):
             raise ValueError("Invalid saved-performance identity")
         media = self.snapshot.capture
-        supported = SUPPORTED_VIDEO_MIMES if media.kind == "VIDEO" else SUPPORTED_AUDIO_MIMES
-        if media.mime_type not in supported:
+        if media.mime_type != normalize_capture_mime(
+            media.mime_type
+        ) or not is_supported_capture_mime(media.kind, media.mime_type):
             raise ValueError("Manifest requires a canonical admitted media MIME")
 
     def agrees_with(self, request: PerformanceTakeUploadMetadata) -> bool:

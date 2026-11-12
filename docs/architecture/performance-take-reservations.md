@@ -11,7 +11,9 @@ Take library: reads, playback, download and deletion, using the shared immutable
 
 Capture is browser-produced recording evidence before Save. READY recording owns
 AUDIO or VIDEO original media, a LocalMediaAsset and its RecordingTimebase. Capture
-supports the current browser container policy; codec parameters normalize to the
+supports the [Recording Media Policy](../../contracts/practice/recording-media-policy.json);
+its generated projections feed browser Recording and the backend PerformanceTake policy adapter.
+Codec parameters normalize to the
 container MIME for Save admission without transcoding or changing the accepted MIME set.
 
 PerformanceTake is a durable saved Take retaining the exact original recording bytes.

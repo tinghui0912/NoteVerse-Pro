@@ -1158,9 +1158,15 @@ RecordedPerformance used by replay and Composite Video. MusicXML stays separate.
 ## Capture and saved recording media contract
 
 Capture is raw browser recording, incrementally written through RecordingSink to OPFS.
-READY capture has a supported recording kind and
-container: VIDEO WebM/MP4, or AUDIO WebM/MP4/Ogg/WAV/x-WAV. The recording media policy
-owns normalization, Video Capture preferences and raw-download extensions.
+READY capture has a kind/container admitted by the language-neutral
+[Recording Media Policy](../../contracts/practice/recording-media-policy.json).
+Its deterministic generator supplies immutable browser and Python projections.
+Browser Recording owns its adapter; PerformanceTake uses one backend adapter for
+Manifest admission, Save verification, filename extensions and signature-family checks.
+The policy also owns VIDEO recorder preference order. AUDIO uses the browser default.
+Codec parameters normalize by taking the first semicolon-delimited part, trimming and
+lowercasing. Distinct admitted MIME identities retain their own canonical names.
+The Recording adapter owns normalization and original-download extensions.
 MediaRecorder's actual MIME is authoritative; unsupported output cannot become READY.
 
 PerformanceTake retains the exact original recording bytes without transcoding. Original

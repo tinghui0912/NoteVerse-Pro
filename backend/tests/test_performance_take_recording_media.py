@@ -1,6 +1,10 @@
 """Capture containers remain raw through reservation, verification and Take delivery."""
 
 from unittest.mock import patch
+import hashlib
+
+from app.modules.performance_takes.generated.recording_media_policy import CAPTURE_CONTAINERS
+from tests.support.recording_media import SIGNATURE_HEADERS
 
 import pytest
 from sqlalchemy import select
@@ -77,16 +81,11 @@ def reserve(client, kind, mime, size):
 @pytest.mark.parametrize(
     ("kind", "mime", "accepted"),
     [
-        ("VIDEO", "video/webm", True),
-        ("VIDEO", "video/mp4", True),
+        *[(descriptor.kind, descriptor.mime_type, True) for descriptor in CAPTURE_CONTAINERS],
         ("VIDEO", " VIDEO/MP4 ;codecs=avc1", True),
         ("VIDEO", "audio/mp4", False),
         ("AUDIO", "video/mp4", False),
         ("VIDEO", "video/quicktime", False),
-        *[
-            ("AUDIO", mime, True)
-            for mime in ("audio/webm", "audio/mp4", "audio/ogg", "audio/wav", "audio/x-wav")
-        ],
     ],
 )
 def test_recording_admission_preserves_capture_container_kind(
@@ -102,18 +101,12 @@ def test_recording_admission_preserves_capture_container_kind(
         )
 
 
-@pytest.mark.parametrize(
-    ("mime", "content", "extension"),
-    [
-        ("video/mp4", MP4_BYTES, "mp4"),
-        ("video/webm", WEBM_BYTES, "webm"),
-    ],
-)
-def test_video_recording_and_delivery_preserve_exact_raw_capture(
-    recording_client, mime, content, extension
-):
+@pytest.mark.parametrize("descriptor", CAPTURE_CONTAINERS, ids=lambda row: row.mime_type)
+def test_recording_and_delivery_preserve_exact_raw_capture(recording_client, descriptor):
+    kind, mime, extension = descriptor.kind, descriptor.mime_type, descriptor.extension
+    content = SIGNATURE_HEADERS[descriptor.signature] + b"raw-capture"
     client, session, storage, service = recording_client
-    reserved = reserve(client, "VIDEO", mime + ";codecs=browser-selected", len(content))
+    reserved = reserve(client, kind, mime + ";codecs=browser-selected", len(content))
     assert reserved.status_code == 200, reserved.text
     data = reserved.json()["data"]
     key = _staging_key(session, data["reservation_id"])
@@ -129,7 +122,7 @@ def test_video_recording_and_delivery_preserve_exact_raw_capture(
         take["recording_media"]["mime_type"],
         take["recording_media"]["byte_size"],
     ) == (
-        "VIDEO",
+        kind,
         mime,
         len(content),
     )
@@ -140,6 +133,7 @@ def test_video_recording_and_delivery_preserve_exact_raw_capture(
     ).scalar_one()
     assert row.recording_object.object_key.endswith("." + extension)
     assert b"".join(storage.iter_bytes(row.recording_object.object_key)) == content
+    assert row.recording_object.sha256 == hashlib.sha256(content).hexdigest()
     playback = client.get(f"/api/v1/performance-takes/{take['take_id']}/playback-url")
     assert playback.status_code == 200, playback.text
     assert set(playback.json()["data"]) == {"take_id", "playback_url", "download_url", "expires_in"}
@@ -196,3 +190,31 @@ def test_video_finalize_rejects_wrong_container_or_storage_content_type(
                 )
             assert caught.value.details["field"] == "media_mime_type"
     assert session.execute(select(PerformanceTake)).scalars().all() == []
+
+
+def test_unsupported_committed_recording_fails_closed_before_signed_delivery(recording_client):
+    client, session, storage, _ = recording_client
+    descriptor = CAPTURE_CONTAINERS[0]
+    content = SIGNATURE_HEADERS[descriptor.signature] + b"raw-capture"
+    accepted = reserve(client, descriptor.kind, descriptor.mime_type, len(content)).json()["data"]
+    storage.put_bytes(
+        key=_staging_key(session, accepted["reservation_id"]),
+        content=content,
+        content_type=descriptor.mime_type,
+    )
+    finalized = client.post(
+        f"/api/v1/performance-takes/upload-reservations/{accepted['reservation_id']}/finalize"
+    )
+    assert finalized.status_code == 200, finalized.text
+    row = session.scalar(select(PerformanceTake))
+    row.manifest.capture_mime_type = "audio/unknown"
+    row.recording_object.content_type = "audio/unknown"
+    session.commit()
+    with patch.object(
+        storage,
+        "download_url",
+        side_effect=AssertionError("Unsupported state must not issue a locator"),
+    ):
+        for suffix in ["", "/playback-url", "/media"]:
+            response = client.get(f"/api/v1/performance-takes/{accepted['take_id']}{suffix}")
+            assert response.status_code == 422, response.text

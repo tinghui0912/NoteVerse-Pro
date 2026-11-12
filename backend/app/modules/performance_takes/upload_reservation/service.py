@@ -1,5 +1,4 @@
 from __future__ import annotations
-from app.db.models.performance_take_manifest import PerformanceTakeMediaKind
 
 from app.modules.performance_takes.upload_reservation.domain import UploadReservationStatus
 
@@ -16,10 +15,12 @@ from app.db.models.score import Score, ScoreDeletionStatus
 from app.modules.storage_objects.facts import StoredObjectFacts
 from app.modules.storage_objects.persistence import object_to_row
 from app.modules.performance_takes.aggregate import SavedTakeFacts
-from app.modules.performance_takes.manifest import (
-    TakeManifest,
-    SUPPORTED_AUDIO_MIMES,
-    SUPPORTED_VIDEO_MIMES,
+from app.modules.performance_takes.manifest import TakeManifest
+from app.modules.performance_takes.recording_media_policy import (
+    normalize_capture_mime,
+    is_supported_capture_mime,
+    capture_extension,
+    verify_capture_container_signature,
 )
 from app.modules.performance_takes.manifest_persistence import (
     manifest_from_row,
@@ -97,37 +98,8 @@ def _status_value(status: object) -> str:
     return str(value)
 
 
-def _media_kind_value(media_kind: object) -> str:
-    value = getattr(media_kind, "value", media_kind)
-    return str(value or PerformanceTakeMediaKind.AUDIO.value).upper()
-
-
-def _clean_mime_type(mime_type: str) -> str:
-    return mime_type.split(";")[0].strip().lower()
-
-
-def _supported_mimes_for_kind(media_kind: str) -> frozenset[str]:
-    if media_kind == PerformanceTakeMediaKind.VIDEO.value:
-        return SUPPORTED_VIDEO_MIMES
-    return SUPPORTED_AUDIO_MIMES
-
-
-def _extension_for_mime(mime_type: str) -> str:
-    cleaned = mime_type.split(";")[0].strip().lower()
-    mapping = {
-        "audio/webm": "webm",
-        "audio/mp4": "mp4",
-        "audio/ogg": "ogg",
-        "audio/wav": "wav",
-        "audio/x-wav": "wav",
-        "video/webm": "webm",
-        "video/mp4": "mp4",
-    }
-    return mapping.get(cleaned, "webm")
-
-
-def _build_staging_object_key(user_id: int, take_uuid: str, mime_type: str) -> str:
-    ext = _extension_for_mime(mime_type)
+def _build_staging_object_key(user_id: int, take_uuid: str, media_kind: str, mime_type: str) -> str:
+    ext = capture_extension(media_kind, mime_type)
     return f"staging/performance-takes/{user_id}/{take_uuid}/recording.{ext}"
 
 
@@ -135,29 +107,11 @@ def _build_final_candidate_object_key(
     user_id: int,
     take_uuid: str,
     finalizing_token: str,
+    media_kind: str,
     mime_type: str,
 ) -> str:
-    ext = _extension_for_mime(mime_type)
+    ext = capture_extension(media_kind, mime_type)
     return f"performance-takes/{user_id}/{take_uuid}/{finalizing_token}.{ext}"
-
-
-def _verify_container_magic_bytes(header_bytes: bytes, mime_type: str, media_kind: str) -> bool:
-    cleaned = _clean_mime_type(mime_type)
-    if len(header_bytes) < 4:
-        return False
-    if cleaned in ("audio/webm", "video/webm"):
-        return header_bytes.startswith(b"\x1a\x45\xdf\xa3")
-    if cleaned == "audio/ogg":
-        return header_bytes.startswith(b"OggS")
-    if cleaned in ("audio/wav", "audio/x-wav"):
-        if len(header_bytes) < 12:
-            return False
-        return header_bytes.startswith(b"RIFF") and header_bytes[8:12] == b"WAVE"
-    if cleaned in ("audio/mp4", "video/mp4"):
-        if len(header_bytes) >= 8 and header_bytes[4:8] == b"ftyp":
-            return True
-        return False
-    return False
 
 
 def _sha256_storage_object(storage: ObjectStorage, key: str) -> str:
@@ -454,9 +408,9 @@ class PerformanceTakeUploadService:
             request.model_dump(exclude={"client_request_id"})
         )
         media = metadata.media
-        media = media.model_copy(update={"mime_type": _clean_mime_type(media.mime_type)})
+        media = media.model_copy(update={"mime_type": normalize_capture_mime(media.mime_type)})
         metadata = metadata.model_copy(update={"media": media})
-        if media.mime_type not in _supported_mimes_for_kind(media.kind):
+        if not is_supported_capture_mime(media.kind, media.mime_type):
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
         if metadata.recording_timebase.nominalMediaDurationUs > MAX_TAKE_DURATION_US:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="recording_timebase")
@@ -517,7 +471,7 @@ class PerformanceTakeUploadService:
             }
         )
         take_uuid = str(uuid4())
-        staging_key = _build_staging_object_key(user_id, take_uuid, media.mime_type)
+        staging_key = _build_staging_object_key(user_id, take_uuid, media.kind, media.mime_type)
         upload_target = self.storage.upload_url(
             key=staging_key, content_type=media.mime_type, checksum_sha256=""
         )
@@ -668,6 +622,7 @@ class PerformanceTakeUploadService:
             reservation.user_id,
             manifest.take_uuid,
             finalizing_token,
+            manifest.snapshot.capture.kind,
             manifest.snapshot.capture.mime_type,
         )
         state = lifecycle_from_row(reservation)
@@ -757,8 +712,7 @@ class PerformanceTakeUploadService:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_byte_size")
         if (
             metadata.content_type is not None
-            and metadata.content_type.split(";")[0].strip().lower()
-            != manifest.snapshot.capture.mime_type
+            and normalize_capture_mime(metadata.content_type) != manifest.snapshot.capture.mime_type
         ):
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
 
@@ -766,10 +720,10 @@ class PerformanceTakeUploadService:
         header_bytes = await asyncio.to_thread(
             lambda: b"".join(header_storage.iter_bytes(source_key, chunk_size=64, start=0, end=63))
         )
-        if not _verify_container_magic_bytes(
-            header_bytes,
-            manifest.snapshot.capture.mime_type,
+        if not verify_capture_container_signature(
             manifest.snapshot.capture.kind,
+            manifest.snapshot.capture.mime_type,
+            header_bytes,
         ):
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
         verified_staging_sha256 = await asyncio.to_thread(
@@ -800,7 +754,7 @@ class PerformanceTakeUploadService:
                 raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_byte_size")
             if (
                 candidate_metadata.content_type is not None
-                and _clean_mime_type(candidate_metadata.content_type)
+                and normalize_capture_mime(candidate_metadata.content_type)
                 != manifest.snapshot.capture.mime_type
             ):
                 raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")

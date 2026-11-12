@@ -102,7 +102,9 @@ def test_one_orphan_codec_and_router_only_dispatches_commands():
 
 
 def test_manifest_semantics_and_persistence_have_explicit_dependency_owners():
-    assert imports(MODULE / "manifest.py") <= {"dataclasses", "schemas"}
+    assert imports(MODULE / "manifest.py") <= {"dataclasses", "schemas", "recording_media_policy"}
+    assert imports(MODULE / "recording_media_policy.py") == {"generated.recording_media_policy"}
+    assert imports(MODULE / "generated/recording_media_policy.py") == {"typing"}
     dependencies = imports(MODULE / "manifest_persistence.py")
     assert {"manifest", "schemas", "app.db.models.performance_take_manifest"} <= dependencies
     assert "app.modules.performance_takes.aggregate" in imports(MODULE / "service.py")
@@ -112,7 +114,7 @@ def test_manifest_semantics_and_persistence_have_explicit_dependency_owners():
     assert {"manifest_persistence", "app.modules.storage_objects.persistence"} <= imports(
         MODULE / "aggregate.py"
     )
-    # The upload aggregate consumes lifecycle facts independently of admitted archive metadata.
+    # The upload aggregate consumes lifecycle facts independently of admitted recording policy.
     assert imports(MODULE / "upload_reservation/domain.py") <= {
         "__future__",
         "dataclasses",

@@ -3,6 +3,7 @@
 from copy import deepcopy
 import io
 import json
+import re
 from pathlib import Path
 import subprocess
 import tempfile
@@ -486,6 +487,35 @@ class GitRangeTests(unittest.TestCase):
                                self.repo.as_uri(), str(clone)])
         paths = self.changed("pull_request", {"pull_request": {"base": {"sha": base}, "head": {"sha": head}}}, head, clone)
         self.assertEqual(set(paths), {"apps/customer-web/src/feature.tsx", "apps/customer-web/src/feature.test.tsx"})
+
+
+class RecordingMediaWorkflowTests(unittest.TestCase):
+    def test_both_quality_workflows_select_policy_and_generator_changes(self):
+        root = Path(__file__).resolve().parents[2]
+        for name in ['backend-quality.yml', 'customer-web-quality.yml']:
+            text = (root / '.github/workflows' / name).read_text(encoding='utf-8')
+            triggers = text.split('jobs:', 1)[0]
+            for event in ['push', 'pull_request']:
+                block = re.search(r'^  ' + event + r':\n(.*?)(?=^  [a-z_]+:|^\S|\Z)', triggers, re.M | re.S)
+                self.assertIsNotNone(block)
+                for path in ['contracts/practice/recording-media-policy.json', 'scripts/generate_practice_recording_media_policy.py']:
+                    self.assertIn('      - "' + path + '"', block.group(1))
+
+    def test_customer_policy_check_runs_from_root_before_quality_reuse_and_types(self):
+        root = Path(__file__).resolve().parents[2]
+        text = (root / '.github/workflows/customer-web-quality.yml').read_text(encoding='utf-8')
+        block = next(part for part in text.split('      - name: ') if 'run: python3 scripts/generate_practice_recording_media_policy.py --check' in part)
+        self.assertIn('working-directory: .', block)
+        self.assertNotIn('        if:', block)
+        self.assertLess(text.index(block), text.index('      - name: Verify reusable PR Quality proof'))
+        self.assertLess(text.index(block), text.index('      - name: Run TypeScript checks'))
+
+    def test_backend_checks_recording_policy_with_practice_projections_from_root(self):
+        root = Path(__file__).resolve().parents[2]
+        text = (root / '.github/workflows/backend-quality.yml').read_text(encoding='utf-8')
+        block = next(part for part in text.split('      - name: ') if 'python scripts/generate_practice_recording_media_policy.py --check' in part)
+        self.assertIn('cd /repo &&', block)
+        self.assertIn('python scripts/generate_practice_score_contract.py --check', block)
 
 
 if __name__ == "__main__":

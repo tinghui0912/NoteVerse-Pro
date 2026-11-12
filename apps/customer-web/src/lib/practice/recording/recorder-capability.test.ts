@@ -1,3 +1,4 @@
+import { VIDEO_CAPTURE_MIME_CANDIDATES } from './media-policy';
 import { memoryRecordingSinkFactory } from '@/lib/practice/__fixtures__/recording-sink';
 import { afterEach, expect, it, vi } from 'vitest';
 import { recordingProbeFixture } from '../__fixtures__/recording-probe';
@@ -129,4 +130,38 @@ it('transaction abort cancels a pending storage probe and awaits file retirement
   await vi.waitFor(() => expect(f.write).toHaveBeenCalledOnce());
   controller.abort(reason); await rejected;
   expect(f.files.size).toBe(0); expect(f.held.size).toBe(0);
+});
+
+it.each(VIDEO_CAPTURE_MIME_CANDIDATES)(
+  'chooses the first supported canonical VIDEO candidate %s',
+  (candidate) => {
+    const position = VIDEO_CAPTURE_MIME_CANDIDATES.indexOf(candidate);
+    const supported = vi.fn((mime: string) =>
+      VIDEO_CAPTURE_MIME_CANDIDATES.slice(position).some(
+        (value) => value === mime,
+      ),
+    );
+    vi.stubGlobal(
+      'MediaRecorder',
+      class {
+        static isTypeSupported = supported;
+      },
+    );
+    expect(recordingOptions('VIDEO')).toEqual({ mimeType: candidate });
+    expect(supported.mock.calls.map(([mime]) => mime)).toEqual(
+      VIDEO_CAPTURE_MIME_CANDIDATES.slice(0, position + 1),
+    );
+  },
+);
+
+it('leaves AUDIO recorder container choice to the browser', () => {
+  const supported = vi.fn();
+  vi.stubGlobal(
+    'MediaRecorder',
+    class {
+      static isTypeSupported = supported;
+    },
+  );
+  expect(recordingOptions('AUDIO')).toBeUndefined();
+  expect(supported).not.toHaveBeenCalled();
 });
