@@ -7,7 +7,11 @@ import { useRouter } from 'next/navigation';
 import { LibraryBulkActions } from '@/components/library/library-bulk-actions';
 import { LibraryDeleteFolderDialog } from '@/components/library/library-delete-folder-dialog';
 import { ScoreDeleteDialog } from '@/components/score/score-delete-dialog';
-import { useDeleteScores } from '@/hooks/queries/use-score-queries';
+import {
+  useDeleteScores,
+  useLeaveScore,
+} from '@/hooks/queries/use-score-queries';
+import { ScoreLeaveDialog } from '@/components/score/score-leave-dialog';
 import { LibraryScoreCard } from '@/components/library/library-score-card';
 import { LibraryMoveScoresDialog } from '@/components/library/library-move-scores-dialog';
 import { LibraryFilterBar } from '@/components/library/library-filter-bar';
@@ -76,6 +80,9 @@ export default function LibraryPage({
   const folderId = params.folder;
   const ownerLifecycleScope = view === 'created_by_me' && !folderId;
   const deleteScores = useDeleteScores();
+  const memberLifecycleScope = view === 'shared_with_me' && !folderId;
+  const leaveScore = useLeaveScore();
+  const [leaveTarget, setLeaveTarget] = useState<LibraryScoreRead | null>(null);
   const [deletionTargets, setDeletionTargets] = useState<LibraryScoreRead[]>(
     [],
   );
@@ -493,6 +500,14 @@ export default function LibraryPage({
                         }
                       : undefined
                   }
+                  onLeaveScore={
+                    memberLifecycleScope && score.access_origin === 'MEMBERSHIP'
+                      ? () => {
+                          leaveScore.reset();
+                          setLeaveTarget(score);
+                        }
+                      : undefined
+                  }
                   onOpenMoveDialog={() => openMoveAction(score)}
                   t={t}
                 />
@@ -549,6 +564,21 @@ export default function LibraryPage({
               },
             },
           );
+        }}
+      />
+      <ScoreLeaveDialog
+        open={leaveTarget !== null}
+        title={leaveTarget?.title ?? ''}
+        pending={leaveScore.isPending}
+        error={leaveScore.error}
+        onOpenChange={(open) => {
+          if (!open) setLeaveTarget(null);
+        }}
+        onConfirm={() => {
+          if (!memberLifecycleScope || !leaveTarget) return;
+          leaveScore.mutate(leaveTarget.score_id, {
+            onSuccess: () => setLeaveTarget(null),
+          });
         }}
       />
       <LibraryFolderDialog

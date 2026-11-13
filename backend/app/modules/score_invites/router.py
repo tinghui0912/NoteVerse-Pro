@@ -28,6 +28,17 @@ invite_router = APIRouter()
 me_router = APIRouter()
 
 
+@me_router.delete("/scores/{score_id}/membership", response_model=APIResponse[None])
+async def leave_score(
+    score_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    service: ScoreInviteService = Depends(get_score_invite_service),
+):
+    await service.leave_score(db, score_id, require_persisted_id(current_user.id, entity="user"))
+    return success_response(data=None)
+
+
 @score_router.get("/{score_id}/invites", response_model=APIResponse[InviteListRead])
 async def list_score_invites(
     score_id: str,

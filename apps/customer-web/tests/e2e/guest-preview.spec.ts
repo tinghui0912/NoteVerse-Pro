@@ -77,6 +77,7 @@ test('owner toggles a stable preview link and an anonymous browser opens it', as
       can_view: true,
       can_edit: true,
       can_delete: true,
+      can_leave: false,
       can_manage_guest_previews: true,
       can_manage_members: true,
       can_download: true,

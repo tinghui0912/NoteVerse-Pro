@@ -15,6 +15,8 @@ import type {
 } from '@/generated/api';
 
 export const scoreInvitesApi = {
+  leaveScore: (scoreId: string) =>
+    apiClient.delete<ApiResponse<null>>(`/me/scores/${scoreId}/membership`),
   listInvites: (scoreId: string, options?: { limit?: number; cursor?: string; signal?: AbortSignal }) =>
     apiClient.get<ApiResponse<InviteListRead>>(
       `/scores/${scoreId}/invites`,

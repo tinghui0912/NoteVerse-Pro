@@ -45,10 +45,18 @@ from tests.test_guest_previews import add_page, add_audio
 
 ROLES = ["OWNER", "VIEWER", "PRACTITIONER", "EDITOR"]
 ALLOWED = {
-    "OWNER": set(ScoreAction),
-    "VIEWER": {ScoreAction.VIEW},
-    "PRACTITIONER": {ScoreAction.VIEW, ScoreAction.PRACTICE},
-    "EDITOR": {ScoreAction.VIEW, ScoreAction.PRACTICE, ScoreAction.EDIT},
+    "OWNER": {
+        ScoreAction.VIEW,
+        ScoreAction.EDIT,
+        ScoreAction.DELETE,
+        ScoreAction.MANAGE_MEMBERS,
+        ScoreAction.MANAGE_GUEST_PREVIEWS,
+        ScoreAction.DOWNLOAD,
+        ScoreAction.PRACTICE,
+    },
+    "VIEWER": {ScoreAction.VIEW, ScoreAction.LEAVE},
+    "PRACTITIONER": {ScoreAction.VIEW, ScoreAction.PRACTICE, ScoreAction.LEAVE},
+    "EDITOR": {ScoreAction.VIEW, ScoreAction.PRACTICE, ScoreAction.EDIT, ScoreAction.LEAVE},
 }
 
 

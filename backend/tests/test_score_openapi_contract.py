@@ -40,6 +40,7 @@ def test_score_openapi_keeps_read_model_fields_required(client: TestClient) -> N
             "can_download",
             "can_edit",
             "can_delete",
+            "can_leave",
             "can_manage_guest_previews",
             "can_manage_members",
             "can_practice",
@@ -79,6 +80,7 @@ def test_score_access_contract_exposes_current_channels_and_workspace_filters(
         "VIEW",
         "EDIT",
         "DELETE",
+        "LEAVE",
         "MANAGE_GUEST_PREVIEWS",
         "MANAGE_MEMBERS",
         "DOWNLOAD",
@@ -102,7 +104,14 @@ def test_score_access_contract_exposes_current_channels_and_workspace_filters(
         "/api/v1/guest-previews/{token}",
         "/api/v1/invites/{token}",
         "/api/v1/scores/{score_id}/members",
+        "/api/v1/me/scores/{score_id}/membership",
     } <= paths.keys()
+    leave = paths["/api/v1/me/scores/{score_id}/membership"]["delete"]
+    assert "requestBody" not in leave
+    assert [
+        parameter["name"] for parameter in leave["parameters"] if parameter["in"] == "path"
+    ] == ["score_id"]
+    assert not any(parameter["in"] == "query" for parameter in leave["parameters"])
 
 
 def test_guest_preview_contract_is_presentation_only(client: TestClient) -> None:

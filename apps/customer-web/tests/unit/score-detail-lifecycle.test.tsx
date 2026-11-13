@@ -13,6 +13,7 @@ import type { ScoreRead } from '@/generated/api';
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   remove: vi.fn(),
+  leave: vi.fn(),
   score: null as ScoreRead | null,
   error: null as Error | null,
 }));
@@ -28,6 +29,7 @@ vi.mock('@/i18n/routing', () => ({
 }));
 vi.mock('@/lib/api', () => ({
   scoresApi: { batchDelete: (ids: string[]) => mocks.remove(ids) },
+  scoreInvitesApi: { leaveScore: (id: string) => mocks.leave(id) },
 }));
 vi.mock('@/hooks/score-detail/use-score-detail-summary', () => ({
   useScoreDetailSummary: () => ({
@@ -71,6 +73,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.error = null;
   mocks.remove.mockResolvedValue({ data: { removed: 1 } });
+  mocks.leave.mockResolvedValue({ data: null });
   mocks.score = {
     score_id: 'score',
     title: 'Owned score',
@@ -89,6 +92,7 @@ beforeEach(() => {
       can_view: true,
       can_edit: false,
       can_delete: true,
+      can_leave: false,
       can_manage_guest_previews: false,
       can_manage_members: false,
       can_download: false,
@@ -117,6 +121,7 @@ async function page() {
 }
 it('uses the Score deletion command and returns an owner to Created by me', async () => {
   const client = await page();
+  expect(screen.queryByRole('button', { name: 'Leave score' })).not.toBeInTheDocument();
   const invalidate = vi.spyOn(client, 'invalidateQueries');
   expect(
     screen
@@ -136,10 +141,34 @@ it('uses the Score deletion command and returns an owner to Created by me', asyn
 });
 it('does not offer owner deletion for a collaborator', async () => {
   mocks.score!.capabilities.can_delete = false;
+  mocks.score!.capabilities.can_leave = true;
   const client = await page();
   expect(
     screen.queryByRole('button', { name: 'Delete score' }),
   ).not.toBeInTheDocument();
+  expect(
+    screen.getByRole('button', { name: 'Leave score' }),
+  ).toBeInTheDocument();
+  client.clear();
+});
+
+it('leaves through current-user membership, clears authorized detail and returns to Shared with me', async () => {
+  mocks.score!.capabilities.can_delete = false;
+  mocks.score!.capabilities.can_leave = true;
+  const client = await page();
+  client.setQueryData(queryKeys.scores.detail('score'), { data: mocks.score });
+  const invalidate = vi.spyOn(client, 'invalidateQueries');
+  await userEvent.click(screen.getByRole('button', { name: 'Leave score' }));
+  const dialog = within(screen.getByRole('alertdialog'));
+  expect(dialog.getByText(scoreText.leaveScoreDescription)).toBeInTheDocument();
+  expect(dialog.getByRole('heading')).toHaveTextContent('Leave “Owned score”?');
+  await userEvent.click(dialog.getByRole('button', { name: 'Leave score' }));
+  await waitFor(() =>
+    expect(mocks.push).toHaveBeenCalledWith('/library?view=shared_with_me'),
+  );
+  expect(mocks.leave).toHaveBeenCalledWith('score');
+  expect(client.getQueryData(queryKeys.scores.detail('score'))).toBeUndefined();
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.library.all });
   client.clear();
 });
 it('returns load errors to Library', async () => {

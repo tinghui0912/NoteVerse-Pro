@@ -7261,6 +7261,10 @@
             "title": "Can Edit",
             "type": "boolean"
           },
+          "can_leave": {
+            "title": "Can Leave",
+            "type": "boolean"
+          },
           "can_manage_guest_previews": {
             "title": "Can Manage Guest Previews",
             "type": "boolean"
@@ -7282,6 +7286,7 @@
           "can_view",
           "can_edit",
           "can_delete",
+          "can_leave",
           "can_manage_guest_previews",
           "can_manage_members",
           "can_download",
@@ -10440,6 +10445,64 @@
         "summary": "Update User Profile",
         "tags": [
           "Account"
+        ]
+      }
+    },
+    "/api/v1/me/scores/{score_id}/membership": {
+      "delete": {
+        "operationId": "leave_score_api_v1_me_scores__score_id__membership_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "score_id",
+            "required": true,
+            "schema": {
+              "title": "Score Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_NoneType_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Leave Score",
+        "tags": [
+          "Score Collaboration"
         ]
       }
     },

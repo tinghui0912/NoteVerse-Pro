@@ -5,22 +5,33 @@ from datetime import datetime
 from sqlalchemy import select, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import ScoreInvite, ScoreMembership, User
+from app.db.models import Score, ScoreInvite, ScoreMembership, User
+from app.modules.score_access.queries import active_score_predicate
 from app.db.models.score_access import InviteStatus
 from app.db.model_utils import require_persisted_id
 from .pagination import decode_cursor, encode_cursor
 
 
 class ScoreInviteRepository:
-    async def invite_by_token_hash(self, db: AsyncSession, token_hash: str) -> ScoreInvite | None:
-        return (
-            await db.execute(select(ScoreInvite).where(ScoreInvite.token_hash == token_hash))
-        ).scalar_one_or_none()
+    async def invite_by_token_hash(
+        self, db: AsyncSession, token_hash: str, *, lock: bool = False
+    ) -> ScoreInvite | None:
+        query = select(ScoreInvite).where(ScoreInvite.token_hash == token_hash)
+        if lock:
+            query = query.with_for_update().execution_options(
+                populate_existing=True, autoflush=False
+            )
+        return (await db.execute(query)).scalar_one_or_none()
 
-    async def invite_by_uuid(self, db: AsyncSession, invite_uuid: str) -> ScoreInvite | None:
-        return (
-            await db.execute(select(ScoreInvite).where(ScoreInvite.invite_uuid == invite_uuid))
-        ).scalar_one_or_none()
+    async def invite_by_uuid(
+        self, db: AsyncSession, invite_uuid: str, *, lock: bool = False
+    ) -> ScoreInvite | None:
+        query = select(ScoreInvite).where(ScoreInvite.invite_uuid == invite_uuid)
+        if lock:
+            query = query.with_for_update().execution_options(
+                populate_existing=True, autoflush=False
+            )
+        return (await db.execute(query)).scalar_one_or_none()
 
     async def invites(
         self,
@@ -108,20 +119,48 @@ class ScoreInviteRepository:
             )
         return items, next_cursor
 
-    async def membership_by_id(
+    async def membership_by_id_for_update(
         self, db: AsyncSession, membership_id: int
     ) -> ScoreMembership | None:
-        return await db.get(ScoreMembership, membership_id)
+        return (
+            await db.execute(
+                select(ScoreMembership)
+                .where(ScoreMembership.id == membership_id)
+                .with_for_update()
+                .execution_options(populate_existing=True, autoflush=False)
+            )
+        ).scalar_one_or_none()
 
-    async def membership(
+    async def membership_for_update(
         self, db: AsyncSession, score_id: int, user_id: int
     ) -> ScoreMembership | None:
         return (
             await db.execute(
-                select(ScoreMembership).where(
+                select(ScoreMembership)
+                .where(
                     ScoreMembership.score_id == score_id,
                     ScoreMembership.user_id == user_id,
                 )
+                .with_for_update()
+                .execution_options(populate_existing=True, autoflush=False)
+            )
+        ).scalar_one_or_none()
+
+    async def self_membership_for_update(
+        self, db: AsyncSession, score_uuid: str, user_id: int
+    ) -> ScoreMembership | None:
+        return (
+            await db.execute(
+                select(ScoreMembership)
+                .join(Score, Score.id == ScoreMembership.score_id)
+                .where(
+                    Score.score_uuid == score_uuid,
+                    active_score_predicate(),
+                    Score.owner_user_id != user_id,
+                    ScoreMembership.user_id == user_id,
+                )
+                .with_for_update(of=ScoreMembership)
+                .execution_options(populate_existing=True, autoflush=False)
             )
         ).scalar_one_or_none()
 

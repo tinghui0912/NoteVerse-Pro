@@ -70,5 +70,6 @@
   "sortNameDesc": "Name Z-A",
   "youOwn": "You own",
   "deleteScore": "Delete score",
-  "deleteSelectedScores": "Delete selected scores"
+  "deleteSelectedScores": "Delete selected scores",
+  "leaveScore": "Leave score"
 }

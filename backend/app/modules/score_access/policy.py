@@ -25,6 +25,7 @@ class ScoreAction(str, enum.Enum):
     VIEW = "VIEW"
     EDIT = "EDIT"
     DELETE = "DELETE"
+    LEAVE = "LEAVE"
     MANAGE_GUEST_PREVIEWS = "MANAGE_GUEST_PREVIEWS"
     MANAGE_MEMBERS = "MANAGE_MEMBERS"
     DOWNLOAD = "DOWNLOAD"
@@ -70,6 +71,7 @@ class ScoreAccessPolicy:
                     can_view=True,
                     can_edit=True,
                     can_delete=True,
+                    can_leave=False,
                     can_manage_guest_previews=True,
                     can_manage_members=True,
                     can_download=True,
@@ -97,6 +99,7 @@ class ScoreAccessPolicy:
                         can_view=True,
                         can_edit=editor,
                         can_delete=False,
+                        can_leave=True,
                         can_manage_guest_previews=False,
                         can_manage_members=False,
                         can_download=False,
@@ -124,6 +127,7 @@ class ScoreAccessPolicy:
             ScoreAction.VIEW: access.capabilities.can_view,
             ScoreAction.EDIT: access.capabilities.can_edit,
             ScoreAction.DELETE: access.capabilities.can_delete,
+            ScoreAction.LEAVE: access.capabilities.can_leave,
             ScoreAction.MANAGE_GUEST_PREVIEWS: access.capabilities.can_manage_guest_previews,
             ScoreAction.MANAGE_MEMBERS: access.capabilities.can_manage_members,
             ScoreAction.DOWNLOAD: access.capabilities.can_download,

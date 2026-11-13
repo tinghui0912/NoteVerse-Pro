@@ -11,6 +11,21 @@ Invites default to VIEWER. Role rank is VIEWER < PRACTITIONER < EDITOR; acceptan
 upgrades weaker membership without downgrading stronger membership. Owner management
 supports explicit upgrade/downgrade. Revocation denies subsequent access immediately.
 
+Every member role may leave a Score; owners cannot leave their ownership. Self
+leave revokes the current user's membership through
+`DELETE /api/v1/me/scores/{score_id}/membership`. Owner removal is a distinct
+member-management command. Both preserve the membership row and are idempotent
+when it is revoked. Membership mutations lock and refresh that row, so concurrent
+leave, removal and invite acceptance serialize. Role PATCH only changes active
+memberships and cannot restore revoked access; explicit acceptance of a new valid
+Invite is the reactivation path.
+
+Score Detail offers Leave through `can_leave`. Shared with me offers single-card
+Leave without a folder filter. Other Library scopes and bulk toolbars offer no
+Leave action. Leave preserves Score assets, personal practice history and personal
+folder/favorite organization. The revoked membership grants no Score or Library
+access; organization can become visible again after rejoining through an Invite.
+
 Practice necessarily sends exact PracticeBundle to the Practitioner/Editor browser;
 editing sends revision MusicXML and original input assets to Editor. These are trusted
 application disclosures, not DRM restrictions. Viewer gets no machine-readable source.

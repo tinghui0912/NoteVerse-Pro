@@ -238,7 +238,7 @@ class ScoreInviteService:
                 membership_id=None,
             )
 
-        membership = await self.repository.membership(db, invite.score_id, user_id)
+        membership = await self.repository.membership_for_update(db, invite.score_id, user_id)
         now = utc_now_naive()
         if membership:
             if membership.revoked_at is not None:
@@ -313,9 +313,9 @@ class ScoreInviteService:
             db, score_uuid, ScoreAction.MANAGE_MEMBERS, user_id=user_id
         )
         membership = await self._membership_for_score(db, access.score, membership_id)
-        membership.role = request.role
         if membership.revoked_at is not None:
-            membership.revoked_at = None
+            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="membership_id")
+        membership.role = request.role
         await db.commit()
         await db.refresh(membership)
         return await self._member_read(db, membership)
@@ -329,10 +329,23 @@ class ScoreInviteService:
         membership = await self._membership_for_score(db, access.score, membership_id)
         if membership.user_id == access.score.owner_user_id:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="membership_id")
-        membership.revoked_at = utc_now_naive()
+        if membership.revoked_at is None:
+            membership.revoked_at = utc_now_naive()
         await db.commit()
         await db.refresh(membership)
         return await self._member_read(db, membership)
+
+    async def leave_score(self, db: AsyncSession, score_uuid: str, user_id: int) -> None:
+        membership = await self.repository.self_membership_for_update(db, score_uuid, user_id)
+        # A retry of a completed leave does not grant access or rewrite its timestamp.
+        if membership is not None and membership.revoked_at is not None:
+            await db.commit()
+            return
+        await self.access_policy.authorize(db, score_uuid, ScoreAction.LEAVE, user_id=user_id)
+        if membership is None:
+            raise UnauthorizedException(ErrorCode.NO_ACCESS)
+        membership.revoked_at = utc_now_naive()
+        await db.commit()
 
     async def _managed_invite(
         self, db: AsyncSession, score_uuid: str, invite_uuid: str, user_id: int
@@ -348,7 +361,9 @@ class ScoreInviteService:
     async def _invite_by_token(
         self, db: AsyncSession, token: str, *, allow_inactive: bool = False
     ) -> ScoreInvite:
-        invite = await self.repository.invite_by_token_hash(db, hash_invite_token(token))
+        invite = await self.repository.invite_by_token_hash(
+            db, hash_invite_token(token), lock=not allow_inactive
+        )
         if not invite:
             raise ResourceNotFoundException("invite", code=ErrorCode.INVITE_NOT_FOUND)
         if allow_inactive:
@@ -367,7 +382,7 @@ class ScoreInviteService:
         return invite
 
     async def _invite_by_uuid(self, db: AsyncSession, invite_uuid: str) -> ScoreInvite:
-        invite = await self.repository.invite_by_uuid(db, invite_uuid)
+        invite = await self.repository.invite_by_uuid(db, invite_uuid, lock=True)
         if not invite:
             raise ResourceNotFoundException("invite", invite_uuid, ErrorCode.INVITE_NOT_FOUND)
         status = display_invite_status(invite)
@@ -396,7 +411,7 @@ class ScoreInviteService:
     async def _membership_for_score(
         self, db: AsyncSession, score: Score, membership_id: int
     ) -> ScoreMembership:
-        membership = await self.repository.membership_by_id(db, membership_id)
+        membership = await self.repository.membership_by_id_for_update(db, membership_id)
         if not membership or membership.score_id != score.id:
             raise ResourceNotFoundException(
                 "score_membership",

@@ -3753,6 +3753,10 @@ export type ScoreCapabilities = {
      */
     can_edit: boolean;
     /**
+     * Can Leave
+     */
+    can_leave: boolean;
+    /**
      * Can Manage Guest Previews
      */
     can_manage_guest_previews: boolean;
@@ -5400,6 +5404,36 @@ export type UpdateUserProfileApiV1MeProfilePutResponses = {
 };
 
 export type UpdateUserProfileApiV1MeProfilePutResponse = UpdateUserProfileApiV1MeProfilePutResponses[keyof UpdateUserProfileApiV1MeProfilePutResponses];
+
+export type LeaveScoreApiV1MeScoresScoreIdMembershipDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Score Id
+         */
+        score_id: string;
+    };
+    query?: never;
+    url: '/api/v1/me/scores/{score_id}/membership';
+};
+
+export type LeaveScoreApiV1MeScoresScoreIdMembershipDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LeaveScoreApiV1MeScoresScoreIdMembershipDeleteError = LeaveScoreApiV1MeScoresScoreIdMembershipDeleteErrors[keyof LeaveScoreApiV1MeScoresScoreIdMembershipDeleteErrors];
+
+export type LeaveScoreApiV1MeScoresScoreIdMembershipDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiResponseNoneType;
+};
+
+export type LeaveScoreApiV1MeScoresScoreIdMembershipDeleteResponse = LeaveScoreApiV1MeScoresScoreIdMembershipDeleteResponses[keyof LeaveScoreApiV1MeScoresScoreIdMembershipDeleteResponses];
 
 export type GetMySecurityOverviewApiV1MeSecurityGetData = {
     body?: never;

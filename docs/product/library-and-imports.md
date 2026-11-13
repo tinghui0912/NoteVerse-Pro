@@ -34,6 +34,13 @@ actions; Shared with me does not grant owner deletion. Score Detail also provide
 Delete score when the current access capabilities allow it. Deletion hides the
 resource immediately and uses the durable ScoreDeletionOperation cleanup flow.
 
+Every collaborator role can Leave score from Score Detail or a single card in
+Shared with me without a folder filter. Owners cannot leave ownership. Other
+Library scopes and all bulk toolbars provide no Leave action. Leave revokes only
+the user's ScoreMembership and preserves personal organization and practice data.
+The Score disappears from all Library views and counts until a new valid Invite
+is explicitly accepted. Owner role PATCH cannot reactivate revoked membership.
+
 ## Upload And Import Activity
 
 Upload is the global creation action. The Upload page contains the upload form

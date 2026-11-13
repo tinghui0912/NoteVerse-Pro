@@ -1,6 +1,6 @@
 'use client';
 
-import { FolderInput, MoreVertical, Star, Trash2 } from 'lucide-react';
+import { FolderInput, MoreVertical, Star, Trash2, LogOut } from 'lucide-react';
 import { ScoreThumbnail } from '@/components/score/score-thumbnail';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -26,6 +26,7 @@ interface LibraryScoreCardProps {
   onToggleFavorite: () => void;
   onOpenMoveDialog: () => void;
   onDeleteScore?: () => void;
+  onLeaveScore?: () => void;
   t: (key: string, values?: Record<string, string | number>) => string;
 }
 
@@ -40,6 +41,7 @@ export function LibraryScoreCard({
   onToggleFavorite,
   onOpenMoveDialog,
   onDeleteScore,
+  onLeaveScore,
   t,
 }: LibraryScoreCardProps) {
   return (
@@ -113,6 +115,12 @@ export function LibraryScoreCard({
                   <FolderInput className="h-4 w-4" />
                   {t('moveTo')}
                 </DropdownMenuItem>
+                {score.access_origin === 'MEMBERSHIP' && onLeaveScore ? (
+                  <DropdownMenuItem onClick={onLeaveScore}>
+                    <LogOut className="h-4 w-4" />
+                    {t('leaveScore')}
+                  </DropdownMenuItem>
+                ) : null}
                 {score.access_origin === 'OWNER' && onDeleteScore ? (
                   <DropdownMenuItem
                     className="text-destructive"

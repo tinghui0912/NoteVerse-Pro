@@ -7,7 +7,11 @@ import { ResourceLoading } from '@/components/loading';
 import { PageHeader } from '@/components/page';
 import { ScoreCapabilityProvider } from '@/components/score/score-capability-context';
 import { ScoreDeleteDialog } from '@/components/score/score-delete-dialog';
-import { useDeleteScores } from '@/hooks/queries/use-score-queries';
+import { ScoreLeaveDialog } from '@/components/score/score-leave-dialog';
+import {
+  useDeleteScores,
+  useLeaveScore,
+} from '@/hooks/queries/use-score-queries';
 import { Button } from '@/components/ui/button';
 import { ScoreSurface } from '@/components/score/score-surface';
 import { ScoreBreadcrumbs } from '@/components/score-detail/score-breadcrumbs';
@@ -39,6 +43,8 @@ function ScorePageContent({ id }: { id: string }) {
   const resources = useScoreDetailSummary(id);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const deleteScores = useDeleteScores();
+  const leaveScore = useLeaveScore();
+  const [leaveOpen, setLeaveOpen] = React.useState(false);
   const error = resources.scoreError
     ? userFacingErrorMessage(
         errors,
@@ -198,6 +204,16 @@ function ScorePageContent({ id }: { id: string }) {
                   >
                     {t('deleteScore')}
                   </Button>
+                ) : score.capabilities.can_leave ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      leaveScore.reset();
+                      setLeaveOpen(true);
+                    }}
+                  >
+                    {t('leaveScore')}
+                  </Button>
                 ) : null}
               </>
             }
@@ -221,6 +237,19 @@ function ScorePageContent({ id }: { id: string }) {
               if (!score.capabilities.can_delete) return;
               deleteScores.mutate([score.score_id], {
                 onSuccess: () => router.push('/library?view=created_by_me'),
+              });
+            }}
+          />
+          <ScoreLeaveDialog
+            open={leaveOpen}
+            title={scoreTitle}
+            pending={leaveScore.isPending}
+            error={leaveScore.error}
+            onOpenChange={setLeaveOpen}
+            onConfirm={() => {
+              if (!score.capabilities.can_leave) return;
+              leaveScore.mutate(score.score_id, {
+                onSuccess: () => router.push('/library?view=shared_with_me'),
               });
             }}
           />

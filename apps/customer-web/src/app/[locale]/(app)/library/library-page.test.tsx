@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   move: vi.fn(),
   scores: [] as LibraryScoreRead[],
   deleteScores: vi.fn(),
+  leaveScore: vi.fn(),
 }));
 const folders: LibraryFolderRead[] = [
   {
@@ -57,6 +58,7 @@ vi.mock('next-intl', () => ({
 }));
 vi.mock('@/hooks/queries/use-score-queries', () => ({
   useDeleteScores: () => ({ mutate: mocks.deleteScores, reset: vi.fn() }),
+  useLeaveScore: () => ({ mutate: mocks.leaveScore, reset: vi.fn() }),
 }));
 vi.mock('@/hooks/queries/use-library-queries', () => ({
   useLibraryFolders: () => ({
@@ -315,6 +317,46 @@ describe('Library folder organization', () => {
       expect.any(Object),
     );
   });
+
+  it.each([
+    [{ view: 'shared_with_me' }, true],
+    [{ view: 'all' }, false],
+    [{ view: 'favorites' }, false],
+    [{ folder: 'a' }, false],
+    [{ view: 'shared_with_me', folder: 'a' }, false],
+    [{ view: 'created_by_me' }, false],
+  ] as const)(
+    'offers single Leave only in the membership lifecycle scope %o',
+    async (query, allowed) => {
+      seedScores();
+      await openPage(query);
+      const card = screen.getByText('member').closest('[class*="group"]')!;
+      within(card as HTMLElement)
+        .getByRole('button', { name: 'More actions' })
+        .focus();
+      await userEvent.keyboard('{Enter}');
+      if (!allowed) {
+        expect(
+          screen.queryByRole('menuitem', { name: 'Leave score' }),
+        ).not.toBeInTheDocument();
+        return;
+      }
+      await userEvent.click(
+        screen.getByRole('menuitem', { name: 'Leave score' }),
+      );
+      const dialog = within(screen.getByRole('alertdialog'));
+      expect(
+        dialog.getByText(scoreMessages.leaveScoreDescription),
+      ).toBeInTheDocument();
+      await userEvent.click(
+        dialog.getByRole('button', { name: 'Leave score' }),
+      );
+      expect(mocks.leaveScore).toHaveBeenCalledWith(
+        'member',
+        expect.any(Object),
+      );
+    },
+  );
 
   it('opens a Score directly and makes folder navigation a complete scope', async () => {
     seedScores();

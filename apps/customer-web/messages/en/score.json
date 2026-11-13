@@ -102,5 +102,9 @@
   "deleteScoreTitle": "Delete “{title}”?",
   "deleteScoresTitle": "Delete {count} selected scores?",
   "deleteScoreDescription": "This deletes the score for everyone who currently has access. This cannot be undone.",
-  "deleteFailed": "Unable to delete the score. Please try again."
+  "deleteFailed": "Unable to delete the score. Please try again.",
+  "leaveScore": "Leave score",
+  "leaveScoreTitle": "Leave “{title}”?",
+  "leaveScoreDescription": "You will lose access to this score. The score and other collaborators will not be affected. The owner can invite you again later.",
+  "leaveFailed": "Could not leave score"
 }

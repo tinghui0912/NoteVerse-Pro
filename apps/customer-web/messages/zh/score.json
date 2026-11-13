@@ -102,5 +102,9 @@
   "deleteScoreTitle": "删除“{title}”？",
   "deleteScoresTitle": "删除所选的 {count} 首乐谱？",
   "deleteScoreDescription": "这会为所有当前有访问权限的人删除乐谱。此操作无法撤销。",
-  "deleteFailed": "无法删除乐谱，请重试。"
+  "deleteFailed": "无法删除乐谱，请重试。",
+  "leaveScore": "离开乐谱",
+  "leaveScoreTitle": "离开“{title}”？",
+  "leaveScoreDescription": "你将失去对此乐谱的访问权限。乐谱和其他协作者不受影响。所有者以后可以再次邀请你。",
+  "leaveFailed": "无法离开乐谱"
 }

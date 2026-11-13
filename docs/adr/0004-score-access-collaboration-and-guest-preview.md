@@ -18,6 +18,14 @@ Invites default to VIEWER. Accepting a stronger invite upgrades membership; a we
 invite does not downgrade it. Owner member-management commands can explicitly change
 roles in either direction. Revocation immediately removes subsequent access.
 
+All member roles can leave by revoking their own membership through
+`DELETE /api/v1/me/scores/{score_id}/membership`; owners cannot leave ownership.
+Self leave and owner member removal are separate actor commands. Membership role
+updates and revocations lock and refresh the current row. Role updates apply only
+to active memberships. Only explicit acceptance of a new valid invitation can
+reactivate a revoked membership. Library organization remains personal state and
+does not grant access while membership is revoked.
+
 VIEWER can view rendered presentation only. PRACTITIONER can also practice, which
 necessarily discloses exact machine-readable PracticeBundle to that trusted browser.
 EDITOR can also edit, requiring revision MusicXML and original editing inputs in its

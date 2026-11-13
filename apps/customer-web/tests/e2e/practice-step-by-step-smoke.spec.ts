@@ -205,6 +205,7 @@ async function setupPracticeMocks(
           can_view: true,
           can_edit: true,
           can_delete: true,
+          can_leave: false,
           can_manage_guest_previews: true,
           can_download: true,
           can_practice: true,

@@ -11,7 +11,7 @@ const scoreId = 'trusted-score';
 const revisionId = 'trusted-revision';
 type Role = 'OWNER' | 'VIEWER' | 'PRACTITIONER' | 'EDITOR';
 const capabilities = (role: Role) => ({
-  can_view: true, can_edit: role === 'OWNER' || role === 'EDITOR', can_delete: role === 'OWNER',
+  can_view: true, can_edit: role === 'OWNER' || role === 'EDITOR', can_delete: role === 'OWNER', can_leave: role !== 'OWNER',
   can_manage_guest_previews: role === 'OWNER', can_manage_members: role === 'OWNER',
   can_download: role === 'OWNER', can_practice: role !== 'VIEWER',
 });

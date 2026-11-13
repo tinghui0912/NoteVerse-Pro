@@ -70,5 +70,6 @@
   "sortNameDesc": "名称 Z-A",
   "youOwn": "你拥有",
   "deleteScore": "删除乐谱",
-  "deleteSelectedScores": "删除所选乐谱"
+  "deleteSelectedScores": "删除所选乐谱",
+  "leaveScore": "离开乐谱"
 }

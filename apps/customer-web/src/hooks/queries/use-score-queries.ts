@@ -5,6 +5,18 @@ import { scoreInvitesApi, scoresApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
 import type { FingeringRequest, MembershipRole, ScoreGenre } from '@/generated/api';
 
+export function useLeaveScore() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (scoreId: string) => scoreInvitesApi.leaveScore(scoreId),
+    onSuccess: async (_response, scoreId) => {
+      // Discard the authorized detail before a back navigation can reuse it.
+      queryClient.removeQueries({ queryKey: queryKeys.scores.detail(scoreId) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.library.all });
+    },
+  });
+}
+
 export function useScoreDetail(scoreId: string, enabled = true) {
   return useQuery({
     queryKey: queryKeys.scores.detail(scoreId),
