@@ -10,12 +10,15 @@ to place within clear ownership boundaries.
 
 ## API Contract Ownership
 
-The generated Customer API DTOs in `src/generated/api/` come from
+The generated Customer API types, SDK operations and Fetch runtime in
+`src/generated/api/` come from
 `../../backend/docs/contracts/openapi/customer-api.json` and must not be edited
-manually. Run `npm run generate:api-types` after an approved backend contract
-change; CI runs `npm run check:api-types` to reject stale output.
+manually. Run `npm run generate:api` after an approved backend contract
+change; CI runs `npm run check:api` to reject stale output.
 
-Keep `src/lib/api/*` as the application request boundary.
+`src/lib/api/*` contains feature adapters and generated result projections.
+HTTP operation definitions belong to generated code, and browser transport
+policy belongs to `src/lib/http/`.
 Frontend view models, form state, browser-only protocol messages, and display
 helpers remain frontend-owned. HTTP DTO consumers must import the generated
 types directly. View models and form state stay frontend-owned.
@@ -181,3 +184,25 @@ downloads, realtime invalidation, score editing, shell layout, or user-visible s
   download permission.
 - Do not put import-job review artifacts into score revision asset APIs.
 - Do not split domains only by page names; split by ownership and lifecycle.
+
+## Customer HTTP operations
+
+Customer OpenAPI owns request and response contracts. Customer Web generates
+TypeScript types, flat SDK operations and the bundled Fetch runtime. SDK calls
+receive an explicit browser policy client. Generated operations own method,
+path, path parameters, query serialization and request body encoding.
+
+`src/lib/http/customer-browser-transport.ts` owns credentials, CSRF injection,
+single-flight refresh, one replay, login redirects, cancellation and network
+observability. Feature adapters retain generated success payloads or apply
+frontend transformations. Public/auth bootstrap and silent session probes choose
+policy explicitly; transport does not classify authentication URLs.
+
+Browser-native EventSource, image/audio and avatar URLs are separate transports.
+`src/lib/api/native-resource-urls.ts` owns native Score and Guest Preview media
+URLs; `src/lib/score-detail/thumbnail.ts` owns native render-thumbnail image URLs.
+`app-protocol.ts` owns the EventSource URL, and profile presentation resolves
+server-provided avatar URLs. Signed storage upload uses
+`src/lib/http/direct-object-upload.ts`, omits credentials and uses the exact
+server-provided target and headers. Static FIR assets and local Blob snapshots
+are resource reads outside Customer HTTP operations.

@@ -1,9 +1,9 @@
 'use client';
 
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { FingeringRequest, MembershipRole, ScoreGenre } from '@/generated/api';
 import { scoreInvitesApi, scoresApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
-import type { FingeringRequest, MembershipRole, ScoreGenre } from '@/generated/api';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 export function useLeaveScore() {
   const queryClient = useQueryClient();
@@ -38,8 +38,9 @@ export function useScoreRevisions(scoreId: string, enabled = true) {
     queryKey: queryKeys.scores.revisions(scoreId),
     queryFn: ({ pageParam, signal }) =>
       scoresApi.revisions(scoreId, { limit: 20, cursor: pageParam }, signal),
-    initialPageParam: null as number | string | null,
-    getNextPageParam: (lastPage) => lastPage.data?.next_cursor ?? undefined,
+    initialPageParam: null as number | null,
+    getNextPageParam: (lastPage) => lastPage.data?.next_cursor == null
+      ? undefined : Number(lastPage.data.next_cursor),
     enabled: enabled && Boolean(scoreId),
   });
 }

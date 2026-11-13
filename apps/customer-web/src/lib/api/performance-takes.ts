@@ -1,78 +1,34 @@
-import { apiClient, apiUrl, type ApiResponse } from '@/lib/api-client';
-import type {
-  PerformanceTakeDeleteResponse,
-  PerformanceTakeListResponse,
-  PerformanceTakePlaybackRead,
-  PerformanceTakeRead,
-  PerformanceTakeManifestRead,
-  PerformanceTakeUploadReservationRead,
-  PerformanceTakeUploadReservationRequest,
-  RecordingTimebase,
-  PerformanceTakeTempoPlan,
-} from '@/generated/api/types.gen';
-
-export type {
-  PerformanceTakeDeleteResponse,
-  PerformanceTakeListResponse,
-  PerformanceTakePlaybackRead,
-  PerformanceTakeRead,
-  PerformanceTakeManifestRead,
-  PerformanceTakeUploadReservationRead,
-  PerformanceTakeUploadReservationRequest,
-  RecordingTimebase,
-  PerformanceTakeTempoPlan,
-};
+import { performanceTakeDelete, performanceTakeGet, performanceTakeMediaStream, performanceTakePlaybackUrlGet, performanceTakeUploadCancel, performanceTakeUploadFinalize, performanceTakeUploadsReserve, performanceTakesList } from '@/generated/api';
+import type { PerformanceTakeUploadReservationRequest, PerformanceTakesListData } from '@/generated/api';
+import { customerTransport, responseData } from '@/lib/http/customer-browser-transport';
+export type { PerformanceTakeManifestRead, PerformanceTakeRead, PerformanceTakeTempoPlan, PerformanceTakeUploadReservationRead, PerformanceTakeUploadReservationRequest, RecordingTimebase } from '@/generated/api';
 
 export const performanceTakesApi = {
   reserveUpload: (
     request: PerformanceTakeUploadReservationRequest,
     signal?: AbortSignal,
   ) =>
-    apiClient.post<ApiResponse<PerformanceTakeUploadReservationRead>>(
-      '/performance-takes/upload-reservations',
-      request,
-      { signal },
-    ),
+    responseData(performanceTakeUploadsReserve({ ...customerTransport.authenticated, body: request, signal })),
 
   cancelUploadReservation: (reservationId: string) =>
-    apiClient.delete<ApiResponse<{ cancelled: boolean }>>(
-      `/performance-takes/upload-reservations/${reservationId}`,
-    ),
+    responseData(performanceTakeUploadCancel({ ...customerTransport.authenticated, path: { reservation_id: reservationId } })),
 
   finalizeTake: (reservationId: string, signal?: AbortSignal) =>
-    apiClient.post<ApiResponse<PerformanceTakeRead>>(
-      `/performance-takes/upload-reservations/${reservationId}/finalize`,
-      undefined,
-      { signal },
-    ),
+    responseData(performanceTakeUploadFinalize({ ...customerTransport.authenticated, path: { reservation_id: reservationId }, signal })),
 
   listTakes: (
-    params?: { score_id?: string; limit?: number; offset?: number },
+    params?: PerformanceTakesListData['query'],
     signal?: AbortSignal,
   ) =>
-    apiClient.get<ApiResponse<PerformanceTakeListResponse>>(
-      '/performance-takes',
-      params,
-      { signal },
-    ),
+    responseData(performanceTakesList({ ...customerTransport.authenticated, query: params, signal })),
 
   getTake: (takeId: string, signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<PerformanceTakeRead>>(
-      `/performance-takes/${takeId}`,
-      undefined,
-      { signal },
-    ),
+    responseData(performanceTakeGet({ ...customerTransport.authenticated, path: { take_id: takeId }, signal })),
 
   getPlaybackUrl: (takeId: string, signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<PerformanceTakePlaybackRead>>(
-      `/performance-takes/${takeId}/playback-url`,
-      undefined,
-      { signal },
-    ),
+    responseData(performanceTakePlaybackUrlGet({ ...customerTransport.authenticated, path: { take_id: takeId }, signal })),
   deleteTake: (takeId: string) =>
-    apiClient.delete<ApiResponse<PerformanceTakeDeleteResponse>>(
-      `/performance-takes/${takeId}`,
-    ),
+    responseData(performanceTakeDelete({ ...customerTransport.authenticated, path: { take_id: takeId } })),
 };
 
 /** Authenticated transport only; byte materialization belongs to the consumer. */
@@ -80,30 +36,5 @@ export function openPerformanceTakeMedia(
   takeId: string,
   signal?: AbortSignal,
 ): Promise<Response> {
-  return apiClient.getRaw(
-    `/performance-takes/${encodeURIComponent(takeId)}/media`,
-    undefined,
-    { signal },
-  );
-}
-
-export async function uploadMediaToSignedUrl(
-  uploadUrl: string,
-  method: string,
-  headers: Record<string, string>,
-  body: Blob | ArrayBuffer,
-): Promise<void> {
-  const isDirectOss =
-    uploadUrl.startsWith('http://') || uploadUrl.startsWith('https://');
-  const targetUrl = isDirectOss ? uploadUrl : apiUrl(uploadUrl);
-
-  const res = await fetch(targetUrl, {
-    method,
-    headers,
-    body,
-  });
-
-  if (!res.ok) {
-    throw new Error(`Direct media upload failed with status ${res.status}`);
-  }
+  return performanceTakeMediaStream({ ...customerTransport.authenticated, path: { take_id: takeId }, signal, parseAs: 'stream' }).then(result => result.response);
 }

@@ -157,7 +157,7 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
   const observability = normalize(
     path.join(sourceRoot, 'lib/observability/index.ts'),
   );
-  if (normalize(file).startsWith(apiNamespace) && target?.startsWith('media/'))
+  if ((normalize(file).startsWith(apiNamespace) || normalize(file).startsWith(normalize(path.join(sourceRoot, 'lib/http')) + '/')) && target?.startsWith('media/'))
     return false;
   if (source.startsWith('media/')) {
     const materialization = source.startsWith('media/performance-take/');
@@ -201,7 +201,7 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
         edge.target === normalize(path.join(sourceRoot, 'lib/api/index.ts')) ||
         (edge.typeOnly &&
           (edge.target ===
-            normalize(path.join(sourceRoot, 'lib/api-client.ts')) ||
+            normalize(path.join(sourceRoot, 'lib/http/customer-browser-transport.ts')) ||
             edge.target?.startsWith(
               normalize(path.join(sourceRoot, 'generated/api')) + '/',
             ))),
@@ -577,7 +577,7 @@ describe('Practice bounded domain dependencies', () => {
         ).toBe(false);
       }
     }
-    const transport = path.join(sourceRoot, 'lib/api-client.ts');
+    const transport = path.join(sourceRoot, 'lib/http/customer-browser-transport.ts');
     const localAsset =
       "import type { LocalMediaAsset } from '@/lib/practice/media/local-media-asset';";
     expect(

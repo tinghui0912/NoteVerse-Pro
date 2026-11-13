@@ -22,7 +22,7 @@ import {
   useUpdateScoreMember,
 } from '@/hooks/queries/use-score-queries';
 import { useToast } from '@/hooks/use-toast';
-import { ApiError } from '@/lib/api-client';
+import { ApiError } from '@/lib/http/customer-browser-transport';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { formatApiDateTime } from '@/lib/date-time';
 import type { MembershipRole } from '@/generated/api';

@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
+import type { NotificationEventRead, NotificationsListResponse } from '@/generated/api';
 import {
-  markAllNotificationsReadInList,
-  markNotificationReadInList,
+markAllNotificationsReadInList,
+markNotificationReadInList,
 } from '@/hooks/queries/use-notification-queries';
-import type { NotificationEventRead } from '@/generated/api';
-import type { ApiResponse } from '@/lib/api-client';
 
 const baseNotification: NotificationEventRead = {
   notification_id: 'notification-1',
@@ -19,7 +18,7 @@ const baseNotification: NotificationEventRead = {
   created_at: '2026-07-01T00:00:00Z',
 };
 
-function response(data: NotificationEventRead[]): ApiResponse<NotificationEventRead[]> {
+function response(data: NotificationEventRead[]): NotificationsListResponse {
   return { success: true, data };
 }
 

@@ -268,7 +268,7 @@ describe('route shell groups', () => {
 
   it('redirects logout and expired sessions through the same returnUrl helper', () => {
     const authContext = readSource('src/contexts/auth-context.tsx');
-    const apiClient = readSource('src/lib/api-client.ts');
+    const apiClient = readSource('src/lib/http/customer-browser-transport.ts');
 
     expect(authContext).toContain('getCurrentLoginHref');
     expect(authContext).toContain('window.location.assign(getCurrentLoginHref())');

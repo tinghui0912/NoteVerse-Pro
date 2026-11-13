@@ -1,31 +1,15 @@
-import { apiClient, apiUrl } from '@/lib/api-client';
-import type { ApiResponse } from '@/lib/api-client';
-import type {
-  GuestPreviewRead,
-  GuestPreviewSettingsRead,
-  GuestPreviewUpdateRequest,
-} from '@/generated/api';
+import type { GuestPreviewUpdateRequest } from '@/generated/api';
+import { guestPreviewGet, scoreGuestPreviewSettingsGet, scoreGuestPreviewSettingsUpdate } from '@/generated/api';
+import { customerTransport, responseData } from '@/lib/http/customer-browser-transport';
+import { guestPageUrl, guestPlaybackUrl } from './native-resource-urls';
 
 export const guestPreviewApi = {
   getSettings: (scoreId: string, signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<GuestPreviewSettingsRead>>(
-      `/scores/${scoreId}/guest-preview`,
-      undefined,
-      { signal }
-    ),
+    responseData(scoreGuestPreviewSettingsGet({ ...customerTransport.authenticated, path: { score_id: scoreId }, signal })),
   updateSettings: (scoreId: string, input: GuestPreviewUpdateRequest) =>
-    apiClient.patch<ApiResponse<GuestPreviewSettingsRead>>(
-      `/scores/${scoreId}/guest-preview`,
-      input
-    ),
+    responseData(scoreGuestPreviewSettingsUpdate({ ...customerTransport.authenticated, path: { score_id: scoreId }, body: input })),
   read: (token: string, signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<GuestPreviewRead>>(`/guest-previews/${token}`, undefined, {
-      signal,
-      suppressAuthRedirect: true,
-    }),
-  pageUrl: (token: string, assetId: string) =>
-    apiUrl(
-      `/guest-previews/${encodeURIComponent(token)}/render-assets/${encodeURIComponent(assetId)}/view`
-    ),
-  playbackUrl: (token: string) => apiUrl(`/guest-previews/${encodeURIComponent(token)}/playback`),
+    responseData(guestPreviewGet({ ...customerTransport.public, path: { token: token }, signal })),
+  pageUrl: guestPageUrl,
+  playbackUrl: guestPlaybackUrl,
 };

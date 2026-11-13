@@ -1,30 +1,14 @@
-import { beforeEach, expect, it, vi } from 'vitest';
-import { apiClient } from '@/lib/api-client';
+import { afterEach, expect, it, vi } from 'vitest';
+import { customerFetch } from '../../../tests/helpers/customer-http';
 import { scoreInvitesApi } from './score-invites';
-
-vi.mock('@/lib/api-client', () => ({ apiClient: { get: vi.fn() } }));
-beforeEach(() => vi.mocked(apiClient.get).mockReset());
-
-it.each([
-  [
-    '/scores/score/invites',
-    (options: { limit: number; cursor: string; signal: AbortSignal }) =>
-      scoreInvitesApi.listInvites('score', options),
-  ],
-  [
-    '/scores/score/members',
-    (options: { limit: number; cursor: string; signal: AbortSignal }) =>
-      scoreInvitesApi.listMembers('score', options),
-  ],
-  ['/me/invites', scoreInvitesApi.listMyPendingInvites],
-])('passes opaque continuation and cancellation to %s', async (path, list) => {
+afterEach(() => vi.unstubAllGlobals());
+it.each([scoreInvitesApi.listInvites.bind(null, 'score'), scoreInvitesApi.listMembers.bind(null, 'score'), scoreInvitesApi.listMyPendingInvites])('passes opaque continuation through generated queries', async (list) => {
+  const send = customerFetch({ items: [], next_cursor: 'next' });
   const signal = new AbortController().signal;
-  const response = { success: true, data: { items: [], next_cursor: 'uninterpreted-next' } };
-  vi.mocked(apiClient.get).mockResolvedValue(response);
-  expect(await list({ limit: 25, cursor: 'opaque_cursor-from-server', signal })).toBe(response);
-  expect(apiClient.get).toHaveBeenCalledWith(
-    path,
-    { limit: 25, cursor: 'opaque_cursor-from-server' },
-    { signal },
-  );
+  const result = await list({ limit: 25, cursor: 'opaque+/=?', signal });
+  expect(result.data?.next_cursor).toBe('next');
+  const request = send.mock.calls[0][0] as Request;
+  expect(new URL(request.url).searchParams.get('cursor')).toBe('opaque+/=?');
+  expect(new URL(request.url).searchParams.get('limit')).toBe('25');
+  expect(request.signal.aborted).toBe(false);
 });

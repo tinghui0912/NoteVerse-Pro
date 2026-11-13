@@ -21,7 +21,7 @@ import {
   type LocalMediaAsset,
 } from "@/lib/practice/media/local-media-asset";
 import { downloadLocalMedia } from "@/lib/practice/media/download-local-media";
-import { ApiError } from "@/lib/api-client";
+import { ApiError } from "@/lib/http/customer-browser-transport";
 import { useSavedTakeExportBundle } from "@/hooks/practice/use-saved-take-export-bundle";
 import { recordingPlaybackSource } from "@/lib/practice/recording/recording-playback";
 import {

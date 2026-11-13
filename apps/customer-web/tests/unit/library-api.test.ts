@@ -1,36 +1,21 @@
-import { beforeEach, expect, it, vi } from 'vitest';
 import { libraryApi } from '@/lib/api/library';
-const client = vi.hoisted(() => ({
-  get: vi.fn(),
-  post: vi.fn(),
-  delete: vi.fn(),
-}));
-vi.mock('@/lib/api-client', () => ({ apiClient: client }));
-beforeEach(() => vi.clearAllMocks());
-it('reads accessible Scores with independent view and folder filters', () => {
-  const controller = new AbortController();
-  const params = {
-    view: 'shared_with_me' as const,
-    folder_id: 'folder',
-    page: 2,
-    page_size: 20,
-  };
-  libraryApi.scores(params, controller.signal);
-  expect(client.get).toHaveBeenCalledWith('/library/scores', params, {
-    signal: controller.signal,
-  });
+import { afterEach, expect, it, vi } from 'vitest';
+import { customerFetch } from '../helpers/customer-http';
+afterEach(() => vi.unstubAllGlobals());
+it('reads accessible Scores using generated query encoding', async () => {
+  const send = customerFetch();
+  await libraryApi.scores({ view: 'shared_with_me', folder_id: 'folder', page: 2, page_size: 20 });
+  const request = send.mock.calls[0][0] as Request;
+  const url = new URL(request.url);
+  expect(url.pathname).toBe('/api/v1/library/scores');
+  expect(Object.fromEntries(url.searchParams)).toEqual({ view: 'shared_with_me', folder_id: 'folder', page: '2', page_size: '20' });
 });
-it('organizes by Score UUID and supports clearing favorite and moving to root', () => {
-  libraryApi.batchFavorite({ score_ids: ['score'], is_favorite: false });
-  expect(client.post).toHaveBeenCalledWith('/library/scores/batch-favorite', {
-    score_ids: ['score'],
-    is_favorite: false,
-  });
-  libraryApi.batchMove({ score_ids: ['score'], target_folder_id: null });
-  expect(client.post).toHaveBeenCalledWith('/library/scores/batch-move', {
-    score_ids: ['score'],
-    target_folder_id: null,
-  });
-  libraryApi.deleteFolder('folder');
-  expect(client.delete).toHaveBeenCalledWith('/library/folders/folder');
+it('organizes by Score UUID including unfavorite and root movement', async () => {
+  const send = customerFetch();
+  await libraryApi.batchFavorite({ score_ids: ['score'], is_favorite: false });
+  expect(await (send.mock.calls[0][0] as Request).json()).toEqual({ score_ids: ['score'], is_favorite: false });
+  await libraryApi.batchMove({ score_ids: ['score'], target_folder_id: null });
+  expect(await (send.mock.calls[1][0] as Request).json()).toEqual({ score_ids: ['score'], target_folder_id: null });
+  await libraryApi.deleteFolder('folder');
+  expect((send.mock.calls[2][0] as Request).method).toBe('DELETE');
 });

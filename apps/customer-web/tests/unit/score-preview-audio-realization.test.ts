@@ -1,18 +1,27 @@
 // @vitest-environment jsdom
-import * as Soundfont from 'soundfont-player';
-import { parseMidi } from 'midi-file';
-import { beforeEach, expect, it, vi } from 'vitest';
 import { VerovioScoreAdapter } from '@/lib/score/verovio';
-import { apiClient } from '@/lib/api-client';
-import { decodePerformancePlan } from '@/lib/score/performance/plan';
-import { readWrittenRealization } from '@/lib/score/performance/written-realization';
-import { createScorePerformanceTimeline } from '@/lib/score/performance/timeline';
+import { parseMidi } from 'midi-file';
+import * as Soundfont from 'soundfont-player';
+import { beforeEach, expect, it, vi } from 'vitest';
+
 import { LocalSoundfontAudioEngine } from '@/lib/score-preview/local-soundfont-audio-engine';
 import { VerovioScorePreviewController } from '@/lib/score-preview/verovio-score-preview-controller';
-import { writtenRealizationSources as sources } from '../support/written-realization-sources';
+import { decodePerformancePlan } from '@/lib/score/performance/plan';
+import { createScorePerformanceTimeline } from '@/lib/score/performance/timeline';
+import { readWrittenRealization } from '@/lib/score/performance/written-realization';
 import { linearPlan } from '../support/performance-plan';
+import { writtenRealizationSources as sources } from '../support/written-realization-sources';
 
 vi.mock('soundfont-player', () => ({ instrument: vi.fn() }));
+const planRequest = vi.hoisted(() => vi.fn<(
+  options: Parameters<typeof import('@/generated/api').playbackPerformancePlanCreate>[0]
+) => Promise<import('@/generated/api').PerformancePlanRead>>());
+vi.mock('@/generated/api', async (original) => ({
+  ...(await original<typeof import('@/generated/api')>()),
+  playbackPerformancePlanCreate: async (options: Parameters<typeof import('@/generated/api').playbackPerformancePlanCreate>[0]) =>
+    ({ data: await planRequest(options) }),
+}));
+
 beforeEach(() => {
   vi.restoreAllMocks();
   vi.mocked(Soundfont.instrument).mockReset();
@@ -116,7 +125,7 @@ it('real duet retains piano/violin in the timeline but local assets reject violi
 });
 
 it('the default local engine rejects a real duet at load without installing SVG or playback', async () => {
-  vi.spyOn(apiClient, 'post').mockResolvedValue({
+  planRequest.mockResolvedValue({
     ...linearPlan(4),
     musicxml: sources.duet,
   });

@@ -1,76 +1,50 @@
-import { apiClient, apiUrl } from '@/lib/api-client';
-import type { ApiResponse } from '@/lib/api-client';
-import type {
-  FingeringRequest,
-  FingeringResultRead,
-  RevisionContentRead,
-  RevisionCreateRequest,
-  RevisionListRead,
-  RevisionNoteUpdateRequest,
-  RevisionRead,
-  RevisionRestoreRequest,
-  ScoreRead,
-  ScoreRevisionAssetsRead,
-  ScoreUpdateRequest,
-} from '@/generated/api';
+import type { FingeringRequest, RevisionCreateRequest, RevisionNoteUpdateRequest, RevisionRestoreRequest, ScoreRenderAssetsArchiveData, ScoreRevisionAssetsListData, ScoreRevisionsListData, ScoreUpdateRequest } from '@/generated/api';
+import { scoreFingeringGenerate, scoreInputAssetDownload, scoreRenderAssetDownload, scoreRenderAssetsArchive, scoreRevisionAssetsList, scoreRevisionContentGet, scoreRevisionNoteUpdate, scoreRevisionRestore, scoreRevisionSourceDownload, scoreRevisionsCreate, scoreRevisionsList, scoresBatchDelete, scoresGet, scoresUpdate } from '@/generated/api';
+import { customerTransport, responseData } from '@/lib/http/customer-browser-transport';
+import { scorePlaybackUrl } from './native-resource-urls';
 
 export const scoresApi = {
   detail: (scoreId: string, signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<ScoreRead>>(`/scores/${scoreId}`, undefined, { signal }),
+    responseData(scoresGet({ ...customerTransport.authenticated, path: { score_id: scoreId }, signal })),
   update: (
     scoreId: string,
     input: ScoreUpdateRequest
-  ) => apiClient.patch<ApiResponse<ScoreRead>>(`/scores/${scoreId}`, input),
+  ) => responseData(scoresUpdate({ ...customerTransport.authenticated, path: { score_id: scoreId }, body: input })),
   batchDelete: (scoreIds: string[]) =>
-    apiClient.post<ApiResponse<{ removed: number }>>('/scores/batch-delete', { score_ids: scoreIds }),
+    responseData(scoresBatchDelete({ ...customerTransport.authenticated, body: { score_ids: scoreIds } })),
   revisionContent: (scoreId: string, revisionId: string, signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<RevisionContentRead>>(
-      `/scores/${scoreId}/revisions/${revisionId}/content`,
-      undefined,
-      { signal }
-    ),
-  revisions: (scoreId: string, params?: { limit?: number; cursor?: number | string | null }, signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<RevisionListRead>>(
-      `/scores/${scoreId}/revisions`,
-      {
+    responseData(scoreRevisionContentGet({ ...customerTransport.authenticated, path: { score_id: scoreId, revision_id: revisionId }, signal })),
+  revisions: (scoreId: string, params?: ScoreRevisionsListData['query'], signal?: AbortSignal) =>
+    responseData(scoreRevisionsList({
+      ...customerTransport.authenticated, path: { score_id: scoreId }, query: {
         limit: params?.limit,
         cursor: params?.cursor ?? undefined,
-      },
-      { signal }
-    ),
+      }, signal
+    })),
   createRevision: (
     scoreId: string,
     input: RevisionCreateRequest
-  ) => apiClient.post<ApiResponse<RevisionRead>>(`/scores/${scoreId}/revisions`, input),
+  ) => responseData(scoreRevisionsCreate({ ...customerTransport.authenticated, path: { score_id: scoreId }, body: input })),
   restoreRevision: (scoreId: string, revisionId: string, input?: RevisionRestoreRequest) =>
-    apiClient.post<ApiResponse<RevisionRead>>(
-      `/scores/${scoreId}/revisions/${revisionId}/restore`,
-      input ?? {}
-    ),
+    responseData(scoreRevisionRestore({ ...customerTransport.authenticated, path: { score_id: scoreId, revision_id: revisionId }, body: input ?? {} })),
   updateRevisionNote: (scoreId: string, revisionId: string, input: RevisionNoteUpdateRequest) =>
-    apiClient.patch<ApiResponse<RevisionRead>>(
-      `/scores/${scoreId}/revisions/${revisionId}/note`,
-      input
-    ),
+    responseData(scoreRevisionNoteUpdate({ ...customerTransport.authenticated, path: { score_id: scoreId, revision_id: revisionId }, body: input })),
   generateFingering: (
     scoreId: string,
     input: FingeringRequest
-  ) => apiClient.post<ApiResponse<FingeringResultRead>>(`/scores/${scoreId}/fingering`, input),
+  ) => responseData(scoreFingeringGenerate({ ...customerTransport.authenticated, path: { score_id: scoreId }, body: input })),
   revisionAssets: (
     scoreId: string,
-    params?: { revision_id?: string },
+    params?: ScoreRevisionAssetsListData['query'],
     signal?: AbortSignal
-  ) => apiClient.get<ApiResponse<ScoreRevisionAssetsRead>>(`/scores/${scoreId}/revision-assets`, params, { signal }),
+  ) => responseData(scoreRevisionAssetsList({ ...customerTransport.authenticated, path: { score_id: scoreId }, query: params, signal })),
   downloadInputAsset: (scoreId: string, assetId: string) =>
-    apiClient.download(`/scores/${scoreId}/input-assets/${assetId}/download`),
+    responseData(scoreInputAssetDownload({ ...customerTransport.authenticated, path: { score_id: scoreId, asset_id: assetId }, parseAs: 'blob' })),
   downloadRevisionSource: (sourceId: string) =>
-    apiClient.download(`/revision-sources/${sourceId}/download`),
+    responseData(scoreRevisionSourceDownload({ ...customerTransport.authenticated, path: { source_id: sourceId }, parseAs: 'blob' })),
   downloadRenderAsset: (renderAssetId: string) =>
-    apiClient.download(`/render-assets/${renderAssetId}/download`),
-  downloadRenderAssetArchive: (scoreId: string, revisionId: string, kind: string) =>
-    apiClient.download(
-      `/scores/${scoreId}/render-asset-archive?revision_id=${encodeURIComponent(revisionId)}&kind=${encodeURIComponent(kind)}`
-    ),
-  playbackUrl: (scoreId: string, revisionId: string) =>
-    apiUrl(`/scores/${scoreId}/revisions/${revisionId}/playback`),
+    responseData(scoreRenderAssetDownload({ ...customerTransport.authenticated, path: { render_asset_id: renderAssetId }, parseAs: 'blob' })),
+  downloadRenderAssetArchive: (scoreId: string, revisionId: string, kind: NonNullable<ScoreRenderAssetsArchiveData['query']>['kind']) =>
+    responseData(scoreRenderAssetsArchive({ ...customerTransport.authenticated, path: { score_id: scoreId }, query: { revision_id: revisionId, kind }, parseAs: 'blob' })),
+  playbackUrl: scorePlaybackUrl,
 };

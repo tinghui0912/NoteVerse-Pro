@@ -1,6 +1,6 @@
 /**
  * Central API module exports.
- * Import transport primitives from `@/lib/api-client` and HTTP DTOs from generated contracts.
+ * Feature adapters project generated SDK results; Customer HTTP contracts live in generated code.
  */
 
 // Authentication API.
@@ -20,11 +20,11 @@ export { filesApi } from './files';
 export { profileApi } from './profile';
 
 // Practice API.
-export { practiceApi } from './practice';
-export { scoresApi } from './scores';
 export { guestPreviewApi } from './guest-previews';
-export { scoreInvitesApi } from './score-invites';
-export { notificationsApi } from './notifications';
 export { libraryApi } from './library';
+export { notificationsApi } from './notifications';
+export { practiceApi } from './practice';
 export { reviewApi } from './review';
+export { scoreInvitesApi } from './score-invites';
+export { scoresApi } from './scores';
 export { storageUsageApi } from './storage-usage';

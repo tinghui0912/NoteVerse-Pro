@@ -1,8 +1,9 @@
+import { authEmailChangeConfirm, authEmailVerify, authLogin, authLogout, authPasswordReset, authPasswordResetRequest, authRegister } from '@/generated/api';
+import { customerTransport, responseData } from '@/lib/http/customer-browser-transport';
 /**
  * Authentication API wrapper.
  */
-import { apiClient, ApiResponse } from '../api-client';
-import type { EmailChangeConfirmedRead, RegisterRequest, User } from '@/generated/api';
+import type { RegisterRequest } from '@/generated/api';
 
 // API functions.
 
@@ -12,48 +13,54 @@ import type { EmailChangeConfirmedRead, RegisterRequest, User } from '@/generate
  * @param password User password.
  * @returns Login success response. Session cookies are managed by the backend.
  */
-async function login(email: string, password: string): Promise<ApiResponse> {
-    const response = await apiClient.postForm<ApiResponse>('/auth/login', {
-        username: email,
-        password: password,
-    });
+async function login(email: string, password: string) {
+  const response = await responseData(authLogin({
+    ...customerTransport.public, body: {
+      username: email,
+      password: password,
+    }
+  }));
 
-    return response;
+  return response;
 }
 
-async function logout(): Promise<ApiResponse> {
-    return apiClient.post<ApiResponse>('/auth/logout');
+async function logout() {
+  return responseData(authLogout({ ...customerTransport.authenticated }));
 }
 
 /**
  * Register a user.
  * @param data Registration payload.
  */
-async function register(data: RegisterRequest): Promise<ApiResponse> {
-    return apiClient.post<ApiResponse>('/auth/register', {
-        email: data.email,
-        password: data.password,
-        display_name: data.display_name,
-        locale: data.locale,
-    });
+async function register(data: RegisterRequest) {
+  return responseData(authRegister({
+    ...customerTransport.public, body: {
+      email: data.email,
+      password: data.password,
+      display_name: data.display_name,
+      locale: data.locale,
+    }
+  }));
 }
 
-async function verifyEmail(token: string): Promise<ApiResponse<User>> {
-    return apiClient.post<ApiResponse<User>>('/auth/email/verify', { token });
+async function verifyEmail(token: string) {
+  return responseData(authEmailVerify({ ...customerTransport.public, body: { token } }));
 }
 
-async function confirmEmailChange(token: string): Promise<ApiResponse<EmailChangeConfirmedRead>> {
-    return apiClient.post<ApiResponse<EmailChangeConfirmedRead>>('/auth/email/change/confirm', { token });
+async function confirmEmailChange(token: string) {
+  return responseData(authEmailChangeConfirm({ ...customerTransport.public, body: { token } }));
 }
 
 async function requestPasswordReset(
-    email: string,
-    locale: 'en' | 'zh' = 'zh'
-): Promise<ApiResponse> {
-    return apiClient.post<ApiResponse>('/auth/password/forgot', {
-        email,
-        locale,
-    });
+  email: string,
+  locale: 'en' | 'zh' = 'zh'
+) {
+  return responseData(authPasswordResetRequest({
+    ...customerTransport.public, body: {
+      email,
+      locale,
+    }
+  }));
 }
 
 /**
@@ -63,23 +70,25 @@ async function requestPasswordReset(
  * @param locale Locale used for localized response messaging.
  */
 async function resetPassword(
-    newPassword: string,
-    token: string,
-    locale: 'en' | 'zh' = 'zh'
-): Promise<ApiResponse> {
-    return apiClient.post<ApiResponse>('/auth/password/reset', {
-        new_password: newPassword,
-        token,
-        locale,
-    });
+  newPassword: string,
+  token: string,
+  locale: 'en' | 'zh' = 'zh'
+) {
+  return responseData(authPasswordReset({
+    ...customerTransport.public, body: {
+      new_password: newPassword,
+      token,
+      locale,
+    }
+  }));
 }
 
 export const authApi = {
-    login,
-    register,
-    verifyEmail,
-    confirmEmailChange,
-    requestPasswordReset,
-    resetPassword,
-    logout,
+  login,
+  register,
+  verifyEmail,
+  confirmEmailChange,
+  requestPasswordReset,
+  resetPassword,
+  logout,
 };

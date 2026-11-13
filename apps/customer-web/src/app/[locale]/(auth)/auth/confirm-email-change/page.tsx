@@ -9,7 +9,7 @@ import { InlineLoading } from '@/components/loading';
 import { Button } from '@/components/ui/button';
 import { Link } from '@/i18n/routing';
 import { authApi } from '@/lib/api';
-import { ApiError } from '@/lib/api-client';
+import { ApiError } from '@/lib/http/customer-browser-transport';
 import { translateErrorCode } from '@/lib/i18n/error-message';
 
 type ConfirmState = 'confirming' | 'success' | 'error';

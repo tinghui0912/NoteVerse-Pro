@@ -13,7 +13,7 @@ param(
         "customer-web-lint",
         "customer-web-typecheck",
         "customer-web-i18n",
-        "customer-web-api-types",
+        "customer-web-api",
         "customer-web-test",
         "customer-web-coverage",
         "platform-admin-lint",
@@ -205,8 +205,8 @@ switch ($Check) {
     "customer-web-i18n" {
         Invoke-CustomerWebNpm "check:i18n-errors"
     }
-    "customer-web-api-types" {
-        Invoke-CustomerWebNpm "check:api-types"
+    "customer-web-api" {
+        Invoke-CustomerWebNpm "check:api"
     }
     "customer-web-test" {
         Invoke-CustomerWebNpm "test"
@@ -246,7 +246,7 @@ switch ($Check) {
         Invoke-BackendQuality "mypy-model-layer"
         Invoke-BackendQuality "pytest"
         Invoke-CustomerWebNpm "lint"
-        Invoke-CustomerWebNpm "check:api-types"
+        Invoke-CustomerWebNpm "check:api"
         Invoke-CustomerWebNpm "typecheck"
         Invoke-CustomerWebNpm "check:i18n-errors"
         Invoke-PlatformAdminNpm "lint"

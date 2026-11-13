@@ -39,8 +39,12 @@ OpenAPI media ranges describe that variation while the HTTP Content-Type identif
 the selected format. Range-enabled media also declares 206 Partial Content.
 Profile image resolution is a bodyless 307 redirect with a Location header.
 
-Customer Web's handwritten API facades issue HTTP method, path, and query calls
-against this contract. They use generated request types where consumed.
+Customer Web generates TypeScript types, SDK operations and a bundled Fetch client
+from this contract. Generated operations own HTTP method, path, path parameters,
+query serialization and body encoding. Feature adapters project generated results
+and perform frontend transformations; they do not define HTTP operations.
+The Customer browser transport owns credentials, CSRF, refresh/retry, redirect,
+cancellation and network observability.
 Frontend presentation, view-model state, and form state remain frontend-owned.
 Generic application realtime notifications use SSE under the normal API/auth
 boundary; Practice execution is browser-local and has no active Practice WebSocket
@@ -61,3 +65,14 @@ Process readiness uses its own 200/503 dependency-check schemas. Redirects and
 bodyless HTTP byte-range rejection retain their protocol-specific contracts.
 Control-plane failure presentation is selected independently by its composition
 root and is separate from the Customer application contract.
+
+Customer SDK calls select an explicit authenticated, public or silent browser
+policy client. Refresh uses the generated `authRefresh` operation through a
+non-refreshing client. Concurrent refreshes are shared and requests retry at most
+once using an unconsumed body clone. Application failures become browser
+`ApiError` instances through one adapter of generated `ApiErrorResponse`.
+
+EventSource, native image/audio URLs and browser resource navigation use browser
+transports. Signed object-storage uploads use opaque absolute target URLs and
+required headers with credentials omitted; they do not use Customer session
+refresh or CSRF policy.

@@ -1,10 +1,9 @@
-import type { PracticeBundleRead } from '@/generated/api/types.gen';
-import type { ApiResponse } from '@/lib/api-client';
-import { BundleFailure } from '@/lib/practice/failure/causal-failure';
+import type { PracticeScoreRevisionBundleGetResponse } from '@/generated/api';
 import {
-  decodePracticeScoreArtifact,
-  PracticeScoreStructureError,
+decodePracticeScoreArtifact,
+PracticeScoreStructureError,
 } from '@/lib/practice/contracts/generated/score-artifact';
+import { BundleFailure } from '@/lib/practice/failure/causal-failure';
 import type { AdmittedPracticeBundle } from './admitted-practice-bundle';
 
 type ExpectedBundle = { scoreId: string; revisionId: string } & (
@@ -14,7 +13,7 @@ type ExpectedBundle = { scoreId: string; revisionId: string } & (
 
 /** Shared strict envelope boundary for Setup admission and optional currently authorized export reads. */
 export async function readPracticeBundle(
-  request: (signal: AbortSignal) => Promise<ApiResponse<PracticeBundleRead>>,
+  request: (signal: AbortSignal) => Promise<PracticeScoreRevisionBundleGetResponse>,
   identity: ExpectedBundle,
   signal: AbortSignal,
 ): Promise<AdmittedPracticeBundle> {

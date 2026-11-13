@@ -5,7 +5,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import { queryKeys } from '@/lib/query-client';
-import { ApiError } from '@/lib/api-client';
+import { ApiError } from '@/lib/http/customer-browser-transport';
 import { useSavedTakeExportBundle } from './use-saved-take-export-bundle';
 const api = vi.hoisted(() => ({ exactSource: vi.fn() }));
 vi.mock('@/lib/api/practice', () => ({ practiceApi: { getPracticeBundle: api.exactSource } }));

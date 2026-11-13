@@ -1,34 +1,16 @@
-import { apiClient } from '@/lib/api-client';
-import type { ApiResponse, PaginatedResponse } from '@/lib/api-client';
-import type {
-  LibraryBatchMoveRead,
-  LibraryBatchUpdateRead,
-  LibraryScoreBatchMoveRequest,
-  LibraryScoreBatchFavoriteRequest,
-  LibraryScoreRead,
-  LibraryFolderCreateRequest,
-  LibraryFolderRead,
-  LibraryFolderOverviewRead,
-  LibraryFolderUpdateRequest,
-  LibraryScoresListData,
-} from '@/generated/api';
+import type { LibraryFolderCreateRequest, LibraryFolderUpdateRequest, LibraryScoreBatchFavoriteRequest, LibraryScoreBatchMoveRequest, LibraryScoresListData } from '@/generated/api';
+import { libraryFolderDelete, libraryFolderUpdate, libraryFoldersCreate, libraryFoldersOverviewGet, libraryScoresBatchFavorite, libraryScoresBatchMove, libraryScoresList } from '@/generated/api';
+import { customerTransport, responseData } from '@/lib/http/customer-browser-transport';
 
 export const libraryApi = {
   folders: (signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<LibraryFolderOverviewRead>>(
-      '/library/folders',
-      undefined,
-      { signal },
-    ),
+    responseData(libraryFoldersOverviewGet({ ...customerTransport.authenticated, signal })),
   createFolder: (input: LibraryFolderCreateRequest) =>
-    apiClient.post<ApiResponse<LibraryFolderRead>>('/library/folders', input),
+    responseData(libraryFoldersCreate({ ...customerTransport.authenticated, body: input })),
   updateFolder: (folderId: string, input: LibraryFolderUpdateRequest) =>
-    apiClient.patch<ApiResponse<LibraryFolderRead>>(
-      `/library/folders/${folderId}`,
-      input,
-    ),
+    responseData(libraryFolderUpdate({ ...customerTransport.authenticated, path: { folder_id: folderId }, body: input })),
   deleteFolder: (folderId: string) =>
-    apiClient.delete<ApiResponse<never>>(`/library/folders/${folderId}`),
+    responseData(libraryFolderDelete({ ...customerTransport.authenticated, path: { folder_id: folderId } })),
   scores: (
     params: Omit<
       NonNullable<LibraryScoresListData['query']>,
@@ -36,19 +18,9 @@ export const libraryApi = {
     > & { folder_id?: string; search?: string },
     signal?: AbortSignal,
   ) =>
-    apiClient.get<PaginatedResponse<LibraryScoreRead>>(
-      '/library/scores',
-      params,
-      { signal },
-    ),
+    responseData(libraryScoresList({ ...customerTransport.authenticated, query: params, signal })),
   batchMove: (input: LibraryScoreBatchMoveRequest) =>
-    apiClient.post<ApiResponse<LibraryBatchMoveRead>>(
-      '/library/scores/batch-move',
-      input,
-    ),
+    responseData(libraryScoresBatchMove({ ...customerTransport.authenticated, body: input })),
   batchFavorite: (input: LibraryScoreBatchFavoriteRequest) =>
-    apiClient.post<ApiResponse<LibraryBatchUpdateRead>>(
-      '/library/scores/batch-favorite',
-      input,
-    ),
+    responseData(libraryScoresBatchFavorite({ ...customerTransport.authenticated, body: input })),
 };

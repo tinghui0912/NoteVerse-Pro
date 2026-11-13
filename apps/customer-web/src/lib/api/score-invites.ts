@@ -1,59 +1,32 @@
-import { apiClient } from '@/lib/api-client';
-import type { ApiResponse } from '@/lib/api-client';
-import type {
-  InviteListRead,
-  MemberListRead,
-  PendingInviteListRead,
-  InviteAcceptRead,
-  InviteAccessRead,
-  InviteCreatedRead,
-  InviteCreateRequest,
-  InviteRead,
-  MemberRead,
-  MemberUpdateRequest,
-  PendingInviteRead,
-} from '@/generated/api';
+import type { AccountPendingInvitesListData, InviteCreateRequest, MemberUpdateRequest, ScoreInvitesListData, ScoreMembersListData } from '@/generated/api';
+import { accountPendingInviteAccept, accountPendingInviteDecline, accountPendingInvitesList, scoreInviteAccept, scoreInviteInspect, scoreInviteRevoke, scoreInvitesCreate, scoreInvitesList, scoreMemberRemove, scoreMemberUpdate, scoreMembersList, scoreMembershipLeave } from '@/generated/api';
+import { customerTransport, responseData } from '@/lib/http/customer-browser-transport';
 
 export const scoreInvitesApi = {
   leaveScore: (scoreId: string) =>
-    apiClient.delete<ApiResponse<null>>(`/me/scores/${scoreId}/membership`),
-  listInvites: (scoreId: string, options?: { limit?: number; cursor?: string; signal?: AbortSignal }) =>
-    apiClient.get<ApiResponse<InviteListRead>>(
-      `/scores/${scoreId}/invites`,
-      { limit: options?.limit, cursor: options?.cursor },
-      { signal: options?.signal }
-    ),
+    responseData(scoreMembershipLeave({ ...customerTransport.authenticated, path: { score_id: scoreId } })),
+  listInvites: (scoreId: string, options?: NonNullable<ScoreInvitesListData['query']> & { signal?: AbortSignal }) =>
+    responseData(scoreInvitesList({ ...customerTransport.authenticated, path: { score_id: scoreId }, query: { limit: options?.limit, cursor: options?.cursor }, signal: options?.signal })),
   createInvite: (
     scoreId: string,
     input: InviteCreateRequest
-  ) => apiClient.post<ApiResponse<InviteCreatedRead>>(`/scores/${scoreId}/invites`, input),
+  ) => responseData(scoreInvitesCreate({ ...customerTransport.authenticated, path: { score_id: scoreId }, body: input })),
   revokeInvite: (scoreId: string, inviteId: string) =>
-    apiClient.post<ApiResponse<InviteRead>>(`/scores/${scoreId}/invites/${inviteId}/revoke`),
-  listMembers: (scoreId: string, options?: { limit?: number; cursor?: string; signal?: AbortSignal }) =>
-    apiClient.get<ApiResponse<MemberListRead>>(
-      `/scores/${scoreId}/members`,
-      { limit: options?.limit, cursor: options?.cursor },
-      { signal: options?.signal }
-    ),
+    responseData(scoreInviteRevoke({ ...customerTransport.authenticated, path: { score_id: scoreId, invite_id: inviteId } })),
+  listMembers: (scoreId: string, options?: NonNullable<ScoreMembersListData['query']> & { signal?: AbortSignal }) =>
+    responseData(scoreMembersList({ ...customerTransport.authenticated, path: { score_id: scoreId }, query: { limit: options?.limit, cursor: options?.cursor }, signal: options?.signal })),
   updateMember: (scoreId: string, membershipId: number, input: MemberUpdateRequest) =>
-    apiClient.patch<ApiResponse<MemberRead>>(`/scores/${scoreId}/members/${membershipId}`, input),
+    responseData(scoreMemberUpdate({ ...customerTransport.authenticated, path: { score_id: scoreId, membership_id: membershipId }, body: input })),
   removeMember: (scoreId: string, membershipId: number) =>
-    apiClient.delete<ApiResponse<MemberRead>>(`/scores/${scoreId}/members/${membershipId}`),
+    responseData(scoreMemberRemove({ ...customerTransport.authenticated, path: { score_id: scoreId, membership_id: membershipId } })),
   inspectInvite: (token: string, signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<InviteAccessRead>>(`/invites/${token}`, undefined, {
-      signal,
-      suppressAuthRedirect: true,
-    }),
+    responseData(scoreInviteInspect({ ...customerTransport.public, path: { token: token }, signal })),
   acceptInvite: (token: string) =>
-    apiClient.post<ApiResponse<InviteAcceptRead>>(`/invites/${token}/accept`),
-  listMyPendingInvites: (options?: { limit?: number; cursor?: string; signal?: AbortSignal }) =>
-    apiClient.get<ApiResponse<PendingInviteListRead>>(
-      '/me/invites',
-      { limit: options?.limit, cursor: options?.cursor },
-      { signal: options?.signal }
-    ),
+    responseData(scoreInviteAccept({ ...customerTransport.authenticated, path: { token: token } })),
+  listMyPendingInvites: (options?: NonNullable<AccountPendingInvitesListData['query']> & { signal?: AbortSignal }) =>
+    responseData(accountPendingInvitesList({ ...customerTransport.authenticated, query: { limit: options?.limit, cursor: options?.cursor }, signal: options?.signal })),
   acceptMyPendingInvite: (inviteId: string) =>
-    apiClient.post<ApiResponse<InviteAcceptRead>>(`/me/invites/${inviteId}/accept`),
+    responseData(accountPendingInviteAccept({ ...customerTransport.authenticated, path: { invite_id: inviteId } })),
   declineMyPendingInvite: (inviteId: string) =>
-    apiClient.post<ApiResponse<PendingInviteRead>>(`/me/invites/${inviteId}/decline`),
+    responseData(accountPendingInviteDecline({ ...customerTransport.authenticated, path: { invite_id: inviteId } })),
 };

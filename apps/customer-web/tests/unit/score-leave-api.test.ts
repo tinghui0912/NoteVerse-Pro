@@ -1,10 +1,11 @@
-import { expect, it, vi } from 'vitest';
 import { scoreInvitesApi } from '@/lib/api/score-invites';
-const client = vi.hoisted(() => ({ delete: vi.fn() }));
-vi.mock('@/lib/api-client', () => ({ apiClient: client }));
-it('leaves the authenticated user membership by public Score identity', () => {
-  scoreInvitesApi.leaveScore('shared-score');
-  expect(client.delete).toHaveBeenCalledExactlyOnceWith(
-    '/me/scores/shared-score/membership',
-  );
+import { afterEach, expect, it, vi } from 'vitest';
+import { customerFetch } from '../helpers/customer-http';
+afterEach(() => vi.unstubAllGlobals());
+it('leaves the current membership through the generated command', async () => {
+  const send = customerFetch();
+  await scoreInvitesApi.leaveScore('shared-score');
+  const request = send.mock.calls[0][0] as Request;
+  expect(new URL(request.url).pathname).toBe('/api/v1/me/scores/shared-score/membership');
+  expect(request.method).toBe('DELETE');
 });

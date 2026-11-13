@@ -65,7 +65,7 @@ Run inside the Customer Web container:
 ```powershell
 docker compose -f docker-compose.customer-web-dev.yml run --rm customer-web npm run lint
 docker compose -f docker-compose.customer-web-dev.yml run --rm customer-web npm run check:i18n-errors
-docker compose -f docker-compose.customer-web-dev.yml run --rm customer-web npm run check:api-types
+docker compose -f docker-compose.customer-web-dev.yml run --rm customer-web npm run check:api
 docker compose -f docker-compose.customer-web-dev.yml run --rm customer-web npm run typecheck
 ```
 

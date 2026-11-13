@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/auth-context';
 import { Link } from '@/i18n/routing';
 import { withReturnUrl } from '@/lib/auth/return-url';
-import { ApiError } from '@/lib/api-client';
+import { ApiError } from '@/lib/http/customer-browser-transport';
 import { translateErrorCode } from '@/lib/i18n/error-message';
 
 export default function RegisterPage() {

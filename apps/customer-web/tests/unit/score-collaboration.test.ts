@@ -28,10 +28,10 @@ describe('score collaboration invite architecture', () => {
     expect(panel).toContain('useCreateScoreInvite');
     expect(panel).toContain('useUpdateScoreMember');
 
-    expect(api).toContain('/scores/${scoreId}/invites');
-    expect(api).toContain('/scores/${scoreId}/members');
-    expect(api).toContain('/invites/${token}');
-    expect(api).toContain('suppressAuthRedirect: true');
+    expect(api).toContain('scoreInvitesList');
+    expect(api).toContain('scoreMembersList');
+    expect(api).toContain('scoreInviteInspect');
+    expect(api).toContain('customerTransport.public');
 
     expect(scorePage).toContain('score.capabilities.can_manage_members');
     expect(scorePage).toContain('ScoreCollaborationPanel');
@@ -87,9 +87,9 @@ describe('score collaboration invite architecture', () => {
     expect(center).toContain('notificationHref(notification)');
     expect(center).toContain('router.push(href)');
 
-    expect(notificationsApi).toContain('/me/notifications');
-    expect(notificationsApi).toContain('/me/notifications/unread-count');
-    expect(notificationsApi).toContain('/me/notifications/${notificationId}/read');
+    expect(notificationsApi).toContain('notificationsList');
+    expect(notificationsApi).toContain('notificationsUnreadCountGet');
+    expect(notificationsApi).toContain('notificationMarkRead');
     expect(notificationHooks).toContain('queryKeys.notifications.list()');
     expect(notificationHooks).toContain('queryKeys.notifications.unreadCount()');
   });

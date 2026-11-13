@@ -1,7 +1,8 @@
-import { apiClient, type ApiResponse } from '@/lib/api-client';
-import type { StorageUsageRead } from '@/generated/api';
+import { accountStorageUsageGet } from '@/generated/api';
+import { customerTransport, responseData } from '@/lib/http/customer-browser-transport';
+
 
 export const storageUsageApi = {
   current: (signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<StorageUsageRead>>('/me/storage-usage', undefined, { signal }),
+    responseData(accountStorageUsageGet({ ...customerTransport.authenticated, signal })),
 };

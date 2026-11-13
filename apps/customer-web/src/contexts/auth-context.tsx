@@ -3,7 +3,7 @@
 import React, { createContext, useState, useContext, useEffect, useCallback, ReactNode } from 'react';
 import { authApi, profileApi } from '@/lib/api';
 import type { ProfileUserRead } from '@/generated/api';
-import { ApiError } from '@/lib/api-client';
+import { ApiError } from '@/lib/http/customer-browser-transport';
 import { getCurrentLoginHref } from '@/lib/auth/return-url';
 
 // Type definitions.

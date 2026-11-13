@@ -1,4 +1,4 @@
-import { ApiError } from '@/lib/api-client';
+import { ApiError } from '@/lib/http/customer-browser-transport';
 import { recordedPerformanceScoreTick } from '@/lib/practice/recording/recorded-performance-timeline';
 import { recordingPlaybackSource } from '@/lib/practice/recording/recording-playback';
 import { recordingSinkFixture } from '@/lib/practice/__fixtures__/recording-sink';

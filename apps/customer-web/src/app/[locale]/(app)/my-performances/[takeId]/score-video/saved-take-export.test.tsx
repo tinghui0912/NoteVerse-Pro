@@ -1,23 +1,22 @@
 import { localMediaAssetFixture } from "@/lib/practice/__fixtures__/local-media-asset";
 import { createLocalMediaAsset } from "@/lib/practice/media/local-media-asset";
 // @vitest-environment jsdom
-import { beforeEach, expect, it, vi } from "vitest";
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
-import { afterEach } from "vitest";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { NextIntlClientProvider } from "next-intl";
 import practice from "@/../messages/en/practice.json";
+import { ApiError } from "@/lib/http/customer-browser-transport";
 import {
-  take,
-  artifact,
+artifact,
+take,
 } from "@/lib/practice/composite-video/__fixtures__/saved-take";
-import { ApiError } from "@/lib/api-client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+cleanup,
+fireEvent,
+render,
+screen,
+waitFor,
+} from "@testing-library/react";
+import { NextIntlClientProvider } from "next-intl";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import Page from "./page";
 
 const calls = vi.hoisted(() => ({
@@ -34,10 +33,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/hooks/queries/use-performance-take-queries", () => ({
   usePerformanceTakeDetail: () => ({ data: { data: take }, isLoading: false }),
 }));
-vi.mock("@/lib/api-client", async (original) => ({
-  ...(await original<typeof import("@/lib/api-client")>()),
-  apiClient: { get: calls.get },
-}));
+vi.mock("@/lib/api/practice", () => ({ practiceApi: { getPracticeBundle: calls.get } }));
 vi.mock("@/lib/practice/media/performance-take/materialize", () => ({
   materializePerformanceTakeMedia: calls.media,
 }));
@@ -104,9 +100,10 @@ it("loads exact currently authorized Bundle for optional saved score export", as
   openPage();
   await screen.findByTestId("score-export");
   expect(calls.get).toHaveBeenCalledExactlyOnceWith(
-    `/practice/scores/${take.manifest.practice_binding.score_id}/revisions/${take.manifest.practice_binding.revision_id}/bundle`,
-    { include_notation: true },
-    { signal: expect.any(AbortSignal) },
+    take.manifest.practice_binding.score_id,
+    take.manifest.practice_binding.revision_id,
+    true,
+    expect.any(AbortSignal),
   );
   expect(calls.player.mock.calls.at(-1)![0].source.media.blob).toBe(blob);
   const recorded = calls.studio.mock.calls.at(-1)![0].input.recordedPerformance;

@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiError } from '@/lib/api-client';
+import { ApiError } from '@/lib/http/customer-browser-transport';
 import { translateErrorCode } from '@/lib/i18n/error-message';
 import { queryKeys } from '@/lib/query-client';
 import { getCompletedJobRoute } from '@/lib/upload/upload-workflow';

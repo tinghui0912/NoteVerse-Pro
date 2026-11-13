@@ -1,28 +1,29 @@
-import type { ReadyPerformanceRecording } from '@/lib/practice/recording/recording-artifact';
-import { planPractice } from '@/lib/practice/planning/practice-plan';
-import type { ExecutedPerformance } from '@/lib/practice/run/executed-performance';
-import { recordedPerformance } from '@/lib/practice/recording/recorded-performance';
 import { recordedPerformanceFixture } from '@/lib/practice/__fixtures__/recorded-performance';
 import { artifact as videoArtifact } from '@/lib/practice/composite-video/__fixtures__/saved-take';
+import { planPractice } from '@/lib/practice/planning/practice-plan';
+import { recordedPerformance } from '@/lib/practice/recording/recorded-performance';
+import type { ReadyPerformanceRecording } from '@/lib/practice/recording/recording-artifact';
+import type { ExecutedPerformance } from '@/lib/practice/run/executed-performance';
 // @vitest-environment jsdom
-import { recordingSinkFixture } from '@/lib/practice/__fixtures__/recording-sink';
+import {
+useDeletePerformanceTake,
+useSavePerformanceTake,
+} from '@/hooks/queries/use-performance-take-queries';
+import {
+performanceTakesApi,
+type PerformanceTakeRead,
+type PerformanceTakeTempoPlan,
+type PerformanceTakeUploadReservationRead,
+type RecordingTimebase,
+} from '@/lib/api/performance-takes';
+import { uploadMediaToSignedUrl } from '@/lib/http/direct-object-upload';
 import { localMediaAssetFixture } from '@/lib/practice/__fixtures__/local-media-asset';
-import React, { type ReactNode } from 'react';
+import { recordingSinkFixture } from '@/lib/practice/__fixtures__/recording-sink';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook } from '@testing-library/react';
+import { type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  performanceTakesApi,
-  uploadMediaToSignedUrl,
-  type PerformanceTakeRead,
-  type PerformanceTakeUploadReservationRead,
-  type RecordingTimebase,
-  type PerformanceTakeTempoPlan,
-} from '@/lib/api/performance-takes';
-import {
-  useSavePerformanceTake,
-  useDeletePerformanceTake,
-} from '@/hooks/queries/use-performance-take-queries';
+vi.mock('@/lib/http/direct-object-upload', () => ({ uploadMediaToSignedUrl: vi.fn() }));
 vi.mock('@/lib/api/performance-takes', () => ({
   performanceTakesApi: {
     reserveUpload: vi.fn(),
@@ -33,7 +34,6 @@ vi.mock('@/lib/api/performance-takes', () => ({
     getPlaybackUrl: vi.fn(),
     deleteTake: vi.fn(),
   },
-  uploadMediaToSignedUrl: vi.fn(),
 }));
 function createWrapper() {
   const queryClient = new QueryClient({

@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Link } from '@/i18n/routing';
 import { useAuth } from '@/contexts/auth-context';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ApiError } from '@/lib/api-client';
+import { ApiError } from '@/lib/http/customer-browser-transport';
 import { getSafeReturnUrl, withReturnUrl } from '@/lib/auth/return-url';
 import { AuthCard } from '@/components/auth/auth-card';
 import { InlineLoading } from '@/components/loading';

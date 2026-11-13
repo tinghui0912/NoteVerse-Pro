@@ -30,7 +30,7 @@ Available checks:
 | `customer-web-lint` | Customer Web ESLint |
 | `customer-web-typecheck` | Customer Web TypeScript type checking |
 | `customer-web-i18n` | Customer Web error translation key guard |
-| `customer-web-api-types` | Customer Web generated API DTO freshness check |
+| `customer-web-api` | Customer Web generated types, SDK and Fetch runtime freshness check |
 | `customer-web-test` | Customer Web unit tests |
 | `customer-web-coverage` | Customer Web V8 coverage baseline report |
 | `platform-admin-lint` | Platform Admin ESLint |

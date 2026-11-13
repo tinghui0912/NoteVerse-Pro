@@ -55,7 +55,7 @@ describe('Verovio listen surfaces', () => {
     expect(editorDocument).toContain('hand_size: handSize');
     expect(editorDocument).toContain("t('actions.generateFingering')");
     expect(scoreApi).toContain('input: FingeringRequest');
-    expect(scoreApi).toContain('ApiResponse<FingeringResultRead>');
+    expect(scoreApi).toContain('scoreFingeringGenerate');
   });
 
   it('dynamically loads only the Verovio preview controller', () => {

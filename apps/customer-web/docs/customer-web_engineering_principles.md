@@ -22,10 +22,14 @@ Verovio DOM 操作和 API 数据转换由对应领域模块承担。
 
 ## API、类型与服务端状态
 
-所有产品请求通过 `src/lib/api/*` 和统一 `apiClient` 管理认证、错误、base URL
-与响应解析。下载、blob、stream 和 signed URL 也使用专用 helper。
+Customer HTTP 请求通过 OpenAPI generated SDK operation 发起；method、path、
+path params、query 与 body encoding 由 generated code 拥有。`src/lib/api/*`
+只进行前端语义适配和 generated result 投影。统一 browser transport 管理
+credentials、CSRF、refresh/retry、redirect、AbortSignal、错误与 observability。
+下载和 stream 同样使用 generated operation；native media/EventSource 与
+外部 signed storage upload 使用各自明确的 browser transport。
 
-HTTP DTO 直接导入生成类型。后端契约变更后运行 `npm run generate:api-types`；
+HTTP DTO 直接导入生成类型。后端契约变更后运行 `npm run generate:api`；
 视图模型、表单状态和浏览器内部消息由前端拥有。API helper 返回稳定类型，
 页面不猜测字段、不通过 `any` 掩盖契约问题。
 

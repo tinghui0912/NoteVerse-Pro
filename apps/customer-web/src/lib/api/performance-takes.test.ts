@@ -1,38 +1,46 @@
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { performanceTakesApi, uploadMediaToSignedUrl, type PerformanceTakeUploadReservationRequest } from './performance-takes';
-import { apiClient } from '@/lib/api-client';
-
-vi.mock('@/lib/api-client', () => ({ apiClient: { post: vi.fn(), delete: vi.fn() }, apiUrl: (value: string) => value }));
-beforeEach(() => vi.clearAllMocks());
+import { uploadMediaToSignedUrl } from '@/lib/http/direct-object-upload';
+import { afterEach, expect, it, vi } from 'vitest';
+import { customerFetch } from '../../../tests/helpers/customer-http';
+import { performanceTakesApi, type PerformanceTakeUploadReservationRequest } from './performance-takes';
 afterEach(() => vi.unstubAllGlobals());
-
-it('sends raw MP4 capture as the signed PUT body without rebuilding its Blob', async () => {
-  const blob = new Blob(['raw MP4 capture'], { type: 'video/mp4' });
-  const fetch = vi.fn<typeof globalThis.fetch>(async () => new Response(null, { status: 200 }));
-  vi.stubGlobal('fetch', fetch);
-  await uploadMediaToSignedUrl('https://storage.example/capture.mp4', 'PUT', { 'content-type': 'video/mp4' }, blob);
-  expect(fetch).toHaveBeenCalledExactlyOnceWith('https://storage.example/capture.mp4', {
-    method: 'PUT', headers: { 'content-type': 'video/mp4' }, body: blob,
+it('sends opaque signed PUT targets and required headers without Customer credentials', async () => {
+  const blob = new Blob(['raw MP4'], { type: 'video/mp4' });
+  const send = vi.fn<typeof fetch>(async () => new Response());
+  vi.stubGlobal('fetch', send);
+  const headers = { 'content-type': 'video/mp4' };
+  await uploadMediaToSignedUrl('https://storage.example/capture.mp4', 'PUT', headers, blob);
+  expect(send).toHaveBeenCalledExactlyOnceWith('https://storage.example/capture.mp4', {
+    method: 'PUT', headers, body: blob, credentials: 'omit',
   });
-  expect(fetch.mock.calls[0][1]?.body).toBe(blob);
 });
-
-it('reserves one structured immutable save request', () => {
+it('reserves the immutable request using the generated JSON operation', async () => {
+  const send = customerFetch();
   const request: PerformanceTakeUploadReservationRequest = {
-    client_request_id: 'request', practice_binding: { score_id:'score-1',revision_id:'revision-1',bundle_id:'source-1' },
+    client_request_id: 'request', practice_binding: { score_id: 'score-1', revision_id: 'revision-1', bundle_id: 'source-1' },
     media: { kind: 'AUDIO', byte_size: 10, mime_type: 'audio/webm' },
     scope: { kind: 'FULL' },
     tempo_selection: { mode: 'SCORE' },
     recording_timebase: { nominalMediaDurationUs: 1000000, activeSegments: [{ performanceStartUs: 0, performanceEndUs: 1000000, mediaStartUs: 0, mediaEndUs: 1000000 }] },
   };
-  performanceTakesApi.reserveUpload(request);
-  expect(apiClient.post).toHaveBeenCalledExactlyOnceWith('/performance-takes/upload-reservations', request, { signal: undefined });
+  await performanceTakesApi.reserveUpload(request);
+  expect(await (send.mock.calls[0][0] as Request).json()).toEqual(request);
 });
-it('finalizes by public reservation identity with no metadata body', () => {
-  performanceTakesApi.finalizeTake('public-upload-uuid');
-  expect(apiClient.post).toHaveBeenCalledExactlyOnceWith('/performance-takes/upload-reservations/public-upload-uuid/finalize', undefined, { signal: undefined });
+it('finalizes and cancels by public reservation identity', async () => {
+  const send = customerFetch();
+  await performanceTakesApi.finalizeTake('reservation');
+  expect((send.mock.calls[0][0] as Request).method).toBe('POST');
+  expect(new URL((send.mock.calls[0][0] as Request).url).pathname).toBe('/api/v1/performance-takes/upload-reservations/reservation/finalize');
+  await performanceTakesApi.cancelUploadReservation('reservation');
+  expect((send.mock.calls[1][0] as Request).method).toBe('DELETE');
 });
-it('cancels the public upload reservation', () => {
-  performanceTakesApi.cancelUploadReservation('public-upload-uuid');
-  expect(apiClient.delete).toHaveBeenCalledExactlyOnceWith('/performance-takes/upload-reservations/public-upload-uuid');
+
+it.each(['relative-target', 'http-failure', 'network-failure'])('reports explicit signed upload failure for %s', async failure => {
+  const send = vi.fn<typeof fetch>(async () => {
+    if (failure === 'network-failure') throw new TypeError('offline');
+    return new Response(null, { status: 503 });
+  });
+  vi.stubGlobal('fetch', send);
+  await expect(uploadMediaToSignedUrl(failure === 'relative-target' ? '/upload' : 'https://storage.test/object', 'PUT', {}, new Blob(['bytes'])))
+    .rejects.toMatchObject({ code: 'direct_upload_failed' });
+  expect(send).toHaveBeenCalledTimes(failure === 'relative-target' ? 0 : 1);
 });

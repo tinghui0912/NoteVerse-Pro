@@ -1,10 +1,11 @@
-import { expect, it, vi } from 'vitest';
 import { importJobsApi } from '@/lib/api/import-jobs';
-const client = vi.hoisted(() => ({ post: vi.fn() }));
-vi.mock('@/lib/api-client', () => ({ apiClient: client }));
-it('retries an existing ImportJob through its command endpoint', () => {
-  importJobsApi.retryImportJob('failed-job');
-  expect(client.post).toHaveBeenCalledExactlyOnceWith(
-    '/import-jobs/failed-job/retry',
-  );
+import { afterEach, expect, it, vi } from 'vitest';
+import { customerFetch } from '../helpers/customer-http';
+afterEach(() => vi.unstubAllGlobals());
+it('retries an existing ImportJob with the generated command', async () => {
+  const send = customerFetch();
+  await importJobsApi.retryImportJob('failed/job');
+  const request = send.mock.calls[0][0] as Request;
+  expect(new URL(request.url).pathname).toBe('/api/v1/import-jobs/failed%2Fjob/retry');
+  expect(request.method).toBe('POST');
 });

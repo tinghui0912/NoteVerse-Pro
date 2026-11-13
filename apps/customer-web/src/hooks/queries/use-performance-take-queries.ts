@@ -1,23 +1,21 @@
 'use client';
 import { recordedPerformance } from '@/lib/practice/recording/recorded-performance';
 import {
-  performanceTakeUploadRequest,
-  takeManifestAgreesWithRecordedPerformance,
-  savedTakeAgreesWithRecordedPerformance,
-  type SavePerformanceTakeInput,
+performanceTakeUploadRequest,
+savedTakeAgreesWithRecordedPerformance,
+takeManifestAgreesWithRecordedPerformance,
+type SavePerformanceTakeInput,
 } from '@/lib/practice/saved-take/save';
 
 import { releaseLocalMediaAsset } from '@/lib/practice/media/local-media-asset';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import type { PerformanceTakeGetResponse, PerformanceTakesListResponse } from '@/generated/api';
 import {
-  performanceTakesApi,
-  uploadMediaToSignedUrl,
-  type PerformanceTakeListResponse,
-  type PerformanceTakeRead,
+performanceTakesApi
 } from '@/lib/api/performance-takes';
-import type { ApiResponse } from '@/lib/api-client';
+import { uploadMediaToSignedUrl } from '@/lib/http/direct-object-upload';
 import { queryKeys } from '@/lib/query-client';
 
 export function usePerformanceTakes(
@@ -66,12 +64,12 @@ export function useDeletePerformanceTake() {
         }),
       ]);
       const lists = queryClient.getQueriesData<
-        ApiResponse<PerformanceTakeListResponse>
+        PerformanceTakesListResponse
       >({
         queryKey: queryKeys.performanceTakes.lists(),
       });
       const take =
-        queryClient.getQueryData<ApiResponse<PerformanceTakeRead>>(
+        queryClient.getQueryData<PerformanceTakeGetResponse>(
           queryKeys.performanceTakes.detail(takeId),
         )?.data ??
         lists
@@ -92,7 +90,7 @@ export function useDeletePerformanceTake() {
           !filter.score_id ||
           filter.score_id === take?.linked_score_id ||
           matchingScoreFilters.has(filter.score_id);
-        queryClient.setQueryData<ApiResponse<PerformanceTakeListResponse>>(
+        queryClient.setQueryData<PerformanceTakesListResponse>(
           key,
           (previous) => {
             if (!previous?.data) return previous;

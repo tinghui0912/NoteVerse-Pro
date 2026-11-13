@@ -1,13 +1,12 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { NotificationsListResponse, NotificationsUnreadCountGetResponse } from '@/generated/api';
 import { notificationsApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
-import type { NotificationEventRead, NotificationUnreadCountRead } from '@/generated/api';
-import type { ApiResponse } from '@/lib/api-client';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-type NotificationListResponse = ApiResponse<NotificationEventRead[]>;
-type NotificationCountResponse = ApiResponse<NotificationUnreadCountRead>;
+type NotificationListResponse = NotificationsListResponse;
+type NotificationCountResponse = NotificationsUnreadCountGetResponse;
 
 interface NotificationOptimisticSnapshot {
   previousList?: NotificationListResponse;

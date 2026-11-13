@@ -132,9 +132,9 @@ jobs:
         if: steps.proof.outputs.reuse_pr_quality != 'true'
         run: npm run check:i18n-errors
 
-      - name: Check generated API types
+      - name: Check generated Customer API
         if: steps.proof.outputs.reuse_pr_quality != 'true'
-        run: npm run check:api-types
+        run: npm run check:api
 
       - name: Run dead-code check
         if: steps.proof.outputs.reuse_pr_quality != 'true'

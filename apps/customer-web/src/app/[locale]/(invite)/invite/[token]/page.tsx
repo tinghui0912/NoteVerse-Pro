@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/auth-context';
 import { Link } from '@/i18n/routing';
 import { useAcceptScoreInvite, useScoreInviteAccess } from '@/hooks/queries/use-score-queries';
-import { ApiError } from '@/lib/api-client';
+import { ApiError } from '@/lib/http/customer-browser-transport';
 import { translateErrorCode, userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { formatApiDateTime } from '@/lib/date-time';
 

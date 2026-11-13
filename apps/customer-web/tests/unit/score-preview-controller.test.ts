@@ -6,22 +6,31 @@ import { resolve } from 'node:path';
 import { Midi } from '@tonejs/midi';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { VerovioScoreAdapter } from '@/lib/score/verovio';
-import { VerovioScorePreviewController } from '@/lib/score-preview/verovio-score-preview-controller';
-import { createScorePerformanceTimeline } from '@/lib/score/performance/timeline';
-import type { ScorePlaybackNote } from '@/lib/score/performance/timeline';
-import { apiClient, ApiError } from '@/lib/api-client';
-import { writtenRealizationSources } from '../support/written-realization-sources';
-import { decodePerformancePlan } from '@/lib/score/performance/plan';
-import { linearPlan, rational } from '../support/performance-plan';
+import { ApiError } from '@/lib/http/customer-browser-transport';
 import {
-  ScorePreviewPlaybackController,
-  type ScorePreviewAudioEngine,
+ScorePreviewPlaybackController,
+type ScorePreviewAudioEngine,
 } from '@/lib/score-preview/playback-controller';
+import { VerovioScorePreviewController } from '@/lib/score-preview/verovio-score-preview-controller';
+import { decodePerformancePlan } from '@/lib/score/performance/plan';
+import type { ScorePlaybackNote } from '@/lib/score/performance/timeline';
+import { createScorePerformanceTimeline } from '@/lib/score/performance/timeline';
+import { VerovioScoreAdapter } from '@/lib/score/verovio';
+import { linearPlan, rational } from '../support/performance-plan';
+import { writtenRealizationSources } from '../support/written-realization-sources';
+
+const planRequest = vi.hoisted(() => vi.fn<(
+  options: Parameters<typeof import('@/generated/api').playbackPerformancePlanCreate>[0]
+) => Promise<import('@/generated/api').PerformancePlanRead>>());
+vi.mock('@/generated/api', async (original) => ({
+  ...(await original<typeof import('@/generated/api')>()),
+  playbackPerformancePlanCreate: async (options: Parameters<typeof import('@/generated/api').playbackPerformancePlanCreate>[0]) =>
+    ({ data: await planRequest(options) }),
+}));
 
 beforeEach(() => {
   vi.restoreAllMocks();
-  vi.spyOn(apiClient, 'post').mockResolvedValue(linearPlan(3, 120));
+  planRequest.mockResolvedValue(linearPlan(3, 120));
 });
 
 function encodeMidi() {
@@ -189,7 +198,7 @@ describe('Score Preview reload failure', () => {
           'score_playback_failed',
           'score_playback_failed'
         );
-        vi.mocked(apiClient.post).mockRejectedValueOnce(error);
+        planRequest.mockRejectedValueOnce(error);
         await expect(
           controller.loadScore(writtenRealizationSources[source])
         ).rejects.toBe(error);
@@ -221,7 +230,7 @@ describe('Score Preview reload failure', () => {
       });
       let resolve!: (dto: ReturnType<typeof linearPlan>) => void;
       let reject!: (error: Error) => void;
-      vi.mocked(apiClient.post).mockImplementationOnce(
+      planRequest.mockImplementationOnce(
         () =>
           new Promise((done, fail) => {
             resolve = done;
@@ -230,7 +239,7 @@ describe('Score Preview reload failure', () => {
       );
       const stale = controller.loadScore('<stale-request/>');
       const failed = expect(stale).rejects.toThrow();
-      vi.mocked(apiClient.post).mockResolvedValueOnce({
+      planRequest.mockResolvedValueOnce({
         ...linearPlan(3, 120),
         musicxml: '<newer-admitted/>',
       });
@@ -273,11 +282,11 @@ describe('Score Preview reload failure', () => {
         expect(container.querySelector('[data-score-page]')).not.toBeNull();
         expect(vi.getTimerCount()).toBeGreaterThan(0);
         if (phase === 'performance-plan')
-          vi.mocked(apiClient.post).mockRejectedValueOnce(
+          planRequest.mockRejectedValueOnce(
             new Error('plan failed')
           );
         else
-          vi.mocked(apiClient.post).mockResolvedValueOnce({
+          planRequest.mockResolvedValueOnce({
             ...linearPlan(3, 120),
             musicxml: '<new-admitted/>',
           });
@@ -308,7 +317,7 @@ describe('Score Preview reload failure', () => {
         controller.syncCursorToStep(0);
         expect(container.childElementCount).toBe(0);
         adapter.failure = null;
-        vi.mocked(apiClient.post)
+        planRequest
           .mockReset()
           .mockResolvedValue({
             ...linearPlan(3, 120),
@@ -356,7 +365,7 @@ describe('Verovio playback timeline', () => {
 
 describe('ScorePreviewPlaybackController', () => {
   it('exposes cursor event time in the same scaled UI seconds as the playback clock', async () => {
-    vi.mocked(apiClient.post).mockResolvedValue(linearPlan(4));
+    planRequest.mockResolvedValue(linearPlan(4));
     const audio = new StubAudioEngine();
     const controller = new ScorePreviewPlaybackController(
       new OpeningRestAdapter(),
@@ -395,7 +404,7 @@ describe('ScorePreviewPlaybackController', () => {
         bpm: rational(120),
       },
     ];
-    vi.mocked(apiClient.post).mockResolvedValue(dto);
+    planRequest.mockResolvedValue(dto);
     const audio = new StubAudioEngine();
     const controller = new ScorePreviewPlaybackController(
       new StubAdapter(),
@@ -415,7 +424,7 @@ describe('ScorePreviewPlaybackController', () => {
   it('compiles input before rendering the exact admitted document with expansion disabled', async () => {
     const input = '<score-partwise><input/></score-partwise>';
     const admitted = '<score-partwise><admitted/></score-partwise>';
-    vi.mocked(apiClient.post).mockResolvedValue({
+    planRequest.mockResolvedValue({
       ...linearPlan(3, 120),
       musicxml: admitted,
     });
@@ -426,15 +435,13 @@ describe('ScorePreviewPlaybackController', () => {
       new StubAudioEngine()
     );
     await controller.loadScore(input);
-    expect(apiClient.post).toHaveBeenCalledWith(
-      '/playback/performance-plan',
-      { musicxml: input },
-      { signal: expect.any(AbortSignal) }
+    expect(planRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ body: { musicxml: input }, signal: expect.any(AbortSignal) })
     );
     expect(load).toHaveBeenCalledWith(admitted, {
       toolkitOptions: { expandNever: true },
     });
-    expect(vi.mocked(apiClient.post).mock.invocationCallOrder[0]).toBeLessThan(
+    expect(planRequest.mock.invocationCallOrder[0]).toBeLessThan(
       load.mock.invocationCallOrder[0]
     );
     expect(controller.getPlaybackSnapshot().duration).toBe(1.5);
@@ -452,7 +459,7 @@ describe('ScorePreviewPlaybackController', () => {
       const audio = new StubAudioEngine();
       const controller = new ScorePreviewPlaybackController(adapter, audio);
       await controller.loadScore('<score-partwise/>');
-      vi.mocked(apiClient.post).mockRejectedValueOnce(failure);
+      planRequest.mockRejectedValueOnce(failure);
       await expect(controller.loadScore('<new-score/>')).rejects.toBe(failure);
       expect(load).toHaveBeenCalledTimes(1);
       expect(controller.getPlaybackSnapshot()).toMatchObject({
@@ -467,7 +474,7 @@ describe('ScorePreviewPlaybackController', () => {
 
   it('aborts a pending compile on disposal and cannot install a late response', async () => {
     let resolve!: (value: ReturnType<typeof linearPlan>) => void;
-    vi.mocked(apiClient.post).mockImplementation(
+    planRequest.mockImplementation(
       () =>
         new Promise((done) => {
           resolve = done;
@@ -480,7 +487,7 @@ describe('ScorePreviewPlaybackController', () => {
       new StubAudioEngine()
     );
     const loading = controller.loadScore('<score/>');
-    const signal = vi.mocked(apiClient.post).mock.calls[0][2]?.signal;
+    const signal = planRequest.mock.calls[0][0]?.signal;
     await controller.dispose();
     expect(signal?.aborted).toBe(true);
     resolve(linearPlan());

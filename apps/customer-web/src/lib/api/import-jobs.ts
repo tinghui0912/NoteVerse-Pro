@@ -1,73 +1,50 @@
-import {
-  apiClient,
-  type ApiResponse,
-  type PaginatedResponse,
-} from '../api-client';
-import type {
-  ImportJobProcessingOptions,
-  ImportJobRead,
-  ImportJobSubmitRead,
-  ImportJobSubmitRequest,
-} from '@/generated/api';
+import type { ImportJobProcessingOptions, ImportJobSubmitRequest } from '@/generated/api';
+import { importJobArtifactDownload, importJobDelete, importJobGet, importJobRetry, importJobsList, importJobsSubmit } from '@/generated/api';
+import { customerTransport, responseData } from '@/lib/http/customer-browser-transport';
 
 async function submitImportJob(
   fileIds: string[],
   options?: ImportJobProcessingOptions,
   idempotencyKey?: string,
-): Promise<ApiResponse<ImportJobSubmitRead>> {
+) {
   const request: ImportJobSubmitRequest = {
     file_ids: fileIds,
     idempotency_key: idempotencyKey,
     options,
   };
-  return apiClient.post<ApiResponse<ImportJobSubmitRead>>(
-    '/import-jobs',
-    request,
-  );
+  return responseData(importJobsSubmit({ ...customerTransport.authenticated, body: request }));
 }
 
 async function getImportJob(
   jobId: string,
   signal?: AbortSignal,
-): Promise<ApiResponse<ImportJobRead>> {
-  return apiClient.get<ApiResponse<ImportJobRead>>(
-    `/import-jobs/${jobId}`,
-    undefined,
-    { signal },
-  );
+) {
+  return responseData(importJobGet({ ...customerTransport.authenticated, path: { job_id: jobId }, signal }));
 }
 
 async function listImportJobs(
   page: number,
   pageSize: number,
   signal?: AbortSignal,
-): Promise<PaginatedResponse<ImportJobRead>> {
-  return apiClient.get<PaginatedResponse<ImportJobRead>>(
-    '/import-jobs',
-    { page, page_size: pageSize },
-    { signal },
-  );
+) {
+  return responseData(importJobsList({ ...customerTransport.authenticated, query: { page, page_size: pageSize }, signal }));
 }
 
 async function downloadImportJobArtifact(
   jobId: string,
   artifactId: string,
 ): Promise<Blob> {
-  return apiClient.download(
-    `/import-jobs/${jobId}/artifacts/${artifactId}/download`,
-  );
+  return responseData(importJobArtifactDownload({ ...customerTransport.authenticated, path: { job_id: jobId, artifact_id: artifactId }, parseAs: 'blob' }));
 }
 
-async function deleteImportJob(jobId: string): Promise<ApiResponse<never>> {
-  return apiClient.delete<ApiResponse<never>>(`/import-jobs/${jobId}`);
+async function deleteImportJob(jobId: string) {
+  return responseData(importJobDelete({ ...customerTransport.authenticated, path: { job_id: jobId } }));
 }
 
 async function retryImportJob(
   jobId: string,
-): Promise<ApiResponse<ImportJobSubmitRead>> {
-  return apiClient.post<ApiResponse<ImportJobSubmitRead>>(
-    `/import-jobs/${jobId}/retry`,
-  );
+) {
+  return responseData(importJobRetry({ ...customerTransport.authenticated, path: { job_id: jobId } }));
 }
 
 export const importJobsApi = {

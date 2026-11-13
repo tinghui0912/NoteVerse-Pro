@@ -12,7 +12,7 @@ function assertGeneratedOutputIsCommitted(path) {
   const untracked = run('git', ['ls-files', '--others', '--exclude-standard', '--', path]).trim();
   if (untracked) {
     throw new Error(
-      `Generated API types include untracked files:\n${untracked}\nCommit the generated output before running this check.`
+      `Generated Customer API artifacts include untracked files:\n${untracked}\nCommit the generated output before running this check.`
     );
   }
 
@@ -20,7 +20,7 @@ function assertGeneratedOutputIsCommitted(path) {
     run('git', ['diff', '--exit-code', 'HEAD', '--', path]);
   } catch {
     throw new Error(
-      `Generated API types differ from HEAD for ${path}. Run the matching generate:*api-types command and commit the result.`
+      `Generated Customer API artifacts differ from HEAD for ${path}. Run the matching generate:api command and commit the result.`
     );
   }
 }
@@ -33,4 +33,4 @@ for (const contract of generatedContracts) {
   assertGeneratedOutputIsCommitted(contract.path);
 }
 
-console.log('Generated API types are current.');
+console.log('Generated Customer API artifacts are current.');

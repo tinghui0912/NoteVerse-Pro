@@ -1,21 +1,14 @@
-import { apiClient, type ApiResponse } from '@/lib/api-client';
-import type { NotificationEventRead, NotificationUnreadCountRead } from '@/generated/api';
+import { notificationMarkRead, notificationsList, notificationsMarkAllRead, notificationsUnreadCountGet } from '@/generated/api';
+import { customerTransport, responseData } from '@/lib/http/customer-browser-transport';
+
 
 export const notificationsApi = {
   list: (signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<NotificationEventRead[]>>('/me/notifications', undefined, {
-      signal,
-    }),
+    responseData(notificationsList({ ...customerTransport.authenticated, signal })),
   unreadCount: (signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<NotificationUnreadCountRead>>(
-      '/me/notifications/unread-count',
-      undefined,
-      { signal }
-    ),
+    responseData(notificationsUnreadCountGet({ ...customerTransport.authenticated, signal })),
   markRead: (notificationId: string) =>
-    apiClient.post<ApiResponse<NotificationEventRead>>(
-      `/me/notifications/${notificationId}/read`
-    ),
+    responseData(notificationMarkRead({ ...customerTransport.authenticated, path: { notification_id: notificationId } })),
   markAllRead: () =>
-    apiClient.post<ApiResponse<NotificationUnreadCountRead>>('/me/notifications/read-all'),
+    responseData(notificationsMarkAllRead({ ...customerTransport.authenticated })),
 };
