@@ -1,6 +1,5 @@
 """FastAPI application entrypoint."""
 
-
 from fastapi import FastAPI
 
 from app.api.runtime_endpoints import install_process_endpoints
@@ -11,6 +10,7 @@ from app.core.http_runtime import install_http_runtime, normalized_cors_origins
 from app.core.lifespan import app_lifespan
 from app.core.logging_setup import configure_uvicorn_logging
 from app.core.middleware import CookieCsrfSettings
+from app.modules.guest_previews.http_policy import GuestPreviewCachePolicyMiddleware
 
 
 configure_uvicorn_logging()
@@ -57,6 +57,7 @@ def create_app() -> FastAPI:
         csrf_settings=_csrf_settings(),
         cors_origins=_cors_origins(),
     )
+    app.add_middleware(GuestPreviewCachePolicyMiddleware, api_prefix=CUSTOMER_API_PREFIX)
 
     app.include_router(api_router, prefix=CUSTOMER_API_PREFIX)
     install_process_endpoints(app)

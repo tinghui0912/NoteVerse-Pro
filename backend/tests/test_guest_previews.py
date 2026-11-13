@@ -337,7 +337,147 @@ async def test_owner_settings_http_state_and_authorization(preview_context):
                     url, **({"json": {"enabled": False}} if method == client.patch else {})
                 )
                 assert response.status_code in {403, 404}
+                assert response.headers["cache-control"] == "private, no-store"
                 assert token not in response.text
     finally:
         for dependency in [get_db, get_current_user, get_guest_preview_service]:
             app.dependency_overrides.pop(dependency, None)
+
+
+@pytest.fixture
+def preview_http_app(preview_context):
+    from app.api.deps import get_db
+    from app.main import create_app
+    from app.modules.guest_previews.dependencies import get_guest_preview_service
+
+    _, _, _, db, service = preview_context
+    application = create_app()
+
+    async def database():
+        yield db
+
+    application.dependency_overrides[get_db] = database
+    application.dependency_overrides[get_guest_preview_service] = lambda: service
+    return application
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("state", ["disabled", "unknown", "deleted"])
+@pytest.mark.parametrize("suffix", ["", "/render-assets/page-a/view", "/playback"])
+async def test_unavailable_bearer_responses_are_not_cacheable(
+    preview_context, preview_http_app, state, suffix
+):
+    from httpx import AsyncClient, ASGITransport
+
+    session, _, score, _, _ = preview_context
+    token = score.guest_preview_token
+    score.guest_preview_enabled = state != "disabled"
+    if state == "unknown":
+        token = "unknown-token"
+    elif state == "deleted":
+        score.deletion_status = ScoreDeletionStatus.DELETING
+    session.commit()
+    async with AsyncClient(
+        transport=ASGITransport(app=preview_http_app), base_url="http://test"
+    ) as client:
+        response = await client.get(f"/api/v1/guest-previews/{token}{suffix}")
+    assert response.status_code == 404
+    assert response.json()["public_code"] == "guest_preview_not_found"
+    assert response.headers["cache-control"] == "private, no-store"
+
+
+@pytest.mark.asyncio
+async def test_current_head_delivery_failures_are_not_cacheable(preview_context, preview_http_app):
+    from httpx import AsyncClient, ASGITransport
+
+    session, storage, score, _, _ = preview_context
+    add_page(session, storage, 901, "page-a")
+    add_audio(session, storage, 901)
+    score.guest_preview_enabled = True
+    session.commit()
+    add_head_b(session, score)
+    async with AsyncClient(
+        transport=ASGITransport(app=preview_http_app), base_url="http://test"
+    ) as client:
+        for suffix in ["/render-assets/page-a/view", "/playback"]:
+            response = await client.get(
+                f"/api/v1/guest-previews/{score.guest_preview_token}{suffix}"
+            )
+            assert response.status_code == 404
+            assert response.headers["cache-control"] == "private, no-store"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "operation,suffix",
+    [("read", ""), ("image", "/render-assets/page-a/view"), ("audio", "/playback")],
+)
+async def test_unhandled_bearer_errors_are_not_cacheable(
+    preview_context, preview_http_app, monkeypatch, operation, suffix
+):
+    from httpx import AsyncClient, ASGITransport
+
+    _, _, score, _, service = preview_context
+
+    async def unavailable(*args):
+        raise RuntimeError("Presentation service unavailable")
+
+    monkeypatch.setattr(service, operation, unavailable)
+    async with AsyncClient(
+        transport=ASGITransport(app=preview_http_app, raise_app_exceptions=False),
+        base_url="http://test",
+    ) as client:
+        response = await client.get(f"/api/v1/guest-previews/{score.guest_preview_token}{suffix}")
+    assert response.status_code == 500
+    assert response.json()["public_code"] == "internal_error"
+    assert response.headers["cache-control"] == "private, no-store"
+
+
+@pytest.mark.asyncio
+async def test_bearer_dependency_validation_response_is_not_cacheable(
+    preview_context, preview_http_app
+):
+    from httpx import AsyncClient, ASGITransport
+    from app.modules.guest_previews.dependencies import get_guest_preview_service
+
+    _, _, score, _, service = preview_context
+
+    def validated_service(required_number: int):
+        return service
+
+    preview_http_app.dependency_overrides[get_guest_preview_service] = validated_service
+    async with AsyncClient(
+        transport=ASGITransport(app=preview_http_app), base_url="http://test"
+    ) as client:
+        response = await client.get(
+            f"/api/v1/guest-previews/{score.guest_preview_token}?required_number=invalid"
+        )
+    assert response.status_code == 422
+    assert response.headers["cache-control"] == "private, no-store"
+
+
+@pytest.mark.asyncio
+async def test_owner_settings_errors_share_policy_without_affecting_other_routes(preview_http_app):
+    from httpx import AsyncClient, ASGITransport
+    from starlette.responses import Response
+    from app.api.deps import get_current_user
+    from app.db.models import User
+
+    @preview_http_app.get("/api/v1/cache-policy-control")
+    def cacheable_control():
+        return Response(headers={"Cache-Control": "public, max-age=60"})
+
+    async with AsyncClient(
+        transport=ASGITransport(app=preview_http_app), base_url="http://test"
+    ) as client:
+        response = await client.get("/api/v1/scores/preview-score/guest-preview")
+        assert response.status_code == 401
+        assert response.headers["cache-control"] == "private, no-store"
+        preview_http_app.dependency_overrides[get_current_user] = lambda: User(id=1)
+        response = await client.patch(
+            "/api/v1/scores/preview-score/guest-preview", json={"enabled": "invalid"}
+        )
+        assert response.status_code == 422
+        assert response.headers["cache-control"] == "private, no-store"
+        response = await client.get("/api/v1/cache-policy-control")
+        assert response.headers["cache-control"] == "public, max-age=60"

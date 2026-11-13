@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
@@ -15,11 +15,7 @@ from app.modules.guest_previews.service import GuestPreviewService
 from app.shared.responses import APIResponse, success_response
 
 
-def private_response(response: Response) -> None:
-    response.headers["Cache-Control"] = "private, no-store"
-
-
-score_router = APIRouter(dependencies=[Depends(private_response)])
+score_router = APIRouter()
 preview_router = APIRouter()
 
 
@@ -57,11 +53,9 @@ async def update_guest_preview_settings(
 @preview_router.get("/{token}", response_model=APIResponse[GuestPreviewRead])
 async def read_guest_preview(
     token: str,
-    response: Response,
     db: AsyncSession = Depends(get_db),
     service: GuestPreviewService = Depends(get_guest_preview_service),
 ):
-    response.headers["Cache-Control"] = "private, no-store"
     return success_response(data=await service.read(db, token))
 
 
@@ -80,7 +74,6 @@ async def view_guest_preview_page(
         media_type=delivery.media_type,
         attachment=False,
     )
-    response.headers["Cache-Control"] = "private, no-store"
     return response
 
 
@@ -101,5 +94,4 @@ async def listen_guest_preview(
         request=request,
         enable_range=True,
     )
-    response.headers["Cache-Control"] = "private, no-store"
     return response
