@@ -201,8 +201,8 @@ policy explicitly; transport does not classify authentication URLs.
 Browser-native EventSource, image/audio and avatar URLs are separate transports.
 `src/lib/api/native-resource-urls.ts` owns native Score and Guest Preview media
 URLs; `src/lib/score-detail/thumbnail.ts` owns native render-thumbnail image URLs.
-`app-protocol.ts` owns the EventSource URL, and profile presentation resolves
-server-provided avatar URLs. Signed storage upload uses
+`app-protocol.ts` owns the EventSource URL, and profile presentation uses
+server-provided API-rooted avatar URLs directly. Signed storage upload uses
 `src/lib/http/direct-object-upload.ts`, omits credentials and uses the exact
 server-provided target and headers. Static FIR assets and local Blob snapshots
 are resource reads outside Customer HTTP operations.

@@ -4,7 +4,6 @@ import { customerTransport, responseData } from '@/lib/http/customer-browser-tra
  * Profile API wrapper.
  */
 import type { AccountSessionsListData, RequestEmailChangeRequest, UpdateProfileRequest } from '@/generated/api';
-import { API_BASE_URL } from '@/lib/app-protocol';
 
 // API functions.
 
@@ -75,24 +74,6 @@ async function revokeOtherSessions() {
   return responseData(accountOtherSessionsRevoke({ ...customerTransport.authenticated }));
 }
 
-/**
- * Build the avatar image URL.
- * @param avatarUrl Avatar path or absolute URL.
- */
-function getAvatarUrl(avatarUrl?: string): string {
-  if (!avatarUrl) {
-    return '/default-avatar.png'; // Default avatar.
-  }
-
-  // Return absolute URLs unchanged.
-  if (avatarUrl.startsWith('http')) {
-    return avatarUrl;
-  }
-
-  // Resolve relative avatar paths against the API base URL.
-  return `${API_BASE_URL}${avatarUrl}`;
-}
-
 export const profileApi = {
   getProfile,
   updateProfile,
@@ -104,5 +85,4 @@ export const profileApi = {
   requestEmailChange,
   revokeSession,
   revokeOtherSessions,
-  getAvatarUrl,
 };

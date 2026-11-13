@@ -164,11 +164,9 @@ def test_avatar_service_stores_processed_image_through_storage(mode: str) -> Non
         )
 
         filename = avatar_key.rsplit("/", 1)[-1]
-        avatar_url = f"/api/v1/account/avatars/{filename}"
         put.assert_not_called()
         assert filename.startswith("7_")
         assert filename.endswith(".jpg")
-        assert avatar_url == f"/api/v1/account/avatars/{filename}"
         with Image.open(io.BytesIO(avatar_bytes)) as avatar:
             assert avatar.format == "JPEG"
             assert avatar.mode == "RGB"
@@ -207,7 +205,7 @@ def test_profile_payload_does_not_repair_missing_avatar_reference() -> None:
 
     payload = ProfileService().profile_payload(user)
 
-    assert payload.user.avatar_url == "/api/v1/account/avatars/profile.jpg"
+    assert payload.user.avatar_url == avatar_url_for_user(user)
     assert user.avatar_object.object_key == "avatars/profile.jpg"
 
 
@@ -503,52 +501,58 @@ async def test_delete_uploaded_file_removes_owned_file_and_record() -> None:
     db.commit.assert_awaited_once()
 
 
-def test_avatar_delivery_uses_stable_application_url_and_fresh_capability(score_service_session):
-    from fastapi import FastAPI
-    from fastapi.testclient import TestClient
-    from app.core.exception_handlers import register_exception_handlers
-    from app.modules.account.router import router
+@pytest.mark.asyncio
+@pytest.mark.parametrize("source", ["profile", "upload"])
+async def test_avatar_response_url_routes_to_current_customer_resolver(
+    score_service_session, source
+):
+    from httpx import ASGITransport, AsyncClient
+    from app.api.deps import get_current_user, get_db
+    from app.main import create_app
     from app.modules.account.dependencies import get_avatar_service
-    from app.modules.account.avatar_service import AvatarService
-    from PIL import Image
 
-    storage = InMemoryObjectStorage()
+    session, storage = score_service_session
+    db = AsyncSessionAdapter(session)
+    user = session.get(User, 1)
     service = AvatarService(storage=storage)
     image = io.BytesIO()
     Image.new("RGB", (2, 2), "red").save(image, format="PNG")
-    avatar_key, avatar_bytes = service.process_avatar(image.getvalue(), "avatar.png", 42)
-    filename = avatar_key.rsplit("/", 1)[-1]
-    storage.put_bytes(key=avatar_key, content=avatar_bytes, content_type="image/jpeg")
-    current = object_from_bytes(
-        object_key=avatar_key, content=avatar_bytes, content_type="image/jpeg"
-    )
-    url = avatar_url_for_user(User(avatar_object=current))
-    assert url == f"/api/v1/account/avatars/{filename}"
-    app = FastAPI()
-    register_exception_handlers(app)
-    app.include_router(router, prefix="/api/v1/account")
-    app.dependency_overrides[get_avatar_service] = lambda: service
-    from app.api.deps import get_db
-
-    db = Mock()
-    db.scalar = AsyncMock(return_value=current)
+    # Establish a real current avatar object, using the same service as HTTP upload.
+    await service.replace_user_avatar(db, user, file_bytes=image.getvalue(), filename="avatar.png")
+    app = create_app()
 
     async def avatar_db():
         yield db
 
+    async def current_user():
+        return user
+
     app.dependency_overrides[get_db] = avatar_db
+    app.dependency_overrides[get_current_user] = current_user
+    app.dependency_overrides[get_avatar_service] = lambda: service
     capabilities = ["https://objects.example/lease-one", "https://objects.example/lease-two"]
     storage.download_url = Mock(side_effect=capabilities)
-    with TestClient(app, follow_redirects=False) as client:
-        response = client.get(url)
-        assert response.status_code == 307
-        assert response.headers["location"] == capabilities[0]
-        assert client.get(url).headers["location"] == capabilities[1]
-        assert (
-            storage.download_url.call_args_list
-            == [call(f"avatars/{filename}", content_type="image/jpeg")] * 2
-        )
-        assert storage.object_metadata(f"avatars/{filename}").content_type == "image/jpeg"
-        storage.delete(f"avatars/{filename}")
-        assert client.get(url).status_code == 404
-        assert client.get("/api/v1/account/avatars/other.jpg").status_code == 404
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://testserver", follow_redirects=False
+    ) as client:
+        if source == "profile":
+            response = await client.get("/api/v1/me/profile")
+            url = response.json()["data"]["user"]["avatar_url"]
+        else:
+            response = await client.post(
+                "/api/v1/me/avatar", files={"file": ("avatar.png", image.getvalue(), "image/png")}
+            )
+            url = response.json()["data"]["avatar_url"]
+        assert response.status_code == 200
+        assert url.startswith("/") and not url.startswith("//")
+        assert url == avatar_url_for_user(user)
+        key = user.avatar_object.object_key
+        for capability in capabilities:
+            redirect = await client.get(url)
+            assert redirect.status_code == 307
+            assert redirect.content == b""
+            assert redirect.headers["location"] == capability
+        assert storage.download_url.call_args_list == [call(key, content_type="image/jpeg")] * 2
+        assert storage.object_metadata(key).content_type == "image/jpeg"
+        storage.delete(key)
+        assert (await client.get(url)).status_code == 404
