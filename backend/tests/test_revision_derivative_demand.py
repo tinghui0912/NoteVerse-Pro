@@ -3,19 +3,17 @@
 from app.db.models import StoredObject
 
 from contextlib import contextmanager
-from datetime import timedelta
 from hashlib import sha256
 from unittest.mock import Mock
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
 from app.db.models import (
     Score,
     ScoreRevision,
     ScoreRevisionSource,
-    ScoreGuestPreviewGrant,
     RenderOutbox,
     RenderOutboxStatus,
     RenderTargetType,
@@ -25,7 +23,6 @@ from app.db.models import (
     ImportDispatch,
     ImportDispatchStatus,
     ScoreDeletionStatus,
-    ScorePlaybackAsset,
 )
 from app.db.models.import_job import ImportJobState
 from app.db.models.score import RevisionOrigin, RevisionSourceFormat
@@ -37,16 +34,13 @@ from app.modules.revisions.schemas import RevisionCreateRequest
 from app.modules.review.service import ReviewService
 from app.modules.review.schemas import ReviewConfirmRequest
 from app.modules.guest_previews.service import GuestPreviewService
-from app.modules.guest_previews.schemas import GuestPreviewCreateRequest
-from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
+from app.modules.guest_previews.schemas import GuestPreviewUpdateRequest
 from app.modules.score_assets.render_outbox_service import render_outbox_service
 from app.modules.playback.outbox_service import playback_outbox_service
 from app.modules.score_assets.derived_assets import derived_asset_status
 from app.task_queue import producer
-from app.utils.timezone import utc_now_naive
 from tests.test_score_revision_services import score_service_session as score_service_session
 from tests.test_score_revision_services import AsyncSessionAdapter, MUSICXML_2
-from tests.test_guest_previews import add_page, add_audio
 
 
 @pytest.fixture
@@ -121,10 +115,13 @@ def work_rows(db, number):
     )
 
 
-def test_unpinned_history_is_not_generation_demand_and_never_runs_generators(
-    revisions, monkeypatch
+@pytest.mark.parametrize("enabled", [False, True])
+def test_historical_revisions_are_not_generation_demand_and_never_runs_generators(
+    revisions, monkeypatch, enabled
 ):
     db, storage, score, rows = revisions
+    score.guest_preview_enabled = enabled
+    db.commit()
     from app.worker.execution import render_outbox, playback_outbox
 
     @contextmanager
@@ -172,36 +169,6 @@ def test_unpinned_history_is_not_generation_demand_and_never_runs_generators(
     )
 
 
-@pytest.mark.parametrize("preview_state", ["active", "revoked", "expired"])
-@pytest.mark.parametrize("retry", [False, True])
-def test_only_active_pins_create_historical_demand(revisions, preview_state, retry):
-    db, _, _, rows = revisions
-    now = utc_now_naive()
-    db.add(
-        ScoreGuestPreviewGrant(
-            score_id=800,
-            revision_id=rows[0].id,
-            token_hash="a" * 64,
-            expires_at=now + timedelta(days=1)
-            if preview_state != "expired"
-            else now - timedelta(days=1),
-            revoked_at=now if preview_state == "revoked" else None,
-            created_by_user_id=1,
-        )
-    )
-    if retry:
-        render, audio = work_rows(db, 1)
-        render.status = RenderOutboxStatus.FAILED
-        audio.status = PlaybackOutboxStatus.FAILED
-        if preview_state != "active":
-            render.next_attempt_at = audio.next_attempt_at = now + timedelta(days=1)
-    db.commit()
-    assert (render_outbox_service.claim(db, "render-1") is not None) == (preview_state == "active")
-    assert (playback_outbox_service.claim(db, "audio-1") is not None) == (preview_state == "active")
-    if preview_state != "active":
-        assert all(work.status.value == "SUPERSEDED" for work in work_rows(db, 1))
-
-
 def test_processing_is_not_cancelled_and_missing_source_is_not_superseded(revisions):
     db, _, score, rows = revisions
     render, audio = work_rows(db, 1)
@@ -226,87 +193,7 @@ def test_processing_is_not_cancelled_and_missing_source_is_not_superseded(revisi
     assert all(work.status.value == "FAILED" for work in work_rows(db, 3))
 
 
-@pytest.mark.asyncio
-async def test_preview_rearms_old_resolved_head_atomically(revisions, monkeypatch):
-    db, storage, score, rows = revisions
-    score.head_revision_id = rows[0].id
-    db.commit()
-    async_db = AsyncSessionAdapter(db)
-    resolved = await ScoreAccessPolicy().authorize(
-        async_db, score.score_uuid, ScoreAction.MANAGE_GUEST_PREVIEWS, user_id=1
-    )
-    score.head_revision_id = rows[2].id
-    db.commit()
-    assert render_outbox_service.claim(db, "render-1") is None
-    assert playback_outbox_service.claim(db, "audio-1") is None
-    db.commit()
-
-    class AlreadyResolvedPolicy:
-        async def authorize(self, *_args, **_kwargs):
-            return resolved
-
-    observed = []
-
-    async def after_commit(work):
-        with Session(db.get_bind()) as check:
-            assert check.scalar(select(ScoreGuestPreviewGrant.revision_id)) == rows[0].id
-            assert (
-                check.scalar(
-                    select(RenderOutbox.status).where(
-                        RenderOutbox.outbox_uuid == work.render_outbox_uuid
-                    )
-                )
-                == RenderOutboxStatus.PENDING
-            )
-            assert (
-                check.scalar(
-                    select(PlaybackOutbox.status).where(
-                        PlaybackOutbox.outbox_uuid == work.playback_outbox_uuid
-                    )
-                )
-                == PlaybackOutboxStatus.PENDING
-            )
-        observed.append(work)
-
-    monkeypatch.setattr(revision_derivative_service, "dispatch_after_commit", after_commit)
-    preview = await GuestPreviewService(
-        storage=storage, access_policy=AlreadyResolvedPolicy()
-    ).create(async_db, score.score_uuid, 1, GuestPreviewCreateRequest())
-    assert preview.preview_id and len(observed) == 1
-    assert render_outbox_service.claim(db, "render-1") is not None
-    assert playback_outbox_service.claim(db, "audio-1") is not None
-
-
-@pytest.mark.asyncio
-async def test_preview_ensures_missing_work_and_preserves_ready_assets(revisions):
-    db, storage, score, rows = revisions
-    for work in work_rows(db, 3):
-        db.delete(work)
-    db.commit()
-    service = GuestPreviewService(storage=storage)
-    await service.create(AsyncSessionAdapter(db), score.score_uuid, 1, GuestPreviewCreateRequest())
-    render = db.scalar(select(RenderOutbox).where(RenderOutbox.revision_id == rows[2].id))
-    audio = db.scalar(select(PlaybackOutbox).where(PlaybackOutbox.revision_id == rows[2].id))
-    add_page(db, storage, rows[2].id, "ready-page")
-    add_audio(db, storage, rows[2].id)
-    asset = db.scalar(select(ScorePlaybackAsset))
-    asset.source_fingerprint = rows[2].content_hash
-    render.status = RenderOutboxStatus.COMPLETED
-    audio.status = PlaybackOutboxStatus.COMPLETED
-    db.commit()
-    await service.create(AsyncSessionAdapter(db), score.score_uuid, 1, GuestPreviewCreateRequest())
-    assert (
-        render.status == RenderOutboxStatus.COMPLETED
-        and audio.status == PlaybackOutboxStatus.COMPLETED
-    )
-    assert (
-        len(db.scalars(select(RenderOutbox)).all())
-        == len(db.scalars(select(PlaybackOutbox)).all())
-        == 3
-    )
-
-
-@pytest.mark.parametrize("operation", ["save", "restore", "confirm", "confirm_sync", "preview"])
+@pytest.mark.parametrize("operation", ["save", "restore", "confirm", "confirm_sync"])
 @pytest.mark.parametrize("broker_fails", [False, True])
 @pytest.mark.asyncio
 async def test_business_commit_precedes_immediate_dispatch_and_broker_failure_is_recoverable(
@@ -413,10 +300,6 @@ async def test_business_commit_precedes_immediate_dispatch_and_broker_failure_is
         SyncConfirmedScoreCreationService(storage=storage).create_confirmed_from_job(
             db, "confirm-sync-demand", str(path)
         )
-    else:
-        await GuestPreviewService(storage=storage).create(
-            async_db, score.score_uuid, 1, GuestPreviewCreateRequest()
-        )
     assert len(observed) == 1 and len(calls) == 2
     work = observed[0]
     render = db.scalar(
@@ -459,3 +342,34 @@ async def test_dispatcher_crash_does_not_escape_post_commit_boundary(monkeypatch
 def test_internal_superseded_state_has_safe_presentation_status(status):
     assert derived_asset_status(has_current_asset=False, outbox_status=status) == "pending"
     assert derived_asset_status(has_current_asset=True, outbox_status=status) == "ready"
+
+
+@pytest.mark.asyncio
+async def test_preview_toggle_only_changes_access_state(revisions, monkeypatch):
+    from unittest.mock import AsyncMock
+
+    db, storage, score, rows = revisions
+    assert render_outbox_service.claim(db, "render-1") is None
+    assert playback_outbox_service.claim(db, "audio-1") is None
+    db.commit()
+    snapshot = [
+        (type(work), work.outbox_uuid, work.status, work.attempt_count)
+        for n in (1, 2, 3)
+        for work in work_rows(db, n)
+    ]
+    enqueue = AsyncMock(side_effect=AssertionError("Toggle must not enqueue work"))
+    relay = AsyncMock(side_effect=AssertionError("Toggle must not dispatch work"))
+    monkeypatch.setattr(revision_derivative_service, "enqueue", enqueue)
+    monkeypatch.setattr(revision_derivative_service, "dispatch_after_commit", relay)
+    service = GuestPreviewService(storage=storage)
+    for enabled in [True, False]:
+        await service.update_settings(
+            AsyncSessionAdapter(db), score.score_uuid, 1, GuestPreviewUpdateRequest(enabled=enabled)
+        )
+        assert db.scalar(select(func.count()).select_from(RenderOutbox)) == 3
+        assert db.scalar(select(func.count()).select_from(PlaybackOutbox)) == 3
+        for model, identity, status, attempt in snapshot:
+            work = db.scalar(select(model).where(model.outbox_uuid == identity))
+            assert work.status == status and work.attempt_count == attempt
+    enqueue.assert_not_awaited()
+    relay.assert_not_awaited()

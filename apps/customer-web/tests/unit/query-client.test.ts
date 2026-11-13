@@ -17,12 +17,14 @@ describe('queryKeys', () => {
   it('builds My Scores list keys with complete filters', () => {
     expect(queryKeys.myScores.all).toEqual(['my-scores']);
     expect(queryKeys.myScores.lists()).toEqual(['my-scores', 'list']);
-    expect(queryKeys.myScores.list({
-      search: 'bach',
-      sort: 'updated_desc',
-      page: 2,
-      pageSize: 20,
-    })).toEqual([
+    expect(
+      queryKeys.myScores.list({
+        search: 'bach',
+        sort: 'updated_desc',
+        page: 2,
+        pageSize: 20,
+      })
+    ).toEqual([
       'my-scores',
       'list',
       {
@@ -50,9 +52,9 @@ describe('queryKeys', () => {
       'revision-assets',
       { scoreId: 'score-1', revisionId: 'revision-1' },
     ]);
-    expect(queryKeys.scores.guestPreviews('score-1')).toEqual([
+    expect(queryKeys.scores.guestPreviewSettings('score-1')).toEqual([
       'scores',
-      'guest-previews',
+      'guest-preview-settings',
       { scoreId: 'score-1' },
     ]);
     expect(queryKeys.scores.guestPreview('token-1')).toEqual([
@@ -75,10 +77,7 @@ describe('queryKeys', () => {
       { scoreId: 'score-1' },
     ]);
     expect(queryKeys.notifications.list()).toEqual(['notifications', 'list']);
-    expect(queryKeys.notifications.unreadCount()).toEqual([
-      'notifications',
-      'unread-count',
-    ]);
+    expect(queryKeys.notifications.unreadCount()).toEqual(['notifications', 'unread-count']);
   });
 
   it('invalidates every revision variant for one score through the revision prefix', async () => {

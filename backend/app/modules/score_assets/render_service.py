@@ -40,6 +40,10 @@ from app.modules.score_assets.render_execution_manifest import build_render_exec
 from app.modules.score_assets.schemas import RenderAssetRead
 from app.modules.score_assets.service import ScoreAssetService
 from app.modules.scores.repository import ScoreRepository
+from app.modules.revisions.presentation_demand import (
+    lock_presentation_score,
+    admit_generated_revision,
+)
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.storage_usage.service import storage_usage_service
 from app.processing.engines.render import create_score_render_engine
@@ -220,12 +224,9 @@ class RevisionRenderService:
                 profile=profile,
                 uploaded_keys=uploaded_keys,
             )
-            score = db.execute(
-                select(Score)
-                .where(Score.id == score.id, Score.deletion_status == ScoreDeletionStatus.ACTIVE)
-                .with_for_update()
-                .execution_options(populate_existing=True)
-            ).scalar_one()
+            score = lock_presentation_score(db, score.id)
+            admit_generated_revision(db, score, revision_id, source_fingerprint)
+            assert score is not None
             manifest = get_or_create_execution_manifest(db, build_render_execution_manifest())
             execution_manifest_id = require_persisted_id(manifest.id, entity="execution manifest")
             new_records = [

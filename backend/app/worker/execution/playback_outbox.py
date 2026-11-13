@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from app.modules.revisions.presentation_demand import RevisionPresentationSuperseded
 from typing import Any
 
 from app.core.background_tracing import record_current_attempt_failure
@@ -70,6 +71,13 @@ def execute_playback_outbox_task(task: CeleryTaskLike, outbox_uuid: str) -> dict
                     source_fingerprint=payload.source_fingerprint,
                     asset_kind=payload.asset_kind,
                 )
+        except RevisionPresentationSuperseded:
+            with get_worker_db() as db:
+                playback_outbox_service.supersede(db, outbox_uuid)
+            operation_logger("playback.superseded", **context, status="superseded").info(
+                "playback.superseded"
+            )
+            return {"status": "superseded", "outbox_uuid": outbox_uuid}
         except Exception as exc:
             record_current_attempt_failure(exc)
             with get_worker_db() as db:

@@ -20,7 +20,6 @@ def test_fresh_foundation_schema_matches_models_and_revision_ownership(monkeypat
         }
         for name in (
             "score_memberships",
-            "score_guest_preview_grants",
             "score_invites",
         ):
             table = SQLModel.metadata.tables[name]

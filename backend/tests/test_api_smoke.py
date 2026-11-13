@@ -158,7 +158,11 @@ def test_main_api_serves_one_practice_bundle(client: TestClient, include_notatio
                 ).read_text()
             )
             return {
-                "binding":{"score_id":score_uuid,"revision_id":revision_uuid,"bundle_id":"bundle-1"},
+                "binding": {
+                    "score_id": score_uuid,
+                    "revision_id": revision_uuid,
+                    "bundle_id": "bundle-1",
+                },
                 "artifact": artifact,
                 "notation": {
                     "musicxml": '<score-partwise><note id="nv-p1-m1-note1" /></score-partwise>',
@@ -185,7 +189,11 @@ def test_main_api_serves_one_practice_bundle(client: TestClient, include_notatio
         app.dependency_overrides.pop(get_db, None)
     assert response.status_code == 200
     source = response.json()["data"]
-    assert source["binding"] == {"score_id":"score-1","revision_id":"revision-1","bundle_id":"bundle-1"}
+    assert source["binding"] == {
+        "score_id": "score-1",
+        "revision_id": "revision-1",
+        "bundle_id": "bundle-1",
+    }
     assert "scoreId" not in source["artifact"]
     assert "revisionId" not in source["artifact"]
     assert (source["notation"] is not None) == include_notation
@@ -247,8 +255,8 @@ def test_scores_feature_routes_require_authentication(client: TestClient) -> Non
         ("get", "/api/v1/revision-sources/source-1/access-url", None),
         ("get", "/api/v1/render-assets/render-asset-1/download", None),
         ("get", "/api/v1/render-assets/render-asset-1/access-url", None),
-        ("post", "/api/v1/scores/test-score/guest-previews", {}),
-        ("get", "/api/v1/scores/test-score/guest-previews", None),
+        ("patch", "/api/v1/scores/test-score/guest-preview", {"enabled": True}),
+        ("get", "/api/v1/scores/test-score/guest-preview", None),
         ("post", "/api/v1/scores/test-score/invites", {}),
         ("get", "/api/v1/scores/test-score/invites", None),
         ("post", "/api/v1/scores/test-score/invites/invite-1/revoke", None),

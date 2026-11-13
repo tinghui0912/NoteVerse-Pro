@@ -16,7 +16,7 @@ editing sends revision MusicXML and original input assets to Editor. These are t
 application disclosures, not DRM restrictions. Viewer gets no machine-readable source.
 Revision content and history require EDIT; authenticated audio requires PRACTICE.
 
-Guest Preview is a separate exact-revision image/listen bearer channel. It grants no
+Guest Preview is a separate current-head image/listen bearer channel. It grants no
 Practice, editable membership, source download or persistent account access.
 
 An invite has a high-entropy opaque token returned once, with only its hash

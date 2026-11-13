@@ -9,9 +9,9 @@ const projectPath = (path: string) => resolve(process.cwd(), path);
 describe('Verovio listen surfaces', () => {
   it('renders Guest Preview as server-rendered images and dedicated audio', () => {
     const page = readSource('src/components/external/guest-preview-page.tsx');
-    expect(page).toContain('<Image unoptimized');
-    expect(page).toContain('guestPreviewsApi.pageUrl');
-    expect(page).toContain('guestPreviewsApi.playbackUrl');
+    expect(page).toMatch(/<Image\s+unoptimized\b/);
+    expect(page).toContain('guestPreviewApi.pageUrl');
+    expect(page).toContain('guestPreviewApi.playbackUrl');
   });
 
   it('removes the old listen modal preview path', () => {
@@ -186,7 +186,7 @@ describe('Verovio listen surfaces', () => {
     expect(panel).toContain('getRenderIdsForDomainAnchor(domainAnchors, selectedDomainAnchor)');
     expect(panel).toContain('getDomainAnchorTrackColor(domainDocument, selectedDomainAnchor)');
     expect(panel).not.toContain('selectedLegacyEvent');
-    expect(selection).toContain("querySelectorAll(`.${SCORE_EDITOR_SELECTED_CLASS}`)");
+    expect(selection).toContain('querySelectorAll(`.${SCORE_EDITOR_SELECTED_CLASS}`)');
     expect(selection).toContain('element.classList.add(SCORE_EDITOR_SELECTED_CLASS)');
     expect(selection).toContain('--score-editor-selection-color');
   });
@@ -268,7 +268,9 @@ describe('Verovio listen surfaces', () => {
     const inspector = readSource('src/components/editor/event-inspector.tsx');
     const scoreInspector = readSource('src/components/editor/event-score-inspector.tsx');
     const previewPanel = readSource('src/components/editor/editor-preview-panel.tsx');
-    const previewPlaceholders = readSource('src/components/editor/editor-preview-metadata-placeholders.ts');
+    const previewPlaceholders = readSource(
+      'src/components/editor/editor-preview-metadata-placeholders.ts'
+    );
 
     expect(inspector).toContain('ScoreInspectorPanel');
     expect(scoreInspector).toContain('function ScoreInspectorPanel');

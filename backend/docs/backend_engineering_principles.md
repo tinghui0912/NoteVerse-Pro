@@ -70,7 +70,6 @@ ImportJob ---- ImportJobStep
   v
 Score ---- ScoreMembership
   |  \----- ScoreLibraryEntry
-  |  \----- ScoreGuestPreviewGrant
   |
   v
 ScoreRevision ---- ScoreRevisionMetadata
@@ -93,7 +92,7 @@ Core rules:
 - `ImportArtifact` stores job internals such as OMR output, enhanced XML, diagnostics,
   and other non-product pipeline artifacts.
 - `ScoreRevisionMetadata` is a rebuildable typed projection from canonical MusicXML.
-- `ScoreGuestPreviewGrant`, `ScoreMembership`, and `ScoreLibraryEntry` have distinct authorization and product semantics.
+- Score-owned Guest Preview settings, `ScoreMembership`, and `ScoreLibraryEntry` have distinct authorization and product semantics.
 - `modules/practice` serves revision-bound PracticeScoreArtifact, practice-ready
   score content, and target/source delivery for Customer Web.
 - Active Practice state, STEP/Continuous execution, the local clock, MIDI input,
@@ -220,11 +219,12 @@ services.
 
 ### `modules/guest_previews`
 
-Owns expiring, one-way revocable bearer presentation for one pinned ScoreRevision.
-Only the owner creates/manages previews. Tokens are hashed, returned once, and never
-included in lists/logs. Anonymous presentation uses exact rendered page images and
-exact audio, without revision fallback. No MusicXML, explicit downloads, Practice,
-Library entry, redemption or persistent account relationship is available.
+Owns Score-level stable-token settings and presentation-only bearer delivery.
+Only the owner reads the token or toggles access. Every bearer request resolves the
+current Score head; missing derivatives remain unavailable. No historical revision
+is pinned. No MusicXML, download, Practice, Library entry, redemption or persistent
+account relationship is available. Tokens are excluded from generic Score responses
+and logs.
 
 ### `modules/practice`
 
@@ -429,7 +429,7 @@ For score-domain changes, add focused coverage for the relevant behavior:
 - revision ordering, conflict, approval, immutable sources, and restore semantics;
 - metadata extraction, rebuild, and failure states;
 - authorization matrix for owner/member access and anonymous Guest Preview paths;
-- Guest Preview token hashing, expiry, revocation, exact revision isolation and presentation boundaries;
+- Guest Preview stable-token settings, current-head isolation and presentation boundaries;
 - revision-bound `PracticeScoreArtifact`, practice-ready content, and target/source
   delivery;
 - browser-local active Practice state remains outside backend session authority;
@@ -454,7 +454,7 @@ Before finalizing backend work, check:
 - no job ID used as a score route identity after a score exists;
 - no canonical MusicXML mutation that overwrites an existing revision source;
 - owner/member operations delegate to `modules/score_access`; Guest Preview owns exact presentation authorization;
-- no raw Guest Preview token persistence beyond one-time token return;
+- raw Guest Preview tokens belong only to Score and owner-only settings responses;
 - revision-bound PracticeScoreArtifact/source delivery preserves immutable revision
   identity while active Practice execution remains browser-local;
 - no direct durable file path construction outside `app/storage`;

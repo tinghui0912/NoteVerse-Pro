@@ -86,10 +86,8 @@ def test_guest_preview_contract_is_presentation_only(client: TestClient) -> None
         if "Guest Previews" in operation.get("tags", [])
     }
     assert operations == {
-        ("post", "/api/v1/scores/{score_id}/guest-previews"),
-        ("get", "/api/v1/scores/{score_id}/guest-previews"),
-        ("post", "/api/v1/scores/guest-previews/{preview_id}/revoke"),
-        ("delete", "/api/v1/scores/guest-previews/{preview_id}"),
+        ("get", "/api/v1/scores/{score_id}/guest-preview"),
+        ("patch", "/api/v1/scores/{score_id}/guest-preview"),
         ("get", "/api/v1/guest-previews/{token}"),
         ("get", "/api/v1/guest-previews/{token}/render-assets/{asset_id}/view"),
         ("get", "/api/v1/guest-previews/{token}/playback"),
@@ -98,19 +96,12 @@ def test_guest_preview_contract_is_presentation_only(client: TestClient) -> None
     assert set(components["GuestPreviewRead"]["properties"]) == {
         "title",
         "shared_by",
-        "created_at",
-        "expires_at",
         "render_assets",
         "audio_available",
     }
-    assert set(components["GuestPreviewCreateRequest"]["properties"]) == {"expires_at"}
-    assert components["GuestPreviewCreateRequest"]["additionalProperties"] is False
-    assert set(components["GuestPreviewListItem"]["properties"]) == {
-        "preview_id",
-        "created_at",
-        "expires_at",
-        "revoked_at",
-    }
+    assert set(components["GuestPreviewUpdateRequest"]["properties"]) == {"enabled"}
+    assert components["GuestPreviewUpdateRequest"]["additionalProperties"] is False
+    assert set(components["GuestPreviewSettingsRead"]["properties"]) == {"enabled", "token"}
 
 
 def test_collaboration_role_contract_is_least_privilege(client: TestClient) -> None:

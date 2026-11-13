@@ -3,30 +3,18 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from app.core.logger import logger
-from app.db.models import (
-    PlaybackOutbox,
-    PlaybackOutboxStatus,
-    RenderOutbox,
-    RenderOutboxStatus,
-    ScorePlaybackAsset,
-    ScoreRenderAsset,
-)
-from app.db.models.score import RenderAssetKind
 from app.modules.metadata.service import MetadataProjectionService
 from app.modules.playback.outbox_service import (
     create_playback_outbox,
     create_playback_outbox_sync,
-    rearm_revision_outbox as rearm_playback,
 )
 from app.modules.score_assets.render_outbox_service import (
     create_revision_render_outbox,
     create_revision_render_outbox_sync,
-    rearm_revision_outbox as rearm_render,
 )
 from app.storage import ObjectStorage, object_storage
 
@@ -110,68 +98,6 @@ class RevisionDerivativeService:
             await asyncio.to_thread(dispatch_revision_derivatives_best_effort, work)
         except Exception as exc:
             _log_fast_dispatch_failure(work, exc)
-
-    async def ensure_preview_work(
-        self,
-        db: AsyncSession,
-        *,
-        score_id: int,
-        revision_id: int,
-        requested_by_user_id: int,
-        source_fingerprint: str,
-        storage: ObjectStorage,
-    ) -> RevisionDerivativeOutboxes:
-        # Caller holds the Score lock: worker claims cannot interleave with this rearm.
-        work = await self.enqueue(
-            db,
-            score_id=score_id,
-            revision_id=revision_id,
-            requested_by_user_id=requested_by_user_id,
-            source_fingerprint=source_fingerprint,
-        )
-        render = (
-            await db.execute(
-                select(RenderOutbox).where(RenderOutbox.outbox_uuid == work.render_outbox_uuid)
-            )
-        ).scalar_one()
-        if render.status == RenderOutboxStatus.COMPLETED:
-            pages = (
-                (
-                    await db.execute(
-                        select(ScoreRenderAsset).where(
-                            ScoreRenderAsset.revision_id == revision_id,
-                            ScoreRenderAsset.render_profile == render.render_profile,
-                            ScoreRenderAsset.kind == RenderAssetKind.RENDERED_PAGE,
-                        )
-                    )
-                )
-                .scalars()
-                .all()
-            )
-            if not pages or not all(
-                storage.exists(page.stored_object.object_key) for page in pages
-            ):
-                rearm_render(render)
-        playback = (
-            await db.execute(
-                select(PlaybackOutbox).where(
-                    PlaybackOutbox.outbox_uuid == work.playback_outbox_uuid
-                )
-            )
-        ).scalar_one()
-        if playback.status == PlaybackOutboxStatus.COMPLETED:
-            audio = (
-                await db.execute(
-                    select(ScorePlaybackAsset).where(
-                        ScorePlaybackAsset.revision_id == revision_id,
-                        ScorePlaybackAsset.kind == playback.asset_kind,
-                        ScorePlaybackAsset.source_fingerprint == source_fingerprint,
-                    )
-                )
-            ).scalar_one_or_none()
-            if audio is None or not storage.exists(audio.stored_object.object_key):
-                rearm_playback(playback)
-        return work
 
     async def rebuild_metadata_best_effort(
         self,

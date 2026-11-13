@@ -1435,6 +1435,8 @@ def upgrade() -> None:
         sa.Column("score_uuid", sa.String(length=36), nullable=False),
         sa.Column("owner_user_id", sa.BigInteger(), nullable=False),
         sa.Column("title", sa.String(length=255), nullable=False),
+        sa.Column("guest_preview_token", sa.String(length=64), nullable=False),
+        sa.Column("guest_preview_enabled", sa.Boolean(), nullable=False),
         sa.Column(
             "genres",
             sa.JSON().with_variant(postgresql.JSONB(astext_type=sa.Text()), "postgresql"),
@@ -1476,6 +1478,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id", name="pk_scores"),
         sa.UniqueConstraint("originating_job_id", name="uq_scores_originating_job_id"),
         sa.UniqueConstraint("score_uuid", name="uq_scores_score_uuid"),
+        sa.UniqueConstraint("guest_preview_token", name="uq_scores_guest_preview_token"),
     )
     op.create_index(
         "idx_scores_deletion_cleanup_due",
@@ -2027,54 +2030,6 @@ def upgrade() -> None:
         unique=False,
     )
     op.create_table(
-        "score_guest_preview_grants",
-        sa.Column(
-            "id",
-            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
-            autoincrement=True,
-            nullable=False,
-        ),
-        sa.Column("preview_uuid", sa.String(length=36), nullable=False),
-        sa.Column("score_id", sa.BigInteger(), nullable=False),
-        sa.Column("revision_id", sa.BigInteger(), nullable=False),
-        sa.Column("token_hash", sa.String(length=64), nullable=False),
-        sa.Column("expires_at", sa.DateTime(), nullable=False),
-        sa.Column("revoked_at", sa.DateTime(), nullable=True),
-        sa.Column("created_by_user_id", sa.BigInteger(), nullable=False),
-        sa.Column("created_at", sa.DateTime(), nullable=False),
-        sa.ForeignKeyConstraint(
-            ["created_by_user_id"],
-            ["users.id"],
-            name="fk_score_guest_preview_grants_created_by_user_id_users",
-        ),
-        sa.ForeignKeyConstraint(
-            ["score_id", "revision_id"],
-            ["score_revisions.score_id", "score_revisions.id"],
-            name="fk_guest_preview_score_revision",
-            ondelete="CASCADE",
-        ),
-        sa.ForeignKeyConstraint(
-            ["score_id"],
-            ["scores.id"],
-            name="fk_score_guest_preview_grants_score_id_scores",
-            ondelete="CASCADE",
-        ),
-        sa.PrimaryKeyConstraint("id", name="pk_score_guest_preview_grants"),
-        sa.UniqueConstraint("preview_uuid", name="uq_score_guest_preview_grants_preview_uuid"),
-    )
-    op.create_index(
-        "idx_score_guest_previews_score_created",
-        "score_guest_preview_grants",
-        ["score_id", "created_at"],
-        unique=False,
-    )
-    op.create_index(
-        "idx_score_guest_previews_token_hash",
-        "score_guest_preview_grants",
-        ["token_hash"],
-        unique=True,
-    )
-    op.create_table(
         "score_playback_assets",
         sa.Column(
             "id",
@@ -2500,9 +2455,6 @@ def downgrade() -> None:
     )
     op.drop_index("idx_score_playback_assets_revision_kind", table_name="score_playback_assets")
     op.drop_table("score_playback_assets")
-    op.drop_index("idx_score_guest_previews_token_hash", table_name="score_guest_preview_grants")
-    op.drop_index("idx_score_guest_previews_score_created", table_name="score_guest_preview_grants")
-    op.drop_table("score_guest_preview_grants")
     op.drop_index(op.f("ix_render_outbox_originating_request_id"), table_name="render_outbox")
     op.drop_index("idx_render_outbox_status_available", table_name="render_outbox")
     op.drop_index("idx_render_outbox_dispatched", table_name="render_outbox")

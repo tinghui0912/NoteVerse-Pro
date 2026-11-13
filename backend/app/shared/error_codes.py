@@ -72,8 +72,6 @@ class FileErrorCode:
 
 class SharingErrorCode:
     GUEST_PREVIEW_NOT_FOUND = "guest_preview_not_found"
-    GUEST_PREVIEW_REVOKED = "guest_preview_revoked"
-    GUEST_PREVIEW_EXPIRED = "guest_preview_expired"
     INVITE_NOT_FOUND = "invite_not_found"
     INVITE_EXPIRED = "invite_expired"
     INVITE_REVOKED = "invite_revoked"

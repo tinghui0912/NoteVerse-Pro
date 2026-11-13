@@ -57,8 +57,7 @@ recorded `score_id`.
 ## Presentation scheduling
 
 Revision transactions persist render/playback outboxes before commit and immediately
-attempt dispatch afterward. Workers generate only for an active Score head or active
-Guest Preview pin; presentation retention uses the same two owners. Score presentation reads the current
+attempt dispatch afterward. Workers generate only for an active Score head; presentation retention protects only that head. Score presentation reads the current
 head only; unowned historical derivatives are disposable immediately, while canonical
 snapshots remain durable. Beat recovers
 missed deliveries and stale leases. See [revision derivatives](../architecture/revision-derivatives.md).

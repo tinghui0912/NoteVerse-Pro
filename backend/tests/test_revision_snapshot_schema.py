@@ -1,15 +1,12 @@
-"""Fresh PostgreSQL snapshots retain same-Score head and presentation pinning."""
-
-from datetime import timedelta
+"""Fresh PostgreSQL snapshots retain same-Score head references."""
 
 import pytest
 import sqlalchemy as sa
 from alembic import command
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from app.db.models import Score, ScoreRevision, ScoreGuestPreviewGrant, User
+from app.db.models import Score, ScoreRevision, User
 from app.db.models.score import RevisionOrigin
-from app.utils.timezone import utc_now_naive
 from tests.support.postgres_schema import postgres_schema_database
 
 
@@ -67,29 +64,14 @@ def test_fresh_snapshot_schema_and_same_score_references(monkeypatch):
             db.commit()
             a_id, b_revision_id = a.id, revisions[1].id
             a.head_revision_id = revisions[0].id
-            preview = ScoreGuestPreviewGrant(
-                score_id=a_id,
-                revision_id=revisions[0].id,
-                token_hash="a" * 64,
-                expires_at=utc_now_naive() + timedelta(days=7),
-                created_by_user_id=user.id,
-            )
-            db.add(preview)
             db.commit()
-            for table, mutation in [
-                (Score.__table__, dict(head_revision_id=b_revision_id)),
-                (ScoreGuestPreviewGrant.__table__, dict(revision_id=b_revision_id)),
-            ]:
-                with pytest.raises(IntegrityError) as rejected:
-                    db.execute(
-                        table.update()
-                        .where(table.c.id == (a_id if table.name == "scores" else preview.id))
-                        .values(**mutation)
-                    )
-                    db.commit()
-                assert rejected.value.orig.sqlstate == "23503"
-                db.rollback()
-            # Advancing the head preserves an independently pinned preview snapshot.
+            with pytest.raises(IntegrityError) as rejected:
+                db.execute(
+                    sa.update(Score).where(Score.id == a_id).values(head_revision_id=b_revision_id)
+                )
+                db.commit()
+            assert rejected.value.orig.sqlstate == "23503"
+            db.rollback()
             next_revision = ScoreRevision(
                 revision_uuid="snapshot-a2",
                 score_id=a_id,
@@ -101,5 +83,5 @@ def test_fresh_snapshot_schema_and_same_score_references(monkeypatch):
             db.flush()
             a.head_revision_id = next_revision.id
             db.commit()
-            db.refresh(preview)
-            assert preview.revision_id == revisions[0].id
+            db.refresh(a)
+            assert a.head_revision_id == next_revision.id

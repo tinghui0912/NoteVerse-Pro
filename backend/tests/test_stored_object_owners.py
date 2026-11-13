@@ -345,6 +345,7 @@ def test_derived_replacement_commits_new_asset_and_old_retirement_atomically(
         title="Replace",
     )
     revision = db.get(ScoreRevision, 922)
+    revision.content_hash = hashlib.sha256(MUSICXML_1).hexdigest()
     storage.put_bytes(
         key="scores/replace/source", content=MUSICXML_1, content_type="application/xml"
     )

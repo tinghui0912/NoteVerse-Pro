@@ -320,9 +320,9 @@ Run a small production smoke path:
 5. Confirm score.
 6. Open score detail page.
 7. Confirm thumbnail/audio derived assets eventually appear.
-8. Create a Guest Preview.
+8. Enable Guest Preview for a Score and copy its stable link.
 9. Open the Guest Preview link in a new session.
-10. Verify external page does not expose MusicXML when downloads are disabled.
+10. Verify the external page exposes neither MusicXML nor download actions.
 11. Delete a test score.
 12. Verify cleanup async operation is visible in ops metrics/logs.
 

@@ -17,21 +17,23 @@ default to VIEWER. Acceptance preserves the stronger role, owner changes may upg
 or downgrade, and membership revocation denies subsequent operations immediately.
 Score membership never grants access to another user's personal practice data.
 
-Guest Preview is a separate anonymous bearer presentation channel. An owner-created
-ScoreGuestPreviewGrant pins exactly one ScoreRevision. Its composite revision foreign
-key prevents cross-score linkage. It expires at a future time within 30 days (seven by
-default) and revocation is permanent. Deleted Scores are inaccessible immediately.
+Guest Preview is a separate anonymous, presentation-only bearer channel. Each Score
+owns one stable high-entropy token and an enabled flag. Only its owner can retrieve
+the link or toggle access. The token persists across disable/re-enable. Generic Score
+responses, model dumps and logs exclude it. There is no expiry or revision pin.
 
-Only exact pinned rendered page images and generated audio are delivered, inline and
-listen-only. Missing audio/images never fall back to a different revision. The JSON
-contains no MusicXML, revision sources, storage keys, download URLs or generic Score
-capabilities. No source, explicit download, Practice, edit, bookmark, redemption,
-membership or persistent account access is granted, including to logged-in visitors.
+Every bearer request requires an enabled, active Score and resolves its current head.
+Only current-head page images and generated audio are delivered inline/listen-only.
+An asset from an earlier head is rejected. Missing current-head assets never fall back
+to another revision. Historical derivatives are not protected by Guest Preview.
+The JSON contains no revision identity, MusicXML, source metadata, storage keys,
+download URLs or generic Score capabilities. No Practice, edit, download, bookmark,
+redemption, membership or persistent account access is granted, including to logged-in
+visitors.
 
-Raw random tokens are returned only on creation. Persistence uses hashes; management
-lists and logs do not reveal tokens. Guest Preview responses use private, no-store
-caching. The browser page declares noindex, nofollow and noarchive. These boundaries
-do not prevent screenshots or browser copying of rendered images.
+Guest Preview responses use private, no-store caching. The browser page declares
+noindex, nofollow and noarchive. These boundaries do not prevent screenshots or
+browser copying of rendered images.
 
 Customer and operator sessions have separate identities, cookies, CSRF and authorization
 policies. Structured logs follow the default-deny

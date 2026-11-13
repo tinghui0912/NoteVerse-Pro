@@ -1,85 +1,45 @@
-"""Fresh PostgreSQL schema enforces exact revision pinning and token identity."""
-
-from datetime import timedelta
+"""Fresh PostgreSQL Score-owned bearer capability constraints."""
 
 import pytest
 import sqlalchemy as sa
 from alembic import command
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from app.db.models import ScoreGuestPreviewGrant, Score, ScoreRevision, User
-from app.db.models.score import RevisionOrigin
-from app.utils.timezone import utc_now_naive
+from app.db.models import Score, User
 from tests.support.postgres_schema import postgres_schema_database
 
 
-def test_fresh_postgres_preview_constraints_and_cascade(monkeypatch):
+def test_fresh_postgres_preview_settings_constraints(monkeypatch):
     with postgres_schema_database(monkeypatch) as (engine, config):
         command.upgrade(config, "head")
         inspector = sa.inspect(engine)
-        table = ScoreGuestPreviewGrant.__table__
-        actual = {column["name"]: column for column in inspector.get_columns(table.name)}
-        assert set(actual) == set(table.columns.keys())
-        assert all(actual[c.name]["nullable"] == c.nullable for c in table.columns)
-        assert {fk["referred_table"] for fk in inspector.get_foreign_keys(table.name)} == {
-            "users",
-            "scores",
-            "score_revisions",
-        }
+        columns = {c["name"]: c for c in inspector.get_columns("scores")}
+        assert not columns["guest_preview_token"]["nullable"]
+        assert not columns["guest_preview_enabled"]["nullable"]
+        assert any(
+            c["column_names"] == ["guest_preview_token"]
+            for c in inspector.get_unique_constraints("scores")
+        )
         with Session(engine) as db:
-            user = User(
-                email="preview-schema@example.com", display_name="Owner", password_hash="hash"
-            )
+            user = User(email="schema-preview@example.com", password_hash="hash")
             db.add(user)
             db.flush()
-            a = Score(score_uuid="a", title="A", owner_user_id=user.id)
-            b = Score(score_uuid="b", title="B", owner_user_id=user.id)
-            db.add_all([a, b])
-            db.flush()
-            ra = ScoreRevision(
-                revision_uuid="ra",
-                score_id=a.id,
-                revision_number=1,
-                content_hash="a" * 64,
-                origin=RevisionOrigin.IMPORT,
-            )
-            rb = ScoreRevision(
-                revision_uuid="rb",
-                score_id=b.id,
-                revision_number=1,
-                content_hash="b" * 64,
-                origin=RevisionOrigin.IMPORT,
-            )
-            db.add_all([ra, rb])
+            score = Score(score_uuid="preview", title="Preview", owner_user_id=user.id)
+            db.add(score)
             db.commit()
-            values = dict(
-                score_id=a.id,
-                revision_id=ra.id,
-                token_hash="a" * 64,
-                expires_at=utc_now_naive() + timedelta(days=7),
-                created_by_user_id=user.id,
-            )
-            preview = ScoreGuestPreviewGrant(**values)
-            db.add(preview)
-            db.commit()
-            # PostgreSQL, not a mock, rejects cross-score pinning, duplicate secrets/IDs, and missing expiry.
-            for index, (changes, sqlstate) in enumerate(
-                [
-                    (dict(revision_id=rb.id, token_hash="b" * 64), "23503"),
-                    (dict(token_hash="a" * 64), "23505"),
-                    (dict(preview_uuid=preview.preview_uuid, token_hash="c" * 64), "23505"),
-                    (dict(expires_at=None, token_hash="d" * 64), "23502"),
-                ]
-            ):
-                with pytest.raises(IntegrityError) as rejected:
-                    db.execute(
-                        table.insert().values(
-                            **(values | {"preview_uuid": f"new-preview-{index}"} | changes)
-                        )
-                    )
+            assert len(score.guest_preview_token) >= 43 and not score.guest_preview_enabled
+            for values in [dict(guest_preview_token=None), dict(guest_preview_enabled=None)]:
+                with pytest.raises(IntegrityError):
+                    db.execute(sa.update(Score).where(Score.id == score.id).values(**values))
                     db.commit()
-                assert rejected.value.orig.sqlstate == sqlstate
                 db.rollback()
-            db.delete(ra)
-            db.commit()
-            assert db.scalar(sa.select(sa.func.count()).select_from(table)) == 0
+            duplicate = Score(
+                score_uuid="duplicate",
+                title="Duplicate",
+                owner_user_id=user.id,
+                guest_preview_token=score.guest_preview_token,
+            )
+            db.add(duplicate)
+            with pytest.raises(IntegrityError):
+                db.commit()
+            db.rollback()

@@ -11,7 +11,6 @@ from sqlalchemy import (
     DateTime,
     Enum as SAEnum,
     ForeignKey,
-    ForeignKeyConstraint,
     Index,
     Integer,
     String,
@@ -122,38 +121,3 @@ class ScoreInvite(SQLModel, table=True):  # type: ignore[call-arg]
     accepted_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
     revoked_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
     declined_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-
-
-class ScoreGuestPreviewGrant(SQLModel, table=True):  # type: ignore[call-arg]
-    __tablename__ = "score_guest_preview_grants"
-    __table_args__ = (
-        Index("idx_score_guest_previews_score_created", "score_id", "created_at"),
-        Index("idx_score_guest_previews_token_hash", "token_hash", unique=True),
-        ForeignKeyConstraint(
-            ["score_id", "revision_id"],
-            ["score_revisions.score_id", "score_revisions.id"],
-            name="fk_guest_preview_score_revision",
-            ondelete="CASCADE",
-        ),
-    )
-    id: Optional[int] = Field(
-        default=None, sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True)
-    )
-    preview_uuid: str = Field(
-        default_factory=lambda: str(uuid.uuid4()),
-        sa_column=Column(String(36), unique=True, nullable=False),
-    )
-    score_id: int = Field(
-        sa_column=Column(BigInteger, ForeignKey("scores.id", ondelete="CASCADE"), nullable=False)
-    )
-    revision_id: int = Field(sa_column=Column(BigInteger, nullable=False))
-    token_hash: str = Field(sa_column=Column(String(64), nullable=False))
-    expires_at: datetime = Field(sa_column=Column(DateTime, nullable=False))
-    revoked_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    created_by_user_id: int = Field(
-        sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=False)
-    )
-    created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
-    )

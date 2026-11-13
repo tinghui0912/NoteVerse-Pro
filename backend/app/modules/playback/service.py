@@ -38,6 +38,7 @@ from app.modules.playback.execution_manifest import build_playback_execution_man
 from app.processing.engines.playback import FluidSynthAudioRenderer
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.storage_usage.service import storage_usage_service
+from app.modules.revisions.presentation_demand import admit_generated_revision
 from app.shared.constants import ErrorCode
 from app.storage import ObjectStorage, object_storage
 
@@ -255,27 +256,18 @@ class PlaybackGenerationService:
         )
         score = db.execute(
             select(Score)
-            .join(ScoreRevision, ScoreRevision.score_id == Score.id)
-            .where(
-                ScoreRevision.id == revision_id, Score.deletion_status == ScoreDeletionStatus.ACTIVE
-            )
-            .with_for_update(of=Score)
+            .where(Score.score_uuid == score_uuid)
+            .with_for_update()
             .execution_options(populate_existing=True)
-        ).scalar_one()
+        ).scalar_one_or_none()
+        admit_generated_revision(db, score, revision_id, source_fingerprint)
+        assert score is not None
         previous = db.execute(
             select(ScorePlaybackAsset).where(
                 ScorePlaybackAsset.revision_id == revision_id,
                 ScorePlaybackAsset.kind == asset_kind,
             )
         ).scalar_one_or_none()
-        score = db.execute(
-            select(Score)
-            .join(ScoreRevision, ScoreRevision.score_id == Score.id)
-            .where(
-                ScoreRevision.id == revision_id,
-                Score.deletion_status == ScoreDeletionStatus.ACTIVE,
-            )
-        ).scalar_one()
         previous_usage = playback_asset_usage(previous)
         try:
             manifest = get_or_create_execution_manifest(

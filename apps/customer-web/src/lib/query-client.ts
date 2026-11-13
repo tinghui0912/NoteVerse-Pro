@@ -42,7 +42,8 @@ export const queryKeys = {
     importJobs: {
         all: ['import-jobs'] as const,
         lists: () => ['import-jobs', 'list'] as const,
-        list: (page: number, pageSize: number) => ['import-jobs', 'list', { page, pageSize }] as const,
+        list: (page: number, pageSize: number) =>
+            ['import-jobs', 'list', { page, pageSize }] as const,
         detail: (id: string) => ['import-jobs', 'detail', { id }] as const,
     },
     scores: {
@@ -54,7 +55,8 @@ export const queryKeys = {
             ['scores', 'revision', { scoreId, revisionId }] as const,
         revisionAssets: (scoreId: string, revisionId?: string) =>
             ['scores', 'revision-assets', { scoreId, revisionId: revisionId ?? null }] as const,
-        guestPreviews: (scoreId: string) => ['scores', 'guest-previews', { scoreId }] as const,
+        guestPreviewSettings: (scoreId: string) =>
+            ['scores', 'guest-preview-settings', { scoreId }] as const,
         guestPreview: (token: string) => ['guest-preview', { token }] as const,
         myInvites: () => ['scores', 'my-invites'] as const,
         invites: (scoreId: string) => ['scores', 'invite', { scoreId }] as const,

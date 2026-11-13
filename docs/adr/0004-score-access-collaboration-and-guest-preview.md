@@ -31,20 +31,27 @@ Authenticated generated playback requires PRACTICE. Presentation image viewing i
 inline VIEW access, separate from DOWNLOAD. Score membership confers no visibility
 into another user's personal practice data.
 
-ScoreGuestPreviewGrant is a separate bearer presentation authority. Only the owner
-creates it. Creation pins the resolved current ScoreRevision; later head changes do
-not change its contents. A composite foreign key binds that revision to the Score.
-The grant expires within 30 days (default seven), is revocable one-way, and is removed
-with its Score/revision. Persistence stores a unique token hash. Only creation
-returns the high-entropy raw token; lists and logs never disclose it.
+Each Score owns one cryptographically random, stable Guest Preview token and an enabled
+flag. Only the owner can read the link or enable/disable access. Disabling and
+re-enabling preserve the same token. The token is persisted on Score and is excluded
+from generic Score responses and logs. Guest Preview has no expiry, revision pin or
+link history.
 
 ## Presentation boundary
 
-Guest Preview serves only exact-revision rendered page images inline and generated
-audio for listening. Missing assets remain unavailable; another revision is never a
-fallback. Active previews protect their pinned presentation assets from historical
-asset cleanup; expired or revoked previews do not. Score deletion remains authoritative.
-The bearer response has no source metadata or generic Score capabilities.
+Guest Preview resolves the current Score head on every read, image and playback
+request. It serves only that head's rendered pages inline and generated audio for
+listening. Missing current-head assets remain unavailable; another revision is never
+a fallback. A page identifier obtained before a head change cannot deliver the old
+revision. Shared attribution comes from the Score owner. The response contains no
+revision identity, source metadata or generic Score capabilities.
+
+Only the current Score head is normal durable presentation demand and is protected
+by derived-asset retention. Guest Preview does not dispatch work or retain historical
+Render/Playback assets. Workers check presentation demand under the Score lock after
+physical generation and before semantic adoption. Work superseded by a head change
+becomes SUPERSEDED; unadopted writes remain under ObjectWriteIntent cleanup. Canonical
+revision history and sources remain intact.
 
 Guest Preview cannot deliver MusicXML, practice, edit, offer image/archive downloads,
 bookmark, redeem, create membership, or grant persistent authenticated Score access.

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import enum
+import secrets
 from datetime import datetime
 from typing import Optional
 
@@ -92,6 +93,18 @@ class Score(SQLModel, table=True):  # type: ignore[call-arg]
     score_uuid: str = Field(sa_column=Column(String(36), unique=True, nullable=False))
     owner_user_id: int = Field(sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=False))
     title: str = Field(sa_column=Column(String(255), nullable=False))
+    guest_preview_token: str = Field(
+        default_factory=lambda: secrets.token_urlsafe(32),
+        repr=False,
+        exclude=True,
+        sa_column=Column(
+            String(64), unique=True, nullable=False, default=lambda: secrets.token_urlsafe(32)
+        ),
+    )
+    guest_preview_enabled: bool = Field(
+        default=False,
+        sa_column=Column(Boolean, default=False, nullable=False),
+    )
     genres: list[str] = Field(
         default_factory=list,
         sa_column=Column(metadata_json_type, default=list, nullable=False),
@@ -141,6 +154,11 @@ class Score(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=False,
         ),
     )
+
+    def __iter__(self):
+        for key, value in super().__iter__():
+            if key != "guest_preview_token":
+                yield key, value
 
 
 class ScoreInputAsset(SQLModel, table=True):  # type: ignore[call-arg]

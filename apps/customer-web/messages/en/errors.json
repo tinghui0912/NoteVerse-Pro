@@ -1,7 +1,5 @@
 {
   "guest_preview_not_found": "This Guest Preview is unavailable.",
-  "guest_preview_revoked": "This Guest Preview has been revoked.",
-  "guest_preview_expired": "This Guest Preview has expired.",
   "validation_error": "The submitted information is invalid. Please check and try again.",
   "resource_not_found": "The resource does not exist or has been deleted.",
   "business_rule_violation": "This action cannot be completed in the current state.",

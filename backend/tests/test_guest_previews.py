@@ -1,40 +1,29 @@
-"""Presentation-only bearer access pins exactly one revision."""
-
-from app.db.models import StoredObject
-
-from datetime import timedelta, timezone
-from hashlib import sha256
+"""Stable Score bearer settings and current-head presentation boundaries."""
 
 import pytest
 from pydantic import ValidationError
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
-
-from app.core.exceptions import (
-    ResourceNotFoundException,
-    UnauthorizedException,
-    ValidationException,
-)
+from app.core.exceptions import ResourceNotFoundException, UnauthorizedException
 from app.db.models import (
-    PlaybackAssetKind,
-    ScoreGuestPreviewGrant,
+    Score,
+    StoredObject,
     ScoreRevision,
     ScoreRenderAsset,
     ScorePlaybackAsset,
+    PlaybackAssetKind,
     ScoreLibraryEntry,
     ScoreMembership,
     ScoreDeletionStatus,
 )
 from app.db.models.score import RevisionOrigin, RenderAssetKind
-from app.modules.guest_previews.schemas import GuestPreviewCreateRequest
+from app.db.models.score_access import MembershipRole
+from app.modules.guest_previews.schemas import GuestPreviewUpdateRequest
 from app.modules.guest_previews.service import GuestPreviewService
-from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
-from app.utils.timezone import utc_now_naive
 from tests.test_score_revision_services import (
     AsyncSessionAdapter,
     add_active_score_with_head_revision,
+    score_service_session as score_service_session,
 )
-from tests.test_score_revision_services import score_service_session as score_service_session
 
 
 @pytest.fixture
@@ -126,150 +115,130 @@ def add_head_b(session, score):
     session.commit()
 
 
-def assert_presentation_only(value):
-    forbidden = {
-        "musicxml",
-        "revision_sources",
-        "source_id",
-        "source_uuid",
-        "storage_key",
-        "download_url",
-        "can_practice",
-        "can_download",
+@pytest.mark.asyncio
+async def test_owner_settings_token_stability_and_generic_disclosure(preview_context):
+    session, _, score, db, service = preview_context
+    token = score.guest_preview_token
+    assert len(token) >= 43
+    assert not score.guest_preview_enabled
+    assert (await service.settings(db, score.score_uuid, 1)).model_dump() == {
+        "enabled": False,
+        "token": token,
     }
-    if isinstance(value, dict):
-        assert not forbidden.intersection(k.lower() for k in value)
-        for item in value.values():
-            assert_presentation_only(item)
-    elif isinstance(value, list):
-        for item in value:
-            assert_presentation_only(item)
+    for enabled in [True, False, True]:
+        result = await service.update_settings(
+            db, score.score_uuid, 1, GuestPreviewUpdateRequest(enabled=enabled)
+        )
+        assert result.token == token and result.enabled == enabled
+    from app.modules.scores.service import ScoreService
+    from app.modules.scores.schemas import ScoreUpdateRequest
+
+    await ScoreService().update(
+        db,
+        score.score_uuid,
+        1,
+        ScoreUpdateRequest(expected_version=score.version, title="Updated", genres=["jazz"]),
+    )
+    add_head_b(session, score)
+    assert (await service.settings(db, score.score_uuid, 1)).token == token
+    assert token not in repr(score)
+    assert "guest_preview_token" not in score.model_dump()
+    assert "guest_preview_token" not in dict(score)
+    read = await ScoreService().get(db, score.score_uuid, 1)
+    assert token not in read.model_dump_json()
+    other = Score(score_uuid="distinct", owner_user_id=1, title="Other")
+    session.add(other)
+    session.commit()
+    assert other.guest_preview_token != token and len(other.guest_preview_token) >= 43
 
 
 @pytest.mark.asyncio
-async def test_preview_pins_revision_and_never_falls_back(preview_context):
+@pytest.mark.parametrize("role", list(MembershipRole))
+async def test_only_owner_can_read_or_update_settings(preview_context, role):
+    session, _, score, db, service = preview_context
+    session.add(ScoreMembership(score_id=score.id, user_id=2, role=role, created_by_user_id=1))
+    session.commit()
+    for action in [
+        service.settings(db, score.score_uuid, 2),
+        service.update_settings(db, score.score_uuid, 2, GuestPreviewUpdateRequest(enabled=True)),
+    ]:
+        with pytest.raises(UnauthorizedException):
+            await action
+
+
+@pytest.mark.asyncio
+async def test_bearer_follows_head_and_never_falls_back(preview_context):
     session, storage, score, db, service = preview_context
-    a = add_page(session, storage, 901, "page-a")
-    created = await service.create(db, score.score_uuid, 1, GuestPreviewCreateRequest())
-    row = session.execute(select(ScoreGuestPreviewGrant)).scalar_one()
-    assert row.revision_id == 901
-    assert row.token_hash == sha256(created.token.encode()).hexdigest()
-    assert created.token not in repr(row)
-    assert timedelta(days=6, hours=23) < row.expires_at - row.created_at <= timedelta(days=7)
+    add_page(session, storage, 901, "page-a")
+    add_audio(session, storage, 901)
+    enabled = await service.update_settings(
+        db, score.score_uuid, 1, GuestPreviewUpdateRequest(enabled=True)
+    )
+    first = await service.read(db, enabled.token)
+    assert [p.asset_id for p in first.render_assets] == ["page-a"] and first.audio_available
     add_head_b(session, score)
+    waiting = await service.read(db, enabled.token)
+    assert waiting.render_assets == [] and not waiting.audio_available
+    with pytest.raises(ResourceNotFoundException):
+        await service.image(db, enabled.token, "page-a")
+    with pytest.raises(ResourceNotFoundException):
+        await service.audio(db, enabled.token)
     add_page(session, storage, 902, "page-b")
     add_audio(session, storage, 902)
-    detail = await service.read(db, created.token)
-    assert [p.asset_id for p in detail.render_assets] == ["page-a"]
-    assert not detail.audio_available
-    assert_presentation_only(detail.model_dump())
-    assert (
-        await service.image(db, created.token, "page-a")
-    ).storage_key == a.stored_object.object_key
-    with pytest.raises(ResourceNotFoundException):
-        await service.image(db, created.token, "page-b")
-    with pytest.raises(ResourceNotFoundException):
-        await service.audio(db, created.token)
-    add_audio(session, storage, 901)
-    assert (await service.read(db, created.token)).audio_available
-    assert (await service.audio(db, created.token)).storage_key.endswith("901.wav")
-    session.delete(a)
-    session.commit()
-    assert (await service.read(db, created.token)).render_assets == []
-    assert all(
-        "token" not in item.model_dump()
-        for item in await service.list(db, score.score_uuid, 1, limit=100)
-    )
-    assert session.execute(select(ScoreLibraryEntry)).all() == []
-    assert session.execute(select(ScoreMembership)).all() == []
-    with pytest.raises(UnauthorizedException):
-        await ScoreAccessPolicy().authorize(db, score.score_uuid, ScoreAction.PRACTICE, user_id=2)
-    with pytest.raises(UnauthorizedException):
-        await service.create(db, score.score_uuid, 2, GuestPreviewCreateRequest())
+    latest = await service.read(db, enabled.token)
+    assert [p.asset_id for p in latest.render_assets] == ["page-b"] and latest.audio_available
+    assert (await service.image(db, enabled.token, "page-b")).storage_key.endswith("page-b.svg")
+    assert (await service.audio(db, enabled.token)).storage_key.endswith("902.wav")
+    assert set(latest.model_dump()) == {"title", "shared_by", "render_assets", "audio_available"}
+    assert latest.shared_by == "owner"
 
 
 @pytest.mark.asyncio
-async def test_preview_revocation_expiry_and_score_deletion(preview_context):
+async def test_disabled_missing_and_deleted_are_unavailable(preview_context):
     session, _, score, db, service = preview_context
-    created = await service.create(db, score.score_uuid, 1, GuestPreviewCreateRequest())
-    await service.revoke(db, created.preview_id, 1)
-    revoked = await service.revoke(db, created.preview_id, 1)
-    assert revoked.revoked_at is not None
-    with pytest.raises(UnauthorizedException, match="guest_preview_revoked"):
-        await service.read(db, created.token)
-    new = await service.create(db, score.score_uuid, 1, GuestPreviewCreateRequest())
-    assert new.token != created.token
-    await service.read(db, new.token)
-    row = session.execute(
-        select(ScoreGuestPreviewGrant).where(ScoreGuestPreviewGrant.preview_uuid == new.preview_id)
-    ).scalar_one()
-    row.expires_at = utc_now_naive() - timedelta(seconds=1)
-    session.add(row)
-    session.commit()
-    with pytest.raises(UnauthorizedException, match="guest_preview_expired"):
-        await service.read(db, new.token)
-    fresh = await service.create(db, score.score_uuid, 1, GuestPreviewCreateRequest())
-    score.deletion_status = ScoreDeletionStatus.DELETING
-    session.add(score)
-    session.commit()
-    with pytest.raises(ResourceNotFoundException):
-        await service.read(db, fresh.token)
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("days", [-1, 0, 31])
-async def test_expiration_is_server_validated(preview_context, days):
-    _, _, score, db, service = preview_context
-    with pytest.raises(ValidationException):
-        await service.create(
-            db,
-            score.score_uuid,
-            1,
-            GuestPreviewCreateRequest(expires_at=utc_now_naive() + timedelta(days=days)),
+    token = score.guest_preview_token
+    for enabled in [False, True, False, True]:
+        await service.update_settings(
+            db, score.score_uuid, 1, GuestPreviewUpdateRequest(enabled=enabled)
         )
-
-
-@pytest.mark.asyncio
-async def test_aware_expiration_is_normalized(preview_context):
-    session, _, score, db, service = preview_context
-    expires = (utc_now_naive() + timedelta(days=1)).replace(tzinfo=timezone.utc)
-    await service.create(db, score.score_uuid, 1, GuestPreviewCreateRequest(expires_at=expires))
-    assert session.execute(
-        select(ScoreGuestPreviewGrant)
-    ).scalar_one().expires_at == expires.replace(tzinfo=None)
+        for action in [service.read, service.audio]:
+            if enabled and action == service.read:
+                assert (await action(db, token)).title == score.title
+            elif not enabled:
+                with pytest.raises(ResourceNotFoundException) as error:
+                    await action(db, token)
+                assert error.value.code == "guest_preview_not_found"
+    score.deletion_status = ScoreDeletionStatus.DELETING
+    session.commit()
+    for secret in [token, "missing"]:
+        with pytest.raises(ResourceNotFoundException) as error:
+            await service.read(db, secret)
+        assert error.value.code == "guest_preview_not_found"
 
 
 @pytest.mark.parametrize(
-    "fields", [{"allow_download": True}, {"access_mode": "PRACTICE"}, {"allow_practice": True}]
+    "values", [{}, {"enabled": True, "allow_download": True}, {"enabled": True, "revision_id": 1}]
 )
-def test_create_accepts_only_expiration_intent(fields):
+def test_settings_request_admits_only_enabled_state(values):
     with pytest.raises(ValidationError):
-        GuestPreviewCreateRequest.model_validate(fields)
+        GuestPreviewUpdateRequest.model_validate(values)
 
 
-@pytest.mark.asyncio
-async def test_composite_fk_prevents_cross_score_revision(preview_context):
-    session, _, _, _, _ = preview_context
-    other = add_active_score_with_head_revision(
-        session,
-        score_id=910,
-        revision_id=911,
-        score_uuid="other-score",
-        revision_uuid="other-revision",
-        title="Other",
-    )
-    session.add(
-        ScoreGuestPreviewGrant(
-            score_id=900,
-            revision_id=other.head_revision_id,
-            token_hash="f" * 64,
-            expires_at=utc_now_naive() + timedelta(days=1),
-            created_by_user_id=1,
-        )
-    )
-    with pytest.raises(IntegrityError):
-        session.commit()
-    session.rollback()
+def test_preview_token_redaction(preview_context):
+    from app.core.logger import SensitiveDataFilter
+
+    _, _, score, _, _ = preview_context
+    token = score.guest_preview_token
+    path = f"/api/v1/guest-previews/{token}/render-assets/a/view"
+    assert token not in SensitiveDataFilter.filter_string(path)
+    for value in [
+        {"guest_preview_token": token},
+        {"error_details": {"guest_preview_token": token}},
+        {"http_path": path},
+        {"message": repr(score)},
+    ]:
+        assert token not in str(SensitiveDataFilter.filter_dict(value))
+    assert token not in SensitiveDataFilter.filter_string(f"guest_preview_token='{token}'")
 
 
 @pytest.mark.asyncio
@@ -282,16 +251,8 @@ async def test_bearer_routes_are_anonymous_inline_private_and_disclosure_safe(pr
     session, storage, score, db, service = preview_context
     add_page(session, storage, 901, "page-a")
     add_audio(session, storage, 901)
-    token = "unlogged-secret"
-    session.add(
-        ScoreGuestPreviewGrant(
-            score_id=score.id,
-            revision_id=901,
-            token_hash=sha256(token.encode()).hexdigest(),
-            expires_at=utc_now_naive() + timedelta(days=1),
-            created_by_user_id=1,
-        )
-    )
+    token = score.guest_preview_token
+    score.guest_preview_enabled = True
     session.commit()
 
     async def database():
@@ -311,7 +272,12 @@ async def test_bearer_routes_are_anonymous_inline_private_and_disclosure_safe(pr
             response = await client.get(f"/api/v1/guest-previews/{token}")
             assert response.status_code == 200
             assert response.headers["cache-control"] == "private, no-store"
-            assert_presentation_only(response.json())
+            assert set(response.json()["data"]) == {
+                "title",
+                "shared_by",
+                "render_assets",
+                "audio_available",
+            }
             assert response.json()["data"]["render_assets"] == [
                 {"asset_id": "page-a", "page_number": 1}
             ]
@@ -335,55 +301,43 @@ async def test_bearer_routes_are_anonymous_inline_private_and_disclosure_safe(pr
         app.dependency_overrides.pop(get_guest_preview_service, None)
 
 
-def test_preview_token_is_redacted_from_structured_and_plain_logs():
-    from app.core.logger import SensitiveDataFilter
-
-    path = "/api/v1/guest-previews/raw-bearer-secret/render-assets/a/view"
-    assert "raw-bearer-secret" not in SensitiveDataFilter.filter_string(path)
-    assert "raw-bearer-secret" not in str(SensitiveDataFilter.filter_dict({"http_path": path}))
-
-
 @pytest.mark.asyncio
-@pytest.mark.parametrize("cleanup_mode", ["async", "sync"])
-@pytest.mark.parametrize("end_pin", ["revoked", "expired"])
-async def test_active_preview_retains_exact_presentation_until_pin_ends(
-    preview_context, cleanup_mode, end_pin
-):
-    from app.modules.revisions.derived_asset_retention_service import DerivedAssetRetentionService
+async def test_owner_settings_http_state_and_authorization(preview_context):
+    from httpx import AsyncClient, ASGITransport
+    from app.api.deps import get_db, get_current_user
+    from app.db.models import User
+    from app.main import app
+    from app.modules.guest_previews.dependencies import get_guest_preview_service
 
-    session, storage, score, db, previews = preview_context
-    page = add_page(session, storage, 901, "retained-page")
-    page_key = page.stored_object.object_key
-    add_audio(session, storage, 901)
-    created = await previews.create(db, score.score_uuid, 1, GuestPreviewCreateRequest())
-    add_head_b(session, score)
-    cleanup = DerivedAssetRetentionService()
-    options = dict(score_id=score.id)
+    session, _, score, db, service = preview_context
+    token = score.guest_preview_token
+    user = session.get(User, 1)
 
-    async def run_cleanup():
-        if cleanup_mode == "sync":
-            return cleanup.cleanup_for_score_sync(session, **options)
-        return await cleanup.cleanup_for_score(db, **options)
+    async def database():
+        yield db
 
-    result = await run_cleanup()
-    assert result.rendered_pages_deleted == result.playback_assets_deleted == 0
-    assert storage.exists(page_key)
-    detail = await previews.read(db, created.token)
-    assert detail.audio_available and [p.asset_id for p in detail.render_assets] == [
-        "retained-page"
-    ]
-    if end_pin == "revoked":
-        await previews.revoke(db, created.preview_id, 1)
-    else:
-        row = session.execute(select(ScoreGuestPreviewGrant)).scalar_one()
-        row.expires_at = utc_now_naive() - timedelta(seconds=1)
-        session.add(row)
-        session.commit()
-    result = await run_cleanup()
-    expected_deletions = 0 if end_pin == "revoked" else 1
-    assert result.rendered_pages_deleted == result.playback_assets_deleted == expected_deletions
-    assert storage.exists(page_key)
-    from tests.support.retirement import drain_retirements
-
-    assert all(item["status"] == "completed" for item in drain_retirements(session, storage))
-    assert not storage.exists(page_key)
+    app.dependency_overrides[get_current_user] = lambda: user
+    app.dependency_overrides[get_db] = database
+    app.dependency_overrides[get_guest_preview_service] = lambda: service
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            url = f"/api/v1/scores/{score.score_uuid}/guest-preview"
+            response = await client.get(url)
+            assert response.status_code == 200
+            assert response.headers["cache-control"] == "private, no-store"
+            assert response.json()["data"] == {"enabled": False, "token": token}
+            for enabled in [True, False, True]:
+                response = await client.patch(url, json={"enabled": enabled})
+                assert response.status_code == 200
+                assert response.headers["cache-control"] == "private, no-store"
+                assert response.json()["data"] == {"enabled": enabled, "token": token}
+            user = session.get(User, 2)
+            for method in [client.get, client.patch]:
+                response = await method(
+                    url, **({"json": {"enabled": False}} if method == client.patch else {})
+                )
+                assert response.status_code in {403, 404}
+                assert token not in response.text
+    finally:
+        for dependency in [get_db, get_current_user, get_guest_preview_service]:
+            app.dependency_overrides.pop(dependency, None)

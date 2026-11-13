@@ -1,21 +1,13 @@
-from datetime import datetime
-
 from pydantic import BaseModel, ConfigDict
 
 
-class GuestPreviewCreateRequest(BaseModel):
+class GuestPreviewUpdateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    expires_at: datetime | None = None
+    enabled: bool
 
 
-class GuestPreviewListItem(BaseModel):
-    preview_id: str
-    expires_at: datetime
-    revoked_at: datetime | None
-    created_at: datetime
-
-
-class GuestPreviewCreatedRead(GuestPreviewListItem):
+class GuestPreviewSettingsRead(BaseModel):
+    enabled: bool
     token: str
 
 
@@ -27,7 +19,5 @@ class GuestPreviewPageRead(BaseModel):
 class GuestPreviewRead(BaseModel):
     title: str
     shared_by: str
-    created_at: datetime
-    expires_at: datetime
     render_assets: list[GuestPreviewPageRead]
     audio_available: bool

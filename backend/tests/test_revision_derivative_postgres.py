@@ -1,41 +1,45 @@
-"""Fresh schema and deterministic Preview/head/claim ordering on real PostgreSQL."""
+"""Real PostgreSQL head-writer / final-admission serialization for both derivatives."""
 
-from app.db.models import StoredObject
-
-import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from hashlib import sha256
-from threading import Event, current_thread
-
+from threading import Event
+from unittest.mock import Mock
 import pytest
 import sqlalchemy as sa
 from alembic import command
 from sqlalchemy.orm import Session
 from app.db.models import (
+    StoredObject,
     User,
     Score,
     ScoreRevision,
     ScoreRevisionSource,
-    ScoreGuestPreviewGrant,
     RenderOutbox,
     RenderOutboxStatus,
     RenderTargetType,
     PlaybackOutbox,
     PlaybackOutboxStatus,
+    ScoreRenderAsset,
+    ScorePlaybackAsset,
+    ObjectWriteIntent,
+    StorageUsageCounter,
+    ScoreDeletionStatus,
 )
 from app.db.models.score import RevisionOrigin, RevisionSourceFormat
-from app.modules.guest_previews.service import GuestPreviewService
-from app.modules.guest_previews.schemas import GuestPreviewCreateRequest
-from app.modules.score_access.policy import ScoreAccessPolicy
-from app.modules.score_assets.render_outbox_service import render_outbox_service
-from app.modules.playback.outbox_service import playback_outbox_service
+from app.modules.score_assets import render_service
+from app.modules.playback import service as playback_service
+from app.processing.engines.playback.renderer import RenderedAudio
+from app.worker.execution import render_outbox, playback_outbox
 from tests.support.object_storage import InMemoryObjectStorage
 from tests.support.postgres_schema import postgres_schema_database
-from tests.test_score_revision_services import AsyncSessionAdapter, MUSICXML_2
+from tests.support.write_cleanup import drain_write_cleanup
+from tests.test_score_revision_services import MUSICXML_2
 
 
-@pytest.mark.parametrize("order", ["worker_first", "preview_first"])
-def test_preview_head_race_preserves_durable_demand(monkeypatch, tmp_path, order):
+@pytest.mark.parametrize("kind", ["render", "audio"])
+@pytest.mark.parametrize("change", ["head", "deleted"])
+def test_final_admission_serializes_with_current_score(monkeypatch, tmp_path, kind, change):
     with postgres_schema_database(monkeypatch) as (engine, config):
         command.upgrade(config, "head")
         enums = {item["name"]: item["labels"] for item in sa.inspect(engine).get_enums()}
@@ -52,7 +56,12 @@ def test_preview_head_race_preserves_durable_demand(monkeypatch, tmp_path, order
             seed.add(user)
             seed.flush()
             user_id = user.id
-            score = Score(score_uuid="race-score", title="Race", owner_user_id=user_id)
+            score = Score(
+                score_uuid="race-score",
+                title="Race",
+                owner_user_id=user_id,
+                guest_preview_enabled=True,
+            )
             seed.add(score)
             seed.flush()
             score_id = score.id
@@ -91,119 +100,140 @@ def test_preview_head_race_preserves_durable_demand(monkeypatch, tmp_path, order
                     generator_version="1",
                 )
             )
-            seed.add(
-                RenderOutbox(
-                    outbox_uuid="race-render",
-                    target_type=RenderTargetType.SCORE_REVISION,
-                    score_id=score_id,
-                    revision_id=r1,
-                    requested_by_user_id=user_id,
-                    source_fingerprint=fingerprint,
-                )
+            render_work = RenderOutbox(
+                outbox_uuid="race-render",
+                target_type=RenderTargetType.SCORE_REVISION,
+                score_id=score_id,
+                revision_id=r1,
+                requested_by_user_id=user_id,
+                source_fingerprint=fingerprint,
             )
-            seed.add(
-                PlaybackOutbox(
-                    outbox_uuid="race-audio",
-                    score_id=score_id,
-                    revision_id=r1,
-                    source_fingerprint=fingerprint,
-                )
+            audio_work = PlaybackOutbox(
+                outbox_uuid="race-audio",
+                score_id=score_id,
+                revision_id=r1,
+                source_fingerprint=fingerprint,
             )
+            seed.add(render_work if kind == "render" else audio_work)
             seed.commit()
-        resolved, proceed, prepared, commit_allowed, worker_at_lock = (Event() for _ in range(5))
+        physical_written, admit = Event(), Event()
+        worker = render_outbox if kind == "render" else playback_outbox
+        service_module = render_service if kind == "render" else playback_service
+        original_write = service_module.write_object
 
-        class ResolvingPolicy(ScoreAccessPolicy):
-            async def authorize(self, *args, **kwargs):
-                access = await super().authorize(*args, **kwargs)
-                resolved.set()
-                assert await asyncio.to_thread(proceed.wait, 10)
-                return access
+        def paused_write(*args, **kwargs):
+            receipt = original_write(*args, **kwargs)
+            physical_written.set()
+            assert admit.wait(15)
+            return receipt
 
-        class PreviewDB(AsyncSessionAdapter):
-            async def commit(self):
-                if order == "preview_first":
-                    prepared.set()
-                    assert await asyncio.to_thread(commit_allowed.wait, 10)
-                await super().commit()
-
-        def create_preview():
+        @contextmanager
+        def database():
             with Session(engine) as db:
-                return asyncio.run(
-                    GuestPreviewService(storage=storage, access_policy=ResolvingPolicy()).create(
-                        PreviewDB(db), "race-score", user_id, GuestPreviewCreateRequest()
-                    )
-                )
+                try:
+                    yield db
+                    db.commit()
+                except Exception:
+                    db.rollback()
+                    raise
 
-        def claim():
-            with Session(engine) as db:
-                rendered = render_outbox_service.claim(db, "race-render")
-                audio = playback_outbox_service.claim(db, "race-audio")
-                db.commit()
-                return rendered is not None, audio is not None
-
-        def before_execute(_connection, _cursor, statement, _parameters, _context, _many):
-            if (
-                "claim-worker" in current_thread().name
-                and "FROM scores" in statement
-                and "FOR UPDATE" in statement
-            ):
-                worker_at_lock.set()
-
-        sa.event.listen(engine, "before_cursor_execute", before_execute)
-        try:
-            with (
-                ThreadPoolExecutor(max_workers=1, thread_name_prefix="preview-command") as previews,
-                ThreadPoolExecutor(max_workers=1, thread_name_prefix="claim-worker") as workers,
-            ):
-                future = previews.submit(create_preview)
-                assert resolved.wait(10)
+        monkeypatch.setattr(service_module, "write_object", paused_write)
+        monkeypatch.setattr(worker, "get_worker_db", database)
+        publish = Mock()
+        if kind == "render":
+            svg = tmp_path / "page.svg"
+            svg.write_bytes(b'<svg xmlns="http://www.w3.org/2000/svg"/>')
+            renderer = Mock()
+            renderer.render_score.return_value = {
+                "success": True,
+                "engine": "test",
+                "files": [{"path": str(svg), "page": 1, "mime_type": "image/svg+xml"}],
+            }
+            monkeypatch.setattr(render_service, "create_score_render_engine", lambda **_: renderer)
+            monkeypatch.setattr(
+                worker,
+                "RevisionRenderService",
+                lambda: render_service.RevisionRenderService(storage=storage),
+            )
+            monkeypatch.setattr(worker, "_publish_revision_render_status", publish)
+            execute = worker.execute_render_outbox_task
+            model = RenderOutbox
+            asset_model = ScoreRenderAsset
+        else:
+            renderer = Mock()
+            renderer.render.return_value = RenderedAudio(
+                content=b"RIFF....WAVE",
+                mime_type="audio/wav",
+                extension=".wav",
+                duration_ms=1000,
+                generator="test",
+                generator_version="1",
+                soundfont_sha256="a" * 64,
+            )
+            monkeypatch.setattr(
+                worker,
+                "PlaybackGenerationService",
+                lambda: playback_service.PlaybackGenerationService(
+                    storage=storage, renderer=renderer
+                ),
+            )
+            monkeypatch.setattr(worker, "_publish_playback_status", publish)
+            execute = worker.execute_playback_outbox_task
+            model = PlaybackOutbox
+            asset_model = ScorePlaybackAsset
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(execute, None, f"race-{kind}")
+            try:
+                assert physical_written.wait(15)
                 with Session(engine) as editor:
-                    editor.execute(
-                        sa.update(Score).where(Score.id == score_id).values(head_revision_id=r2)
+                    score = editor.scalar(
+                        sa.select(Score).where(Score.id == score_id).with_for_update()
                     )
+                    assert (
+                        editor.scalar(sa.select(model.status))
+                        == model.__table__.c.status.type.enum_class.PROCESSING
+                    )
+                    if change == "head":
+                        score.head_revision_id = r2
+                    else:
+                        score.deletion_status = ScoreDeletionStatus.DELETING
                     editor.commit()
-                if order == "worker_first":
-                    assert workers.submit(claim).result(10) == (False, False)
-                    with Session(engine) as check:
-                        assert (
-                            check.scalar(sa.select(RenderOutbox.status))
-                            == RenderOutboxStatus.SUPERSEDED
-                        )
-                        assert (
-                            check.scalar(sa.select(PlaybackOutbox.status))
-                            == PlaybackOutboxStatus.SUPERSEDED
-                        )
-                    proceed.set()
-                    future.result(10)
-                    with Session(engine) as check:
-                        assert (
-                            check.scalar(sa.select(RenderOutbox.status))
-                            == RenderOutboxStatus.PENDING
-                        )
-                        assert (
-                            check.scalar(sa.select(PlaybackOutbox.status))
-                            == PlaybackOutboxStatus.PENDING
-                        )
-                    assert workers.submit(claim).result(10) == (True, True)
-                else:
-                    proceed.set()
-                    assert prepared.wait(10)
-                    worker = workers.submit(claim)
-                    assert worker_at_lock.wait(10)
-                    commit_allowed.set()
-                    future.result(10)
-                    assert worker.result(10) == (True, True)
-                with Session(engine) as check:
-                    assert check.scalar(sa.select(ScoreGuestPreviewGrant.revision_id)) == r1
-                    assert (
-                        check.scalar(sa.select(RenderOutbox.status))
-                        == RenderOutboxStatus.PROCESSING
-                    )
-                    assert (
-                        check.scalar(sa.select(PlaybackOutbox.status))
-                        == PlaybackOutboxStatus.PROCESSING
-                    )
-        finally:
-            proceed.set()
-            commit_allowed.set()
-            sa.event.remove(engine, "before_cursor_execute", before_execute)
+            finally:
+                admit.set()
+            result = future.result(15)
+        assert result["status"] == ("superseded" if change == "head" else "failed")
+        if change == "head":
+            publish.assert_not_called()
+        else:
+            assert publish.call_args.args[-1] == "failed"
+        with Session(engine) as check:
+            work = check.scalar(sa.select(model))
+            assert work.status.value == ("SUPERSEDED" if change == "head" else "FAILED")
+            assert work.attempt_count == 1 and work.completed_at is None
+            assert check.scalar(sa.select(asset_model)) is None
+            assert check.scalar(sa.select(StorageUsageCounter)) is None
+            intents = list(check.scalars(sa.select(ObjectWriteIntent)))
+            assert len(intents) == 1 and intents[0].status == "WRITTEN"
+            abandoned_key = intents[0].object_key
+            assert storage.exists(abandoned_key)
+            assert (
+                check.scalar(
+                    sa.select(StoredObject).where(StoredObject.object_key == abandoned_key)
+                )
+                is None
+            )
+            if change == "head":
+                assert execute(None, f"race-{kind}")["status"] == "ignored"
+                delivery = (
+                    worker.render_outbox_service
+                    if kind == "render"
+                    else worker.playback_outbox_service
+                )
+                delivery.complete(check, f"race-{kind}")
+                check.commit()
+                check.refresh(work)
+                assert work.status.value == "SUPERSEDED" and work.completed_at is None
+            assert all(item["status"] == "cleaned" for item in drain_write_cleanup(check, storage))
+            assert not storage.exists(abandoned_key)
+            assert check.get(ScoreRevision, r1) is not None
+            assert check.get(ScoreRevision, r2) is not None

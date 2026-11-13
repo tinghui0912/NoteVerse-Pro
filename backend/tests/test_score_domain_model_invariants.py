@@ -2,8 +2,6 @@ from __future__ import annotations
 from app.db.models import StoredObject
 
 from collections.abc import Iterator
-from datetime import timedelta
-from app.utils.timezone import utc_now_naive
 
 import pytest
 from sqlalchemy import event
@@ -24,7 +22,6 @@ from app.db.models.score import (
 from app.db.models.score_access import (
     MembershipRole,
     ScoreMembership,
-    ScoreGuestPreviewGrant,
 )
 from app.db.models.library import LibraryEntrySourceType, ScoreLibraryEntry
 from app.db.models.user import User
@@ -211,29 +208,14 @@ def test_metadata_status_requires_a_classified_failure(score_session: Session) -
     )
 
 
-def test_guest_preview_token_hash_is_unique(score_session: Session) -> None:
-    score_session.add(
-        ScoreGuestPreviewGrant(
-            id=300,
-            score_id=10,
-            revision_id=100,
-            expires_at=utc_now_naive() + timedelta(days=7),
-            token_hash="3" * 64,
-            created_by_user_id=1,
-        )
-    )
-    score_session.commit()
-    assert_commit_rejected(
-        score_session,
-        ScoreGuestPreviewGrant(
-            id=301,
-            score_id=10,
-            revision_id=100,
-            expires_at=utc_now_naive() + timedelta(days=7),
-            token_hash="3" * 64,
-            created_by_user_id=1,
-        ),
-    )
+def test_score_guest_preview_token_is_unique(score_session: Session) -> None:
+    first = score_session.get(Score, 10)
+    second = score_session.get(Score, 11)
+    assert first.guest_preview_token != second.guest_preview_token
+    second.guest_preview_token = first.guest_preview_token
+    with pytest.raises(IntegrityError):
+        score_session.commit()
+    score_session.rollback()
 
 
 def test_membership_and_library_entry_are_unique_per_user_and_source(

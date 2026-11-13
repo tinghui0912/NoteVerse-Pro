@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from app.modules.revisions.presentation_demand import RevisionPresentationSuperseded
 from typing import Any
 
 from app.core.background_tracing import record_current_attempt_failure
@@ -60,6 +61,13 @@ def execute_render_outbox_task(
 
         try:
             artifact_id = _render_target(payload)
+        except RevisionPresentationSuperseded:
+            with get_worker_db() as db:
+                render_outbox_service.supersede(db, outbox_uuid)
+            operation_logger("render.superseded", **context, status="superseded").info(
+                "render.superseded"
+            )
+            return {"status": "superseded", "outbox_uuid": outbox_uuid}
         except Exception as exc:
             record_current_attempt_failure(exc)
             with get_worker_db() as db:

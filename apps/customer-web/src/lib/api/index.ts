@@ -22,7 +22,7 @@ export { profileApi } from './profile';
 // Practice API.
 export { practiceApi } from './practice';
 export { scoresApi } from './scores';
-export { guestPreviewsApi } from './guest-previews';
+export { guestPreviewApi } from './guest-previews';
 export { scoreInvitesApi } from './score-invites';
 export { notificationsApi } from './notifications';
 export { libraryApi } from './library';

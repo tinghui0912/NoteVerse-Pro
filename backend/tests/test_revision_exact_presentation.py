@@ -2,8 +2,6 @@
 
 from tests.support.retirement import drain_retirements
 
-from datetime import timedelta
-from unittest.mock import Mock
 
 import pytest
 from sqlalchemy import select, func
@@ -13,7 +11,6 @@ from app.db.models import (
     ScorePlaybackAsset,
     ScoreRevisionSource,
     ScoreRevision,
-    ScoreGuestPreviewGrant,
     StorageUsageCategory,
     StorageUsageCounter,
     PlaybackOutbox,
@@ -26,9 +23,8 @@ from app.modules.scores.service import ScoreService
 from app.modules.playback.delivery import PlaybackDeliveryReadModel
 from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.guest_previews.service import GuestPreviewService
-from app.modules.guest_previews.schemas import GuestPreviewCreateRequest
+from app.modules.guest_previews.schemas import GuestPreviewUpdateRequest
 from app.modules.storage_usage.service import storage_usage_service
-from app.utils.timezone import utc_now_naive
 from app.shared.constants import ErrorCode
 from tests.test_revision_derivative_demand import revisions as revisions
 from tests.test_guest_previews import add_page, add_audio
@@ -77,25 +73,13 @@ async def test_head_projection_and_playback_do_not_read_other_revision(revisions
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("pin", ["none", "active", "revoked", "expired"])
+@pytest.mark.parametrize("enabled", [False, True])
 @pytest.mark.parametrize("mode", ["async", "sync", "daily"])
-async def test_only_head_and_active_pins_protect_rows_objects_and_usage(revisions, pin, mode):
+async def test_only_head_protects_rows_objects_and_usage(revisions, enabled, mode):
     db, storage, score, rows = revisions
     keys = seed_assets(db, storage, rows)
-    if pin != "none":
-        db.add(
-            ScoreGuestPreviewGrant(
-                score_id=score.id,
-                revision_id=rows[0].id,
-                token_hash="d" * 64,
-                expires_at=utc_now_naive() + timedelta(days=1)
-                if pin != "expired"
-                else utc_now_naive() - timedelta(days=1),
-                revoked_at=utc_now_naive() if pin == "revoked" else None,
-                created_by_user_id=1,
-            )
-        )
-        db.commit()
+    score.guest_preview_enabled = enabled
+    db.commit()
     cleanup = DerivedAssetRetentionService()
     if mode == "async":
         result = await cleanup.cleanup_for_score(AsyncSessionAdapter(db), score_id=score.id)
@@ -103,7 +87,7 @@ async def test_only_head_and_active_pins_protect_rows_objects_and_usage(revision
         result = cleanup.cleanup_for_score_sync(db, score_id=score.id)
     else:
         result = cleanup.cleanup_due_scores(db)
-    protected = {rows[2].id} | ({rows[0].id} if pin == "active" else set())
+    protected = {rows[2].id}
     assert result.rendered_pages_deleted == result.playback_assets_deleted == 3 - len(protected)
     assert result.object_retirements_queued == 2 * (3 - len(protected))
     for model in (ScoreRenderAsset, ScorePlaybackAsset):
@@ -136,40 +120,6 @@ async def test_only_head_and_active_pins_protect_rows_objects_and_usage(revision
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("command", ["revoke", "delete"])
-@pytest.mark.parametrize("cleanup_fails", [False, True])
-async def test_preview_command_releases_last_historical_pin_after_commit(
-    revisions, command, cleanup_fails, monkeypatch
-):
-    db, storage, score, rows = revisions
-    score.head_revision_id = rows[0].id
-    db.commit()
-    service = GuestPreviewService(storage=storage)
-    created = await service.create(
-        AsyncSessionAdapter(db), score.score_uuid, 1, GuestPreviewCreateRequest()
-    )
-    keys = seed_assets(db, storage, rows[:1])
-    score.head_revision_id = rows[2].id
-    db.commit()
-    if cleanup_fails:
-        monkeypatch.setattr(
-            storage,
-            "delete",
-            Mock(side_effect=RuntimeError("cleanup unavailable")),
-        )
-    await getattr(service, command)(AsyncSessionAdapter(db), created.preview_id, 1)
-    preview = db.scalar(select(ScoreGuestPreviewGrant))
-    assert preview is None if command == "delete" else preview.revoked_at is not None
-    assert db.scalar(select(func.count()).select_from(ScoreRenderAsset)) == 0
-    assert db.scalar(select(func.count()).select_from(ScorePlaybackAsset)) == 0
-    assert all(storage.exists(key) for key in keys.values())
-    outcomes = drain_retirements(db, storage)
-    assert len(outcomes) == 2
-    assert all(item["status"] == ("failed" if cleanup_fails else "completed") for item in outcomes)
-    assert all(storage.exists(key) == cleanup_fails for key in keys.values())
-
-
-@pytest.mark.asyncio
 @pytest.mark.parametrize("active_preview", [False, True])
 async def test_save_disposes_old_head_before_new_derivatives_are_ready(revisions, active_preview):
     db, storage, score, rows = revisions
@@ -178,8 +128,11 @@ async def test_save_disposes_old_head_before_new_derivatives_are_ready(revisions
     previews = GuestPreviewService(storage=storage)
     if active_preview:
         token = (
-            await previews.create(
-                AsyncSessionAdapter(db), score.score_uuid, 1, GuestPreviewCreateRequest()
+            await previews.update_settings(
+                AsyncSessionAdapter(db),
+                score.score_uuid,
+                1,
+                GuestPreviewUpdateRequest(enabled=True),
             )
         ).token
     created = await RevisionService(storage=storage).create(
@@ -200,13 +153,13 @@ async def test_save_disposes_old_head_before_new_derivatives_are_ready(revisions
         )
         == PlaybackOutboxStatus.PENDING
     )
-    assert bool(db.scalar(select(ScoreRenderAsset))) == active_preview
-    assert bool(db.scalar(select(ScorePlaybackAsset))) == active_preview
+    assert db.scalar(select(ScoreRenderAsset)) is None
+    assert db.scalar(select(ScorePlaybackAsset)) is None
     assert all(storage.exists(key) for key in keys.values())
     outcomes = drain_retirements(db, storage)
-    assert len(outcomes) == (0 if active_preview else 2)
+    assert len(outcomes) == 2
     assert all(item["status"] == "completed" for item in outcomes)
-    assert all(storage.exists(key) == active_preview for key in keys.values())
+    assert all(not storage.exists(key) for key in keys.values())
     if token:
         read = await previews.read(AsyncSessionAdapter(db), token)
-        assert read.audio_available and len(read.render_assets) == 1
+        assert not read.audio_available and read.render_assets == []

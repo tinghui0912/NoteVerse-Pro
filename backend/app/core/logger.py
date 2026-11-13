@@ -78,6 +78,7 @@ class SensitiveDataFilter:
         "hashed_password",
         "secret_key",
         "token",
+        "guest_preview_token",
         "access_token",
         "refresh_token",
         "api_key",

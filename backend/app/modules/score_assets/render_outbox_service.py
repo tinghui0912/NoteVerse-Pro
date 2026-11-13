@@ -317,16 +317,25 @@ class RenderOutboxService:
             max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
         )
 
+    def supersede(self, db: Session, outbox_uuid: str) -> None:
+        outbox = self._get(db, outbox_uuid)
+        if outbox is None or outbox.status != RenderOutboxStatus.PROCESSING:
+            return
+        _delivery_lifecycle().reset(
+            outbox, status=RenderOutboxStatus.SUPERSEDED, reset_attempts=False, now=utc_now_naive()
+        )
+        clear_async_diagnostic(outbox)
+
     def complete(self, db: Session, outbox_uuid: str) -> None:
         outbox = self._get(db, outbox_uuid)
-        if outbox is None:
+        if outbox is None or outbox.status == RenderOutboxStatus.SUPERSEDED:
             return
         _delivery_lifecycle().complete(outbox, now=utc_now_naive())
         clear_async_diagnostic(outbox)
 
     def fail(self, db: Session, outbox_uuid: str, error: str) -> None:
         outbox = self._get(db, outbox_uuid)
-        if outbox is None:
+        if outbox is None or outbox.status == RenderOutboxStatus.SUPERSEDED:
             return
         _delivery_lifecycle().fail(outbox, error=error, now=utc_now_naive())
         apply_async_diagnostic(

@@ -12,7 +12,6 @@ from app.core.logger import logger
 from app.db.models import (
     Score,
     ScoreDeletionStatus,
-    ScoreGuestPreviewGrant,
     ScorePlaybackAsset,
     ScoreRenderAsset,
     ScoreRevision,
@@ -20,16 +19,6 @@ from app.db.models import (
 )
 from app.db.models.score import RenderAssetKind
 from app.modules.storage_usage.service import storage_usage_service
-from app.utils.timezone import utc_now_naive
-
-
-def _active_preview_revisions(score_id: int):
-    """Presentation pins protect derived assets within the owning Score lifetime."""
-    return select(ScoreGuestPreviewGrant.revision_id).where(
-        ScoreGuestPreviewGrant.score_id == score_id,
-        col(ScoreGuestPreviewGrant.revoked_at).is_(None),
-        ScoreGuestPreviewGrant.expires_at > utc_now_naive(),
-    )
 
 
 @dataclass(frozen=True)
@@ -230,7 +219,7 @@ class DerivedAssetRetentionService:
 
     @staticmethod
     def _score_for_cleanup_statement(score_id: int):
-        # Same Score lock as Preview pin establishment and head changes.
+        # Serialize cleanup with head changes and final derivative admission.
         return (
             select(Score)
             .where(Score.id == score_id, Score.deletion_status == ScoreDeletionStatus.ACTIVE)
@@ -243,7 +232,7 @@ class DerivedAssetRetentionService:
         head = select(Score.head_revision_id).where(
             Score.id == score_id, col(Score.head_revision_id).is_not(None)
         )
-        return head.union(_active_preview_revisions(score_id))
+        return head
 
     @staticmethod
     def _stale_rendered_pages_statement(*, score_id: int, protected_ids: set[int]):

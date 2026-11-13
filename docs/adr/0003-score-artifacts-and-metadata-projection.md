@@ -23,11 +23,10 @@ Canonical source content, visual render output, playable output and queryable me
 6. Render assets, playback assets, and metadata are rebuildable from the canonical source and
    are produced asynchronously after revision creation.
 7. Score detail and list read models expose only the current head's derived assets.
-   Missing head presentation uses neutral placeholders. Only the head and active Guest
-   Preview pins protect render/audio assets; other historical presentation is disposable.
-8. Guest Preview exposes only its pinned revision’s rendered pages and generated audio.
-   It delivers no revision sources and never falls back to another revision. Active
-   previews retain their pinned presentation assets within the Score lifetime.
+   Missing head presentation uses neutral placeholders. Only the current head protects render/audio assets; other historical presentation is disposable.
+8. Guest Preview exposes only the current head’s rendered pages and generated audio.
+   It delivers no revision sources and never falls back to another revision. Guest Preview
+   does not retain historical presentation assets.
 9. Import-job review artifacts remain job-scoped pipeline artifacts until the user confirms
    the review and creates a score revision.
 10. Verovio page count is render/layout information. Pending presentation uses a neutral
@@ -64,7 +63,7 @@ jobs/{job_uuid}/{kind}/...
 ## Consequences
 
 - Canonical MusicXML is stored separately from derived images.
-- Guest Preview displays exact pinned rendered pages and audio without exposing score structure.
+- Guest Preview displays current-head rendered pages and audio without exposing score structure.
 - Render and playback retention can delete stale derived assets without deleting source
   history.
 - Metadata stays efficient to query and can be rebuilt independently.

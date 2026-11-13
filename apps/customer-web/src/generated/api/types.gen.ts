@@ -145,62 +145,6 @@ export type ApiResponseFingeringResultRead = {
 };
 
 /**
- * APIResponse[GuestPreviewCreatedRead]
- */
-export type ApiResponseGuestPreviewCreatedRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: GuestPreviewCreatedRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[GuestPreviewListItem]
- */
-export type ApiResponseGuestPreviewListItem = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: GuestPreviewListItem | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
  * APIResponse[GuestPreviewRead]
  */
 export type ApiResponseGuestPreviewRead = {
@@ -214,6 +158,34 @@ export type ApiResponseGuestPreviewRead = {
      * Response payload
      */
     data?: GuestPreviewRead | null;
+    /**
+     * Message
+     *
+     * Human-readable message
+     */
+    message?: string | null;
+    /**
+     * Success
+     *
+     * Whether the request succeeded
+     */
+    success: boolean;
+};
+
+/**
+ * APIResponse[GuestPreviewSettingsRead]
+ */
+export type ApiResponseGuestPreviewSettingsRead = {
+    /**
+     * Code
+     *
+     * Business code
+     */
+    code?: string | null;
+    /**
+     * Response payload
+     */
+    data?: GuestPreviewSettingsRead | null;
     /**
      * Message
      *
@@ -1359,36 +1331,6 @@ export type ApiResponseDictStrInt = {
 };
 
 /**
- * APIResponse[list[GuestPreviewListItem]]
- */
-export type ApiResponseListGuestPreviewListItem = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Data
-     *
-     * Response payload
-     */
-    data?: Array<GuestPreviewListItem> | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
  * APIResponse[list[InviteRead]]
  */
 export type ApiResponseListInviteRead = {
@@ -1752,64 +1694,6 @@ export type ForgotPasswordRequest = {
 };
 
 /**
- * GuestPreviewCreateRequest
- */
-export type GuestPreviewCreateRequest = {
-    /**
-     * Expires At
-     */
-    expires_at?: string | null;
-};
-
-/**
- * GuestPreviewCreatedRead
- */
-export type GuestPreviewCreatedRead = {
-    /**
-     * Created At
-     */
-    created_at: string;
-    /**
-     * Expires At
-     */
-    expires_at: string;
-    /**
-     * Preview Id
-     */
-    preview_id: string;
-    /**
-     * Revoked At
-     */
-    revoked_at: string | null;
-    /**
-     * Token
-     */
-    token: string;
-};
-
-/**
- * GuestPreviewListItem
- */
-export type GuestPreviewListItem = {
-    /**
-     * Created At
-     */
-    created_at: string;
-    /**
-     * Expires At
-     */
-    expires_at: string;
-    /**
-     * Preview Id
-     */
-    preview_id: string;
-    /**
-     * Revoked At
-     */
-    revoked_at: string | null;
-};
-
-/**
  * GuestPreviewPageRead
  */
 export type GuestPreviewPageRead = {
@@ -1832,14 +1716,6 @@ export type GuestPreviewRead = {
      */
     audio_available: boolean;
     /**
-     * Created At
-     */
-    created_at: string;
-    /**
-     * Expires At
-     */
-    expires_at: string;
-    /**
      * Render Assets
      */
     render_assets: Array<GuestPreviewPageRead>;
@@ -1851,6 +1727,30 @@ export type GuestPreviewRead = {
      * Title
      */
     title: string;
+};
+
+/**
+ * GuestPreviewSettingsRead
+ */
+export type GuestPreviewSettingsRead = {
+    /**
+     * Enabled
+     */
+    enabled: boolean;
+    /**
+     * Token
+     */
+    token: string;
+};
+
+/**
+ * GuestPreviewUpdateRequest
+ */
+export type GuestPreviewUpdateRequest = {
+    /**
+     * Enabled
+     */
+    enabled: boolean;
 };
 
 /**
@@ -6500,66 +6400,6 @@ export type BatchDeleteScoresApiV1ScoresBatchDeletePostResponses = {
 
 export type BatchDeleteScoresApiV1ScoresBatchDeletePostResponse = BatchDeleteScoresApiV1ScoresBatchDeletePostResponses[keyof BatchDeleteScoresApiV1ScoresBatchDeletePostResponses];
 
-export type DeleteGuestPreviewApiV1ScoresGuestPreviewsPreviewIdDeleteData = {
-    body?: never;
-    path: {
-        /**
-         * Preview Id
-         */
-        preview_id: string;
-    };
-    query?: never;
-    url: '/api/v1/scores/guest-previews/{preview_id}';
-};
-
-export type DeleteGuestPreviewApiV1ScoresGuestPreviewsPreviewIdDeleteErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type DeleteGuestPreviewApiV1ScoresGuestPreviewsPreviewIdDeleteError = DeleteGuestPreviewApiV1ScoresGuestPreviewsPreviewIdDeleteErrors[keyof DeleteGuestPreviewApiV1ScoresGuestPreviewsPreviewIdDeleteErrors];
-
-export type DeleteGuestPreviewApiV1ScoresGuestPreviewsPreviewIdDeleteResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponseDictStrBool;
-};
-
-export type DeleteGuestPreviewApiV1ScoresGuestPreviewsPreviewIdDeleteResponse = DeleteGuestPreviewApiV1ScoresGuestPreviewsPreviewIdDeleteResponses[keyof DeleteGuestPreviewApiV1ScoresGuestPreviewsPreviewIdDeleteResponses];
-
-export type RevokeGuestPreviewApiV1ScoresGuestPreviewsPreviewIdRevokePostData = {
-    body?: never;
-    path: {
-        /**
-         * Preview Id
-         */
-        preview_id: string;
-    };
-    query?: never;
-    url: '/api/v1/scores/guest-previews/{preview_id}/revoke';
-};
-
-export type RevokeGuestPreviewApiV1ScoresGuestPreviewsPreviewIdRevokePostErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type RevokeGuestPreviewApiV1ScoresGuestPreviewsPreviewIdRevokePostError = RevokeGuestPreviewApiV1ScoresGuestPreviewsPreviewIdRevokePostErrors[keyof RevokeGuestPreviewApiV1ScoresGuestPreviewsPreviewIdRevokePostErrors];
-
-export type RevokeGuestPreviewApiV1ScoresGuestPreviewsPreviewIdRevokePostResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponseGuestPreviewListItem;
-};
-
-export type RevokeGuestPreviewApiV1ScoresGuestPreviewsPreviewIdRevokePostResponse = RevokeGuestPreviewApiV1ScoresGuestPreviewsPreviewIdRevokePostResponses[keyof RevokeGuestPreviewApiV1ScoresGuestPreviewsPreviewIdRevokePostResponses];
-
 export type GetScoreApiV1ScoresScoreIdGetData = {
     body?: never;
     path: {
@@ -6650,7 +6490,7 @@ export type GenerateScoreFingeringApiV1ScoresScoreIdFingeringPostResponses = {
 
 export type GenerateScoreFingeringApiV1ScoresScoreIdFingeringPostResponse = GenerateScoreFingeringApiV1ScoresScoreIdFingeringPostResponses[keyof GenerateScoreFingeringApiV1ScoresScoreIdFingeringPostResponses];
 
-export type ListGuestPreviewsApiV1ScoresScoreIdGuestPreviewsGetData = {
+export type ReadGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewGetData = {
     body?: never;
     path: {
         /**
@@ -6658,35 +6498,30 @@ export type ListGuestPreviewsApiV1ScoresScoreIdGuestPreviewsGetData = {
          */
         score_id: string;
     };
-    query?: {
-        /**
-         * Limit
-         */
-        limit?: number;
-    };
-    url: '/api/v1/scores/{score_id}/guest-previews';
+    query?: never;
+    url: '/api/v1/scores/{score_id}/guest-preview';
 };
 
-export type ListGuestPreviewsApiV1ScoresScoreIdGuestPreviewsGetErrors = {
+export type ReadGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ListGuestPreviewsApiV1ScoresScoreIdGuestPreviewsGetError = ListGuestPreviewsApiV1ScoresScoreIdGuestPreviewsGetErrors[keyof ListGuestPreviewsApiV1ScoresScoreIdGuestPreviewsGetErrors];
+export type ReadGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewGetError = ReadGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewGetErrors[keyof ReadGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewGetErrors];
 
-export type ListGuestPreviewsApiV1ScoresScoreIdGuestPreviewsGetResponses = {
+export type ReadGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseListGuestPreviewListItem;
+    200: ApiResponseGuestPreviewSettingsRead;
 };
 
-export type ListGuestPreviewsApiV1ScoresScoreIdGuestPreviewsGetResponse = ListGuestPreviewsApiV1ScoresScoreIdGuestPreviewsGetResponses[keyof ListGuestPreviewsApiV1ScoresScoreIdGuestPreviewsGetResponses];
+export type ReadGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewGetResponse = ReadGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewGetResponses[keyof ReadGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewGetResponses];
 
-export type CreateGuestPreviewApiV1ScoresScoreIdGuestPreviewsPostData = {
-    body: GuestPreviewCreateRequest;
+export type UpdateGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewPatchData = {
+    body: GuestPreviewUpdateRequest;
     path: {
         /**
          * Score Id
@@ -6694,26 +6529,26 @@ export type CreateGuestPreviewApiV1ScoresScoreIdGuestPreviewsPostData = {
         score_id: string;
     };
     query?: never;
-    url: '/api/v1/scores/{score_id}/guest-previews';
+    url: '/api/v1/scores/{score_id}/guest-preview';
 };
 
-export type CreateGuestPreviewApiV1ScoresScoreIdGuestPreviewsPostErrors = {
+export type UpdateGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewPatchErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type CreateGuestPreviewApiV1ScoresScoreIdGuestPreviewsPostError = CreateGuestPreviewApiV1ScoresScoreIdGuestPreviewsPostErrors[keyof CreateGuestPreviewApiV1ScoresScoreIdGuestPreviewsPostErrors];
+export type UpdateGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewPatchError = UpdateGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewPatchErrors[keyof UpdateGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewPatchErrors];
 
-export type CreateGuestPreviewApiV1ScoresScoreIdGuestPreviewsPostResponses = {
+export type UpdateGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewPatchResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseGuestPreviewCreatedRead;
+    200: ApiResponseGuestPreviewSettingsRead;
 };
 
-export type CreateGuestPreviewApiV1ScoresScoreIdGuestPreviewsPostResponse = CreateGuestPreviewApiV1ScoresScoreIdGuestPreviewsPostResponses[keyof CreateGuestPreviewApiV1ScoresScoreIdGuestPreviewsPostResponses];
+export type UpdateGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewPatchResponse = UpdateGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewPatchResponses[keyof UpdateGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewPatchResponses];
 
 export type DownloadScoreInputAssetApiV1ScoresScoreIdInputAssetsAssetIdDownloadGetData = {
     body?: never;

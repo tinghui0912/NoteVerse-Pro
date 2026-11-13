@@ -1,21 +1,18 @@
-"""One revision presentation-demand policy, serialized with head/preview writers."""
+"""One revision presentation-demand policy, serialized with Score head writers."""
 
 from enum import Enum
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from sqlmodel import col
 
 from app.db.models import (
     Score,
     ScoreRevision,
     ScoreRevisionSource,
     StoredObject,
-    ScoreGuestPreviewGrant,
     ScoreDeletionStatus,
 )
 from app.db.models.score import RevisionSourceFormat
-from app.utils.timezone import utc_now_naive
 
 
 class RevisionPresentationDemand(Enum):
@@ -36,7 +33,7 @@ def lock_presentation_score(db: Session, score_id: int | None) -> Score | None:
 def revision_presentation_demand(
     db: Session, score: Score | None, revision_id: int | None, fingerprint: str
 ) -> RevisionPresentationDemand:
-    """Resolve immediately before processing, after Score and outbox locks are held."""
+    """Resolve under the Score lock before claim or final semantic admission."""
     score_id = score.id if score is not None else None
     revision = db.get(ScoreRevision, revision_id) if revision_id is not None else None
     if (
@@ -60,18 +57,21 @@ def revision_presentation_demand(
         return RevisionPresentationDemand.UNAVAILABLE
     if score.head_revision_id == revision_id:
         return RevisionPresentationDemand.DEMANDED
-    preview = db.execute(
-        select(ScoreGuestPreviewGrant.id)
-        .where(
-            ScoreGuestPreviewGrant.score_id == score_id,
-            ScoreGuestPreviewGrant.revision_id == revision_id,
-            col(ScoreGuestPreviewGrant.revoked_at).is_(None),
-            ScoreGuestPreviewGrant.expires_at > utc_now_naive(),
-        )
-        .limit(1)
-    ).scalar_one_or_none()
-    return (
-        RevisionPresentationDemand.DEMANDED
-        if preview is not None
-        else RevisionPresentationDemand.NOT_DEMANDED
-    )
+    return RevisionPresentationDemand.NOT_DEMANDED
+
+
+class RevisionPresentationSuperseded(Exception):
+    """A generated revision is no longer current presentation demand."""
+
+
+def admit_generated_revision(
+    db: Session, score: Score | None, revision_id: int, fingerprint: str
+) -> None:
+    demand = revision_presentation_demand(db, score, revision_id, fingerprint)
+    if demand == RevisionPresentationDemand.NOT_DEMANDED:
+        raise RevisionPresentationSuperseded()
+    if demand == RevisionPresentationDemand.UNAVAILABLE:
+        from app.core.exceptions import ResourceNotFoundException
+        from app.shared.constants import ErrorCode
+
+        raise ResourceNotFoundException("revision_source", code=ErrorCode.FILE_NOT_FOUND)

@@ -296,124 +296,6 @@
         "title": "APIResponse[FingeringResultRead]",
         "type": "object"
       },
-      "APIResponse_GuestPreviewCreatedRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/GuestPreviewCreatedRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[GuestPreviewCreatedRead]",
-        "type": "object"
-      },
-      "APIResponse_GuestPreviewListItem_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/GuestPreviewListItem"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[GuestPreviewListItem]",
-        "type": "object"
-      },
       "APIResponse_GuestPreviewRead_": {
         "examples": [
           {
@@ -471,6 +353,65 @@
           "success"
         ],
         "title": "APIResponse[GuestPreviewRead]",
+        "type": "object"
+      },
+      "APIResponse_GuestPreviewSettingsRead_": {
+        "examples": [
+          {
+            "data": {
+              "id": 1,
+              "name": "Example task"
+            },
+            "message": "Operation succeeded",
+            "success": true
+          }
+        ],
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Business code",
+            "title": "Code"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GuestPreviewSettingsRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Response payload"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable message",
+            "title": "Message"
+          },
+          "success": {
+            "description": "Whether the request succeeded",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "title": "APIResponse[GuestPreviewSettingsRead]",
         "type": "object"
       },
       "APIResponse_ImportJobBatchStatusRead_": {
@@ -2835,69 +2776,6 @@
         "title": "APIResponse[dict[str, int]]",
         "type": "object"
       },
-      "APIResponse_list_GuestPreviewListItem__": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/GuestPreviewListItem"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload",
-            "title": "Data"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[list[GuestPreviewListItem]]",
-        "type": "object"
-      },
       "APIResponse_list_InviteRead__": {
         "examples": [
           {
@@ -3533,106 +3411,6 @@
         "title": "ForgotPasswordRequest",
         "type": "object"
       },
-      "GuestPreviewCreateRequest": {
-        "additionalProperties": false,
-        "properties": {
-          "expires_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Expires At"
-          }
-        },
-        "title": "GuestPreviewCreateRequest",
-        "type": "object"
-      },
-      "GuestPreviewCreatedRead": {
-        "properties": {
-          "created_at": {
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "expires_at": {
-            "format": "date-time",
-            "title": "Expires At",
-            "type": "string"
-          },
-          "preview_id": {
-            "title": "Preview Id",
-            "type": "string"
-          },
-          "revoked_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Revoked At"
-          },
-          "token": {
-            "title": "Token",
-            "type": "string"
-          }
-        },
-        "required": [
-          "preview_id",
-          "expires_at",
-          "revoked_at",
-          "created_at",
-          "token"
-        ],
-        "title": "GuestPreviewCreatedRead",
-        "type": "object"
-      },
-      "GuestPreviewListItem": {
-        "properties": {
-          "created_at": {
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "expires_at": {
-            "format": "date-time",
-            "title": "Expires At",
-            "type": "string"
-          },
-          "preview_id": {
-            "title": "Preview Id",
-            "type": "string"
-          },
-          "revoked_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Revoked At"
-          }
-        },
-        "required": [
-          "preview_id",
-          "expires_at",
-          "revoked_at",
-          "created_at"
-        ],
-        "title": "GuestPreviewListItem",
-        "type": "object"
-      },
       "GuestPreviewPageRead": {
         "properties": {
           "asset_id": {
@@ -3657,16 +3435,6 @@
             "title": "Audio Available",
             "type": "boolean"
           },
-          "created_at": {
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "expires_at": {
-            "format": "date-time",
-            "title": "Expires At",
-            "type": "string"
-          },
           "render_assets": {
             "items": {
               "$ref": "#/components/schemas/GuestPreviewPageRead"
@@ -3686,12 +3454,42 @@
         "required": [
           "title",
           "shared_by",
-          "created_at",
-          "expires_at",
           "render_assets",
           "audio_available"
         ],
         "title": "GuestPreviewRead",
+        "type": "object"
+      },
+      "GuestPreviewSettingsRead": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "enabled",
+          "token"
+        ],
+        "title": "GuestPreviewSettingsRead",
+        "type": "object"
+      },
+      "GuestPreviewUpdateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "GuestPreviewUpdateRequest",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -12751,122 +12549,6 @@
         ]
       }
     },
-    "/api/v1/scores/guest-previews/{preview_id}": {
-      "delete": {
-        "operationId": "delete_guest_preview_api_v1_scores_guest_previews__preview_id__delete",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "preview_id",
-            "required": true,
-            "schema": {
-              "title": "Preview Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/APIResponse_dict_str__bool__"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Delete Guest Preview",
-        "tags": [
-          "Guest Previews"
-        ]
-      }
-    },
-    "/api/v1/scores/guest-previews/{preview_id}/revoke": {
-      "post": {
-        "operationId": "revoke_guest_preview_api_v1_scores_guest_previews__preview_id__revoke_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "preview_id",
-            "required": true,
-            "schema": {
-              "title": "Preview Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/APIResponse_GuestPreviewListItem_"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Revoke Guest Preview",
-        "tags": [
-          "Guest Previews"
-        ]
-      }
-    },
     "/api/v1/scores/{score_id}": {
       "get": {
         "operationId": "get_score_api_v1_scores__score_id__get",
@@ -13059,9 +12741,9 @@
         ]
       }
     },
-    "/api/v1/scores/{score_id}/guest-previews": {
+    "/api/v1/scores/{score_id}/guest-preview": {
       "get": {
-        "operationId": "list_guest_previews_api_v1_scores__score_id__guest_previews_get",
+        "operationId": "read_guest_preview_settings_api_v1_scores__score_id__guest_preview_get",
         "parameters": [
           {
             "in": "path",
@@ -13070,18 +12752,6 @@
             "schema": {
               "title": "Score Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 100,
-              "maximum": 100,
-              "minimum": 1,
-              "title": "Limit",
-              "type": "integer"
             }
           },
           {
@@ -13106,7 +12776,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_list_GuestPreviewListItem__"
+                  "$ref": "#/components/schemas/APIResponse_GuestPreviewSettingsRead_"
                 }
               }
             },
@@ -13123,13 +12793,13 @@
             "description": "Validation Error"
           }
         },
-        "summary": "List Guest Previews",
+        "summary": "Read Guest Preview Settings",
         "tags": [
           "Guest Previews"
         ]
       },
-      "post": {
-        "operationId": "create_guest_preview_api_v1_scores__score_id__guest_previews_post",
+      "patch": {
+        "operationId": "update_guest_preview_settings_api_v1_scores__score_id__guest_preview_patch",
         "parameters": [
           {
             "in": "path",
@@ -13161,7 +12831,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/GuestPreviewCreateRequest"
+                "$ref": "#/components/schemas/GuestPreviewUpdateRequest"
               }
             }
           },
@@ -13172,7 +12842,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_GuestPreviewCreatedRead_"
+                  "$ref": "#/components/schemas/APIResponse_GuestPreviewSettingsRead_"
                 }
               }
             },
@@ -13189,7 +12859,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Create Guest Preview",
+        "summary": "Update Guest Preview Settings",
         "tags": [
           "Guest Previews"
         ]

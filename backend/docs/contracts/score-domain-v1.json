@@ -46,8 +46,6 @@
     "metadata_not_ready",
     "metadata_extraction_failed",
     "guest_preview_not_found",
-    "guest_preview_revoked",
-    "guest_preview_expired",
     "membership_not_found",
     "score_access_denied"
   ],
@@ -88,8 +86,8 @@
     "review_editor_updates_job_artifact_only": true,
     "review_artifacts_are_not_shareable": true,
     "guest_preview_exposes_machine_readable_source": false,
-    "raw_guest_preview_token_is_persisted": false,
-    "guest_preview_pins_revision": true,
+    "raw_guest_preview_token_is_persisted": true,
+    "guest_preview_follows_current_head": true,
     "guest_preview_is_presentation_only": true
   },
   "examples": {
