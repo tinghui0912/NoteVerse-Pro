@@ -131,7 +131,7 @@ test('Owner invites with default Viewer and can choose Practitioner or Editor an
   await page.route(`**/api/v1/scores/${scoreId}/invites`, async route => {
     if (route.request().method() === 'POST') {
       const body = route.request().postDataJSON(); invited.push(body.role);
-      await route.fulfill({ json: { success: true, data: { invite_id: `invite-${invited.length}`, token: `token-${invited.length}`, email: body.email, role: body.role, status: 'PENDING', created_at: '2026-06-20T00:00:00Z', expires_at: null, accepted_at: null, revoked_at: null, declined_at: null, created_by: null, accepted_by: null } } });
+      await route.fulfill({ json: { success: true, data: { invite_id: `invite-${invited.length}`, token: `token-${invited.length}`, email: body.email, role: body.role, status: 'PENDING', created_at: '2026-06-20T00:00:00Z', expires_at: null, terminal_at: null, created_by: null, terminal_actor: null } } });
     } else await route.fulfill({ json: { success: true, data: [] } });
   });
   await page.route(`**/api/v1/scores/${scoreId}/members/10`, async route => {

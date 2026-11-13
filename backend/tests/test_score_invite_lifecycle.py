@@ -1,17 +1,17 @@
-"""Actor commands preserve one terminal invitation outcome and durable history."""
+"""Actor outcomes are coherent durable facts; expiry is a read-only time projection."""
 
-from datetime import timedelta
+from contextlib import contextmanager
+from datetime import datetime, timedelta
 from types import SimpleNamespace
-
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import select, func
-
+from sqlalchemy import select, func, event
 from app.api.deps import get_current_user, get_db
 from app.core.exceptions import ValidationException
 from app.db.models import ScoreInvite, ScoreMembership
-from app.db.models.score_access import InviteStatus, MembershipRole
+from app.db.models.score_access import InviteTerminalOutcome, MembershipRole
 from app.main import app
+from app.modules.score_invites.lifecycle import InviteStatus, effective_invite_status
 from app.modules.score_invites.rules import hash_invite_token
 from app.modules.score_invites.schemas import InviteCreateRequest
 from app.modules.score_invites.service import ScoreInviteService
@@ -22,20 +22,44 @@ from tests.test_score_revision_services import score_service_session as score_se
 from tests.test_trusted_collaboration import collaboration as collaboration
 
 
+@contextmanager
+def observe_writes(session):
+    writes, commits = [], []
+
+    def statement(connection, cursor, sql, parameters, context, many):
+        if sql.lstrip().split()[0].upper() in {"UPDATE", "INSERT", "DELETE"}:
+            writes.append(sql)
+
+    def committed(session):
+        commits.append(True)
+
+    engine = session.get_bind()
+    event.listen(engine, "before_cursor_execute", statement)
+    event.listen(session, "after_commit", committed)
+    try:
+        yield writes, commits
+    finally:
+        event.remove(engine, "before_cursor_execute", statement)
+        event.remove(session, "after_commit", committed)
+
+
+def facts(invite):
+    return invite.terminal_outcome, invite.terminal_at, invite.terminal_actor_user_id
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "status,expired,error_code",
+    "outcome,expired,error_code",
     [
-        (InviteStatus.PENDING, False, None),
-        (InviteStatus.REVOKED, False, None),
-        (InviteStatus.ACCEPTED, False, ErrorCode.INVITE_ALREADY_ACCEPTED),
-        (InviteStatus.DECLINED, False, ErrorCode.INVITE_DECLINED),
-        (InviteStatus.EXPIRED, False, ErrorCode.INVITE_EXPIRED),
-        (InviteStatus.PENDING, True, ErrorCode.INVITE_EXPIRED),
+        (None, False, None),
+        (InviteTerminalOutcome.REVOKED, False, None),
+        (InviteTerminalOutcome.ACCEPTED, False, ErrorCode.INVITE_ALREADY_ACCEPTED),
+        (InviteTerminalOutcome.DECLINED, False, ErrorCode.INVITE_DECLINED),
+        (None, True, ErrorCode.INVITE_EXPIRED),
     ],
 )
-async def test_owner_revoke_http_uses_effective_lifecycle_and_preserves_membership(
-    collaboration, status, expired, error_code
+async def test_owner_revoke_http_admits_effective_status_without_writing_rejections(
+    collaboration, outcome, expired, error_code
 ):
     session, _, score, db = collaboration
     original_time = utc_now_naive() - timedelta(days=1)
@@ -45,19 +69,21 @@ async def test_owner_revoke_http_uses_effective_lifecycle_and_preserves_membersh
         token_hash=hash_invite_token("invite"),
         email="other@example.com",
         role=MembershipRole.VIEWER,
-        status=status,
         created_by_user_id=1,
         expires_at=original_time if expired else None,
-        revoked_at=original_time if status == InviteStatus.REVOKED else None,
+        terminal_outcome=outcome,
+        terminal_at=original_time if outcome else None,
+        terminal_actor_user_id=2 if outcome else None,
     )
     session.add(invite)
-    if status == InviteStatus.ACCEPTED:
+    if outcome == InviteTerminalOutcome.ACCEPTED:
         session.add(
             ScoreMembership(
                 score_id=score.id, user_id=2, role=MembershipRole.VIEWER, created_by_user_id=1
             )
         )
     session.commit()
+    original = facts(invite)
 
     async def database():
         yield db
@@ -66,46 +92,65 @@ async def test_owner_revoke_http_uses_effective_lifecycle_and_preserves_membersh
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
     try:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            response = await client.post(
-                f"/api/v1/scores/{score.score_uuid}/invites/lifecycle/revoke"
-            )
-            assert response.status_code == (422 if error_code else 200), response.text
-            if error_code:
-                assert response.json()["public_code"] == error_code
+            with observe_writes(session) as (writes, commits):
+                response = await client.post(
+                    f"/api/v1/scores/{score.score_uuid}/invites/lifecycle/revoke"
+                )
+                assert response.status_code == (422 if error_code else 200), response.text
+                if error_code:
+                    assert response.json()["public_code"] == error_code
+                    assert writes == commits == []
             session.refresh(invite)
-            expected = (
-                InviteStatus.EXPIRED
-                if expired
-                else InviteStatus.REVOKED
-                if error_code is None
-                else status
-            )
-            assert invite.status == expected
-            if expected == InviteStatus.REVOKED:
-                revoked_at = invite.revoked_at
-                assert revoked_at is not None
-                if status == InviteStatus.REVOKED:
-                    assert revoked_at == original_time
+            if error_code:
+                assert facts(invite) == original
+            else:
+                assert invite.terminal_outcome == InviteTerminalOutcome.REVOKED
+                if outcome is None:
+                    assert invite.terminal_actor_user_id == 1 and invite.terminal_at is not None
+                else:
+                    assert facts(invite) == original
+                terminal = facts(invite)
                 assert (
                     await client.post(f"/api/v1/scores/{score.score_uuid}/invites/lifecycle/revoke")
                 ).status_code == 200
                 session.refresh(invite)
-                assert invite.revoked_at == revoked_at
+                assert facts(invite) == terminal
+            with observe_writes(session) as (writes, commits):
+                read = (await client.get(f"/api/v1/scores/{score.score_uuid}/invites")).json()[
+                    "data"
+                ]["items"][0]
+                inspected = (await client.get("/api/v1/invites/invite")).json()["data"]
+                assert writes == commits == []
+            assert (
+                read["status"]
+                == inspected["status"]
+                == effective_invite_status(invite, now=utc_now_naive())
+            )
+            assert "token" not in read
+            if invite.terminal_at is None:
+                assert read["terminal_at"] is None
             else:
-                assert invite.revoked_at is None
-            # Invitations remain readable lifecycle records and expose no raw token.
-            rows = (await client.get(f"/api/v1/scores/{score.score_uuid}/invites")).json()["data"][
-                "items"
-            ]
-            assert len(rows) == 1 and "token" not in rows[0]
+                assert (
+                    datetime.fromisoformat(read["terminal_at"]).replace(tzinfo=None)
+                    == invite.terminal_at
+                )
+            assert (
+                read["terminal_actor"] is None
+                if invite.terminal_actor_user_id is None
+                else read["terminal_actor"]["email"]
+                == (
+                    "owner@example.com"
+                    if invite.terminal_actor_user_id == 1
+                    else "other@example.com"
+                )
+            )
     finally:
         app.dependency_overrides.clear()
-    active_members = session.scalar(
+    assert session.scalar(
         select(func.count())
         .select_from(ScoreMembership)
         .where(ScoreMembership.revoked_at.is_(None))
-    )
-    assert active_members == (1 if status == InviteStatus.ACCEPTED else 0)
+    ) == (1 if outcome == InviteTerminalOutcome.ACCEPTED else 0)
 
 
 @pytest.mark.asyncio
@@ -113,7 +158,7 @@ async def test_owner_revoke_http_uses_effective_lifecycle_and_preserves_membersh
     "path",
     ["/invites/invite/accept", "/me/invites/lifecycle/accept", "/me/invites/lifecycle/decline"],
 )
-async def test_recipient_commands_persist_effective_expiry_without_access(collaboration, path):
+async def test_expired_recipient_command_has_no_write_or_commit(collaboration, path):
     session, _, score, db = collaboration
     invite = ScoreInvite(
         invite_uuid="lifecycle",
@@ -134,13 +179,16 @@ async def test_recipient_commands_persist_effective_expiry_without_access(collab
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=2)
     try:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            response = await client.post("/api/v1" + path)
-            assert response.status_code == 422
-            assert response.json()["public_code"] == ErrorCode.INVITE_EXPIRED
+            with observe_writes(session) as (writes, commits):
+                response = await client.post("/api/v1" + path)
+                assert response.status_code == 422
+                assert response.json()["public_code"] == ErrorCode.INVITE_EXPIRED
+                assert writes == commits == []
     finally:
         app.dependency_overrides.clear()
     session.refresh(invite)
-    assert invite.status == InviteStatus.EXPIRED
+    assert facts(invite) == (None, None, None)
+    assert effective_invite_status(invite, now=utc_now_naive()) == InviteStatus.EXPIRED
     assert session.scalar(select(func.count()).select_from(ScoreMembership)) == 0
 
 
@@ -152,7 +200,7 @@ async def test_accept_rechecks_expiry_after_membership_contention(
     session, _, score, db = collaboration
     now = utc_now_naive()
     clock = [now]
-    monkeypatch.setattr("app.modules.score_invites.rules.utc_now_naive", lambda: clock[0])
+    monkeypatch.setattr("app.modules.score_invites.service.utc_now_naive", lambda: clock[0])
     invite = ScoreInvite(
         invite_uuid="expiring",
         score_id=score.id,
@@ -181,51 +229,23 @@ async def test_accept_rechecks_expiry_after_membership_contention(
             clock[0] = now + timedelta(seconds=2)
             return membership
 
-    with pytest.raises(ValidationException) as error:
-        await ScoreInviteService(repository=MembershipWait()).accept_invite(db, "expiring", 2)
-    assert error.value.code == ErrorCode.INVITE_EXPIRED
+    with observe_writes(session) as (writes, commits):
+        with pytest.raises(ValidationException) as error:
+            await ScoreInviteService(repository=MembershipWait()).accept_invite(db, "expiring", 2)
+        assert error.value.code == ErrorCode.INVITE_EXPIRED
+        assert writes == commits == []
     session.refresh(invite)
-    assert invite.status == InviteStatus.EXPIRED
+    assert facts(invite) == (None, None, None)
     membership = session.scalar(select(ScoreMembership))
-    assert (
-        (membership is not None and membership.revoked_at == now)
-        if existing
-        else membership is None
-    )
-
-
-@pytest.mark.asyncio
-async def test_invitation_http_resource_retains_history_without_a_delete_command(collaboration):
-    session, _, score, db = collaboration
-    session.add(
-        ScoreInvite(
-            invite_uuid="retained",
-            score_id=score.id,
-            email="other@example.com",
-            role=MembershipRole.VIEWER,
-            token_hash=hash_invite_token("retained"),
-            created_by_user_id=1,
-        )
-    )
-    session.commit()
-
-    async def database():
-        yield db
-
-    app.dependency_overrides[get_db] = database
-    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
-    try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            response = await client.delete(f"/api/v1/scores/{score.score_uuid}/invites/retained")
-            assert response.status_code in {404, 405}
-    finally:
-        app.dependency_overrides.clear()
-    assert session.scalar(select(ScoreInvite)).invite_uuid == "retained"
+    if existing:
+        assert membership.revoked_at == now
+    else:
+        assert membership is None
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("command", ["leave", "remove"])
-async def test_accepted_invitation_history_survives_membership_revocation(collaboration, command):
+async def test_accepted_actor_facts_survive_membership_revocation(collaboration, command):
     session, _, score, db = collaboration
     service = ScoreInviteService()
     created = await service.create_invite(
@@ -233,12 +253,16 @@ async def test_accepted_invitation_history_survives_membership_revocation(collab
     )
     accepted = await service.accept_invite(db, created.token, 2)
     invite = session.scalar(select(ScoreInvite))
-    accepted_at = invite.accepted_at
+    terminal = facts(invite)
+    assert (
+        terminal[0] == InviteTerminalOutcome.ACCEPTED
+        and terminal[1] is not None
+        and terminal[2] == 2
+    )
     if command == "leave":
         await service.leave_score(db, score.score_uuid, 2)
     else:
         await service.remove_member(db, score.score_uuid, accepted.membership_id, 1)
     session.refresh(invite)
-    assert invite.status == InviteStatus.ACCEPTED and invite.accepted_at == accepted_at
-    assert invite.revoked_at is None
+    assert facts(invite) == terminal
     assert session.get(ScoreMembership, accepted.membership_id).revoked_at is not None

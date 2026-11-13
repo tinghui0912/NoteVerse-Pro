@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, get_db
 from app.core.exceptions import ValidationException
 from app.db.models import Score, ScoreInvite, ScoreMembership, User
-from app.db.models.score_access import InviteStatus, MembershipRole
+from app.db.models.score_access import MembershipRole, InviteTerminalOutcome
 from app.main import app
 from app.modules.score_invites.pagination import encode_cursor, decode_cursor
 from app.modules.score_invites.repository import ScoreInviteRepository
@@ -123,8 +123,9 @@ async def test_invite_continuation_uses_immutable_position_across_mutation_and_i
     expected = [row.id for row in reversed(rows[:-3])]
     # The anchor need not exist, and mutable delivery/access state is not an ordering key.
     session.delete(first[-1])
-    first[0].status = InviteStatus.REVOKED
-    first[0].revoked_at = NOW
+    first[0].terminal_outcome = InviteTerminalOutcome.REVOKED
+    first[0].terminal_at = NOW
+    first[0].terminal_actor_user_id = 1
     session.add(invite(4000, 999, created_at=NOW + timedelta(days=1)))
     session.commit()
     remaining, next_cursor = await repo.invites(db, 4000, limit=100, cursor=cursor)
@@ -144,8 +145,20 @@ async def test_pending_page_filters_expiry_before_limiting_without_writes(collab
         invite(4000, 301, expires_at=NOW + timedelta(seconds=1)),
         invite(4000, 302, expires_at=NOW),
     ]
+    rows += [
+        invite(
+            4000,
+            400 + index,
+            terminal_outcome=outcome,
+            terminal_at=NOW,
+            terminal_actor_user_id=2,
+            expires_at=NOW + timedelta(days=1),
+        )
+        for index, outcome in enumerate(InviteTerminalOutcome)
+    ]
     session.add_all(rows)
     session.commit()
+    original = [(row.terminal_outcome, row.terminal_at, row.terminal_actor_user_id) for row in rows]
     page, cursor = await ScoreInviteRepository().pending_invites_for_email(
         db,
         "other@example.com",
@@ -155,7 +168,10 @@ async def test_pending_page_filters_expiry_before_limiting_without_writes(collab
     )
     assert [row.invite_uuid for row in page] == ["invite-301", "invite-300"]
     assert cursor is None
-    assert all(row.status == InviteStatus.PENDING for row in rows)
+    assert [
+        (row.terminal_outcome, row.terminal_at, row.terminal_actor_user_id) for row in rows
+    ] == original
+    assert rows[0].terminal_outcome is None
     assert not session.dirty
 
 

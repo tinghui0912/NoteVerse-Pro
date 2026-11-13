@@ -17,7 +17,7 @@ from app.db.models import (
     ScoreMembership,
     ScoreInvite,
 )
-from app.db.models.score_access import MembershipRole, InviteStatus
+from app.db.models.score_access import MembershipRole
 from app.modules.library.schemas import (
     LibraryScoreBatchMoveRequest,
     LibraryScoreBatchFavoriteRequest,
@@ -65,7 +65,6 @@ def workspace(score_service_session):
             role=MembershipRole.VIEWER,
             token_hash="pending-token",
             created_by_user_id=2,
-            status=InviteStatus.PENDING,
         )
     )
     db.commit()

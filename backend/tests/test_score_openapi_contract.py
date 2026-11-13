@@ -142,16 +142,29 @@ def test_guest_preview_contract_is_presentation_only(client: TestClient) -> None
 
 
 def test_collaboration_role_contract_is_least_privilege(client: TestClient) -> None:
+    from app.modules.score_invites.lifecycle import InviteStatus
+
     components = client.get("/api/v1/openapi.json").json()["components"]["schemas"]
     assert components["MembershipRole"]["enum"] == ["VIEWER", "PRACTITIONER", "EDITOR"]
     assert components["InviteCreateRequest"]["properties"]["role"]["default"] == "VIEWER"
+    assert components["InviteStatus"]["enum"] == [status.value for status in InviteStatus]
+    assert set(components["InviteRead"]["properties"]) == {
+        "invite_id",
+        "email",
+        "role",
+        "status",
+        "expires_at",
+        "terminal_at",
+        "terminal_actor",
+        "created_at",
+        "created_by",
+    }
 
 
 def test_invitation_routes_express_lifecycle_commands(client: TestClient) -> None:
     paths = client.get("/api/v1/openapi.json").json()["paths"]
     assert set(paths["/api/v1/scores/{score_id}/invites"]) == {"get", "post"}
     assert set(paths["/api/v1/scores/{score_id}/invites/{invite_id}/revoke"]) == {"post"}
-    assert "/api/v1/scores/{score_id}/invites/{invite_id}" not in paths
     assert "delete" in paths["/api/v1/scores/{score_id}/members/{membership_id}"]
 
 

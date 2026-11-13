@@ -8,6 +8,7 @@ from typing import Optional
 from sqlalchemy import (
     BigInteger,
     Column,
+    CheckConstraint,
     DateTime,
     Enum as SAEnum,
     ForeignKey,
@@ -15,6 +16,7 @@ from sqlalchemy import (
     Integer,
     String,
     UniqueConstraint,
+    text,
 )
 from sqlmodel import Field, SQLModel
 
@@ -29,12 +31,10 @@ class MembershipRole(str, enum.Enum):
     EDITOR = "EDITOR"
 
 
-class InviteStatus(str, enum.Enum):
-    PENDING = "PENDING"
+class InviteTerminalOutcome(str, enum.Enum):
     ACCEPTED = "ACCEPTED"
-    REVOKED = "REVOKED"
-    EXPIRED = "EXPIRED"
     DECLINED = "DECLINED"
+    REVOKED = "REVOKED"
 
 
 class AccessOrigin(str, enum.Enum):
@@ -80,7 +80,19 @@ class ScoreInvite(SQLModel, table=True):  # type: ignore[call-arg]
     __table_args__ = (
         Index("idx_score_invites_score_created", "score_id", "created_at", "id"),
         Index("idx_score_invites_token_hash", "token_hash", unique=True),
-        Index("idx_score_invites_email_status_created", "email", "status", "created_at", "id"),
+        Index(
+            "idx_score_invites_email_unresolved_created",
+            "email",
+            "created_at",
+            "id",
+            postgresql_where=text("terminal_outcome IS NULL"),
+            sqlite_where=text("terminal_outcome IS NULL"),
+        ),
+        CheckConstraint(
+            "(terminal_outcome IS NULL AND terminal_at IS NULL AND terminal_actor_user_id IS NULL) OR "
+            "(terminal_outcome IS NOT NULL AND terminal_at IS NOT NULL AND terminal_actor_user_id IS NOT NULL)",
+            name="ck_score_invites_terminal_facts",
+        ),
     )
 
     id: Optional[int] = Field(
@@ -103,14 +115,14 @@ class ScoreInvite(SQLModel, table=True):  # type: ignore[call-arg]
     role: MembershipRole = Field(
         sa_column=Column(SAEnum(MembershipRole, name="membershiprole"), nullable=False)
     )
-    status: InviteStatus = Field(
-        default=InviteStatus.PENDING,
-        sa_column=Column(SAEnum(InviteStatus, name="invitestatus"), nullable=False),
+    terminal_outcome: Optional[InviteTerminalOutcome] = Field(
+        default=None,
+        sa_column=Column(SAEnum(InviteTerminalOutcome, name="inviteterminaloutcome")),
     )
     created_by_user_id: int = Field(
         sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=False)
     )
-    accepted_by_user_id: Optional[int] = Field(
+    terminal_actor_user_id: Optional[int] = Field(
         default=None,
         sa_column=Column(BigInteger, ForeignKey("users.id")),
     )
@@ -119,6 +131,4 @@ class ScoreInvite(SQLModel, table=True):  # type: ignore[call-arg]
         sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
     )
     expires_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    accepted_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    revoked_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    declined_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    terminal_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))

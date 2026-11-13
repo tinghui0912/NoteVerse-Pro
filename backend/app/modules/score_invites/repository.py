@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Score, ScoreInvite, ScoreMembership, User
 from app.modules.score_access.queries import active_score_predicate
-from app.db.models.score_access import InviteStatus
 from app.db.model_utils import require_persisted_id
 from .pagination import decode_cursor, encode_cursor
 
@@ -87,7 +86,7 @@ class ScoreInviteRepository:
         columns = ScoreInvite.__table__.c
         query = select(ScoreInvite).where(
             columns.email == email,
-            columns.status == InviteStatus.PENDING,
+            columns.terminal_outcome.is_(None),
             or_(columns.expires_at.is_(None), columns.expires_at > now),
         )
         if position:

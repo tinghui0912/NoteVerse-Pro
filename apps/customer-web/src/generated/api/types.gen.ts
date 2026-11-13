@@ -2009,19 +2009,10 @@ export type InviteCreateRequest = {
  */
 export type InviteCreatedRead = {
     /**
-     * Accepted At
-     */
-    accepted_at: string | null;
-    accepted_by: InviteActorRead | null;
-    /**
      * Created At
      */
     created_at: string;
     created_by: InviteActorRead | null;
-    /**
-     * Declined At
-     */
-    declined_at: string | null;
     /**
      * Email
      */
@@ -2034,12 +2025,13 @@ export type InviteCreatedRead = {
      * Invite Id
      */
     invite_id: string;
-    /**
-     * Revoked At
-     */
-    revoked_at: string | null;
     role: MembershipRole;
     status: InviteStatus;
+    terminal_actor: InviteActorRead | null;
+    /**
+     * Terminal At
+     */
+    terminal_at: string | null;
     /**
      * Token
      */
@@ -2065,19 +2057,10 @@ export type InviteListRead = {
  */
 export type InviteRead = {
     /**
-     * Accepted At
-     */
-    accepted_at: string | null;
-    accepted_by: InviteActorRead | null;
-    /**
      * Created At
      */
     created_at: string;
     created_by: InviteActorRead | null;
-    /**
-     * Declined At
-     */
-    declined_at: string | null;
     /**
      * Email
      */
@@ -2090,18 +2073,19 @@ export type InviteRead = {
      * Invite Id
      */
     invite_id: string;
-    /**
-     * Revoked At
-     */
-    revoked_at: string | null;
     role: MembershipRole;
     status: InviteStatus;
+    terminal_actor: InviteActorRead | null;
+    /**
+     * Terminal At
+     */
+    terminal_at: string | null;
 };
 
 /**
  * InviteStatus
  */
-export type InviteStatus = 'PENDING' | 'ACCEPTED' | 'REVOKED' | 'EXPIRED' | 'DECLINED';
+export type InviteStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'REVOKED' | 'EXPIRED';
 
 /**
  * LibraryBatchMoveRead

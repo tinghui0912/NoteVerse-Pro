@@ -7,6 +7,8 @@ from typing import Any, TypeVar
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from app.modules.score_invites.lifecycle import InviteStatus
+from app.db.models.score_access import InviteTerminalOutcome
 from sqlalchemy import event, func, select
 from sqlmodel import Session, SQLModel, create_engine
 
@@ -56,7 +58,6 @@ from app.db.models.import_job import ImportJobState
 from app.db.models.score import RenderAssetKind, RevisionOrigin, RevisionSourceFormat
 from app.db.models.score import MetadataStatus
 from app.db.models.score_access import (
-    InviteStatus,
     MembershipRole,
 )
 from app.modules.revisions.schemas import (
@@ -2163,7 +2164,7 @@ async def test_invite_acceptance_creates_editable_membership(
         user_id=2,
     )
     assert stored_membership.role == MembershipRole.EDITOR
-    assert stored_invite.status == InviteStatus.ACCEPTED
+    assert stored_invite.terminal_outcome == InviteTerminalOutcome.ACCEPTED
     notification = one_row(
         session,
         NotificationEvent,
@@ -2287,8 +2288,8 @@ async def test_user_pending_invites_can_be_declined(
 
     stored_invite = one_row(session, ScoreInvite, invite_uuid=created.invite_id)
     assert declined.status == InviteStatus.DECLINED
-    assert stored_invite.status == InviteStatus.DECLINED
-    assert stored_invite.declined_at is not None
+    assert stored_invite.terminal_outcome == InviteTerminalOutcome.DECLINED
+    assert stored_invite.terminal_at is not None
     notification = one_row(
         session,
         NotificationEvent,

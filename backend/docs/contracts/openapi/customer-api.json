@@ -4016,28 +4016,6 @@
       },
       "InviteCreatedRead": {
         "properties": {
-          "accepted_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Accepted At"
-          },
-          "accepted_by": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/InviteActorRead"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -4052,18 +4030,6 @@
                 "type": "null"
               }
             ]
-          },
-          "declined_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Declined At"
           },
           "email": {
             "anyOf": [
@@ -4092,7 +4058,23 @@
             "title": "Invite Id",
             "type": "string"
           },
-          "revoked_at": {
+          "role": {
+            "$ref": "#/components/schemas/MembershipRole"
+          },
+          "status": {
+            "$ref": "#/components/schemas/InviteStatus"
+          },
+          "terminal_actor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InviteActorRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "terminal_at": {
             "anyOf": [
               {
                 "format": "date-time",
@@ -4102,13 +4084,7 @@
                 "type": "null"
               }
             ],
-            "title": "Revoked At"
-          },
-          "role": {
-            "$ref": "#/components/schemas/MembershipRole"
-          },
-          "status": {
-            "$ref": "#/components/schemas/InviteStatus"
+            "title": "Terminal At"
           },
           "token": {
             "title": "Token",
@@ -4121,12 +4097,10 @@
           "role",
           "status",
           "expires_at",
-          "accepted_at",
-          "revoked_at",
-          "declined_at",
+          "terminal_at",
           "created_at",
           "created_by",
-          "accepted_by",
+          "terminal_actor",
           "token"
         ],
         "title": "InviteCreatedRead",
@@ -4162,28 +4136,6 @@
       },
       "InviteRead": {
         "properties": {
-          "accepted_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Accepted At"
-          },
-          "accepted_by": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/InviteActorRead"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -4198,18 +4150,6 @@
                 "type": "null"
               }
             ]
-          },
-          "declined_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Declined At"
           },
           "email": {
             "anyOf": [
@@ -4238,7 +4178,23 @@
             "title": "Invite Id",
             "type": "string"
           },
-          "revoked_at": {
+          "role": {
+            "$ref": "#/components/schemas/MembershipRole"
+          },
+          "status": {
+            "$ref": "#/components/schemas/InviteStatus"
+          },
+          "terminal_actor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InviteActorRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "terminal_at": {
             "anyOf": [
               {
                 "format": "date-time",
@@ -4248,13 +4204,7 @@
                 "type": "null"
               }
             ],
-            "title": "Revoked At"
-          },
-          "role": {
-            "$ref": "#/components/schemas/MembershipRole"
-          },
-          "status": {
-            "$ref": "#/components/schemas/InviteStatus"
+            "title": "Terminal At"
           }
         },
         "required": [
@@ -4263,12 +4213,10 @@
           "role",
           "status",
           "expires_at",
-          "accepted_at",
-          "revoked_at",
-          "declined_at",
+          "terminal_at",
           "created_at",
           "created_by",
-          "accepted_by"
+          "terminal_actor"
         ],
         "title": "InviteRead",
         "type": "object"
@@ -4277,9 +4225,9 @@
         "enum": [
           "PENDING",
           "ACCEPTED",
+          "DECLINED",
           "REVOKED",
-          "EXPIRED",
-          "DECLINED"
+          "EXPIRED"
         ],
         "title": "InviteStatus",
         "type": "string"

@@ -17,16 +17,16 @@ default to VIEWER. Acceptance preserves the stronger role, owner changes may upg
 or downgrade, and membership revocation denies subsequent operations immediately.
 Score membership never grants access to another user's personal practice data.
 
-ScoreInvite is durable invitation history, distinct from current ScoreMembership
-access. All terminal transitions lock and refresh the Invite row first. PENDING
-permits Accept, Decline or owner Revoke, with expiry as the time-derived fourth
-terminal outcome. Effective expiry is persisted under the same lock before an
-actor command is rejected. Terminal records are retained without user hard-delete
-and cannot change to another terminal state. Revoke is retry-safe for REVOKED only.
-Accept locks Invite then Membership and commits ACCEPTED plus membership admission
-atomically. Owner member removal and Self Leave change membership access without
-rewriting accepted invitation history. Only explicit acceptance of a new valid
-Invite can reactivate revoked membership; owner role PATCH cannot restore it.
+ScoreInvite stores an optional actor terminal outcome with a coherent terminal
+timestamp and actor, enforced by a database constraint. With no actor outcome,
+effective status is PENDING or EXPIRED according to expires_at and the current
+time. Expiry requires no database write; admission and effective-status helpers
+perform no IO or commits. Actor commands lock and refresh Invite before admission.
+Accept locks Invite then Membership and commits its outcome and membership
+admission atomically. Revoke retries preserve the recorded terminal time and actor.
+Owner member removal and Self Leave change current membership access without
+rewriting invitation history. Only explicit acceptance of a new valid Invite can
+reactivate revoked membership; owner role PATCH cannot restore it.
 
 Guest Preview is a separate anonymous, presentation-only bearer channel. Each Score
 owns one stable high-entropy token and an enabled flag. Only its owner can retrieve

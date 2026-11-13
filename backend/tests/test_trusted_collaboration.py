@@ -16,7 +16,7 @@ from app.db.models import (
     ScoreRevisionSource,
     ScoreInvite,
 )
-from app.db.models.score_access import MembershipRole, InviteStatus, AccessOrigin
+from app.db.models.score_access import MembershipRole, AccessOrigin, InviteTerminalOutcome
 from app.db.models.score import RevisionSourceFormat
 from app.main import app
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
@@ -315,7 +315,10 @@ async def test_invite_acceptance_preserves_role_rank(
     assert result.role == MembershipRole(expected)
     membership = session.execute(select(ScoreMembership)).scalar_one()
     assert membership.role == MembershipRole(expected) and membership.revoked_at is None
-    assert session.execute(select(ScoreInvite)).scalar_one().status == InviteStatus.ACCEPTED
+    assert (
+        session.execute(select(ScoreInvite)).scalar_one().terminal_outcome
+        == InviteTerminalOutcome.ACCEPTED
+    )
 
 
 @pytest.mark.asyncio

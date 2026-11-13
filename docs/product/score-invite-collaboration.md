@@ -36,7 +36,8 @@ Practice, editable membership, source download or persistent account access.
 
 An invite has a high-entropy opaque token returned once, with only its hash
 stored in the database. Its email, requested role, issuer, expiry and lifecycle
-are server-owned. States include pending, accepted, declined, revoked and expired.
+are server-owned. Effective read statuses are pending, accepted, declined, revoked
+and expired.
 List and management APIs do not reveal raw tokens. Score invite, membership and
 account pending-invite collections use stable cursor pagination with explicit
 continuation. Invitations are newest first; memberships are oldest first. Pending
@@ -49,12 +50,15 @@ stronger existing role, then opens `/score/:id`. Inactive invitations cannot
 authorize acceptance. Pending invite APIs also support account-scoped accept
 and decline by invite identifier.
 
-Invitation transitions serialize on the Invite row lock. PENDING permits Accept,
-Decline or owner Revoke; effective expiry produces EXPIRED. Commands persist
-effective expiry under that lock and reject further actor transitions. ACCEPTED,
-DECLINED, REVOKED and EXPIRED are terminal lifecycle records retained without a
-user hard-delete action. Repeating Revoke on REVOKED preserves its timestamp;
-revoking any other terminal state returns its stable Invite error.
+An invitation stores an optional actor terminal outcome (ACCEPTED, DECLINED or
+REVOKED), terminal_at and terminal actor. With no actor outcome, it projects
+PENDING until expires_at and EXPIRED at or after expires_at. Expiry is a pure time
+projection: reads and expired command rejection do not write lifecycle state.
+Commands lock and refresh Invite before effective-status admission. Application
+commands own commits; Accept commits its actor outcome and Membership admission
+together, retaining Invite then Membership lock order. Waiting on Membership
+requires a fresh expiry check before restoring access. Repeating Revoke preserves
+its terminal time and actor; other terminal outcomes reject further actor actions.
 
 The owner Invitations section displays lifecycle status, role and expiry. Pending
 rows offer Revoke and offer Copy only when this session still holds the raw token

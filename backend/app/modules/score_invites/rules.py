@@ -5,8 +5,8 @@ import secrets
 from datetime import datetime
 
 from app.db.models import ScoreInvite, User
-from app.db.models.score_access import InviteStatus, MembershipRole
-from app.utils.timezone import utc_now_naive
+from app.db.models.score_access import MembershipRole
+from app.modules.score_invites.lifecycle import InviteStatus, effective_invite_status
 
 
 ROLE_RANK: dict[MembershipRole, int] = {
@@ -26,21 +26,10 @@ def generate_invite_token() -> str:
     return secrets.token_urlsafe(INVITE_TOKEN_BYTES)
 
 
-def display_invite_status(invite: ScoreInvite, *, now: datetime | None = None) -> InviteStatus:
-    effective_now = now or utc_now_naive()
-    if (
-        invite.status == InviteStatus.PENDING
-        and invite.expires_at
-        and invite.expires_at <= effective_now
-    ):
-        return InviteStatus.EXPIRED
-    return invite.status
-
-
-def can_user_accept_invite(invite: ScoreInvite, user: User | None) -> bool:
+def can_user_accept_invite(invite: ScoreInvite, user: User | None, *, now: datetime) -> bool:
     if user is None:
         return False
-    if display_invite_status(invite) != InviteStatus.PENDING:
+    if effective_invite_status(invite, now=now) != InviteStatus.PENDING:
         return False
     return invite.email == user.email.lower()
 

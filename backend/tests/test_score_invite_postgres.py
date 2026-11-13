@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import ValidationException
 from app.db.models import User, ScoreInvite, ScoreMembership
-from app.db.models.score_access import InviteStatus, MembershipRole
+from app.db.models.score_access import MembershipRole, InviteTerminalOutcome
 from app.modules.score_invites.rules import hash_invite_token
 from app.modules.score_invites.service import ScoreInviteService
 from app.shared.constants import ErrorCode
@@ -39,9 +39,9 @@ def test_invite_terminal_commands_serialize_on_postgres_row(
     monkeypatch, first, second, existing_revoked_membership
 ):
     outcome = {
-        "accept": InviteStatus.ACCEPTED,
-        "decline": InviteStatus.DECLINED,
-        "revoke": InviteStatus.REVOKED,
+        "accept": InviteTerminalOutcome.ACCEPTED,
+        "decline": InviteTerminalOutcome.DECLINED,
+        "revoke": InviteTerminalOutcome.REVOKED,
     }[first]
     error_code = {
         "accept": ErrorCode.INVITE_ALREADY_ACCEPTED,
@@ -112,7 +112,7 @@ def test_invite_terminal_commands_serialize_on_postgres_row(
                     with Session(engine) as db:
                         # Keep a stale identity-map object alive while waiting for the winner.
                         cached = db.get(ScoreInvite, invite_id)
-                        assert cached.status == InviteStatus.PENDING
+                        assert cached.terminal_outcome is None
                         ready.put(db.scalar(text("SELECT pg_backend_pid()")))
                         asyncio.run(actor_command(AsyncSessionAdapter(db), second))
                     result.put(None)
@@ -144,9 +144,9 @@ def test_invite_terminal_commands_serialize_on_postgres_row(
                     # Neither the accepted Invite nor its active membership is visible before commit.
                     assert (
                         observer.scalar(
-                            select(ScoreInvite.status).where(ScoreInvite.id == invite_id)
+                            select(ScoreInvite.terminal_outcome).where(ScoreInvite.id == invite_id)
                         )
-                        == InviteStatus.PENDING
+                        is None
                     )
                     assert (
                         observer.scalar(
@@ -164,9 +164,12 @@ def test_invite_terminal_commands_serialize_on_postgres_row(
             error = result.get(timeout=1)
             assert isinstance(error, ValidationException) and error.code == error_code
         with Session(engine) as check:
-            assert check.get(ScoreInvite, invite_id).status == outcome
+            terminal = check.get(ScoreInvite, invite_id)
+            assert terminal.terminal_outcome == outcome
+            assert terminal.terminal_at is not None
+            assert terminal.terminal_actor_user_id == (1 if first == "revoke" else 2)
             membership = check.scalar(select(ScoreMembership))
-            if outcome == InviteStatus.ACCEPTED:
+            if outcome == InviteTerminalOutcome.ACCEPTED:
                 assert membership is not None and membership.revoked_at is None
                 assert membership.role == (
                     MembershipRole.EDITOR if existing_revoked_membership else MembershipRole.VIEWER

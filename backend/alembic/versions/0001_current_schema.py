@@ -20,9 +20,9 @@ def upgrade() -> None:
     postgresql.ENUM("PENDING", "RUNNING", "COMPLETED", "FAILED", name="importjobstepstatus").create(
         op.get_bind(), checkfirst=False
     )
-    postgresql.ENUM(
-        "PENDING", "ACCEPTED", "REVOKED", "EXPIRED", "DECLINED", name="invitestatus"
-    ).create(op.get_bind(), checkfirst=False)
+    postgresql.ENUM("ACCEPTED", "DECLINED", "REVOKED", name="inviteterminaloutcome").create(
+        op.get_bind(), checkfirst=False
+    )
     postgresql.ENUM(
         "PENDING",
         "DISPATCHED",
@@ -1644,27 +1644,30 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column(
-            "status",
+            "terminal_outcome",
             postgresql.ENUM(
-                "PENDING",
                 "ACCEPTED",
-                "REVOKED",
-                "EXPIRED",
                 "DECLINED",
-                name="invitestatus",
+                "REVOKED",
+                name="inviteterminaloutcome",
                 create_type=False,
             ),
-            nullable=False,
+            nullable=True,
         ),
         sa.Column("created_by_user_id", sa.BigInteger(), nullable=False),
-        sa.Column("accepted_by_user_id", sa.BigInteger(), nullable=True),
+        sa.Column("terminal_actor_user_id", sa.BigInteger(), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("expires_at", sa.DateTime(), nullable=True),
-        sa.Column("accepted_at", sa.DateTime(), nullable=True),
-        sa.Column("revoked_at", sa.DateTime(), nullable=True),
-        sa.Column("declined_at", sa.DateTime(), nullable=True),
+        sa.Column("terminal_at", sa.DateTime(), nullable=True),
+        sa.CheckConstraint(
+            "(terminal_outcome IS NULL AND terminal_at IS NULL AND terminal_actor_user_id IS NULL) OR "
+            "(terminal_outcome IS NOT NULL AND terminal_at IS NOT NULL AND terminal_actor_user_id IS NOT NULL)",
+            name="ck_score_invites_terminal_facts",
+        ),
         sa.ForeignKeyConstraint(
-            ["accepted_by_user_id"], ["users.id"], name="fk_score_invites_accepted_by_user_id_users"
+            ["terminal_actor_user_id"],
+            ["users.id"],
+            name="fk_score_invites_terminal_actor_user_id_users",
         ),
         sa.ForeignKeyConstraint(
             ["created_by_user_id"], ["users.id"], name="fk_score_invites_created_by_user_id_users"
@@ -1676,10 +1679,11 @@ def upgrade() -> None:
         sa.UniqueConstraint("invite_uuid", name="uq_score_invites_invite_uuid"),
     )
     op.create_index(
-        "idx_score_invites_email_status_created",
+        "idx_score_invites_email_unresolved_created",
         "score_invites",
-        ["email", "status", "created_at", "id"],
+        ["email", "created_at", "id"],
         unique=False,
+        postgresql_where=sa.text("terminal_outcome IS NULL"),
     )
     op.create_index(
         "idx_score_invites_score_created",
@@ -2477,7 +2481,7 @@ def downgrade() -> None:
     op.drop_table("score_library_organizations")
     op.drop_index("idx_score_invites_token_hash", table_name="score_invites")
     op.drop_index("idx_score_invites_score_created", table_name="score_invites")
-    op.drop_index("idx_score_invites_email_status_created", table_name="score_invites")
+    op.drop_index("idx_score_invites_email_unresolved_created", table_name="score_invites")
     op.drop_table("score_invites")
     op.drop_index("idx_score_input_assets_upload", table_name="score_input_assets")
     op.drop_index("idx_score_input_assets_score_order", table_name="score_input_assets")
@@ -2620,7 +2624,7 @@ def downgrade() -> None:
     postgresql.ENUM(name="importdispatchstatus").drop(op.get_bind(), checkfirst=False)
     postgresql.ENUM(name="importjobstate").drop(op.get_bind(), checkfirst=False)
     postgresql.ENUM(name="importjobstepstatus").drop(op.get_bind(), checkfirst=False)
-    postgresql.ENUM(name="invitestatus").drop(op.get_bind(), checkfirst=False)
+    postgresql.ENUM(name="inviteterminaloutcome").drop(op.get_bind(), checkfirst=False)
     postgresql.ENUM(name="mailoutboxstatus").drop(op.get_bind(), checkfirst=False)
     postgresql.ENUM(name="membershiprole").drop(op.get_bind(), checkfirst=False)
     postgresql.ENUM(name="metadatastatus").drop(op.get_bind(), checkfirst=False)

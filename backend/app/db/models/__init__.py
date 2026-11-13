@@ -47,7 +47,7 @@ from .score import (
 )
 from .score_access import (
     AccessOrigin,
-    InviteStatus,
+    InviteTerminalOutcome,
     MembershipRole,
     ScoreInvite,
     ScoreMembership,
@@ -131,7 +131,7 @@ __all__ = [
     "ScoreRevisionMetadata",
     "ScoreRevisionSource",
     "AccessOrigin",
-    "InviteStatus",
+    "InviteTerminalOutcome",
     "MembershipRole",
     "ScoreInvite",
     "ScoreMembership",

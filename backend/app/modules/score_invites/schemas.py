@@ -6,7 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
-from app.db.models.score_access import InviteStatus, MembershipRole
+from app.db.models.score_access import MembershipRole
+from app.modules.score_invites.lifecycle import InviteStatus
 from app.shared.pagination import CursorPage
 
 
@@ -36,12 +37,10 @@ class InviteRead(BaseModel):
     role: MembershipRole
     status: InviteStatus
     expires_at: datetime | None
-    accepted_at: datetime | None
-    revoked_at: datetime | None
-    declined_at: datetime | None
+    terminal_at: datetime | None
     created_at: datetime
     created_by: InviteActorRead | None
-    accepted_by: InviteActorRead | None
+    terminal_actor: InviteActorRead | None
 
 
 class InviteCreatedRead(InviteRead):

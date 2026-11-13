@@ -50,11 +50,9 @@ const invite = (id: string): InviteRead => ({
   status: 'PENDING',
   created_at: timestamp,
   expires_at: null,
-  accepted_at: null,
-  revoked_at: null,
-  declined_at: null,
+  terminal_at: null,
   created_by: null,
-  accepted_by: null,
+  terminal_actor: null,
 });
 const member = (id: number): MemberRead => ({
   membership_id: id,

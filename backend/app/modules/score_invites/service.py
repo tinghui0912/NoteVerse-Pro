@@ -13,7 +13,8 @@ from app.core.exceptions import (
 )
 from app.db.model_utils import require_persisted_id
 from app.db.models import Score, ScoreInvite, ScoreMembership, User
-from app.db.models.score_access import InviteStatus, MembershipRole
+from app.db.models.score_access import InviteTerminalOutcome, MembershipRole
+from app.modules.score_invites.lifecycle import effective_invite_status, require_pending_invite
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.mail.outbox_service import queue_mail
 from app.modules.mail.templates.score_invites import build_invite_email
@@ -22,7 +23,6 @@ from app.modules.score_invites.repository import ScoreInviteRepository
 from app.modules.score_invites.rules import (
     ROLE_RANK,
     can_user_accept_invite,
-    display_invite_status,
     generate_invite_token,
     hash_invite_token,
     invite_role_label,
@@ -75,7 +75,6 @@ class ScoreInviteService:
             token_hash=hash_invite_token(token),
             email=request.email,
             role=request.role,
-            status=InviteStatus.PENDING,
             created_by_user_id=user_id,
             created_at=utc_now_naive(),
             expires_at=to_utc_naive(request.expires_at),
@@ -113,10 +112,12 @@ class ScoreInviteService:
         self, db: AsyncSession, score_uuid: str, invite_uuid: str, user_id: int
     ) -> InviteRead:
         invite = await self._managed_invite(db, score_uuid, invite_uuid, user_id)
-        if invite.status != InviteStatus.REVOKED:
-            await self._require_pending_invite(db, invite, field="invite_id")
-            invite.status = InviteStatus.REVOKED
-            invite.revoked_at = utc_now_naive()
+        if invite.terminal_outcome != InviteTerminalOutcome.REVOKED:
+            now = utc_now_naive()
+            require_pending_invite(invite, field="invite_id", now=now)
+            invite.terminal_outcome = InviteTerminalOutcome.REVOKED
+            invite.terminal_at = now
+            invite.terminal_actor_user_id = user_id
         await db.commit()
         await db.refresh(invite)
         return await self._invite_read(db, invite)
@@ -129,7 +130,8 @@ class ScoreInviteService:
         if not score:
             raise ResourceNotFoundException("score", code=ErrorCode.SCORE_NOT_FOUND)
         user = await db.get(User, user_id) if user_id is not None else None
-        can_accept = can_user_accept_invite(invite, user)
+        now = utc_now_naive()
+        can_accept = can_user_accept_invite(invite, user, now=now)
         return InviteAccessRead(
             invite_id=invite.invite_uuid,
             score_id=score.score_uuid,
@@ -137,7 +139,7 @@ class ScoreInviteService:
             inviter=await self._actor(db, invite.created_by_user_id),
             email=invite.email,
             role=invite.role,
-            status=display_invite_status(invite),
+            status=effective_invite_status(invite, now=now),
             expires_at=invite.expires_at,
             requires_login=user is None,
             can_accept=can_accept,
@@ -183,8 +185,11 @@ class ScoreInviteService:
     ) -> PendingInviteRead:
         invite = await self._invite_by_uuid(db, invite_uuid)
         user = await self._ensure_invite_target_user(db, invite, user_id)
-        invite.status = InviteStatus.DECLINED
-        invite.declined_at = utc_now_naive()
+        now = utc_now_naive()
+        require_pending_invite(invite, field="invite_id", now=now)
+        invite.terminal_outcome = InviteTerminalOutcome.DECLINED
+        invite.terminal_at = now
+        invite.terminal_actor_user_id = user_id
         await db.commit()
         await db.refresh(invite)
         score = await db.get(Score, invite.score_id)
@@ -208,10 +213,11 @@ class ScoreInviteService:
         if not score:
             raise ResourceNotFoundException("score", code=ErrorCode.SCORE_NOT_FOUND)
         if score.owner_user_id == user_id:
-            await self._require_pending_invite(db, invite, field="invite_id")
-            invite.status = InviteStatus.ACCEPTED
-            invite.accepted_by_user_id = user_id
-            invite.accepted_at = utc_now_naive()
+            now = utc_now_naive()
+            require_pending_invite(invite, field="invite_id", now=now)
+            invite.terminal_outcome = InviteTerminalOutcome.ACCEPTED
+            invite.terminal_actor_user_id = user_id
+            invite.terminal_at = now
             await db.commit()
             await db.refresh(invite)
             await self._notify_invite_response(
@@ -231,8 +237,8 @@ class ScoreInviteService:
 
         membership = await self.repository.membership_for_update(db, invite.score_id, user_id)
         # Waiting on membership may outlast expiry; do not restore access after it.
-        await self._require_pending_invite(db, invite, field="invite_id")
         now = utc_now_naive()
+        require_pending_invite(invite, field="invite_id", now=now)
         if membership:
             if membership.revoked_at is not None:
                 membership.revoked_at = None
@@ -249,9 +255,9 @@ class ScoreInviteService:
             db.add(membership)
             await db.flush()
 
-        invite.status = InviteStatus.ACCEPTED
-        invite.accepted_by_user_id = user_id
-        invite.accepted_at = now
+        invite.terminal_outcome = InviteTerminalOutcome.ACCEPTED
+        invite.terminal_actor_user_id = user_id
+        invite.terminal_at = now
         await db.commit()
         await db.refresh(membership)
         await db.refresh(invite)
@@ -361,33 +367,15 @@ class ScoreInviteService:
             raise ResourceNotFoundException("invite", code=ErrorCode.INVITE_NOT_FOUND)
         if allow_inactive:
             return invite
-        await self._require_pending_invite(db, invite, field="token")
+        require_pending_invite(invite, field="token", now=utc_now_naive())
         return invite
 
     async def _invite_by_uuid(self, db: AsyncSession, invite_uuid: str) -> ScoreInvite:
         invite = await self.repository.invite_by_uuid(db, invite_uuid, lock=True)
         if not invite:
             raise ResourceNotFoundException("invite", invite_uuid, ErrorCode.INVITE_NOT_FOUND)
-        await self._require_pending_invite(db, invite, field="invite_id")
+        require_pending_invite(invite, field="invite_id", now=utc_now_naive())
         return invite
-
-    async def _require_pending_invite(
-        self, db: AsyncSession, invite: ScoreInvite, *, field: str
-    ) -> None:
-        """Admit an actor transition using the current, row-locked invitation."""
-        status = display_invite_status(invite)
-        if status == InviteStatus.PENDING:
-            return
-        if status == InviteStatus.EXPIRED and invite.status == InviteStatus.PENDING:
-            invite.status = InviteStatus.EXPIRED
-            await db.commit()
-        code = {
-            InviteStatus.EXPIRED: ErrorCode.INVITE_EXPIRED,
-            InviteStatus.REVOKED: ErrorCode.INVITE_REVOKED,
-            InviteStatus.ACCEPTED: ErrorCode.INVITE_ALREADY_ACCEPTED,
-            InviteStatus.DECLINED: ErrorCode.INVITE_DECLINED,
-        }[status]
-        raise ValidationException(code, field=field)
 
     async def _ensure_invite_target_user(
         self, db: AsyncSession, invite: ScoreInvite, user_id: int
@@ -395,7 +383,7 @@ class ScoreInviteService:
         user = await db.get(User, user_id)
         if user is None:
             raise UnauthorizedException(ErrorCode.NO_ACCESS)
-        await self._require_pending_invite(db, invite, field="invite_id")
+        require_pending_invite(invite, field="invite_id", now=utc_now_naive())
         if invite.email != user.email.lower():
             raise ValidationException(ErrorCode.INVITE_EMAIL_MISMATCH, field="email")
         return user
@@ -445,14 +433,12 @@ class ScoreInviteService:
             invite_id=invite.invite_uuid,
             email=invite.email,
             role=invite.role,
-            status=display_invite_status(invite),
+            status=effective_invite_status(invite, now=utc_now_naive()),
             expires_at=invite.expires_at,
-            accepted_at=invite.accepted_at,
-            revoked_at=invite.revoked_at,
-            declined_at=invite.declined_at,
+            terminal_at=invite.terminal_at,
             created_at=invite.created_at,
             created_by=await self._actor(db, invite.created_by_user_id),
-            accepted_by=await self._actor(db, invite.accepted_by_user_id),
+            terminal_actor=await self._actor(db, invite.terminal_actor_user_id),
         )
 
     async def _pending_invite_read(
@@ -468,7 +454,7 @@ class ScoreInviteService:
             inviter=await self._actor(db, invite.created_by_user_id),
             email=invite.email,
             role=invite.role,
-            status=display_invite_status(invite),
+            status=effective_invite_status(invite, now=utc_now_naive()),
             expires_at=invite.expires_at,
             created_at=invite.created_at,
         )
