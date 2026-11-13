@@ -17,6 +17,7 @@ from app.db.models.score_access import InviteStatus, MembershipRole
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.mail.outbox_service import queue_mail
 from app.modules.mail.templates.score_invites import build_invite_email
+from app.modules.score_invites.pagination import DEFAULT_PAGE_SIZE
 from app.modules.score_invites.repository import ScoreInviteRepository
 from app.modules.score_invites.rules import (
     ROLE_RANK,
@@ -27,6 +28,9 @@ from app.modules.score_invites.rules import (
     invite_role_label,
 )
 from app.modules.score_invites.schemas import (
+    InviteListRead,
+    MemberListRead,
+    PendingInviteListRead,
     InviteAcceptRead,
     InviteAccessRead,
     InviteActorRead,
@@ -40,10 +44,6 @@ from app.modules.score_invites.schemas import (
 from app.modules.notifications.service import NotificationService, NotificationTypes
 from app.shared.constants import ErrorCode
 from app.utils.timezone import to_utc_naive, utc_now_naive
-
-
-SCORE_INVITE_LIST_DEFAULT_LIMIT = 100
-SCORE_MEMBER_LIST_DEFAULT_LIMIT = 100
 
 
 class ScoreInviteService:
@@ -94,16 +94,20 @@ class ScoreInviteService:
         score_uuid: str,
         user_id: int,
         *,
-        limit: int = SCORE_INVITE_LIST_DEFAULT_LIMIT,
-    ) -> list[InviteRead]:
+        limit: int = DEFAULT_PAGE_SIZE,
+        cursor: str | None = None,
+    ) -> InviteListRead:
         access = await self.access_policy.authorize(
             db, score_uuid, ScoreAction.MANAGE_MEMBERS, user_id=user_id
         )
         score_id = require_persisted_id(access.score.id, entity="score")
-        return [
-            await self._invite_read(db, invite)
-            for invite in await self.repository.invites(db, score_id, limit=limit)
-        ]
+        invites, next_cursor = await self.repository.invites(
+            db, score_id, limit=limit, cursor=cursor
+        )
+        return InviteListRead(
+            items=[await self._invite_read(db, invite) for invite in invites],
+            next_cursor=next_cursor,
+        )
 
     async def revoke_invite(
         self, db: AsyncSession, score_uuid: str, invite_uuid: str, user_id: int
@@ -150,17 +154,28 @@ class ScoreInviteService:
         return await self._accept_invite_record(db, invite, user_id)
 
     async def list_my_pending_invites(
-        self, db: AsyncSession, user_id: int
-    ) -> list[PendingInviteRead]:
+        self,
+        db: AsyncSession,
+        user_id: int,
+        *,
+        limit: int = DEFAULT_PAGE_SIZE,
+        cursor: str | None = None,
+    ) -> PendingInviteListRead:
         user = await db.get(User, user_id)
         if user is None:
             raise UnauthorizedException(ErrorCode.NO_ACCESS)
-        invites = await self.repository.pending_invites_for_email(db, user.email.lower())
-        active_invites: list[PendingInviteRead] = []
-        for invite in invites:
-            if display_invite_status(invite) == InviteStatus.PENDING:
-                active_invites.append(await self._pending_invite_read(db, invite))
-        return active_invites
+        invites, next_cursor = await self.repository.pending_invites_for_email(
+            db,
+            user.email.lower(),
+            user_id=user_id,
+            now=utc_now_naive(),
+            limit=limit,
+            cursor=cursor,
+        )
+        return PendingInviteListRead(
+            items=[await self._pending_invite_read(db, invite) for invite in invites],
+            next_cursor=next_cursor,
+        )
 
     async def accept_pending_invite(
         self, db: AsyncSession, invite_uuid: str, user_id: int
@@ -268,16 +283,23 @@ class ScoreInviteService:
         score_uuid: str,
         user_id: int,
         *,
-        limit: int = SCORE_MEMBER_LIST_DEFAULT_LIMIT,
-    ) -> list[MemberRead]:
+        limit: int = DEFAULT_PAGE_SIZE,
+        cursor: str | None = None,
+    ) -> MemberListRead:
         access = await self.access_policy.authorize(
             db, score_uuid, ScoreAction.MANAGE_MEMBERS, user_id=user_id
         )
         score_id = require_persisted_id(access.score.id, entity="score")
-        return [
-            await self._member_read(db, membership)
-            for membership in await self.repository.memberships(db, score_id, limit=limit)
-        ]
+        memberships, next_cursor = await self.repository.memberships(
+            db,
+            score_id,
+            limit=limit,
+            cursor=cursor,
+        )
+        return MemberListRead(
+            items=[await self._member_read(db, membership) for membership in memberships],
+            next_cursor=next_cursor,
+        )
 
     async def update_member(
         self,

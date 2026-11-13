@@ -2132,8 +2132,8 @@ async def test_invite_acceptance_creates_editable_membership(
     assert f"/invite/{created.token}" in (queued_mail.html_body or "")
 
     listed = await service.list_invites(db, "invite-score", 1)  # type: ignore[arg-type]
-    assert listed[0].invite_id == created.invite_id
-    assert not hasattr(listed[0], "token")
+    assert listed.items[0].invite_id == created.invite_id
+    assert not hasattr(listed.items[0], "token")
 
     anonymous = await service.inspect_invite(db, created.token, None)  # type: ignore[arg-type]
     assert anonymous.requires_login is True
@@ -2228,9 +2228,9 @@ async def test_user_pending_invites_can_be_accepted_without_token(
     )
     pending = await service.list_my_pending_invites(db, 2)  # type: ignore[arg-type]
 
-    assert [invite.invite_id for invite in pending] == [created.invite_id]
-    assert pending[0].score_id == "pending-invite-score"
-    assert pending[0].score_title == "Pending Invite"
+    assert [invite.invite_id for invite in pending.items] == [created.invite_id]
+    assert pending.items[0].score_id == "pending-invite-score"
+    assert pending.items[0].score_title == "Pending Invite"
 
     accepted = await service.accept_pending_invite(
         db,  # type: ignore[arg-type]
@@ -2241,7 +2241,7 @@ async def test_user_pending_invites_can_be_accepted_without_token(
     assert accepted.score_id == "pending-invite-score"
     assert accepted.role == MembershipRole.EDITOR
     assert maybe_one_row(session, ScoreMembership, score_id=91, user_id=2)
-    assert await service.list_my_pending_invites(db, 2) == []  # type: ignore[arg-type]
+    assert (await service.list_my_pending_invites(db, 2)).items == []  # type: ignore[arg-type]
 
 
 @pytest.mark.asyncio
@@ -2285,7 +2285,7 @@ async def test_user_pending_invites_can_be_declined(
     )
     assert notification.score_id == "decline-invite-score"
     assert notification.data == {"score_title": "Decline Invite"}
-    assert await service.list_my_pending_invites(db, 2) == []  # type: ignore[arg-type]
+    assert (await service.list_my_pending_invites(db, 2)).items == []  # type: ignore[arg-type]
     with pytest.raises(ValidationException) as declined_again:
         await service.accept_pending_invite(
             db,  # type: ignore[arg-type]

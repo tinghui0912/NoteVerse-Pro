@@ -6,6 +6,9 @@ from app.db.model_utils import require_persisted_id
 from app.db.models import User
 from app.modules.score_invites.dependencies import get_score_invite_service
 from app.modules.score_invites.schemas import (
+    InviteListRead,
+    MemberListRead,
+    PendingInviteListRead,
     InviteAcceptRead,
     InviteAccessRead,
     InviteCreateRequest,
@@ -16,28 +19,26 @@ from app.modules.score_invites.schemas import (
     PendingInviteRead,
 )
 from app.modules.score_invites.service import ScoreInviteService
+from .pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.shared.constants import SuccessCode
 from app.shared.responses import APIResponse, success_response
 
 score_router = APIRouter()
 invite_router = APIRouter()
 me_router = APIRouter()
-SCORE_INVITE_LIST_DEFAULT_LIMIT = 100
-SCORE_INVITE_LIST_MAX_LIMIT = 100
-SCORE_MEMBER_LIST_DEFAULT_LIMIT = 100
-SCORE_MEMBER_LIST_MAX_LIMIT = 100
 
 
-@score_router.get("/{score_id}/invites", response_model=APIResponse[list[InviteRead]])
+@score_router.get("/{score_id}/invites", response_model=APIResponse[InviteListRead])
 async def list_score_invites(
     score_id: str,
-    limit: int = Query(default=SCORE_INVITE_LIST_DEFAULT_LIMIT, ge=1, le=SCORE_INVITE_LIST_MAX_LIMIT),
+    limit: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
+    cursor: str | None = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     service: ScoreInviteService = Depends(get_score_invite_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    result = await service.list_invites(db, score_id, user_id, limit=limit)
+    result = await service.list_invites(db, score_id, user_id, limit=limit, cursor=cursor)
     return success_response(data=result)
 
 
@@ -80,16 +81,17 @@ async def delete_score_invite(
     return success_response(data={"deleted": True})
 
 
-@score_router.get("/{score_id}/members", response_model=APIResponse[list[MemberRead]])
+@score_router.get("/{score_id}/members", response_model=APIResponse[MemberListRead])
 async def list_score_members(
     score_id: str,
-    limit: int = Query(default=SCORE_MEMBER_LIST_DEFAULT_LIMIT, ge=1, le=SCORE_MEMBER_LIST_MAX_LIMIT),
+    limit: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
+    cursor: str | None = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     service: ScoreInviteService = Depends(get_score_invite_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    result = await service.list_members(db, score_id, user_id, limit=limit)
+    result = await service.list_members(db, score_id, user_id, limit=limit, cursor=cursor)
     return success_response(data=result)
 
 
@@ -144,14 +146,16 @@ async def accept_invite(
     return success_response(data=result, message=SuccessCode.INVITE_ACCEPTED)
 
 
-@me_router.get("/invites", response_model=APIResponse[list[PendingInviteRead]])
+@me_router.get("/invites", response_model=APIResponse[PendingInviteListRead])
 async def list_my_pending_invites(
+    limit: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
+    cursor: str | None = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     service: ScoreInviteService = Depends(get_score_invite_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    result = await service.list_my_pending_invites(db, user_id)
+    result = await service.list_my_pending_invites(db, user_id, limit=limit, cursor=cursor)
     return success_response(data=result)
 
 

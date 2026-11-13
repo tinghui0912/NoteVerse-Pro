@@ -1639,10 +1639,16 @@ def upgrade() -> None:
         sa.UniqueConstraint("invite_uuid", name="uq_score_invites_invite_uuid"),
     )
     op.create_index(
-        "idx_score_invites_email_status", "score_invites", ["email", "status"], unique=False
+        "idx_score_invites_email_status_created",
+        "score_invites",
+        ["email", "status", "created_at", "id"],
+        unique=False,
     )
     op.create_index(
-        "idx_score_invites_score_created", "score_invites", ["score_id", "created_at"], unique=False
+        "idx_score_invites_score_created",
+        "score_invites",
+        ["score_id", "created_at", "id"],
+        unique=False,
     )
     op.create_index("idx_score_invites_token_hash", "score_invites", ["token_hash"], unique=True)
     op.create_table(
@@ -1776,6 +1782,12 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id", name="pk_score_memberships"),
         sa.UniqueConstraint("score_id", "user_id", name="uq_score_memberships_score_user"),
+    )
+    op.create_index(
+        "idx_score_memberships_score_created",
+        "score_memberships",
+        ["score_id", "created_at", "id"],
+        unique=False,
     )
     op.create_index(
         "idx_score_memberships_user_active",
@@ -2465,6 +2477,7 @@ def downgrade() -> None:
     op.drop_table("playback_outbox")
     op.drop_index("idx_score_revisions_score_created", table_name="score_revisions")
     op.drop_table("score_revisions")
+    op.drop_index("idx_score_memberships_score_created", table_name="score_memberships")
     op.drop_index("idx_score_memberships_user_active", table_name="score_memberships")
     op.drop_table("score_memberships")
     op.drop_index(
@@ -2489,7 +2502,7 @@ def downgrade() -> None:
     op.drop_table("score_library_entries")
     op.drop_index("idx_score_invites_token_hash", table_name="score_invites")
     op.drop_index("idx_score_invites_score_created", table_name="score_invites")
-    op.drop_index("idx_score_invites_email_status", table_name="score_invites")
+    op.drop_index("idx_score_invites_email_status_created", table_name="score_invites")
     op.drop_table("score_invites")
     op.drop_index("idx_score_input_assets_upload", table_name="score_input_assets")
     op.drop_index("idx_score_input_assets_score_order", table_name="score_input_assets")

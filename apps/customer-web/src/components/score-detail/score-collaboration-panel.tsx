@@ -59,8 +59,14 @@ export function ScoreCollaborationPanel({
   const deleteInvite = useDeleteScoreInvite(scoreId);
   const updateMember = useUpdateScoreMember(scoreId);
   const removeMember = useRemoveScoreMember(scoreId);
-  const invites = useMemo(() => invitesQuery.data?.data ?? [], [invitesQuery.data]);
-  const members = useMemo(() => membersQuery.data?.data ?? [], [membersQuery.data]);
+  const invites = useMemo(
+    () => invitesQuery.data?.pages.flatMap((page) => page.data?.items ?? []) ?? [],
+    [invitesQuery.data]
+  );
+  const members = useMemo(
+    () => membersQuery.data?.pages.flatMap((page) => page.data?.items ?? []) ?? [],
+    [membersQuery.data]
+  );
 
   const copyInvite = async (token: string) => {
     try {
@@ -212,6 +218,16 @@ export function ScoreCollaborationPanel({
             ) : (
               <EmptyState title={t('noMembers')} className="min-h-0 rounded-lg border border-dashed p-5" />
             )}
+            {membersQuery.hasNextPage ? (
+              <Button
+                variant="outline"
+                disabled={membersQuery.isFetchingNextPage}
+                onClick={() => void membersQuery.fetchNextPage()}
+              >
+                {membersQuery.isFetchingNextPage ? <InlineLoading /> : null}
+                {t('loadMore')}
+              </Button>
+            ) : null}
           </section>
 
           <section className="space-y-3">
@@ -262,6 +278,16 @@ export function ScoreCollaborationPanel({
             ) : (
               <EmptyState title={t('noInvites')} className="min-h-0 rounded-lg border border-dashed p-5" />
             )}
+            {invitesQuery.hasNextPage ? (
+              <Button
+                variant="outline"
+                disabled={invitesQuery.isFetchingNextPage}
+                onClick={() => void invitesQuery.fetchNextPage()}
+              >
+                {invitesQuery.isFetchingNextPage ? <InlineLoading /> : null}
+                {t('loadMore')}
+              </Button>
+            ) : null}
           </section>
 
     </div>

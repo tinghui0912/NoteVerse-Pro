@@ -1,6 +1,9 @@
 import { apiClient } from '@/lib/api-client';
 import type { ApiResponse } from '@/lib/api-client';
 import type {
+  InviteListRead,
+  MemberListRead,
+  PendingInviteListRead,
   InviteAcceptRead,
   InviteAccessRead,
   InviteCreatedRead,
@@ -12,10 +15,10 @@ import type {
 } from '@/generated/api';
 
 export const scoreInvitesApi = {
-  listInvites: (scoreId: string, options?: { limit?: number; signal?: AbortSignal }) =>
-    apiClient.get<ApiResponse<InviteRead[]>>(
+  listInvites: (scoreId: string, options?: { limit?: number; cursor?: string; signal?: AbortSignal }) =>
+    apiClient.get<ApiResponse<InviteListRead>>(
       `/scores/${scoreId}/invites`,
-      { limit: options?.limit },
+      { limit: options?.limit, cursor: options?.cursor },
       { signal: options?.signal }
     ),
   createInvite: (
@@ -26,10 +29,10 @@ export const scoreInvitesApi = {
     apiClient.post<ApiResponse<InviteRead>>(`/scores/${scoreId}/invites/${inviteId}/revoke`),
   deleteInvite: (scoreId: string, inviteId: string) =>
     apiClient.delete<ApiResponse<{ deleted: boolean }>>(`/scores/${scoreId}/invites/${inviteId}`),
-  listMembers: (scoreId: string, options?: { limit?: number; signal?: AbortSignal }) =>
-    apiClient.get<ApiResponse<MemberRead[]>>(
+  listMembers: (scoreId: string, options?: { limit?: number; cursor?: string; signal?: AbortSignal }) =>
+    apiClient.get<ApiResponse<MemberListRead>>(
       `/scores/${scoreId}/members`,
-      { limit: options?.limit },
+      { limit: options?.limit, cursor: options?.cursor },
       { signal: options?.signal }
     ),
   updateMember: (scoreId: string, membershipId: number, input: MemberUpdateRequest) =>
@@ -43,8 +46,12 @@ export const scoreInvitesApi = {
     }),
   acceptInvite: (token: string) =>
     apiClient.post<ApiResponse<InviteAcceptRead>>(`/invites/${token}/accept`),
-  listMyPendingInvites: (signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<PendingInviteRead[]>>('/me/invites', undefined, { signal }),
+  listMyPendingInvites: (options?: { limit?: number; cursor?: string; signal?: AbortSignal }) =>
+    apiClient.get<ApiResponse<PendingInviteListRead>>(
+      '/me/invites',
+      { limit: options?.limit, cursor: options?.cursor },
+      { signal: options?.signal }
+    ),
   acceptMyPendingInvite: (inviteId: string) =>
     apiClient.post<ApiResponse<InviteAcceptRead>>(`/me/invites/${inviteId}/accept`),
   declineMyPendingInvite: (inviteId: string) =>

@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/states';
+import { InlineLoading } from '@/components/loading';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { SectionErrorState } from '@/components/states';
@@ -63,7 +64,8 @@ export function NotificationCenterDialog({
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
 
-  const invites = pendingInvitesQuery.data?.data ?? [];
+  const invites =
+    pendingInvitesQuery.data?.pages.flatMap((page) => page.data?.items ?? []) ?? [];
   const notifications = notificationsQuery.data?.data ?? [];
   const unreadCount = notifications.filter((item) => !item.read_at).length;
   const visibleNotifications =
@@ -170,7 +172,7 @@ export function NotificationCenterDialog({
               </div>
               {pendingInvitesQuery.isLoading ? (
                 <EmptyState title={t('loading')} className="min-h-0 rounded-lg border border-dashed p-5" />
-              ) : pendingInvitesQuery.isError ? (
+              ) : pendingInvitesQuery.isError && !invites.length ? (
                 <SectionErrorState
                   description={t('loadActionsFailed')}
                   retryLabel={t('retry')}
@@ -232,6 +234,16 @@ export function NotificationCenterDialog({
                   })}
                 </div>
               )}
+              {pendingInvitesQuery.hasNextPage ? (
+                <Button
+                  variant="outline"
+                  disabled={pendingInvitesQuery.isFetchingNextPage}
+                  onClick={() => void pendingInvitesQuery.fetchNextPage()}
+                >
+                  {pendingInvitesQuery.isFetchingNextPage ? <InlineLoading /> : null}
+                  {collaborationT('loadMore')}
+                </Button>
+              ) : null}
             </section>
 
             <Separator />

@@ -202,6 +202,7 @@ async def test_http_source_disclosure_and_editing_boundaries(collaboration, role
                 ),
                 ("/scores/trusted-score/revisions/trusted-revision/playback", can_practice),
                 ("/scores/trusted-score/members", role == "OWNER"),
+                ("/scores/trusted-score/invites", role == "OWNER"),
                 ("/scores/trusted-score/guest-preview", role == "OWNER"),
             ]
             for path, allowed in reads:

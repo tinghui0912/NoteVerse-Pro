@@ -7,6 +7,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from app.db.models.score_access import InviteStatus, MembershipRole
+from app.shared.pagination import CursorPage
 
 
 class InviteActorRead(BaseModel):
@@ -92,3 +93,15 @@ class MemberUpdateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     role: MembershipRole
+
+
+class InviteListRead(CursorPage[InviteRead]):
+    next_cursor: str | None
+
+
+class MemberListRead(CursorPage[MemberRead]):
+    next_cursor: str | None
+
+
+class PendingInviteListRead(CursorPage[PendingInviteRead]):
+    next_cursor: str | None

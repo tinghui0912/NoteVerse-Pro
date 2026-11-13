@@ -17,6 +17,21 @@ def test_fresh_membership_role_enum_and_both_consumers(monkeypatch):
             == [role.value for role in MembershipRole]
             == ["VIEWER", "PRACTITIONER", "EDITOR"]
         )
+        inspector = sa.inspect(engine)
+        for table, expected in {
+            "score_invites": {
+                "idx_score_invites_score_created": ["score_id", "created_at", "id"],
+                "idx_score_invites_email_status_created": ["email", "status", "created_at", "id"],
+            },
+            "score_memberships": {
+                "idx_score_memberships_score_created": ["score_id", "created_at", "id"],
+            },
+        }.items():
+            indexes = {
+                index["name"]: index["column_names"] for index in inspector.get_indexes(table)
+            }
+            for name, columns in expected.items():
+                assert indexes[name] == columns
         with Session(engine) as db:
             owner = User(
                 email="roles-owner@example.com", display_name="Owner", password_hash="test"

@@ -397,6 +397,34 @@ export type ApiResponseInviteCreatedRead = {
 };
 
 /**
+ * APIResponse[InviteListRead]
+ */
+export type ApiResponseInviteListRead = {
+    /**
+     * Code
+     *
+     * Business code
+     */
+    code?: string | null;
+    /**
+     * Response payload
+     */
+    data?: InviteListRead | null;
+    /**
+     * Message
+     *
+     * Human-readable message
+     */
+    message?: string | null;
+    /**
+     * Success
+     *
+     * Whether the request succeeded
+     */
+    success: boolean;
+};
+
+/**
  * APIResponse[InviteRead]
  */
 export type ApiResponseInviteRead = {
@@ -593,6 +621,34 @@ export type ApiResponseLibraryOwnedScoreBatchRead = {
 };
 
 /**
+ * APIResponse[MemberListRead]
+ */
+export type ApiResponseMemberListRead = {
+    /**
+     * Code
+     *
+     * Business code
+     */
+    code?: string | null;
+    /**
+     * Response payload
+     */
+    data?: MemberListRead | null;
+    /**
+     * Message
+     *
+     * Human-readable message
+     */
+    message?: string | null;
+    /**
+     * Success
+     *
+     * Whether the request succeeded
+     */
+    success: boolean;
+};
+
+/**
  * APIResponse[MemberRead]
  */
 export type ApiResponseMemberRead = {
@@ -692,6 +748,34 @@ export type ApiResponseNotificationUnreadCountRead = {
      * Response payload
      */
     data?: NotificationUnreadCountRead | null;
+    /**
+     * Message
+     *
+     * Human-readable message
+     */
+    message?: string | null;
+    /**
+     * Success
+     *
+     * Whether the request succeeded
+     */
+    success: boolean;
+};
+
+/**
+ * APIResponse[PendingInviteListRead]
+ */
+export type ApiResponsePendingInviteListRead = {
+    /**
+     * Code
+     *
+     * Business code
+     */
+    code?: string | null;
+    /**
+     * Response payload
+     */
+    data?: PendingInviteListRead | null;
     /**
      * Message
      *
@@ -1331,66 +1415,6 @@ export type ApiResponseDictStrInt = {
 };
 
 /**
- * APIResponse[list[InviteRead]]
- */
-export type ApiResponseListInviteRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Data
-     *
-     * Response payload
-     */
-    data?: Array<InviteRead> | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[list[MemberRead]]
- */
-export type ApiResponseListMemberRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Data
-     *
-     * Response payload
-     */
-    data?: Array<MemberRead> | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
  * APIResponse[list[NotificationEventRead]]
  */
 export type ApiResponseListNotificationEventRead = {
@@ -1406,36 +1430,6 @@ export type ApiResponseListNotificationEventRead = {
      * Response payload
      */
     data?: Array<NotificationEventRead> | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[list[PendingInviteRead]]
- */
-export type ApiResponseListPendingInviteRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Data
-     *
-     * Response payload
-     */
-    data?: Array<PendingInviteRead> | null;
     /**
      * Message
      *
@@ -2109,6 +2103,20 @@ export type InviteCreatedRead = {
 };
 
 /**
+ * InviteListRead
+ */
+export type InviteListRead = {
+    /**
+     * Items
+     */
+    items: Array<InviteRead>;
+    /**
+     * Next Cursor
+     */
+    next_cursor: string | null;
+};
+
+/**
  * InviteRead
  */
 export type InviteRead = {
@@ -2396,6 +2404,20 @@ export type LibrarySort = 'updated_desc' | 'updated_asc' | 'name_asc' | 'name_de
 export type LibraryView = 'all' | 'favorites' | 'recent_practice' | 'to_practice' | 'mastered' | 'trash';
 
 /**
+ * MemberListRead
+ */
+export type MemberListRead = {
+    /**
+     * Items
+     */
+    items: Array<MemberRead>;
+    /**
+     * Next Cursor
+     */
+    next_cursor: string | null;
+};
+
+/**
  * MemberRead
  */
 export type MemberRead = {
@@ -2646,6 +2668,20 @@ export type PaginationMeta = {
      * Total Pages
      */
     total_pages: number;
+};
+
+/**
+ * PendingInviteListRead
+ */
+export type PendingInviteListRead = {
+    /**
+     * Items
+     */
+    items: Array<PendingInviteRead>;
+    /**
+     * Next Cursor
+     */
+    next_cursor: string | null;
 };
 
 /**
@@ -5348,7 +5384,16 @@ export type RequestMyEmailChangeApiV1MeEmailChangePostResponse = RequestMyEmailC
 export type ListMyPendingInvitesApiV1MeInvitesGetData = {
     body?: never;
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Cursor
+         */
+        cursor?: string | null;
+    };
     url: '/api/v1/me/invites';
 };
 
@@ -5365,7 +5410,7 @@ export type ListMyPendingInvitesApiV1MeInvitesGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseListPendingInviteRead;
+    200: ApiResponsePendingInviteListRead;
 };
 
 export type ListMyPendingInvitesApiV1MeInvitesGetResponse = ListMyPendingInvitesApiV1MeInvitesGetResponses[keyof ListMyPendingInvitesApiV1MeInvitesGetResponses];
@@ -6600,6 +6645,10 @@ export type ListScoreInvitesApiV1ScoresScoreIdInvitesGetData = {
          * Limit
          */
         limit?: number;
+        /**
+         * Cursor
+         */
+        cursor?: string | null;
     };
     url: '/api/v1/scores/{score_id}/invites';
 };
@@ -6617,7 +6666,7 @@ export type ListScoreInvitesApiV1ScoresScoreIdInvitesGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseListInviteRead;
+    200: ApiResponseInviteListRead;
 };
 
 export type ListScoreInvitesApiV1ScoresScoreIdInvitesGetResponse = ListScoreInvitesApiV1ScoresScoreIdInvitesGetResponses[keyof ListScoreInvitesApiV1ScoresScoreIdInvitesGetResponses];
@@ -6733,6 +6782,10 @@ export type ListScoreMembersApiV1ScoresScoreIdMembersGetData = {
          * Limit
          */
         limit?: number;
+        /**
+         * Cursor
+         */
+        cursor?: string | null;
     };
     url: '/api/v1/scores/{score_id}/members';
 };
@@ -6750,7 +6803,7 @@ export type ListScoreMembersApiV1ScoresScoreIdMembersGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseListMemberRead;
+    200: ApiResponseMemberListRead;
 };
 
 export type ListScoreMembersApiV1ScoresScoreIdMembersGetResponse = ListScoreMembersApiV1ScoresScoreIdMembersGetResponses[keyof ListScoreMembersApiV1ScoresScoreIdMembersGetResponses];

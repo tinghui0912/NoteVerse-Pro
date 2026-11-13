@@ -46,6 +46,7 @@ class ScoreMembership(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "score_memberships"
     __table_args__ = (
         UniqueConstraint("score_id", "user_id", name="uq_score_memberships_score_user"),
+        Index("idx_score_memberships_score_created", "score_id", "created_at", "id"),
         Index("idx_score_memberships_user_active", "user_id", "revoked_at"),
     )
 
@@ -77,9 +78,9 @@ class ScoreMembership(SQLModel, table=True):  # type: ignore[call-arg]
 class ScoreInvite(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "score_invites"
     __table_args__ = (
-        Index("idx_score_invites_score_created", "score_id", "created_at"),
+        Index("idx_score_invites_score_created", "score_id", "created_at", "id"),
         Index("idx_score_invites_token_hash", "token_hash", unique=True),
-        Index("idx_score_invites_email_status", "email", "status"),
+        Index("idx_score_invites_email_status_created", "email", "status", "created_at", "id"),
     )
 
     id: Optional[int] = Field(

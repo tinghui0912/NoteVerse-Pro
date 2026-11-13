@@ -22,7 +22,10 @@ Practice, editable membership, source download or persistent account access.
 An invite has a high-entropy opaque token returned once, with only its hash
 stored in the database. Its email, requested role, issuer, expiry and lifecycle
 are server-owned. States include pending, accepted, declined, revoked and expired.
-List and management APIs do not reveal raw tokens.
+List and management APIs do not reveal raw tokens. Score invite, membership and
+account pending-invite collections use stable cursor pagination with explicit
+continuation. Invitations are newest first; memberships are oldest first. Pending
+pages contain invitations whose pending status and expiry currently allow action.
 
 `/invite/:token` presents the invitation. Login/registration preserves the return
 URL, and acceptance requires the authenticated account's normalized email to

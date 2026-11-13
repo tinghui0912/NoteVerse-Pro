@@ -151,9 +151,12 @@ export function useGenerateScoreFingering() {
 }
 
 export function useScoreInvites(scoreId: string, enabled = true) {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: queryKeys.scores.invites(scoreId),
-    queryFn: ({ signal }) => scoreInvitesApi.listInvites(scoreId, { signal }),
+    queryFn: ({ signal, pageParam }) =>
+      scoreInvitesApi.listInvites(scoreId, { signal, cursor: pageParam }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.data?.next_cursor ?? undefined,
     enabled: enabled && Boolean(scoreId),
   });
 }
@@ -190,9 +193,12 @@ export function useDeleteScoreInvite(scoreId: string) {
 }
 
 export function useScoreMembers(scoreId: string, enabled = true) {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: queryKeys.scores.members(scoreId),
-    queryFn: ({ signal }) => scoreInvitesApi.listMembers(scoreId, { signal }),
+    queryFn: ({ signal, pageParam }) =>
+      scoreInvitesApi.listMembers(scoreId, { signal, cursor: pageParam }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.data?.next_cursor ?? undefined,
     enabled: enabled && Boolean(scoreId),
   });
 }
@@ -244,9 +250,12 @@ export function useAcceptScoreInvite() {
 }
 
 export function useMyPendingScoreInvites(enabled = true) {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: queryKeys.scores.myInvites(),
-    queryFn: ({ signal }) => scoreInvitesApi.listMyPendingInvites(signal),
+    queryFn: ({ signal, pageParam }) =>
+      scoreInvitesApi.listMyPendingInvites({ signal, cursor: pageParam }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.data?.next_cursor ?? undefined,
     enabled,
   });
 }

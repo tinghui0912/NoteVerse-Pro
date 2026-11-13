@@ -827,6 +827,65 @@
         "title": "APIResponse[InviteCreatedRead]",
         "type": "object"
       },
+      "APIResponse_InviteListRead_": {
+        "examples": [
+          {
+            "data": {
+              "id": 1,
+              "name": "Example task"
+            },
+            "message": "Operation succeeded",
+            "success": true
+          }
+        ],
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Business code",
+            "title": "Code"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InviteListRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Response payload"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable message",
+            "title": "Message"
+          },
+          "success": {
+            "description": "Whether the request succeeded",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "title": "APIResponse[InviteListRead]",
+        "type": "object"
+      },
       "APIResponse_InviteRead_": {
         "examples": [
           {
@@ -1240,6 +1299,65 @@
         "title": "APIResponse[LibraryOwnedScoreBatchRead]",
         "type": "object"
       },
+      "APIResponse_MemberListRead_": {
+        "examples": [
+          {
+            "data": {
+              "id": 1,
+              "name": "Example task"
+            },
+            "message": "Operation succeeded",
+            "success": true
+          }
+        ],
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Business code",
+            "title": "Code"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MemberListRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Response payload"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable message",
+            "title": "Message"
+          },
+          "success": {
+            "description": "Whether the request succeeded",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "title": "APIResponse[MemberListRead]",
+        "type": "object"
+      },
       "APIResponse_MemberRead_": {
         "examples": [
           {
@@ -1468,6 +1586,65 @@
           "success"
         ],
         "title": "APIResponse[NotificationUnreadCountRead]",
+        "type": "object"
+      },
+      "APIResponse_PendingInviteListRead_": {
+        "examples": [
+          {
+            "data": {
+              "id": 1,
+              "name": "Example task"
+            },
+            "message": "Operation succeeded",
+            "success": true
+          }
+        ],
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Business code",
+            "title": "Code"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PendingInviteListRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Response payload"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable message",
+            "title": "Message"
+          },
+          "success": {
+            "description": "Whether the request succeeded",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "title": "APIResponse[PendingInviteListRead]",
         "type": "object"
       },
       "APIResponse_PendingInviteRead_": {
@@ -2776,132 +2953,6 @@
         "title": "APIResponse[dict[str, int]]",
         "type": "object"
       },
-      "APIResponse_list_InviteRead__": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/InviteRead"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload",
-            "title": "Data"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[list[InviteRead]]",
-        "type": "object"
-      },
-      "APIResponse_list_MemberRead__": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/MemberRead"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload",
-            "title": "Data"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[list[MemberRead]]",
-        "type": "object"
-      },
       "APIResponse_list_NotificationEventRead__": {
         "examples": [
           {
@@ -2963,69 +3014,6 @@
           "success"
         ],
         "title": "APIResponse[list[NotificationEventRead]]",
-        "type": "object"
-      },
-      "APIResponse_list_PendingInviteRead__": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/PendingInviteRead"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload",
-            "title": "Data"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[list[PendingInviteRead]]",
         "type": "object"
       },
       "AssetAccessRead": {
@@ -4262,6 +4250,34 @@
         "title": "InviteCreatedRead",
         "type": "object"
       },
+      "InviteListRead": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/InviteRead"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "InviteListRead",
+        "type": "object"
+      },
       "InviteRead": {
         "properties": {
           "accepted_at": {
@@ -4816,6 +4832,34 @@
         "title": "LibraryView",
         "type": "string"
       },
+      "MemberListRead": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MemberRead"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "MemberListRead",
+        "type": "object"
+      },
       "MemberRead": {
         "properties": {
           "avatar_url": {
@@ -5334,6 +5378,34 @@
           "total_pages"
         ],
         "title": "PaginationMeta",
+        "type": "object"
+      },
+      "PendingInviteListRead": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PendingInviteRead"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "PendingInviteListRead",
         "type": "object"
       },
       "PendingInviteRead": {
@@ -10367,6 +10439,34 @@
         "operationId": "list_my_pending_invites_api_v1_me_invites_get",
         "parameters": [
           {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
             "in": "cookie",
             "name": "noteverse_session",
             "required": false,
@@ -10388,7 +10488,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_list_PendingInviteRead__"
+                  "$ref": "#/components/schemas/APIResponse_PendingInviteListRead_"
                 }
               }
             },
@@ -12975,6 +13075,22 @@
             }
           },
           {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
             "in": "cookie",
             "name": "noteverse_session",
             "required": false,
@@ -12996,7 +13112,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_list_InviteRead__"
+                  "$ref": "#/components/schemas/APIResponse_InviteListRead_"
                 }
               }
             },
@@ -13245,6 +13361,22 @@
             }
           },
           {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
             "in": "cookie",
             "name": "noteverse_session",
             "required": false,
@@ -13266,7 +13398,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_list_MemberRead__"
+                  "$ref": "#/components/schemas/APIResponse_MemberListRead_"
                 }
               }
             },

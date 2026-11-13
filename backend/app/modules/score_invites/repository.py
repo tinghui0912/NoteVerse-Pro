@@ -1,27 +1,23 @@
 from __future__ import annotations
 
-from sqlalchemy import select
+from datetime import datetime
+
+from sqlalchemy import select, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import ScoreInvite, ScoreMembership, User
 from app.db.models.score_access import InviteStatus
-
-
-invite_created_col = ScoreInvite.__table__.c.created_at
-membership_created_col = ScoreMembership.__table__.c.created_at
+from app.db.model_utils import require_persisted_id
+from .pagination import decode_cursor, encode_cursor
 
 
 class ScoreInviteRepository:
-    async def invite_by_token_hash(
-        self, db: AsyncSession, token_hash: str
-    ) -> ScoreInvite | None:
+    async def invite_by_token_hash(self, db: AsyncSession, token_hash: str) -> ScoreInvite | None:
         return (
             await db.execute(select(ScoreInvite).where(ScoreInvite.token_hash == token_hash))
         ).scalar_one_or_none()
 
-    async def invite_by_uuid(
-        self, db: AsyncSession, invite_uuid: str
-    ) -> ScoreInvite | None:
+    async def invite_by_uuid(self, db: AsyncSession, invite_uuid: str) -> ScoreInvite | None:
         return (
             await db.execute(select(ScoreInvite).where(ScoreInvite.invite_uuid == invite_uuid))
         ).scalar_one_or_none()
@@ -32,33 +28,85 @@ class ScoreInviteRepository:
         score_id: int,
         *,
         limit: int,
-    ) -> list[ScoreInvite]:
-        return list(
+        cursor: str | None = None,
+    ) -> tuple[list[ScoreInvite], str | None]:
+        position = decode_cursor(cursor, kind="invites", scope=str(score_id))
+        columns = ScoreInvite.__table__.c
+        query = select(ScoreInvite).where(columns.score_id == score_id)
+        if position:
+            created_at, row_id = position
+            query = query.where(
+                or_(
+                    columns.created_at < created_at,
+                    and_(columns.created_at == created_at, columns.id < row_id),
+                )
+            )
+        rows = list(
             (
                 await db.execute(
-                    select(ScoreInvite)
-                    .where(ScoreInvite.score_id == score_id)
-                    .order_by(invite_created_col.desc())
-                    .limit(limit)
+                    query.order_by(columns.created_at.desc(), columns.id.desc()).limit(limit + 1)
                 )
-            ).scalars().all()
+            )
+            .scalars()
+            .all()
         )
+        items = rows[:limit]
+        next_cursor = None
+        if len(rows) > limit:
+            last = items[-1]
+            next_cursor = encode_cursor(
+                "invites",
+                str(score_id),
+                last.created_at,
+                require_persisted_id(last.id, entity="invite"),
+            )
+        return items, next_cursor
 
     async def pending_invites_for_email(
-        self, db: AsyncSession, email: str
-    ) -> list[ScoreInvite]:
-        return list(
+        self,
+        db: AsyncSession,
+        email: str,
+        *,
+        user_id: int,
+        now: datetime,
+        limit: int,
+        cursor: str | None = None,
+    ) -> tuple[list[ScoreInvite], str | None]:
+        position = decode_cursor(cursor, kind="pending_invites", scope=str(user_id))
+        columns = ScoreInvite.__table__.c
+        query = select(ScoreInvite).where(
+            columns.email == email,
+            columns.status == InviteStatus.PENDING,
+            or_(columns.expires_at.is_(None), columns.expires_at > now),
+        )
+        if position:
+            created_at, row_id = position
+            query = query.where(
+                or_(
+                    columns.created_at < created_at,
+                    and_(columns.created_at == created_at, columns.id < row_id),
+                )
+            )
+        rows = list(
             (
                 await db.execute(
-                    select(ScoreInvite)
-                    .where(
-                        ScoreInvite.email == email,
-                        ScoreInvite.status == InviteStatus.PENDING,
-                    )
-                    .order_by(invite_created_col.desc())
+                    query.order_by(columns.created_at.desc(), columns.id.desc()).limit(limit + 1)
                 )
-            ).scalars().all()
+            )
+            .scalars()
+            .all()
         )
+        items = rows[:limit]
+        next_cursor = None
+        if len(rows) > limit:
+            last = items[-1]
+            next_cursor = encode_cursor(
+                "pending_invites",
+                str(user_id),
+                last.created_at,
+                require_persisted_id(last.id, entity="invite"),
+            )
+        return items, next_cursor
 
     async def membership_by_id(
         self, db: AsyncSession, membership_id: int
@@ -83,19 +131,39 @@ class ScoreInviteRepository:
         score_id: int,
         *,
         limit: int,
-    ) -> list[ScoreMembership]:
-        return list(
+        cursor: str | None = None,
+    ) -> tuple[list[ScoreMembership], str | None]:
+        position = decode_cursor(cursor, kind="members", scope=str(score_id))
+        columns = ScoreMembership.__table__.c
+        query = select(ScoreMembership).where(columns.score_id == score_id)
+        if position:
+            created_at, row_id = position
+            query = query.where(
+                or_(
+                    columns.created_at > created_at,
+                    and_(columns.created_at == created_at, columns.id > row_id),
+                )
+            )
+        rows = list(
             (
                 await db.execute(
-                    select(ScoreMembership)
-                    .where(ScoreMembership.score_id == score_id)
-                    .order_by(membership_created_col.asc())
-                    .limit(limit)
+                    query.order_by(columns.created_at.asc(), columns.id.asc()).limit(limit + 1)
                 )
-            ).scalars().all()
+            )
+            .scalars()
+            .all()
         )
+        items = rows[:limit]
+        next_cursor = None
+        if len(rows) > limit:
+            last = items[-1]
+            next_cursor = encode_cursor(
+                "members",
+                str(score_id),
+                last.created_at,
+                require_persisted_id(last.id, entity="membership"),
+            )
+        return items, next_cursor
 
     async def user_by_email(self, db: AsyncSession, email: str) -> User | None:
-        return (
-            await db.execute(select(User).where(User.email == email))
-        ).scalar_one_or_none()
+        return (await db.execute(select(User).where(User.email == email))).scalar_one_or_none()

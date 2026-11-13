@@ -97,7 +97,11 @@ export function NotificationBell({ buttonClassName }: { buttonClassName?: string
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const pendingInvites = useMyPendingScoreInvites(true);
   const unreadNotifications = useNotificationUnreadCount(true);
-  const pendingInviteCount = pendingInvites.data?.data?.length ?? 0;
+  const pendingInviteCount =
+    pendingInvites.data?.pages.reduce(
+      (count, page) => count + (page.data?.items.length ?? 0),
+      0
+    ) ?? 0;
   const unreadNotificationCount = unreadNotifications.data?.data?.count ?? 0;
   const badgeCount = pendingInviteCount + unreadNotificationCount;
 
