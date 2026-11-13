@@ -1,20 +1,16 @@
-﻿import { apiClient } from '@/lib/api-client';
+import { apiClient } from '@/lib/api-client';
 import type { ApiResponse, PaginatedResponse } from '@/lib/api-client';
 import type {
-  FolderDeleteMode,
-  ApiResponseLibraryBatchMoveRead,
-  ApiResponseLibraryBatchUpdateRead,
-  ApiResponseLibraryOwnedScoreBatchRead,
-  LibraryEntryBatchMoveRequest,
-  LibraryEntryBatchPracticeStateRequest,
-  LibraryEntryBatchUpdateRequest,
-  LibraryEntryRead,
+  LibraryBatchMoveRead,
+  LibraryBatchUpdateRead,
+  LibraryScoreBatchMoveRequest,
+  LibraryScoreBatchFavoriteRequest,
+  LibraryScoreRead,
   LibraryFolderCreateRequest,
   LibraryFolderRead,
   LibraryFolderOverviewRead,
   LibraryFolderUpdateRequest,
-  ListLibraryEntriesApiV1LibraryEntriesGetData,
-  LibraryOwnedScoreBatchRequest,
+  ListLibraryScoresApiV1LibraryScoresGetData,
 } from '@/generated/api';
 
 export const libraryApi = {
@@ -31,46 +27,28 @@ export const libraryApi = {
       `/library/folders/${folderId}`,
       input,
     ),
-  deleteFolder: (
-    folderId: string,
-    mode: FolderDeleteMode = 'MOVE_CONTENTS_TO_ROOT',
-  ) =>
-    apiClient.delete<ApiResponse<never>>(
-      `/library/folders/${folderId}?mode=${encodeURIComponent(mode)}`,
-    ),
-  entries: (
+  deleteFolder: (folderId: string) =>
+    apiClient.delete<ApiResponse<never>>(`/library/folders/${folderId}`),
+  scores: (
     params: Omit<
-      NonNullable<ListLibraryEntriesApiV1LibraryEntriesGetData['query']>,
+      NonNullable<ListLibraryScoresApiV1LibraryScoresGetData['query']>,
       'folder_id' | 'search'
-    > & {
-      folder_id?: string;
-      search?: string;
-    },
+    > & { folder_id?: string; search?: string },
     signal?: AbortSignal,
   ) =>
-    apiClient.get<PaginatedResponse<LibraryEntryRead>>(
-      '/library/entries',
+    apiClient.get<PaginatedResponse<LibraryScoreRead>>(
+      '/library/scores',
       params,
       { signal },
     ),
-  batchMove: (input: LibraryEntryBatchMoveRequest) =>
-    apiClient.post<ApiResponseLibraryBatchMoveRead>(
-      '/library/entries/batch-move',
+  batchMove: (input: LibraryScoreBatchMoveRequest) =>
+    apiClient.post<ApiResponse<LibraryBatchMoveRead>>(
+      '/library/scores/batch-move',
       input,
     ),
-  batchTrash: (input: LibraryEntryBatchUpdateRequest) =>
-    apiClient.post<ApiResponseLibraryBatchUpdateRead>(
-      '/library/entries/batch-trash',
-      input,
-    ),
-  batchAddOwned: (input: LibraryOwnedScoreBatchRequest) =>
-    apiClient.post<ApiResponseLibraryOwnedScoreBatchRead>(
-      '/library/entries/batch-add-owned',
-      input,
-    ),
-  batchPracticeState: (input: LibraryEntryBatchPracticeStateRequest) =>
-    apiClient.post<ApiResponseLibraryBatchUpdateRead>(
-      '/library/entries/batch-practice-state',
+  batchFavorite: (input: LibraryScoreBatchFavoriteRequest) =>
+    apiClient.post<ApiResponse<LibraryBatchUpdateRead>>(
+      '/library/scores/batch-favorite',
       input,
     ),
 };

@@ -278,11 +278,13 @@ def test_library_feature_routes_require_authentication(client: TestClient) -> No
         ("post", "/api/v1/library/folders", {"name": "Practice"}),
         ("patch", "/api/v1/library/folders/folder-1", {"name": "Updated"}),
         ("delete", "/api/v1/library/folders/folder-1", None),
-        ("get", "/api/v1/library/entries", None),
-        ("post", "/api/v1/library/entries/batch-move", {"entry_ids": ["entry-1"]}),
-        ("post", "/api/v1/library/entries/batch-favorite", {"entry_ids": ["entry-1"]}),
-        ("post", "/api/v1/library/entries/batch-trash", {"entry_ids": ["entry-1"]}),
-        ("post", "/api/v1/library/entries/batch-add-owned", {"score_ids": ["score-1"]}),
+        ("get", "/api/v1/library/scores", None),
+        ("post", "/api/v1/library/scores/batch-move", {"score_ids": ["score-1"]}),
+        (
+            "post",
+            "/api/v1/library/scores/batch-favorite",
+            {"score_ids": ["score-1"], "is_favorite": True},
+        ),
     ]
 
     for method, path, payload in protected_requests:

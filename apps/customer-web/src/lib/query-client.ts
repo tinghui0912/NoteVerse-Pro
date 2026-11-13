@@ -18,7 +18,7 @@ export const queryClient = new QueryClient({
         },
     },
 });
-export interface LibraryEntryQueryFilters {
+export interface LibraryScoreQueryFilters {
     view?: string;
     folderId?: string;
     search?: string;
@@ -66,8 +66,8 @@ export const queryKeys = {
     library: {
         all: ['library'] as const,
         folders: () => ['library', 'folders'] as const,
-        entries: () => ['library', 'entries'] as const,
-        entryList: (filters: LibraryEntryQueryFilters) => ['library', 'entries', filters] as const,
+        scores: () => ['library', 'scores'] as const,
+        scoreList: (filters: LibraryScoreQueryFilters) => ['library', 'scores', filters] as const,
     },
     myScores: {
         all: ['my-scores'] as const,

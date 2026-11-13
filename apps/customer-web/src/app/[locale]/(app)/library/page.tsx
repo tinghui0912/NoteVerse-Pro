@@ -1,17 +1,13 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { CheckCircle2, Clock3, Music, Star, Target } from 'lucide-react';
+import { Music, Star, User, Users } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { LibraryBulkActions } from '@/components/library/library-bulk-actions';
 import { LibraryDeleteFolderDialog } from '@/components/library/library-delete-folder-dialog';
-import { LibraryEntryCard } from '@/components/library/library-entry-card';
-import {
-  LibraryDeleteEntriesDialog,
-  LibraryMoveEntriesDialog,
-  LibraryPracticeStateDialog,
-} from '@/components/library/library-entry-action-dialogs';
+import { LibraryScoreCard } from '@/components/library/library-score-card';
+import { LibraryMoveScoresDialog } from '@/components/library/library-move-scores-dialog';
 import { LibraryFilterBar } from '@/components/library/library-filter-bar';
 import { LibraryFolderDialog } from '@/components/library/library-folder-dialog';
 import { PaginationControls } from '@/components/ui/pagination-controls';
@@ -25,11 +21,10 @@ import { PageHeader } from '@/components/page';
 import {
   useCreateLibraryFolder,
   useDeleteLibraryFolder,
-  useLibraryEntries,
+  useLibraryScores,
   useLibraryFolders,
-  useMoveLibraryEntries,
-  useSetLibraryEntriesPracticeState,
-  useTrashLibraryEntries,
+  useMoveLibraryScores,
+  useFavoriteLibraryScores,
   useUpdateLibraryFolder,
 } from '@/hooks/queries/use-library-queries';
 import {
@@ -38,14 +33,11 @@ import {
   sortedLibraryFolders,
   normalizeLibrarySort,
   normalizePage,
-  type UserSettableLibraryPracticeState,
 } from '@/lib/library/state';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import type {
-  FolderDeleteMode,
-  LibraryEntryRead,
+  LibraryScoreRead,
   LibraryFolderRead,
-  LibraryPracticeState,
   LibraryView,
 } from '@/generated/api';
 
@@ -55,16 +47,12 @@ type FolderFormState =
   | { mode: 'create'; folder: null }
   | { mode: 'edit'; folder: LibraryFolderRead };
 
-type EntryActionState =
-  | { type: 'practice'; entry: LibraryEntryRead | null }
-  | { type: 'move'; entry: LibraryEntryRead | null }
-  | { type: 'delete'; entry: LibraryEntryRead | null }
-  | null;
+type ScoreActionState = { type: 'move'; score: LibraryScoreRead | null } | null;
 
 type LibrarySelectionState = {
   scopeKey: string;
   batchMode: boolean;
-  selectedEntryIds: string[];
+  selectedScoreIds: string[];
 };
 
 export default function LibraryPage({
@@ -97,15 +85,15 @@ export default function LibraryPage({
     () => ({
       scopeKey: selectionScopeKey,
       batchMode: false,
-      selectedEntryIds: [],
+      selectedScoreIds: [],
     }),
   );
   const activeSelectionState =
     selectionState.scopeKey === selectionScopeKey
       ? selectionState
-      : { scopeKey: selectionScopeKey, batchMode: false, selectedEntryIds: [] };
+      : { scopeKey: selectionScopeKey, batchMode: false, selectedScoreIds: [] };
   const batchMode = activeSelectionState.batchMode;
-  const selectedEntryIds = activeSelectionState.selectedEntryIds;
+  const selectedScoreIds = activeSelectionState.selectedScoreIds;
   const [moveTargetFolderId, setMoveTargetFolderId] =
     useState<string>(ROOT_FOLDER_VALUE);
   const [folderForm, setFolderForm] = useState<FolderFormState | null>(null);
@@ -113,21 +101,15 @@ export default function LibraryPage({
   const [deleteTarget, setDeleteTarget] = useState<LibraryFolderRead | null>(
     null,
   );
-  const [deleteMode, setDeleteMode] = useState<FolderDeleteMode>(
-    'MOVE_CONTENTS_TO_ROOT',
-  );
   const [searchInput, setSearchInput] = useState(params.search ?? '');
-  const [entryAction, setEntryAction] = useState<EntryActionState>(null);
-  const [practiceState, setPracticeState] =
-    useState<UserSettableLibraryPracticeState>('TO_PRACTICE');
+  const [scoreAction, setScoreAction] = useState<ScoreActionState>(null);
   const createFolder = useCreateLibraryFolder();
   const updateFolder = useUpdateLibraryFolder();
   const deleteFolder = useDeleteLibraryFolder();
-  const moveEntries = useMoveLibraryEntries();
-  const setEntriesPracticeState = useSetLibraryEntriesPracticeState();
-  const trashEntries = useTrashLibraryEntries();
+  const moveScores = useMoveLibraryScores();
+  const favoriteScores = useFavoriteLibraryScores();
   const foldersQuery = useLibraryFolders();
-  const entriesQuery = useLibraryEntries({
+  const scoresQuery = useLibraryScores({
     view,
     folderId,
     search: params.search,
@@ -139,11 +121,11 @@ export default function LibraryPage({
     () => foldersQuery.data?.data?.folders ?? [],
     [foldersQuery.data?.data?.folders],
   );
-  const entries = useMemo(
-    () => entriesQuery.data?.data ?? [],
-    [entriesQuery.data?.data],
+  const scores = useMemo(
+    () => scoresQuery.data?.data ?? [],
+    [scoresQuery.data?.data],
   );
-  const pagination = entriesQuery.data?.pagination;
+  const pagination = scoresQuery.data?.pagination;
   const canGoPrevious = pagination ? pagination.page > 1 : false;
   const canGoNext = pagination
     ? pagination.page < pagination.total_pages
@@ -151,24 +133,23 @@ export default function LibraryPage({
   const selectedFolder = folders.find(
     (folder) => folder.folder_id === folderId,
   );
-  const selectedEntrySet = useMemo(
-    () => new Set(selectedEntryIds),
-    [selectedEntryIds],
+  const selectedScoreSet = useMemo(
+    () => new Set(selectedScoreIds),
+    [selectedScoreIds],
   );
-  const visibleEntryIds = useMemo(
-    () => entries.map((entry) => entry.entry_id),
-    [entries],
+  const visibleScoreIds = useMemo(
+    () => scores.map((score) => score.score_id),
+    [scores],
   );
   const allVisibleSelected =
-    visibleEntryIds.length > 0 &&
-    visibleEntryIds.every((entryId) => selectedEntrySet.has(entryId));
+    visibleScoreIds.length > 0 &&
+    visibleScoreIds.every((scoreId) => selectedScoreSet.has(scoreId));
   const mutationError =
     createFolder.error ??
     updateFolder.error ??
     deleteFolder.error ??
-    moveEntries.error ??
-    trashEntries.error ??
-    setEntriesPracticeState.error;
+    moveScores.error ??
+    favoriteScores.error;
   const folderOverview = foldersQuery.data?.data;
   const quickNodes = [
     {
@@ -178,31 +159,22 @@ export default function LibraryPage({
       icon: Music,
     },
     {
+      view: 'created_by_me' as const,
+      label: t('createdByMe'),
+      count: folderOverview?.created_by_me_count ?? 0,
+      icon: User,
+    },
+    {
+      view: 'shared_with_me' as const,
+      label: t('sharedWithMe'),
+      count: folderOverview?.shared_with_me_count ?? 0,
+      icon: Users,
+    },
+    {
       view: 'favorites' as const,
       label: t('favorites'),
       count: folderOverview?.favorite_count ?? 0,
       icon: Star,
-    },
-  ];
-
-  const practiceNodes = [
-    {
-      view: 'recent_practice' as const,
-      label: t('recentPractice'),
-      count: folderOverview?.recent_practice_count ?? 0,
-      icon: Clock3,
-    },
-    {
-      view: 'to_practice' as const,
-      label: t('toPractice'),
-      count: folderOverview?.to_practice_count ?? 0,
-      icon: Target,
-    },
-    {
-      view: 'mastered' as const,
-      label: t('mastered'),
-      count: folderOverview?.mastered_count ?? 0,
-      icon: CheckCircle2,
     },
   ];
 
@@ -265,16 +237,13 @@ export default function LibraryPage({
   };
   const confirmDeleteFolder = () => {
     if (!deleteTarget) return;
-    deleteFolder.mutate(
-      { folderId: deleteTarget.folder_id, mode: deleteMode },
-      {
-        onSuccess: () => {
-          if (folderId === deleteTarget.folder_id)
-            navigate({ view: 'all', folder: null });
-          setDeleteTarget(null);
-        },
+    deleteFolder.mutate(deleteTarget.folder_id, {
+      onSuccess: () => {
+        if (folderId === deleteTarget.folder_id)
+          navigate({ view: 'all', folder: null });
+        setDeleteTarget(null);
       },
-    );
+    });
   };
   const updateSelectionState = (
     updater: (current: LibrarySelectionState) => LibrarySelectionState,
@@ -286,18 +255,18 @@ export default function LibraryPage({
           : {
               scopeKey: selectionScopeKey,
               batchMode: false,
-              selectedEntryIds: [],
+              selectedScoreIds: [],
             },
       ),
     );
   };
-  const setSelectedEntryIds = (
+  const setSelectedScoreIds = (
     next: string[] | ((current: string[]) => string[]),
   ) => {
     updateSelectionState((current) => ({
       ...current,
-      selectedEntryIds:
-        typeof next === 'function' ? next(current.selectedEntryIds) : next,
+      selectedScoreIds:
+        typeof next === 'function' ? next(current.selectedScoreIds) : next,
     }));
   };
   const setBatchMode = (next: boolean | ((current: boolean) => boolean)) => {
@@ -306,60 +275,44 @@ export default function LibraryPage({
       batchMode: typeof next === 'function' ? next(current.batchMode) : next,
     }));
   };
-  const toggleEntrySelection = (entryId: string, checked: boolean) => {
-    setSelectedEntryIds((current) =>
-      checked ? [...current, entryId] : current.filter((id) => id !== entryId),
+  const toggleScoreSelection = (scoreId: string, checked: boolean) => {
+    setSelectedScoreIds((current) =>
+      checked ? [...current, scoreId] : current.filter((id) => id !== scoreId),
     );
   };
-  const toggleVisibleEntries = (checked: boolean) => {
-    setSelectedEntryIds(checked ? visibleEntryIds : []);
+  const toggleVisibleScores = (checked: boolean) => {
+    setSelectedScoreIds(checked ? visibleScoreIds : []);
   };
-  const clearSelection = () => setSelectedEntryIds([]);
-  const closeEntryAction = () => setEntryAction(null);
-  const entryActionIds = entryAction?.entry
-    ? [entryAction.entry.entry_id]
-    : selectedEntryIds;
-  const entryActionCount = entryActionIds.length;
-  const openPracticeStateAction = (entry: LibraryEntryRead | null) => {
-    setPracticeState(
-      entry?.practice_state === 'MASTERED' ? 'MASTERED' : 'TO_PRACTICE',
-    );
-    setEntryAction({ type: 'practice', entry });
+  const clearSelection = () => setSelectedScoreIds([]);
+  const closeScoreAction = () => setScoreAction(null);
+  const scoreActionIds = scoreAction?.score
+    ? [scoreAction.score.score_id]
+    : selectedScoreIds;
+  const scoreActionCount = scoreActionIds.length;
+  const openMoveAction = (score: LibraryScoreRead | null) => {
+    setMoveTargetFolderId(score?.folder_id ?? ROOT_FOLDER_VALUE);
+    setScoreAction({ type: 'move', score });
   };
-  const openMoveAction = (entry: LibraryEntryRead | null) => {
-    setMoveTargetFolderId(entry?.folder_id ?? ROOT_FOLDER_VALUE);
-    setEntryAction({ type: 'move', entry });
+  const onScoreActionSuccess = () => {
+    if (!scoreAction?.score) clearSelection();
+    closeScoreAction();
   };
-  const openDeleteAction = (entry: LibraryEntryRead | null) => {
-    setEntryAction({ type: 'delete', entry });
-  };
-  const onEntryActionSuccess = () => {
-    if (!entryAction?.entry) clearSelection();
-    closeEntryAction();
-  };
-  const moveActionEntries = () => {
-    if (!entryActionIds.length) return;
-    moveEntries.mutate(
+  const moveActionScores = () => {
+    if (!scoreActionIds.length) return;
+    moveScores.mutate(
       {
-        entry_ids: entryActionIds,
+        score_ids: scoreActionIds,
         target_folder_id:
           moveTargetFolderId === ROOT_FOLDER_VALUE ? null : moveTargetFolderId,
       },
-      { onSuccess: onEntryActionSuccess },
+      { onSuccess: onScoreActionSuccess },
     );
   };
-  const setPracticeStateForActionEntries = () => {
-    if (!entryActionIds.length) return;
-    setEntriesPracticeState.mutate(
-      { entry_ids: entryActionIds, practice_state: practiceState },
-      { onSuccess: onEntryActionSuccess },
-    );
-  };
-  const trashActionEntries = () => {
-    if (!entryActionIds.length) return;
-    trashEntries.mutate(
-      { entry_ids: entryActionIds },
-      { onSuccess: onEntryActionSuccess },
+  const setSelectedFavorite = (isFavorite: boolean) => {
+    if (!selectedScoreIds.length) return;
+    favoriteScores.mutate(
+      { score_ids: selectedScoreIds, is_favorite: isFavorite },
+      { onSuccess: clearSelection },
     );
   };
   const viewTitle =
@@ -367,29 +320,20 @@ export default function LibraryPage({
     {
       all: t('allScores'),
       favorites: t('favorites'),
-      recent_practice: t('recentPractice'),
-      to_practice: t('toPractice'),
-      mastered: t('mastered'),
-      trash: t('trash'),
+      created_by_me: t('createdByMe'),
+      shared_with_me: t('sharedWithMe'),
     }[view];
-  const practiceStateLabel = (practiceState: LibraryPracticeState) =>
-    ({
-      TO_PRACTICE: t('practiceStateToPractice'),
-      IN_PROGRESS: t('practiceStateInProgress'),
-      MASTERED: t('practiceStateMastered'),
-    })[practiceState];
   const formatUserFacingError = (
     error: unknown,
     fallback = t('loadFailedDescription'),
   ) => userFacingErrorMessage(errors, error, fallback);
-  const retryEntries = () => {
-    void entriesQuery.refetch();
+  const retryScores = () => {
+    void scoresQuery.refetch();
   };
   const emptyMessages: Partial<Record<LibraryView, string>> = {
     favorites: t('emptyFavorites'),
-    recent_practice: t('emptyRecentPractice'),
-    to_practice: t('emptyToPractice'),
-    mastered: t('emptyMastered'),
+    created_by_me: t('emptyCreatedByMe'),
+    shared_with_me: t('emptySharedWithMe'),
   };
   const emptyMessage = params.search
     ? t('emptySearch')
@@ -413,7 +357,6 @@ export default function LibraryPage({
           currentView={view}
           currentFolderId={folderId}
           quickNodes={quickNodes}
-          practiceNodes={practiceNodes}
           folders={sortedFolders}
           foldersLoading={foldersQuery.isLoading}
           foldersError={foldersQuery.isError ? foldersQuery.error : null}
@@ -442,12 +385,12 @@ export default function LibraryPage({
               ) : null}
             </div>
             <div className="flex flex-wrap gap-2">
-              {entries.length ? (
+              {scores.length ? (
                 <Button
                   variant={batchMode ? 'secondary' : 'outline'}
                   onClick={() => {
                     setBatchMode((current) => !current);
-                    setSelectedEntryIds([]);
+                    setSelectedScoreIds([]);
                   }}
                 >
                   {batchMode ? t('cancelBatchEdit') : t('batchEdit')}
@@ -482,53 +425,50 @@ export default function LibraryPage({
               className="mb-5"
             />
           ) : null}
-          {batchMode && entries.length ? (
+          {batchMode && scores.length ? (
             <LibraryBulkActions
-              selectedCount={selectedEntryIds.length}
+              selectedCount={selectedScoreIds.length}
               allSelected={allVisibleSelected}
-              pending={
-                moveEntries.isPending ||
-                trashEntries.isPending ||
-                setEntriesPracticeState.isPending
-              }
-              onToggleSelectAll={toggleVisibleEntries}
-              onOpenPracticeStateDialog={() => openPracticeStateAction(null)}
+              pending={moveScores.isPending || favoriteScores.isPending}
+              onToggleSelectAll={toggleVisibleScores}
+              onFavorite={() => setSelectedFavorite(true)}
               onOpenMoveDialog={() => openMoveAction(null)}
-              onOpenDeleteDialog={() => openDeleteAction(null)}
+              onUnfavorite={() => setSelectedFavorite(false)}
               t={t}
             />
           ) : null}
-          {entriesQuery.isLoading ? (
-            <SectionLoading label={t('loadingEntries')} className="py-20" />
-          ) : entriesQuery.isError ? (
+          {scoresQuery.isLoading ? (
+            <SectionLoading label={t('loadingScores')} className="py-20" />
+          ) : scoresQuery.isError ? (
             <SectionErrorState
-              title={t('entriesLoadFailed')}
-              description={formatUserFacingError(entriesQuery.error)}
+              title={t('scoresLoadFailed')}
+              description={formatUserFacingError(scoresQuery.error)}
               retryLabel={t('retry')}
-              onRetry={retryEntries}
+              onRetry={retryScores}
             />
-          ) : entries.length ? (
+          ) : scores.length ? (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {entries.map((entry) => (
-                <LibraryEntryCard
-                  key={entry.entry_id}
-                  entry={entry}
+              {scores.map((score) => (
+                <LibraryScoreCard
+                  key={score.score_id}
+                  score={score}
                   batchMode={batchMode}
-                  selected={selectedEntrySet.has(entry.entry_id)}
-                  updatePending={setEntriesPracticeState.isPending}
-                  movePending={moveEntries.isPending}
-                  practiceStateLabel={practiceStateLabel}
+                  selected={selectedScoreSet.has(score.score_id)}
+                  favoritePending={favoriteScores.isPending}
+                  movePending={moveScores.isPending}
                   onOpen={() =>
-                    router.push(`/score/${entry.score_id}?from=${'my-scores'}`)
+                    router.push(`/score/${score.score_id}?from=${'my-scores'}`)
                   }
                   onToggleSelection={(checked) =>
-                    toggleEntrySelection(entry.entry_id, checked)
+                    toggleScoreSelection(score.score_id, checked)
                   }
-                  onOpenPracticeStateDialog={() =>
-                    openPracticeStateAction(entry)
+                  onToggleFavorite={() =>
+                    favoriteScores.mutate({
+                      score_ids: [score.score_id],
+                      is_favorite: !score.is_favorite,
+                    })
                   }
-                  onOpenMoveDialog={() => openMoveAction(entry)}
-                  onOpenDeleteDialog={() => openDeleteAction(entry)}
+                  onOpenMoveDialog={() => openMoveAction(score)}
                   t={t}
                 />
               ))}
@@ -579,49 +519,25 @@ export default function LibraryPage({
       />
       <LibraryDeleteFolderDialog
         folder={deleteTarget}
-        deleteMode={deleteMode}
         deletePending={deleteFolder.isPending}
         onOpenChange={(open) => {
           if (!open) setDeleteTarget(null);
         }}
-        onDeleteModeChange={setDeleteMode}
         onConfirm={confirmDeleteFolder}
         t={t}
       />
-      <LibraryPracticeStateDialog
-        open={entryAction?.type === 'practice'}
-        count={entryActionCount}
-        value={practiceState}
-        pending={setEntriesPracticeState.isPending}
-        onOpenChange={(open) => {
-          if (!open) closeEntryAction();
-        }}
-        onValueChange={setPracticeState}
-        onConfirm={setPracticeStateForActionEntries}
-        t={t}
-      />
-      <LibraryMoveEntriesDialog
-        open={entryAction?.type === 'move'}
-        count={entryActionCount}
+      <LibraryMoveScoresDialog
+        open={scoreAction?.type === 'move'}
+        count={scoreActionCount}
         folderId={moveTargetFolderId}
         rootFolderValue={ROOT_FOLDER_VALUE}
         folders={sortedFolders}
-        pending={moveEntries.isPending}
+        pending={moveScores.isPending}
         onOpenChange={(open) => {
-          if (!open) closeEntryAction();
+          if (!open) closeScoreAction();
         }}
         onFolderChange={setMoveTargetFolderId}
-        onConfirm={moveActionEntries}
-        t={t}
-      />
-      <LibraryDeleteEntriesDialog
-        open={entryAction?.type === 'delete'}
-        count={entryActionCount}
-        pending={trashEntries.isPending}
-        onOpenChange={(open) => {
-          if (!open) closeEntryAction();
-        }}
-        onConfirm={trashActionEntries}
+        onConfirm={moveActionScores}
         t={t}
       />
     </div>

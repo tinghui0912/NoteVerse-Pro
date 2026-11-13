@@ -10,31 +10,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import type { FolderDeleteMode, LibraryFolderRead } from '@/generated/api';
+import type { LibraryFolderRead } from '@/generated/api';
 
 interface LibraryDeleteFolderDialogProps {
   folder: LibraryFolderRead | null;
-  deleteMode: FolderDeleteMode;
   deletePending: boolean;
   onOpenChange: (open: boolean) => void;
-  onDeleteModeChange: (mode: FolderDeleteMode) => void;
   onConfirm: () => void;
   t: (key: string, values?: Record<string, string | number>) => string;
 }
 
 export function LibraryDeleteFolderDialog({
   folder,
-  deleteMode,
   deletePending,
   onOpenChange,
-  onDeleteModeChange,
   onConfirm,
   t,
 }: LibraryDeleteFolderDialogProps) {
@@ -49,29 +38,6 @@ export function LibraryDeleteFolderDialog({
               : null}
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <div className="space-y-2">
-          <label className="text-sm font-medium" htmlFor="library-delete-mode">
-            {t('deleteModeLabel')}
-          </label>
-          <Select
-            value={deleteMode}
-            onValueChange={(value) =>
-              onDeleteModeChange(value as FolderDeleteMode)
-            }
-          >
-            <SelectTrigger id="library-delete-mode">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="MOVE_CONTENTS_TO_ROOT">
-                {t('deleteModeMoveToRoot')}
-              </SelectItem>
-              <SelectItem value="TRASH_CONTENTS">
-                {t('deleteModeTrashContents')}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
         <AlertDialogFooter>
           <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
           <AlertDialogAction

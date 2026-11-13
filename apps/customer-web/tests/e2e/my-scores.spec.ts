@@ -1,13 +1,13 @@
 import { expect, test } from '@playwright/test';
 import { mockAuthenticatedSession, mockRealtimeEvents } from './support/api-mocks';
 
-test('My Scores keeps owned scores, processing, review and failed views with library/delete actions', async ({ page }) => {
+test('My Scores keeps owned scores, processing, review and failed views with owner deletion actions', async ({ page }) => {
   await mockAuthenticatedSession(page);
   await mockRealtimeEvents(page);
   const scoreRequests: string[] = [];
   const score = {
     score_id: 'owned-score', title: 'Owned sonata', genres: [], version: 1,
-    head_revision_id: 'revision', in_library: false, metadata: null, input_assets: [],
+    head_revision_id: 'revision', metadata: null, input_assets: [],
     derived_assets: {
       preview: { status: 'pending', asset_id: null },
       audio: { status: 'pending', asset_id: null },
@@ -38,7 +38,7 @@ test('My Scores keeps owned scores, processing, review and failed views with lib
   }
   await page.getByRole('button', { name: 'Batch operations', exact: true }).click();
   await page.getByRole('checkbox', { name: 'Select Owned sonata', exact: true }).check();
-  await expect(page.getByRole('button', { name: 'Add to library', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Add to library', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Delete work', exact: true })).toBeEnabled();
   for (const [view, title] of [['Processing', 'Processing scan'], ['Pending review', 'Review scan'], ['Failed', 'Failed scan']]) {
     await page.getByRole('button', { name: view, exact: true }).click();
@@ -57,7 +57,7 @@ test('My Scores shows a neutral current-head thumbnail until exact presentation 
   let ready=false;
   await page.route('**/api/v1/my-scores?*', route => route.fulfill({ json: { success:true,
     data:[{ score_id:'head-score', title:'Head owned score', genres:[], version:2, head_revision_id:'r2',
-      metadata:null, input_assets:[], in_library:false, created_at:'2026-06-20T00:00:00Z', updated_at:'2026-06-21T00:00:00Z',
+      metadata:null, input_assets:[], created_at:'2026-06-20T00:00:00Z', updated_at:'2026-06-21T00:00:00Z',
       capabilities:{can_view:true,can_edit:true,can_delete:true,can_manage_guest_previews:true,can_manage_members:true,can_download:true,can_practice:true},
       derived_assets:{preview:{status:ready?'ready':'pending',asset_id:ready?'r2-image':null},audio:{status:'pending',asset_id:null}}}],
     pagination:{total:1,page:1,page_size:20,total_pages:1} } }));

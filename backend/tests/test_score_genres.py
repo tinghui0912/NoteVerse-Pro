@@ -193,7 +193,7 @@ async def test_import_review_score_and_library_share_score_genres(
     assert score.genres == expected
     assert all(type(code) is str for code in score.genres)
     assert (await ScoreService(storage=storage).get(db, score.score_uuid, 1)).genres == expected
-    entries, total = await LibraryService().list_entries(
+    entries, total = await LibraryService().list_scores(
         db,
         1,
         view=LibraryView.ALL,

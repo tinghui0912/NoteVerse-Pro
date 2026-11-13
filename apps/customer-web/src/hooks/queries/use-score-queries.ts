@@ -84,7 +84,7 @@ export function useCreateRevision() {
         queryKey: queryKeys.scores.revisionAssets(variables.scoreId),
       });
       void queryClient.invalidateQueries({ queryKey: queryKeys.myScores.lists() });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.library.entries() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.library.scores() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.storageUsage.current() });
     },
   });
@@ -111,7 +111,7 @@ export function useRestoreRevision() {
         queryKey: queryKeys.scores.revisionAssets(variables.scoreId),
       });
       void queryClient.invalidateQueries({ queryKey: queryKeys.myScores.lists() });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.library.entries() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.library.scores() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.storageUsage.current() });
     },
   });
@@ -239,6 +239,7 @@ export function useAcceptScoreInvite() {
   return useMutation({
     mutationFn: (token: string) => scoreInvitesApi.acceptInvite(token),
     onSuccess: (response) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.library.all });
       void queryClient.invalidateQueries({ queryKey: queryKeys.scores.myInvites() });
       if (response.data?.score_id) {
         void queryClient.invalidateQueries({
@@ -265,6 +266,7 @@ export function useAcceptMyPendingScoreInvite() {
   return useMutation({
     mutationFn: (inviteId: string) => scoreInvitesApi.acceptMyPendingInvite(inviteId),
     onSuccess: (response) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.library.all });
       void queryClient.invalidateQueries({ queryKey: queryKeys.scores.myInvites() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.myScores.lists() });
       if (response.data?.score_id) {

@@ -1,22 +1,16 @@
 import type {
   LibraryFolderRead,
-  LibraryPracticeState,
   LibrarySort,
   LibraryView,
 } from '@/generated/api';
 
-export type UserSettableLibraryPracticeState = Exclude<
-  LibraryPracticeState,
-  'IN_PROGRESS'
->;
-
-export type LibrarySortValue = Extract<
-  LibrarySort,
-  'updated_desc' | 'name_asc'
->;
-
+export type LibrarySortValue = LibrarySort;
 export function normalizeLibrarySort(value?: string): LibrarySortValue {
-  return value === 'name_asc' ? 'name_asc' : 'updated_desc';
+  return value === 'name_asc' ||
+    value === 'name_desc' ||
+    value === 'updated_asc'
+    ? value
+    : 'updated_desc';
 }
 
 export function normalizePage(value?: string): number {
@@ -40,14 +34,10 @@ export function buildLibraryHref(
   },
 ) {
   const query = new URLSearchParams();
-  if (next.folder !== undefined) {
-    if (next.folder) query.set('folder', next.folder);
-    else query.set('view', next.view ?? 'all');
-  } else if (current.folderId) {
-    query.set('folder', current.folderId);
-  } else {
-    query.set('view', next.view ?? current.view);
-  }
+  const nextView = next.view ?? current.view;
+  const folder = next.folder === undefined ? current.folderId : next.folder;
+  if (nextView !== 'all' || !folder) query.set('view', nextView);
+  if (folder) query.set('folder', folder);
 
   const nextSearch = next.search === undefined ? current.search : next.search;
   const nextSort = next.sort ?? current.sort;
@@ -60,10 +50,8 @@ export function buildLibraryHref(
 const LIBRARY_VIEWS = [
   'all',
   'favorites',
-  'recent_practice',
-  'to_practice',
-  'mastered',
-  'trash',
+  'created_by_me',
+  'shared_with_me',
 ] as const satisfies readonly LibraryView[];
 
 export function normalizeLibraryView(value: string | undefined): LibraryView {

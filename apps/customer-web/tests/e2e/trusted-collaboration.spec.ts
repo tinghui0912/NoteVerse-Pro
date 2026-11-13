@@ -20,7 +20,7 @@ async function mockScore(page: Page, role: Role) {
   await mockAuthenticatedSession(page); await mockRealtimeEvents(page);
   const caps = capabilities(role);
   const score = { score_id: scoreId, title: 'Trusted Score', genres: [], version: 1, head_revision_id: revisionId,
-    metadata: null, input_assets: [], in_library: false, created_at: '2026-06-20T00:00:00Z', updated_at: '2026-06-20T00:00:00Z', capabilities: caps,
+    metadata: null, input_assets: [], created_at: '2026-06-20T00:00:00Z', updated_at: '2026-06-20T00:00:00Z', capabilities: caps,
     derived_assets: { preview: { status: 'ready', asset_id: 'page-a' }, audio: { status: 'pending', asset_id: null } } };
   const revision: RevisionRead = { revision_id: revisionId, revision_number: 1, origin: 'IMPORT', created_at: score.created_at, created_by: null, restore: null, note: null };
   await page.route(`**/api/v1/scores/${scoreId}`, route => route.fulfill({ json: { success: true, data: score } }));

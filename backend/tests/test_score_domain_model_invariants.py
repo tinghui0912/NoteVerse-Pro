@@ -23,7 +23,7 @@ from app.db.models.score_access import (
     MembershipRole,
     ScoreMembership,
 )
-from app.db.models.library import LibraryEntrySourceType, ScoreLibraryEntry
+from app.db.models.library import ScoreLibraryOrganization
 from app.db.models.user import User
 
 
@@ -218,7 +218,7 @@ def test_score_guest_preview_token_is_unique(score_session: Session) -> None:
     score_session.rollback()
 
 
-def test_membership_and_library_entry_are_unique_per_user_and_source(
+def test_membership_and_library_organization_are_unique_per_user(
     score_session: Session,
 ) -> None:
     score_session.add_all(
@@ -230,9 +230,7 @@ def test_membership_and_library_entry_are_unique_per_user_and_source(
                 role=MembershipRole.VIEWER,
                 created_by_user_id=1,
             ),
-            ScoreLibraryEntry(
-                id=500, score_id=10, user_id=2, source_type=LibraryEntrySourceType.SELF_ADDED
-            ),
+            ScoreLibraryOrganization(id=500, score_id=10, user_id=2),
         ]
     )
     score_session.commit()
@@ -249,7 +247,5 @@ def test_membership_and_library_entry_are_unique_per_user_and_source(
     )
     assert_commit_rejected(
         score_session,
-        ScoreLibraryEntry(
-            id=501, score_id=10, user_id=2, source_type=LibraryEntrySourceType.SELF_ADDED
-        ),
+        ScoreLibraryOrganization(id=501, score_id=10, user_id=2),
     )

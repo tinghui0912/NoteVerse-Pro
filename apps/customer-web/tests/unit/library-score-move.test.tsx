@@ -3,13 +3,13 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, it, vi } from 'vitest';
-import { LibraryMoveEntriesDialog } from '@/components/library/library-entry-action-dialogs';
+import { LibraryMoveScoresDialog } from '@/components/library/library-move-scores-dialog';
 import messages from '../../messages/en/library.json';
 
-it('offers root and flat folders when moving score entries', async () => {
+it('offers root and flat folders when moving scores', async () => {
   const change = vi.fn();
   render(
-    <LibraryMoveEntriesDialog
+    <LibraryMoveScoresDialog
       open
       count={1}
       pending={false}

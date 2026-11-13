@@ -1,6 +1,6 @@
 'use client';
 
-import { Library, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 
@@ -8,11 +8,8 @@ interface MyScoresBulkActionsProps {
   selectedCount: number;
   selectedJobCount: number;
   allSelected: boolean;
-  addToLibraryPending: boolean;
   deletePending: boolean;
-  addToLibraryCount: number;
   onToggleSelectAll: (checked: boolean) => void;
-  onAddToLibrarySelected: () => void;
   onDeleteSelected: () => void;
   t: (key: string, values?: Record<string, string | number>) => string;
 }
@@ -21,11 +18,8 @@ export function MyScoresBulkActions({
   selectedCount,
   selectedJobCount,
   allSelected,
-  addToLibraryPending,
   deletePending,
-  addToLibraryCount,
   onToggleSelectAll,
-  onAddToLibrarySelected,
   onDeleteSelected,
   t,
 }: MyScoresBulkActionsProps) {
@@ -47,17 +41,6 @@ export function MyScoresBulkActions({
         </span>
       </div>
       <div className="grid gap-2 sm:flex sm:flex-wrap sm:justify-end">
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="w-full sm:w-auto"
-          disabled={!addToLibraryCount || addToLibraryPending}
-          onClick={onAddToLibrarySelected}
-        >
-          <Library className="mr-2 h-4 w-4" />
-          {t('addToLibrary')}
-        </Button>
         <Button
           type="button"
           size="sm"

@@ -8,8 +8,6 @@ from app.db.models import (
     ImportJob,
     Score,
     ScoreRevision,
-    LibraryEntrySourceType,
-    ScoreLibraryEntry,
 )
 from app.modules.my_scores.schemas import MyScoresSort
 
@@ -47,24 +45,6 @@ class ScoreRepository:
             .limit(page_size)
         )
         return list(rows.scalars().all()), total
-
-    async def active_library_score_ids(
-        self,
-        db: AsyncSession,
-        user_id: int,
-        score_ids: list[int],
-    ) -> set[int]:
-        if not score_ids:
-            return set()
-        rows = await db.execute(
-            select(ScoreLibraryEntry.score_id).where(
-                ScoreLibraryEntry.user_id == user_id,
-                col(ScoreLibraryEntry.score_id).in_(score_ids),
-                ScoreLibraryEntry.source_type == LibraryEntrySourceType.SELF_ADDED,
-                col(ScoreLibraryEntry.deleted_at).is_(None),
-            )
-        )
-        return {int(score_id) for score_id in rows.scalars().all()}
 
     async def get(
         self,

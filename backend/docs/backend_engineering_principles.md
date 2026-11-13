@@ -69,7 +69,7 @@ ImportJob ---- ImportJobStep
   | review confirms
   v
 Score ---- ScoreMembership
-  |  \----- ScoreLibraryEntry
+  |  \----- ScoreLibraryOrganization
   |
   v
 ScoreRevision ---- ScoreRevisionMetadata
@@ -92,7 +92,7 @@ Core rules:
 - `ImportArtifact` stores job internals such as OMR output, enhanced XML, diagnostics,
   and other non-product pipeline artifacts.
 - `ScoreRevisionMetadata` is a rebuildable typed projection from canonical MusicXML.
-- Score-owned Guest Preview settings, `ScoreMembership`, and `ScoreLibraryEntry` have distinct authorization and product semantics.
+- Score-owned Guest Preview settings, `ScoreMembership`, and `ScoreLibraryOrganization` have distinct authorization and product semantics.
 - `modules/practice` serves revision-bound PracticeScoreArtifact, practice-ready
   score content, and target/source delivery for Customer Web.
 - Active Practice state, STEP/Continuous execution, the local clock, MIDI input,

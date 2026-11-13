@@ -49,6 +49,8 @@ export function LibraryFilterBar({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="updated_desc">{t('sortUpdatedDesc')}</SelectItem>
+          <SelectItem value="updated_asc">{t('sortUpdatedAsc')}</SelectItem>
+          <SelectItem value="name_desc">{t('sortNameDesc')}</SelectItem>
           <SelectItem value="name_asc">{t('sortNameAsc')}</SelectItem>
         </SelectContent>
       </Select>

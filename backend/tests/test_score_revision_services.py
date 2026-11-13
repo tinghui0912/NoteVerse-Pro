@@ -43,7 +43,7 @@ from app.db.models import (
     StorageQuotaPolicy,
     StorageUsageCounter,
     StorageUsageCategory,
-    ScoreLibraryEntry,
+    ScoreLibraryOrganization,
     ScoreInvite,
     ScoreMembership,
     RenderOutbox,
@@ -952,13 +952,12 @@ async def test_review_confirm_creates_active_score_once(
     score = one_row(session, Score)
     revision = one_row(session, ScoreRevision)
     job = one_row(session, ImportJob, job_uuid="job-confirm-review")
-    library_entry = one_row(session, ScoreLibraryEntry)
+    assert count_rows(session, ScoreLibraryOrganization) == 0
     assert score.score_uuid == first.score_id
     assert score.title == "Confirmed Score"
     assert score.head_revision_id == revision.id
     assert job.state == ImportJobState.CONFIRMED
     assert job.score_id == score.id
-    assert library_entry.score_id == score.id
     notification = one_row(
         session, NotificationEvent, notification_uuid="notification-review-ready"
     )

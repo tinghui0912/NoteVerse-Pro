@@ -15,7 +15,6 @@ from app.core.exceptions import (
 )
 from app.db.model_utils import require_persisted_id
 from app.db.models import (
-    LibraryEntrySourceType,
     ImportArtifact,
     ImportJob,
     ImportDispatch,
@@ -28,7 +27,6 @@ from app.db.models import (
 )
 from app.db.models.import_job import ImportJobState
 from app.db.models.score import MetadataStatus, RevisionOrigin, RevisionSourceFormat
-from app.modules.library.service import LibraryService
 from app.modules.import_jobs.service import ImportJobService
 from app.modules.score_assets.render_outbox_service import (
     create_review_thumbnail_render_outbox,
@@ -63,12 +61,10 @@ class ReviewService:
         self,
         storage: ObjectStorage | None = None,
         score_repository: ScoreRepository | None = None,
-        library_service: LibraryService | None = None,
         read_model: ReviewReadModel | None = None,
     ) -> None:
         self.storage = storage or object_storage
         self.score_repository = score_repository or ScoreRepository()
-        self.library_service = library_service or LibraryService()
         self.read_model = read_model or ReviewReadModel(self.storage)
 
     async def detail(
@@ -240,12 +236,6 @@ class ReviewService:
                 source_fingerprint=content_hash,
             )
             score.head_revision_id = revision_id
-            await self.library_service.ensure_entry(
-                db,
-                user_id=user_id,
-                score_id=score_id,
-                source_type=LibraryEntrySourceType.SELF_ADDED,
-            )
             job.score_id = score_id
             job.state = ImportJobState.CONFIRMED
             job.updated_at = now

@@ -19,7 +19,7 @@ export function useConfirmImportJobReview() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.storageUsage.current() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.myScores.lists() });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.library.entries() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.library.scores() });
     },
   });
 }

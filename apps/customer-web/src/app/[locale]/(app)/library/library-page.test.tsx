@@ -5,13 +5,16 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import messages from '../../../../../messages/en/library.json';
 import LibraryPage from './page';
-import type { LibraryFolderRead } from '@/generated/api';
+import type { LibraryFolderRead, LibraryScoreRead } from '@/generated/api';
 
 const mocks = vi.hoisted(() => ({
   create: vi.fn(),
   update: vi.fn(),
   remove: vi.fn(),
   push: vi.fn(),
+  favorite: vi.fn(),
+  move: vi.fn(),
+  scores: [] as LibraryScoreRead[],
 }));
 const folders: LibraryFolderRead[] = [
   {
@@ -53,17 +56,16 @@ vi.mock('@/hooks/queries/use-library-queries', () => ({
     isLoading: false,
     isError: false,
   }),
-  useLibraryEntries: () => ({
-    data: { data: [] },
+  useLibraryScores: () => ({
+    data: { data: mocks.scores },
     isLoading: false,
     isError: false,
   }),
   useCreateLibraryFolder: () => ({ mutate: mocks.create }),
   useUpdateLibraryFolder: () => ({ mutate: mocks.update }),
   useDeleteLibraryFolder: () => ({ mutate: mocks.remove }),
-  useMoveLibraryEntries: () => ({}),
-  useSetLibraryEntriesPracticeState: () => ({}),
-  useTrashLibraryEntries: () => ({}),
+  useMoveLibraryScores: () => ({ mutate: mocks.move }),
+  useFavoriteLibraryScores: () => ({ mutate: mocks.favorite }),
 }));
 
 async function openPage() {
@@ -85,10 +87,11 @@ async function openFolderMenu(name: string) {
 describe('Library folder organization', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.scores = [];
     Element.prototype.scrollIntoView = vi.fn();
   });
 
-  it('creates a named folder independently of the selected entry folder', async () => {
+  it('creates a named folder independently of the selected score folder', async () => {
     await openPage();
     await userEvent.click(screen.getByRole('button', { name: 'New folder' }));
     const dialog = screen.getByRole('dialog');
@@ -137,27 +140,82 @@ describe('Library folder organization', () => {
     );
   });
 
-  it('defaults folder deletion to moving scores to Library root', async () => {
+  it('deletes a folder and returns its scores to root', async () => {
     await openPage();
     await openFolderMenu('Alpha');
     await userEvent.click(
       screen.getByRole('menuitem', { name: 'Delete folder' }),
     );
     const dialog = screen.getByRole('alertdialog');
-    expect(within(dialog).getByRole('combobox')).toHaveTextContent(
-      'Move to library root',
-    );
-    within(dialog).getByRole('combobox').focus();
-    await userEvent.keyboard('{Enter}');
+    expect(within(dialog).queryByRole('combobox')).not.toBeInTheDocument();
     expect(
-      screen.getAllByRole('option').map((option) => option.textContent),
-    ).toEqual(['Move to library root', 'Move to trash']);
-    await userEvent.keyboard('{Enter}');
+      within(dialog).getByText(/return to Library root/),
+    ).toBeInTheDocument();
     await userEvent.click(
       within(dialog).getByRole('button', { name: 'Delete folder' }),
     );
-    expect(mocks.remove).toHaveBeenCalledWith(
-      { folderId: 'a', mode: 'MOVE_CONTENTS_TO_ROOT' },
+    expect(mocks.remove).toHaveBeenCalledWith('a', expect.any(Object));
+  });
+
+  it('presents access-derived views and only personal organization actions', async () => {
+    await openPage();
+    for (const label of [
+      'All scores',
+      'Created by me',
+      'Shared with me',
+      'Favorites',
+      'Folders',
+    ])
+      expect(screen.getByText(label)).toBeInTheDocument();
+    for (const label of [
+      'Add to Library',
+      'Remove from library',
+      'Recent practice',
+      'To practice',
+      'In progress',
+      'Mastered',
+      'Trash',
+      'Mark as',
+    ])
+      expect(screen.queryByText(label)).not.toBeInTheDocument();
+  });
+  it('organizes selected Scores by public identity without organization rows', async () => {
+    mocks.scores = ['owned-score', 'shared-score'].map((id, i) => ({
+      score_id: id,
+      access_origin: i ? 'MEMBERSHIP' : 'OWNER',
+      title: id,
+      folder_id: null,
+      genres: [],
+      metadata: null,
+      is_favorite: false,
+      derived_assets: {
+        preview: { status: 'pending', asset_id: null },
+        audio: { status: 'pending', asset_id: null },
+      },
+      created_at: '2026-01-01',
+      updated_at: '2026-01-01',
+    }));
+    await openPage();
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Batch operations' }),
+    );
+    await userEvent.click(
+      screen.getAllByRole('checkbox', { name: /Select score/ })[0],
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Favorite' }));
+    expect(mocks.favorite).toHaveBeenCalledWith(
+      { score_ids: ['owned-score'], is_favorite: true },
+      expect.any(Object),
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Unfavorite' }));
+    expect(mocks.favorite).toHaveBeenCalledWith(
+      { score_ids: ['owned-score'], is_favorite: false },
+      expect.any(Object),
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Move to' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+    expect(mocks.move).toHaveBeenCalledWith(
+      { score_ids: ['owned-score'], target_folder_id: null },
       expect.any(Object),
     );
   });

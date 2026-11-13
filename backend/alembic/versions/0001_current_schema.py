@@ -23,12 +23,6 @@ def upgrade() -> None:
     postgresql.ENUM(
         "PENDING", "ACCEPTED", "REVOKED", "EXPIRED", "DECLINED", name="invitestatus"
     ).create(op.get_bind(), checkfirst=False)
-    postgresql.ENUM("SELF_ADDED", name="libraryentrysourcetype").create(
-        op.get_bind(), checkfirst=False
-    )
-    postgresql.ENUM("TO_PRACTICE", "IN_PROGRESS", "MASTERED", name="librarypracticestate").create(
-        op.get_bind(), checkfirst=False
-    )
     postgresql.ENUM(
         "PENDING",
         "DISPATCHED",
@@ -1018,21 +1012,13 @@ def upgrade() -> None:
         sa.Column("position", sa.Integer(), nullable=False),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("updated_at", sa.DateTime(), nullable=False),
-        sa.Column("deleted_at", sa.DateTime(), nullable=True),
         sa.CheckConstraint("position >= 0", name="ck_score_library_folders_position"),
         sa.ForeignKeyConstraint(
             ["user_id"], ["users.id"], name="fk_score_library_folders_user_id_users"
         ),
         sa.PrimaryKeyConstraint("id", name="pk_score_library_folders"),
+        sa.UniqueConstraint("user_id", "name", name="uq_score_library_folders_user_name"),
         sa.UniqueConstraint("folder_uuid", name="uq_score_library_folders_folder_uuid"),
-    )
-    op.create_index(
-        "uq_score_library_folders_active_name",
-        "score_library_folders",
-        ["user_id", "name"],
-        unique=True,
-        postgresql_where=sa.text("deleted_at IS NULL"),
-        sqlite_where=sa.text("deleted_at IS NULL"),
     )
     op.create_table(
         "storage_usage_accounts",
@@ -1703,99 +1689,50 @@ def upgrade() -> None:
     )
     op.create_index("idx_score_invites_token_hash", "score_invites", ["token_hash"], unique=True)
     op.create_table(
-        "score_library_entries",
+        "score_library_organizations",
         sa.Column(
             "id",
             sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
             autoincrement=True,
             nullable=False,
         ),
-        sa.Column("entry_uuid", sa.String(length=36), nullable=False),
         sa.Column("user_id", sa.BigInteger(), nullable=False),
         sa.Column("score_id", sa.BigInteger(), nullable=False),
-        sa.Column(
-            "source_type",
-            postgresql.ENUM("SELF_ADDED", name="libraryentrysourcetype", create_type=False),
-            nullable=False,
-        ),
         sa.Column("folder_id", sa.BigInteger(), nullable=True),
         sa.Column("is_favorite", sa.Boolean(), nullable=False),
-        sa.Column(
-            "practice_state",
-            postgresql.ENUM(
-                "TO_PRACTICE",
-                "IN_PROGRESS",
-                "MASTERED",
-                name="librarypracticestate",
-                create_type=False,
-            ),
-            nullable=False,
-        ),
-        sa.Column("last_practiced_at", sa.DateTime(), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("updated_at", sa.DateTime(), nullable=False),
-        sa.Column("deleted_at", sa.DateTime(), nullable=True),
         sa.ForeignKeyConstraint(
-            ["folder_id"],
-            ["score_library_folders.id"],
-            name="fk_score_library_entries_folder_id_score_library_folders",
+            ["user_id"], ["users.id"], name="fk_score_library_organizations_user_id_users"
         ),
         sa.ForeignKeyConstraint(
             ["score_id"],
             ["scores.id"],
-            name="fk_score_library_entries_score_id_scores",
             ondelete="CASCADE",
+            name="fk_score_library_organizations_score_id_scores",
         ),
         sa.ForeignKeyConstraint(
-            ["user_id"], ["users.id"], name="fk_score_library_entries_user_id_users"
+            ["folder_id"],
+            ["score_library_folders.id"],
+            ondelete="SET NULL",
+            name="fk_score_library_organizations_folder_id_score_library_folders",
         ),
-        sa.PrimaryKeyConstraint("id", name="pk_score_library_entries"),
+        sa.PrimaryKeyConstraint("id", name="pk_score_library_organizations"),
+        sa.UniqueConstraint(
+            "user_id", "score_id", name="uq_score_library_organizations_user_score"
+        ),
     )
     op.create_index(
-        "idx_score_library_entries_user_favorite",
-        "score_library_entries",
-        ["user_id", "is_favorite"],
-        unique=False,
-    )
-    op.create_index(
-        "idx_score_library_entries_user_folder",
-        "score_library_entries",
+        "idx_score_library_organizations_user_folder",
+        "score_library_organizations",
         ["user_id", "folder_id"],
         unique=False,
     )
     op.create_index(
-        "idx_score_library_entries_user_practice_state",
-        "score_library_entries",
-        ["user_id", "practice_state"],
+        "idx_score_library_organizations_user_favorite",
+        "score_library_organizations",
+        ["user_id", "is_favorite"],
         unique=False,
-    )
-    op.create_index(
-        "idx_score_library_entries_user_practiced",
-        "score_library_entries",
-        ["user_id", "last_practiced_at"],
-        unique=False,
-    )
-    op.create_index(
-        "idx_score_library_entries_user_updated",
-        "score_library_entries",
-        ["user_id", "updated_at"],
-        unique=False,
-    )
-    op.create_index(
-        "uq_score_library_entries_active_source",
-        "score_library_entries",
-        ["user_id", "score_id", "source_type"],
-        unique=True,
-        postgresql_where=sa.text("deleted_at IS NULL"),
-        sqlite_where=sa.text("deleted_at IS NULL"),
-    )
-    op.create_index(
-        "uq_score_library_entries_active_uuid",
-        "score_library_entries",
-        ["entry_uuid"],
-        unique=True,
-        postgresql_where=sa.text("deleted_at IS NULL"),
-        sqlite_where=sa.text("deleted_at IS NULL"),
     )
     op.create_table(
         "score_memberships",
@@ -2532,25 +2469,12 @@ def downgrade() -> None:
     op.drop_index("idx_score_memberships_user_active", table_name="score_memberships")
     op.drop_table("score_memberships")
     op.drop_index(
-        "uq_score_library_entries_active_uuid",
-        table_name="score_library_entries",
-        postgresql_where=sa.text("deleted_at IS NULL"),
-        sqlite_where=sa.text("deleted_at IS NULL"),
+        "idx_score_library_organizations_user_folder", table_name="score_library_organizations"
     )
     op.drop_index(
-        "uq_score_library_entries_active_source",
-        table_name="score_library_entries",
-        postgresql_where=sa.text("deleted_at IS NULL"),
-        sqlite_where=sa.text("deleted_at IS NULL"),
+        "idx_score_library_organizations_user_favorite", table_name="score_library_organizations"
     )
-    op.drop_index("idx_score_library_entries_user_updated", table_name="score_library_entries")
-    op.drop_index("idx_score_library_entries_user_practiced", table_name="score_library_entries")
-    op.drop_index(
-        "idx_score_library_entries_user_practice_state", table_name="score_library_entries"
-    )
-    op.drop_index("idx_score_library_entries_user_folder", table_name="score_library_entries")
-    op.drop_index("idx_score_library_entries_user_favorite", table_name="score_library_entries")
-    op.drop_table("score_library_entries")
+    op.drop_table("score_library_organizations")
     op.drop_index("idx_score_invites_token_hash", table_name="score_invites")
     op.drop_index("idx_score_invites_score_created", table_name="score_invites")
     op.drop_index("idx_score_invites_email_status_created", table_name="score_invites")
@@ -2613,12 +2537,6 @@ def downgrade() -> None:
     op.drop_index("idx_storage_usage_counters_user", table_name="storage_usage_counters")
     op.drop_table("storage_usage_counters")
     op.drop_table("storage_usage_accounts")
-    op.drop_index(
-        "uq_score_library_folders_active_name",
-        table_name="score_library_folders",
-        postgresql_where=sa.text("deleted_at IS NULL"),
-        sqlite_where=sa.text("deleted_at IS NULL"),
-    )
     op.drop_table("score_library_folders")
     op.drop_index("idx_refresh_tokens_user_created", table_name="refresh_tokens")
     op.drop_index("idx_refresh_tokens_revoked", table_name="refresh_tokens")
@@ -2703,8 +2621,6 @@ def downgrade() -> None:
     postgresql.ENUM(name="importjobstate").drop(op.get_bind(), checkfirst=False)
     postgresql.ENUM(name="importjobstepstatus").drop(op.get_bind(), checkfirst=False)
     postgresql.ENUM(name="invitestatus").drop(op.get_bind(), checkfirst=False)
-    postgresql.ENUM(name="libraryentrysourcetype").drop(op.get_bind(), checkfirst=False)
-    postgresql.ENUM(name="librarypracticestate").drop(op.get_bind(), checkfirst=False)
     postgresql.ENUM(name="mailoutboxstatus").drop(op.get_bind(), checkfirst=False)
     postgresql.ENUM(name="membershiprole").drop(op.get_bind(), checkfirst=False)
     postgresql.ENUM(name="metadatastatus").drop(op.get_bind(), checkfirst=False)

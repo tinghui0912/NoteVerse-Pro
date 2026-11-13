@@ -69,7 +69,6 @@ test('owner toggles a stable preview link and an anonymous browser opens it', as
     head_revision_id: 'revision-a',
     metadata: null,
     input_assets: [],
-    in_library: false,
     derived_assets: {
       preview: { status: 'pending', asset_id: null },
       audio: { status: 'pending', asset_id: null },

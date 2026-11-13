@@ -21,7 +21,6 @@
   "selectAll": "Select all",
   "selectScore": "Select {title}",
   "selectJob": "Select failed upload {title}",
-  "addToLibrary": "Add to library",
   "delete": "Delete work",
   "deleteDialogTitle": "Delete works",
   "deleteDialogDescription": "Delete {count} item(s)? Related files and storage usage will be cleaned up. This cannot be undone.",

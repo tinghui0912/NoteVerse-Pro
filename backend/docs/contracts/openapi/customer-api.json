@@ -1063,65 +1063,6 @@
         "title": "APIResponse[LibraryBatchUpdateRead]",
         "type": "object"
       },
-      "APIResponse_LibraryEntryRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/LibraryEntryRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[LibraryEntryRead]",
-        "type": "object"
-      },
       "APIResponse_LibraryFolderOverviewRead_": {
         "examples": [
           {
@@ -1238,65 +1179,6 @@
           "success"
         ],
         "title": "APIResponse[LibraryFolderRead]",
-        "type": "object"
-      },
-      "APIResponse_LibraryOwnedScoreBatchRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/LibraryOwnedScoreBatchRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[LibraryOwnedScoreBatchRead]",
         "type": "object"
       },
       "APIResponse_MemberListRead_": {
@@ -3016,6 +2898,14 @@
         "title": "APIResponse[list[NotificationEventRead]]",
         "type": "object"
       },
+      "AccessOrigin": {
+        "enum": [
+          "OWNER",
+          "MEMBERSHIP"
+        ],
+        "title": "AccessOrigin",
+        "type": "string"
+      },
       "AssetAccessRead": {
         "properties": {
           "asset_id": {
@@ -3366,14 +3256,6 @@
         ],
         "title": "FingeringResultRead",
         "type": "object"
-      },
-      "FolderDeleteMode": {
-        "enum": [
-          "MOVE_CONTENTS_TO_ROOT",
-          "TRASH_CONTENTS"
-        ],
-        "title": "FolderDeleteMode",
-        "type": "string"
       },
       "ForgotPasswordRequest": {
         "properties": {
@@ -4428,219 +4310,6 @@
         "title": "LibraryBatchUpdateRead",
         "type": "object"
       },
-      "LibraryEntryBatchMoveRequest": {
-        "properties": {
-          "entry_ids": {
-            "items": {
-              "type": "string"
-            },
-            "minItems": 1,
-            "title": "Entry Ids",
-            "type": "array"
-          },
-          "target_folder_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Target Folder Id"
-          }
-        },
-        "required": [
-          "entry_ids"
-        ],
-        "title": "LibraryEntryBatchMoveRequest",
-        "type": "object"
-      },
-      "LibraryEntryBatchPracticeStateRequest": {
-        "properties": {
-          "entry_ids": {
-            "items": {
-              "type": "string"
-            },
-            "minItems": 1,
-            "title": "Entry Ids",
-            "type": "array"
-          },
-          "practice_state": {
-            "$ref": "#/components/schemas/LibraryPracticeState"
-          }
-        },
-        "required": [
-          "entry_ids",
-          "practice_state"
-        ],
-        "title": "LibraryEntryBatchPracticeStateRequest",
-        "type": "object"
-      },
-      "LibraryEntryBatchUpdateRequest": {
-        "properties": {
-          "entry_ids": {
-            "items": {
-              "type": "string"
-            },
-            "minItems": 1,
-            "title": "Entry Ids",
-            "type": "array"
-          }
-        },
-        "required": [
-          "entry_ids"
-        ],
-        "title": "LibraryEntryBatchUpdateRequest",
-        "type": "object"
-      },
-      "LibraryEntryRead": {
-        "properties": {
-          "available": {
-            "title": "Available",
-            "type": "boolean"
-          },
-          "created_at": {
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "derived_assets": {
-            "$ref": "#/components/schemas/ScoreDerivedAssetsRead"
-          },
-          "entry_id": {
-            "title": "Entry Id",
-            "type": "string"
-          },
-          "folder_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Folder Id"
-          },
-          "genres": {
-            "items": {
-              "$ref": "#/components/schemas/ScoreGenre"
-            },
-            "title": "Genres",
-            "type": "array"
-          },
-          "is_favorite": {
-            "title": "Is Favorite",
-            "type": "boolean"
-          },
-          "last_practiced_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Last Practiced At"
-          },
-          "metadata": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/MetadataRead"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "practice_state": {
-            "$ref": "#/components/schemas/LibraryPracticeState"
-          },
-          "score_id": {
-            "title": "Score Id",
-            "type": "string"
-          },
-          "source_type": {
-            "$ref": "#/components/schemas/LibraryEntrySourceType"
-          },
-          "title": {
-            "title": "Title",
-            "type": "string"
-          },
-          "unavailable_reason": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Unavailable Reason"
-          },
-          "updated_at": {
-            "format": "date-time",
-            "title": "Updated At",
-            "type": "string"
-          }
-        },
-        "required": [
-          "entry_id",
-          "score_id",
-          "source_type",
-          "folder_id",
-          "title",
-          "derived_assets",
-          "genres",
-          "metadata",
-          "is_favorite",
-          "practice_state",
-          "available",
-          "unavailable_reason",
-          "last_practiced_at",
-          "created_at",
-          "updated_at"
-        ],
-        "title": "LibraryEntryRead",
-        "type": "object"
-      },
-      "LibraryEntrySourceType": {
-        "enum": [
-          "SELF_ADDED"
-        ],
-        "title": "LibraryEntrySourceType",
-        "type": "string"
-      },
-      "LibraryEntryUpdateRequest": {
-        "properties": {
-          "is_favorite": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Is Favorite"
-          },
-          "practice_state": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/LibraryPracticeState"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "title": "LibraryEntryUpdateRequest",
-        "type": "object"
-      },
       "LibraryFolderCreateRequest": {
         "additionalProperties": false,
         "properties": {
@@ -4663,6 +4332,10 @@
             "title": "All Count",
             "type": "integer"
           },
+          "created_by_me_count": {
+            "title": "Created By Me Count",
+            "type": "integer"
+          },
           "favorite_count": {
             "title": "Favorite Count",
             "type": "integer"
@@ -4674,25 +4347,16 @@
             "title": "Folders",
             "type": "array"
           },
-          "mastered_count": {
-            "title": "Mastered Count",
-            "type": "integer"
-          },
-          "recent_practice_count": {
-            "title": "Recent Practice Count",
-            "type": "integer"
-          },
-          "to_practice_count": {
-            "title": "To Practice Count",
+          "shared_with_me_count": {
+            "title": "Shared With Me Count",
             "type": "integer"
           }
         },
         "required": [
           "all_count",
           "favorite_count",
-          "recent_practice_count",
-          "to_practice_count",
-          "mastered_count",
+          "created_by_me_count",
+          "shared_with_me_count",
           "folders"
         ],
         "title": "LibraryFolderOverviewRead",
@@ -4770,21 +4434,13 @@
         "title": "LibraryFolderUpdateRequest",
         "type": "object"
       },
-      "LibraryOwnedScoreBatchRead": {
+      "LibraryScoreBatchFavoriteRequest": {
+        "additionalProperties": false,
         "properties": {
-          "added": {
-            "title": "Added",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "added"
-        ],
-        "title": "LibraryOwnedScoreBatchRead",
-        "type": "object"
-      },
-      "LibraryOwnedScoreBatchRequest": {
-        "properties": {
+          "is_favorite": {
+            "title": "Is Favorite",
+            "type": "boolean"
+          },
           "score_ids": {
             "items": {
               "type": "string"
@@ -4795,27 +4451,121 @@
           }
         },
         "required": [
-          "score_ids"
+          "score_ids",
+          "is_favorite"
         ],
-        "title": "LibraryOwnedScoreBatchRequest",
+        "title": "LibraryScoreBatchFavoriteRequest",
         "type": "object"
       },
-      "LibraryPracticeState": {
-        "enum": [
-          "TO_PRACTICE",
-          "IN_PROGRESS",
-          "MASTERED"
+      "LibraryScoreBatchMoveRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "score_ids": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Score Ids",
+            "type": "array"
+          },
+          "target_folder_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Folder Id"
+          }
+        },
+        "required": [
+          "score_ids"
         ],
-        "title": "LibraryPracticeState",
-        "type": "string"
+        "title": "LibraryScoreBatchMoveRequest",
+        "type": "object"
+      },
+      "LibraryScoreRead": {
+        "properties": {
+          "access_origin": {
+            "$ref": "#/components/schemas/AccessOrigin"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "derived_assets": {
+            "$ref": "#/components/schemas/ScoreDerivedAssetsRead"
+          },
+          "folder_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folder Id"
+          },
+          "genres": {
+            "items": {
+              "$ref": "#/components/schemas/ScoreGenre"
+            },
+            "title": "Genres",
+            "type": "array"
+          },
+          "is_favorite": {
+            "title": "Is Favorite",
+            "type": "boolean"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MetadataRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "score_id": {
+            "title": "Score Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "score_id",
+          "access_origin",
+          "folder_id",
+          "title",
+          "derived_assets",
+          "genres",
+          "metadata",
+          "is_favorite",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "LibraryScoreRead",
+        "type": "object"
       },
       "LibrarySort": {
         "enum": [
           "updated_desc",
           "updated_asc",
           "name_asc",
-          "name_desc",
-          "practiced_desc"
+          "name_desc"
         ],
         "title": "LibrarySort",
         "type": "string"
@@ -4824,10 +4574,8 @@
         "enum": [
           "all",
           "favorites",
-          "recent_practice",
-          "to_practice",
-          "mastered",
-          "trash"
+          "created_by_me",
+          "shared_with_me"
         ],
         "title": "LibraryView",
         "type": "string"
@@ -5261,7 +5009,7 @@
         "title": "PaginatedResponse[ImportJobRead]",
         "type": "object"
       },
-      "PaginatedResponse_LibraryEntryRead_": {
+      "PaginatedResponse_LibraryScoreRead_": {
         "examples": [
           {
             "data": [
@@ -5284,7 +5032,7 @@
         "properties": {
           "data": {
             "items": {
-              "$ref": "#/components/schemas/LibraryEntryRead"
+              "$ref": "#/components/schemas/LibraryScoreRead"
             },
             "title": "Data",
             "type": "array"
@@ -5303,7 +5051,7 @@
           "data",
           "pagination"
         ],
-        "title": "PaginatedResponse[LibraryEntryRead]",
+        "title": "PaginatedResponse[LibraryScoreRead]",
         "type": "object"
       },
       "PaginatedResponse_ScoreRead_": {
@@ -7734,10 +7482,6 @@
             ],
             "title": "Head Revision Id"
           },
-          "in_library": {
-            "title": "In Library",
-            "type": "boolean"
-          },
           "input_assets": {
             "items": {
               "$ref": "#/components/schemas/ScoreInputAssetRead"
@@ -7781,7 +7525,6 @@
           "head_revision_id",
           "derived_assets",
           "input_assets",
-          "in_library",
           "metadata",
           "capabilities",
           "created_at",
@@ -9509,491 +9252,6 @@
         ]
       }
     },
-    "/api/v1/library/entries": {
-      "get": {
-        "operationId": "list_library_entries_api_v1_library_entries_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "view",
-            "required": false,
-            "schema": {
-              "$ref": "#/components/schemas/LibraryView",
-              "default": "all"
-            }
-          },
-          {
-            "in": "query",
-            "name": "folder_id",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Folder Id"
-            }
-          },
-          {
-            "in": "query",
-            "name": "search",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Search"
-            }
-          },
-          {
-            "in": "query",
-            "name": "sort",
-            "required": false,
-            "schema": {
-              "$ref": "#/components/schemas/LibrarySort",
-              "default": "updated_desc"
-            }
-          },
-          {
-            "in": "query",
-            "name": "page",
-            "required": false,
-            "schema": {
-              "default": 1,
-              "minimum": 1,
-              "title": "Page",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "page_size",
-            "required": false,
-            "schema": {
-              "default": 20,
-              "maximum": 100,
-              "minimum": 1,
-              "title": "Page Size",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PaginatedResponse_LibraryEntryRead_"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "List Library Entries",
-        "tags": [
-          "Library"
-        ]
-      }
-    },
-    "/api/v1/library/entries/batch-add-owned": {
-      "post": {
-        "operationId": "batch_add_owned_scores_to_library_api_v1_library_entries_batch_add_owned_post",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LibraryOwnedScoreBatchRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/APIResponse_LibraryOwnedScoreBatchRead_"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Batch Add Owned Scores To Library",
-        "tags": [
-          "Library"
-        ]
-      }
-    },
-    "/api/v1/library/entries/batch-favorite": {
-      "post": {
-        "operationId": "batch_favorite_library_entries_api_v1_library_entries_batch_favorite_post",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LibraryEntryBatchUpdateRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/APIResponse_LibraryBatchUpdateRead_"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Batch Favorite Library Entries",
-        "tags": [
-          "Library"
-        ]
-      }
-    },
-    "/api/v1/library/entries/batch-move": {
-      "post": {
-        "operationId": "batch_move_library_entries_api_v1_library_entries_batch_move_post",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LibraryEntryBatchMoveRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/APIResponse_LibraryBatchMoveRead_"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Batch Move Library Entries",
-        "tags": [
-          "Library"
-        ]
-      }
-    },
-    "/api/v1/library/entries/batch-practice-state": {
-      "post": {
-        "operationId": "batch_practice_state_library_entries_api_v1_library_entries_batch_practice_state_post",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LibraryEntryBatchPracticeStateRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/APIResponse_LibraryBatchUpdateRead_"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Batch Practice State Library Entries",
-        "tags": [
-          "Library"
-        ]
-      }
-    },
-    "/api/v1/library/entries/batch-trash": {
-      "post": {
-        "operationId": "batch_trash_library_entries_api_v1_library_entries_batch_trash_post",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LibraryEntryBatchUpdateRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/APIResponse_LibraryBatchUpdateRead_"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Batch Trash Library Entries",
-        "tags": [
-          "Library"
-        ]
-      }
-    },
-    "/api/v1/library/entries/{entry_id}": {
-      "patch": {
-        "operationId": "update_library_entry_api_v1_library_entries__entry_id__patch",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "entry_id",
-            "required": true,
-            "schema": {
-              "title": "Entry Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LibraryEntryUpdateRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/APIResponse_LibraryEntryRead_"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Update Library Entry",
-        "tags": [
-          "Library"
-        ]
-      }
-    },
     "/api/v1/library/folders": {
       "get": {
         "operationId": "list_library_folders_api_v1_library_folders_get",
@@ -10114,15 +9372,6 @@
             }
           },
           {
-            "in": "query",
-            "name": "mode",
-            "required": false,
-            "schema": {
-              "$ref": "#/components/schemas/FolderDeleteMode",
-              "default": "MOVE_CONTENTS_TO_ROOT"
-            }
-          },
-          {
             "in": "cookie",
             "name": "noteverse_session",
             "required": false,
@@ -10228,6 +9477,246 @@
           }
         },
         "summary": "Update Library Folder",
+        "tags": [
+          "Library"
+        ]
+      }
+    },
+    "/api/v1/library/scores": {
+      "get": {
+        "operationId": "list_library_scores_api_v1_library_scores_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "view",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/LibraryView",
+              "default": "all"
+            }
+          },
+          {
+            "in": "query",
+            "name": "folder_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Folder Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/LibrarySort",
+              "default": "updated_desc"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponse_LibraryScoreRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Library Scores",
+        "tags": [
+          "Library"
+        ]
+      }
+    },
+    "/api/v1/library/scores/batch-favorite": {
+      "post": {
+        "operationId": "batch_favorite_library_scores_api_v1_library_scores_batch_favorite_post",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LibraryScoreBatchFavoriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_LibraryBatchUpdateRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Batch Favorite Library Scores",
+        "tags": [
+          "Library"
+        ]
+      }
+    },
+    "/api/v1/library/scores/batch-move": {
+      "post": {
+        "operationId": "batch_move_library_scores_api_v1_library_scores_batch_move_post",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LibraryScoreBatchMoveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_LibraryBatchMoveRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Batch Move Library Scores",
         "tags": [
           "Library"
         ]

@@ -52,7 +52,7 @@ function handleRealtimeEvent(
     void queryClient.invalidateQueries({ queryKey: queryKeys.scores.revisions(event.score_id) });
     invalidateScoreRevisionAssets(queryClient, event.score_id);
     void queryClient.invalidateQueries({ queryKey: queryKeys.myScores.lists() });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.library.entries() });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.library.scores() });
     return;
   }
 
@@ -61,7 +61,7 @@ function handleRealtimeEvent(
     void queryClient.invalidateQueries({ queryKey: queryKeys.scores.detail(event.score_id) });
     invalidateScoreRevisionAssets(queryClient, event.score_id, event.revision_id);
     void queryClient.invalidateQueries({ queryKey: queryKeys.myScores.lists() });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.library.entries() });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.library.scores() });
     return;
   }
 
@@ -69,7 +69,7 @@ function handleRealtimeEvent(
     if (!event.score_id) return;
     void queryClient.invalidateQueries({ queryKey: queryKeys.scores.detail(event.score_id) });
     void queryClient.invalidateQueries({ queryKey: queryKeys.myScores.lists() });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.library.entries() });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.library.scores() });
     return;
   }
 

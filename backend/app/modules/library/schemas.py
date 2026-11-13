@@ -5,7 +5,7 @@ from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.db.models import LibraryEntrySourceType, LibraryPracticeState
+from app.db.models.score_access import AccessOrigin
 from app.modules.metadata.schemas import MetadataRead
 from app.modules.score_assets.schemas import ScoreDerivedAssetsRead
 from app.modules.scores.genres import Genres
@@ -14,10 +14,8 @@ from app.modules.scores.genres import Genres
 class LibraryView(str, Enum):
     ALL = "all"
     FAVORITES = "favorites"
-    RECENT_PRACTICE = "recent_practice"
-    TO_PRACTICE = "to_practice"
-    MASTERED = "mastered"
-    TRASH = "trash"
+    CREATED_BY_ME = "created_by_me"
+    SHARED_WITH_ME = "shared_with_me"
 
 
 class LibrarySort(str, Enum):
@@ -25,12 +23,6 @@ class LibrarySort(str, Enum):
     UPDATED_ASC = "updated_asc"
     NAME_ASC = "name_asc"
     NAME_DESC = "name_desc"
-    PRACTICED_DESC = "practiced_desc"
-
-
-class FolderDeleteMode(str, Enum):
-    MOVE_CONTENTS_TO_ROOT = "MOVE_CONTENTS_TO_ROOT"
-    TRASH_CONTENTS = "TRASH_CONTENTS"
 
 
 class LibraryFolderCreateRequest(BaseModel):
@@ -63,17 +55,16 @@ class LibraryFolderUpdateRequest(BaseModel):
         return value
 
 
-class LibraryFolderDeleteRequest(BaseModel):
-    mode: FolderDeleteMode = FolderDeleteMode.MOVE_CONTENTS_TO_ROOT
-
-
-class LibraryEntryBatchMoveRequest(BaseModel):
-    entry_ids: list[str] = Field(min_length=1)
+class LibraryScoreBatchMoveRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    score_ids: list[str] = Field(min_length=1)
     target_folder_id: str | None = None
 
 
-class LibraryEntryBatchUpdateRequest(BaseModel):
-    entry_ids: list[str] = Field(min_length=1)
+class LibraryScoreBatchFavoriteRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    score_ids: list[str] = Field(min_length=1)
+    is_favorite: bool
 
 
 class LibraryBatchMoveRead(BaseModel):
@@ -82,40 +73,6 @@ class LibraryBatchMoveRead(BaseModel):
 
 class LibraryBatchUpdateRead(BaseModel):
     updated: int
-
-
-class LibraryOwnedScoreBatchRequest(BaseModel):
-    score_ids: list[str] = Field(min_length=1)
-
-
-class LibraryOwnedScoreBatchRead(BaseModel):
-    added: int
-
-
-class LibraryEntryBatchPracticeStateRequest(BaseModel):
-    entry_ids: list[str] = Field(min_length=1)
-    practice_state: LibraryPracticeState
-
-    @field_validator("practice_state")
-    @classmethod
-    def reject_system_practice_state(cls, value: LibraryPracticeState) -> LibraryPracticeState:
-        if value == LibraryPracticeState.IN_PROGRESS:
-            raise ValueError("IN_PROGRESS is managed by practice activity")
-        return value
-
-
-class LibraryEntryUpdateRequest(BaseModel):
-    practice_state: LibraryPracticeState | None = None
-    is_favorite: bool | None = None
-
-    @field_validator("practice_state")
-    @classmethod
-    def reject_system_practice_state(
-        cls, value: LibraryPracticeState | None
-    ) -> LibraryPracticeState | None:
-        if value == LibraryPracticeState.IN_PROGRESS:
-            raise ValueError("IN_PROGRESS is managed by practice activity")
-        return value
 
 
 class LibraryFolderRead(BaseModel):
@@ -130,25 +87,19 @@ class LibraryFolderRead(BaseModel):
 class LibraryFolderOverviewRead(BaseModel):
     all_count: int
     favorite_count: int
-    recent_practice_count: int
-    to_practice_count: int
-    mastered_count: int
+    created_by_me_count: int
+    shared_with_me_count: int
     folders: list[LibraryFolderRead]
 
 
-class LibraryEntryRead(BaseModel):
-    entry_id: str
+class LibraryScoreRead(BaseModel):
     score_id: str
-    source_type: LibraryEntrySourceType
+    access_origin: AccessOrigin
     folder_id: str | None
     title: str
     derived_assets: ScoreDerivedAssetsRead
     genres: Genres
     metadata: MetadataRead | None
     is_favorite: bool
-    practice_state: LibraryPracticeState
-    available: bool
-    unavailable_reason: str | None
-    last_practiced_at: datetime | None
     created_at: datetime
     updated_at: datetime

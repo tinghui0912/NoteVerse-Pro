@@ -120,7 +120,6 @@ test('Score head presentation progresses neutrally to exact READY assets through
     genres: [],
     metadata: null,
     input_assets: [],
-    in_library: false,
     created_at: '2026-06-20T00:00:00Z',
     updated_at: '2026-06-21T00:00:00Z',
     capabilities: {

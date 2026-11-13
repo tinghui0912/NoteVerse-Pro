@@ -28,7 +28,6 @@ import {
 import { PageHeader } from '@/components/page';
 import { useDeleteImportJob, useImportJobList } from '@/hooks/queries/use-import-job-queries';
 import {
-  useAddMyScoresToLibrary,
   useDeleteMyScores,
   useMyScores,
 } from '@/hooks/queries/use-my-scores-queries';
@@ -89,7 +88,6 @@ function MyScoresContent() {
   });
   const jobsQuery = useImportJobList(1, 20);
   const deleteJob = useDeleteImportJob();
-  const addScoresToLibrary = useAddMyScoresToLibrary();
   const deleteScores = useDeleteMyScores();
   const scores = React.useMemo(() => scoresQuery.data?.data ?? [], [scoresQuery.data?.data]);
   const jobs = React.useMemo(() => jobsQuery.data?.data ?? [], [jobsQuery.data?.data]);
@@ -116,13 +114,6 @@ function MyScoresContent() {
   const selectedCount = selectedScoreIds.size;
   const selectedJobCount = selectedJobIds.size;
   const scoreIds = React.useMemo(() => scores.map((score) => score.score_id), [scores]);
-  const selectedScoresNotInLibrary = React.useMemo(
-    () =>
-      scores
-        .filter((score) => selectedScoreIds.has(score.score_id) && !score.in_library)
-        .map((score) => score.score_id),
-    [scores, selectedScoreIds]
-  );
   const visibleJobs = visibleMyScoreJobs(jobs, view);
   const visibleSelectableJobIds = visibleJobs
     .filter((job) => job.state === 'FAILURE' || job.state === 'PENDING_REVIEW')
@@ -221,13 +212,6 @@ function MyScoresContent() {
     if (selectedCount + selectedJobCount === 0) return;
     setDeleteTarget({ scoreIds: selectedIds(), jobIds: selectedJobs() });
   };
-  const handleAddToLibrarySelected = () => {
-    if (!selectedScoresNotInLibrary.length) return;
-    addScoresToLibrary.mutate(selectedScoresNotInLibrary, { onSuccess: clearSelection });
-  };
-  const addSingleScoreToLibrary = (scoreId: string) => {
-    addScoresToLibrary.mutate([scoreId]);
-  };
   const confirmDeleteTarget = () => {
     if (!deleteTarget || deleteTargetCount === 0) return;
     Promise.all([
@@ -315,11 +299,8 @@ function MyScoresContent() {
               selectedCount={selectedCount}
               selectedJobCount={selectedJobCount}
               allSelected={allVisibleSelected}
-              addToLibraryPending={addScoresToLibrary.isPending}
               deletePending={deleteScores.isPending || deleteJob.isPending}
-              addToLibraryCount={selectedScoresNotInLibrary.length}
               onToggleSelectAll={toggleVisibleSelection}
-              onAddToLibrarySelected={handleAddToLibrarySelected}
               onDeleteSelected={handleDeleteSelected}
               t={t}
             />
@@ -360,7 +341,6 @@ function MyScoresContent() {
                     router.push(`/score/${score.score_id}?from=my-scores`)
                   }
                   onToggleSelection={() => toggleScoreSelection(score.score_id)}
-                  onAddToLibrary={() => addSingleScoreToLibrary(score.score_id)}
                   onDelete={() => deleteSingleScore(score.score_id)}
                   t={t}
                 />

@@ -8,7 +8,7 @@
 
 Authenticated Score access has two origins: OWNER and MEMBERSHIP. Guest Preview
 is a separate presentation-only bearer authority.
-There is no public score publication channel. ScoreLibraryEntry organizes a user's
+There is no public score publication channel. ScoreLibraryOrganization organizes a user's
 library and does not grant access.
 
 ScoreAccessPolicy authorizes authenticated owner/member operations. The owner can

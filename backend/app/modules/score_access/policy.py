@@ -17,6 +17,7 @@ from app.db.models.score_access import (
     MembershipRole,
 )
 from app.modules.score_access.schemas import ScoreCapabilities
+from app.modules.score_access.queries import active_score_predicate, active_membership_predicate
 from app.shared.constants import ErrorCode
 
 
@@ -52,7 +53,7 @@ class ScoreAccessPolicy:
             await db.execute(
                 select(Score).where(
                     Score.score_uuid == score_uuid,
-                    Score.__table__.c.deleted_at.is_(None),
+                    active_score_predicate(),
                 )
             )
         ).scalar_one_or_none()
@@ -81,8 +82,7 @@ class ScoreAccessPolicy:
                 await db.execute(
                     select(ScoreMembership).where(
                         ScoreMembership.score_id == score.id,
-                        ScoreMembership.user_id == user_id,
-                        ScoreMembership.__table__.c.revoked_at.is_(None),
+                        active_membership_predicate(user_id),
                     )
                 )
             ).scalar_one_or_none()

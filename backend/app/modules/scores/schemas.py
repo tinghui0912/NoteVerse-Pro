@@ -38,7 +38,6 @@ class ScoreRead(BaseModel):
     head_revision_id: str | None
     derived_assets: ScoreDerivedAssetsRead
     input_assets: list[ScoreInputAssetRead]
-    in_library: bool
     metadata: MetadataRead | None
     capabilities: ScoreCapabilities
     created_at: datetime

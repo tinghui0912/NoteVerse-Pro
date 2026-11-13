@@ -1,57 +1,44 @@
 # Library And My Scores
 
-This document is the current product-facing summary for the two score
-management surfaces.
+## Library
+
+Library contains active Scores the current user owns or has an active collaboration
+membership on. Ownership and membership grant access through ScoreAccessPolicy.
+Pending invitations and Guest Preview links do not add Scores to this workspace.
+Revoked memberships and deleted Scores are excluded from every view and count.
+
+Library views are All, Created by me, Shared with me, and Favorites. Folder,
+search, sort, and page filters organize this accessible collection. Updated
+sorting and displayed timestamps refer to the Score.
+
+Personal organization stores only folders and favorites. Its row is optional:
+an accessible Score appears without one. Organization never grants access.
+There is no Saved/Bookmark membership, Library practice state, or Library Trash.
+Practice activity does not modify Library organization.
+
+Folders are flat and user-owned, with unique names per user. A Score may be
+unfiled at Library root or assigned to one folder. Both owned and shared Scores
+can be organized. Deleting a folder returns its Scores to Library root; it does
+not delete Scores or change ownership, membership, permissions, or storage ownership.
+Favorites can be set and cleared independently of access.
 
 A Score owns an ordered unique list of known genre codes. It may have zero or
-more genres selected from the current vocabulary, with no numeric genre-count
-limit. Library and Review display the Score's genres.
+more genres from the current vocabulary, with no numeric genre-count limit.
+Library and Review display the Score's genres.
 
-## Product Split
+## My Scores
 
-`/library` is the learner's personal library:
+`/my-scores` displays owned Scores and import/review jobs through All works,
+Processing, Pending review, and Failed views. Search, sorting, and pagination
+apply to owned Scores. Bulk deletion operates on selected owned Scores and
+eligible import jobs.
 
-- saved and accessible scores;
-- folders and learning views;
-- favorite, practice, and remove-from-library actions;
-- does not imply score ownership.
+Score deletion is an owner action. It hides the resource through `Score.deleted_at`
+and atomically creates a `ScoreDeletionOperation` for asynchronous cleanup, with
+immediate best-effort dispatch and maintenance recovery.
 
-Library folders are a flat, user-owned organization layer. A score entry is
-either unfiled at Library root or assigned to one folder. Folders cannot contain
-folders. Active folder names are unique within a user's Library. Deleting a
-folder either moves its entries to Library root or moves them to Trash.
+## Access Authority
 
-`/my-scores` is the creator workspace:
-
-- scores owned by the current user;
-- import/review state;
-- Guest Preview, collaboration, edit, delete, and restore-oriented actions;
-- owner-level lifecycle management.
-
-My Scores exposes All works, Processing, Pending review and Failed views. The client
-reads these workflow filters from the current URL. The owned-score API accepts
-page, page_size, search and sort; workflow views select which import jobs and owned
-scores the browser presents. Bulk actions add owned scores to the library or delete
-selected scores/jobs.
-
-## Deletion Semantics
-
-Library removal only removes the user's library entry. It does not delete the
-underlying score.
-
-My Scores deletion is an owner action. It hides the score from user-facing
-surfaces immediately through `Score.deleted_at`. The same transaction creates a
-`ScoreDeletionOperation` for durable asynchronous cleanup, with immediate best-effort
-dispatch and maintenance recovery.
-
-## Collaboration Semantics
-
-A collaborator can edit a score but does not become the storage-quota owner.
-Score ownership, billing/quota attribution, and destructive lifecycle actions
-remain tied to the owning user unless the product later introduces ownership
-transfer.
-
-## Authority
-
-[Score access policy](../adr/0004-score-access-collaboration-and-guest-preview.md) defines authorization.
-Library entries organize access without granting it.
+[Score access policy](../adr/0004-score-access-collaboration-and-guest-preview.md)
+defines authorization. Collaboration grants do not transfer Score ownership or
+storage-quota responsibility. Guest Preview remains explicit link sharing.

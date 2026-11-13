@@ -20,9 +20,7 @@ from .revision_event import ScoreRevisionEvent
 from .revision_note import ScoreRevisionNote
 from .scheduler import SchedulerHeartbeat, SchedulerLeaderStatus
 from .library import (
-    LibraryEntrySourceType,
-    LibraryPracticeState,
-    ScoreLibraryEntry,
+    ScoreLibraryOrganization,
     ScoreLibraryFolder,
 )
 from .import_job import (
@@ -108,9 +106,7 @@ __all__ = [
     "ScoreRevisionNote",
     "SchedulerHeartbeat",
     "SchedulerLeaderStatus",
-    "LibraryEntrySourceType",
-    "LibraryPracticeState",
-    "ScoreLibraryEntry",
+    "ScoreLibraryOrganization",
     "ScoreLibraryFolder",
     "ImportArtifact",
     "ImportDispatch",

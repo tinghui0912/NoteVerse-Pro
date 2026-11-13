@@ -26,7 +26,6 @@ interface LibrarySidebarProps {
   currentView: LibraryView;
   currentFolderId?: string;
   quickNodes: LibraryVirtualNode[];
-  practiceNodes: LibraryVirtualNode[];
   folders: LibraryFolderRead[];
   foldersLoading: boolean;
   foldersError: unknown;
@@ -45,7 +44,6 @@ export function LibrarySidebar({
   currentView,
   currentFolderId,
   quickNodes,
-  practiceNodes,
   folders,
   foldersLoading,
   foldersError,
@@ -66,13 +64,6 @@ export function LibrarySidebar({
           <SidebarNodeGroup
             title={t('quickViews')}
             nodes={quickNodes}
-            currentView={currentView}
-            currentFolderId={currentFolderId}
-            onNavigateView={onNavigateView}
-          />
-          <SidebarNodeGroup
-            title={t('practiceStatus')}
-            nodes={practiceNodes}
             currentView={currentView}
             currentFolderId={currentFolderId}
             onNavigateView={onNavigateView}

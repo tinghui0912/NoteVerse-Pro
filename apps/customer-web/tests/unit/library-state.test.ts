@@ -31,7 +31,8 @@ describe('library organization', () => {
   ];
 
   it('normalizes unknown library views to all', () => {
-    expect(normalizeLibraryView('favorites')).toBe('favorites');
+    for (const view of ['all', 'created_by_me', 'shared_with_me', 'favorites'])
+      expect(normalizeLibraryView(view)).toBe(view);
     expect(normalizeLibraryView('not-real')).toBe('all');
     expect(normalizeLibraryView(undefined)).toBe('all');
   });
@@ -45,7 +46,7 @@ describe('library organization', () => {
 
   it('normalizes library sort and page state', () => {
     expect(normalizeLibrarySort('name_asc')).toBe('name_asc');
-    expect(normalizeLibrarySort('updated_asc')).toBe('updated_desc');
+    expect(normalizeLibrarySort('updated_asc')).toBe('updated_asc');
     expect(normalizePage('2')).toBe(2);
     expect(normalizePage('-1')).toBe(1);
     expect(normalizePage('nope')).toBe(1);
@@ -63,7 +64,7 @@ describe('library organization', () => {
         { view: 'favorites', search: 'bach', sort: 'updated_desc' },
         { folder: 'folder-1', page: 2 },
       ),
-    ).toBe('/library?folder=folder-1&search=bach&page=2');
+    ).toBe('/library?view=favorites&folder=folder-1&search=bach&page=2');
     expect(
       buildLibraryHref(
         {

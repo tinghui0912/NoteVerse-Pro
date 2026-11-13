@@ -509,34 +509,6 @@ export type ApiResponseLibraryBatchUpdateRead = {
 };
 
 /**
- * APIResponse[LibraryEntryRead]
- */
-export type ApiResponseLibraryEntryRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: LibraryEntryRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
  * APIResponse[LibraryFolderOverviewRead]
  */
 export type ApiResponseLibraryFolderOverviewRead = {
@@ -578,34 +550,6 @@ export type ApiResponseLibraryFolderRead = {
      * Response payload
      */
     data?: LibraryFolderRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[LibraryOwnedScoreBatchRead]
- */
-export type ApiResponseLibraryOwnedScoreBatchRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: LibraryOwnedScoreBatchRead | null;
     /**
      * Message
      *
@@ -1445,6 +1389,11 @@ export type ApiResponseListNotificationEventRead = {
 };
 
 /**
+ * AccessOrigin
+ */
+export type AccessOrigin = 'OWNER' | 'MEMBERSHIP';
+
+/**
  * AssetAccessRead
  */
 export type AssetAccessRead = {
@@ -1665,11 +1614,6 @@ export type FingeringResultRead = {
      */
     content: string;
 };
-
-/**
- * FolderDeleteMode
- */
-export type FolderDeleteMode = 'MOVE_CONTENTS_TO_ROOT' | 'TRASH_CONTENTS';
 
 /**
  * ForgotPasswordRequest
@@ -2180,111 +2124,6 @@ export type LibraryBatchUpdateRead = {
 };
 
 /**
- * LibraryEntryBatchMoveRequest
- */
-export type LibraryEntryBatchMoveRequest = {
-    /**
-     * Entry Ids
-     */
-    entry_ids: Array<string>;
-    /**
-     * Target Folder Id
-     */
-    target_folder_id?: string | null;
-};
-
-/**
- * LibraryEntryBatchPracticeStateRequest
- */
-export type LibraryEntryBatchPracticeStateRequest = {
-    /**
-     * Entry Ids
-     */
-    entry_ids: Array<string>;
-    practice_state: LibraryPracticeState;
-};
-
-/**
- * LibraryEntryBatchUpdateRequest
- */
-export type LibraryEntryBatchUpdateRequest = {
-    /**
-     * Entry Ids
-     */
-    entry_ids: Array<string>;
-};
-
-/**
- * LibraryEntryRead
- */
-export type LibraryEntryRead = {
-    /**
-     * Available
-     */
-    available: boolean;
-    /**
-     * Created At
-     */
-    created_at: string;
-    derived_assets: ScoreDerivedAssetsRead;
-    /**
-     * Entry Id
-     */
-    entry_id: string;
-    /**
-     * Folder Id
-     */
-    folder_id: string | null;
-    /**
-     * Genres
-     */
-    genres: Array<ScoreGenre>;
-    /**
-     * Is Favorite
-     */
-    is_favorite: boolean;
-    /**
-     * Last Practiced At
-     */
-    last_practiced_at: string | null;
-    metadata: MetadataRead | null;
-    practice_state: LibraryPracticeState;
-    /**
-     * Score Id
-     */
-    score_id: string;
-    source_type: LibraryEntrySourceType;
-    /**
-     * Title
-     */
-    title: string;
-    /**
-     * Unavailable Reason
-     */
-    unavailable_reason: string | null;
-    /**
-     * Updated At
-     */
-    updated_at: string;
-};
-
-/**
- * LibraryEntrySourceType
- */
-export type LibraryEntrySourceType = 'SELF_ADDED';
-
-/**
- * LibraryEntryUpdateRequest
- */
-export type LibraryEntryUpdateRequest = {
-    /**
-     * Is Favorite
-     */
-    is_favorite?: boolean | null;
-    practice_state?: LibraryPracticeState | null;
-};
-
-/**
  * LibraryFolderCreateRequest
  */
 export type LibraryFolderCreateRequest = {
@@ -2303,6 +2142,10 @@ export type LibraryFolderOverviewRead = {
      */
     all_count: number;
     /**
+     * Created By Me Count
+     */
+    created_by_me_count: number;
+    /**
      * Favorite Count
      */
     favorite_count: number;
@@ -2311,17 +2154,9 @@ export type LibraryFolderOverviewRead = {
      */
     folders: Array<LibraryFolderRead>;
     /**
-     * Mastered Count
+     * Shared With Me Count
      */
-    mastered_count: number;
-    /**
-     * Recent Practice Count
-     */
-    recent_practice_count: number;
-    /**
-     * To Practice Count
-     */
-    to_practice_count: number;
+    shared_with_me_count: number;
 };
 
 /**
@@ -2369,19 +2204,13 @@ export type LibraryFolderUpdateRequest = {
 };
 
 /**
- * LibraryOwnedScoreBatchRead
+ * LibraryScoreBatchFavoriteRequest
  */
-export type LibraryOwnedScoreBatchRead = {
+export type LibraryScoreBatchFavoriteRequest = {
     /**
-     * Added
+     * Is Favorite
      */
-    added: number;
-};
-
-/**
- * LibraryOwnedScoreBatchRequest
- */
-export type LibraryOwnedScoreBatchRequest = {
+    is_favorite: boolean;
     /**
      * Score Ids
      */
@@ -2389,19 +2218,65 @@ export type LibraryOwnedScoreBatchRequest = {
 };
 
 /**
- * LibraryPracticeState
+ * LibraryScoreBatchMoveRequest
  */
-export type LibraryPracticeState = 'TO_PRACTICE' | 'IN_PROGRESS' | 'MASTERED';
+export type LibraryScoreBatchMoveRequest = {
+    /**
+     * Score Ids
+     */
+    score_ids: Array<string>;
+    /**
+     * Target Folder Id
+     */
+    target_folder_id?: string | null;
+};
+
+/**
+ * LibraryScoreRead
+ */
+export type LibraryScoreRead = {
+    access_origin: AccessOrigin;
+    /**
+     * Created At
+     */
+    created_at: string;
+    derived_assets: ScoreDerivedAssetsRead;
+    /**
+     * Folder Id
+     */
+    folder_id: string | null;
+    /**
+     * Genres
+     */
+    genres: Array<ScoreGenre>;
+    /**
+     * Is Favorite
+     */
+    is_favorite: boolean;
+    metadata: MetadataRead | null;
+    /**
+     * Score Id
+     */
+    score_id: string;
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+};
 
 /**
  * LibrarySort
  */
-export type LibrarySort = 'updated_desc' | 'updated_asc' | 'name_asc' | 'name_desc' | 'practiced_desc';
+export type LibrarySort = 'updated_desc' | 'updated_asc' | 'name_asc' | 'name_desc';
 
 /**
  * LibraryView
  */
-export type LibraryView = 'all' | 'favorites' | 'recent_practice' | 'to_practice' | 'mastered' | 'trash';
+export type LibraryView = 'all' | 'favorites' | 'created_by_me' | 'shared_with_me';
 
 /**
  * MemberListRead
@@ -2611,13 +2486,13 @@ export type PaginatedResponseImportJobRead = {
 };
 
 /**
- * PaginatedResponse[LibraryEntryRead]
+ * PaginatedResponse[LibraryScoreRead]
  */
-export type PaginatedResponseLibraryEntryRead = {
+export type PaginatedResponseLibraryScoreRead = {
     /**
      * Data
      */
-    data: Array<LibraryEntryRead>;
+    data: Array<LibraryScoreRead>;
     /**
      * Pagination metadata
      */
@@ -3990,10 +3865,6 @@ export type ScoreRead = {
      */
     head_revision_id: string | null;
     /**
-     * In Library
-     */
-    in_library: boolean;
-    /**
      * Input Assets
      */
     input_assets: Array<ScoreInputAssetRead>;
@@ -4974,205 +4845,6 @@ export type AcceptInviteApiV1InvitesTokenAcceptPostResponses = {
 
 export type AcceptInviteApiV1InvitesTokenAcceptPostResponse = AcceptInviteApiV1InvitesTokenAcceptPostResponses[keyof AcceptInviteApiV1InvitesTokenAcceptPostResponses];
 
-export type ListLibraryEntriesApiV1LibraryEntriesGetData = {
-    body?: never;
-    path?: never;
-    query?: {
-        view?: LibraryView;
-        /**
-         * Folder Id
-         */
-        folder_id?: string | null;
-        /**
-         * Search
-         */
-        search?: string | null;
-        sort?: LibrarySort;
-        /**
-         * Page
-         */
-        page?: number;
-        /**
-         * Page Size
-         */
-        page_size?: number;
-    };
-    url: '/api/v1/library/entries';
-};
-
-export type ListLibraryEntriesApiV1LibraryEntriesGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type ListLibraryEntriesApiV1LibraryEntriesGetError = ListLibraryEntriesApiV1LibraryEntriesGetErrors[keyof ListLibraryEntriesApiV1LibraryEntriesGetErrors];
-
-export type ListLibraryEntriesApiV1LibraryEntriesGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: PaginatedResponseLibraryEntryRead;
-};
-
-export type ListLibraryEntriesApiV1LibraryEntriesGetResponse = ListLibraryEntriesApiV1LibraryEntriesGetResponses[keyof ListLibraryEntriesApiV1LibraryEntriesGetResponses];
-
-export type BatchAddOwnedScoresToLibraryApiV1LibraryEntriesBatchAddOwnedPostData = {
-    body: LibraryOwnedScoreBatchRequest;
-    path?: never;
-    query?: never;
-    url: '/api/v1/library/entries/batch-add-owned';
-};
-
-export type BatchAddOwnedScoresToLibraryApiV1LibraryEntriesBatchAddOwnedPostErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type BatchAddOwnedScoresToLibraryApiV1LibraryEntriesBatchAddOwnedPostError = BatchAddOwnedScoresToLibraryApiV1LibraryEntriesBatchAddOwnedPostErrors[keyof BatchAddOwnedScoresToLibraryApiV1LibraryEntriesBatchAddOwnedPostErrors];
-
-export type BatchAddOwnedScoresToLibraryApiV1LibraryEntriesBatchAddOwnedPostResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponseLibraryOwnedScoreBatchRead;
-};
-
-export type BatchAddOwnedScoresToLibraryApiV1LibraryEntriesBatchAddOwnedPostResponse = BatchAddOwnedScoresToLibraryApiV1LibraryEntriesBatchAddOwnedPostResponses[keyof BatchAddOwnedScoresToLibraryApiV1LibraryEntriesBatchAddOwnedPostResponses];
-
-export type BatchFavoriteLibraryEntriesApiV1LibraryEntriesBatchFavoritePostData = {
-    body: LibraryEntryBatchUpdateRequest;
-    path?: never;
-    query?: never;
-    url: '/api/v1/library/entries/batch-favorite';
-};
-
-export type BatchFavoriteLibraryEntriesApiV1LibraryEntriesBatchFavoritePostErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type BatchFavoriteLibraryEntriesApiV1LibraryEntriesBatchFavoritePostError = BatchFavoriteLibraryEntriesApiV1LibraryEntriesBatchFavoritePostErrors[keyof BatchFavoriteLibraryEntriesApiV1LibraryEntriesBatchFavoritePostErrors];
-
-export type BatchFavoriteLibraryEntriesApiV1LibraryEntriesBatchFavoritePostResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponseLibraryBatchUpdateRead;
-};
-
-export type BatchFavoriteLibraryEntriesApiV1LibraryEntriesBatchFavoritePostResponse = BatchFavoriteLibraryEntriesApiV1LibraryEntriesBatchFavoritePostResponses[keyof BatchFavoriteLibraryEntriesApiV1LibraryEntriesBatchFavoritePostResponses];
-
-export type BatchMoveLibraryEntriesApiV1LibraryEntriesBatchMovePostData = {
-    body: LibraryEntryBatchMoveRequest;
-    path?: never;
-    query?: never;
-    url: '/api/v1/library/entries/batch-move';
-};
-
-export type BatchMoveLibraryEntriesApiV1LibraryEntriesBatchMovePostErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type BatchMoveLibraryEntriesApiV1LibraryEntriesBatchMovePostError = BatchMoveLibraryEntriesApiV1LibraryEntriesBatchMovePostErrors[keyof BatchMoveLibraryEntriesApiV1LibraryEntriesBatchMovePostErrors];
-
-export type BatchMoveLibraryEntriesApiV1LibraryEntriesBatchMovePostResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponseLibraryBatchMoveRead;
-};
-
-export type BatchMoveLibraryEntriesApiV1LibraryEntriesBatchMovePostResponse = BatchMoveLibraryEntriesApiV1LibraryEntriesBatchMovePostResponses[keyof BatchMoveLibraryEntriesApiV1LibraryEntriesBatchMovePostResponses];
-
-export type BatchPracticeStateLibraryEntriesApiV1LibraryEntriesBatchPracticeStatePostData = {
-    body: LibraryEntryBatchPracticeStateRequest;
-    path?: never;
-    query?: never;
-    url: '/api/v1/library/entries/batch-practice-state';
-};
-
-export type BatchPracticeStateLibraryEntriesApiV1LibraryEntriesBatchPracticeStatePostErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type BatchPracticeStateLibraryEntriesApiV1LibraryEntriesBatchPracticeStatePostError = BatchPracticeStateLibraryEntriesApiV1LibraryEntriesBatchPracticeStatePostErrors[keyof BatchPracticeStateLibraryEntriesApiV1LibraryEntriesBatchPracticeStatePostErrors];
-
-export type BatchPracticeStateLibraryEntriesApiV1LibraryEntriesBatchPracticeStatePostResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponseLibraryBatchUpdateRead;
-};
-
-export type BatchPracticeStateLibraryEntriesApiV1LibraryEntriesBatchPracticeStatePostResponse = BatchPracticeStateLibraryEntriesApiV1LibraryEntriesBatchPracticeStatePostResponses[keyof BatchPracticeStateLibraryEntriesApiV1LibraryEntriesBatchPracticeStatePostResponses];
-
-export type BatchTrashLibraryEntriesApiV1LibraryEntriesBatchTrashPostData = {
-    body: LibraryEntryBatchUpdateRequest;
-    path?: never;
-    query?: never;
-    url: '/api/v1/library/entries/batch-trash';
-};
-
-export type BatchTrashLibraryEntriesApiV1LibraryEntriesBatchTrashPostErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type BatchTrashLibraryEntriesApiV1LibraryEntriesBatchTrashPostError = BatchTrashLibraryEntriesApiV1LibraryEntriesBatchTrashPostErrors[keyof BatchTrashLibraryEntriesApiV1LibraryEntriesBatchTrashPostErrors];
-
-export type BatchTrashLibraryEntriesApiV1LibraryEntriesBatchTrashPostResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponseLibraryBatchUpdateRead;
-};
-
-export type BatchTrashLibraryEntriesApiV1LibraryEntriesBatchTrashPostResponse = BatchTrashLibraryEntriesApiV1LibraryEntriesBatchTrashPostResponses[keyof BatchTrashLibraryEntriesApiV1LibraryEntriesBatchTrashPostResponses];
-
-export type UpdateLibraryEntryApiV1LibraryEntriesEntryIdPatchData = {
-    body: LibraryEntryUpdateRequest;
-    path: {
-        /**
-         * Entry Id
-         */
-        entry_id: string;
-    };
-    query?: never;
-    url: '/api/v1/library/entries/{entry_id}';
-};
-
-export type UpdateLibraryEntryApiV1LibraryEntriesEntryIdPatchErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type UpdateLibraryEntryApiV1LibraryEntriesEntryIdPatchError = UpdateLibraryEntryApiV1LibraryEntriesEntryIdPatchErrors[keyof UpdateLibraryEntryApiV1LibraryEntriesEntryIdPatchErrors];
-
-export type UpdateLibraryEntryApiV1LibraryEntriesEntryIdPatchResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponseLibraryEntryRead;
-};
-
-export type UpdateLibraryEntryApiV1LibraryEntriesEntryIdPatchResponse = UpdateLibraryEntryApiV1LibraryEntriesEntryIdPatchResponses[keyof UpdateLibraryEntryApiV1LibraryEntriesEntryIdPatchResponses];
-
 export type ListLibraryFoldersApiV1LibraryFoldersGetData = {
     body?: never;
     path?: never;
@@ -5231,9 +4903,7 @@ export type DeleteLibraryFolderApiV1LibraryFoldersFolderIdDeleteData = {
          */
         folder_id: string;
     };
-    query?: {
-        mode?: FolderDeleteMode;
-    };
+    query?: never;
     url: '/api/v1/library/folders/{folder_id}';
 };
 
@@ -5284,6 +4954,100 @@ export type UpdateLibraryFolderApiV1LibraryFoldersFolderIdPatchResponses = {
 };
 
 export type UpdateLibraryFolderApiV1LibraryFoldersFolderIdPatchResponse = UpdateLibraryFolderApiV1LibraryFoldersFolderIdPatchResponses[keyof UpdateLibraryFolderApiV1LibraryFoldersFolderIdPatchResponses];
+
+export type ListLibraryScoresApiV1LibraryScoresGetData = {
+    body?: never;
+    path?: never;
+    query?: {
+        view?: LibraryView;
+        /**
+         * Folder Id
+         */
+        folder_id?: string | null;
+        /**
+         * Search
+         */
+        search?: string | null;
+        sort?: LibrarySort;
+        /**
+         * Page
+         */
+        page?: number;
+        /**
+         * Page Size
+         */
+        page_size?: number;
+    };
+    url: '/api/v1/library/scores';
+};
+
+export type ListLibraryScoresApiV1LibraryScoresGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListLibraryScoresApiV1LibraryScoresGetError = ListLibraryScoresApiV1LibraryScoresGetErrors[keyof ListLibraryScoresApiV1LibraryScoresGetErrors];
+
+export type ListLibraryScoresApiV1LibraryScoresGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PaginatedResponseLibraryScoreRead;
+};
+
+export type ListLibraryScoresApiV1LibraryScoresGetResponse = ListLibraryScoresApiV1LibraryScoresGetResponses[keyof ListLibraryScoresApiV1LibraryScoresGetResponses];
+
+export type BatchFavoriteLibraryScoresApiV1LibraryScoresBatchFavoritePostData = {
+    body: LibraryScoreBatchFavoriteRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/library/scores/batch-favorite';
+};
+
+export type BatchFavoriteLibraryScoresApiV1LibraryScoresBatchFavoritePostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type BatchFavoriteLibraryScoresApiV1LibraryScoresBatchFavoritePostError = BatchFavoriteLibraryScoresApiV1LibraryScoresBatchFavoritePostErrors[keyof BatchFavoriteLibraryScoresApiV1LibraryScoresBatchFavoritePostErrors];
+
+export type BatchFavoriteLibraryScoresApiV1LibraryScoresBatchFavoritePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiResponseLibraryBatchUpdateRead;
+};
+
+export type BatchFavoriteLibraryScoresApiV1LibraryScoresBatchFavoritePostResponse = BatchFavoriteLibraryScoresApiV1LibraryScoresBatchFavoritePostResponses[keyof BatchFavoriteLibraryScoresApiV1LibraryScoresBatchFavoritePostResponses];
+
+export type BatchMoveLibraryScoresApiV1LibraryScoresBatchMovePostData = {
+    body: LibraryScoreBatchMoveRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/library/scores/batch-move';
+};
+
+export type BatchMoveLibraryScoresApiV1LibraryScoresBatchMovePostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type BatchMoveLibraryScoresApiV1LibraryScoresBatchMovePostError = BatchMoveLibraryScoresApiV1LibraryScoresBatchMovePostErrors[keyof BatchMoveLibraryScoresApiV1LibraryScoresBatchMovePostErrors];
+
+export type BatchMoveLibraryScoresApiV1LibraryScoresBatchMovePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiResponseLibraryBatchMoveRead;
+};
+
+export type BatchMoveLibraryScoresApiV1LibraryScoresBatchMovePostResponse = BatchMoveLibraryScoresApiV1LibraryScoresBatchMovePostResponses[keyof BatchMoveLibraryScoresApiV1LibraryScoresBatchMovePostResponses];
 
 export type DeleteAvatarApiV1MeAvatarDeleteData = {
     body?: never;

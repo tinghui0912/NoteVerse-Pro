@@ -171,8 +171,8 @@ describe('route shell groups', () => {
     expect(myScoresPage).toContain('SectionErrorState');
     expect(libraryPage).toContain('SectionErrorState');
     expect(libraryPage).toContain('userFacingErrorMessage');
-    expect(libraryPage).toContain('retryEntries');
-    expect(libraryPage).toContain('void entriesQuery.refetch()');
+    expect(libraryPage).toContain('retryScores');
+    expect(libraryPage).toContain('void scoresQuery.refetch()');
     expect(libraryPage).toContain('void foldersQuery.refetch()');
     expect(libraryPage).toContain("t('loadFailedDescription')");
     expect(libraryPage).not.toContain('error instanceof Error ? error.message');
@@ -237,7 +237,7 @@ describe('route shell groups', () => {
     expect(invitePage).toContain("common('loadingInvite')");
     expect(practicePage).toContain('PracticeScoreViewer');
     expect(myScoresPage).toContain("t('loading')");
-    expect(libraryPage).toContain("t('loadingEntries')");
+    expect(libraryPage).toContain("t('loadingScores')");
     expect(librarySidebar).toContain("t('loadingFolders')");
     expect(uploadPage).toContain('<PageLoading');
     expect(loginPage).toContain('InlineLoading');

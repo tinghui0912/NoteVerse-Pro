@@ -58,8 +58,8 @@ async def test_review_confirm_source_and_thumbnail_survive_failed_semantic_adopt
     db.commit()
     service = ReviewService(storage=storage)
     monkeypatch.setattr(
-        service.library_service,
-        "ensure_entry",
+        service,
+        "_attach_score_to_import_notification",
         AsyncMock(side_effect=RuntimeError("semantic confirmation failed")),
     )
     with pytest.raises(RuntimeError, match="semantic confirmation failed"):

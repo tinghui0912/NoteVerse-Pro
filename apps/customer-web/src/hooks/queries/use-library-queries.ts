@@ -4,10 +4,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { libraryApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
 import type {
-  FolderDeleteMode,
-  LibraryEntryBatchMoveRequest,
-  LibraryEntryBatchPracticeStateRequest,
-  LibraryEntryBatchUpdateRequest,
+  LibraryScoreBatchMoveRequest,
+  LibraryScoreBatchFavoriteRequest,
   LibraryFolderCreateRequest,
   LibraryFolderUpdateRequest,
   LibrarySort,
@@ -21,7 +19,7 @@ export function useLibraryFolders() {
   });
 }
 
-export function useLibraryEntries(params: {
+export function useLibraryScores(params: {
   view?: LibraryView;
   folderId?: string;
   search?: string;
@@ -30,9 +28,9 @@ export function useLibraryEntries(params: {
   pageSize: number;
 }) {
   return useQuery({
-    queryKey: queryKeys.library.entryList(params),
+    queryKey: queryKeys.library.scoreList(params),
     queryFn: ({ signal }) =>
-      libraryApi.entries(
+      libraryApi.scores(
         {
           view: params.view,
           folder_id: params.folderId,
@@ -41,7 +39,7 @@ export function useLibraryEntries(params: {
           page: params.page,
           page_size: params.pageSize,
         },
-        signal
+        signal,
       ),
   });
 }
@@ -49,52 +47,52 @@ export function useLibraryEntries(params: {
 export function useCreateLibraryFolder() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: LibraryFolderCreateRequest) => libraryApi.createFolder(input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.library.all }),
+    mutationFn: (input: LibraryFolderCreateRequest) =>
+      libraryApi.createFolder(input),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.library.all }),
   });
 }
 
 export function useUpdateLibraryFolder() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ folderId, ...input }: {
+    mutationFn: ({
+      folderId,
+      ...input
+    }: {
       folderId: string;
     } & LibraryFolderUpdateRequest) => libraryApi.updateFolder(folderId, input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.library.all }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.library.all }),
   });
 }
 
 export function useDeleteLibraryFolder() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ folderId, mode }: { folderId: string; mode?: FolderDeleteMode }) =>
-      libraryApi.deleteFolder(folderId, mode),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.library.all }),
+    mutationFn: (folderId: string) => libraryApi.deleteFolder(folderId),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.library.all }),
   });
 }
 
-export function useMoveLibraryEntries() {
+export function useMoveLibraryScores() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: LibraryEntryBatchMoveRequest) => libraryApi.batchMove(input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.library.all }),
+    mutationFn: (input: LibraryScoreBatchMoveRequest) =>
+      libraryApi.batchMove(input),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.library.all }),
   });
 }
 
-export function useTrashLibraryEntries() {
+export function useFavoriteLibraryScores() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: LibraryEntryBatchUpdateRequest) => libraryApi.batchTrash(input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.library.all }),
+    mutationFn: (input: LibraryScoreBatchFavoriteRequest) =>
+      libraryApi.batchFavorite(input),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.library.all }),
   });
 }
-
-export function useSetLibraryEntriesPracticeState() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (input: LibraryEntryBatchPracticeStateRequest) =>
-      libraryApi.batchPracticeState(input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.library.all }),
-  });
-}
-

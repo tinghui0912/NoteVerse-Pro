@@ -108,8 +108,8 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
   });
   // Explicit navigation away from Practice also stays inside the mock backend.
   await page.route('**/api/v1/library/folders', (route) => route.fulfill({ status: 200, contentType: 'application/json',
-    body: apiResponse({ folders: [], all_count: 0, favorite_count: 0, mastered_count: 0, recent_practice_count: 0, to_practice_count: 0 } satisfies LibraryFolderOverviewRead) }));
-  await page.route('**/api/v1/library/entries?**', (route) => route.fulfill({ status: 200, contentType: 'application/json',
+    body: apiResponse({ folders: [], all_count: 0, favorite_count: 0, created_by_me_count: 0, shared_with_me_count: 0 } satisfies LibraryFolderOverviewRead) }));
+  await page.route('**/api/v1/library/scores?**', (route) => route.fulfill({ status: 200, contentType: 'application/json',
     body: JSON.stringify({ success: true, data: [], pagination: { page: 1, page_size: 20, total: 0, total_pages: 0 } }) }));
   await installAcousticEngineFixture(page);
   await mockAuthenticatedSession(page);
@@ -294,7 +294,6 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
         version: 1,
         created_at: '2026-08-24T00:00:00Z',
         updated_at: '2026-08-24T00:00:00Z',
-        in_library: true,
         input_assets: [],
         genres: [],
         metadata: null,
@@ -329,7 +328,6 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
         version: 1,
         created_at: '2026-08-24T00:00:00Z',
         updated_at: '2026-08-24T00:00:00Z',
-        in_library: true,
         input_assets: [],
         genres: [],
         metadata: null,

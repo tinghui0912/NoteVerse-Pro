@@ -13,7 +13,7 @@ from app.db.models import (
     ScoreRenderAsset,
     ScorePlaybackAsset,
     PlaybackAssetKind,
-    ScoreLibraryEntry,
+    ScoreLibraryOrganization,
     ScoreMembership,
 )
 from app.db.models.score import RevisionOrigin, RenderAssetKind
@@ -292,7 +292,7 @@ async def test_bearer_routes_are_anonymous_inline_private_and_disclosure_safe(pr
             )
             assert audio.status_code == 206 and audio.content == b"RIFF"
             assert audio.headers["cache-control"] == "private, no-store"
-        assert session.execute(select(ScoreLibraryEntry)).all() == []
+        assert session.execute(select(ScoreLibraryOrganization)).all() == []
         assert session.execute(select(ScoreMembership)).all() == []
     finally:
         await client.aclose()

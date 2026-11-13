@@ -14,10 +14,8 @@ from app.core.exceptions import (
 )
 from app.db.model_utils import require_persisted_id
 from app.db.models import (
-    LibraryEntrySourceType,
     Score,
     ScoreInputAsset,
-    ScoreLibraryEntry,
     ScoreRevision,
     ScoreRevisionMetadata,
     StoredObject,
@@ -77,7 +75,7 @@ class ScoreService:
         access = await self.access_policy.authorize(
             db, score_uuid, ScoreAction.VIEW, user_id=user_id
         )
-        return await self._read(db, access.score, access.capabilities, user_id=user_id)
+        return await self._read(db, access.score, access.capabilities)
 
     async def list_owned(
         self,
@@ -97,23 +95,16 @@ class ScoreService:
             search=search,
             sort=sort,
         )
-        library_score_ids = await self.repository.active_library_score_ids(
-            db,
-            user_id,
-            [require_persisted_id(score.id, entity="score") for score in rows],
-        )
         result: list[ScoreRead] = []
         for score in rows:
             access = await self.access_policy.authorize(
                 db, score.score_uuid, ScoreAction.VIEW, user_id=user_id
             )
-            score_id = require_persisted_id(score.id, entity="score")
             result.append(
                 await self._read(
                     db,
                     score,
                     access.capabilities,
-                    in_library=score_id in library_score_ids,
                 )
             )
         return result, total
@@ -153,7 +144,7 @@ class ScoreService:
         score.updated_at = utc_now_naive()
         await db.commit()
         await db.refresh(score)
-        return await self._read(db, score, access.capabilities, user_id=user_id)
+        return await self._read(db, score, access.capabilities)
 
     async def delete(self, db: AsyncSession, score_uuid: str, user_id: int) -> None:
         await self.lifecycle_service.delete_score(db, score_uuid, user_id)
@@ -199,9 +190,6 @@ class ScoreService:
         db: AsyncSession,
         score: Score,
         capabilities: ScoreCapabilities,
-        *,
-        user_id: int | None = None,
-        in_library: bool | None = None,
     ) -> ScoreRead:
         head = (
             await db.get(ScoreRevision, score.head_revision_id) if score.head_revision_id else None
@@ -220,19 +208,6 @@ class ScoreService:
                 audio=ScoreDerivedAssetRead(status="pending", asset_id=None),
             )
         )
-        if in_library is None:
-            in_library = False
-            if user_id is not None:
-                in_library = (
-                    await db.execute(
-                        select(ScoreLibraryEntry.id).where(
-                            ScoreLibraryEntry.user_id == user_id,
-                            ScoreLibraryEntry.score_id == score_id,
-                            ScoreLibraryEntry.source_type == LibraryEntrySourceType.SELF_ADDED,
-                            col(ScoreLibraryEntry.deleted_at).is_(None),
-                        )
-                    )
-                ).first() is not None
         input_asset_rows = (
             (
                 await db.execute(
@@ -263,7 +238,6 @@ class ScoreService:
                 )
                 for asset, upload, blob in input_asset_rows
             ],
-            in_library=in_library,
             metadata=(
                 MetadataProjectionService.to_read(head, projection) if head and projection else None
             ),

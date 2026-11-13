@@ -21,7 +21,7 @@ def test_score_genre_fields_reference_the_named_domain_enum(client: TestClient) 
         "ImportJobProcessingOptions",
         "ImportJobReviewRead",
         "ReviewConfirmRequest",
-        "LibraryEntryRead",
+        "LibraryScoreRead",
     } <= genre_fields.keys()
     for name, field in genre_fields.items():
         alternatives = field.get("anyOf", [field])
@@ -56,7 +56,6 @@ def test_score_openapi_keeps_read_model_fields_required(client: TestClient) -> N
             "head_revision_id",
             "derived_assets",
             "input_assets",
-            "in_library",
             "metadata",
             "created_at",
             "updated_at",
@@ -156,4 +155,48 @@ def test_revision_create_contract_describes_snapshot_head_expectation(client: Te
         "created_by",
         "restore",
         "note",
+    }
+
+
+def test_library_http_contract_is_score_based(client: TestClient) -> None:
+    spec = client.get("/api/v1/openapi.json").json()
+    paths = {
+        path: operations
+        for path, operations in spec["paths"].items()
+        if path.startswith("/api/v1/library/")
+    }
+    assert set(paths) == {
+        "/api/v1/library/folders",
+        "/api/v1/library/folders/{folder_id}",
+        "/api/v1/library/scores",
+        "/api/v1/library/scores/batch-move",
+        "/api/v1/library/scores/batch-favorite",
+    }
+    assert {
+        p["name"]
+        for p in paths["/api/v1/library/scores"]["get"]["parameters"]
+        if p["in"] == "query"
+    } == {
+        "view",
+        "folder_id",
+        "search",
+        "sort",
+        "page",
+        "page_size",
+    }
+    components = spec["components"]["schemas"]
+    assert components["LibraryView"]["enum"] == [
+        "all",
+        "favorites",
+        "created_by_me",
+        "shared_with_me",
+    ]
+    assert components["LibrarySort"]["enum"] == [
+        "updated_desc",
+        "updated_asc",
+        "name_asc",
+        "name_desc",
+    ]
+    assert components["LibraryScoreRead"]["properties"]["access_origin"] == {
+        "$ref": "#/components/schemas/AccessOrigin"
     }
