@@ -147,6 +147,14 @@ def test_collaboration_role_contract_is_least_privilege(client: TestClient) -> N
     assert components["InviteCreateRequest"]["properties"]["role"]["default"] == "VIEWER"
 
 
+def test_invitation_routes_express_lifecycle_commands(client: TestClient) -> None:
+    paths = client.get("/api/v1/openapi.json").json()["paths"]
+    assert set(paths["/api/v1/scores/{score_id}/invites"]) == {"get", "post"}
+    assert set(paths["/api/v1/scores/{score_id}/invites/{invite_id}/revoke"]) == {"post"}
+    assert "/api/v1/scores/{score_id}/invites/{invite_id}" not in paths
+    assert "delete" in paths["/api/v1/scores/{score_id}/members/{membership_id}"]
+
+
 def test_revision_create_contract_describes_snapshot_head_expectation(client: TestClient) -> None:
     schemas = client.get("/api/v1/openapi.json").json()["components"]["schemas"]
     request = schemas["RevisionCreateRequest"]

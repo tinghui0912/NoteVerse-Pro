@@ -192,16 +192,6 @@ export function useRevokeScoreInvite(scoreId: string) {
   });
 }
 
-export function useDeleteScoreInvite(scoreId: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (inviteId: string) => scoreInvitesApi.deleteInvite(scoreId, inviteId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.invites(scoreId) });
-    },
-  });
-}
-
 export function useScoreMembers(scoreId: string, enabled = true) {
   return useInfiniteQuery({
     queryKey: queryKeys.scores.members(scoreId),

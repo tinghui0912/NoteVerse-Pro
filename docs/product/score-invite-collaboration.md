@@ -49,6 +49,19 @@ stronger existing role, then opens `/score/:id`. Inactive invitations cannot
 authorize acceptance. Pending invite APIs also support account-scoped accept
 and decline by invite identifier.
 
+Invitation transitions serialize on the Invite row lock. PENDING permits Accept,
+Decline or owner Revoke; effective expiry produces EXPIRED. Commands persist
+effective expiry under that lock and reject further actor transitions. ACCEPTED,
+DECLINED, REVOKED and EXPIRED are terminal lifecycle records retained without a
+user hard-delete action. Repeating Revoke on REVOKED preserves its timestamp;
+revoking any other terminal state returns its stable Invite error.
+
+The owner Invitations section displays lifecycle status, role and expiry. Pending
+rows offer Revoke and offer Copy only when this session still holds the raw token
+from creation. Terminal rows offer neither command. List APIs expose no raw token.
+Accepted history does not grant access: Member removal and Self Leave revoke
+Membership without changing the ACCEPTED Invite.
+
 The owner's score UI separates collaboration management from Guest Preview.
 Capability flags control presentation, while backend action policy authorizes
 every request. An editor member does not become the quota/storage owner.

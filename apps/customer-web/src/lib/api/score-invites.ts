@@ -29,8 +29,6 @@ export const scoreInvitesApi = {
   ) => apiClient.post<ApiResponse<InviteCreatedRead>>(`/scores/${scoreId}/invites`, input),
   revokeInvite: (scoreId: string, inviteId: string) =>
     apiClient.post<ApiResponse<InviteRead>>(`/scores/${scoreId}/invites/${inviteId}/revoke`),
-  deleteInvite: (scoreId: string, inviteId: string) =>
-    apiClient.delete<ApiResponse<{ deleted: boolean }>>(`/scores/${scoreId}/invites/${inviteId}`),
   listMembers: (scoreId: string, options?: { limit?: number; cursor?: string; signal?: AbortSignal }) =>
     apiClient.get<ApiResponse<MemberListRead>>(
       `/scores/${scoreId}/members`,

@@ -12,6 +12,8 @@ import {
   useScoreMembers,
 } from '@/hooks/queries/use-score-queries';
 import type { InviteRead, MemberRead, PendingInviteRead } from '@/generated/api';
+import { queryKeys } from '@/lib/query-client';
+import messages from '../../messages/en/scoreCollaboration.json';
 
 const api = vi.hoisted(() => ({
   listInvites: vi.fn(),
@@ -19,7 +21,6 @@ const api = vi.hoisted(() => ({
   listMyPendingInvites: vi.fn(),
   createInvite: vi.fn(),
   revokeInvite: vi.fn(),
-  deleteInvite: vi.fn(),
   updateMember: vi.fn(),
   removeMember: vi.fn(),
   acceptMyPendingInvite: vi.fn(),
@@ -33,7 +34,7 @@ vi.mock('@/i18n/routing', () => ({
 }));
 vi.mock('next-intl', () => ({
   useLocale: () => 'en',
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string) => (key === 'invitations' ? 'Invitations' : key),
 }));
 vi.mock('@/hooks/queries/use-notification-queries', () => ({
   useMyNotifications: () => ({ data: { data: [] }, isLoading: false, isError: false }),
@@ -79,10 +80,11 @@ const page = <T,>(items: T[], next_cursor: string | null = null) => ({
   success: true,
   data: { items, next_cursor },
 });
-function wrapper() {
-  const client = new QueryClient({
+function wrapper(
+  client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
+  }),
+) {
   return function Wrapper({ children }: PropsWithChildren) {
     return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
   };
@@ -150,9 +152,7 @@ it('appends members and invites with explicit continuation and retains loaded co
     .mockResolvedValueOnce(page([member(2)]));
   render(<ScoreCollaborationPanel scoreId="score" scoreTitle="Score" />, { wrapper: wrapper() });
   await screen.findByText('first@example.com');
-  const invites = within(
-    screen.getByRole('heading', { name: 'pendingInvites' }).closest('section')!,
-  );
+  const invites = within(screen.getByRole('heading', { name: 'Invitations' }).closest('section')!);
   const members = within(screen.getByRole('heading', { name: 'members' }).closest('section')!);
   await userEvent.click(invites.getByRole('button', { name: 'loadMore' }));
   expect(invites.getByRole('button', { name: 'loadMore' })).toBeDisabled();
@@ -216,6 +216,45 @@ it.each(['accept', 'decline'] as const)(
     await waitFor(() => expect(screen.queryByText('Score first')).not.toBeInTheDocument());
     expect(api.listMyPendingInvites.mock.calls[2][0].cursor).toBeUndefined();
     expect(screen.getAllByText('Score second')).toHaveLength(1);
+  },
+);
+
+it.each(['ACCEPTED', 'DECLINED', 'REVOKED', 'EXPIRED'] as const)(
+  'offers no terminal invitation commands or token copy for %s',
+  async (status) => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    api.createInvite.mockResolvedValue({
+      success: true,
+      data: { ...invite('local'), token: 'local-raw-token' },
+    });
+    api.listInvites.mockResolvedValue(page([invite('local')]));
+    render(<ScoreCollaborationPanel scoreId="score" scoreTitle="Score" />, {
+      wrapper: wrapper(client),
+    });
+    await screen.findByText('local@example.com');
+    expect(screen.getByRole('heading', { name: messages.invitations })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'revoke' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'copy' })).not.toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText('email'), 'local@example.com');
+    await userEvent.click(screen.getByRole('button', { name: 'createInvite' }));
+    await screen.findByRole('button', { name: 'copy' });
+    await waitFor(() => expect(client.isFetching({queryKey: queryKeys.scores.invites('score')})).toBe(0));
+    // The local token remains in component state while the authoritative page changes.
+    await act(async () => {
+      client.setQueryData(queryKeys.scores.invites('score'), {
+        pages: [page([{ ...invite('local'), status }])],
+        pageParams: [undefined],
+      });
+    });
+    expect(await screen.findByText(new RegExp(`status.${status.toLowerCase()}`))).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'copy' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'revoke' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /delete|clear history|remove invitation/i }),
+    ).not.toBeInTheDocument();
+    client.clear();
   },
 );
 

@@ -20,7 +20,6 @@
   "members": "Members",
   "noMembers": "No collaborators yet.",
   "remove": "Remove",
-  "pendingInvites": "Invite history",
   "noInvites": "No invites yet.",
   "copy": "Copy",
   "copied": "Copied",
@@ -28,7 +27,6 @@
   "copyFailed": "Copy failed",
   "copyFailedDescription": "Copy the invite link manually and try again.",
   "revoke": "Revoke",
-  "delete": "Delete",
   "close": "Close",
   "invitePageTitle": "Collaboration Invite",
   "invitedBy": "{name} invited you to collaborate",
@@ -52,7 +50,7 @@
   "loadFailed": "Unable to load invite",
   "loadFailedDescription": "Check the invite link or ask the score owner to send a new one.",
   "notFoundTitle": "Invite not found",
-  "notFoundDescription": "This invite link does not exist or has been deleted.",
+  "notFoundDescription": "This invite link does not exist.",
   "revokedTitle": "Invite revoked",
   "revokedDescription": "The score owner has revoked this invite.",
   "expiredTitle": "Invite expired",
@@ -66,5 +64,6 @@
     "declined": "Declined"
   },
   "practitioner": "Practitioner",
-  "roleDescription": "Viewer: view. Practitioner: view and practice. Editor: view, practice, and edit. Only the owner can use explicit download actions."
+  "roleDescription": "Viewer: view. Practitioner: view and practice. Editor: view, practice, and edit. Only the owner can use explicit download actions.",
+  "invitations": "Invitations"
 }

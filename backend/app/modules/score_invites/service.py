@@ -113,19 +113,13 @@ class ScoreInviteService:
         self, db: AsyncSession, score_uuid: str, invite_uuid: str, user_id: int
     ) -> InviteRead:
         invite = await self._managed_invite(db, score_uuid, invite_uuid, user_id)
-        if invite.status == InviteStatus.PENDING:
+        if invite.status != InviteStatus.REVOKED:
+            await self._require_pending_invite(db, invite, field="invite_id")
             invite.status = InviteStatus.REVOKED
             invite.revoked_at = utc_now_naive()
         await db.commit()
         await db.refresh(invite)
         return await self._invite_read(db, invite)
-
-    async def delete_invite(
-        self, db: AsyncSession, score_uuid: str, invite_uuid: str, user_id: int
-    ) -> None:
-        invite = await self._managed_invite(db, score_uuid, invite_uuid, user_id)
-        await db.delete(invite)
-        await db.commit()
 
     async def inspect_invite(
         self, db: AsyncSession, token: str, user_id: int | None
@@ -209,15 +203,12 @@ class ScoreInviteService:
     async def _accept_invite_record(
         self, db: AsyncSession, invite: ScoreInvite, user_id: int
     ) -> InviteAcceptRead:
-        user = await db.get(User, user_id)
-        if user is None:
-            raise UnauthorizedException(ErrorCode.NO_ACCESS)
-        if not can_user_accept_invite(invite, user):
-            raise ValidationException(ErrorCode.INVITE_EMAIL_MISMATCH, field="email")
+        user = await self._ensure_invite_target_user(db, invite, user_id)
         score = await db.get(Score, invite.score_id)
         if not score:
             raise ResourceNotFoundException("score", code=ErrorCode.SCORE_NOT_FOUND)
         if score.owner_user_id == user_id:
+            await self._require_pending_invite(db, invite, field="invite_id")
             invite.status = InviteStatus.ACCEPTED
             invite.accepted_by_user_id = user_id
             invite.accepted_at = utc_now_naive()
@@ -239,6 +230,8 @@ class ScoreInviteService:
             )
 
         membership = await self.repository.membership_for_update(db, invite.score_id, user_id)
+        # Waiting on membership may outlast expiry; do not restore access after it.
+        await self._require_pending_invite(db, invite, field="invite_id")
         now = utc_now_naive()
         if membership:
             if membership.revoked_at is not None:
@@ -353,7 +346,7 @@ class ScoreInviteService:
         access = await self.access_policy.authorize(
             db, score_uuid, ScoreAction.MANAGE_MEMBERS, user_id=user_id
         )
-        invite = await self.repository.invite_by_uuid(db, invite_uuid)
+        invite = await self.repository.invite_by_uuid(db, invite_uuid, lock=True)
         if not invite or invite.score_id != access.score.id:
             raise ResourceNotFoundException("invite", invite_uuid, ErrorCode.INVITE_NOT_FOUND)
         return invite
@@ -368,35 +361,33 @@ class ScoreInviteService:
             raise ResourceNotFoundException("invite", code=ErrorCode.INVITE_NOT_FOUND)
         if allow_inactive:
             return invite
-        status = display_invite_status(invite)
-        if status == InviteStatus.EXPIRED:
-            invite.status = InviteStatus.EXPIRED
-            await db.commit()
-            raise ValidationException(ErrorCode.INVITE_EXPIRED, field="token")
-        if status == InviteStatus.REVOKED:
-            raise ValidationException(ErrorCode.INVITE_REVOKED, field="token")
-        if status == InviteStatus.ACCEPTED:
-            raise ValidationException(ErrorCode.INVITE_ALREADY_ACCEPTED, field="token")
-        if status == InviteStatus.DECLINED:
-            raise ValidationException(ErrorCode.INVITE_DECLINED, field="token")
+        await self._require_pending_invite(db, invite, field="token")
         return invite
 
     async def _invite_by_uuid(self, db: AsyncSession, invite_uuid: str) -> ScoreInvite:
         invite = await self.repository.invite_by_uuid(db, invite_uuid, lock=True)
         if not invite:
             raise ResourceNotFoundException("invite", invite_uuid, ErrorCode.INVITE_NOT_FOUND)
+        await self._require_pending_invite(db, invite, field="invite_id")
+        return invite
+
+    async def _require_pending_invite(
+        self, db: AsyncSession, invite: ScoreInvite, *, field: str
+    ) -> None:
+        """Admit an actor transition using the current, row-locked invitation."""
         status = display_invite_status(invite)
-        if status == InviteStatus.EXPIRED:
+        if status == InviteStatus.PENDING:
+            return
+        if status == InviteStatus.EXPIRED and invite.status == InviteStatus.PENDING:
             invite.status = InviteStatus.EXPIRED
             await db.commit()
-            raise ValidationException(ErrorCode.INVITE_EXPIRED, field="invite_id")
-        if status == InviteStatus.REVOKED:
-            raise ValidationException(ErrorCode.INVITE_REVOKED, field="invite_id")
-        if status == InviteStatus.ACCEPTED:
-            raise ValidationException(ErrorCode.INVITE_ALREADY_ACCEPTED, field="invite_id")
-        if status == InviteStatus.DECLINED:
-            raise ValidationException(ErrorCode.INVITE_DECLINED, field="invite_id")
-        return invite
+        code = {
+            InviteStatus.EXPIRED: ErrorCode.INVITE_EXPIRED,
+            InviteStatus.REVOKED: ErrorCode.INVITE_REVOKED,
+            InviteStatus.ACCEPTED: ErrorCode.INVITE_ALREADY_ACCEPTED,
+            InviteStatus.DECLINED: ErrorCode.INVITE_DECLINED,
+        }[status]
+        raise ValidationException(code, field=field)
 
     async def _ensure_invite_target_user(
         self, db: AsyncSession, invite: ScoreInvite, user_id: int
@@ -404,7 +395,8 @@ class ScoreInviteService:
         user = await db.get(User, user_id)
         if user is None:
             raise UnauthorizedException(ErrorCode.NO_ACCESS)
-        if not can_user_accept_invite(invite, user):
+        await self._require_pending_invite(db, invite, field="invite_id")
+        if invite.email != user.email.lower():
             raise ValidationException(ErrorCode.INVITE_EMAIL_MISMATCH, field="email")
         return user
 

@@ -15,7 +15,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import {
   useCreateScoreInvite,
-  useDeleteScoreInvite,
   useRemoveScoreMember,
   useRevokeScoreInvite,
   useScoreInvites,
@@ -56,7 +55,6 @@ export function ScoreCollaborationPanel({
   const membersQuery = useScoreMembers(scoreId);
   const createInvite = useCreateScoreInvite(scoreId);
   const revokeInvite = useRevokeScoreInvite(scoreId);
-  const deleteInvite = useDeleteScoreInvite(scoreId);
   const updateMember = useUpdateScoreMember(scoreId);
   const removeMember = useRemoveScoreMember(scoreId);
   const invites = useMemo(
@@ -129,7 +127,6 @@ export function ScoreCollaborationPanel({
   const busy =
     createInvite.isPending ||
     revokeInvite.isPending ||
-    deleteInvite.isPending ||
     updateMember.isPending ||
     removeMember.isPending;
 
@@ -231,7 +228,7 @@ export function ScoreCollaborationPanel({
           </section>
 
           <section className="space-y-3">
-            <h3 className="font-semibold">{t('pendingInvites')}</h3>
+            <h3 className="font-semibold">{t('invitations')}</h3>
             {invitesQuery.isLoading ? (
               <SectionLoading label={common('loading')} className="min-h-16" />
             ) : invites.length ? (
@@ -248,28 +245,22 @@ export function ScoreCollaborationPanel({
                             {invite.expires_at ? ` · ${formatApiDateTime(invite.expires_at, locale)}` : ''}
                           </p>
                         </div>
-                        <Button variant="outline" size="sm" disabled={!token} onClick={() => token && void copyInvite(token)}>
-                          <Copy className="mr-1 h-3.5 w-3.5" />
-                          {t('copy')}
-                        </Button>
-                        <div className="flex gap-2">
+                        {invite.status === 'PENDING' && token ? (
+                          <Button variant="outline" size="sm" onClick={() => void copyInvite(token)}>
+                            <Copy className="mr-1 h-3.5 w-3.5" />
+                            {t('copy')}
+                          </Button>
+                        ) : null}
+                        {invite.status === 'PENDING' ? (
                           <Button
                             variant="outline"
                             size="sm"
-                            disabled={busy || invite.status !== 'PENDING'}
+                            disabled={busy}
                             onClick={() => revokeInvite.mutate(invite.invite_id)}
                           >
                             {t('revoke')}
                           </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            disabled={busy}
-                            onClick={() => deleteInvite.mutate(invite.invite_id)}
-                          >
-                            {t('delete')}
-                          </Button>
-                        </div>
+                        ) : null}
                       </div>
                     );
                   })}

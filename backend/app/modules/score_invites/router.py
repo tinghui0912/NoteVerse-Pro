@@ -79,19 +79,6 @@ async def revoke_score_invite(
     return success_response(data=result, message=SuccessCode.INVITE_REVOKED)
 
 
-@score_router.delete("/{score_id}/invites/{invite_id}", response_model=APIResponse[dict[str, bool]])
-async def delete_score_invite(
-    score_id: str,
-    invite_id: str,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-    service: ScoreInviteService = Depends(get_score_invite_service),
-):
-    user_id = require_persisted_id(current_user.id, entity="user")
-    await service.delete_invite(db, score_id, invite_id, user_id)
-    return success_response(data={"deleted": True})
-
-
 @score_router.get("/{score_id}/members", response_model=APIResponse[MemberListRead])
 async def list_score_members(
     score_id: str,

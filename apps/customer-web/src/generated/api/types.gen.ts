@@ -6437,40 +6437,6 @@ export type CreateScoreInviteApiV1ScoresScoreIdInvitesPostResponses = {
 
 export type CreateScoreInviteApiV1ScoresScoreIdInvitesPostResponse = CreateScoreInviteApiV1ScoresScoreIdInvitesPostResponses[keyof CreateScoreInviteApiV1ScoresScoreIdInvitesPostResponses];
 
-export type DeleteScoreInviteApiV1ScoresScoreIdInvitesInviteIdDeleteData = {
-    body?: never;
-    path: {
-        /**
-         * Score Id
-         */
-        score_id: string;
-        /**
-         * Invite Id
-         */
-        invite_id: string;
-    };
-    query?: never;
-    url: '/api/v1/scores/{score_id}/invites/{invite_id}';
-};
-
-export type DeleteScoreInviteApiV1ScoresScoreIdInvitesInviteIdDeleteErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type DeleteScoreInviteApiV1ScoresScoreIdInvitesInviteIdDeleteError = DeleteScoreInviteApiV1ScoresScoreIdInvitesInviteIdDeleteErrors[keyof DeleteScoreInviteApiV1ScoresScoreIdInvitesInviteIdDeleteErrors];
-
-export type DeleteScoreInviteApiV1ScoresScoreIdInvitesInviteIdDeleteResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponseDictStrBool;
-};
-
-export type DeleteScoreInviteApiV1ScoresScoreIdInvitesInviteIdDeleteResponse = DeleteScoreInviteApiV1ScoresScoreIdInvitesInviteIdDeleteResponses[keyof DeleteScoreInviteApiV1ScoresScoreIdInvitesInviteIdDeleteResponses];
-
 export type RevokeScoreInviteApiV1ScoresScoreIdInvitesInviteIdRevokePostData = {
     body?: never;
     path: {

@@ -26,6 +26,15 @@ to active memberships. Only explicit acceptance of a new valid invitation can
 reactivate a revoked membership. Library organization remains personal state and
 does not grant access while membership is revoked.
 
+ScoreInvite is retained invitation lifecycle history. PENDING has three actor
+outcomes: ACCEPTED, DECLINED and REVOKED; expiry is the time-derived EXPIRED outcome.
+Each terminal transition locks and refreshes the Invite row before evaluating its
+effective status. Terminal invitations do not transition to another terminal state
+and have no user hard-delete command. Revoke is idempotent only for REVOKED.
+Accept locks Invite before Membership and commits both changes together. Accepted
+invitation history is distinct from current Membership access: removing a member
+or leaving a Score does not rewrite the accepted invitation.
+
 VIEWER can view rendered presentation only. PRACTITIONER can also practice, which
 necessarily discloses exact machine-readable PracticeBundle to that trusted browser.
 EDITOR can also edit, requiring revision MusicXML and original editing inputs in its
