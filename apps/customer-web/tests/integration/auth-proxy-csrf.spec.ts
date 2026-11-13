@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from '../../src/generated/browser-protocol';
 
 const integrationUser = {
   email: 'integration@example.com',
@@ -7,7 +8,7 @@ const integrationUser = {
 
 function currentCsrfToken(page: import('@playwright/test').Page): Promise<string> {
   return page.context().cookies().then((cookies) => {
-    const csrfCookie = cookies.find((cookie) => cookie.name === 'noteverse_csrf');
+    const csrfCookie = cookies.find((cookie) => cookie.name === CSRF_COOKIE_NAME);
     expect(csrfCookie).toBeDefined();
     return csrfCookie!.value;
   });
@@ -41,7 +42,7 @@ test('Next proxy carries real auth cookies and enforces CSRF', async ({ page }) 
 
   const logout = await page.request.post('/api/v1/auth/logout', {
     headers: {
-      'x-csrf-token': csrfToken,
+      [CSRF_HEADER_NAME]: csrfToken,
       origin: new URL(page.url()).origin,
     },
   });
@@ -52,7 +53,7 @@ test('Next proxy carries real auth cookies and enforces CSRF', async ({ page }) 
 test('Next proxy submits and reads an authenticated score import job', async ({ page }) => {
   const csrfToken = await login(page);
   const csrfHeaders = {
-    'x-csrf-token': csrfToken,
+    [CSRF_HEADER_NAME]: csrfToken,
     origin: new URL(page.url()).origin,
   };
 

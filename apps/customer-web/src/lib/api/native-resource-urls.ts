@@ -1,26 +1,38 @@
-import type { GuestPreviewPageViewData, GuestPreviewPlaybackStreamData, ScoreRevisionPlaybackStreamData } from '@/generated/api';
+import { customerRoutes } from '@/generated/customer-routes';
+import type { GuestPreviewPageViewData, GuestPreviewPlaybackStreamData, ScoreRevisionPlaybackStreamData, ScoreRenderAssetViewData, RealtimeEventsStreamData } from '@/generated/api';
 import { customerTransport } from '@/lib/http/customer-browser-transport';
 
-// Native resource URLs use the official serializer and generated route/input types.
-// SDK operations expose no runtime route metadata; these typed templates serve native transports.
+// Browser-native transports consume OpenAPI metadata and the official generated serializer.
 export function scorePlaybackUrl(scoreId: string, revisionId: string) {
   const request = {
-    url: '/api/v1/scores/{score_id}/revisions/{revision_id}/playback',
+    ...customerRoutes.scoreRevisionPlaybackStream,
     path: { score_id: scoreId, revision_id: revisionId },
-  } satisfies Pick<ScoreRevisionPlaybackStreamData, 'url' | 'path'>;
+  } satisfies Pick<ScoreRevisionPlaybackStreamData, 'url' | 'path'> & { method: 'GET' };
   return customerTransport.authenticated.client.buildUrl({ ...request, baseUrl: '' });
 }
 export function guestPageUrl(token: string, assetId: string) {
   const request = {
-    url: '/api/v1/guest-previews/{token}/render-assets/{asset_id}/view',
+    ...customerRoutes.guestPreviewPageView,
     path: { token, asset_id: assetId },
-  } satisfies Pick<GuestPreviewPageViewData, 'url' | 'path'>;
+  } satisfies Pick<GuestPreviewPageViewData, 'url' | 'path'> & { method: 'GET' };
   return customerTransport.public.client.buildUrl({ ...request, baseUrl: '' });
 }
 export function guestPlaybackUrl(token: string) {
   const request = {
-    url: '/api/v1/guest-previews/{token}/playback',
+    ...customerRoutes.guestPreviewPlaybackStream,
     path: { token },
-  } satisfies Pick<GuestPreviewPlaybackStreamData, 'url' | 'path'>;
+  } satisfies Pick<GuestPreviewPlaybackStreamData, 'url' | 'path'> & { method: 'GET' };
   return customerTransport.public.client.buildUrl({ ...request, baseUrl: '' });
+}
+
+export function renderAssetViewUrl(renderAssetId: string) {
+  const request = {
+    ...customerRoutes.scoreRenderAssetView,
+    path: { render_asset_id: renderAssetId },
+  } satisfies Pick<ScoreRenderAssetViewData, 'url' | 'path'> & { method: 'GET' };
+  return customerTransport.authenticated.client.buildUrl({ ...request, baseUrl: '' });
+}
+export function realtimeEventsUrl() {
+  const request = customerRoutes.realtimeEventsStream satisfies Pick<RealtimeEventsStreamData, 'url'> & { method: 'GET' };
+  return customerTransport.authenticated.client.buildUrl({ ...request, baseUrl: '' });
 }

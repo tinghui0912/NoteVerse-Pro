@@ -142,9 +142,7 @@ Runtime:
 
 Required environment variables:
 
-- `NEXT_BACKEND_ORIGIN`: backend origin used by Next rewrites;
-- `AUTH_COOKIE_NAME`;
-- `REFRESH_COOKIE_NAME`.
+- `NEXT_BACKEND_ORIGIN`: backend origin used by Next rewrites.
 
 Development-only environment variables:
 
@@ -152,7 +150,9 @@ Development-only environment variables:
 - polling variables such as `WATCHPACK_POLLING` and `CHOKIDAR_USEPOLLING`.
 
 Production frontend builds must fail fast when required runtime config is
-missing. Do not add fallback API origins, cookie names, or realtime URLs.
+missing. Customer API prefix and session/CSRF names come from the generated
+versioned browser protocol, not environment variables. OpenAPI route metadata
+owns browser-native realtime and media paths.
 
 Browser API and realtime calls use same-origin `/api/v1`. In production, the
 Gateway/HTTPRoute rules route the broader `/api/v1` prefix to the backend API.
@@ -178,8 +178,9 @@ Store these as Secrets:
 - mail provider API keys such as `RESEND_API_KEY`.
 
 The frontend currently does not require a dedicated Secret. Its required
-runtime values are public origins and cookie/header names, so they belong in the
-frontend ConfigMap.
+runtime value is the backend service origin, which belongs in the frontend
+ConfigMap. Cookie Secure/SameSite policy and lifetimes remain Backend deployment
+policy.
 
 ### Kubernetes ConfigMaps
 
@@ -191,11 +192,6 @@ role-specific ConfigMaps for runtime-owned settings:
   - `FRONTEND_BASE_URL`;
   - `BACKEND_CORS_ORIGINS`;
   - `TRUSTED_PROXY_CIDRS`;
-- shared customer cookie/header names:
-  - `AUTH_COOKIE_NAME`;
-  - `REFRESH_COOKIE_NAME`;
-  - `CSRF_COOKIE_NAME`;
-  - `CSRF_HEADER_NAME`;
 - shared storage mode and non-secret S3 settings:
   - configured object-store endpoint, bucket and credentials;
   - `S3_ENDPOINT_URL`;
@@ -243,7 +239,6 @@ role-specific ConfigMaps for runtime-owned settings:
   - `CONTROL_PLANE_CORS_ORIGINS`;
 - frontend ConfigMap:
   - `NEXT_BACKEND_ORIGIN`;
-  - public cookie/header names consumed by the browser application;
 - versioned algorithm profiles:
   - LEGATO engine/model identity and Verovio SVG output options are sourced
     from reviewed application modules, not Kubernetes environment variables;
@@ -331,7 +326,8 @@ Required configuration must be explicit in production:
   secret key;
 - OMR and render engine paths must be validated by worker runtime checks;
 - no application image should silently default to a development backend,
-  database, Redis, S3 bucket, or cookie name.
+  database, Redis or S3 bucket. Customer cookie/header names are fixed by the
+  versioned browser protocol source.
 
 Known follow-up:
 

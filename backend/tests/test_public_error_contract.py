@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from app.core.generated.customer_browser_protocol import AUTH_COOKIE_NAME, CSRF_COOKIE_NAME
+
 from collections.abc import AsyncGenerator
 
 from fastapi.testclient import TestClient
 
 from app.api.deps import get_db
-from app.core.config import settings
 from app.main import app
 from app.modules.guest_previews.dependencies import get_guest_preview_service
 from app.shared.constants import ErrorCode
@@ -39,8 +40,8 @@ def test_ordinary_validation_errors_do_not_expose_validation_details(client: Tes
 
 
 def test_ordinary_csrf_errors_do_not_expose_security_details(client: TestClient) -> None:
-    client.cookies.set(settings.AUTH_COOKIE_NAME, "invalid-token")
-    client.cookies.set(settings.CSRF_COOKIE_NAME, "csrf-token")
+    client.cookies.set(AUTH_COOKIE_NAME, "invalid-token")
+    client.cookies.set(CSRF_COOKIE_NAME, "csrf-token")
     try:
         response = client.put(
             "/api/v1/me/profile",
@@ -48,8 +49,8 @@ def test_ordinary_csrf_errors_do_not_expose_security_details(client: TestClient)
             headers={"X-Request-ID": "public-csrf-contract"},
         )
     finally:
-        client.cookies.delete(settings.AUTH_COOKIE_NAME)
-        client.cookies.delete(settings.CSRF_COOKIE_NAME)
+        client.cookies.delete(AUTH_COOKIE_NAME)
+        client.cookies.delete(CSRF_COOKIE_NAME)
 
     assert response.status_code == 403
     payload = response.json()

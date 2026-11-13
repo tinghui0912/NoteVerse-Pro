@@ -21,6 +21,31 @@ const policyFiles = new Set([
   'lib/http/direct-object-upload.ts',
 ]);
 
+it('uses source-owned browser identity and OpenAPI-owned Customer path templates', () => {
+  const protocol = JSON.parse(fs.readFileSync('../../contracts/http/customer-browser-protocol.json', 'utf8'));
+  const identityValues = new Set(Object.values(protocol));
+  const environmentNames = new Set(Object.keys(protocol).filter(key => key !== 'api_prefix').map(key => key.toUpperCase()));
+  const violations: string[] = [];
+  for (const file of [...files(sourceRoot), path.resolve('next.config.ts')]) {
+    const name = relative(file);
+    if (name.startsWith('generated/')) continue;
+    const tree = ts.createSourceFile(file, fs.readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
+    function visit(node: ts.Node) {
+      if (ts.isStringLiteralLike(node) || ts.isTemplateHead(node)) {
+        if (identityValues.has(node.text) || node.text.startsWith(`${protocol.api_prefix}/`)) {
+          violations.push(`${name}: browser identity and operation paths require generated projections`);
+        }
+      }
+      if (ts.isPropertyAccessExpression(node) && node.expression.getText(tree) === 'process.env' && environmentNames.has(node.name.text)) {
+        violations.push(`${name}: deployment environment owns policy rather than protocol identity`);
+      }
+      ts.forEachChild(node, visit);
+    }
+    visit(tree);
+  }
+  expect(violations).toEqual([]);
+});
+
 it('routes programmatic Customer operations through generated SDK and explicit browser policies', () => {
   const violations: string[] = [];
   for (const file of files(sourceRoot)) {

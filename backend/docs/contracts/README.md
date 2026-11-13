@@ -73,6 +73,21 @@ once using an unconsumed body clone. Application failures become browser
 `ApiError` instances through one adapter of generated `ApiErrorResponse`.
 
 EventSource, native image/audio URLs and browser resource navigation use browser
-transports. Signed object-storage uploads use opaque absolute target URLs and
+transports. Their route metadata is generated from Customer OpenAPI operation IDs,
+methods and path templates. Native URL adapters use that metadata, generated
+operation input types and the Fetch client's URL serializer.
+Avatar presentation supplies an API-rooted browser resource URL directly.
+Signed object-storage uploads use opaque absolute target URLs and
 required headers with credentials omitted; they do not use Customer session
 refresh or CSRF policy.
+
+## Customer browser protocol identity
+
+[`contracts/http/customer-browser-protocol.json`](../../../contracts/http/customer-browser-protocol.json)
+owns the Customer API prefix and Customer session/CSRF cookie and header names.
+`scripts/generate_customer_browser_protocol.py` generates Backend Python and
+Customer Web TypeScript projections from it, and native route metadata from the
+committed Customer OpenAPI. Run it with `--check` to verify every projection.
+Customer Web exposes `generate:browser-protocol` and `check:browser-protocol`.
+Origins, Secure/SameSite policy, lifetimes and backend service topology remain
+deployment settings. Control-plane protocol configuration is independent.

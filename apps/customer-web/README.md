@@ -77,8 +77,6 @@ same environment before running browser assertions:
 
 ```powershell
 $env:NEXT_BACKEND_ORIGIN='http://localhost:8000'
-$env:AUTH_COOKIE_NAME='auth'
-$env:REFRESH_COOKIE_NAME='refresh'
 npm ci
 npm run build
 npm run test:e2e -- tests/e2e/practice-continuous-review.spec.ts --project chromium --workers=1 --retries=0

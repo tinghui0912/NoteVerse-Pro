@@ -106,7 +106,8 @@ Verify:
 - `CONTROL_PLANE_CORS_ORIGINS` includes only the dedicated Platform Admin origin;
 - `NEXT_BACKEND_ORIGIN` points to the internal backend Service;
 - `/api/v1` is routed by Gateway API to the backend API;
-- cookie names match backend and frontend configuration.
+- Customer protocol projections match the canonical browser protocol contract;
+  Backend and Next proxy consume the same generated cookie identities.
 
 Do not use `localhost`, private LAN IPs, or Docker host aliases in deployable
 overlays.

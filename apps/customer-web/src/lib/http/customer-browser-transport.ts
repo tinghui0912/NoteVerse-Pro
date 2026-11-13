@@ -2,7 +2,7 @@
 
 import { authRefresh, type ApiErrorResponse } from '@/generated/api';
 import { createClient, type RequestResult } from '@/generated/api/client';
-import { API_BASE_URL, CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from '@/lib/app-protocol';
+import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from '@/generated/browser-protocol';
 import { getCurrentLoginHref } from '@/lib/auth/return-url';
 import { reportClientError } from '@/lib/observability';
 
@@ -46,8 +46,7 @@ export function createCustomerBrowserTransport(options: {
   fetch?: typeof fetch;
   onUnauthorized?: () => void;
 } = {}) {
-  const baseUrl = options.baseUrl ?? new URL(API_BASE_URL,
-    typeof window === 'undefined' ? 'http://localhost' : window.location.origin).origin;
+  const baseUrl = options.baseUrl ?? (typeof window === 'undefined' ? 'http://localhost' : window.location.origin);
   const send = options.fetch ?? ((...args: Parameters<typeof fetch>) => globalThis.fetch(...args));
   const onUnauthorized = options.onUnauthorized ?? redirectToLogin;
   let refreshSequence = 0;

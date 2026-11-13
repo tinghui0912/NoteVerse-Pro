@@ -16,8 +16,13 @@ import re
 import subprocess
 import sys
 import time
+from pathlib import Path
 from typing import Any
 from urllib import error, parse, request
+
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
+from app.core.generated.customer_browser_protocol import CSRF_COOKIE_NAME, CSRF_HEADER_NAME  # noqa: E402
 
 
 DEFAULT_EMAIL = "k8s-smoke@example.com"
@@ -280,9 +285,9 @@ class HttpError(RuntimeError):
 
 
 def csrf_headers(cookie_jar: http.cookiejar.CookieJar) -> dict[str, str]:
-    token = next((cookie.value for cookie in cookie_jar if cookie.name == "noteverse_csrf"), None)
+    token = next((cookie.value for cookie in cookie_jar if cookie.name == CSRF_COOKIE_NAME), None)
     return (
-        {"x-csrf-token": token, "content-type": "application/json"}
+        {CSRF_HEADER_NAME: token, "content-type": "application/json"}
         if token
         else {"content-type": "application/json"}
     )

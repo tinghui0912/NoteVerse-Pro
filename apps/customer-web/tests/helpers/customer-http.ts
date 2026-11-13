@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import { CSRF_COOKIE_NAME } from '@/lib/app-protocol';
+import { CSRF_COOKIE_NAME } from '@/generated/browser-protocol';
 
 export function customerFetch(data: unknown = {}) {
   if (typeof document === 'undefined') vi.stubGlobal('document', { cookie: `${CSRF_COOKIE_NAME}=test-csrf` });

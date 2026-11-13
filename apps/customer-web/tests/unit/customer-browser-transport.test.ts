@@ -5,7 +5,7 @@ import {
   type ApiErrorResponse,
 } from '@/generated/api';
 import { createCustomerBrowserTransport, ApiError } from '@/lib/http/customer-browser-transport';
-import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from '@/lib/app-protocol';
+import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from '@/generated/browser-protocol';
 import { reportClientError } from '@/lib/observability';
 
 vi.mock('@/lib/observability', () => ({ reportClientError: vi.fn() }));

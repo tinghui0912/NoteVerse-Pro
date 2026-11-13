@@ -1,6 +1,6 @@
 """Stable public-profile avatar delivery projection from the current object reference."""
 
-from app.core.settings.service_identity import CUSTOMER_API_PREFIX
+from app.core.generated.customer_browser_protocol import CUSTOMER_API_PREFIX
 from app.db.models import User
 
 

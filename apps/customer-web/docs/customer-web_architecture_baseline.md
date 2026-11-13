@@ -106,8 +106,8 @@ ad hoc `fetch` calls for backend product data.
 
 Rules:
 
-- Required environment variables are read through `src/lib/env.ts`; do not add silent
-  fallbacks for required backend or public runtime configuration.
+- Next server validates its required backend origin in `next.config.ts`; browser
+  protocol identities come from generated constants.
 - React Query keys are created through `src/lib/query-client.ts`.
 - Mutations own cache invalidation; pages own page-specific success copy.
 - Realtime score events invalidate score detail, revision assets, versions, and list queries
@@ -199,10 +199,20 @@ frontend transformations. Public/auth bootstrap and silent session probes choose
 policy explicitly; transport does not classify authentication URLs.
 
 Browser-native EventSource, image/audio and avatar URLs are separate transports.
-`src/lib/api/native-resource-urls.ts` owns native Score and Guest Preview media
-URLs; `src/lib/score-detail/thumbnail.ts` owns native render-thumbnail image URLs.
-`app-protocol.ts` owns the EventSource URL, and profile presentation uses
-server-provided API-rooted avatar URLs directly. Signed storage upload uses
+`src/lib/api/native-resource-urls.ts` adapts generated OpenAPI route metadata and
+operation input types through the generated Fetch URL serializer. Score and Guest
+Preview media, render thumbnails and EventSource consume those native URLs.
+Profile presentation uses server-provided API-rooted avatar URLs directly.
+Signed storage upload uses
 `src/lib/http/direct-object-upload.ts`, omits credentials and uses the exact
 server-provided target and headers. Static FIR assets and local Blob snapshots
 are resource reads outside Customer HTTP operations.
+
+`contracts/http/customer-browser-protocol.json` owns the fixed Customer API prefix
+and session/CSRF cookie and header identities. Generated TypeScript constants are
+shared by browser transport, Next proxy and Next rewrites; Backend consumes the
+Python projection. `NEXT_BACKEND_ORIGIN`, public origins, cookie Secure/SameSite
+policy and session lifetimes remain deployment policy. Generated SDK paths already
+include the API prefix, so browser transport base URLs express only the origin.
+`generate:browser-protocol` and `check:browser-protocol` cover both protocol
+projections and native route metadata from committed OpenAPI.

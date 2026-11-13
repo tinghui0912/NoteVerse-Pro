@@ -4,6 +4,7 @@ from fastapi import APIRouter, Cookie, Depends, Request, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.generated.customer_browser_protocol import REFRESH_COOKIE_NAME
 from app.api import deps
 from app.core.exceptions import AuthenticationException
 from app.core.client_address import client_address
@@ -25,7 +26,6 @@ from app.modules.auth.schemas import (
 from app.modules.auth.session_cookies import clear_session_cookies, set_session_cookies
 from app.modules.auth.sessions_service import SessionService
 from app.modules.auth.service import AuthService
-from app.core.config import settings
 from app.shared.constants import ErrorCode, SuccessCode
 from app.shared.responses import SuccessResponsePayload, success_response
 
@@ -55,7 +55,7 @@ async def login_access_token(
 async def logout(
     response: Response,
     db: AsyncSession = Depends(deps.get_db),
-    refresh_cookie: str | None = Cookie(default=None, alias=settings.REFRESH_COOKIE_NAME),
+    refresh_cookie: str | None = Cookie(default=None, alias=REFRESH_COOKIE_NAME),
     session_service: SessionService = Depends(get_session_service),
 ) -> SuccessResponsePayload:
     await session_service.revoke_refresh_token(db, refresh_cookie)
@@ -68,7 +68,7 @@ async def refresh_access_token(
     request: Request,
     response: Response,
     db: AsyncSession = Depends(deps.get_db),
-    refresh_cookie: str | None = Cookie(default=None, alias=settings.REFRESH_COOKIE_NAME),
+    refresh_cookie: str | None = Cookie(default=None, alias=REFRESH_COOKIE_NAME),
     session_service: SessionService = Depends(get_session_service),
 ) -> SuccessResponsePayload:
     if not refresh_cookie:

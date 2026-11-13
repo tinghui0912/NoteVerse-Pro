@@ -31,10 +31,6 @@ def packaging_environment(role: str):
         root = Path(directory)
         env = {
             "SECRET_KEY": "image-contract-only-not-a-production-secret",
-            "AUTH_COOKIE_NAME": "contract_session",
-            "REFRESH_COOKIE_NAME": "contract_refresh",
-            "CSRF_COOKIE_NAME": "contract_csrf",
-            "CSRF_HEADER_NAME": "x-contract-csrf",
             "AUTH_COOKIE_SECURE": "false",
             "AUTH_COOKIE_SAMESITE": "lax",
             "DATABASE_URL": "postgresql+asyncpg://contract:contract@127.0.0.1:1/contract",
@@ -61,15 +57,17 @@ def packaging_environment(role: str):
             "PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK": "True",
         }
         if role == "api":
-            env.update({
-                "CONTROL_PLANE_AUTH_COOKIE_NAME": "contract_control",
-                "CONTROL_PLANE_CSRF_COOKIE_NAME": "contract_control_csrf",
-                "CONTROL_PLANE_CSRF_HEADER_NAME": "x-contract-control-csrf",
-                "CONTROL_PLANE_COOKIE_SECURE": "false",
-                "CONTROL_PLANE_COOKIE_SAMESITE": "lax",
-                "CONTROL_PLANE_SESSION_EXPIRE_MINUTES": "30",
-                "CONTROL_PLANE_CORS_ORIGINS": '["http://localhost:3001"]',
-            })
+            env.update(
+                {
+                    "CONTROL_PLANE_AUTH_COOKIE_NAME": "contract_control",
+                    "CONTROL_PLANE_CSRF_COOKIE_NAME": "contract_control_csrf",
+                    "CONTROL_PLANE_CSRF_HEADER_NAME": "x-contract-control-csrf",
+                    "CONTROL_PLANE_COOKIE_SECURE": "false",
+                    "CONTROL_PLANE_COOKIE_SAMESITE": "lax",
+                    "CONTROL_PLANE_SESSION_EXPIRE_MINUTES": "30",
+                    "CONTROL_PLANE_CORS_ORIGINS": '["http://localhost:3001"]',
+                }
+            )
         if role == "worker":
             # Required setting, intentionally not an existing asset/readiness check.
             env["PLAYBACK_SOUNDFONT_PATH"] = str(root / "not-required.sf2")
@@ -147,7 +145,9 @@ def run_contract(role: str) -> list[str]:
         evidence.append(tasks.message)
         require_import("verovio", "toolkit")
         check_worker_dependency_imports()
-        evidence.append("Verovio/OTLP/Paddle/PaddleOCR/PaddleX imports passed; no models initialized")
+        evidence.append(
+            "Verovio/OTLP/Paddle/PaddleOCR/PaddleX imports passed; no models initialized"
+        )
     return evidence
 
 

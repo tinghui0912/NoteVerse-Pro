@@ -23,6 +23,18 @@ Its cookie, CSRF and CORS policy does not inherit customer authentication.
 The control API prefix is a source-owned HTTP contract, not an environment alias
 for the customer prefix.
 
+Customer API prefix and session/CSRF cookie and header names are versioned browser
+protocol identity. Their source is
+[`contracts/http/customer-browser-protocol.json`](../../../contracts/http/customer-browser-protocol.json),
+with generated Python and TypeScript projections used by Backend, Customer Web,
+Next proxy and rewrites. These identities are not environment settings.
+Customer session security settings own lifetimes, Secure and SameSite policy.
+Deployment configuration owns origins, CORS, trusted proxies and service topology,
+including `NEXT_BACKEND_ORIGIN`.
+
+Customer OpenAPI owns HTTP operation paths. Browser-native EventSource and media
+URLs consume generated OpenAPI route metadata and the generated path serializer.
+
 ## Configuration invariants
 
 Environment variables configure deployment identity, secrets, connections,

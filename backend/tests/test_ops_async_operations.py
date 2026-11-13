@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.core.generated.customer_browser_protocol import AUTH_COOKIE_NAME
+
 import os
 from datetime import datetime, timedelta
 from typing import cast
@@ -251,7 +253,7 @@ async def test_control_plane_login_uses_an_independent_operator_session_cookie(
 
         assert response.status_code == 200
         assert control_settings.auth_cookie_name in response.headers["set-cookie"]
-        assert settings.AUTH_COOKIE_NAME not in response.headers["set-cookie"]
+        assert AUTH_COOKIE_NAME not in response.headers["set-cookie"]
 
         me_response = client.get("/api/v1/auth/me")
         assert me_response.status_code == 200

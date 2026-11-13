@@ -1,6 +1,7 @@
 """Stable Score bearer settings and current-head presentation boundaries."""
 
 from app.utils.timezone import utc_now_naive
+from app.core.generated.customer_browser_protocol import AUTH_COOKIE_NAME
 
 import pytest
 from pydantic import ValidationError
@@ -268,7 +269,7 @@ async def test_bearer_routes_are_anonymous_inline_private_and_disclosure_safe(pr
     app.dependency_overrides[get_guest_preview_service] = lambda: service
     client = AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
     try:
-        for cookies in [{}, {"noteverse_session": "ambient-invalid-login"}]:
+        for cookies in [{}, {AUTH_COOKIE_NAME: "ambient-invalid-login"}]:
             client.cookies.update(cookies)
             response = await client.get(f"/api/v1/guest-previews/{token}")
             assert response.status_code == 200

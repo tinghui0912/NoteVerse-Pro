@@ -9,7 +9,13 @@ from app.api.runtime_endpoints import install_process_endpoints
 from app.api.runtime_schemas import RootRead
 from app.api.v1.router import api_router
 from app.core.config import settings
-from app.core.settings.service_identity import CUSTOMER_API_PREFIX
+from app.core.generated.customer_browser_protocol import (
+    CUSTOMER_API_PREFIX,
+    AUTH_COOKIE_NAME,
+    REFRESH_COOKIE_NAME,
+    CSRF_COOKIE_NAME,
+    CSRF_HEADER_NAME,
+)
 from app.core.http_runtime import install_http_runtime, normalized_cors_origins
 from app.core.lifespan import app_lifespan
 from app.core.logging_setup import configure_uvicorn_logging
@@ -28,9 +34,9 @@ def _csrf_settings() -> CookieCsrfSettings:
     prefix = CUSTOMER_API_PREFIX
     return CookieCsrfSettings(
         api_prefix=prefix,
-        session_cookie_names=(settings.AUTH_COOKIE_NAME, settings.REFRESH_COOKIE_NAME),
-        csrf_cookie_name=settings.CSRF_COOKIE_NAME,
-        csrf_header_name=settings.CSRF_HEADER_NAME,
+        session_cookie_names=(AUTH_COOKIE_NAME, REFRESH_COOKIE_NAME),
+        csrf_cookie_name=CSRF_COOKIE_NAME,
+        csrf_header_name=CSRF_HEADER_NAME,
         exempt_paths=(
             f"{prefix}/auth/login",
             f"{prefix}/auth/refresh",

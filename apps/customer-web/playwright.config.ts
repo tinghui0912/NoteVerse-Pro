@@ -44,8 +44,6 @@ export default defineConfig({
     env: {
       ...inheritedEnvironment,
       NEXT_BACKEND_ORIGIN: requiredEnv('NEXT_BACKEND_ORIGIN'),
-      AUTH_COOKIE_NAME: requiredEnv('AUTH_COOKIE_NAME'),
-      REFRESH_COOKIE_NAME: requiredEnv('REFRESH_COOKIE_NAME'),
     },
   },
   projects: [

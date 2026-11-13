@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+from app.core.generated.customer_browser_protocol import (
+    AUTH_COOKIE_NAME,
+    REFRESH_COOKIE_NAME,
+    CSRF_COOKIE_NAME,
+    CSRF_HEADER_NAME,
+)
+
 import pytest
 
 from collections.abc import Iterator
@@ -338,8 +345,8 @@ def test_legacy_profile_routes_are_absent(client: TestClient) -> None:
 
 
 def test_cookie_authenticated_writes_require_csrf_header(client: TestClient) -> None:
-    client.cookies.set(settings.AUTH_COOKIE_NAME, "invalid-token")
-    client.cookies.set(settings.CSRF_COOKIE_NAME, "csrf-token")
+    client.cookies.set(AUTH_COOKIE_NAME, "invalid-token")
+    client.cookies.set(CSRF_COOKIE_NAME, "csrf-token")
 
     try:
         missing_header = client.put(
@@ -356,26 +363,26 @@ def test_cookie_authenticated_writes_require_csrf_header(client: TestClient) -> 
         matching_header = client.put(
             "/api/v1/me/profile",
             json={"display_name": "New Name"},
-            headers={settings.CSRF_HEADER_NAME: "csrf-token"},
+            headers={CSRF_HEADER_NAME: "csrf-token"},
         )
         assert matching_header.status_code == 401
     finally:
-        client.cookies.delete(settings.AUTH_COOKIE_NAME)
-        client.cookies.delete(settings.CSRF_COOKIE_NAME)
+        client.cookies.delete(AUTH_COOKIE_NAME)
+        client.cookies.delete(CSRF_COOKIE_NAME)
 
 
 def test_refresh_endpoint_is_csrf_exempt(client: TestClient) -> None:
-    client.cookies.set(settings.REFRESH_COOKIE_NAME, "invalid-refresh-token")
+    client.cookies.set(REFRESH_COOKIE_NAME, "invalid-refresh-token")
 
     try:
         response = client.post("/api/v1/auth/refresh")
         assert response.status_code == 401
     finally:
-        client.cookies.delete(settings.REFRESH_COOKIE_NAME)
+        client.cookies.delete(REFRESH_COOKIE_NAME)
 
 
 def test_cookie_authenticated_writes_allow_loopback_dev_origin(client: TestClient) -> None:
-    client.cookies.set(settings.REFRESH_COOKIE_NAME, "invalid-refresh-token")
+    client.cookies.set(REFRESH_COOKIE_NAME, "invalid-refresh-token")
 
     try:
         response = client.post(
@@ -384,7 +391,7 @@ def test_cookie_authenticated_writes_allow_loopback_dev_origin(client: TestClien
         )
         assert response.status_code == 401
     finally:
-        client.cookies.delete(settings.REFRESH_COOKIE_NAME)
+        client.cookies.delete(REFRESH_COOKIE_NAME)
 
 
 def test_cors_origin_header_is_emitted_for_configured_frontend(client: TestClient) -> None:
@@ -399,7 +406,7 @@ def test_cors_origin_header_is_emitted_for_configured_frontend(client: TestClien
 
 
 def test_cookie_authenticated_writes_reject_cross_site_origin(client: TestClient) -> None:
-    client.cookies.set(settings.REFRESH_COOKIE_NAME, "invalid-refresh-token")
+    client.cookies.set(REFRESH_COOKIE_NAME, "invalid-refresh-token")
 
     try:
         response = client.post(
@@ -412,7 +419,7 @@ def test_cookie_authenticated_writes_reject_cross_site_origin(client: TestClient
         assert payload["request_id"] == "origin-contract"
         assert response.headers["X-Request-ID"] == "origin-contract"
     finally:
-        client.cookies.delete(settings.REFRESH_COOKIE_NAME)
+        client.cookies.delete(REFRESH_COOKIE_NAME)
 
 
 def test_origin_normalization_collapses_default_ports() -> None:
@@ -429,8 +436,8 @@ def test_cookie_authenticated_writes_allow_configured_origin_with_default_port(
     monkeypatch,
 ) -> None:
     monkeypatch.setattr(settings, "BACKEND_CORS_ORIGINS", ["https://staging.johnabc.ccwu.cc"])
-    client.cookies.set(settings.REFRESH_COOKIE_NAME, "invalid-refresh-token")
-    client.cookies.set(settings.CSRF_COOKIE_NAME, "csrf-token")
+    client.cookies.set(REFRESH_COOKIE_NAME, "invalid-refresh-token")
+    client.cookies.set(CSRF_COOKIE_NAME, "csrf-token")
 
     try:
         response = client.put(
@@ -438,13 +445,13 @@ def test_cookie_authenticated_writes_allow_configured_origin_with_default_port(
             json={"display_name": "New Name"},
             headers={
                 "origin": "https://staging.johnabc.ccwu.cc:443",
-                settings.CSRF_HEADER_NAME: "csrf-token",
+                CSRF_HEADER_NAME: "csrf-token",
             },
         )
         assert response.status_code == 401
     finally:
-        client.cookies.delete(settings.REFRESH_COOKIE_NAME)
-        client.cookies.delete(settings.CSRF_COOKIE_NAME)
+        client.cookies.delete(REFRESH_COOKIE_NAME)
+        client.cookies.delete(CSRF_COOKIE_NAME)
 
 
 def test_login_requires_request_body(client: TestClient) -> None:

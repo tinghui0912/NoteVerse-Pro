@@ -18,14 +18,22 @@ from pathlib import Path
 from urllib import error, parse, request
 
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
+from app.core.generated.customer_browser_protocol import CSRF_COOKIE_NAME, CSRF_HEADER_NAME  # noqa: E402
+
+
 DEFAULT_EMAIL = "k8s-smoke@example.com"
 DEFAULT_PASSWORD = "SmokePass123!"
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--api-base", required=True, help="Base API URL, for example http://127.0.0.1:18000/api/v1")
-    parser.add_argument("--image", default="apps/customer-web/public/images/placeholders/score-example.jpg")
+    parser.add_argument(
+        "--api-base", required=True, help="Base API URL, for example http://127.0.0.1:18000/api/v1"
+    )
+    parser.add_argument(
+        "--image", default="apps/customer-web/public/images/placeholders/score-example.jpg"
+    )
     parser.add_argument("--email", default=DEFAULT_EMAIL)
     parser.add_argument("--password", default=DEFAULT_PASSWORD)
     parser.add_argument("--namespace", default="noteverse-staging")
@@ -89,8 +97,8 @@ with SessionLocal() as db:
 
 
 def csrf_headers(cookie_jar: http.cookiejar.CookieJar) -> dict[str, str]:
-    token = next((cookie.value for cookie in cookie_jar if cookie.name == "noteverse_csrf"), None)
-    return {"x-csrf-token": token} if token else {}
+    token = next((cookie.value for cookie in cookie_jar if cookie.name == CSRF_COOKIE_NAME), None)
+    return {CSRF_HEADER_NAME: token} if token else {}
 
 
 def request_json(

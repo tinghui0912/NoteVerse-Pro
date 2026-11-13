@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
     paths:
+      - "contracts/http/customer-browser-protocol.json"
+      - "scripts/generate_customer_browser_protocol.py"
       - "contracts/practice/acoustic/runtime-contract.json"
       - "scripts/generate_practice_acoustic_runtime.py"
       - "scripts/verify_practice_acoustic_implementation.py"
@@ -28,6 +30,8 @@ on:
       - "docs/governance/dependency-maintenance-policy.md"
   pull_request:
     paths:
+      - "contracts/http/customer-browser-protocol.json"
+      - "scripts/generate_customer_browser_protocol.py"
       - "contracts/practice/acoustic/runtime-contract.json"
       - "scripts/generate_practice_acoustic_runtime.py"
       - "scripts/verify_practice_acoustic_implementation.py"
@@ -67,8 +71,6 @@ jobs:
         working-directory: apps/customer-web
     env:
       NEXT_BACKEND_ORIGIN: http://127.0.0.1:8000
-      AUTH_COOKIE_NAME: noteverse_session
-      REFRESH_COOKIE_NAME: noteverse_refresh
 
     steps:
       - name: Checkout repository
@@ -89,6 +91,10 @@ jobs:
       - name: Verify RecordingTimebase projections
         working-directory: .
         run: python3 scripts/generate_practice_recording_timebase.py --check
+
+      - name: Verify Customer browser protocol projections
+        working-directory: .
+        run: python3 scripts/generate_customer_browser_protocol.py --check
 
       - name: Test Customer Web CI policy
         working-directory: .

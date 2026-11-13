@@ -14,6 +14,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from app.core.generated.customer_browser_protocol import AUTH_COOKIE_NAME
 from app.shared.constants import ErrorCode
 from app.core import security
 from app.core.config import settings
@@ -26,6 +27,7 @@ from app.db.session import get_session
 from app.db.models.user import User
 from app.modules.auth.schemas import TokenPayload
 
+
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async for session in get_session():
         yield session
@@ -35,7 +37,7 @@ async def get_current_user(
     session: AsyncSession = Depends(get_db),
     session_cookie: str | None = Cookie(
         default=None,
-        alias=settings.AUTH_COOKIE_NAME,
+        alias=AUTH_COOKIE_NAME,
     ),
 ) -> User:
     """Resolve the authenticated user from the HttpOnly session cookie."""
@@ -116,7 +118,7 @@ async def get_optional_current_user(
     session: AsyncSession = Depends(get_db),
     session_cookie: str | None = Cookie(
         default=None,
-        alias=settings.AUTH_COOKIE_NAME,
+        alias=AUTH_COOKIE_NAME,
     ),
 ) -> User | None:
     """Resolve an optional principal for exact anonymous access routes."""

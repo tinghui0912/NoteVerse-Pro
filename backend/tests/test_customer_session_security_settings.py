@@ -6,10 +6,6 @@ from app.core.settings.customer_session_security import CustomerSessionSecurityS
 
 def _settings(**overrides: object) -> CustomerSessionSecuritySettings:
     values: dict[str, object] = {
-        "AUTH_COOKIE_NAME": "noteverse_session",
-        "REFRESH_COOKIE_NAME": "noteverse_refresh",
-        "CSRF_COOKIE_NAME": "noteverse_csrf",
-        "CSRF_HEADER_NAME": "x-csrf-token",
         "AUTH_COOKIE_SECURE": True,
         "AUTH_COOKIE_SAMESITE": "lax",
     }
@@ -28,17 +24,6 @@ def test_customer_session_security_settings_accept_default_lifetimes() -> None:
 def test_customer_session_security_settings_reject_non_positive_lifetimes(field_name: str) -> None:
     with pytest.raises(ValidationError, match="customer session lifetimes must be positive"):
         _settings(**{field_name: 0})
-
-
-@pytest.mark.parametrize(
-    "field_name",
-    ("AUTH_COOKIE_NAME", "REFRESH_COOKIE_NAME", "CSRF_COOKIE_NAME", "CSRF_HEADER_NAME"),
-)
-def test_customer_session_security_settings_reject_empty_cookie_contract_values(
-    field_name: str,
-) -> None:
-    with pytest.raises(ValidationError, match="customer session cookie contract values"):
-        _settings(**{field_name: " "})
 
 
 @pytest.mark.parametrize("value", ("Lax", "invalid"))

@@ -20,6 +20,7 @@ function Invoke-Quality {
 
 switch ($Check) {
     "contracts" {
+        Invoke-Quality "browser-protocol" "python /repo/scripts/generate_customer_browser_protocol.py --check"
         Invoke-Quality "openapi-customer" "python scripts/export_openapi.py customer-api --check"
         Invoke-Quality "openapi-control-plane" "python scripts/export_openapi.py control-plane-api --check"
     }
@@ -54,6 +55,7 @@ switch ($Check) {
         Invoke-Quality "critical-import-worker-service-coverage" "python -m pytest tests/test_import_job_worker_service_state.py tests/test_score_revision_services.py -q --cov=app.modules.import_jobs.worker_service --cov-report=term-missing --cov-fail-under=80"
     }
     "all" {
+        Invoke-Quality "browser-protocol" "python /repo/scripts/generate_customer_browser_protocol.py --check"
         Invoke-Quality "compile" "python -m compileall -q app scripts tests"
         Invoke-Quality "ruff" "python -m ruff check app tests scripts"
         Invoke-Quality "mypy" "python -m mypy --config-file pyproject.toml"

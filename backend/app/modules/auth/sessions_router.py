@@ -3,8 +3,8 @@
 from fastapi import APIRouter, Cookie, Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.generated.customer_browser_protocol import REFRESH_COOKIE_NAME
 from app.api import deps
-from app.core.config import settings
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
 from app.modules.auth.dependencies import get_session_service
@@ -26,7 +26,7 @@ async def list_my_sessions(
     limit: int = Query(default=SESSION_LIST_DEFAULT_LIMIT, ge=1, le=SESSION_LIST_MAX_LIMIT),
     current_user: User = Depends(deps.get_current_user),
     db: AsyncSession = Depends(deps.get_db),
-    refresh_cookie: str | None = Cookie(default=None, alias=settings.REFRESH_COOKIE_NAME),
+    refresh_cookie: str | None = Cookie(default=None, alias=REFRESH_COOKIE_NAME),
     session_service: SessionService = Depends(get_session_service),
 ) -> APIResponse[SessionsRead]:
     user_id = require_persisted_id(current_user.id, entity="user")
@@ -47,7 +47,7 @@ async def revoke_my_session(
     response: Response,
     current_user: User = Depends(deps.get_current_user),
     db: AsyncSession = Depends(deps.get_db),
-    refresh_cookie: str | None = Cookie(default=None, alias=settings.REFRESH_COOKIE_NAME),
+    refresh_cookie: str | None = Cookie(default=None, alias=REFRESH_COOKIE_NAME),
     session_service: SessionService = Depends(get_session_service),
 ) -> EmptyResponse:
     user_id = require_persisted_id(current_user.id, entity="user")
@@ -66,7 +66,7 @@ async def revoke_my_session(
 async def revoke_my_other_sessions(
     current_user: User = Depends(deps.get_current_user),
     db: AsyncSession = Depends(deps.get_db),
-    refresh_cookie: str | None = Cookie(default=None, alias=settings.REFRESH_COOKIE_NAME),
+    refresh_cookie: str | None = Cookie(default=None, alias=REFRESH_COOKIE_NAME),
     session_service: SessionService = Depends(get_session_service),
 ) -> EmptyResponse:
     user_id = require_persisted_id(current_user.id, entity="user")

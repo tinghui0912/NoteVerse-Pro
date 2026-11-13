@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
     paths:
+      - "contracts/http/customer-browser-protocol.json"
+      - "scripts/generate_customer_browser_protocol.py"
       - "contracts/practice/acoustic/runtime-contract.json"
       - "scripts/generate_practice_acoustic_runtime.py"
       - "scripts/verify_practice_acoustic_implementation.py"
@@ -31,6 +33,8 @@ on:
       - ".github/scripts/*.py"
   pull_request:
     paths:
+      - "contracts/http/customer-browser-protocol.json"
+      - "scripts/generate_customer_browser_protocol.py"
       - "contracts/practice/acoustic/runtime-contract.json"
       - "scripts/generate_practice_acoustic_runtime.py"
       - "scripts/verify_practice_acoustic_implementation.py"
@@ -93,10 +97,6 @@ jobs:
       QUALITY_IMAGE: noteverse-backend-quality:ci
       QUALITY_ENV_FILE: /tmp/backend-quality.env
       SECRET_KEY: ci-test-secret-key-that-is-long-enough
-      AUTH_COOKIE_NAME: noteverse_session
-      REFRESH_COOKIE_NAME: noteverse_refresh
-      CSRF_COOKIE_NAME: noteverse_csrf
-      CSRF_HEADER_NAME: x-csrf-token
       AUTH_COOKIE_SECURE: "false"
       AUTH_COOKIE_SAMESITE: lax
       CONTROL_PLANE_AUTH_COOKIE_NAME: noteverse_control_session
@@ -147,10 +147,6 @@ jobs:
         run: |
           cat > "$QUALITY_ENV_FILE" <<EOF
           SECRET_KEY=$SECRET_KEY
-          AUTH_COOKIE_NAME=$AUTH_COOKIE_NAME
-          REFRESH_COOKIE_NAME=$REFRESH_COOKIE_NAME
-          CSRF_COOKIE_NAME=$CSRF_COOKIE_NAME
-          CSRF_HEADER_NAME=$CSRF_HEADER_NAME
           AUTH_COOKIE_SECURE=$AUTH_COOKIE_SECURE
           AUTH_COOKIE_SAMESITE=$AUTH_COOKIE_SAMESITE
           CONTROL_PLANE_AUTH_COOKIE_NAME=$CONTROL_PLANE_AUTH_COOKIE_NAME
@@ -182,6 +178,7 @@ jobs:
           -v "$GITHUB_WORKSPACE:/repo:ro"
           "$QUALITY_IMAGE" bash -c
           "cd /repo &&
+          python scripts/generate_customer_browser_protocol.py --check &&
           python scripts/generate_practice_acoustic_runtime.py --check &&
           python scripts/verify_practice_acoustic_implementation.py &&
           python scripts/generate_score_tempo_policy.py --check &&

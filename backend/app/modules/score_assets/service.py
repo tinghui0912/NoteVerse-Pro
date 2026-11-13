@@ -6,7 +6,7 @@ import zipfile
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.settings.service_identity import CUSTOMER_API_PREFIX
+from app.core.generated.customer_browser_protocol import CUSTOMER_API_PREFIX
 from app.core.exceptions import FileException, ResourceNotFoundException
 from app.db.model_utils import require_persisted_id
 from app.db.models import Score, ScoreRenderAsset, ScoreRevision, ScoreRevisionSource

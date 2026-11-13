@@ -39,7 +39,7 @@ HTTP DTO 直接导入生成类型。后端契约变更后运行 `npm run generat
 - Mutation 的领域 hook 拥有 cache update/invalidation。
 - 页面拥有当前语境的成功提示；API helper 不发 toast，错误由一层展示。
 - 客户端临时状态留在 component、Context 或普通 hook。
-- 必需环境变量通过 `src/lib/env.ts` 读取，缺失时显式报错。
+- Next server 在 `next.config.ts` 校验必需的 backend origin；固定 Customer cookie/header identity 使用 generated browser protocol projection。
 
 ## 产品能力、权限与文案
 

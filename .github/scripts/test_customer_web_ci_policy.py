@@ -489,6 +489,27 @@ class GitRangeTests(unittest.TestCase):
         self.assertEqual(set(paths), {"apps/customer-web/src/feature.tsx", "apps/customer-web/src/feature.test.tsx"})
 
 
+class CustomerBrowserProtocolWorkflowTests(unittest.TestCase):
+    def test_quality_workflows_select_both_browser_protocol_sources(self):
+        root = Path(__file__).resolve().parents[2]
+        paths = ['contracts/http/customer-browser-protocol.json', 'scripts/generate_customer_browser_protocol.py']
+        for name in ['backend-quality.yml', 'customer-web-quality.yml']:
+            text = (root / '.github/workflows' / name).read_text(encoding='utf-8')
+            triggers = text.split('jobs:', 1)[0]
+            for event in ['push', 'pull_request']:
+                block = re.search(r'^  ' + event + r':\n(.*?)(?=^  [a-z_]+:|^\S|\Z)', triggers, re.M | re.S)
+                self.assertIsNotNone(block)
+                for path in paths:
+                    self.assertIn('      - "' + path + '"', block.group(1))
+        customer = (root / '.github/workflows/customer-web-quality.yml').read_text(encoding='utf-8')
+        block = next(part for part in customer.split('      - name: ') if 'run: python3 scripts/generate_customer_browser_protocol.py --check' in part)
+        self.assertIn('working-directory: .', block)
+        self.assertNotIn('        if:', block)
+        self.assertLess(customer.index(block), customer.index('      - name: Verify reusable PR Quality proof'))
+        backend = (root / '.github/workflows/backend-quality.yml').read_text(encoding='utf-8')
+        self.assertIn('python scripts/generate_customer_browser_protocol.py --check', backend)
+
+
 class RecordingMediaWorkflowTests(unittest.TestCase):
     def test_both_quality_workflows_select_admission_and_generator_changes(self):
         root = Path(__file__).resolve().parents[2]
