@@ -13,8 +13,7 @@ from app.db.models import (
     MailOutboxStatus,
     PlaybackOutbox,
     RenderOutbox,
-    Score,
-    ScoreDeletionStatus,
+    ScoreDeletionOperation,
 )
 from app.modules.ops.operation_filters import AsyncOperationFilters
 from app.modules.ops.operation_projection import (
@@ -221,29 +220,23 @@ class AsyncOperationSummaryQuery:
         db: AsyncSession,
         filters: AsyncOperationFilters,
     ) -> list[tuple[AsyncOperationKind, AsyncOperationStatus, int]]:
-        status_expr = case(
-            (
-                Score.cleanup_attempt_count >= settings.SCORE_DELETION_CLEANUP_MAX_ATTEMPTS,
-                AsyncOperationStatus.EXHAUSTED.value,
-            ),
-            (Score.cleanup_attempt_count > 0, AsyncOperationStatus.RETRYING.value),
-            else_=AsyncOperationStatus.QUEUED.value,
+        status_expr = outbox_operation_status_sql(
+            ScoreDeletionOperation.status,
+            ScoreDeletionOperation.attempt_count,
+            settings.SCORE_DELETION_MAX_ATTEMPTS,
+            ScoreDeletionOperation.next_attempt_at,
         )
-        created_at_expr = func.coalesce(Score.deletion_requested_at, Score.deleted_at)
-        predicates = [
-            Score.deletion_status == ScoreDeletionStatus.DELETING,
-            *summary_predicates(
-                filters,
-                status_expr=status_expr,
-                error_class_expr=Score.internal_error_class,
-                resource_type_expr=literal("score"),
-                created_at_expr=created_at_expr,
-                updated_at_expr=Score.updated_at,
-            ),
-        ]
+        predicates = summary_predicates(
+            filters,
+            status_expr=status_expr,
+            error_class_expr=ScoreDeletionOperation.internal_error_class,
+            resource_type_expr=literal("score"),
+            created_at_expr=ScoreDeletionOperation.created_at,
+            updated_at_expr=ScoreDeletionOperation.updated_at,
+        )
         result = await db.execute(
             select(status_expr.label("status"), func.count())
-            .select_from(Score)
+            .select_from(ScoreDeletionOperation)
             .where(*predicates)
             .group_by(status_expr)
         )

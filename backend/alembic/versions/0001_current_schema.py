@@ -81,9 +81,14 @@ def upgrade() -> None:
         op.get_bind(), checkfirst=False
     )
     postgresql.ENUM("MUSICXML", name="revisionsourceformat").create(op.get_bind(), checkfirst=False)
-    postgresql.ENUM("ACTIVE", "DELETING", "DELETED", name="scoredeletionstatus").create(
-        op.get_bind(), checkfirst=False
-    )
+    postgresql.ENUM(
+        "PENDING",
+        "DISPATCHED",
+        "PROCESSING",
+        "COMPLETED",
+        "FAILED",
+        name="scoredeletionoperationstatus",
+    ).create(op.get_bind(), checkfirst=False)
     postgresql.ENUM(
         "SOURCE",
         "UPLOAD",
@@ -1445,24 +1450,7 @@ def upgrade() -> None:
         sa.Column("head_revision_id", sa.BigInteger(), nullable=True),
         sa.Column("originating_job_id", sa.BigInteger(), nullable=True),
         sa.Column("version", sa.Integer(), nullable=False),
-        sa.Column(
-            "deletion_status",
-            postgresql.ENUM(
-                "ACTIVE", "DELETING", "DELETED", name="scoredeletionstatus", create_type=False
-            ),
-            nullable=False,
-        ),
         sa.Column("deleted_at", sa.DateTime(), nullable=True),
-        sa.Column("deletion_requested_at", sa.DateTime(), nullable=True),
-        sa.Column("deletion_request_id", sa.String(length=64), nullable=True),
-        sa.Column("cleanup_completed_at", sa.DateTime(), nullable=True),
-        sa.Column("cleanup_attempt_count", sa.Integer(), nullable=False),
-        sa.Column("next_cleanup_at", sa.DateTime(), nullable=True),
-        sa.Column("deletion_error", sa.Text(), nullable=True),
-        sa.Column("internal_error_code", sa.String(length=128), nullable=True),
-        sa.Column("internal_error_stage", sa.String(length=64), nullable=True),
-        sa.Column("internal_error_class", sa.String(length=32), nullable=True),
-        sa.Column("internal_error_retryable", sa.Boolean(), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("updated_at", sa.DateTime(), nullable=False),
         sa.CheckConstraint("version >= 1", name="ck_scores_version_positive"),
@@ -1481,22 +1469,85 @@ def upgrade() -> None:
         sa.UniqueConstraint("guest_preview_token", name="uq_scores_guest_preview_token"),
     )
     op.create_index(
-        "idx_scores_deletion_cleanup_due",
+        "idx_scores_owner_active_updated",
         "scores",
-        ["deletion_status", "next_cleanup_at", "deletion_requested_at"],
-        unique=False,
-    )
-    op.create_index(
-        "idx_scores_deletion_request_id", "scores", ["deletion_request_id"], unique=False
-    )
-    op.create_index(
-        "idx_scores_owner_deletion_updated",
-        "scores",
-        ["owner_user_id", "deletion_status", "updated_at"],
+        ["owner_user_id", "deleted_at", "updated_at"],
         unique=False,
     )
     op.create_index(
         "idx_scores_owner_updated", "scores", ["owner_user_id", "updated_at"], unique=False
+    )
+    op.create_table(
+        "score_deletion_operations",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("operation_uuid", sa.String(36), nullable=False),
+        sa.Column("score_id", sa.BigInteger(), nullable=True),
+        sa.Column("score_uuid", sa.String(36), nullable=False),
+        sa.Column("owner_user_id", sa.BigInteger(), nullable=False),
+        sa.Column("originating_request_id", sa.String(64), nullable=True),
+        sa.Column("traceparent", sa.String(55), nullable=True),
+        sa.Column("tracestate", sa.String(512), nullable=True),
+        sa.Column(
+            "status",
+            postgresql.ENUM(
+                "PENDING",
+                "DISPATCHED",
+                "PROCESSING",
+                "COMPLETED",
+                "FAILED",
+                name="scoredeletionoperationstatus",
+                create_type=False,
+            ),
+            nullable=False,
+        ),
+        sa.Column("attempt_count", sa.Integer(), nullable=False),
+        sa.Column("next_attempt_at", sa.DateTime(), nullable=False),
+        sa.Column("dispatched_at", sa.DateTime(), nullable=True),
+        sa.Column("started_at", sa.DateTime(), nullable=True),
+        sa.Column("completed_at", sa.DateTime(), nullable=True),
+        sa.Column("last_error", sa.Text(), nullable=True),
+        sa.Column("attempt_token", sa.String(36), nullable=True),
+        sa.Column("internal_error_code", sa.String(128), nullable=True),
+        sa.Column("internal_error_stage", sa.String(64), nullable=True),
+        sa.Column("internal_error_class", sa.String(32), nullable=True),
+        sa.Column("internal_error_retryable", sa.Boolean(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.CheckConstraint("attempt_count >= 0", name="ck_score_deletion_attempt_count"),
+        sa.CheckConstraint(
+            "(status = 'PROCESSING' AND attempt_token IS NOT NULL) OR (status <> 'PROCESSING' AND attempt_token IS NULL)",
+            name="ck_score_deletion_attempt_token",
+        ),
+        sa.ForeignKeyConstraint(
+            ["score_id"],
+            ["scores.id"],
+            ondelete="SET NULL",
+            name="fk_score_deletion_operations_score_id_scores",
+        ),
+        sa.ForeignKeyConstraint(
+            ["owner_user_id"], ["users.id"], name="fk_score_deletion_operations_owner_user_id_users"
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_score_deletion_operations"),
+        sa.UniqueConstraint("operation_uuid", name="uq_score_deletion_operations_operation_uuid"),
+        sa.UniqueConstraint("score_uuid", name="uq_score_deletion_operations_score_uuid"),
+        sa.UniqueConstraint("score_id", name="uq_score_deletion_operations_score_id"),
+    )
+    op.create_index(
+        "idx_score_deletion_due",
+        "score_deletion_operations",
+        ["status", "next_attempt_at"],
+        unique=False,
+    )
+    op.create_index(
+        "ix_score_deletion_operations_originating_request_id",
+        "score_deletion_operations",
+        ["originating_request_id"],
+        unique=False,
     )
     op.create_table(
         "performance_takes",
@@ -2510,9 +2561,13 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_performance_takes_linked_score_id"), table_name="performance_takes")
     op.drop_table("performance_takes")
     op.drop_index("idx_scores_owner_updated", table_name="scores")
-    op.drop_index("idx_scores_owner_deletion_updated", table_name="scores")
-    op.drop_index("idx_scores_deletion_request_id", table_name="scores")
-    op.drop_index("idx_scores_deletion_cleanup_due", table_name="scores")
+    op.drop_index(
+        "ix_score_deletion_operations_originating_request_id",
+        table_name="score_deletion_operations",
+    )
+    op.drop_index("idx_score_deletion_due", table_name="score_deletion_operations")
+    op.drop_table("score_deletion_operations")
+    op.drop_index("idx_scores_owner_active_updated", table_name="scores")
     op.drop_table("scores")
     op.drop_index(
         "ix_take_upload_reservation_status_expires",
@@ -2663,6 +2718,6 @@ def downgrade() -> None:
     postgresql.ENUM(name="rendertargettype").drop(op.get_bind(), checkfirst=False)
     postgresql.ENUM(name="revisionorigin").drop(op.get_bind(), checkfirst=False)
     postgresql.ENUM(name="revisionsourceformat").drop(op.get_bind(), checkfirst=False)
-    postgresql.ENUM(name="scoredeletionstatus").drop(op.get_bind(), checkfirst=False)
+    postgresql.ENUM(name="scoredeletionoperationstatus").drop(op.get_bind(), checkfirst=False)
     postgresql.ENUM(name="storageusagecategory").drop(op.get_bind(), checkfirst=False)
     postgresql.ENUM(name="storageusagereservationstatus").drop(op.get_bind(), checkfirst=False)

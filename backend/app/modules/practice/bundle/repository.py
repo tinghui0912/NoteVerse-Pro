@@ -13,7 +13,7 @@ from app.modules.storage_objects.persistence import object_from_row
 from app.modules.storage_objects.writes import write_object_async, adopt_written_object
 from app.core.exceptions import ValidationException, ResourceNotFoundException
 from app.db.model_utils import require_persisted_id
-from app.db.models import ScoreRevisionPracticeBinding, ScoreRevision, Score, ScoreDeletionStatus
+from app.db.models import ScoreRevisionPracticeBinding, ScoreRevision, Score
 from app.db.models.practice_bundle import (
     PracticeBundleRecord,
     PracticeBundleStatus,
@@ -83,7 +83,7 @@ class PracticeBundleRepository:
         score = (
             await db.execute(
                 select(Score)
-                .where(Score.id == score_id, Score.deletion_status == ScoreDeletionStatus.ACTIVE)
+                .where(Score.id == score_id, Score.__table__.c.deleted_at.is_(None))
                 .with_for_update()
             )
         ).scalar_one_or_none()

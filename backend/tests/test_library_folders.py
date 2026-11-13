@@ -1,3 +1,4 @@
+from app.utils.timezone import utc_now_naive
 from datetime import datetime
 from uuid import uuid4
 
@@ -8,7 +9,6 @@ from app.core.exceptions import ResourceAlreadyExistsException, ResourceNotFound
 from app.db.models import (
     LibraryEntrySourceType,
     Score,
-    ScoreDeletionStatus,
     ScoreLibraryEntry,
     ScoreLibraryFolder,
 )
@@ -133,7 +133,7 @@ async def test_overview_counts_and_entry_queries_use_the_selected_folder(score_s
     add_entry(session, title="Unfiled")
     add_entry(session, title="Trashed", folder_id=a.id, deleted_at=datetime(2026, 1, 1))
     inactive = add_entry(session, title="Deleted score", folder_id=a.id)
-    session.get(Score, inactive.score_id).deletion_status = ScoreDeletionStatus.DELETING
+    session.get(Score, inactive.score_id).deleted_at = utc_now_naive()
     session.commit()
     overview = await service.folder_overview(db, 1)
     assert [(f.name, f.score_count) for f in overview.folders] == [

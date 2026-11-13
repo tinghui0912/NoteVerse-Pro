@@ -144,10 +144,10 @@ def test_settings_compose_notification_and_realtime_policies() -> None:
     assert settings.REALTIME_EVENT_RETENTION_DAYS > 0
 
 
-def test_settings_compose_score_deletion_lifecycle_policy() -> None:
+def test_settings_compose_score_deletion_delivery_policy() -> None:
     settings = Settings()
 
-    assert settings.SCORE_DELETION_CLEANUP_MAX_ATTEMPTS > 0
+    assert settings.SCORE_DELETION_MAX_ATTEMPTS > 0
 
 
 def test_settings_compose_fingering_execution_policy() -> None:

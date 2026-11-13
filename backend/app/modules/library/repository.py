@@ -8,7 +8,6 @@ from app.db.models import (
     LibraryEntrySourceType,
     LibraryPracticeState,
     Score,
-    ScoreDeletionStatus,
     ScoreLibraryEntry,
     ScoreLibraryFolder,
     ScoreRevisionMetadata,
@@ -17,7 +16,7 @@ from app.modules.library.schemas import LibrarySort, LibraryView
 
 entry_updated_col = ScoreLibraryEntry.__table__.c.updated_at
 score_title_col = Score.__table__.c.title
-active_score_filter = col(Score.deletion_status) == ScoreDeletionStatus.ACTIVE
+active_score_filter = col(Score.deleted_at).is_(None)
 
 
 class LibraryRepository:

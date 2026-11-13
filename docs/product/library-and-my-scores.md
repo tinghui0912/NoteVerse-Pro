@@ -40,8 +40,9 @@ Library removal only removes the user's library entry. It does not delete the
 underlying score.
 
 My Scores deletion is an owner action. It hides the score from user-facing
-surfaces immediately and delegates durable cleanup to the backend lifecycle
-model.
+surfaces immediately through `Score.deleted_at`. The same transaction creates a
+`ScoreDeletionOperation` for durable asynchronous cleanup, with immediate best-effort
+dispatch and maintenance recovery.
 
 ## Collaboration Semantics
 

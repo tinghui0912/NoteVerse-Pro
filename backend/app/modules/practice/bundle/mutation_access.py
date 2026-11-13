@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import ResourceNotFoundException, UnauthorizedException
 from app.db.models import (
     Score,
-    ScoreDeletionStatus,
     ScoreRevision,
     ScoreMembership,
 )
@@ -32,7 +31,7 @@ async def lock_live_practice_mutation_access(
             select(Score)
             .where(
                 Score.score_uuid == score_uuid,
-                Score.deletion_status == ScoreDeletionStatus.ACTIVE,
+                Score.__table__.c.deleted_at.is_(None),
             )
             .with_for_update()
             .execution_options(populate_existing=True)

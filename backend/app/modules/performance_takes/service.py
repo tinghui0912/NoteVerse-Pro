@@ -13,7 +13,7 @@ from app.db.models.performance_take import PerformanceTake
 from app.db.models import StorageUsageCategory
 from app.modules.storage_usage.service import storage_usage_service
 from app.modules.storage_objects.retirement import retire_after_release
-from app.db.models.score import Score, ScoreDeletionStatus
+from app.db.models.score import Score
 from app.modules.performance_takes.aggregate import take_from_row
 from app.modules.performance_takes.recording_media_admission import recording_extension
 from app.modules.performance_takes.repository import PerformanceTakeRepository
@@ -51,9 +51,7 @@ class PerformanceTakeService:
         manifest, recording = facts.manifest, facts.recording_object
         linked_score_id = (
             score.score_uuid
-            if can_open_score
-            and score is not None
-            and score.deletion_status == ScoreDeletionStatus.ACTIVE
+            if can_open_score and score is not None and score.deleted_at is None
             else None
         )
 
@@ -67,7 +65,7 @@ class PerformanceTakeService:
         )
 
     async def _can_open_score(self, db: AsyncSession, user_id: int, score: Score | None) -> bool:
-        if score is None or score.deletion_status != ScoreDeletionStatus.ACTIVE:
+        if score is None or score.deleted_at is not None:
             return False
         try:
             await self.score_access_policy.authorize(

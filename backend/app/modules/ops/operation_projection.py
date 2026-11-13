@@ -18,7 +18,8 @@ from app.db.models import (
     PlaybackOutboxStatus,
     RenderOutbox,
     RenderOutboxStatus,
-    Score,
+    ScoreDeletionOperation,
+    ScoreDeletionOperationStatus,
 )
 from app.modules.import_jobs.dispatch_service import import_delivery_exhausted
 from app.modules.ops.operation_filters import AsyncOperationFilters
@@ -127,23 +128,22 @@ def read_mail_operation(outbox: MailOutbox) -> AsyncOperationRead:
     )
 
 
-def read_score_deletion_operation(score: Score) -> AsyncOperationRead:
-    status = score_deletion_operation_status(score)
+def read_score_deletion_operation(operation: ScoreDeletionOperation) -> AsyncOperationRead:
     return AsyncOperationRead(
-        operation_id=score.score_uuid,
+        operation_id=operation.operation_uuid,
         kind=AsyncOperationKind.SCORE_DELETION,
         resource_type="score",
-        resource_id=score.score_uuid,
-        originating_request_id=score.deletion_request_id,
-        status=status,
-        raw_status=score.deletion_status.value,
-        attempts=score.cleanup_attempt_count,
-        max_attempts=settings.SCORE_DELETION_CLEANUP_MAX_ATTEMPTS,
-        next_attempt_at=score.next_cleanup_at,
-        error_class=stored_error_class(score),
-        diagnostic=stored_diagnostic(score),
-        created_at=score.deletion_requested_at or score.deleted_at,
-        updated_at=score.updated_at,
+        resource_id=operation.score_uuid,
+        originating_request_id=operation.originating_request_id,
+        status=score_deletion_operation_status(operation),
+        raw_status=operation.status.value,
+        attempts=operation.attempt_count,
+        max_attempts=settings.SCORE_DELETION_MAX_ATTEMPTS,
+        next_attempt_at=operation.next_attempt_at,
+        error_class=stored_error_class(operation),
+        diagnostic=stored_diagnostic(operation),
+        created_at=operation.created_at,
+        updated_at=operation.updated_at,
     )
 
 
@@ -254,7 +254,10 @@ def import_operation_status(job: ImportJob, dispatch: ImportDispatch) -> AsyncOp
 
 
 def outbox_operation_status(
-    status: RenderOutboxStatus | PlaybackOutboxStatus | ImportDispatchStatus,
+    status: RenderOutboxStatus
+    | PlaybackOutboxStatus
+    | ImportDispatchStatus
+    | ScoreDeletionOperationStatus,
     *,
     attempts: int,
     max_attempts: int,
@@ -293,12 +296,13 @@ def mail_operation_status(outbox: MailOutbox) -> AsyncOperationStatus:
     return AsyncOperationStatus.QUEUED
 
 
-def score_deletion_operation_status(score: Score) -> AsyncOperationStatus:
-    if score.cleanup_attempt_count >= settings.SCORE_DELETION_CLEANUP_MAX_ATTEMPTS:
-        return AsyncOperationStatus.EXHAUSTED
-    if score.cleanup_attempt_count > 0:
-        return AsyncOperationStatus.RETRYING
-    return AsyncOperationStatus.QUEUED
+def score_deletion_operation_status(operation: ScoreDeletionOperation) -> AsyncOperationStatus:
+    return outbox_operation_status(
+        operation.status,
+        attempts=operation.attempt_count,
+        max_attempts=settings.SCORE_DELETION_MAX_ATTEMPTS,
+        next_attempt_at=operation.next_attempt_at,
+    )
 
 
 def matches_operation_filters(

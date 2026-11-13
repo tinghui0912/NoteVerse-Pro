@@ -15,7 +15,6 @@ from app.db.models import (
     PlaybackOutbox,
     PlaybackOutboxStatus,
     Score,
-    ScoreDeletionStatus,
     ScoreRevision,
 )
 from app.modules.async_operations.diagnostics import (
@@ -230,7 +229,7 @@ class PlaybackOutboxService:
         revision = db.get(ScoreRevision, outbox.revision_id)
         if (
             score is None
-            or score.deletion_status != ScoreDeletionStatus.ACTIVE
+            or score.deleted_at is not None
             or revision is None
             or revision.score_id != outbox.score_id
             or revision.content_hash != outbox.source_fingerprint

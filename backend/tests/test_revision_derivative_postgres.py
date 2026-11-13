@@ -1,5 +1,7 @@
 """Real PostgreSQL head-writer / final-admission serialization for both derivatives."""
 
+from app.utils.timezone import utc_now_naive
+
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from hashlib import sha256
@@ -24,7 +26,6 @@ from app.db.models import (
     ScorePlaybackAsset,
     ObjectWriteIntent,
     StorageUsageCounter,
-    ScoreDeletionStatus,
 )
 from app.db.models.score import RevisionOrigin, RevisionSourceFormat
 from app.modules.score_assets import render_service
@@ -196,7 +197,7 @@ def test_final_admission_serializes_with_current_score(monkeypatch, tmp_path, ki
                     if change == "head":
                         score.head_revision_id = r2
                     else:
-                        score.deletion_status = ScoreDeletionStatus.DELETING
+                        score.deleted_at = utc_now_naive()
                     editor.commit()
             finally:
                 admit.set()

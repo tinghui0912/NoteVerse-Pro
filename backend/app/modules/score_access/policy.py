@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import ResourceNotFoundException, UnauthorizedException
 from app.db.models import (
     Score,
-    ScoreDeletionStatus,
     ScoreMembership,
     ScoreRevision,
 )
@@ -53,7 +52,7 @@ class ScoreAccessPolicy:
             await db.execute(
                 select(Score).where(
                     Score.score_uuid == score_uuid,
-                    Score.deletion_status == ScoreDeletionStatus.ACTIVE,
+                    Score.__table__.c.deleted_at.is_(None),
                 )
             )
         ).scalar_one_or_none()

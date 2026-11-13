@@ -26,7 +26,9 @@ DEFAULT_PASSWORD = "SmokePass123!"
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--api-base", required=True, help="Base API URL, for example http://127.0.0.1:18000/api/v1")
+    parser.add_argument(
+        "--api-base", required=True, help="Base API URL, for example http://127.0.0.1:18000/api/v1"
+    )
     parser.add_argument("--email", default=DEFAULT_EMAIL)
     parser.add_argument("--password", default=DEFAULT_PASSWORD)
     parser.add_argument("--namespace", default="noteverse-staging")
@@ -279,7 +281,11 @@ class HttpError(RuntimeError):
 
 def csrf_headers(cookie_jar: http.cookiejar.CookieJar) -> dict[str, str]:
     token = next((cookie.value for cookie in cookie_jar if cookie.name == "noteverse_csrf"), None)
-    return {"x-csrf-token": token, "content-type": "application/json"} if token else {"content-type": "application/json"}
+    return (
+        {"x-csrf-token": token, "content-type": "application/json"}
+        if token
+        else {"content-type": "application/json"}
+    )
 
 
 def request_json(
@@ -322,7 +328,9 @@ def encode_form(data: dict[str, str]) -> tuple[bytes, dict[str, str]]:
     return body, {"Content-Type": "application/x-www-form-urlencoded"}
 
 
-def login(api_base: str, email: str, password: str) -> tuple[request.OpenerDirector, http.cookiejar.CookieJar]:
+def login(
+    api_base: str, email: str, password: str
+) -> tuple[request.OpenerDirector, http.cookiejar.CookieJar]:
     cookie_jar = http.cookiejar.CookieJar()
     opener = request.build_opener(request.HTTPCookieProcessor(cookie_jar))
     body, headers = encode_form({"username": email, "password": password})
@@ -362,7 +370,9 @@ def wait_for_assets(
         except (error.HTTPError, error.URLError, TimeoutError) as exc:
             last_error = str(exc)
         time.sleep(poll_seconds)
-    raise TimeoutError(f"Timed out waiting for derived assets: last_score={last_score}; last_error={last_error}")
+    raise TimeoutError(
+        f"Timed out waiting for derived assets: last_score={last_score}; last_error={last_error}"
+    )
 
 
 def assert_external_access(
@@ -413,8 +423,28 @@ def delete_score(
         raise AssertionError(f"Expected one score to be deleted, got {removed}")
 
 
-def trigger_cleanup(namespace: str, deployment: str) -> None:
-    code = "from app.worker.tasks import run_score_deletion_cleanup; print(run_score_deletion_cleanup())"
+def wait_for_score_deletion(namespace: str, deployment: str, score_id: str) -> None:
+    code = f"""
+import time
+from sqlalchemy import select
+from app.db.models import ScoreDeletionOperation, ScoreDeletionOperationStatus
+from app.db.sync_session import SessionLocal
+from app.worker.tasks import run_score_deletion_maintenance
+
+run_score_deletion_maintenance()
+deadline = time.monotonic() + 180
+while True:
+    with SessionLocal() as db:
+        operation = db.scalar(select(ScoreDeletionOperation).where(
+            ScoreDeletionOperation.score_uuid == {score_id!r}
+        ))
+        if operation is not None and operation.status == ScoreDeletionOperationStatus.COMPLETED:
+            print(operation.operation_uuid)
+            break
+    if time.monotonic() >= deadline:
+        raise SystemExit("Score deletion operation did not complete")
+    time.sleep(1)
+"""
     kubectl_exec_python(namespace, deployment, code)
 
 
@@ -456,7 +486,7 @@ def cleanup_score(
     except HttpError as exc:
         if exc.status_code not in {404, 410, 422}:
             raise
-    trigger_cleanup(namespace, worker_deployment)
+    wait_for_score_deletion(namespace, worker_deployment, score_id)
 
 
 def main() -> int:
@@ -476,19 +506,34 @@ def main() -> int:
             poll_seconds=args.poll_seconds,
         )
         external = assert_external_access(args.api_base, opener, cookie_jar, score)
-        cleanup_score(opener, cookie_jar, args.api_base, args.namespace, args.worker_deployment, score_id)
+        cleanup_score(
+            opener, cookie_jar, args.api_base, args.namespace, args.worker_deployment, score_id
+        )
         assert_owner_usage_zero(args.namespace, args.backend_deployment, args.email)
     except Exception:
         print(json.dumps({"score_id": score_id, "created": created}, indent=2), file=sys.stderr)
         if not args.keep_on_failure:
             try:
-                cleanup_score(opener, cookie_jar, args.api_base, args.namespace, args.worker_deployment, score_id)
+                cleanup_score(
+                    opener,
+                    cookie_jar,
+                    args.api_base,
+                    args.namespace,
+                    args.worker_deployment,
+                    score_id,
+                )
                 assert_owner_usage_zero(args.namespace, args.backend_deployment, args.email)
             except Exception as cleanup_error:
                 print(f"cleanup failed: {cleanup_error}", file=sys.stderr)
         raise
 
-    print(json.dumps({"score_id": score_id, **created, **external, "cleanup": "released"}, indent=2, sort_keys=True))
+    print(
+        json.dumps(
+            {"score_id": score_id, **created, **external, "cleanup": "released"},
+            indent=2,
+            sort_keys=True,
+        )
+    )
     return 0
 
 

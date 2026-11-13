@@ -23,7 +23,6 @@ from app.core.exceptions import (
 from app.db.model_utils import require_persisted_id
 from app.db.models import (
     Score,
-    ScoreDeletionStatus,
     ScoreRenderAsset,
     ScoreRevision,
     ScoreRevisionSource,
@@ -185,7 +184,7 @@ class RevisionRenderService:
         score = db.execute(
             select(Score).where(
                 Score.score_uuid == score_uuid,
-                Score.deletion_status == ScoreDeletionStatus.ACTIVE,
+                Score.__table__.c.deleted_at.is_(None),
             )
         ).scalar_one_or_none()
         if score is None:

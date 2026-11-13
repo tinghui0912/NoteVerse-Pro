@@ -1,5 +1,6 @@
 """Celery task entrypoints for NoteVerse background work."""
 
+from app.worker.execution.score_deletion import execute_score_deletion_task
 from app.pipeline.context import CeleryTaskLike
 from app.task_queue.config import celery_app
 from app.worker.execution.object_write_cleanup import execute_object_write_cleanup_task
@@ -12,9 +13,9 @@ from app.worker.execution.maintenance_cleanup import (
     execute_mail_outbox_cleanup,
     execute_notification_maintenance,
     execute_realtime_maintenance,
-    execute_score_deletion_cleanup,
 )
 from app.worker.execution.maintenance_dispatch import (
+    execute_score_deletion_maintenance,
     execute_import_dispatch_maintenance,
     execute_mail_outbox_maintenance,
     execute_stored_object_retirement_maintenance,
@@ -95,10 +96,19 @@ def run_derived_asset_cleanup() -> dict[str, int]:
     return execute_derived_asset_cleanup()
 
 
-@celery_app.task(name="app.worker.tasks.run_score_deletion_cleanup")
-def run_score_deletion_cleanup() -> dict[str, int]:
-    """Hard-delete scores that were hidden by a user deletion request."""
-    return execute_score_deletion_cleanup()
+@celery_app.task(
+    bind=True,
+    name="app.worker.tasks.score_deletion_task",
+    acks_late=True,
+    reject_on_worker_lost=True,
+)
+def score_deletion_task(self: CeleryTaskLike, operation_uuid: str) -> dict[str, object]:
+    return execute_score_deletion_task(self, operation_uuid)
+
+
+@celery_app.task(name="app.worker.tasks.run_score_deletion_maintenance")
+def run_score_deletion_maintenance() -> dict[str, int]:
+    return execute_score_deletion_maintenance()
 
 
 @celery_app.task(name="app.worker.tasks.run_render_outbox_maintenance")

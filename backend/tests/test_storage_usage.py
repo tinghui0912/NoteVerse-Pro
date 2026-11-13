@@ -32,13 +32,14 @@ from app.db.models import (
     User,
 )
 from app.db.models.import_job import ImportJobState
-from app.db.models.score import RevisionOrigin, RevisionSourceFormat, ScoreDeletionStatus
+from app.db.models.score import RevisionOrigin, RevisionSourceFormat
 from app.modules.files.service import FilesService
 from app.modules.files.dependencies import get_files_service
 from app.modules.import_jobs.service import ImportJobService
 from app.modules.revisions.schemas import RevisionCreateRequest
 from app.modules.revisions.service import RevisionService
-from app.modules.scores.lifecycle_service import ScoreLifecycleService
+from app.modules.scores.deletion_executor import ScoreDeletionExecutor
+from tests.support.score_deletion import complete_score_deletions
 from app.modules.scores.service import ScoreService
 from app.modules.storage_usage.service import storage_usage_service
 from app.shared.constants import ErrorCode
@@ -558,10 +559,9 @@ async def test_score_delete_releases_source_usage_and_storage_object(
 
     marked_score = session.get(Score, score.id)
     assert marked_score is not None
-    assert marked_score.deletion_status == ScoreDeletionStatus.DELETING
     assert marked_score.deleted_at is not None
 
-    result = service.lifecycle_service.cleanup_deleting_scores(session)
+    result = complete_score_deletions(session)
     assert result.scores_deleted == 1
 
     account = session.get(StorageUsageAccount, 1)
@@ -581,38 +581,45 @@ async def test_score_delete_releases_source_usage_and_storage_object(
     assert not storage.exists(source_storage_key)
 
 
-def test_score_deletion_cleanup_records_retry_state_on_failure(
-    storage_usage_session: tuple[Session, InMemoryObjectStorage],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_score_deletion_execution_records_delivery_retry_on_failure(
+    storage_usage_session, monkeypatch
+):
+    from app.db.models import ScoreDeletionOperation, ScoreDeletionOperationStatus
+    from app.worker.execution.score_deletion import execute_score_deletion_task
+    from contextlib import contextmanager
+
     session, storage = storage_usage_session
-    score, _revision, _source = _seed_score_with_source(session, storage)
-    assert score.id is not None
-    now = utc_now_naive()
-    score.deletion_status = ScoreDeletionStatus.DELETING
-    score.deletion_requested_at = now
-    score.deleted_at = now
-    session.add(score)
+    score, _, _ = _seed_score_with_source(session, storage)
+    score.deleted_at = utc_now_naive()
+    operation = ScoreDeletionOperation(
+        score_id=score.id, score_uuid=score.score_uuid, owner_user_id=1
+    )
+    session.add(operation)
     session.commit()
 
-    lifecycle = ScoreLifecycleService()
+    @contextmanager
+    def worker_db():
+        try:
+            yield session
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
 
-    def fail_cleanup(db: Session, cleanup_score: Score) -> object:
-        _ = db, cleanup_score
-        raise RuntimeError("object storage temporarily unavailable")
-
-    monkeypatch.setattr(lifecycle, "cleanup_deleting_score", fail_cleanup)
-
-    result = lifecycle.cleanup_deleting_scores(session)
-
-    assert result.scores_deleted == 0
-    stored = session.get(Score, score.id)
-    assert stored is not None
-    assert stored.deletion_status == ScoreDeletionStatus.DELETING
-    assert stored.cleanup_attempt_count == 1
-    assert stored.next_cleanup_at is not None
-    assert stored.next_cleanup_at > now
-    assert stored.deletion_error == "object storage temporarily unavailable"
+    monkeypatch.setattr("app.worker.execution.score_deletion.get_worker_db", worker_db)
+    monkeypatch.setattr(
+        ScoreDeletionExecutor,
+        "execute",
+        lambda *args: (_ for _ in ()).throw(RuntimeError("object storage temporarily unavailable")),
+    )
+    result = execute_score_deletion_task(None, operation.operation_uuid)
+    assert result["status"] == "failed"
+    session.refresh(operation)
+    assert score.deleted_at is not None
+    assert operation.status == ScoreDeletionOperationStatus.FAILED
+    assert operation.attempt_count == 1
+    assert operation.next_attempt_at > operation.started_at
+    assert operation.last_error == "object storage temporarily unavailable"
 
 
 @pytest.mark.asyncio
@@ -662,6 +669,7 @@ async def test_score_delete_cleans_single_origin_import_job_storage(
         ]
     )
     session.commit()
+    session.add(ImportDispatch(job_id=1201))
     score.originating_job_id = 1201
     session.add(score)
     session.add(ImportJobUpload(job_id=1201, upload_id=1202, page_number=1, sort_order=1))
@@ -719,9 +727,9 @@ async def test_score_delete_cleans_single_origin_import_job_storage(
 
     marked_score = session.get(Score, score.id)
     assert marked_score is not None
-    assert marked_score.deletion_status == ScoreDeletionStatus.DELETING
+    assert marked_score.deleted_at is not None
 
-    result = service.lifecycle_service.cleanup_deleting_scores(session)
+    result = complete_score_deletions(session)
     assert result.scores_deleted == 1
 
     assert session.get(Score, score.id) is None

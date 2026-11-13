@@ -7,7 +7,6 @@ from sqlmodel import col
 from app.db.models import (
     ImportJob,
     Score,
-    ScoreDeletionStatus,
     ScoreRevision,
     LibraryEntrySourceType,
     ScoreLibraryEntry,
@@ -16,7 +15,7 @@ from app.modules.my_scores.schemas import MyScoresSort
 
 score_title_col = Score.__table__.c.title
 score_updated_col = Score.__table__.c.updated_at
-active_score_filter = col(Score.deletion_status) == ScoreDeletionStatus.ACTIVE
+active_score_filter = col(Score.deleted_at).is_(None)
 
 
 class ScoreRepository:
@@ -79,7 +78,7 @@ class ScoreRepository:
         if not include_deleted:
             statement = statement.where(active_score_filter)
         if lock:
-            statement = statement.with_for_update()
+            statement = statement.with_for_update().execution_options(populate_existing=True)
         return (await db.execute(statement)).scalar_one_or_none()
 
     async def revision(self, db: AsyncSession, revision_uuid: str) -> ScoreRevision | None:

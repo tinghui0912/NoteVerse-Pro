@@ -141,6 +141,14 @@ def test_retry_uses_current_one_based_attempt(attempt: int, seconds: int) -> Non
         assert not LIFECYCLE.is_dispatchable(row, now=row.next_attempt_at)
 
 
+@pytest.mark.parametrize(("attempt", "seconds"), [(4, 480), (8, 3840), (10, 3840)])
+def test_retry_respects_domain_delay_ceiling(attempt: int, seconds: int) -> None:
+    lifecycle = replace(LIFECYCLE, policy=replace(LIFECYCLE.policy, retry_max_seconds=3840))
+    row = Record(status="PROCESSING", attempt_count=attempt)
+    lifecycle.fail(row, error="retry", now=NOW)
+    assert row.next_attempt_at == NOW + timedelta(seconds=seconds)
+
+
 @pytest.mark.parametrize("success", ["COMPLETED", "SENT"])
 def test_completion_uses_domain_success_mapping(success: str) -> None:
     lifecycle = replace(LIFECYCLE, statuses=replace(LIFECYCLE.statuses, succeeded=success))

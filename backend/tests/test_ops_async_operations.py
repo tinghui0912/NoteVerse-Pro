@@ -27,7 +27,8 @@ from app.db.models import (
     RenderTargetType,
     RevisionOrigin,
     Score,
-    ScoreDeletionStatus,
+    ScoreDeletionOperation,
+    ScoreDeletionOperationStatus,
     ScoreRevision,
     Operator,
     OperatorIdentity,
@@ -986,7 +987,7 @@ def test_ops_api_retry_rejects_completed_render_outbox_and_records_audit(
     assert audit_event.error_code == "validation_error"
 
 
-def test_ops_api_retry_rejects_active_score_deletion_and_records_audit(
+def test_ops_api_retry_requires_deletion_operation_identity(
     client: TestClient,
     ops_session: Session,
 ) -> None:
@@ -994,7 +995,6 @@ def test_ops_api_retry_rejects_active_score_deletion_and_records_audit(
         score_uuid="00000000-0000-0000-0000-000000000303",
         owner_user_id=1,
         title="Active score",
-        deletion_status=ScoreDeletionStatus.ACTIVE,
     )
     ops_session.add(score)
     ops_session.commit()
@@ -1008,16 +1008,16 @@ def test_ops_api_retry_rejects_active_score_deletion_and_records_audit(
     finally:
         _clear_ops_dependency_overrides()
 
-    assert response.status_code == 422
+    assert response.status_code == 404
     payload = response.json()
     assert "internal_details" not in payload
     ops_session.refresh(score)
-    assert score.deletion_status == ScoreDeletionStatus.ACTIVE
+    assert score.deleted_at is None
     audit_event = ops_session.exec(select(OpsAuditEvent)).one()
     assert audit_event.operation_kind == "score_deletion"
     assert audit_event.operation_id == score.score_uuid
     assert audit_event.outcome == "failed"
-    assert audit_event.error_code == "validation_error"
+    assert audit_event.error_code == "resource_not_found"
 
 
 def test_ops_api_admin_can_retry_failed_import_job(
@@ -1218,7 +1218,7 @@ def test_ops_api_admin_can_retry_failed_playback_outbox(
     assert audit_event.outcome == "succeeded"
 
 
-def test_ops_api_admin_can_retry_score_deletion_cleanup(
+def test_ops_api_admin_can_rearm_score_deletion_operation(
     client: TestClient,
     ops_session: Session,
 ) -> None:
@@ -1226,22 +1226,31 @@ def test_ops_api_admin_can_retry_score_deletion_cleanup(
         score_uuid="00000000-0000-0000-0000-000000000304",
         owner_user_id=1,
         title="Deleting score",
-        deletion_status=ScoreDeletionStatus.DELETING,
-        cleanup_attempt_count=5,
-        next_cleanup_at=utc_now_naive() + timedelta(hours=1),
-        deletion_error="object storage unavailable",
+        deleted_at=utc_now_naive(),
+    )
+    ops_session.add(score)
+    ops_session.commit()
+
+    operation = ScoreDeletionOperation(
+        score_id=score.id,
+        score_uuid=score.score_uuid,
+        owner_user_id=1,
+        status=ScoreDeletionOperationStatus.FAILED,
+        attempt_count=5,
+        next_attempt_at=utc_now_naive() + timedelta(hours=1),
+        last_error="object storage unavailable",
         internal_error_code="score_deletion_transient_failure",
         internal_error_stage="cleanup",
         internal_error_class=AsyncOperationErrorClass.TRANSIENT.value,
         internal_error_retryable=True,
     )
-    ops_session.add(score)
+    ops_session.add(operation)
     ops_session.commit()
 
     _override_ops_dependencies(ops_session, authorized=True)
     try:
         response = client.post(
-            f"/api/v1/ops/async-operations/score_deletion/{score.score_uuid}/retry",
+            f"/api/v1/ops/async-operations/score_deletion/{operation.operation_uuid}/retry",
             json={"reason": "Retry after deletion cleanup infrastructure recovery."},
         )
     finally:
@@ -1250,17 +1259,17 @@ def test_ops_api_admin_can_retry_score_deletion_cleanup(
     assert response.status_code == 200
     data = response.json()["data"]
     assert data["kind"] == "score_deletion"
-    assert data["operation_id"] == score.score_uuid
+    assert data["operation_id"] == operation.operation_uuid
     assert data["status"] == "queued"
     ops_session.refresh(score)
-    assert score.deletion_status == ScoreDeletionStatus.DELETING
-    assert score.cleanup_attempt_count == 0
-    assert score.deletion_error is None
-    assert score.internal_error_code is None
-    assert score.internal_error_stage is None
-    assert score.internal_error_class is None
-    assert score.internal_error_retryable is None
+    assert score.deleted_at is not None
+    assert operation.attempt_count == 0
+    assert operation.last_error is None
+    assert operation.internal_error_code is None
+    assert operation.internal_error_stage is None
+    assert operation.internal_error_class is None
+    assert operation.internal_error_retryable is None
     audit_event = ops_session.exec(select(OpsAuditEvent)).one()
     assert audit_event.operation_kind == "score_deletion"
-    assert audit_event.operation_id == score.score_uuid
+    assert audit_event.operation_id == operation.operation_uuid
     assert audit_event.outcome == "succeeded"

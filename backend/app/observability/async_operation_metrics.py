@@ -23,7 +23,7 @@ from app.db.models import (
     RenderOutboxStatus,
     SchedulerHeartbeat,
     SchedulerLeaderStatus,
-    Score,
+    ScoreDeletionOperation,
 )
 from app.modules.scheduler_lock.constants import BEAT_LEADER_SCHEDULER_NAME
 from app.modules.scheduler_observability.service import scheduler_observability_service
@@ -69,7 +69,9 @@ async def async_operation_metrics_text(db: AsyncSession) -> str:
         "# TYPE noteverse_score_deletions_by_status gauge",
         *await _enum_count_lines(
             db,
-            statement=select(Score.deletion_status, func.count()).group_by(Score.deletion_status),
+            statement=select(ScoreDeletionOperation.status, func.count()).group_by(
+                ScoreDeletionOperation.status
+            ),
             metric_name="noteverse_score_deletions_by_status",
             label_names=("status",),
         ),

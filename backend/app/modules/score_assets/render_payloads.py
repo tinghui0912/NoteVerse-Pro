@@ -12,7 +12,6 @@ from app.db.models import (
     RenderOutbox,
     RenderTargetType,
     Score,
-    ScoreDeletionStatus,
     ScoreRevision,
 )
 from app.db.models.import_job import ImportJobState
@@ -59,7 +58,7 @@ class RenderPayloadBuilder:
         revision = db.get(ScoreRevision, outbox.revision_id)
         if (
             score is None
-            or score.deletion_status != ScoreDeletionStatus.ACTIVE
+            or score.deleted_at is not None
             or revision is None
             or outbox.requested_by_user_id is None
         ):

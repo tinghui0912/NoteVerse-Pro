@@ -10,8 +10,7 @@ from app.modules.realtime.maintenance_service import realtime_maintenance_servic
 from app.modules.revisions.derived_asset_retention_service import (
     derived_asset_retention_service,
 )
-from app.modules.scores.lifecycle_service import score_lifecycle_service
-from app.worker.task_runtime import operation_logger, run_scheduler_scan
+from app.worker.task_runtime import run_scheduler_scan
 
 
 def execute_job_maintenance() -> dict[str, int]:
@@ -70,27 +69,6 @@ def execute_derived_asset_cleanup() -> dict[str, int]:
         }
 
     return run_scheduler_scan("derived_asset_cleanup", scan)
-
-
-def execute_score_deletion_cleanup() -> dict[str, int]:
-    """Hard-delete scores that were hidden by a user deletion request."""
-
-    def scan() -> dict[str, int]:
-        with get_worker_db() as db:
-            result = score_lifecycle_service.cleanup_deleting_scores(db)
-
-        operation_logger(
-            "score_deletion.cleanup_completed",
-            operation_kind="score_deletion",
-            scores_deleted=result.scores_deleted,
-            object_retirements_queued=result.object_retirements_queued,
-        ).info("score_deletion.cleanup_completed")
-        return {
-            "scores_deleted": result.scores_deleted,
-            "object_retirements_queued": result.object_retirements_queued,
-        }
-
-    return run_scheduler_scan("score_deletion_cleanup", scan)
 
 
 def execute_mail_outbox_cleanup() -> dict[str, int]:

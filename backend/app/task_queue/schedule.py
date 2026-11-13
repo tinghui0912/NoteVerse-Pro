@@ -40,9 +40,9 @@ def build_beat_schedule(settings: Settings) -> BeatSchedule:
             "task": "app.worker.tasks.run_derived_asset_cleanup",
             "schedule": float(settings.DERIVED_ASSET_CLEANUP_INTERVAL_SECONDS),
         },
-        "score-deletion-cleanup": {
-            "task": "app.worker.tasks.run_score_deletion_cleanup",
-            "schedule": float(settings.SCORE_DELETION_CLEANUP_INTERVAL_SECONDS),
+        "score-deletion-maintenance": {
+            "task": "app.worker.tasks.run_score_deletion_maintenance",
+            "schedule": float(settings.SCORE_DELETION_INTERVAL_SECONDS),
         },
         "render-outbox-maintenance": {
             "task": "app.worker.tasks.run_render_outbox_maintenance",

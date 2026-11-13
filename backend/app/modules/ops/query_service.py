@@ -12,8 +12,7 @@ from app.db.models import (
     MailOutbox,
     PlaybackOutbox,
     RenderOutbox,
-    Score,
-    ScoreDeletionStatus,
+    ScoreDeletionOperation,
 )
 from app.modules.ops.operation_filters import AsyncOperationFilters
 from app.modules.ops.operation_projection import (
@@ -203,13 +202,12 @@ class OpsAsyncOperationQueryService:
     ) -> list[AsyncOperationRead]:
         rows = (
             await db.execute(
-                select(Score)
-                .where(Score.deletion_status == ScoreDeletionStatus.DELETING)
-                .order_by(col(Score.updated_at).desc())
+                select(ScoreDeletionOperation)
+                .order_by(col(ScoreDeletionOperation.updated_at).desc())
                 .limit(limit)
             )
         ).scalars()
-        return [read_score_deletion_operation(score) for score in rows]
+        return [read_score_deletion_operation(operation) for operation in rows]
 
 
 ops_async_operation_query_service = OpsAsyncOperationQueryService()

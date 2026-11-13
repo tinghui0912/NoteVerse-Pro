@@ -10,7 +10,6 @@ from app.db.models import (
     ScoreRevision,
     ScoreRevisionSource,
     StoredObject,
-    ScoreDeletionStatus,
 )
 from app.db.models.score import RevisionSourceFormat
 
@@ -38,7 +37,7 @@ def revision_presentation_demand(
     revision = db.get(ScoreRevision, revision_id) if revision_id is not None else None
     if (
         score is None
-        or score.deletion_status != ScoreDeletionStatus.ACTIVE
+        or score.deleted_at is not None
         or revision is None
         or revision.score_id != score_id
         or revision.content_hash != fingerprint

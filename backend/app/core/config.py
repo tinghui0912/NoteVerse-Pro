@@ -22,7 +22,7 @@ from app.core.settings.queue import QueueSettings
 from app.core.settings.render_asset_delivery import RenderAssetDeliverySettings
 from app.core.settings.realtime_retention import RealtimeRetentionSettings
 from app.core.settings.realtime_stream import RealtimeStreamSettings
-from app.core.settings.score_deletion_lifecycle import ScoreDeletionLifecycleSettings
+from app.core.settings.score_deletion_delivery import ScoreDeletionDeliverySettings
 from app.core.settings.service_identity import ServiceIdentitySettings
 from app.core.settings.storage import StorageSettings
 from app.core.settings.token_signing import TokenSigningSettings
@@ -55,7 +55,7 @@ class Settings(
     RealtimeRetentionSettings,
     RealtimeStreamSettings,
     RenderAssetDeliverySettings,
-    ScoreDeletionLifecycleSettings,
+    ScoreDeletionDeliverySettings,
     ServiceIdentitySettings,
     StorageSettings,
     TokenSigningSettings,

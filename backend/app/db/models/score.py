@@ -18,7 +18,6 @@ from sqlalchemy import (
     Integer,
     JSON,
     String,
-    Text,
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -47,12 +46,6 @@ class ScoreInputAssetPurpose(str, enum.Enum):
     ORIGINAL_UPLOAD = "ORIGINAL_UPLOAD"
 
 
-class ScoreDeletionStatus(str, enum.Enum):
-    ACTIVE = "ACTIVE"
-    DELETING = "DELETING"
-    DELETED = "DELETED"
-
-
 class MetadataStatus(str, enum.Enum):
     PENDING = "PENDING"
     READY = "READY"
@@ -74,16 +67,7 @@ class Score(SQLModel, table=True):  # type: ignore[call-arg]
             use_alter=True,
         ),
         Index("idx_scores_owner_updated", "owner_user_id", "updated_at"),
-        Index(
-            "idx_scores_owner_deletion_updated", "owner_user_id", "deletion_status", "updated_at"
-        ),
-        Index(
-            "idx_scores_deletion_cleanup_due",
-            "deletion_status",
-            "next_cleanup_at",
-            "deletion_requested_at",
-        ),
-        Index("idx_scores_deletion_request_id", "deletion_request_id"),
+        Index("idx_scores_owner_active_updated", "owner_user_id", "deleted_at", "updated_at"),
     )
 
     id: Optional[int] = Field(
@@ -119,28 +103,7 @@ class Score(SQLModel, table=True):  # type: ignore[call-arg]
         ),
     )
     version: int = Field(default=1, sa_column=Column(Integer, default=1, nullable=False))
-    deletion_status: ScoreDeletionStatus = Field(
-        default=ScoreDeletionStatus.ACTIVE,
-        sa_column=Column(
-            SAEnum(ScoreDeletionStatus, name="scoredeletionstatus"),
-            default=ScoreDeletionStatus.ACTIVE,
-            nullable=False,
-        ),
-    )
     deleted_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    deletion_requested_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    deletion_request_id: Optional[str] = Field(default=None, sa_column=Column(String(64)))
-    cleanup_completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    cleanup_attempt_count: int = Field(
-        default=0,
-        sa_column=Column(Integer, default=0, nullable=False),
-    )
-    next_cleanup_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    deletion_error: Optional[str] = Field(default=None, sa_column=Column(Text))
-    internal_error_code: Optional[str] = Field(default=None, sa_column=Column(String(128)))
-    internal_error_stage: Optional[str] = Field(default=None, sa_column=Column(String(64)))
-    internal_error_class: Optional[str] = Field(default=None, sa_column=Column(String(32)))
-    internal_error_retryable: Optional[bool] = Field(default=None, sa_column=Column(Boolean))
     created_at: datetime = Field(
         default_factory=utc_now_naive,
         sa_column=Column(DateTime, default=utc_now_naive, nullable=False),

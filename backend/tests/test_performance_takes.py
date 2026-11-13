@@ -1,4 +1,5 @@
 from __future__ import annotations
+from tests.support.score_deletion import complete_score_deletions
 
 from app.modules.performance_takes.upload_reservation.cleanup import (
     upload_reservation_cleanup_service,
@@ -53,7 +54,7 @@ from app.db.models import (
     StorageUsageCounter,
     User,
 )
-from app.db.models.score import RevisionOrigin, ScoreDeletionStatus
+from app.db.models.score import RevisionOrigin
 from app.main import app
 from app.db.models import StoredObjectRetirement
 from app.worker.execution import stored_object_retirement
@@ -82,7 +83,6 @@ from app.modules.practice.score.artifact import (
     practice_artifact_id,
 )
 from app.modules.scores.dependencies import get_score_service
-from app.modules.scores.lifecycle_service import ScoreLifecycleService
 from app.modules.scores.service import ScoreService
 from app.modules.storage_usage.dependencies import get_storage_usage_service
 from app.modules.storage_usage.service import StorageUsageService
@@ -622,7 +622,6 @@ def test_env(tmp_path) -> Iterator[tuple[Session, InMemoryObjectStorage, User, U
             score_uuid="score-uuid-10",
             owner_user_id=1,
             title="Moonlight Sonata",
-            deletion_status=ScoreDeletionStatus.ACTIVE,
         )
         session.add(score)
         session.flush()
@@ -1093,7 +1092,6 @@ def test_cross_user_score_permission(test_env):
             score_uuid="score-uuid-user2",
             owner_user_id=2,
             title="User 2 Private Sonata",
-            deletion_status=ScoreDeletionStatus.ACTIVE,
         )
         session.add(score_user2)
         session.flush()
@@ -1145,7 +1143,6 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         storage=storage,
         storage_usage_service=storage_usage_svc,
     )
-    lifecycle_svc = ScoreLifecycleService()
 
     async def override_db():
         yield AsyncSessionAdapter(session)
@@ -1214,7 +1211,7 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         assert res_soft.json()["data"]["removed"] == 1
 
         score_row = session.execute(select(Score).where(Score.id == 10)).scalar_one()
-        assert score_row.deletion_status == ScoreDeletionStatus.DELETING
+        assert score_row.deleted_at is not None
 
         # Listing takes: binding provenance is retained even while the score is hidden/deleting.
         res_list_soft = client.get("/api/v1/performance-takes")
@@ -1235,8 +1232,8 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         session.refresh(account)
         assert account.used_bytes == size
 
-        # 3. REAL HARD CLEANUP: invoke cleanup_deleting_scores
-        cleanup_res = lifecycle_svc.cleanup_deleting_scores(session)
+        # Execute the admitted operation through its delivery lease.
+        cleanup_res = complete_score_deletions(session)
         assert cleanup_res.scores_deleted == 1
 
         # Verify in DB: live score rows are physically deleted. The take no longer
@@ -2474,7 +2471,7 @@ def test_score_deleted_between_reserve_and_finalize_preserves_provenance(test_en
         # Simulate score becoming unavailable before client calls finalize. The
         # upload reservation already references the durable Bundle, so this
         # save must still finish without requiring live Score access.
-        session.execute(text("UPDATE scores SET deletion_status = 'DELETED' WHERE id = 10;"))
+        session.execute(text("UPDATE scores SET deleted_at = CURRENT_TIMESTAMP WHERE id = 10;"))
         session.commit()
 
         reserved_upload_id = res_id

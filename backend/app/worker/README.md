@@ -58,3 +58,15 @@ expired dispatch/processing leases; it is not the normal-path scheduling delay.
 `stored_object_retirement_task` executes a durable physical retirement attempt. Maintenance scans semantic Bundle GC/stale creation and the shared retirement queue. Bundle/Take and other domains release semantic references and accounting in their own transactions. The worker validates all StoredObject references and flushes FK-protected row deletion before ObjectStorage IO; operation attempts use DurableDeliveryLifecycle retry/lease rules plus a fresh fencing token.
 
 See [Object storage](../../../docs/architecture/object-storage.md).
+
+## Score deletion
+
+`Score.deleted_at` owns product visibility. API admission atomically hides the Score
+and creates its unique `ScoreDeletionOperation`. It immediately attempts best-effort
+publication through `dispatch/score_deletion.py`; broker failure releases the durable
+operation for relay. `score_deletion_task` delegates to `execution/score_deletion.py`,
+which claims an attempt and executes the domain graph cleanup under an operation lock
+and attempt token. Score hard deletion, usage releases, retirement enqueue and operation
+completion share one database transaction. The completed operation retains the resource
+UUID after its nullable Score FK is cleared. `run_score_deletion_maintenance` recovers
+missed publication, due retries and expired leases through DurableDeliveryLifecycle.

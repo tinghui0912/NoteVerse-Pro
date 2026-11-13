@@ -85,8 +85,8 @@ def test_mail_delivery_maintenance_is_scheduled() -> None:
     assert schedule["schedule"] == float(settings.MAIL_OUTBOX_DISPATCH_INTERVAL_SECONDS)
 
 
-def test_score_deletion_cleanup_is_scheduled() -> None:
-    schedule = celery_app.conf.beat_schedule["score-deletion-cleanup"]
+def test_score_deletion_maintenance_is_scheduled() -> None:
+    schedule = celery_app.conf.beat_schedule["score-deletion-maintenance"]
 
-    assert schedule["task"] == "app.worker.tasks.run_score_deletion_cleanup"
-    assert schedule["schedule"] == float(settings.SCORE_DELETION_CLEANUP_INTERVAL_SECONDS)
+    assert schedule["task"] == "app.worker.tasks.run_score_deletion_maintenance"
+    assert schedule["schedule"] == float(settings.SCORE_DELETION_INTERVAL_SECONDS)

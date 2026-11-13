@@ -51,3 +51,12 @@ def isolated_retirement_immediate_dispatch(monkeypatch):
     monkeypatch.setattr(
         "app.worker.dispatch.stored_object_retirement.dispatch_retirements_best_effort", Mock()
     )
+
+
+@pytest.fixture(autouse=True)
+def isolated_score_deletion_immediate_dispatch(monkeypatch):
+    from unittest.mock import Mock
+
+    monkeypatch.setattr(
+        "app.worker.dispatch.score_deletion.dispatch_score_deletion_best_effort", Mock()
+    )

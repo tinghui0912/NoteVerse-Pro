@@ -22,7 +22,6 @@ from app.db.model_utils import require_persisted_id
 from app.db.models import (
     PlaybackAssetKind,
     Score,
-    ScoreDeletionStatus,
     ScorePlaybackAsset,
     ScoreRevision,
     ScoreRevisionSource,
@@ -72,7 +71,7 @@ class PlaybackGenerationService:
             await db.execute(
                 select(Score).where(
                     Score.score_uuid == score_uuid,
-                    Score.deletion_status == ScoreDeletionStatus.ACTIVE,
+                    Score.__table__.c.deleted_at.is_(None),
                 )
             )
         ).scalar_one_or_none()
@@ -114,7 +113,7 @@ class PlaybackGenerationService:
         score = (
             await db.execute(
                 select(Score)
-                .where(Score.id == score.id, Score.deletion_status == ScoreDeletionStatus.ACTIVE)
+                .where(Score.id == score.id, Score.__table__.c.deleted_at.is_(None))
                 .with_for_update()
                 .execution_options(populate_existing=True)
             )
@@ -193,7 +192,7 @@ class PlaybackGenerationService:
         score = db.execute(
             select(Score).where(
                 Score.score_uuid == score_uuid,
-                Score.deletion_status == ScoreDeletionStatus.ACTIVE,
+                Score.__table__.c.deleted_at.is_(None),
             )
         ).scalar_one_or_none()
         if not score:

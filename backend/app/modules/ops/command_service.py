@@ -16,8 +16,6 @@ from app.db.models import (
     PlaybackOutboxStatus,
     RenderOutbox,
     RenderOutboxStatus,
-    Score,
-    ScoreDeletionStatus,
 )
 from app.modules.async_operations.diagnostics import clear_async_diagnostic
 from app.modules.ops.operation_projection import (
@@ -237,31 +235,13 @@ class OpsAsyncOperationCommandService:
     async def _retry_score_deletion(
         self, db: AsyncSession, operation_id: str
     ) -> RetryOperationResult:
-        score = (
-            await db.execute(
-                select(Score).where(Score.score_uuid == operation_id).with_for_update()
-            )
-        ).scalar_one_or_none()
-        if score is None:
-            raise ResourceNotFoundException("async_operation", operation_id)
-        previous_state = score.deletion_status.value
-        if score.deletion_status != ScoreDeletionStatus.DELETING:
-            raise ValidationException(
-                code=ErrorCode.VALIDATION_ERROR,
-                field="status",
-                details={"status": score.deletion_status.value},
-            )
-        now = utc_now_naive()
-        score.cleanup_attempt_count = 0
-        score.next_cleanup_at = now
-        score.deletion_error = None
-        clear_async_diagnostic(score)
-        score.updated_at = now
+        from app.modules.scores.deletion_delivery import score_deletion_delivery
+
+        operation, previous = await score_deletion_delivery.rearm_async(db, operation_id)
         await db.commit()
-        await db.refresh(score)
+        await db.refresh(operation)
         return RetryOperationResult(
-            operation=read_score_deletion_operation(score),
-            previous_state=previous_state,
+            operation=read_score_deletion_operation(operation), previous_state=previous
         )
 
 

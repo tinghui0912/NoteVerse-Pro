@@ -44,6 +44,7 @@ class DeliveryLifecyclePolicy:
     retry_base_seconds: int
     dispatch_timeout_seconds: int
     processing_timeout_seconds: int
+    retry_max_seconds: int | None = None
 
 
 class ClaimAdmission(Enum):
@@ -110,6 +111,8 @@ class DurableDeliveryLifecycle(Generic[Status]):
 
     def fail(self, record: DeliveryRecord[Status], *, error: str, now: datetime) -> None:
         delay = self.policy.retry_base_seconds * (2 ** max(0, record.attempt_count - 1))
+        if self.policy.retry_max_seconds is not None:
+            delay = min(delay, self.policy.retry_max_seconds)
         record.status = self.statuses.failed
         record.next_attempt_at = now + timedelta(seconds=delay)
         record.last_error = _truncate_error(error)

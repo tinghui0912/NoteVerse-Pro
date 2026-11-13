@@ -11,7 +11,6 @@ from sqlmodel import col
 from app.core.logger import logger
 from app.db.models import (
     Score,
-    ScoreDeletionStatus,
     ScorePlaybackAsset,
     ScoreRenderAsset,
     ScoreRevision,
@@ -128,9 +127,7 @@ class DerivedAssetRetentionService:
 
     def cleanup_due_scores(self, db: Session) -> DerivedAssetRetentionResult:
         scores = list(
-            db.execute(
-                select(Score.id).where(Score.deletion_status == ScoreDeletionStatus.ACTIVE)
-            ).scalars()
+            db.execute(select(Score.id).where(Score.__table__.c.deleted_at.is_(None))).scalars()
         )
         total = DerivedAssetRetentionResult()
         for score_id in scores:
@@ -222,7 +219,7 @@ class DerivedAssetRetentionService:
         # Serialize cleanup with head changes and final derivative admission.
         return (
             select(Score)
-            .where(Score.id == score_id, Score.deletion_status == ScoreDeletionStatus.ACTIVE)
+            .where(Score.id == score_id, Score.__table__.c.deleted_at.is_(None))
             .with_for_update()
             .execution_options(populate_existing=True)
         )

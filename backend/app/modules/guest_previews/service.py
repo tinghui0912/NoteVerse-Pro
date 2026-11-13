@@ -4,7 +4,7 @@ from sqlmodel import col
 from app.db.model_utils import require_persisted_id
 
 from app.core.exceptions import ResourceNotFoundException
-from app.db.models import Score, ScoreDeletionStatus, ScoreRevision, User
+from app.db.models import Score, ScoreRevision, User
 from app.db.models.score import RenderAssetKind
 from app.modules.guest_previews.schemas import (
     GuestPreviewUpdateRequest,
@@ -56,7 +56,7 @@ class GuestPreviewService:
                 .where(
                     Score.score_uuid == score_uuid,
                     Score.owner_user_id == user_id,
-                    Score.deletion_status == ScoreDeletionStatus.ACTIVE,
+                    Score.__table__.c.deleted_at.is_(None),
                 )
                 .with_for_update()
                 .execution_options(populate_existing=True)
@@ -125,7 +125,7 @@ class GuestPreviewService:
                 .where(
                     Score.guest_preview_token == token,
                     col(Score.guest_preview_enabled).is_(True),
-                    Score.deletion_status == ScoreDeletionStatus.ACTIVE,
+                    Score.__table__.c.deleted_at.is_(None),
                 )
                 .execution_options(populate_existing=True)
             )

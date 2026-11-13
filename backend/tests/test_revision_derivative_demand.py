@@ -1,5 +1,7 @@
 """Durable presentation demand, post-commit relaying, and generation admission."""
 
+from app.utils.timezone import utc_now_naive
+
 from app.db.models import StoredObject
 
 from contextlib import contextmanager
@@ -22,7 +24,6 @@ from app.db.models import (
     ImportJob,
     ImportDispatch,
     ImportDispatchStatus,
-    ScoreDeletionStatus,
 )
 from app.db.models.import_job import ImportJobState
 from app.db.models.score import RevisionOrigin, RevisionSourceFormat
@@ -186,7 +187,7 @@ def test_processing_is_not_cancelled_and_missing_source_is_not_superseded(revisi
     assert render_outbox_service.claim(db, "render-2") is None
     assert playback_outbox_service.claim(db, "audio-2") is None
     assert all(work.status.value == "FAILED" and work.last_error for work in work_rows(db, 2))
-    score.deletion_status = ScoreDeletionStatus.DELETING
+    score.deleted_at = utc_now_naive()
     db.commit()
     assert render_outbox_service.claim(db, "render-3") is None
     assert playback_outbox_service.claim(db, "audio-3") is None

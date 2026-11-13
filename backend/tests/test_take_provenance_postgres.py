@@ -87,7 +87,7 @@ async def test_save_admission_commits_before_waiting_score_deletion(postgres_bun
             )
             assert manifest_from_row(row.manifest).snapshot.score_title_snapshot == "Source"
             score = await b.scalar(select(Score))
-            assert score.deletion_status.value == "DELETING"
+            assert score.deleted_at is not None
 
 
 @pytest.mark.asyncio

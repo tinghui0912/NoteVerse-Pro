@@ -40,7 +40,6 @@ from .score import (
     RevisionOrigin,
     RevisionSourceFormat,
     Score,
-    ScoreDeletionStatus,
     ScoreInputAsset,
     ScoreInputAssetPurpose,
     ScoreRenderAsset,
@@ -127,7 +126,8 @@ __all__ = [
     "RevisionOrigin",
     "RevisionSourceFormat",
     "Score",
-    "ScoreDeletionStatus",
+    "ScoreDeletionOperation",
+    "ScoreDeletionOperationStatus",
     "ScoreInputAsset",
     "ScoreInputAssetPurpose",
     "ScoreRenderAsset",
@@ -164,3 +164,5 @@ __all__ = [
 ]
 
 from .object_write_intent import ObjectWriteIntent
+
+from .score_deletion_operation import ScoreDeletionOperation, ScoreDeletionOperationStatus

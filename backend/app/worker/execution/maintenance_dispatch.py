@@ -120,3 +120,18 @@ def execute_object_write_cleanup_maintenance() -> dict[str, int]:
         }
 
     return run_scheduler_scan("object_write_cleanup", scan)
+
+
+def execute_score_deletion_maintenance() -> dict[str, int]:
+    from app.modules.scores.deletion_delivery import score_deletion_delivery
+    from app.worker.dispatch.score_deletion import dispatch_score_deletion
+
+    def scan():
+        with get_worker_db() as db:
+            due = score_deletion_delivery.recover_and_list_due(db)
+        return {
+            "due": len(due),
+            "dispatched": sum(1 for uuid in due if dispatch_score_deletion(uuid)),
+        }
+
+    return run_scheduler_scan("score_deletion", scan)

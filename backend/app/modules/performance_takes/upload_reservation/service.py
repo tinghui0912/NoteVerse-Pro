@@ -11,7 +11,7 @@ from time import monotonic
 from uuid import uuid4
 
 from sqlalchemy import select
-from app.db.models.score import Score, ScoreDeletionStatus
+from app.db.models.score import Score
 from app.modules.storage_objects.facts import StoredObjectFacts
 from app.modules.storage_objects.persistence import object_to_row
 from app.modules.performance_takes.aggregate import SavedTakeFacts
@@ -852,7 +852,7 @@ class PerformanceTakeUploadService:
                     select(Score)
                     .where(
                         Score.score_uuid == manifest.snapshot.practice_binding.score_id,
-                        Score.deletion_status == ScoreDeletionStatus.ACTIVE,
+                        Score.__table__.c.deleted_at.is_(None),
                     )
                     .with_for_update(read=True, key_share=True)
                 )

@@ -1,5 +1,7 @@
 """Stable Score bearer settings and current-head presentation boundaries."""
 
+from app.utils.timezone import utc_now_naive
+
 import pytest
 from pydantic import ValidationError
 from sqlalchemy import select
@@ -13,7 +15,6 @@ from app.db.models import (
     PlaybackAssetKind,
     ScoreLibraryEntry,
     ScoreMembership,
-    ScoreDeletionStatus,
 )
 from app.db.models.score import RevisionOrigin, RenderAssetKind
 from app.db.models.score_access import MembershipRole
@@ -208,7 +209,7 @@ async def test_disabled_missing_and_deleted_are_unavailable(preview_context):
                 with pytest.raises(ResourceNotFoundException) as error:
                     await action(db, token)
                 assert error.value.code == "guest_preview_not_found"
-    score.deletion_status = ScoreDeletionStatus.DELETING
+    score.deleted_at = utc_now_naive()
     session.commit()
     for secret in [token, "missing"]:
         with pytest.raises(ResourceNotFoundException) as error:
@@ -375,7 +376,7 @@ async def test_unavailable_bearer_responses_are_not_cacheable(
     if state == "unknown":
         token = "unknown-token"
     elif state == "deleted":
-        score.deletion_status = ScoreDeletionStatus.DELETING
+        score.deleted_at = utc_now_naive()
     session.commit()
     async with AsyncClient(
         transport=ASGITransport(app=preview_http_app), base_url="http://test"

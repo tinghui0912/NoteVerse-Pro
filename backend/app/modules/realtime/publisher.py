@@ -10,7 +10,7 @@ from sqlmodel import col
 
 from app.core.config import settings
 from app.core.logger import logger
-from app.db.models import RealtimeEvent, Score, ScoreDeletionStatus, ScoreMembership
+from app.db.models import RealtimeEvent, Score, ScoreMembership
 
 REALTIME_NOTIFY_CHANNEL = "realtime_events"
 
@@ -65,7 +65,7 @@ async def score_recipients(db: AsyncSession, score_uuid: str) -> list[int]:
         await db.execute(
             select(Score).where(
                 Score.score_uuid == score_uuid,
-                Score.deletion_status == ScoreDeletionStatus.ACTIVE,
+                Score.__table__.c.deleted_at.is_(None),
             )
         )
     ).scalar_one_or_none()
@@ -84,7 +84,7 @@ def score_recipients_sync(db: Session, score_uuid: str) -> list[int]:
     score = db.execute(
         select(Score).where(
             Score.score_uuid == score_uuid,
-            Score.deletion_status == ScoreDeletionStatus.ACTIVE,
+            Score.__table__.c.deleted_at.is_(None),
         )
     ).scalar_one_or_none()
     if score is None or score.id is None:
