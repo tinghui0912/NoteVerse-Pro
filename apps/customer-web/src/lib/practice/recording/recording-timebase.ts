@@ -1,44 +1,15 @@
 import {
-  assertRecordingTimebaseStructure,
+  assertRecordingTimebase,
   isRecordingCoordinate,
-} from "./generated/recording-timebase-contract";
-import type {
-  RecordingActiveSegment,
-  RecordingTimebase,
-} from "./generated/recording-timebase-contract";
+} from "./generated/recording-timebase";
+import type { RecordingTimebase } from "./generated/recording-timebase";
 
 export type {
   RecordingActiveSegment,
   RecordingTimebase,
-} from "./generated/recording-timebase-contract";
+} from "./generated/recording-timebase";
 
-export function assertRecordingTimebase(
-  value: unknown,
-): asserts value is RecordingTimebase {
-  assertRecordingTimebaseStructure(value);
-  let previous: RecordingActiveSegment | undefined;
-  for (const segment of value.activeSegments) {
-    if (
-      segment.performanceEndUs <= segment.performanceStartUs ||
-      segment.mediaEndUs <= segment.mediaStartUs ||
-      segment.performanceEndUs - segment.performanceStartUs !==
-        segment.mediaEndUs - segment.mediaStartUs
-    ) {
-      throw new Error("recording_timebase_invalid_segment");
-    }
-    if (
-      (!previous && segment.mediaStartUs !== 0) ||
-      (previous &&
-        (segment.performanceStartUs < previous.performanceEndUs ||
-          segment.mediaStartUs !== previous.mediaEndUs))
-    ) {
-      throw new Error("recording_timebase_invalid_chronology");
-    }
-    previous = segment;
-  }
-  if (previous!.mediaEndUs !== value.nominalMediaDurationUs)
-    throw new Error("recording_timebase_invalid_duration");
-}
+export { assertRecordingTimebase } from "./generated/recording-timebase";
 
 /** Creates only the immutable coordinate projection; media bytes have their own owner. */
 export function decodeRecordingTimebase(value: unknown): RecordingTimebase {

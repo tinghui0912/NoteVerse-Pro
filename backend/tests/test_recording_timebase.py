@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from app.modules.performance_takes.recording_timebase import RecordingTimebase
+from app.modules.performance_takes.generated.recording_timebase import RecordingTimebase
 from app.modules.performance_takes.schemas import PerformanceTakeUploadMetadata
 from app.modules.performance_takes.manifest_persistence import manifest_from_row, manifest_to_row
 from app.core.exceptions import ValidationException
@@ -31,7 +31,7 @@ def test_shared_recording_timebase_contract(case):
             RecordingTimebase.model_validate(case["value"])
 
 
-@pytest.mark.parametrize("coordinate", [float("nan"), float("inf"), float("-inf"), 1.0])
+@pytest.mark.parametrize("coordinate", [float("nan"), float("inf"), float("-inf"), 1.0, True])
 def test_coordinates_require_strict_integers(coordinate):
     value = {
         "nominalMediaDurationUs": 1,

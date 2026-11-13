@@ -1,7 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { assertRecordingTimebaseStructure } from "./generated/recording-timebase-contract";
-import { assertRecordingTimebase } from "./recording-timebase";
+import { assertRecordingTimebase } from "./generated/recording-timebase";
 
 const schema = JSON.parse(
   readFileSync(
@@ -27,47 +26,46 @@ const valid = () =>
     activeSegments: Record<string, unknown>[];
   };
 
-describe("generated RecordingTimebase structural boundary", () => {
-  it.each(cases.filter((item) => item.valid))(
-    "admits canonical structure: $name",
-    ({ value }) => {
-      const before = JSON.stringify(value);
-      assertRecordingTimebaseStructure(value);
-      expect(JSON.stringify(value)).toBe(before);
-      expect(Object.isFrozen(value)).toBe(false);
-    },
-  );
+describe("generated RecordingTimebase boundary", () => {
+  it.each(cases)("validates conformance: $name", ({ value, valid }) => {
+    if (!valid) {
+      expect(() => assertRecordingTimebase(value)).toThrow();
+      return;
+    }
+    const before = JSON.stringify(value);
+    assertRecordingTimebase(value);
+    expect(JSON.stringify(value)).toBe(before);
+    expect(Object.isFrozen(value)).toBe(false);
+  });
   it.each([null, [], true, "object", {}, { activeSegments: [] }])(
     "rejects non-timebase structure %s",
     (value) => {
-      expect(() => assertRecordingTimebaseStructure(value)).toThrow();
+      expect(() => assertRecordingTimebase(value)).toThrow();
     },
   );
   it("requires exact root and segment field sets from the schema", () => {
     for (const key of schema.required) {
       const value = valid() as Record<string, unknown>;
       delete value[key];
-      expect(() => assertRecordingTimebaseStructure(value)).toThrow();
+      expect(() => assertRecordingTimebase(value)).toThrow();
     }
     for (const key of schema.$defs.RecordingActiveSegment.required) {
       const value = valid();
       delete value.activeSegments[0][key];
-      expect(() => assertRecordingTimebaseStructure(value)).toThrow();
+      expect(() => assertRecordingTimebase(value)).toThrow();
     }
-    expect(() =>
-      assertRecordingTimebaseStructure({ ...valid(), extra: 1 }),
-    ).toThrow();
+    expect(() => assertRecordingTimebase({ ...valid(), extra: 1 })).toThrow();
     const segmentExtra = valid();
     segmentExtra.activeSegments[0].extra = 1;
-    expect(() => assertRecordingTimebaseStructure(segmentExtra)).toThrow();
+    expect(() => assertRecordingTimebase(segmentExtra)).toThrow();
     const arraySegment = valid();
     arraySegment.activeSegments = [[] as unknown as Record<string, unknown>];
-    expect(() => assertRecordingTimebaseStructure(arraySegment)).toThrow();
+    expect(() => assertRecordingTimebase(arraySegment)).toThrow();
     expect(() =>
-      assertRecordingTimebaseStructure({ ...valid(), activeSegments: [] }),
+      assertRecordingTimebase({ ...valid(), activeSegments: [] }),
     ).toThrow();
     expect(() =>
-      assertRecordingTimebaseStructure({
+      assertRecordingTimebase({
         ...valid(),
         nominalMediaDurationUs: 0,
       }),
@@ -83,7 +81,7 @@ describe("generated RecordingTimebase structural boundary", () => {
     Number.MAX_SAFE_INTEGER + 1,
   ])("rejects invalid primitive coordinate %s", (coordinate) => {
     expect(() =>
-      assertRecordingTimebaseStructure({
+      assertRecordingTimebase({
         ...valid(),
         nominalMediaDurationUs: coordinate,
       }),
@@ -91,34 +89,23 @@ describe("generated RecordingTimebase structural boundary", () => {
     for (const key of schema.$defs.RecordingActiveSegment.required) {
       const value = valid();
       value.activeSegments[0][key] = coordinate;
-      expect(() => assertRecordingTimebaseStructure(value)).toThrow();
-    }
-  });
-  it("uses declared coordinate minima and maximum without enforcing cross-field math", () => {
-    const value = valid();
-    for (const [key, descriptor] of Object.entries(
-      schema.$defs.RecordingActiveSegment.properties,
-    )) {
-      const minimum =
-        (descriptor as { minimum?: number }).minimum ??
-        schema.$defs.RecordingCoordinate.minimum;
-      value.activeSegments[0][key] = minimum;
-      if (minimum > 0) {
-        const invalid = valid();
-        invalid.activeSegments[0][key] = minimum - 1;
-        expect(() => assertRecordingTimebaseStructure(invalid)).toThrow();
-      }
-    }
-    value.nominalMediaDurationUs = schema.$defs.RecordingCoordinate.maximum;
-    expect(() => assertRecordingTimebaseStructure(value)).not.toThrow();
-    expect(() => assertRecordingTimebase(value)).toThrow();
-  });
-  it.each(["rate_mismatch_one_us", "performance_overlap", "media_gap_one_us"])(
-    "leaves semantic rejection to the runtime: %s",
-    (name) => {
-      const value = cases.find((item) => item.name === name)!.value;
-      expect(() => assertRecordingTimebaseStructure(value)).not.toThrow();
       expect(() => assertRecordingTimebase(value)).toThrow();
-    },
-  );
+    }
+  });
+  it("admits the declared safe-integer maximum with exact segment rate", () => {
+    const end = schema.$defs.RecordingCoordinate.maximum;
+    expect(() =>
+      assertRecordingTimebase({
+        nominalMediaDurationUs: end,
+        activeSegments: [
+          {
+            performanceStartUs: 0,
+            performanceEndUs: end,
+            mediaStartUs: 0,
+            mediaEndUs: end,
+          },
+        ],
+      }),
+    ).not.toThrow();
+  });
 });

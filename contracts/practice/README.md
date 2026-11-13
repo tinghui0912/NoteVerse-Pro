@@ -31,11 +31,13 @@ Composite Video owns its independent local derivative encoder policy.
 
 `recording-timebase.schema.json` owns exact serialized fields, required properties,
 array cardinality and primitive JSON-safe integer bounds. The stdlib-only
-`generate_practice_recording_timebase_contract.py --check` verifies generated Python
-structural models and TypeScript structural types/assertion. Production consumes these
-projections without reading the schema file.
+`generate_practice_recording_timebase.py` owns the cross-field semantic implementation
+and projects complete Python Pydantic models and TypeScript validation. Its predicates
+require positive, equal segment durations, a zero media origin, exact nominal end,
+non-overlapping performance segments and contiguous media segments. `--check` verifies
+both generated projections. Production consumes them without reading the schema file.
 
-Backend `performance_takes/recording_timebase.py` and browser
-`recording/recording-timebase.ts` independently validate segment duration/rate and
-chronology semantics. `recording-timebase-cases.json` is their shared conformance
-evidence. Media-time mapping remains browser runtime behavior.
+`recording-timebase-cases.json` is a cross-runtime conformance corpus for the generated
+validators. Customer Web's `recording/recording-timebase.ts` owns immutable decoding,
+runtime unit conversion and browser media-time mapping, including decoded-duration
+adaptation; those playback algorithms remain separate from durable validity.

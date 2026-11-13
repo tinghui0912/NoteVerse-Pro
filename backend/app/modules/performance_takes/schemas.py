@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Literal, Optional, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from .recording_timebase import RecordingTimebase
+from .generated.recording_timebase import RecordingTimebase
 
 
 class StrictPerformanceTakeModel(BaseModel):

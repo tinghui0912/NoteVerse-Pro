@@ -9,7 +9,7 @@ on:
       - "scripts/verify_practice_acoustic_implementation.py"
       - "apps/customer-web/tests/attestations/practice-acoustic/**"
       - "contracts/practice/recording-timebase.schema.json"
-      - "scripts/generate_practice_recording_timebase_contract.py"
+      - "scripts/generate_practice_recording_timebase.py"
       - "contracts/practice/recording-media-admission.json"
       - "scripts/generate_practice_recording_media_admission.py"
       - "contracts/score/tempo-policy.json"
@@ -33,7 +33,7 @@ on:
       - "scripts/verify_practice_acoustic_implementation.py"
       - "apps/customer-web/tests/attestations/practice-acoustic/**"
       - "contracts/practice/recording-timebase.schema.json"
-      - "scripts/generate_practice_recording_timebase_contract.py"
+      - "scripts/generate_practice_recording_timebase.py"
       - "contracts/practice/recording-media-admission.json"
       - "scripts/generate_practice_recording_media_admission.py"
       - "contracts/score/tempo-policy.json"
@@ -86,9 +86,9 @@ jobs:
         working-directory: .
         run: python3 scripts/generate_practice_recording_media_admission.py --check
 
-      - name: Verify RecordingTimebase structural projections
+      - name: Verify RecordingTimebase projections
         working-directory: .
-        run: python3 scripts/generate_practice_recording_timebase_contract.py --check
+        run: python3 scripts/generate_practice_recording_timebase.py --check
 
       - name: Test Customer Web CI policy
         working-directory: .

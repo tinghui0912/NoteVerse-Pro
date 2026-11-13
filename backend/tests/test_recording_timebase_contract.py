@@ -1,4 +1,4 @@
-"""One structural schema generates exact runtime projections without admitting semantics."""
+"""RecordingTimebase generation projects structure and exact cross-field semantics."""
 
 import copy
 import importlib.util
@@ -8,22 +8,20 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from app.modules.performance_takes.generated.recording_timebase_contract import (
+from app.modules.performance_takes.generated.recording_timebase import (
     MAX_RECORDING_COORDINATE,
-    RecordingActiveSegmentStructure,
-    RecordingTimebaseStructure,
+    RecordingActiveSegment,
+    RecordingTimebase,
 )
-from app.modules.performance_takes.recording_timebase import RecordingTimebase
 
 ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location(
-    "timebase_generator", ROOT / "scripts/generate_practice_recording_timebase_contract.py"
+    "timebase_generator", ROOT / "scripts/generate_practice_recording_timebase.py"
 )
 assert spec and spec.loader
 generator = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(generator)
 schema = generator.load_schema(ROOT / generator.SCHEMA)
-StructuralTimebase = RecordingTimebaseStructure[RecordingActiveSegmentStructure]
 
 
 def test_schema_projects_exactly_and_ignores_object_key_order():
@@ -40,13 +38,11 @@ def test_schema_projects_exactly_and_ignores_object_key_order():
 
     assert generator.projections(reordered(schema)) == outputs
     assert MAX_RECORDING_COORDINATE == schema["$defs"]["RecordingCoordinate"]["maximum"]
-    projection = StructuralTimebase.model_json_schema()
+    projection = RecordingTimebase.model_json_schema()
     assert set(projection["properties"]) == set(schema["properties"])
     assert projection["required"] == schema["required"]
     assert projection["additionalProperties"] is False
-    for field, description in projection["$defs"]["RecordingActiveSegmentStructure"][
-        "properties"
-    ].items():
+    for field, description in projection["$defs"]["RecordingActiveSegment"]["properties"].items():
         assert field in schema["$defs"]["RecordingActiveSegment"]["properties"]
         assert description["maximum"] == MAX_RECORDING_COORDINATE
         expected = schema["$defs"]["RecordingActiveSegment"]["properties"][field].get("minimum", 0)
@@ -148,6 +144,10 @@ def test_generation_check_detects_drift_without_mutation(tmp_path, path, capsys)
         generator.generate(tmp_path, check=True)
     assert before == {p: (p.read_bytes(), p.stat().st_mtime_ns) for p in before}
     assert path in capsys.readouterr().out
+    generator.generate(tmp_path)
+    generator.generate(tmp_path, check=True)
+    assert output.read_text(encoding="utf-8") == generator.projections(schema)[path]
+    output.write_text("drift\n", encoding="utf-8")
     contract.write_text("{}", encoding="utf-8")
     with pytest.raises(ValueError):
         generator.generate(tmp_path)
@@ -159,16 +159,50 @@ def test_generation_check_detects_drift_without_mutation(tmp_path, path, capsys)
 )
 def test_generated_model_rejects_non_recording_structures(bad):
     with pytest.raises(ValidationError):
-        StructuralTimebase.model_validate(bad)
+        RecordingTimebase.model_validate(bad)
 
 
-def test_structural_admission_leaves_rate_and_chronology_to_the_domain():
+def test_generated_model_applies_exact_segment_rate():
     value = {
         "nominalMediaDurationUs": 2,
         "activeSegments": [
             {"performanceStartUs": 0, "performanceEndUs": 1, "mediaStartUs": 0, "mediaEndUs": 2}
         ],
     }
-    assert StructuralTimebase.model_validate(value).model_dump(mode="json") == value
     with pytest.raises(ValidationError):
         RecordingTimebase.model_validate(value)
+
+
+def test_declared_structural_bounds_project_into_both_runtimes():
+    changed = copy.deepcopy(schema)
+    changed["$defs"]["RecordingCoordinate"]["maximum"] = 1000
+    outputs = generator.projections(changed)
+    namespace = {"__name__": "generated_timebase_test"}
+    exec(outputs[generator.PY_PATH], namespace)
+    model = namespace["RecordingTimebase"]
+    value = {
+        "nominalMediaDurationUs": 1000,
+        "activeSegments": [
+            {
+                "performanceStartUs": 0,
+                "performanceEndUs": 1000,
+                "mediaStartUs": 0,
+                "mediaEndUs": 1000,
+            }
+        ],
+    }
+    assert model.model_validate(value).nominalMediaDurationUs == 1000
+    value["nominalMediaDurationUs"] = 1001
+    value["activeSegments"][0]["performanceEndUs"] = 1001
+    value["activeSegments"][0]["mediaEndUs"] = 1001
+    with pytest.raises(ValidationError):
+        model.model_validate(value)
+    assert "MAX_RECORDING_COORDINATE = 1000;" in outputs[generator.TS_PATH]
+    assert generator.projections(changed) == outputs
+
+
+def test_generated_segment_model_applies_semantics_without_a_timebase():
+    with pytest.raises(ValidationError):
+        RecordingActiveSegment(
+            performanceStartUs=1, performanceEndUs=1, mediaStartUs=0, mediaEndUs=1
+        )
