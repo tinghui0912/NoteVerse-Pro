@@ -6,8 +6,10 @@ from collections.abc import Callable
 from urllib.parse import urlparse
 
 from fastapi import Request
+from fastapi.routing import APIRoute, RouteContext, iter_route_contexts
 from starlette.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.routing import Match
 
 from app.core.exception_handlers import ErrorResponseFactory
 from app.core.client_address import client_address, peer_address
@@ -28,7 +30,7 @@ class CookieCsrfSettings:
     session_cookie_names: tuple[str, ...]
     csrf_cookie_name: str
     csrf_header_name: str
-    exempt_paths: tuple[str, ...]
+    exempt_operation: Callable[[RouteContext], bool]
     allowed_origins: tuple[str, ...] | Callable[[], tuple[str, ...]]
     debug: bool
 
@@ -63,7 +65,7 @@ class CsrfProtectionMiddleware(BaseHTTPMiddleware):
         self.error_response_factory = error_response_factory
 
     async def dispatch(self, request: Request, call_next):
-        if self._should_check_origin(request) and not self._has_allowed_origin(request):
+        if self._is_cookie_authenticated_write(request) and not self._has_allowed_origin(request):
             response = JSONResponse(
                 status_code=403,
                 content=self._error_payload(
@@ -74,7 +76,7 @@ class CsrfProtectionMiddleware(BaseHTTPMiddleware):
             self._attach_request_id_header(request, response)
             return response
 
-        if self._should_check(request):
+        if self._requires_csrf_token(request):
             csrf_cookie = request.cookies.get(self.csrf_settings.csrf_cookie_name)
             csrf_header = request.headers.get(self.csrf_settings.csrf_header_name)
             if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
@@ -108,22 +110,22 @@ class CsrfProtectionMiddleware(BaseHTTPMiddleware):
     def _attach_request_id_header(self, request: Request, response: JSONResponse) -> None:
         response.headers["X-Request-ID"] = self._request_id(request)
 
-    def _should_check(self, request: Request) -> bool:
-        path = request.url.path
-        if request.method.upper() in SAFE_METHODS:
+    def _requires_csrf_token(self, request: Request) -> bool:
+        if not self._is_cookie_authenticated_write(request):
             return False
-        if not path.startswith(self.csrf_settings.api_prefix):
-            return False
-        if any(
-            path == exempt or path.startswith(exempt) for exempt in self.csrf_settings.exempt_paths
-        ):
-            return False
-        return any(
-            request.cookies.get(cookie_name)
-            for cookie_name in self.csrf_settings.session_cookie_names
-        )
+        # Match in framework routing order, including effective include-router
+        # prefixes/overrides. Partial matches (405) never grant an exemption.
+        # Do not mutate the live scope before the router handles the request.
+        for operation in iter_route_contexts(request.app.routes):
+            match, _ = operation.matches(dict(request.scope))
+            if match is Match.FULL:
+                return not (
+                    isinstance(operation.original_route, APIRoute)
+                    and self.csrf_settings.exempt_operation(operation)
+                )
+        return True
 
-    def _should_check_origin(self, request: Request) -> bool:
+    def _is_cookie_authenticated_write(self, request: Request) -> bool:
         return (
             request.method.upper() not in SAFE_METHODS
             and request.url.path.startswith(self.csrf_settings.api_prefix)

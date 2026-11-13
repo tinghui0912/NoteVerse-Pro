@@ -13,6 +13,7 @@ from app.core.middleware import CookieCsrfSettings
 from app.core.runtime_checks import RuntimeRole
 from app.modules.ops.router import router as ops_router
 from app.modules.platform_operators.router import router as operator_auth_router
+from app.modules.platform_operators.router import login_operator
 
 
 configure_uvicorn_logging()
@@ -38,7 +39,7 @@ def create_app() -> FastAPI:
             session_cookie_names=(control_settings.auth_cookie_name,),
             csrf_cookie_name=control_settings.csrf_cookie_name,
             csrf_header_name=control_settings.csrf_header_name,
-            exempt_paths=(f"{CONTROL_PLANE_API_PREFIX}/auth/login",),
+            exempt_operation=lambda operation: operation.endpoint is login_operator,
             allowed_origins=control_settings.cors_origins,
             debug=settings.DEBUG,
         ),

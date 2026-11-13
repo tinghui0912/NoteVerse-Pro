@@ -91,3 +91,13 @@ committed Customer OpenAPI. Run it with `--check` to verify every projection.
 Customer Web exposes `generate:browser-protocol` and `check:browser-protocol`.
 Origins, Secure/SameSite policy, lifetimes and backend service topology remain
 deployment settings. Control-plane protocol configuration is independent.
+
+Customer CSRF exemptions are Backend application security policy in
+`app/api/customer_security.py`. The generic middleware uses framework route
+matching to resolve the actual operation, then applies the composition's policy.
+Only explicit public credential/token or session-bootstrap operation identities
+skip the double-submit token check. Cookie-authenticated writes still undergo
+Origin/Referer validation. Unknown operations, missing identities and method
+mismatches require CSRF; logout also requires CSRF. Control Plane supplies its own
+independent matched-operation policy. Browser protocol projections own cookie and
+header identities rather than exemption decisions.

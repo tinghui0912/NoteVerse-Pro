@@ -6,6 +6,7 @@ from starlette.exceptions import HTTPException
 from app.core.exception_handlers import http_exception_handler
 
 from app.api.runtime_endpoints import install_process_endpoints
+from app.api.customer_security import customer_csrf_exempt_operation
 from app.api.runtime_schemas import RootRead
 from app.api.v1.router import api_router
 from app.core.config import settings
@@ -31,19 +32,12 @@ def _cors_origins() -> list[str]:
 
 
 def _csrf_settings() -> CookieCsrfSettings:
-    prefix = CUSTOMER_API_PREFIX
     return CookieCsrfSettings(
-        api_prefix=prefix,
+        api_prefix=CUSTOMER_API_PREFIX,
         session_cookie_names=(AUTH_COOKIE_NAME, REFRESH_COOKIE_NAME),
         csrf_cookie_name=CSRF_COOKIE_NAME,
         csrf_header_name=CSRF_HEADER_NAME,
-        exempt_paths=(
-            f"{prefix}/auth/login",
-            f"{prefix}/auth/refresh",
-            f"{prefix}/auth/register",
-            f"{prefix}/auth/email/",
-            f"{prefix}/auth/password/",
-        ),
+        exempt_operation=customer_csrf_exempt_operation,
         allowed_origins=lambda: tuple(_cors_origins()),
         debug=settings.DEBUG,
     )
