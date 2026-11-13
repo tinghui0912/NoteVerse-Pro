@@ -9,7 +9,8 @@ from sqlalchemy.orm import Session
 
 from app.core.async_trace_context import get_async_trace_context
 from app.core.config import settings
-from app.core.logger import get_request_id, logger
+from app.core.logger import logger
+from app.core.request_correlation import get_request_id
 from app.db.models import (
     PlaybackAssetKind,
     PlaybackOutbox,

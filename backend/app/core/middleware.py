@@ -13,7 +13,8 @@ from starlette.routing import Match
 
 from app.core.exception_handlers import ErrorResponseFactory
 from app.core.client_address import client_address, peer_address
-from app.core.logger import logger, set_request_id
+from app.core.logger import logger
+from app.core.request_correlation import request_correlation_id
 from app.core.metrics import record_http_request
 from app.core.tracing import capture_current_trace_context
 from app.shared.constants import ErrorCode
@@ -73,7 +74,6 @@ class CsrfProtectionMiddleware(BaseHTTPMiddleware):
                     ErrorCode.REQUEST_ORIGIN_INVALID,
                 ),
             )
-            self._attach_request_id_header(request, response)
             return response
 
         if self._requires_csrf_token(request):
@@ -87,28 +87,16 @@ class CsrfProtectionMiddleware(BaseHTTPMiddleware):
                         ErrorCode.CSRF_TOKEN_INVALID,
                     ),
                 )
-                self._attach_request_id_header(request, response)
                 return response
 
         return await call_next(request)
-
-    def _request_id(self, request: Request) -> str:
-        existing = getattr(request.state, "request_id", None)
-        if isinstance(existing, str) and existing:
-            return existing
-        request_id = set_request_id(request.headers.get("X-Request-ID"))
-        request.state.request_id = request_id
-        return request_id
 
     def _error_payload(
         self,
         request: Request,
         code: str,
     ):
-        return self.error_response_factory(code, self._request_id(request))
-
-    def _attach_request_id_header(self, request: Request, response: JSONResponse) -> None:
-        response.headers["X-Request-ID"] = self._request_id(request)
+        return self.error_response_factory(code, request_correlation_id(request))
 
     def _requires_csrf_token(self, request: Request) -> bool:
         if not self._is_cookie_authenticated_write(request):
@@ -182,10 +170,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         # Record the start time for latency logging.
         start_time = time.time()
 
-        # Use an incoming request ID when present, otherwise generate one.
-        request_id = request.headers.get("X-Request-ID")
-        request_id = set_request_id(request_id)
-        request.state.request_id = request_id
+        request_id = request_correlation_id(request)
         capture_current_trace_context()
 
         should_log = request.url.path not in HEALTH_PATHS
@@ -230,8 +215,6 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                     duration_ms=duration_ms,
                 ).log(level, "api.request_completed")
 
-            # Return trace metadata to the caller.
-            response.headers["X-Request-ID"] = request_id
             response.headers["X-Process-Time"] = f"{process_time:.3f}"
 
             return response

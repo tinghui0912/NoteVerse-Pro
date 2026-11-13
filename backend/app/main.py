@@ -1,6 +1,6 @@
 """FastAPI application entrypoint."""
 
-from fastapi import FastAPI
+from app.core.http_application import HttpApplication
 from starlette.exceptions import HTTPException
 
 from app.core.exception_handlers import http_exception_handler
@@ -43,10 +43,10 @@ def _csrf_settings() -> CookieCsrfSettings:
     )
 
 
-def create_app() -> FastAPI:
+def create_app() -> HttpApplication:
     """Create and configure the FastAPI application."""
 
-    app = FastAPI(
+    app = HttpApplication(
         title=settings.PROJECT_NAME,
         description=f"{settings.PROJECT_NAME} API - Sheet Music Processing System",
         version="2.0.0",

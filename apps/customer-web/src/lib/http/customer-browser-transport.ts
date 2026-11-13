@@ -13,6 +13,13 @@ export class ApiError extends Error {
   }
 }
 
+function isApplicationError(value: unknown): value is ApiErrorResponse {
+  if (value === null || typeof value !== 'object') return false;
+  const payload = value as Partial<ApiErrorResponse>;
+  return typeof payload.code === 'string' &&
+    typeof payload.request_id === 'string' && payload.request_id.length > 0;
+}
+
 function cookie(name: string): string | undefined {
   if (typeof document === 'undefined') return undefined;
   const value = document.cookie.split('; ').find(part => part.startsWith(`${name}=`));
@@ -117,13 +124,12 @@ export function createCustomerBrowserTransport(options: {
     });
     client.interceptors.error.use((error, response) => {
       if (!response) return error;
-      const value = error !== null && typeof error === 'object'
-        ? error as Partial<ApiErrorResponse> : {};
-      const code = typeof value.code === 'string' ? value.code
-        : response.status >= 500 ? 'internal_error' : 'unknown_error';
-      return new ApiError(response.status, code,
-        typeof value.request_id === 'string' ? value.request_id
-          : response.headers.get('X-Request-ID') ?? undefined);
+      if (isApplicationError(error)) {
+        return new ApiError(response.status, error.code, error.request_id);
+      }
+      return new ApiError(response.status,
+        response.status >= 500 ? 'internal_error' : 'unknown_error',
+        response.headers.get('X-Request-ID') || undefined);
     });
     return client;
   }

@@ -8,41 +8,24 @@ sensitive-data filter for common secret fields.
 import json
 import re
 import sys
-import uuid
 from contextvars import ContextVar
 from typing import Optional
 
 from loguru import logger as _logger
 
 from app.core.config import settings
+from app.core.request_correlation import get_request_id
 
 _logger.remove()
 
 log_format = settings.LOG_FORMAT
 
 
-request_id_var: ContextVar[Optional[str]] = ContextVar("request_id", default=None)
 task_id_var: ContextVar[Optional[str]] = ContextVar("task_id", default=None)
 otel_trace_context_var: ContextVar[dict[str, str]] = ContextVar(
     "otel_trace_context",
     default={},
 )
-REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
-
-
-def get_request_id() -> Optional[str]:
-    """Return the current request correlation identifier."""
-
-    return request_id_var.get()
-
-
-def set_request_id(request_id: Optional[str] = None) -> str:
-    """Set the current request correlation identifier and return it."""
-
-    if request_id is None or not REQUEST_ID_PATTERN.fullmatch(request_id):
-        request_id = uuid.uuid4().hex
-    request_id_var.set(request_id)
-    return request_id
 
 
 def set_otel_trace_context(context: dict[str, str] | None = None) -> None:
@@ -416,13 +399,10 @@ __all__ = [
     "logger",
     "SensitiveDataFilter",
     "StructuredLogFieldPolicy",
-    "get_request_id",
-    "set_request_id",
     "get_otel_trace_context",
     "set_otel_trace_context",
     "get_task_id",
     "set_task_id",
-    "request_id_var",
     "task_id_var",
     "otel_trace_context_var",
 ]

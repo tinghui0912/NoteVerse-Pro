@@ -7,7 +7,7 @@ from datetime import timezone
 
 from tests.support.object_storage import InMemoryObjectStorage
 from fastapi.testclient import TestClient
-from fastapi import FastAPI
+from app.core.http_application import HttpApplication
 
 from app.api.deps import get_current_user
 from app.db.models.user import User
@@ -16,7 +16,7 @@ from app.modules.model_assets.service import ModelAssetService
 from app.modules.model_assets.generated.practice_acoustic_model_asset import MODEL_ASSET_DESCRIPTOR
 from app.core.exception_handlers import register_exception_handlers
 
-app = FastAPI()
+app = HttpApplication()
 register_exception_handlers(app)
 app.include_router(router, prefix="/api/v1/model-assets")
 

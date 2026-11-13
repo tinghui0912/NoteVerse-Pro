@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.core.http_application import HttpApplication
 from app.core.exception_handlers import ErrorResponseFactory, register_exception_handlers
 from app.shared.responses import error_response
 from app.core.middleware import CookieCsrfSettings, CsrfProtectionMiddleware, LoggingMiddleware
@@ -19,7 +19,7 @@ def normalized_cors_origins(origins: Iterable[object]) -> list[str]:
 
 
 def install_http_runtime(
-    app: FastAPI,
+    app: HttpApplication,
     *,
     csrf_settings: CookieCsrfSettings | None = None,
     cors_origins: list[str] | None = None,

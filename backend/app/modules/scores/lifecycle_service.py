@@ -2,7 +2,7 @@
 
 import asyncio
 from app.core.async_trace_context import get_async_trace_context
-from app.core.logger import get_request_id
+from app.core.request_correlation import get_request_id
 from app.db.model_utils import require_persisted_id
 from app.db.models import ScoreDeletionOperation
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction

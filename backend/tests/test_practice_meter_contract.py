@@ -292,7 +292,7 @@ def test_meter_openapi_exposes_portable_integer_bounds():
     ],
 )
 def test_unsafe_musicxml_meter_is_invalid_score_over_http(tmp_path, numerator, denominator):
-    from fastapi import FastAPI
+    from app.core.http_application import HttpApplication
     from fastapi.testclient import TestClient
     from app.api.deps import get_current_user, get_db
     from app.core.exception_handlers import register_exception_handlers
@@ -302,7 +302,7 @@ def test_unsafe_musicxml_meter_is_invalid_score_over_http(tmp_path, numerator, d
     path = tmp_path / "score.musicxml"
     path.write_bytes(xml(time(numerator, denominator)))
     service = bundle_service_for_notation(path.read_bytes())
-    app = FastAPI()
+    app = HttpApplication()
     register_exception_handlers(app)
     app.include_router(router, prefix="/api/v1/practice")
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)

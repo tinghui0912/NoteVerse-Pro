@@ -94,6 +94,7 @@ def test_application_failure_runtime_matches_openapi(exception, status, code):
     expected = ApiErrorResponse(code=code, request_id="error-contract")
     assert ApiErrorResponse.model_validate(response.json()) == expected
     assert response.json() == expected.model_dump(mode="json")
+    assert response.headers["X-Request-ID"] == response.json()["request_id"]
     operation = spec["paths"]["/api/v1/guest-previews/{token}/playback"]["get"]
     schema = operation["responses"][str(status) if status == 422 else "default"]["content"][
         "application/json"
@@ -107,6 +108,7 @@ def test_request_validation_matches_the_same_wire_model(client):
     assert response.json() == ApiErrorResponse(
         code=ErrorCode.VALIDATION_ERROR, request_id="request-validation"
     ).model_dump(mode="json")
+    assert response.headers["X-Request-ID"] == response.json()["request_id"]
 
 
 def test_customer_application_operations_declare_canonical_errors(client):
@@ -125,7 +127,8 @@ def test_customer_application_operations_declare_canonical_errors(client):
     assert set(schema["properties"]) == {"code", "request_id"}
     assert set(schema["required"]) == {"code", "request_id"}
     assert schema["properties"]["code"]["type"] == "string"
-    assert schema["properties"]["request_id"]["anyOf"] == [{"type": "string"}, {"type": "null"}]
+    assert schema["properties"]["request_id"]["type"] == "string"
+    assert schema["properties"]["request_id"]["minLength"] == 1
 
 
 @pytest.mark.parametrize("failure", ["database", "storage"])

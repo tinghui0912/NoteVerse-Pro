@@ -1,6 +1,6 @@
 """Internal HTTP composition root for authoritative durable metrics."""
 
-from fastapi import FastAPI
+from app.core.http_application import HttpApplication
 
 from app.api.runtime_endpoints import install_process_endpoints
 from app.core.config import settings
@@ -13,10 +13,10 @@ from app.core.runtime_checks import RuntimeRole
 configure_uvicorn_logging()
 
 
-def create_app() -> FastAPI:
+def create_app() -> HttpApplication:
     """Expose only internal health and database-backed Prometheus metrics."""
 
-    app = FastAPI(
+    app = HttpApplication(
         title=f"{settings.PROJECT_NAME} Observability Exporter",
         description="Internal Prometheus exporter for durable application state",
         version="2.0.0",

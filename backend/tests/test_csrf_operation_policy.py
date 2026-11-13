@@ -8,7 +8,8 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter
+from app.core.http_application import HttpApplication
 from fastapi.routing import iter_route_contexts
 from fastapi.testclient import TestClient
 from starlette.responses import JSONResponse
@@ -146,7 +147,7 @@ async def admitted():
 
 
 def security_app():
-    app = FastAPI()
+    app = HttpApplication()
     app.add_middleware(CsrfProtectionMiddleware, csrf_settings=_csrf_settings())
     return app
 

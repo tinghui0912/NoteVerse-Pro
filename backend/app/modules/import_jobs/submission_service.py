@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.async_trace_context import get_async_trace_context
 from app.core.exceptions import ResourceNotFoundException
-from app.core.logger import get_request_id
+from app.core.request_correlation import get_request_id
 from app.db.model_utils import require_persisted_id
 from app.db.models import ImportDispatch, ImportJob, ImportJobUpload, User
 from app.db.models.import_job import ImportJobState

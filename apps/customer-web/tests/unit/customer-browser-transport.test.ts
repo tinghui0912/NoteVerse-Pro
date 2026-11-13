@@ -206,13 +206,18 @@ it('propagates cancellation while the retried request is in flight', async () =>
 
 it.each([400, 401, 403, 404, 409, 422, 500, 503])('projects generated application errors at HTTP %s', async status => {
   const payload = { code: 'business_failure', request_id: 'support-id' } satisfies ApiErrorResponse;
-  const send = vi.fn<typeof fetch>(async () => Response.json(payload, { status }));
+  const send = vi.fn<typeof fetch>(async () => Response.json(payload, { status, headers: { 'X-Request-ID': 'proxy-header' } }));
   await expect(scoresGet({ ...transport(send).public, path: { score_id: 's' } })).rejects.toMatchObject({ status, code: payload.code, requestId: 'support-id', message: payload.code });
 });
 
-it.each(['not-json', '{', 'null', '[]', '{"code":123}'])('handles malformed failure body %s defensively', async body => {
+it.each(['not-json', '{', 'null', '[]', '{"code":123}', '{"code":"failure"}', '{"code":"failure","request_id":null}', '{"code":"failure","request_id":""}'])('handles malformed failure body %s defensively', async body => {
   const send = vi.fn<typeof fetch>(async () => new Response(body, { status: 503, headers: { 'X-Request-ID': 'header-id' } }));
   await expect(scoresGet({ ...transport(send).public, path: { score_id: 's' } })).rejects.toMatchObject({ status: 503, code: 'internal_error', requestId: 'header-id' });
+});
+
+it('keeps server correlation absent for a noncanonical response without a header', async () => {
+  const send = vi.fn<typeof fetch>(async () => new Response('proxy failure', { status: 503 }));
+  await expect(scoresGet({ ...transport(send).public, path: { score_id: 's' } })).rejects.toMatchObject({ status: 503, code: 'internal_error', requestId: undefined });
 });
 
 it('reports network failures while redacting Guest Preview bearer material', async () => {

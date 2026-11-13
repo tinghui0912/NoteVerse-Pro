@@ -1,6 +1,6 @@
 """Isolated FastAPI composition root for platform operator controls."""
 
-from fastapi import FastAPI
+from app.core.http_application import HttpApplication
 
 from app.api.runtime_endpoints import install_process_endpoints
 from app.core.config import settings
@@ -19,11 +19,11 @@ from app.modules.platform_operators.router import login_operator
 configure_uvicorn_logging()
 
 
-def create_app() -> FastAPI:
+def create_app() -> HttpApplication:
     """Create the runtime that accepts operator sessions and no customer routes."""
 
     control_settings = require_control_plane_settings()
-    app = FastAPI(
+    app = HttpApplication(
         title=f"{settings.PROJECT_NAME} Control Plane API",
         description="Platform operator API",
         version="2.0.0",

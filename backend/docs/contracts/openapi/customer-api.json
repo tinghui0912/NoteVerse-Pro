@@ -2915,15 +2915,9 @@
             "type": "string"
           },
           "request_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Request Id"
+            "minLength": 1,
+            "title": "Request Id",
+            "type": "string"
           }
         },
         "required": [

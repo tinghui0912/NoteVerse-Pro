@@ -54,7 +54,7 @@ contract.
 
 Customer application failures share the Pydantic `ApiErrorResponse` body:
 `code` is a stable product error code for client-side presentation and
-`request_id` is a nullable correlation identifier. HTTP status expresses the
+`request_id` is a required nonempty string correlation identifier. HTTP status expresses the
 failure category. Internal exception details and server presentation copy are
 not part of this contract.
 
@@ -66,11 +66,24 @@ bodyless HTTP byte-range rejection retain their protocol-specific contracts.
 Control-plane failure presentation is selected independently by its composition
 root and is separate from the Customer application contract.
 
+`HttpApplication` places `RequestCorrelationMiddleware` outside the complete
+FastAPI stack, including server-error handling and OpenTelemetry instrumentation.
+At HTTP ingress it validates the incoming `X-Request-ID` or generates a replacement,
+then binds the same ID to request state and the logging ContextVar. Every Customer
+application failure contains `{ code: string, request_id: string }`, and its body
+ID equals the `X-Request-ID` response header. CSRF, logging and exception handlers
+consume that established identity. Correlation remains active through streaming
+and error presentation, then resets at request completion. Process-specific body
+contracts remain independent of the correlation response header.
+
 Customer SDK calls select an explicit authenticated, public or silent browser
 policy client. Refresh uses the generated `authRefresh` operation through a
 non-refreshing client. Concurrent refreshes are shared and requests retry at most
 once using an unconsumed body clone. Application failures become browser
 `ApiError` instances through one adapter of generated `ApiErrorResponse`.
+Canonical failures use the required body correlation ID. Noncanonical/proxy
+failures can use a response-header ID or have no server correlation; the browser
+does not invent a server ID for malformed or network failures.
 
 EventSource, native image/audio URLs and browser resource navigation use browser
 transports. Their route metadata is generated from Customer OpenAPI operation IDs,

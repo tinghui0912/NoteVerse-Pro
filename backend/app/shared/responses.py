@@ -32,7 +32,7 @@ class ApiErrorResponse(BaseModel):
     """Machine-readable application failure; presentation remains client-owned."""
 
     code: str
-    request_id: str | None
+    request_id: str = Field(min_length=1)
 
     model_config = {"extra": "forbid"}
 
@@ -136,7 +136,7 @@ def success_response(
     return response
 
 
-def error_response(code: str, request_id: str | None = None) -> dict[str, object]:
+def error_response(code: str, request_id: str) -> dict[str, object]:
     return ApiErrorResponse(code=code, request_id=request_id).model_dump(mode="json")
 
 

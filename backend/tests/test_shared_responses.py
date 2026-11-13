@@ -1,6 +1,14 @@
 from datetime import datetime, timezone, timedelta
 
-from app.shared.responses import error_response, paginated_response, success_response
+import pytest
+from pydantic import ValidationError
+
+from app.shared.responses import (
+    ApiErrorResponse,
+    error_response,
+    paginated_response,
+    success_response,
+)
 
 
 def test_success_response_serializes_datetimes_as_explicit_utc() -> None:
@@ -38,7 +46,7 @@ def test_paginated_response_serializes_nested_datetimes() -> None:
     assert response["data"] == [{"updated_at": "2026-06-23T14:38:00.000000Z"}]
 
 
-def test_error_response_includes_request_id_when_available() -> None:
+def test_error_response_contains_required_correlation() -> None:
     response = error_response(
         code="validation_error",
         request_id="req-123",
@@ -50,5 +58,14 @@ def test_error_response_includes_request_id_when_available() -> None:
     }
 
 
-def test_error_response_declares_nullable_correlation() -> None:
-    assert error_response("internal_error") == {"code": "internal_error", "request_id": None}
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"code": "internal_error"},
+        {"code": "internal_error", "request_id": None},
+        {"code": "internal_error", "request_id": ""},
+    ],
+)
+def test_application_error_requires_nonempty_correlation(payload) -> None:
+    with pytest.raises(ValidationError):
+        ApiErrorResponse.model_validate(payload)

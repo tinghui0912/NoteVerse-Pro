@@ -1406,7 +1406,7 @@ export type ApiErrorResponse = {
     /**
      * Request Id
      */
-    request_id: string | null;
+    request_id: string;
 };
 
 /**

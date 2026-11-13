@@ -13,6 +13,16 @@ Every JSON record includes `timestamp`, `level`, `logger`, `message`,
 `request_id`, `trace_id`, and `span_id`; `trace_id` and `span_id` are emitted
 only from a valid active OpenTelemetry span.
 
+`RequestCorrelationMiddleware` owns HTTP request correlation at application ingress,
+outside routing, security middleware and framework error handling. It preserves a
+valid incoming `X-Request-ID` or generates a validated ID, binds request state and
+the logging context, and attaches the same response header. Customer application
+error bodies always carry that nonempty `request_id`. Logging, CSRF and exception
+presentation only consume the established ID. The request binding resets on
+completion or exception; detached tasks cannot retain ambient HTTP correlation
+after the owning request ends. Durable work records capture originating request
+correlation explicitly.
+
 ## Field policy
 
 `backend/app/core/logger.py` is the enforcement point. It uses a default-deny
