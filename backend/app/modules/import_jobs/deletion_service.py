@@ -27,15 +27,22 @@ from app.modules.storage_usage.service import storage_usage_service
 from app.modules.storage_objects.retirement import retire_after_release
 
 
+CUSTOMER_DELETABLE_IMPORT_JOB_STATES = frozenset(
+    {ImportJobState.PENDING_REVIEW, ImportJobState.FAILURE}
+)
+
+
 class ImportJobDeletionService:
     """Delete import-job rows and their owned temporary storage artifacts."""
 
     async def delete_job(self, db: AsyncSession, job: ImportJob, user_id: int) -> None:
+        """Admit customer deletion of a stopped, unconfirmed job under its locks."""
         await self._release(db, job, user_id, delete_job=True)
 
     async def cleanup_binary_artifacts(
         self, db: AsyncSession, job: ImportJob, user_id: int
     ) -> None:
+        """Release temporary binaries while retaining the job and its provenance."""
         await self._release(db, job, user_id, delete_job=False)
 
     async def _release(self, db, job, user_id, *, delete_job):
@@ -63,7 +70,15 @@ class ImportJobDeletionService:
             raise ResourceNotFoundException("job", str(job_id), code=ErrorCode.JOB_NOT_FOUND)
         if job.user_id != user_id:
             raise UnauthorizedException(code=ErrorCode.NO_ACCESS, details={"job_id": job.job_uuid})
-        if job.state == ImportJobState.RUNNING:
+        if delete_job:
+            if job.state not in CUSTOMER_DELETABLE_IMPORT_JOB_STATES:
+                raise ValidationException(
+                    code=ErrorCode.JOB_RUNNING
+                    if job.state == ImportJobState.RUNNING
+                    else ErrorCode.VALIDATION_ERROR,
+                    field="state",
+                )
+        elif job.state == ImportJobState.RUNNING:
             raise ValidationException(code=ErrorCode.JOB_RUNNING, field="state")
         uploads = await self._orphan_uploads_after_job_delete(db, job_id)
         artifacts = list(

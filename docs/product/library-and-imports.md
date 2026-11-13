@@ -39,8 +39,12 @@ resource immediately and uses the durable ScoreDeletionOperation cleanup flow.
 Upload is the global creation action. The Upload page contains the upload form
 and paginated Import Activity. Import Jobs are processing records, not Library
 Scores. Queued and running jobs show progress without cancellation actions.
-Pending review jobs open Review. Failed jobs offer backend Retry and Delete import.
-Confirmed jobs open their linked Score. Only active jobs keep the list polling.
+Pending review jobs open Review. Failed jobs offer backend Retry.
+Delete import is allowed only for PENDING_REVIEW and FAILURE, with state admission
+checked under the Dispatch then Job locks. Queued/running imports cannot be deleted
+because cancellation is not implemented. Confirmed import history is retained and
+links to its formal Score. Internal binary cleanup retains the confirmed Job and
+Score provenance. Only active jobs keep the list polling.
 
 ## Access Authority
 

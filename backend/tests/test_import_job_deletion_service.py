@@ -4,6 +4,10 @@ import pytest
 from sqlalchemy import select
 from app.db.models import (
     ImportJob,
+    ImportJobUpload,
+    Upload,
+    Score,
+    ScoreRevision,
     ImportDispatch,
     ImportArtifact,
     StoredObjectRetirement,
@@ -25,12 +29,19 @@ from tests.support.retirement import drain_retirements
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("shared", [False, True])
-@pytest.mark.parametrize("keep_job", [False, True])
+@pytest.mark.parametrize(
+    "keep_job,state",
+    [
+        (False, ImportJobState.PENDING_REVIEW),
+        (False, ImportJobState.FAILURE),
+        (True, ImportJobState.CONFIRMED),
+    ],
+)
 async def test_import_release_accounts_atomically_and_protects_other_owners(
-    score_service_session, shared, keep_job
+    score_service_session, shared, keep_job, state
 ):
     db, storage = score_service_session
-    job = ImportJob(job_uuid="release-job", user_id=1, state=ImportJobState.PENDING_REVIEW)
+    job = ImportJob(job_uuid="release-job", user_id=1, state=state)
     db.add(job)
     db.flush()
     db.add(ImportDispatch(job_id=job.id))
@@ -47,6 +58,28 @@ async def test_import_release_accounts_atomically_and_protects_other_owners(
         db.get(User, 1).avatar_object_id = identity
     db.commit()
     job_id = job.id
+    if keep_job:
+        score = Score(
+            score_uuid="confirmed-score",
+            title="Confirmed",
+            owner_user_id=1,
+            originating_job_id=job_id,
+        )
+        db.add(score)
+        db.flush()
+        revision = ScoreRevision(
+            revision_uuid="confirmed-revision",
+            score_id=score.id,
+            revision_number=1,
+            content_hash="a" * 64,
+            origin="OMR",
+            created_by_job_id=job_id,
+        )
+        db.add(revision)
+        db.flush()
+        job.score_id = score.id
+        db.commit()
+        score_id, revision_id = score.id, revision.id
     storage_usage_service.record_allocation_sync(
         db,
         user_id=1,
@@ -60,6 +93,13 @@ async def test_import_release_accounts_atomically_and_protects_other_owners(
     await release(AsyncSessionAdapter(db), job, 1)
     assert (db.get(ImportJob, job_id) is not None) is keep_job
     assert db.scalar(select(ImportArtifact)) is None
+    if keep_job:
+        assert db.get(ImportJob, job_id).state == ImportJobState.CONFIRMED
+        assert db.get(ImportJob, job_id).score_id == score_id
+        assert db.get(Score, score_id).originating_job_id == job_id
+        assert db.get(ScoreRevision, revision_id).created_by_job_id == job_id
+        await service.cleanup_binary_artifacts(AsyncSessionAdapter(db), job, 1)
+        assert db.get(ImportJob, job_id) is not None
     assert storage.exists(obj.object_key)
     counter = db.scalar(
         select(StorageUsageCounter).where(
@@ -79,26 +119,59 @@ async def test_import_release_accounts_atomically_and_protects_other_owners(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("keep_job", [False, True])
-async def test_import_release_rechecks_locked_job_state(score_service_session, keep_job):
+@pytest.mark.parametrize(
+    "state", [ImportJobState.PENDING, ImportJobState.RUNNING, ImportJobState.CONFIRMED]
+)
+async def test_import_release_rechecks_locked_job_state(score_service_session, state):
+    from sqlalchemy import update
+    from sqlalchemy.orm.attributes import set_committed_value
+    from app.core.exceptions import ValidationException
+    from app.shared.constants import ErrorCode
+
+    db, _ = score_service_session
+    job = ImportJob(job_uuid="state-changed-job", user_id=1, state=ImportJobState.PENDING_REVIEW)
+    db.add(job)
+    db.flush()
+    db.add(ImportDispatch(job_id=job.id))
+    db.commit()
+    # Leave the actual caller identity-map value stale, not just a detached fake.
+    db.execute(
+        update(ImportJob)
+        .where(ImportJob.id == job.id)
+        .values(state=state)
+        .execution_options(synchronize_session=False)
+    )
+    db.commit()
+    db.refresh(job)
+    set_committed_value(job, "state", ImportJobState.PENDING_REVIEW)
+    with pytest.raises(ValidationException) as error:
+        await ImportJobDeletionService().delete_job(AsyncSessionAdapter(db), job, 1)
+    assert error.value.code == (
+        ErrorCode.JOB_RUNNING if state == ImportJobState.RUNNING else ErrorCode.VALIDATION_ERROR
+    )
+    assert error.value.details == {"field": "state"}
+    assert db.get(ImportJob, job.id).state == state
+    assert db.scalar(select(ImportDispatch)) is not None
+
+
+@pytest.mark.asyncio
+async def test_internal_binary_cleanup_rechecks_locked_running_state(score_service_session):
     from types import SimpleNamespace
     from app.core.exceptions import ValidationException
     from app.shared.constants import ErrorCode
 
     db, _ = score_service_session
-    job = ImportJob(job_uuid="running-job", user_id=1, state=ImportJobState.RUNNING)
+    job = ImportJob(job_uuid="running-cleanup", user_id=1, state=ImportJobState.RUNNING)
     db.add(job)
     db.flush()
     db.add(ImportDispatch(job_id=job.id))
     db.commit()
-    caller = SimpleNamespace(id=job.id, job_uuid=job.job_uuid, state=ImportJobState.PENDING)
-    service = ImportJobDeletionService()
-    release = service.cleanup_binary_artifacts if keep_job else service.delete_job
     with pytest.raises(ValidationException) as error:
-        await release(AsyncSessionAdapter(db), caller, 1)
+        await ImportJobDeletionService().cleanup_binary_artifacts(
+            AsyncSessionAdapter(db), SimpleNamespace(id=job.id, state=ImportJobState.CONFIRMED), 1
+        )
     assert error.value.code == ErrorCode.JOB_RUNNING
-    assert db.get(ImportJob, job.id).state == ImportJobState.RUNNING
-    assert db.scalar(select(ImportDispatch)) is not None
+    assert db.get(ImportJob, job.id) is not None
 
 
 @pytest.mark.asyncio
@@ -114,3 +187,101 @@ async def test_import_release_requires_delivery_ownership(score_service_session,
     with pytest.raises(RuntimeError, match="requires a durable dispatch"):
         await release(AsyncSessionAdapter(db), job, 1)
     assert db.get(ImportJob, identity) is not None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("state", list(ImportJobState))
+async def test_customer_delete_http_state_matrix_preserves_owned_data(score_service_session, state):
+    from httpx import ASGITransport, AsyncClient
+    from app.api.deps import get_current_user, get_db
+    from app.main import app
+    from app.shared.constants import ErrorCode
+
+    db, storage = score_service_session
+    job = ImportJob(job_uuid="http-delete", user_id=1, state=state)
+    db.add(job)
+    db.flush()
+    db.add(ImportDispatch(job_id=job.id))
+    artifact_object = object_from_bytes(
+        object_key="jobs/matrix-artifact", content=b"artifact", content_type="image/jpeg"
+    )
+    upload_object = object_from_bytes(
+        object_key="uploads/matrix-original", content=b"original", content_type="image/jpeg"
+    )
+    db.add_all([artifact_object, upload_object])
+    db.flush()
+    upload = Upload(
+        uploader_user_id=1, stored_object_id=upload_object.id, original_filename="original.jpg"
+    )
+    db.add(upload)
+    db.flush()
+    db.add(ImportJobUpload(job_id=job.id, upload_id=upload.id, page_number=1, sort_order=1))
+    db.add(
+        ImportArtifact(
+            job_id=job.id,
+            kind="image",
+            filename="artifact.jpg",
+            stored_object_id=artifact_object.id,
+        )
+    )
+    db.commit()
+    job_id, upload_id = job.id, upload.id
+    for category, obj in [
+        (StorageUsageCategory.TEMP_IMPORT, artifact_object),
+        (StorageUsageCategory.UPLOAD, upload_object),
+    ]:
+        storage.put_bytes(
+            key=obj.object_key,
+            content=b"artifact" if category == StorageUsageCategory.TEMP_IMPORT else b"original",
+            content_type=obj.content_type,
+        )
+        storage_usage_service.record_allocation_sync(
+            db,
+            user_id=1,
+            category=category,
+            bytes_count=obj.byte_size,
+            reason="seed",
+            object_type="test",
+        )
+    if state == ImportJobState.CONFIRMED:
+        score = Score(
+            score_uuid="formal-score", title="Formal", owner_user_id=1, originating_job_id=job_id
+        )
+        db.add(score)
+        db.flush()
+        job.score_id = score.id
+        db.commit()
+        score_id = score.id
+
+    async def database():
+        yield AsyncSessionAdapter(db)
+
+    async def user():
+        return db.get(User, 1)
+
+    app.dependency_overrides[get_db] = database
+    app.dependency_overrides[get_current_user] = user
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.delete("/api/v1/import-jobs/http-delete")
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+        app.dependency_overrides.pop(get_current_user, None)
+    allowed = state in {ImportJobState.PENDING_REVIEW, ImportJobState.FAILURE}
+    assert response.status_code == (200 if allowed else 422), response.text
+    if not allowed:
+        assert response.json()["public_code"] == (
+            ErrorCode.JOB_RUNNING if state == ImportJobState.RUNNING else ErrorCode.VALIDATION_ERROR
+        )
+    assert (db.get(ImportJob, job_id) is None) == allowed
+    assert (db.scalar(select(ImportDispatch)) is None) == allowed
+    assert (db.scalar(select(ImportArtifact)) is None) == allowed
+    assert (db.get(Upload, upload_id) is None) == allowed
+    assert (db.scalar(select(ImportJobUpload)) is None) == allowed
+    counters = list(db.scalars(select(StorageUsageCounter)))
+    assert sum(c.used_bytes for c in counters) == (0 if allowed else len(b"artifactoriginal"))
+    retirements = list(db.scalars(select(StoredObjectRetirement)))
+    assert len(retirements) == (2 if allowed else 0)
+    if state == ImportJobState.CONFIRMED:
+        assert db.get(Score, score_id).originating_job_id == job_id
+        assert db.get(ImportJob, job_id).score_id == score_id

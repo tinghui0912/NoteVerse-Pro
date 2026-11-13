@@ -130,30 +130,12 @@ async def test_retry_requires_original_uploads_and_preserves_processing_options(
 
 
 @pytest.mark.asyncio
-async def test_delete_rejects_running_jobs_before_mutating_storage() -> None:
+@pytest.mark.parametrize("state", list(ImportJobState))
+async def test_delete_delegates_owned_jobs_to_locked_deletion_admission(state) -> None:
     job = SimpleNamespace(
         id=17,
         job_uuid="job-1",
-        state=ImportJobState.RUNNING,
-        user_id=7,
-    )
-    service, _repository = _service_with_job(job)
-    database = Mock()
-
-    with pytest.raises(ValidationException) as error:
-        await service.delete(database, "job-1", 7)
-
-    assert error.value.code == ErrorCode.JOB_RUNNING
-    assert error.value.details == {"field": "state"}
-    database.delete.assert_not_called()
-
-
-@pytest.mark.asyncio
-async def test_delete_delegates_owned_non_running_jobs_to_deletion_service() -> None:
-    job = SimpleNamespace(
-        id=17,
-        job_uuid="job-1",
-        state=ImportJobState.FAILURE,
+        state=state,
         user_id=7,
     )
     repository = Mock()
@@ -169,11 +151,11 @@ async def test_delete_delegates_owned_non_running_jobs_to_deletion_service() -> 
 
 
 @pytest.mark.asyncio
-async def test_cleanup_binary_artifacts_delegates_owned_non_running_jobs() -> None:
+async def test_cleanup_binary_artifacts_delegates_owned_confirmed_job() -> None:
     job = SimpleNamespace(
         id=17,
         job_uuid="job-1",
-        state=ImportJobState.FAILURE,
+        state=ImportJobState.CONFIRMED,
         user_id=7,
     )
     repository = Mock()

@@ -188,8 +188,16 @@ def test_mutation_lock_excludes_recovery_and_reclaimed_attempt_fences_cached_wor
             assert worker.scalar(sa.select(ImportJob)).progress == 21
 
 
-@pytest.mark.parametrize("becomes_running", [False, True])
-def test_deletion_contends_on_dispatch_before_job_and_rechecks_state(monkeypatch, becomes_running):
+@pytest.mark.parametrize(
+    "locked_state",
+    [
+        ImportJobState.PENDING_REVIEW,
+        ImportJobState.RUNNING,
+        ImportJobState.PENDING,
+        ImportJobState.CONFIRMED,
+    ],
+)
+def test_deletion_contends_on_dispatch_before_job_and_rechecks_state(monkeypatch, locked_state):
     import asyncio
     from queue import Queue
     from threading import Thread, Event
@@ -204,7 +212,7 @@ def test_deletion_contends_on_dispatch_before_job_and_rechecks_state(monkeypatch
         with Session(engine) as setup:
             setup.add(User(id=1, email="delete@example.com", password_hash="test"))
             setup.flush()
-            job = ImportJob(job_uuid="delete-job", user_id=1, state=ImportJobState.PENDING)
+            job = ImportJob(job_uuid="delete-job", user_id=1, state=ImportJobState.PENDING_REVIEW)
             setup.add(job)
             setup.flush()
             setup.add(ImportDispatch(job_id=job.id))
@@ -254,9 +262,29 @@ def test_deletion_contends_on_dispatch_before_job_and_rechecks_state(monkeypatch
                 current = worker.scalar(
                     sa.select(ImportJob).where(ImportJob.id == job_id).with_for_update(nowait=True)
                 )
-                if becomes_running:
-                    current.state = ImportJobState.RUNNING
-                    worker.add(current)
+                if locked_state == ImportJobState.CONFIRMED:
+                    from app.db.models import Score, ScoreRevision
+
+                    score = Score(
+                        score_uuid="confirmed-under-lock",
+                        title="Confirmed",
+                        owner_user_id=1,
+                        originating_job_id=job_id,
+                    )
+                    worker.add(score)
+                    worker.flush()
+                    revision = ScoreRevision(
+                        revision_uuid="confirmed-revision",
+                        score_id=score.id,
+                        revision_number=1,
+                        content_hash="a" * 64,
+                        origin="OMR",
+                        created_by_job_id=job_id,
+                    )
+                    worker.add(revision)
+                    current.score_id = score.id
+                current.state = locked_state
+                worker.add(current)
                 worker.commit()
             finally:
                 start.set()
@@ -265,13 +293,26 @@ def test_deletion_contends_on_dispatch_before_job_and_rechecks_state(monkeypatch
             assert not thread.is_alive(), "Deletion must finish after Dispatch lock release"
             error = result.get(timeout=1)
             with Session(engine) as check:
-                if becomes_running:
-                    assert (
-                        isinstance(error, ValidationException)
-                        and error.code == ErrorCode.JOB_RUNNING
+                if locked_state != ImportJobState.PENDING_REVIEW:
+                    assert isinstance(error, ValidationException)
+                    assert error.code == (
+                        ErrorCode.JOB_RUNNING
+                        if locked_state == ImportJobState.RUNNING
+                        else ErrorCode.VALIDATION_ERROR
                     )
-                    assert check.get(ImportJob, job_id).state == ImportJobState.RUNNING
+                    assert error.details == {"field": "state"}
+                    assert check.get(ImportJob, job_id).state == locked_state
                     assert check.scalar(sa.select(ImportDispatch)) is not None
+                    if locked_state == ImportJobState.CONFIRMED:
+                        from app.db.models import Score, ScoreRevision
+
+                        persisted_score = check.scalar(sa.select(Score))
+                        assert (
+                            persisted_score is not None
+                            and persisted_score.originating_job_id == job_id
+                        )
+                        assert check.get(ImportJob, job_id).score_id == persisted_score.id
+                        assert check.scalar(sa.select(ScoreRevision)).created_by_job_id == job_id
                 else:
                     assert error is None
                     assert check.get(ImportJob, job_id) is None

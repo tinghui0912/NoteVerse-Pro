@@ -8,7 +8,7 @@ import pytest_asyncio
 from alembic import command
 from httpx import ASGITransport, AsyncClient
 from pydantic import ValidationError
-from sqlalchemy import event, func, select
+from sqlalchemy import event, func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
@@ -400,3 +400,124 @@ async def test_http_owned_job_authorization_precedes_projection_and_mutation(app
             assert (await client.get("/api/v1/import-jobs")).json()["data"] == []
     finally:
         app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_review_confirmation_wins_over_stale_customer_delete_and_retains_provenance(
+    application_db,
+):
+    from app.core.exceptions import ValidationException
+    from app.db.models import ScoreRevision, ScoreInputAsset
+    from app.modules.import_jobs.deletion_service import ImportJobDeletionService
+    from app.modules.review.service import ReviewService
+    from app.modules.review.schemas import ReviewConfirmRequest
+    from tests.support.object_storage import InMemoryObjectStorage
+    from tests.test_score_revision_services import MUSICXML_1
+
+    db = application_db
+    # This fixture assigns explicit IDs; confirmation creates new rows from sequences.
+    await db.execute(
+        text("SELECT setval(pg_get_serial_sequence('scores', 'id'), (SELECT max(id) FROM scores))")
+    )
+    await db.execute(
+        text(
+            "SELECT setval(pg_get_serial_sequence('stored_objects', 'id'), "
+            "(SELECT max(id) FROM stored_objects))"
+        )
+    )
+    job = ImportJob(job_uuid="review-delete-race", user_id=1, state=ImportJobState.PENDING_REVIEW)
+    db.add(job)
+    await db.flush()
+    db.add(ImportDispatch(job_id=job.id, status=ImportDispatchStatus.COMPLETED))
+    # Confirmation promotes the input and cleans the temporary artifact and upload link.
+    db.add(ImportJobUpload(job_id=job.id, upload_id=1, page_number=1, sort_order=1))
+    db.add(
+        ImportArtifact(
+            job_id=job.id,
+            kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
+            filename="preview.svg",
+            stored_object_id=2,
+            page_number=1,
+        )
+    )
+    await db.commit()
+    job_id = job.id
+    observed, confirm_committed = asyncio.Event(), asyncio.Event()
+
+    class WaitingDeletion(ImportJobDeletionService):
+        async def delete_job(self, session, caller, user_id):
+            assert caller.state == ImportJobState.PENDING_REVIEW
+            observed.set()
+            await asyncio.wait_for(confirm_committed.wait(), 20)
+            return await super().delete_job(session, caller, user_id)
+
+    storage = InMemoryObjectStorage()
+    storage.put_bytes(key="jobs/preview", content=b"<svg />", content_type="image/svg+xml")
+    async with (
+        AsyncSession(db.bind, expire_on_commit=False) as deleting,
+        AsyncSession(db.bind, expire_on_commit=False) as confirming,
+    ):
+        request = asyncio.create_task(
+            ImportJobService(deletion_service=WaitingDeletion()).delete(deleting, job.job_uuid, 1)
+        )
+        await asyncio.wait_for(observed.wait(), 10)
+        try:
+            review = ReviewService(storage=storage)
+            confirmed = await review.confirm(
+                confirming, job.job_uuid, 1, ReviewConfirmRequest(content=MUSICXML_1.decode())
+            )
+        finally:
+            confirm_committed.set()
+        with pytest.raises(ValidationException) as error:
+            await asyncio.wait_for(request, 20)
+        assert error.value.code == ErrorCode.VALIDATION_ERROR
+        assert error.value.details == {"field": "state"}
+        await deleting.rollback()
+        # Idempotent confirmation still runs legitimate CONFIRMED binary cleanup.
+        replay = await review.confirm(
+            confirming, job.job_uuid, 1, ReviewConfirmRequest(content=MUSICXML_1.decode())
+        )
+        assert replay.score_id == confirmed.score_id
+    async with AsyncSession(db.bind) as check:
+        persisted = await check.get(ImportJob, job_id)
+        score = (
+            await check.execute(select(Score).where(Score.score_uuid == confirmed.score_id))
+        ).scalar_one()
+        assert persisted.state == ImportJobState.CONFIRMED and persisted.score_id == score.id
+        assert score.originating_job_id == job_id
+        revision = (
+            await check.execute(select(ScoreRevision).where(ScoreRevision.score_id == score.id))
+        ).scalar_one()
+        assert revision.created_by_job_id == job_id
+        assert (
+            await check.scalar(
+                select(func.count())
+                .select_from(ImportDispatch)
+                .where(ImportDispatch.job_id == job_id)
+            )
+            == 1
+        )
+        assert (
+            await check.scalar(
+                select(func.count())
+                .select_from(ImportArtifact)
+                .where(ImportArtifact.job_id == job_id)
+            )
+            == 0
+        )
+        assert (
+            await check.scalar(
+                select(func.count())
+                .select_from(ImportJobUpload)
+                .where(ImportJobUpload.job_id == job_id)
+            )
+            == 0
+        )
+        assert (
+            await check.scalar(
+                select(func.count())
+                .select_from(ScoreInputAsset)
+                .where(ScoreInputAsset.score_id == score.id)
+            )
+            == 1
+        )
