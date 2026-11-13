@@ -1175,11 +1175,13 @@ RecordedPerformance used by replay and Composite Video. MusicXML stays separate.
 
 Capture is raw browser recording, incrementally written through RecordingSink to OPFS.
 READY capture has a kind/container admitted by the language-neutral
-[Recording Media Policy](../../contracts/practice/recording-media-policy.json).
+[Original Recording Media Admission](../../contracts/practice/recording-media-admission.json).
 Its deterministic generator supplies immutable browser and Python projections.
-Browser Recording owns its adapter; PerformanceTake uses one backend adapter for
+Browser Recording owns its adapter; PerformanceTake uses one backend admission adapter for
 Manifest admission, Save verification, filename extensions and signature-family checks.
-The policy also owns VIDEO recorder preference order. AUDIO uses the browser default.
+Customer Web recorder capability owns VIDEO recorder preference order; its candidates
+normalize to admitted VIDEO containers. Backend admission contains no browser ordering.
+AUDIO uses the browser default.
 Codec parameters normalize by taking the first semicolon-delimited part, trimming and
 lowercasing. Distinct admitted MIME identities retain their own canonical names.
 The Recording adapter owns normalization and original-download extensions.

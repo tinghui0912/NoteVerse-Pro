@@ -1,1 +1,1 @@
-"""Generated from contracts/practice/recording-media-policy.json. Do not edit."""
+"""Generated from contracts/practice/recording-media-admission.json. Do not edit."""

@@ -46,7 +46,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { usePracticeWorkspace } from '@/contexts/practice-workspace-context';
 import { downloadLocalMedia } from '@/lib/practice/media/download-local-media';
-import { captureMediaExtension } from '@/lib/practice/recording/media-policy';
+import { recordingMediaExtension } from '@/lib/practice/recording/media-admission';
 import { useSavePerformanceTake } from '@/hooks/queries/use-performance-take-queries';
 import { PerformancePlayheadController } from '@/lib/practice/score-view/performance-playhead-controller';
 import {
@@ -266,7 +266,7 @@ export default function PracticeReviewPage({
     }
     await downloadLocalMedia(
       recording.media,
-      `performance-${recording.kind.toLowerCase()}-${Date.now()}.${captureMediaExtension(recording.mimeType)}`,
+      `performance-${recording.kind.toLowerCase()}-${Date.now()}.${recordingMediaExtension(recording.mimeType)}`,
     );
     setHasDownloadedOriginalRecording(true);
   }, [recording]);

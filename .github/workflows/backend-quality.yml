@@ -6,8 +6,8 @@ on:
     paths:
       - "contracts/practice/recording-timebase.schema.json"
       - "scripts/generate_practice_recording_timebase_contract.py"
-      - "contracts/practice/recording-media-policy.json"
-      - "scripts/generate_practice_recording_media_policy.py"
+      - "contracts/practice/recording-media-admission.json"
+      - "scripts/generate_practice_recording_media_admission.py"
       - "contracts/score/tempo-policy.json"
       - "scripts/generate_score_tempo_policy.py"
       - "backend/**"
@@ -26,8 +26,8 @@ on:
     paths:
       - "contracts/practice/recording-timebase.schema.json"
       - "scripts/generate_practice_recording_timebase_contract.py"
-      - "contracts/practice/recording-media-policy.json"
-      - "scripts/generate_practice_recording_media_policy.py"
+      - "contracts/practice/recording-media-admission.json"
+      - "scripts/generate_practice_recording_media_admission.py"
       - "contracts/score/tempo-policy.json"
       - "scripts/generate_score_tempo_policy.py"
       - "backend/**"
@@ -162,14 +162,14 @@ jobs:
           LEGATO_REPO_PATH=$LEGATO_REPO_PATH
           EOF
 
-      - name: Verify Practice score and Recording policy projections and producer fixture
+      - name: Verify Practice score and Recording admission projections and producer fixture
         run: >-
           docker run --rm --network host --env-file "$QUALITY_ENV_FILE"
           -v "$GITHUB_WORKSPACE:/repo:ro"
           "$QUALITY_IMAGE" bash -c
           "cd /repo &&
           python scripts/generate_score_tempo_policy.py --check &&
-          python scripts/generate_practice_recording_media_policy.py --check &&
+          python scripts/generate_practice_recording_media_admission.py --check &&
           python scripts/generate_practice_recording_timebase_contract.py --check &&
           python scripts/generate_practice_score_contract.py --check &&
           PYTHONPATH=/repo/backend python scripts/check_practice_score_artifact_fixture.py &&

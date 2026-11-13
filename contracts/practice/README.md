@@ -13,14 +13,18 @@ tie sounding endpoints, range order, score-wide tempo and exact finite positive 
 Backend Practice score semantics own graph truth; the producer fixture check verifies
 deterministic canonical bytes independently of structural and semantic admission.
 
-## Original Recording Media Policy
+## Original Recording Media Admission
 
-`recording-media-policy.json` is the language-neutral authority for original AUDIO/VIDEO
-recording containers, their file extensions and byte-signature families, and browser
-VIDEO recorder preference order. `generate_practice_recording_media_policy.py --check`
-verifies immutable Python/TypeScript projections. Browser Recording and backend
-PerformanceTake adapters consume those projections; production does not read this JSON.
-AUDIO uses the browser's default recorder container and validates its actual MIME.
+`recording-media-admission.json` owns cross-runtime durable admission for original
+AUDIO/VIDEO recordings: media kind, canonical MIME, filename extension and container
+byte-signature family. `generate_practice_recording_media_admission.py --check` verifies
+immutable Python/TypeScript descriptors consumed by the PerformanceTake and browser
+Recording admission adapters. Production does not read this JSON.
+
+Customer Web's recorder capability module owns VIDEO MIME/codec candidate preference.
+Every candidate normalizes to a durably admitted VIDEO MIME. Backend admission has no
+browser recorder ordering. AUDIO uses the browser's default recorder container. Both
+modes validate the actual MediaRecorder MIME against durable admission.
 Composite Video owns its independent local derivative encoder policy.
 
 ## RecordingTimebase structure and semantics

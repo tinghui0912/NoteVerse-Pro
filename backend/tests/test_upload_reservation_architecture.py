@@ -106,10 +106,12 @@ def test_manifest_semantics_and_persistence_have_explicit_dependency_owners():
         "__future__",
         "dataclasses",
         "schemas",
-        "recording_media_policy",
+        "recording_media_admission",
     }
-    assert imports(MODULE / "recording_media_policy.py") == {"generated.recording_media_policy"}
-    assert imports(MODULE / "generated/recording_media_policy.py") == {"typing"}
+    assert imports(MODULE / "recording_media_admission.py") == {
+        "generated.recording_media_admission"
+    }
+    assert imports(MODULE / "generated/recording_media_admission.py") == {"typing"}
     dependencies = imports(MODULE / "manifest_persistence.py")
     assert {"manifest", "app.db.models.performance_take_manifest"} <= dependencies
     assert "app.modules.performance_takes.aggregate" in imports(MODULE / "service.py")

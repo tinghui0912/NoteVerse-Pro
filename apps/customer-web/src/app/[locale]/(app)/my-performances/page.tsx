@@ -1,7 +1,7 @@
 'use client';
 import { microsecondsToMilliseconds } from '@/lib/practice/recording/recording-timebase';
 
-import { captureMediaExtension } from '@/lib/practice/recording/media-policy';
+import { recordingMediaExtension } from '@/lib/practice/recording/media-admission';
 
 import React, { useState } from 'react';
 import {
@@ -165,7 +165,7 @@ function PerformanceTakeCard({
       }
       const a = document.createElement('a');
       a.href = downloadUrl;
-      const ext = captureMediaExtension(take.recording_media.mime_type);
+      const ext = recordingMediaExtension(take.recording_media.mime_type);
       a.download = `performance-${take.take_id}.${ext}`;
       document.body.appendChild(a);
       a.click();

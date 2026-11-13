@@ -16,11 +16,11 @@ from app.modules.storage_objects.facts import StoredObjectFacts
 from app.modules.storage_objects.persistence import object_to_row
 from app.modules.performance_takes.aggregate import SavedTakeFacts
 from app.modules.performance_takes.manifest import TakeManifest
-from app.modules.performance_takes.recording_media_policy import (
-    normalize_capture_mime,
-    is_supported_capture_mime,
-    capture_extension,
-    verify_capture_container_signature,
+from app.modules.performance_takes.recording_media_admission import (
+    normalize_recording_mime,
+    is_admitted_recording_mime,
+    recording_extension,
+    verify_recording_container_signature,
 )
 from app.modules.performance_takes.manifest_persistence import (
     manifest_from_row,
@@ -96,7 +96,7 @@ def _status_value(status: object) -> str:
 
 
 def _build_staging_object_key(user_id: int, take_uuid: str, media_kind: str, mime_type: str) -> str:
-    ext = capture_extension(media_kind, mime_type)
+    ext = recording_extension(media_kind, mime_type)
     return f"staging/performance-takes/{user_id}/{take_uuid}/recording.{ext}"
 
 
@@ -107,7 +107,7 @@ def _build_final_candidate_object_key(
     media_kind: str,
     mime_type: str,
 ) -> str:
-    ext = capture_extension(media_kind, mime_type)
+    ext = recording_extension(media_kind, mime_type)
     return f"performance-takes/{user_id}/{take_uuid}/{finalizing_token}.{ext}"
 
 
@@ -405,9 +405,9 @@ class PerformanceTakeUploadService:
             request.model_dump(exclude={"client_request_id"})
         )
         media = metadata.media
-        media = media.model_copy(update={"mime_type": normalize_capture_mime(media.mime_type)})
+        media = media.model_copy(update={"mime_type": normalize_recording_mime(media.mime_type)})
         metadata = metadata.model_copy(update={"media": media})
-        if not is_supported_capture_mime(media.kind, media.mime_type):
+        if not is_admitted_recording_mime(media.kind, media.mime_type):
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
         existing = await self.repository.get_reservation_by_client_request_id(
             db,
@@ -703,7 +703,8 @@ class PerformanceTakeUploadService:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_byte_size")
         if (
             metadata.content_type is not None
-            and normalize_capture_mime(metadata.content_type) != manifest.snapshot.capture.mime_type
+            and normalize_recording_mime(metadata.content_type)
+            != manifest.snapshot.capture.mime_type
         ):
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
 
@@ -711,7 +712,7 @@ class PerformanceTakeUploadService:
         header_bytes = await asyncio.to_thread(
             lambda: b"".join(header_storage.iter_bytes(source_key, chunk_size=64, start=0, end=63))
         )
-        if not verify_capture_container_signature(
+        if not verify_recording_container_signature(
             manifest.snapshot.capture.kind,
             manifest.snapshot.capture.mime_type,
             header_bytes,
@@ -745,7 +746,7 @@ class PerformanceTakeUploadService:
                 raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_byte_size")
             if (
                 candidate_metadata.content_type is not None
-                and normalize_capture_mime(candidate_metadata.content_type)
+                and normalize_recording_mime(candidate_metadata.content_type)
                 != manifest.snapshot.capture.mime_type
             ):
                 raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")

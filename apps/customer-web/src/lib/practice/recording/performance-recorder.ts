@@ -6,7 +6,7 @@ import type { PracticeRecordingMode } from './recording-mode';
 import { openOpfsRecordingSink } from './opfs-recording-sink';
 import type { RecordingSink, RecordingSinkFactory } from './recording-sink';
 import { recordingOptions } from './recorder-capability';
-import { isSupportedCaptureMime } from './media-policy';
+import { isAdmittedRecordingMime } from './media-admission';
 import { RecordingFailure } from '@/lib/practice/failure/causal-failure';
 import { recordingBrowserFailure } from '@/lib/practice/failure/browser-failures';
 import type { RecordingRuntimeFault, RecordingRuntimeInterruption, RecordingRuntimeFailureReason } from './recording-runtime-fault';
@@ -314,7 +314,7 @@ export class PerformanceRecorder {
     }
 
     const mimeType = this.recorder?.mimeType ?? '';
-    if (!isSupportedCaptureMime(this.mediaKind, mimeType)) {
+    if (!isAdmittedRecordingMime(this.mediaKind, mimeType)) {
       this.markUnavailable(this.mediaKind === 'VIDEO' ? 'VIDEO_RECORDER_UNSUPPORTED' : 'MEDIA_RECORDER_UNSUPPORTED');
       await this.retireSink();
       return createPerformanceRecording({ status: 'UNAVAILABLE', reason: this.unavailableReason! });

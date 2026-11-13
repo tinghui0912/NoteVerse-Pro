@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "captureContainers": [
+  "originalRecordingContainers": [
     {
       "kind": "AUDIO",
       "mimeType": "audio/webm",
@@ -43,11 +43,5 @@
       "extension": "mp4",
       "signature": "ISO_BMFF_FTYP"
     }
-  ],
-  "videoRecorderCandidates": [
-    "video/webm;codecs=vp9,opus",
-    "video/webm;codecs=vp8,opus",
-    "video/webm",
-    "video/mp4"
   ]
 }

@@ -15,7 +15,7 @@ from app.modules.storage_usage.service import storage_usage_service
 from app.modules.storage_objects.retirement import retire_after_release
 from app.db.models.score import Score, ScoreDeletionStatus
 from app.modules.performance_takes.aggregate import take_from_row
-from app.modules.performance_takes.recording_media_policy import capture_extension
+from app.modules.performance_takes.recording_media_admission import recording_extension
 from app.modules.performance_takes.repository import PerformanceTakeRepository
 from app.modules.performance_takes.schemas import (
     PerformanceTakeDeleteResponse,
@@ -170,7 +170,7 @@ class PerformanceTakeService:
             recording.object_key,
             content_type=recording.content_type,
         )
-        ext = capture_extension(manifest.snapshot.capture.kind, recording.content_type)
+        ext = recording_extension(manifest.snapshot.capture.kind, recording.content_type)
         download_url = self.storage.download_url(
             recording.object_key,
             filename=f"performance-{manifest.take_uuid}.{ext}",
@@ -198,7 +198,7 @@ class PerformanceTakeService:
             )
         facts = take_from_row(take)
         manifest, recording = facts.manifest, facts.recording_object
-        extension = capture_extension(manifest.snapshot.capture.kind, recording.content_type)
+        extension = recording_extension(manifest.snapshot.capture.kind, recording.content_type)
         return (
             recording.object_key,
             f"performance-{manifest.take_uuid}.{extension}",

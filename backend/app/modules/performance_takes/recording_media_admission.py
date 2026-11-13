@@ -1,35 +1,35 @@
-"""Original Recording admission and signature semantics over the generated container policy."""
+"""Original Recording admission and signature semantics over the generated durable container descriptors."""
 
-from .generated.recording_media_policy import CAPTURE_CONTAINERS, CaptureContainer
+from .generated.recording_media_admission import ORIGINAL_RECORDING_CONTAINERS, RecordingContainer
 
 
-def normalize_capture_mime(mime_type: str) -> str:
+def normalize_recording_mime(mime_type: str) -> str:
     return mime_type.split(";", 1)[0].strip().lower()
 
 
-def _capture_container(kind: str, mime_type: str) -> CaptureContainer:
-    canonical = normalize_capture_mime(mime_type)
-    for descriptor in CAPTURE_CONTAINERS:
+def _recording_container(kind: str, mime_type: str) -> RecordingContainer:
+    canonical = normalize_recording_mime(mime_type)
+    for descriptor in ORIGINAL_RECORDING_CONTAINERS:
         if descriptor.kind == kind and descriptor.mime_type == canonical:
             return descriptor
     raise ValueError("Unsupported original recording container")
 
 
-def is_supported_capture_mime(kind: str, mime_type: str) -> bool:
+def is_admitted_recording_mime(kind: str, mime_type: str) -> bool:
     try:
-        _capture_container(kind, mime_type)
+        _recording_container(kind, mime_type)
         return True
     except ValueError:
         return False
 
 
-def capture_extension(kind: str, mime_type: str) -> str:
-    return _capture_container(kind, mime_type).extension
+def recording_extension(kind: str, mime_type: str) -> str:
+    return _recording_container(kind, mime_type).extension
 
 
-def verify_capture_container_signature(kind: str, mime_type: str, header_bytes: bytes) -> bool:
+def verify_recording_container_signature(kind: str, mime_type: str, header_bytes: bytes) -> bool:
     try:
-        descriptor = _capture_container(kind, mime_type)
+        descriptor = _recording_container(kind, mime_type)
     except ValueError:
         return False
     match descriptor.signature:

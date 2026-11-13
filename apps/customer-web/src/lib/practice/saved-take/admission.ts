@@ -10,7 +10,7 @@ import {
 } from '@/lib/practice/recording/recorded-performance';
 import type { LocalMediaAsset } from '@/lib/practice/media/local-media-asset';
 import { decodeRecordingTimebase } from '@/lib/practice/recording/recording-timebase';
-import { normalizeCaptureMime } from '@/lib/practice/recording/media-policy';
+import { normalizeRecordingMime } from '@/lib/practice/recording/media-admission';
 import { scoreTick, ticksPerQuarter } from '@/lib/practice/score/score-time';
 import { resolvePracticeScope } from '@/lib/practice/planning/scope';
 import type {
@@ -92,7 +92,7 @@ export function admitSavedRecordedPerformance(
     const timebase = decodeRecordingTimebase(manifest.recording_timebase);
     const capture = manifest.capture;
     if (
-      capture.mime_type !== normalizeCaptureMime(capture.mime_type) ||
+      capture.mime_type !== normalizeRecordingMime(capture.mime_type) ||
       recordingMedia.mime_type !== capture.mime_type ||
       recordingMedia.byte_size !== capture.byte_size ||
       media.byteSize !== recordingMedia.byte_size

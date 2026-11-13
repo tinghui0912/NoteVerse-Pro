@@ -1,8 +1,8 @@
-import { VIDEO_CAPTURE_MIME_CANDIDATES } from './media-policy';
+import { isAdmittedRecordingMime } from './media-admission';
 import { memoryRecordingSinkFactory } from '@/lib/practice/__fixtures__/recording-sink';
 import { afterEach, expect, it, vi } from 'vitest';
 import { recordingProbeFixture } from '../__fixtures__/recording-probe';
-import { probeRecording, recordingOptions } from './recorder-capability';
+import { probeRecording, recordingOptions, VIDEO_RECORDER_MIME_CANDIDATES } from './recorder-capability';
 import { openOpfsRecordingSink } from './opfs-recording-sink';
 import { opfsStoreFixture } from '../__fixtures__/opfs-store';
 
@@ -132,12 +132,12 @@ it('transaction abort cancels a pending storage probe and awaits file retirement
   expect(f.files.size).toBe(0); expect(f.held.size).toBe(0);
 });
 
-it.each(VIDEO_CAPTURE_MIME_CANDIDATES)(
-  'chooses the first supported canonical VIDEO candidate %s',
+it.each(VIDEO_RECORDER_MIME_CANDIDATES)(
+  'chooses the first supported browser VIDEO candidate %s',
   (candidate) => {
-    const position = VIDEO_CAPTURE_MIME_CANDIDATES.indexOf(candidate);
+    const position = VIDEO_RECORDER_MIME_CANDIDATES.indexOf(candidate);
     const supported = vi.fn((mime: string) =>
-      VIDEO_CAPTURE_MIME_CANDIDATES.slice(position).some(
+      VIDEO_RECORDER_MIME_CANDIDATES.slice(position).some(
         (value) => value === mime,
       ),
     );
@@ -149,7 +149,7 @@ it.each(VIDEO_CAPTURE_MIME_CANDIDATES)(
     );
     expect(recordingOptions('VIDEO')).toEqual({ mimeType: candidate });
     expect(supported.mock.calls.map(([mime]) => mime)).toEqual(
-      VIDEO_CAPTURE_MIME_CANDIDATES.slice(0, position + 1),
+      VIDEO_RECORDER_MIME_CANDIDATES.slice(0, position + 1),
     );
   },
 );
@@ -164,4 +164,18 @@ it('leaves AUDIO recorder container choice to the browser', () => {
   );
   expect(recordingOptions('AUDIO')).toBeUndefined();
   expect(supported).not.toHaveBeenCalled();
+});
+
+
+it('orders browser VIDEO preferences within durable VIDEO admission', () => {
+  expect(VIDEO_RECORDER_MIME_CANDIDATES).toEqual([
+    'video/webm;codecs=vp9,opus',
+    'video/webm;codecs=vp8,opus',
+    'video/webm',
+    'video/mp4',
+  ]);
+  expect(Object.isFrozen(VIDEO_RECORDER_MIME_CANDIDATES)).toBe(true);
+  for (const candidate of VIDEO_RECORDER_MIME_CANDIDATES) {
+    expect(isAdmittedRecordingMime('VIDEO', candidate)).toBe(true);
+  }
 });

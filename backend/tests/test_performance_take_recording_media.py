@@ -4,7 +4,9 @@ from unittest.mock import patch
 import hashlib
 import json
 
-from app.modules.performance_takes.generated.recording_media_policy import CAPTURE_CONTAINERS
+from app.modules.performance_takes.generated.recording_media_admission import (
+    ORIGINAL_RECORDING_CONTAINERS,
+)
 from tests.support.recording_media import SIGNATURE_HEADERS
 
 import pytest
@@ -82,14 +84,17 @@ def reserve(client, kind, mime, size):
 @pytest.mark.parametrize(
     ("kind", "mime", "accepted"),
     [
-        *[(descriptor.kind, descriptor.mime_type, True) for descriptor in CAPTURE_CONTAINERS],
+        *[
+            (descriptor.kind, descriptor.mime_type, True)
+            for descriptor in ORIGINAL_RECORDING_CONTAINERS
+        ],
         ("VIDEO", " VIDEO/MP4 ;codecs=avc1", True),
         ("VIDEO", "audio/mp4", False),
         ("AUDIO", "video/mp4", False),
         ("VIDEO", "video/quicktime", False),
     ],
 )
-def test_recording_admission_preserves_capture_container_kind(
+def test_recording_admission_preserves_recording_container_kind(
     recording_client, kind, mime, accepted
 ):
     client, _, _, _ = recording_client
@@ -102,7 +107,7 @@ def test_recording_admission_preserves_capture_container_kind(
         )
 
 
-@pytest.mark.parametrize("descriptor", CAPTURE_CONTAINERS, ids=lambda row: row.mime_type)
+@pytest.mark.parametrize("descriptor", ORIGINAL_RECORDING_CONTAINERS, ids=lambda row: row.mime_type)
 def test_recording_and_delivery_preserve_exact_raw_capture(recording_client, descriptor):
     kind, mime, extension = descriptor.kind, descriptor.mime_type, descriptor.extension
     content = SIGNATURE_HEADERS[descriptor.signature] + b"raw-capture"
@@ -195,7 +200,7 @@ def test_video_finalize_rejects_wrong_container_or_storage_content_type(
 
 def test_unsupported_committed_recording_fails_closed_before_signed_delivery(recording_client):
     client, session, storage, _ = recording_client
-    descriptor = CAPTURE_CONTAINERS[0]
+    descriptor = ORIGINAL_RECORDING_CONTAINERS[0]
     content = SIGNATURE_HEADERS[descriptor.signature] + b"raw-capture"
     accepted = reserve(client, descriptor.kind, descriptor.mime_type, len(content)).json()["data"]
     storage.put_bytes(

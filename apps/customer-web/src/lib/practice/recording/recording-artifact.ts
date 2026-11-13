@@ -4,9 +4,9 @@ import {
   type RecordingTimebase,
 } from './recording-timebase';
 import {
-  isSupportedCaptureMime,
-  type CaptureMediaKind,
-} from './media-policy';
+  isAdmittedRecordingMime,
+  type RecordingMediaKind,
+} from './media-admission';
 import type { LocalMediaAsset } from '@/lib/practice/media/local-media-asset';
 
 export type PerformanceRecording =
@@ -14,7 +14,7 @@ export type PerformanceRecording =
   | Readonly<{ status: 'UNAVAILABLE'; reason: string }>
   | Readonly<{
       status: 'READY';
-      kind: CaptureMediaKind;
+      kind: RecordingMediaKind;
       media: LocalMediaAsset;
       mimeType: string;
       timebase: RecordingTimebase;
@@ -49,7 +49,7 @@ export function assertPerformanceRecording(
     recording.media.byteSize <= 0 ||
     typeof recording.mimeType !== 'string' ||
     !recording.mimeType ||
-    !isSupportedCaptureMime(recording.kind, recording.mimeType) ||
+    !isAdmittedRecordingMime(recording.kind, recording.mimeType) ||
     typeof recording.media.retain !== 'function' ||
     typeof recording.media.release !== 'function' ||
     Object.keys(recording).sort().join() !==

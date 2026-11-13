@@ -12,7 +12,7 @@ from .schemas import (
     PerformanceTakeRangeScopeSelection,
 )
 
-from .recording_media_policy import is_supported_capture_mime, normalize_capture_mime
+from .recording_media_admission import is_admitted_recording_mime, normalize_recording_mime
 
 MANIFEST_SCHEMA_VERSION = 1
 
@@ -36,9 +36,9 @@ class TakeManifest:
         ):
             raise ValueError("Invalid saved-performance identity")
         media = self.snapshot.capture
-        if media.mime_type != normalize_capture_mime(
+        if media.mime_type != normalize_recording_mime(
             media.mime_type
-        ) or not is_supported_capture_mime(media.kind, media.mime_type):
+        ) or not is_admitted_recording_mime(media.kind, media.mime_type):
             raise ValueError("Manifest requires a canonical admitted media MIME")
 
     @property

@@ -1,6 +1,6 @@
 "use client";
 
-import { captureMediaExtension } from "@/lib/practice/recording/media-policy";
+import { recordingMediaExtension } from "@/lib/practice/recording/media-admission";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, AlertCircle, Loader2 } from "lucide-react";
@@ -346,7 +346,7 @@ export default function SavedPerformanceCompositeVideoPage() {
                   onClick={() => {
                     void downloadLocalMedia(
                       mediaHandle!,
-                      `performance-${take.take_id}.${captureMediaExtension(take.recording_media.mime_type)}`,
+                      `performance-${take.take_id}.${recordingMediaExtension(take.recording_media.mime_type)}`,
                     );
                   }}
                 >

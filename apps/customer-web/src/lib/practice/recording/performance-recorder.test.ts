@@ -1,9 +1,9 @@
-import { CAPTURE_CONTAINERS } from './generated/media-policy';
+import { ORIGINAL_RECORDING_CONTAINERS } from './generated/media-admission';
 // @vitest-environment jsdom
 import { recordingSinkFixture, memoryRecordingSinkFactory } from '@/lib/practice/__fixtures__/recording-sink';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { isSupportedCaptureMime, normalizeCaptureMime } from './media-policy';
+import { isAdmittedRecordingMime, normalizeRecordingMime } from './media-admission';
 import { opfsStoreFixture } from '../__fixtures__/opfs-store';
 import { openOpfsRecordingSink } from './opfs-recording-sink';
 import { PerformanceRecorder } from './performance-recorder';
@@ -99,10 +99,10 @@ describe('PerformanceRecorder', () => {
   });
 
   it.each([
-    ...CAPTURE_CONTAINERS.map(({ kind, mimeType }) =>
+    ...ORIGINAL_RECORDING_CONTAINERS.map(({ kind, mimeType }) =>
       [kind, `${mimeType};codecs=browser-selected`] as const),
     ['AUDIO', 'audio/unknown'], ['VIDEO', 'video/quicktime'], ['VIDEO', 'audio/mp4'], ['AUDIO', ''],
-  ] as const)('finalizes %s actual MIME %s only when it is policy-admitted', async (mode, mimeType) => {
+  ] as const)('finalizes %s actual MIME %s only when it is durably admitted', async (mode, mimeType) => {
     behavior.mimeType = mimeType;
     vi.stubGlobal('MediaStream', class {
       constructor(private tracks: MediaStreamTrack[]) {}
@@ -116,12 +116,12 @@ describe('PerformanceRecorder', () => {
       await recorder.prepare({ audioRoot: createStream(), cameraStream: createStream([createTrack('video')]) });
       recorder.startIfReady(0); await recorder.freeze(1000);
       const result = await recorder.finalize();
-      if (isSupportedCaptureMime(mode, mimeType)) {
+      if (isAdmittedRecordingMime(mode, mimeType)) {
         expect(result.status).toBe('READY');
         if (result.status !== 'READY') throw new Error('Expected capture');
         expect(result.mimeType).toBe(mimeType);
         expect(result.media.blob.type).toBe(mimeType);
-        expect(normalizeCaptureMime(result.mimeType)).toBe(mimeType.split(';')[0]);
+        expect(normalizeRecordingMime(result.mimeType)).toBe(mimeType.split(';')[0]);
         expect(await result.media.blob.text()).toBe('final');
       } else {
         expect(result).toMatchObject({ status: 'UNAVAILABLE', reason: expect.stringContaining('RECORDER_UNSUPPORTED') });

@@ -1,5 +1,5 @@
-// Generated from contracts/practice/recording-media-policy.json. Do not edit.
-export const CAPTURE_CONTAINERS = Object.freeze([
+// Generated from contracts/practice/recording-media-admission.json. Do not edit.
+export const ORIGINAL_RECORDING_CONTAINERS = Object.freeze([
   Object.freeze({
     kind: "AUDIO",
     mimeType: "audio/webm",
@@ -44,11 +44,4 @@ export const CAPTURE_CONTAINERS = Object.freeze([
   } as const),
 ] as const);
 
-export const VIDEO_CAPTURE_MIME_CANDIDATES = Object.freeze([
-  "video/webm;codecs=vp9,opus",
-  "video/webm;codecs=vp8,opus",
-  "video/webm",
-  "video/mp4",
-] as const);
-
-export type CaptureMediaKind = (typeof CAPTURE_CONTAINERS)[number]['kind'];
+export type RecordingMediaKind = (typeof ORIGINAL_RECORDING_CONTAINERS)[number]['kind'];

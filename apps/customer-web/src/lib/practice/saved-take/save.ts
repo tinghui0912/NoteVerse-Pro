@@ -1,7 +1,7 @@
 import type { RecordingTimebase as RecordingTimebaseValue } from '@/lib/practice/recording/recording-timebase';
 import type { RecordedPerformance } from '@/lib/practice/recording/recorded-performance';
 import type { ResolvedPracticeTempoPlan } from '@/lib/practice/planning/tempo';
-import { normalizeCaptureMime } from '@/lib/practice/recording/media-policy';
+import { normalizeRecordingMime } from '@/lib/practice/recording/media-admission';
 import type {
   RecordingTimebase,
   PerformanceTakeManifestRead,
@@ -28,7 +28,7 @@ export function performanceTakeUploadRequest(
     media: {
       kind: recording.kind,
       byte_size: recording.media.byteSize,
-      mime_type: normalizeCaptureMime(recording.mimeType),
+      mime_type: normalizeRecordingMime(recording.mimeType),
     },
     scope:
       executed.scope.kind === 'RANGE'
@@ -92,7 +92,7 @@ export function takeManifestAgreesWithRecordedPerformance(
       manifest.practice_binding.revision_id === binding.revisionId &&
       manifest.capture?.kind === recording.kind &&
       manifest.capture.byte_size === recording.media.byteSize &&
-      manifest.capture.mime_type === normalizeCaptureMime(recording.mimeType) &&
+      manifest.capture.mime_type === normalizeRecordingMime(recording.mimeType) &&
       recordingTimebaseMatchesExecution(
         manifest.recording_timebase,
         recording.timebase,
