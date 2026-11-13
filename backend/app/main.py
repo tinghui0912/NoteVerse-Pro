@@ -3,6 +3,7 @@
 from fastapi import FastAPI
 
 from app.api.runtime_endpoints import install_process_endpoints
+from app.api.runtime_schemas import RootRead
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.settings.service_identity import CUSTOMER_API_PREFIX
@@ -60,10 +61,10 @@ def create_app() -> FastAPI:
     app.add_middleware(GuestPreviewCachePolicyMiddleware, api_prefix=CUSTOMER_API_PREFIX)
 
     app.include_router(api_router, prefix=CUSTOMER_API_PREFIX)
-    install_process_endpoints(app)
+    install_process_endpoints(app, health_operation_ids=("healthLive", "healthReady"))
 
-    @app.get("/")
-    def root():
+    @app.get("/", operation_id="serviceInfoGet")
+    def root() -> RootRead:
         return {
             "message": f"Welcome to {settings.PROJECT_NAME} API",
             "version": "2.0.0",

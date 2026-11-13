@@ -12,7 +12,7 @@ from app.shared.responses import APIResponse, success_response
 router = APIRouter()
 
 
-@router.post("/upload", response_model=APIResponse[UploadFileRead])
+@router.post("/upload", operation_id="filesUpload", response_model=APIResponse[UploadFileRead])
 async def upload_file(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
@@ -23,7 +23,9 @@ async def upload_file(
     return success_response(data=result, message=SuccessCode.FILE_UPLOADED)
 
 
-@router.delete("/{filename}", response_model=APIResponse[DeleteUploadedFileRead])
+@router.delete(
+    "/{filename}", operation_id="fileDelete", response_model=APIResponse[DeleteUploadedFileRead]
+)
 async def delete_file(
     filename: str,
     current_user: User = Depends(get_current_user),

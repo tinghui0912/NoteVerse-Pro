@@ -1,3 +1,5 @@
+from fastapi.responses import Response
+from app.api.response_contracts import binary_responses
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,7 +28,7 @@ from app.shared.responses import (
 router = APIRouter()
 
 
-@router.get("", response_model=PaginatedResponse[ImportJobRead])
+@router.get("", operation_id="importJobsList", response_model=PaginatedResponse[ImportJobRead])
 async def list_jobs(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -40,7 +42,10 @@ async def list_jobs(
 
 
 @router.post(
-    "", response_model=APIResponse[ImportJobSubmitRead], status_code=status.HTTP_202_ACCEPTED
+    "",
+    operation_id="importJobsSubmit",
+    response_model=APIResponse[ImportJobSubmitRead],
+    status_code=status.HTTP_202_ACCEPTED,
 )
 async def submit_job(
     request: ImportJobSubmitRequest,
@@ -54,6 +59,7 @@ async def submit_job(
 
 @router.post(
     "/{job_id}/retry",
+    operation_id="importJobRetry",
     response_model=APIResponse[ImportJobSubmitRead],
     status_code=status.HTTP_202_ACCEPTED,
 )
@@ -68,7 +74,7 @@ async def retry_job(
     return success_response(data=result, message=SuccessCode.IMPORT_JOB_ACCEPTED)
 
 
-@router.get("/{job_id}", response_model=APIResponse[ImportJobRead])
+@router.get("/{job_id}", operation_id="importJobGet", response_model=APIResponse[ImportJobRead])
 async def get_job(
     job_id: str,
     current_user: User = Depends(get_current_user),
@@ -79,7 +85,11 @@ async def get_job(
     return success_response(data=await service.detail(db, job_id, user_id))
 
 
-@router.post("/status/batch", response_model=APIResponse[ImportJobBatchStatusRead])
+@router.post(
+    "/status/batch",
+    operation_id="importJobsBatchStatusGet",
+    response_model=APIResponse[ImportJobBatchStatusRead],
+)
 async def batch_job_status(
     request: BatchImportJobStatusRequest,
     current_user: User = Depends(get_current_user),
@@ -91,7 +101,7 @@ async def batch_job_status(
     return success_response(data=ImportJobBatchStatusRead(jobs=jobs))
 
 
-@router.delete("/{job_id}", response_model=EmptyResponse)
+@router.delete("/{job_id}", operation_id="importJobDelete", response_model=EmptyResponse)
 async def delete_job(
     job_id: str,
     current_user: User = Depends(get_current_user),
@@ -103,7 +113,12 @@ async def delete_job(
     return success_response(message=SuccessCode.DELETE_SUCCESS)
 
 
-@router.get("/{job_id}/artifacts/{artifact_id}/download")
+@router.get(
+    "/{job_id}/artifacts/{artifact_id}/download",
+    response_class=Response,
+    responses=binary_responses("*/*"),
+    operation_id="importJobArtifactDownload",
+)
 async def download_job_artifact(
     job_id: str,
     artifact_id: str,

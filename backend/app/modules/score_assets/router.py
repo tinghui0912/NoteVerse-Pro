@@ -1,3 +1,5 @@
+from fastapi.responses import Response
+from app.api.response_contracts import binary_responses
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,7 +22,12 @@ render_asset_router = APIRouter()
 score_router = APIRouter()
 
 
-@source_router.get("/{source_id}/download")
+@source_router.get(
+    "/{source_id}/download",
+    response_class=Response,
+    responses=binary_responses("*/*"),
+    operation_id="scoreRevisionSourceDownload",
+)
 async def download_revision_source(
     source_id: str,
     current_user: User = Depends(get_current_user),
@@ -32,7 +39,11 @@ async def download_revision_source(
     return _stream_asset(delivery, service, attachment=True)
 
 
-@source_router.get("/{source_id}/access-url", response_model=APIResponse[AssetAccessRead])
+@source_router.get(
+    "/{source_id}/access-url",
+    operation_id="scoreRevisionSourceAccessUrlGet",
+    response_model=APIResponse[AssetAccessRead],
+)
 async def get_revision_source_access_url(
     source_id: str,
     current_user: User = Depends(get_current_user),
@@ -44,7 +55,12 @@ async def get_revision_source_access_url(
     return success_response(data=result)
 
 
-@render_asset_router.get("/{render_asset_id}/download")
+@render_asset_router.get(
+    "/{render_asset_id}/download",
+    response_class=Response,
+    responses=binary_responses("image/*"),
+    operation_id="scoreRenderAssetDownload",
+)
 async def download_render_asset(
     render_asset_id: str,
     current_user: User = Depends(get_current_user),
@@ -56,7 +72,12 @@ async def download_render_asset(
     return _stream_asset(delivery, service, attachment=True)
 
 
-@render_asset_router.get("/{render_asset_id}/view")
+@render_asset_router.get(
+    "/{render_asset_id}/view",
+    response_class=Response,
+    responses=binary_responses("image/*"),
+    operation_id="scoreRenderAssetView",
+)
 async def view_render_asset(
     render_asset_id: str,
     current_user: User = Depends(get_current_user),
@@ -69,7 +90,9 @@ async def view_render_asset(
 
 
 @render_asset_router.get(
-    "/{render_asset_id}/access-url", response_model=APIResponse[AssetAccessRead]
+    "/{render_asset_id}/access-url",
+    operation_id="scoreRenderAssetAccessUrlGet",
+    response_model=APIResponse[AssetAccessRead],
 )
 async def get_render_asset_access_url(
     render_asset_id: str,
@@ -83,7 +106,9 @@ async def get_render_asset_access_url(
 
 
 @score_router.get(
-    "/{score_id}/revision-assets", response_model=APIResponse[ScoreRevisionAssetsRead]
+    "/{score_id}/revision-assets",
+    operation_id="scoreRevisionAssetsList",
+    response_model=APIResponse[ScoreRevisionAssetsRead],
 )
 async def list_score_revision_assets(
     score_id: str,
@@ -97,7 +122,12 @@ async def list_score_revision_assets(
     return success_response(data=result)
 
 
-@score_router.get("/{score_id}/render-asset-archive")
+@score_router.get(
+    "/{score_id}/render-asset-archive",
+    response_class=Response,
+    responses=binary_responses("application/zip"),
+    operation_id="scoreRenderAssetsArchive",
+)
 async def archive_score_render_assets(
     score_id: str,
     kind: RenderAssetKind = Query(...),

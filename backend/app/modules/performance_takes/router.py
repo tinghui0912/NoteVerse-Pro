@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Optional
 
+from fastapi.responses import Response
+from app.api.response_contracts import binary_responses
 from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,6 +34,7 @@ router = APIRouter()
 
 @router.post(
     "/upload-reservations",
+    operation_id="performanceTakeUploadsReserve",
     response_model=APIResponse[PerformanceTakeUploadReservationRead],
 )
 async def reserve_take_upload(
@@ -47,6 +50,7 @@ async def reserve_take_upload(
 
 @router.delete(
     "/upload-reservations/{reservation_id}",
+    operation_id="performanceTakeUploadCancel",
     response_model=APIResponse[dict[str, bool]],
 )
 async def cancel_take_upload_reservation(
@@ -62,6 +66,7 @@ async def cancel_take_upload_reservation(
 
 @router.post(
     "/upload-reservations/{reservation_id}/finalize",
+    operation_id="performanceTakeUploadFinalize",
     response_model=APIResponse[PerformanceTakeRead],
 )
 async def finalize_take(
@@ -80,6 +85,7 @@ async def finalize_take(
 
 @router.get(
     "",
+    operation_id="performanceTakesList",
     response_model=APIResponse[PerformanceTakeListResponse],
 )
 async def list_takes(
@@ -97,6 +103,7 @@ async def list_takes(
 
 @router.get(
     "/{take_id}",
+    operation_id="performanceTakeGet",
     response_model=APIResponse[PerformanceTakeRead],
 )
 async def get_take(
@@ -112,6 +119,7 @@ async def get_take(
 
 @router.get(
     "/{take_id}/playback-url",
+    operation_id="performanceTakePlaybackUrlGet",
     response_model=APIResponse[PerformanceTakePlaybackRead],
 )
 async def get_playback_url(
@@ -125,7 +133,12 @@ async def get_playback_url(
     return success_response(data=data)
 
 
-@router.get("/{take_id}/media")
+@router.get(
+    "/{take_id}/media",
+    response_class=Response,
+    responses=binary_responses("audio/*", "video/*", byte_ranges=True),
+    operation_id="performanceTakeMediaStream",
+)
 async def stream_take_media(
     take_id: str,
     request: Request,
@@ -148,6 +161,7 @@ async def stream_take_media(
 
 @router.delete(
     "/{take_id}",
+    operation_id="performanceTakeDelete",
     status_code=status.HTTP_200_OK,
     response_model=APIResponse[PerformanceTakeDeleteResponse],
 )

@@ -13,7 +13,9 @@ from app.shared.responses import APIResponse
 router = APIRouter()
 
 
-@router.get("/security", response_model=APIResponse[SecurityRead])
+@router.get(
+    "/security", operation_id="accountSecurityGet", response_model=APIResponse[SecurityRead]
+)
 async def get_my_security_overview(
     current_user: User = Depends(deps.get_current_user),
     db: AsyncSession = Depends(deps.get_db),

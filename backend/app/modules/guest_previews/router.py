@@ -1,3 +1,5 @@
+from fastapi.responses import Response
+from app.api.response_contracts import binary_responses
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,7 +21,11 @@ score_router = APIRouter()
 preview_router = APIRouter()
 
 
-@score_router.get("/{score_id}/guest-preview", response_model=APIResponse[GuestPreviewSettingsRead])
+@score_router.get(
+    "/{score_id}/guest-preview",
+    operation_id="scoreGuestPreviewSettingsGet",
+    response_model=APIResponse[GuestPreviewSettingsRead],
+)
 async def read_guest_preview_settings(
     score_id: str,
     current_user: User = Depends(get_current_user),
@@ -34,7 +40,9 @@ async def read_guest_preview_settings(
 
 
 @score_router.patch(
-    "/{score_id}/guest-preview", response_model=APIResponse[GuestPreviewSettingsRead]
+    "/{score_id}/guest-preview",
+    operation_id="scoreGuestPreviewSettingsUpdate",
+    response_model=APIResponse[GuestPreviewSettingsRead],
 )
 async def update_guest_preview_settings(
     score_id: str,
@@ -50,7 +58,9 @@ async def update_guest_preview_settings(
     )
 
 
-@preview_router.get("/{token}", response_model=APIResponse[GuestPreviewRead])
+@preview_router.get(
+    "/{token}", operation_id="guestPreviewGet", response_model=APIResponse[GuestPreviewRead]
+)
 async def read_guest_preview(
     token: str,
     db: AsyncSession = Depends(get_db),
@@ -59,7 +69,12 @@ async def read_guest_preview(
     return success_response(data=await service.read(db, token))
 
 
-@preview_router.get("/{token}/render-assets/{asset_id}/view")
+@preview_router.get(
+    "/{token}/render-assets/{asset_id}/view",
+    response_class=Response,
+    responses=binary_responses("image/*"),
+    operation_id="guestPreviewPageView",
+)
 async def view_guest_preview_page(
     token: str,
     asset_id: str,
@@ -77,7 +92,12 @@ async def view_guest_preview_page(
     return response
 
 
-@preview_router.get("/{token}/playback")
+@preview_router.get(
+    "/{token}/playback",
+    response_class=Response,
+    responses=binary_responses("audio/*", byte_ranges=True),
+    operation_id="guestPreviewPlaybackStream",
+)
 async def listen_guest_preview(
     token: str,
     request: Request,

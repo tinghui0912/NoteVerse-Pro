@@ -17,7 +17,9 @@ from app.shared.responses import APIResponse, success_response
 router = APIRouter()
 
 
-@router.get("/{job_id}", response_model=APIResponse[ImportJobReviewRead])
+@router.get(
+    "/{job_id}", operation_id="importJobReviewGet", response_model=APIResponse[ImportJobReviewRead]
+)
 async def get_import_job_review(
     job_id: str,
     current_user: User = Depends(get_current_user),
@@ -29,7 +31,11 @@ async def get_import_job_review(
     return success_response(data=result)
 
 
-@router.patch("/{job_id}", response_model=APIResponse[ImportJobReviewRead])
+@router.patch(
+    "/{job_id}",
+    operation_id="importJobReviewUpdate",
+    response_model=APIResponse[ImportJobReviewRead],
+)
 async def update_import_job_review(
     job_id: str,
     request: ReviewUpdateRequest,
@@ -42,7 +48,11 @@ async def update_import_job_review(
     return success_response(data=result)
 
 
-@router.post("/{job_id}/confirm", response_model=APIResponse[ReviewConfirmRead])
+@router.post(
+    "/{job_id}/confirm",
+    operation_id="importJobReviewConfirm",
+    response_model=APIResponse[ReviewConfirmRead],
+)
 async def confirm_import_job_review(
     job_id: str,
     request: ReviewConfirmRequest,

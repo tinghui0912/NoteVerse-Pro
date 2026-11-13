@@ -8,12 +8,14 @@ from app.core.runtime_checks import (
     check_redis_readiness,
     check_storage_quota_policy_readiness,
 )
+from app.api.runtime_schemas import LivenessRead, ReadinessRead
 
 
 def create_health_router(
     *,
     include_redis: bool = True,
     include_storage_quota_policy: bool = True,
+    operation_ids: tuple[str, str] | None = None,
 ) -> APIRouter:
     """Create role-appropriate process health endpoints.
 
@@ -24,12 +26,20 @@ def create_health_router(
 
     router = APIRouter(prefix="/health", tags=["Health"])
 
-    @router.get("/live")
+    @router.get(
+        "/live",
+        operation_id=operation_ids[0] if operation_ids else None,
+        response_model=LivenessRead if operation_ids else dict[str, str],
+    )
     async def liveness() -> dict[str, str]:
         """Report whether this process can serve requests."""
         return {"status": "ok"}
 
-    @router.get("/ready")
+    @router.get(
+        "/ready",
+        operation_id=operation_ids[1] if operation_ids else None,
+        response_model=ReadinessRead if operation_ids else None,
+    )
     async def readiness() -> JSONResponse:
         """Report readiness for this runtime's declared dependencies."""
         database_ok = await check_database_readiness()

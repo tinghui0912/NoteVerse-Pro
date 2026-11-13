@@ -12,6 +12,7 @@ def install_process_endpoints(
     include_database_metrics: bool = False,
     include_redis_readiness: bool = True,
     include_storage_quota_policy_readiness: bool = True,
+    health_operation_ids: tuple[str, str] | None = None,
 ) -> None:
     """Install health and metrics endpoints owned by the process runtime."""
 
@@ -19,6 +20,7 @@ def install_process_endpoints(
         create_health_router(
             include_redis=include_redis_readiness,
             include_storage_quota_policy=include_storage_quota_policy_readiness,
+            operation_ids=health_operation_ids,
         )
     )
     app.include_router(create_metrics_router(include_database_metrics=include_database_metrics))

@@ -84,9 +84,7 @@ def _pending_events_statement(user_id: int, last_sequence: int) -> Select[tuple[
 
 async def _fetch_pending_events(user_id: int, last_sequence: int) -> list[RealtimeEvent]:
     async with AsyncSessionLocal() as db:
-        return (
-            await db.execute(_pending_events_statement(user_id, last_sequence))
-        ).scalars().all()
+        return (await db.execute(_pending_events_statement(user_id, last_sequence))).scalars().all()
 
 
 async def _emit_pending_events(user_id: int, last_sequence: int) -> tuple[int, list[str]]:
@@ -171,7 +169,17 @@ async def _event_stream(
         realtime_connection_closed(channel="app_sse")
 
 
-@router.get("/events")
+@router.get(
+    "/events",
+    operation_id="realtimeEventsStream",
+    response_class=StreamingResponse,
+    responses={
+        200: {
+            "description": "Server-sent event stream with event IDs, names, JSON data and heartbeat comments.",
+            "content": {"text/event-stream": {"schema": {"type": "string"}}},
+        }
+    },
+)
 async def realtime_events(
     request: Request,
     last_event_id: str | None = Header(default=None, alias="Last-Event-ID"),

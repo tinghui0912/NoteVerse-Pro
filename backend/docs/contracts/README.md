@@ -25,7 +25,22 @@ The generated OpenAPI documents project those definitions and are the HTTP schem
 authority for consumers. Customer Web API types are generated from
 `openapi/customer-api.json`.
 
-Customer Web's handwritten API facades define its HTTP method, path, and query calls.
+Each Customer route declares an explicit, globally unique lowerCamelCase
+`operationId`. It is the stable semantic identity of the operation, independent
+of handler names, API version and URL topology. Names use the domain/resource
+first and action last. Related operations share a context prefix; collection
+list/create/batch operations and individual resource commands use consistent
+resource and verb vocabulary within that context.
+
+Success contracts describe the runtime body: JSON envelopes retain their schemas,
+stored bytes use binary schemas, ZIP archives use `application/zip`, and realtime
+events use `text/event-stream`. Stored formats can vary by resource, so their
+OpenAPI media ranges describe that variation while the HTTP Content-Type identifies
+the selected format. Range-enabled media also declares 206 Partial Content.
+Profile image resolution is a bodyless 307 redirect with a Location header.
+
+Customer Web's handwritten API facades issue HTTP method, path, and query calls
+against this contract. They use generated request types where consumed.
 Frontend presentation, view-model state, and form state remain frontend-owned.
 Generic application realtime notifications use SSE under the normal API/auth
 boundary; Practice execution is browser-local and has no active Practice WebSocket

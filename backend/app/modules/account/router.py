@@ -25,7 +25,7 @@ from app.shared.responses import APIResponse, EmptyResponse, success_response
 router = APIRouter()
 
 
-@router.get("/profile", response_model=APIResponse[ProfileRead])
+@router.get("/profile", operation_id="accountProfileGet", response_model=APIResponse[ProfileRead])
 async def get_user_profile(
     current_user: User = Depends(get_current_user),
     profile_service: ProfileService = Depends(get_profile_service),
@@ -33,7 +33,9 @@ async def get_user_profile(
     return success_response(data=profile_service.profile_payload(current_user))
 
 
-@router.put("/profile", response_model=APIResponse[ProfileUpdateRead])
+@router.put(
+    "/profile", operation_id="accountProfileUpdate", response_model=APIResponse[ProfileUpdateRead]
+)
 async def update_user_profile(
     request: UpdateProfileRequest,
     current_user: User = Depends(get_current_user),
@@ -47,7 +49,7 @@ async def update_user_profile(
     )
 
 
-@router.post("/avatar", response_model=APIResponse[AvatarRead])
+@router.post("/avatar", operation_id="accountAvatarUpload", response_model=APIResponse[AvatarRead])
 async def upload_avatar(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
@@ -83,7 +85,7 @@ async def upload_avatar(
     )
 
 
-@router.delete("/avatar", response_model=EmptyResponse)
+@router.delete("/avatar", operation_id="accountAvatarDelete", response_model=EmptyResponse)
 async def delete_avatar(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -93,7 +95,18 @@ async def delete_avatar(
     return success_response(message=SuccessCode.AVATAR_DELETED)
 
 
-@router.get("/avatars/{filename}", response_class=RedirectResponse, status_code=307)
+@router.get(
+    "/avatars/{filename}",
+    operation_id="accountAvatarResolve",
+    response_class=RedirectResponse,
+    status_code=307,
+    responses={
+        307: {
+            "description": "Redirect to a fresh profile-image object capability; no response body.",
+            "headers": {"Location": {"schema": {"type": "string", "format": "uri"}}},
+        }
+    },
+)
 async def read_avatar(
     filename: str,
     db: AsyncSession = Depends(get_db),

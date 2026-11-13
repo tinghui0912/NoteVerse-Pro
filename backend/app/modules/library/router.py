@@ -30,7 +30,11 @@ from app.shared.responses import (
 router = APIRouter()
 
 
-@router.get("/folders", response_model=APIResponse[LibraryFolderOverviewRead])
+@router.get(
+    "/folders",
+    operation_id="libraryFoldersOverviewGet",
+    response_model=APIResponse[LibraryFolderOverviewRead],
+)
 async def list_library_folders(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -41,7 +45,9 @@ async def list_library_folders(
     return success_response(data=result)
 
 
-@router.post("/folders", response_model=APIResponse[LibraryFolderRead])
+@router.post(
+    "/folders", operation_id="libraryFoldersCreate", response_model=APIResponse[LibraryFolderRead]
+)
 async def create_library_folder(
     request: LibraryFolderCreateRequest,
     current_user: User = Depends(get_current_user),
@@ -53,7 +59,11 @@ async def create_library_folder(
     return success_response(data=result)
 
 
-@router.patch("/folders/{folder_id}", response_model=APIResponse[LibraryFolderRead])
+@router.patch(
+    "/folders/{folder_id}",
+    operation_id="libraryFolderUpdate",
+    response_model=APIResponse[LibraryFolderRead],
+)
 async def update_library_folder(
     folder_id: str,
     request: LibraryFolderUpdateRequest,
@@ -66,7 +76,9 @@ async def update_library_folder(
     return success_response(data=result, message=SuccessCode.UPDATE_SUCCESS)
 
 
-@router.delete("/folders/{folder_id}", response_model=APIResponse[None])
+@router.delete(
+    "/folders/{folder_id}", operation_id="libraryFolderDelete", response_model=APIResponse[None]
+)
 async def delete_library_folder(
     folder_id: str,
     current_user: User = Depends(get_current_user),
@@ -78,7 +90,9 @@ async def delete_library_folder(
     return success_response(message=SuccessCode.DELETE_SUCCESS)
 
 
-@router.get("/scores", response_model=PaginatedResponse[LibraryScoreRead])
+@router.get(
+    "/scores", operation_id="libraryScoresList", response_model=PaginatedResponse[LibraryScoreRead]
+)
 async def list_library_scores(
     view: LibraryView = Query(LibraryView.ALL),
     folder_id: str | None = Query(default=None),
@@ -104,7 +118,11 @@ async def list_library_scores(
     return paginated_response(items, page, page_size, total)
 
 
-@router.post("/scores/batch-move", response_model=APIResponse[LibraryBatchMoveRead])
+@router.post(
+    "/scores/batch-move",
+    operation_id="libraryScoresBatchMove",
+    response_model=APIResponse[LibraryBatchMoveRead],
+)
 async def batch_move_library_scores(
     request: LibraryScoreBatchMoveRequest,
     current_user: User = Depends(get_current_user),
@@ -118,7 +136,11 @@ async def batch_move_library_scores(
     )
 
 
-@router.post("/scores/batch-favorite", response_model=APIResponse[LibraryBatchUpdateRead])
+@router.post(
+    "/scores/batch-favorite",
+    operation_id="libraryScoresBatchFavorite",
+    response_model=APIResponse[LibraryBatchUpdateRead],
+)
 async def batch_favorite_library_scores(
     request: LibraryScoreBatchFavoriteRequest,
     current_user: User = Depends(get_current_user),

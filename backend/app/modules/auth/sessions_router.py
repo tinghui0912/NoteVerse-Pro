@@ -19,7 +19,9 @@ SESSION_LIST_DEFAULT_LIMIT = 100
 SESSION_LIST_MAX_LIMIT = 100
 
 
-@router.get("/sessions", response_model=APIResponse[SessionsRead])
+@router.get(
+    "/sessions", operation_id="accountSessionsList", response_model=APIResponse[SessionsRead]
+)
 async def list_my_sessions(
     limit: int = Query(default=SESSION_LIST_DEFAULT_LIMIT, ge=1, le=SESSION_LIST_MAX_LIMIT),
     current_user: User = Depends(deps.get_current_user),
@@ -37,7 +39,9 @@ async def list_my_sessions(
     return APIResponse(success=True, data=SessionsRead(sessions=sessions))
 
 
-@router.delete("/sessions/{session_id}", response_model=EmptyResponse)
+@router.delete(
+    "/sessions/{session_id}", operation_id="accountSessionRevoke", response_model=EmptyResponse
+)
 async def revoke_my_session(
     session_id: int,
     response: Response,
@@ -58,7 +62,7 @@ async def revoke_my_session(
     return EmptyResponse(success=True, message=SuccessCode.SESSION_REVOKED)
 
 
-@router.delete("/sessions", response_model=EmptyResponse)
+@router.delete("/sessions", operation_id="accountOtherSessionsRevoke", response_model=EmptyResponse)
 async def revoke_my_other_sessions(
     current_user: User = Depends(deps.get_current_user),
     db: AsyncSession = Depends(deps.get_db),

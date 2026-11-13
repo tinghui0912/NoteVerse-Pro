@@ -28,7 +28,11 @@ invite_router = APIRouter()
 me_router = APIRouter()
 
 
-@me_router.delete("/scores/{score_id}/membership", response_model=APIResponse[None])
+@me_router.delete(
+    "/scores/{score_id}/membership",
+    operation_id="scoreMembershipLeave",
+    response_model=APIResponse[None],
+)
 async def leave_score(
     score_id: str,
     current_user: User = Depends(get_current_user),
@@ -39,7 +43,11 @@ async def leave_score(
     return success_response(data=None)
 
 
-@score_router.get("/{score_id}/invites", response_model=APIResponse[InviteListRead])
+@score_router.get(
+    "/{score_id}/invites",
+    operation_id="scoreInvitesList",
+    response_model=APIResponse[InviteListRead],
+)
 async def list_score_invites(
     score_id: str,
     limit: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
@@ -53,7 +61,11 @@ async def list_score_invites(
     return success_response(data=result)
 
 
-@score_router.post("/{score_id}/invites", response_model=APIResponse[InviteCreatedRead])
+@score_router.post(
+    "/{score_id}/invites",
+    operation_id="scoreInvitesCreate",
+    response_model=APIResponse[InviteCreatedRead],
+)
 async def create_score_invite(
     score_id: str,
     request: InviteCreateRequest,
@@ -66,7 +78,11 @@ async def create_score_invite(
     return success_response(data=result, message=SuccessCode.INVITE_CREATED)
 
 
-@score_router.post("/{score_id}/invites/{invite_id}/revoke", response_model=APIResponse[InviteRead])
+@score_router.post(
+    "/{score_id}/invites/{invite_id}/revoke",
+    operation_id="scoreInviteRevoke",
+    response_model=APIResponse[InviteRead],
+)
 async def revoke_score_invite(
     score_id: str,
     invite_id: str,
@@ -79,7 +95,11 @@ async def revoke_score_invite(
     return success_response(data=result, message=SuccessCode.INVITE_REVOKED)
 
 
-@score_router.get("/{score_id}/members", response_model=APIResponse[MemberListRead])
+@score_router.get(
+    "/{score_id}/members",
+    operation_id="scoreMembersList",
+    response_model=APIResponse[MemberListRead],
+)
 async def list_score_members(
     score_id: str,
     limit: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
@@ -93,7 +113,11 @@ async def list_score_members(
     return success_response(data=result)
 
 
-@score_router.patch("/{score_id}/members/{membership_id}", response_model=APIResponse[MemberRead])
+@score_router.patch(
+    "/{score_id}/members/{membership_id}",
+    operation_id="scoreMemberUpdate",
+    response_model=APIResponse[MemberRead],
+)
 async def update_score_member(
     score_id: str,
     membership_id: int,
@@ -107,7 +131,11 @@ async def update_score_member(
     return success_response(data=result, message=SuccessCode.MEMBER_UPDATED)
 
 
-@score_router.delete("/{score_id}/members/{membership_id}", response_model=APIResponse[MemberRead])
+@score_router.delete(
+    "/{score_id}/members/{membership_id}",
+    operation_id="scoreMemberRemove",
+    response_model=APIResponse[MemberRead],
+)
 async def remove_score_member(
     score_id: str,
     membership_id: int,
@@ -120,7 +148,9 @@ async def remove_score_member(
     return success_response(data=result, message=SuccessCode.MEMBER_REMOVED)
 
 
-@invite_router.get("/{token}", response_model=APIResponse[InviteAccessRead])
+@invite_router.get(
+    "/{token}", operation_id="scoreInviteInspect", response_model=APIResponse[InviteAccessRead]
+)
 async def inspect_invite(
     token: str,
     current_user: User | None = Depends(get_optional_current_user),
@@ -132,7 +162,11 @@ async def inspect_invite(
     return success_response(data=result)
 
 
-@invite_router.post("/{token}/accept", response_model=APIResponse[InviteAcceptRead])
+@invite_router.post(
+    "/{token}/accept",
+    operation_id="scoreInviteAccept",
+    response_model=APIResponse[InviteAcceptRead],
+)
 async def accept_invite(
     token: str,
     current_user: User = Depends(get_current_user),
@@ -144,7 +178,11 @@ async def accept_invite(
     return success_response(data=result, message=SuccessCode.INVITE_ACCEPTED)
 
 
-@me_router.get("/invites", response_model=APIResponse[PendingInviteListRead])
+@me_router.get(
+    "/invites",
+    operation_id="accountPendingInvitesList",
+    response_model=APIResponse[PendingInviteListRead],
+)
 async def list_my_pending_invites(
     limit: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
     cursor: str | None = None,
@@ -157,7 +195,11 @@ async def list_my_pending_invites(
     return success_response(data=result)
 
 
-@me_router.post("/invites/{invite_id}/accept", response_model=APIResponse[InviteAcceptRead])
+@me_router.post(
+    "/invites/{invite_id}/accept",
+    operation_id="accountPendingInviteAccept",
+    response_model=APIResponse[InviteAcceptRead],
+)
 async def accept_my_pending_invite(
     invite_id: str,
     current_user: User = Depends(get_current_user),
@@ -169,7 +211,11 @@ async def accept_my_pending_invite(
     return success_response(data=result, message=SuccessCode.INVITE_ACCEPTED)
 
 
-@me_router.post("/invites/{invite_id}/decline", response_model=APIResponse[PendingInviteRead])
+@me_router.post(
+    "/invites/{invite_id}/decline",
+    operation_id="accountPendingInviteDecline",
+    response_model=APIResponse[PendingInviteRead],
+)
 async def decline_my_pending_invite(
     invite_id: str,
     current_user: User = Depends(get_current_user),

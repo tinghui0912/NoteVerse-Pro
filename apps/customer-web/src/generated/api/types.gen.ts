@@ -1444,9 +1444,19 @@ export type BatchImportJobStatusRequest = {
 };
 
 /**
- * Body_login_access_token_api_v1_auth_login_post
+ * Body_accountAvatarUpload
  */
-export type BodyLoginAccessTokenApiV1AuthLoginPost = {
+export type BodyAccountAvatarUpload = {
+    /**
+     * File
+     */
+    file: Blob | File;
+};
+
+/**
+ * Body_authLogin
+ */
+export type BodyAuthLogin = {
     /**
      * Client Id
      */
@@ -1474,19 +1484,9 @@ export type BodyLoginAccessTokenApiV1AuthLoginPost = {
 };
 
 /**
- * Body_upload_avatar_api_v1_me_avatar_post
+ * Body_filesUpload
  */
-export type BodyUploadAvatarApiV1MeAvatarPost = {
-    /**
-     * File
-     */
-    file: Blob | File;
-};
-
-/**
- * Body_upload_file_api_v1_files_upload_post
- */
-export type BodyUploadFileApiV1FilesUploadPost = {
+export type BodyFilesUpload = {
     /**
      * File
      */
@@ -2261,6 +2261,16 @@ export type LibrarySort = 'updated_desc' | 'updated_asc' | 'name_asc' | 'name_de
  * LibraryView
  */
 export type LibraryView = 'all' | 'favorites' | 'created_by_me' | 'shared_with_me';
+
+/**
+ * LivenessRead
+ */
+export type LivenessRead = {
+    /**
+     * Status
+     */
+    status: 'ok';
+};
 
 /**
  * MemberListRead
@@ -3271,6 +3281,22 @@ export type RationalRead = {
 };
 
 /**
+ * ReadinessRead
+ */
+export type ReadinessRead = {
+    /**
+     * Checks
+     */
+    checks: {
+        [key: string]: 'ok' | 'failed' | 'degraded';
+    };
+    /**
+     * Status
+     */
+    status: 'ok' | 'degraded';
+};
+
+/**
  * RecordingActiveSegment
  */
 export type RecordingActiveSegment = {
@@ -3708,6 +3734,28 @@ export type RevisionSourceRead = {
      * Source Id
      */
     source_id: string;
+};
+
+/**
+ * RootRead
+ */
+export type RootRead = {
+    /**
+     * Docs
+     */
+    docs: string;
+    /**
+     * Message
+     */
+    message: string;
+    /**
+     * Status
+     */
+    status: 'operational';
+    /**
+     * Version
+     */
+    version: string;
 };
 
 /**
@@ -4187,244 +4235,248 @@ export type VerifyEmailRequest = {
     token: string;
 };
 
-export type RootGetData = {
+export type ServiceInfoGetData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/';
 };
 
-export type RootGetResponses = {
+export type ServiceInfoGetResponses = {
     /**
      * Successful Response
      */
-    200: unknown;
+    200: RootRead;
 };
 
-export type ConfirmEmailChangeApiV1AuthEmailChangeConfirmPostData = {
+export type ServiceInfoGetResponse = ServiceInfoGetResponses[keyof ServiceInfoGetResponses];
+
+export type AuthEmailChangeConfirmData = {
     body: ConfirmEmailChangeRequest;
     path?: never;
     query?: never;
     url: '/api/v1/auth/email/change/confirm';
 };
 
-export type ConfirmEmailChangeApiV1AuthEmailChangeConfirmPostErrors = {
+export type AuthEmailChangeConfirmErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ConfirmEmailChangeApiV1AuthEmailChangeConfirmPostError = ConfirmEmailChangeApiV1AuthEmailChangeConfirmPostErrors[keyof ConfirmEmailChangeApiV1AuthEmailChangeConfirmPostErrors];
+export type AuthEmailChangeConfirmError = AuthEmailChangeConfirmErrors[keyof AuthEmailChangeConfirmErrors];
 
-export type ConfirmEmailChangeApiV1AuthEmailChangeConfirmPostResponses = {
+export type AuthEmailChangeConfirmResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseEmailChangeConfirmedRead;
 };
 
-export type ConfirmEmailChangeApiV1AuthEmailChangeConfirmPostResponse = ConfirmEmailChangeApiV1AuthEmailChangeConfirmPostResponses[keyof ConfirmEmailChangeApiV1AuthEmailChangeConfirmPostResponses];
+export type AuthEmailChangeConfirmResponse = AuthEmailChangeConfirmResponses[keyof AuthEmailChangeConfirmResponses];
 
-export type VerifyEmailApiV1AuthEmailVerifyPostData = {
+export type AuthEmailVerifyData = {
     body: VerifyEmailRequest;
     path?: never;
     query?: never;
     url: '/api/v1/auth/email/verify';
 };
 
-export type VerifyEmailApiV1AuthEmailVerifyPostErrors = {
+export type AuthEmailVerifyErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type VerifyEmailApiV1AuthEmailVerifyPostError = VerifyEmailApiV1AuthEmailVerifyPostErrors[keyof VerifyEmailApiV1AuthEmailVerifyPostErrors];
+export type AuthEmailVerifyError = AuthEmailVerifyErrors[keyof AuthEmailVerifyErrors];
 
-export type VerifyEmailApiV1AuthEmailVerifyPostResponses = {
+export type AuthEmailVerifyResponses = {
     /**
      * Successful Response
      */
     200: User;
 };
 
-export type VerifyEmailApiV1AuthEmailVerifyPostResponse = VerifyEmailApiV1AuthEmailVerifyPostResponses[keyof VerifyEmailApiV1AuthEmailVerifyPostResponses];
+export type AuthEmailVerifyResponse = AuthEmailVerifyResponses[keyof AuthEmailVerifyResponses];
 
-export type LoginAccessTokenApiV1AuthLoginPostData = {
-    body: BodyLoginAccessTokenApiV1AuthLoginPost;
+export type AuthLoginData = {
+    body: BodyAuthLogin;
     path?: never;
     query?: never;
     url: '/api/v1/auth/login';
 };
 
-export type LoginAccessTokenApiV1AuthLoginPostErrors = {
+export type AuthLoginErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type LoginAccessTokenApiV1AuthLoginPostError = LoginAccessTokenApiV1AuthLoginPostErrors[keyof LoginAccessTokenApiV1AuthLoginPostErrors];
+export type AuthLoginError = AuthLoginErrors[keyof AuthLoginErrors];
 
-export type LoginAccessTokenApiV1AuthLoginPostResponses = {
+export type AuthLoginResponses = {
     /**
      * Successful Response
      */
     200: SuccessResponsePayload;
 };
 
-export type LoginAccessTokenApiV1AuthLoginPostResponse = LoginAccessTokenApiV1AuthLoginPostResponses[keyof LoginAccessTokenApiV1AuthLoginPostResponses];
+export type AuthLoginResponse = AuthLoginResponses[keyof AuthLoginResponses];
 
-export type LogoutApiV1AuthLogoutPostData = {
+export type AuthLogoutData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/api/v1/auth/logout';
 };
 
-export type LogoutApiV1AuthLogoutPostErrors = {
+export type AuthLogoutErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type LogoutApiV1AuthLogoutPostError = LogoutApiV1AuthLogoutPostErrors[keyof LogoutApiV1AuthLogoutPostErrors];
+export type AuthLogoutError = AuthLogoutErrors[keyof AuthLogoutErrors];
 
-export type LogoutApiV1AuthLogoutPostResponses = {
+export type AuthLogoutResponses = {
     /**
      * Successful Response
      */
     200: SuccessResponsePayload;
 };
 
-export type LogoutApiV1AuthLogoutPostResponse = LogoutApiV1AuthLogoutPostResponses[keyof LogoutApiV1AuthLogoutPostResponses];
+export type AuthLogoutResponse = AuthLogoutResponses[keyof AuthLogoutResponses];
 
-export type ForgotPasswordApiV1AuthPasswordForgotPostData = {
+export type AuthPasswordResetRequestData = {
     body: ForgotPasswordRequest;
     path?: never;
     query?: never;
     url: '/api/v1/auth/password/forgot';
 };
 
-export type ForgotPasswordApiV1AuthPasswordForgotPostErrors = {
+export type AuthPasswordResetRequestErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ForgotPasswordApiV1AuthPasswordForgotPostError = ForgotPasswordApiV1AuthPasswordForgotPostErrors[keyof ForgotPasswordApiV1AuthPasswordForgotPostErrors];
+export type AuthPasswordResetRequestError = AuthPasswordResetRequestErrors[keyof AuthPasswordResetRequestErrors];
 
-export type ForgotPasswordApiV1AuthPasswordForgotPostResponses = {
+export type AuthPasswordResetRequestResponses = {
     /**
      * Successful Response
      */
     200: SuccessResponsePayload;
 };
 
-export type ForgotPasswordApiV1AuthPasswordForgotPostResponse = ForgotPasswordApiV1AuthPasswordForgotPostResponses[keyof ForgotPasswordApiV1AuthPasswordForgotPostResponses];
+export type AuthPasswordResetRequestResponse = AuthPasswordResetRequestResponses[keyof AuthPasswordResetRequestResponses];
 
-export type ResetPasswordApiV1AuthPasswordResetPostData = {
+export type AuthPasswordResetData = {
     body: ResetPasswordRequest;
     path?: never;
     query?: never;
     url: '/api/v1/auth/password/reset';
 };
 
-export type ResetPasswordApiV1AuthPasswordResetPostErrors = {
+export type AuthPasswordResetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ResetPasswordApiV1AuthPasswordResetPostError = ResetPasswordApiV1AuthPasswordResetPostErrors[keyof ResetPasswordApiV1AuthPasswordResetPostErrors];
+export type AuthPasswordResetError = AuthPasswordResetErrors[keyof AuthPasswordResetErrors];
 
-export type ResetPasswordApiV1AuthPasswordResetPostResponses = {
+export type AuthPasswordResetResponses = {
     /**
      * Successful Response
      */
-    200: unknown;
+    200: SuccessResponsePayload;
 };
 
-export type RefreshAccessTokenApiV1AuthRefreshPostData = {
+export type AuthPasswordResetResponse = AuthPasswordResetResponses[keyof AuthPasswordResetResponses];
+
+export type AuthRefreshData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/api/v1/auth/refresh';
 };
 
-export type RefreshAccessTokenApiV1AuthRefreshPostErrors = {
+export type AuthRefreshErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type RefreshAccessTokenApiV1AuthRefreshPostError = RefreshAccessTokenApiV1AuthRefreshPostErrors[keyof RefreshAccessTokenApiV1AuthRefreshPostErrors];
+export type AuthRefreshError = AuthRefreshErrors[keyof AuthRefreshErrors];
 
-export type RefreshAccessTokenApiV1AuthRefreshPostResponses = {
+export type AuthRefreshResponses = {
     /**
      * Successful Response
      */
     200: SuccessResponsePayload;
 };
 
-export type RefreshAccessTokenApiV1AuthRefreshPostResponse = RefreshAccessTokenApiV1AuthRefreshPostResponses[keyof RefreshAccessTokenApiV1AuthRefreshPostResponses];
+export type AuthRefreshResponse = AuthRefreshResponses[keyof AuthRefreshResponses];
 
-export type RegisterUserApiV1AuthRegisterPostData = {
+export type AuthRegisterData = {
     body: RegisterRequest;
     path?: never;
     query?: never;
     url: '/api/v1/auth/register';
 };
 
-export type RegisterUserApiV1AuthRegisterPostErrors = {
+export type AuthRegisterErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type RegisterUserApiV1AuthRegisterPostError = RegisterUserApiV1AuthRegisterPostErrors[keyof RegisterUserApiV1AuthRegisterPostErrors];
+export type AuthRegisterError = AuthRegisterErrors[keyof AuthRegisterErrors];
 
-export type RegisterUserApiV1AuthRegisterPostResponses = {
+export type AuthRegisterResponses = {
     /**
      * Successful Response
      */
     200: SuccessResponsePayload;
 };
 
-export type RegisterUserApiV1AuthRegisterPostResponse = RegisterUserApiV1AuthRegisterPostResponses[keyof RegisterUserApiV1AuthRegisterPostResponses];
+export type AuthRegisterResponse = AuthRegisterResponses[keyof AuthRegisterResponses];
 
-export type UploadFileApiV1FilesUploadPostData = {
-    body: BodyUploadFileApiV1FilesUploadPost;
+export type FilesUploadData = {
+    body: BodyFilesUpload;
     path?: never;
     query?: never;
     url: '/api/v1/files/upload';
 };
 
-export type UploadFileApiV1FilesUploadPostErrors = {
+export type FilesUploadErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type UploadFileApiV1FilesUploadPostError = UploadFileApiV1FilesUploadPostErrors[keyof UploadFileApiV1FilesUploadPostErrors];
+export type FilesUploadError = FilesUploadErrors[keyof FilesUploadErrors];
 
-export type UploadFileApiV1FilesUploadPostResponses = {
+export type FilesUploadResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseUploadFileRead;
 };
 
-export type UploadFileApiV1FilesUploadPostResponse = UploadFileApiV1FilesUploadPostResponses[keyof UploadFileApiV1FilesUploadPostResponses];
+export type FilesUploadResponse = FilesUploadResponses[keyof FilesUploadResponses];
 
-export type DeleteFileApiV1FilesFilenameDeleteData = {
+export type FileDeleteData = {
     body?: never;
     path: {
         /**
@@ -4436,25 +4488,25 @@ export type DeleteFileApiV1FilesFilenameDeleteData = {
     url: '/api/v1/files/{filename}';
 };
 
-export type DeleteFileApiV1FilesFilenameDeleteErrors = {
+export type FileDeleteErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type DeleteFileApiV1FilesFilenameDeleteError = DeleteFileApiV1FilesFilenameDeleteErrors[keyof DeleteFileApiV1FilesFilenameDeleteErrors];
+export type FileDeleteError = FileDeleteErrors[keyof FileDeleteErrors];
 
-export type DeleteFileApiV1FilesFilenameDeleteResponses = {
+export type FileDeleteResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseDeleteUploadedFileRead;
 };
 
-export type DeleteFileApiV1FilesFilenameDeleteResponse = DeleteFileApiV1FilesFilenameDeleteResponses[keyof DeleteFileApiV1FilesFilenameDeleteResponses];
+export type FileDeleteResponse = FileDeleteResponses[keyof FileDeleteResponses];
 
-export type ReadGuestPreviewApiV1GuestPreviewsTokenGetData = {
+export type GuestPreviewGetData = {
     body?: never;
     path: {
         /**
@@ -4466,25 +4518,25 @@ export type ReadGuestPreviewApiV1GuestPreviewsTokenGetData = {
     url: '/api/v1/guest-previews/{token}';
 };
 
-export type ReadGuestPreviewApiV1GuestPreviewsTokenGetErrors = {
+export type GuestPreviewGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ReadGuestPreviewApiV1GuestPreviewsTokenGetError = ReadGuestPreviewApiV1GuestPreviewsTokenGetErrors[keyof ReadGuestPreviewApiV1GuestPreviewsTokenGetErrors];
+export type GuestPreviewGetError = GuestPreviewGetErrors[keyof GuestPreviewGetErrors];
 
-export type ReadGuestPreviewApiV1GuestPreviewsTokenGetResponses = {
+export type GuestPreviewGetResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseGuestPreviewRead;
 };
 
-export type ReadGuestPreviewApiV1GuestPreviewsTokenGetResponse = ReadGuestPreviewApiV1GuestPreviewsTokenGetResponses[keyof ReadGuestPreviewApiV1GuestPreviewsTokenGetResponses];
+export type GuestPreviewGetResponse = GuestPreviewGetResponses[keyof GuestPreviewGetResponses];
 
-export type ListenGuestPreviewApiV1GuestPreviewsTokenPlaybackGetData = {
+export type GuestPreviewPlaybackStreamData = {
     body?: never;
     path: {
         /**
@@ -4496,23 +4548,29 @@ export type ListenGuestPreviewApiV1GuestPreviewsTokenPlaybackGetData = {
     url: '/api/v1/guest-previews/{token}/playback';
 };
 
-export type ListenGuestPreviewApiV1GuestPreviewsTokenPlaybackGetErrors = {
+export type GuestPreviewPlaybackStreamErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ListenGuestPreviewApiV1GuestPreviewsTokenPlaybackGetError = ListenGuestPreviewApiV1GuestPreviewsTokenPlaybackGetErrors[keyof ListenGuestPreviewApiV1GuestPreviewsTokenPlaybackGetErrors];
+export type GuestPreviewPlaybackStreamError = GuestPreviewPlaybackStreamErrors[keyof GuestPreviewPlaybackStreamErrors];
 
-export type ListenGuestPreviewApiV1GuestPreviewsTokenPlaybackGetResponses = {
+export type GuestPreviewPlaybackStreamResponses = {
     /**
-     * Successful Response
+     * Stored bytes; Content-Type identifies the selected resource format.
      */
-    200: unknown;
+    200: Blob | File;
+    /**
+     * Requested byte range of the stored media.
+     */
+    206: Blob | File;
 };
 
-export type ViewGuestPreviewPageApiV1GuestPreviewsTokenRenderAssetsAssetIdViewGetData = {
+export type GuestPreviewPlaybackStreamResponse = GuestPreviewPlaybackStreamResponses[keyof GuestPreviewPlaybackStreamResponses];
+
+export type GuestPreviewPageViewData = {
     body?: never;
     path: {
         /**
@@ -4528,23 +4586,25 @@ export type ViewGuestPreviewPageApiV1GuestPreviewsTokenRenderAssetsAssetIdViewGe
     url: '/api/v1/guest-previews/{token}/render-assets/{asset_id}/view';
 };
 
-export type ViewGuestPreviewPageApiV1GuestPreviewsTokenRenderAssetsAssetIdViewGetErrors = {
+export type GuestPreviewPageViewErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ViewGuestPreviewPageApiV1GuestPreviewsTokenRenderAssetsAssetIdViewGetError = ViewGuestPreviewPageApiV1GuestPreviewsTokenRenderAssetsAssetIdViewGetErrors[keyof ViewGuestPreviewPageApiV1GuestPreviewsTokenRenderAssetsAssetIdViewGetErrors];
+export type GuestPreviewPageViewError = GuestPreviewPageViewErrors[keyof GuestPreviewPageViewErrors];
 
-export type ViewGuestPreviewPageApiV1GuestPreviewsTokenRenderAssetsAssetIdViewGetResponses = {
+export type GuestPreviewPageViewResponses = {
     /**
-     * Successful Response
+     * Stored bytes; Content-Type identifies the selected resource format.
      */
-    200: unknown;
+    200: Blob | File;
 };
 
-export type ListJobsApiV1ImportJobsGetData = {
+export type GuestPreviewPageViewResponse = GuestPreviewPageViewResponses[keyof GuestPreviewPageViewResponses];
+
+export type ImportJobsListData = {
     body?: never;
     path?: never;
     query?: {
@@ -4560,75 +4620,75 @@ export type ListJobsApiV1ImportJobsGetData = {
     url: '/api/v1/import-jobs';
 };
 
-export type ListJobsApiV1ImportJobsGetErrors = {
+export type ImportJobsListErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ListJobsApiV1ImportJobsGetError = ListJobsApiV1ImportJobsGetErrors[keyof ListJobsApiV1ImportJobsGetErrors];
+export type ImportJobsListError = ImportJobsListErrors[keyof ImportJobsListErrors];
 
-export type ListJobsApiV1ImportJobsGetResponses = {
+export type ImportJobsListResponses = {
     /**
      * Successful Response
      */
     200: PaginatedResponseImportJobRead;
 };
 
-export type ListJobsApiV1ImportJobsGetResponse = ListJobsApiV1ImportJobsGetResponses[keyof ListJobsApiV1ImportJobsGetResponses];
+export type ImportJobsListResponse = ImportJobsListResponses[keyof ImportJobsListResponses];
 
-export type SubmitJobApiV1ImportJobsPostData = {
+export type ImportJobsSubmitData = {
     body: ImportJobSubmitRequest;
     path?: never;
     query?: never;
     url: '/api/v1/import-jobs';
 };
 
-export type SubmitJobApiV1ImportJobsPostErrors = {
+export type ImportJobsSubmitErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type SubmitJobApiV1ImportJobsPostError = SubmitJobApiV1ImportJobsPostErrors[keyof SubmitJobApiV1ImportJobsPostErrors];
+export type ImportJobsSubmitError = ImportJobsSubmitErrors[keyof ImportJobsSubmitErrors];
 
-export type SubmitJobApiV1ImportJobsPostResponses = {
+export type ImportJobsSubmitResponses = {
     /**
      * Successful Response
      */
     202: ApiResponseImportJobSubmitRead;
 };
 
-export type SubmitJobApiV1ImportJobsPostResponse = SubmitJobApiV1ImportJobsPostResponses[keyof SubmitJobApiV1ImportJobsPostResponses];
+export type ImportJobsSubmitResponse = ImportJobsSubmitResponses[keyof ImportJobsSubmitResponses];
 
-export type BatchJobStatusApiV1ImportJobsStatusBatchPostData = {
+export type ImportJobsBatchStatusGetData = {
     body: BatchImportJobStatusRequest;
     path?: never;
     query?: never;
     url: '/api/v1/import-jobs/status/batch';
 };
 
-export type BatchJobStatusApiV1ImportJobsStatusBatchPostErrors = {
+export type ImportJobsBatchStatusGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type BatchJobStatusApiV1ImportJobsStatusBatchPostError = BatchJobStatusApiV1ImportJobsStatusBatchPostErrors[keyof BatchJobStatusApiV1ImportJobsStatusBatchPostErrors];
+export type ImportJobsBatchStatusGetError = ImportJobsBatchStatusGetErrors[keyof ImportJobsBatchStatusGetErrors];
 
-export type BatchJobStatusApiV1ImportJobsStatusBatchPostResponses = {
+export type ImportJobsBatchStatusGetResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseImportJobBatchStatusRead;
 };
 
-export type BatchJobStatusApiV1ImportJobsStatusBatchPostResponse = BatchJobStatusApiV1ImportJobsStatusBatchPostResponses[keyof BatchJobStatusApiV1ImportJobsStatusBatchPostResponses];
+export type ImportJobsBatchStatusGetResponse = ImportJobsBatchStatusGetResponses[keyof ImportJobsBatchStatusGetResponses];
 
-export type DeleteJobApiV1ImportJobsJobIdDeleteData = {
+export type ImportJobDeleteData = {
     body?: never;
     path: {
         /**
@@ -4640,25 +4700,25 @@ export type DeleteJobApiV1ImportJobsJobIdDeleteData = {
     url: '/api/v1/import-jobs/{job_id}';
 };
 
-export type DeleteJobApiV1ImportJobsJobIdDeleteErrors = {
+export type ImportJobDeleteErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type DeleteJobApiV1ImportJobsJobIdDeleteError = DeleteJobApiV1ImportJobsJobIdDeleteErrors[keyof DeleteJobApiV1ImportJobsJobIdDeleteErrors];
+export type ImportJobDeleteError = ImportJobDeleteErrors[keyof ImportJobDeleteErrors];
 
-export type DeleteJobApiV1ImportJobsJobIdDeleteResponses = {
+export type ImportJobDeleteResponses = {
     /**
      * Successful Response
      */
     200: EmptyResponse;
 };
 
-export type DeleteJobApiV1ImportJobsJobIdDeleteResponse = DeleteJobApiV1ImportJobsJobIdDeleteResponses[keyof DeleteJobApiV1ImportJobsJobIdDeleteResponses];
+export type ImportJobDeleteResponse = ImportJobDeleteResponses[keyof ImportJobDeleteResponses];
 
-export type GetJobApiV1ImportJobsJobIdGetData = {
+export type ImportJobGetData = {
     body?: never;
     path: {
         /**
@@ -4670,25 +4730,25 @@ export type GetJobApiV1ImportJobsJobIdGetData = {
     url: '/api/v1/import-jobs/{job_id}';
 };
 
-export type GetJobApiV1ImportJobsJobIdGetErrors = {
+export type ImportJobGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type GetJobApiV1ImportJobsJobIdGetError = GetJobApiV1ImportJobsJobIdGetErrors[keyof GetJobApiV1ImportJobsJobIdGetErrors];
+export type ImportJobGetError = ImportJobGetErrors[keyof ImportJobGetErrors];
 
-export type GetJobApiV1ImportJobsJobIdGetResponses = {
+export type ImportJobGetResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseImportJobRead;
 };
 
-export type GetJobApiV1ImportJobsJobIdGetResponse = GetJobApiV1ImportJobsJobIdGetResponses[keyof GetJobApiV1ImportJobsJobIdGetResponses];
+export type ImportJobGetResponse = ImportJobGetResponses[keyof ImportJobGetResponses];
 
-export type DownloadJobArtifactApiV1ImportJobsJobIdArtifactsArtifactIdDownloadGetData = {
+export type ImportJobArtifactDownloadData = {
     body?: never;
     path: {
         /**
@@ -4704,23 +4764,25 @@ export type DownloadJobArtifactApiV1ImportJobsJobIdArtifactsArtifactIdDownloadGe
     url: '/api/v1/import-jobs/{job_id}/artifacts/{artifact_id}/download';
 };
 
-export type DownloadJobArtifactApiV1ImportJobsJobIdArtifactsArtifactIdDownloadGetErrors = {
+export type ImportJobArtifactDownloadErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type DownloadJobArtifactApiV1ImportJobsJobIdArtifactsArtifactIdDownloadGetError = DownloadJobArtifactApiV1ImportJobsJobIdArtifactsArtifactIdDownloadGetErrors[keyof DownloadJobArtifactApiV1ImportJobsJobIdArtifactsArtifactIdDownloadGetErrors];
+export type ImportJobArtifactDownloadError = ImportJobArtifactDownloadErrors[keyof ImportJobArtifactDownloadErrors];
 
-export type DownloadJobArtifactApiV1ImportJobsJobIdArtifactsArtifactIdDownloadGetResponses = {
+export type ImportJobArtifactDownloadResponses = {
     /**
-     * Successful Response
+     * Stored bytes; Content-Type identifies the selected resource format.
      */
-    200: unknown;
+    200: Blob | File;
 };
 
-export type RetryJobApiV1ImportJobsJobIdRetryPostData = {
+export type ImportJobArtifactDownloadResponse = ImportJobArtifactDownloadResponses[keyof ImportJobArtifactDownloadResponses];
+
+export type ImportJobRetryData = {
     body?: never;
     path: {
         /**
@@ -4732,25 +4794,25 @@ export type RetryJobApiV1ImportJobsJobIdRetryPostData = {
     url: '/api/v1/import-jobs/{job_id}/retry';
 };
 
-export type RetryJobApiV1ImportJobsJobIdRetryPostErrors = {
+export type ImportJobRetryErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type RetryJobApiV1ImportJobsJobIdRetryPostError = RetryJobApiV1ImportJobsJobIdRetryPostErrors[keyof RetryJobApiV1ImportJobsJobIdRetryPostErrors];
+export type ImportJobRetryError = ImportJobRetryErrors[keyof ImportJobRetryErrors];
 
-export type RetryJobApiV1ImportJobsJobIdRetryPostResponses = {
+export type ImportJobRetryResponses = {
     /**
      * Successful Response
      */
     202: ApiResponseImportJobSubmitRead;
 };
 
-export type RetryJobApiV1ImportJobsJobIdRetryPostResponse = RetryJobApiV1ImportJobsJobIdRetryPostResponses[keyof RetryJobApiV1ImportJobsJobIdRetryPostResponses];
+export type ImportJobRetryResponse = ImportJobRetryResponses[keyof ImportJobRetryResponses];
 
-export type InspectInviteApiV1InvitesTokenGetData = {
+export type ScoreInviteInspectData = {
     body?: never;
     path: {
         /**
@@ -4762,25 +4824,25 @@ export type InspectInviteApiV1InvitesTokenGetData = {
     url: '/api/v1/invites/{token}';
 };
 
-export type InspectInviteApiV1InvitesTokenGetErrors = {
+export type ScoreInviteInspectErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type InspectInviteApiV1InvitesTokenGetError = InspectInviteApiV1InvitesTokenGetErrors[keyof InspectInviteApiV1InvitesTokenGetErrors];
+export type ScoreInviteInspectError = ScoreInviteInspectErrors[keyof ScoreInviteInspectErrors];
 
-export type InspectInviteApiV1InvitesTokenGetResponses = {
+export type ScoreInviteInspectResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseInviteAccessRead;
 };
 
-export type InspectInviteApiV1InvitesTokenGetResponse = InspectInviteApiV1InvitesTokenGetResponses[keyof InspectInviteApiV1InvitesTokenGetResponses];
+export type ScoreInviteInspectResponse = ScoreInviteInspectResponses[keyof ScoreInviteInspectResponses];
 
-export type AcceptInviteApiV1InvitesTokenAcceptPostData = {
+export type ScoreInviteAcceptData = {
     body?: never;
     path: {
         /**
@@ -4792,75 +4854,75 @@ export type AcceptInviteApiV1InvitesTokenAcceptPostData = {
     url: '/api/v1/invites/{token}/accept';
 };
 
-export type AcceptInviteApiV1InvitesTokenAcceptPostErrors = {
+export type ScoreInviteAcceptErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type AcceptInviteApiV1InvitesTokenAcceptPostError = AcceptInviteApiV1InvitesTokenAcceptPostErrors[keyof AcceptInviteApiV1InvitesTokenAcceptPostErrors];
+export type ScoreInviteAcceptError = ScoreInviteAcceptErrors[keyof ScoreInviteAcceptErrors];
 
-export type AcceptInviteApiV1InvitesTokenAcceptPostResponses = {
+export type ScoreInviteAcceptResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseInviteAcceptRead;
 };
 
-export type AcceptInviteApiV1InvitesTokenAcceptPostResponse = AcceptInviteApiV1InvitesTokenAcceptPostResponses[keyof AcceptInviteApiV1InvitesTokenAcceptPostResponses];
+export type ScoreInviteAcceptResponse = ScoreInviteAcceptResponses[keyof ScoreInviteAcceptResponses];
 
-export type ListLibraryFoldersApiV1LibraryFoldersGetData = {
+export type LibraryFoldersOverviewGetData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/api/v1/library/folders';
 };
 
-export type ListLibraryFoldersApiV1LibraryFoldersGetErrors = {
+export type LibraryFoldersOverviewGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ListLibraryFoldersApiV1LibraryFoldersGetError = ListLibraryFoldersApiV1LibraryFoldersGetErrors[keyof ListLibraryFoldersApiV1LibraryFoldersGetErrors];
+export type LibraryFoldersOverviewGetError = LibraryFoldersOverviewGetErrors[keyof LibraryFoldersOverviewGetErrors];
 
-export type ListLibraryFoldersApiV1LibraryFoldersGetResponses = {
+export type LibraryFoldersOverviewGetResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseLibraryFolderOverviewRead;
 };
 
-export type ListLibraryFoldersApiV1LibraryFoldersGetResponse = ListLibraryFoldersApiV1LibraryFoldersGetResponses[keyof ListLibraryFoldersApiV1LibraryFoldersGetResponses];
+export type LibraryFoldersOverviewGetResponse = LibraryFoldersOverviewGetResponses[keyof LibraryFoldersOverviewGetResponses];
 
-export type CreateLibraryFolderApiV1LibraryFoldersPostData = {
+export type LibraryFoldersCreateData = {
     body: LibraryFolderCreateRequest;
     path?: never;
     query?: never;
     url: '/api/v1/library/folders';
 };
 
-export type CreateLibraryFolderApiV1LibraryFoldersPostErrors = {
+export type LibraryFoldersCreateErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type CreateLibraryFolderApiV1LibraryFoldersPostError = CreateLibraryFolderApiV1LibraryFoldersPostErrors[keyof CreateLibraryFolderApiV1LibraryFoldersPostErrors];
+export type LibraryFoldersCreateError = LibraryFoldersCreateErrors[keyof LibraryFoldersCreateErrors];
 
-export type CreateLibraryFolderApiV1LibraryFoldersPostResponses = {
+export type LibraryFoldersCreateResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseLibraryFolderRead;
 };
 
-export type CreateLibraryFolderApiV1LibraryFoldersPostResponse = CreateLibraryFolderApiV1LibraryFoldersPostResponses[keyof CreateLibraryFolderApiV1LibraryFoldersPostResponses];
+export type LibraryFoldersCreateResponse = LibraryFoldersCreateResponses[keyof LibraryFoldersCreateResponses];
 
-export type DeleteLibraryFolderApiV1LibraryFoldersFolderIdDeleteData = {
+export type LibraryFolderDeleteData = {
     body?: never;
     path: {
         /**
@@ -4872,25 +4934,25 @@ export type DeleteLibraryFolderApiV1LibraryFoldersFolderIdDeleteData = {
     url: '/api/v1/library/folders/{folder_id}';
 };
 
-export type DeleteLibraryFolderApiV1LibraryFoldersFolderIdDeleteErrors = {
+export type LibraryFolderDeleteErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type DeleteLibraryFolderApiV1LibraryFoldersFolderIdDeleteError = DeleteLibraryFolderApiV1LibraryFoldersFolderIdDeleteErrors[keyof DeleteLibraryFolderApiV1LibraryFoldersFolderIdDeleteErrors];
+export type LibraryFolderDeleteError = LibraryFolderDeleteErrors[keyof LibraryFolderDeleteErrors];
 
-export type DeleteLibraryFolderApiV1LibraryFoldersFolderIdDeleteResponses = {
+export type LibraryFolderDeleteResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseNoneType;
 };
 
-export type DeleteLibraryFolderApiV1LibraryFoldersFolderIdDeleteResponse = DeleteLibraryFolderApiV1LibraryFoldersFolderIdDeleteResponses[keyof DeleteLibraryFolderApiV1LibraryFoldersFolderIdDeleteResponses];
+export type LibraryFolderDeleteResponse = LibraryFolderDeleteResponses[keyof LibraryFolderDeleteResponses];
 
-export type UpdateLibraryFolderApiV1LibraryFoldersFolderIdPatchData = {
+export type LibraryFolderUpdateData = {
     body: LibraryFolderUpdateRequest;
     path: {
         /**
@@ -4902,25 +4964,25 @@ export type UpdateLibraryFolderApiV1LibraryFoldersFolderIdPatchData = {
     url: '/api/v1/library/folders/{folder_id}';
 };
 
-export type UpdateLibraryFolderApiV1LibraryFoldersFolderIdPatchErrors = {
+export type LibraryFolderUpdateErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type UpdateLibraryFolderApiV1LibraryFoldersFolderIdPatchError = UpdateLibraryFolderApiV1LibraryFoldersFolderIdPatchErrors[keyof UpdateLibraryFolderApiV1LibraryFoldersFolderIdPatchErrors];
+export type LibraryFolderUpdateError = LibraryFolderUpdateErrors[keyof LibraryFolderUpdateErrors];
 
-export type UpdateLibraryFolderApiV1LibraryFoldersFolderIdPatchResponses = {
+export type LibraryFolderUpdateResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseLibraryFolderRead;
 };
 
-export type UpdateLibraryFolderApiV1LibraryFoldersFolderIdPatchResponse = UpdateLibraryFolderApiV1LibraryFoldersFolderIdPatchResponses[keyof UpdateLibraryFolderApiV1LibraryFoldersFolderIdPatchResponses];
+export type LibraryFolderUpdateResponse = LibraryFolderUpdateResponses[keyof LibraryFolderUpdateResponses];
 
-export type ListLibraryScoresApiV1LibraryScoresGetData = {
+export type LibraryScoresListData = {
     body?: never;
     path?: never;
     query?: {
@@ -4946,125 +5008,125 @@ export type ListLibraryScoresApiV1LibraryScoresGetData = {
     url: '/api/v1/library/scores';
 };
 
-export type ListLibraryScoresApiV1LibraryScoresGetErrors = {
+export type LibraryScoresListErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ListLibraryScoresApiV1LibraryScoresGetError = ListLibraryScoresApiV1LibraryScoresGetErrors[keyof ListLibraryScoresApiV1LibraryScoresGetErrors];
+export type LibraryScoresListError = LibraryScoresListErrors[keyof LibraryScoresListErrors];
 
-export type ListLibraryScoresApiV1LibraryScoresGetResponses = {
+export type LibraryScoresListResponses = {
     /**
      * Successful Response
      */
     200: PaginatedResponseLibraryScoreRead;
 };
 
-export type ListLibraryScoresApiV1LibraryScoresGetResponse = ListLibraryScoresApiV1LibraryScoresGetResponses[keyof ListLibraryScoresApiV1LibraryScoresGetResponses];
+export type LibraryScoresListResponse = LibraryScoresListResponses[keyof LibraryScoresListResponses];
 
-export type BatchFavoriteLibraryScoresApiV1LibraryScoresBatchFavoritePostData = {
+export type LibraryScoresBatchFavoriteData = {
     body: LibraryScoreBatchFavoriteRequest;
     path?: never;
     query?: never;
     url: '/api/v1/library/scores/batch-favorite';
 };
 
-export type BatchFavoriteLibraryScoresApiV1LibraryScoresBatchFavoritePostErrors = {
+export type LibraryScoresBatchFavoriteErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type BatchFavoriteLibraryScoresApiV1LibraryScoresBatchFavoritePostError = BatchFavoriteLibraryScoresApiV1LibraryScoresBatchFavoritePostErrors[keyof BatchFavoriteLibraryScoresApiV1LibraryScoresBatchFavoritePostErrors];
+export type LibraryScoresBatchFavoriteError = LibraryScoresBatchFavoriteErrors[keyof LibraryScoresBatchFavoriteErrors];
 
-export type BatchFavoriteLibraryScoresApiV1LibraryScoresBatchFavoritePostResponses = {
+export type LibraryScoresBatchFavoriteResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseLibraryBatchUpdateRead;
 };
 
-export type BatchFavoriteLibraryScoresApiV1LibraryScoresBatchFavoritePostResponse = BatchFavoriteLibraryScoresApiV1LibraryScoresBatchFavoritePostResponses[keyof BatchFavoriteLibraryScoresApiV1LibraryScoresBatchFavoritePostResponses];
+export type LibraryScoresBatchFavoriteResponse = LibraryScoresBatchFavoriteResponses[keyof LibraryScoresBatchFavoriteResponses];
 
-export type BatchMoveLibraryScoresApiV1LibraryScoresBatchMovePostData = {
+export type LibraryScoresBatchMoveData = {
     body: LibraryScoreBatchMoveRequest;
     path?: never;
     query?: never;
     url: '/api/v1/library/scores/batch-move';
 };
 
-export type BatchMoveLibraryScoresApiV1LibraryScoresBatchMovePostErrors = {
+export type LibraryScoresBatchMoveErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type BatchMoveLibraryScoresApiV1LibraryScoresBatchMovePostError = BatchMoveLibraryScoresApiV1LibraryScoresBatchMovePostErrors[keyof BatchMoveLibraryScoresApiV1LibraryScoresBatchMovePostErrors];
+export type LibraryScoresBatchMoveError = LibraryScoresBatchMoveErrors[keyof LibraryScoresBatchMoveErrors];
 
-export type BatchMoveLibraryScoresApiV1LibraryScoresBatchMovePostResponses = {
+export type LibraryScoresBatchMoveResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseLibraryBatchMoveRead;
 };
 
-export type BatchMoveLibraryScoresApiV1LibraryScoresBatchMovePostResponse = BatchMoveLibraryScoresApiV1LibraryScoresBatchMovePostResponses[keyof BatchMoveLibraryScoresApiV1LibraryScoresBatchMovePostResponses];
+export type LibraryScoresBatchMoveResponse = LibraryScoresBatchMoveResponses[keyof LibraryScoresBatchMoveResponses];
 
-export type DeleteAvatarApiV1MeAvatarDeleteData = {
+export type AccountAvatarDeleteData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/api/v1/me/avatar';
 };
 
-export type DeleteAvatarApiV1MeAvatarDeleteErrors = {
+export type AccountAvatarDeleteErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type DeleteAvatarApiV1MeAvatarDeleteError = DeleteAvatarApiV1MeAvatarDeleteErrors[keyof DeleteAvatarApiV1MeAvatarDeleteErrors];
+export type AccountAvatarDeleteError = AccountAvatarDeleteErrors[keyof AccountAvatarDeleteErrors];
 
-export type DeleteAvatarApiV1MeAvatarDeleteResponses = {
+export type AccountAvatarDeleteResponses = {
     /**
      * Successful Response
      */
     200: EmptyResponse;
 };
 
-export type DeleteAvatarApiV1MeAvatarDeleteResponse = DeleteAvatarApiV1MeAvatarDeleteResponses[keyof DeleteAvatarApiV1MeAvatarDeleteResponses];
+export type AccountAvatarDeleteResponse = AccountAvatarDeleteResponses[keyof AccountAvatarDeleteResponses];
 
-export type UploadAvatarApiV1MeAvatarPostData = {
-    body: BodyUploadAvatarApiV1MeAvatarPost;
+export type AccountAvatarUploadData = {
+    body: BodyAccountAvatarUpload;
     path?: never;
     query?: never;
     url: '/api/v1/me/avatar';
 };
 
-export type UploadAvatarApiV1MeAvatarPostErrors = {
+export type AccountAvatarUploadErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type UploadAvatarApiV1MeAvatarPostError = UploadAvatarApiV1MeAvatarPostErrors[keyof UploadAvatarApiV1MeAvatarPostErrors];
+export type AccountAvatarUploadError = AccountAvatarUploadErrors[keyof AccountAvatarUploadErrors];
 
-export type UploadAvatarApiV1MeAvatarPostResponses = {
+export type AccountAvatarUploadResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseAvatarRead;
 };
 
-export type UploadAvatarApiV1MeAvatarPostResponse = UploadAvatarApiV1MeAvatarPostResponses[keyof UploadAvatarApiV1MeAvatarPostResponses];
+export type AccountAvatarUploadResponse = AccountAvatarUploadResponses[keyof AccountAvatarUploadResponses];
 
-export type ReadAvatarApiV1MeAvatarsFilenameGetData = {
+export type AccountAvatarResolveData = {
     body?: never;
     path: {
         /**
@@ -5076,41 +5138,41 @@ export type ReadAvatarApiV1MeAvatarsFilenameGetData = {
     url: '/api/v1/me/avatars/{filename}';
 };
 
-export type ReadAvatarApiV1MeAvatarsFilenameGetErrors = {
+export type AccountAvatarResolveErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ReadAvatarApiV1MeAvatarsFilenameGetError = ReadAvatarApiV1MeAvatarsFilenameGetErrors[keyof ReadAvatarApiV1MeAvatarsFilenameGetErrors];
+export type AccountAvatarResolveError = AccountAvatarResolveErrors[keyof AccountAvatarResolveErrors];
 
-export type RequestMyEmailChangeApiV1MeEmailChangePostData = {
+export type AccountEmailChangeRequestData = {
     body: RequestEmailChangeRequest;
     path?: never;
     query?: never;
     url: '/api/v1/me/email/change';
 };
 
-export type RequestMyEmailChangeApiV1MeEmailChangePostErrors = {
+export type AccountEmailChangeRequestErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type RequestMyEmailChangeApiV1MeEmailChangePostError = RequestMyEmailChangeApiV1MeEmailChangePostErrors[keyof RequestMyEmailChangeApiV1MeEmailChangePostErrors];
+export type AccountEmailChangeRequestError = AccountEmailChangeRequestErrors[keyof AccountEmailChangeRequestErrors];
 
-export type RequestMyEmailChangeApiV1MeEmailChangePostResponses = {
+export type AccountEmailChangeRequestResponses = {
     /**
      * Successful Response
      */
     200: EmptyResponse;
 };
 
-export type RequestMyEmailChangeApiV1MeEmailChangePostResponse = RequestMyEmailChangeApiV1MeEmailChangePostResponses[keyof RequestMyEmailChangeApiV1MeEmailChangePostResponses];
+export type AccountEmailChangeRequestResponse = AccountEmailChangeRequestResponses[keyof AccountEmailChangeRequestResponses];
 
-export type ListMyPendingInvitesApiV1MeInvitesGetData = {
+export type AccountPendingInvitesListData = {
     body?: never;
     path?: never;
     query?: {
@@ -5126,25 +5188,25 @@ export type ListMyPendingInvitesApiV1MeInvitesGetData = {
     url: '/api/v1/me/invites';
 };
 
-export type ListMyPendingInvitesApiV1MeInvitesGetErrors = {
+export type AccountPendingInvitesListErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ListMyPendingInvitesApiV1MeInvitesGetError = ListMyPendingInvitesApiV1MeInvitesGetErrors[keyof ListMyPendingInvitesApiV1MeInvitesGetErrors];
+export type AccountPendingInvitesListError = AccountPendingInvitesListErrors[keyof AccountPendingInvitesListErrors];
 
-export type ListMyPendingInvitesApiV1MeInvitesGetResponses = {
+export type AccountPendingInvitesListResponses = {
     /**
      * Successful Response
      */
     200: ApiResponsePendingInviteListRead;
 };
 
-export type ListMyPendingInvitesApiV1MeInvitesGetResponse = ListMyPendingInvitesApiV1MeInvitesGetResponses[keyof ListMyPendingInvitesApiV1MeInvitesGetResponses];
+export type AccountPendingInvitesListResponse = AccountPendingInvitesListResponses[keyof AccountPendingInvitesListResponses];
 
-export type AcceptMyPendingInviteApiV1MeInvitesInviteIdAcceptPostData = {
+export type AccountPendingInviteAcceptData = {
     body?: never;
     path: {
         /**
@@ -5156,25 +5218,25 @@ export type AcceptMyPendingInviteApiV1MeInvitesInviteIdAcceptPostData = {
     url: '/api/v1/me/invites/{invite_id}/accept';
 };
 
-export type AcceptMyPendingInviteApiV1MeInvitesInviteIdAcceptPostErrors = {
+export type AccountPendingInviteAcceptErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type AcceptMyPendingInviteApiV1MeInvitesInviteIdAcceptPostError = AcceptMyPendingInviteApiV1MeInvitesInviteIdAcceptPostErrors[keyof AcceptMyPendingInviteApiV1MeInvitesInviteIdAcceptPostErrors];
+export type AccountPendingInviteAcceptError = AccountPendingInviteAcceptErrors[keyof AccountPendingInviteAcceptErrors];
 
-export type AcceptMyPendingInviteApiV1MeInvitesInviteIdAcceptPostResponses = {
+export type AccountPendingInviteAcceptResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseInviteAcceptRead;
 };
 
-export type AcceptMyPendingInviteApiV1MeInvitesInviteIdAcceptPostResponse = AcceptMyPendingInviteApiV1MeInvitesInviteIdAcceptPostResponses[keyof AcceptMyPendingInviteApiV1MeInvitesInviteIdAcceptPostResponses];
+export type AccountPendingInviteAcceptResponse = AccountPendingInviteAcceptResponses[keyof AccountPendingInviteAcceptResponses];
 
-export type DeclineMyPendingInviteApiV1MeInvitesInviteIdDeclinePostData = {
+export type AccountPendingInviteDeclineData = {
     body?: never;
     path: {
         /**
@@ -5186,25 +5248,25 @@ export type DeclineMyPendingInviteApiV1MeInvitesInviteIdDeclinePostData = {
     url: '/api/v1/me/invites/{invite_id}/decline';
 };
 
-export type DeclineMyPendingInviteApiV1MeInvitesInviteIdDeclinePostErrors = {
+export type AccountPendingInviteDeclineErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type DeclineMyPendingInviteApiV1MeInvitesInviteIdDeclinePostError = DeclineMyPendingInviteApiV1MeInvitesInviteIdDeclinePostErrors[keyof DeclineMyPendingInviteApiV1MeInvitesInviteIdDeclinePostErrors];
+export type AccountPendingInviteDeclineError = AccountPendingInviteDeclineErrors[keyof AccountPendingInviteDeclineErrors];
 
-export type DeclineMyPendingInviteApiV1MeInvitesInviteIdDeclinePostResponses = {
+export type AccountPendingInviteDeclineResponses = {
     /**
      * Successful Response
      */
     200: ApiResponsePendingInviteRead;
 };
 
-export type DeclineMyPendingInviteApiV1MeInvitesInviteIdDeclinePostResponse = DeclineMyPendingInviteApiV1MeInvitesInviteIdDeclinePostResponses[keyof DeclineMyPendingInviteApiV1MeInvitesInviteIdDeclinePostResponses];
+export type AccountPendingInviteDeclineResponse = AccountPendingInviteDeclineResponses[keyof AccountPendingInviteDeclineResponses];
 
-export type ListMyNotificationsApiV1MeNotificationsGetData = {
+export type NotificationsListData = {
     body?: never;
     path?: never;
     query?: {
@@ -5216,75 +5278,75 @@ export type ListMyNotificationsApiV1MeNotificationsGetData = {
     url: '/api/v1/me/notifications';
 };
 
-export type ListMyNotificationsApiV1MeNotificationsGetErrors = {
+export type NotificationsListErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ListMyNotificationsApiV1MeNotificationsGetError = ListMyNotificationsApiV1MeNotificationsGetErrors[keyof ListMyNotificationsApiV1MeNotificationsGetErrors];
+export type NotificationsListError = NotificationsListErrors[keyof NotificationsListErrors];
 
-export type ListMyNotificationsApiV1MeNotificationsGetResponses = {
+export type NotificationsListResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseListNotificationEventRead;
 };
 
-export type ListMyNotificationsApiV1MeNotificationsGetResponse = ListMyNotificationsApiV1MeNotificationsGetResponses[keyof ListMyNotificationsApiV1MeNotificationsGetResponses];
+export type NotificationsListResponse = NotificationsListResponses[keyof NotificationsListResponses];
 
-export type MarkAllMyNotificationsReadApiV1MeNotificationsReadAllPostData = {
+export type NotificationsMarkAllReadData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/api/v1/me/notifications/read-all';
 };
 
-export type MarkAllMyNotificationsReadApiV1MeNotificationsReadAllPostErrors = {
+export type NotificationsMarkAllReadErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type MarkAllMyNotificationsReadApiV1MeNotificationsReadAllPostError = MarkAllMyNotificationsReadApiV1MeNotificationsReadAllPostErrors[keyof MarkAllMyNotificationsReadApiV1MeNotificationsReadAllPostErrors];
+export type NotificationsMarkAllReadError = NotificationsMarkAllReadErrors[keyof NotificationsMarkAllReadErrors];
 
-export type MarkAllMyNotificationsReadApiV1MeNotificationsReadAllPostResponses = {
+export type NotificationsMarkAllReadResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseNotificationUnreadCountRead;
 };
 
-export type MarkAllMyNotificationsReadApiV1MeNotificationsReadAllPostResponse = MarkAllMyNotificationsReadApiV1MeNotificationsReadAllPostResponses[keyof MarkAllMyNotificationsReadApiV1MeNotificationsReadAllPostResponses];
+export type NotificationsMarkAllReadResponse = NotificationsMarkAllReadResponses[keyof NotificationsMarkAllReadResponses];
 
-export type MyNotificationUnreadCountApiV1MeNotificationsUnreadCountGetData = {
+export type NotificationsUnreadCountGetData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/api/v1/me/notifications/unread-count';
 };
 
-export type MyNotificationUnreadCountApiV1MeNotificationsUnreadCountGetErrors = {
+export type NotificationsUnreadCountGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type MyNotificationUnreadCountApiV1MeNotificationsUnreadCountGetError = MyNotificationUnreadCountApiV1MeNotificationsUnreadCountGetErrors[keyof MyNotificationUnreadCountApiV1MeNotificationsUnreadCountGetErrors];
+export type NotificationsUnreadCountGetError = NotificationsUnreadCountGetErrors[keyof NotificationsUnreadCountGetErrors];
 
-export type MyNotificationUnreadCountApiV1MeNotificationsUnreadCountGetResponses = {
+export type NotificationsUnreadCountGetResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseNotificationUnreadCountRead;
 };
 
-export type MyNotificationUnreadCountApiV1MeNotificationsUnreadCountGetResponse = MyNotificationUnreadCountApiV1MeNotificationsUnreadCountGetResponses[keyof MyNotificationUnreadCountApiV1MeNotificationsUnreadCountGetResponses];
+export type NotificationsUnreadCountGetResponse = NotificationsUnreadCountGetResponses[keyof NotificationsUnreadCountGetResponses];
 
-export type MarkMyNotificationReadApiV1MeNotificationsNotificationIdReadPostData = {
+export type NotificationMarkReadData = {
     body?: never;
     path: {
         /**
@@ -5296,100 +5358,100 @@ export type MarkMyNotificationReadApiV1MeNotificationsNotificationIdReadPostData
     url: '/api/v1/me/notifications/{notification_id}/read';
 };
 
-export type MarkMyNotificationReadApiV1MeNotificationsNotificationIdReadPostErrors = {
+export type NotificationMarkReadErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type MarkMyNotificationReadApiV1MeNotificationsNotificationIdReadPostError = MarkMyNotificationReadApiV1MeNotificationsNotificationIdReadPostErrors[keyof MarkMyNotificationReadApiV1MeNotificationsNotificationIdReadPostErrors];
+export type NotificationMarkReadError = NotificationMarkReadErrors[keyof NotificationMarkReadErrors];
 
-export type MarkMyNotificationReadApiV1MeNotificationsNotificationIdReadPostResponses = {
+export type NotificationMarkReadResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseNotificationEventRead;
 };
 
-export type MarkMyNotificationReadApiV1MeNotificationsNotificationIdReadPostResponse = MarkMyNotificationReadApiV1MeNotificationsNotificationIdReadPostResponses[keyof MarkMyNotificationReadApiV1MeNotificationsNotificationIdReadPostResponses];
+export type NotificationMarkReadResponse = NotificationMarkReadResponses[keyof NotificationMarkReadResponses];
 
-export type ChangeMyPasswordApiV1MePasswordPutData = {
+export type AccountPasswordChangeData = {
     body: ChangePasswordRequest;
     path?: never;
     query?: never;
     url: '/api/v1/me/password';
 };
 
-export type ChangeMyPasswordApiV1MePasswordPutErrors = {
+export type AccountPasswordChangeErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ChangeMyPasswordApiV1MePasswordPutError = ChangeMyPasswordApiV1MePasswordPutErrors[keyof ChangeMyPasswordApiV1MePasswordPutErrors];
+export type AccountPasswordChangeError = AccountPasswordChangeErrors[keyof AccountPasswordChangeErrors];
 
-export type ChangeMyPasswordApiV1MePasswordPutResponses = {
+export type AccountPasswordChangeResponses = {
     /**
      * Successful Response
      */
     200: SuccessResponsePayload;
 };
 
-export type ChangeMyPasswordApiV1MePasswordPutResponse = ChangeMyPasswordApiV1MePasswordPutResponses[keyof ChangeMyPasswordApiV1MePasswordPutResponses];
+export type AccountPasswordChangeResponse = AccountPasswordChangeResponses[keyof AccountPasswordChangeResponses];
 
-export type GetUserProfileApiV1MeProfileGetData = {
+export type AccountProfileGetData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/api/v1/me/profile';
 };
 
-export type GetUserProfileApiV1MeProfileGetErrors = {
+export type AccountProfileGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type GetUserProfileApiV1MeProfileGetError = GetUserProfileApiV1MeProfileGetErrors[keyof GetUserProfileApiV1MeProfileGetErrors];
+export type AccountProfileGetError = AccountProfileGetErrors[keyof AccountProfileGetErrors];
 
-export type GetUserProfileApiV1MeProfileGetResponses = {
+export type AccountProfileGetResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseProfileRead;
 };
 
-export type GetUserProfileApiV1MeProfileGetResponse = GetUserProfileApiV1MeProfileGetResponses[keyof GetUserProfileApiV1MeProfileGetResponses];
+export type AccountProfileGetResponse = AccountProfileGetResponses[keyof AccountProfileGetResponses];
 
-export type UpdateUserProfileApiV1MeProfilePutData = {
+export type AccountProfileUpdateData = {
     body: UpdateProfileRequest;
     path?: never;
     query?: never;
     url: '/api/v1/me/profile';
 };
 
-export type UpdateUserProfileApiV1MeProfilePutErrors = {
+export type AccountProfileUpdateErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type UpdateUserProfileApiV1MeProfilePutError = UpdateUserProfileApiV1MeProfilePutErrors[keyof UpdateUserProfileApiV1MeProfilePutErrors];
+export type AccountProfileUpdateError = AccountProfileUpdateErrors[keyof AccountProfileUpdateErrors];
 
-export type UpdateUserProfileApiV1MeProfilePutResponses = {
+export type AccountProfileUpdateResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseProfileUpdateRead;
 };
 
-export type UpdateUserProfileApiV1MeProfilePutResponse = UpdateUserProfileApiV1MeProfilePutResponses[keyof UpdateUserProfileApiV1MeProfilePutResponses];
+export type AccountProfileUpdateResponse = AccountProfileUpdateResponses[keyof AccountProfileUpdateResponses];
 
-export type LeaveScoreApiV1MeScoresScoreIdMembershipDeleteData = {
+export type ScoreMembershipLeaveData = {
     body?: never;
     path: {
         /**
@@ -5401,75 +5463,75 @@ export type LeaveScoreApiV1MeScoresScoreIdMembershipDeleteData = {
     url: '/api/v1/me/scores/{score_id}/membership';
 };
 
-export type LeaveScoreApiV1MeScoresScoreIdMembershipDeleteErrors = {
+export type ScoreMembershipLeaveErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type LeaveScoreApiV1MeScoresScoreIdMembershipDeleteError = LeaveScoreApiV1MeScoresScoreIdMembershipDeleteErrors[keyof LeaveScoreApiV1MeScoresScoreIdMembershipDeleteErrors];
+export type ScoreMembershipLeaveError = ScoreMembershipLeaveErrors[keyof ScoreMembershipLeaveErrors];
 
-export type LeaveScoreApiV1MeScoresScoreIdMembershipDeleteResponses = {
+export type ScoreMembershipLeaveResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseNoneType;
 };
 
-export type LeaveScoreApiV1MeScoresScoreIdMembershipDeleteResponse = LeaveScoreApiV1MeScoresScoreIdMembershipDeleteResponses[keyof LeaveScoreApiV1MeScoresScoreIdMembershipDeleteResponses];
+export type ScoreMembershipLeaveResponse = ScoreMembershipLeaveResponses[keyof ScoreMembershipLeaveResponses];
 
-export type GetMySecurityOverviewApiV1MeSecurityGetData = {
+export type AccountSecurityGetData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/api/v1/me/security';
 };
 
-export type GetMySecurityOverviewApiV1MeSecurityGetErrors = {
+export type AccountSecurityGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type GetMySecurityOverviewApiV1MeSecurityGetError = GetMySecurityOverviewApiV1MeSecurityGetErrors[keyof GetMySecurityOverviewApiV1MeSecurityGetErrors];
+export type AccountSecurityGetError = AccountSecurityGetErrors[keyof AccountSecurityGetErrors];
 
-export type GetMySecurityOverviewApiV1MeSecurityGetResponses = {
+export type AccountSecurityGetResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseSecurityRead;
 };
 
-export type GetMySecurityOverviewApiV1MeSecurityGetResponse = GetMySecurityOverviewApiV1MeSecurityGetResponses[keyof GetMySecurityOverviewApiV1MeSecurityGetResponses];
+export type AccountSecurityGetResponse = AccountSecurityGetResponses[keyof AccountSecurityGetResponses];
 
-export type RevokeMyOtherSessionsApiV1MeSessionsDeleteData = {
+export type AccountOtherSessionsRevokeData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/api/v1/me/sessions';
 };
 
-export type RevokeMyOtherSessionsApiV1MeSessionsDeleteErrors = {
+export type AccountOtherSessionsRevokeErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type RevokeMyOtherSessionsApiV1MeSessionsDeleteError = RevokeMyOtherSessionsApiV1MeSessionsDeleteErrors[keyof RevokeMyOtherSessionsApiV1MeSessionsDeleteErrors];
+export type AccountOtherSessionsRevokeError = AccountOtherSessionsRevokeErrors[keyof AccountOtherSessionsRevokeErrors];
 
-export type RevokeMyOtherSessionsApiV1MeSessionsDeleteResponses = {
+export type AccountOtherSessionsRevokeResponses = {
     /**
      * Successful Response
      */
     200: EmptyResponse;
 };
 
-export type RevokeMyOtherSessionsApiV1MeSessionsDeleteResponse = RevokeMyOtherSessionsApiV1MeSessionsDeleteResponses[keyof RevokeMyOtherSessionsApiV1MeSessionsDeleteResponses];
+export type AccountOtherSessionsRevokeResponse = AccountOtherSessionsRevokeResponses[keyof AccountOtherSessionsRevokeResponses];
 
-export type ListMySessionsApiV1MeSessionsGetData = {
+export type AccountSessionsListData = {
     body?: never;
     path?: never;
     query?: {
@@ -5481,25 +5543,25 @@ export type ListMySessionsApiV1MeSessionsGetData = {
     url: '/api/v1/me/sessions';
 };
 
-export type ListMySessionsApiV1MeSessionsGetErrors = {
+export type AccountSessionsListErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ListMySessionsApiV1MeSessionsGetError = ListMySessionsApiV1MeSessionsGetErrors[keyof ListMySessionsApiV1MeSessionsGetErrors];
+export type AccountSessionsListError = AccountSessionsListErrors[keyof AccountSessionsListErrors];
 
-export type ListMySessionsApiV1MeSessionsGetResponses = {
+export type AccountSessionsListResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseSessionsRead;
 };
 
-export type ListMySessionsApiV1MeSessionsGetResponse = ListMySessionsApiV1MeSessionsGetResponses[keyof ListMySessionsApiV1MeSessionsGetResponses];
+export type AccountSessionsListResponse = AccountSessionsListResponses[keyof AccountSessionsListResponses];
 
-export type RevokeMySessionApiV1MeSessionsSessionIdDeleteData = {
+export type AccountSessionRevokeData = {
     body?: never;
     path: {
         /**
@@ -5511,75 +5573,75 @@ export type RevokeMySessionApiV1MeSessionsSessionIdDeleteData = {
     url: '/api/v1/me/sessions/{session_id}';
 };
 
-export type RevokeMySessionApiV1MeSessionsSessionIdDeleteErrors = {
+export type AccountSessionRevokeErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type RevokeMySessionApiV1MeSessionsSessionIdDeleteError = RevokeMySessionApiV1MeSessionsSessionIdDeleteErrors[keyof RevokeMySessionApiV1MeSessionsSessionIdDeleteErrors];
+export type AccountSessionRevokeError = AccountSessionRevokeErrors[keyof AccountSessionRevokeErrors];
 
-export type RevokeMySessionApiV1MeSessionsSessionIdDeleteResponses = {
+export type AccountSessionRevokeResponses = {
     /**
      * Successful Response
      */
     200: EmptyResponse;
 };
 
-export type RevokeMySessionApiV1MeSessionsSessionIdDeleteResponse = RevokeMySessionApiV1MeSessionsSessionIdDeleteResponses[keyof RevokeMySessionApiV1MeSessionsSessionIdDeleteResponses];
+export type AccountSessionRevokeResponse = AccountSessionRevokeResponses[keyof AccountSessionRevokeResponses];
 
-export type GetStorageUsageApiV1MeStorageUsageGetData = {
+export type AccountStorageUsageGetData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/api/v1/me/storage-usage';
 };
 
-export type GetStorageUsageApiV1MeStorageUsageGetErrors = {
+export type AccountStorageUsageGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type GetStorageUsageApiV1MeStorageUsageGetError = GetStorageUsageApiV1MeStorageUsageGetErrors[keyof GetStorageUsageApiV1MeStorageUsageGetErrors];
+export type AccountStorageUsageGetError = AccountStorageUsageGetErrors[keyof AccountStorageUsageGetErrors];
 
-export type GetStorageUsageApiV1MeStorageUsageGetResponses = {
+export type AccountStorageUsageGetResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseStorageUsageRead;
 };
 
-export type GetStorageUsageApiV1MeStorageUsageGetResponse = GetStorageUsageApiV1MeStorageUsageGetResponses[keyof GetStorageUsageApiV1MeStorageUsageGetResponses];
+export type AccountStorageUsageGetResponse = AccountStorageUsageGetResponses[keyof AccountStorageUsageGetResponses];
 
-export type GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticAccessGetData = {
+export type PracticeAcousticModelAccessGetData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/api/v1/model-assets/practice-acoustic/access';
 };
 
-export type GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticAccessGetErrors = {
+export type PracticeAcousticModelAccessGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticAccessGetError = GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticAccessGetErrors[keyof GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticAccessGetErrors];
+export type PracticeAcousticModelAccessGetError = PracticeAcousticModelAccessGetErrors[keyof PracticeAcousticModelAccessGetErrors];
 
-export type GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticAccessGetResponses = {
+export type PracticeAcousticModelAccessGetResponses = {
     /**
      * Successful Response
      */
     200: ApiResponsePracticeAcousticAccessRead;
 };
 
-export type GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticAccessGetResponse = GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticAccessGetResponses[keyof GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticAccessGetResponses];
+export type PracticeAcousticModelAccessGetResponse = PracticeAcousticModelAccessGetResponses[keyof PracticeAcousticModelAccessGetResponses];
 
-export type ListTakesApiV1PerformanceTakesGetData = {
+export type PerformanceTakesListData = {
     body?: never;
     path?: never;
     query?: {
@@ -5599,50 +5661,50 @@ export type ListTakesApiV1PerformanceTakesGetData = {
     url: '/api/v1/performance-takes';
 };
 
-export type ListTakesApiV1PerformanceTakesGetErrors = {
+export type PerformanceTakesListErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ListTakesApiV1PerformanceTakesGetError = ListTakesApiV1PerformanceTakesGetErrors[keyof ListTakesApiV1PerformanceTakesGetErrors];
+export type PerformanceTakesListError = PerformanceTakesListErrors[keyof PerformanceTakesListErrors];
 
-export type ListTakesApiV1PerformanceTakesGetResponses = {
+export type PerformanceTakesListResponses = {
     /**
      * Successful Response
      */
     200: ApiResponsePerformanceTakeListResponse;
 };
 
-export type ListTakesApiV1PerformanceTakesGetResponse = ListTakesApiV1PerformanceTakesGetResponses[keyof ListTakesApiV1PerformanceTakesGetResponses];
+export type PerformanceTakesListResponse = PerformanceTakesListResponses[keyof PerformanceTakesListResponses];
 
-export type ReserveTakeUploadApiV1PerformanceTakesUploadReservationsPostData = {
+export type PerformanceTakeUploadsReserveData = {
     body: PerformanceTakeUploadReservationRequest;
     path?: never;
     query?: never;
     url: '/api/v1/performance-takes/upload-reservations';
 };
 
-export type ReserveTakeUploadApiV1PerformanceTakesUploadReservationsPostErrors = {
+export type PerformanceTakeUploadsReserveErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ReserveTakeUploadApiV1PerformanceTakesUploadReservationsPostError = ReserveTakeUploadApiV1PerformanceTakesUploadReservationsPostErrors[keyof ReserveTakeUploadApiV1PerformanceTakesUploadReservationsPostErrors];
+export type PerformanceTakeUploadsReserveError = PerformanceTakeUploadsReserveErrors[keyof PerformanceTakeUploadsReserveErrors];
 
-export type ReserveTakeUploadApiV1PerformanceTakesUploadReservationsPostResponses = {
+export type PerformanceTakeUploadsReserveResponses = {
     /**
      * Successful Response
      */
     200: ApiResponsePerformanceTakeUploadReservationRead;
 };
 
-export type ReserveTakeUploadApiV1PerformanceTakesUploadReservationsPostResponse = ReserveTakeUploadApiV1PerformanceTakesUploadReservationsPostResponses[keyof ReserveTakeUploadApiV1PerformanceTakesUploadReservationsPostResponses];
+export type PerformanceTakeUploadsReserveResponse = PerformanceTakeUploadsReserveResponses[keyof PerformanceTakeUploadsReserveResponses];
 
-export type CancelTakeUploadReservationApiV1PerformanceTakesUploadReservationsReservationIdDeleteData = {
+export type PerformanceTakeUploadCancelData = {
     body?: never;
     path: {
         /**
@@ -5654,25 +5716,25 @@ export type CancelTakeUploadReservationApiV1PerformanceTakesUploadReservationsRe
     url: '/api/v1/performance-takes/upload-reservations/{reservation_id}';
 };
 
-export type CancelTakeUploadReservationApiV1PerformanceTakesUploadReservationsReservationIdDeleteErrors = {
+export type PerformanceTakeUploadCancelErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type CancelTakeUploadReservationApiV1PerformanceTakesUploadReservationsReservationIdDeleteError = CancelTakeUploadReservationApiV1PerformanceTakesUploadReservationsReservationIdDeleteErrors[keyof CancelTakeUploadReservationApiV1PerformanceTakesUploadReservationsReservationIdDeleteErrors];
+export type PerformanceTakeUploadCancelError = PerformanceTakeUploadCancelErrors[keyof PerformanceTakeUploadCancelErrors];
 
-export type CancelTakeUploadReservationApiV1PerformanceTakesUploadReservationsReservationIdDeleteResponses = {
+export type PerformanceTakeUploadCancelResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseDictStrBool;
 };
 
-export type CancelTakeUploadReservationApiV1PerformanceTakesUploadReservationsReservationIdDeleteResponse = CancelTakeUploadReservationApiV1PerformanceTakesUploadReservationsReservationIdDeleteResponses[keyof CancelTakeUploadReservationApiV1PerformanceTakesUploadReservationsReservationIdDeleteResponses];
+export type PerformanceTakeUploadCancelResponse = PerformanceTakeUploadCancelResponses[keyof PerformanceTakeUploadCancelResponses];
 
-export type FinalizeTakeApiV1PerformanceTakesUploadReservationsReservationIdFinalizePostData = {
+export type PerformanceTakeUploadFinalizeData = {
     body?: never;
     path: {
         /**
@@ -5684,25 +5746,25 @@ export type FinalizeTakeApiV1PerformanceTakesUploadReservationsReservationIdFina
     url: '/api/v1/performance-takes/upload-reservations/{reservation_id}/finalize';
 };
 
-export type FinalizeTakeApiV1PerformanceTakesUploadReservationsReservationIdFinalizePostErrors = {
+export type PerformanceTakeUploadFinalizeErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type FinalizeTakeApiV1PerformanceTakesUploadReservationsReservationIdFinalizePostError = FinalizeTakeApiV1PerformanceTakesUploadReservationsReservationIdFinalizePostErrors[keyof FinalizeTakeApiV1PerformanceTakesUploadReservationsReservationIdFinalizePostErrors];
+export type PerformanceTakeUploadFinalizeError = PerformanceTakeUploadFinalizeErrors[keyof PerformanceTakeUploadFinalizeErrors];
 
-export type FinalizeTakeApiV1PerformanceTakesUploadReservationsReservationIdFinalizePostResponses = {
+export type PerformanceTakeUploadFinalizeResponses = {
     /**
      * Successful Response
      */
     200: ApiResponsePerformanceTakeRead;
 };
 
-export type FinalizeTakeApiV1PerformanceTakesUploadReservationsReservationIdFinalizePostResponse = FinalizeTakeApiV1PerformanceTakesUploadReservationsReservationIdFinalizePostResponses[keyof FinalizeTakeApiV1PerformanceTakesUploadReservationsReservationIdFinalizePostResponses];
+export type PerformanceTakeUploadFinalizeResponse = PerformanceTakeUploadFinalizeResponses[keyof PerformanceTakeUploadFinalizeResponses];
 
-export type DeleteTakeApiV1PerformanceTakesTakeIdDeleteData = {
+export type PerformanceTakeDeleteData = {
     body?: never;
     path: {
         /**
@@ -5714,25 +5776,25 @@ export type DeleteTakeApiV1PerformanceTakesTakeIdDeleteData = {
     url: '/api/v1/performance-takes/{take_id}';
 };
 
-export type DeleteTakeApiV1PerformanceTakesTakeIdDeleteErrors = {
+export type PerformanceTakeDeleteErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type DeleteTakeApiV1PerformanceTakesTakeIdDeleteError = DeleteTakeApiV1PerformanceTakesTakeIdDeleteErrors[keyof DeleteTakeApiV1PerformanceTakesTakeIdDeleteErrors];
+export type PerformanceTakeDeleteError = PerformanceTakeDeleteErrors[keyof PerformanceTakeDeleteErrors];
 
-export type DeleteTakeApiV1PerformanceTakesTakeIdDeleteResponses = {
+export type PerformanceTakeDeleteResponses = {
     /**
      * Successful Response
      */
     200: ApiResponsePerformanceTakeDeleteResponse;
 };
 
-export type DeleteTakeApiV1PerformanceTakesTakeIdDeleteResponse = DeleteTakeApiV1PerformanceTakesTakeIdDeleteResponses[keyof DeleteTakeApiV1PerformanceTakesTakeIdDeleteResponses];
+export type PerformanceTakeDeleteResponse2 = PerformanceTakeDeleteResponses[keyof PerformanceTakeDeleteResponses];
 
-export type GetTakeApiV1PerformanceTakesTakeIdGetData = {
+export type PerformanceTakeGetData = {
     body?: never;
     path: {
         /**
@@ -5744,25 +5806,25 @@ export type GetTakeApiV1PerformanceTakesTakeIdGetData = {
     url: '/api/v1/performance-takes/{take_id}';
 };
 
-export type GetTakeApiV1PerformanceTakesTakeIdGetErrors = {
+export type PerformanceTakeGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type GetTakeApiV1PerformanceTakesTakeIdGetError = GetTakeApiV1PerformanceTakesTakeIdGetErrors[keyof GetTakeApiV1PerformanceTakesTakeIdGetErrors];
+export type PerformanceTakeGetError = PerformanceTakeGetErrors[keyof PerformanceTakeGetErrors];
 
-export type GetTakeApiV1PerformanceTakesTakeIdGetResponses = {
+export type PerformanceTakeGetResponses = {
     /**
      * Successful Response
      */
     200: ApiResponsePerformanceTakeRead;
 };
 
-export type GetTakeApiV1PerformanceTakesTakeIdGetResponse = GetTakeApiV1PerformanceTakesTakeIdGetResponses[keyof GetTakeApiV1PerformanceTakesTakeIdGetResponses];
+export type PerformanceTakeGetResponse = PerformanceTakeGetResponses[keyof PerformanceTakeGetResponses];
 
-export type StreamTakeMediaApiV1PerformanceTakesTakeIdMediaGetData = {
+export type PerformanceTakeMediaStreamData = {
     body?: never;
     path: {
         /**
@@ -5774,23 +5836,29 @@ export type StreamTakeMediaApiV1PerformanceTakesTakeIdMediaGetData = {
     url: '/api/v1/performance-takes/{take_id}/media';
 };
 
-export type StreamTakeMediaApiV1PerformanceTakesTakeIdMediaGetErrors = {
+export type PerformanceTakeMediaStreamErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type StreamTakeMediaApiV1PerformanceTakesTakeIdMediaGetError = StreamTakeMediaApiV1PerformanceTakesTakeIdMediaGetErrors[keyof StreamTakeMediaApiV1PerformanceTakesTakeIdMediaGetErrors];
+export type PerformanceTakeMediaStreamError = PerformanceTakeMediaStreamErrors[keyof PerformanceTakeMediaStreamErrors];
 
-export type StreamTakeMediaApiV1PerformanceTakesTakeIdMediaGetResponses = {
+export type PerformanceTakeMediaStreamResponses = {
     /**
-     * Successful Response
+     * Stored bytes; Content-Type identifies the selected resource format.
      */
-    200: unknown;
+    200: Blob | File;
+    /**
+     * Requested byte range of the stored media.
+     */
+    206: Blob | File;
 };
 
-export type GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetData = {
+export type PerformanceTakeMediaStreamResponse = PerformanceTakeMediaStreamResponses[keyof PerformanceTakeMediaStreamResponses];
+
+export type PerformanceTakePlaybackUrlGetData = {
     body?: never;
     path: {
         /**
@@ -5802,48 +5870,48 @@ export type GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetData = {
     url: '/api/v1/performance-takes/{take_id}/playback-url';
 };
 
-export type GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetErrors = {
+export type PerformanceTakePlaybackUrlGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetError = GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetErrors[keyof GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetErrors];
+export type PerformanceTakePlaybackUrlGetError = PerformanceTakePlaybackUrlGetErrors[keyof PerformanceTakePlaybackUrlGetErrors];
 
-export type GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetResponses = {
+export type PerformanceTakePlaybackUrlGetResponses = {
     /**
      * Successful Response
      */
     200: ApiResponsePerformanceTakePlaybackRead;
 };
 
-export type GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetResponse = GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetResponses[keyof GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetResponses];
+export type PerformanceTakePlaybackUrlGetResponse = PerformanceTakePlaybackUrlGetResponses[keyof PerformanceTakePlaybackUrlGetResponses];
 
-export type CreatePerformancePlanApiV1PlaybackPerformancePlanPostData = {
+export type PlaybackPerformancePlanCreateData = {
     body: PerformancePlanRequest;
     path?: never;
     query?: never;
     url: '/api/v1/playback/performance-plan';
 };
 
-export type CreatePerformancePlanApiV1PlaybackPerformancePlanPostErrors = {
+export type PlaybackPerformancePlanCreateErrors = {
     /**
      * Invalid canonical source (revision_content_invalid) or unsupported performance capability (score_playback_failed).
      */
     422: unknown;
 };
 
-export type CreatePerformancePlanApiV1PlaybackPerformancePlanPostResponses = {
+export type PlaybackPerformancePlanCreateResponses = {
     /**
      * Successful Response
      */
     200: PerformancePlanRead;
 };
 
-export type CreatePerformancePlanApiV1PlaybackPerformancePlanPostResponse = CreatePerformancePlanApiV1PlaybackPerformancePlanPostResponses[keyof CreatePerformancePlanApiV1PlaybackPerformancePlanPostResponses];
+export type PlaybackPerformancePlanCreateResponse = PlaybackPerformancePlanCreateResponses[keyof PlaybackPerformancePlanCreateResponses];
 
-export type ReadBundleApiV1PracticeScoresScoreIdRevisionsRevisionIdBundleGetData = {
+export type PracticeScoreRevisionBundleGetData = {
     body?: never;
     path: {
         /**
@@ -5864,25 +5932,25 @@ export type ReadBundleApiV1PracticeScoresScoreIdRevisionsRevisionIdBundleGetData
     url: '/api/v1/practice/scores/{score_id}/revisions/{revision_id}/bundle';
 };
 
-export type ReadBundleApiV1PracticeScoresScoreIdRevisionsRevisionIdBundleGetErrors = {
+export type PracticeScoreRevisionBundleGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ReadBundleApiV1PracticeScoresScoreIdRevisionsRevisionIdBundleGetError = ReadBundleApiV1PracticeScoresScoreIdRevisionsRevisionIdBundleGetErrors[keyof ReadBundleApiV1PracticeScoresScoreIdRevisionsRevisionIdBundleGetErrors];
+export type PracticeScoreRevisionBundleGetError = PracticeScoreRevisionBundleGetErrors[keyof PracticeScoreRevisionBundleGetErrors];
 
-export type ReadBundleApiV1PracticeScoresScoreIdRevisionsRevisionIdBundleGetResponses = {
+export type PracticeScoreRevisionBundleGetResponses = {
     /**
      * Successful Response
      */
     200: ApiResponsePracticeBundleRead;
 };
 
-export type ReadBundleApiV1PracticeScoresScoreIdRevisionsRevisionIdBundleGetResponse = ReadBundleApiV1PracticeScoresScoreIdRevisionsRevisionIdBundleGetResponses[keyof ReadBundleApiV1PracticeScoresScoreIdRevisionsRevisionIdBundleGetResponses];
+export type PracticeScoreRevisionBundleGetResponse = PracticeScoreRevisionBundleGetResponses[keyof PracticeScoreRevisionBundleGetResponses];
 
-export type RealtimeEventsApiV1RealtimeEventsGetData = {
+export type RealtimeEventsStreamData = {
     body?: never;
     headers?: {
         /**
@@ -5895,23 +5963,25 @@ export type RealtimeEventsApiV1RealtimeEventsGetData = {
     url: '/api/v1/realtime/events';
 };
 
-export type RealtimeEventsApiV1RealtimeEventsGetErrors = {
+export type RealtimeEventsStreamErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type RealtimeEventsApiV1RealtimeEventsGetError = RealtimeEventsApiV1RealtimeEventsGetErrors[keyof RealtimeEventsApiV1RealtimeEventsGetErrors];
+export type RealtimeEventsStreamError = RealtimeEventsStreamErrors[keyof RealtimeEventsStreamErrors];
 
-export type RealtimeEventsApiV1RealtimeEventsGetResponses = {
+export type RealtimeEventsStreamResponses = {
     /**
-     * Successful Response
+     * Server-sent event stream with event IDs, names, JSON data and heartbeat comments.
      */
-    200: unknown;
+    200: string;
 };
 
-export type GetRenderAssetAccessUrlApiV1RenderAssetsRenderAssetIdAccessUrlGetData = {
+export type RealtimeEventsStreamResponse = RealtimeEventsStreamResponses[keyof RealtimeEventsStreamResponses];
+
+export type ScoreRenderAssetAccessUrlGetData = {
     body?: never;
     path: {
         /**
@@ -5923,25 +5993,25 @@ export type GetRenderAssetAccessUrlApiV1RenderAssetsRenderAssetIdAccessUrlGetDat
     url: '/api/v1/render-assets/{render_asset_id}/access-url';
 };
 
-export type GetRenderAssetAccessUrlApiV1RenderAssetsRenderAssetIdAccessUrlGetErrors = {
+export type ScoreRenderAssetAccessUrlGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type GetRenderAssetAccessUrlApiV1RenderAssetsRenderAssetIdAccessUrlGetError = GetRenderAssetAccessUrlApiV1RenderAssetsRenderAssetIdAccessUrlGetErrors[keyof GetRenderAssetAccessUrlApiV1RenderAssetsRenderAssetIdAccessUrlGetErrors];
+export type ScoreRenderAssetAccessUrlGetError = ScoreRenderAssetAccessUrlGetErrors[keyof ScoreRenderAssetAccessUrlGetErrors];
 
-export type GetRenderAssetAccessUrlApiV1RenderAssetsRenderAssetIdAccessUrlGetResponses = {
+export type ScoreRenderAssetAccessUrlGetResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseAssetAccessRead;
 };
 
-export type GetRenderAssetAccessUrlApiV1RenderAssetsRenderAssetIdAccessUrlGetResponse = GetRenderAssetAccessUrlApiV1RenderAssetsRenderAssetIdAccessUrlGetResponses[keyof GetRenderAssetAccessUrlApiV1RenderAssetsRenderAssetIdAccessUrlGetResponses];
+export type ScoreRenderAssetAccessUrlGetResponse = ScoreRenderAssetAccessUrlGetResponses[keyof ScoreRenderAssetAccessUrlGetResponses];
 
-export type DownloadRenderAssetApiV1RenderAssetsRenderAssetIdDownloadGetData = {
+export type ScoreRenderAssetDownloadData = {
     body?: never;
     path: {
         /**
@@ -5953,23 +6023,25 @@ export type DownloadRenderAssetApiV1RenderAssetsRenderAssetIdDownloadGetData = {
     url: '/api/v1/render-assets/{render_asset_id}/download';
 };
 
-export type DownloadRenderAssetApiV1RenderAssetsRenderAssetIdDownloadGetErrors = {
+export type ScoreRenderAssetDownloadErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type DownloadRenderAssetApiV1RenderAssetsRenderAssetIdDownloadGetError = DownloadRenderAssetApiV1RenderAssetsRenderAssetIdDownloadGetErrors[keyof DownloadRenderAssetApiV1RenderAssetsRenderAssetIdDownloadGetErrors];
+export type ScoreRenderAssetDownloadError = ScoreRenderAssetDownloadErrors[keyof ScoreRenderAssetDownloadErrors];
 
-export type DownloadRenderAssetApiV1RenderAssetsRenderAssetIdDownloadGetResponses = {
+export type ScoreRenderAssetDownloadResponses = {
     /**
-     * Successful Response
+     * Stored bytes; Content-Type identifies the selected resource format.
      */
-    200: unknown;
+    200: Blob | File;
 };
 
-export type ViewRenderAssetApiV1RenderAssetsRenderAssetIdViewGetData = {
+export type ScoreRenderAssetDownloadResponse = ScoreRenderAssetDownloadResponses[keyof ScoreRenderAssetDownloadResponses];
+
+export type ScoreRenderAssetViewData = {
     body?: never;
     path: {
         /**
@@ -5981,23 +6053,25 @@ export type ViewRenderAssetApiV1RenderAssetsRenderAssetIdViewGetData = {
     url: '/api/v1/render-assets/{render_asset_id}/view';
 };
 
-export type ViewRenderAssetApiV1RenderAssetsRenderAssetIdViewGetErrors = {
+export type ScoreRenderAssetViewErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ViewRenderAssetApiV1RenderAssetsRenderAssetIdViewGetError = ViewRenderAssetApiV1RenderAssetsRenderAssetIdViewGetErrors[keyof ViewRenderAssetApiV1RenderAssetsRenderAssetIdViewGetErrors];
+export type ScoreRenderAssetViewError = ScoreRenderAssetViewErrors[keyof ScoreRenderAssetViewErrors];
 
-export type ViewRenderAssetApiV1RenderAssetsRenderAssetIdViewGetResponses = {
+export type ScoreRenderAssetViewResponses = {
     /**
-     * Successful Response
+     * Stored bytes; Content-Type identifies the selected resource format.
      */
-    200: unknown;
+    200: Blob | File;
 };
 
-export type GetImportJobReviewApiV1ReviewJobIdGetData = {
+export type ScoreRenderAssetViewResponse = ScoreRenderAssetViewResponses[keyof ScoreRenderAssetViewResponses];
+
+export type ImportJobReviewGetData = {
     body?: never;
     path: {
         /**
@@ -6009,25 +6083,25 @@ export type GetImportJobReviewApiV1ReviewJobIdGetData = {
     url: '/api/v1/review/{job_id}';
 };
 
-export type GetImportJobReviewApiV1ReviewJobIdGetErrors = {
+export type ImportJobReviewGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type GetImportJobReviewApiV1ReviewJobIdGetError = GetImportJobReviewApiV1ReviewJobIdGetErrors[keyof GetImportJobReviewApiV1ReviewJobIdGetErrors];
+export type ImportJobReviewGetError = ImportJobReviewGetErrors[keyof ImportJobReviewGetErrors];
 
-export type GetImportJobReviewApiV1ReviewJobIdGetResponses = {
+export type ImportJobReviewGetResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseImportJobReviewRead;
 };
 
-export type GetImportJobReviewApiV1ReviewJobIdGetResponse = GetImportJobReviewApiV1ReviewJobIdGetResponses[keyof GetImportJobReviewApiV1ReviewJobIdGetResponses];
+export type ImportJobReviewGetResponse = ImportJobReviewGetResponses[keyof ImportJobReviewGetResponses];
 
-export type UpdateImportJobReviewApiV1ReviewJobIdPatchData = {
+export type ImportJobReviewUpdateData = {
     body: ReviewUpdateRequest;
     path: {
         /**
@@ -6039,25 +6113,25 @@ export type UpdateImportJobReviewApiV1ReviewJobIdPatchData = {
     url: '/api/v1/review/{job_id}';
 };
 
-export type UpdateImportJobReviewApiV1ReviewJobIdPatchErrors = {
+export type ImportJobReviewUpdateErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type UpdateImportJobReviewApiV1ReviewJobIdPatchError = UpdateImportJobReviewApiV1ReviewJobIdPatchErrors[keyof UpdateImportJobReviewApiV1ReviewJobIdPatchErrors];
+export type ImportJobReviewUpdateError = ImportJobReviewUpdateErrors[keyof ImportJobReviewUpdateErrors];
 
-export type UpdateImportJobReviewApiV1ReviewJobIdPatchResponses = {
+export type ImportJobReviewUpdateResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseImportJobReviewRead;
 };
 
-export type UpdateImportJobReviewApiV1ReviewJobIdPatchResponse = UpdateImportJobReviewApiV1ReviewJobIdPatchResponses[keyof UpdateImportJobReviewApiV1ReviewJobIdPatchResponses];
+export type ImportJobReviewUpdateResponse = ImportJobReviewUpdateResponses[keyof ImportJobReviewUpdateResponses];
 
-export type ConfirmImportJobReviewApiV1ReviewJobIdConfirmPostData = {
+export type ImportJobReviewConfirmData = {
     body: ReviewConfirmRequest;
     path: {
         /**
@@ -6069,25 +6143,25 @@ export type ConfirmImportJobReviewApiV1ReviewJobIdConfirmPostData = {
     url: '/api/v1/review/{job_id}/confirm';
 };
 
-export type ConfirmImportJobReviewApiV1ReviewJobIdConfirmPostErrors = {
+export type ImportJobReviewConfirmErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ConfirmImportJobReviewApiV1ReviewJobIdConfirmPostError = ConfirmImportJobReviewApiV1ReviewJobIdConfirmPostErrors[keyof ConfirmImportJobReviewApiV1ReviewJobIdConfirmPostErrors];
+export type ImportJobReviewConfirmError = ImportJobReviewConfirmErrors[keyof ImportJobReviewConfirmErrors];
 
-export type ConfirmImportJobReviewApiV1ReviewJobIdConfirmPostResponses = {
+export type ImportJobReviewConfirmResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseReviewConfirmRead;
 };
 
-export type ConfirmImportJobReviewApiV1ReviewJobIdConfirmPostResponse = ConfirmImportJobReviewApiV1ReviewJobIdConfirmPostResponses[keyof ConfirmImportJobReviewApiV1ReviewJobIdConfirmPostResponses];
+export type ImportJobReviewConfirmResponse = ImportJobReviewConfirmResponses[keyof ImportJobReviewConfirmResponses];
 
-export type GetRevisionSourceAccessUrlApiV1RevisionSourcesSourceIdAccessUrlGetData = {
+export type ScoreRevisionSourceAccessUrlGetData = {
     body?: never;
     path: {
         /**
@@ -6099,25 +6173,25 @@ export type GetRevisionSourceAccessUrlApiV1RevisionSourcesSourceIdAccessUrlGetDa
     url: '/api/v1/revision-sources/{source_id}/access-url';
 };
 
-export type GetRevisionSourceAccessUrlApiV1RevisionSourcesSourceIdAccessUrlGetErrors = {
+export type ScoreRevisionSourceAccessUrlGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type GetRevisionSourceAccessUrlApiV1RevisionSourcesSourceIdAccessUrlGetError = GetRevisionSourceAccessUrlApiV1RevisionSourcesSourceIdAccessUrlGetErrors[keyof GetRevisionSourceAccessUrlApiV1RevisionSourcesSourceIdAccessUrlGetErrors];
+export type ScoreRevisionSourceAccessUrlGetError = ScoreRevisionSourceAccessUrlGetErrors[keyof ScoreRevisionSourceAccessUrlGetErrors];
 
-export type GetRevisionSourceAccessUrlApiV1RevisionSourcesSourceIdAccessUrlGetResponses = {
+export type ScoreRevisionSourceAccessUrlGetResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseAssetAccessRead;
 };
 
-export type GetRevisionSourceAccessUrlApiV1RevisionSourcesSourceIdAccessUrlGetResponse = GetRevisionSourceAccessUrlApiV1RevisionSourcesSourceIdAccessUrlGetResponses[keyof GetRevisionSourceAccessUrlApiV1RevisionSourcesSourceIdAccessUrlGetResponses];
+export type ScoreRevisionSourceAccessUrlGetResponse = ScoreRevisionSourceAccessUrlGetResponses[keyof ScoreRevisionSourceAccessUrlGetResponses];
 
-export type DownloadRevisionSourceApiV1RevisionSourcesSourceIdDownloadGetData = {
+export type ScoreRevisionSourceDownloadData = {
     body?: never;
     path: {
         /**
@@ -6129,48 +6203,50 @@ export type DownloadRevisionSourceApiV1RevisionSourcesSourceIdDownloadGetData = 
     url: '/api/v1/revision-sources/{source_id}/download';
 };
 
-export type DownloadRevisionSourceApiV1RevisionSourcesSourceIdDownloadGetErrors = {
+export type ScoreRevisionSourceDownloadErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type DownloadRevisionSourceApiV1RevisionSourcesSourceIdDownloadGetError = DownloadRevisionSourceApiV1RevisionSourcesSourceIdDownloadGetErrors[keyof DownloadRevisionSourceApiV1RevisionSourcesSourceIdDownloadGetErrors];
+export type ScoreRevisionSourceDownloadError = ScoreRevisionSourceDownloadErrors[keyof ScoreRevisionSourceDownloadErrors];
 
-export type DownloadRevisionSourceApiV1RevisionSourcesSourceIdDownloadGetResponses = {
+export type ScoreRevisionSourceDownloadResponses = {
     /**
-     * Successful Response
+     * Stored bytes; Content-Type identifies the selected resource format.
      */
-    200: unknown;
+    200: Blob | File;
 };
 
-export type BatchDeleteScoresApiV1ScoresBatchDeletePostData = {
+export type ScoreRevisionSourceDownloadResponse = ScoreRevisionSourceDownloadResponses[keyof ScoreRevisionSourceDownloadResponses];
+
+export type ScoresBatchDeleteData = {
     body: ScoreBatchDeleteRequest;
     path?: never;
     query?: never;
     url: '/api/v1/scores/batch-delete';
 };
 
-export type BatchDeleteScoresApiV1ScoresBatchDeletePostErrors = {
+export type ScoresBatchDeleteErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type BatchDeleteScoresApiV1ScoresBatchDeletePostError = BatchDeleteScoresApiV1ScoresBatchDeletePostErrors[keyof BatchDeleteScoresApiV1ScoresBatchDeletePostErrors];
+export type ScoresBatchDeleteError = ScoresBatchDeleteErrors[keyof ScoresBatchDeleteErrors];
 
-export type BatchDeleteScoresApiV1ScoresBatchDeletePostResponses = {
+export type ScoresBatchDeleteResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseDictStrInt;
 };
 
-export type BatchDeleteScoresApiV1ScoresBatchDeletePostResponse = BatchDeleteScoresApiV1ScoresBatchDeletePostResponses[keyof BatchDeleteScoresApiV1ScoresBatchDeletePostResponses];
+export type ScoresBatchDeleteResponse = ScoresBatchDeleteResponses[keyof ScoresBatchDeleteResponses];
 
-export type GetScoreApiV1ScoresScoreIdGetData = {
+export type ScoresGetData = {
     body?: never;
     path: {
         /**
@@ -6182,25 +6258,25 @@ export type GetScoreApiV1ScoresScoreIdGetData = {
     url: '/api/v1/scores/{score_id}';
 };
 
-export type GetScoreApiV1ScoresScoreIdGetErrors = {
+export type ScoresGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type GetScoreApiV1ScoresScoreIdGetError = GetScoreApiV1ScoresScoreIdGetErrors[keyof GetScoreApiV1ScoresScoreIdGetErrors];
+export type ScoresGetError = ScoresGetErrors[keyof ScoresGetErrors];
 
-export type GetScoreApiV1ScoresScoreIdGetResponses = {
+export type ScoresGetResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseScoreRead;
 };
 
-export type GetScoreApiV1ScoresScoreIdGetResponse = GetScoreApiV1ScoresScoreIdGetResponses[keyof GetScoreApiV1ScoresScoreIdGetResponses];
+export type ScoresGetResponse = ScoresGetResponses[keyof ScoresGetResponses];
 
-export type UpdateScoreApiV1ScoresScoreIdPatchData = {
+export type ScoresUpdateData = {
     body: ScoreUpdateRequest;
     path: {
         /**
@@ -6212,25 +6288,25 @@ export type UpdateScoreApiV1ScoresScoreIdPatchData = {
     url: '/api/v1/scores/{score_id}';
 };
 
-export type UpdateScoreApiV1ScoresScoreIdPatchErrors = {
+export type ScoresUpdateErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type UpdateScoreApiV1ScoresScoreIdPatchError = UpdateScoreApiV1ScoresScoreIdPatchErrors[keyof UpdateScoreApiV1ScoresScoreIdPatchErrors];
+export type ScoresUpdateError = ScoresUpdateErrors[keyof ScoresUpdateErrors];
 
-export type UpdateScoreApiV1ScoresScoreIdPatchResponses = {
+export type ScoresUpdateResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseScoreRead;
 };
 
-export type UpdateScoreApiV1ScoresScoreIdPatchResponse = UpdateScoreApiV1ScoresScoreIdPatchResponses[keyof UpdateScoreApiV1ScoresScoreIdPatchResponses];
+export type ScoresUpdateResponse = ScoresUpdateResponses[keyof ScoresUpdateResponses];
 
-export type GenerateScoreFingeringApiV1ScoresScoreIdFingeringPostData = {
+export type ScoreFingeringGenerateData = {
     body: FingeringRequest;
     path: {
         /**
@@ -6242,25 +6318,25 @@ export type GenerateScoreFingeringApiV1ScoresScoreIdFingeringPostData = {
     url: '/api/v1/scores/{score_id}/fingering';
 };
 
-export type GenerateScoreFingeringApiV1ScoresScoreIdFingeringPostErrors = {
+export type ScoreFingeringGenerateErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type GenerateScoreFingeringApiV1ScoresScoreIdFingeringPostError = GenerateScoreFingeringApiV1ScoresScoreIdFingeringPostErrors[keyof GenerateScoreFingeringApiV1ScoresScoreIdFingeringPostErrors];
+export type ScoreFingeringGenerateError = ScoreFingeringGenerateErrors[keyof ScoreFingeringGenerateErrors];
 
-export type GenerateScoreFingeringApiV1ScoresScoreIdFingeringPostResponses = {
+export type ScoreFingeringGenerateResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseFingeringResultRead;
 };
 
-export type GenerateScoreFingeringApiV1ScoresScoreIdFingeringPostResponse = GenerateScoreFingeringApiV1ScoresScoreIdFingeringPostResponses[keyof GenerateScoreFingeringApiV1ScoresScoreIdFingeringPostResponses];
+export type ScoreFingeringGenerateResponse = ScoreFingeringGenerateResponses[keyof ScoreFingeringGenerateResponses];
 
-export type ReadGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewGetData = {
+export type ScoreGuestPreviewSettingsGetData = {
     body?: never;
     path: {
         /**
@@ -6272,25 +6348,25 @@ export type ReadGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewGetData = {
     url: '/api/v1/scores/{score_id}/guest-preview';
 };
 
-export type ReadGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewGetErrors = {
+export type ScoreGuestPreviewSettingsGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ReadGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewGetError = ReadGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewGetErrors[keyof ReadGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewGetErrors];
+export type ScoreGuestPreviewSettingsGetError = ScoreGuestPreviewSettingsGetErrors[keyof ScoreGuestPreviewSettingsGetErrors];
 
-export type ReadGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewGetResponses = {
+export type ScoreGuestPreviewSettingsGetResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseGuestPreviewSettingsRead;
 };
 
-export type ReadGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewGetResponse = ReadGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewGetResponses[keyof ReadGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewGetResponses];
+export type ScoreGuestPreviewSettingsGetResponse = ScoreGuestPreviewSettingsGetResponses[keyof ScoreGuestPreviewSettingsGetResponses];
 
-export type UpdateGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewPatchData = {
+export type ScoreGuestPreviewSettingsUpdateData = {
     body: GuestPreviewUpdateRequest;
     path: {
         /**
@@ -6302,25 +6378,25 @@ export type UpdateGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewPatchData = 
     url: '/api/v1/scores/{score_id}/guest-preview';
 };
 
-export type UpdateGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewPatchErrors = {
+export type ScoreGuestPreviewSettingsUpdateErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type UpdateGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewPatchError = UpdateGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewPatchErrors[keyof UpdateGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewPatchErrors];
+export type ScoreGuestPreviewSettingsUpdateError = ScoreGuestPreviewSettingsUpdateErrors[keyof ScoreGuestPreviewSettingsUpdateErrors];
 
-export type UpdateGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewPatchResponses = {
+export type ScoreGuestPreviewSettingsUpdateResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseGuestPreviewSettingsRead;
 };
 
-export type UpdateGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewPatchResponse = UpdateGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewPatchResponses[keyof UpdateGuestPreviewSettingsApiV1ScoresScoreIdGuestPreviewPatchResponses];
+export type ScoreGuestPreviewSettingsUpdateResponse = ScoreGuestPreviewSettingsUpdateResponses[keyof ScoreGuestPreviewSettingsUpdateResponses];
 
-export type DownloadScoreInputAssetApiV1ScoresScoreIdInputAssetsAssetIdDownloadGetData = {
+export type ScoreInputAssetDownloadData = {
     body?: never;
     path: {
         /**
@@ -6336,23 +6412,25 @@ export type DownloadScoreInputAssetApiV1ScoresScoreIdInputAssetsAssetIdDownloadG
     url: '/api/v1/scores/{score_id}/input-assets/{asset_id}/download';
 };
 
-export type DownloadScoreInputAssetApiV1ScoresScoreIdInputAssetsAssetIdDownloadGetErrors = {
+export type ScoreInputAssetDownloadErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type DownloadScoreInputAssetApiV1ScoresScoreIdInputAssetsAssetIdDownloadGetError = DownloadScoreInputAssetApiV1ScoresScoreIdInputAssetsAssetIdDownloadGetErrors[keyof DownloadScoreInputAssetApiV1ScoresScoreIdInputAssetsAssetIdDownloadGetErrors];
+export type ScoreInputAssetDownloadError = ScoreInputAssetDownloadErrors[keyof ScoreInputAssetDownloadErrors];
 
-export type DownloadScoreInputAssetApiV1ScoresScoreIdInputAssetsAssetIdDownloadGetResponses = {
+export type ScoreInputAssetDownloadResponses = {
     /**
-     * Successful Response
+     * Stored bytes; Content-Type identifies the selected resource format.
      */
-    200: unknown;
+    200: Blob | File;
 };
 
-export type ListScoreInvitesApiV1ScoresScoreIdInvitesGetData = {
+export type ScoreInputAssetDownloadResponse = ScoreInputAssetDownloadResponses[keyof ScoreInputAssetDownloadResponses];
+
+export type ScoreInvitesListData = {
     body?: never;
     path: {
         /**
@@ -6373,25 +6451,25 @@ export type ListScoreInvitesApiV1ScoresScoreIdInvitesGetData = {
     url: '/api/v1/scores/{score_id}/invites';
 };
 
-export type ListScoreInvitesApiV1ScoresScoreIdInvitesGetErrors = {
+export type ScoreInvitesListErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ListScoreInvitesApiV1ScoresScoreIdInvitesGetError = ListScoreInvitesApiV1ScoresScoreIdInvitesGetErrors[keyof ListScoreInvitesApiV1ScoresScoreIdInvitesGetErrors];
+export type ScoreInvitesListError = ScoreInvitesListErrors[keyof ScoreInvitesListErrors];
 
-export type ListScoreInvitesApiV1ScoresScoreIdInvitesGetResponses = {
+export type ScoreInvitesListResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseInviteListRead;
 };
 
-export type ListScoreInvitesApiV1ScoresScoreIdInvitesGetResponse = ListScoreInvitesApiV1ScoresScoreIdInvitesGetResponses[keyof ListScoreInvitesApiV1ScoresScoreIdInvitesGetResponses];
+export type ScoreInvitesListResponse = ScoreInvitesListResponses[keyof ScoreInvitesListResponses];
 
-export type CreateScoreInviteApiV1ScoresScoreIdInvitesPostData = {
+export type ScoreInvitesCreateData = {
     body: InviteCreateRequest;
     path: {
         /**
@@ -6403,25 +6481,25 @@ export type CreateScoreInviteApiV1ScoresScoreIdInvitesPostData = {
     url: '/api/v1/scores/{score_id}/invites';
 };
 
-export type CreateScoreInviteApiV1ScoresScoreIdInvitesPostErrors = {
+export type ScoreInvitesCreateErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type CreateScoreInviteApiV1ScoresScoreIdInvitesPostError = CreateScoreInviteApiV1ScoresScoreIdInvitesPostErrors[keyof CreateScoreInviteApiV1ScoresScoreIdInvitesPostErrors];
+export type ScoreInvitesCreateError = ScoreInvitesCreateErrors[keyof ScoreInvitesCreateErrors];
 
-export type CreateScoreInviteApiV1ScoresScoreIdInvitesPostResponses = {
+export type ScoreInvitesCreateResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseInviteCreatedRead;
 };
 
-export type CreateScoreInviteApiV1ScoresScoreIdInvitesPostResponse = CreateScoreInviteApiV1ScoresScoreIdInvitesPostResponses[keyof CreateScoreInviteApiV1ScoresScoreIdInvitesPostResponses];
+export type ScoreInvitesCreateResponse = ScoreInvitesCreateResponses[keyof ScoreInvitesCreateResponses];
 
-export type RevokeScoreInviteApiV1ScoresScoreIdInvitesInviteIdRevokePostData = {
+export type ScoreInviteRevokeData = {
     body?: never;
     path: {
         /**
@@ -6437,25 +6515,25 @@ export type RevokeScoreInviteApiV1ScoresScoreIdInvitesInviteIdRevokePostData = {
     url: '/api/v1/scores/{score_id}/invites/{invite_id}/revoke';
 };
 
-export type RevokeScoreInviteApiV1ScoresScoreIdInvitesInviteIdRevokePostErrors = {
+export type ScoreInviteRevokeErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type RevokeScoreInviteApiV1ScoresScoreIdInvitesInviteIdRevokePostError = RevokeScoreInviteApiV1ScoresScoreIdInvitesInviteIdRevokePostErrors[keyof RevokeScoreInviteApiV1ScoresScoreIdInvitesInviteIdRevokePostErrors];
+export type ScoreInviteRevokeError = ScoreInviteRevokeErrors[keyof ScoreInviteRevokeErrors];
 
-export type RevokeScoreInviteApiV1ScoresScoreIdInvitesInviteIdRevokePostResponses = {
+export type ScoreInviteRevokeResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseInviteRead;
 };
 
-export type RevokeScoreInviteApiV1ScoresScoreIdInvitesInviteIdRevokePostResponse = RevokeScoreInviteApiV1ScoresScoreIdInvitesInviteIdRevokePostResponses[keyof RevokeScoreInviteApiV1ScoresScoreIdInvitesInviteIdRevokePostResponses];
+export type ScoreInviteRevokeResponse = ScoreInviteRevokeResponses[keyof ScoreInviteRevokeResponses];
 
-export type ListScoreMembersApiV1ScoresScoreIdMembersGetData = {
+export type ScoreMembersListData = {
     body?: never;
     path: {
         /**
@@ -6476,25 +6554,25 @@ export type ListScoreMembersApiV1ScoresScoreIdMembersGetData = {
     url: '/api/v1/scores/{score_id}/members';
 };
 
-export type ListScoreMembersApiV1ScoresScoreIdMembersGetErrors = {
+export type ScoreMembersListErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ListScoreMembersApiV1ScoresScoreIdMembersGetError = ListScoreMembersApiV1ScoresScoreIdMembersGetErrors[keyof ListScoreMembersApiV1ScoresScoreIdMembersGetErrors];
+export type ScoreMembersListError = ScoreMembersListErrors[keyof ScoreMembersListErrors];
 
-export type ListScoreMembersApiV1ScoresScoreIdMembersGetResponses = {
+export type ScoreMembersListResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseMemberListRead;
 };
 
-export type ListScoreMembersApiV1ScoresScoreIdMembersGetResponse = ListScoreMembersApiV1ScoresScoreIdMembersGetResponses[keyof ListScoreMembersApiV1ScoresScoreIdMembersGetResponses];
+export type ScoreMembersListResponse = ScoreMembersListResponses[keyof ScoreMembersListResponses];
 
-export type RemoveScoreMemberApiV1ScoresScoreIdMembersMembershipIdDeleteData = {
+export type ScoreMemberRemoveData = {
     body?: never;
     path: {
         /**
@@ -6510,25 +6588,25 @@ export type RemoveScoreMemberApiV1ScoresScoreIdMembersMembershipIdDeleteData = {
     url: '/api/v1/scores/{score_id}/members/{membership_id}';
 };
 
-export type RemoveScoreMemberApiV1ScoresScoreIdMembersMembershipIdDeleteErrors = {
+export type ScoreMemberRemoveErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type RemoveScoreMemberApiV1ScoresScoreIdMembersMembershipIdDeleteError = RemoveScoreMemberApiV1ScoresScoreIdMembersMembershipIdDeleteErrors[keyof RemoveScoreMemberApiV1ScoresScoreIdMembersMembershipIdDeleteErrors];
+export type ScoreMemberRemoveError = ScoreMemberRemoveErrors[keyof ScoreMemberRemoveErrors];
 
-export type RemoveScoreMemberApiV1ScoresScoreIdMembersMembershipIdDeleteResponses = {
+export type ScoreMemberRemoveResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseMemberRead;
 };
 
-export type RemoveScoreMemberApiV1ScoresScoreIdMembersMembershipIdDeleteResponse = RemoveScoreMemberApiV1ScoresScoreIdMembersMembershipIdDeleteResponses[keyof RemoveScoreMemberApiV1ScoresScoreIdMembersMembershipIdDeleteResponses];
+export type ScoreMemberRemoveResponse = ScoreMemberRemoveResponses[keyof ScoreMemberRemoveResponses];
 
-export type UpdateScoreMemberApiV1ScoresScoreIdMembersMembershipIdPatchData = {
+export type ScoreMemberUpdateData = {
     body: MemberUpdateRequest;
     path: {
         /**
@@ -6544,25 +6622,25 @@ export type UpdateScoreMemberApiV1ScoresScoreIdMembersMembershipIdPatchData = {
     url: '/api/v1/scores/{score_id}/members/{membership_id}';
 };
 
-export type UpdateScoreMemberApiV1ScoresScoreIdMembersMembershipIdPatchErrors = {
+export type ScoreMemberUpdateErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type UpdateScoreMemberApiV1ScoresScoreIdMembersMembershipIdPatchError = UpdateScoreMemberApiV1ScoresScoreIdMembersMembershipIdPatchErrors[keyof UpdateScoreMemberApiV1ScoresScoreIdMembersMembershipIdPatchErrors];
+export type ScoreMemberUpdateError = ScoreMemberUpdateErrors[keyof ScoreMemberUpdateErrors];
 
-export type UpdateScoreMemberApiV1ScoresScoreIdMembersMembershipIdPatchResponses = {
+export type ScoreMemberUpdateResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseMemberRead;
 };
 
-export type UpdateScoreMemberApiV1ScoresScoreIdMembersMembershipIdPatchResponse = UpdateScoreMemberApiV1ScoresScoreIdMembersMembershipIdPatchResponses[keyof UpdateScoreMemberApiV1ScoresScoreIdMembersMembershipIdPatchResponses];
+export type ScoreMemberUpdateResponse = ScoreMemberUpdateResponses[keyof ScoreMemberUpdateResponses];
 
-export type ArchiveScoreRenderAssetsApiV1ScoresScoreIdRenderAssetArchiveGetData = {
+export type ScoreRenderAssetsArchiveData = {
     body?: never;
     path: {
         /**
@@ -6580,23 +6658,25 @@ export type ArchiveScoreRenderAssetsApiV1ScoresScoreIdRenderAssetArchiveGetData 
     url: '/api/v1/scores/{score_id}/render-asset-archive';
 };
 
-export type ArchiveScoreRenderAssetsApiV1ScoresScoreIdRenderAssetArchiveGetErrors = {
+export type ScoreRenderAssetsArchiveErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ArchiveScoreRenderAssetsApiV1ScoresScoreIdRenderAssetArchiveGetError = ArchiveScoreRenderAssetsApiV1ScoresScoreIdRenderAssetArchiveGetErrors[keyof ArchiveScoreRenderAssetsApiV1ScoresScoreIdRenderAssetArchiveGetErrors];
+export type ScoreRenderAssetsArchiveError = ScoreRenderAssetsArchiveErrors[keyof ScoreRenderAssetsArchiveErrors];
 
-export type ArchiveScoreRenderAssetsApiV1ScoresScoreIdRenderAssetArchiveGetResponses = {
+export type ScoreRenderAssetsArchiveResponses = {
     /**
-     * Successful Response
+     * Stored bytes; Content-Type identifies the selected resource format.
      */
-    200: unknown;
+    200: Blob | File;
 };
 
-export type ListScoreRevisionAssetsApiV1ScoresScoreIdRevisionAssetsGetData = {
+export type ScoreRenderAssetsArchiveResponse = ScoreRenderAssetsArchiveResponses[keyof ScoreRenderAssetsArchiveResponses];
+
+export type ScoreRevisionAssetsListData = {
     body?: never;
     path: {
         /**
@@ -6613,25 +6693,25 @@ export type ListScoreRevisionAssetsApiV1ScoresScoreIdRevisionAssetsGetData = {
     url: '/api/v1/scores/{score_id}/revision-assets';
 };
 
-export type ListScoreRevisionAssetsApiV1ScoresScoreIdRevisionAssetsGetErrors = {
+export type ScoreRevisionAssetsListErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ListScoreRevisionAssetsApiV1ScoresScoreIdRevisionAssetsGetError = ListScoreRevisionAssetsApiV1ScoresScoreIdRevisionAssetsGetErrors[keyof ListScoreRevisionAssetsApiV1ScoresScoreIdRevisionAssetsGetErrors];
+export type ScoreRevisionAssetsListError = ScoreRevisionAssetsListErrors[keyof ScoreRevisionAssetsListErrors];
 
-export type ListScoreRevisionAssetsApiV1ScoresScoreIdRevisionAssetsGetResponses = {
+export type ScoreRevisionAssetsListResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseScoreRevisionAssetsRead;
 };
 
-export type ListScoreRevisionAssetsApiV1ScoresScoreIdRevisionAssetsGetResponse = ListScoreRevisionAssetsApiV1ScoresScoreIdRevisionAssetsGetResponses[keyof ListScoreRevisionAssetsApiV1ScoresScoreIdRevisionAssetsGetResponses];
+export type ScoreRevisionAssetsListResponse = ScoreRevisionAssetsListResponses[keyof ScoreRevisionAssetsListResponses];
 
-export type ListRevisionsApiV1ScoresScoreIdRevisionsGetData = {
+export type ScoreRevisionsListData = {
     body?: never;
     path: {
         /**
@@ -6652,25 +6732,25 @@ export type ListRevisionsApiV1ScoresScoreIdRevisionsGetData = {
     url: '/api/v1/scores/{score_id}/revisions';
 };
 
-export type ListRevisionsApiV1ScoresScoreIdRevisionsGetErrors = {
+export type ScoreRevisionsListErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ListRevisionsApiV1ScoresScoreIdRevisionsGetError = ListRevisionsApiV1ScoresScoreIdRevisionsGetErrors[keyof ListRevisionsApiV1ScoresScoreIdRevisionsGetErrors];
+export type ScoreRevisionsListError = ScoreRevisionsListErrors[keyof ScoreRevisionsListErrors];
 
-export type ListRevisionsApiV1ScoresScoreIdRevisionsGetResponses = {
+export type ScoreRevisionsListResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseRevisionListRead;
 };
 
-export type ListRevisionsApiV1ScoresScoreIdRevisionsGetResponse = ListRevisionsApiV1ScoresScoreIdRevisionsGetResponses[keyof ListRevisionsApiV1ScoresScoreIdRevisionsGetResponses];
+export type ScoreRevisionsListResponse = ScoreRevisionsListResponses[keyof ScoreRevisionsListResponses];
 
-export type CreateRevisionApiV1ScoresScoreIdRevisionsPostData = {
+export type ScoreRevisionsCreateData = {
     body: RevisionCreateRequest;
     path: {
         /**
@@ -6682,25 +6762,25 @@ export type CreateRevisionApiV1ScoresScoreIdRevisionsPostData = {
     url: '/api/v1/scores/{score_id}/revisions';
 };
 
-export type CreateRevisionApiV1ScoresScoreIdRevisionsPostErrors = {
+export type ScoreRevisionsCreateErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type CreateRevisionApiV1ScoresScoreIdRevisionsPostError = CreateRevisionApiV1ScoresScoreIdRevisionsPostErrors[keyof CreateRevisionApiV1ScoresScoreIdRevisionsPostErrors];
+export type ScoreRevisionsCreateError = ScoreRevisionsCreateErrors[keyof ScoreRevisionsCreateErrors];
 
-export type CreateRevisionApiV1ScoresScoreIdRevisionsPostResponses = {
+export type ScoreRevisionsCreateResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseRevisionRead;
 };
 
-export type CreateRevisionApiV1ScoresScoreIdRevisionsPostResponse = CreateRevisionApiV1ScoresScoreIdRevisionsPostResponses[keyof CreateRevisionApiV1ScoresScoreIdRevisionsPostResponses];
+export type ScoreRevisionsCreateResponse = ScoreRevisionsCreateResponses[keyof ScoreRevisionsCreateResponses];
 
-export type GetRevisionContentApiV1ScoresScoreIdRevisionsRevisionIdContentGetData = {
+export type ScoreRevisionContentGetData = {
     body?: never;
     path: {
         /**
@@ -6716,25 +6796,25 @@ export type GetRevisionContentApiV1ScoresScoreIdRevisionsRevisionIdContentGetDat
     url: '/api/v1/scores/{score_id}/revisions/{revision_id}/content';
 };
 
-export type GetRevisionContentApiV1ScoresScoreIdRevisionsRevisionIdContentGetErrors = {
+export type ScoreRevisionContentGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type GetRevisionContentApiV1ScoresScoreIdRevisionsRevisionIdContentGetError = GetRevisionContentApiV1ScoresScoreIdRevisionsRevisionIdContentGetErrors[keyof GetRevisionContentApiV1ScoresScoreIdRevisionsRevisionIdContentGetErrors];
+export type ScoreRevisionContentGetError = ScoreRevisionContentGetErrors[keyof ScoreRevisionContentGetErrors];
 
-export type GetRevisionContentApiV1ScoresScoreIdRevisionsRevisionIdContentGetResponses = {
+export type ScoreRevisionContentGetResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseRevisionContentRead;
 };
 
-export type GetRevisionContentApiV1ScoresScoreIdRevisionsRevisionIdContentGetResponse = GetRevisionContentApiV1ScoresScoreIdRevisionsRevisionIdContentGetResponses[keyof GetRevisionContentApiV1ScoresScoreIdRevisionsRevisionIdContentGetResponses];
+export type ScoreRevisionContentGetResponse = ScoreRevisionContentGetResponses[keyof ScoreRevisionContentGetResponses];
 
-export type UpdateRevisionNoteApiV1ScoresScoreIdRevisionsRevisionIdNotePatchData = {
+export type ScoreRevisionNoteUpdateData = {
     body: RevisionNoteUpdateRequest;
     path: {
         /**
@@ -6750,25 +6830,25 @@ export type UpdateRevisionNoteApiV1ScoresScoreIdRevisionsRevisionIdNotePatchData
     url: '/api/v1/scores/{score_id}/revisions/{revision_id}/note';
 };
 
-export type UpdateRevisionNoteApiV1ScoresScoreIdRevisionsRevisionIdNotePatchErrors = {
+export type ScoreRevisionNoteUpdateErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type UpdateRevisionNoteApiV1ScoresScoreIdRevisionsRevisionIdNotePatchError = UpdateRevisionNoteApiV1ScoresScoreIdRevisionsRevisionIdNotePatchErrors[keyof UpdateRevisionNoteApiV1ScoresScoreIdRevisionsRevisionIdNotePatchErrors];
+export type ScoreRevisionNoteUpdateError = ScoreRevisionNoteUpdateErrors[keyof ScoreRevisionNoteUpdateErrors];
 
-export type UpdateRevisionNoteApiV1ScoresScoreIdRevisionsRevisionIdNotePatchResponses = {
+export type ScoreRevisionNoteUpdateResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseRevisionRead;
 };
 
-export type UpdateRevisionNoteApiV1ScoresScoreIdRevisionsRevisionIdNotePatchResponse = UpdateRevisionNoteApiV1ScoresScoreIdRevisionsRevisionIdNotePatchResponses[keyof UpdateRevisionNoteApiV1ScoresScoreIdRevisionsRevisionIdNotePatchResponses];
+export type ScoreRevisionNoteUpdateResponse = ScoreRevisionNoteUpdateResponses[keyof ScoreRevisionNoteUpdateResponses];
 
-export type StreamScoreRevisionPlaybackApiV1ScoresScoreIdRevisionsRevisionIdPlaybackGetData = {
+export type ScoreRevisionPlaybackStreamData = {
     body?: never;
     path: {
         /**
@@ -6784,23 +6864,29 @@ export type StreamScoreRevisionPlaybackApiV1ScoresScoreIdRevisionsRevisionIdPlay
     url: '/api/v1/scores/{score_id}/revisions/{revision_id}/playback';
 };
 
-export type StreamScoreRevisionPlaybackApiV1ScoresScoreIdRevisionsRevisionIdPlaybackGetErrors = {
+export type ScoreRevisionPlaybackStreamErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type StreamScoreRevisionPlaybackApiV1ScoresScoreIdRevisionsRevisionIdPlaybackGetError = StreamScoreRevisionPlaybackApiV1ScoresScoreIdRevisionsRevisionIdPlaybackGetErrors[keyof StreamScoreRevisionPlaybackApiV1ScoresScoreIdRevisionsRevisionIdPlaybackGetErrors];
+export type ScoreRevisionPlaybackStreamError = ScoreRevisionPlaybackStreamErrors[keyof ScoreRevisionPlaybackStreamErrors];
 
-export type StreamScoreRevisionPlaybackApiV1ScoresScoreIdRevisionsRevisionIdPlaybackGetResponses = {
+export type ScoreRevisionPlaybackStreamResponses = {
     /**
-     * Successful Response
+     * Stored bytes; Content-Type identifies the selected resource format.
      */
-    200: unknown;
+    200: Blob | File;
+    /**
+     * Requested byte range of the stored media.
+     */
+    206: Blob | File;
 };
 
-export type RestoreRevisionApiV1ScoresScoreIdRevisionsRevisionIdRestorePostData = {
+export type ScoreRevisionPlaybackStreamResponse = ScoreRevisionPlaybackStreamResponses[keyof ScoreRevisionPlaybackStreamResponses];
+
+export type ScoreRevisionRestoreData = {
     /**
      * Request
      */
@@ -6819,54 +6905,52 @@ export type RestoreRevisionApiV1ScoresScoreIdRevisionsRevisionIdRestorePostData 
     url: '/api/v1/scores/{score_id}/revisions/{revision_id}/restore';
 };
 
-export type RestoreRevisionApiV1ScoresScoreIdRevisionsRevisionIdRestorePostErrors = {
+export type ScoreRevisionRestoreErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type RestoreRevisionApiV1ScoresScoreIdRevisionsRevisionIdRestorePostError = RestoreRevisionApiV1ScoresScoreIdRevisionsRevisionIdRestorePostErrors[keyof RestoreRevisionApiV1ScoresScoreIdRevisionsRevisionIdRestorePostErrors];
+export type ScoreRevisionRestoreError = ScoreRevisionRestoreErrors[keyof ScoreRevisionRestoreErrors];
 
-export type RestoreRevisionApiV1ScoresScoreIdRevisionsRevisionIdRestorePostResponses = {
+export type ScoreRevisionRestoreResponses = {
     /**
      * Successful Response
      */
     200: ApiResponseRevisionRead;
 };
 
-export type RestoreRevisionApiV1ScoresScoreIdRevisionsRevisionIdRestorePostResponse = RestoreRevisionApiV1ScoresScoreIdRevisionsRevisionIdRestorePostResponses[keyof RestoreRevisionApiV1ScoresScoreIdRevisionsRevisionIdRestorePostResponses];
+export type ScoreRevisionRestoreResponse = ScoreRevisionRestoreResponses[keyof ScoreRevisionRestoreResponses];
 
-export type LivenessHealthLiveGetData = {
+export type HealthLiveData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/health/live';
 };
 
-export type LivenessHealthLiveGetResponses = {
+export type HealthLiveResponses = {
     /**
-     * Response Liveness Health Live Get
-     *
      * Successful Response
      */
-    200: {
-        [key: string]: string;
-    };
+    200: LivenessRead;
 };
 
-export type LivenessHealthLiveGetResponse = LivenessHealthLiveGetResponses[keyof LivenessHealthLiveGetResponses];
+export type HealthLiveResponse = HealthLiveResponses[keyof HealthLiveResponses];
 
-export type ReadinessHealthReadyGetData = {
+export type HealthReadyData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/health/ready';
 };
 
-export type ReadinessHealthReadyGetResponses = {
+export type HealthReadyResponses = {
     /**
      * Successful Response
      */
-    200: unknown;
+    200: ReadinessRead;
 };
+
+export type HealthReadyResponse = HealthReadyResponses[keyof HealthReadyResponses];

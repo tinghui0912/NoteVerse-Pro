@@ -16,7 +16,7 @@ from app.shared.responses import SuccessResponsePayload, success_response
 router = APIRouter()
 
 
-@router.put("/password")
+@router.put("/password", operation_id="accountPasswordChange")
 async def change_my_password(
     request_context: Request,
     response: Response,

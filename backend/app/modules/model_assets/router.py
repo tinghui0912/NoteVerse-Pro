@@ -11,7 +11,11 @@ from app.shared.responses import APIResponse, SuccessResponsePayload, success_re
 router = APIRouter()
 
 
-@router.get("/practice-acoustic/access", response_model=APIResponse[PracticeAcousticAccessRead])
+@router.get(
+    "/practice-acoustic/access",
+    operation_id="practiceAcousticModelAccessGet",
+    response_model=APIResponse[PracticeAcousticAccessRead],
+)
 async def get_practice_acoustic_access(
     current_user: User = Depends(get_current_user),
     service: ModelAssetService = Depends(get_model_asset_service),

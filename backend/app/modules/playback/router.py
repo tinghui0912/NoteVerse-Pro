@@ -1,3 +1,5 @@
+from fastapi.responses import Response
+from app.api.response_contracts import binary_responses
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,6 +19,7 @@ router = APIRouter()
 
 @router.post(
     "/playback/performance-plan",
+    operation_id="playbackPerformancePlanCreate",
     response_model=PerformancePlanRead,
     responses={
         422: {
@@ -32,7 +35,12 @@ def get_playback_delivery_service() -> PlaybackDeliveryService:
     return PlaybackDeliveryService()
 
 
-@router.get("/scores/{score_id}/revisions/{revision_id}/playback")
+@router.get(
+    "/scores/{score_id}/revisions/{revision_id}/playback",
+    response_class=Response,
+    responses=binary_responses("audio/*", byte_ranges=True),
+    operation_id="scoreRevisionPlaybackStream",
+)
 async def stream_score_revision_playback(
     score_id: str,
     revision_id: str,

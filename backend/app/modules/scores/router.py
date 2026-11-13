@@ -1,3 +1,5 @@
+from fastapi.responses import Response
+from app.api.response_contracts import binary_responses
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,7 +35,9 @@ from app.shared.responses import APIResponse, success_response
 router = APIRouter()
 
 
-@router.post("/batch-delete", response_model=APIResponse[dict[str, int]])
+@router.post(
+    "/batch-delete", operation_id="scoresBatchDelete", response_model=APIResponse[dict[str, int]]
+)
 async def batch_delete_scores(
     request: ScoreBatchDeleteRequest,
     current_user: User = Depends(get_current_user),
@@ -45,7 +49,7 @@ async def batch_delete_scores(
     return success_response(data={"removed": removed})
 
 
-@router.get("/{score_id}", response_model=APIResponse[ScoreRead])
+@router.get("/{score_id}", operation_id="scoresGet", response_model=APIResponse[ScoreRead])
 async def get_score(
     score_id: str,
     current_user: User = Depends(get_current_user),
@@ -56,7 +60,7 @@ async def get_score(
     return success_response(data=await service.get(db, score_id, user_id))
 
 
-@router.patch("/{score_id}", response_model=APIResponse[ScoreRead])
+@router.patch("/{score_id}", operation_id="scoresUpdate", response_model=APIResponse[ScoreRead])
 async def update_score(
     score_id: str,
     request: ScoreUpdateRequest,
@@ -69,7 +73,12 @@ async def update_score(
     return success_response(data=result, message=SuccessCode.UPDATE_SUCCESS)
 
 
-@router.get("/{score_id}/input-assets/{asset_id}/download")
+@router.get(
+    "/{score_id}/input-assets/{asset_id}/download",
+    response_class=Response,
+    responses=binary_responses("*/*"),
+    operation_id="scoreInputAssetDownload",
+)
 async def download_score_input_asset(
     score_id: str,
     asset_id: str,
@@ -88,7 +97,11 @@ async def download_score_input_asset(
     )
 
 
-@router.post("/{score_id}/revisions", response_model=APIResponse[RevisionRead])
+@router.post(
+    "/{score_id}/revisions",
+    operation_id="scoreRevisionsCreate",
+    response_model=APIResponse[RevisionRead],
+)
 async def create_revision(
     score_id: str,
     request: RevisionCreateRequest,
@@ -101,7 +114,11 @@ async def create_revision(
     return success_response(data=result, message=SuccessCode.SAVE_SUCCESS)
 
 
-@router.get("/{score_id}/revisions", response_model=APIResponse[RevisionListRead])
+@router.get(
+    "/{score_id}/revisions",
+    operation_id="scoreRevisionsList",
+    response_model=APIResponse[RevisionListRead],
+)
 async def list_revisions(
     score_id: str,
     limit: int = Query(default=20, ge=1, le=50),
@@ -115,7 +132,11 @@ async def list_revisions(
     return success_response(data=result)
 
 
-@router.post("/{score_id}/revisions/{revision_id}/restore", response_model=APIResponse[RevisionRead])
+@router.post(
+    "/{score_id}/revisions/{revision_id}/restore",
+    operation_id="scoreRevisionRestore",
+    response_model=APIResponse[RevisionRead],
+)
 async def restore_revision(
     score_id: str,
     revision_id: str,
@@ -129,7 +150,11 @@ async def restore_revision(
     return success_response(data=result, message=SuccessCode.SAVE_SUCCESS)
 
 
-@router.patch("/{score_id}/revisions/{revision_id}/note", response_model=APIResponse[RevisionRead])
+@router.patch(
+    "/{score_id}/revisions/{revision_id}/note",
+    operation_id="scoreRevisionNoteUpdate",
+    response_model=APIResponse[RevisionRead],
+)
 async def update_revision_note(
     score_id: str,
     revision_id: str,
@@ -143,7 +168,11 @@ async def update_revision_note(
     return success_response(data=result, message=SuccessCode.UPDATE_SUCCESS)
 
 
-@router.get("/{score_id}/revisions/{revision_id}/content", response_model=APIResponse[RevisionContentRead])
+@router.get(
+    "/{score_id}/revisions/{revision_id}/content",
+    operation_id="scoreRevisionContentGet",
+    response_model=APIResponse[RevisionContentRead],
+)
 async def get_revision_content(
     score_id: str,
     revision_id: str,
@@ -156,7 +185,11 @@ async def get_revision_content(
     return success_response(data=result)
 
 
-@router.post("/{score_id}/fingering", response_model=APIResponse[FingeringResultRead])
+@router.post(
+    "/{score_id}/fingering",
+    operation_id="scoreFingeringGenerate",
+    response_model=APIResponse[FingeringResultRead],
+)
 async def generate_score_fingering(
     score_id: str,
     request: FingeringRequest,

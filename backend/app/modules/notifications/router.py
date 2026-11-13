@@ -12,7 +12,11 @@ from app.shared.responses import APIResponse, success_response
 router = APIRouter()
 
 
-@router.get("/notifications", response_model=APIResponse[list[NotificationEventRead]])
+@router.get(
+    "/notifications",
+    operation_id="notificationsList",
+    response_model=APIResponse[list[NotificationEventRead]],
+)
 async def list_my_notifications(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -24,7 +28,11 @@ async def list_my_notifications(
     return success_response(data=result)
 
 
-@router.get("/notifications/unread-count", response_model=APIResponse[NotificationUnreadCountRead])
+@router.get(
+    "/notifications/unread-count",
+    operation_id="notificationsUnreadCountGet",
+    response_model=APIResponse[NotificationUnreadCountRead],
+)
 async def my_notification_unread_count(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -35,7 +43,11 @@ async def my_notification_unread_count(
     return success_response(data=result)
 
 
-@router.post("/notifications/{notification_id}/read", response_model=APIResponse[NotificationEventRead])
+@router.post(
+    "/notifications/{notification_id}/read",
+    operation_id="notificationMarkRead",
+    response_model=APIResponse[NotificationEventRead],
+)
 async def mark_my_notification_read(
     notification_id: str,
     current_user: User = Depends(get_current_user),
@@ -47,7 +59,11 @@ async def mark_my_notification_read(
     return success_response(data=result)
 
 
-@router.post("/notifications/read-all", response_model=APIResponse[NotificationUnreadCountRead])
+@router.post(
+    "/notifications/read-all",
+    operation_id="notificationsMarkAllRead",
+    response_model=APIResponse[NotificationUnreadCountRead],
+)
 async def mark_all_my_notifications_read(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),

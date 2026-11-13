@@ -10,7 +10,7 @@ import type {
   LibraryFolderRead,
   LibraryFolderOverviewRead,
   LibraryFolderUpdateRequest,
-  ListLibraryScoresApiV1LibraryScoresGetData,
+  LibraryScoresListData,
 } from '@/generated/api';
 
 export const libraryApi = {
@@ -31,7 +31,7 @@ export const libraryApi = {
     apiClient.delete<ApiResponse<never>>(`/library/folders/${folderId}`),
   scores: (
     params: Omit<
-      NonNullable<ListLibraryScoresApiV1LibraryScoresGetData['query']>,
+      NonNullable<LibraryScoresListData['query']>,
       'folder_id' | 'search'
     > & { folder_id?: string; search?: string },
     signal?: AbortSignal,

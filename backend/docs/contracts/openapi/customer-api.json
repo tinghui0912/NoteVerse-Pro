@@ -2981,7 +2981,21 @@
         "title": "BatchImportJobStatusRequest",
         "type": "object"
       },
-      "Body_login_access_token_api_v1_auth_login_post": {
+      "Body_accountAvatarUpload": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_accountAvatarUpload",
+        "type": "object"
+      },
+      "Body_authLogin": {
         "properties": {
           "client_id": {
             "anyOf": [
@@ -3037,10 +3051,10 @@
           "username",
           "password"
         ],
-        "title": "Body_login_access_token_api_v1_auth_login_post",
+        "title": "Body_authLogin",
         "type": "object"
       },
-      "Body_upload_avatar_api_v1_me_avatar_post": {
+      "Body_filesUpload": {
         "properties": {
           "file": {
             "contentMediaType": "application/octet-stream",
@@ -3051,21 +3065,7 @@
         "required": [
           "file"
         ],
-        "title": "Body_upload_avatar_api_v1_me_avatar_post",
-        "type": "object"
-      },
-      "Body_upload_file_api_v1_files_upload_post": {
-        "properties": {
-          "file": {
-            "contentMediaType": "application/octet-stream",
-            "title": "File",
-            "type": "string"
-          }
-        },
-        "required": [
-          "file"
-        ],
-        "title": "Body_upload_file_api_v1_files_upload_post",
+        "title": "Body_filesUpload",
         "type": "object"
       },
       "ChangePasswordRequest": {
@@ -4527,6 +4527,20 @@
         ],
         "title": "LibraryView",
         "type": "string"
+      },
+      "LivenessRead": {
+        "properties": {
+          "status": {
+            "const": "ok",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "LivenessRead",
+        "type": "object"
       },
       "MemberListRead": {
         "properties": {
@@ -6354,6 +6368,36 @@
         "title": "RationalRead",
         "type": "object"
       },
+      "ReadinessRead": {
+        "properties": {
+          "checks": {
+            "additionalProperties": {
+              "enum": [
+                "ok",
+                "failed",
+                "degraded"
+              ],
+              "type": "string"
+            },
+            "title": "Checks",
+            "type": "object"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "degraded"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "checks"
+        ],
+        "title": "ReadinessRead",
+        "type": "object"
+      },
       "RecordingActiveSegment": {
         "additionalProperties": false,
         "properties": {
@@ -7176,6 +7220,35 @@
           "available"
         ],
         "title": "RevisionSourceRead",
+        "type": "object"
+      },
+      "RootRead": {
+        "properties": {
+          "docs": {
+            "title": "Docs",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "status": {
+            "const": "operational",
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message",
+          "version",
+          "docs",
+          "status"
+        ],
+        "title": "RootRead",
         "type": "object"
       },
       "ScoreBatchDeleteRequest": {
@@ -8005,12 +8078,14 @@
   "paths": {
     "/": {
       "get": {
-        "operationId": "root__get",
+        "operationId": "serviceInfoGet",
         "responses": {
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/RootRead"
+                }
               }
             },
             "description": "Successful Response"
@@ -8021,7 +8096,7 @@
     },
     "/api/v1/auth/email/change/confirm": {
       "post": {
-        "operationId": "confirm_email_change_api_v1_auth_email_change_confirm_post",
+        "operationId": "authEmailChangeConfirm",
         "requestBody": {
           "content": {
             "application/json": {
@@ -8062,7 +8137,7 @@
     },
     "/api/v1/auth/email/verify": {
       "post": {
-        "operationId": "verify_email_api_v1_auth_email_verify_post",
+        "operationId": "authEmailVerify",
         "requestBody": {
           "content": {
             "application/json": {
@@ -8103,12 +8178,12 @@
     },
     "/api/v1/auth/login": {
       "post": {
-        "operationId": "login_access_token_api_v1_auth_login_post",
+        "operationId": "authLogin",
         "requestBody": {
           "content": {
             "application/x-www-form-urlencoded": {
               "schema": {
-                "$ref": "#/components/schemas/Body_login_access_token_api_v1_auth_login_post"
+                "$ref": "#/components/schemas/Body_authLogin"
               }
             }
           },
@@ -8144,7 +8219,7 @@
     },
     "/api/v1/auth/logout": {
       "post": {
-        "operationId": "logout_api_v1_auth_logout_post",
+        "operationId": "authLogout",
         "parameters": [
           {
             "in": "cookie",
@@ -8193,7 +8268,7 @@
     },
     "/api/v1/auth/password/forgot": {
       "post": {
-        "operationId": "forgot_password_api_v1_auth_password_forgot_post",
+        "operationId": "authPasswordResetRequest",
         "requestBody": {
           "content": {
             "application/json": {
@@ -8234,7 +8309,7 @@
     },
     "/api/v1/auth/password/reset": {
       "post": {
-        "operationId": "reset_password_api_v1_auth_password_reset_post",
+        "operationId": "authPasswordReset",
         "requestBody": {
           "content": {
             "application/json": {
@@ -8249,7 +8324,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponsePayload"
+                }
               }
             },
             "description": "Successful Response"
@@ -8273,7 +8350,7 @@
     },
     "/api/v1/auth/refresh": {
       "post": {
-        "operationId": "refresh_access_token_api_v1_auth_refresh_post",
+        "operationId": "authRefresh",
         "parameters": [
           {
             "in": "cookie",
@@ -8322,7 +8399,7 @@
     },
     "/api/v1/auth/register": {
       "post": {
-        "operationId": "register_user_api_v1_auth_register_post",
+        "operationId": "authRegister",
         "requestBody": {
           "content": {
             "application/json": {
@@ -8363,7 +8440,7 @@
     },
     "/api/v1/files/upload": {
       "post": {
-        "operationId": "upload_file_api_v1_files_upload_post",
+        "operationId": "filesUpload",
         "parameters": [
           {
             "in": "cookie",
@@ -8386,7 +8463,7 @@
           "content": {
             "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/Body_upload_file_api_v1_files_upload_post"
+                "$ref": "#/components/schemas/Body_filesUpload"
               }
             }
           },
@@ -8422,7 +8499,7 @@
     },
     "/api/v1/files/{filename}": {
       "delete": {
-        "operationId": "delete_file_api_v1_files__filename__delete",
+        "operationId": "fileDelete",
         "parameters": [
           {
             "in": "path",
@@ -8480,7 +8557,7 @@
     },
     "/api/v1/guest-previews/{token}": {
       "get": {
-        "operationId": "read_guest_preview_api_v1_guest_previews__token__get",
+        "operationId": "guestPreviewGet",
         "parameters": [
           {
             "in": "path",
@@ -8522,7 +8599,7 @@
     },
     "/api/v1/guest-previews/{token}/playback": {
       "get": {
-        "operationId": "listen_guest_preview_api_v1_guest_previews__token__playback_get",
+        "operationId": "guestPreviewPlaybackStream",
         "parameters": [
           {
             "in": "path",
@@ -8537,11 +8614,40 @@
         "responses": {
           "200": {
             "content": {
-              "application/json": {
-                "schema": {}
+              "audio/*": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
               }
             },
-            "description": "Successful Response"
+            "description": "Stored bytes; Content-Type identifies the selected resource format."
+          },
+          "206": {
+            "content": {
+              "audio/*": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Requested byte range of the stored media.",
+            "headers": {
+              "Accept-Ranges": {
+                "schema": {
+                  "enum": [
+                    "bytes"
+                  ],
+                  "type": "string"
+                }
+              },
+              "Content-Range": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "422": {
             "content": {
@@ -8562,7 +8668,7 @@
     },
     "/api/v1/guest-previews/{token}/render-assets/{asset_id}/view": {
       "get": {
-        "operationId": "view_guest_preview_page_api_v1_guest_previews__token__render_assets__asset_id__view_get",
+        "operationId": "guestPreviewPageView",
         "parameters": [
           {
             "in": "path",
@@ -8586,11 +8692,14 @@
         "responses": {
           "200": {
             "content": {
-              "application/json": {
-                "schema": {}
+              "image/*": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
               }
             },
-            "description": "Successful Response"
+            "description": "Stored bytes; Content-Type identifies the selected resource format."
           },
           "422": {
             "content": {
@@ -8611,7 +8720,7 @@
     },
     "/api/v1/import-jobs": {
       "get": {
-        "operationId": "list_jobs_api_v1_import_jobs_get",
+        "operationId": "importJobsList",
         "parameters": [
           {
             "in": "query",
@@ -8681,7 +8790,7 @@
         ]
       },
       "post": {
-        "operationId": "submit_job_api_v1_import_jobs_post",
+        "operationId": "importJobsSubmit",
         "parameters": [
           {
             "in": "cookie",
@@ -8740,7 +8849,7 @@
     },
     "/api/v1/import-jobs/status/batch": {
       "post": {
-        "operationId": "batch_job_status_api_v1_import_jobs_status_batch_post",
+        "operationId": "importJobsBatchStatusGet",
         "parameters": [
           {
             "in": "cookie",
@@ -8799,7 +8908,7 @@
     },
     "/api/v1/import-jobs/{job_id}": {
       "delete": {
-        "operationId": "delete_job_api_v1_import_jobs__job_id__delete",
+        "operationId": "importJobDelete",
         "parameters": [
           {
             "in": "path",
@@ -8855,7 +8964,7 @@
         ]
       },
       "get": {
-        "operationId": "get_job_api_v1_import_jobs__job_id__get",
+        "operationId": "importJobGet",
         "parameters": [
           {
             "in": "path",
@@ -8913,7 +9022,7 @@
     },
     "/api/v1/import-jobs/{job_id}/artifacts/{artifact_id}/download": {
       "get": {
-        "operationId": "download_job_artifact_api_v1_import_jobs__job_id__artifacts__artifact_id__download_get",
+        "operationId": "importJobArtifactDownload",
         "parameters": [
           {
             "in": "path",
@@ -8953,11 +9062,14 @@
         "responses": {
           "200": {
             "content": {
-              "application/json": {
-                "schema": {}
+              "*/*": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
               }
             },
-            "description": "Successful Response"
+            "description": "Stored bytes; Content-Type identifies the selected resource format."
           },
           "422": {
             "content": {
@@ -8978,7 +9090,7 @@
     },
     "/api/v1/import-jobs/{job_id}/retry": {
       "post": {
-        "operationId": "retry_job_api_v1_import_jobs__job_id__retry_post",
+        "operationId": "importJobRetry",
         "parameters": [
           {
             "in": "path",
@@ -9036,7 +9148,7 @@
     },
     "/api/v1/invites/{token}": {
       "get": {
-        "operationId": "inspect_invite_api_v1_invites__token__get",
+        "operationId": "scoreInviteInspect",
         "parameters": [
           {
             "in": "path",
@@ -9094,7 +9206,7 @@
     },
     "/api/v1/invites/{token}/accept": {
       "post": {
-        "operationId": "accept_invite_api_v1_invites__token__accept_post",
+        "operationId": "scoreInviteAccept",
         "parameters": [
           {
             "in": "path",
@@ -9152,7 +9264,7 @@
     },
     "/api/v1/library/folders": {
       "get": {
-        "operationId": "list_library_folders_api_v1_library_folders_get",
+        "operationId": "libraryFoldersOverviewGet",
         "parameters": [
           {
             "in": "cookie",
@@ -9199,7 +9311,7 @@
         ]
       },
       "post": {
-        "operationId": "create_library_folder_api_v1_library_folders_post",
+        "operationId": "libraryFoldersCreate",
         "parameters": [
           {
             "in": "cookie",
@@ -9258,7 +9370,7 @@
     },
     "/api/v1/library/folders/{folder_id}": {
       "delete": {
-        "operationId": "delete_library_folder_api_v1_library_folders__folder_id__delete",
+        "operationId": "libraryFolderDelete",
         "parameters": [
           {
             "in": "path",
@@ -9314,7 +9426,7 @@
         ]
       },
       "patch": {
-        "operationId": "update_library_folder_api_v1_library_folders__folder_id__patch",
+        "operationId": "libraryFolderUpdate",
         "parameters": [
           {
             "in": "path",
@@ -9382,7 +9494,7 @@
     },
     "/api/v1/library/scores": {
       "get": {
-        "operationId": "list_library_scores_api_v1_library_scores_get",
+        "operationId": "libraryScoresList",
         "parameters": [
           {
             "in": "query",
@@ -9504,7 +9616,7 @@
     },
     "/api/v1/library/scores/batch-favorite": {
       "post": {
-        "operationId": "batch_favorite_library_scores_api_v1_library_scores_batch_favorite_post",
+        "operationId": "libraryScoresBatchFavorite",
         "parameters": [
           {
             "in": "cookie",
@@ -9563,7 +9675,7 @@
     },
     "/api/v1/library/scores/batch-move": {
       "post": {
-        "operationId": "batch_move_library_scores_api_v1_library_scores_batch_move_post",
+        "operationId": "libraryScoresBatchMove",
         "parameters": [
           {
             "in": "cookie",
@@ -9622,7 +9734,7 @@
     },
     "/api/v1/me/avatar": {
       "delete": {
-        "operationId": "delete_avatar_api_v1_me_avatar_delete",
+        "operationId": "accountAvatarDelete",
         "parameters": [
           {
             "in": "cookie",
@@ -9669,7 +9781,7 @@
         ]
       },
       "post": {
-        "operationId": "upload_avatar_api_v1_me_avatar_post",
+        "operationId": "accountAvatarUpload",
         "parameters": [
           {
             "in": "cookie",
@@ -9692,7 +9804,7 @@
           "content": {
             "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/Body_upload_avatar_api_v1_me_avatar_post"
+                "$ref": "#/components/schemas/Body_accountAvatarUpload"
               }
             }
           },
@@ -9729,7 +9841,7 @@
     "/api/v1/me/avatars/{filename}": {
       "get": {
         "description": "Issue a fresh object capability for a public profile image.",
-        "operationId": "read_avatar_api_v1_me_avatars__filename__get",
+        "operationId": "accountAvatarResolve",
         "parameters": [
           {
             "in": "path",
@@ -9743,7 +9855,15 @@
         ],
         "responses": {
           "307": {
-            "description": "Successful Response"
+            "description": "Redirect to a fresh profile-image object capability; no response body.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "format": "uri",
+                  "type": "string"
+                }
+              }
+            }
           },
           "422": {
             "content": {
@@ -9764,7 +9884,7 @@
     },
     "/api/v1/me/email/change": {
       "post": {
-        "operationId": "request_my_email_change_api_v1_me_email_change_post",
+        "operationId": "accountEmailChangeRequest",
         "parameters": [
           {
             "in": "cookie",
@@ -9823,7 +9943,7 @@
     },
     "/api/v1/me/invites": {
       "get": {
-        "operationId": "list_my_pending_invites_api_v1_me_invites_get",
+        "operationId": "accountPendingInvitesList",
         "parameters": [
           {
             "in": "query",
@@ -9900,7 +10020,7 @@
     },
     "/api/v1/me/invites/{invite_id}/accept": {
       "post": {
-        "operationId": "accept_my_pending_invite_api_v1_me_invites__invite_id__accept_post",
+        "operationId": "accountPendingInviteAccept",
         "parameters": [
           {
             "in": "path",
@@ -9958,7 +10078,7 @@
     },
     "/api/v1/me/invites/{invite_id}/decline": {
       "post": {
-        "operationId": "decline_my_pending_invite_api_v1_me_invites__invite_id__decline_post",
+        "operationId": "accountPendingInviteDecline",
         "parameters": [
           {
             "in": "path",
@@ -10016,7 +10136,7 @@
     },
     "/api/v1/me/notifications": {
       "get": {
-        "operationId": "list_my_notifications_api_v1_me_notifications_get",
+        "operationId": "notificationsList",
         "parameters": [
           {
             "in": "query",
@@ -10077,7 +10197,7 @@
     },
     "/api/v1/me/notifications/read-all": {
       "post": {
-        "operationId": "mark_all_my_notifications_read_api_v1_me_notifications_read_all_post",
+        "operationId": "notificationsMarkAllRead",
         "parameters": [
           {
             "in": "cookie",
@@ -10126,7 +10246,7 @@
     },
     "/api/v1/me/notifications/unread-count": {
       "get": {
-        "operationId": "my_notification_unread_count_api_v1_me_notifications_unread_count_get",
+        "operationId": "notificationsUnreadCountGet",
         "parameters": [
           {
             "in": "cookie",
@@ -10175,7 +10295,7 @@
     },
     "/api/v1/me/notifications/{notification_id}/read": {
       "post": {
-        "operationId": "mark_my_notification_read_api_v1_me_notifications__notification_id__read_post",
+        "operationId": "notificationMarkRead",
         "parameters": [
           {
             "in": "path",
@@ -10233,7 +10353,7 @@
     },
     "/api/v1/me/password": {
       "put": {
-        "operationId": "change_my_password_api_v1_me_password_put",
+        "operationId": "accountPasswordChange",
         "parameters": [
           {
             "in": "cookie",
@@ -10292,7 +10412,7 @@
     },
     "/api/v1/me/profile": {
       "get": {
-        "operationId": "get_user_profile_api_v1_me_profile_get",
+        "operationId": "accountProfileGet",
         "parameters": [
           {
             "in": "cookie",
@@ -10339,7 +10459,7 @@
         ]
       },
       "put": {
-        "operationId": "update_user_profile_api_v1_me_profile_put",
+        "operationId": "accountProfileUpdate",
         "parameters": [
           {
             "in": "cookie",
@@ -10398,7 +10518,7 @@
     },
     "/api/v1/me/scores/{score_id}/membership": {
       "delete": {
-        "operationId": "leave_score_api_v1_me_scores__score_id__membership_delete",
+        "operationId": "scoreMembershipLeave",
         "parameters": [
           {
             "in": "path",
@@ -10456,7 +10576,7 @@
     },
     "/api/v1/me/security": {
       "get": {
-        "operationId": "get_my_security_overview_api_v1_me_security_get",
+        "operationId": "accountSecurityGet",
         "parameters": [
           {
             "in": "cookie",
@@ -10505,7 +10625,7 @@
     },
     "/api/v1/me/sessions": {
       "delete": {
-        "operationId": "revoke_my_other_sessions_api_v1_me_sessions_delete",
+        "operationId": "accountOtherSessionsRevoke",
         "parameters": [
           {
             "in": "cookie",
@@ -10568,7 +10688,7 @@
         ]
       },
       "get": {
-        "operationId": "list_my_sessions_api_v1_me_sessions_get",
+        "operationId": "accountSessionsList",
         "parameters": [
           {
             "in": "query",
@@ -10645,7 +10765,7 @@
     },
     "/api/v1/me/sessions/{session_id}": {
       "delete": {
-        "operationId": "revoke_my_session_api_v1_me_sessions__session_id__delete",
+        "operationId": "accountSessionRevoke",
         "parameters": [
           {
             "in": "path",
@@ -10719,7 +10839,7 @@
     },
     "/api/v1/me/storage-usage": {
       "get": {
-        "operationId": "get_storage_usage_api_v1_me_storage_usage_get",
+        "operationId": "accountStorageUsageGet",
         "parameters": [
           {
             "in": "cookie",
@@ -10769,7 +10889,7 @@
     "/api/v1/model-assets/practice-acoustic/access": {
       "get": {
         "description": "Asset delivery only; no server Practice execution.",
-        "operationId": "get_practice_acoustic_access_api_v1_model_assets_practice_acoustic_access_get",
+        "operationId": "practiceAcousticModelAccessGet",
         "parameters": [
           {
             "in": "cookie",
@@ -10818,7 +10938,7 @@
     },
     "/api/v1/performance-takes": {
       "get": {
-        "operationId": "list_takes_api_v1_performance_takes_get",
+        "operationId": "performanceTakesList",
         "parameters": [
           {
             "in": "query",
@@ -10906,7 +11026,7 @@
     },
     "/api/v1/performance-takes/upload-reservations": {
       "post": {
-        "operationId": "reserve_take_upload_api_v1_performance_takes_upload_reservations_post",
+        "operationId": "performanceTakeUploadsReserve",
         "parameters": [
           {
             "in": "cookie",
@@ -10965,7 +11085,7 @@
     },
     "/api/v1/performance-takes/upload-reservations/{reservation_id}": {
       "delete": {
-        "operationId": "cancel_take_upload_reservation_api_v1_performance_takes_upload_reservations__reservation_id__delete",
+        "operationId": "performanceTakeUploadCancel",
         "parameters": [
           {
             "in": "path",
@@ -11023,7 +11143,7 @@
     },
     "/api/v1/performance-takes/upload-reservations/{reservation_id}/finalize": {
       "post": {
-        "operationId": "finalize_take_api_v1_performance_takes_upload_reservations__reservation_id__finalize_post",
+        "operationId": "performanceTakeUploadFinalize",
         "parameters": [
           {
             "in": "path",
@@ -11081,7 +11201,7 @@
     },
     "/api/v1/performance-takes/{take_id}": {
       "delete": {
-        "operationId": "delete_take_api_v1_performance_takes__take_id__delete",
+        "operationId": "performanceTakeDelete",
         "parameters": [
           {
             "in": "path",
@@ -11137,7 +11257,7 @@
         ]
       },
       "get": {
-        "operationId": "get_take_api_v1_performance_takes__take_id__get",
+        "operationId": "performanceTakeGet",
         "parameters": [
           {
             "in": "path",
@@ -11195,7 +11315,7 @@
     },
     "/api/v1/performance-takes/{take_id}/media": {
       "get": {
-        "operationId": "stream_take_media_api_v1_performance_takes__take_id__media_get",
+        "operationId": "performanceTakeMediaStream",
         "parameters": [
           {
             "in": "path",
@@ -11226,11 +11346,52 @@
         "responses": {
           "200": {
             "content": {
-              "application/json": {
-                "schema": {}
+              "audio/*": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "video/*": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
               }
             },
-            "description": "Successful Response"
+            "description": "Stored bytes; Content-Type identifies the selected resource format."
+          },
+          "206": {
+            "content": {
+              "audio/*": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "video/*": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Requested byte range of the stored media.",
+            "headers": {
+              "Accept-Ranges": {
+                "schema": {
+                  "enum": [
+                    "bytes"
+                  ],
+                  "type": "string"
+                }
+              },
+              "Content-Range": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "422": {
             "content": {
@@ -11251,7 +11412,7 @@
     },
     "/api/v1/performance-takes/{take_id}/playback-url": {
       "get": {
-        "operationId": "get_playback_url_api_v1_performance_takes__take_id__playback_url_get",
+        "operationId": "performanceTakePlaybackUrlGet",
         "parameters": [
           {
             "in": "path",
@@ -11309,7 +11470,7 @@
     },
     "/api/v1/playback/performance-plan": {
       "post": {
-        "operationId": "create_performance_plan_api_v1_playback_performance_plan_post",
+        "operationId": "playbackPerformancePlanCreate",
         "requestBody": {
           "content": {
             "application/json": {
@@ -11343,7 +11504,7 @@
     },
     "/api/v1/practice/scores/{score_id}/revisions/{revision_id}/bundle": {
       "get": {
-        "operationId": "read_bundle_api_v1_practice_scores__score_id__revisions__revision_id__bundle_get",
+        "operationId": "practiceScoreRevisionBundleGet",
         "parameters": [
           {
             "in": "path",
@@ -11420,7 +11581,7 @@
     },
     "/api/v1/realtime/events": {
       "get": {
-        "operationId": "realtime_events_api_v1_realtime_events_get",
+        "operationId": "realtimeEventsStream",
         "parameters": [
           {
             "in": "header",
@@ -11458,11 +11619,13 @@
         "responses": {
           "200": {
             "content": {
-              "application/json": {
-                "schema": {}
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
               }
             },
-            "description": "Successful Response"
+            "description": "Server-sent event stream with event IDs, names, JSON data and heartbeat comments."
           },
           "422": {
             "content": {
@@ -11483,7 +11646,7 @@
     },
     "/api/v1/render-assets/{render_asset_id}/access-url": {
       "get": {
-        "operationId": "get_render_asset_access_url_api_v1_render_assets__render_asset_id__access_url_get",
+        "operationId": "scoreRenderAssetAccessUrlGet",
         "parameters": [
           {
             "in": "path",
@@ -11541,7 +11704,7 @@
     },
     "/api/v1/render-assets/{render_asset_id}/download": {
       "get": {
-        "operationId": "download_render_asset_api_v1_render_assets__render_asset_id__download_get",
+        "operationId": "scoreRenderAssetDownload",
         "parameters": [
           {
             "in": "path",
@@ -11572,11 +11735,14 @@
         "responses": {
           "200": {
             "content": {
-              "application/json": {
-                "schema": {}
+              "image/*": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
               }
             },
-            "description": "Successful Response"
+            "description": "Stored bytes; Content-Type identifies the selected resource format."
           },
           "422": {
             "content": {
@@ -11597,7 +11763,7 @@
     },
     "/api/v1/render-assets/{render_asset_id}/view": {
       "get": {
-        "operationId": "view_render_asset_api_v1_render_assets__render_asset_id__view_get",
+        "operationId": "scoreRenderAssetView",
         "parameters": [
           {
             "in": "path",
@@ -11628,11 +11794,14 @@
         "responses": {
           "200": {
             "content": {
-              "application/json": {
-                "schema": {}
+              "image/*": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
               }
             },
-            "description": "Successful Response"
+            "description": "Stored bytes; Content-Type identifies the selected resource format."
           },
           "422": {
             "content": {
@@ -11653,7 +11822,7 @@
     },
     "/api/v1/review/{job_id}": {
       "get": {
-        "operationId": "get_import_job_review_api_v1_review__job_id__get",
+        "operationId": "importJobReviewGet",
         "parameters": [
           {
             "in": "path",
@@ -11709,7 +11878,7 @@
         ]
       },
       "patch": {
-        "operationId": "update_import_job_review_api_v1_review__job_id__patch",
+        "operationId": "importJobReviewUpdate",
         "parameters": [
           {
             "in": "path",
@@ -11777,7 +11946,7 @@
     },
     "/api/v1/review/{job_id}/confirm": {
       "post": {
-        "operationId": "confirm_import_job_review_api_v1_review__job_id__confirm_post",
+        "operationId": "importJobReviewConfirm",
         "parameters": [
           {
             "in": "path",
@@ -11845,7 +12014,7 @@
     },
     "/api/v1/revision-sources/{source_id}/access-url": {
       "get": {
-        "operationId": "get_revision_source_access_url_api_v1_revision_sources__source_id__access_url_get",
+        "operationId": "scoreRevisionSourceAccessUrlGet",
         "parameters": [
           {
             "in": "path",
@@ -11903,7 +12072,7 @@
     },
     "/api/v1/revision-sources/{source_id}/download": {
       "get": {
-        "operationId": "download_revision_source_api_v1_revision_sources__source_id__download_get",
+        "operationId": "scoreRevisionSourceDownload",
         "parameters": [
           {
             "in": "path",
@@ -11934,11 +12103,14 @@
         "responses": {
           "200": {
             "content": {
-              "application/json": {
-                "schema": {}
+              "*/*": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
               }
             },
-            "description": "Successful Response"
+            "description": "Stored bytes; Content-Type identifies the selected resource format."
           },
           "422": {
             "content": {
@@ -11959,7 +12131,7 @@
     },
     "/api/v1/scores/batch-delete": {
       "post": {
-        "operationId": "batch_delete_scores_api_v1_scores_batch_delete_post",
+        "operationId": "scoresBatchDelete",
         "parameters": [
           {
             "in": "cookie",
@@ -12018,7 +12190,7 @@
     },
     "/api/v1/scores/{score_id}": {
       "get": {
-        "operationId": "get_score_api_v1_scores__score_id__get",
+        "operationId": "scoresGet",
         "parameters": [
           {
             "in": "path",
@@ -12074,7 +12246,7 @@
         ]
       },
       "patch": {
-        "operationId": "update_score_api_v1_scores__score_id__patch",
+        "operationId": "scoresUpdate",
         "parameters": [
           {
             "in": "path",
@@ -12142,7 +12314,7 @@
     },
     "/api/v1/scores/{score_id}/fingering": {
       "post": {
-        "operationId": "generate_score_fingering_api_v1_scores__score_id__fingering_post",
+        "operationId": "scoreFingeringGenerate",
         "parameters": [
           {
             "in": "path",
@@ -12210,7 +12382,7 @@
     },
     "/api/v1/scores/{score_id}/guest-preview": {
       "get": {
-        "operationId": "read_guest_preview_settings_api_v1_scores__score_id__guest_preview_get",
+        "operationId": "scoreGuestPreviewSettingsGet",
         "parameters": [
           {
             "in": "path",
@@ -12266,7 +12438,7 @@
         ]
       },
       "patch": {
-        "operationId": "update_guest_preview_settings_api_v1_scores__score_id__guest_preview_patch",
+        "operationId": "scoreGuestPreviewSettingsUpdate",
         "parameters": [
           {
             "in": "path",
@@ -12334,7 +12506,7 @@
     },
     "/api/v1/scores/{score_id}/input-assets/{asset_id}/download": {
       "get": {
-        "operationId": "download_score_input_asset_api_v1_scores__score_id__input_assets__asset_id__download_get",
+        "operationId": "scoreInputAssetDownload",
         "parameters": [
           {
             "in": "path",
@@ -12374,11 +12546,14 @@
         "responses": {
           "200": {
             "content": {
-              "application/json": {
-                "schema": {}
+              "*/*": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
               }
             },
-            "description": "Successful Response"
+            "description": "Stored bytes; Content-Type identifies the selected resource format."
           },
           "422": {
             "content": {
@@ -12399,7 +12574,7 @@
     },
     "/api/v1/scores/{score_id}/invites": {
       "get": {
-        "operationId": "list_score_invites_api_v1_scores__score_id__invites_get",
+        "operationId": "scoreInvitesList",
         "parameters": [
           {
             "in": "path",
@@ -12483,7 +12658,7 @@
         ]
       },
       "post": {
-        "operationId": "create_score_invite_api_v1_scores__score_id__invites_post",
+        "operationId": "scoreInvitesCreate",
         "parameters": [
           {
             "in": "path",
@@ -12551,7 +12726,7 @@
     },
     "/api/v1/scores/{score_id}/invites/{invite_id}/revoke": {
       "post": {
-        "operationId": "revoke_score_invite_api_v1_scores__score_id__invites__invite_id__revoke_post",
+        "operationId": "scoreInviteRevoke",
         "parameters": [
           {
             "in": "path",
@@ -12618,7 +12793,7 @@
     },
     "/api/v1/scores/{score_id}/members": {
       "get": {
-        "operationId": "list_score_members_api_v1_scores__score_id__members_get",
+        "operationId": "scoreMembersList",
         "parameters": [
           {
             "in": "path",
@@ -12704,7 +12879,7 @@
     },
     "/api/v1/scores/{score_id}/members/{membership_id}": {
       "delete": {
-        "operationId": "remove_score_member_api_v1_scores__score_id__members__membership_id__delete",
+        "operationId": "scoreMemberRemove",
         "parameters": [
           {
             "in": "path",
@@ -12769,7 +12944,7 @@
         ]
       },
       "patch": {
-        "operationId": "update_score_member_api_v1_scores__score_id__members__membership_id__patch",
+        "operationId": "scoreMemberUpdate",
         "parameters": [
           {
             "in": "path",
@@ -12846,7 +13021,7 @@
     },
     "/api/v1/scores/{score_id}/render-asset-archive": {
       "get": {
-        "operationId": "archive_score_render_assets_api_v1_scores__score_id__render_asset_archive_get",
+        "operationId": "scoreRenderAssetsArchive",
         "parameters": [
           {
             "in": "path",
@@ -12901,11 +13076,14 @@
         "responses": {
           "200": {
             "content": {
-              "application/json": {
-                "schema": {}
+              "application/zip": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
               }
             },
-            "description": "Successful Response"
+            "description": "Stored bytes; Content-Type identifies the selected resource format."
           },
           "422": {
             "content": {
@@ -12926,7 +13104,7 @@
     },
     "/api/v1/scores/{score_id}/revision-assets": {
       "get": {
-        "operationId": "list_score_revision_assets_api_v1_scores__score_id__revision_assets_get",
+        "operationId": "scoreRevisionAssetsList",
         "parameters": [
           {
             "in": "path",
@@ -13000,7 +13178,7 @@
     },
     "/api/v1/scores/{score_id}/revisions": {
       "get": {
-        "operationId": "list_revisions_api_v1_scores__score_id__revisions_get",
+        "operationId": "scoreRevisionsList",
         "parameters": [
           {
             "in": "path",
@@ -13085,7 +13263,7 @@
         ]
       },
       "post": {
-        "operationId": "create_revision_api_v1_scores__score_id__revisions_post",
+        "operationId": "scoreRevisionsCreate",
         "parameters": [
           {
             "in": "path",
@@ -13153,7 +13331,7 @@
     },
     "/api/v1/scores/{score_id}/revisions/{revision_id}/content": {
       "get": {
-        "operationId": "get_revision_content_api_v1_scores__score_id__revisions__revision_id__content_get",
+        "operationId": "scoreRevisionContentGet",
         "parameters": [
           {
             "in": "path",
@@ -13220,7 +13398,7 @@
     },
     "/api/v1/scores/{score_id}/revisions/{revision_id}/note": {
       "patch": {
-        "operationId": "update_revision_note_api_v1_scores__score_id__revisions__revision_id__note_patch",
+        "operationId": "scoreRevisionNoteUpdate",
         "parameters": [
           {
             "in": "path",
@@ -13297,7 +13475,7 @@
     },
     "/api/v1/scores/{score_id}/revisions/{revision_id}/playback": {
       "get": {
-        "operationId": "stream_score_revision_playback_api_v1_scores__score_id__revisions__revision_id__playback_get",
+        "operationId": "scoreRevisionPlaybackStream",
         "parameters": [
           {
             "in": "path",
@@ -13337,11 +13515,40 @@
         "responses": {
           "200": {
             "content": {
-              "application/json": {
-                "schema": {}
+              "audio/*": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
               }
             },
-            "description": "Successful Response"
+            "description": "Stored bytes; Content-Type identifies the selected resource format."
+          },
+          "206": {
+            "content": {
+              "audio/*": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Requested byte range of the stored media.",
+            "headers": {
+              "Accept-Ranges": {
+                "schema": {
+                  "enum": [
+                    "bytes"
+                  ],
+                  "type": "string"
+                }
+              },
+              "Content-Range": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "422": {
             "content": {
@@ -13362,7 +13569,7 @@
     },
     "/api/v1/scores/{score_id}/revisions/{revision_id}/restore": {
       "post": {
-        "operationId": "restore_revision_api_v1_scores__score_id__revisions__revision_id__restore_post",
+        "operationId": "scoreRevisionRestore",
         "parameters": [
           {
             "in": "path",
@@ -13447,17 +13654,13 @@
     "/health/live": {
       "get": {
         "description": "Report whether this process can serve requests.",
-        "operationId": "liveness_health_live_get",
+        "operationId": "healthLive",
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {
-                    "type": "string"
-                  },
-                  "title": "Response Liveness Health Live Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/LivenessRead"
                 }
               }
             },
@@ -13473,12 +13676,14 @@
     "/health/ready": {
       "get": {
         "description": "Report readiness for this runtime's declared dependencies.",
-        "operationId": "readiness_health_ready_get",
+        "operationId": "healthReady",
         "responses": {
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessRead"
+                }
               }
             },
             "description": "Successful Response"

@@ -20,7 +20,9 @@ me_router = APIRouter()
 auth_router = APIRouter()
 
 
-@me_router.post("/email/change", response_model=EmptyResponse)
+@me_router.post(
+    "/email/change", operation_id="accountEmailChangeRequest", response_model=EmptyResponse
+)
 async def request_my_email_change(
     request_context: Request,
     request: RequestEmailChangeRequest,
@@ -38,7 +40,11 @@ async def request_my_email_change(
     return EmptyResponse(success=True, message=SuccessCode.VERIFICATION_SUCCESS)
 
 
-@auth_router.post("/email/change/confirm", response_model=APIResponse[EmailChangeConfirmedRead])
+@auth_router.post(
+    "/email/change/confirm",
+    operation_id="authEmailChangeConfirm",
+    response_model=APIResponse[EmailChangeConfirmedRead],
+)
 async def confirm_email_change(
     request: ConfirmEmailChangeRequest,
     db: AsyncSession = Depends(deps.get_db),

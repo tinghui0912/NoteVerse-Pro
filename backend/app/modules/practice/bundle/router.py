@@ -22,6 +22,7 @@ def get_practice_bundle_service() -> PracticeBundleService:
 
 @router.get(
     "/scores/{score_id}/revisions/{revision_id}/bundle",
+    operation_id="practiceScoreRevisionBundleGet",
     response_model=APIResponse[PracticeBundleRead],
 )
 async def read_bundle(

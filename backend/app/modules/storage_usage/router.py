@@ -12,7 +12,11 @@ from app.shared.responses import APIResponse, success_response
 router = APIRouter()
 
 
-@router.get("/storage-usage", response_model=APIResponse[StorageUsageRead])
+@router.get(
+    "/storage-usage",
+    operation_id="accountStorageUsageGet",
+    response_model=APIResponse[StorageUsageRead],
+)
 async def get_storage_usage(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),

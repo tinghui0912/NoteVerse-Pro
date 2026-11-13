@@ -32,7 +32,7 @@ from app.shared.responses import SuccessResponsePayload, success_response
 router = APIRouter()
 
 
-@router.post("/login")
+@router.post("/login", operation_id="authLogin")
 async def login_access_token(
     request: Request,
     response: Response,
@@ -51,7 +51,7 @@ async def login_access_token(
     return success_response(message=SuccessCode.LOGIN_SUCCESS)
 
 
-@router.post("/logout")
+@router.post("/logout", operation_id="authLogout")
 async def logout(
     response: Response,
     db: AsyncSession = Depends(deps.get_db),
@@ -63,7 +63,7 @@ async def logout(
     return success_response(message=SuccessCode.LOGOUT_SUCCESS)
 
 
-@router.post("/refresh")
+@router.post("/refresh", operation_id="authRefresh")
 async def refresh_access_token(
     request: Request,
     response: Response,
@@ -89,15 +89,13 @@ async def refresh_access_token(
     return success_response(message=SuccessCode.LOGIN_SUCCESS)
 
 
-@router.post("/register")
+@router.post("/register", operation_id="authRegister")
 async def register_user(
     request_context: Request,
     *,
     db: AsyncSession = Depends(deps.get_db),
     request: RegisterRequest,
-    email_verification_service: EmailVerificationService = Depends(
-        get_email_verification_service
-    ),
+    email_verification_service: EmailVerificationService = Depends(get_email_verification_service),
 ) -> SuccessResponsePayload:
     await email_verification_service.register(
         db,
@@ -108,18 +106,16 @@ async def register_user(
     return success_response(message=SuccessCode.VERIFICATION_SUCCESS)
 
 
-@router.post("/email/verify", response_model=UserSchema)
+@router.post("/email/verify", operation_id="authEmailVerify", response_model=UserSchema)
 async def verify_email(
     request: VerifyEmailRequest,
     db: AsyncSession = Depends(deps.get_db),
-    email_verification_service: EmailVerificationService = Depends(
-        get_email_verification_service
-    ),
+    email_verification_service: EmailVerificationService = Depends(get_email_verification_service),
 ) -> UserSchema:
     return await email_verification_service.verify_email(db, request)
 
 
-@router.post("/password/forgot")
+@router.post("/password/forgot", operation_id="authPasswordResetRequest")
 async def forgot_password(
     request_context: Request,
     request: ForgotPasswordRequest,
@@ -135,12 +131,12 @@ async def forgot_password(
     return success_response(message=SuccessCode.VERIFICATION_SUCCESS)
 
 
-@router.post("/password/reset")
+@router.post("/password/reset", operation_id="authPasswordReset")
 async def reset_password(
     request: ResetPasswordRequest,
     db: AsyncSession = Depends(deps.get_db),
     password_reset_service: PasswordResetService = Depends(get_password_reset_service),
-):
+) -> SuccessResponsePayload:
     await password_reset_service.reset_password(db, request)
     return success_response(message=SuccessCode.PASSWORD_RESET_SUCCESS)
 
