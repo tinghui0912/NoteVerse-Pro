@@ -28,7 +28,17 @@ from app.modules.score_invites.router import invite_router as score_invite_entri
 from app.modules.score_invites.router import me_router as score_invite_me
 from app.modules.score_invites.router import score_router as score_invites
 
-api_router = APIRouter()
+from app.shared.responses import ApiErrorResponse
+
+api_router = APIRouter(
+    responses={
+        "default": {"model": ApiErrorResponse, "description": "Application failure."},
+        422: {
+            "model": ApiErrorResponse,
+            "description": "Request or application validation failure.",
+        },
+    }
+)
 
 api_router.include_router(account, prefix="/me", tags=["Account"])
 api_router.include_router(auth, prefix="/auth", tags=["Authentication"])

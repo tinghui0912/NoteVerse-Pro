@@ -28,13 +28,13 @@ class SuccessResponsePayload(TypedDict, total=False):
     code: str
 
 
-class ErrorResponsePayload(TypedDict, total=False):
-    """Default error response payload shape."""
+class ApiErrorResponse(BaseModel):
+    """Machine-readable application failure; presentation remains client-owned."""
 
-    success: bool
-    public_code: str
-    public_message: str
-    request_id: str
+    code: str
+    request_id: str | None
+
+    model_config = {"extra": "forbid"}
 
 
 class PaginatedResponsePayload(TypedDict):
@@ -69,10 +69,7 @@ def encode_response_data(value: object) -> object:
     if isinstance(value, BaseModel):
         return encode_response_data(value.model_dump(mode="python"))
     if isinstance(value, Mapping):
-        return {
-            str(key): encode_response_data(item)
-            for key, item in value.items()
-        }
+        return {str(key): encode_response_data(item) for key, item in value.items()}
     if isinstance(value, SequenceABC) and not isinstance(value, (str, bytes, bytearray)):
         return [encode_response_data(item) for item in value]
     return value
@@ -139,19 +136,8 @@ def success_response(
     return response
 
 
-def error_response(
-    public_code: str,
-    public_message: Optional[str] = None,
-    request_id: Optional[str] = None,
-) -> ErrorResponsePayload:
-    response: ErrorResponsePayload = {
-        "success": False,
-        "public_code": public_code,
-        "public_message": public_message or public_code,
-    }
-    if request_id:
-        response["request_id"] = request_id
-    return response
+def error_response(code: str, request_id: str | None = None) -> dict[str, object]:
+    return ApiErrorResponse(code=code, request_id=request_id).model_dump(mode="json")
 
 
 def paginated_response(

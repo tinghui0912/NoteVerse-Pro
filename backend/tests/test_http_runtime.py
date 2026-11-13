@@ -17,7 +17,7 @@ def test_install_http_runtime_adds_only_requested_security_middleware(monkeypatc
     traced_apps: list[FastAPI] = []
     monkeypatch.setattr(
         "app.core.http_runtime.register_exception_handlers",
-        registered_apps.append,
+        lambda app, **_: registered_apps.append(app),
     )
     monkeypatch.setattr("app.core.http_runtime.configure_api_tracing", traced_apps.append)
     app = FastAPI()
@@ -30,8 +30,10 @@ def test_install_http_runtime_adds_only_requested_security_middleware(monkeypatc
 
 
 def test_install_http_runtime_preserves_explicit_cors_and_csrf_policy(monkeypatch) -> None:
-    monkeypatch.setattr("app.core.http_runtime.register_exception_handlers", lambda _: None)
-    monkeypatch.setattr("app.core.http_runtime.configure_api_tracing", lambda _: None)
+    monkeypatch.setattr(
+        "app.core.http_runtime.register_exception_handlers", lambda _, **kwargs: None
+    )
+    monkeypatch.setattr("app.core.http_runtime.configure_api_tracing", lambda _, **kwargs: None)
     app = FastAPI()
 
     install_http_runtime(app, cors_origins=["https://app.example"])

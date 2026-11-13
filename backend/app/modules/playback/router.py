@@ -21,11 +21,6 @@ router = APIRouter()
     "/playback/performance-plan",
     operation_id="playbackPerformancePlanCreate",
     response_model=PerformancePlanRead,
-    responses={
-        422: {
-            "description": "Invalid canonical source (revision_content_invalid) or unsupported performance capability (score_playback_failed)."
-        }
-    },
 )
 def create_performance_plan(payload: PerformancePlanRequest) -> PerformancePlanRead:
     return compile_performance_plan(payload.musicxml)

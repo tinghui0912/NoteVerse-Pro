@@ -1351,7 +1351,7 @@ def test_quota_rejection(test_env):
         }
         res = client.post("/api/v1/performance-takes/upload-reservations", json=auth_req)
         assert res.status_code == 422
-        assert res.json()["public_code"] == "storage_quota_exceeded"
+        assert res.json()["code"] == "storage_quota_exceeded"
     finally:
         app.dependency_overrides.clear()
 
@@ -1586,7 +1586,7 @@ def test_audio_container_magic_bytes_validation(test_env):
             "/api/v1/performance-takes/upload-reservations/" + reserved_upload_id + "/finalize"
         )
         assert res_fin_bad.status_code == 422
-        assert res_fin_bad.json()["public_code"] == "validation_error"
+        assert res_fin_bad.json()["code"] == "validation_error"
         # Final immutable object was NEVER created
         final_key = f"performance-takes/1/{take_id}/recording.webm"
         assert not storage.exists(final_key)
@@ -3849,7 +3849,7 @@ def test_reservation_capacity_uses_exact_available_quota(test_env, available_del
         session.refresh(counter)
         if available_delta < 0:
             assert response.status_code == 422, response.text
-            assert response.json()["public_code"] == "storage_quota_exceeded"
+            assert response.json()["code"] == "storage_quota_exceeded"
             assert session.scalar(select(PerformanceTakeManifest)) is None
             assert session.scalar(select(PerformanceTakeUploadReservation)) is None
             assert account.reserved_bytes == counter.reserved_bytes == held_bytes

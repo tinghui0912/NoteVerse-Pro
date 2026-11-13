@@ -45,3 +45,19 @@ Frontend presentation, view-model state, and form state remain frontend-owned.
 Generic application realtime notifications use SSE under the normal API/auth
 boundary; Practice execution is browser-local and has no active Practice WebSocket
 contract.
+
+## Customer application failures
+
+Customer application failures share the Pydantic `ApiErrorResponse` body:
+`code` is a stable product error code for client-side presentation and
+`request_id` is a nullable correlation identifier. HTTP status expresses the
+failure category. Internal exception details and server presentation copy are
+not part of this contract.
+
+The Customer API router declares this model once for default failures and 422
+validation failures. Exception handlers and CSRF rejection serialize the same
+model. Generated OpenAPI and Customer Web types project that definition.
+Process readiness uses its own 200/503 dependency-check schemas. Redirects and
+bodyless HTTP byte-range rejection retain their protocol-specific contracts.
+Control-plane failure presentation is selected independently by its composition
+root and is separate from the Customer application contract.

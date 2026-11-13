@@ -94,7 +94,7 @@ def test_materialized_document_is_the_single_returned_semantic_source(client):
 def test_invalid_source_uses_existing_admission_error(client, body):
     response = client.post(PATH, json={"musicxml": body})
     assert response.status_code == 422
-    assert response.json()["public_code"] == "revision_content_invalid"
+    assert response.json()["code"] == "revision_content_invalid"
 
 
 @pytest.mark.parametrize(
@@ -114,7 +114,7 @@ def test_unsupported_performance_is_distinct_from_source_invalidity(client, mark
     assert admit_musicxml_document(xml.encode()) == xml.encode()
     response = client.post(PATH, json={"musicxml": xml})
     assert response.status_code == 422
-    assert response.json()["public_code"] == "score_playback_failed"
+    assert response.json()["code"] == "score_playback_failed"
     with pytest.raises(ValidationException) as exc:
         compile_performance_plan(xml)
     assert exc.value.details == {"reason": reason}
@@ -133,7 +133,7 @@ def test_renderer_loss_is_a_playback_capability_error_not_source_invalidity(clie
     assert parse_score_semantics(admit_musicxml_document(xml.encode())).end == 4
     response = client.post(PATH, json={"musicxml": xml})
     assert response.status_code == 422
-    assert response.json()["public_code"] == "score_playback_failed"
+    assert response.json()["code"] == "score_playback_failed"
     with pytest.raises(ValidationException) as exc:
         compile_performance_plan(xml)
     assert exc.value.details == {"reason": reason}
@@ -154,7 +154,7 @@ def test_playable_plan_http_boundary_applies_the_closed_source_profile(client, n
     response = client.post(PATH, json={"musicxml": xml})
     if case["reason"]:
         assert response.status_code == 422
-        assert response.json()["public_code"] == "score_playback_failed"
+        assert response.json()["code"] == "score_playback_failed"
         with pytest.raises(ValidationException) as exc:
             compile_performance_plan(xml)
         assert exc.value.details == {"reason": case["reason"]}
@@ -168,4 +168,4 @@ def test_unclassified_source_extension_has_a_playback_capability_error(client):
     assert parse_score_semantics(admit_musicxml_document(xml.encode())).end == 4
     response = client.post(PATH, json={"musicxml": xml})
     assert response.status_code == 422
-    assert response.json()["public_code"] == "score_playback_failed"
+    assert response.json()["code"] == "score_playback_failed"

@@ -1,6 +1,9 @@
 """FastAPI application entrypoint."""
 
 from fastapi import FastAPI
+from starlette.exceptions import HTTPException
+
+from app.core.exception_handlers import http_exception_handler
 
 from app.api.runtime_endpoints import install_process_endpoints
 from app.api.runtime_schemas import RootRead
@@ -58,6 +61,7 @@ def create_app() -> FastAPI:
         csrf_settings=_csrf_settings(),
         cors_origins=_cors_origins(),
     )
+    app.add_exception_handler(HTTPException, http_exception_handler)
     app.add_middleware(GuestPreviewCachePolicyMiddleware, api_prefix=CUSTOMER_API_PREFIX)
 
     app.include_router(api_router, prefix=CUSTOMER_API_PREFIX)

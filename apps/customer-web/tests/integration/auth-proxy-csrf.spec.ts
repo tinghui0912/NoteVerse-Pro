@@ -37,7 +37,7 @@ test('Next proxy carries real auth cookies and enforces CSRF', async ({ page }) 
 
   const rejectedLogout = await page.request.post('/api/v1/auth/logout');
   expect(rejectedLogout.status()).toBe(403);
-  expect((await rejectedLogout.json()).public_code).toBe('csrf_token_invalid');
+  expect((await rejectedLogout.json()).code).toBe('csrf_token_invalid');
 
   const logout = await page.request.post('/api/v1/auth/logout', {
     headers: {

@@ -1,5 +1,7 @@
 'use client';
 
+import type { ApiErrorResponse } from '@/generated/api';
+
 import { getCurrentLoginHref } from '@/lib/auth/return-url';
 import { API_BASE_URL, CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from '@/lib/app-protocol';
 import { reportClientError } from '@/lib/observability';
@@ -109,9 +111,9 @@ function redirectToLoginIfNeeded(options?: RequestOptions): void {
   window.location.href = getCurrentLoginHref();
 }
 
-async function readJsonSafely(response: Response): Promise<Record<string, unknown>> {
+async function readJsonSafely(response: Response): Promise<unknown> {
   try {
-    return (await response.json()) as Record<string, unknown>;
+    return await response.json();
   } catch {
     return {};
   }
@@ -123,20 +125,24 @@ function fallbackErrorCode(status: number): string {
 
 function createApiError(
   response: Response,
-  data: Record<string, unknown>,
-  fallbackCode = fallbackErrorCode(response.status),
-  fallbackMessage = fallbackCode
+  data: unknown,
+  fallbackCode = fallbackErrorCode(response.status)
 ): ApiError {
-  const publicCode = typeof data.public_code === 'string' ? data.public_code : fallbackCode;
-  const publicMessage =
-    typeof data.public_message === 'string' ? data.public_message : fallbackMessage;
+  const candidate = data !== null && typeof data === 'object'
+    ? data as Record<string, unknown>
+    : {};
+  const payload: Partial<ApiErrorResponse> = {
+    ...(typeof candidate.code === 'string' ? { code: candidate.code } : {}),
+    ...(typeof candidate.request_id === 'string' || candidate.request_id === null
+      ? { request_id: candidate.request_id }
+      : {}),
+  };
+  const code = payload.code ?? fallbackCode;
   return new ApiError(
     response.status,
-    publicCode,
-    publicMessage,
-    typeof data.request_id === 'string'
-      ? data.request_id
-      : response.headers.get('X-Request-ID') ?? undefined
+    code,
+    code,
+    payload.request_id ?? response.headers.get('X-Request-ID') ?? undefined
   );
 }
 
@@ -349,7 +355,7 @@ async function putBlobToUrl(
     const data = response.headers.get('content-type')?.includes('application/json')
       ? await readJsonSafely(response)
       : {};
-    throw createApiError(response, data, 'direct_upload_failed', 'direct_upload_failed');
+    throw createApiError(response, data, 'direct_upload_failed');
   }
 }
 
@@ -369,7 +375,7 @@ async function download(url: string, options?: RequestOptions): Promise<Blob> {
     const data = response.headers.get('content-type')?.includes('application/json')
       ? await readJsonSafely(response)
       : {};
-    throw createApiError(response, data, 'file_read_failed', 'file_read_failed');
+    throw createApiError(response, data, 'file_read_failed');
   }
 
   return response.blob();

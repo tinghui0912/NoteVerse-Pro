@@ -270,7 +270,7 @@ async def test_customer_delete_http_state_matrix_preserves_owned_data(score_serv
     allowed = state in {ImportJobState.PENDING_REVIEW, ImportJobState.FAILURE}
     assert response.status_code == (200 if allowed else 422), response.text
     if not allowed:
-        assert response.json()["public_code"] == (
+        assert response.json()["code"] == (
             ErrorCode.JOB_RUNNING if state == ImportJobState.RUNNING else ErrorCode.VALIDATION_ERROR
         )
     assert (db.get(ImportJob, job_id) is None) == allowed

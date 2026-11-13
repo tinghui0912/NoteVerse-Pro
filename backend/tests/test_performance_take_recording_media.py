@@ -188,7 +188,7 @@ def test_video_finalize_rejects_wrong_container_or_storage_content_type(
                 f"/api/v1/performance-takes/upload-reservations/{data['reservation_id']}/finalize"
             )
             assert response.status_code == 422, response.text
-            assert response.json()["public_code"] == "validation_error"
+            assert response.json()["code"] == "validation_error"
         else:
             with pytest.raises(ValidationException) as caught:
                 _run_async(

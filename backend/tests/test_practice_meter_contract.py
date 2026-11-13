@@ -139,7 +139,9 @@ def test_score_semantics_reject_missing_initial_meter_without_mutation(meters):
     value = {**build(xml(time())).artifact.value, "meterSegments": meters}
     before = deepcopy(value)
     with pytest.raises(ValueError):
-        validate_practice_score_artifact(PracticeScoreArtifactRead.model_validate(value).model_dump())
+        validate_practice_score_artifact(
+            PracticeScoreArtifactRead.model_validate(value).model_dump()
+        )
     assert value == before
 
 
@@ -271,7 +273,9 @@ def test_artifact_transport_rejects_nonportable_meter_integers_without_coercion(
 
 
 def test_meter_openapi_exposes_portable_integer_bounds():
-    from app.modules.practice.score.generated.artifact_transport import PracticeScoreMeterSegmentRead
+    from app.modules.practice.score.generated.artifact_transport import (
+        PracticeScoreMeterSegmentRead,
+    )
 
     properties = PracticeScoreMeterSegmentRead.model_json_schema()["properties"]
     for field in ("numerator", "denominator"):
@@ -308,7 +312,7 @@ def test_unsafe_musicxml_meter_is_invalid_score_over_http(tmp_path, numerator, d
         response = TestClient(app).get("/api/v1/practice/scores/s/revisions/r/bundle")
     builder.assert_called_once()
     assert response.status_code == 422
-    assert response.json()["public_code"] == "practice_score_invalid"
+    assert response.json()["code"] == "practice_score_invalid"
 
 
 @pytest.fixture(autouse=True)

@@ -9,6 +9,7 @@ from fastapi import Request
 from starlette.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from app.core.exception_handlers import ErrorResponseFactory
 from app.core.client_address import client_address, peer_address
 from app.core.logger import logger, set_request_id
 from app.core.metrics import record_http_request
@@ -50,9 +51,16 @@ def normalize_origin(origin: str) -> str | None:
 class CsrfProtectionMiddleware(BaseHTTPMiddleware):
     """Require a double-submit CSRF token for cookie-authenticated writes."""
 
-    def __init__(self, app, *, csrf_settings: CookieCsrfSettings) -> None:
+    def __init__(
+        self,
+        app,
+        *,
+        csrf_settings: CookieCsrfSettings,
+        error_response_factory: ErrorResponseFactory = error_response,
+    ) -> None:
         super().__init__(app)
         self.csrf_settings = csrf_settings
+        self.error_response_factory = error_response_factory
 
     async def dispatch(self, request: Request, call_next):
         if self._should_check_origin(request) and not self._has_allowed_origin(request):
@@ -95,11 +103,7 @@ class CsrfProtectionMiddleware(BaseHTTPMiddleware):
         request: Request,
         code: str,
     ):
-        return error_response(
-            public_code=code,
-            public_message=code,
-            request_id=self._request_id(request),
-        )
+        return self.error_response_factory(code, self._request_id(request))
 
     def _attach_request_id_header(self, request: Request, response: JSONResponse) -> None:
         response.headers["X-Request-ID"] = self._request_id(request)
@@ -110,9 +114,14 @@ class CsrfProtectionMiddleware(BaseHTTPMiddleware):
             return False
         if not path.startswith(self.csrf_settings.api_prefix):
             return False
-        if any(path == exempt or path.startswith(exempt) for exempt in self.csrf_settings.exempt_paths):
+        if any(
+            path == exempt or path.startswith(exempt) for exempt in self.csrf_settings.exempt_paths
+        ):
             return False
-        return any(request.cookies.get(cookie_name) for cookie_name in self.csrf_settings.session_cookie_names)
+        return any(
+            request.cookies.get(cookie_name)
+            for cookie_name in self.csrf_settings.session_cookie_names
+        )
 
     def _should_check_origin(self, request: Request) -> bool:
         return (

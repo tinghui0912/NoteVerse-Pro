@@ -9,17 +9,12 @@ from app.core.config import settings
 from app.main import app
 from app.modules.guest_previews.dependencies import get_guest_preview_service
 from app.shared.constants import ErrorCode
+from app.shared.responses import ApiErrorResponse
 
 
 def _assert_public_error_payload(payload: dict, expected_code: str) -> None:
-    assert payload["success"] is False
-    assert payload["public_code"] == expected_code
-    assert payload["public_message"] == expected_code
-    assert "internal_details" not in payload
-    assert "details" not in payload
-    assert "error" not in payload
-    assert "error_type" not in payload
-    assert "last_error" not in payload
+    assert ApiErrorResponse.model_validate(payload).model_dump() == payload
+    assert payload["code"] == expected_code
 
 
 def test_ordinary_auth_errors_do_not_expose_internal_details(client: TestClient) -> None:

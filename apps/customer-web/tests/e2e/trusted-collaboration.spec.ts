@@ -27,7 +27,7 @@ async function mockScore(page: Page, role: Role) {
   await page.route(`**/api/v1/scores/${scoreId}/revision-assets**`, route => route.fulfill({ json: { success: true, data: { revision_sources: [], render_assets: [] } } }));
   await page.route('**/api/v1/render-assets/page-a/view', route => route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect width="200" height="200" fill="white"/></svg>' }));
   await page.route(`**/api/v1/scores/${scoreId}/revisions?**`, route => route.fulfill({ json: { success: true, data: { items: [revision], next_cursor: null } } }));
-  await page.route(`**/api/v1/scores/${scoreId}/revisions/*/content`, route => route.fulfill({ status: caps.can_edit ? 200 : 403, json: caps.can_edit ? { success: true, data: { ...revision, revision_id: new URL(route.request().url()).pathname.split('/').at(-2), content: musicXml, mime_type: 'application/vnd.recordare.musicxml+xml' } } : { success: false, public_code: 'no_edit_access' } }));
+  await page.route(`**/api/v1/scores/${scoreId}/revisions/*/content`, route => route.fulfill({ status: caps.can_edit ? 200 : 403, json: caps.can_edit ? { success: true, data: { ...revision, revision_id: new URL(route.request().url()).pathname.split('/').at(-2), content: musicXml, mime_type: 'application/vnd.recordare.musicxml+xml' } } : {  code: 'no_edit_access', request_id: null } }));
   await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/bundle?**`, route => {
     expect(caps.can_practice).toBe(true);
     expect(new URL(route.request().url()).searchParams.get('include_notation')).toBe('true');
@@ -179,9 +179,7 @@ test('Editor keeps the document open when its expected head conflicts', async ({
   await page.route(`**/api/v1/scores/${scoreId}/revisions`, route => {
     expect(route.request().postDataJSON().expected_head_revision_id).toBe(revisionId);
     rejected = true;
-    return route.fulfill({ status: 409, json: { public_code: 'revision_conflict', details: {
-      expected_head_revision_id: revisionId, current_head_revision_id: 'concurrent-head',
-    } } });
+    return route.fulfill({ status: 409, json: { code: 'revision_conflict', request_id: null } });
   });
   await page.goto(`/en/score/${scoreId}/edit`);
   await expect(page.locator('svg .note').first()).toBeVisible();

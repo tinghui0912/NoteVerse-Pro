@@ -18,3 +18,8 @@ class LivenessRead(TypedDict):
 class ReadinessRead(TypedDict):
     status: Literal["ok", "degraded"]
     checks: dict[str, Literal["ok", "failed", "degraded"]]
+
+
+class ReadinessUnavailableRead(TypedDict):
+    status: Literal["not_ready"]
+    checks: dict[str, Literal["ok", "failed", "degraded"]]

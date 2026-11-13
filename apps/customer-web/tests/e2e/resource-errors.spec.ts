@@ -1,11 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { mockAnonymousSession, mockAuthenticatedSession, mockRealtimeEvents } from './support/api-mocks';
 
-const apiError = (code: string, message: string) => ({
-  success: false,
-  public_code: code,
-  public_message: message,
-});
+const apiError = (code: string) => ({ code, request_id: null });
 
 test.beforeEach(async ({ page }) => {
   await mockAnonymousSession(page);
@@ -26,7 +22,7 @@ test('direct Practice requires Setup without reading unavailable Score or Source
     await page.route(path, route => route.fulfill({
       status: 404,
       contentType: 'application/json',
-      body: JSON.stringify(apiError('score_not_found', 'Score not found')),
+      body: JSON.stringify(apiError('score_not_found')),
     }));
   }
 

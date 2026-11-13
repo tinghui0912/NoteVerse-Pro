@@ -383,7 +383,7 @@ async def test_unavailable_bearer_responses_are_not_cacheable(
     ) as client:
         response = await client.get(f"/api/v1/guest-previews/{token}{suffix}")
     assert response.status_code == 404
-    assert response.json()["public_code"] == "guest_preview_not_found"
+    assert response.json()["code"] == "guest_preview_not_found"
     assert response.headers["cache-control"] == "private, no-store"
 
 
@@ -430,7 +430,7 @@ async def test_unhandled_bearer_errors_are_not_cacheable(
     ) as client:
         response = await client.get(f"/api/v1/guest-previews/{score.guest_preview_token}{suffix}")
     assert response.status_code == 500
-    assert response.json()["public_code"] == "internal_error"
+    assert response.json()["code"] == "internal_error"
     assert response.headers["cache-control"] == "private, no-store"
 
 

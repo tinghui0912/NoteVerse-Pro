@@ -1394,6 +1394,22 @@ export type ApiResponseListNotificationEventRead = {
 export type AccessOrigin = 'OWNER' | 'MEMBERSHIP';
 
 /**
+ * ApiErrorResponse
+ *
+ * Machine-readable application failure; presentation remains client-owned.
+ */
+export type ApiErrorResponse = {
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Request Id
+     */
+    request_id: string | null;
+};
+
+/**
  * AssetAccessRead
  */
 export type AssetAccessRead = {
@@ -1689,16 +1705,6 @@ export type GuestPreviewUpdateRequest = {
      * Enabled
      */
     enabled: boolean;
-};
-
-/**
- * HTTPValidationError
- */
-export type HttpValidationError = {
-    /**
-     * Detail
-     */
-    detail?: Array<ValidationError>;
 };
 
 /**
@@ -3297,6 +3303,22 @@ export type ReadinessRead = {
 };
 
 /**
+ * ReadinessUnavailableRead
+ */
+export type ReadinessUnavailableRead = {
+    /**
+     * Checks
+     */
+    checks: {
+        [key: string]: 'ok' | 'failed' | 'degraded';
+    };
+    /**
+     * Status
+     */
+    status: 'not_ready';
+};
+
+/**
  * RecordingActiveSegment
  */
 export type RecordingActiveSegment = {
@@ -4196,34 +4218,6 @@ export type User = {
 };
 
 /**
- * ValidationError
- */
-export type ValidationError = {
-    /**
-     * Context
-     */
-    ctx?: {
-        [key: string]: unknown;
-    };
-    /**
-     * Input
-     */
-    input?: unknown;
-    /**
-     * Location
-     */
-    loc: Array<string | number>;
-    /**
-     * Message
-     */
-    msg: string;
-    /**
-     * Error Type
-     */
-    type: string;
-};
-
-/**
  * VerifyEmailRequest
  */
 export type VerifyEmailRequest = {
@@ -4260,9 +4254,13 @@ export type AuthEmailChangeConfirmData = {
 
 export type AuthEmailChangeConfirmErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type AuthEmailChangeConfirmError = AuthEmailChangeConfirmErrors[keyof AuthEmailChangeConfirmErrors];
@@ -4285,9 +4283,13 @@ export type AuthEmailVerifyData = {
 
 export type AuthEmailVerifyErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type AuthEmailVerifyError = AuthEmailVerifyErrors[keyof AuthEmailVerifyErrors];
@@ -4310,9 +4312,13 @@ export type AuthLoginData = {
 
 export type AuthLoginErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type AuthLoginError = AuthLoginErrors[keyof AuthLoginErrors];
@@ -4335,9 +4341,13 @@ export type AuthLogoutData = {
 
 export type AuthLogoutErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type AuthLogoutError = AuthLogoutErrors[keyof AuthLogoutErrors];
@@ -4360,9 +4370,13 @@ export type AuthPasswordResetRequestData = {
 
 export type AuthPasswordResetRequestErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type AuthPasswordResetRequestError = AuthPasswordResetRequestErrors[keyof AuthPasswordResetRequestErrors];
@@ -4385,9 +4399,13 @@ export type AuthPasswordResetData = {
 
 export type AuthPasswordResetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type AuthPasswordResetError = AuthPasswordResetErrors[keyof AuthPasswordResetErrors];
@@ -4410,9 +4428,13 @@ export type AuthRefreshData = {
 
 export type AuthRefreshErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type AuthRefreshError = AuthRefreshErrors[keyof AuthRefreshErrors];
@@ -4435,9 +4457,13 @@ export type AuthRegisterData = {
 
 export type AuthRegisterErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type AuthRegisterError = AuthRegisterErrors[keyof AuthRegisterErrors];
@@ -4460,9 +4486,13 @@ export type FilesUploadData = {
 
 export type FilesUploadErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type FilesUploadError = FilesUploadErrors[keyof FilesUploadErrors];
@@ -4490,9 +4520,13 @@ export type FileDeleteData = {
 
 export type FileDeleteErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type FileDeleteError = FileDeleteErrors[keyof FileDeleteErrors];
@@ -4520,9 +4554,13 @@ export type GuestPreviewGetData = {
 
 export type GuestPreviewGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type GuestPreviewGetError = GuestPreviewGetErrors[keyof GuestPreviewGetErrors];
@@ -4550,9 +4588,17 @@ export type GuestPreviewPlaybackStreamData = {
 
 export type GuestPreviewPlaybackStreamErrors = {
     /**
-     * Validation Error
+     * Unsatisfiable byte range; no response body.
      */
-    422: HttpValidationError;
+    416: unknown;
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type GuestPreviewPlaybackStreamError = GuestPreviewPlaybackStreamErrors[keyof GuestPreviewPlaybackStreamErrors];
@@ -4588,9 +4634,13 @@ export type GuestPreviewPageViewData = {
 
 export type GuestPreviewPageViewErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type GuestPreviewPageViewError = GuestPreviewPageViewErrors[keyof GuestPreviewPageViewErrors];
@@ -4622,9 +4672,13 @@ export type ImportJobsListData = {
 
 export type ImportJobsListErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ImportJobsListError = ImportJobsListErrors[keyof ImportJobsListErrors];
@@ -4647,9 +4701,13 @@ export type ImportJobsSubmitData = {
 
 export type ImportJobsSubmitErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ImportJobsSubmitError = ImportJobsSubmitErrors[keyof ImportJobsSubmitErrors];
@@ -4672,9 +4730,13 @@ export type ImportJobsBatchStatusGetData = {
 
 export type ImportJobsBatchStatusGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ImportJobsBatchStatusGetError = ImportJobsBatchStatusGetErrors[keyof ImportJobsBatchStatusGetErrors];
@@ -4702,9 +4764,13 @@ export type ImportJobDeleteData = {
 
 export type ImportJobDeleteErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ImportJobDeleteError = ImportJobDeleteErrors[keyof ImportJobDeleteErrors];
@@ -4732,9 +4798,13 @@ export type ImportJobGetData = {
 
 export type ImportJobGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ImportJobGetError = ImportJobGetErrors[keyof ImportJobGetErrors];
@@ -4766,9 +4836,13 @@ export type ImportJobArtifactDownloadData = {
 
 export type ImportJobArtifactDownloadErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ImportJobArtifactDownloadError = ImportJobArtifactDownloadErrors[keyof ImportJobArtifactDownloadErrors];
@@ -4796,9 +4870,13 @@ export type ImportJobRetryData = {
 
 export type ImportJobRetryErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ImportJobRetryError = ImportJobRetryErrors[keyof ImportJobRetryErrors];
@@ -4826,9 +4904,13 @@ export type ScoreInviteInspectData = {
 
 export type ScoreInviteInspectErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ScoreInviteInspectError = ScoreInviteInspectErrors[keyof ScoreInviteInspectErrors];
@@ -4856,9 +4938,13 @@ export type ScoreInviteAcceptData = {
 
 export type ScoreInviteAcceptErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ScoreInviteAcceptError = ScoreInviteAcceptErrors[keyof ScoreInviteAcceptErrors];
@@ -4881,9 +4967,13 @@ export type LibraryFoldersOverviewGetData = {
 
 export type LibraryFoldersOverviewGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type LibraryFoldersOverviewGetError = LibraryFoldersOverviewGetErrors[keyof LibraryFoldersOverviewGetErrors];
@@ -4906,9 +4996,13 @@ export type LibraryFoldersCreateData = {
 
 export type LibraryFoldersCreateErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type LibraryFoldersCreateError = LibraryFoldersCreateErrors[keyof LibraryFoldersCreateErrors];
@@ -4936,9 +5030,13 @@ export type LibraryFolderDeleteData = {
 
 export type LibraryFolderDeleteErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type LibraryFolderDeleteError = LibraryFolderDeleteErrors[keyof LibraryFolderDeleteErrors];
@@ -4966,9 +5064,13 @@ export type LibraryFolderUpdateData = {
 
 export type LibraryFolderUpdateErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type LibraryFolderUpdateError = LibraryFolderUpdateErrors[keyof LibraryFolderUpdateErrors];
@@ -5010,9 +5112,13 @@ export type LibraryScoresListData = {
 
 export type LibraryScoresListErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type LibraryScoresListError = LibraryScoresListErrors[keyof LibraryScoresListErrors];
@@ -5035,9 +5141,13 @@ export type LibraryScoresBatchFavoriteData = {
 
 export type LibraryScoresBatchFavoriteErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type LibraryScoresBatchFavoriteError = LibraryScoresBatchFavoriteErrors[keyof LibraryScoresBatchFavoriteErrors];
@@ -5060,9 +5170,13 @@ export type LibraryScoresBatchMoveData = {
 
 export type LibraryScoresBatchMoveErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type LibraryScoresBatchMoveError = LibraryScoresBatchMoveErrors[keyof LibraryScoresBatchMoveErrors];
@@ -5085,9 +5199,13 @@ export type AccountAvatarDeleteData = {
 
 export type AccountAvatarDeleteErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type AccountAvatarDeleteError = AccountAvatarDeleteErrors[keyof AccountAvatarDeleteErrors];
@@ -5110,9 +5228,13 @@ export type AccountAvatarUploadData = {
 
 export type AccountAvatarUploadErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type AccountAvatarUploadError = AccountAvatarUploadErrors[keyof AccountAvatarUploadErrors];
@@ -5140,12 +5262,25 @@ export type AccountAvatarResolveData = {
 
 export type AccountAvatarResolveErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type AccountAvatarResolveError = AccountAvatarResolveErrors[keyof AccountAvatarResolveErrors];
+
+export type AccountAvatarResolveResponses = {
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type AccountAvatarResolveResponse = AccountAvatarResolveResponses[keyof AccountAvatarResolveResponses];
 
 export type AccountEmailChangeRequestData = {
     body: RequestEmailChangeRequest;
@@ -5156,9 +5291,13 @@ export type AccountEmailChangeRequestData = {
 
 export type AccountEmailChangeRequestErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type AccountEmailChangeRequestError = AccountEmailChangeRequestErrors[keyof AccountEmailChangeRequestErrors];
@@ -5190,9 +5329,13 @@ export type AccountPendingInvitesListData = {
 
 export type AccountPendingInvitesListErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type AccountPendingInvitesListError = AccountPendingInvitesListErrors[keyof AccountPendingInvitesListErrors];
@@ -5220,9 +5363,13 @@ export type AccountPendingInviteAcceptData = {
 
 export type AccountPendingInviteAcceptErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type AccountPendingInviteAcceptError = AccountPendingInviteAcceptErrors[keyof AccountPendingInviteAcceptErrors];
@@ -5250,9 +5397,13 @@ export type AccountPendingInviteDeclineData = {
 
 export type AccountPendingInviteDeclineErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type AccountPendingInviteDeclineError = AccountPendingInviteDeclineErrors[keyof AccountPendingInviteDeclineErrors];
@@ -5280,9 +5431,13 @@ export type NotificationsListData = {
 
 export type NotificationsListErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type NotificationsListError = NotificationsListErrors[keyof NotificationsListErrors];
@@ -5305,9 +5460,13 @@ export type NotificationsMarkAllReadData = {
 
 export type NotificationsMarkAllReadErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type NotificationsMarkAllReadError = NotificationsMarkAllReadErrors[keyof NotificationsMarkAllReadErrors];
@@ -5330,9 +5489,13 @@ export type NotificationsUnreadCountGetData = {
 
 export type NotificationsUnreadCountGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type NotificationsUnreadCountGetError = NotificationsUnreadCountGetErrors[keyof NotificationsUnreadCountGetErrors];
@@ -5360,9 +5523,13 @@ export type NotificationMarkReadData = {
 
 export type NotificationMarkReadErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type NotificationMarkReadError = NotificationMarkReadErrors[keyof NotificationMarkReadErrors];
@@ -5385,9 +5552,13 @@ export type AccountPasswordChangeData = {
 
 export type AccountPasswordChangeErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type AccountPasswordChangeError = AccountPasswordChangeErrors[keyof AccountPasswordChangeErrors];
@@ -5410,9 +5581,13 @@ export type AccountProfileGetData = {
 
 export type AccountProfileGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type AccountProfileGetError = AccountProfileGetErrors[keyof AccountProfileGetErrors];
@@ -5435,9 +5610,13 @@ export type AccountProfileUpdateData = {
 
 export type AccountProfileUpdateErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type AccountProfileUpdateError = AccountProfileUpdateErrors[keyof AccountProfileUpdateErrors];
@@ -5465,9 +5644,13 @@ export type ScoreMembershipLeaveData = {
 
 export type ScoreMembershipLeaveErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ScoreMembershipLeaveError = ScoreMembershipLeaveErrors[keyof ScoreMembershipLeaveErrors];
@@ -5490,9 +5673,13 @@ export type AccountSecurityGetData = {
 
 export type AccountSecurityGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type AccountSecurityGetError = AccountSecurityGetErrors[keyof AccountSecurityGetErrors];
@@ -5515,9 +5702,13 @@ export type AccountOtherSessionsRevokeData = {
 
 export type AccountOtherSessionsRevokeErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type AccountOtherSessionsRevokeError = AccountOtherSessionsRevokeErrors[keyof AccountOtherSessionsRevokeErrors];
@@ -5545,9 +5736,13 @@ export type AccountSessionsListData = {
 
 export type AccountSessionsListErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type AccountSessionsListError = AccountSessionsListErrors[keyof AccountSessionsListErrors];
@@ -5575,9 +5770,13 @@ export type AccountSessionRevokeData = {
 
 export type AccountSessionRevokeErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type AccountSessionRevokeError = AccountSessionRevokeErrors[keyof AccountSessionRevokeErrors];
@@ -5600,9 +5799,13 @@ export type AccountStorageUsageGetData = {
 
 export type AccountStorageUsageGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type AccountStorageUsageGetError = AccountStorageUsageGetErrors[keyof AccountStorageUsageGetErrors];
@@ -5625,9 +5828,13 @@ export type PracticeAcousticModelAccessGetData = {
 
 export type PracticeAcousticModelAccessGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type PracticeAcousticModelAccessGetError = PracticeAcousticModelAccessGetErrors[keyof PracticeAcousticModelAccessGetErrors];
@@ -5663,9 +5870,13 @@ export type PerformanceTakesListData = {
 
 export type PerformanceTakesListErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type PerformanceTakesListError = PerformanceTakesListErrors[keyof PerformanceTakesListErrors];
@@ -5688,9 +5899,13 @@ export type PerformanceTakeUploadsReserveData = {
 
 export type PerformanceTakeUploadsReserveErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type PerformanceTakeUploadsReserveError = PerformanceTakeUploadsReserveErrors[keyof PerformanceTakeUploadsReserveErrors];
@@ -5718,9 +5933,13 @@ export type PerformanceTakeUploadCancelData = {
 
 export type PerformanceTakeUploadCancelErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type PerformanceTakeUploadCancelError = PerformanceTakeUploadCancelErrors[keyof PerformanceTakeUploadCancelErrors];
@@ -5748,9 +5967,13 @@ export type PerformanceTakeUploadFinalizeData = {
 
 export type PerformanceTakeUploadFinalizeErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type PerformanceTakeUploadFinalizeError = PerformanceTakeUploadFinalizeErrors[keyof PerformanceTakeUploadFinalizeErrors];
@@ -5778,9 +6001,13 @@ export type PerformanceTakeDeleteData = {
 
 export type PerformanceTakeDeleteErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type PerformanceTakeDeleteError = PerformanceTakeDeleteErrors[keyof PerformanceTakeDeleteErrors];
@@ -5808,9 +6035,13 @@ export type PerformanceTakeGetData = {
 
 export type PerformanceTakeGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type PerformanceTakeGetError = PerformanceTakeGetErrors[keyof PerformanceTakeGetErrors];
@@ -5838,9 +6069,17 @@ export type PerformanceTakeMediaStreamData = {
 
 export type PerformanceTakeMediaStreamErrors = {
     /**
-     * Validation Error
+     * Unsatisfiable byte range; no response body.
      */
-    422: HttpValidationError;
+    416: unknown;
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type PerformanceTakeMediaStreamError = PerformanceTakeMediaStreamErrors[keyof PerformanceTakeMediaStreamErrors];
@@ -5872,9 +6111,13 @@ export type PerformanceTakePlaybackUrlGetData = {
 
 export type PerformanceTakePlaybackUrlGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type PerformanceTakePlaybackUrlGetError = PerformanceTakePlaybackUrlGetErrors[keyof PerformanceTakePlaybackUrlGetErrors];
@@ -5897,10 +6140,16 @@ export type PlaybackPerformancePlanCreateData = {
 
 export type PlaybackPerformancePlanCreateErrors = {
     /**
-     * Invalid canonical source (revision_content_invalid) or unsupported performance capability (score_playback_failed).
+     * Request or application validation failure.
      */
-    422: unknown;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
+
+export type PlaybackPerformancePlanCreateError = PlaybackPerformancePlanCreateErrors[keyof PlaybackPerformancePlanCreateErrors];
 
 export type PlaybackPerformancePlanCreateResponses = {
     /**
@@ -5934,9 +6183,13 @@ export type PracticeScoreRevisionBundleGetData = {
 
 export type PracticeScoreRevisionBundleGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type PracticeScoreRevisionBundleGetError = PracticeScoreRevisionBundleGetErrors[keyof PracticeScoreRevisionBundleGetErrors];
@@ -5965,9 +6218,13 @@ export type RealtimeEventsStreamData = {
 
 export type RealtimeEventsStreamErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type RealtimeEventsStreamError = RealtimeEventsStreamErrors[keyof RealtimeEventsStreamErrors];
@@ -5995,9 +6252,13 @@ export type ScoreRenderAssetAccessUrlGetData = {
 
 export type ScoreRenderAssetAccessUrlGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ScoreRenderAssetAccessUrlGetError = ScoreRenderAssetAccessUrlGetErrors[keyof ScoreRenderAssetAccessUrlGetErrors];
@@ -6025,9 +6286,13 @@ export type ScoreRenderAssetDownloadData = {
 
 export type ScoreRenderAssetDownloadErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ScoreRenderAssetDownloadError = ScoreRenderAssetDownloadErrors[keyof ScoreRenderAssetDownloadErrors];
@@ -6055,9 +6320,13 @@ export type ScoreRenderAssetViewData = {
 
 export type ScoreRenderAssetViewErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ScoreRenderAssetViewError = ScoreRenderAssetViewErrors[keyof ScoreRenderAssetViewErrors];
@@ -6085,9 +6354,13 @@ export type ImportJobReviewGetData = {
 
 export type ImportJobReviewGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ImportJobReviewGetError = ImportJobReviewGetErrors[keyof ImportJobReviewGetErrors];
@@ -6115,9 +6388,13 @@ export type ImportJobReviewUpdateData = {
 
 export type ImportJobReviewUpdateErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ImportJobReviewUpdateError = ImportJobReviewUpdateErrors[keyof ImportJobReviewUpdateErrors];
@@ -6145,9 +6422,13 @@ export type ImportJobReviewConfirmData = {
 
 export type ImportJobReviewConfirmErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ImportJobReviewConfirmError = ImportJobReviewConfirmErrors[keyof ImportJobReviewConfirmErrors];
@@ -6175,9 +6456,13 @@ export type ScoreRevisionSourceAccessUrlGetData = {
 
 export type ScoreRevisionSourceAccessUrlGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ScoreRevisionSourceAccessUrlGetError = ScoreRevisionSourceAccessUrlGetErrors[keyof ScoreRevisionSourceAccessUrlGetErrors];
@@ -6205,9 +6490,13 @@ export type ScoreRevisionSourceDownloadData = {
 
 export type ScoreRevisionSourceDownloadErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ScoreRevisionSourceDownloadError = ScoreRevisionSourceDownloadErrors[keyof ScoreRevisionSourceDownloadErrors];
@@ -6230,9 +6519,13 @@ export type ScoresBatchDeleteData = {
 
 export type ScoresBatchDeleteErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ScoresBatchDeleteError = ScoresBatchDeleteErrors[keyof ScoresBatchDeleteErrors];
@@ -6260,9 +6553,13 @@ export type ScoresGetData = {
 
 export type ScoresGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ScoresGetError = ScoresGetErrors[keyof ScoresGetErrors];
@@ -6290,9 +6587,13 @@ export type ScoresUpdateData = {
 
 export type ScoresUpdateErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ScoresUpdateError = ScoresUpdateErrors[keyof ScoresUpdateErrors];
@@ -6320,9 +6621,13 @@ export type ScoreFingeringGenerateData = {
 
 export type ScoreFingeringGenerateErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ScoreFingeringGenerateError = ScoreFingeringGenerateErrors[keyof ScoreFingeringGenerateErrors];
@@ -6350,9 +6655,13 @@ export type ScoreGuestPreviewSettingsGetData = {
 
 export type ScoreGuestPreviewSettingsGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ScoreGuestPreviewSettingsGetError = ScoreGuestPreviewSettingsGetErrors[keyof ScoreGuestPreviewSettingsGetErrors];
@@ -6380,9 +6689,13 @@ export type ScoreGuestPreviewSettingsUpdateData = {
 
 export type ScoreGuestPreviewSettingsUpdateErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ScoreGuestPreviewSettingsUpdateError = ScoreGuestPreviewSettingsUpdateErrors[keyof ScoreGuestPreviewSettingsUpdateErrors];
@@ -6414,9 +6727,13 @@ export type ScoreInputAssetDownloadData = {
 
 export type ScoreInputAssetDownloadErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ScoreInputAssetDownloadError = ScoreInputAssetDownloadErrors[keyof ScoreInputAssetDownloadErrors];
@@ -6453,9 +6770,13 @@ export type ScoreInvitesListData = {
 
 export type ScoreInvitesListErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ScoreInvitesListError = ScoreInvitesListErrors[keyof ScoreInvitesListErrors];
@@ -6483,9 +6804,13 @@ export type ScoreInvitesCreateData = {
 
 export type ScoreInvitesCreateErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ScoreInvitesCreateError = ScoreInvitesCreateErrors[keyof ScoreInvitesCreateErrors];
@@ -6517,9 +6842,13 @@ export type ScoreInviteRevokeData = {
 
 export type ScoreInviteRevokeErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ScoreInviteRevokeError = ScoreInviteRevokeErrors[keyof ScoreInviteRevokeErrors];
@@ -6556,9 +6885,13 @@ export type ScoreMembersListData = {
 
 export type ScoreMembersListErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ScoreMembersListError = ScoreMembersListErrors[keyof ScoreMembersListErrors];
@@ -6590,9 +6923,13 @@ export type ScoreMemberRemoveData = {
 
 export type ScoreMemberRemoveErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ScoreMemberRemoveError = ScoreMemberRemoveErrors[keyof ScoreMemberRemoveErrors];
@@ -6624,9 +6961,13 @@ export type ScoreMemberUpdateData = {
 
 export type ScoreMemberUpdateErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ScoreMemberUpdateError = ScoreMemberUpdateErrors[keyof ScoreMemberUpdateErrors];
@@ -6660,9 +7001,13 @@ export type ScoreRenderAssetsArchiveData = {
 
 export type ScoreRenderAssetsArchiveErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ScoreRenderAssetsArchiveError = ScoreRenderAssetsArchiveErrors[keyof ScoreRenderAssetsArchiveErrors];
@@ -6695,9 +7040,13 @@ export type ScoreRevisionAssetsListData = {
 
 export type ScoreRevisionAssetsListErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ScoreRevisionAssetsListError = ScoreRevisionAssetsListErrors[keyof ScoreRevisionAssetsListErrors];
@@ -6734,9 +7083,13 @@ export type ScoreRevisionsListData = {
 
 export type ScoreRevisionsListErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ScoreRevisionsListError = ScoreRevisionsListErrors[keyof ScoreRevisionsListErrors];
@@ -6764,9 +7117,13 @@ export type ScoreRevisionsCreateData = {
 
 export type ScoreRevisionsCreateErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ScoreRevisionsCreateError = ScoreRevisionsCreateErrors[keyof ScoreRevisionsCreateErrors];
@@ -6798,9 +7155,13 @@ export type ScoreRevisionContentGetData = {
 
 export type ScoreRevisionContentGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ScoreRevisionContentGetError = ScoreRevisionContentGetErrors[keyof ScoreRevisionContentGetErrors];
@@ -6832,9 +7193,13 @@ export type ScoreRevisionNoteUpdateData = {
 
 export type ScoreRevisionNoteUpdateErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ScoreRevisionNoteUpdateError = ScoreRevisionNoteUpdateErrors[keyof ScoreRevisionNoteUpdateErrors];
@@ -6866,9 +7231,17 @@ export type ScoreRevisionPlaybackStreamData = {
 
 export type ScoreRevisionPlaybackStreamErrors = {
     /**
-     * Validation Error
+     * Unsatisfiable byte range; no response body.
      */
-    422: HttpValidationError;
+    416: unknown;
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ScoreRevisionPlaybackStreamError = ScoreRevisionPlaybackStreamErrors[keyof ScoreRevisionPlaybackStreamErrors];
@@ -6907,9 +7280,13 @@ export type ScoreRevisionRestoreData = {
 
 export type ScoreRevisionRestoreErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
 export type ScoreRevisionRestoreError = ScoreRevisionRestoreErrors[keyof ScoreRevisionRestoreErrors];
@@ -6945,6 +7322,15 @@ export type HealthReadyData = {
     query?: never;
     url: '/health/ready';
 };
+
+export type HealthReadyErrors = {
+    /**
+     * Process dependencies are not ready.
+     */
+    503: ReadinessUnavailableRead;
+};
+
+export type HealthReadyError = HealthReadyErrors[keyof HealthReadyErrors];
 
 export type HealthReadyResponses = {
     /**

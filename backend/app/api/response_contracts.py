@@ -25,4 +25,11 @@ def binary_responses(
                 "Accept-Ranges": {"schema": {"type": "string", "enum": ["bytes"]}},
             },
         }
+        responses[416] = {
+            "description": "Unsatisfiable byte range; no response body.",
+            "headers": {
+                "Content-Range": {"schema": {"type": "string"}},
+                "Accept-Ranges": {"schema": {"type": "string", "enum": ["bytes"]}},
+            },
+        }
     return responses

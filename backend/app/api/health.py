@@ -8,7 +8,7 @@ from app.core.runtime_checks import (
     check_redis_readiness,
     check_storage_quota_policy_readiness,
 )
-from app.api.runtime_schemas import LivenessRead, ReadinessRead
+from app.api.runtime_schemas import LivenessRead, ReadinessRead, ReadinessUnavailableRead
 
 
 def create_health_router(
@@ -39,6 +39,14 @@ def create_health_router(
         "/ready",
         operation_id=operation_ids[1] if operation_ids else None,
         response_model=ReadinessRead if operation_ids else None,
+        responses={
+            503: {
+                "model": ReadinessUnavailableRead,
+                "description": "Process dependencies are not ready.",
+            }
+        }
+        if operation_ids
+        else None,
     )
     async def readiness() -> JSONResponse:
         """Report readiness for this runtime's declared dependencies."""

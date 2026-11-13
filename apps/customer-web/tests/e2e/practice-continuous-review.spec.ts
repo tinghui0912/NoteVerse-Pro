@@ -104,7 +104,7 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
   unmatchedApiRequests.set(page, unmatched);
   await page.route('**/api/v1/**', (route) => {
     unmatched.push(`${route.request().method()} ${route.request().url()}`);
-    return route.fulfill({ status: 501, contentType: 'application/json', body: JSON.stringify({ success: false, public_code: 'unmocked_api' }) });
+    return route.fulfill({ status: 501, contentType: 'application/json', body: JSON.stringify({  code: 'unmocked_api', request_id: null }) });
   });
   // Explicit navigation away from Practice also stays inside the mock backend.
   await page.route('**/api/v1/library/folders', (route) => route.fulfill({ status: 200, contentType: 'application/json',
@@ -1923,8 +1923,8 @@ test('one complete Setup admission survives Score deletion through Practice, Rev
   expect(admitted.searchParams.get('include_notation')).toBe('true');
   const admittedScoreReads=scoreRequests.length;
   // Any new authorization/read fails: the current browser flow already owns its input.
-  await page.route('**/api/v1/practice/**', (route) =>route.fulfill({status:410,contentType:'application/json',body:JSON.stringify({success:false,public_code:'not_found'})}));
-  await page.route(`**/api/v1/scores/${scoreId}`, (route) =>route.fulfill({status:404,contentType:'application/json',body:JSON.stringify({success:false,public_code:'not_found'})}));
+  await page.route('**/api/v1/practice/**', (route) =>route.fulfill({status:410,contentType:'application/json',body:JSON.stringify({code:'not_found', request_id: null})}));
+  await page.route(`**/api/v1/scores/${scoreId}`, (route) =>route.fulfill({status:404,contentType:'application/json',body:JSON.stringify({code:'not_found', request_id: null})}));
   await expect(page.getByRole('button',{name:'开始',exact:true})).toBeEnabled();
   await page.getByRole('button',{name:'开始',exact:true}).click();
   await expect(page.getByRole('button',{name:'查看报告',exact:true})).toBeVisible({timeout:15000});

@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
+import type { ApiErrorResponse, AuthLoginErrors, PlaybackPerformancePlanCreateErrors, GuestPreviewPlaybackStreamErrors, HealthReadyErrors, ReadinessUnavailableRead } from '@/generated/api';
 import { ApiError, apiClient } from '@/lib/api-client';
 import { reportClientError } from '@/lib/observability';
 
@@ -51,7 +52,7 @@ describe('api client error contract', () => {
       'fetch',
       vi.fn().mockResolvedValue(
         Response.json(
-          { success: false },
+          { malformed: true },
           {
             status: 500,
             statusText: 'Internal Server Error',
@@ -67,15 +68,13 @@ describe('api client error contract', () => {
     } satisfies Partial<ApiError>);
   });
 
-  it('uses public error fields from api responses without retaining internal details', async () => {
+  it('uses generated error codes and correlation without retaining server details', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
         Response.json(
           {
-            success: false,
-            public_code: 'score_preview_failed',
-            public_message: 'score_preview_failed',
+            ...({ code: 'score_preview_failed', request_id: 'req-preview' } satisfies ApiErrorResponse),
             internal_details: { engine: 'internal-renderer' },
           },
           { status: 500 }
@@ -93,8 +92,42 @@ describe('api client error contract', () => {
     expect(capturedError).toMatchObject({
       status: 500,
       code: 'score_preview_failed',
+      requestId: 'req-preview',
       message: 'score_preview_failed',
     } satisfies Partial<ApiError>);
     expect(capturedError).not.toHaveProperty('details');
   });
+});
+
+
+it('projects operation failures from the canonical generated schema', () => {
+  expectTypeOf<AuthLoginErrors[422]>().toEqualTypeOf<ApiErrorResponse>();
+  expectTypeOf<AuthLoginErrors['default']>().toEqualTypeOf<ApiErrorResponse>();
+  expectTypeOf<PlaybackPerformancePlanCreateErrors[422]>().toEqualTypeOf<ApiErrorResponse>();
+  expectTypeOf<GuestPreviewPlaybackStreamErrors['default']>().toEqualTypeOf<ApiErrorResponse>();
+  expectTypeOf<HealthReadyErrors[503]>().toEqualTypeOf<ReadinessUnavailableRead>();
+});
+
+it.each([null, [], 'not-an-object', 123, { code: 123, request_id: [] }])(
+  'handles malformed JSON error payload %j defensively', async (payload) => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(payload, {
+      status: 503, headers: { 'X-Request-ID': 'fallback-id' },
+    })));
+    await expect(apiClient.get('/scores')).rejects.toMatchObject({
+      status: 503, code: 'internal_error', requestId: 'fallback-id',
+    });
+  }
+);
+
+it('handles unreadable JSON errors defensively', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{', {
+    status: 500, headers: { 'content-type': 'application/json' },
+  })));
+  await expect(apiClient.get('/scores')).rejects.toMatchObject({ code: 'internal_error' });
+});
+
+it.each([400, 403, 404, 409, 422, 500, 503])('retains the canonical code and HTTP status %s', async (status) => {
+  const payload = { code: 'business_failure', request_id: null } satisfies ApiErrorResponse;
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(payload, { status })));
+  await expect(apiClient.get('/scores')).rejects.toMatchObject({ status, code: payload.code });
 });

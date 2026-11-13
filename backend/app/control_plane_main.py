@@ -4,6 +4,7 @@ from fastapi import FastAPI
 
 from app.api.runtime_endpoints import install_process_endpoints
 from app.core.config import settings
+from app.core.control_plane_errors import control_plane_error_response
 from app.core.control_plane_settings import CONTROL_PLANE_API_PREFIX, require_control_plane_settings
 from app.core.http_runtime import install_http_runtime
 from app.core.lifespan import create_app_lifespan
@@ -42,6 +43,7 @@ def create_app() -> FastAPI:
             debug=settings.DEBUG,
         ),
         cors_origins=list(control_settings.cors_origins),
+        error_response_factory=control_plane_error_response,
     )
     app.include_router(
         operator_auth_router,

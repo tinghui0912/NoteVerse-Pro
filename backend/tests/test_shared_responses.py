@@ -40,14 +40,15 @@ def test_paginated_response_serializes_nested_datetimes() -> None:
 
 def test_error_response_includes_request_id_when_available() -> None:
     response = error_response(
-        public_code="validation_error",
-        public_message="validation_error",
+        code="validation_error",
         request_id="req-123",
     )
 
     assert response == {
-        "success": False,
-        "public_code": "validation_error",
-        "public_message": "validation_error",
+        "code": "validation_error",
         "request_id": "req-123",
     }
+
+
+def test_error_response_declares_nullable_correlation() -> None:
+    assert error_response("internal_error") == {"code": "internal_error", "request_id": None}

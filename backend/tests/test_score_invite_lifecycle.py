@@ -98,7 +98,7 @@ async def test_owner_revoke_http_admits_effective_status_without_writing_rejecti
                 )
                 assert response.status_code == (422 if error_code else 200), response.text
                 if error_code:
-                    assert response.json()["public_code"] == error_code
+                    assert response.json()["code"] == error_code
                     assert writes == commits == []
             session.refresh(invite)
             if error_code:
@@ -182,7 +182,7 @@ async def test_expired_recipient_command_has_no_write_or_commit(collaboration, p
             with observe_writes(session) as (writes, commits):
                 response = await client.post("/api/v1" + path)
                 assert response.status_code == 422
-                assert response.json()["public_code"] == ErrorCode.INVITE_EXPIRED
+                assert response.json()["code"] == ErrorCode.INVITE_EXPIRED
                 assert writes == commits == []
     finally:
         app.dependency_overrides.clear()

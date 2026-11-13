@@ -71,7 +71,7 @@ for (const [sourceState, sourceKind] of [['LIVE', 'VIDEO'], ['DELETED', 'VIDEO']
     await page.route('**/api/v1/practice/scores/*/revisions/*/bundle*',
       (route) => route.fulfill({
       status: sourceState === 'DELETED' ? 404 : 200, contentType: 'application/json',
-      body: JSON.stringify(sourceState === 'DELETED' ? { public_code: 'resource_not_found' } : {
+      body: JSON.stringify(sourceState === 'DELETED' ? { code: 'resource_not_found', request_id: null } : {
         data: { binding:{score_id:take.manifest.practice_binding.score_id,revision_id:take.manifest.practice_binding.revision_id,bundle_id:sourceState === 'MISMATCH' ? 'another-bundle' : take.manifest.practice_binding.bundle_id}, artifact,
           notation: { musicxml: musicXml, mime_type: 'application/vnd.recordare.musicxml+xml' } },
       }),

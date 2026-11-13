@@ -16,9 +16,7 @@ export async function mockAnonymousSession(page: Page): Promise<void> {
       status: 401,
       contentType: 'application/json',
       body: JSON.stringify({
-        success: false,
-        public_code: 'unauthorized',
-        public_message: 'Unauthorized',
+        code: 'unauthorized', request_id: null,
       }),
     })
   );
@@ -27,9 +25,7 @@ export async function mockAnonymousSession(page: Page): Promise<void> {
       status: 401,
       contentType: 'application/json',
       body: JSON.stringify({
-        success: false,
-        public_code: 'unauthorized',
-        public_message: 'Unauthorized',
+        code: 'unauthorized', request_id: null,
       }),
     })
   );

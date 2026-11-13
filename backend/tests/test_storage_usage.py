@@ -454,8 +454,7 @@ def test_file_upload_api_returns_storage_quota_error_without_storing_file(
 
     assert response.status_code == 422
     payload = response.json()
-    assert payload["success"] is False
-    assert payload["public_code"] == ErrorCode.STORAGE_QUOTA_EXCEEDED
+    assert payload["code"] == ErrorCode.STORAGE_QUOTA_EXCEEDED
     assert "internal_details" not in payload
     session.rollback()
     assert _count(session, Upload) == 0
