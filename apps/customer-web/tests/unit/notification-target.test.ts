@@ -16,14 +16,14 @@ const baseNotification: NotificationEventRead = {
 };
 
 describe('notification target resolution', () => {
-  it('opens failed imports in the upload job view', () => {
+  it('opens failed imports in the Import Activity', () => {
     expect(
       notificationHref({
         ...baseNotification,
         type: 'import.failed',
         data: { job_id: 'failed job' },
-      })
-    ).toBe('/upload?job_id=failed%20job');
+      }),
+    ).toBe('/upload#import-activity');
   });
 
   it('opens completed imports with only a job id in review', () => {
@@ -32,7 +32,7 @@ describe('notification target resolution', () => {
         ...baseNotification,
         type: 'import.completed',
         data: { job_id: 'ready-job-1' },
-      })
+      }),
     ).toBe('/review/ready-job-1');
   });
 
@@ -43,13 +43,13 @@ describe('notification target resolution', () => {
         type: 'import.completed',
         score_id: null,
         data: { job_id: 'ready-job-1', score_id: 'score-1' },
-      })
+      }),
     ).toBe('/score/score-1');
   });
 
   it('falls back to score_id for score notifications', () => {
     expect(notificationHref({ ...baseNotification, score_id: 'score-2' })).toBe(
-      '/score/score-2'
+      '/score/score-2',
     );
   });
 

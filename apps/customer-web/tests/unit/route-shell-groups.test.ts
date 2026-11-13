@@ -81,7 +81,6 @@ describe('route shell groups', () => {
     expect(publicNav).toContain('returnToApp');
     expect(publicNav).not.toContain('openApp');
     expect(publicNav).not.toContain("href: '/upload'");
-    expect(publicNav).not.toContain("href: '/my-scores'");
     expect(inviteLayout).toContain('<InviteShell>');
     expect(invitePage).not.toContain('ScoreSurface');
 
@@ -141,7 +140,6 @@ describe('route shell groups', () => {
     const practicePage = readSource('src/app/[locale]/(workspace)/score/[id]/practice/page.tsx');
     const invitePage = readSource('src/app/[locale]/(invite)/invite/[token]/page.tsx');
     const practiceControls = readSource('src/components/practice/practice-controls.tsx');
-    const myScoresPage = readSource('src/app/[locale]/(app)/my-scores/page.tsx');
     const libraryPage = readSource('src/app/[locale]/(app)/library/page.tsx');
     const notificationDialog = readSource('src/components/notifications/notification-center-dialog.tsx');
     const reviewScoreComparison = readSource('src/components/review/review-score-comparison.tsx');
@@ -163,12 +161,10 @@ describe('route shell groups', () => {
     expect(editorError).toContain('ErrorState');
     expect(editorError).not.toContain("process.env.NODE_ENV === 'development'");
     expect(editorError).not.toContain('error.message');
-    expect(myScoresPage).toContain('EmptyState');
     expect(libraryPage).toContain('EmptyState');
     expect(notificationDialog).toContain('EmptyState');
     expect(notificationDialog).not.toContain('function EmptyState');
     expect(reviewScoreComparison).toContain('EmptyState');
-    expect(myScoresPage).toContain('SectionErrorState');
     expect(libraryPage).toContain('SectionErrorState');
     expect(libraryPage).toContain('userFacingErrorMessage');
     expect(libraryPage).toContain('retryScores');
@@ -176,7 +172,6 @@ describe('route shell groups', () => {
     expect(libraryPage).toContain('void foldersQuery.refetch()');
     expect(libraryPage).toContain("t('loadFailedDescription')");
     expect(libraryPage).not.toContain('error instanceof Error ? error.message');
-    expect(myScoresPage).not.toContain('loadError instanceof Error ? loadError.message');
     expect(scorePage).not.toContain('resources.scoreError.message');
     expect(alert).toContain('bg-destructive/5');
     expect(notificationDialog).toContain('SectionErrorState');
@@ -217,7 +212,6 @@ describe('route shell groups', () => {
     const previewPage = readSource('src/components/external/guest-preview-page.tsx');
     const invitePage = readSource('src/app/[locale]/(invite)/invite/[token]/page.tsx');
     const practicePage = readSource('src/app/[locale]/(workspace)/score/[id]/practice/page.tsx');
-    const myScoresPage = readSource('src/app/[locale]/(app)/my-scores/page.tsx');
     const libraryPage = readSource('src/app/[locale]/(app)/library/page.tsx');
     const librarySidebar = readSource('src/components/library/library-sidebar.tsx');
     const uploadPage = readSource('src/app/[locale]/(app)/upload/page.tsx');
@@ -236,7 +230,6 @@ describe('route shell groups', () => {
     expect(previewPage).toContain("t('loading')");
     expect(invitePage).toContain("common('loadingInvite')");
     expect(practicePage).toContain('PracticeScoreViewer');
-    expect(myScoresPage).toContain("t('loading')");
     expect(libraryPage).toContain("t('loadingScores')");
     expect(librarySidebar).toContain("t('loadingFolders')");
     expect(uploadPage).toContain('<PageLoading');
@@ -250,7 +243,7 @@ describe('route shell groups', () => {
       expect(source).toContain('ResourceLoading');
     }
 
-    for (const source of [myScoresPage, libraryPage, librarySidebar]) {
+    for (const source of [libraryPage, librarySidebar]) {
       expect(source).toContain('SectionLoading');
     }
   });

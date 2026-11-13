@@ -27,13 +27,6 @@ export interface LibraryScoreQueryFilters {
     pageSize: number;
 }
 
-export interface MyScoresQueryFilters {
-    search?: string;
-    sort?: string;
-    page: number;
-    pageSize: number;
-}
-
 /**
  * Query keys follow [domain, scope, identity/filter]. Prefix factories are
  * used for broad invalidation; leaf factories own complete cache identity.
@@ -68,11 +61,6 @@ export const queryKeys = {
         folders: () => ['library', 'folders'] as const,
         scores: () => ['library', 'scores'] as const,
         scoreList: (filters: LibraryScoreQueryFilters) => ['library', 'scores', filters] as const,
-    },
-    myScores: {
-        all: ['my-scores'] as const,
-        lists: () => ['my-scores', 'list'] as const,
-        list: (filters: MyScoresQueryFilters) => ['my-scores', 'list', filters] as const,
     },
     notifications: {
         all: ['notifications'] as const,

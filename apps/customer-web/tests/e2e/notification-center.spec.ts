@@ -156,7 +156,7 @@ test('notification center combines pending invites and update notifications', as
   await expect.poll(() => markReadCalled).toBe(true);
 });
 
-test('failed processing notification opens the matching upload job', async ({ page }) => {
+test('failed processing notification opens Import Activity', async ({ page }) => {
   await mockAuthenticatedSession(page);
   await mockRealtimeEvents(page);
   await page.route('**/api/v1/me/notifications/unread-count', (route) =>
@@ -186,40 +186,16 @@ test('failed processing notification opens the matching upload job', async ({ pa
       }),
     })
   );
-  await page.route('**/api/v1/import-jobs/failed-job-1', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        success: true,
-        data: {
-          job_id: 'failed-job-1',
-          score_id: null,
-          state: 'FAILURE',
-          progress: 0,
-          current_step: 'ocr',
-          title: 'Failed upload',
-          genres: [],
-          thumbnail_artifact_id: null,
-          created_at: '2026-07-01T09:00:00Z',
-          updated_at: '2026-07-01T09:20:00Z',
-          started_at: '2026-07-01T09:00:00Z',
-          finished_at: '2026-07-01T09:20:00Z',
-          error: 'OCR failed',
-          code: 'unknown_error',
-          steps: [],
-          artifacts: {},
-          upload_ids: [],
-        },
-      }),
-    })
-  );
+  await page.route('**/api/v1/import-jobs?*', route => route.fulfill({ json: {
+    success: true, data: [{ job_id: 'failed-job-1', state: 'FAILURE', progress: 0, title: 'Failed upload', public_message: 'Recognition failed' }],
+    pagination: { page: 1, page_size: 20, total: 1, total_pages: 1 },
+  } }));
 
   await page.goto('/en/upload');
   await page.getByRole('button', { name: 'Notifications' }).click();
   await page.getByText('Score processing failed').click();
 
-  await expect(page).toHaveURL(/\/upload\?job_id=failed-job-1$/);
+  await expect(page).toHaveURL(/\/upload#import-activity$/);
 });
 
 test('confirmed processing notification opens created score', async ({ page }) => {

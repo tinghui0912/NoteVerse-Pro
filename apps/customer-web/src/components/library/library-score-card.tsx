@@ -1,6 +1,6 @@
 'use client';
 
-import { FolderInput, MoreVertical, Star } from 'lucide-react';
+import { FolderInput, MoreVertical, Star, Trash2 } from 'lucide-react';
 import { ScoreThumbnail } from '@/components/score/score-thumbnail';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -25,6 +25,7 @@ interface LibraryScoreCardProps {
   onToggleSelection: (checked: boolean) => void;
   onToggleFavorite: () => void;
   onOpenMoveDialog: () => void;
+  onDeleteScore?: () => void;
   t: (key: string, values?: Record<string, string | number>) => string;
 }
 
@@ -38,6 +39,7 @@ export function LibraryScoreCard({
   onToggleSelection,
   onToggleFavorite,
   onOpenMoveDialog,
+  onDeleteScore,
   t,
 }: LibraryScoreCardProps) {
   return (
@@ -74,6 +76,9 @@ export function LibraryScoreCard({
         <p className="mt-1 text-xs text-muted-foreground">
           {formatApiDateTime(score.updated_at)}
         </p>
+        <p className="mt-2 text-xs text-muted-foreground">
+          {t(score.access_origin === 'OWNER' ? 'youOwn' : 'sharedWithMe')}
+        </p>
         {!batchMode ? (
           <div
             className="absolute bottom-4 right-4 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
@@ -108,6 +113,15 @@ export function LibraryScoreCard({
                   <FolderInput className="h-4 w-4" />
                   {t('moveTo')}
                 </DropdownMenuItem>
+                {score.access_origin === 'OWNER' && onDeleteScore ? (
+                  <DropdownMenuItem
+                    className="text-destructive"
+                    onClick={onDeleteScore}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    {t('deleteScore')}
+                  </DropdownMenuItem>
+                ) : null}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

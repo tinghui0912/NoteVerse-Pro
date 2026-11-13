@@ -68,7 +68,7 @@ def test_score_openapi_keeps_read_model_fields_required(client: TestClient) -> N
         assert fields == set(components[schema_name]["properties"])
 
 
-def test_score_access_contract_exposes_current_channels_and_owned_score_filters(
+def test_score_access_contract_exposes_current_channels_and_workspace_filters(
     client: TestClient,
 ) -> None:
     from app.db.models.score_access import AccessOrigin
@@ -87,13 +87,15 @@ def test_score_access_contract_exposes_current_channels_and_owned_score_filters(
     paths = client.get("/api/v1/openapi.json").json()["paths"]
     assert {
         item["name"]
-        for item in paths["/api/v1/my-scores"]["get"]["parameters"]
+        for item in paths["/api/v1/library/scores"]["get"]["parameters"]
         if item["in"] == "query"
     } == {
         "page",
         "page_size",
         "search",
         "sort",
+        "view",
+        "folder_id",
     }
     assert {
         "/api/v1/scores/{score_id}",

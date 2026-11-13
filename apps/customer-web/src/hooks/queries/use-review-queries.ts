@@ -18,7 +18,6 @@ export function useConfirmImportJobReview() {
       reviewApi.confirm(jobId, { content, title }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.storageUsage.current() });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.myScores.lists() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.library.scores() });
     },
   });
@@ -32,7 +31,6 @@ export function useUpdateImportJobReview() {
       reviewApi.update(jobId, { content }),
     onSuccess: (_response, variables) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.review.detail(variables.jobId) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.myScores.lists() });
     },
   });
 }

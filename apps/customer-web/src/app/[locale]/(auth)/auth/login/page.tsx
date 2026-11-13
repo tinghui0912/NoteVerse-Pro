@@ -43,7 +43,7 @@ export default function LoginPage() {
 
         try {
             await login(email, password);
-            // Redirect to returnUrl from the URL, or fall back to /upload.
+            // Redirect to returnUrl from the URL, or fall back to /library.
             router.push(getSafeReturnUrl(returnUrl));
         } catch (err) {
             // Show frontend-localized errors instead of backend response text.

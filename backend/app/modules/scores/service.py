@@ -25,7 +25,6 @@ from app.modules.score_assets.derived_assets import score_derived_assets
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.score_assets.schemas import ScoreDerivedAssetRead, ScoreDerivedAssetsRead
 from app.modules.scores.repository import ScoreRepository
-from app.modules.my_scores.schemas import MyScoresSort
 from app.modules.scores.lifecycle_service import ScoreLifecycleService
 from app.modules.scores.schemas import (
     ScoreInputAssetRead,
@@ -76,38 +75,6 @@ class ScoreService:
             db, score_uuid, ScoreAction.VIEW, user_id=user_id
         )
         return await self._read(db, access.score, access.capabilities)
-
-    async def list_owned(
-        self,
-        db: AsyncSession,
-        user_id: int,
-        *,
-        page: int,
-        page_size: int,
-        search: str | None = None,
-        sort: MyScoresSort = MyScoresSort.UPDATED_DESC,
-    ) -> tuple[list[ScoreRead], int]:
-        rows, total = await self.repository.list_owned(
-            db,
-            user_id,
-            page=page,
-            page_size=page_size,
-            search=search,
-            sort=sort,
-        )
-        result: list[ScoreRead] = []
-        for score in rows:
-            access = await self.access_policy.authorize(
-                db, score.score_uuid, ScoreAction.VIEW, user_id=user_id
-            )
-            result.append(
-                await self._read(
-                    db,
-                    score,
-                    access.capabilities,
-                )
-            )
-        return result, total
 
     async def batch_delete(self, db: AsyncSession, score_uuids: list[str], user_id: int) -> int:
         removed = 0

@@ -2394,11 +2394,6 @@ export type MetadataRead = {
 export type MetadataStatus = 'PENDING' | 'READY' | 'FAILED';
 
 /**
- * MyScoresSort
- */
-export type MyScoresSort = 'updated_desc' | 'updated_asc' | 'name_asc' | 'name_desc';
-
-/**
  * NotificationActorRead
  */
 export type NotificationActorRead = {
@@ -2493,24 +2488,6 @@ export type PaginatedResponseLibraryScoreRead = {
      * Data
      */
     data: Array<LibraryScoreRead>;
-    /**
-     * Pagination metadata
-     */
-    pagination: PaginationMeta;
-    /**
-     * Success
-     */
-    success?: boolean;
-};
-
-/**
- * PaginatedResponse[ScoreRead]
- */
-export type PaginatedResponseScoreRead = {
-    /**
-     * Data
-     */
-    data: Array<ScoreRead>;
     /**
      * Pagination metadata
      */
@@ -5583,45 +5560,6 @@ export type GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticAccessGetRe
 };
 
 export type GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticAccessGetResponse = GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticAccessGetResponses[keyof GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticAccessGetResponses];
-
-export type ListMyScoresApiV1MyScoresGetData = {
-    body?: never;
-    path?: never;
-    query?: {
-        /**
-         * Page
-         */
-        page?: number;
-        /**
-         * Page Size
-         */
-        page_size?: number;
-        /**
-         * Search
-         */
-        search?: string | null;
-        sort?: MyScoresSort;
-    };
-    url: '/api/v1/my-scores';
-};
-
-export type ListMyScoresApiV1MyScoresGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type ListMyScoresApiV1MyScoresGetError = ListMyScoresApiV1MyScoresGetErrors[keyof ListMyScoresApiV1MyScoresGetErrors];
-
-export type ListMyScoresApiV1MyScoresGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: PaginatedResponseScoreRead;
-};
-
-export type ListMyScoresApiV1MyScoresGetResponse = ListMyScoresApiV1MyScoresGetResponses[keyof ListMyScoresApiV1MyScoresGetResponses];
 
 export type ListTakesApiV1PerformanceTakesGetData = {
     body?: never;

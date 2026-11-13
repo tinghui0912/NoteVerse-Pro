@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/lib/api-client';
@@ -14,8 +14,6 @@ import commonMessages from '@/../messages/zh/common.json';
 import zhErrors from '@/../messages/zh/errors.json';
 import uploadMessages from '@/../messages/zh/upload.json';
 import { scoreGenresForDisplay } from '@/lib/score/genres';
-
-const search = vi.hoisted(() => ({ value: '' }));
 
 const uploadFileMock = vi.fn();
 const submitImportJobMock = vi.fn();
@@ -39,7 +37,6 @@ vi.mock('@/hooks/use-toast', () => ({
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: pushMock }),
-  useSearchParams: () => new URLSearchParams(search.value),
 }));
 
 function createWrapper(queryClient: QueryClient) {
@@ -75,7 +72,6 @@ function selectedImage(name = 'score.png') {
 }
 
 beforeEach(() => {
-  search.value = '';
   uploadFileMock.mockReset();
   submitImportJobMock.mockReset();
   getImportJobMock.mockReset();
@@ -87,51 +83,41 @@ beforeEach(() => {
 });
 
 describe('upload score navigation', () => {
-  it('restores only known genres in canonical order', async () => {
-    search.value = 'job_id=restored';
-    getImportJobMock.mockResolvedValue({
-      data: {
-        job_id: 'restored',
-        state: 'FAILURE',
-        title: 'Restored score',
-        genres: ['jazz', 'unknown', 'classical', 'jazz', { category: 'genre', code: 'rock' }],
-        original_images: [],
-      },
-    });
-    const { result } = renderHook(() => useUploadWorkflow(), {
-      wrapper: createWrapper(createQueryClient()),
-    });
-    await waitFor(() => expect(result.current.scoreName).toBe('Restored score'));
-    expect(result.current.genres).toEqual(['classical', 'jazz']);
-  });
   it('routes review jobs and completed scores to their product pages', () => {
-    expect(getCompletedJobRoute('review-job', null, 'PENDING_REVIEW')).toBe('/review/review-job');
-    expect(getCompletedJobRoute('result-job', 'result-score', 'CONFIRMED')).toBe(
-      '/score/result-score'
+    expect(getCompletedJobRoute('review-job', null, 'PENDING_REVIEW')).toBe(
+      '/review/review-job',
     );
+    expect(
+      getCompletedJobRoute('result-job', 'result-score', 'CONFIRMED'),
+    ).toBe('/score/result-score');
   });
 });
 
 describe('upload error messages', () => {
-  const tErrors = Object.assign((key: never) => zhErrors[key as keyof typeof zhErrors], {
-    has: (key: never) => Object.prototype.hasOwnProperty.call(zhErrors, key),
-  });
+  const tErrors = Object.assign(
+    (key: never) => zhErrors[key as keyof typeof zhErrors],
+    {
+      has: (key: never) => Object.prototype.hasOwnProperty.call(zhErrors, key),
+    },
+  );
 
   it('maps storage quota errors to a user-facing message', () => {
-    expect(translateErrorCode(tErrors, 'storage_quota_exceeded', '操作失败')).toBe(
-      '存储空间不足，请删除不需要的内容或升级方案。'
-    );
+    expect(
+      translateErrorCode(tErrors, 'storage_quota_exceeded', '操作失败'),
+    ).toBe('存储空间不足，请删除不需要的内容或升级方案。');
   });
 
   it('uses the fallback instead of exposing unknown backend codes', () => {
-    expect(translateErrorCode(tErrors, 'unexpected_backend_code', '操作失败')).toBe('操作失败');
+    expect(
+      translateErrorCode(tErrors, 'unexpected_backend_code', '操作失败'),
+    ).toBe('操作失败');
   });
 });
 
 describe('upload workflow storage quota handling', () => {
   it('marks the file and toast with the quota message when upload exceeds storage quota', async () => {
     uploadFileMock.mockRejectedValue(
-      new ApiError(422, 'storage_quota_exceeded', 'storage_quota_exceeded')
+      new ApiError(422, 'storage_quota_exceeded', 'storage_quota_exceeded'),
     );
     const queryClient = createQueryClient();
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
@@ -193,14 +179,14 @@ describe('upload workflow storage quota handling', () => {
     expect(submitImportJobMock).toHaveBeenCalledWith(
       ['uploaded-file-id'],
       { title: undefined, genres: [...scoreGenresForDisplay] },
-      'upload-workflow-test-key'
+      'upload-workflow-test-key',
     );
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: queryKeys.storageUsage.current(),
     });
     expect(toastMock).toHaveBeenCalledWith({
       title: '识别请求已创建',
-      description: '系统会自动继续处理。你可以保持本页打开，也可以稍后到我的乐谱库查看结果。',
+      description: uploadMessages.taskStartedDesc,
     });
   });
 });

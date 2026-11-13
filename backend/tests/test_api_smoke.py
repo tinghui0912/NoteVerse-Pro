@@ -292,12 +292,6 @@ def test_library_feature_routes_require_authentication(client: TestClient) -> No
         assert response.status_code == 401, f"{method.upper()} {path}"
 
 
-def test_my_scores_feature_routes_require_authentication(client: TestClient) -> None:
-    response = client.get("/api/v1/my-scores")
-
-    assert response.status_code == 401
-
-
 def test_files_feature_routes_require_authentication(client: TestClient) -> None:
     protected_requests = [
         ("post", "/api/v1/files/upload", None),

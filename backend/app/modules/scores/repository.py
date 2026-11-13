@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
@@ -9,43 +9,11 @@ from app.db.models import (
     Score,
     ScoreRevision,
 )
-from app.modules.my_scores.schemas import MyScoresSort
 
-score_title_col = Score.__table__.c.title
-score_updated_col = Score.__table__.c.updated_at
 active_score_filter = col(Score.deleted_at).is_(None)
 
 
 class ScoreRepository:
-    async def list_owned(
-        self,
-        db: AsyncSession,
-        user_id: int,
-        *,
-        page: int,
-        page_size: int,
-        search: str | None = None,
-        sort: MyScoresSort = MyScoresSort.UPDATED_DESC,
-    ) -> tuple[list[Score], int]:
-        filters = [Score.owner_user_id == user_id, active_score_filter]
-        if search:
-            filters.append(score_title_col.ilike(f"%{search}%"))
-        total = int((await db.execute(select(func.count(Score.id)).where(*filters))).scalar_one())
-        order_by = {
-            MyScoresSort.UPDATED_DESC: [score_updated_col.desc()],
-            MyScoresSort.UPDATED_ASC: [score_updated_col.asc()],
-            MyScoresSort.NAME_ASC: [score_title_col.asc()],
-            MyScoresSort.NAME_DESC: [score_title_col.desc()],
-        }[sort]
-        rows = await db.execute(
-            select(Score)
-            .where(*filters)
-            .order_by(*order_by)
-            .offset((page - 1) * page_size)
-            .limit(page_size)
-        )
-        return list(rows.scalars().all()), total
-
     async def get(
         self,
         db: AsyncSession,

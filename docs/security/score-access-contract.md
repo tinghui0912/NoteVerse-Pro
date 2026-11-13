@@ -40,5 +40,5 @@ policies. Structured logs follow the default-deny
 [log schema](../operations/observability/log-event-schema.md).
 
 See [Score Access Decision](../adr/0004-score-access-collaboration-and-guest-preview.md),
-[Library and My Scores](../product/library-and-my-scores.md) and
+[Library and Imports](../product/library-and-imports.md) and
 [Control-Plane Identity](control-plane-identity-contract.md).

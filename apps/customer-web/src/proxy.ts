@@ -13,7 +13,6 @@ const REFRESH_COOKIE_NAME = requiredEnvValue(
 const PROTECTED_PATH_PREFIXES = [
   '/upload',
   '/library',
-  '/my-scores',
   '/settings',
   '/review',
   '/score',

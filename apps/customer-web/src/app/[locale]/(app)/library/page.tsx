@@ -6,6 +6,8 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { LibraryBulkActions } from '@/components/library/library-bulk-actions';
 import { LibraryDeleteFolderDialog } from '@/components/library/library-delete-folder-dialog';
+import { ScoreDeleteDialog } from '@/components/score/score-delete-dialog';
+import { useDeleteScores } from '@/hooks/queries/use-score-queries';
 import { LibraryScoreCard } from '@/components/library/library-score-card';
 import { LibraryMoveScoresDialog } from '@/components/library/library-move-scores-dialog';
 import { LibraryFilterBar } from '@/components/library/library-filter-bar';
@@ -72,6 +74,11 @@ export default function LibraryPage({
   const router = useRouter();
   const view = normalizeLibraryView(params.view);
   const folderId = params.folder;
+  const ownerLifecycleScope = view === 'created_by_me' && !folderId;
+  const deleteScores = useDeleteScores();
+  const [deletionTargets, setDeletionTargets] = useState<LibraryScoreRead[]>(
+    [],
+  );
   const page = normalizePage(params.page);
   const pageSize = 20;
   const selectionScopeKey = [
@@ -431,6 +438,18 @@ export default function LibraryPage({
               allSelected={allVisibleSelected}
               pending={moveScores.isPending || favoriteScores.isPending}
               onToggleSelectAll={toggleVisibleScores}
+              onDeleteScores={
+                ownerLifecycleScope
+                  ? () => {
+                      deleteScores.reset();
+                      setDeletionTargets(
+                        scores.filter((score) =>
+                          selectedScoreSet.has(score.score_id),
+                        ),
+                      );
+                    }
+                  : undefined
+              }
               onFavorite={() => setSelectedFavorite(true)}
               onOpenMoveDialog={() => openMoveAction(null)}
               onUnfavorite={() => setSelectedFavorite(false)}
@@ -456,9 +475,7 @@ export default function LibraryPage({
                   selected={selectedScoreSet.has(score.score_id)}
                   favoritePending={favoriteScores.isPending}
                   movePending={moveScores.isPending}
-                  onOpen={() =>
-                    router.push(`/score/${score.score_id}?from=${'my-scores'}`)
-                  }
+                  onOpen={() => router.push(`/score/${score.score_id}`)}
                   onToggleSelection={(checked) =>
                     toggleScoreSelection(score.score_id, checked)
                   }
@@ -467,6 +484,14 @@ export default function LibraryPage({
                       score_ids: [score.score_id],
                       is_favorite: !score.is_favorite,
                     })
+                  }
+                  onDeleteScore={
+                    ownerLifecycleScope && score.access_origin === 'OWNER'
+                      ? () => {
+                          deleteScores.reset();
+                          setDeletionTargets([score]);
+                        }
+                      : undefined
                   }
                   onOpenMoveDialog={() => openMoveAction(score)}
                   t={t}
@@ -505,6 +530,27 @@ export default function LibraryPage({
           ) : null}
         </section>
       </div>
+      <ScoreDeleteDialog
+        open={deletionTargets.length > 0}
+        titles={deletionTargets.map((score) => score.title)}
+        pending={deleteScores.isPending}
+        error={deleteScores.error}
+        onOpenChange={(open) => {
+          if (!open) setDeletionTargets([]);
+        }}
+        onConfirm={() => {
+          if (!ownerLifecycleScope) return;
+          deleteScores.mutate(
+            deletionTargets.map((score) => score.score_id),
+            {
+              onSuccess: () => {
+                setDeletionTargets([]);
+                clearSelection();
+              },
+            },
+          );
+        }}
+      />
       <LibraryFolderDialog
         open={folderForm !== null}
         mode={folderForm?.mode ?? 'create'}

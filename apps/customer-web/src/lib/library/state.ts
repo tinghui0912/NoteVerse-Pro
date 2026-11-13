@@ -34,8 +34,14 @@ export function buildLibraryHref(
   },
 ) {
   const query = new URLSearchParams();
-  const nextView = next.view ?? current.view;
-  const folder = next.folder === undefined ? current.folderId : next.folder;
+  const selectingFolder = Boolean(next.folder);
+  const nextView = selectingFolder ? 'all' : (next.view ?? current.view);
+  const folder =
+    next.view !== undefined
+      ? null
+      : next.folder === undefined
+        ? current.folderId
+        : next.folder;
   if (nextView !== 'all' || !folder) query.set('view', nextView);
   if (folder) query.set('folder', folder);
 

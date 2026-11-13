@@ -162,7 +162,7 @@ test('route exit during saved-media streaming aborts the writer and removes its 
   expect((await temporaryMediaFiles(page)).filter(
       (name) =>!name.endsWith('.crswap'))).toHaveLength(1);
   // Native client navigation preserves this document so the deferred writer can settle after unmount.
-  await page.getByRole('link',{name:'My Library',exact:true}).click();
+  await page.getByRole('link',{name:'Library',exact:true}).click();
   await expect(page).toHaveURL(/\/library$/);
   await page.evaluate(()=>(window as unknown as {__savedMediaWrite:{release():void}}).__savedMediaWrite.release());
   await expect.poll(()=>temporaryMediaFiles(page)).toEqual([]);

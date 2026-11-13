@@ -57,7 +57,7 @@ POST  /api/v1/review/{job_id}/confirm
 
 - Guest Preview, invites, practice, and collaboration cannot target unconfirmed OCR output.
 - Review correction can still happen before Score creation through a job-scoped editor.
-- My Scores may show pending reviews, but they must render as job cards, not Score cards.
+- Upload Import Activity displays pending reviews as job cards, separate from Library Scores.
 - Score has no review lifecycle state column.
 - Import-completed notifications route to `/review/:jobId` until confirm. After confirm,
   existing import notifications may include the created `score_id` for direct score navigation.

@@ -64,7 +64,7 @@ describe('library organization', () => {
         { view: 'favorites', search: 'bach', sort: 'updated_desc' },
         { folder: 'folder-1', page: 2 },
       ),
-    ).toBe('/library?view=favorites&folder=folder-1&search=bach&page=2');
+    ).toBe('/library?folder=folder-1&search=bach&page=2');
     expect(
       buildLibraryHref(
         {

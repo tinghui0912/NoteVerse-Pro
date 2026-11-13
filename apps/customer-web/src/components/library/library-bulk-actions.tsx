@@ -1,6 +1,6 @@
 'use client';
 
-import { FolderInput, Star } from 'lucide-react';
+import { FolderInput, Star, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -13,6 +13,7 @@ interface LibraryBulkActionsProps {
   onFavorite: () => void;
   onOpenMoveDialog: () => void;
   onUnfavorite: () => void;
+  onDeleteScores?: () => void;
   t: (key: string, values?: Record<string, string | number>) => string;
 }
 
@@ -24,6 +25,7 @@ export function LibraryBulkActions({
   onFavorite,
   onOpenMoveDialog,
   onUnfavorite,
+  onDeleteScores,
   t,
 }: LibraryBulkActionsProps) {
   return (
@@ -73,6 +75,17 @@ export function LibraryBulkActions({
             <Star className="mr-2 h-4 w-4" />
             {t('unfavorite')}
           </Button>
+          {onDeleteScores ? (
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={onDeleteScores}
+              disabled={!selectedCount || pending}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              {t('deleteSelectedScores')}
+            </Button>
+          ) : null}
         </div>
       </CardContent>
     </Card>

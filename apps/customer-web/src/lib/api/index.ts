@@ -26,6 +26,5 @@ export { guestPreviewApi } from './guest-previews';
 export { scoreInvitesApi } from './score-invites';
 export { notificationsApi } from './notifications';
 export { libraryApi } from './library';
-export { myScoresApi } from './my-scores';
 export { reviewApi } from './review';
 export { storageUsageApi } from './storage-usage';

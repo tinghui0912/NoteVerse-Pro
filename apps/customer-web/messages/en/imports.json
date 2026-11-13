@@ -1,0 +1,27 @@
+{
+  "title": "Import Activity",
+  "untitled": "Untitled import",
+  "progress": "{progress}%",
+  "failed": "Import failed",
+  "review": "Review",
+  "retry": "Retry",
+  "deleteImport": "Delete import",
+  "openScore": "Open score",
+  "empty": "No imports yet",
+  "loading": "Loading imports…",
+  "loadFailed": "Unable to load imports",
+  "operationFailed": "The import operation failed",
+  "deleteTitle": "Delete import?",
+  "deleteDescription": "This deletes this import processing record and its temporary files.",
+  "cancel": "Cancel",
+  "pagination": "Page {page} of {totalPages}",
+  "previousPage": "Previous",
+  "nextPage": "Next",
+  "state": {
+    "PENDING": "Queued",
+    "RUNNING": "Processing",
+    "PENDING_REVIEW": "Needs review",
+    "FAILURE": "Failed",
+    "CONFIRMED": "Completed"
+  }
+}

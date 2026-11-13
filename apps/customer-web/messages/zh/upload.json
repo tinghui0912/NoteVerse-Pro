@@ -1,5 +1,5 @@
 {
-  "title": "上传你的乐谱",
+  "title": "创建乐谱",
   "subtitle": "拖放或点击选择图片文件，开始识别你的乐谱。",
   "dropzoneText": "将文件拖到此处，或点击选择文件",
   "dropzoneHint": "支持 PNG、JPG、BMP 格式图片",
@@ -16,16 +16,16 @@
   "processingProgress": "处理中 ({progress}%)",
   "awaitingProcessing": "等待识别...",
   "taskStarted": "识别请求已创建",
-  "taskStartedDesc": "系统会自动继续处理。你可以保持本页打开，也可以稍后到我的乐谱库查看结果。",
+  "taskStartedDesc": "系统会继续处理。你可以在下方的导入记录中查看进度。",
   "submitFailed": "提交失败",
   "processingFailed": "处理失败",
   "processingTimeout": "处理超时",
-  "processingTimeoutDesc": "识别已超过预期时间。你可以重试，或稍后到我的乐谱库查看是否已完成。",
+  "processingTimeoutDesc": "识别时间超过预期，请在导入记录中查看当前状态。",
   "uploadFailedFile": "文件 {name} 上传失败",
   "taskProcessingFailed": "识别处理过程中发生错误",
   "processingFailedStatus": "处理失败",
   "uploadedStatus": "已上传",
   "removeImage": "移除 {name}",
   "closePreview": "关闭预览",
-  "restoredFileUnavailable": "{name} 缺少可复用的上传数据，请重新选择原始图片。"
+  "fileUnavailable": "文件 {name} 为空，请重新选择非空图片。"
 }

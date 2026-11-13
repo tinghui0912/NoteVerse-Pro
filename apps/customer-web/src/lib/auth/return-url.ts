@@ -1,7 +1,7 @@
 const DEFAULT_LOGIN_PATH = '/auth/login';
 const LOCALE_PATTERN = /^\/(zh|en)(\/|$)/;
 
-export function getSafeReturnUrl(value: string | null | undefined, fallback = '/upload'): string {
+export function getSafeReturnUrl(value: string | null | undefined, fallback = '/library'): string {
   if (!value || !value.startsWith('/') || value.startsWith('//')) {
     return fallback;
   }

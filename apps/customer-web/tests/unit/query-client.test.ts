@@ -14,28 +14,6 @@ describe('queryKeys', () => {
     ]);
   });
 
-  it('builds My Scores list keys with complete filters', () => {
-    expect(queryKeys.myScores.all).toEqual(['my-scores']);
-    expect(queryKeys.myScores.lists()).toEqual(['my-scores', 'list']);
-    expect(
-      queryKeys.myScores.list({
-        search: 'bach',
-        sort: 'updated_desc',
-        page: 2,
-        pageSize: 20,
-      })
-    ).toEqual([
-      'my-scores',
-      'list',
-      {
-        search: 'bach',
-        sort: 'updated_desc',
-        page: 2,
-        pageSize: 20,
-      },
-    ]);
-  });
-
   it('keeps revision, asset, preview and invite identities in score keys', () => {
     expect(queryKeys.scores.revisions('score-1')).toEqual([
       'scores',

@@ -39,7 +39,6 @@ app/modules/
 |-- library
 |-- mail
 |-- metadata
-|-- my_scores
 |-- notifications
 |-- ops
 |-- playback

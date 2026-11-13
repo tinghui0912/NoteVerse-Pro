@@ -1,4 +1,8 @@
-import { apiClient, type ApiResponse, type PaginatedResponse } from '../api-client';
+import {
+  apiClient,
+  type ApiResponse,
+  type PaginatedResponse,
+} from '../api-client';
 import type {
   ImportJobProcessingOptions,
   ImportJobRead,
@@ -9,44 +13,65 @@ import type {
 async function submitImportJob(
   fileIds: string[],
   options?: ImportJobProcessingOptions,
-  idempotencyKey?: string
+  idempotencyKey?: string,
 ): Promise<ApiResponse<ImportJobSubmitRead>> {
   const request: ImportJobSubmitRequest = {
     file_ids: fileIds,
     idempotency_key: idempotencyKey,
     options,
   };
-  return apiClient.post<ApiResponse<ImportJobSubmitRead>>('/import-jobs', request);
+  return apiClient.post<ApiResponse<ImportJobSubmitRead>>(
+    '/import-jobs',
+    request,
+  );
 }
 
 async function getImportJob(
   jobId: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<ApiResponse<ImportJobRead>> {
-  return apiClient.get<ApiResponse<ImportJobRead>>(`/import-jobs/${jobId}`, undefined, { signal });
+  return apiClient.get<ApiResponse<ImportJobRead>>(
+    `/import-jobs/${jobId}`,
+    undefined,
+    { signal },
+  );
 }
 
 async function listImportJobs(
   page: number,
   pageSize: number,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<PaginatedResponse<ImportJobRead>> {
   return apiClient.get<PaginatedResponse<ImportJobRead>>(
     '/import-jobs',
     { page, page_size: pageSize },
-    { signal }
+    { signal },
   );
 }
 
-async function downloadImportJobArtifact(jobId: string, artifactId: string): Promise<Blob> {
-  return apiClient.download(`/import-jobs/${jobId}/artifacts/${artifactId}/download`);
+async function downloadImportJobArtifact(
+  jobId: string,
+  artifactId: string,
+): Promise<Blob> {
+  return apiClient.download(
+    `/import-jobs/${jobId}/artifacts/${artifactId}/download`,
+  );
 }
 
 async function deleteImportJob(jobId: string): Promise<ApiResponse<never>> {
   return apiClient.delete<ApiResponse<never>>(`/import-jobs/${jobId}`);
 }
 
+async function retryImportJob(
+  jobId: string,
+): Promise<ApiResponse<ImportJobSubmitRead>> {
+  return apiClient.post<ApiResponse<ImportJobSubmitRead>>(
+    `/import-jobs/${jobId}/retry`,
+  );
+}
+
 export const importJobsApi = {
+  retryImportJob,
   deleteImportJob,
   downloadImportJobArtifact,
   getImportJob,

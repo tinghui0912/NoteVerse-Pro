@@ -22,7 +22,7 @@
   "keySignature": "Key signature",
   "pageCount": "{count, plural, one {# page} other {# pages}}",
   "breadcrumbLabel": "Breadcrumb",
-  "libraryBreadcrumb": "My Library",
+  "libraryBreadcrumb": "Library",
   "actionsTitle": "Actions",
   "collaborationAction": "Collaborators",
   "versionsAction": "Version History",
@@ -93,9 +93,14 @@
   "nameEmptyTitle": "Name cannot be empty",
   "nameEmptyDesc": "The score name cannot be empty.",
   "scoreInfoUpdated": "Score info has been updated.",
-  "backToLibrary": "Back to My Library",
+  "backToLibrary": "Back to Library",
   "versionLabel": "Version v{version}",
   "allowed": "Allowed",
   "notAllowed": "Not allowed",
-  "guestPreviewAction": "Guest Preview"
+  "guestPreviewAction": "Guest Preview",
+  "deleteScore": "Delete score",
+  "deleteScoreTitle": "Delete “{title}”?",
+  "deleteScoresTitle": "Delete {count} selected scores?",
+  "deleteScoreDescription": "This deletes the score for everyone who currently has access. This cannot be undone.",
+  "deleteFailed": "Unable to delete the score. Please try again."
 }

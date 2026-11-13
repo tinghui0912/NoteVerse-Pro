@@ -1,5 +1,5 @@
 {
-  "title": "My Library",
+  "title": "Library",
   "subtitle": "Organize the scores you own or collaborate on.",
   "newFolder": "New folder",
   "folderNamePrompt": "Folder name",
@@ -67,5 +67,8 @@
   "emptyCreatedByMe": "No scores created by you yet",
   "emptySharedWithMe": "No scores shared with you yet",
   "sortUpdatedAsc": "Least recently updated",
-  "sortNameDesc": "Name Z-A"
+  "sortNameDesc": "Name Z-A",
+  "youOwn": "You own",
+  "deleteScore": "Delete score",
+  "deleteSelectedScores": "Delete selected scores"
 }

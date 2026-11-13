@@ -4,6 +4,7 @@ import { Suspense } from 'react';
 import { useTranslations } from 'next-intl';
 import { PageLoading } from '@/components/loading';
 import { PageHeader } from '@/components/page';
+import { ImportActivity } from '@/components/imports/import-activity';
 import { UploadForm } from '@/components/upload/upload-form';
 import { useUploadWorkflow } from '@/hooks/upload/use-upload-workflow';
 
@@ -31,6 +32,7 @@ function UploadPageContent() {
         onGenresChange={workflow.setGenres}
         onSubmit={workflow.startRecognition}
       />
+      <ImportActivity />
     </div>
   );
 }

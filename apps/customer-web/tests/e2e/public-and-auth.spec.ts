@@ -8,9 +8,9 @@ test('protected routes preserve return URL while guest previews stay anonymous',
   await expect(page).toHaveURL(/\/auth\/login\?/);
   expect(new URL(page.url()).searchParams.get('returnUrl')).toBe('/en/library?view=all');
 
-  await page.goto('/en/my-scores?view=all');
+  await page.goto('/en/library?view=all');
   await expect(page).toHaveURL(/\/auth\/login\?/);
-  expect(new URL(page.url()).searchParams.get('returnUrl')).toBe('/en/my-scores?view=all');
+  expect(new URL(page.url()).searchParams.get('returnUrl')).toBe('/en/library?view=all');
 
   await mockGuestPreview(page, 'preview-token');
   await page.goto('/en/preview/preview-token');

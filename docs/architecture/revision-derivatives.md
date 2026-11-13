@@ -24,7 +24,7 @@ ScoreRead describes only current-head presentation and exposes `status` and `ass
 Missing head images/audio never select another revision. Generic playback delivery is
 exact to its requested revision; Guest Preview resolves the current head on every request.
 
-Score Detail and My Scores use neutral placeholders for missing head presentation.
+Score Detail and Library use neutral placeholders for missing head presentation.
 Pending/processing can show visual progress; unavailable uses a non-spinning neutral
 control. No derived-state visible error/status copy, hover tooltip, toast or Retry action
 is provided. Accessibility labels remain. Realtime readiness invalidation reveals the

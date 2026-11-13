@@ -83,7 +83,6 @@ export function useCreateRevision() {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.scores.revisionAssets(variables.scoreId),
       });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.myScores.lists() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.library.scores() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.storageUsage.current() });
     },
@@ -110,7 +109,6 @@ export function useRestoreRevision() {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.scores.revisionAssets(variables.scoreId),
       });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.myScores.lists() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.library.scores() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.storageUsage.current() });
     },
@@ -268,7 +266,6 @@ export function useAcceptMyPendingScoreInvite() {
     onSuccess: (response) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.library.all });
       void queryClient.invalidateQueries({ queryKey: queryKeys.scores.myInvites() });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.myScores.lists() });
       if (response.data?.score_id) {
         void queryClient.invalidateQueries({
           queryKey: queryKeys.scores.detail(response.data.score_id),
@@ -284,6 +281,23 @@ export function useDeclineMyPendingScoreInvite() {
     mutationFn: (inviteId: string) => scoreInvitesApi.declineMyPendingInvite(inviteId),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.scores.myInvites() });
+    },
+  });
+}
+
+export function useDeleteScores() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (scoreIds: string[]) => scoresApi.batchDelete(scoreIds),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.library.all });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.importJobs.all,
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.storageUsage.current(),
+      });
     },
   });
 }

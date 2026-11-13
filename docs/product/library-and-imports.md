@@ -1,4 +1,4 @@
-# Library And My Scores
+# Library And Imports
 
 ## Library
 
@@ -26,16 +26,21 @@ A Score owns an ordered unique list of known genre codes. It may have zero or
 more genres from the current vocabulary, with no numeric genre-count limit.
 Library and Review display the Score's genres.
 
-## My Scores
+## Score Lifecycle
 
-`/my-scores` displays owned Scores and import/review jobs through All works,
-Processing, Pending review, and Failed views. Search, sorting, and pagination
-apply to owned Scores. Bulk deletion operates on selected owned Scores and
-eligible import jobs.
+Created by me is the owner lifecycle scope. It provides single and batch Score
+deletion. All, Favorites, and folders provide only personal organization bulk
+actions; Shared with me does not grant owner deletion. Score Detail also provides
+Delete score when the current access capabilities allow it. Deletion hides the
+resource immediately and uses the durable ScoreDeletionOperation cleanup flow.
 
-Score deletion is an owner action. It hides the resource through `Score.deleted_at`
-and atomically creates a `ScoreDeletionOperation` for asynchronous cleanup, with
-immediate best-effort dispatch and maintenance recovery.
+## Upload And Import Activity
+
+Upload is the global creation action. The Upload page contains the upload form
+and paginated Import Activity. Import Jobs are processing records, not Library
+Scores. Queued and running jobs show progress without cancellation actions.
+Pending review jobs open Review. Failed jobs offer backend Retry and Delete import.
+Confirmed jobs open their linked Score. Only active jobs keep the list polling.
 
 ## Access Authority
 

@@ -10,7 +10,6 @@ from app.modules.auth.sessions_router import router as auth_sessions
 from app.modules.files.router import router as files
 from app.modules.import_jobs.router import router as jobs
 from app.modules.library.router import router as library
-from app.modules.my_scores.router import router as my_scores
 from app.modules.notifications.router import router as notifications
 from app.modules.playback.router import router as playback
 from app.modules.model_assets.router import router as model_assets
@@ -38,12 +37,15 @@ api_router.include_router(account_email_change, prefix="/me", tags=["Account Sec
 api_router.include_router(auth_password, prefix="/me", tags=["Account Security"])
 api_router.include_router(auth_security, prefix="/me", tags=["Account Security"])
 api_router.include_router(auth_sessions, prefix="/me", tags=["Account Security"])
-api_router.include_router(revision_sources, prefix="/revision-sources", tags=["Score Revision Sources"])
-api_router.include_router(render_asset_router, prefix="/render-assets", tags=["Score Render Assets"])
+api_router.include_router(
+    revision_sources, prefix="/revision-sources", tags=["Score Revision Sources"]
+)
+api_router.include_router(
+    render_asset_router, prefix="/render-assets", tags=["Score Render Assets"]
+)
 api_router.include_router(files, prefix="/files", tags=["File Operations"])
 api_router.include_router(jobs, prefix="/import-jobs", tags=["Import Jobs"])
 api_router.include_router(library, prefix="/library", tags=["Library"])
-api_router.include_router(my_scores, prefix="/my-scores", tags=["My Scores"])
 api_router.include_router(scores, prefix="/scores", tags=["Scores"])
 api_router.include_router(score_assets, prefix="/scores", tags=["Score Assets"])
 api_router.include_router(guest_previews, prefix="/scores", tags=["Guest Previews"])
@@ -57,5 +59,7 @@ api_router.include_router(playback, tags=["Playback"])
 api_router.include_router(model_assets, prefix="/model-assets", tags=["Model Assets"])
 api_router.include_router(realtime, prefix="/realtime", tags=["Realtime"])
 api_router.include_router(review, prefix="/review", tags=["Review"])
-api_router.include_router(performance_takes, prefix="/performance-takes", tags=["Performance Takes"])
+api_router.include_router(
+    performance_takes, prefix="/performance-takes", tags=["Performance Takes"]
+)
 api_router.include_router(practice_bundles, prefix="/practice", tags=["Practice Sources"])

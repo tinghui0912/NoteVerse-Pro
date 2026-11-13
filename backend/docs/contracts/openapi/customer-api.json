@@ -4821,16 +4821,6 @@
         "title": "MetadataStatus",
         "type": "string"
       },
-      "MyScoresSort": {
-        "enum": [
-          "updated_desc",
-          "updated_asc",
-          "name_asc",
-          "name_desc"
-        ],
-        "title": "MyScoresSort",
-        "type": "string"
-      },
       "NotificationActorRead": {
         "properties": {
           "avatar_url": {
@@ -5052,51 +5042,6 @@
           "pagination"
         ],
         "title": "PaginatedResponse[LibraryScoreRead]",
-        "type": "object"
-      },
-      "PaginatedResponse_ScoreRead_": {
-        "examples": [
-          {
-            "data": [
-              {
-                "id": 1
-              },
-              {
-                "id": 2
-              }
-            ],
-            "pagination": {
-              "page": 1,
-              "page_size": 20,
-              "total": 100,
-              "total_pages": 5
-            },
-            "success": true
-          }
-        ],
-        "properties": {
-          "data": {
-            "items": {
-              "$ref": "#/components/schemas/ScoreRead"
-            },
-            "title": "Data",
-            "type": "array"
-          },
-          "pagination": {
-            "$ref": "#/components/schemas/PaginationMeta",
-            "description": "Pagination metadata"
-          },
-          "success": {
-            "default": true,
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "data",
-          "pagination"
-        ],
-        "title": "PaginatedResponse[ScoreRead]",
         "type": "object"
       },
       "PaginationMeta": {
@@ -10857,103 +10802,6 @@
         "summary": "Get Practice Acoustic Access",
         "tags": [
           "Model Assets"
-        ]
-      }
-    },
-    "/api/v1/my-scores": {
-      "get": {
-        "operationId": "list_my_scores_api_v1_my_scores_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "page",
-            "required": false,
-            "schema": {
-              "default": 1,
-              "minimum": 1,
-              "title": "Page",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "page_size",
-            "required": false,
-            "schema": {
-              "default": 20,
-              "maximum": 100,
-              "minimum": 1,
-              "title": "Page Size",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "search",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Search"
-            }
-          },
-          {
-            "in": "query",
-            "name": "sort",
-            "required": false,
-            "schema": {
-              "$ref": "#/components/schemas/MyScoresSort",
-              "default": "updated_desc"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PaginatedResponse_ScoreRead_"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "List My Scores",
-        "tags": [
-          "My Scores"
         ]
       }
     },

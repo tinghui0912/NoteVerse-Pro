@@ -156,7 +156,7 @@ async def test_http_delete_hides_resource_before_cleanup(score_db):
             ]:
                 result = await client.get("/api/v1" + path)
                 assert result.status_code == 404, (path, result.text)
-            listed = await client.get("/api/v1/my-scores")
+            listed = await client.get("/api/v1/library/scores")
             assert listed.status_code == 200, listed.text
             assert "deletion-score" not in str(listed.json())
             assert db.get(Score, score.id) is not None

@@ -6,6 +6,9 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ResourceLoading } from '@/components/loading';
 import { PageHeader } from '@/components/page';
 import { ScoreCapabilityProvider } from '@/components/score/score-capability-context';
+import { ScoreDeleteDialog } from '@/components/score/score-delete-dialog';
+import { useDeleteScores } from '@/hooks/queries/use-score-queries';
+import { Button } from '@/components/ui/button';
 import { ScoreSurface } from '@/components/score/score-surface';
 import { ScoreBreadcrumbs } from '@/components/score-detail/score-breadcrumbs';
 import { ScoreCollaborationPanel } from '@/components/score-detail/score-collaboration-panel';
@@ -20,14 +23,13 @@ import { useScoreDetailSummary } from '@/hooks/score-detail/use-score-detail-sum
 import { scoresApi } from '@/lib/api';
 import { formatApiDateTime } from '@/lib/date-time';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
-import { parseScoreDetailSource } from '@/lib/score-detail/navigation';
 import {
   isDerivedAssetPreparing,
   playableAudioRevisionId,
 } from '@/lib/score-detail/derived-assets';
 import { scoreThumbnailUrl } from '@/lib/score-detail/thumbnail';
 
-function ScorePageContent({ id, source }: { id: string; source: 'my-scores' | null }) {
+function ScorePageContent({ id }: { id: string }) {
   const t = useTranslations('score');
   const common = useTranslations('common');
   const errors = useTranslations('errors');
@@ -35,10 +37,17 @@ function ScorePageContent({ id, source }: { id: string; source: 'my-scores' | nu
   const router = useRouter();
   const searchParams = useSearchParams();
   const resources = useScoreDetailSummary(id);
+  const [deleteOpen, setDeleteOpen] = React.useState(false);
+  const deleteScores = useDeleteScores();
   const error = resources.scoreError
-    ? userFacingErrorMessage(errors, resources.scoreError, common('loadFailedDescription'))
+    ? userFacingErrorMessage(
+        errors,
+        resources.scoreError,
+        common('loadFailedDescription'),
+      )
     : null;
-  const scoreTitle = resources.score?.title || t('scoreFallbackTitle', { id: id.slice(0, 8) });
+  const scoreTitle =
+    resources.score?.title || t('scoreFallbackTitle', { id: id.slice(0, 8) });
   const capabilities = resources.score?.capabilities ?? null;
 
   if (resources.scoreLoading) {
@@ -60,8 +69,8 @@ function ScorePageContent({ id, source }: { id: string; source: 'my-scores' | nu
           <ResourceLoadError
             title={common('loadFailed')}
             description={error ?? common('loadFailedDescription')}
-            actionLabel={source === 'my-scores' ? common('nav.myScores') : t('backToLibrary')}
-            actionHref={source === 'my-scores' ? '/my-scores' : '/library'}
+            actionLabel={t('backToLibrary')}
+            actionHref="/library"
             className="min-h-[40vh]"
           />
         </div>
@@ -75,7 +84,7 @@ function ScorePageContent({ id, source }: { id: string; source: 'my-scores' | nu
   const audioRevisionId = playableAudioRevisionId(
     score.derived_assets,
     score.capabilities.can_practice,
-    score.head_revision_id
+    score.head_revision_id,
   );
   const audioPreparing = isDerivedAssetPreparing(audioAsset.status);
   const imagePreparing = isDerivedAssetPreparing(previewAsset.status);
@@ -131,7 +140,10 @@ function ScorePageContent({ id, source }: { id: string; source: 'my-scores' | nu
           label: t('collaborationAction'),
           content: (
             <div className="rounded-2xl border bg-white p-5 shadow-sm sm:p-6">
-              <ScoreCollaborationPanel scoreId={score.score_id} scoreTitle={scoreTitle} />
+              <ScoreCollaborationPanel
+                scoreId={score.score_id}
+                scoreTitle={scoreTitle}
+              />
             </div>
           ),
         }
@@ -148,14 +160,20 @@ function ScorePageContent({ id, source }: { id: string; source: 'my-scores' | nu
   };
 
   return (
-    <ScoreCapabilityProvider capabilities={capabilities} scoreId={id} workspace="view">
+    <ScoreCapabilityProvider
+      capabilities={capabilities}
+      scoreId={id}
+      workspace="view"
+    >
       <ScoreSurface>
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-          <ScoreBreadcrumbs scoreTitle={scoreTitle} source={source} />
+          <ScoreBreadcrumbs scoreTitle={scoreTitle} />
           <ScoreDetailHero
             title={scoreTitle}
             thumbnailUrl={
-              previewAsset.status === 'ready' ? scoreThumbnailUrl(previewAsset.asset_id) : null
+              previewAsset.status === 'ready'
+                ? scoreThumbnailUrl(previewAsset.asset_id)
+                : null
             }
             thumbnailLoading={imagePreparing}
             playbackAudioSrc={playbackAudioSrc}
@@ -163,12 +181,25 @@ function ScorePageContent({ id, source }: { id: string; source: 'my-scores' | nu
             playbackLoading={audioPreparing}
             playbackVisible={score.capabilities.can_practice}
             actions={
-              <ScoreHeroActions
-                imagePreparing={imagePreparing}
-                revisionAssets={resources.revisionAssets}
-                revisionId={score.head_revision_id}
-                scoreId={score.score_id}
-              />
+              <>
+                <ScoreHeroActions
+                  imagePreparing={imagePreparing}
+                  revisionAssets={resources.revisionAssets}
+                  revisionId={score.head_revision_id}
+                  scoreId={score.score_id}
+                />
+                {score.capabilities.can_delete ? (
+                  <Button
+                    variant="destructive"
+                    onClick={() => {
+                      deleteScores.reset();
+                      setDeleteOpen(true);
+                    }}
+                  >
+                    {t('deleteScore')}
+                  </Button>
+                ) : null}
+              </>
             }
             meta={
               <>
@@ -180,7 +211,24 @@ function ScorePageContent({ id, source }: { id: string; source: 'my-scores' | nu
               </>
             }
           />
-          <ScoreDetailTabs tabs={tabs} value={activeTab} onValueChange={handleTabChange} />
+          <ScoreDeleteDialog
+            open={deleteOpen}
+            titles={[scoreTitle]}
+            pending={deleteScores.isPending}
+            error={deleteScores.error}
+            onOpenChange={setDeleteOpen}
+            onConfirm={() => {
+              if (!score.capabilities.can_delete) return;
+              deleteScores.mutate([score.score_id], {
+                onSuccess: () => router.push('/library?view=created_by_me'),
+              });
+            }}
+          />
+          <ScoreDetailTabs
+            tabs={tabs}
+            value={activeTab}
+            onValueChange={handleTabChange}
+          />
         </div>
       </ScoreSurface>
     </ScoreCapabilityProvider>
@@ -189,17 +237,13 @@ function ScorePageContent({ id, source }: { id: string; source: 'my-scores' | nu
 
 export default function ScorePage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ from?: string }>;
 }) {
   const { id } = React.use(params);
-  const { from } = React.use(searchParams);
-  const source = parseScoreDetailSource(from);
   return (
     <Suspense fallback={null}>
-      <ScorePageContent id={id} source={source} />
+      <ScorePageContent id={id} />
     </Suspense>
   );
 }

@@ -5,7 +5,7 @@ Implementation history is retrieved from Git, pull requests and issues rather th
 
 ## Product
 
-- [Library and My Scores](product/library-and-my-scores.md)
+- [Library and Imports](product/library-and-imports.md)
 - [Score Invite Collaboration](product/score-invite-collaboration.md)
 - [Invitations and Notifications](product/notifications.md)
 - [Practice Product Contract](architecture/practice-product-contract.md)

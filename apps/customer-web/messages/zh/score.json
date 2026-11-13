@@ -22,7 +22,7 @@
   "keySignature": "调号",
   "pageCount": "{count} 页",
   "breadcrumbLabel": "面包屑导航",
-  "libraryBreadcrumb": "我的乐谱库",
+  "libraryBreadcrumb": "乐谱库",
   "actionsTitle": "功能操作",
   "collaborationAction": "协作者",
   "versionsAction": "版本记录",
@@ -93,9 +93,14 @@
   "nameEmptyTitle": "名称不能为空",
   "nameEmptyDesc": "乐谱名称不能为空。",
   "scoreInfoUpdated": "乐谱信息已更新。",
-  "backToLibrary": "返回我的乐谱库",
+  "backToLibrary": "返回乐谱库",
   "versionLabel": "版本 v{version}",
   "allowed": "允许",
   "notAllowed": "不允许",
-  "guestPreviewAction": "访客预览"
+  "guestPreviewAction": "访客预览",
+  "deleteScore": "删除乐谱",
+  "deleteScoreTitle": "删除“{title}”？",
+  "deleteScoresTitle": "删除所选的 {count} 首乐谱？",
+  "deleteScoreDescription": "这会为所有当前有访问权限的人删除乐谱。此操作无法撤销。",
+  "deleteFailed": "无法删除乐谱，请重试。"
 }
