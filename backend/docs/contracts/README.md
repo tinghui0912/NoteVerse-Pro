@@ -18,14 +18,15 @@ docker compose -f docker-compose.backend-dev.yml run --rm --no-deps --entrypoint
 Use `--check` in CI to ensure a source change does not leave a stale generated
 contract behind. Do not manually edit generated JSON.
 
-`score-domain-v1.json` remains a curated, product-level invariant contract. It
-does not replace OpenAPI and should not duplicate every request/response DTO.
+## HTTP schema ownership
 
-## Frontend migration rule
+Backend domain types, Pydantic schemas, and FastAPI routes define the HTTP schemas.
+The generated OpenAPI documents project those definitions and are the HTTP schema
+authority for consumers. Customer Web API types are generated from
+`openapi/customer-api.json`.
 
-OpenAPI is the source of truth for HTTP DTOs. Generated types and client code
-will replace hand-maintained frontend API DTOs incrementally. Frontend-only
-view models, form state, and presentation helpers remain owned by the frontend.
+Customer Web's handwritten API facades define its HTTP method, path, and query calls.
+Frontend presentation, view-model state, and form state remain frontend-owned.
 Generic application realtime notifications use SSE under the normal API/auth
-boundary; Practice execution is browser-local and does not have an active
-Practice WebSocket contract.
+boundary; Practice execution is browser-local and has no active Practice WebSocket
+contract.

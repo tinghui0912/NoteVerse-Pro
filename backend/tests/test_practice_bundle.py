@@ -15,7 +15,7 @@ from app.modules.score_access.policy import ScoreAction
 from app.modules.practice.score.compiler.stable_ids import prepare_musicxml_ids_for_practice
 from app.modules.practice.score.compiler.musicxml import compile_practice_score
 
-FIXTURE = Path(__file__).parent / "fixtures/musicxml/score-domain-metadata.musicxml"
+FIXTURE = Path(__file__).parent / "fixtures/musicxml/bundle-multi-part.musicxml"
 
 
 def test_content_compilation_uses_exact_prepared_notation_once():

@@ -50,7 +50,7 @@ async def postgres_bundle(tmp_path, request):
             canonical_musicxml=(
                 Path(__file__).parent
                 / "fixtures/musicxml"
-                / getattr(request, "param", "score-domain-metadata.musicxml")
+                / getattr(request, "param", "bundle-multi-part.musicxml")
             ).read_bytes(),
         )
         async with AsyncSession(engine) as seed:
