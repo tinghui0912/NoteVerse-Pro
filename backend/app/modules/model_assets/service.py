@@ -4,7 +4,7 @@ from datetime import timedelta
 from functools import lru_cache
 from app.core.config import settings
 from app.modules.model_assets.schemas import PracticeAcousticAccessRead
-from app.modules.model_assets.generated.practice_acoustic_contract import (
+from app.modules.model_assets.generated.practice_acoustic_model_asset import (
     MODEL_ASSET,
     MODEL_ASSET_DESCRIPTOR,
 )

@@ -1,31 +1,22 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import {
   ACOUSTIC_RUNTIME_CONTRACT as runtime,
   ACOUSTIC_ANALYSIS_IDENTITY as identity,
 } from './generated/runtime-contract';
 import { assertAcousticRuntimeIdentity, canonicalJson } from './identity';
-import type declaredEvidence from '../../../../../../contracts/practice/acoustic/evidence-attestation.json';
 import {
   sourceRate,
   sourceAdapterContract,
 } from './source/source-adapter-contract';
 
 const root = path.resolve('../..');
-const evidence: typeof declaredEvidence = JSON.parse(
-  readFileSync(
-    path.join(root, 'contracts/practice/acoustic/evidence-attestation.json'),
-    'utf8',
-  ),
-);
 const digest = (bytes: Uint8Array | string) =>
   createHash('sha256').update(bytes).digest('hex');
-const normalized = (raw: Buffer) =>
-  Buffer.from(raw.toString('utf8').replace(/\r\n/g, '\n'), 'utf8');
 
-it('binds the canonical runtime and selected evidence through a deterministic composite identity', async () => {
+it('identifies the full canonical configured runtime independently of object key order', async () => {
   const contract = JSON.parse(
     readFileSync(
       path.join(root, 'contracts/practice/acoustic/runtime-contract.json'),
@@ -33,16 +24,14 @@ it('binds the canonical runtime and selected evidence through a deterministic co
     ),
   );
   expect(runtime).toEqual(contract);
-  expect(digest(canonicalJson(contract))).toBe(identity.runtimeContractSha256);
-  expect(digest(canonicalJson(evidence))).toBe(
-    identity.evidenceAttestationSha256,
-  );
+  expect(Object.keys(identity).sort()).toEqual([
+    'analysisIdentitySha256',
+    'identityName',
+  ]);
+  expect(digest(canonicalJson(contract))).toBe(identity.analysisIdentitySha256);
   expect(
     digest(
-      canonicalJson({
-        runtimeContractSha256: identity.runtimeContractSha256,
-        evidenceAttestationSha256: identity.evidenceAttestationSha256,
-      }),
+      canonicalJson(Object.fromEntries(Object.entries(contract).reverse())),
     ),
   ).toBe(identity.analysisIdentitySha256);
   await expect(assertAcousticRuntimeIdentity()).resolves.toBeUndefined();
@@ -51,6 +40,26 @@ it('binds the canonical runtime and selected evidence through a deterministic co
   expect(identity.identityName).toBe(
     `${runtime.model.assetId}@${runtime.model.assetVersion}`,
   );
+  const changed = {
+    ...runtime,
+    decoder: { ...runtime.decoder, onsetThreshold: 0.31 },
+  };
+  expect(digest(canonicalJson(changed))).not.toBe(
+    identity.analysisIdentitySha256,
+  );
+});
+
+it('rejects runtime self-integrity mismatch', async () => {
+  const hash = vi
+    .spyOn(crypto.subtle, 'digest')
+    .mockResolvedValueOnce(new ArrayBuffer(32));
+  try {
+    await expect(assertAcousticRuntimeIdentity()).rejects.toThrow(
+      'ACOUSTIC_IDENTITY_DRIFT',
+    );
+  } finally {
+    hash.mockRestore();
+  }
 });
 
 it('requires the installed package declaration to match the configured ORT version', () => {
@@ -60,40 +69,31 @@ it('requires the installed package declaration to match the configured ORT versi
   );
 });
 
-it.each(Object.entries(evidence.sourceFiles))(
-  '%s attests current normalized implementation bytes',
-  (_role, entry) => {
-    const bytes = normalized(readFileSync(path.join(root, entry.path)));
-    expect(bytes.length).toBe(entry.byteSize);
-    expect(digest(bytes)).toBe(entry.sha256);
-  },
-);
-
-it.each(evidence.coefficientAssets)(
-  '$sourceRateHz attests exact raw FIR bytes and the rate-specific composition',
-  ({ sourceRateHz }) => {
-    const contract = sourceAdapterContract(sourceRate(sourceRateHz));
+it.each(Object.keys(runtime.sourceAdapters))(
+  '%s binds exact FIR bytes and adapter-local geometry',
+  (rate) => {
+    const contract = sourceAdapterContract(sourceRate(Number(rate)));
     const bytes = readFileSync(path.join(root, contract.coefficientAsset.path));
     expect(bytes.length).toBe(contract.coefficientAsset.byteSize);
     expect(digest(bytes)).toBe(contract.coefficientAsset.sha256);
     const { identitySha256, ...facts } = contract;
+    expect(Object.keys(facts).sort()).toEqual([
+      'coefficientAsset',
+      'coefficientUrl',
+      'down',
+      'firstFullyRealOutputIndex',
+      'realSourceLookaheadSamples',
+      'sourceRateHz',
+      'tapCount',
+      'targetRateHz',
+      'up',
+    ]);
     expect(digest(canonicalJson(facts))).toBe(identitySha256);
-    expect(contract.analysisIdentitySha256).toBe(
-      identity.analysisIdentitySha256,
-    );
     expect(contract.sourceRateHz * contract.up).toBe(
-      runtime.input.sampleRateHz * contract.down,
+      contract.targetRateHz * contract.down,
     );
     expect(contract.tapCount).toBe(
       bytes.length / Float32Array.BYTES_PER_ELEMENT,
     );
   },
 );
-
-it('normalizes only CRLF in source evidence, preserving BOM, spaces and standalone CR', () => {
-  expect(normalized(Buffer.from('\ufeffsource  \r\nend\r'))).toEqual(
-    Buffer.from('\ufeffsource  \nend\r'),
-  );
-  const binary = Buffer.from([13, 10, 0, 255]);
-  expect(digest(binary)).not.toBe(digest(normalized(binary)));
-});

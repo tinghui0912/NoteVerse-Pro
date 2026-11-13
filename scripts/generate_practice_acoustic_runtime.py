@@ -1,4 +1,4 @@
-"""Validate and generate the configured Practice acoustic runtime and evidence projections."""
+"""Validate and generate the configured Practice acoustic runtime projections."""
 
 import argparse
 import hashlib
@@ -77,7 +77,7 @@ def load_json(path: Path) -> dict:
     )
 
 
-def validate(runtime: dict, evidence: dict, root: Path = ROOT) -> None:
+def validate(runtime: dict, root: Path = ROOT) -> None:
     fields(
         runtime,
         "schemaVersion model runtime input outputs decoder window sourceAdapters",
@@ -183,46 +183,6 @@ def validate(runtime: dict, evidence: dict, root: Path = ROOT) -> None:
             raise ValueError("FIR identity mismatch")
         if any(not math.isfinite(v[0]) for v in struct.iter_unpack("<f", raw)):
             raise ValueError("FIR coefficients must be finite")
-    fields(evidence, "schemaVersion scope sourceFiles coefficientAssets")
-    if integer(evidence["schemaVersion"]) != runtime["schemaVersion"]:
-        raise ValueError("Unsupported evidence schema")
-    text(evidence["scope"])
-    sources = fields(
-        evidence["sourceFiles"],
-        "sourceAnalysis sourcePublication decoder windowPlanner sourceAdapter",
-    )
-    paths = set()
-    for entry in sources.values():
-        fields(entry, "path byteSize sha256 normalization scope")
-        text(entry["scope"])
-        sha(entry["sha256"])
-        integer(entry["byteSize"])
-        if (
-            entry["normalization"] != "UTF8_CRLF_TO_LF"
-            or not text(entry["path"]).endswith(".ts")
-            or entry["path"] in paths
-        ):
-            raise ValueError("Invalid source attestation")
-        paths.add(entry["path"])
-        raw = (
-            repository_file(root, entry["path"])
-            .read_bytes()
-            .decode("utf-8")
-            .replace("\r\n", "\n")
-            .encode("utf-8")
-        )
-        if len(raw) != entry["byteSize"] or hashlib.sha256(raw).hexdigest() != entry["sha256"]:
-            raise ValueError(f"Source attestation mismatch: {entry['path']}")
-    selected = evidence["coefficientAssets"]
-    if not isinstance(selected, list):
-        raise ValueError("Expected coefficient evidence references")
-    rates = []
-    for entry in selected:
-        fields(entry, "sourceRateHz scope")
-        rates.append(str(integer(entry["sourceRateHz"])))
-        text(entry["scope"])
-    if len(set(rates)) != len(rates) or set(rates) != set(adapters):
-        raise ValueError("Coefficient evidence must select the declared runtime FIR assets")
 
 
 def ts_data(value: object) -> str:
@@ -237,18 +197,14 @@ def ts_data(value: object) -> str:
     return json.dumps(value, ensure_ascii=False, allow_nan=False)
 
 
-def projections(runtime: dict, evidence: dict) -> dict[str, str]:
-    runtime = json.loads(canonical_json(runtime))
-    evidence = json.loads(canonical_json(evidence))
-    runtime_sha, evidence_sha = digest(runtime), digest(evidence)
-    identity = {
+def analysis_identity(runtime: dict) -> dict:
+    return {
         "identityName": f"{runtime['model']['assetId']}@{runtime['model']['assetVersion']}",
-        "runtimeContractSha256": runtime_sha,
-        "evidenceAttestationSha256": evidence_sha,
+        "analysisIdentitySha256": digest(runtime),
     }
-    identity["analysisIdentitySha256"] = digest(
-        {k: identity[k] for k in ["runtimeContractSha256", "evidenceAttestationSha256"]}
-    )
+
+
+def source_adapter_contracts(runtime: dict) -> dict:
     adapters = {}
     for key, adapter in runtime["sourceAdapters"].items():
         taps = adapter["coefficientAsset"]["byteSize"] // 4
@@ -260,9 +216,15 @@ def projections(runtime: dict, evidence: dict) -> dict[str, str]:
             "firstFullyRealOutputIndex": ((taps - 1) // 2 + adapter["down"] - 1) // adapter["down"],
             "coefficientUrl": "/"
             + adapter["coefficientAsset"]["path"].removeprefix("apps/customer-web/public/"),
-            "analysisIdentitySha256": identity["analysisIdentitySha256"],
         }
         adapters[key] = {**value, "identitySha256": digest(value)}
+    return adapters
+
+
+def projections(runtime: dict) -> dict[str, str]:
+    runtime = json.loads(canonical_json(runtime))
+    identity = analysis_identity(runtime)
+    adapters = source_adapter_contracts(runtime)
     descriptor = {
         "schemaVersion": runtime["schemaVersion"],
         "assetId": runtime["model"]["assetId"],
@@ -271,7 +233,7 @@ def projections(runtime: dict, evidence: dict) -> dict[str, str]:
         "sha256": runtime["model"]["sha256"],
         "mediaType": runtime["model"]["mediaType"],
     }
-    header = f"Generated from {CONTRACT_DIRECTORY}/runtime-contract.json and evidence-attestation.json. Do not edit."
+    header = f"Generated from {CONTRACT_DIRECTORY}/runtime-contract.json. Do not edit."
     ts = f"// {header}\n"
     for name, value in [
         ("ACOUSTIC_RUNTIME_CONTRACT", runtime),
@@ -301,7 +263,7 @@ def projections(runtime: dict, evidence: dict) -> dict[str, str]:
         "".join(f"    {name}={json.dumps(value)},\n" for name, value in model_fields.items())
         + ")\n"
     )
-    for name, value in [("MODEL_ASSET_DESCRIPTOR", descriptor), ("ANALYSIS_IDENTITY", identity)]:
+    for name, value in [("MODEL_ASSET_DESCRIPTOR", descriptor)]:
         py += f"{name} = MappingProxyType(\n    {{\n"
         py += "".join(
             f"        {json.dumps(key)}: {json.dumps(item)},\n" for key, item in value.items()
@@ -309,26 +271,29 @@ def projections(runtime: dict, evidence: dict) -> dict[str, str]:
         py += "    }\n)\n"
     return {
         "apps/customer-web/src/lib/practice/acoustic/generated/runtime-contract.ts": ts,
-        "backend/app/modules/model_assets/generated/practice_acoustic_contract.py": py,
+        "backend/app/modules/model_assets/generated/practice_acoustic_model_asset.py": py,
     }
+
+
+def generate(root: Path, *, check: bool = False) -> None:
+    runtime = load_json(root / CONTRACT_DIRECTORY / "runtime-contract.json")
+    validate(runtime, root)
+    for name, content in projections(runtime).items():
+        path = root / name
+        if check:
+            if not path.is_file() or path.read_text(encoding="utf-8") != content:
+                raise SystemExit(f"Acoustic projection differs: {name}")
+        else:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8", newline="\n")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
-    runtime = load_json(ROOT / CONTRACT_DIRECTORY / "runtime-contract.json")
-    evidence = load_json(ROOT / CONTRACT_DIRECTORY / "evidence-attestation.json")
-    validate(runtime, evidence)
-    for name, content in projections(runtime, evidence).items():
-        path = ROOT / name
-        if args.check:
-            if not path.is_file() or path.read_text(encoding="utf-8") != content:
-                raise SystemExit(f"Acoustic projection differs: {name}")
-        else:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(content, encoding="utf-8", newline="\n")
-    print("Practice acoustic contracts, attestations and projections agree.")
+    generate(ROOT, check=args.check)
+    print("Practice acoustic runtime and model delivery projections agree.")
 
 
 if __name__ == "__main__":

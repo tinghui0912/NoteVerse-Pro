@@ -1,4 +1,4 @@
-// Generated from contracts/practice/acoustic/runtime-contract.json and evidence-attestation.json. Do not edit.
+// Generated from contracts/practice/acoustic/runtime-contract.json. Do not edit.
 export const ACOUSTIC_RUNTIME_CONTRACT = Object.freeze({
 "decoder": Object.freeze({
 "frameThreshold": 0.05,
@@ -67,9 +67,7 @@ export const ACOUSTIC_RUNTIME_CONTRACT = Object.freeze({
 } as const);
 export const ACOUSTIC_ANALYSIS_IDENTITY = Object.freeze({
 "identityName": "practice-acoustic-robust-browser@v1",
-"runtimeContractSha256": "d469a156a0acbe34ab3e3285d4d6857824f0d71992deae4f3e2b1a03e839304f",
-"evidenceAttestationSha256": "5ac985faec8fce506a37d393959e5f04fb3464896a2c7edeb82517eb113c9b6b",
-"analysisIdentitySha256": "87f9ec2a352b8aa2eaa94326b66f5196946525dd11a48d1fe839b769a682c5b9"
+"analysisIdentitySha256": "d469a156a0acbe34ab3e3285d4d6857824f0d71992deae4f3e2b1a03e839304f"
 } as const);
 export const SOURCE_ADAPTER_CONTRACTS = Object.freeze({
 "44100": Object.freeze({
@@ -86,8 +84,7 @@ export const SOURCE_ADAPTER_CONTRACTS = Object.freeze({
 "realSourceLookaheadSamples": 28,
 "firstFullyRealOutputIndex": 10,
 "coefficientUrl": "/model-assets/practice-acoustic/fir-160-441.f32",
-"analysisIdentitySha256": "87f9ec2a352b8aa2eaa94326b66f5196946525dd11a48d1fe839b769a682c5b9",
-"identitySha256": "f96ed0d07121a76c4fed01d9ef10123e1134487fb96ac3c87563c52a92adc406"
+"identitySha256": "913707d8a9340ac9ae3f8154645aa63440f8bf37145bf3a920f29041f1b141ff"
 } as const),
 "48000": Object.freeze({
 "coefficientAsset": Object.freeze({
@@ -103,8 +100,7 @@ export const SOURCE_ADAPTER_CONTRACTS = Object.freeze({
 "realSourceLookaheadSamples": 30,
 "firstFullyRealOutputIndex": 10,
 "coefficientUrl": "/model-assets/practice-acoustic/fir-1-3.f32",
-"analysisIdentitySha256": "87f9ec2a352b8aa2eaa94326b66f5196946525dd11a48d1fe839b769a682c5b9",
-"identitySha256": "de999b9f304caedc65b62a0cbfd2165d40ca606953004408ed2308331dcff60c"
+"identitySha256": "76526a9fed0cade27a3510b9293db7fed2a87775ab932148b5b01b87539a2cc1"
 } as const)
 } as const);
 export const ACOUSTIC_MODEL_ASSET_DESCRIPTOR = Object.freeze({

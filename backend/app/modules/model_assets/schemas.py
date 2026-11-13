@@ -2,7 +2,7 @@
 
 from typing import Self
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from app.modules.model_assets.generated.practice_acoustic_contract import MODEL_ASSET_DESCRIPTOR
+from app.modules.model_assets.generated.practice_acoustic_model_asset import MODEL_ASSET_DESCRIPTOR
 
 
 class PracticeAcousticAccessRead(BaseModel):

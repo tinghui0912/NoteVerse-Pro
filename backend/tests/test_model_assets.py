@@ -13,7 +13,7 @@ from app.api.deps import get_current_user
 from app.db.models.user import User
 from app.modules.model_assets.router import get_model_asset_service, router
 from app.modules.model_assets.service import ModelAssetService
-from app.modules.model_assets.generated.practice_acoustic_contract import MODEL_ASSET_DESCRIPTOR
+from app.modules.model_assets.generated.practice_acoustic_model_asset import MODEL_ASSET_DESCRIPTOR
 from app.core.exception_handlers import register_exception_handlers
 
 app = FastAPI()

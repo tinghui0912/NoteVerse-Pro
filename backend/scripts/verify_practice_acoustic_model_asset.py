@@ -14,9 +14,8 @@ from pathlib import Path
 
 from app.storage.s3_compatible import S3CompatibleObjectStorage
 
-from app.modules.model_assets.generated.practice_acoustic_contract import (
+from app.modules.model_assets.generated.practice_acoustic_model_asset import (
     MODEL_ASSET,
-    ANALYSIS_IDENTITY,
 )
 
 
@@ -34,7 +33,7 @@ def verify_asset(publish: bool, report: Path, model: Path) -> dict:
     if report.exists():
         raise RuntimeError("APPEND_ONLY_REPORT_ALREADY_EXISTS")
     result = {
-        "assetIdentity": ANALYSIS_IDENTITY["identityName"],
+        "assetIdentity": f"{MODEL_ASSET.asset_id}@{MODEL_ASSET.asset_version}",
         "startedAt": datetime.now(timezone.utc).isoformat(),
         "status": "ASSET_GATE_PENDING",
         "expectedBytes": MODEL_ASSET.byte_size,

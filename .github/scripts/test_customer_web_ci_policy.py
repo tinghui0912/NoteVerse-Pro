@@ -520,5 +520,35 @@ class RecordingMediaWorkflowTests(unittest.TestCase):
             self.assertIn('python scripts/generate_practice_score_contract.py --check', block)
 
 
+class AcousticOwnershipWorkflowTests(unittest.TestCase):
+    def test_both_workflows_select_runtime_and_repository_evidence_changes(self):
+        root = Path(__file__).resolve().parents[2]
+        paths = [
+            'contracts/practice/acoustic/runtime-contract.json',
+            'scripts/generate_practice_acoustic_runtime.py',
+            'scripts/verify_practice_acoustic_implementation.py',
+            'apps/customer-web/tests/attestations/practice-acoustic/**',
+        ]
+        for name in ['backend-quality.yml', 'customer-web-quality.yml']:
+            triggers = (root / '.github/workflows' / name).read_text(encoding='utf-8').split('jobs:', 1)[0]
+            for event in ['push', 'pull_request']:
+                block = re.search(r'^  ' + event + r':\n(.*?)(?=^  [a-z_]+:|^\S|\Z)', triggers, re.M | re.S)
+                self.assertIsNotNone(block)
+                for path in paths:
+                    self.assertIn('      - "' + path + '"', block.group(1))
+
+    def test_runtime_projection_and_implementation_verification_are_separate_root_checks(self):
+        root = Path(__file__).resolve().parents[2]
+        customer = (root / '.github/workflows/customer-web-quality.yml').read_text(encoding='utf-8')
+        backend = (root / '.github/workflows/backend-quality.yml').read_text(encoding='utf-8')
+        for command in ['generate_practice_acoustic_runtime.py --check', 'verify_practice_acoustic_implementation.py']:
+            block = next(part for part in customer.split('      - name: ') if 'run: python3 scripts/' + command in part)
+            self.assertIn('working-directory: .', block)
+            self.assertNotIn('        if:', block)
+            self.assertLess(customer.index(block), customer.index('      - name: Verify reusable PR Quality proof'))
+            block = next(part for part in backend.split('      - name: ') if 'python scripts/' + command in part)
+            self.assertIn('cd /repo &&', block)
+
+
 if __name__ == "__main__":
     unittest.main()

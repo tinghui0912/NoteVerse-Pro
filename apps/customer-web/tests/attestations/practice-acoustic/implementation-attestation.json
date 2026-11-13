@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "scope": "Selected evidence-producing source implementations and exact shipped FIR assets; not an executable dependency closure.",
+  "scope": "Selected evidence-producing repository source implementations; not product runtime configuration or an executable dependency closure.",
   "sourceFiles": {
     "sourceAnalysis": {
       "path": "apps/customer-web/src/lib/practice/acoustic/runtime/source-analysis-runtime.ts",
@@ -37,15 +37,5 @@
       "normalization": "UTF8_CRLF_TO_LF",
       "scope": "Rational FIR uses float32 products and each accumulation, persistent bounded source state, origin zeros only and no fitted shift or gain normalization."
     }
-  },
-  "coefficientAssets": [
-    {
-      "sourceRateHz": 44100,
-      "scope": "Exact raw float32 little-endian FIR bytes declared by the runtime contract."
-    },
-    {
-      "sourceRateHz": 48000,
-      "scope": "Exact raw float32 little-endian FIR bytes declared by the runtime contract."
-    }
-  ]
+  }
 }

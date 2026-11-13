@@ -1,4 +1,4 @@
-"""Generated from contracts/practice/acoustic/runtime-contract.json and evidence-attestation.json. Do not edit."""
+"""Generated from contracts/practice/acoustic/runtime-contract.json. Do not edit."""
 
 from types import MappingProxyType
 from typing import NamedTuple
@@ -31,13 +31,5 @@ MODEL_ASSET_DESCRIPTOR = MappingProxyType(
         "expectedByteSize": 98689283,
         "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
         "mediaType": "application/octet-stream",
-    }
-)
-ANALYSIS_IDENTITY = MappingProxyType(
-    {
-        "identityName": "practice-acoustic-robust-browser@v1",
-        "runtimeContractSha256": "d469a156a0acbe34ab3e3285d4d6857824f0d71992deae4f3e2b1a03e839304f",
-        "evidenceAttestationSha256": "5ac985faec8fce506a37d393959e5f04fb3464896a2c7edeb82517eb113c9b6b",
-        "analysisIdentitySha256": "87f9ec2a352b8aa2eaa94326b66f5196946525dd11a48d1fe839b769a682c5b9",
     }
 )

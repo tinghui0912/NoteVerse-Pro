@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
     paths:
+      - "contracts/practice/acoustic/runtime-contract.json"
+      - "scripts/generate_practice_acoustic_runtime.py"
+      - "scripts/verify_practice_acoustic_implementation.py"
+      - "apps/customer-web/tests/attestations/practice-acoustic/**"
       - "contracts/practice/recording-timebase.schema.json"
       - "scripts/generate_practice_recording_timebase_contract.py"
       - "contracts/practice/recording-media-admission.json"
@@ -24,6 +28,10 @@ on:
       - "docs/governance/dependency-maintenance-policy.md"
   pull_request:
     paths:
+      - "contracts/practice/acoustic/runtime-contract.json"
+      - "scripts/generate_practice_acoustic_runtime.py"
+      - "scripts/verify_practice_acoustic_implementation.py"
+      - "apps/customer-web/tests/attestations/practice-acoustic/**"
       - "contracts/practice/recording-timebase.schema.json"
       - "scripts/generate_practice_recording_timebase_contract.py"
       - "contracts/practice/recording-media-admission.json"
@@ -65,6 +73,14 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Verify acoustic runtime projections
+        working-directory: .
+        run: python3 scripts/generate_practice_acoustic_runtime.py --check
+
+      - name: Verify acoustic repository implementation attestation
+        working-directory: .
+        run: python3 scripts/verify_practice_acoustic_implementation.py
 
       - name: Verify original Recording Media Admission projections
         working-directory: .

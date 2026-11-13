@@ -1,76 +1,70 @@
-# Acoustic Evidence Identity Boundary
+# Acoustic Runtime Identity and Implementation Attestation
 
 ## Identity concerns
 
 | Concern                          | Owner                                                  | Evidence meaning                                                    |
 | -------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------- |
-| Model asset                      | runtime-contract.json and generated verified delivery  | Exact ONNX bytes, descriptor and runtime configuration              |
+| Model asset                      | runtime-contract.json and generated verified delivery  | Exact ONNX bytes and delivery descriptor              |
 | Decoder                          | robust-piano-decoder and runtime decoder configuration | Qualified piano pitch/onset semantics                               |
 | Geometry, FIR and source mapping | planner, source adapter and FIR assets                 | Tensor context, half-open ownership and physical source coordinates |
 | Source publication               | source runtime/publication                             | Immutable all-pitch observations and analyzed-through coverage      |
 | Timing                           | Session timebase and segmented clock                   | Event-time mapping and explicit no-calibration policy               |
 | Admission/liveness               | resource policy, capture/worker/engine/controllers     | Resource retention, readiness, failure and intervention behavior    |
 
-The acoustic model, decoder and source-adapter identities belong to their algorithm
-and loading owners. Their hashes and characterization tests identify the configured
-evidence-producing stack. A transient Continuous Result references evaluation and
-its ExecutedPerformance and transient outcome; it carries no evidence-stack transport payload.
+The analysis identity describes configured product/runtime semantics. Source-adapter
+identities describe their own rate-specific resampling facts. Selected implementation
+attestations describe repository bytes used for engineering/review evidence. These
+identities have separate owners. A transient Continuous Result references evaluation,
+its ExecutedPerformance and transient outcome; it carries no implementation-attestation
+transport payload.
 
-## Selected source and asset attestation
+## Configured runtime identity
 
-[runtime-contract.json](../../contracts/practice/acoustic/runtime-contract.json) owns configured
-acoustic runtime truth: model bytes and locator, ORT/provider, tensor descriptors,
-decoder configuration, sample geometry and qualified source adapters.
-[evidence-attestation.json](../../contracts/practice/acoustic/evidence-attestation.json)
-owns selected implementation attestations and scoped references to the exact runtime
-FIR assets. Binary identity is declared once in the runtime contract.
+[runtime-contract.json](../../contracts/practice/acoustic/runtime-contract.json) owns
+model bytes and locator, ORT/provider, tensor descriptors, decoder configuration,
+sample geometry and qualified source adapters. The
+[runtime generator](../../scripts/generate_practice_acoustic_runtime.py) validates
+configuration relationships, the installed ORT version and exact FIR asset bytes.
+It generates immutable [browser configuration](../../apps/customer-web/src/lib/practice/acoustic/generated/runtime-contract.ts)
+and [Backend model-delivery facts](../../backend/app/modules/model_assets/generated/practice_acoustic_model_asset.py).
+Backend delivery does not consume the browser analysis identity.
 
-The [generator](../../scripts/generate_practice_acoustic_contract.py) validates both
-contracts and derives immutable [TS](../../apps/customer-web/src/lib/practice/acoustic/generated/runtime-contract.ts)
-and [Python](../../backend/app/modules/model_assets/generated/practice_acoustic_contract.py)
-projections. Delivery, verification, inference, decoder and source adapters consume
-those projections. `--check` rejects declaration, byte-attestation or projection drift.
-Evidence attestation is build/repository evidence and is validated by the generator
-and repository tests. It is not shipped as browser runtime data. The browser carries
-the runtime contract and generated runtime, evidence and composite digests needed
-to identify the configured analysis stack. The identity label derives from the
-model asset ID and version.
+`ACOUSTIC_ANALYSIS_IDENTITY.analysisIdentitySha256` is SHA256 of the entire canonical
+runtime contract: UTF-8 JSON with recursively sorted object keys and unchanged array
+order. Its model asset/version label is human-readable deployment information; the hash
+identifies configured analysis semantics. `assertAcousticRuntimeIdentity` verifies that
+runtime digest. Runtime/model diagnostics use the same configured identity.
 
-Selected repository anchors are:
+Each source-adapter `identitySha256` binds only source/target rates, up/down ratio,
+coefficient asset bytes and locator, tap count, real-source lookahead and first fully-real
+output boundary. Decoder, model and provider facts do not enter this identity. Exact
+FIR byte verification and numerical/golden tests remain independent checks of declared
+assets and their behavior. Model delivery verifies model byte length and SHA256.
 
-- source-analysis-runtime.ts;
-- source-publication.ts, including acoustic domain identity admission;
-- robust-piano-decoder.ts, including canonical piano MIDI-to-name mapping;
-- window-planner.ts;
-- source-adapter.ts;
-- both shipped FIR coefficient assets.
+## Repository implementation attestation
 
-Node-side [file attestation tests](../../apps/customer-web/src/lib/practice/acoustic/identity.test.ts)
-verify declared paths, bytes and SHA256. Text normalization is CRLF→LF only, followed
-by UTF-8 encoding; FIR assets use exact binary bytes. Canonical JSON sorts object
-keys recursively and hashes its UTF-8 representation. The analysis identity hashes the canonical runtime and evidence digests. Adapter
-identities bind that analysis identity, rate-specific geometry and coefficient facts.
-Model delivery separately verifies model byte length and SHA256.
-`assertAcousticRuntimeIdentity` verifies the runtime declaration hash and its
-composite binding to the generator-produced evidence digest. Repository file bytes
-and evidence contents are validated by generator/Node tests.
+[implementation-attestation.json](../../apps/customer-web/tests/attestations/practice-acoustic/implementation-attestation.json)
+owns selected source paths, normalization, byte sizes, SHA256 and engineering scopes.
+The independent [repository verifier](../../scripts/verify_practice_acoustic_implementation.py)
+checks that declaration against current source bytes. Text normalization replaces CRLF
+with LF only, followed by UTF-8 encoding; BOM, spaces and standalone CR remain intact.
+Neither the declaration nor source hashes are inputs to production generation or any
+runtime/adapter identity. Source edits are checked by repository attestation without
+changing configured acoustic identity.
 
-Selected source hashing is deliberate rather than transitive dependency attestation.
-Engine, worker/client, capture transport, input/controller, resource-policy and
-intervention implementations have their own runtime ownership and tests. They are
-outside the declared selected evidence scope. A selected file can contain
-resource checks whose bytes are still covered by its file attestation.
+The selected sources are source-analysis-runtime.ts, source-publication.ts,
+robust-piano-decoder.ts, window-planner.ts and source-adapter.ts. They cover the declared
+source analysis, publication, decoder, planning and resampling evidence. FIR identity
+is declared only by runtime configuration; the attestation does not select assets.
 
-Source byte identity and semantic equivalence answer different questions. Any byte
-edit to a selected text source changes its attestation and mechanically propagates
-through evidence/composite hashes. Equal publication contents do not establish equal
-hashes. Conversely equal analysis hashes do not establish identical execution outcomes
-for dependencies outside the selected scope. Evidence-semantic review must consider
-the relevant declaration, selected sources and timing policy as well as hash guards.
+Selected-source provenance is not a transitive executable dependency closure. Engine,
+worker/client, capture transport, input/controller, resource-policy and intervention
+implementations have their own runtime ownership and tests. Hash equality does not
+establish algorithm quality, physical-device qualification or identical execution outcomes.
 
 ## Evidence owners and timing
 
-`ACOUSTIC_ANALYSIS_IDENTITY` identifies the configured runtime and selected evidence. Each
+`ACOUSTIC_ANALYSIS_IDENTITY` identifies the configured runtime. Each
 qualified source rate selects its source-adapter identity. `ContinuousMidiEvidence`
 owns its physical MIDI policy identity. Source analysis remains score/target/verdict
 blind, and source publication enforces canonical pitch/midiPitch identity before
@@ -89,8 +83,8 @@ require review of analysis/adapter/timing identities. Artifact identity describe
 content; it is independent of acoustic model identity.
 
 Admission budgets, Worklet credits, worker silence/readiness deadlines, engine lease
-retirement and application interventions own availability. The evidence and
-source-adapter declarations attest their selected algorithm sources and assets;
+retirement and application interventions own availability. The implementation attestation and
+source-adapter configuration describe selected source bytes and adapter-local facts;
 they do not describe every runtime policy or availability outcome.
 Hash validation establishes drift resistance, not the reasonableness, optimality or
 qualification of any parameter. See the [parameter evidence](practice-acoustic-parameter-provenance.md).
@@ -100,7 +94,7 @@ qualification of any parameter. See the [parameter evidence](practice-acoustic-p
 The source executor preserves an Error cause directly and wraps a non-Error cause in
 `AcousticAnalysisError` with the closed `ACOUSTIC_INTERNAL_FAILURE` code. Adapter
 boundaries project known acoustic preparation and inference codes into typed causes.
-The selected-source bytes attest that executor behavior; analysis identity and source-adapter
-identities bind those bytes without changing model or FIR identities. Diagnostic source
+The implementation attestation identifies the selected executor source bytes. Analysis
+and source-adapter identities describe configuration and adapter-local facts respectively. Diagnostic source
 summaries carry no authority to classify application failures. See
 [failure boundaries](practice-failures.md).

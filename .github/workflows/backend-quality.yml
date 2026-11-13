@@ -4,6 +4,13 @@ on:
   push:
     branches: [main]
     paths:
+      - "contracts/practice/acoustic/runtime-contract.json"
+      - "scripts/generate_practice_acoustic_runtime.py"
+      - "scripts/verify_practice_acoustic_implementation.py"
+      - "apps/customer-web/tests/attestations/practice-acoustic/**"
+      - "apps/customer-web/src/lib/practice/acoustic/**"
+      - "apps/customer-web/public/model-assets/practice-acoustic/**"
+      - "apps/customer-web/package.json"
       - "contracts/practice/recording-timebase.schema.json"
       - "scripts/generate_practice_recording_timebase_contract.py"
       - "contracts/practice/recording-media-admission.json"
@@ -24,6 +31,13 @@ on:
       - ".github/scripts/*.py"
   pull_request:
     paths:
+      - "contracts/practice/acoustic/runtime-contract.json"
+      - "scripts/generate_practice_acoustic_runtime.py"
+      - "scripts/verify_practice_acoustic_implementation.py"
+      - "apps/customer-web/tests/attestations/practice-acoustic/**"
+      - "apps/customer-web/src/lib/practice/acoustic/**"
+      - "apps/customer-web/public/model-assets/practice-acoustic/**"
+      - "apps/customer-web/package.json"
       - "contracts/practice/recording-timebase.schema.json"
       - "scripts/generate_practice_recording_timebase_contract.py"
       - "contracts/practice/recording-media-admission.json"
@@ -162,12 +176,14 @@ jobs:
           LEGATO_REPO_PATH=$LEGATO_REPO_PATH
           EOF
 
-      - name: Verify Practice score and Recording admission projections and producer fixture
+      - name: Verify Practice runtime projections, implementation evidence and producer fixture
         run: >-
           docker run --rm --network host --env-file "$QUALITY_ENV_FILE"
           -v "$GITHUB_WORKSPACE:/repo:ro"
           "$QUALITY_IMAGE" bash -c
           "cd /repo &&
+          python scripts/generate_practice_acoustic_runtime.py --check &&
+          python scripts/verify_practice_acoustic_implementation.py &&
           python scripts/generate_score_tempo_policy.py --check &&
           python scripts/generate_practice_recording_media_admission.py --check &&
           python scripts/generate_practice_recording_timebase_contract.py --check &&

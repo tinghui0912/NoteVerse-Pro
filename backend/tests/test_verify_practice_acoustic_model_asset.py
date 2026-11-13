@@ -13,7 +13,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from app.modules.model_assets.generated.practice_acoustic_contract import MODEL_ASSET
+from app.modules.model_assets.generated.practice_acoustic_model_asset import MODEL_ASSET
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts/verify_practice_acoustic_model_asset.py"

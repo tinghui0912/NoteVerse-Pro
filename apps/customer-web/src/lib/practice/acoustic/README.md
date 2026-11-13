@@ -36,22 +36,28 @@ The Continuous adapter imports only the publication type contract from
 targets or practice controllers. STEP assembles observations in `step/` and passes
 attempt evidence to `step/domain/`. Neither mode's domain imports this foundation.
 
-## Contract authority
+## Runtime identity and repository evidence
 
-`contracts/practice/acoustic/runtime-contract.json` owns the configured model bytes,
+`contracts/practice/acoustic/runtime-contract.json` owns configured model bytes,
 physical locator, runtime/provider, tensor descriptors, decoder configuration and
-sample geometry. `contracts/practice/acoustic/evidence-attestation.json` owns selected
-normalized implementation attestations and scoped references to raw FIR assets.
-`scripts/generate_practice_acoustic_contract.py` validates both and produces the
-immutable TS/Python projections consumed by delivery, inference, decoder and source
-adapters. Its `--check` mode rejects drift. Analysis identity combines the canonical
-runtime and evidence digests; per-rate identity additionally binds rational geometry
-and exact coefficients. The package declaration matches the configured ORT version.
-Evidence attestation is build/repository evidence, validated by generator and Node
-checks. It is not shipped in browser runtime data. The browser carries generated
-evidence/composite digests as identity metadata and validates the runtime declaration
-and its composite binding. The identity label derives from the deployed asset ID
-and version.
+sample geometry. `scripts/generate_practice_acoustic_runtime.py` validates runtime
+relationships, installed ORT version and exact FIR bytes. It projects browser runtime
+configuration and Backend model-delivery facts; `--check` rejects projection drift.
+
+`ACOUSTIC_ANALYSIS_IDENTITY.analysisIdentitySha256` is the SHA256 of canonical runtime
+JSON, with recursively sorted object keys, unchanged array order and UTF-8 encoding.
+It identifies the complete configured acoustic semantics. `identityName` is a readable
+model asset/version label. Source-adapter identities hash only rate-specific rational
+geometry, derived sample boundaries and coefficient asset facts, including its locator.
+Decoder configuration does not enter an adapter identity. Runtime/model diagnostics use
+`analysisIdentitySha256` for this configured analysis identity.
+
+`apps/customer-web/tests/attestations/practice-acoustic/implementation-attestation.json`
+declares selected repository source-byte provenance for engineering evidence.
+`scripts/verify_practice_acoustic_implementation.py` independently checks exact paths,
+UTF8 CRLF-to-LF normalization, byte sizes and SHA256. This repository evidence is not
+an input to production projections or runtime/adapter identity. FIR product identity
+belongs to runtime configuration; numerical source-adapter tests own algorithm evidence.
 
 ## Model Identity
 
