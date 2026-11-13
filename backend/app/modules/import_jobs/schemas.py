@@ -110,7 +110,7 @@ class ImportJobDetail(TypedDict, total=False):
     state: ImportJobState | str
     progress: int
     title: Optional[str]
-    genres: list[str]
+    genres: Genres
     thumbnail: Optional[ImportJobThumbnailItem]
     created_at: Optional[str]
     updated_at: Optional[str]

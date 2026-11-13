@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import type { ScoreGenre } from '@/generated/api';
 
 import type { ComponentProps } from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -8,7 +9,7 @@ import { UploadForm } from './upload-form';
 import common from '@/../messages/en/common.json';
 import scoreStyles from '@/../messages/en/scoreStyles.json';
 import upload from '@/../messages/en/upload.json';
-import { SCORE_GENRES, type ScoreGenreCode } from '@/lib/score/genres';
+import { scoreGenresForDisplay } from '@/lib/score/genres';
 
 function renderForm(overrides: Partial<ComponentProps<typeof UploadForm>> = {}) {
   const props: ComponentProps<typeof UploadForm> = {
@@ -53,8 +54,8 @@ afterEach(() => {
 describe('UploadForm with real react-dropzone', () => {
   it('selects every genre and removes a selection by code identity', () => {
     const view = renderForm();
-    let selected: ScoreGenreCode[] = [];
-    for (const code of SCORE_GENRES) {
+    let selected: ScoreGenre[] = [];
+    for (const code of scoreGenresForDisplay) {
       fireEvent.click(screen.getByRole('button', { name: scoreStyles.genre[code] }));
       selected = vi.mocked(view.props.onGenresChange).mock.lastCall![0];
       view.rerender(
@@ -63,8 +64,8 @@ describe('UploadForm with real react-dropzone', () => {
         </NextIntlClientProvider>
       );
     }
-    expect(selected).toEqual(SCORE_GENRES);
-    for (const code of SCORE_GENRES) {
+    expect(selected).toEqual(scoreGenresForDisplay);
+    for (const code of scoreGenresForDisplay) {
       expect(screen.getByRole('button', { name: scoreStyles.genre[code] })).toHaveAttribute(
         'aria-pressed',
         'true'
@@ -72,7 +73,7 @@ describe('UploadForm with real react-dropzone', () => {
     }
     fireEvent.click(screen.getByRole('button', { name: scoreStyles.genre.jazz }));
     expect(view.props.onGenresChange).toHaveBeenLastCalledWith(
-      SCORE_GENRES.filter((code) => code !== 'jazz')
+      scoreGenresForDisplay.filter((code) => code !== 'jazz')
     );
   });
   it('passes a dropped PNG to the application as a browser File exactly once', async () => {

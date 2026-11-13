@@ -21,8 +21,13 @@ import { useToast } from '@/hooks/use-toast';
 import { formatApiDateTime } from '@/lib/date-time';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { formatKeySignature } from '@/lib/score/metadata-display';
-import { SCORE_GENRES, knownGenres, isScoreGenre, type ScoreGenreCode } from '@/lib/score/genres';
-import type { MetadataRead } from '@/generated/api';
+import {
+  SCORE_GENRE_LABEL_KEYS,
+  scoreGenresForDisplay,
+  knownGenres,
+  isScoreGenre,
+} from '@/lib/score/genres';
+import type { MetadataRead, ScoreGenre } from '@/generated/api';
 
 interface ScoreInfoPanelProps {
   canEditTitle?: boolean;
@@ -31,7 +36,7 @@ interface ScoreInfoPanelProps {
   imageCountStatus?: 'pending' | 'processing' | 'ready' | 'unavailable';
   metadata?: MetadataRead | null;
   scoreId?: string;
-  genres: string[];
+  genres: ScoreGenre[];
   title: string;
   updatedAt?: string | null;
   version?: number;
@@ -66,11 +71,11 @@ export function ScoreInfoPanel({
   const serverKey = serverGenres.join('|');
   const [optimistic, setOptimistic] = useState<{
     serverKey: string;
-    genres: ScoreGenreCode[];
+    genres: ScoreGenre[];
   } | null>(null);
   const selectedGenres = optimistic?.serverKey === serverKey ? optimistic.genres : serverGenres;
   const selectedKeys = new Set(selectedGenres);
-  const availableGenres = SCORE_GENRES.filter((tag) => !selectedKeys.has(tag));
+  const availableGenres = scoreGenresForDisplay.filter((tag) => !selectedKeys.has(tag));
   const imageCountLabel =
     imageCountStatus === 'pending' || imageCountStatus === 'processing' ? (
       <span
@@ -124,7 +129,7 @@ export function ScoreInfoPanel({
     );
   };
 
-  const saveGenres = (nextGenres: ScoreGenreCode[]) => {
+  const saveGenres = (nextGenres: ScoreGenre[]) => {
     if (!scoreId || mutation.isPending) return;
     const previousGenres = selectedGenres;
     setOptimistic({ serverKey, genres: nextGenres });
@@ -153,7 +158,7 @@ export function ScoreInfoPanel({
     saveGenres([...selectedGenres, code]);
   };
 
-  const removeGenre = (tag: ScoreGenreCode) => {
+  const removeGenre = (tag: ScoreGenre) => {
     saveGenres(selectedGenres.filter((item) => item !== tag));
   };
 
@@ -257,13 +262,15 @@ export function ScoreInfoPanel({
                   key={tag}
                   className="inline-flex items-center gap-1 rounded-full border border-orange-200 bg-orange-50 px-3 py-1.5 text-sm font-medium text-orange-700"
                 >
-                  {scoreStyles(tag)}
+                  {scoreStyles(SCORE_GENRE_LABEL_KEYS[tag])}
                   {canEditStyles ? (
                     <button
                       type="button"
                       onClick={() => removeGenre(tag)}
                       disabled={mutation.isPending}
-                      aria-label={t('removeStyleTag', { name: scoreStyles(tag) })}
+                      aria-label={t('removeStyleTag', {
+                        name: scoreStyles(SCORE_GENRE_LABEL_KEYS[tag]),
+                      })}
                       className="rounded-full p-0.5 hover:bg-orange-100 disabled:opacity-50"
                     >
                       <X className="h-3.5 w-3.5" />
@@ -287,7 +294,7 @@ export function ScoreInfoPanel({
                 <SelectContent>
                   {availableGenres.map((tag) => (
                     <SelectItem key={tag} value={tag}>
-                      {scoreStyles(tag)}
+                      {scoreStyles(SCORE_GENRE_LABEL_KEYS[tag])}
                     </SelectItem>
                   ))}
                 </SelectContent>

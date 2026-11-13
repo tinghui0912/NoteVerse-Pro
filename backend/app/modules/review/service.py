@@ -48,6 +48,7 @@ from app.modules.review.schemas import (
     ReviewUpdateRequest,
 )
 from app.modules.scores.repository import ScoreRepository
+from app.modules.scores.genres import ScoreGenre
 from app.processing.musicxml.admission import admit_musicxml_document
 from app.modules.import_jobs.schemas import processing_options_adapter
 from app.modules.storage_usage.service import storage_usage_service
@@ -181,7 +182,7 @@ class ReviewService:
                 score_uuid=score_uuid,
                 owner_user_id=user_id,
                 title=title,
-                genres=genres,
+                genres=[genre.value for genre in genres],
                 originating_job_id=require_persisted_id(job.id, entity="import job"),
                 created_at=now,
                 updated_at=now,
@@ -464,7 +465,7 @@ class ReviewService:
         )
 
     @staticmethod
-    def _confirmed_genres(job: ImportJob, request: ReviewConfirmRequest) -> list[str]:
+    def _confirmed_genres(job: ImportJob, request: ReviewConfirmRequest) -> list[ScoreGenre]:
         if request.genres is not None:
             return request.genres
         options = processing_options_adapter.validate_python(

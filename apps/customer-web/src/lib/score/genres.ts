@@ -1,27 +1,31 @@
-export const SCORE_GENRES = [
-  'classical',
-  'pop',
-  'jazz',
-  'rock',
-  'folk',
-  'blues',
-  'soundtrack',
-  'anime_game',
-  'religious',
-  'latin',
-  'children',
-  'original',
-  'other',
-] as const;
+import type { ScoreGenre } from '@/generated/api';
 
-export type ScoreGenreCode = (typeof SCORE_GENRES)[number];
+export const SCORE_GENRE_LABEL_KEYS = {
+  classical: 'classical',
+  pop: 'pop',
+  jazz: 'jazz',
+  rock: 'rock',
+  folk: 'folk',
+  blues: 'blues',
+  soundtrack: 'soundtrack',
+  anime_game: 'anime_game',
+  religious: 'religious',
+  latin: 'latin',
+  children: 'children',
+  original: 'original',
+  other: 'other',
+} as const satisfies Record<ScoreGenre, string>;
 
-export function isScoreGenre(value: unknown): value is ScoreGenreCode {
-  return typeof value === 'string' && SCORE_GENRES.some((code) => code === value);
+export const scoreGenresForDisplay = Object.freeze(
+  Object.keys(SCORE_GENRE_LABEL_KEYS) as ScoreGenre[]
+);
+
+export function isScoreGenre(value: unknown): value is ScoreGenre {
+  return typeof value === 'string' && Object.hasOwn(SCORE_GENRE_LABEL_KEYS, value);
 }
 
-export function knownGenres(value: unknown): ScoreGenreCode[] {
+export function knownGenres(value: unknown): ScoreGenre[] {
   if (!Array.isArray(value)) return [];
   const selected = new Set(value.filter(isScoreGenre));
-  return SCORE_GENRES.filter((code) => selected.has(code));
+  return scoreGenresForDisplay.filter((code) => selected.has(code));
 }

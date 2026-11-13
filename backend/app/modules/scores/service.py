@@ -148,7 +148,7 @@ class ScoreService:
         if request.title is not None:
             score.title = request.title.strip()
         if request.genres is not None:
-            score.genres = request.genres
+            score.genres = [genre.value for genre in request.genres]
         score.version += 1
         score.updated_at = utc_now_naive()
         await db.commit()

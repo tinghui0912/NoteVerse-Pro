@@ -1,5 +1,7 @@
 'use client';
 
+import type { ScoreGenre } from '@/generated/api';
+
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -8,7 +10,7 @@ import { useImportJobDetail, useSubmitImportJob } from '@/hooks/queries/use-impo
 import { useToast } from '@/hooks/use-toast';
 import { filesApi, importJobsApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
-import { knownGenres, type ScoreGenreCode } from '@/lib/score/genres';
+import { knownGenres } from '@/lib/score/genres';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { reportUnexpectedClientError } from '@/lib/observability';
 import { getCompletedJobRoute, type UploadableFile } from '@/lib/upload/upload-workflow';
@@ -130,7 +132,7 @@ export function useUploadWorkflow() {
   const filesRef = useRef<UploadableFile[]>([]);
   const submissionKeyRef = useRef<string | null>(null);
   const [scoreName, setScoreName] = useState('');
-  const [genres, setGenres] = useState<ScoreGenreCode[]>([]);
+  const [genres, setGenres] = useState<ScoreGenre[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [taskState, dispatchTask] = useReducer(uploadTaskReducer, initialTaskState);
   const { currentJobId, isSubmitting, pollInterval, pollStartTime, taskError, taskProgress } =

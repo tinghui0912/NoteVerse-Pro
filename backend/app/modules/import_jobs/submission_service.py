@@ -59,7 +59,8 @@ class ImportJobSubmissionService:
         if options is None:
             return None
 
-        return dict(processing_options_adapter.validate_python(options))
+        validated = processing_options_adapter.validate_python(options)
+        return dict(processing_options_adapter.dump_python(validated, mode="json"))
 
     @staticmethod
     def _existing_job_uuid(user_id: int, key: str) -> str | None:

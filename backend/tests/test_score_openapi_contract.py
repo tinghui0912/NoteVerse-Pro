@@ -3,6 +3,33 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 
+def test_score_genre_fields_reference_the_named_domain_enum(client: TestClient) -> None:
+    from app.modules.scores.genres import ScoreGenre
+
+    components = client.get("/api/v1/openapi.json").json()["components"]["schemas"]
+    assert components["ScoreGenre"]["type"] == "string"
+    assert components["ScoreGenre"]["enum"] == [genre.value for genre in ScoreGenre]
+    genre_fields = {
+        name: component["properties"]["genres"]
+        for name, component in components.items()
+        if "genres" in component.get("properties", {})
+    }
+    assert {
+        "ScoreRead",
+        "ScoreUpdateRequest",
+        "ImportJobRead",
+        "ImportJobProcessingOptions",
+        "ImportJobReviewRead",
+        "ReviewConfirmRequest",
+        "LibraryEntryRead",
+    } <= genre_fields.keys()
+    for name, field in genre_fields.items():
+        alternatives = field.get("anyOf", [field])
+        arrays = [alternative for alternative in alternatives if alternative.get("type") == "array"]
+        assert len(arrays) == 1, name
+        assert arrays[0]["items"] == {"$ref": "#/components/schemas/ScoreGenre"}, name
+
+
 def test_score_openapi_keeps_read_model_fields_required(client: TestClient) -> None:
     """Prevent optional schema defaults from weakening the customer API contract."""
     components = client.get("/api/v1/openapi.json").json()["components"]["schemas"]

@@ -16,7 +16,7 @@ from app.modules.library.schemas import LibrarySort, LibraryView
 from app.modules.library.service import LibraryService
 from app.modules.review.schemas import ReviewConfirmRequest
 from app.modules.review.service import ReviewService
-from app.modules.scores.genres import GENRE_CODES, ordered_unique_genres
+from app.modules.scores.genres import ScoreGenre, ordered_unique_genres
 from app.modules.scores.schemas import ScoreUpdateRequest
 from app.modules.scores.service import ScoreService
 from app.modules.storage_objects.persistence import object_from_bytes
@@ -29,36 +29,42 @@ from tests.test_score_revision_services import (
 )
 
 
+@pytest.fixture
+def genre_session(score_service_session):
+    session, storage = score_service_session
+
+    @sa.event.listens_for(session, "before_flush")
+    def check_json_codes(db, *_):
+        for row in db.new | db.dirty:
+            if isinstance(row, Score):
+                assert all(type(code) is str for code in row.genres)
+            if isinstance(row, ImportJob) and row.requested_options is not None:
+                assert all(type(code) is str for code in row.requested_options.get("genres", []))
+
+    return session, storage
+
+
 def test_genres_have_one_ordered_vocabulary_and_accept_every_subset():
-    assert GENRE_CODES == (
-        "classical",
-        "pop",
-        "jazz",
-        "rock",
-        "folk",
-        "blues",
-        "soundtrack",
-        "anime_game",
-        "religious",
-        "latin",
-        "children",
-        "original",
-        "other",
-    )
     assert ordered_unique_genres(["jazz", "classical", "jazz"]) == ["classical", "jazz"]
-    assert ordered_unique_genres(reversed(GENRE_CODES)) == list(GENRE_CODES)
+    assert ordered_unique_genres(reversed(ScoreGenre)) == list(ScoreGenre)
     assert ordered_unique_genres([]) == []
     with pytest.raises(ValueError):
         ordered_unique_genres(["unknown"])
 
 
-@pytest.mark.parametrize("genres", [list(GENRE_CODES), ["jazz", "classical", "jazz"], []])
+@pytest.mark.parametrize(
+    "genres", [[genre.value for genre in ScoreGenre], ["jazz", "classical", "jazz"], []]
+)
 def test_request_boundaries_normalize_genres(genres):
     expected = ordered_unique_genres(genres)
     assert ScoreUpdateRequest(genres=genres, expected_version=1).genres == expected
     assert ReviewConfirmRequest(content="xml", genres=genres).genres == expected
     request = ImportJobSubmitRequest(file_ids=["file"], options={"genres": genres})
     assert request.options == {"genres": expected}
+    assert all(isinstance(genre, ScoreGenre) for genre in request.options["genres"])
+    assert request.model_dump(mode="json")["options"]["genres"] == [
+        genre.value for genre in expected
+    ]
 
 
 @pytest.mark.parametrize("genres", [["unknown"], [{"category": "genre", "code": "jazz"}], "jazz"])
@@ -83,8 +89,8 @@ def test_request_boundaries_reject_unrecognized_fields():
 
 
 @pytest.mark.asyncio
-async def test_score_genres_replace_clear_and_preserve_with_version_checks(score_service_session):
-    session, storage = score_service_session
+async def test_score_genres_replace_clear_and_preserve_with_version_checks(genre_session):
+    session, storage = genre_session
     score = add_active_score_with_head_revision(
         session,
         score_id=1,
@@ -96,9 +102,9 @@ async def test_score_genres_replace_clear_and_preserve_with_version_checks(score
     db = AsyncSessionAdapter(session)
     service = ScoreService(storage=storage)
     for patch, expected in [
-        ({"genres": list(reversed(GENRE_CODES))}, list(GENRE_CODES)),
-        ({"title": "Renamed"}, list(GENRE_CODES)),
-        ({"genres": None}, list(GENRE_CODES)),
+        ({"genres": list(reversed(ScoreGenre))}, list(ScoreGenre)),
+        ({"title": "Renamed"}, list(ScoreGenre)),
+        ({"genres": None}, list(ScoreGenre)),
         ({"genres": []}, []),
     ]:
         current_version = score.version
@@ -107,6 +113,9 @@ async def test_score_genres_replace_clear_and_preserve_with_version_checks(score
         )
         session.refresh(score)
         assert score.genres == read.genres == expected
+        assert all(type(code) is str for code in score.genres)
+        assert all(isinstance(genre, ScoreGenre) for genre in read.genres)
+        assert read.model_dump(mode="json")["genres"] == [genre.value for genre in read.genres]
         assert score.version == current_version + 1
     from app.core.exceptions import ConflictException
 
@@ -122,14 +131,14 @@ async def test_score_genres_replace_clear_and_preserve_with_version_checks(score
     [
         (["jazz", "classical", "jazz"], None, ["classical", "jazz"]),
         (["classical"], ["rock", "jazz"], ["jazz", "rock"]),
-        (list(GENRE_CODES), None, list(GENRE_CODES)),
+        (list(ScoreGenre), None, list(ScoreGenre)),
         (["classical"], [], []),
     ],
 )
 async def test_import_review_score_and_library_share_score_genres(
-    score_service_session, monkeypatch, requested, override, expected
+    genre_session, monkeypatch, requested, override, expected
 ):
-    session, storage = score_service_session
+    session, storage = genre_session
     monkeypatch.setattr("app.db.sync_session.get_db_session", lambda: Session(session.get_bind()))
     original = object_from_bytes(
         object_key="uploads/genre.png", content=b"image", content_type="image/png"
@@ -146,6 +155,7 @@ async def test_import_review_score_and_library_share_score_genres(
         ),
     )
     job = session.scalar(sa.select(ImportJob).where(ImportJob.job_uuid == result["job_id"]))
+    assert all(type(code) is str for code in job.requested_options["genres"])
     assert job.requested_options == {"title": "Genres", "genres": ordered_unique_genres(requested)}
     job.state = ImportJobState.PENDING_REVIEW
     xml = object_from_bytes(
@@ -177,6 +187,7 @@ async def test_import_review_score_and_library_share_score_genres(
     )
     score = session.scalar(sa.select(Score).where(Score.score_uuid == confirmed.score_id))
     assert score.genres == expected
+    assert all(type(code) is str for code in score.genres)
     assert (await ScoreService(storage=storage).get(db, score.score_uuid, 1)).genres == expected
     entries, total = await LibraryService().list_entries(
         db,
@@ -209,9 +220,12 @@ def test_score_schema_stores_genres_as_jsonb(monkeypatch):
             session.add(User(id=1, email="genres@example.com", password_hash="hash"))
             session.commit()
             score = Score(
-                score_uuid=str(uuid4()), owner_user_id=1, title="Genres", genres=list(GENRE_CODES)
+                score_uuid=str(uuid4()),
+                owner_user_id=1,
+                title="Genres",
+                genres=[genre.value for genre in ScoreGenre],
             )
             session.add(score)
             session.commit()
             session.expire_all()
-            assert session.get(Score, score.id).genres == list(GENRE_CODES)
+            assert session.get(Score, score.id).genres == list(ScoreGenre)

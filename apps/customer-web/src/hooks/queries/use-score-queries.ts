@@ -3,7 +3,7 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { scoreInvitesApi, scoresApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
-import type { FingeringRequest, MembershipRole } from '@/generated/api';
+import type { FingeringRequest, MembershipRole, ScoreGenre } from '@/generated/api';
 
 export function useScoreDetail(scoreId: string, enabled = true) {
   return useQuery({
@@ -53,7 +53,7 @@ export function useUpdateScore() {
     }: {
       scoreId: string;
       title?: string;
-      genres?: string[];
+      genres?: ScoreGenre[];
       expected_version: number;
     }) => scoresApi.update(scoreId, input),
     onSuccess: (response) => {

@@ -20,7 +20,7 @@ from app.db.models.score import MetadataStatus, RevisionOrigin, RevisionSourceFo
 from app.storage import ObjectStorage, object_storage
 from app.modules.metadata.service import rebuild_metadata_sync
 from app.modules.revisions.derivatives import revision_derivative_service
-from app.modules.scores.genres import ordered_unique_genres
+from app.modules.scores.genres import ScoreGenre, ordered_unique_genres
 from app.modules.storage_usage.service import storage_usage_service
 from app.processing.musicxml.admission import admit_musicxml_document
 from app.utils.timezone import utc_now_naive
@@ -39,7 +39,7 @@ class SyncConfirmedScoreCreationService:
         musicxml_path: str,
         *,
         title: str | None = None,
-        genres: list[str] | None = None,
+        genres: list[ScoreGenre] | None = None,
     ) -> str:
         job = db.execute(
             select(ImportJob).where(ImportJob.job_uuid == job_uuid).with_for_update()
@@ -95,7 +95,7 @@ class SyncConfirmedScoreCreationService:
                 score_uuid=score_uuid,
                 owner_user_id=job.user_id,
                 title=(title or "Untitled score").strip(),
-                genres=ordered_unique_genres(genres or []),
+                genres=[genre.value for genre in ordered_unique_genres(genres or [])],
                 originating_job_id=require_persisted_id(job.id, entity="import job"),
                 created_at=now,
                 updated_at=now,

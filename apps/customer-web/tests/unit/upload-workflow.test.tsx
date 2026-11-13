@@ -13,7 +13,7 @@ import { useUploadWorkflow } from '@/hooks/upload/use-upload-workflow';
 import commonMessages from '@/../messages/zh/common.json';
 import zhErrors from '@/../messages/zh/errors.json';
 import uploadMessages from '@/../messages/zh/upload.json';
-import { SCORE_GENRES } from '@/lib/score/genres';
+import { scoreGenresForDisplay } from '@/lib/score/genres';
 
 const search = vi.hoisted(() => ({ value: '' }));
 
@@ -183,7 +183,7 @@ describe('upload workflow storage quota handling', () => {
 
     act(() => {
       result.current.appendFiles([selectedImage()]);
-      result.current.setGenres([...SCORE_GENRES]);
+      result.current.setGenres([...scoreGenresForDisplay]);
     });
     await act(async () => {
       await result.current.startRecognition();
@@ -192,7 +192,7 @@ describe('upload workflow storage quota handling', () => {
     expect(uploadFileMock).toHaveBeenCalledTimes(1);
     expect(submitImportJobMock).toHaveBeenCalledWith(
       ['uploaded-file-id'],
-      { title: undefined, genres: [...SCORE_GENRES] },
+      { title: undefined, genres: [...scoreGenresForDisplay] },
       'upload-workflow-test-key'
     );
     expect(invalidateSpy).toHaveBeenCalledWith({

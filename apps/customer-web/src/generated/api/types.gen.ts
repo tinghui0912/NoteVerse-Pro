@@ -1816,7 +1816,7 @@ export type ImportJobProcessingOptions = {
     /**
      * Genres
      */
-    genres?: Array<string>;
+    genres?: Array<ScoreGenre>;
     /**
      * Title
      */
@@ -1842,7 +1842,7 @@ export type ImportJobRead = {
     /**
      * Genres
      */
-    genres?: Array<string>;
+    genres?: Array<ScoreGenre>;
     /**
      * Job Id
      */
@@ -1894,7 +1894,7 @@ export type ImportJobReviewRead = {
     /**
      * Genres
      */
-    genres: Array<string>;
+    genres: Array<ScoreGenre>;
     /**
      * Job Id
      */
@@ -2230,7 +2230,7 @@ export type LibraryEntryRead = {
     /**
      * Genres
      */
-    genres: Array<string>;
+    genres: Array<ScoreGenre>;
     /**
      * Is Favorite
      */
@@ -3597,7 +3597,7 @@ export type ReviewConfirmRequest = {
     /**
      * Genres
      */
-    genres?: Array<string> | null;
+    genres?: Array<ScoreGenre> | null;
     /**
      * Title
      */
@@ -3905,6 +3905,11 @@ export type ScoreDerivedAssetsRead = {
 };
 
 /**
+ * ScoreGenre
+ */
+export type ScoreGenre = 'classical' | 'pop' | 'jazz' | 'rock' | 'folk' | 'blues' | 'soundtrack' | 'anime_game' | 'religious' | 'latin' | 'children' | 'original' | 'other';
+
+/**
  * ScoreInputAssetRead
  */
 export type ScoreInputAssetRead = {
@@ -3943,7 +3948,7 @@ export type ScoreRead = {
     /**
      * Genres
      */
-    genres: Array<string>;
+    genres: Array<ScoreGenre>;
     /**
      * Head Revision Id
      */
@@ -4028,7 +4033,7 @@ export type ScoreUpdateRequest = {
     /**
      * Genres
      */
-    genres?: Array<string> | null;
+    genres?: Array<ScoreGenre> | null;
     /**
      * Title
      */

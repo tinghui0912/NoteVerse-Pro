@@ -1,5 +1,7 @@
 'use client';
 
+import type { ScoreGenre } from '@/generated/api';
+
 import { useState, type MouseEvent } from 'react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
@@ -24,13 +26,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { SCORE_GENRES, type ScoreGenreCode } from '@/lib/score/genres';
+import { SCORE_GENRE_LABEL_KEYS, scoreGenresForDisplay } from '@/lib/score/genres';
 import { cn } from '@/lib/utils';
 
 interface UploadFormProps {
   files: UploadableFile[];
   scoreName: string;
-  genres: ScoreGenreCode[];
+  genres: ScoreGenre[];
   isProcessing: boolean;
   isUploading: boolean;
   isSubmitting: boolean;
@@ -41,7 +43,7 @@ interface UploadFormProps {
   onClearFiles: () => void;
   onRemoveFile: (index: number) => void;
   onScoreNameChange: (name: string) => void;
-  onGenresChange: (tags: ScoreGenreCode[]) => void;
+  onGenresChange: (tags: ScoreGenre[]) => void;
   onSubmit: () => void;
 }
 
@@ -83,7 +85,7 @@ export function UploadForm(props: UploadFormProps) {
     setPreviewOpen(true);
   };
   const selectedGenres = new Set(props.genres);
-  const toggleGenre = (tag: ScoreGenreCode) => {
+  const toggleGenre = (tag: ScoreGenre) => {
     if (props.isProcessing) return;
     const key = tag;
     props.onGenresChange(
@@ -110,7 +112,7 @@ export function UploadForm(props: UploadFormProps) {
             <div className="space-y-3">
               <Label>{t('styleTagsLabel')}</Label>
               <div className="flex flex-wrap gap-2">
-                {SCORE_GENRES.map((tag) => {
+                {scoreGenresForDisplay.map((tag) => {
                   const selected = selectedGenres.has(tag);
                   return (
                     <button
@@ -126,7 +128,7 @@ export function UploadForm(props: UploadFormProps) {
                           : 'border-gray-200 bg-white text-gray-700 hover:border-orange-200 hover:bg-orange-50'
                       )}
                     >
-                      {scoreStyles(tag)}
+                      {scoreStyles(SCORE_GENRE_LABEL_KEYS[tag])}
                     </button>
                   );
                 })}

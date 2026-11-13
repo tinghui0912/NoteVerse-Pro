@@ -3599,7 +3599,7 @@
         "properties": {
           "genres": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/ScoreGenre"
             },
             "title": "Genres",
             "type": "array"
@@ -3650,7 +3650,7 @@
           "genres": {
             "default": [],
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/ScoreGenre"
             },
             "title": "Genres",
             "type": "array"
@@ -3768,7 +3768,7 @@
           },
           "genres": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/ScoreGenre"
             },
             "title": "Genres",
             "type": "array"
@@ -4509,7 +4509,7 @@
           },
           "genres": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/ScoreGenre"
             },
             "title": "Genres",
             "type": "array"
@@ -6956,7 +6956,7 @@
             "anyOf": [
               {
                 "items": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ScoreGenre"
                 },
                 "type": "array"
               },
@@ -7572,6 +7572,25 @@
         "title": "ScoreDerivedAssetsRead",
         "type": "object"
       },
+      "ScoreGenre": {
+        "enum": [
+          "classical",
+          "pop",
+          "jazz",
+          "rock",
+          "folk",
+          "blues",
+          "soundtrack",
+          "anime_game",
+          "religious",
+          "latin",
+          "children",
+          "original",
+          "other"
+        ],
+        "title": "ScoreGenre",
+        "type": "string"
+      },
       "ScoreInputAssetRead": {
         "properties": {
           "asset_id": {
@@ -7627,7 +7646,7 @@
           },
           "genres": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/ScoreGenre"
             },
             "title": "Genres",
             "type": "array"
@@ -7774,7 +7793,7 @@
             "anyOf": [
               {
                 "items": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ScoreGenre"
                 },
                 "type": "array"
               },
