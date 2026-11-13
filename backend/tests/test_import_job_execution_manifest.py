@@ -5,7 +5,9 @@ from tests.support.import_execution import processing_lease
 from app.db.execution_manifests import manifest_sha256
 from app.db.models import ExecutionManifest, ImportJob, ImportJobState
 from app.modules.import_jobs import execution_manifest
-from app.modules.import_jobs.worker_service import SyncImportJobService
+from app.modules.import_jobs.service import ImportJobService
+from tests.test_score_revision_services import AsyncSessionAdapter
+import pytest
 
 
 def _job(job_uuid: str) -> ImportJob:
@@ -66,7 +68,10 @@ def test_import_jobs_reuse_one_execution_manifest_and_preserve_first_binding(mon
         assert len(list(session.exec(select(ExecutionManifest)))) == 1
 
 
-def test_import_job_detail_exposes_manifest_digest_without_manifest_contents(monkeypatch) -> None:
+@pytest.mark.asyncio
+async def test_import_job_detail_exposes_manifest_digest_without_manifest_contents(
+    monkeypatch,
+) -> None:
     engine = create_engine("sqlite:///:memory:")
     SQLModel.metadata.create_all(engine)
     monkeypatch.setattr(execution_manifest, "build_omr_manifest", _manifest)
@@ -79,6 +84,8 @@ def test_import_job_detail_exposes_manifest_digest_without_manifest_contents(mon
             session, processing_lease(session, job)
         )
 
-        detail = SyncImportJobService().get_detail(session, job.job_uuid)
+        detail = (
+            await ImportJobService().detail(AsyncSessionAdapter(session), job.job_uuid, 1)
+        ).model_dump()
         assert detail["execution_manifest_sha256"] == manifest_sha256(_manifest())
         assert "execution_manifest" not in detail

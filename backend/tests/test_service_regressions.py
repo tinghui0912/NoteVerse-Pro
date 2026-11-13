@@ -26,7 +26,6 @@ from tests.test_score_revision_services import score_service_session as score_se
 from app.modules.account.profile_service import ProfileService
 from app.modules.import_jobs.execution_service import ImportJobExecutionService
 from app.modules.import_jobs.maintenance_service import ImportJobMaintenanceService
-from app.modules.import_jobs.worker_service import sync_import_job_service
 from app.modules.import_jobs.submission_service import ImportJobSubmissionService
 from app.pipeline.files_recorder import _build_file_item
 from app.shared.constants import ErrorCode
@@ -324,46 +323,45 @@ def test_import_job_maintenance_releases_orphan_upload_and_queues_retirement() -
 
 @pytest.mark.asyncio
 async def test_import_job_submission_persists_without_contacting_celery() -> None:
-    service = ImportJobSubmissionService()
+    repository = Mock()
+    repository.submission_uploads = AsyncMock(
+        return_value=[
+            {"id": 3, "upload_uuid": "abc", "uploader_user_id": 5},
+        ]
+    )
+    service = ImportJobSubmissionService(repository=repository)
     request = SimpleNamespace(file_ids=["abc"], options={}, idempotency_key=None)
     current_user = SimpleNamespace(id=5)
+    db = Mock(commit=AsyncMock(), rollback=AsyncMock())
 
-    with patch.object(service, "_ensure_uploads_exist") as ensure_mock:
-        with patch.object(service, "_create_pending_job") as create_mock:
-            result = await service.submit(current_user, request)
+    async def flush():
+        db.add.call_args_list[0].args[0].id = 10
 
-    ensure_mock.assert_called_once_with(5, ["abc"])
-    create_mock.assert_called_once()
+    db.flush = AsyncMock(side_effect=flush)
+    result = await service.submit(db, current_user, request)
     assert result["count"] == 1
     assert result["state"] == ImportJobState.PENDING
-    assert result["job_id"] == create_mock.call_args.args[0]
+    assert result["job_id"] == db.add.call_args_list[0].args[0].job_uuid
+    assert len(db.add.call_args_list) == 3
+    db.commit.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 async def test_import_job_submission_reuses_existing_idempotency_key() -> None:
-    service = ImportJobSubmissionService()
-    request = SimpleNamespace(
-        file_ids=["abc"],
-        options={},
-        idempotency_key="submission-key-1",
+    repository = Mock()
+    repository.get_by_idempotency_key = AsyncMock(
+        return_value=SimpleNamespace(job_uuid="existing-job")
     )
+    repository.submission_uploads = AsyncMock()
+    service = ImportJobSubmissionService(repository=repository)
+    request = SimpleNamespace(file_ids=["abc"], options={}, idempotency_key="submission-key-1")
     current_user = SimpleNamespace(id=5)
-
-    with patch.object(
-        service,
-        "_existing_job_uuid",
-        return_value="existing-job",
-    ) as existing_mock:
-        with patch.object(service, "_ensure_uploads_exist") as ensure_mock:
-            result = await service.submit(current_user, request)
-
-    assert result == {
-        "job_id": "existing-job",
-        "count": 1,
-        "state": ImportJobState.PENDING,
-    }
-    existing_mock.assert_called_once_with(5, "submission-key-1")
-    ensure_mock.assert_not_called()
+    db = Mock(commit=AsyncMock())
+    result = await service.submit(db, current_user, request)
+    assert result == {"job_id": "existing-job", "count": 1, "state": ImportJobState.PENDING}
+    repository.get_by_idempotency_key.assert_awaited_once_with(db, 5, "submission-key-1")
+    repository.submission_uploads.assert_not_awaited()
+    db.commit.assert_not_awaited()
 
 
 def test_import_job_submission_serializes_genres_for_json_storage() -> None:
@@ -394,21 +392,26 @@ def test_import_job_execution_resolves_file_ids_inside_worker() -> None:
     )
 
 
-def test_import_job_submission_rejects_upload_owned_by_another_user() -> None:
-    service = ImportJobSubmissionService(storage=Mock())
-    sync_db = Mock()
-    upload = SimpleNamespace(uploader_user_id=99, stored_object_id=3)
-    sync_db.get.return_value = SimpleNamespace(storage_key="blobs/ab/abc123.png")
-
-    with patch("app.db.sync_session.get_db_session", return_value=sync_db):
-        with patch.object(
-            sync_import_job_service.repository, "get_upload_by_uuid", return_value=upload
-        ):
-            with pytest.raises(ResourceNotFoundException) as context:
-                service._ensure_uploads_exist(5, ["abc"])
-
+@pytest.mark.asyncio
+async def test_import_job_submission_rejects_upload_owned_by_another_user() -> None:
+    repository = Mock(
+        submission_uploads=AsyncMock(
+            return_value=[
+                {"id": 3, "upload_uuid": "abc", "uploader_user_id": 99},
+            ]
+        )
+    )
+    service = ImportJobSubmissionService(repository=repository)
+    db = Mock(rollback=AsyncMock(), commit=AsyncMock())
+    with pytest.raises(ResourceNotFoundException) as context:
+        await service.submit(
+            db,
+            SimpleNamespace(id=5),
+            SimpleNamespace(file_ids=["abc"], options=None, idempotency_key=None),
+        )
     assert context.value.code == ErrorCode.FILE_NOT_FOUND
-    sync_db.close.assert_called_once()
+    db.rollback.assert_awaited_once()
+    db.commit.assert_not_awaited()
 
 
 @pytest.mark.asyncio

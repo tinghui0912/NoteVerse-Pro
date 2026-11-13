@@ -79,6 +79,7 @@ from app.modules.review.thumbnail_service import ReviewThumbnailService
 from app.modules.scores.service import ScoreService
 from app.modules.scores.creation_service import SyncConfirmedScoreCreationService
 from app.modules.import_jobs.worker_service import SyncImportJobService
+from app.modules.import_jobs.service import ImportJobService
 from app.modules.import_jobs.dispatch_service import ImportDispatchService
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.score_invites.schemas import InviteCreateRequest
@@ -596,7 +597,8 @@ async def test_review_detail_reads_pending_job_artifacts(
     assert "sha256" not in dumped["original_images"][0]
 
 
-def test_job_detail_uses_review_preview_image_only(
+@pytest.mark.asyncio
+async def test_job_detail_uses_review_preview_image_only(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _ = score_service_session
@@ -628,13 +630,16 @@ def test_job_detail_uses_review_preview_image_only(
     )
     session.commit()
 
-    detail = SyncImportJobService().get_detail(session, "job-thumbnail")
+    detail = (
+        await ImportJobService().detail(AsyncSessionAdapter(session), "job-thumbnail", 1)
+    ).model_dump(exclude_unset=True)
 
     assert detail["thumbnail"] is not None
     assert detail["thumbnail"]["artifact_id"] == "result-thumbnail-artifact"
 
 
-def test_import_job_detail_hides_artifact_storage_details(
+@pytest.mark.asyncio
+async def test_import_job_detail_hides_artifact_storage_details(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _ = score_service_session
@@ -665,7 +670,9 @@ def test_import_job_detail_hides_artifact_storage_details(
     )
     session.commit()
 
-    detail = SyncImportJobService().get_detail(session, "job-public-artifact")
+    detail = (
+        await ImportJobService().detail(AsyncSessionAdapter(session), "job-public-artifact", 1)
+    ).model_dump(exclude_unset=True)
     artifact = detail["thumbnail"]
 
     assert artifact == {
@@ -683,7 +690,8 @@ def test_import_job_detail_hides_artifact_storage_details(
     assert detail["original_images"] == []
 
 
-def test_import_job_detail_exposes_public_failure_fields_only(
+@pytest.mark.asyncio
+async def test_import_job_detail_exposes_public_failure_fields_only(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _ = score_service_session
@@ -722,9 +730,15 @@ def test_import_job_detail_exposes_public_failure_fields_only(
     )
     session.commit()
 
-    detail = SyncImportJobService().get_detail(session, "job-public-failure")
-    raw_detail = SyncImportJobService().get_detail(session, "job-raw-failure")
-    unsafe_code_detail = SyncImportJobService().get_detail(session, "job-unsafe-code-failure")
+    detail = (
+        await ImportJobService().detail(AsyncSessionAdapter(session), "job-public-failure", 1)
+    ).model_dump(exclude_unset=True)
+    raw_detail = (
+        await ImportJobService().detail(AsyncSessionAdapter(session), "job-raw-failure", 1)
+    ).model_dump(exclude_unset=True)
+    unsafe_code_detail = (
+        await ImportJobService().detail(AsyncSessionAdapter(session), "job-unsafe-code-failure", 1)
+    ).model_dump(exclude_unset=True)
 
     assert detail["public_code"] == ErrorCode.SCORE_RECOGNITION_FAILED
     assert detail["public_message"] == ErrorCode.SCORE_RECOGNITION_FAILED

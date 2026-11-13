@@ -5,6 +5,12 @@ steps, artifacts and processing diagnostics. A normalized per-user idempotency
 key prevents duplicate submissions. No Score exists until review confirmation
 creates its canonical revision.
 
+HTTP submission, list/detail and retry use the request's `AsyncSession`.
+`ImportJobReadModel` bulk-hydrates the shared list/detail projection. Submission
+commits the Job, Dispatch and ordered upload links as one admission transaction.
+Worker execution uses a synchronous `Session` through `SyncImportJobService` for
+progress/step mutations, artifact production and finalization.
+
 Each Job has one `ImportDispatch`, created atomically with the Job and its upload
 links. The dispatch owns broker/worker delivery status, attempt count, lease,
 delivery diagnostics, originating request correlation and W3C trace context.

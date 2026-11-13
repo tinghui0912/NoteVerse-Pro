@@ -15,7 +15,13 @@ from app.modules.import_jobs.schemas import (
 )
 from app.modules.import_jobs.service import ImportJobService
 from app.shared.constants import SuccessCode
-from app.shared.responses import APIResponse, EmptyResponse, PaginatedResponse, paginated_response, success_response
+from app.shared.responses import (
+    APIResponse,
+    EmptyResponse,
+    PaginatedResponse,
+    paginated_response,
+    success_response,
+)
 
 router = APIRouter()
 
@@ -29,23 +35,28 @@ async def list_jobs(
     service: ImportJobService = Depends(get_import_job_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    rows, total = await service.list_jobs(
-        db, user_id, page=page, page_size=page_size
-    )
+    rows, total = await service.list_jobs(db, user_id, page=page, page_size=page_size)
     return paginated_response(rows, page, page_size, total)
 
 
-@router.post("", response_model=APIResponse[ImportJobSubmitRead], status_code=status.HTTP_202_ACCEPTED)
+@router.post(
+    "", response_model=APIResponse[ImportJobSubmitRead], status_code=status.HTTP_202_ACCEPTED
+)
 async def submit_job(
     request: ImportJobSubmitRequest,
     current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
     service: ImportJobService = Depends(get_import_job_service),
 ):
-    result = await service.submit(current_user, request)
+    result = await service.submit(db, current_user, request)
     return success_response(data=result, message=SuccessCode.IMPORT_JOB_ACCEPTED)
 
 
-@router.post("/{job_id}/retry", response_model=APIResponse[ImportJobSubmitRead], status_code=status.HTTP_202_ACCEPTED)
+@router.post(
+    "/{job_id}/retry",
+    response_model=APIResponse[ImportJobSubmitRead],
+    status_code=status.HTTP_202_ACCEPTED,
+)
 async def retry_job(
     job_id: str,
     current_user: User = Depends(get_current_user),

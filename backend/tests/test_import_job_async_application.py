@@ -1,0 +1,402 @@
+"""Real AsyncSession Import HTTP admission, bulk projection and idempotency."""
+
+import asyncio
+from datetime import datetime
+
+import pytest
+import pytest_asyncio
+from alembic import command
+from httpx import ASGITransport, AsyncClient
+from pydantic import ValidationError
+from sqlalchemy import event, func, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+
+from app.api.deps import get_current_user, get_db
+from app.core.exceptions import ResourceNotFoundException
+from app.db.execution_manifests import manifest_sha256
+from app.db.models import (
+    ExecutionManifest,
+    ImportArtifact,
+    ImportDispatch,
+    ImportDispatchStatus,
+    ImportJob,
+    ImportJobState,
+    ImportJobUpload,
+    Score,
+    StoredObject,
+    Upload,
+    User,
+)
+from app.main import app
+from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
+from app.modules.import_jobs.repository import ImportJobRepository
+from app.modules.import_jobs.schemas import ImportJobSubmitRequest
+from app.modules.import_jobs.service import ImportJobService
+from app.modules.import_jobs.submission_service import ImportJobSubmissionService
+from app.shared.constants import ErrorCode
+from tests.support.postgres_schema import postgres_schema_database
+
+NOW = datetime(2026, 11, 13, 1, 2, 3, 456789)
+MANIFEST = {"schema_version": 1, "kind": "omr", "engine": "legato"}
+
+
+@pytest.fixture
+def postgres_url(monkeypatch):
+    with postgres_schema_database(monkeypatch) as (engine, config):
+        command.upgrade(config, "head")
+        yield engine.url.render_as_string(hide_password=False)
+
+
+@pytest_asyncio.fixture
+async def application_db(postgres_url, monkeypatch):
+    def sync_factory_forbidden(*args, **kwargs):
+        pytest.fail("HTTP application requires only the injected AsyncSession")
+
+    monkeypatch.setattr("app.db.sync_session.get_db_session", sync_factory_forbidden)
+    engine = create_async_engine(postgres_url)
+    try:
+        async with AsyncSession(engine, expire_on_commit=False) as db:
+            db.add_all(
+                [
+                    User(id=1, email="owner@example.com", password_hash="hash"),
+                    User(id=2, email="other@example.com", password_hash="hash"),
+                    StoredObject(
+                        id=1,
+                        object_key="uploads/original",
+                        byte_size=17,
+                        content_type="image/png",
+                        sha256="a" * 64,
+                    ),
+                    StoredObject(
+                        id=2,
+                        object_key="jobs/preview",
+                        byte_size=23,
+                        content_type="image/svg+xml",
+                        sha256="b" * 64,
+                    ),
+                ]
+            )
+            await db.flush()
+            db.add_all(
+                [
+                    Upload(
+                        id=1,
+                        upload_uuid="upload-a",
+                        stored_object_id=1,
+                        original_filename="page-a.png",
+                        uploader_user_id=1,
+                    ),
+                    Upload(
+                        id=2,
+                        upload_uuid="upload-b",
+                        stored_object_id=1,
+                        original_filename="page-b.png",
+                        uploader_user_id=1,
+                    ),
+                    Upload(
+                        id=3,
+                        upload_uuid="upload-other",
+                        stored_object_id=1,
+                        original_filename="other.png",
+                        uploader_user_id=2,
+                    ),
+                    Score(id=1, score_uuid="current-score", owner_user_id=1, title="Current score"),
+                    ExecutionManifest(id=1, sha256=manifest_sha256(MANIFEST), manifest=MANIFEST),
+                ]
+            )
+            await db.commit()
+            yield db
+    finally:
+        await engine.dispose()
+
+
+async def complete_jobs(db, count=1):
+    jobs = [
+        ImportJob(
+            job_uuid=f"complete-{index}",
+            user_id=1,
+            state=ImportJobState.FAILURE,
+            progress=70,
+            score_id=1,
+            execution_manifest_id=1,
+            requested_options={"title": "Submitted title", "genres": ["jazz", "classical", "jazz"]},
+            code=ErrorCode.SCORE_RECOGNITION_FAILED,
+            error="internal pipeline detail",
+            created_at=NOW,
+            updated_at=NOW,
+            started_at=NOW,
+            finished_at=NOW,
+        )
+        for index in range(count)
+    ]
+    db.add_all(jobs)
+    await db.flush()
+    for job in jobs:
+        db.add_all(
+            [
+                StoredObject(
+                    id=100 + job.id * 2,
+                    object_key=f"{job.job_uuid}/preview",
+                    byte_size=23,
+                    content_type="image/svg+xml",
+                    sha256="b" * 64,
+                ),
+                StoredObject(
+                    id=101 + job.id * 2,
+                    object_key=f"{job.job_uuid}/xml",
+                    byte_size=29,
+                    content_type="application/xml",
+                    sha256="c" * 64,
+                ),
+            ]
+        )
+    await db.flush()
+    for job in jobs:
+        db.add_all(
+            [
+                ImportDispatch(
+                    job_id=job.id,
+                    status=ImportDispatchStatus.COMPLETED,
+                    attempt_count=1,
+                    completed_at=NOW,
+                ),
+                ImportArtifact(
+                    job_id=job.id,
+                    artifact_uuid=f"preview-{job.job_uuid}",
+                    kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
+                    stored_object_id=100 + job.id * 2,
+                    filename="preview.svg",
+                    page_number=1,
+                ),
+                ImportArtifact(
+                    job_id=job.id,
+                    kind=ImportArtifactKind.REVIEW_MUSICXML.value,
+                    stored_object_id=101 + job.id * 2,
+                    filename="score.xml",
+                ),
+                # Equal sort_order exercises the persistent link-id tie-breaker.
+                ImportJobUpload(job_id=job.id, upload_id=2, sort_order=7, page_number=2),
+                ImportJobUpload(job_id=job.id, upload_id=1, sort_order=7, page_number=1),
+            ]
+        )
+    await db.commit()
+    return jobs
+
+
+@pytest.mark.asyncio
+async def test_list_and_detail_share_the_complete_current_projection(application_db):
+    db = application_db
+    await complete_jobs(db)
+    service = ImportJobService()
+    detail = await service.detail(db, "complete-0", 1)
+    rows, total = await service.list_jobs(db, 1, page=1, page_size=20)
+    assert total == 1
+    assert detail == rows[0]
+    value = detail.model_dump(mode="json")
+    assert value["job_id"] == "complete-0" and value["score_id"] == "current-score"
+    assert value["title"] == "Submitted title" and value["genres"] == ["classical", "jazz"]
+    assert value["state"] == "FAILURE" and value["progress"] == 70
+    assert value["execution_manifest_sha256"] == manifest_sha256(MANIFEST)
+    assert value["public_code"] == value["public_message"] == ErrorCode.SCORE_RECOGNITION_FAILED
+    assert all(
+        value[name] == NOW.isoformat()
+        for name in ["created_at", "updated_at", "started_at", "finished_at"]
+    )
+    assert value["thumbnail"] == dict(
+        artifact_id="preview-complete-0",
+        filename="preview.svg",
+        page_number=1,
+        size=23,
+        mime_type="image/svg+xml",
+        upload_id=None,
+        original_filename=None,
+    )
+    assert value["original_images"] == [
+        dict(
+            artifact_id=f"upload:{number}",
+            filename=f"page-{letter}.png",
+            page_number=number,
+            size=17,
+            mime_type="image/png",
+            upload_id=f"upload-{letter}",
+            original_filename=f"page-{letter}.png",
+        )
+        for number, letter in [(2, "b"), (1, "a")]
+    ]
+    assert "internal pipeline detail" not in str(value)
+    assert "execution_manifest" not in value
+
+
+@pytest.mark.asyncio
+async def test_list_projection_query_count_is_bounded_for_one_and_fifty_jobs(application_db):
+    db = application_db
+    await complete_jobs(db, 50)
+    calls = []
+
+    def count_query(*args):
+        calls.append(1)
+
+    event.listen(db.bind.sync_engine, "before_cursor_execute", count_query)
+    try:
+        service = ImportJobService()
+        one, total = await service.list_jobs(db, 1, page=1, page_size=1)
+        first_count = len(calls)
+        calls.clear()
+        fifty, total = await service.list_jobs(db, 1, page=1, page_size=50)
+        assert len(one) == 1 and len(fifty) == total == 50
+        assert len(calls) == first_count
+        assert len(calls) <= 6
+        assert all(row.thumbnail and len(row.original_images) == 2 for row in fifty)
+    finally:
+        event.remove(db.bind.sync_engine, "before_cursor_execute", count_query)
+
+
+@pytest.mark.asyncio
+async def test_read_model_validates_persisted_processing_options(application_db):
+    db = application_db
+    job = (await complete_jobs(db))[0]
+    job.requested_options = {"genres": ["unsupported"]}
+    await db.commit()
+    with pytest.raises(ValidationError):
+        await ImportJobService().detail(db, job.job_uuid, 1)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", ["missing", "foreign", "links"])
+async def test_submission_rolls_back_the_whole_admission_unit(application_db, failure):
+    db = application_db
+    user = await db.get(User, 1)
+    file_ids = {
+        "missing": ["upload-a", "absent"],
+        "foreign": ["upload-other"],
+        "links": ["upload-a", "upload-a"],
+    }[failure]
+    request = ImportJobSubmitRequest(file_ids=file_ids)
+    error = IntegrityError if failure == "links" else ResourceNotFoundException
+    with pytest.raises(error) as caught:
+        await ImportJobSubmissionService().submit(db, user, request)
+    if failure != "links":
+        assert caught.value.code == ErrorCode.FILE_NOT_FOUND
+    async with AsyncSession(db.bind) as observer:
+        for model in [ImportJob, ImportDispatch, ImportJobUpload]:
+            assert await observer.scalar(select(func.count()).select_from(model)) == 0
+
+
+@pytest.mark.asyncio
+async def test_concurrent_idempotency_admits_one_job_dispatch_and_ordered_link_set(application_db):
+    db = application_db
+    both_looked_up = asyncio.Event()
+    arrivals = 0
+
+    class ConcurrentRepository(ImportJobRepository):
+        async def get_by_idempotency_key(self, session, user_id, key):
+            nonlocal arrivals
+            existing = await super().get_by_idempotency_key(session, user_id, key)
+            if not existing and not session.info.get("initial_lookup_done"):
+                session.info["initial_lookup_done"] = True
+                arrivals += 1
+                if arrivals == 2:
+                    both_looked_up.set()
+                await asyncio.wait_for(both_looked_up.wait(), 10)
+            return existing
+
+    service = ImportJobSubmissionService(repository=ConcurrentRepository())
+    request = ImportJobSubmitRequest(
+        file_ids=["upload-b", "upload-a"], idempotency_key="parallel-admission"
+    )
+
+    async def submit():
+        async with AsyncSession(db.bind, expire_on_commit=False) as contender:
+            user = await contender.get(User, 1)
+            return await service.submit(contender, user, request)
+
+    first, second = await asyncio.wait_for(asyncio.gather(submit(), submit()), 20)
+    assert first == second
+    assert arrivals == 2
+    assert await db.scalar(select(func.count()).select_from(ImportJob)) == 1
+    assert await db.scalar(select(func.count()).select_from(ImportDispatch)) == 1
+    links = list(
+        (await db.execute(select(ImportJobUpload).order_by(ImportJobUpload.sort_order))).scalars()
+    )
+    assert [(link.upload_id, link.page_number, link.sort_order) for link in links] == [
+        (2, 1, 1),
+        (1, 2, 2),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_http_list_detail_submit_retry_use_only_injected_async_session(application_db):
+    db = application_db
+    await complete_jobs(db)
+
+    async def database():
+        yield db
+
+    async def user():
+        return await db.get(User, 1)
+
+    app.dependency_overrides[get_db] = database
+    app.dependency_overrides[get_current_user] = user
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get("/api/v1/import-jobs")
+            assert response.status_code == 200, response.text
+            detail = await client.get("/api/v1/import-jobs/complete-0")
+            assert detail.status_code == 200, detail.text
+            assert response.json()["data"][0] == detail.json()["data"]
+            request = dict(
+                file_ids=["upload-b", "upload-a"],
+                idempotency_key="http-admission",
+                options={"title": "New", "genres": ["jazz"]},
+            )
+            created = await client.post("/api/v1/import-jobs", json=request)
+            assert created.status_code == 202, created.text
+            replay = await client.post("/api/v1/import-jobs", json=request)
+            assert replay.json()["data"]["job_id"] == created.json()["data"]["job_id"]
+            retry = await client.post("/api/v1/import-jobs/complete-0/retry")
+            assert retry.status_code == 202, retry.text
+            assert retry.json()["data"]["job_id"] != "complete-0"
+            retried = await client.get("/api/v1/import-jobs/" + retry.json()["data"]["job_id"])
+            value = retried.json()["data"]
+            assert value["title"] == "Submitted title" and value["genres"] == ["classical", "jazz"]
+            assert [image["upload_id"] for image in value["original_images"]] == [
+                "upload-b",
+                "upload-a",
+            ]
+            assert value["state"] == "PENDING"
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_http_owned_job_authorization_precedes_projection_and_mutation(application_db):
+    db = application_db
+    other = ImportJob(job_uuid="other-job", user_id=2, state=ImportJobState.FAILURE)
+    db.add(other)
+    await db.flush()
+    db.add(ImportDispatch(job_id=other.id, status=ImportDispatchStatus.COMPLETED, completed_at=NOW))
+    await db.commit()
+
+    async def database():
+        yield db
+
+    async def user():
+        return await db.get(User, 1)
+
+    app.dependency_overrides[get_db] = database
+    app.dependency_overrides[get_current_user] = user
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            for method, path in [
+                ("GET", ""),
+                ("POST", "/retry"),
+                ("DELETE", ""),
+                ("GET", "/artifacts/unknown/download"),
+            ]:
+                response = await client.request(method, "/api/v1/import-jobs/other-job" + path)
+                assert response.status_code == 403, response.text
+            assert (await client.get("/api/v1/import-jobs/missing-job")).status_code == 404
+            assert (await client.get("/api/v1/import-jobs")).json()["data"] == []
+    finally:
+        app.dependency_overrides.clear()

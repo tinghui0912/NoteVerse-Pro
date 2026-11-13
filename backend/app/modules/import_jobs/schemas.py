@@ -86,42 +86,6 @@ class ImportJobStatusEntry(TypedDict):
     score_id: Optional[str]
 
 
-class ImportJobOriginalImageItem(TypedDict):
-    artifact_id: str
-    filename: str
-    page_number: Optional[int]
-    size: Optional[int]
-    mime_type: Optional[str]
-    upload_id: Optional[str]
-    original_filename: Optional[str]
-
-
-class ImportJobThumbnailItem(TypedDict):
-    artifact_id: str
-    filename: str
-    page_number: Optional[int]
-    size: Optional[int]
-    mime_type: Optional[str]
-
-
-class ImportJobDetail(TypedDict, total=False):
-    job_id: str
-    score_id: Optional[str]
-    state: ImportJobState | str
-    progress: int
-    title: Optional[str]
-    genres: Genres
-    thumbnail: Optional[ImportJobThumbnailItem]
-    created_at: Optional[str]
-    updated_at: Optional[str]
-    started_at: Optional[str]
-    finished_at: Optional[str]
-    public_code: Optional[str]
-    public_message: Optional[str]
-    execution_manifest_sha256: Optional[str]
-    original_images: List[ImportJobOriginalImageItem]
-
-
 class PipelineExecutionSuccessResult(TypedDict):
     success: bool
     job_id: str

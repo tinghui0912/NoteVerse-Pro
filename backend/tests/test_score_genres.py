@@ -11,7 +11,7 @@ from app.db.models.import_job import ImportJobState
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from app.modules.import_jobs.schemas import ImportJobSubmitRequest
 from app.modules.import_jobs.submission_service import ImportJobSubmissionService
-from app.modules.import_jobs.worker_service import SyncImportJobService
+from app.modules.import_jobs.service import ImportJobService
 from app.modules.library.schemas import LibrarySort, LibraryView
 from app.modules.library.service import LibraryService
 from app.modules.review.schemas import ReviewConfirmRequest
@@ -139,7 +139,10 @@ async def test_import_review_score_and_library_share_score_genres(
     genre_session, monkeypatch, requested, override, expected
 ):
     session, storage = genre_session
-    monkeypatch.setattr("app.db.sync_session.get_db_session", lambda: Session(session.get_bind()))
+    monkeypatch.setattr(
+        "app.db.sync_session.get_db_session",
+        lambda: pytest.fail("HTTP path requires only AsyncSession"),
+    )
     original = object_from_bytes(
         object_key="uploads/genre.png", content=b"image", content_type="image/png"
     )
@@ -148,7 +151,8 @@ async def test_import_review_score_and_library_share_score_genres(
     upload = Upload(stored_object_id=original.id, uploader_user_id=1, original_filename="page.png")
     session.add(upload)
     session.commit()
-    result = await ImportJobSubmissionService(storage).submit(
+    result = await ImportJobSubmissionService().submit(
+        AsyncSessionAdapter(session),
         session.get(User, 1),
         ImportJobSubmitRequest(
             file_ids=[upload.upload_uuid], options={"title": "Genres", "genres": requested}
@@ -176,9 +180,9 @@ async def test_import_review_score_and_library_share_score_genres(
     db = AsyncSessionAdapter(session)
     review = ReviewService(storage=storage)
     assert (await review.detail(db, job.job_uuid, 1)).genres == ordered_unique_genres(requested)
-    assert SyncImportJobService().get_detail(session, job.job_uuid)[
-        "genres"
-    ] == ordered_unique_genres(requested)
+    assert (await ImportJobService().detail(db, job.job_uuid, 1)).genres == ordered_unique_genres(
+        requested
+    )
     values = {"content": MUSICXML_1.decode()}
     if override is not None:
         values["genres"] = override

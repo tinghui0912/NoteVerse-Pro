@@ -1,129 +1,66 @@
-from __future__ import annotations
-from app.db.models.import_dispatch import ImportDispatch
+"""Async durable admission of an Import job, dispatch and ordered upload links."""
 
 import uuid
 
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.async_trace_context import get_async_trace_context
 from app.core.exceptions import ResourceNotFoundException
 from app.core.logger import get_request_id
 from app.db.model_utils import require_persisted_id
-from app.db.models import ImportJob, ImportJobUpload, StoredObject, User
+from app.db.models import ImportDispatch, ImportJob, ImportJobUpload, User
 from app.db.models.import_job import ImportJobState
+from app.modules.import_jobs.repository import ImportJobRepository
 from app.modules.import_jobs.schemas import (
     ImportJobProcessingOptions,
     processing_options_adapter,
     ImportJobSubmitRequestLike,
     ImportJobSubmitResult,
 )
-from app.modules.import_jobs.worker_service import sync_import_job_service
 from app.shared.constants import ErrorCode
-from app.storage import ObjectStorage, object_storage
 from app.utils.timezone import utc_now_naive
 
 
 class ImportJobSubmissionService:
-    def __init__(self, storage: ObjectStorage | None = None) -> None:
-        self.storage = storage or object_storage
+    def __init__(self, repository: ImportJobRepository | None = None) -> None:
+        self.repository = repository or ImportJobRepository()
 
     async def submit(
-        self, current_user: User, request: ImportJobSubmitRequestLike
+        self, db: AsyncSession, current_user: User, request: ImportJobSubmitRequestLike
     ) -> ImportJobSubmitResult:
         user_id = require_persisted_id(current_user.id, entity="user")
-        idempotency_key = self._normalize_key(request.idempotency_key)
-        if idempotency_key:
-            existing = self._existing_job_uuid(user_id, idempotency_key)
+        key = self._normalize_key(request.idempotency_key)
+        if key:
+            existing = await self.repository.get_by_idempotency_key(db, user_id, key)
             if existing:
-                return {
-                    "job_id": existing,
-                    "count": len(request.file_ids),
-                    "state": ImportJobState.PENDING,
-                }
+                return self._result(existing.job_uuid, request)
 
-        self._ensure_uploads_exist(user_id, request.file_ids)
-        job_uuid = str(uuid.uuid4())
-        self._create_pending_job(job_uuid, user_id, request, idempotency_key)
-        return {
-            "job_id": job_uuid,
-            "count": len(request.file_ids),
-            "state": ImportJobState.PENDING,
-        }
-
-    @staticmethod
-    def _normalize_key(value: object) -> str | None:
-        return value.strip() or None if isinstance(value, str) else None
-
-    @staticmethod
-    def _storage_options(
-        options: ImportJobProcessingOptions | None,
-    ) -> dict[str, object] | None:
-        """Convert validated request values to JSON-compatible job metadata."""
-        if options is None:
-            return None
-
-        validated = processing_options_adapter.validate_python(options)
-        return dict(processing_options_adapter.dump_python(validated, mode="json"))
-
-    @staticmethod
-    def _existing_job_uuid(user_id: int, key: str) -> str | None:
-        from app.db.sync_session import get_db_session
-
-        db = get_db_session()
         try:
-            job = sync_import_job_service.repository.get_by_idempotency_key(db, user_id, key)
-            return job.job_uuid if job else None
-        finally:
-            db.close()
-
-    def _ensure_uploads_exist(self, user_id: int, file_ids: list[str]) -> None:
-        from app.db.sync_session import get_db_session
-
-        db = get_db_session()
-        try:
-            for file_id in file_ids:
-                upload = sync_import_job_service.repository.get_upload_by_uuid(db, file_id)
-                blob = db.get(StoredObject, upload.stored_object_id) if upload else None
-                if upload and blob and upload.uploader_user_id == user_id:
-                    continue
-                raise ResourceNotFoundException(
-                    resource_type="file",
-                    resource_id=file_id,
-                    code=ErrorCode.FILE_NOT_FOUND,
-                )
-        finally:
-            db.close()
-
-    @staticmethod
-    def _option(options: ImportJobProcessingOptions | None, key: str) -> str | None:
-        value = options.get(key) if options else None
-        return value if isinstance(value, str) else None
-
-    def _create_pending_job(
-        self,
-        job_uuid: str,
-        user_id: int,
-        request: ImportJobSubmitRequestLike,
-        idempotency_key: str | None,
-    ) -> None:
-        from app.db.sync_session import get_db_session
-
-        db = get_db_session()
-        try:
+            uploads = {
+                row["upload_uuid"]: row
+                for row in await self.repository.submission_uploads(db, request.file_ids)
+            }
+            for file_id in request.file_ids:
+                upload = uploads.get(file_id)
+                if upload is None or upload["uploader_user_id"] != user_id:
+                    raise ResourceNotFoundException("file", file_id, ErrorCode.FILE_NOT_FOUND)
             now = utc_now_naive()
-            from app.core.async_trace_context import get_async_trace_context
-
+            job_uuid = str(uuid.uuid4())
             traceparent, tracestate = get_async_trace_context()
             job = ImportJob(
                 job_uuid=job_uuid,
                 user_id=user_id,
                 state=ImportJobState.PENDING,
                 progress=0,
-                idempotency_key=idempotency_key,
+                idempotency_key=key,
                 requested_options=self._storage_options(request.options),
                 requested_at=now,
                 created_at=now,
                 updated_at=now,
             )
             db.add(job)
-            db.flush()
+            await db.flush()
             job_id = require_persisted_id(job.id, entity="import job")
             db.add(
                 ImportDispatch(
@@ -133,30 +70,39 @@ class ImportJobSubmissionService:
                     tracestate=tracestate,
                 )
             )
-
             for index, file_id in enumerate(request.file_ids, 1):
-                upload = sync_import_job_service.repository.get_upload_by_uuid(db, file_id)
-                if not upload or upload.uploader_user_id != user_id:
-                    raise ResourceNotFoundException(
-                        resource_type="file",
-                        resource_id=file_id,
-                        code=ErrorCode.FILE_NOT_FOUND,
-                    )
-                upload_id = require_persisted_id(upload.id, entity="upload")
                 db.add(
                     ImportJobUpload(
                         job_id=job_id,
-                        upload_id=upload_id,
+                        upload_id=uploads[file_id]["id"],
                         page_number=index,
                         sort_order=index,
                     )
                 )
-            db.commit()
-        except Exception:
-            db.rollback()
+            await db.commit()
+        except IntegrityError:
+            await db.rollback()
+            if key:
+                existing = await self.repository.get_by_idempotency_key(db, user_id, key)
+                if existing:
+                    return self._result(existing.job_uuid, request)
             raise
-        finally:
-            db.close()
+        except Exception:
+            await db.rollback()
+            raise
+        return self._result(job_uuid, request)
 
+    @staticmethod
+    def _result(job_uuid: str, request: ImportJobSubmitRequestLike) -> ImportJobSubmitResult:
+        return {"job_id": job_uuid, "count": len(request.file_ids), "state": ImportJobState.PENDING}
 
-job_submission_service = ImportJobSubmissionService()
+    @staticmethod
+    def _normalize_key(value: object) -> str | None:
+        return value.strip() or None if isinstance(value, str) else None
+
+    @staticmethod
+    def _storage_options(options: ImportJobProcessingOptions | None) -> dict[str, object] | None:
+        if options is None:
+            return None
+        validated = processing_options_adapter.validate_python(options)
+        return dict(processing_options_adapter.dump_python(validated, mode="json"))

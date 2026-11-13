@@ -19,7 +19,7 @@ from app.modules.import_jobs.deletion_service import ImportJobDeletionService
 from app.modules.import_jobs.public_errors import public_import_job_error
 from app.modules.import_jobs.repository import ImportJobRepository
 from app.modules.import_jobs.schemas import (
-    ImportJobDetail,
+    ImportJobRead,
     ImportJobProcessingOptions,
     processing_options_adapter,
     ImportJobStatusEntry,
@@ -27,7 +27,7 @@ from app.modules.import_jobs.schemas import (
     ImportJobSubmitResult,
 )
 from app.modules.import_jobs.submission_service import ImportJobSubmissionService
-from app.modules.import_jobs.worker_service import sync_import_job_service
+from app.modules.import_jobs.read_model import ImportJobReadModel
 from app.storage import ObjectStorage, object_storage
 from app.shared.constants import ErrorCode
 
@@ -53,16 +53,18 @@ class ImportJobService:
         submission_service: ImportJobSubmissionService | None = None,
         storage: ObjectStorage | None = None,
         deletion_service: ImportJobDeletionService | None = None,
+        read_model: ImportJobReadModel | None = None,
     ) -> None:
         self.repository = repository or ImportJobRepository()
-        self.submission_service = submission_service or ImportJobSubmissionService()
+        self.read_model = read_model or ImportJobReadModel(self.repository)
+        self.submission_service = submission_service or ImportJobSubmissionService(self.repository)
         self.storage = storage or object_storage
         self.deletion_service = deletion_service or ImportJobDeletionService()
 
     async def submit(
-        self, current_user: User, request: ImportJobSubmitRequestLike
+        self, db: AsyncSession, current_user: User, request: ImportJobSubmitRequestLike
     ) -> ImportJobSubmitResult:
-        return await self.submission_service.submit(current_user, request)
+        return await self.submission_service.submit(db, current_user, request)
 
     async def retry(
         self,
@@ -90,6 +92,7 @@ class ImportJobService:
             else None
         )
         return await self.submission_service.submit(
+            db,
             current_user,
             RetryJobRequest(
                 file_ids=file_ids,
@@ -104,19 +107,11 @@ class ImportJobService:
         *,
         page: int,
         page_size: int,
-    ) -> tuple[list[ImportJobDetail], int]:
+    ) -> tuple[list[ImportJobRead], int]:
         rows, total = await self.repository.list_for_user(
             db, user_id, page=page, page_size=page_size
         )
-        from app.db.sync_session import get_db_session
-
-        sync_db = get_db_session()
-        try:
-            return [
-                sync_import_job_service.get_detail(sync_db, row.job_uuid) for row in rows
-            ], total
-        finally:
-            sync_db.close()
+        return await self.read_model.details_for_jobs(db, rows), total
 
     async def get_owned_job(
         self,
@@ -133,15 +128,9 @@ class ImportJobService:
             raise UnauthorizedException(code=ErrorCode.NO_ACCESS, details={"job_id": job_uuid})
         return job
 
-    async def detail(self, db: AsyncSession, job_uuid: str, user_id: int) -> ImportJobDetail:
-        await self.get_owned_job(db, job_uuid, user_id)
-        from app.db.sync_session import get_db_session
-
-        sync_db = get_db_session()
-        try:
-            return sync_import_job_service.get_detail(sync_db, job_uuid)
-        finally:
-            sync_db.close()
+    async def detail(self, db: AsyncSession, job_uuid: str, user_id: int) -> ImportJobRead:
+        job = await self.get_owned_job(db, job_uuid, user_id)
+        return await self.read_model.detail(db, job)
 
     async def batch_status(
         self,

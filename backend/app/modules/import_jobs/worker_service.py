@@ -1,5 +1,4 @@
 from __future__ import annotations
-from app.modules.import_jobs.schemas import processing_options_adapter
 from app.modules.storage_objects.writes import (
     adopt_written_object,
     receipt_for_intent,
@@ -14,7 +13,6 @@ from sqlalchemy.orm import Session
 
 from app.db.model_utils import require_persisted_id
 from app.db.models import (
-    ExecutionManifest,
     ImportArtifact,
     ImportJobStep,
     StorageUsageCategory,
@@ -26,13 +24,9 @@ from app.modules.async_operations.diagnostics import (
     apply_async_diagnostic,
     clear_async_diagnostic,
 )
-from app.modules.import_jobs.public_errors import public_import_job_error
 from app.modules.import_jobs.dispatch_service import ImportExecutionLease, require_current_attempt
 from app.modules.import_jobs.repository import SyncImportJobRepository
 from app.modules.import_jobs.artifact_records import ImportJobStoredArtifactItem
-from app.modules.import_jobs.schemas import (
-    ImportJobDetail,
-)
 from app.modules.notifications.sync_service import (
     SyncNotificationService,
     sync_notification_service,
@@ -42,7 +36,6 @@ from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from app.modules.score_assets.render_outbox_service import (
     create_review_thumbnail_render_outbox_sync,
 )
-from app.shared.constants import ErrorCode
 from app.utils.timezone import utc_now_naive
 
 
@@ -254,74 +247,6 @@ class SyncImportJobService:
                 auto_commit=False,
             )
         db.commit()
-
-    def get_detail(self, db: Session, job_uuid: str) -> ImportJobDetail:
-        job = self.repository.get_by_uuid(db, job_uuid)
-        if not job:
-            return {
-                "public_code": ErrorCode.JOB_NOT_FOUND,
-                "public_message": ErrorCode.JOB_NOT_FOUND,
-            }
-        public_code, public_message = public_import_job_error(job)
-        job_id = require_persisted_id(job.id, entity="import job")
-        manifest = (
-            db.get(ExecutionManifest, job.execution_manifest_id)
-            if job.execution_manifest_id is not None
-            else None
-        )
-        manifest_digest = manifest.sha256 if manifest is not None else None
-        requested_options = processing_options_adapter.validate_python(
-            job.requested_options if job.requested_options is not None else {}
-        )
-        requested_title = requested_options.get("title")
-        artifacts = self.repository.list_artifacts(db, job_id)
-        thumbnail_artifact = next(
-            (
-                artifact
-                for artifact in artifacts
-                if artifact.kind == ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value
-            ),
-            None,
-        )
-        upload_rows = self.repository.list_upload_rows(db, job_id)
-        return {
-            "job_id": job.job_uuid,
-            "score_id": self.repository.get_score_uuid(db, job.score_id),
-            "state": job.state,
-            "progress": job.progress,
-            "title": requested_title if isinstance(requested_title, str) else None,
-            "genres": requested_options.get("genres", []),
-            "thumbnail": (
-                {
-                    "artifact_id": thumbnail_artifact.artifact_uuid,
-                    "filename": thumbnail_artifact.filename,
-                    "page_number": thumbnail_artifact.page_number,
-                    "size": thumbnail_artifact.stored_object.byte_size,
-                    "mime_type": thumbnail_artifact.stored_object.content_type,
-                }
-                if thumbnail_artifact
-                else None
-            ),
-            "created_at": job.created_at.isoformat(),
-            "updated_at": job.updated_at.isoformat(),
-            "started_at": job.started_at.isoformat() if job.started_at else None,
-            "finished_at": job.finished_at.isoformat() if job.finished_at else None,
-            "public_code": public_code,
-            "public_message": public_message,
-            "execution_manifest_sha256": manifest_digest,
-            "original_images": [
-                {
-                    "artifact_id": f"upload:{require_persisted_id(upload.id, entity='upload')}",
-                    "filename": upload.original_filename,
-                    "page_number": job_upload.page_number,
-                    "size": blob.byte_size,
-                    "mime_type": blob.content_type,
-                    "upload_id": upload.upload_uuid,
-                    "original_filename": upload.original_filename,
-                }
-                for job_upload, upload, blob in upload_rows
-            ],
-        }
 
 
 sync_import_job_service = SyncImportJobService()

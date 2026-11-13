@@ -6,9 +6,12 @@ from datetime import datetime
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
-from sqlmodel import col
+from sqlalchemy.engine import RowMapping
+
+from .artifact_kinds import ImportArtifactKind
 
 from app.db.models import (
+    ExecutionManifest,
     ImportArtifact,
     ImportJob,
     ImportJobStep,
@@ -73,25 +76,115 @@ class ImportJobRepository:
             )
         ).scalar_one_or_none()
 
+    async def get_by_idempotency_key(
+        self, db: AsyncSession, user_id: int, key: str
+    ) -> ImportJob | None:
+        return (
+            await db.execute(
+                select(ImportJob).where(
+                    ImportJob.user_id == user_id,
+                    ImportJob.idempotency_key == key,
+                )
+            )
+        ).scalar_one_or_none()
+
+    async def submission_uploads(self, db: AsyncSession, file_ids: list[str]) -> list[RowMapping]:
+        return list(
+            (
+                await db.execute(
+                    select(Upload.id, Upload.upload_uuid, Upload.uploader_user_id)
+                    .join(StoredObject, Upload.stored_object_id == StoredObject.id)
+                    .where(Upload.__table__.c.upload_uuid.in_(file_ids))
+                )
+            )
+            .mappings()
+            .all()
+        )
+
+    async def score_uuids(self, db: AsyncSession, score_ids: set[int]) -> dict[int, str]:
+        if not score_ids:
+            return {}
+        return dict(
+            (
+                await db.execute(
+                    select(Score.id, Score.score_uuid).where(Score.__table__.c.id.in_(score_ids))
+                )
+            ).all()
+        )
+
+    async def execution_manifest_digests(
+        self, db: AsyncSession, manifest_ids: set[int]
+    ) -> dict[int, str]:
+        if not manifest_ids:
+            return {}
+        return dict(
+            (
+                await db.execute(
+                    select(ExecutionManifest.id, ExecutionManifest.sha256).where(
+                        ExecutionManifest.__table__.c.id.in_(manifest_ids)
+                    )
+                )
+            ).all()
+        )
+
+    async def preview_artifacts_for_jobs(
+        self, db: AsyncSession, job_ids: list[int]
+    ) -> list[RowMapping]:
+        return list(
+            (
+                await db.execute(
+                    select(
+                        ImportArtifact.job_id,
+                        ImportArtifact.artifact_uuid,
+                        ImportArtifact.filename,
+                        ImportArtifact.page_number,
+                        StoredObject.byte_size,
+                        StoredObject.content_type,
+                    )
+                    .join(StoredObject, ImportArtifact.stored_object_id == StoredObject.id)
+                    .where(
+                        ImportArtifact.__table__.c.job_id.in_(job_ids),
+                        ImportArtifact.kind == ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
+                    )
+                    .order_by(ImportArtifact.__table__.c.id.asc())
+                )
+            )
+            .mappings()
+            .all()
+        )
+
+    async def uploads_for_jobs(self, db: AsyncSession, job_ids: list[int]) -> list[RowMapping]:
+        return list(
+            (
+                await db.execute(
+                    select(
+                        ImportJobUpload.job_id,
+                        ImportJobUpload.page_number,
+                        Upload.__table__.c.id.label("upload_row_id"),
+                        Upload.upload_uuid,
+                        Upload.original_filename,
+                        StoredObject.byte_size,
+                        StoredObject.content_type,
+                    )
+                    .join(Upload, ImportJobUpload.upload_id == Upload.id)
+                    .join(StoredObject, Upload.stored_object_id == StoredObject.id)
+                    .where(ImportJobUpload.__table__.c.job_id.in_(job_ids))
+                    .order_by(
+                        ImportJobUpload.__table__.c.sort_order.asc(),
+                        ImportJobUpload.__table__.c.id.asc(),
+                    )
+                )
+            )
+            .mappings()
+            .all()
+        )
+
 
 class SyncImportJobRepository:
     @staticmethod
     def get_by_uuid(db: Session, job_uuid: str) -> ImportJob | None:
         return db.execute(
             select(ImportJob).where(ImportJob.job_uuid == job_uuid)
-        ).scalar_one_or_none()
-
-    @staticmethod
-    def get_by_idempotency_key(
-        db: Session,
-        user_id: int,
-        idempotency_key: str,
-    ) -> ImportJob | None:
-        return db.execute(
-            select(ImportJob).where(
-                ImportJob.user_id == user_id,
-                ImportJob.idempotency_key == idempotency_key,
-            )
         ).scalar_one_or_none()
 
     @staticmethod
@@ -102,16 +195,6 @@ class SyncImportJobRepository:
                 ImportJobStep.name == name,
             )
         ).scalar_one_or_none()
-
-    @staticmethod
-    def list_steps(db: Session, job_id: int) -> list[ImportJobStep]:
-        return list(
-            db.execute(
-                select(ImportJobStep)
-                .where(ImportJobStep.job_id == job_id)
-                .order_by(col(ImportJobStep.step_order))
-            ).scalars()
-        )
 
     @staticmethod
     def list_artifacts(db: Session, job_id: int) -> list[ImportArtifact]:
@@ -132,48 +215,6 @@ class SyncImportJobRepository:
             db.delete(row)
             retire_released_objects(db, row.stored_object_id)
         db.flush()
-
-    @staticmethod
-    def get_upload_by_uuid(db: Session, upload_uuid: str) -> Upload | None:
-        return db.execute(
-            select(Upload).where(Upload.upload_uuid == upload_uuid)
-        ).scalar_one_or_none()
-
-    @staticmethod
-    def get_job_upload(
-        db: Session,
-        job_id: int,
-        upload_id: int,
-    ) -> ImportJobUpload | None:
-        return db.execute(
-            select(ImportJobUpload).where(
-                ImportJobUpload.job_id == job_id,
-                ImportJobUpload.upload_id == upload_id,
-            )
-        ).scalar_one_or_none()
-
-    @staticmethod
-    def list_upload_rows(
-        db: Session,
-        job_id: int,
-    ) -> list[tuple[ImportJobUpload, Upload, StoredObject]]:
-        return [
-            (job_upload, upload, blob)
-            for job_upload, upload, blob in db.execute(
-                select(ImportJobUpload, Upload, StoredObject)
-                .join(Upload, ImportJobUpload.upload_id == Upload.id)
-                .join(StoredObject, Upload.stored_object_id == StoredObject.id)
-                .where(ImportJobUpload.job_id == job_id)
-                .order_by(col(ImportJobUpload.sort_order).asc(), col(ImportJobUpload.id).asc())
-            ).all()
-        ]
-
-    @staticmethod
-    def get_score_uuid(db: Session, score_id: int | None) -> str | None:
-        if score_id is None:
-            return None
-        score = db.get(Score, score_id)
-        return score.score_uuid if score else None
 
     @staticmethod
     def list_orphan_uploads(db: Session, cutoff: datetime) -> list[Upload]:

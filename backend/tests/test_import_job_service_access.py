@@ -121,7 +121,8 @@ async def test_retry_requires_original_uploads_and_preserves_processing_options(
     result = await service.retry(database, "job-1", user, 7)
 
     assert result["job_id"] == "retry-job"
-    submitted_user, retry_request = submission.submit.await_args.args
+    submitted_db, submitted_user, retry_request = submission.submit.await_args.args
+    assert submitted_db is database
     assert submitted_user is user
     assert retry_request.file_ids == ["upload-1", "upload-2"]
     assert retry_request.options == {"title": "Recovered score", "genres": ["classical", "jazz"]}

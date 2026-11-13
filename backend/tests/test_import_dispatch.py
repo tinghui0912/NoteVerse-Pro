@@ -377,22 +377,27 @@ async def test_submission_atomically_creates_one_delivery_and_upload_links(
     setup_delivery, monkeypatch
 ):
     db, _, _, _ = setup_delivery
-    engine = db.get_bind()
-    monkeypatch.setattr("app.db.sync_session.get_db_session", lambda: Session(engine))
+    from tests.test_score_revision_services import AsyncSessionAdapter
+
+    async_db = AsyncSessionAdapter(db)
+    monkeypatch.setattr(
+        "app.db.sync_session.get_db_session",
+        lambda: pytest.fail("HTTP path requires only AsyncSession"),
+    )
     service = ImportJobSubmissionService()
     monkeypatch.setattr(
         "app.modules.import_jobs.submission_service.get_request_id", lambda: "submission-request"
     )
     monkeypatch.setattr(
-        "app.core.async_trace_context.get_async_trace_context",
+        "app.modules.import_jobs.submission_service.get_async_trace_context",
         lambda: ("00-0123456789abcdef0123456789abcdef-0123456789abcdef-01", "vendor=import"),
     )
     request = SimpleNamespace(
         file_ids=["original-upload"], idempotency_key="submission", options={"title": "New"}
     )
     user = db.get(User, 1)
-    first = await service.submit(user, request)
-    replay = await service.submit(user, request)
+    first = await service.submit(async_db, user, request)
+    replay = await service.submit(async_db, user, request)
     assert first["job_id"] == replay["job_id"]
     rows = list(db.scalars(select(ImportJob).where(ImportJob.idempotency_key == "submission")))
     assert len(rows) == 1 and rows[0].state == ImportJobState.PENDING
@@ -406,13 +411,16 @@ async def test_submission_atomically_creates_one_delivery_and_upload_links(
         == 1
     )
     with pytest.raises(ResourceNotFoundException):
-        service._create_pending_job(
-            "aborted-import",
-            1,
-            SimpleNamespace(file_ids=["original-upload", "missing"], options=None),
-            None,
+        await service.submit(
+            async_db,
+            user,
+            SimpleNamespace(
+                file_ids=["original-upload", "missing"],
+                options=None,
+                idempotency_key="aborted-import",
+            ),
         )
-    assert db.scalar(select(ImportJob).where(ImportJob.job_uuid == "aborted-import")) is None
+    assert db.scalar(select(ImportJob).where(ImportJob.idempotency_key == "aborted-import")) is None
     assert len(list(db.scalars(select(ImportDispatch)))) == 2
 
 
