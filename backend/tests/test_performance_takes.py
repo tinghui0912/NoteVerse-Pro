@@ -720,7 +720,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         }
         res = client.post("/api/v1/performance-takes/upload-reservations", json=auth_req)
         assert res.status_code == 200, res.text
-        auth_data = res.json()["data"]
+        auth_data = res.json()
         take_id = auth_data["take_id"]
         reservation_id = auth_data["reservation_id"]
         upload_url = auth_data["upload_target"]["url"]
@@ -760,7 +760,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
             "/api/v1/performance-takes/upload-reservations/" + reserved_upload_id + "/finalize"
         )
         assert res_fin.status_code == 200, res_fin.text
-        take_data = res_fin.json()["data"]
+        take_data = res_fin.json()
         assert take_data["take_id"] == take_id
         assert take_data["manifest"]["practice_binding"]["bundle_id"] == _bundle_id()
         assert take_data["manifest"]["practice_binding"]["score_id"] == "score-uuid-10"
@@ -808,7 +808,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         ):
             retained = client.get(f"/api/v1/performance-takes/{take_id}")
         assert retained.status_code == 200, retained.text
-        assert retained.json()["data"] == take_data
+        assert retained.json() == take_data
         final_object_key = take_row.recording_object.object_key
         assert final_object_key.startswith(f"performance-takes/1/{take_id}/")
         assert final_object_key != staging_object_key
@@ -843,11 +843,8 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
             "/api/v1/performance-takes/upload-reservations/" + reserved_upload_id + "/finalize"
         )
         assert res_idempotent.status_code == 200
-        assert res_idempotent.json()["data"]["take_id"] == take_id
-        assert (
-            res_idempotent.json()["data"]["manifest"]["practice_binding"]["score_id"]
-            == "score-uuid-10"
-        )
+        assert res_idempotent.json()["take_id"] == take_id
+        assert res_idempotent.json()["manifest"]["practice_binding"]["score_id"] == "score-uuid-10"
 
         conflicting_auth_req = {
             **auth_req,
@@ -876,7 +873,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         # 7. List takes
         res_list = client.get("/api/v1/performance-takes")
         assert res_list.status_code == 200
-        items = res_list.json()["data"]["items"]
+        items = res_list.json()["items"]
         assert len(items) == 1
         assert items[0]["take_id"] == take_id
         assert items[0]["manifest"]["practice_binding"]["score_id"] == "score-uuid-10"
@@ -885,15 +882,13 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         # 8. Get take detail
         res_detail = client.get(f"/api/v1/performance-takes/{take_id}")
         assert res_detail.status_code == 200
-        assert res_detail.json()["data"]["take_id"] == take_id
-        assert (
-            res_detail.json()["data"]["manifest"]["practice_binding"]["score_id"] == "score-uuid-10"
-        )
+        assert res_detail.json()["take_id"] == take_id
+        assert res_detail.json()["manifest"]["practice_binding"]["score_id"] == "score-uuid-10"
 
         # 9. Get playback URL
         res_play = client.get(f"/api/v1/performance-takes/{take_id}/playback-url")
         assert res_play.status_code == 200
-        play_data = res_play.json()["data"]
+        play_data = res_play.json()
         assert "playback_url" in play_data
         assert "download_url" in play_data
 
@@ -919,9 +914,8 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
 
         # Delete releases semantic ownership and queues physical retirement.
         res_del = client.delete(f"/api/v1/performance-takes/{take_id}")
-        assert res_del.status_code == 200
-        assert res_del.json()["data"]["deleted"] is True
-        assert res_del.json()["data"]["take_id"] == take_id
+        assert res_del.status_code == 204
+        assert res_del.content == b""
 
         assert client.get(f"/api/v1/performance-takes/{take_id}").status_code == 404
         assert client.get(f"/api/v1/performance-takes/{take_id}/playback-url").status_code == 404
@@ -934,7 +928,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         )
         assert operation.status == "PENDING" and storage.exists(final_object_key)
         assert session.scalar(select(PerformanceTake)) is None
-        assert client.get("/api/v1/performance-takes").json()["data"]["items"] == []
+        assert client.get("/api/v1/performance-takes").json()["items"] == []
         session.refresh(account)
         assert account.used_bytes == 0
         worker_res = _run_retirement(monkeypatch, session, storage, operation.retirement_uuid)
@@ -1172,7 +1166,7 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         }
         res_auth = client.post("/api/v1/performance-takes/upload-reservations", json=auth_req)
         assert res_auth.status_code == 200
-        auth_data = res_auth.json()["data"]
+        auth_data = res_auth.json()
         take_id = auth_data["take_id"]
         res_id = auth_data["reservation_id"]
         staging_key = _staging_key(session, auth_data["reservation_id"])
@@ -1183,7 +1177,7 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
             "/api/v1/performance-takes/upload-reservations/" + reserved_upload_id + "/finalize"
         )
         assert res_fin.status_code == 200
-        assert res_fin.json()["data"]["manifest"]["score_title_snapshot"] == "Moonlight Sonata"
+        assert res_fin.json()["manifest"]["score_title_snapshot"] == "Moonlight Sonata"
 
         take_row = session.execute(
             select(PerformanceTake)
@@ -1197,7 +1191,7 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         # Initial list check: binding provenance is returned and live navigation is available.
         res_init_list = client.get("/api/v1/performance-takes")
         assert res_init_list.status_code == 200
-        init_item = res_init_list.json()["data"]["items"][0]
+        init_item = res_init_list.json()["items"][0]
         assert init_item["manifest"]["practice_binding"]["score_id"] == "score-uuid-10"
         assert init_item["linked_score_id"] == "score-uuid-10"
         assert init_item["can_open_score"] is True
@@ -1208,7 +1202,7 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
 
         res_soft = client.post("/api/v1/scores/batch-delete", json={"score_ids": ["score-uuid-10"]})
         assert res_soft.status_code == 200
-        assert res_soft.json()["data"]["removed"] == 1
+        assert res_soft.json()["removed"] == 1
 
         score_row = session.execute(select(Score).where(Score.id == 10)).scalar_one()
         assert score_row.deleted_at is not None
@@ -1216,7 +1210,7 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         # Listing takes: binding provenance is retained even while the score is hidden/deleting.
         res_list_soft = client.get("/api/v1/performance-takes")
         assert res_list_soft.status_code == 200
-        item_soft = res_list_soft.json()["data"]["items"][0]
+        item_soft = res_list_soft.json()["items"][0]
         assert item_soft["take_id"] == take_id
         assert item_soft["manifest"]["practice_binding"]["score_id"] == "score-uuid-10"
         assert item_soft["manifest"]["practice_binding"]["revision_id"] == "revision-uuid-100"
@@ -1275,7 +1269,7 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         # Listing takes after score cleanup: exact binding provenance remains recoverable.
         res_list_hard = client.get("/api/v1/performance-takes")
         assert res_list_hard.status_code == 200
-        item_hard = res_list_hard.json()["data"]["items"][0]
+        item_hard = res_list_hard.json()["items"][0]
         assert item_hard["take_id"] == take_id
         assert item_hard["manifest"]["practice_binding"]["score_id"] == "score-uuid-10"
         assert item_hard["manifest"]["practice_binding"]["revision_id"] == "revision-uuid-100"
@@ -1287,14 +1281,14 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         # Playback and download still work after score hard delete
         res_play_hard = client.get(f"/api/v1/performance-takes/{take_id}/playback-url")
         assert res_play_hard.status_code == 200
-        assert "download_url" in res_play_hard.json()["data"]
+        assert "download_url" in res_play_hard.json()
         retained = client.get(f"/api/v1/performance-takes/{take_id}")
         assert retained.status_code == 200, retained.text
-        assert retained.json()["data"]["manifest"]["practice_binding"]["bundle_id"] == _bundle_id()
+        assert retained.json()["manifest"]["practice_binding"]["bundle_id"] == _bundle_id()
 
         # Deleting the semantic Take returns 200 OK
         res_del = client.delete(f"/api/v1/performance-takes/{take_id}")
-        assert res_del.status_code == 200
+        assert res_del.status_code == 204
 
         operation = session.scalar(
             select(StoredObjectRetirement).where(StoredObjectRetirement.object_key == final_key)
@@ -1392,8 +1386,8 @@ def test_cancel_upload_reservation(test_env, monkeypatch: pytest.MonkeyPatch):
         }
         res_auth = client.post("/api/v1/performance-takes/upload-reservations", json=auth_req)
         assert res_auth.status_code == 200
-        res_id = res_auth.json()["data"]["reservation_id"]
-        staging_key = _staging_key(session, res_auth.json()["data"]["reservation_id"])
+        res_id = res_auth.json()["reservation_id"]
+        staging_key = _staging_key(session, res_auth.json()["reservation_id"])
         storage.put_bytes(key=staging_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
         auth_before_cancel = session.execute(
             select(PerformanceTakeUploadReservation).where(
@@ -1417,8 +1411,8 @@ def test_cancel_upload_reservation(test_env, monkeypatch: pytest.MonkeyPatch):
 
         # Cancel reservation via DELETE route
         res_cancel = client.delete(f"/api/v1/performance-takes/upload-reservations/{res_id}")
-        assert res_cancel.status_code == 200
-        assert res_cancel.json()["data"]["cancelled"] is True
+        assert res_cancel.status_code == 204
+        assert res_cancel.content == b""
 
         session.refresh(account)
         assert account.reserved_bytes == 0
@@ -1455,8 +1449,8 @@ def test_cancel_upload_reservation(test_env, monkeypatch: pytest.MonkeyPatch):
         res_cancel_delete_again = client.delete(
             f"/api/v1/performance-takes/upload-reservations/{res_id}"
         )
-        assert res_cancel_delete_again.status_code == 200
-        assert res_cancel_delete_again.json()["data"]["cancelled"] is True
+        assert res_cancel_delete_again.status_code == 204
+        assert res_cancel_delete_again.content == b""
 
     finally:
         app.dependency_overrides.clear()
@@ -1502,7 +1496,7 @@ def test_pagination(test_env):
             }
             res_auth = client.post("/api/v1/performance-takes/upload-reservations", json=auth_req)
             assert res_auth.status_code == 200
-            data = res_auth.json()["data"]
+            data = res_auth.json()
             res_id = data["reservation_id"]
             storage.put_bytes(
                 key=_staging_key(session, data["reservation_id"]),
@@ -1519,7 +1513,7 @@ def test_pagination(test_env):
         # Page 1: limit=2, offset=0
         r1 = client.get("/api/v1/performance-takes?limit=2&offset=0")
         assert r1.status_code == 200
-        d1 = r1.json()["data"]
+        d1 = r1.json()
         assert len(d1["items"]) == 2
         assert d1["total"] == 3
         assert d1["has_more"] is True
@@ -1527,7 +1521,7 @@ def test_pagination(test_env):
         # Page 2: limit=2, offset=2
         r2 = client.get("/api/v1/performance-takes?limit=2&offset=2")
         assert r2.status_code == 200
-        d2 = r2.json()["data"]
+        d2 = r2.json()
         assert len(d2["items"]) == 1
         assert d2["total"] == 3
         assert d2["has_more"] is False
@@ -1575,7 +1569,7 @@ def test_audio_container_magic_bytes_validation(test_env):
         }
         res_auth = client.post("/api/v1/performance-takes/upload-reservations", json=auth_req)
         assert res_auth.status_code == 200
-        auth_data = res_auth.json()["data"]
+        auth_data = res_auth.json()
         staging_key = _staging_key(session, auth_data["reservation_id"])
         take_id = auth_data["take_id"]
         res_id = auth_data["reservation_id"]
@@ -1605,7 +1599,7 @@ def test_audio_container_magic_bytes_validation(test_env):
         }
         res_auth_ogg = client.post("/api/v1/performance-takes/upload-reservations", json=auth_ogg)
         assert res_auth_ogg.status_code == 200
-        ogg_auth_data = res_auth_ogg.json()["data"]
+        ogg_auth_data = res_auth_ogg.json()
         storage.put_bytes(
             key=_staging_key(session, ogg_auth_data["reservation_id"]),
             content=ogg_content,
@@ -1631,7 +1625,7 @@ def test_audio_container_magic_bytes_validation(test_env):
         }
         res_auth_wav = client.post("/api/v1/performance-takes/upload-reservations", json=auth_wav)
         assert res_auth_wav.status_code == 200
-        wav_auth_data = res_auth_wav.json()["data"]
+        wav_auth_data = res_auth_wav.json()
         storage.put_bytes(
             key=_staging_key(session, wav_auth_data["reservation_id"]),
             content=wav_content,
@@ -1683,7 +1677,7 @@ def test_finalize_safe_retry_idempotency(test_env):
         }
         res_auth = client.post("/api/v1/performance-takes/upload-reservations", json=auth_req)
         assert res_auth.status_code == 200
-        auth_data = res_auth.json()["data"]
+        auth_data = res_auth.json()
         take_id = auth_data["take_id"]
         res_id = auth_data["reservation_id"]
         storage.put_bytes(
@@ -1698,7 +1692,7 @@ def test_finalize_safe_retry_idempotency(test_env):
             "/api/v1/performance-takes/upload-reservations/" + reserved_upload_id + "/finalize"
         )
         assert res_fin_1.status_code == 200
-        take_1 = res_fin_1.json()["data"]
+        take_1 = res_fin_1.json()
 
         account = session.get(StorageUsageAccount, 1)
         session.refresh(account)
@@ -1709,7 +1703,7 @@ def test_finalize_safe_retry_idempotency(test_env):
             "/api/v1/performance-takes/upload-reservations/" + reserved_upload_id + "/finalize"
         )
         assert res_fin_2.status_code == 200
-        take_2 = res_fin_2.json()["data"]
+        take_2 = res_fin_2.json()
         assert take_2["take_id"] == take_1["take_id"]
 
         # Quota used_bytes must NOT be doubled
@@ -1796,7 +1790,7 @@ def test_finalize_recovers_first_post_storage_db_disconnect(test_env):
             json=auth_req,
         )
         assert res_auth.status_code == 200, res_auth.text
-        auth_data = res_auth.json()["data"]
+        auth_data = res_auth.json()
         storage.put_bytes(
             key=_staging_key(session, auth_data["reservation_id"]),
             content=content,
@@ -1895,7 +1889,7 @@ def test_finalize_range_video_preserves_scope_identity_and_recording_timebase(te
             json=request,
         )
         assert res_auth.status_code == 200, res_auth.text
-        auth_data = res_auth.json()["data"]
+        auth_data = res_auth.json()
         storage.put_bytes(
             key=_staging_key(session, auth_data["reservation_id"]),
             content=content,
@@ -1908,7 +1902,7 @@ def test_finalize_range_video_preserves_scope_identity_and_recording_timebase(te
             + "/finalize"
         )
         assert res_fin.status_code == 200, res_fin.text
-        take_data = res_fin.json()["data"]
+        take_data = res_fin.json()
         assert take_data["manifest"]["scope"]["kind"] == "RANGE"
         assert take_data["manifest"]["scope"]["start_tick"] == 4
         assert take_data["manifest"]["scope"]["terminal_tick"] == 16
@@ -1980,7 +1974,7 @@ def test_finalize_rejects_candidate_when_staging_changes_after_validation(test_e
         }
         res_auth = client.post("/api/v1/performance-takes/upload-reservations", json=auth_req)
         assert res_auth.status_code == 200
-        auth_data = res_auth.json()["data"]
+        auth_data = res_auth.json()
         storage.put_bytes(
             key=_staging_key(session, auth_data["reservation_id"]),
             content=first_content,
@@ -2048,7 +2042,7 @@ def test_video_take_finalize_uses_video_media_kind_and_candidate(test_env):
         }
         res_auth = client.post("/api/v1/performance-takes/upload-reservations", json=auth_req)
         assert res_auth.status_code == 200, res_auth.text
-        auth_data = res_auth.json()["data"]
+        auth_data = res_auth.json()
         storage.put_bytes(
             key=_staging_key(session, auth_data["reservation_id"]),
             content=content,
@@ -2060,7 +2054,7 @@ def test_video_take_finalize_uses_video_media_kind_and_candidate(test_env):
             "/api/v1/performance-takes/upload-reservations/" + reserved_upload_id + "/finalize"
         )
         assert res_fin.status_code == 200, res_fin.text
-        take_data = res_fin.json()["data"]
+        take_data = res_fin.json()
         assert take_data["manifest"]["capture"]["kind"] == "VIDEO"
         assert take_data["manifest"]["capture"]["mime_type"] == "video/webm"
 
@@ -2078,7 +2072,7 @@ def test_video_take_finalize_uses_video_media_kind_and_candidate(test_env):
 
         res_playback = client.get(f"/api/v1/performance-takes/{take_data['take_id']}/playback-url")
         assert res_playback.status_code == 200
-        playback_data = res_playback.json()["data"]
+        playback_data = res_playback.json()
         assert set(playback_data) == {"take_id", "playback_url", "download_url", "expires_in"}
 
         conflict_req = {**auth_req, "media_kind": "AUDIO"}
@@ -2182,7 +2176,7 @@ def test_crash_abandoned_after_reservation(test_env, monkeypatch: pytest.MonkeyP
         }
         res_auth = client.post("/api/v1/performance-takes/upload-reservations", json=auth_req)
         assert res_auth.status_code == 200
-        auth_data = res_auth.json()["data"]
+        auth_data = res_auth.json()
         staging_key = _staging_key(session, auth_data["reservation_id"])
         storage.put_bytes(key=staging_key, content=content, content_type="audio/webm")
 
@@ -2275,7 +2269,7 @@ def test_expired_reservation_staging_delete_failure_is_retryable(test_env, monke
             },
         )
         assert res_auth.status_code == 200
-        auth_data = res_auth.json()["data"]
+        auth_data = res_auth.json()
         storage.put_bytes(
             key=_staging_key(session, auth_data["reservation_id"]),
             content=VALID_WEBM_BYTES,
@@ -2365,7 +2359,7 @@ def test_completed_reservation_late_staging_put_is_cleaned_after_expiry(test_env
             },
         )
         assert res_auth.status_code == 200
-        auth_data = res_auth.json()["data"]
+        auth_data = res_auth.json()
         staging_key = _staging_key(session, auth_data["reservation_id"])
         storage.put_bytes(key=staging_key, content=content, content_type="audio/webm")
 
@@ -2462,7 +2456,7 @@ def test_score_deleted_between_reserve_and_finalize_preserves_provenance(test_en
         }
         res_auth = client.post("/api/v1/performance-takes/upload-reservations", json=auth_req)
         assert res_auth.status_code == 200
-        auth_data = res_auth.json()["data"]
+        auth_data = res_auth.json()
         take_id = auth_data["take_id"]
         res_id = auth_data["reservation_id"]
         staging_key = _staging_key(session, auth_data["reservation_id"])
@@ -2479,7 +2473,7 @@ def test_score_deleted_between_reserve_and_finalize_preserves_provenance(test_en
             "/api/v1/performance-takes/upload-reservations/" + reserved_upload_id + "/finalize"
         )
         assert res_fin.status_code == 200, res_fin.text
-        data = res_fin.json()["data"]
+        data = res_fin.json()
         assert data["take_id"] == take_id
         assert data["manifest"]["practice_binding"]["score_id"] == "score-uuid-10"
         assert data["manifest"]["practice_binding"]["revision_id"] == "revision-uuid-100"
@@ -2506,12 +2500,12 @@ def test_score_deleted_between_reserve_and_finalize_preserves_provenance(test_en
 
         retained = client.get(f"/api/v1/performance-takes/{take_id}")
         assert retained.status_code == 200, retained.text
-        assert retained.json()["data"]["manifest"]["practice_binding"]["bundle_id"] == _bundle_id()
+        assert retained.json()["manifest"]["practice_binding"]["bundle_id"] == _bundle_id()
 
         # List takes exposes the durable historical source, but no live score link.
         res_list = client.get("/api/v1/performance-takes")
         assert res_list.status_code == 200
-        item = res_list.json()["data"]["items"][0]
+        item = res_list.json()["items"][0]
         assert item["manifest"]["practice_binding"]["score_id"] == "score-uuid-10"
         assert item["linked_score_id"] is None
 
@@ -2564,7 +2558,7 @@ def test_expired_reservation_cleanup_releases_db_lock_before_storage_delete(test
             },
         )
         assert res_auth.status_code == 200
-        auth_data = res_auth.json()["data"]
+        auth_data = res_auth.json()
         storage.put_bytes(
             key=_staging_key(session, auth_data["reservation_id"]),
             content=VALID_WEBM_BYTES,
@@ -3140,9 +3134,7 @@ def test_reservation_identity_metadata_replay_and_structural_take_lineage(test_e
     session, storage, user, other = test_env
     with _reservation_client(session, storage, user) as (client, _):
         request = _upload_intent()
-        first = client.post("/api/v1/performance-takes/upload-reservations", json=request).json()[
-            "data"
-        ]
+        first = client.post("/api/v1/performance-takes/upload-reservations", json=request).json()
         row = session.execute(
             select(PerformanceTakeUploadReservation).where(
                 PerformanceTakeUploadReservation.reservation_uuid == first["reservation_id"],
@@ -3154,9 +3146,7 @@ def test_reservation_identity_metadata_replay_and_structural_take_lineage(test_e
         ).admitted_upload_metadata == PerformanceTakeUploadMetadata.model_validate(
             {key: value for key, value in request.items() if key != "client_request_id"}
         )
-        repeated = client.post(
-            "/api/v1/performance-takes/upload-reservations", json=request
-        ).json()["data"]
+        repeated = client.post("/api/v1/performance-takes/upload-reservations", json=request).json()
         assert repeated["reservation_id"] == first["reservation_id"]
         assert repeated["take_id"] == first["take_id"]
         assert repeated["upload_target"] is not None
@@ -3182,7 +3172,7 @@ def test_reservation_identity_metadata_replay_and_structural_take_lineage(test_e
         )
         finalized = client.post(url)
         assert finalized.status_code == 200, finalized.text
-        data = finalized.json()["data"]
+        data = finalized.json()
         assert data["manifest"]["capture"]["kind"] == "VIDEO"
         assert data["manifest"]["scope"]["start_group_id"] == request["scope"]["start_group_id"]
         assert data["manifest"]["scope"]["end_group_id"] == request["scope"]["end_group_id"]
@@ -3192,10 +3182,10 @@ def test_reservation_identity_metadata_replay_and_structural_take_lineage(test_e
             select(PerformanceTake).where(PerformanceTake.manifest_id == row.manifest_id)
         ).scalar_one()
         assert take.manifest.take_uuid == first["take_id"]
-        assert client.post(url).json()["data"] == data
+        assert client.post(url).json() == data
         completed = client.post(
             "/api/v1/performance-takes/upload-reservations", json=request
-        ).json()["data"]
+        ).json()
         assert completed["reservation_id"] == first["reservation_id"]
         assert completed["status"] == "COMPLETED" and completed["upload_target"] is None
         assert completed["take"] == data
@@ -3265,7 +3255,7 @@ def test_finalize_unknown_commit_outcome_recovers_via_reservation_lineage(
         request = _upload_intent()
         reservation = client.post(
             "/api/v1/performance-takes/upload-reservations", json=request
-        ).json()["data"]
+        ).json()
         storage.put_bytes(
             key=_staging_key(session, reservation["reservation_id"]),
             content=VALID_WEBM_BYTES,
@@ -3313,7 +3303,7 @@ def test_finalize_unknown_commit_outcome_recovers_via_reservation_lineage(
             assert row.orphan_final_object_keys is not None
         retry = client.post(url)
         assert retry.status_code == 200, retry.text
-        assert retry.json()["data"]["take_id"] == reservation["take_id"]
+        assert retry.json()["take_id"] == reservation["take_id"]
         account = session.get(StorageUsageAccount, user.id)
         session.refresh(account)
         assert account.reserved_bytes == 0 and account.used_bytes == len(VALID_WEBM_BYTES)
@@ -3364,7 +3354,7 @@ def test_bound_bundle_authorization_preserves_admitted_representation_identity(t
     try:
         admitted = client.get(url)
         assert admitted.status_code == 200, admitted.text
-        payload = admitted.json()["data"]
+        payload = admitted.json()
         row = session.execute(select(PracticeBundleRecord)).scalar_one()
         candidate = _run_async(
             bundles.repository.read_by_bundle_id(AsyncSessionAdapter(session), row.bundle_id)
@@ -3393,7 +3383,7 @@ def test_bound_bundle_authorization_preserves_admitted_representation_identity(t
                 side_effect=AssertionError("Bound reads do not read canonical notation"),
             ),
         ):
-            assert client.get(url).json()["data"] == payload
+            assert client.get(url).json() == payload
             binding = payload["binding"]
             request = {
                 "practice_binding": binding,
@@ -3403,7 +3393,7 @@ def test_bound_bundle_authorization_preserves_admitted_representation_identity(t
             }
             reserved = client.post("/api/v1/performance-takes/upload-reservations", json=request)
             assert reserved.status_code == 200, reserved.text
-            assert reserved.json()["data"]["manifest"]["practice_binding"] == binding
+            assert reserved.json()["manifest"]["practice_binding"] == binding
             denied = client.post(
                 "/api/v1/performance-takes/upload-reservations",
                 json={
@@ -3423,7 +3413,7 @@ def test_bound_bundle_authorization_preserves_admitted_representation_identity(t
                 f"/api/v1/performance-takes/upload-reservations/{reservation.reservation_uuid}/finalize"
             )
             assert finalized.status_code == 200, finalized.text
-            take = finalized.json()["data"]
+            take = finalized.json()
             assert take["manifest"]["practice_binding"]["bundle_id"] == row.bundle_id
         app.dependency_overrides[get_current_user] = lambda: other_user
         assert client.get(url).status_code == 403
@@ -3435,7 +3425,7 @@ def test_bound_bundle_authorization_preserves_admitted_representation_identity(t
         session.commit()
         assert client.get(url).status_code == 404
         assert (
-            client.get(f"/api/v1/performance-takes/{take['take_id']}").json()["data"]["manifest"][
+            client.get(f"/api/v1/performance-takes/{take['take_id']}").json()["manifest"][
                 "practice_binding"
             ]["bundle_id"]
             == row.bundle_id
@@ -3524,7 +3514,7 @@ def test_reservation_derives_and_transfers_exact_bundle_plan(test_env, scope_kin
         ):
             response = client.post("/api/v1/performance-takes/upload-reservations", json=request)
         assert response.status_code == 200, response.text
-        accepted = response.json()["data"]
+        accepted = response.json()
         row = session.execute(
             select(PerformanceTakeUploadReservation).where(
                 PerformanceTakeUploadReservation.reservation_uuid == accepted["reservation_id"]
@@ -3616,15 +3606,15 @@ def test_reservation_derives_and_transfers_exact_bundle_plan(test_env, scope_kin
         ):
             replay = client.post("/api/v1/performance-takes/upload-reservations", json=request)
             assert replay.status_code == 200, replay.text
-            assert replay.json()["data"]["manifest"]["tempo_plan"] == expected_tempo
+            assert replay.json()["manifest"]["tempo_plan"] == expected_tempo
             finalized = client.post(
                 f"/api/v1/performance-takes/upload-reservations/{row.reservation_uuid}/finalize"
             )
             assert finalized.status_code == 200, finalized.text
-            take = finalized.json()["data"]
+            take = finalized.json()
             completed = client.post("/api/v1/performance-takes/upload-reservations", json=request)
             assert completed.status_code == 200, completed.text
-            assert completed.json()["data"]["take"] == take
+            assert completed.json()["take"] == take
         assert take["manifest"]["practice_binding"]["bundle_id"] == ref.bundle_id
         assert take["manifest"]["score_timebase"] == {
             "ticks_per_quarter": manifest_from_row(
@@ -3632,15 +3622,13 @@ def test_reservation_derives_and_transfers_exact_bundle_plan(test_env, scope_kin
             ).snapshot.score_timebase.ticks_per_quarter
         }
         assert (
-            client.get(f"/api/v1/performance-takes/{take['take_id']}").json()["data"]["manifest"][
+            client.get(f"/api/v1/performance-takes/{take['take_id']}").json()["manifest"][
                 "score_timebase"
             ]
             == take["manifest"]["score_timebase"]
         )
         assert (
-            client.get("/api/v1/performance-takes").json()["data"]["items"][0]["manifest"][
-                "score_timebase"
-            ]
+            client.get("/api/v1/performance-takes").json()["items"][0]["manifest"]["score_timebase"]
             == take["manifest"]["score_timebase"]
         )
         assert (
@@ -3676,7 +3664,7 @@ def test_reservation_derives_and_transfers_exact_bundle_plan(test_env, scope_kin
         assert saved.manifest.manifest_sha256 == row.manifest.manifest_sha256
         read = client.get(f"/api/v1/performance-takes/{take['take_id']}")
         assert read.status_code == 200
-        assert read.json()["data"]["manifest"]["tempo_plan"] == expected_tempo
+        assert read.json()["manifest"]["tempo_plan"] == expected_tempo
 
 
 @pytest.mark.parametrize("status", ["FINALIZING", "COMPLETED"])
@@ -3686,7 +3674,7 @@ def test_cancel_rejects_nonpending_reservation_without_claiming_success(test_env
         response = client.post(
             "/api/v1/performance-takes/upload-reservations", json=_upload_intent()
         )
-        data = response.json()["data"]
+        data = response.json()
         row = session.execute(
             select(PerformanceTakeUploadReservation).where(
                 PerformanceTakeUploadReservation.reservation_uuid == data["reservation_id"]
@@ -3784,7 +3772,7 @@ def test_recording_microseconds_survive_reservation_finalize_and_take_reads(test
     with _reservation_client(session, storage, user) as (client, _):
         response = client.post("/api/v1/performance-takes/upload-reservations", json=request)
         assert response.status_code == 200, response.text
-        reserved = response.json()["data"]
+        reserved = response.json()
         assert reserved["manifest"]["recording_timebase"] == timebase
         row = session.execute(
             select(PerformanceTakeUploadReservation).where(
@@ -3799,16 +3787,16 @@ def test_recording_microseconds_survive_reservation_finalize_and_take_reads(test
             f"/api/v1/performance-takes/upload-reservations/{reserved['reservation_id']}/finalize"
         )
         assert response.status_code == 200, response.text
-        take = response.json()["data"]
+        take = response.json()
         assert take["manifest"]["recording_timebase"] == timebase
         assert (
-            client.get(f"/api/v1/performance-takes/{take['take_id']}").json()["data"]["manifest"][
+            client.get(f"/api/v1/performance-takes/{take['take_id']}").json()["manifest"][
                 "recording_timebase"
             ]
             == timebase
         )
         assert (
-            client.get("/api/v1/performance-takes").json()["data"]["items"][0]["manifest"][
+            client.get("/api/v1/performance-takes").json()["items"][0]["manifest"][
                 "recording_timebase"
             ]
             == timebase
@@ -3855,7 +3843,7 @@ def test_reservation_capacity_uses_exact_available_quota(test_env, available_del
             assert account.reserved_bytes == counter.reserved_bytes == held_bytes
         else:
             assert response.status_code == 200, response.text
-            accepted = response.json()["data"]
+            accepted = response.json()
             assert accepted["manifest"]["capture"]["byte_size"] == requested_bytes
             row = session.scalar(select(PerformanceTakeUploadReservation))
             hold = session.scalar(
@@ -3867,7 +3855,7 @@ def test_reservation_capacity_uses_exact_available_quota(test_env, available_del
             assert account.reserved_bytes == counter.reserved_bytes == held_bytes + requested_bytes
             repeated = client.post("/api/v1/performance-takes/upload-reservations", json=request)
             assert repeated.status_code == 200, repeated.text
-            assert repeated.json()["data"]["reservation_id"] == accepted["reservation_id"]
+            assert repeated.json()["reservation_id"] == accepted["reservation_id"]
             session.refresh(account)
             assert account.reserved_bytes == held_bytes + requested_bytes
 
@@ -3890,10 +3878,7 @@ def test_reservation_admits_structurally_valid_long_recording_timebase(test_env)
     with _reservation_client(session, storage, user) as (client, _):
         response = client.post("/api/v1/performance-takes/upload-reservations", json=request)
         assert response.status_code == 200, response.text
-        assert (
-            response.json()["data"]["manifest"]["recording_timebase"]
-            == request["recording_timebase"]
-        )
+        assert response.json()["manifest"]["recording_timebase"] == request["recording_timebase"]
         row = session.scalar(select(PerformanceTakeUploadReservation))
         assert (
             manifest_from_row(row.manifest).snapshot.recording_timebase.nominalMediaDurationUs
@@ -3920,7 +3905,7 @@ def test_segmented_recording_manifest_round_trips_through_reserve_finalize_and_r
     with _reservation_client(session, storage, user) as (client, _):
         response = client.post("/api/v1/performance-takes/upload-reservations", json=request)
         assert response.status_code == 200, response.text
-        accepted = response.json()["data"]
+        accepted = response.json()
         assert accepted["manifest"]["recording_timebase"] == timebase
         row = session.scalar(select(PerformanceTakeUploadReservation))
         assert len(row.manifest.manifest_json.encode("utf-8")) > 64 * 1024
@@ -3936,10 +3921,10 @@ def test_segmented_recording_manifest_round_trips_through_reserve_finalize_and_r
             f"/api/v1/performance-takes/upload-reservations/{accepted['reservation_id']}/finalize"
         )
         assert finalized.status_code == 200, finalized.text
-        assert finalized.json()["data"]["manifest"] == accepted["manifest"]
+        assert finalized.json()["manifest"] == accepted["manifest"]
         detail = client.get(f"/api/v1/performance-takes/{accepted['take_id']}")
         assert detail.status_code == 200, detail.text
-        assert detail.json()["data"]["manifest"] == accepted["manifest"]
+        assert detail.json()["manifest"] == accepted["manifest"]
 
 
 @pytest.mark.parametrize(
@@ -3956,7 +3941,7 @@ def test_finalize_requires_exact_admitted_object_size(
             "/api/v1/performance-takes/upload-reservations", json=_upload_intent()
         )
         assert response.status_code == 200, response.text
-        accepted = response.json()["data"]
+        accepted = response.json()
         row = session.scalar(select(PerformanceTakeUploadReservation))
         object_ids = set(session.scalars(select(StoredObject.id)))
         storage.put_bytes(
@@ -4002,7 +3987,7 @@ def test_exact_custom_tempo_survives_reserve_replay_finalize_and_reads(test_env,
     with _reservation_client(session, storage, user) as (client, service):
         response = client.post("/api/v1/performance-takes/upload-reservations", json=request)
         assert response.status_code == 200, response.text
-        accepted = response.json()["data"]
+        accepted = response.json()
         assert accepted["manifest"]["tempo_plan"] == expected
         row = session.scalar(select(PerformanceTakeUploadReservation))
         manifest = manifest_from_row(row.manifest)
@@ -4023,8 +4008,8 @@ def test_exact_custom_tempo_survives_reserve_replay_finalize_and_reads(test_env,
         ):
             replay = client.post("/api/v1/performance-takes/upload-reservations", json=request)
             assert replay.status_code == 200, replay.text
-            assert replay.json()["data"]["reservation_id"] == accepted["reservation_id"]
-            assert replay.json()["data"]["manifest"] == accepted["manifest"]
+            assert replay.json()["reservation_id"] == accepted["reservation_id"]
+            assert replay.json()["manifest"] == accepted["manifest"]
             changed = {
                 **request,
                 "tempo_selection": {
@@ -4045,13 +4030,13 @@ def test_exact_custom_tempo_survives_reserve_replay_finalize_and_reads(test_env,
             f"/api/v1/performance-takes/upload-reservations/{accepted['reservation_id']}/finalize"
         )
         assert finalized.status_code == 200, finalized.text
-        assert finalized.json()["data"]["manifest"] == accepted["manifest"]
+        assert finalized.json()["manifest"] == accepted["manifest"]
         detail = client.get(f"/api/v1/performance-takes/{accepted['take_id']}")
         assert detail.status_code == 200, detail.text
-        assert detail.json()["data"]["manifest"]["tempo_plan"] == expected
+        assert detail.json()["manifest"]["tempo_plan"] == expected
         listed = client.get("/api/v1/performance-takes")
         assert listed.status_code == 200, listed.text
-        assert listed.json()["data"]["items"][0]["manifest"]["tempo_plan"] == expected
+        assert listed.json()["items"][0]["manifest"]["tempo_plan"] == expected
 
 
 def test_failed_reserve_rolls_back_manifest_reservation_and_quota(test_env):
@@ -4084,7 +4069,7 @@ def test_take_deletion_retires_media_but_preserves_manifest_and_reservation(test
             "/api/v1/performance-takes/upload-reservations", json=_upload_intent()
         )
         assert reserved_response.status_code == 200, reserved_response.text
-        accepted = reserved_response.json()["data"]
+        accepted = reserved_response.json()
         reservation = session.scalar(
             select(PerformanceTakeUploadReservation).where(
                 PerformanceTakeUploadReservation.reservation_uuid == accepted["reservation_id"]
@@ -4101,18 +4086,18 @@ def test_take_deletion_retires_media_but_preserves_manifest_and_reservation(test
         assert finalized.status_code == 200, finalized.text
         take = session.scalar(select(PerformanceTake))
         assert take.manifest_id == manifest_id
-        assert finalized.json()["data"]["manifest"] == accepted["manifest"]
+        assert finalized.json()["manifest"] == accepted["manifest"]
         final_key = take.recording_object.object_key
         deleted = client.delete(f"/api/v1/performance-takes/{accepted['take_id']}")
-        assert deleted.status_code == 200, deleted.text
-        assert deleted.json()["data"] == {"take_id": accepted["take_id"], "deleted": True}
+        assert deleted.status_code == 204, deleted.text
+        assert deleted.content == b""
         assert session.scalar(select(PerformanceTake)) is None
         for suffix in ["", "/playback-url", "/media"]:
             assert (
                 client.get(f"/api/v1/performance-takes/{accepted['take_id']}{suffix}").status_code
                 == 404
             )
-        assert client.get("/api/v1/performance-takes").json()["data"]["items"] == []
+        assert client.get("/api/v1/performance-takes").json()["items"] == []
         assert storage.exists(final_key)
         operation = session.scalar(
             select(StoredObjectRetirement).where(StoredObjectRetirement.object_key == final_key)
@@ -4148,7 +4133,7 @@ def test_final_blob_sha_is_the_complete_candidate_and_actual_object_digest(test_
     ):
         accepted = client.post(
             "/api/v1/performance-takes/upload-reservations", json=_upload_intent()
-        ).json()["data"]
+        ).json()
         storage.put_bytes(
             key=_staging_key(session, accepted["reservation_id"]),
             content=VALID_WEBM_BYTES,
@@ -4168,7 +4153,7 @@ def test_final_blob_sha_is_the_complete_candidate_and_actual_object_digest(test_
             == len(actual)
             == manifest_from_row(take.manifest).snapshot.capture.byte_size
         )
-        assert response.json()["data"]["recording_media"] == {
+        assert response.json()["recording_media"] == {
             "mime_type": blob.content_type,
             "byte_size": blob.byte_size,
         }
@@ -4188,7 +4173,7 @@ def test_same_size_candidate_corruption_has_no_blob_or_take(test_env):
     with _reservation_client(session, storage, user) as (client, service):
         accepted = client.post(
             "/api/v1/performance-takes/upload-reservations", json=_upload_intent()
-        ).json()["data"]
+        ).json()
         storage.put_bytes(
             key=_staging_key(session, accepted["reservation_id"]),
             content=VALID_WEBM_BYTES,

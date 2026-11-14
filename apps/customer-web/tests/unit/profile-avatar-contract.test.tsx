@@ -10,10 +10,7 @@ const avatarUrl = `/api/v1/me/avatars/${filename}`;
 afterEach(() => vi.unstubAllGlobals());
 
 it('keeps the server-provided browser resource URL in the authenticated user', async () => {
-  const payload = {
-    success: true,
-    data: { user: { id: 1, email: 'user@example.test', display_name: 'User', is_active: true, avatar_url: avatarUrl, created_at: '2026-11-13T00:00:00Z' } },
-  } satisfies AccountProfileGetResponse;
+  const payload = { user: { id: 1, email: 'user@example.test', display_name: 'User', is_active: true, avatar_url: avatarUrl, created_at: '2026-11-13T00:00:00Z' } } satisfies AccountProfileGetResponse;
   const send = vi.fn<typeof fetch>(async () => Response.json(payload));
   vi.stubGlobal('fetch', send);
   const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
@@ -22,9 +19,15 @@ it('keeps the server-provided browser resource URL in the authenticated user', a
 });
 
 it('returns the uploaded avatar resource URL unchanged from the generated operation', async () => {
-  const payload = { success: true, data: { filename, avatar_url: avatarUrl } } satisfies AccountAvatarUploadResponse;
+  const payload = { filename, avatar_url: avatarUrl } satisfies AccountAvatarUploadResponse;
   const send = vi.fn<typeof fetch>(async () => Response.json(payload));
   vi.stubGlobal('fetch', send);
   const result = await profileApi.uploadAvatar(new File(['avatar'], 'avatar.png', { type: 'image/png' }));
-  expect(result.data?.avatar_url).toBe(avatarUrl);
+  expect(result.avatar_url).toBe(avatarUrl);
+});
+
+it('acknowledges a profile update with no response representation', async () => {
+  const send = vi.fn<typeof fetch>(async () => new Response(null, { status: 204 }));
+  vi.stubGlobal('fetch', send);
+  await expect(profileApi.updateProfile({ display_name: 'Updated' })).resolves.toBeUndefined();
 });

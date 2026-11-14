@@ -31,7 +31,7 @@ export function useReviewEditorDocument({
   const completeSave = useEditorSaveCompletion({ applyXml });
   const showSaveError = useEditorSaveErrorToast({ titleNamespace: 'review' });
   const reviewQuery = useImportJobReview(jobId);
-  const review = reviewQuery.data?.data;
+  const review = reviewQuery.data;
   const updateReview = useUpdateImportJobReview();
   const [initialized, setInitialized] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -106,7 +106,7 @@ export function useReviewEditorDocument({
       { jobId, content: stripAppOwnedGenericRenderMusicXmlIdsString(currentXml) },
       {
         onSuccess: async (response) => {
-          const updatedXml = response.data?.musicxml?.content ?? currentXml;
+          const updatedXml = response?.musicxml?.content ?? currentXml;
           await completeSave({
             xml: updatedXml,
             returnUrl: returnUrl || `/review/${jobId}`,

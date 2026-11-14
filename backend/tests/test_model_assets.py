@@ -51,8 +51,7 @@ def test_model_asset_access_authenticated_returns_descriptor() -> None:
             assert response.status_code == 200
 
             body = response.json()
-            assert body.get("success") is True
-            data = body.get("data")
+            data = body
             assert isinstance(data, dict)
 
             assert {key: data[key] for key in MODEL_ASSET_DESCRIPTOR} == dict(

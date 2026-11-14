@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -8,6 +9,7 @@ from app.modules.metadata.schemas import MetadataRead
 from app.modules.score_access.schemas import ScoreCapabilities
 from app.modules.score_assets.schemas import ScoreDerivedAssetsRead
 from app.modules.scores.genres import Genres
+from app.shared.api_model import ApiModel
 
 
 class ScoreUpdateRequest(BaseModel):
@@ -30,7 +32,7 @@ class ScoreInputAssetRead(BaseModel):
     page_number: int | None
 
 
-class ScoreRead(BaseModel):
+class ScoreRead(ApiModel):
     score_id: str
     title: str
     genres: Genres
@@ -42,3 +44,7 @@ class ScoreRead(BaseModel):
     capabilities: ScoreCapabilities
     created_at: datetime
     updated_at: datetime
+
+
+class ScoreBatchDeleteRead(ApiModel):
+    removed: int

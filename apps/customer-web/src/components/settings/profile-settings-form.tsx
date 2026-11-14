@@ -51,8 +51,8 @@ export function ProfileSettingsForm() {
   const handleCroppedImage = (file: File) => {
     avatarMutation.mutate(file, {
       onSuccess: (result) => {
-        if (result.data?.avatar_url) {
-          const avatarUrlWithCacheBuster = `${result.data.avatar_url}?t=${Date.now()}`;
+        if (result?.avatar_url) {
+          const avatarUrlWithCacheBuster = `${result.avatar_url}?t=${Date.now()}`;
 
           if (user) {
             setUser({ ...user, avatar: avatarUrlWithCacheBuster });

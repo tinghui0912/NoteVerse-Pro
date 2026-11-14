@@ -35,10 +35,10 @@ vi.mock('@/hooks/editor/use-editor-save-completion', () => ({ useEditorSaveCompl
 vi.mock('@/hooks/editor/use-editor-validation-gate', () => ({ useEditorValidationGate: (save: () => void) => ({ save }) }));
 vi.mock('@/lib/editor/draft-storage', () => ({ loadDraft: async () => undefined, deleteDraft: vi.fn() }));
 vi.mock('@/hooks/queries/use-score-queries', () => ({
-  useScoreDetail: () => ({ data: { data: state.score } }),
+  useScoreDetail: () => ({ data: state.score }),
   useRevisionContent: (scoreId: string, revisionId: string) => {
     state.revisionQuery(scoreId, revisionId);
-    return { data: { data: { content: state.xml } } };
+    return { data: { content: state.xml } };
   },
   useCreateRevision: () => ({ mutate: state.mutate }),
   useGenerateScoreFingering: () => ({}),

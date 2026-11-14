@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import Response, APIRouter, Depends, Query
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db, get_optional_current_user
@@ -20,8 +21,7 @@ from app.modules.score_invites.schemas import (
 )
 from app.modules.score_invites.service import ScoreInviteService
 from .pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
-from app.shared.constants import SuccessCode
-from app.shared.responses import APIResponse, success_response
+
 
 score_router = APIRouter()
 invite_router = APIRouter()
@@ -31,7 +31,9 @@ me_router = APIRouter()
 @me_router.delete(
     "/scores/{score_id}/membership",
     operation_id="scoreMembershipLeave",
-    response_model=APIResponse[None],
+    status_code=204,
+    response_model=None,
+    response_class=Response,
 )
 async def leave_score(
     score_id: str,
@@ -40,13 +42,13 @@ async def leave_score(
     service: ScoreInviteService = Depends(get_score_invite_service),
 ):
     await service.leave_score(db, score_id, require_persisted_id(current_user.id, entity="user"))
-    return success_response(data=None)
+    return Response(status_code=204)
 
 
 @score_router.get(
     "/{score_id}/invites",
     operation_id="scoreInvitesList",
-    response_model=APIResponse[InviteListRead],
+    response_model=InviteListRead,
 )
 async def list_score_invites(
     score_id: str,
@@ -58,13 +60,13 @@ async def list_score_invites(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     result = await service.list_invites(db, score_id, user_id, limit=limit, cursor=cursor)
-    return success_response(data=result)
+    return result
 
 
 @score_router.post(
     "/{score_id}/invites",
     operation_id="scoreInvitesCreate",
-    response_model=APIResponse[InviteCreatedRead],
+    response_model=InviteCreatedRead,
 )
 async def create_score_invite(
     score_id: str,
@@ -75,13 +77,13 @@ async def create_score_invite(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     result = await service.create_invite(db, score_id, user_id, request)
-    return success_response(data=result, message=SuccessCode.INVITE_CREATED)
+    return result
 
 
 @score_router.post(
     "/{score_id}/invites/{invite_id}/revoke",
     operation_id="scoreInviteRevoke",
-    response_model=APIResponse[InviteRead],
+    response_model=InviteRead,
 )
 async def revoke_score_invite(
     score_id: str,
@@ -92,13 +94,13 @@ async def revoke_score_invite(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     result = await service.revoke_invite(db, score_id, invite_id, user_id)
-    return success_response(data=result, message=SuccessCode.INVITE_REVOKED)
+    return result
 
 
 @score_router.get(
     "/{score_id}/members",
     operation_id="scoreMembersList",
-    response_model=APIResponse[MemberListRead],
+    response_model=MemberListRead,
 )
 async def list_score_members(
     score_id: str,
@@ -110,13 +112,13 @@ async def list_score_members(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     result = await service.list_members(db, score_id, user_id, limit=limit, cursor=cursor)
-    return success_response(data=result)
+    return result
 
 
 @score_router.patch(
     "/{score_id}/members/{membership_id}",
     operation_id="scoreMemberUpdate",
-    response_model=APIResponse[MemberRead],
+    response_model=MemberRead,
 )
 async def update_score_member(
     score_id: str,
@@ -128,13 +130,13 @@ async def update_score_member(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     result = await service.update_member(db, score_id, membership_id, user_id, request)
-    return success_response(data=result, message=SuccessCode.MEMBER_UPDATED)
+    return result
 
 
 @score_router.delete(
     "/{score_id}/members/{membership_id}",
     operation_id="scoreMemberRemove",
-    response_model=APIResponse[MemberRead],
+    response_model=MemberRead,
 )
 async def remove_score_member(
     score_id: str,
@@ -145,12 +147,10 @@ async def remove_score_member(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     result = await service.remove_member(db, score_id, membership_id, user_id)
-    return success_response(data=result, message=SuccessCode.MEMBER_REMOVED)
+    return result
 
 
-@invite_router.get(
-    "/{token}", operation_id="scoreInviteInspect", response_model=APIResponse[InviteAccessRead]
-)
+@invite_router.get("/{token}", operation_id="scoreInviteInspect", response_model=InviteAccessRead)
 async def inspect_invite(
     token: str,
     current_user: User | None = Depends(get_optional_current_user),
@@ -159,13 +159,13 @@ async def inspect_invite(
 ):
     user_id = current_user.id if current_user else None
     result = await service.inspect_invite(db, token, user_id)
-    return success_response(data=result)
+    return result
 
 
 @invite_router.post(
     "/{token}/accept",
     operation_id="scoreInviteAccept",
-    response_model=APIResponse[InviteAcceptRead],
+    response_model=InviteAcceptRead,
 )
 async def accept_invite(
     token: str,
@@ -175,13 +175,13 @@ async def accept_invite(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     result = await service.accept_invite(db, token, user_id)
-    return success_response(data=result, message=SuccessCode.INVITE_ACCEPTED)
+    return result
 
 
 @me_router.get(
     "/invites",
     operation_id="accountPendingInvitesList",
-    response_model=APIResponse[PendingInviteListRead],
+    response_model=PendingInviteListRead,
 )
 async def list_my_pending_invites(
     limit: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
@@ -192,13 +192,13 @@ async def list_my_pending_invites(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     result = await service.list_my_pending_invites(db, user_id, limit=limit, cursor=cursor)
-    return success_response(data=result)
+    return result
 
 
 @me_router.post(
     "/invites/{invite_id}/accept",
     operation_id="accountPendingInviteAccept",
-    response_model=APIResponse[InviteAcceptRead],
+    response_model=InviteAcceptRead,
 )
 async def accept_my_pending_invite(
     invite_id: str,
@@ -208,13 +208,13 @@ async def accept_my_pending_invite(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     result = await service.accept_pending_invite(db, invite_id, user_id)
-    return success_response(data=result, message=SuccessCode.INVITE_ACCEPTED)
+    return result
 
 
 @me_router.post(
     "/invites/{invite_id}/decline",
     operation_id="accountPendingInviteDecline",
-    response_model=APIResponse[PendingInviteRead],
+    response_model=PendingInviteRead,
 )
 async def decline_my_pending_invite(
     invite_id: str,
@@ -224,4 +224,4 @@ async def decline_my_pending_invite(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     result = await service.decline_pending_invite(db, invite_id, user_id)
-    return success_response(data=result, message=SuccessCode.INVITE_DECLINED)
+    return result

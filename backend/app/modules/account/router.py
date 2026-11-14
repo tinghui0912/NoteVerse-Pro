@@ -1,6 +1,8 @@
 """Current-user account routes."""
 
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import Response, APIRouter, Depends, File, UploadFile
+
+
 import re
 from fastapi.responses import RedirectResponse
 from app.core.exceptions import ResourceNotFoundException
@@ -16,25 +18,28 @@ from app.modules.account.profile_service import ProfileService
 from app.modules.account.schemas import (
     AvatarRead,
     ProfileRead,
-    ProfileUpdateRead,
     UpdateProfileRequest,
 )
-from app.shared.constants import ErrorCode, SuccessCode
-from app.shared.responses import APIResponse, EmptyResponse, success_response
+from app.shared.constants import ErrorCode
+
 
 router = APIRouter()
 
 
-@router.get("/profile", operation_id="accountProfileGet", response_model=APIResponse[ProfileRead])
+@router.get("/profile", operation_id="accountProfileGet", response_model=ProfileRead)
 async def get_user_profile(
     current_user: User = Depends(get_current_user),
     profile_service: ProfileService = Depends(get_profile_service),
 ):
-    return success_response(data=profile_service.profile_payload(current_user))
+    return profile_service.profile_payload(current_user)
 
 
 @router.put(
-    "/profile", operation_id="accountProfileUpdate", response_model=APIResponse[ProfileUpdateRead]
+    "/profile",
+    operation_id="accountProfileUpdate",
+    status_code=204,
+    response_model=None,
+    response_class=Response,
 )
 async def update_user_profile(
     request: UpdateProfileRequest,
@@ -42,14 +47,11 @@ async def update_user_profile(
     db: AsyncSession = Depends(get_db),
     profile_service: ProfileService = Depends(get_profile_service),
 ):
-    updated_fields = await profile_service.update_profile(db, current_user, request)
-    return success_response(
-        data={"updated_fields": updated_fields},
-        message=SuccessCode.PROFILE_UPDATED,
-    )
+    await profile_service.update_profile(db, current_user, request)
+    return Response(status_code=204)
 
 
-@router.post("/avatar", operation_id="accountAvatarUpload", response_model=APIResponse[AvatarRead])
+@router.post("/avatar", operation_id="accountAvatarUpload", response_model=AvatarRead)
 async def upload_avatar(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
@@ -79,20 +81,23 @@ async def upload_avatar(
             filename=file.filename,
         )
 
-    return success_response(
-        data={"avatar_url": avatar_url, "filename": saved_filename},
-        message=SuccessCode.AVATAR_UPLOADED,
-    )
+    return {"avatar_url": avatar_url, "filename": saved_filename}
 
 
-@router.delete("/avatar", operation_id="accountAvatarDelete", response_model=EmptyResponse)
+@router.delete(
+    "/avatar",
+    operation_id="accountAvatarDelete",
+    status_code=204,
+    response_model=None,
+    response_class=Response,
+)
 async def delete_avatar(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     avatar_service: AvatarService = Depends(get_avatar_service),
 ):
     await avatar_service.clear_user_avatar(db, current_user)
-    return success_response(message=SuccessCode.AVATAR_DELETED)
+    return Response(status_code=204)
 
 
 @router.get(

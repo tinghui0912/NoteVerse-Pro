@@ -39,8 +39,8 @@ export function useScoreRevisions(scoreId: string, enabled = true) {
     queryFn: ({ pageParam, signal }) =>
       scoresApi.revisions(scoreId, { limit: 20, cursor: pageParam }, signal),
     initialPageParam: null as number | null,
-    getNextPageParam: (lastPage) => lastPage.data?.next_cursor == null
-      ? undefined : Number(lastPage.data.next_cursor),
+    getNextPageParam: (lastPage) => lastPage?.next_cursor == null
+      ? undefined : Number(lastPage.next_cursor),
     enabled: enabled && Boolean(scoreId),
   });
 }
@@ -70,7 +70,7 @@ export function useUpdateScore() {
       expected_version: number;
     }) => scoresApi.update(scoreId, input),
     onSuccess: (response) => {
-      const score = response.data;
+      const score = response;
       if (score) queryClient.setQueryData(queryKeys.scores.detail(score.score_id), response);
     },
   });
@@ -167,7 +167,7 @@ export function useScoreInvites(scoreId: string, enabled = true) {
     queryFn: ({ signal, pageParam }) =>
       scoreInvitesApi.listInvites(scoreId, { signal, cursor: pageParam }),
     initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) => lastPage.data?.next_cursor ?? undefined,
+    getNextPageParam: (lastPage) => lastPage?.next_cursor ?? undefined,
     enabled: enabled && Boolean(scoreId),
   });
 }
@@ -199,7 +199,7 @@ export function useScoreMembers(scoreId: string, enabled = true) {
     queryFn: ({ signal, pageParam }) =>
       scoreInvitesApi.listMembers(scoreId, { signal, cursor: pageParam }),
     initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) => lastPage.data?.next_cursor ?? undefined,
+    getNextPageParam: (lastPage) => lastPage?.next_cursor ?? undefined,
     enabled: enabled && Boolean(scoreId),
   });
 }
@@ -242,9 +242,9 @@ export function useAcceptScoreInvite() {
     onSuccess: (response) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.library.all });
       void queryClient.invalidateQueries({ queryKey: queryKeys.scores.myInvites() });
-      if (response.data?.score_id) {
+      if (response?.score_id) {
         void queryClient.invalidateQueries({
-          queryKey: queryKeys.scores.detail(response.data.score_id),
+          queryKey: queryKeys.scores.detail(response.score_id),
         });
       }
     },
@@ -257,7 +257,7 @@ export function useMyPendingScoreInvites(enabled = true) {
     queryFn: ({ signal, pageParam }) =>
       scoreInvitesApi.listMyPendingInvites({ signal, cursor: pageParam }),
     initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) => lastPage.data?.next_cursor ?? undefined,
+    getNextPageParam: (lastPage) => lastPage?.next_cursor ?? undefined,
     enabled,
   });
 }
@@ -269,9 +269,9 @@ export function useAcceptMyPendingScoreInvite() {
     onSuccess: (response) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.library.all });
       void queryClient.invalidateQueries({ queryKey: queryKeys.scores.myInvites() });
-      if (response.data?.score_id) {
+      if (response?.score_id) {
         void queryClient.invalidateQueries({
-          queryKey: queryKeys.scores.detail(response.data.score_id),
+          queryKey: queryKeys.scores.detail(response.score_id),
         });
       }
     },

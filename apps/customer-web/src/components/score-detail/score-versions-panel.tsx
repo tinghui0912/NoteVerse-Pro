@@ -77,7 +77,7 @@ export function ScoreVersionsPanel({
     : null;
 
   const items = useMemo(
-    () => revisions.data?.pages.flatMap((page) => page.data?.items ?? []) ?? [],
+    () => revisions.data?.pages.flatMap((page) => page?.items ?? []) ?? [],
     [revisions.data]
   );
   const restoreTarget = items.find((revision) => revision.revision_id === restoreTargetId) ?? null;

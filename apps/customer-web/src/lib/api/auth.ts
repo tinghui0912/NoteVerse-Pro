@@ -1,5 +1,5 @@
 import { authEmailChangeConfirm, authEmailVerify, authLogin, authLogout, authPasswordReset, authPasswordResetRequest, authRegister } from '@/generated/api';
-import { customerTransport, responseData } from '@/lib/http/customer-browser-transport';
+import { customerTransport, responseBody, responseComplete } from '@/lib/http/customer-browser-transport';
 /**
  * Authentication API wrapper.
  */
@@ -11,21 +11,19 @@ import type { RegisterRequest } from '@/generated/api';
  * Log in a user.
  * @param email User email address.
  * @param password User password.
- * @returns Login success response. Session cookies are managed by the backend.
+ * @returns No response body. Session cookies are managed by the backend.
  */
 async function login(email: string, password: string) {
-  const response = await responseData(authLogin({
+  return responseComplete(authLogin({
     ...customerTransport.public, body: {
       username: email,
       password: password,
     }
   }));
-
-  return response;
 }
 
 async function logout() {
-  return responseData(authLogout({ ...customerTransport.authenticated }));
+  return responseComplete(authLogout({ ...customerTransport.authenticated }));
 }
 
 /**
@@ -33,7 +31,7 @@ async function logout() {
  * @param data Registration payload.
  */
 async function register(data: RegisterRequest) {
-  return responseData(authRegister({
+  return responseComplete(authRegister({
     ...customerTransport.public, body: {
       email: data.email,
       password: data.password,
@@ -44,18 +42,18 @@ async function register(data: RegisterRequest) {
 }
 
 async function verifyEmail(token: string) {
-  return responseData(authEmailVerify({ ...customerTransport.public, body: { token } }));
+  return responseBody(authEmailVerify({ ...customerTransport.public, body: { token } }));
 }
 
 async function confirmEmailChange(token: string) {
-  return responseData(authEmailChangeConfirm({ ...customerTransport.public, body: { token } }));
+  return responseBody(authEmailChangeConfirm({ ...customerTransport.public, body: { token } }));
 }
 
 async function requestPasswordReset(
   email: string,
   locale: 'en' | 'zh' = 'zh'
 ) {
-  return responseData(authPasswordResetRequest({
+  return responseComplete(authPasswordResetRequest({
     ...customerTransport.public, body: {
       email,
       locale,
@@ -74,7 +72,7 @@ async function resetPassword(
   token: string,
   locale: 'en' | 'zh' = 'zh'
 ) {
-  return responseData(authPasswordReset({
+  return responseComplete(authPasswordReset({
     ...customerTransport.public, body: {
       new_password: newPassword,
       token,

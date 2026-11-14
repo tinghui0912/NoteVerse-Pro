@@ -37,7 +37,6 @@ describe('BillingSettingsPanel', () => {
   it('renders quota totals and category cards', () => {
     useStorageUsageMock.mockReturnValue({
       data: {
-        data: {
           quota: {
             used_bytes: 800,
             reserved_bytes: 100,
@@ -46,7 +45,6 @@ describe('BillingSettingsPanel', () => {
           },
           breakdown: [],
         },
-      },
       isError: false,
       isFetching: false,
       isLoading: false,
@@ -69,7 +67,6 @@ describe('BillingSettingsPanel', () => {
     const refetch = vi.fn();
     useStorageUsageMock.mockReturnValue({
       data: {
-        data: {
           quota: {
             used_bytes: 10,
             reserved_bytes: 0,
@@ -78,7 +75,6 @@ describe('BillingSettingsPanel', () => {
           },
           breakdown: [],
         },
-      },
       isError: false,
       isFetching: false,
       isLoading: false,

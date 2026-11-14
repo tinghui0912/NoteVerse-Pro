@@ -22,50 +22,41 @@ export function markNotificationReadInList(
   notificationId: string,
   readAt = readTimestamp()
 ): NotificationListResponse | undefined {
-  if (!response?.data) return response;
-  return {
-    ...response,
-    data: response.data.map((notification) =>
+  if (!response) return response;
+  return response.map((notification) =>
       notification.notification_id === notificationId && !notification.read_at
         ? { ...notification, read_at: readAt }
         : notification
-    ),
-  };
+    );
 }
 
 export function markAllNotificationsReadInList(
   response: NotificationListResponse | undefined,
   readAt = readTimestamp()
 ): NotificationListResponse | undefined {
-  if (!response?.data) return response;
-  return {
-    ...response,
-    data: response.data.map((notification) =>
+  if (!response) return response;
+  return response.map((notification) =>
       notification.read_at ? notification : { ...notification, read_at: readAt }
-    ),
-  };
+    );
 }
 
 function decrementUnreadCount(
   response: NotificationCountResponse | undefined
 ): NotificationCountResponse | undefined {
-  if (!response?.data) return response;
+  if (!response) return response;
   return {
     ...response,
-    data: {
-      ...response.data,
-      count: Math.max(0, response.data.count - 1),
-    },
+    count: Math.max(0, response.count - 1),
   };
 }
 
 function clearUnreadCount(
   response: NotificationCountResponse | undefined
 ): NotificationCountResponse | undefined {
-  if (!response?.data) return response;
+  if (!response) return response;
   return {
     ...response,
-    data: { ...response.data, count: 0 },
+    count: 0,
   };
 }
 
@@ -101,7 +92,7 @@ export function useMarkNotificationRead() {
       const previousCount = queryClient.getQueryData<NotificationCountResponse>(
         queryKeys.notifications.unreadCount()
       );
-      const wasUnread = previousList?.data?.some(
+      const wasUnread = previousList?.some(
         (notification) =>
           notification.notification_id === notificationId && !notification.read_at
       );

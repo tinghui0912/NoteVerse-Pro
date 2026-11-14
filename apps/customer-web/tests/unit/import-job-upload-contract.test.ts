@@ -11,7 +11,7 @@ describe('import job upload contract', () => {
 
     expect(importJobsApi).toContain('importJobsSubmit');
     expect(importJobsApi).toContain('importJobGet');
-    expect(workflow).toContain('response.data?.job_id');
+    expect(workflow).toContain('response?.job_id');
     expect(workflow).toContain('useImportJobDetail');
   });
 });

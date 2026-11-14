@@ -1,17 +1,12 @@
-from pydantic import BaseModel
+from app.shared.api_model import ApiModel
 
 
-class UploadFileRead(BaseModel):
+class UploadFileRead(ApiModel):
     file_id: str
     filename: str
     size: int
 
 
-class DeleteUploadedFileRead(BaseModel):
-    filename: str
-
-
 __all__ = [
-    "DeleteUploadedFileRead",
     "UploadFileRead",
 ]

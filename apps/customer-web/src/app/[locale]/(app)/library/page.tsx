@@ -132,14 +132,14 @@ export default function LibraryPage({
     pageSize,
   });
   const folders = useMemo(
-    () => foldersQuery.data?.data?.folders ?? [],
-    [foldersQuery.data?.data?.folders],
+    () => foldersQuery.data?.folders ?? [],
+    [foldersQuery.data?.folders],
   );
   const scores = useMemo(
-    () => scoresQuery.data?.data ?? [],
-    [scoresQuery.data?.data],
+    () => scoresQuery.data?.items ?? [],
+    [scoresQuery.data?.items],
   );
-  const pagination = scoresQuery.data?.pagination;
+  const pagination = scoresQuery.data;
   const canGoPrevious = pagination ? pagination.page > 1 : false;
   const canGoNext = pagination
     ? pagination.page < pagination.total_pages
@@ -164,7 +164,7 @@ export default function LibraryPage({
     deleteFolder.error ??
     moveScores.error ??
     favoriteScores.error;
-  const folderOverview = foldersQuery.data?.data;
+  const folderOverview = foldersQuery.data;
   const quickNodes = [
     {
       view: 'all' as const,

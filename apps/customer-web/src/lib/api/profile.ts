@@ -1,5 +1,5 @@
 import { accountAvatarDelete, accountAvatarUpload, accountEmailChangeRequest, accountOtherSessionsRevoke, accountPasswordChange, accountProfileGet, accountProfileUpdate, accountSecurityGet, accountSessionRevoke, accountSessionsList } from '@/generated/api';
-import { customerTransport, responseData } from '@/lib/http/customer-browser-transport';
+import { customerTransport, responseBody, responseComplete } from '@/lib/http/customer-browser-transport';
 /**
  * Profile API wrapper.
  */
@@ -11,7 +11,7 @@ import type { AccountSessionsListData, RequestEmailChangeRequest, UpdateProfileR
  * Get the current user profile.
  */
 async function getProfile(options?: { suppressAuthRedirect?: boolean }) {
-  return responseData(accountProfileGet({ ...(options?.suppressAuthRedirect ? customerTransport.silent : customerTransport.authenticated) }));
+  return responseBody(accountProfileGet({ ...(options?.suppressAuthRedirect ? customerTransport.silent : customerTransport.authenticated) }));
 }
 
 /**
@@ -19,7 +19,7 @@ async function getProfile(options?: { suppressAuthRedirect?: boolean }) {
  * @param data Profile update payload.
  */
 async function updateProfile(data: UpdateProfileRequest) {
-  return responseData(accountProfileUpdate({ ...customerTransport.authenticated, body: data }));
+  return responseComplete(accountProfileUpdate({ ...customerTransport.authenticated, body: data }));
 }
 
 /**
@@ -31,7 +31,7 @@ async function changePassword(
   currentPassword: string,
   newPassword: string
 ) {
-  return responseData(accountPasswordChange({
+  return responseComplete(accountPasswordChange({
     ...customerTransport.authenticated, body: {
       current_password: currentPassword,
       new_password: newPassword,
@@ -44,34 +44,34 @@ async function changePassword(
  * @param file Avatar image file.
  */
 async function uploadAvatar(file: File) {
-  return responseData(accountAvatarUpload({ ...customerTransport.authenticated, body: { file: file } }));
+  return responseBody(accountAvatarUpload({ ...customerTransport.authenticated, body: { file: file } }));
 }
 
 /**
  * Delete the current avatar.
  */
 async function deleteAvatar() {
-  return responseData(accountAvatarDelete({ ...customerTransport.authenticated }));
+  return responseComplete(accountAvatarDelete({ ...customerTransport.authenticated }));
 }
 
 async function getSessions(params?: AccountSessionsListData['query']) {
-  return responseData(accountSessionsList({ ...customerTransport.authenticated, query: params }));
+  return responseBody(accountSessionsList({ ...customerTransport.authenticated, query: params }));
 }
 
 async function getSecurityOverview() {
-  return responseData(accountSecurityGet({ ...customerTransport.authenticated }));
+  return responseBody(accountSecurityGet({ ...customerTransport.authenticated }));
 }
 
 async function requestEmailChange(data: RequestEmailChangeRequest) {
-  return responseData(accountEmailChangeRequest({ ...customerTransport.authenticated, body: data }));
+  return responseComplete(accountEmailChangeRequest({ ...customerTransport.authenticated, body: data }));
 }
 
 async function revokeSession(sessionId: number) {
-  return responseData(accountSessionRevoke({ ...customerTransport.authenticated, path: { session_id: sessionId } }));
+  return responseComplete(accountSessionRevoke({ ...customerTransport.authenticated, path: { session_id: sessionId } }));
 }
 
 async function revokeOtherSessions() {
-  return responseData(accountOtherSessionsRevoke({ ...customerTransport.authenticated }));
+  return responseComplete(accountOtherSessionsRevoke({ ...customerTransport.authenticated }));
 }
 
 export const profileApi = {

@@ -61,7 +61,7 @@ beforeEach(() => {
 
 it('reloads, toggles and copies the same stable link', async () => {
   let enabled = false;
-  const settings = () => ({ data: { enabled, token: 'stable-token' } });
+  const settings = () => ({ enabled, token: 'stable-token' });
   api.getSettings.mockImplementation(async () => settings());
   api.updateSettings.mockImplementation(async (_scoreId, input) => {
     enabled = input.enabled;
@@ -97,13 +97,11 @@ it('reloads, toggles and copies the same stable link', async () => {
 it('refreshes current-head pages without changing the bearer token', async () => {
   let page = 'head-a';
   api.read.mockImplementation(async () => ({
-    data: {
       title: 'Score',
       shared_by: 'Owner',
       audio_available: true,
       render_assets: [{ asset_id: page, page_number: 1 }],
-    },
-  }));
+    }));
   const view = mount(<GuestPreviewPage token="stable-token" />);
   expect(await screen.findByRole('img', { name: 'Score page 1' })).toHaveAttribute(
     'src',

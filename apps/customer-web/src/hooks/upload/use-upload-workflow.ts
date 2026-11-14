@@ -217,7 +217,7 @@ export function useUploadWorkflow() {
   });
 
   useEffect(() => {
-    const job = statusResponse?.data;
+    const job = statusResponse;
     if (!job || !currentJobId) return;
 
     if (Date.now() - pollStartTime > TASK_WAIT_TIMEOUT_MS) {
@@ -253,7 +253,7 @@ export function useUploadWorkflow() {
     currentJobId,
     pollStartTime,
     router,
-    statusResponse?.data,
+    statusResponse,
     t,
     toast,
     translateTaskError,
@@ -298,7 +298,7 @@ export function useUploadWorkflow() {
         );
         try {
           const response = await filesApi.uploadFile(currentFile.file);
-          const fileId = response.data?.file_id;
+          const fileId = response?.file_id;
           if (!fileId) throw new Error(tCommon('operationFailed'));
           uploadedFileIds.push(fileId);
           void queryClient.invalidateQueries({
@@ -345,7 +345,7 @@ export function useUploadWorkflow() {
           genres: knownGenres(genres),
         },
       });
-      const jobId = response.data?.job_id;
+      const jobId = response?.job_id;
       if (!jobId) throw new UserFacingUploadError(tCommon('operationFailed'));
       submissionKeyRef.current = null;
       dispatchTask({ type: 'track_job', jobId, pollStartTime: Date.now() });

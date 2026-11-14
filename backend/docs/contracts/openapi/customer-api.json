@@ -1,2903 +1,6 @@
 {
   "components": {
     "schemas": {
-      "APIResponse_AssetAccessRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AssetAccessRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[AssetAccessRead]",
-        "type": "object"
-      },
-      "APIResponse_AvatarRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AvatarRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[AvatarRead]",
-        "type": "object"
-      },
-      "APIResponse_DeleteUploadedFileRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/DeleteUploadedFileRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[DeleteUploadedFileRead]",
-        "type": "object"
-      },
-      "APIResponse_EmailChangeConfirmedRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/EmailChangeConfirmedRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[EmailChangeConfirmedRead]",
-        "type": "object"
-      },
-      "APIResponse_FingeringResultRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/FingeringResultRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[FingeringResultRead]",
-        "type": "object"
-      },
-      "APIResponse_GuestPreviewRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/GuestPreviewRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[GuestPreviewRead]",
-        "type": "object"
-      },
-      "APIResponse_GuestPreviewSettingsRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/GuestPreviewSettingsRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[GuestPreviewSettingsRead]",
-        "type": "object"
-      },
-      "APIResponse_ImportJobBatchStatusRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ImportJobBatchStatusRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[ImportJobBatchStatusRead]",
-        "type": "object"
-      },
-      "APIResponse_ImportJobRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ImportJobRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[ImportJobRead]",
-        "type": "object"
-      },
-      "APIResponse_ImportJobReviewRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ImportJobReviewRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[ImportJobReviewRead]",
-        "type": "object"
-      },
-      "APIResponse_ImportJobSubmitRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ImportJobSubmitRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[ImportJobSubmitRead]",
-        "type": "object"
-      },
-      "APIResponse_InviteAcceptRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/InviteAcceptRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[InviteAcceptRead]",
-        "type": "object"
-      },
-      "APIResponse_InviteAccessRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/InviteAccessRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[InviteAccessRead]",
-        "type": "object"
-      },
-      "APIResponse_InviteCreatedRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/InviteCreatedRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[InviteCreatedRead]",
-        "type": "object"
-      },
-      "APIResponse_InviteListRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/InviteListRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[InviteListRead]",
-        "type": "object"
-      },
-      "APIResponse_InviteRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/InviteRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[InviteRead]",
-        "type": "object"
-      },
-      "APIResponse_LibraryBatchMoveRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/LibraryBatchMoveRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[LibraryBatchMoveRead]",
-        "type": "object"
-      },
-      "APIResponse_LibraryBatchUpdateRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/LibraryBatchUpdateRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[LibraryBatchUpdateRead]",
-        "type": "object"
-      },
-      "APIResponse_LibraryFolderOverviewRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/LibraryFolderOverviewRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[LibraryFolderOverviewRead]",
-        "type": "object"
-      },
-      "APIResponse_LibraryFolderRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/LibraryFolderRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[LibraryFolderRead]",
-        "type": "object"
-      },
-      "APIResponse_MemberListRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/MemberListRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[MemberListRead]",
-        "type": "object"
-      },
-      "APIResponse_MemberRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/MemberRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[MemberRead]",
-        "type": "object"
-      },
-      "APIResponse_NoneType_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "description": "Response payload",
-            "title": "Data",
-            "type": "null"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[NoneType]",
-        "type": "object"
-      },
-      "APIResponse_NotificationEventRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/NotificationEventRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[NotificationEventRead]",
-        "type": "object"
-      },
-      "APIResponse_NotificationUnreadCountRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/NotificationUnreadCountRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[NotificationUnreadCountRead]",
-        "type": "object"
-      },
-      "APIResponse_PendingInviteListRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PendingInviteListRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[PendingInviteListRead]",
-        "type": "object"
-      },
-      "APIResponse_PendingInviteRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PendingInviteRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[PendingInviteRead]",
-        "type": "object"
-      },
-      "APIResponse_PerformanceTakeDeleteResponse_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PerformanceTakeDeleteResponse"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[PerformanceTakeDeleteResponse]",
-        "type": "object"
-      },
-      "APIResponse_PerformanceTakeListResponse_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PerformanceTakeListResponse"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[PerformanceTakeListResponse]",
-        "type": "object"
-      },
-      "APIResponse_PerformanceTakePlaybackRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PerformanceTakePlaybackRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[PerformanceTakePlaybackRead]",
-        "type": "object"
-      },
-      "APIResponse_PerformanceTakeRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PerformanceTakeRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[PerformanceTakeRead]",
-        "type": "object"
-      },
-      "APIResponse_PerformanceTakeUploadReservationRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PerformanceTakeUploadReservationRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[PerformanceTakeUploadReservationRead]",
-        "type": "object"
-      },
-      "APIResponse_PracticeAcousticAccessRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PracticeAcousticAccessRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[PracticeAcousticAccessRead]",
-        "type": "object"
-      },
-      "APIResponse_PracticeBundleRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PracticeBundleRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[PracticeBundleRead]",
-        "type": "object"
-      },
-      "APIResponse_ProfileRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ProfileRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[ProfileRead]",
-        "type": "object"
-      },
-      "APIResponse_ProfileUpdateRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ProfileUpdateRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[ProfileUpdateRead]",
-        "type": "object"
-      },
-      "APIResponse_ReviewConfirmRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ReviewConfirmRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[ReviewConfirmRead]",
-        "type": "object"
-      },
-      "APIResponse_RevisionContentRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/RevisionContentRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[RevisionContentRead]",
-        "type": "object"
-      },
-      "APIResponse_RevisionListRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/RevisionListRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[RevisionListRead]",
-        "type": "object"
-      },
-      "APIResponse_RevisionRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/RevisionRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[RevisionRead]",
-        "type": "object"
-      },
-      "APIResponse_ScoreRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ScoreRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[ScoreRead]",
-        "type": "object"
-      },
-      "APIResponse_ScoreRevisionAssetsRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ScoreRevisionAssetsRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[ScoreRevisionAssetsRead]",
-        "type": "object"
-      },
-      "APIResponse_SecurityRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/SecurityRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[SecurityRead]",
-        "type": "object"
-      },
-      "APIResponse_SessionsRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/SessionsRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[SessionsRead]",
-        "type": "object"
-      },
-      "APIResponse_StorageUsageRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/StorageUsageRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[StorageUsageRead]",
-        "type": "object"
-      },
-      "APIResponse_UploadFileRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/UploadFileRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[UploadFileRead]",
-        "type": "object"
-      },
-      "APIResponse_dict_str__bool__": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "type": "boolean"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload",
-            "title": "Data"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[dict[str, bool]]",
-        "type": "object"
-      },
-      "APIResponse_dict_str__int__": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "type": "integer"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload",
-            "title": "Data"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[dict[str, int]]",
-        "type": "object"
-      },
-      "APIResponse_list_NotificationEventRead__": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/NotificationEventRead"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload",
-            "title": "Data"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[list[NotificationEventRead]]",
-        "type": "object"
-      },
       "AccessOrigin": {
         "enum": [
           "OWNER",
@@ -3157,19 +260,6 @@
         "title": "CustomFixedBpmTempoPlanSelection",
         "type": "object"
       },
-      "DeleteUploadedFileRead": {
-        "properties": {
-          "filename": {
-            "title": "Filename",
-            "type": "string"
-          }
-        },
-        "required": [
-          "filename"
-        ],
-        "title": "DeleteUploadedFileRead",
-        "type": "object"
-      },
       "EmailChangeConfirmedRead": {
         "properties": {
           "email": {
@@ -3182,59 +272,6 @@
           "email"
         ],
         "title": "EmailChangeConfirmedRead",
-        "type": "object"
-      },
-      "EmptyResponse": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "description": "Response payload",
-            "title": "Data",
-            "type": "null"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "EmptyResponse",
         "type": "object"
       },
       "FingeringRequest": {
@@ -4924,99 +1961,15 @@
         "title": "NotificationUnreadCountRead",
         "type": "object"
       },
-      "PaginatedResponse_ImportJobRead_": {
-        "examples": [
-          {
-            "data": [
-              {
-                "id": 1
-              },
-              {
-                "id": 2
-              }
-            ],
-            "pagination": {
-              "page": 1,
-              "page_size": 20,
-              "total": 100,
-              "total_pages": 5
-            },
-            "success": true
-          }
-        ],
+      "PageNumberPage_ImportJobRead_": {
         "properties": {
-          "data": {
+          "items": {
             "items": {
               "$ref": "#/components/schemas/ImportJobRead"
             },
-            "title": "Data",
+            "title": "Items",
             "type": "array"
           },
-          "pagination": {
-            "$ref": "#/components/schemas/PaginationMeta",
-            "description": "Pagination metadata"
-          },
-          "success": {
-            "default": true,
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "data",
-          "pagination"
-        ],
-        "title": "PaginatedResponse[ImportJobRead]",
-        "type": "object"
-      },
-      "PaginatedResponse_LibraryScoreRead_": {
-        "examples": [
-          {
-            "data": [
-              {
-                "id": 1
-              },
-              {
-                "id": 2
-              }
-            ],
-            "pagination": {
-              "page": 1,
-              "page_size": 20,
-              "total": 100,
-              "total_pages": 5
-            },
-            "success": true
-          }
-        ],
-        "properties": {
-          "data": {
-            "items": {
-              "$ref": "#/components/schemas/LibraryScoreRead"
-            },
-            "title": "Data",
-            "type": "array"
-          },
-          "pagination": {
-            "$ref": "#/components/schemas/PaginationMeta",
-            "description": "Pagination metadata"
-          },
-          "success": {
-            "default": true,
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "data",
-          "pagination"
-        ],
-        "title": "PaginatedResponse[LibraryScoreRead]",
-        "type": "object"
-      },
-      "PaginationMeta": {
-        "description": "Pagination metadata returned by paginated API responses.",
-        "properties": {
           "page": {
             "title": "Page",
             "type": "integer"
@@ -5030,17 +1983,56 @@
             "type": "integer"
           },
           "total_pages": {
+            "readOnly": true,
             "title": "Total Pages",
             "type": "integer"
           }
         },
         "required": [
+          "items",
           "page",
           "page_size",
           "total",
           "total_pages"
         ],
-        "title": "PaginationMeta",
+        "title": "PageNumberPage[ImportJobRead]",
+        "type": "object"
+      },
+      "PageNumberPage_LibraryScoreRead_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/LibraryScoreRead"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "total_pages": {
+            "readOnly": true,
+            "title": "Total Pages",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "page_size",
+          "total",
+          "total_pages"
+        ],
+        "title": "PageNumberPage[LibraryScoreRead]",
         "type": "object"
       },
       "PendingInviteListRead": {
@@ -5232,26 +2224,6 @@
           "musicxml"
         ],
         "title": "PerformancePlanRequest",
-        "type": "object"
-      },
-      "PerformanceTakeDeleteResponse": {
-        "additionalProperties": false,
-        "properties": {
-          "deleted": {
-            "const": true,
-            "default": true,
-            "title": "Deleted",
-            "type": "boolean"
-          },
-          "take_id": {
-            "title": "Take Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "take_id"
-        ],
-        "title": "PerformanceTakeDeleteResponse",
         "type": "object"
       },
       "PerformanceTakeFullScopeSelection": {
@@ -6289,22 +3261,6 @@
         "title": "ProfileRead",
         "type": "object"
       },
-      "ProfileUpdateRead": {
-        "properties": {
-          "updated_fields": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Updated Fields",
-            "type": "array"
-          }
-        },
-        "required": [
-          "updated_fields"
-        ],
-        "title": "ProfileUpdateRead",
-        "type": "object"
-      },
       "ProfileUserRead": {
         "properties": {
           "avatar_url": {
@@ -7286,6 +4242,19 @@
         "title": "RootRead",
         "type": "object"
       },
+      "ScoreBatchDeleteRead": {
+        "properties": {
+          "removed": {
+            "title": "Removed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "removed"
+        ],
+        "title": "ScoreBatchDeleteRead",
+        "type": "object"
+      },
       "ScoreBatchDeleteRequest": {
         "properties": {
           "score_ids": {
@@ -7882,28 +4851,6 @@
         "title": "StorageUsageRead",
         "type": "object"
       },
-      "SuccessResponsePayload": {
-        "description": "Default success response payload shape.",
-        "properties": {
-          "code": {
-            "title": "Code",
-            "type": "string"
-          },
-          "data": {
-            "title": "Data"
-          },
-          "message": {
-            "title": "Message",
-            "type": "string"
-          },
-          "success": {
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "title": "SuccessResponsePayload",
-        "type": "object"
-      },
       "UpdateProfileRequest": {
         "properties": {
           "display_name": {
@@ -8107,7 +5054,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_EmailChangeConfirmedRead_"
+                  "$ref": "#/components/schemas/EmailChangeConfirmedRead"
                 }
               }
             },
@@ -8205,14 +5152,7 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponsePayload"
-                }
-              }
-            },
+          "204": {
             "description": "Successful Response"
           },
           "422": {
@@ -8264,14 +5204,7 @@
           }
         ],
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponsePayload"
-                }
-              }
-            },
+          "204": {
             "description": "Successful Response"
           },
           "422": {
@@ -8315,14 +5248,7 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponsePayload"
-                }
-              }
-            },
+          "204": {
             "description": "Successful Response"
           },
           "422": {
@@ -8366,14 +5292,7 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponsePayload"
-                }
-              }
-            },
+          "204": {
             "description": "Successful Response"
           },
           "422": {
@@ -8425,14 +5344,7 @@
           }
         ],
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponsePayload"
-                }
-              }
-            },
+          "204": {
             "description": "Successful Response"
           },
           "422": {
@@ -8476,14 +5388,7 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponsePayload"
-                }
-              }
-            },
+          "204": {
             "description": "Successful Response"
           },
           "422": {
@@ -8549,7 +5454,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_UploadFileRead_"
+                  "$ref": "#/components/schemas/UploadFileRead"
                 }
               }
             },
@@ -8613,14 +5518,7 @@
           }
         ],
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/APIResponse_DeleteUploadedFileRead_"
-                }
-              }
-            },
+          "204": {
             "description": "Successful Response"
           },
           "422": {
@@ -8669,7 +5567,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_GuestPreviewRead_"
+                  "$ref": "#/components/schemas/GuestPreviewRead"
                 }
               }
             },
@@ -8910,7 +5808,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaginatedResponse_ImportJobRead_"
+                  "$ref": "#/components/schemas/PageNumberPage_ImportJobRead_"
                 }
               }
             },
@@ -8977,7 +5875,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_ImportJobSubmitRead_"
+                  "$ref": "#/components/schemas/ImportJobSubmitRead"
                 }
               }
             },
@@ -9046,7 +5944,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_ImportJobBatchStatusRead_"
+                  "$ref": "#/components/schemas/ImportJobBatchStatusRead"
                 }
               }
             },
@@ -9110,14 +6008,7 @@
           }
         ],
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EmptyResponse"
-                }
-              }
-            },
+          "204": {
             "description": "Successful Response"
           },
           "422": {
@@ -9180,7 +6071,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_ImportJobRead_"
+                  "$ref": "#/components/schemas/ImportJobRead"
                 }
               }
             },
@@ -9326,7 +6217,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_ImportJobSubmitRead_"
+                  "$ref": "#/components/schemas/ImportJobSubmitRead"
                 }
               }
             },
@@ -9394,7 +6285,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_InviteAccessRead_"
+                  "$ref": "#/components/schemas/InviteAccessRead"
                 }
               }
             },
@@ -9462,7 +6353,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_InviteAcceptRead_"
+                  "$ref": "#/components/schemas/InviteAcceptRead"
                 }
               }
             },
@@ -9521,7 +6412,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_LibraryFolderOverviewRead_"
+                  "$ref": "#/components/schemas/LibraryFolderOverviewRead"
                 }
               }
             },
@@ -9588,7 +6479,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_LibraryFolderRead_"
+                  "$ref": "#/components/schemas/LibraryFolderRead"
                 }
               }
             },
@@ -9652,14 +6543,7 @@
           }
         ],
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/APIResponse_NoneType_"
-                }
-              }
-            },
+          "204": {
             "description": "Successful Response"
           },
           "422": {
@@ -9732,7 +6616,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_LibraryFolderRead_"
+                  "$ref": "#/components/schemas/LibraryFolderRead"
                 }
               }
             },
@@ -9864,7 +6748,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaginatedResponse_LibraryScoreRead_"
+                  "$ref": "#/components/schemas/PageNumberPage_LibraryScoreRead_"
                 }
               }
             },
@@ -9933,7 +6817,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_LibraryBatchUpdateRead_"
+                  "$ref": "#/components/schemas/LibraryBatchUpdateRead"
                 }
               }
             },
@@ -10002,7 +6886,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_LibraryBatchMoveRead_"
+                  "$ref": "#/components/schemas/LibraryBatchMoveRead"
                 }
               }
             },
@@ -10057,14 +6941,7 @@
           }
         ],
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EmptyResponse"
-                }
-              }
-            },
+          "204": {
             "description": "Successful Response"
           },
           "422": {
@@ -10128,7 +7005,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_AvatarRead_"
+                  "$ref": "#/components/schemas/AvatarRead"
                 }
               }
             },
@@ -10247,14 +7124,7 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EmptyResponse"
-                }
-              }
-            },
+          "204": {
             "description": "Successful Response"
           },
           "422": {
@@ -10338,7 +7208,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_PendingInviteListRead_"
+                  "$ref": "#/components/schemas/PendingInviteListRead"
                 }
               }
             },
@@ -10406,7 +7276,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_InviteAcceptRead_"
+                  "$ref": "#/components/schemas/InviteAcceptRead"
                 }
               }
             },
@@ -10474,7 +7344,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_PendingInviteRead_"
+                  "$ref": "#/components/schemas/PendingInviteRead"
                 }
               }
             },
@@ -10545,7 +7415,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_list_NotificationEventRead__"
+                  "items": {
+                    "$ref": "#/components/schemas/NotificationEventRead"
+                  },
+                  "title": "Response Notificationslist",
+                  "type": "array"
                 }
               }
             },
@@ -10604,7 +7478,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_NotificationUnreadCountRead_"
+                  "$ref": "#/components/schemas/NotificationUnreadCountRead"
                 }
               }
             },
@@ -10663,7 +7537,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_NotificationUnreadCountRead_"
+                  "$ref": "#/components/schemas/NotificationUnreadCountRead"
                 }
               }
             },
@@ -10731,7 +7605,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_NotificationEventRead_"
+                  "$ref": "#/components/schemas/NotificationEventRead"
                 }
               }
             },
@@ -10796,14 +7670,7 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponsePayload"
-                }
-              }
-            },
+          "204": {
             "description": "Successful Response"
           },
           "422": {
@@ -10859,7 +7726,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_ProfileRead_"
+                  "$ref": "#/components/schemas/ProfileRead"
                 }
               }
             },
@@ -10922,14 +7789,7 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/APIResponse_ProfileUpdateRead_"
-                }
-              }
-            },
+          "204": {
             "description": "Successful Response"
           },
           "422": {
@@ -10990,14 +7850,7 @@
           }
         ],
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/APIResponse_NoneType_"
-                }
-              }
-            },
+          "204": {
             "description": "Successful Response"
           },
           "422": {
@@ -11053,7 +7906,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_SecurityRead_"
+                  "$ref": "#/components/schemas/SecurityRead"
                 }
               }
             },
@@ -11124,14 +7977,7 @@
           }
         ],
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EmptyResponse"
-                }
-              }
-            },
+          "204": {
             "description": "Successful Response"
           },
           "422": {
@@ -11213,7 +8059,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_SessionsRead_"
+                  "$ref": "#/components/schemas/SessionsRead"
                 }
               }
             },
@@ -11293,14 +8139,7 @@
           }
         ],
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EmptyResponse"
-                }
-              }
-            },
+          "204": {
             "description": "Successful Response"
           },
           "422": {
@@ -11356,7 +8195,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_StorageUsageRead_"
+                  "$ref": "#/components/schemas/StorageUsageRead"
                 }
               }
             },
@@ -11416,7 +8255,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_PracticeAcousticAccessRead_"
+                  "$ref": "#/components/schemas/PracticeAcousticAccessRead"
                 }
               }
             },
@@ -11514,7 +8353,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_PerformanceTakeListResponse_"
+                  "$ref": "#/components/schemas/PerformanceTakeListResponse"
                 }
               }
             },
@@ -11583,7 +8422,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_PerformanceTakeUploadReservationRead_"
+                  "$ref": "#/components/schemas/PerformanceTakeUploadReservationRead"
                 }
               }
             },
@@ -11647,14 +8486,7 @@
           }
         ],
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/APIResponse_dict_str__bool__"
-                }
-              }
-            },
+          "204": {
             "description": "Successful Response"
           },
           "422": {
@@ -11719,7 +8551,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_PerformanceTakeRead_"
+                  "$ref": "#/components/schemas/PerformanceTakeRead"
                 }
               }
             },
@@ -11783,14 +8615,7 @@
           }
         ],
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/APIResponse_PerformanceTakeDeleteResponse_"
-                }
-              }
-            },
+          "204": {
             "description": "Successful Response"
           },
           "422": {
@@ -11853,7 +8678,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_PerformanceTakeRead_"
+                  "$ref": "#/components/schemas/PerformanceTakeRead"
                 }
               }
             },
@@ -12046,7 +8871,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_PerformanceTakePlaybackRead_"
+                  "$ref": "#/components/schemas/PerformanceTakePlaybackRead"
                 }
               }
             },
@@ -12184,7 +9009,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_PracticeBundleRead_"
+                  "$ref": "#/components/schemas/PracticeBundleRead"
                 }
               }
             },
@@ -12327,7 +9152,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_AssetAccessRead_"
+                  "$ref": "#/components/schemas/AssetAccessRead"
                 }
               }
             },
@@ -12533,7 +9358,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_ImportJobReviewRead_"
+                  "$ref": "#/components/schemas/ImportJobReviewRead"
                 }
               }
             },
@@ -12609,7 +9434,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_ImportJobReviewRead_"
+                  "$ref": "#/components/schemas/ImportJobReviewRead"
                 }
               }
             },
@@ -12687,7 +9512,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_ReviewConfirmRead_"
+                  "$ref": "#/components/schemas/ReviewConfirmRead"
                 }
               }
             },
@@ -12755,7 +9580,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_AssetAccessRead_"
+                  "$ref": "#/components/schemas/AssetAccessRead"
                 }
               }
             },
@@ -12893,7 +9718,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_dict_str__int__"
+                  "$ref": "#/components/schemas/ScoreBatchDeleteRead"
                 }
               }
             },
@@ -12961,7 +9786,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_ScoreRead_"
+                  "$ref": "#/components/schemas/ScoreRead"
                 }
               }
             },
@@ -13037,7 +9862,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_ScoreRead_"
+                  "$ref": "#/components/schemas/ScoreRead"
                 }
               }
             },
@@ -13115,7 +9940,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_FingeringResultRead_"
+                  "$ref": "#/components/schemas/FingeringResultRead"
                 }
               }
             },
@@ -13183,7 +10008,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_GuestPreviewSettingsRead_"
+                  "$ref": "#/components/schemas/GuestPreviewSettingsRead"
                 }
               }
             },
@@ -13259,7 +10084,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_GuestPreviewSettingsRead_"
+                  "$ref": "#/components/schemas/GuestPreviewSettingsRead"
                 }
               }
             },
@@ -13433,7 +10258,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_InviteListRead_"
+                  "$ref": "#/components/schemas/InviteListRead"
                 }
               }
             },
@@ -13509,7 +10334,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_InviteCreatedRead_"
+                  "$ref": "#/components/schemas/InviteCreatedRead"
                 }
               }
             },
@@ -13586,7 +10411,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_InviteRead_"
+                  "$ref": "#/components/schemas/InviteRead"
                 }
               }
             },
@@ -13682,7 +10507,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_MemberListRead_"
+                  "$ref": "#/components/schemas/MemberListRead"
                 }
               }
             },
@@ -13759,7 +10584,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_MemberRead_"
+                  "$ref": "#/components/schemas/MemberRead"
                 }
               }
             },
@@ -13844,7 +10669,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_MemberRead_"
+                  "$ref": "#/components/schemas/MemberRead"
                 }
               }
             },
@@ -14021,7 +10846,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_ScoreRevisionAssetsRead_"
+                  "$ref": "#/components/schemas/ScoreRevisionAssetsRead"
                 }
               }
             },
@@ -14118,7 +10943,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_RevisionListRead_"
+                  "$ref": "#/components/schemas/RevisionListRead"
                 }
               }
             },
@@ -14194,7 +11019,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_RevisionRead_"
+                  "$ref": "#/components/schemas/RevisionRead"
                 }
               }
             },
@@ -14271,7 +11096,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_RevisionContentRead_"
+                  "$ref": "#/components/schemas/RevisionContentRead"
                 }
               }
             },
@@ -14358,7 +11183,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_RevisionRead_"
+                  "$ref": "#/components/schemas/RevisionRead"
                 }
               }
             },
@@ -14574,7 +11399,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_RevisionRead_"
+                  "$ref": "#/components/schemas/RevisionRead"
                 }
               }
             },

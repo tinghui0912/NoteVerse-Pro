@@ -19,7 +19,7 @@ const baseNotification: NotificationEventRead = {
 };
 
 function response(data: NotificationEventRead[]): NotificationsListResponse {
-  return { success: true, data };
+  return data;
 }
 
 describe('notification query optimistic helpers', () => {
@@ -39,8 +39,8 @@ describe('notification query optimistic helpers', () => {
       '2026-07-01T01:00:00Z'
     );
 
-    expect(next?.data?.[0].read_at).toBe('2026-07-01T01:00:00Z');
-    expect(next?.data?.[1].read_at).toBeNull();
+    expect(next?.[0].read_at).toBe('2026-07-01T01:00:00Z');
+    expect(next?.[1].read_at).toBeNull();
   });
 
   it('marks every unread notification as read without overwriting existing read timestamps', () => {
@@ -55,7 +55,7 @@ describe('notification query optimistic helpers', () => {
 
     const next = markAllNotificationsReadInList(current, '2026-07-01T01:00:00Z');
 
-    expect(next?.data?.[0].read_at).toBe('2026-07-01T01:00:00Z');
-    expect(next?.data?.[1].read_at).toBe('2026-07-01T00:30:00Z');
+    expect(next?.[0].read_at).toBe('2026-07-01T01:00:00Z');
+    expect(next?.[1].read_at).toBe('2026-07-01T00:30:00Z');
   });
 });

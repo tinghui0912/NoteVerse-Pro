@@ -344,7 +344,7 @@ async def test_http_list_detail_submit_retry_use_only_injected_async_session(app
             assert response.status_code == 200, response.text
             detail = await client.get("/api/v1/import-jobs/complete-0")
             assert detail.status_code == 200, detail.text
-            assert response.json()["data"][0] == detail.json()["data"]
+            assert response.json()["items"][0] == detail.json()
             request = dict(
                 file_ids=["upload-b", "upload-a"],
                 idempotency_key="http-admission",
@@ -353,12 +353,12 @@ async def test_http_list_detail_submit_retry_use_only_injected_async_session(app
             created = await client.post("/api/v1/import-jobs", json=request)
             assert created.status_code == 202, created.text
             replay = await client.post("/api/v1/import-jobs", json=request)
-            assert replay.json()["data"]["job_id"] == created.json()["data"]["job_id"]
+            assert replay.json()["job_id"] == created.json()["job_id"]
             retry = await client.post("/api/v1/import-jobs/complete-0/retry")
             assert retry.status_code == 202, retry.text
-            assert retry.json()["data"]["job_id"] != "complete-0"
-            retried = await client.get("/api/v1/import-jobs/" + retry.json()["data"]["job_id"])
-            value = retried.json()["data"]
+            assert retry.json()["job_id"] != "complete-0"
+            retried = await client.get("/api/v1/import-jobs/" + retry.json()["job_id"])
+            value = retried.json()
             assert value["title"] == "Submitted title" and value["genres"] == ["classical", "jazz"]
             assert [image["upload_id"] for image in value["original_images"]] == [
                 "upload-b",
@@ -397,7 +397,7 @@ async def test_http_owned_job_authorization_precedes_projection_and_mutation(app
                 response = await client.request(method, "/api/v1/import-jobs/other-job" + path)
                 assert response.status_code == 403, response.text
             assert (await client.get("/api/v1/import-jobs/missing-job")).status_code == 404
-            assert (await client.get("/api/v1/import-jobs")).json()["data"] == []
+            assert (await client.get("/api/v1/import-jobs")).json()["items"] == []
     finally:
         app.dependency_overrides.clear()
 

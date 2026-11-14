@@ -163,10 +163,9 @@ def test_strict_request_rejects_writable_resolved_facts():
             PerformanceTakeUploadReservationRequest.model_validate({**payload, **fields})
 
 
-def test_take_delivery_and_deletion_are_locator_and_completed_semantic_contracts():
+def test_take_delivery_uses_opaque_locators():
     from app.modules.performance_takes.schemas import (
         PerformanceTakePlaybackRead,
-        PerformanceTakeDeleteResponse,
         PerformanceTakeRecordingMediaRead,
     )
 
@@ -177,7 +176,3 @@ def test_take_delivery_and_deletion_are_locator_and_completed_semantic_contracts
         "expires_in",
     }
     assert set(PerformanceTakeRecordingMediaRead.model_fields) == {"mime_type", "byte_size"}
-    assert PerformanceTakeDeleteResponse(take_id="take").model_dump() == {
-        "take_id": "take",
-        "deleted": True,
-    }

@@ -20,7 +20,7 @@ import { usePracticeWorkspace } from '@/contexts/practice-workspace-context';
 import { AcousticEngine } from '@/lib/practice/acoustic/model/acoustic-engine';
 const admission = vi.hoisted(() => ({ request: vi.fn(), supported: true, events: [] as string[], revision: 'revision-id' as string | null }));
 vi.mock('@/lib/api', () => ({ practiceApi: { getPracticeBundle: (...args: unknown[]) => admission.request(...args) } }));
-vi.mock('@/hooks/queries/use-score-queries', () => ({ useScoreDetail: () => ({ data: { data: { head_revision_id: 'head-id', capabilities: { can_practice: true } } }, isError: false }) }));
+vi.mock('@/hooks/queries/use-score-queries', () => ({ useScoreDetail: () => ({ data: { head_revision_id: 'head-id', capabilities: { can_practice: true } }, isError: false }) }));
 vi.mock('@/lib/practice/input-capability', () => ({
   evaluatePracticeInputCapabilities: () => { admission.events.push('capability'); return {}; },
   getSelectedInputCapability: () => ({ supported: admission.supported }),
@@ -29,11 +29,11 @@ const navigation = vi.hoisted(() => ({ replace: vi.fn(), push: vi.fn() }));
 vi.mock('@/i18n/routing', () => ({ useRouter: () => navigation }));
 vi.mock('next/navigation', () => ({ useParams: () => ({ id: 'score-id' }), usePathname: () => '/score/score-id/practice/setup',
   useSearchParams: () => new URLSearchParams(admission.revision ? `practiceRevisionId=${admission.revision}` : ''), useRouter: () => navigation }));
-function envelope() { return { data: { binding:{score_id:'score-id',revision_id:admission.revision ?? 'head-id',bundle_id:'bundle'}, artifact: fixture, notation: { musicxml: '<score />', mime_type: 'application/vnd.recordare.musicxml+xml' } } }; }
+function representation() { return { binding:{score_id:'score-id',revision_id:admission.revision ?? 'head-id',bundle_id:'bundle'}, artifact: fixture, notation: { musicxml: '<score />', mime_type: 'application/vnd.recordare.musicxml+xml' } }; }
 
 beforeEach(() => {
   admission.supported = true; admission.revision = 'revision-id'; admission.events = [];
-  admission.request.mockReset().mockImplementation(async () => { admission.events.push('source'); return envelope(); });
+  admission.request.mockReset().mockImplementation(async () => { admission.events.push('source'); return representation(); });
 });
 afterEach(() => { localStorage.clear(); navigation.replace.mockReset(); navigation.push.mockReset(); vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 function stream() {
@@ -68,12 +68,12 @@ it('fresh Source parse precedes one physical acquisition, SAME-root validation, 
   expect(admission.request).toHaveBeenCalledExactlyOnceWith('score-id','revision-id',true,expect.any(AbortSignal));
   expect(admission.events).toEqual(['source','acquire','capability']);expect(parse).toHaveBeenCalledOnce();expect(r.acquireMidi).toHaveBeenCalledOnce();
   expect(r.workspace.preparedPractice!.binding.borrowRoots()!.midi).toBe(r.midi.access);
-  expect(r.workspace.preparedPractice!.admission).toEqual({bundle:{binding: { scoreId: 'score-id', revisionId: 'revision-id', bundleId: 'bundle' },artifact:envelope().data.artifact,musicXml:'<score />'},configuration:{mode:'STEP_BY_STEP',inputSource:'MIDI',recordingMode:'OFF'}});
+  expect(r.workspace.preparedPractice!.admission).toEqual({bundle:{binding: { scoreId: 'score-id', revisionId: 'revision-id', bundleId: 'bundle' },artifact:representation().artifact,musicXml:'<score />'},configuration:{mode:'STEP_BY_STEP',inputSource:'MIDI',recordingMode:'OFF'}});
   expect(Object.isFrozen(r.workspace.preparedPractice!.admission.bundle)).toBe(true);
   expect(navigation.replace).toHaveBeenCalledWith('/score/score-id/practice?practiceRevisionId=revision-id');
 });
 it.each(['parser','server'] as const)('%s invalid score never acquires physical roots',async kind=>{
-  if(kind==='parser')admission.request.mockResolvedValue({data:{...envelope().data,artifact:{...envelope().data.artifact,notes:[]}}});else admission.request.mockRejectedValue({code:'practice_score_invalid'});
+  if(kind==='parser')admission.request.mockResolvedValue({...representation(),artifact:{...representation().artifact,notes:[]}});else admission.request.mockRejectedValue({code:'practice_score_invalid'});
   const r=await setup();selectMidi();await start();expect(screen.getByRole('alert')).toHaveTextContent(messages.scoreInvalid);expect(button()).toBeDisabled();
   expect(r.acquireMidi).not.toHaveBeenCalled();expect(r.acquireStream).not.toHaveBeenCalled();expect(r.workspace.preparedPractice).toBeNull();expect(navigation.replace).not.toHaveBeenCalled();
 });
@@ -97,10 +97,10 @@ it('acoustic validation borrows the retained microphone, and a smoke failure clo
 });
 it('source wait locks selectors, fences double click and prevents commit after unmount',async()=>{
   const construct=vi.spyOn(bindingOwner,'PracticeResourceBinding');
-  let transport!:AbortSignal;let resolve!:(value:ReturnType<typeof envelope>)=>void;admission.request.mockImplementation((_score,_revision,_notation,signal:AbortSignal)=>{transport=signal;return new Promise(r=>{resolve=r;});});const r=await setup();selectMidi();await start();
+  let transport!:AbortSignal;let resolve!:(value:ReturnType<typeof representation>)=>void;admission.request.mockImplementation((_score,_revision,_notation,signal:AbortSignal)=>{transport=signal;return new Promise(r=>{resolve=r;});});const r=await setup();selectMidi();await start();
   expect(button()).toBeDisabled();expect(screen.getByRole('button',{name:'Microphone'})).toBeDisabled();fireEvent.click(button());expect(admission.request).toHaveBeenCalledOnce();
   r.view.unmount();expect(transport.aborted).toBe(true);
-  await act(async()=>{resolve(envelope());});expect(construct).not.toHaveBeenCalled();expect(r.workspace.preparedPractice).toBeNull();
+  await act(async()=>{resolve(representation());});expect(construct).not.toHaveBeenCalled();expect(r.workspace.preparedPractice).toBeNull();
   expect(r.acquireMidi).not.toHaveBeenCalled();expect(navigation.replace).not.toHaveBeenCalled();
 });
 it('unmount during acquisition closes a late stream and cannot navigate',async()=>{
@@ -146,7 +146,7 @@ it('superseded recording validation releases A immediately, lets B commit and ig
   expect(first.track.clones[0].stop).toHaveBeenCalledOnce();expect(first.track.stop).toHaveBeenCalledOnce();expect(bindingA.snapshot().state).toBe('CLOSED');
   expect(screen.getByRole('button',{name:'Video'})).toHaveAttribute('aria-pressed','true');
   expect(screen.queryByRole('alert')).toBeNull();expect(button()).toBeEnabled();
-  admission.request.mockResolvedValueOnce({data:{...envelope().data,binding:{...envelope().data.binding,bundle_id:'bundle-B'}}});
+  admission.request.mockResolvedValueOnce({...representation(),binding:{...representation().binding,bundle_id:'bundle-B'}});
   await act(async()=>{fireEvent.click(button());await vi.advanceTimersByTimeAsync(0);});
   expect(probe.instances).toHaveLength(2);const b=probe.instances[1];b.completeOnStop=true;
   await act(async()=>{b.stop();await vi.advanceTimersByTimeAsync(0);});

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 from datetime import datetime
 
 from typing import Literal
@@ -9,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from app.db.models.score_access import MembershipRole
 from app.modules.score_invites.lifecycle import InviteStatus
 from app.shared.pagination import CursorPage
+from app.shared.api_model import ApiModel
 
 
 class InviteActorRead(BaseModel):
@@ -31,7 +33,7 @@ class InviteCreateRequest(BaseModel):
         return str(value).strip().lower()
 
 
-class InviteRead(BaseModel):
+class InviteRead(ApiModel):
     invite_id: str
     email: str | None
     role: MembershipRole
@@ -47,7 +49,7 @@ class InviteCreatedRead(InviteRead):
     token: str
 
 
-class PendingInviteRead(BaseModel):
+class PendingInviteRead(ApiModel):
     invite_id: str
     score_id: str
     score_title: str
@@ -59,7 +61,7 @@ class PendingInviteRead(BaseModel):
     created_at: datetime
 
 
-class InviteAccessRead(BaseModel):
+class InviteAccessRead(ApiModel):
     invite_id: str
     score_id: str
     score_title: str
@@ -72,13 +74,13 @@ class InviteAccessRead(BaseModel):
     can_accept: bool
 
 
-class InviteAcceptRead(BaseModel):
+class InviteAcceptRead(ApiModel):
     score_id: str
     role: MembershipRole
     membership_id: int | None
 
 
-class MemberRead(BaseModel):
+class MemberRead(ApiModel):
     membership_id: int
     display_name: str | None
     email: str

@@ -1,7 +1,9 @@
 from __future__ import annotations
+
 from typing import Literal
 from pydantic import BaseModel, ConfigDict
 from app.modules.practice.score.generated import artifact_transport
+from app.shared.api_model import ApiModel
 
 
 class StrictPracticeBundleModel(BaseModel):
@@ -21,7 +23,7 @@ class ScoreRevisionPracticeBindingRead(StrictPracticeBundleModel):
     bundle_id: str
 
 
-class PracticeBundleRead(StrictPracticeBundleModel):
+class PracticeBundleRead(ApiModel, StrictPracticeBundleModel):
     binding: ScoreRevisionPracticeBindingRead
     artifact: artifact_transport.PracticeScoreArtifactRead
     notation: PracticeBundleNotationRead | None

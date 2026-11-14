@@ -8,13 +8,15 @@ from app.core.client_address import client_address
 from app.core.control_plane_settings import require_control_plane_settings
 from app.modules.platform_operators.dependencies import OperatorPrincipal, get_current_operator
 from app.modules.platform_operators.schemas import OperatorLoginCommand, OperatorRead
-from app.modules.platform_operators.service import OperatorAuthenticationService, operator_authentication_service
+from app.modules.platform_operators.service import (
+    OperatorAuthenticationService,
+    operator_authentication_service,
+)
 from app.modules.platform_operators.session_cookies import (
     clear_control_plane_session_cookies,
     set_control_plane_session_cookies,
 )
-from app.shared.constants import SuccessCode
-from app.shared.responses import SuccessResponsePayload, success_response
+from app.core.control_plane_responses import SuccessResponsePayload, success_response
 
 
 router = APIRouter()
@@ -50,7 +52,7 @@ async def login_operator(
         security_settings=security,
     )
     set_control_plane_session_cookies(response, session_token=token, security=security)
-    return success_response(message=SuccessCode.LOGIN_SUCCESS)
+    return success_response(message="login_success")
 
 
 @router.post("/logout", response_model=SuccessResponsePayload)
@@ -66,9 +68,11 @@ async def logout_operator(
     security = require_control_plane_settings()
     await service.revoke_session(db, token=session_cookie)
     clear_control_plane_session_cookies(response, security=security)
-    return success_response(message=SuccessCode.LOGOUT_SUCCESS)
+    return success_response(message="logout_success")
 
 
 @router.get("/me", response_model=OperatorRead)
-async def current_operator(principal: OperatorPrincipal = Depends(get_current_operator)) -> OperatorRead:
+async def current_operator(
+    principal: OperatorPrincipal = Depends(get_current_operator),
+) -> OperatorRead:
     return _operator_read(principal)

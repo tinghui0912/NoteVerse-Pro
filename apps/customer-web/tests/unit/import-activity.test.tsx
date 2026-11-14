@@ -66,9 +66,7 @@ function harness() {
 beforeEach(() => {
   vi.clearAllMocks();
   api.listImportJobs.mockImplementation((page: number) =>
-    Promise.resolve({
-      data:
-        page === 1
+    Promise.resolve({ items: page === 1
           ? jobs
           : [
               {
@@ -76,12 +74,10 @@ beforeEach(() => {
                 title: 'Second page import',
                 job_id: 'second',
               },
-            ],
-      pagination: { page, page_size: 20, total: 21, total_pages: 2 },
-    }),
+            ], ...{ page, page_size: 20, total: 21, total_pages: 2 } }),
   );
-  api.retryImportJob.mockResolvedValue({ data: { job_id: 'new-attempt' } });
-  api.deleteImportJob.mockResolvedValue({ success: true });
+  api.retryImportJob.mockResolvedValue({ job_id: 'new-attempt' });
+  api.deleteImportJob.mockResolvedValue(undefined);
 });
 it('presents each processing state with only its current commands', async () => {
   const { wrapper, client } = harness();
@@ -177,10 +173,7 @@ it.each([
   'FAILURE',
   'CONFIRMED',
 ] as const)('polls only active processing collections (%s)', async (state) => {
-  api.listImportJobs.mockResolvedValue({
-    data: [job(state)],
-    pagination: { page: 1, page_size: 20, total: 1, total_pages: 1 },
-  });
+  api.listImportJobs.mockResolvedValue({ items: [job(state)], ...{ page: 1, page_size: 20, total: 1, total_pages: 1 } });
   const { client, wrapper } = harness();
   const hook = renderHook(() => useImportJobList(1, 20), { wrapper });
   await waitFor(() => expect(hook.result.current.isSuccess).toBe(true));

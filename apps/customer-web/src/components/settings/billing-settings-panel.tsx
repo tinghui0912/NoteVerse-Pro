@@ -18,7 +18,7 @@ function usagePercent(usedBytes: number, reservedBytes: number, limitBytes: numb
 export function BillingSettingsPanel() {
   const t = useTranslations('settings.billing');
   const storageUsage = useStorageUsage();
-  const usage = storageUsage.data?.data;
+  const usage = storageUsage.data;
   const quota = usage?.quota;
   const percent = quota
     ? usagePercent(quota.used_bytes, quota.reserved_bytes, quota.limit_bytes)

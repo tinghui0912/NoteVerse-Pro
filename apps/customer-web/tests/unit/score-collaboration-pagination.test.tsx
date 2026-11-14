@@ -37,7 +37,7 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => (key === 'invitations' ? 'Invitations' : key),
 }));
 vi.mock('@/hooks/queries/use-notification-queries', () => ({
-  useMyNotifications: () => ({ data: { data: [] }, isLoading: false, isError: false }),
+  useMyNotifications: () => ({ data: [], isLoading: false, isError: false }),
   useMarkNotificationRead: () => ({ mutate: vi.fn(), isPending: false }),
   useMarkAllNotificationsRead: () => ({ mutate: vi.fn(), isPending: false }),
 }));
@@ -74,10 +74,7 @@ const pending = (id: string): PendingInviteRead => ({
   expires_at: null,
   created_at: timestamp,
 });
-const page = <T,>(items: T[], next_cursor: string | null = null) => ({
-  success: true,
-  data: { items, next_cursor },
-});
+const page = <T,>(items: T[], next_cursor: string | null = null) => ({ items, next_cursor });
 function wrapper(
   client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -173,10 +170,7 @@ it('refreshes the invite collection after revoke', async () => {
   api.listInvites
     .mockResolvedValueOnce(page([invite('first')]))
     .mockResolvedValue(page([{ ...invite('first'), status: 'REVOKED' }]));
-  api.revokeInvite.mockResolvedValue({
-    success: true,
-    data: { ...invite('first'), status: 'REVOKED' },
-  });
+  api.revokeInvite.mockResolvedValue({ ...invite('first'), status: 'REVOKED' });
   render(<ScoreCollaborationPanel scoreId="score" scoreTitle="Score" />, { wrapper: wrapper() });
   await screen.findByText('first@example.com');
   await userEvent.click(screen.getByRole('button', { name: 'revoke' }));
@@ -191,14 +185,8 @@ it.each(['accept', 'decline'] as const)(
       .mockResolvedValueOnce(page([pending('first')], 'opaque-pending'))
       .mockResolvedValueOnce(page([pending('second')]))
       .mockResolvedValue(page([pending('second')]));
-    api.declineMyPendingInvite.mockResolvedValue({
-      success: true,
-      data: { ...pending('first'), status: 'DECLINED' },
-    });
-    api.acceptMyPendingInvite.mockResolvedValue({
-      success: true,
-      data: { score_id: 'score-first', role: 'VIEWER', membership_id: 1 },
-    });
+    api.declineMyPendingInvite.mockResolvedValue({ ...pending('first'), status: 'DECLINED' });
+    api.acceptMyPendingInvite.mockResolvedValue({ score_id: 'score-first', role: 'VIEWER', membership_id: 1 });
     render(<NotificationCenterDialog open onOpenChange={vi.fn()} />, { wrapper: wrapper() });
     await screen.findByText('Score first');
     await userEvent.click(screen.getByRole('button', { name: 'loadMore' }));
@@ -223,10 +211,7 @@ it.each(['ACCEPTED', 'DECLINED', 'REVOKED', 'EXPIRED'] as const)(
     const client = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     });
-    api.createInvite.mockResolvedValue({
-      success: true,
-      data: { ...invite('local'), token: 'local-raw-token' },
-    });
+    api.createInvite.mockResolvedValue({ ...invite('local'), token: 'local-raw-token' });
     api.listInvites.mockResolvedValue(page([invite('local')]));
     render(<ScoreCollaborationPanel scoreId="score" scoreTitle="Score" />, {
       wrapper: wrapper(client),
@@ -260,10 +245,7 @@ it('refreshes the members collection after removal', async () => {
   api.listMembers
     .mockResolvedValueOnce(page([member(1)]))
     .mockResolvedValue(page([{ ...member(1), revoked_at: timestamp }]));
-  api.removeMember.mockResolvedValue({
-    success: true,
-    data: { ...member(1), revoked_at: timestamp },
-  });
+  api.removeMember.mockResolvedValue({ ...member(1), revoked_at: timestamp });
   render(<ScoreCollaborationPanel scoreId="score" scoreTitle="Score" />, { wrapper: wrapper() });
   await screen.findByText('member-1@example.com');
   await userEvent.click(screen.getByRole('button', { name: 'remove' }));

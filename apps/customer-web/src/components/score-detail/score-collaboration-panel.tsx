@@ -58,11 +58,11 @@ export function ScoreCollaborationPanel({
   const updateMember = useUpdateScoreMember(scoreId);
   const removeMember = useRemoveScoreMember(scoreId);
   const invites = useMemo(
-    () => invitesQuery.data?.pages.flatMap((page) => page.data?.items ?? []) ?? [],
+    () => invitesQuery.data?.pages.flatMap((page) => page?.items ?? []) ?? [],
     [invitesQuery.data]
   );
   const members = useMemo(
-    () => membersQuery.data?.pages.flatMap((page) => page.data?.items ?? []) ?? [],
+    () => membersQuery.data?.pages.flatMap((page) => page?.items ?? []) ?? [],
     [membersQuery.data]
   );
 
@@ -103,7 +103,7 @@ export function ScoreCollaborationPanel({
       },
       {
         onSuccess: (response) => {
-          const invite = response.data;
+          const invite = response;
           if (invite) {
             setCreatedTokens((current) => ({ ...current, [invite.invite_id]: invite.token }));
             setEmail('');

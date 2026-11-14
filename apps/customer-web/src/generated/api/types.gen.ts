@@ -5,1390 +5,6 @@ export type ClientOptions = {
 };
 
 /**
- * APIResponse[AssetAccessRead]
- */
-export type ApiResponseAssetAccessRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: AssetAccessRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[AvatarRead]
- */
-export type ApiResponseAvatarRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: AvatarRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[DeleteUploadedFileRead]
- */
-export type ApiResponseDeleteUploadedFileRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: DeleteUploadedFileRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[EmailChangeConfirmedRead]
- */
-export type ApiResponseEmailChangeConfirmedRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: EmailChangeConfirmedRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[FingeringResultRead]
- */
-export type ApiResponseFingeringResultRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: FingeringResultRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[GuestPreviewRead]
- */
-export type ApiResponseGuestPreviewRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: GuestPreviewRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[GuestPreviewSettingsRead]
- */
-export type ApiResponseGuestPreviewSettingsRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: GuestPreviewSettingsRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[ImportJobBatchStatusRead]
- */
-export type ApiResponseImportJobBatchStatusRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: ImportJobBatchStatusRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[ImportJobRead]
- */
-export type ApiResponseImportJobRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: ImportJobRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[ImportJobReviewRead]
- */
-export type ApiResponseImportJobReviewRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: ImportJobReviewRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[ImportJobSubmitRead]
- */
-export type ApiResponseImportJobSubmitRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: ImportJobSubmitRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[InviteAcceptRead]
- */
-export type ApiResponseInviteAcceptRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: InviteAcceptRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[InviteAccessRead]
- */
-export type ApiResponseInviteAccessRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: InviteAccessRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[InviteCreatedRead]
- */
-export type ApiResponseInviteCreatedRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: InviteCreatedRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[InviteListRead]
- */
-export type ApiResponseInviteListRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: InviteListRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[InviteRead]
- */
-export type ApiResponseInviteRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: InviteRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[LibraryBatchMoveRead]
- */
-export type ApiResponseLibraryBatchMoveRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: LibraryBatchMoveRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[LibraryBatchUpdateRead]
- */
-export type ApiResponseLibraryBatchUpdateRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: LibraryBatchUpdateRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[LibraryFolderOverviewRead]
- */
-export type ApiResponseLibraryFolderOverviewRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: LibraryFolderOverviewRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[LibraryFolderRead]
- */
-export type ApiResponseLibraryFolderRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: LibraryFolderRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[MemberListRead]
- */
-export type ApiResponseMemberListRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: MemberListRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[MemberRead]
- */
-export type ApiResponseMemberRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: MemberRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[NoneType]
- */
-export type ApiResponseNoneType = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Data
-     *
-     * Response payload
-     */
-    data?: null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[NotificationEventRead]
- */
-export type ApiResponseNotificationEventRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: NotificationEventRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[NotificationUnreadCountRead]
- */
-export type ApiResponseNotificationUnreadCountRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: NotificationUnreadCountRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[PendingInviteListRead]
- */
-export type ApiResponsePendingInviteListRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: PendingInviteListRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[PendingInviteRead]
- */
-export type ApiResponsePendingInviteRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: PendingInviteRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[PerformanceTakeDeleteResponse]
- */
-export type ApiResponsePerformanceTakeDeleteResponse = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: PerformanceTakeDeleteResponse | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[PerformanceTakeListResponse]
- */
-export type ApiResponsePerformanceTakeListResponse = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: PerformanceTakeListResponse | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[PerformanceTakePlaybackRead]
- */
-export type ApiResponsePerformanceTakePlaybackRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: PerformanceTakePlaybackRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[PerformanceTakeRead]
- */
-export type ApiResponsePerformanceTakeRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: PerformanceTakeRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[PerformanceTakeUploadReservationRead]
- */
-export type ApiResponsePerformanceTakeUploadReservationRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: PerformanceTakeUploadReservationRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[PracticeAcousticAccessRead]
- */
-export type ApiResponsePracticeAcousticAccessRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: PracticeAcousticAccessRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[PracticeBundleRead]
- */
-export type ApiResponsePracticeBundleRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: PracticeBundleRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[ProfileRead]
- */
-export type ApiResponseProfileRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: ProfileRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[ProfileUpdateRead]
- */
-export type ApiResponseProfileUpdateRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: ProfileUpdateRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[ReviewConfirmRead]
- */
-export type ApiResponseReviewConfirmRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: ReviewConfirmRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[RevisionContentRead]
- */
-export type ApiResponseRevisionContentRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: RevisionContentRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[RevisionListRead]
- */
-export type ApiResponseRevisionListRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: RevisionListRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[RevisionRead]
- */
-export type ApiResponseRevisionRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: RevisionRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[ScoreRead]
- */
-export type ApiResponseScoreRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: ScoreRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[ScoreRevisionAssetsRead]
- */
-export type ApiResponseScoreRevisionAssetsRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: ScoreRevisionAssetsRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[SecurityRead]
- */
-export type ApiResponseSecurityRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: SecurityRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[SessionsRead]
- */
-export type ApiResponseSessionsRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: SessionsRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[StorageUsageRead]
- */
-export type ApiResponseStorageUsageRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: StorageUsageRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[UploadFileRead]
- */
-export type ApiResponseUploadFileRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: UploadFileRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[dict[str, bool]]
- */
-export type ApiResponseDictStrBool = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Data
-     *
-     * Response payload
-     */
-    data?: {
-        [key: string]: boolean;
-    } | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[dict[str, int]]
- */
-export type ApiResponseDictStrInt = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Data
-     *
-     * Response payload
-     */
-    data?: {
-        [key: string]: number;
-    } | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[list[NotificationEventRead]]
- */
-export type ApiResponseListNotificationEventRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Data
-     *
-     * Response payload
-     */
-    data?: Array<NotificationEventRead> | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
  * AccessOrigin
  */
 export type AccessOrigin = 'OWNER' | 'MEMBERSHIP';
@@ -1558,16 +174,6 @@ export type CustomFixedBpmTempoPlanSelection = {
 };
 
 /**
- * DeleteUploadedFileRead
- */
-export type DeleteUploadedFileRead = {
-    /**
-     * Filename
-     */
-    filename: string;
-};
-
-/**
  * EmailChangeConfirmedRead
  */
 export type EmailChangeConfirmedRead = {
@@ -1575,36 +181,6 @@ export type EmailChangeConfirmedRead = {
      * Email
      */
     email: string;
-};
-
-/**
- * EmptyResponse
- */
-export type EmptyResponse = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Data
-     *
-     * Response payload
-     */
-    data?: null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
 };
 
 /**
@@ -2463,47 +1039,13 @@ export type NotificationUnreadCountRead = {
 };
 
 /**
- * PaginatedResponse[ImportJobRead]
+ * PageNumberPage[ImportJobRead]
  */
-export type PaginatedResponseImportJobRead = {
+export type PageNumberPageImportJobRead = {
     /**
-     * Data
+     * Items
      */
-    data: Array<ImportJobRead>;
-    /**
-     * Pagination metadata
-     */
-    pagination: PaginationMeta;
-    /**
-     * Success
-     */
-    success?: boolean;
-};
-
-/**
- * PaginatedResponse[LibraryScoreRead]
- */
-export type PaginatedResponseLibraryScoreRead = {
-    /**
-     * Data
-     */
-    data: Array<LibraryScoreRead>;
-    /**
-     * Pagination metadata
-     */
-    pagination: PaginationMeta;
-    /**
-     * Success
-     */
-    success?: boolean;
-};
-
-/**
- * PaginationMeta
- *
- * Pagination metadata returned by paginated API responses.
- */
-export type PaginationMeta = {
+    items: Array<ImportJobRead>;
     /**
      * Page
      */
@@ -2519,7 +1061,33 @@ export type PaginationMeta = {
     /**
      * Total Pages
      */
-    total_pages: number;
+    readonly total_pages: number;
+};
+
+/**
+ * PageNumberPage[LibraryScoreRead]
+ */
+export type PageNumberPageLibraryScoreRead = {
+    /**
+     * Items
+     */
+    items: Array<LibraryScoreRead>;
+    /**
+     * Page
+     */
+    page: number;
+    /**
+     * Page Size
+     */
+    page_size: number;
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Total Pages
+     */
+    readonly total_pages: number;
 };
 
 /**
@@ -2619,20 +1187,6 @@ export type PerformancePlanRequest = {
      * Musicxml
      */
     musicxml: string;
-};
-
-/**
- * PerformanceTakeDeleteResponse
- */
-export type PerformanceTakeDeleteResponse = {
-    /**
-     * Deleted
-     */
-    deleted?: true;
-    /**
-     * Take Id
-     */
-    take_id: string;
 };
 
 /**
@@ -3233,16 +1787,6 @@ export type ProfileRead = {
 };
 
 /**
- * ProfileUpdateRead
- */
-export type ProfileUpdateRead = {
-    /**
-     * Updated Fields
-     */
-    updated_fields: Array<string>;
-};
-
-/**
  * ProfileUserRead
  */
 export type ProfileUserRead = {
@@ -3781,6 +2325,16 @@ export type RootRead = {
 };
 
 /**
+ * ScoreBatchDeleteRead
+ */
+export type ScoreBatchDeleteRead = {
+    /**
+     * Removed
+     */
+    removed: number;
+};
+
+/**
  * ScoreBatchDeleteRequest
  */
 export type ScoreBatchDeleteRequest = {
@@ -4121,30 +2675,6 @@ export type StorageUsageRead = {
 };
 
 /**
- * SuccessResponsePayload
- *
- * Default success response payload shape.
- */
-export type SuccessResponsePayload = {
-    /**
-     * Code
-     */
-    code?: string;
-    /**
-     * Data
-     */
-    data?: unknown;
-    /**
-     * Message
-     */
-    message?: string;
-    /**
-     * Success
-     */
-    success?: boolean;
-};
-
-/**
  * UpdateProfileRequest
  */
 export type UpdateProfileRequest = {
@@ -4229,6 +2759,50 @@ export type VerifyEmailRequest = {
     token: string;
 };
 
+/**
+ * PageNumberPage[ImportJobRead]
+ */
+export type PageNumberPageImportJobReadWritable = {
+    /**
+     * Items
+     */
+    items: Array<ImportJobRead>;
+    /**
+     * Page
+     */
+    page: number;
+    /**
+     * Page Size
+     */
+    page_size: number;
+    /**
+     * Total
+     */
+    total: number;
+};
+
+/**
+ * PageNumberPage[LibraryScoreRead]
+ */
+export type PageNumberPageLibraryScoreReadWritable = {
+    /**
+     * Items
+     */
+    items: Array<LibraryScoreRead>;
+    /**
+     * Page
+     */
+    page: number;
+    /**
+     * Page Size
+     */
+    page_size: number;
+    /**
+     * Total
+     */
+    total: number;
+};
+
 export type ServiceInfoGetData = {
     body?: never;
     path?: never;
@@ -4269,7 +2843,7 @@ export type AuthEmailChangeConfirmResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseEmailChangeConfirmedRead;
+    200: EmailChangeConfirmedRead;
 };
 
 export type AuthEmailChangeConfirmResponse = AuthEmailChangeConfirmResponses[keyof AuthEmailChangeConfirmResponses];
@@ -4327,7 +2901,7 @@ export type AuthLoginResponses = {
     /**
      * Successful Response
      */
-    200: SuccessResponsePayload;
+    204: void;
 };
 
 export type AuthLoginResponse = AuthLoginResponses[keyof AuthLoginResponses];
@@ -4356,7 +2930,7 @@ export type AuthLogoutResponses = {
     /**
      * Successful Response
      */
-    200: SuccessResponsePayload;
+    204: void;
 };
 
 export type AuthLogoutResponse = AuthLogoutResponses[keyof AuthLogoutResponses];
@@ -4385,7 +2959,7 @@ export type AuthPasswordResetRequestResponses = {
     /**
      * Successful Response
      */
-    200: SuccessResponsePayload;
+    204: void;
 };
 
 export type AuthPasswordResetRequestResponse = AuthPasswordResetRequestResponses[keyof AuthPasswordResetRequestResponses];
@@ -4414,7 +2988,7 @@ export type AuthPasswordResetResponses = {
     /**
      * Successful Response
      */
-    200: SuccessResponsePayload;
+    204: void;
 };
 
 export type AuthPasswordResetResponse = AuthPasswordResetResponses[keyof AuthPasswordResetResponses];
@@ -4443,7 +3017,7 @@ export type AuthRefreshResponses = {
     /**
      * Successful Response
      */
-    200: SuccessResponsePayload;
+    204: void;
 };
 
 export type AuthRefreshResponse = AuthRefreshResponses[keyof AuthRefreshResponses];
@@ -4472,7 +3046,7 @@ export type AuthRegisterResponses = {
     /**
      * Successful Response
      */
-    200: SuccessResponsePayload;
+    204: void;
 };
 
 export type AuthRegisterResponse = AuthRegisterResponses[keyof AuthRegisterResponses];
@@ -4501,7 +3075,7 @@ export type FilesUploadResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseUploadFileRead;
+    200: UploadFileRead;
 };
 
 export type FilesUploadResponse = FilesUploadResponses[keyof FilesUploadResponses];
@@ -4535,7 +3109,7 @@ export type FileDeleteResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseDeleteUploadedFileRead;
+    204: void;
 };
 
 export type FileDeleteResponse = FileDeleteResponses[keyof FileDeleteResponses];
@@ -4569,7 +3143,7 @@ export type GuestPreviewGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseGuestPreviewRead;
+    200: GuestPreviewRead;
 };
 
 export type GuestPreviewGetResponse = GuestPreviewGetResponses[keyof GuestPreviewGetResponses];
@@ -4687,7 +3261,7 @@ export type ImportJobsListResponses = {
     /**
      * Successful Response
      */
-    200: PaginatedResponseImportJobRead;
+    200: PageNumberPageImportJobRead;
 };
 
 export type ImportJobsListResponse = ImportJobsListResponses[keyof ImportJobsListResponses];
@@ -4716,7 +3290,7 @@ export type ImportJobsSubmitResponses = {
     /**
      * Successful Response
      */
-    202: ApiResponseImportJobSubmitRead;
+    202: ImportJobSubmitRead;
 };
 
 export type ImportJobsSubmitResponse = ImportJobsSubmitResponses[keyof ImportJobsSubmitResponses];
@@ -4745,7 +3319,7 @@ export type ImportJobsBatchStatusGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseImportJobBatchStatusRead;
+    200: ImportJobBatchStatusRead;
 };
 
 export type ImportJobsBatchStatusGetResponse = ImportJobsBatchStatusGetResponses[keyof ImportJobsBatchStatusGetResponses];
@@ -4779,7 +3353,7 @@ export type ImportJobDeleteResponses = {
     /**
      * Successful Response
      */
-    200: EmptyResponse;
+    204: void;
 };
 
 export type ImportJobDeleteResponse = ImportJobDeleteResponses[keyof ImportJobDeleteResponses];
@@ -4813,7 +3387,7 @@ export type ImportJobGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseImportJobRead;
+    200: ImportJobRead;
 };
 
 export type ImportJobGetResponse = ImportJobGetResponses[keyof ImportJobGetResponses];
@@ -4885,7 +3459,7 @@ export type ImportJobRetryResponses = {
     /**
      * Successful Response
      */
-    202: ApiResponseImportJobSubmitRead;
+    202: ImportJobSubmitRead;
 };
 
 export type ImportJobRetryResponse = ImportJobRetryResponses[keyof ImportJobRetryResponses];
@@ -4919,7 +3493,7 @@ export type ScoreInviteInspectResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseInviteAccessRead;
+    200: InviteAccessRead;
 };
 
 export type ScoreInviteInspectResponse = ScoreInviteInspectResponses[keyof ScoreInviteInspectResponses];
@@ -4953,7 +3527,7 @@ export type ScoreInviteAcceptResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseInviteAcceptRead;
+    200: InviteAcceptRead;
 };
 
 export type ScoreInviteAcceptResponse = ScoreInviteAcceptResponses[keyof ScoreInviteAcceptResponses];
@@ -4982,7 +3556,7 @@ export type LibraryFoldersOverviewGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseLibraryFolderOverviewRead;
+    200: LibraryFolderOverviewRead;
 };
 
 export type LibraryFoldersOverviewGetResponse = LibraryFoldersOverviewGetResponses[keyof LibraryFoldersOverviewGetResponses];
@@ -5011,7 +3585,7 @@ export type LibraryFoldersCreateResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseLibraryFolderRead;
+    200: LibraryFolderRead;
 };
 
 export type LibraryFoldersCreateResponse = LibraryFoldersCreateResponses[keyof LibraryFoldersCreateResponses];
@@ -5045,7 +3619,7 @@ export type LibraryFolderDeleteResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseNoneType;
+    204: void;
 };
 
 export type LibraryFolderDeleteResponse = LibraryFolderDeleteResponses[keyof LibraryFolderDeleteResponses];
@@ -5079,7 +3653,7 @@ export type LibraryFolderUpdateResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseLibraryFolderRead;
+    200: LibraryFolderRead;
 };
 
 export type LibraryFolderUpdateResponse = LibraryFolderUpdateResponses[keyof LibraryFolderUpdateResponses];
@@ -5127,7 +3701,7 @@ export type LibraryScoresListResponses = {
     /**
      * Successful Response
      */
-    200: PaginatedResponseLibraryScoreRead;
+    200: PageNumberPageLibraryScoreRead;
 };
 
 export type LibraryScoresListResponse = LibraryScoresListResponses[keyof LibraryScoresListResponses];
@@ -5156,7 +3730,7 @@ export type LibraryScoresBatchFavoriteResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseLibraryBatchUpdateRead;
+    200: LibraryBatchUpdateRead;
 };
 
 export type LibraryScoresBatchFavoriteResponse = LibraryScoresBatchFavoriteResponses[keyof LibraryScoresBatchFavoriteResponses];
@@ -5185,7 +3759,7 @@ export type LibraryScoresBatchMoveResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseLibraryBatchMoveRead;
+    200: LibraryBatchMoveRead;
 };
 
 export type LibraryScoresBatchMoveResponse = LibraryScoresBatchMoveResponses[keyof LibraryScoresBatchMoveResponses];
@@ -5214,7 +3788,7 @@ export type AccountAvatarDeleteResponses = {
     /**
      * Successful Response
      */
-    200: EmptyResponse;
+    204: void;
 };
 
 export type AccountAvatarDeleteResponse = AccountAvatarDeleteResponses[keyof AccountAvatarDeleteResponses];
@@ -5243,7 +3817,7 @@ export type AccountAvatarUploadResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseAvatarRead;
+    200: AvatarRead;
 };
 
 export type AccountAvatarUploadResponse = AccountAvatarUploadResponses[keyof AccountAvatarUploadResponses];
@@ -5306,7 +3880,7 @@ export type AccountEmailChangeRequestResponses = {
     /**
      * Successful Response
      */
-    200: EmptyResponse;
+    204: void;
 };
 
 export type AccountEmailChangeRequestResponse = AccountEmailChangeRequestResponses[keyof AccountEmailChangeRequestResponses];
@@ -5344,7 +3918,7 @@ export type AccountPendingInvitesListResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponsePendingInviteListRead;
+    200: PendingInviteListRead;
 };
 
 export type AccountPendingInvitesListResponse = AccountPendingInvitesListResponses[keyof AccountPendingInvitesListResponses];
@@ -5378,7 +3952,7 @@ export type AccountPendingInviteAcceptResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseInviteAcceptRead;
+    200: InviteAcceptRead;
 };
 
 export type AccountPendingInviteAcceptResponse = AccountPendingInviteAcceptResponses[keyof AccountPendingInviteAcceptResponses];
@@ -5412,7 +3986,7 @@ export type AccountPendingInviteDeclineResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponsePendingInviteRead;
+    200: PendingInviteRead;
 };
 
 export type AccountPendingInviteDeclineResponse = AccountPendingInviteDeclineResponses[keyof AccountPendingInviteDeclineResponses];
@@ -5444,9 +4018,11 @@ export type NotificationsListError = NotificationsListErrors[keyof Notifications
 
 export type NotificationsListResponses = {
     /**
+     * Response Notificationslist
+     *
      * Successful Response
      */
-    200: ApiResponseListNotificationEventRead;
+    200: Array<NotificationEventRead>;
 };
 
 export type NotificationsListResponse = NotificationsListResponses[keyof NotificationsListResponses];
@@ -5475,7 +4051,7 @@ export type NotificationsMarkAllReadResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseNotificationUnreadCountRead;
+    200: NotificationUnreadCountRead;
 };
 
 export type NotificationsMarkAllReadResponse = NotificationsMarkAllReadResponses[keyof NotificationsMarkAllReadResponses];
@@ -5504,7 +4080,7 @@ export type NotificationsUnreadCountGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseNotificationUnreadCountRead;
+    200: NotificationUnreadCountRead;
 };
 
 export type NotificationsUnreadCountGetResponse = NotificationsUnreadCountGetResponses[keyof NotificationsUnreadCountGetResponses];
@@ -5538,7 +4114,7 @@ export type NotificationMarkReadResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseNotificationEventRead;
+    200: NotificationEventRead;
 };
 
 export type NotificationMarkReadResponse = NotificationMarkReadResponses[keyof NotificationMarkReadResponses];
@@ -5567,7 +4143,7 @@ export type AccountPasswordChangeResponses = {
     /**
      * Successful Response
      */
-    200: SuccessResponsePayload;
+    204: void;
 };
 
 export type AccountPasswordChangeResponse = AccountPasswordChangeResponses[keyof AccountPasswordChangeResponses];
@@ -5596,7 +4172,7 @@ export type AccountProfileGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseProfileRead;
+    200: ProfileRead;
 };
 
 export type AccountProfileGetResponse = AccountProfileGetResponses[keyof AccountProfileGetResponses];
@@ -5625,7 +4201,7 @@ export type AccountProfileUpdateResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseProfileUpdateRead;
+    204: void;
 };
 
 export type AccountProfileUpdateResponse = AccountProfileUpdateResponses[keyof AccountProfileUpdateResponses];
@@ -5659,7 +4235,7 @@ export type ScoreMembershipLeaveResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseNoneType;
+    204: void;
 };
 
 export type ScoreMembershipLeaveResponse = ScoreMembershipLeaveResponses[keyof ScoreMembershipLeaveResponses];
@@ -5688,7 +4264,7 @@ export type AccountSecurityGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseSecurityRead;
+    200: SecurityRead;
 };
 
 export type AccountSecurityGetResponse = AccountSecurityGetResponses[keyof AccountSecurityGetResponses];
@@ -5717,7 +4293,7 @@ export type AccountOtherSessionsRevokeResponses = {
     /**
      * Successful Response
      */
-    200: EmptyResponse;
+    204: void;
 };
 
 export type AccountOtherSessionsRevokeResponse = AccountOtherSessionsRevokeResponses[keyof AccountOtherSessionsRevokeResponses];
@@ -5751,7 +4327,7 @@ export type AccountSessionsListResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseSessionsRead;
+    200: SessionsRead;
 };
 
 export type AccountSessionsListResponse = AccountSessionsListResponses[keyof AccountSessionsListResponses];
@@ -5785,7 +4361,7 @@ export type AccountSessionRevokeResponses = {
     /**
      * Successful Response
      */
-    200: EmptyResponse;
+    204: void;
 };
 
 export type AccountSessionRevokeResponse = AccountSessionRevokeResponses[keyof AccountSessionRevokeResponses];
@@ -5814,7 +4390,7 @@ export type AccountStorageUsageGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseStorageUsageRead;
+    200: StorageUsageRead;
 };
 
 export type AccountStorageUsageGetResponse = AccountStorageUsageGetResponses[keyof AccountStorageUsageGetResponses];
@@ -5843,7 +4419,7 @@ export type PracticeAcousticModelAccessGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponsePracticeAcousticAccessRead;
+    200: PracticeAcousticAccessRead;
 };
 
 export type PracticeAcousticModelAccessGetResponse = PracticeAcousticModelAccessGetResponses[keyof PracticeAcousticModelAccessGetResponses];
@@ -5885,7 +4461,7 @@ export type PerformanceTakesListResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponsePerformanceTakeListResponse;
+    200: PerformanceTakeListResponse;
 };
 
 export type PerformanceTakesListResponse = PerformanceTakesListResponses[keyof PerformanceTakesListResponses];
@@ -5914,7 +4490,7 @@ export type PerformanceTakeUploadsReserveResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponsePerformanceTakeUploadReservationRead;
+    200: PerformanceTakeUploadReservationRead;
 };
 
 export type PerformanceTakeUploadsReserveResponse = PerformanceTakeUploadsReserveResponses[keyof PerformanceTakeUploadsReserveResponses];
@@ -5948,7 +4524,7 @@ export type PerformanceTakeUploadCancelResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseDictStrBool;
+    204: void;
 };
 
 export type PerformanceTakeUploadCancelResponse = PerformanceTakeUploadCancelResponses[keyof PerformanceTakeUploadCancelResponses];
@@ -5982,7 +4558,7 @@ export type PerformanceTakeUploadFinalizeResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponsePerformanceTakeRead;
+    200: PerformanceTakeRead;
 };
 
 export type PerformanceTakeUploadFinalizeResponse = PerformanceTakeUploadFinalizeResponses[keyof PerformanceTakeUploadFinalizeResponses];
@@ -6016,10 +4592,10 @@ export type PerformanceTakeDeleteResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponsePerformanceTakeDeleteResponse;
+    204: void;
 };
 
-export type PerformanceTakeDeleteResponse2 = PerformanceTakeDeleteResponses[keyof PerformanceTakeDeleteResponses];
+export type PerformanceTakeDeleteResponse = PerformanceTakeDeleteResponses[keyof PerformanceTakeDeleteResponses];
 
 export type PerformanceTakeGetData = {
     body?: never;
@@ -6050,7 +4626,7 @@ export type PerformanceTakeGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponsePerformanceTakeRead;
+    200: PerformanceTakeRead;
 };
 
 export type PerformanceTakeGetResponse = PerformanceTakeGetResponses[keyof PerformanceTakeGetResponses];
@@ -6126,7 +4702,7 @@ export type PerformanceTakePlaybackUrlGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponsePerformanceTakePlaybackRead;
+    200: PerformanceTakePlaybackRead;
 };
 
 export type PerformanceTakePlaybackUrlGetResponse = PerformanceTakePlaybackUrlGetResponses[keyof PerformanceTakePlaybackUrlGetResponses];
@@ -6198,7 +4774,7 @@ export type PracticeScoreRevisionBundleGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponsePracticeBundleRead;
+    200: PracticeBundleRead;
 };
 
 export type PracticeScoreRevisionBundleGetResponse = PracticeScoreRevisionBundleGetResponses[keyof PracticeScoreRevisionBundleGetResponses];
@@ -6267,7 +4843,7 @@ export type ScoreRenderAssetAccessUrlGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseAssetAccessRead;
+    200: AssetAccessRead;
 };
 
 export type ScoreRenderAssetAccessUrlGetResponse = ScoreRenderAssetAccessUrlGetResponses[keyof ScoreRenderAssetAccessUrlGetResponses];
@@ -6369,7 +4945,7 @@ export type ImportJobReviewGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseImportJobReviewRead;
+    200: ImportJobReviewRead;
 };
 
 export type ImportJobReviewGetResponse = ImportJobReviewGetResponses[keyof ImportJobReviewGetResponses];
@@ -6403,7 +4979,7 @@ export type ImportJobReviewUpdateResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseImportJobReviewRead;
+    200: ImportJobReviewRead;
 };
 
 export type ImportJobReviewUpdateResponse = ImportJobReviewUpdateResponses[keyof ImportJobReviewUpdateResponses];
@@ -6437,7 +5013,7 @@ export type ImportJobReviewConfirmResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseReviewConfirmRead;
+    200: ReviewConfirmRead;
 };
 
 export type ImportJobReviewConfirmResponse = ImportJobReviewConfirmResponses[keyof ImportJobReviewConfirmResponses];
@@ -6471,7 +5047,7 @@ export type ScoreRevisionSourceAccessUrlGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseAssetAccessRead;
+    200: AssetAccessRead;
 };
 
 export type ScoreRevisionSourceAccessUrlGetResponse = ScoreRevisionSourceAccessUrlGetResponses[keyof ScoreRevisionSourceAccessUrlGetResponses];
@@ -6534,7 +5110,7 @@ export type ScoresBatchDeleteResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseDictStrInt;
+    200: ScoreBatchDeleteRead;
 };
 
 export type ScoresBatchDeleteResponse = ScoresBatchDeleteResponses[keyof ScoresBatchDeleteResponses];
@@ -6568,7 +5144,7 @@ export type ScoresGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseScoreRead;
+    200: ScoreRead;
 };
 
 export type ScoresGetResponse = ScoresGetResponses[keyof ScoresGetResponses];
@@ -6602,7 +5178,7 @@ export type ScoresUpdateResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseScoreRead;
+    200: ScoreRead;
 };
 
 export type ScoresUpdateResponse = ScoresUpdateResponses[keyof ScoresUpdateResponses];
@@ -6636,7 +5212,7 @@ export type ScoreFingeringGenerateResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseFingeringResultRead;
+    200: FingeringResultRead;
 };
 
 export type ScoreFingeringGenerateResponse = ScoreFingeringGenerateResponses[keyof ScoreFingeringGenerateResponses];
@@ -6670,7 +5246,7 @@ export type ScoreGuestPreviewSettingsGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseGuestPreviewSettingsRead;
+    200: GuestPreviewSettingsRead;
 };
 
 export type ScoreGuestPreviewSettingsGetResponse = ScoreGuestPreviewSettingsGetResponses[keyof ScoreGuestPreviewSettingsGetResponses];
@@ -6704,7 +5280,7 @@ export type ScoreGuestPreviewSettingsUpdateResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseGuestPreviewSettingsRead;
+    200: GuestPreviewSettingsRead;
 };
 
 export type ScoreGuestPreviewSettingsUpdateResponse = ScoreGuestPreviewSettingsUpdateResponses[keyof ScoreGuestPreviewSettingsUpdateResponses];
@@ -6785,7 +5361,7 @@ export type ScoreInvitesListResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseInviteListRead;
+    200: InviteListRead;
 };
 
 export type ScoreInvitesListResponse = ScoreInvitesListResponses[keyof ScoreInvitesListResponses];
@@ -6819,7 +5395,7 @@ export type ScoreInvitesCreateResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseInviteCreatedRead;
+    200: InviteCreatedRead;
 };
 
 export type ScoreInvitesCreateResponse = ScoreInvitesCreateResponses[keyof ScoreInvitesCreateResponses];
@@ -6857,7 +5433,7 @@ export type ScoreInviteRevokeResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseInviteRead;
+    200: InviteRead;
 };
 
 export type ScoreInviteRevokeResponse = ScoreInviteRevokeResponses[keyof ScoreInviteRevokeResponses];
@@ -6900,7 +5476,7 @@ export type ScoreMembersListResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseMemberListRead;
+    200: MemberListRead;
 };
 
 export type ScoreMembersListResponse = ScoreMembersListResponses[keyof ScoreMembersListResponses];
@@ -6938,7 +5514,7 @@ export type ScoreMemberRemoveResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseMemberRead;
+    200: MemberRead;
 };
 
 export type ScoreMemberRemoveResponse = ScoreMemberRemoveResponses[keyof ScoreMemberRemoveResponses];
@@ -6976,7 +5552,7 @@ export type ScoreMemberUpdateResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseMemberRead;
+    200: MemberRead;
 };
 
 export type ScoreMemberUpdateResponse = ScoreMemberUpdateResponses[keyof ScoreMemberUpdateResponses];
@@ -7055,7 +5631,7 @@ export type ScoreRevisionAssetsListResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseScoreRevisionAssetsRead;
+    200: ScoreRevisionAssetsRead;
 };
 
 export type ScoreRevisionAssetsListResponse = ScoreRevisionAssetsListResponses[keyof ScoreRevisionAssetsListResponses];
@@ -7098,7 +5674,7 @@ export type ScoreRevisionsListResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseRevisionListRead;
+    200: RevisionListRead;
 };
 
 export type ScoreRevisionsListResponse = ScoreRevisionsListResponses[keyof ScoreRevisionsListResponses];
@@ -7132,7 +5708,7 @@ export type ScoreRevisionsCreateResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseRevisionRead;
+    200: RevisionRead;
 };
 
 export type ScoreRevisionsCreateResponse = ScoreRevisionsCreateResponses[keyof ScoreRevisionsCreateResponses];
@@ -7170,7 +5746,7 @@ export type ScoreRevisionContentGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseRevisionContentRead;
+    200: RevisionContentRead;
 };
 
 export type ScoreRevisionContentGetResponse = ScoreRevisionContentGetResponses[keyof ScoreRevisionContentGetResponses];
@@ -7208,7 +5784,7 @@ export type ScoreRevisionNoteUpdateResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseRevisionRead;
+    200: RevisionRead;
 };
 
 export type ScoreRevisionNoteUpdateResponse = ScoreRevisionNoteUpdateResponses[keyof ScoreRevisionNoteUpdateResponses];
@@ -7295,7 +5871,7 @@ export type ScoreRevisionRestoreResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseRevisionRead;
+    200: RevisionRead;
 };
 
 export type ScoreRevisionRestoreResponse = ScoreRevisionRestoreResponses[keyof ScoreRevisionRestoreResponses];

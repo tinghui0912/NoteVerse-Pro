@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+
 from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel
 
 from app.db.models.score import RenderAssetKind, RevisionSourceFormat
+from app.shared.api_model import ApiModel
 
 
 class RevisionSourceRead(BaseModel):
@@ -31,7 +33,7 @@ class RenderAssetRead(BaseModel):
     available: bool
 
 
-class ScoreRevisionAssetsRead(BaseModel):
+class ScoreRevisionAssetsRead(ApiModel):
     revision_sources: list[RevisionSourceRead]
     render_assets: list[RenderAssetRead]
 
@@ -49,7 +51,7 @@ class ScoreDerivedAssetsRead(BaseModel):
     audio: ScoreDerivedAssetRead
 
 
-class AssetAccessRead(BaseModel):
+class AssetAccessRead(ApiModel):
     asset_id: str
     url: str
     filename: str

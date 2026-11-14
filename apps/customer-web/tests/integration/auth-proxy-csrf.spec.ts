@@ -23,8 +23,8 @@ async function login(page: import('@playwright/test').Page): Promise<string> {
       password: integrationUser.password,
     },
   });
-  expect(loginResponse.status()).toBe(200);
-  expect((await loginResponse.json()).success).toBe(true);
+  expect(loginResponse.status()).toBe(204);
+  expect((await loginResponse.body()).byteLength).toBe(0);
 
   return currentCsrfToken(page);
 }
@@ -34,7 +34,7 @@ test('Next proxy carries real auth cookies and enforces CSRF', async ({ page }) 
 
   const profile = await page.request.get('/api/v1/me/profile');
   expect(profile.status()).toBe(200);
-  expect((await profile.json()).data.user.email).toBe(integrationUser.email);
+  expect((await profile.json()).user.email).toBe(integrationUser.email);
 
   const rejectedLogout = await page.request.post('/api/v1/auth/logout');
   expect(rejectedLogout.status()).toBe(403);
@@ -46,8 +46,8 @@ test('Next proxy carries real auth cookies and enforces CSRF', async ({ page }) 
       origin: new URL(page.url()).origin,
     },
   });
-  expect(logout.status()).toBe(200);
-  expect((await logout.json()).success).toBe(true);
+  expect(logout.status()).toBe(204);
+  expect((await logout.body()).byteLength).toBe(0);
 });
 
 test('Next proxy submits and reads an authenticated score import job', async ({ page }) => {
@@ -69,12 +69,11 @@ test('Next proxy submits and reads an authenticated score import job', async ({ 
   });
   expect(upload.status()).toBe(200);
   const uploadBody = await upload.json();
-  expect(uploadBody.success).toBe(true);
 
   const importJob = await page.request.post('/api/v1/import-jobs', {
     headers: csrfHeaders,
     data: {
-      file_ids: [uploadBody.data.file_id],
+      file_ids: [uploadBody.file_id],
       idempotency_key: 'integration-score-import-001',
       options: {
         title: 'Integration score',
@@ -84,14 +83,14 @@ test('Next proxy submits and reads an authenticated score import job', async ({ 
   });
   const importJobBody = await importJob.json();
   expect(importJob.status(), JSON.stringify(importJobBody)).toBe(202);
-  expect(importJobBody.data.state).toBe('PENDING');
+  expect(importJobBody.state).toBe('PENDING');
 
-  const job = await page.request.get(`/api/v1/import-jobs/${importJobBody.data.job_id}`);
+  const job = await page.request.get(`/api/v1/import-jobs/${importJobBody.job_id}`);
   expect(job.status()).toBe(200);
   const jobBody = await job.json();
-  expect(jobBody.data.job_id).toBe(importJobBody.data.job_id);
-  expect(jobBody.data.state).toBe('PENDING');
-  expect(jobBody.data.title).toBe('Integration score');
-  expect(jobBody.data.genres).toEqual(['soundtrack']);
+  expect(jobBody.job_id).toBe(importJobBody.job_id);
+  expect(jobBody.state).toBe('PENDING');
+  expect(jobBody.title).toBe('Integration score');
+  expect(jobBody.genres).toEqual(['soundtrack']);
 });
 

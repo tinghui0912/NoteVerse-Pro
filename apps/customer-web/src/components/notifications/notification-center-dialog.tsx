@@ -65,8 +65,8 @@ export function NotificationCenterDialog({
   const markAllRead = useMarkAllNotificationsRead();
 
   const invites =
-    pendingInvitesQuery.data?.pages.flatMap((page) => page.data?.items ?? []) ?? [];
-  const notifications = notificationsQuery.data?.data ?? [];
+    pendingInvitesQuery.data?.pages.flatMap((page) => page?.items ?? []) ?? [];
+  const notifications = notificationsQuery.data ?? [];
   const unreadCount = notifications.filter((item) => !item.read_at).length;
   const visibleNotifications =
     updateFilter === 'unread'
@@ -79,7 +79,7 @@ export function NotificationCenterDialog({
       onSuccess: (response) => {
         toast({ title: t('accepted'), description: t('acceptedDescription') });
         onOpenChange(false);
-        router.push(`/score/${response.data?.score_id ?? invite.score_id}`);
+        router.push(`/score/${response?.score_id ?? invite.score_id}`);
       },
       onError: (error) => {
         toast({

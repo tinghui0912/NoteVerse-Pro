@@ -41,7 +41,7 @@ async def test_self_leave_http_revokes_each_member_role_idempotently(collaborati
     try:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.delete(f"/api/v1/me/scores/{score.score_uuid}/membership")
-            assert response.status_code == 200 and response.json()["data"] is None
+            assert response.status_code == 204 and response.content == b""
             session.refresh(membership)
             revoked_at = membership.revoked_at
             assert revoked_at is not None
@@ -54,7 +54,7 @@ async def test_self_leave_http_revokes_each_member_role_idempotently(collaborati
                 with pytest.raises(UnauthorizedException):
                     await ScoreAccessPolicy().authorize(db, score.score_uuid, action, user_id=2)
             again = await client.delete(f"/api/v1/me/scores/{score.score_uuid}/membership")
-            assert again.status_code == 200
+            assert again.status_code == 204 and again.content == b""
             session.refresh(membership)
             assert membership.revoked_at == revoked_at
             assert (await client.get(f"/api/v1/scores/{score.score_uuid}")).status_code == 403

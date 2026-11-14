@@ -323,14 +323,13 @@ def test_storage_usage_api_returns_quota_and_breakdown(
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["success"] is True
-    assert payload["data"]["quota"] == {
+    assert payload["quota"] == {
         "used_bytes": 120,
         "reserved_bytes": 0,
         "limit_bytes": 1000,
         "available_bytes": 880,
     }
-    breakdown = {item["category"]: item for item in payload["data"]["breakdown"]}
+    breakdown = {item["category"]: item for item in payload["breakdown"]}
     assert breakdown["SOURCE"]["used_bytes"] == 120
     assert breakdown["SOURCE"]["counts_toward_quota"] is True
     assert breakdown["DERIVED_RENDER"]["used_bytes"] == 30
@@ -491,11 +490,10 @@ def test_file_upload_api_hides_storage_key(
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["success"] is True
-    assert payload["data"]["file_id"]
-    assert payload["data"]["filename"] == "score.png"
-    assert payload["data"]["size"] == len(b"image-bytes")
-    assert "storage_key" not in payload["data"]
+    assert payload["file_id"]
+    assert payload["filename"] == "score.png"
+    assert payload["size"] == len(b"image-bytes")
+    assert "storage_key" not in payload
 
 
 async def _async_bytes(content: bytes) -> bytes:

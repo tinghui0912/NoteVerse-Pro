@@ -18,7 +18,6 @@ from app.modules.performance_takes.aggregate import take_from_row
 from app.modules.performance_takes.recording_media_admission import recording_extension
 from app.modules.performance_takes.repository import PerformanceTakeRepository
 from app.modules.performance_takes.schemas import (
-    PerformanceTakeDeleteResponse,
     PerformanceTakeListResponse,
     PerformanceTakePlaybackRead,
     PerformanceTakeRead,
@@ -208,7 +207,7 @@ class PerformanceTakeService:
         db: AsyncSession,
         user_id: int,
         take_id: str,
-    ) -> PerformanceTakeDeleteResponse:
+    ) -> None:
         take = await self.repository.get_by_uuid(db, user_id, take_id, lock=True)
         if take is None:
             raise ResourceNotFoundException(
@@ -234,4 +233,4 @@ class PerformanceTakeService:
         from app.worker.dispatch.stored_object_retirement import dispatch_retirements_best_effort
 
         dispatch_retirements_best_effort(operations)
-        return PerformanceTakeDeleteResponse(take_id=take_id)
+        return None

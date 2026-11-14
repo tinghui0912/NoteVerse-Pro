@@ -32,7 +32,15 @@ first and action last. Related operations share a context prefix; collection
 list/create/batch operations and individual resource commands use consistent
 resource and verb vocabulary within that context.
 
-Success contracts describe the runtime body: JSON envelopes retain their schemas,
+Customer success is HTTP status plus the operation's direct typed representation.
+Commands without a response representation return bodyless 204. Import submission
+and retry return 202 with `ImportJobSubmitRead`. Page-number resources contain
+`items`, `page`, `page_size`, `total` and `total_pages`; cursor resources retain
+`items` and `next_cursor`. There is no generic Customer success envelope. Frontend
+i18n owns localized success presentation. Typed API models serialize nested
+UTC-naive database timestamps with an explicit UTC `Z` suffix.
+
+Protocol-native success contracts retain their bodies:
 stored bytes use binary schemas, ZIP archives use `application/zip`, and realtime
 events use `text/event-stream`. Stored formats can vary by resource, so their
 OpenAPI media ranges describe that variation while the HTTP Content-Type identifies

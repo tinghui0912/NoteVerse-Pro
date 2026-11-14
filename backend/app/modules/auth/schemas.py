@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
+from app.shared.api_model import ApiModel
 
 
 class TokenPayload(BaseModel):
@@ -35,7 +36,7 @@ class ConfirmEmailChangeRequest(BaseModel):
     token: str = Field(..., min_length=1, description="Email change confirmation token")
 
 
-class EmailChangeConfirmedRead(BaseModel):
+class EmailChangeConfirmedRead(ApiModel):
     email: EmailStr
 
 
@@ -83,15 +84,15 @@ class SecurityOverview(BaseModel):
     mfa_available: bool = False
 
 
-class SessionsRead(BaseModel):
+class SessionsRead(ApiModel):
     sessions: list[SessionSummary]
 
 
-class SecurityRead(BaseModel):
+class SecurityRead(ApiModel):
     security: SecurityOverview
 
 
-class User(BaseModel):
+class User(ApiModel):
     """Customer identity returned after email verification.
 
     Platform authorization belongs exclusively to the isolated control-plane

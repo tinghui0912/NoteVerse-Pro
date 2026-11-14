@@ -149,18 +149,12 @@ describe('upload workflow storage quota handling', () => {
 
   it('refreshes storage usage after a successful file upload', async () => {
     uploadFileMock.mockResolvedValue({
-      success: true,
-      data: {
         file_id: 'uploaded-file-id',
         filename: 'score.png',
         storage_key: 'scores/score.png',
         size: 3,
-      },
-    });
-    submitImportJobMock.mockResolvedValue({
-      success: true,
-      data: { job_id: 'job-1' },
-    });
+      });
+    submitImportJobMock.mockResolvedValue({ job_id: 'job-1' });
     const queryClient = createQueryClient();
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
     const { result } = renderHook(() => useUploadWorkflow(), {

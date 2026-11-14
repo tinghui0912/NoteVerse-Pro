@@ -6,7 +6,7 @@ it.each([scoreInvitesApi.listInvites.bind(null, 'score'), scoreInvitesApi.listMe
   const send = customerFetch({ items: [], next_cursor: 'next' });
   const signal = new AbortController().signal;
   const result = await list({ limit: 25, cursor: 'opaque+/=?', signal });
-  expect(result.data?.next_cursor).toBe('next');
+  expect(result?.next_cursor).toBe('next');
   const request = send.mock.calls[0][0] as Request;
   expect(new URL(request.url).searchParams.get('cursor')).toBe('opaque+/=?');
   expect(new URL(request.url).searchParams.get('limit')).toBe('25');

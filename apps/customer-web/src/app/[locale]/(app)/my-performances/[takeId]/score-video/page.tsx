@@ -81,7 +81,7 @@ export default function SavedPerformanceCompositeVideoPage() {
   const t = useTranslations("practice");
   const takeId = takeIdFromParams(params);
   const takeQuery = usePerformanceTakeDetail(takeId);
-  const take = takeQuery.data?.data ?? null;
+  const take = takeQuery.data ?? null;
   const isBaseEligible = Boolean(take && isSavedCompositeVideoCandidate(take));
 
   const bundle = useSavedTakeExportBundle(

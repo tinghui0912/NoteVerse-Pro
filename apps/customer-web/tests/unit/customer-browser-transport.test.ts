@@ -1,15 +1,16 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import {
   authLogin, authLogout, authRefresh, filesUpload, guestPreviewGet, importJobArtifactDownload,
-  performanceTakeMediaStream, scoreInvitesCreate, scoreInvitesList, scoresGet,
+  performanceTakeMediaStream, performanceTakeDelete, scoreInvitesCreate, scoreInvitesList, scoresGet,
   type ApiErrorResponse,
 } from '@/generated/api';
-import { createCustomerBrowserTransport, ApiError } from '@/lib/http/customer-browser-transport';
+import { createCustomerBrowserTransport, ApiError, responseComplete } from '@/lib/http/customer-browser-transport';
 import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from '@/generated/browser-protocol';
 import { reportClientError } from '@/lib/observability';
 
 vi.mock('@/lib/observability', () => ({ reportClientError: vi.fn() }));
-const success = () => Response.json({ success: true, data: {} });
+const success = () => Response.json({});
+const noContent = () => new Response(null, { status: 204 });
 const unauthorized = () => Response.json({ code: 'auth_failed', request_id: 'req-auth' } satisfies ApiErrorResponse, { status: 401 });
 const inviteBody = { email: 'member@example.test', role: 'VIEWER' as const };
 const doc = { cookie: '' };
@@ -81,7 +82,10 @@ it('bootstraps a missing CSRF cookie through generated refresh before the unsafe
   doc.cookie = '';
   const send = vi.fn<typeof fetch>(async input => {
     const request = input as Request;
-    if (new URL(request.url).pathname.endsWith('/refresh')) doc.cookie = `${CSRF_COOKIE_NAME}=new-csrf`;
+    if (new URL(request.url).pathname.endsWith('/refresh')) {
+      doc.cookie = `${CSRF_COOKIE_NAME}=new-csrf`;
+      return noContent();
+    }
     return success();
   });
   await scoreInvitesCreate({ ...transport(send).authenticated, path: { score_id: 'score' }, body: inviteBody });
@@ -100,7 +104,7 @@ it.each(['json', 'form', 'multipart', 'bodyless'] as const)('replays the complet
     if (new URL(request.url).pathname === '/api/v1/auth/refresh') {
       refreshCount++;
       doc.cookie = `${CSRF_COOKIE_NAME}=rotated-csrf`;
-      return success();
+      return noContent();
     }
     bodies.push(await request.text());
     methods.push(request.method);
@@ -133,7 +137,7 @@ it('coalesces concurrent 401s including a delayed response into a single refresh
   const first = scoresGet({ ...clients.authenticated, path: { score_id: 'a' } });
   const second = scoresGet({ ...clients.authenticated, path: { score_id: 'b' } });
   await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(3));
-  finishRefresh(success());
+  finishRefresh(noContent());
   await Promise.all([first, second]);
   expect(send.mock.calls.filter(([input]) => new URL((input as Request).url).pathname.endsWith('/refresh'))).toHaveLength(1);
 });
@@ -184,7 +188,7 @@ it('abandons a caller aborted during shared refresh without replaying it', async
   await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(2));
   controller.abort();
   await failed;
-  finishRefresh(success());
+  finishRefresh(noContent());
   await Promise.resolve();
   expect(send).toHaveBeenCalledTimes(2);
 });
@@ -274,4 +278,14 @@ it('reuses a bootstrap refresh for a single retry when the first unsafe request 
   await scoreInvitesCreate({ ...transport(send).authenticated, path: { score_id: 's' }, body: inviteBody });
   expect(refreshes).toBe(1);
   expect(requests).toBe(2);
+});
+
+it('acknowledges generated bodyless auth and delete commands without fabricating a body', async () => {
+  const send = vi.fn<typeof fetch>(async () => noContent());
+  const clients = transport(send);
+  await expect(responseComplete(authLogin({ ...clients.public, body: { username: 'owner', password: 'secret' } }))).resolves.toBeUndefined();
+  await expect(responseComplete(authRefresh({ ...clients.public }))).resolves.toBeUndefined();
+  await expect(responseComplete(authLogout({ ...clients.authenticated }))).resolves.toBeUndefined();
+  await expect(responseComplete(performanceTakeDelete({ ...clients.authenticated, path: { take_id: 'take' } }))).resolves.toBeUndefined();
+  expect(send).toHaveBeenCalledTimes(4);
 });

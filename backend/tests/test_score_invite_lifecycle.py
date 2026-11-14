@@ -117,9 +117,9 @@ async def test_owner_revoke_http_admits_effective_status_without_writing_rejecti
                 assert facts(invite) == terminal
             with observe_writes(session) as (writes, commits):
                 read = (await client.get(f"/api/v1/scores/{score.score_uuid}/invites")).json()[
-                    "data"
-                ]["items"][0]
-                inspected = (await client.get("/api/v1/invites/invite")).json()["data"]
+                    "items"
+                ][0]
+                inspected = (await client.get("/api/v1/invites/invite")).json()
                 assert writes == commits == []
             assert (
                 read["status"]

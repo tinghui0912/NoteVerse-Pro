@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+
 from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel
+from app.shared.api_model import ApiModel
 
 
 class NotificationActorRead(BaseModel):
@@ -12,7 +14,7 @@ class NotificationActorRead(BaseModel):
     avatar_url: str | None
 
 
-class NotificationEventRead(BaseModel):
+class NotificationEventRead(ApiModel):
     notification_id: str
     type: str
     title: str
@@ -24,5 +26,5 @@ class NotificationEventRead(BaseModel):
     created_at: datetime
 
 
-class NotificationUnreadCountRead(BaseModel):
+class NotificationUnreadCountRead(ApiModel):
     count: int

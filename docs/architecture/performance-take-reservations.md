@@ -176,8 +176,7 @@ StoredObjectRetirement snapshots physical facts as operation evidence, not curre
 
 ## Semantic deletion and physical retirement
 
-Successful DELETE returns HTTP 200 in the normal success envelope with
-`{ take_id, deleted: true }`. The transaction removes the PerformanceTake row and
+Successful DELETE returns bodyless HTTP 204. The transaction removes the PerformanceTake row and
 releases logical quota before the response. Detail, playback-url and media return 404,
 and lists omit the Take. Manifest and Reservation retain their idempotency lineage.
 StoredObjectRetirement owns asynchronous physical cleanup; its pending state and

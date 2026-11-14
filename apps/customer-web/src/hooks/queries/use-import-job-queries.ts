@@ -39,7 +39,7 @@ export function useImportJobList(
     enabled,
     refetchInterval: (query) => {
       if (!enabled) return false;
-      return hasActiveJobs(query.state.data?.data) ? 5000 : false;
+      return hasActiveJobs(query.state.data?.items) ? 5000 : false;
     },
   });
 }

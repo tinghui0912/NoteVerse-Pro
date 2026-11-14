@@ -8,8 +8,8 @@ export function usePracticeRouteScore(scoreId: string) {
   const router = useRouter(), pathname = usePathname(), query = useSearchParams();
   const scoreQuery = useScoreDetail(scoreId);
   const requested = query.get('practiceRevisionId');
-  const revisionId = requested ?? scoreQuery.data?.data?.head_revision_id ?? null;
-  const canPractice = scoreQuery.data?.data?.capabilities?.can_practice !== false;
+  const revisionId = requested ?? scoreQuery.data?.head_revision_id ?? null;
+  const canPractice = scoreQuery.data?.capabilities?.can_practice !== false;
   useEffect(() => {
     if (requested || !revisionId) return;
     const pinned = new URLSearchParams(query.toString());

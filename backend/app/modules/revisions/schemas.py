@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.db.models.score import RevisionOrigin
 from app.shared.pagination import CursorPage
+from app.shared.api_model import ApiModel
 
 
 class RevisionCreateRequest(BaseModel):
@@ -45,7 +47,7 @@ class RevisionNoteRead(BaseModel):
     updated_at: datetime
 
 
-class RevisionRead(BaseModel):
+class RevisionRead(ApiModel):
     revision_id: str
     revision_number: int
     origin: RevisionOrigin

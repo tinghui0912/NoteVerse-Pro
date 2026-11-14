@@ -1,4 +1,5 @@
 from pydantic import BaseModel, ConfigDict
+from app.shared.api_model import ApiModel
 
 
 class GuestPreviewUpdateRequest(BaseModel):
@@ -6,7 +7,7 @@ class GuestPreviewUpdateRequest(BaseModel):
     enabled: bool
 
 
-class GuestPreviewSettingsRead(BaseModel):
+class GuestPreviewSettingsRead(ApiModel):
     enabled: bool
     token: str
 
@@ -16,7 +17,7 @@ class GuestPreviewPageRead(BaseModel):
     page_number: int
 
 
-class GuestPreviewRead(BaseModel):
+class GuestPreviewRead(ApiModel):
     title: str
     shared_by: str
     render_assets: list[GuestPreviewPageRead]

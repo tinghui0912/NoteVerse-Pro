@@ -159,7 +159,7 @@ function PerformanceTakeCard({
       setDownloading(true);
       setDownloadError(null);
       const res = await performanceTakesApi.getPlaybackUrl(take.take_id);
-      const downloadUrl = res.data?.download_url;
+      const downloadUrl = res?.download_url;
       if (!downloadUrl) {
         throw new Error('Missing download_url');
       }
@@ -178,15 +178,14 @@ function PerformanceTakeCard({
   };
 
   const playbackSource: RecordingPlaybackSource | null = playbackQuery.data
-    ?.data
     ? take.manifest.capture.kind === 'VIDEO'
       ? {
           kind: 'VIDEO',
-          url: playbackQuery.data.data.playback_url,
+          url: playbackQuery.data.playback_url,
         }
       : {
           kind: 'AUDIO',
-          url: playbackQuery.data.data.playback_url,
+          url: playbackQuery.data.playback_url,
         }
     : null;
 
@@ -386,10 +385,10 @@ function MyPerformancesPageContent({
   const [takePendingDelete, setTakePendingDelete] =
     useState<PerformanceTakeRead | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const total = takesQuery.data?.data?.total ?? 0;
+  const total = takesQuery.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const currentPage = Math.min(rawPage, totalPages);
-  const queryItems = takesQuery.data?.data?.items;
+  const queryItems = takesQuery.data?.items;
   const takes = React.useMemo(() => queryItems ?? [], [queryItems]);
   const goToPage = React.useCallback(
     (nextPage: number) => {

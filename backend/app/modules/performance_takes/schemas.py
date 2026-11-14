@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+
 from datetime import datetime
 from typing import Literal, Optional, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from .generated.recording_timebase import RecordingTimebase
+from app.shared.api_model import ApiModel
 
 
 class StrictPerformanceTakeModel(BaseModel):
@@ -126,7 +128,7 @@ class PerformanceTakeManifestRead(StrictPerformanceTakeModel):
     recording_timebase: RecordingTimebase
 
 
-class PerformanceTakeUploadReservationRead(StrictPerformanceTakeModel):
+class PerformanceTakeUploadReservationRead(ApiModel, StrictPerformanceTakeModel):
     reservation_id: str
     take_id: str
     status: Literal["RESERVED", "FINALIZING", "COMPLETED"]
@@ -140,7 +142,7 @@ class PerformanceTakeRecordingMediaRead(StrictPerformanceTakeModel):
     byte_size: int = Field(strict=True, gt=0)
 
 
-class PerformanceTakeRead(StrictPerformanceTakeModel):
+class PerformanceTakeRead(ApiModel, StrictPerformanceTakeModel):
     take_id: str
     manifest: PerformanceTakeManifestRead
     recording_media: PerformanceTakeRecordingMediaRead
@@ -149,19 +151,14 @@ class PerformanceTakeRead(StrictPerformanceTakeModel):
     created_at: datetime
 
 
-class PerformanceTakePlaybackRead(StrictPerformanceTakeModel):
+class PerformanceTakePlaybackRead(ApiModel, StrictPerformanceTakeModel):
     take_id: str
     playback_url: str
     download_url: str
     expires_in: int
 
 
-class PerformanceTakeDeleteResponse(StrictPerformanceTakeModel):
-    take_id: str
-    deleted: Literal[True] = True
-
-
-class PerformanceTakeListResponse(StrictPerformanceTakeModel):
+class PerformanceTakeListResponse(ApiModel, StrictPerformanceTakeModel):
     items: list[PerformanceTakeRead]
     total: int
     limit: int = 50

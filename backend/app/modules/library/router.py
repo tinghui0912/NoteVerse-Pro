@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import Response, APIRouter, Depends, Query
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
@@ -19,13 +20,8 @@ from app.modules.library.schemas import (
     LibraryView,
 )
 from app.modules.library.service import LibraryService
-from app.shared.constants import SuccessCode
-from app.shared.responses import (
-    APIResponse,
-    PaginatedResponse,
-    paginated_response,
-    success_response,
-)
+from app.shared.pagination import PageNumberPage
+
 
 router = APIRouter()
 
@@ -33,7 +29,7 @@ router = APIRouter()
 @router.get(
     "/folders",
     operation_id="libraryFoldersOverviewGet",
-    response_model=APIResponse[LibraryFolderOverviewRead],
+    response_model=LibraryFolderOverviewRead,
 )
 async def list_library_folders(
     current_user: User = Depends(get_current_user),
@@ -42,12 +38,10 @@ async def list_library_folders(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     result = await service.folder_overview(db, user_id)
-    return success_response(data=result)
+    return result
 
 
-@router.post(
-    "/folders", operation_id="libraryFoldersCreate", response_model=APIResponse[LibraryFolderRead]
-)
+@router.post("/folders", operation_id="libraryFoldersCreate", response_model=LibraryFolderRead)
 async def create_library_folder(
     request: LibraryFolderCreateRequest,
     current_user: User = Depends(get_current_user),
@@ -56,13 +50,13 @@ async def create_library_folder(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     result = await service.create_folder(db, user_id, request)
-    return success_response(data=result)
+    return result
 
 
 @router.patch(
     "/folders/{folder_id}",
     operation_id="libraryFolderUpdate",
-    response_model=APIResponse[LibraryFolderRead],
+    response_model=LibraryFolderRead,
 )
 async def update_library_folder(
     folder_id: str,
@@ -73,11 +67,15 @@ async def update_library_folder(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     result = await service.update_folder(db, user_id, folder_id, request)
-    return success_response(data=result, message=SuccessCode.UPDATE_SUCCESS)
+    return result
 
 
 @router.delete(
-    "/folders/{folder_id}", operation_id="libraryFolderDelete", response_model=APIResponse[None]
+    "/folders/{folder_id}",
+    operation_id="libraryFolderDelete",
+    status_code=204,
+    response_model=None,
+    response_class=Response,
 )
 async def delete_library_folder(
     folder_id: str,
@@ -87,11 +85,11 @@ async def delete_library_folder(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     await service.delete_folder(db, user_id, folder_id)
-    return success_response(message=SuccessCode.DELETE_SUCCESS)
+    return Response(status_code=204)
 
 
 @router.get(
-    "/scores", operation_id="libraryScoresList", response_model=PaginatedResponse[LibraryScoreRead]
+    "/scores", operation_id="libraryScoresList", response_model=PageNumberPage[LibraryScoreRead]
 )
 async def list_library_scores(
     view: LibraryView = Query(LibraryView.ALL),
@@ -115,13 +113,13 @@ async def list_library_scores(
         page=page,
         page_size=page_size,
     )
-    return paginated_response(items, page, page_size, total)
+    return PageNumberPage(items=items, page=page, page_size=page_size, total=total)
 
 
 @router.post(
     "/scores/batch-move",
     operation_id="libraryScoresBatchMove",
-    response_model=APIResponse[LibraryBatchMoveRead],
+    response_model=LibraryBatchMoveRead,
 )
 async def batch_move_library_scores(
     request: LibraryScoreBatchMoveRequest,
@@ -131,15 +129,13 @@ async def batch_move_library_scores(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     moved = await service.batch_move(db, user_id, request)
-    return success_response(
-        data=LibraryBatchMoveRead(moved=moved), message=SuccessCode.UPDATE_SUCCESS
-    )
+    return LibraryBatchMoveRead(moved=moved)
 
 
 @router.post(
     "/scores/batch-favorite",
     operation_id="libraryScoresBatchFavorite",
-    response_model=APIResponse[LibraryBatchUpdateRead],
+    response_model=LibraryBatchUpdateRead,
 )
 async def batch_favorite_library_scores(
     request: LibraryScoreBatchFavoriteRequest,
@@ -149,6 +145,4 @@ async def batch_favorite_library_scores(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     updated = await service.batch_set_favorite(db, user_id, request)
-    return success_response(
-        data=LibraryBatchUpdateRead(updated=updated), message=SuccessCode.UPDATE_SUCCESS
-    )
+    return LibraryBatchUpdateRead(updated=updated)

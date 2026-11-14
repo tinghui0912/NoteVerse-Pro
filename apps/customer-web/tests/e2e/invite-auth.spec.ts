@@ -19,7 +19,7 @@ test('invite login and registration links preserve returnUrl', async ({ page }) 
   await page.route('**/api/v1/invites/invite-token', (route) => route.fulfill({
     status: 200,
     contentType: 'application/json',
-    body: JSON.stringify({ success: true, data: inviteAccess }),
+    body: JSON.stringify(inviteAccess),
   }));
 
   await page.goto('/en/invite/invite-token');

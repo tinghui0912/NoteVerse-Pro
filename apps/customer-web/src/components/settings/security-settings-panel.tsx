@@ -246,8 +246,8 @@ export function SecuritySettingsPanel() {
         />
       ) : securityQuery.isError ? (
         <SectionErrorState description={t('security.loadFailed')} className="mt-6" />
-      ) : securityQuery.data?.data?.security ? (
-        <SecurityContent security={securityQuery.data.data.security} />
+      ) : securityQuery.data?.security ? (
+        <SecurityContent security={securityQuery.data.security} />
       ) : null}
     </section>
   );

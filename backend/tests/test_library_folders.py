@@ -308,14 +308,14 @@ async def test_workspace_http_routes_use_current_access_and_score_identity(works
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/api/v1/library/scores")
             assert response.status_code == 200, response.text
-            assert {row["score_id"] for row in response.json()["data"]} == {"A", "B"}
+            assert {row["score_id"] for row in response.json()["items"]} == {"A", "B"}
             response = await client.post(
                 "/api/v1/library/scores/batch-favorite",
                 json={"score_ids": ["B"], "is_favorite": True},
             )
-            assert response.status_code == 200 and response.json()["data"]["updated"] == 1
+            assert response.status_code == 200 and response.json()["updated"] == 1
             response = await client.get("/api/v1/library/scores?view=favorites")
-            assert [row["score_id"] for row in response.json()["data"]] == ["B"]
+            assert [row["score_id"] for row in response.json()["items"]] == ["B"]
             response = await client.post(
                 "/api/v1/library/scores/batch-move",
                 json={"score_ids": ["C"], "target_folder_id": None},

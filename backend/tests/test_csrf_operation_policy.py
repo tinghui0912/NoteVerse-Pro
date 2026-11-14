@@ -106,7 +106,10 @@ def test_public_auth_operations_accept_stale_cookies_without_csrf(
     if identity == "authRefresh":
         client.cookies.set(REFRESH_COOKIE_NAME, "refresh-cookie")
     response = client.post(routes[identity].path, **payload)
-    assert response.status_code == 200, response.text
+    expected_status = 200 if identity in {"authEmailVerify", "authEmailChangeConfirm"} else 204
+    assert response.status_code == expected_status, response.text
+    if expected_status == 204:
+        assert response.content == b""
     getattr(service, method).assert_awaited_once()
     if identity == "authRefresh":
         assert client.cookies[CSRF_COOKIE_NAME]
@@ -138,7 +141,8 @@ def test_logout_requires_matching_csrf_with_customer_cookies(customer, cookie):
         assert response.json()["code"] == "csrf_token_invalid"
     service.revoke_refresh_token.assert_not_awaited()
     response = client.post(routes["authLogout"].path, headers={CSRF_HEADER_NAME: "matching-token"})
-    assert response.status_code == 200
+    assert response.status_code == 204
+    assert response.content == b""
     service.revoke_refresh_token.assert_awaited_once()
 
 

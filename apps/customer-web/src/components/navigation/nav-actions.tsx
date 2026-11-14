@@ -99,10 +99,10 @@ export function NotificationBell({ buttonClassName }: { buttonClassName?: string
   const unreadNotifications = useNotificationUnreadCount(true);
   const pendingInviteCount =
     pendingInvites.data?.pages.reduce(
-      (count, page) => count + (page.data?.items.length ?? 0),
+      (count, page) => count + (page?.items.length ?? 0),
       0
     ) ?? 0;
-  const unreadNotificationCount = unreadNotifications.data?.data?.count ?? 0;
+  const unreadNotificationCount = unreadNotifications.data?.count ?? 0;
   const badgeCount = pendingInviteCount + unreadNotificationCount;
 
   return (

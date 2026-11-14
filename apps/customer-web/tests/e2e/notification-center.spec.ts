@@ -93,14 +93,14 @@ test('notification center combines pending invites and update notifications', as
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: pendingInvites }),
+      body: JSON.stringify(pendingInvites),
     })
   );
   await page.route('**/api/v1/me/notifications/unread-count', (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: { count: 1 } }),
+      body: JSON.stringify({ count: 1 }),
     })
   );
   await page.route('**/api/v1/me/notifications', (route) => {
@@ -108,7 +108,7 @@ test('notification center combines pending invites and update notifications', as
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ success: true, data: notifications }),
+        body: JSON.stringify(notifications),
       });
     }
     return route.fallback();
@@ -118,17 +118,14 @@ test('notification center combines pending invites and update notifications', as
     return route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({
-        success: true,
-        data: { ...notifications[0], read_at: '2026-07-01T09:05:00Z' },
-      }),
+      body: JSON.stringify({ ...notifications[0], read_at: '2026-07-01T09:05:00Z' }),
     });
   });
   await page.route('**/api/v1/scores/score-accepted**', (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: null }),
+      body: JSON.stringify(null),
     })
   );
 
@@ -163,7 +160,7 @@ test('failed processing notification opens Import Activity', async ({ page }) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: { count: 1 } }),
+      body: JSON.stringify({ count: 1 }),
     })
   );
   await page.route('**/api/v1/me/notifications', (route) => {
@@ -171,7 +168,7 @@ test('failed processing notification opens Import Activity', async ({ page }) =>
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ success: true, data: [failedProcessingNotification] }),
+        body: JSON.stringify([failedProcessingNotification]),
       });
     }
     return route.fallback();
@@ -180,16 +177,10 @@ test('failed processing notification opens Import Activity', async ({ page }) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({
-        success: true,
-        data: { ...failedProcessingNotification, read_at: '2026-07-01T09:25:00Z' },
-      }),
+      body: JSON.stringify({ ...failedProcessingNotification, read_at: '2026-07-01T09:25:00Z' }),
     })
   );
-  await page.route('**/api/v1/import-jobs?*', route => route.fulfill({ json: {
-    success: true, data: [{ job_id: 'failed-job-1', state: 'FAILURE', progress: 0, title: 'Failed upload', public_message: 'Recognition failed' }],
-    pagination: { page: 1, page_size: 20, total: 1, total_pages: 1 },
-  } }));
+  await page.route('**/api/v1/import-jobs?*', route => route.fulfill({ json: { items: [{ job_id: 'failed-job-1', state: 'FAILURE', progress: 0, title: 'Failed upload', public_message: 'Recognition failed' }], ...{ page: 1, page_size: 20, total: 1, total_pages: 1 } } }));
 
   await page.goto('/en/upload');
   await page.getByRole('button', { name: 'Notifications' }).click();
@@ -205,7 +196,7 @@ test('confirmed processing notification opens created score', async ({ page }) =
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: { count: 1 } }),
+      body: JSON.stringify({ count: 1 }),
     })
   );
   await page.route('**/api/v1/me/notifications', (route) => {
@@ -213,7 +204,7 @@ test('confirmed processing notification opens created score', async ({ page }) =
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ success: true, data: [confirmedProcessingNotification] }),
+        body: JSON.stringify([confirmedProcessingNotification]),
       });
     }
     return route.fallback();
@@ -222,17 +213,14 @@ test('confirmed processing notification opens created score', async ({ page }) =
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({
-        success: true,
-        data: { ...confirmedProcessingNotification, read_at: '2026-07-01T09:40:00Z' },
-      }),
+      body: JSON.stringify({ ...confirmedProcessingNotification, read_at: '2026-07-01T09:40:00Z' }),
     })
   );
   await page.route('**/api/v1/scores/ready-score-1**', (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: null }),
+      body: JSON.stringify(null),
     })
   );
 

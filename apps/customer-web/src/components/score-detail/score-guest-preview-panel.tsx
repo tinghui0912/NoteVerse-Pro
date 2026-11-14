@@ -18,7 +18,7 @@ export function ScoreGuestPreviewPanel({ scoreId }: { scoreId: string }) {
   const [feedback, setFeedback] = useState('');
   const settings = useGuestPreviewSettings(scoreId);
   const update = useUpdateGuestPreviewSettings(scoreId);
-  const data = settings.data?.data;
+  const data = settings.data;
   const origin = typeof window === 'undefined' ? '' : window.location.origin;
   const link = data
     ? `${origin}${locale === routing.defaultLocale ? '' : `/${locale}`}/preview/${data.token}`

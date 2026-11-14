@@ -194,8 +194,13 @@ path, path parameters, query serialization and request body encoding.
 
 `src/lib/http/customer-browser-transport.ts` owns credentials, CSRF injection,
 single-flight refresh, one replay, login redirects, cancellation and network
-observability. Feature adapters retain generated success payloads or apply
-frontend transformations. Public/auth bootstrap and silent session probes choose
+observability. Feature adapters return direct generated representations or apply
+frontend transformations. `responseBody` extracts the HTTP body from SDK result
+metadata; the SDK result `.data` is not a wire envelope. Commands without a
+representation return 204 and adapters resolve to `void`. Page-number resources
+use `items`, `page`, `page_size`, `total` and `total_pages`. Customer success has no
+generic envelope; localized success presentation belongs to frontend i18n.
+Application errors retain `{ code, request_id }`. Public/auth bootstrap and silent session probes choose
 policy explicitly; transport does not classify authentication URLs.
 
 Browser-native EventSource, image/audio and avatar URLs are separate transports.

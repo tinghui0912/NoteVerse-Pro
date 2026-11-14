@@ -77,8 +77,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const refreshUser = useCallback(async () => {
     try {
       const response = await profileApi.getProfile({ suppressAuthRedirect: true });
-      if (response.data?.user) {
-        const mappedUser = mapApiUser(response.data.user);
+      if (response?.user) {
+        const mappedUser = mapApiUser(response.user);
         setUser(mappedUser);
         setIsAuthenticated(true);
       }
@@ -101,8 +101,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     void profileApi.getProfile({ suppressAuthRedirect: true })
       .then((response) => {
         if (cancelled) return;
-        if (response.data?.user) {
-          const mappedUser = mapApiUser(response.data.user);
+        if (response?.user) {
+          const mappedUser = mapApiUser(response.user);
           setUser(mappedUser);
           setIsAuthenticated(true);
         }

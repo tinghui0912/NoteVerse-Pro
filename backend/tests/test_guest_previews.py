@@ -274,15 +274,13 @@ async def test_bearer_routes_are_anonymous_inline_private_and_disclosure_safe(pr
             response = await client.get(f"/api/v1/guest-previews/{token}")
             assert response.status_code == 200
             assert response.headers["cache-control"] == "private, no-store"
-            assert set(response.json()["data"]) == {
+            assert set(response.json()) == {
                 "title",
                 "shared_by",
                 "render_assets",
                 "audio_available",
             }
-            assert response.json()["data"]["render_assets"] == [
-                {"asset_id": "page-a", "page_number": 1}
-            ]
+            assert response.json()["render_assets"] == [{"asset_id": "page-a", "page_number": 1}]
             image = await client.get(f"/api/v1/guest-previews/{token}/render-assets/page-a/view")
             assert image.status_code == 200 and image.headers["content-disposition"].startswith(
                 "inline"
@@ -327,12 +325,12 @@ async def test_owner_settings_http_state_and_authorization(preview_context):
             response = await client.get(url)
             assert response.status_code == 200
             assert response.headers["cache-control"] == "private, no-store"
-            assert response.json()["data"] == {"enabled": False, "token": token}
+            assert response.json() == {"enabled": False, "token": token}
             for enabled in [True, False, True]:
                 response = await client.patch(url, json={"enabled": enabled})
                 assert response.status_code == 200
                 assert response.headers["cache-control"] == "private, no-store"
-                assert response.json()["data"] == {"enabled": enabled, "token": token}
+                assert response.json() == {"enabled": enabled, "token": token}
             user = session.get(User, 2)
             for method in [client.get, client.patch]:
                 response = await method(

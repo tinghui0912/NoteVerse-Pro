@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 from datetime import datetime
 from typing import List, Optional, Protocol, TypedDict
 
@@ -7,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator,
 
 from app.db.models.import_job import ImportJobState
 from app.modules.scores.genres import Genres
+from app.shared.api_model import ApiModel
 
 
 @with_config(ConfigDict(extra="forbid"))
@@ -42,7 +44,7 @@ class ImportArtifactRead(BaseModel):
     original_filename: str | None = None
 
 
-class ImportJobRead(BaseModel):
+class ImportJobRead(ApiModel):
     job_id: str
     state: ImportJobState
     progress: int
@@ -60,7 +62,7 @@ class ImportJobRead(BaseModel):
     original_images: list[ImportArtifactRead] = []
 
 
-class ImportJobSubmitRead(BaseModel):
+class ImportJobSubmitRead(ApiModel):
     job_id: str
     count: int
     state: ImportJobState
@@ -74,7 +76,7 @@ class ImportJobStatusRead(BaseModel):
     score_id: str | None = None
 
 
-class ImportJobBatchStatusRead(BaseModel):
+class ImportJobBatchStatusRead(ApiModel):
     jobs: dict[str, ImportJobStatusRead]
 
 

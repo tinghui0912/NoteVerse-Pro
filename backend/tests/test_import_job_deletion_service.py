@@ -268,7 +268,7 @@ async def test_customer_delete_http_state_matrix_preserves_owned_data(score_serv
         app.dependency_overrides.pop(get_db, None)
         app.dependency_overrides.pop(get_current_user, None)
     allowed = state in {ImportJobState.PENDING_REVIEW, ImportJobState.FAILURE}
-    assert response.status_code == (200 if allowed else 422), response.text
+    assert response.status_code == (204 if allowed else 422), response.text
     if not allowed:
         assert response.json()["code"] == (
             ErrorCode.JOB_RUNNING if state == ImportJobState.RUNNING else ErrorCode.VALIDATION_ERROR

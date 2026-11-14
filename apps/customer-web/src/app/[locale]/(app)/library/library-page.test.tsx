@@ -62,12 +62,12 @@ vi.mock('@/hooks/queries/use-score-queries', () => ({
 }));
 vi.mock('@/hooks/queries/use-library-queries', () => ({
   useLibraryFolders: () => ({
-    data: { data: { folders, all_count: 10 } },
+    data: { folders, all_count: 10 },
     isLoading: false,
     isError: false,
   }),
   useLibraryScores: () => ({
-    data: { data: mocks.scores },
+    data: { items: mocks.scores, page: 1, page_size: 20, total: mocks.scores.length, total_pages: 1 },
     isLoading: false,
     isError: false,
   }),

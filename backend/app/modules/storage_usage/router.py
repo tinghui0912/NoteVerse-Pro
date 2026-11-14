@@ -7,7 +7,7 @@ from app.db.models import User
 from app.modules.storage_usage.dependencies import get_storage_usage_service
 from app.modules.storage_usage.schemas import StorageUsageRead
 from app.modules.storage_usage.service import StorageUsageService
-from app.shared.responses import APIResponse, success_response
+
 
 router = APIRouter()
 
@@ -15,7 +15,7 @@ router = APIRouter()
 @router.get(
     "/storage-usage",
     operation_id="accountStorageUsageGet",
-    response_model=APIResponse[StorageUsageRead],
+    response_model=StorageUsageRead,
 )
 async def get_storage_usage(
     current_user: User = Depends(get_current_user),
@@ -23,4 +23,4 @@ async def get_storage_usage(
     service: StorageUsageService = Depends(get_storage_usage_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    return success_response(data=await service.get_usage(db, user_id))
+    return await service.get_usage(db, user_id)

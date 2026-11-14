@@ -159,13 +159,9 @@ function reservation(
 }
 beforeEach(() => {
   vi.resetAllMocks();
-  vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue({
-    data: reservation(),
-  } as never);
+  vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue(reservation() as never);
   vi.mocked(uploadMediaToSignedUrl).mockResolvedValue();
-  vi.mocked(performanceTakesApi.finalizeTake).mockResolvedValue({
-    data: savedTake,
-  } as never);
+  vi.mocked(performanceTakesApi.finalizeTake).mockResolvedValue(savedTake as never);
 });
 async function save() {
   const { result } = renderHook(() => useSavePerformanceTake(), {
@@ -186,19 +182,15 @@ describe('useSavePerformanceTake', () => {
       const media = await capture.sink.seal('audio/wav');
       const accepted = reservation();
       accepted.manifest.capture.byte_size = media.byteSize;
-      vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue({
-        data: accepted,
-      } as never);
+      vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue(accepted as never);
       vi.mocked(performanceTakesApi.finalizeTake).mockResolvedValue({
-        data: {
           ...savedTake,
           manifest: accepted.manifest,
           recording_media: {
             mime_type: accepted.manifest.capture.mime_type,
             byte_size: accepted.manifest.capture.byte_size,
           },
-        },
-      } as never);
+        } as never);
       let finish!: () => void, fail!: (error: Error) => void;
       vi.mocked(uploadMediaToSignedUrl).mockImplementation(
         () =>
@@ -282,11 +274,8 @@ describe('useSavePerformanceTake', () => {
       headers: { 'content-type': 'video/mp4' },
       expires_in: 3600,
     };
-    vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue({
-      data: reserved,
-    } as never);
+    vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue(reserved as never);
     vi.mocked(performanceTakesApi.finalizeTake).mockResolvedValue({
-      data: {
         ...savedTake,
         recording_media: { mime_type: 'video/mp4', byte_size: raw.size },
         manifest: {
@@ -298,8 +287,7 @@ describe('useSavePerformanceTake', () => {
             byte_size: raw.size,
           },
         },
-      },
-    } as never);
+      } as never);
     const { result } = renderHook(() => useSavePerformanceTake(), {
       wrapper: createWrapper(),
     });
@@ -318,17 +306,13 @@ describe('useSavePerformanceTake', () => {
     );
   });
   it('returns COMPLETED without another upload or finalize', async () => {
-    vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue({
-      data: reservation('COMPLETED'),
-    } as never);
+    vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue(reservation('COMPLETED') as never);
     expect(await save()).toEqual(savedTake);
     expect(uploadMediaToSignedUrl).not.toHaveBeenCalled();
     expect(performanceTakesApi.finalizeTake).not.toHaveBeenCalled();
   });
   it('retries FINALIZING by identity without uploading', async () => {
-    vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue({
-      data: reservation('FINALIZING'),
-    } as never);
+    vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue(reservation('FINALIZING') as never);
     expect(await save()).toEqual(savedTake);
     expect(uploadMediaToSignedUrl).not.toHaveBeenCalled();
     expect(performanceTakesApi.finalizeTake).toHaveBeenCalledExactlyOnceWith(
@@ -389,11 +373,8 @@ describe('useSavePerformanceTake', () => {
       start_group_id: 'g1',
       end_group_id: 'g3',
     };
-    vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue({
-      data: accepted,
-    } as never);
+    vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue(accepted as never);
     vi.mocked(performanceTakesApi.finalizeTake).mockResolvedValue({
-      data: {
         ...savedTake,
         recording_media: {
           ...savedTake.recording_media,
@@ -415,8 +396,7 @@ describe('useSavePerformanceTake', () => {
             end_group_id: 'g3',
           },
         },
-      },
-    } as never);
+      } as never);
     const { result } = renderHook(() => useSavePerformanceTake(), {
       wrapper: createWrapper(),
     });
@@ -531,9 +511,7 @@ describe('server canonical plan agreement before media upload', () => {
     async (_, change) => {
       const accepted = structuredClone(reservation());
       change(accepted);
-      vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue({
-        data: accepted,
-      } as never);
+      vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue(accepted as never);
       await expect(save()).rejects.toThrow('PERFORMANCE_TAKE_PLAN_MISMATCH');
       expect(
         performanceTakesApi.cancelUploadReservation,
@@ -545,9 +523,7 @@ describe('server canonical plan agreement before media upload', () => {
   it('fails deterministically even when mismatch cancellation is unavailable', async () => {
     const accepted = structuredClone(reservation());
     accepted.manifest.scope.terminal_tick = 5;
-    vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue({
-      data: accepted,
-    } as never);
+    vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue(accepted as never);
     vi.mocked(performanceTakesApi.cancelUploadReservation).mockRejectedValue(
       new Error('offline'),
     );
@@ -557,9 +533,7 @@ describe('server canonical plan agreement before media upload', () => {
   it('does not finalize or cancel a mismatched FINALIZING reservation', async () => {
     const accepted = structuredClone(reservation('FINALIZING'));
     accepted.manifest.scope.terminal_tick = 5;
-    vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue({
-      data: accepted,
-    } as never);
+    vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue(accepted as never);
     await expect(save()).rejects.toThrow('PERFORMANCE_TAKE_PLAN_MISMATCH');
     expect(performanceTakesApi.finalizeTake).not.toHaveBeenCalled();
     expect(performanceTakesApi.cancelUploadReservation).not.toHaveBeenCalled();
@@ -575,9 +549,7 @@ describe('server canonical plan agreement before media upload', () => {
       if (field === 'scope') accepted.take!.manifest.scope.terminal_tick = 5;
       if (field === 'tempo')
         accepted.take!.manifest.tempo_plan.segments[0].bpm = 121;
-      vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue({
-        data: accepted,
-      } as never);
+      vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue(accepted as never);
       await expect(save()).rejects.toThrow('PERFORMANCE_TAKE_PLAN_MISMATCH');
       expect(uploadMediaToSignedUrl).not.toHaveBeenCalled();
       expect(performanceTakesApi.finalizeTake).not.toHaveBeenCalled();
@@ -585,7 +557,6 @@ describe('server canonical plan agreement before media upload', () => {
   );
   it('checks freshly finalized Take truth before reporting saved success', async () => {
     vi.mocked(performanceTakesApi.finalizeTake).mockResolvedValue({
-      data: {
         ...savedTake,
         manifest: {
           ...savedTake.manifest,
@@ -594,8 +565,7 @@ describe('server canonical plan agreement before media upload', () => {
             terminal_tick: 5,
           },
         },
-      },
-    } as never);
+      } as never);
     await expect(save()).rejects.toThrow('PERFORMANCE_TAKE_PLAN_MISMATCH');
   });
 });
@@ -614,9 +584,7 @@ it('requires exact fractional custom selection agreement', async () => {
     selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 80.6 },
     segments: [{ startTick: 0, bpm: 80.5, source: 'CUSTOM' }],
   };
-  vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue({
-    data: accepted,
-  } as never);
+  vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue(accepted as never);
   const { result } = renderHook(() => useSavePerformanceTake(), {
     wrapper: createWrapper(),
   });
@@ -652,9 +620,7 @@ it('requires exact RANGE group identities even when beats match', async () => {
     start_group_id: 'a',
     end_group_id: 'c',
   };
-  vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue({
-    data: accepted,
-  } as never);
+  vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue(accepted as never);
   const { result } = renderHook(() => useSavePerformanceTake(), {
     wrapper: createWrapper(),
   });
@@ -682,18 +648,14 @@ it('validates the executed grid locally without submitting it as reservation aut
   };
   const accepted = structuredClone(reservation());
   accepted.manifest.score_timebase.ticks_per_quarter = 60;
-  vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue({
-    data: accepted,
-  } as never);
+  vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue(accepted as never);
   vi.mocked(performanceTakesApi.finalizeTake).mockResolvedValue({
-    data: {
       ...savedTake,
       manifest: {
         ...savedTake.manifest,
         score_timebase: { ticks_per_quarter: 60 },
       },
-    },
-  } as never);
+    } as never);
   const { result } = renderHook(() => useSavePerformanceTake(), {
     wrapper: createWrapper(),
   });
@@ -707,14 +669,12 @@ it('validates the executed grid locally without submitting it as reservation aut
 });
 it('rejects a finalized Take on a different grid even when its tick values match', async () => {
   vi.mocked(performanceTakesApi.finalizeTake).mockResolvedValue({
-    data: {
       ...savedTake,
       manifest: {
         ...savedTake.manifest,
         score_timebase: { ticks_per_quarter: 60 },
       },
-    },
-  } as never);
+    } as never);
   await expect(save()).rejects.toThrow('PERFORMANCE_TAKE_PLAN_MISMATCH');
 });
 
@@ -736,9 +696,7 @@ it.each(['RESERVED', 'COMPLETED'] as const)(
       change(
         status === 'COMPLETED' ? accepted.take!.manifest : accepted.manifest,
       );
-      vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue({
-        data: accepted,
-      } as never);
+      vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue(accepted as never);
       await expect(save()).rejects.toThrow('PERFORMANCE_TAKE_PLAN_MISMATCH');
     }
   },
@@ -750,9 +708,7 @@ it.each(['mime_type', 'byte_size'] as const)(
     const invalid = structuredClone(savedTake);
     if (field === 'mime_type') invalid.recording_media.mime_type = 'audio/webm';
     else invalid.recording_media.byte_size++;
-    vi.mocked(performanceTakesApi.finalizeTake).mockResolvedValue({
-      data: invalid,
-    } as never);
+    vi.mocked(performanceTakesApi.finalizeTake).mockResolvedValue(invalid as never);
     await expect(save()).rejects.toThrow('PERFORMANCE_TAKE_PLAN_MISMATCH');
   },
 );
@@ -772,33 +728,23 @@ describe('semantic Take deletion cache admission', () => {
     const unrelated = queryKeys.performanceTakes.list({ score_id: 'score-2' });
     const other = { ...savedTake, take_id: 'other' };
     const list = (items: PerformanceTakeRead[], total: number, offset = 0) => ({
-      data: {
         items,
         total,
         limit: 1,
         offset,
         has_more: offset + items.length < total,
-      },
-    });
+      });
     client.setQueryData(first, list([savedTake], 2));
     client.setQueryData(second, list([other], 2, 1));
     client.setQueryData(matching, list([savedTake], 1));
     client.setQueryData(unrelated, list([other], 1));
-    client.setQueryData(queryKeys.performanceTakes.detail('take-1'), {
-      data: savedTake,
-    });
-    client.setQueryData(queryKeys.performanceTakes.playbackUrl('take-1'), {
-      data: { playback_url: 'signed-deleted' },
-    });
-    client.setQueryData(queryKeys.performanceTakes.playbackUrl('other'), {
-      data: { playback_url: 'signed-other' },
-    });
+    client.setQueryData(queryKeys.performanceTakes.detail('take-1'), savedTake);
+    client.setQueryData(queryKeys.performanceTakes.playbackUrl('take-1'), { playback_url: 'signed-deleted' });
+    client.setQueryData(queryKeys.performanceTakes.playbackUrl('other'), { playback_url: 'signed-other' });
     const invalidate = vi
       .spyOn(client, 'invalidateQueries')
       .mockImplementation(() => new Promise(() => {}));
-    vi.mocked(performanceTakesApi.deleteTake).mockResolvedValue({
-      data: { take_id: 'take-1', deleted: true },
-    } as never);
+    vi.mocked(performanceTakesApi.deleteTake).mockResolvedValue(undefined);
     const wrapper = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={client}>{children}</QueryClientProvider>
     );
@@ -806,18 +752,10 @@ describe('semantic Take deletion cache admission', () => {
     await act(async () => {
       await hook.result.current.mutateAsync('take-1');
     });
-    expect(client.getQueryData(first)).toMatchObject({
-      data: { items: [], total: 1, has_more: true },
-    });
-    expect(client.getQueryData(second)).toMatchObject({
-      data: { items: [other], total: 1, has_more: false },
-    });
-    expect(client.getQueryData(matching)).toMatchObject({
-      data: { items: [], total: 0 },
-    });
-    expect(client.getQueryData(unrelated)).toMatchObject({
-      data: { items: [other], total: 1 },
-    });
+    expect(client.getQueryData(first)).toMatchObject({ items: [], total: 1, has_more: true });
+    expect(client.getQueryData(second)).toMatchObject({ items: [other], total: 1, has_more: false });
+    expect(client.getQueryData(matching)).toMatchObject({ items: [], total: 0 });
+    expect(client.getQueryData(unrelated)).toMatchObject({ items: [other], total: 1 });
     expect(
       client.getQueryData(queryKeys.performanceTakes.detail('take-1')),
     ).toBeUndefined();
@@ -826,7 +764,7 @@ describe('semantic Take deletion cache admission', () => {
     ).toBeUndefined();
     expect(
       client.getQueryData(queryKeys.performanceTakes.playbackUrl('other')),
-    ).toMatchObject({ data: { playback_url: 'signed-other' } });
+    ).toMatchObject({ playback_url: 'signed-other' });
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: queryKeys.storageUsage.all,
     });
@@ -843,7 +781,7 @@ describe('semantic Take deletion cache admission', () => {
       defaultOptions: { mutations: { retry: false } },
     });
     const key = queryKeys.performanceTakes.list();
-    const cached = { data: { items: [savedTake], total: 1 } };
+    const cached = { items: [savedTake], total: 1 };
     client.setQueryData(key, cached);
     const invalidate = vi.spyOn(client, 'invalidateQueries');
     vi.mocked(performanceTakesApi.deleteTake).mockRejectedValue(
@@ -871,9 +809,7 @@ it('cancels stale deleted-resource/list reads while another Take playback remain
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   const key = queryKeys.performanceTakes.list();
-  client.setQueryData(key, {
-    data: { items: [savedTake], total: 1, offset: 0 },
-  });
+  client.setQueryData(key, { items: [savedTake], total: 1, offset: 0 });
   let listSignal!: AbortSignal, otherSignal!: AbortSignal;
   let finishList!: (data: unknown) => void,
     finishOther!: (data: unknown) => void;
@@ -898,9 +834,7 @@ it('cancels stale deleted-resource/list reads while another Take playback remain
     },
   });
   vi.spyOn(client, 'invalidateQueries').mockResolvedValue();
-  vi.mocked(performanceTakesApi.deleteTake).mockResolvedValue({
-    data: { take_id: 'take-1', deleted: true },
-  } as never);
+  vi.mocked(performanceTakesApi.deleteTake).mockResolvedValue(undefined);
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={client}>{children}</QueryClientProvider>
   );
@@ -910,16 +844,14 @@ it('cancels stale deleted-resource/list reads while another Take playback remain
   });
   expect(listSignal.aborted).toBe(true);
   expect(otherSignal.aborted).toBe(false);
-  finishList({ data: { items: [savedTake], total: 1 } });
-  finishOther({ data: { playback_url: 'other-signed-recording' } });
+  finishList({ items: [savedTake], total: 1 });
+  finishOther({ playback_url: 'other-signed-recording' });
   await stale;
   await other;
-  expect(client.getQueryData(key)).toMatchObject({
-    data: { items: [], total: 0 },
-  });
+  expect(client.getQueryData(key)).toMatchObject({ items: [], total: 0 });
   expect(
     client.getQueryData(queryKeys.performanceTakes.playbackUrl('other')),
-  ).toMatchObject({ data: { playback_url: 'other-signed-recording' } });
+  ).toMatchObject({ playback_url: 'other-signed-recording' });
   hook.unmount();
   client.clear();
 });

@@ -244,7 +244,7 @@ async def test_http_collection_page_and_cursor_validation(collaboration, path):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             first = await client.get("/api/v1" + path, params={"limit": 1})
             assert first.status_code == 200, first.text
-            data = first.json()["data"]
+            data = first.json()
             assert set(data) == {"items", "next_cursor"}
             assert len(data["items"]) == 1
             assert isinstance(data["next_cursor"], str)
@@ -252,7 +252,7 @@ async def test_http_collection_page_and_cursor_validation(collaboration, path):
                 "/api/v1" + path, params={"limit": 1, "cursor": data["next_cursor"]}
             )
             assert second.status_code == 200
-            assert second.json()["data"]["items"] != data["items"]
+            assert second.json()["items"] != data["items"]
             collection = "pending_invites" if path == "/me/invites" else path.rsplit("/", 1)[-1]
             wrong_version = (
                 base64.urlsafe_b64encode(
@@ -305,8 +305,7 @@ def test_customer_openapi_collaboration_pages():
         operation = document["paths"][path]["get"]
         assert {p["name"] for p in operation["parameters"]} >= {"limit", "cursor"}
         response = operation["responses"]["200"]["content"]["application/json"]["schema"]
-        wrapper = document["components"]["schemas"][response["$ref"].rsplit("/", 1)[-1]]
-        assert {"$ref": f"#/components/schemas/{page}"} in wrapper["properties"]["data"]["anyOf"]
+        assert response == {"$ref": f"#/components/schemas/{page}"}
         assert set(document["components"]["schemas"][page]["properties"]) == {
             "items",
             "next_cursor",

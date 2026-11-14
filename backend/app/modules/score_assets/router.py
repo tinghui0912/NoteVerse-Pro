@@ -15,7 +15,7 @@ from app.modules.score_assets.schemas import (
     ScoreRevisionAssetsRead,
 )
 from app.modules.score_assets.service import ScoreAssetService
-from app.shared.responses import APIResponse, success_response
+
 
 source_router = APIRouter()
 render_asset_router = APIRouter()
@@ -42,7 +42,7 @@ async def download_revision_source(
 @source_router.get(
     "/{source_id}/access-url",
     operation_id="scoreRevisionSourceAccessUrlGet",
-    response_model=APIResponse[AssetAccessRead],
+    response_model=AssetAccessRead,
 )
 async def get_revision_source_access_url(
     source_id: str,
@@ -52,7 +52,7 @@ async def get_revision_source_access_url(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     result = await service.source_access_url(db, source_id, user_id)
-    return success_response(data=result)
+    return result
 
 
 @render_asset_router.get(
@@ -92,7 +92,7 @@ async def view_render_asset(
 @render_asset_router.get(
     "/{render_asset_id}/access-url",
     operation_id="scoreRenderAssetAccessUrlGet",
-    response_model=APIResponse[AssetAccessRead],
+    response_model=AssetAccessRead,
 )
 async def get_render_asset_access_url(
     render_asset_id: str,
@@ -102,13 +102,13 @@ async def get_render_asset_access_url(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     result = await service.render_asset_access_url(db, render_asset_id, user_id)
-    return success_response(data=result)
+    return result
 
 
 @score_router.get(
     "/{score_id}/revision-assets",
     operation_id="scoreRevisionAssetsList",
-    response_model=APIResponse[ScoreRevisionAssetsRead],
+    response_model=ScoreRevisionAssetsRead,
 )
 async def list_score_revision_assets(
     score_id: str,
@@ -119,7 +119,7 @@ async def list_score_revision_assets(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     result = await service.list_revision_assets(db, score_id, user_id, revision_uuid=revision_id)
-    return success_response(data=result)
+    return result
 
 
 @score_router.get(

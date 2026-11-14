@@ -49,30 +49,29 @@ export async function mockAuthenticatedSession(page: Page): Promise<void> {
   ]);
   await page.route('**/api/v1/auth/refresh', (route) =>
     route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: null }),
+      status: 204,
+      body: '',
     })
   );
   await page.route('**/api/v1/me/profile**', (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: testUserProfile }),
+      body: JSON.stringify(testUserProfile),
     })
   );
   await page.route('**/api/v1/me/invites**', (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: [] }),
+      body: JSON.stringify({ items: [], next_cursor: null }),
     })
   );
   await page.route('**/api/v1/me/notifications/unread-count**', (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: { count: 0 } }),
+      body: JSON.stringify({ count: 0 }),
     })
   );
 }

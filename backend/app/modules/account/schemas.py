@@ -3,6 +3,7 @@
 from datetime import datetime
 
 from pydantic import BaseModel, EmailStr, Field
+from app.shared.api_model import ApiModel
 
 
 class UpdateProfileRequest(BaseModel):
@@ -23,14 +24,10 @@ class ProfileUserRead(BaseModel):
     avatar_url: str | None = None
 
 
-class ProfileRead(BaseModel):
+class ProfileRead(ApiModel):
     user: ProfileUserRead
 
 
-class ProfileUpdateRead(BaseModel):
-    updated_fields: list[str]
-
-
-class AvatarRead(BaseModel):
+class AvatarRead(ApiModel):
     avatar_url: str
     filename: str

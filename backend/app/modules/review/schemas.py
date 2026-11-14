@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.db.models.import_job import ImportJobState
 from app.modules.scores.genres import Genres
+from app.shared.api_model import ApiModel
 
 
 class ReviewArtifactRead(BaseModel):
@@ -22,7 +24,7 @@ class ReviewMusicXmlRead(BaseModel):
     mime_type: str | None = None
 
 
-class ImportJobReviewRead(BaseModel):
+class ImportJobReviewRead(ApiModel):
     job_id: str
     state: ImportJobState
     score_id: str | None = None
@@ -42,7 +44,7 @@ class ReviewConfirmRequest(BaseModel):
     genres: Genres | None = None
 
 
-class ReviewConfirmRead(BaseModel):
+class ReviewConfirmRead(ApiModel):
     score_id: str
 
 

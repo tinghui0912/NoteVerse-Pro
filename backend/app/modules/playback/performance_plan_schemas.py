@@ -3,6 +3,7 @@
 from fractions import Fraction
 
 from pydantic import BaseModel, Field
+from app.shared.api_model import ApiModel
 
 
 class PerformancePlanRequest(BaseModel):
@@ -34,7 +35,7 @@ class PerformanceTempoEventRead(BaseModel):
     bpm: RationalRead
 
 
-class PerformancePlanRead(BaseModel):
+class PerformancePlanRead(ApiModel):
     musicxml: str
     performance_end: RationalRead
     initial_tempo_bpm: RationalRead

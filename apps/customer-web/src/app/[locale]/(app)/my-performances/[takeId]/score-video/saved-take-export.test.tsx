@@ -31,7 +31,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: calls.push }),
 }));
 vi.mock("@/hooks/queries/use-performance-take-queries", () => ({
-  usePerformanceTakeDetail: () => ({ data: { data: take }, isLoading: false }),
+  usePerformanceTakeDetail: () => ({ data: take, isLoading: false }),
 }));
 vi.mock("@/lib/api/practice", () => ({ practiceApi: { getPracticeBundle: calls.get } }));
 vi.mock("@/lib/practice/media/performance-take/materialize", () => ({
@@ -63,7 +63,6 @@ beforeEach(() => {
   vi.clearAllMocks();
   calls.media.mockResolvedValue(localMediaAssetFixture(blob));
   calls.get.mockResolvedValue({
-    data: {
       binding: {
         score_id: take.manifest.practice_binding.score_id,
         revision_id: take.manifest.practice_binding.revision_id,
@@ -74,8 +73,7 @@ beforeEach(() => {
         musicxml: "<score />",
         mime_type: "application/vnd.recordare.musicxml+xml",
       },
-    },
-  });
+    });
   vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
   URL.createObjectURL = vi.fn(() => "blob:raw");
   URL.revokeObjectURL = vi.fn();
@@ -139,7 +137,6 @@ it.each([403, 404])(
 );
 it("refuses different exact representation identity while retaining raw media", async () => {
   calls.get.mockResolvedValue({
-    data: {
       binding: {
         score_id: take.manifest.practice_binding.score_id,
         revision_id: take.manifest.practice_binding.revision_id,
@@ -150,8 +147,7 @@ it("refuses different exact representation identity while retaining raw media", 
         musicxml: "<score />",
         mime_type: "application/vnd.recordare.musicxml+xml",
       },
-    },
-  });
+    });
   openPage();
   await screen.findByText(practice.savedTakeCompositeVideoRevisionUnavailable);
   expect(screen.getByTestId("raw-source")).toBeVisible();

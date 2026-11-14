@@ -189,11 +189,11 @@ async def test_http_source_disclosure_and_editing_boundaries(collaboration, role
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             detail = await client.get("/api/v1/scores/trusted-score")
             assert detail.status_code == 200
-            assert bool(detail.json()["data"]["input_assets"]) == can_edit
+            assert bool(detail.json()["input_assets"]) == can_edit
             assets = await client.get("/api/v1/scores/trusted-score/revision-assets")
             assert assets.status_code == 200
-            assert bool(assets.json()["data"]["revision_sources"]) == can_edit
-            assert len(assets.json()["data"]["render_assets"]) == 1
+            assert bool(assets.json()["revision_sources"]) == can_edit
+            assert len(assets.json()["render_assets"]) == 1
             reads = [
                 ("/scores/trusted-score/revisions/trusted-revision/content", can_edit),
                 ("/scores/trusted-score/revisions", can_edit),

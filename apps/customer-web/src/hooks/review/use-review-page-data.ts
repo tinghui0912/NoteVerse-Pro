@@ -63,7 +63,7 @@ export function useReviewPageData(jobId: string) {
   const errors = useTranslations('errors');
   const router = useRouter();
   const reviewQuery = useImportJobReview(jobId);
-  const review = reviewQuery.data?.data;
+  const review = reviewQuery.data;
   const xmlContent = review?.musicxml?.content ?? null;
   const originalFiles = useMemo(() => review?.original_images ?? [], [review?.original_images]);
   const original = useReviewArtifacts(jobId, originalFiles);
@@ -111,8 +111,8 @@ export function useReviewPageData(jobId: string) {
       title: review?.title ?? undefined,
     }, {
     onSuccess: (response) => {
-      if (response.success && response.data?.score_id) {
-        router.push(`/score/${response.data.score_id}`);
+      if (response.score_id) {
+        router.push(`/score/${response.score_id}`);
       }
     },
     });

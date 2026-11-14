@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+
 from typing import Literal
 
 from pydantic import BaseModel, Field
+from app.shared.api_model import ApiModel
 
 
 class FingeringRequest(BaseModel):
@@ -12,5 +14,5 @@ class FingeringRequest(BaseModel):
     hand_size: Literal["XXS", "XS", "S", "M", "L", "XL", "XXL"] = "M"
 
 
-class FingeringResultRead(BaseModel):
+class FingeringResultRead(ApiModel):
     content: str

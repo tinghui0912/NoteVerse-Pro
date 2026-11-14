@@ -15,8 +15,8 @@ function harness() {
 }
 beforeEach(() => {
   vi.resetAllMocks();
-  api.exactSource.mockResolvedValue({ data: { binding: {score_id: 'score', revision_id: 'revision', bundle_id:'source-1'}, artifact: fixture,
-    notation: { musicxml: '<score />', mime_type: 'application/vnd.recordare.musicxml+xml' } } });
+  api.exactSource.mockResolvedValue({ binding: {score_id: 'score', revision_id: 'revision', bundle_id:'source-1'}, artifact: fixture,
+    notation: { musicxml: '<score />', mime_type: 'application/vnd.recordare.musicxml+xml' } });
 });
 it('saved take rendering requests one verified source with notation', async () => {
   const { result } = renderHook(() => useSavedTakeExportBundle({ bundleId: 'source-1', scoreId: 'score', revisionId: 'revision', artifactId: fixture.artifactId }, {}), { wrapper: harness() });

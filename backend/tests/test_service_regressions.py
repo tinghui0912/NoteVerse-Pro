@@ -493,7 +493,7 @@ async def test_delete_uploaded_file_removes_owned_file_and_record() -> None:
         ):
             result = await service.delete_uploaded_file(db, current_user, "owned.png")
 
-    assert result.filename == "owned.png"
+    assert result is None
     repository.delete_upload_by_id.assert_awaited_once_with(db, 7)
     retire.assert_awaited_once_with(db, 5)
     assert release_usage.call_args.kwargs["auto_commit"] is False
@@ -537,12 +537,12 @@ async def test_avatar_response_url_routes_to_current_customer_resolver(
     ) as client:
         if source == "profile":
             response = await client.get("/api/v1/me/profile")
-            url = response.json()["data"]["user"]["avatar_url"]
+            url = response.json()["user"]["avatar_url"]
         else:
             response = await client.post(
                 "/api/v1/me/avatar", files={"file": ("avatar.png", image.getvalue(), "image/png")}
             )
-            url = response.json()["data"]["avatar_url"]
+            url = response.json()["avatar_url"]
         assert response.status_code == 200
         assert url.startswith("/") and not url.startswith("//")
         assert url == avatar_url_for_user(user)

@@ -1,9 +1,9 @@
 import type { UploadFileRead } from '@/generated/api';
 import { fileDelete, filesUpload } from '@/generated/api';
-import { customerTransport, responseData } from '@/lib/http/customer-browser-transport';
+import { customerTransport, responseBody, responseComplete } from '@/lib/http/customer-browser-transport';
 
 async function uploadFile(file: File) {
-  return responseData(filesUpload({ ...customerTransport.authenticated, body: { file: file } }));
+  return responseBody(filesUpload({ ...customerTransport.authenticated, body: { file: file } }));
 }
 
 async function uploadFiles(
@@ -13,14 +13,14 @@ async function uploadFiles(
   const results: UploadFileRead[] = [];
   for (let index = 0; index < files.length; index += 1) {
     const response = await uploadFile(files[index]);
-    if (response.data) results.push(response.data);
+    if (response) results.push(response);
     onProgress?.(index + 1, files.length);
   }
   return results;
 }
 
 async function deleteFile(filename: string) {
-  return responseData(fileDelete({ ...customerTransport.authenticated, path: { filename: filename } }));
+  return responseComplete(fileDelete({ ...customerTransport.authenticated, path: { filename: filename } }));
 }
 
 function triggerDownload(blob: Blob, filename: string): void {

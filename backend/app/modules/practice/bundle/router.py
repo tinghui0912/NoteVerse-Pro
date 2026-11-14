@@ -10,7 +10,7 @@ from app.modules.practice.bundle.schemas import (
     PracticeBundleRead,
 )
 from app.modules.practice.bundle.service import PracticeBundleService
-from app.shared.responses import APIResponse, success_response
+
 
 router = APIRouter()
 
@@ -23,7 +23,7 @@ def get_practice_bundle_service() -> PracticeBundleService:
 @router.get(
     "/scores/{score_id}/revisions/{revision_id}/bundle",
     operation_id="practiceScoreRevisionBundleGet",
-    response_model=APIResponse[PracticeBundleRead],
+    response_model=PracticeBundleRead,
 )
 async def read_bundle(
     score_id: str,
@@ -41,4 +41,4 @@ async def read_bundle(
         revision_id,
         include_notation=include_notation,
     )
-    return success_response(data=result)
+    return result

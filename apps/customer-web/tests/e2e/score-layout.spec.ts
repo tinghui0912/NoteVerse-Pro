@@ -39,7 +39,7 @@ test('score detail uses lightweight hero layout and lazy playback', async ({ pag
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: score }),
+      body: JSON.stringify(score),
     })
   );
   await page.route(`**/api/v1/scores/${scoreId}/revisions/${revisionId}/content`, (route) =>
@@ -47,8 +47,6 @@ test('score detail uses lightweight hero layout and lazy playback', async ({ pag
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        success: true,
-        data: {
           revision_id: revisionId,
           revision_number: 1,
           content_hash: 'hash',
@@ -56,25 +54,21 @@ test('score detail uses lightweight hero layout and lazy playback', async ({ pag
           created_at: score.created_at,
           content: musicXml,
           mime_type: 'application/xml',
-        },
-      }),
+        }),
     })
   );
   await page.route(`**/api/v1/scores/${scoreId}/revision-assets**`, (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: { revision_sources: [], render_assets: [] } }),
+      body: JSON.stringify({ revision_sources: [], render_assets: [] }),
     })
   );
   await page.route(`**/api/v1/scores/${scoreId}/guest-preview`, (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({
-        success: true,
-        data: { enabled: false, token: 'layout-preview-token' },
-      }),
+      body: JSON.stringify({ enabled: false, token: 'layout-preview-token' }),
     })
   );
   await page.goto(`/en/score/${scoreId}`);
@@ -139,7 +133,7 @@ test('Score head presentation progresses neutrally to exact READY assets through
     },
   };
   await page.route('**/api/v1/scores/exact-score', (route) =>
-    route.fulfill({ json: { success: true, data: score } })
+    route.fulfill({ json: score })
   );
   const assetReads: string[] = [],
     mediaReads: string[] = [],
@@ -147,7 +141,7 @@ test('Score head presentation progresses neutrally to exact READY assets through
   await page.route('**/api/v1/scores/exact-score/revision-assets?**', (route) => {
     assetReads.push(route.request().url());
     return route.fulfill({
-      json: { success: true, data: { revision_sources: [], render_assets: [] } },
+      json: { revision_sources: [], render_assets: [] },
     });
   });
   await page.route('**/api/v1/render-assets/*/view', (route) => {

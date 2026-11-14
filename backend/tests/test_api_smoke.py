@@ -195,7 +195,7 @@ def test_main_api_serves_one_practice_bundle(client: TestClient, include_notatio
         app.dependency_overrides.pop(get_current_user, None)
         app.dependency_overrides.pop(get_db, None)
     assert response.status_code == 200
-    source = response.json()["data"]
+    source = response.json()
     assert source["binding"] == {
         "score_id": "score-1",
         "revision_id": "revision-1",

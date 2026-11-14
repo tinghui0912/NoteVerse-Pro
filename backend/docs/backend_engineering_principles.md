@@ -382,11 +382,15 @@ Use the project response and exception conventions:
 - `UnauthorizedException`
 - `ResourceNotFoundException`
 - `AppException`
-- `success_response(...)`
 - `ErrorCode`
-- `SuccessCode`
 
-Avoid local one-off JSON error shapes.
+Customer successes use direct typed representations, explicit pagination resources
+and bodyless 204 commands. Frontend owns localized success presentation. Customer
+application errors use `ApiErrorResponse`; Control Plane owns its independent
+response contract. Customer successes use direct typed representations, explicit pagination resources
+and bodyless 204 commands. Frontend owns localized success presentation. Customer
+application errors use `ApiErrorResponse`; Control Plane owns its independent
+response contract. Avoid local one-off JSON error shapes.
 
 Score-facing responses should include backend-computed capabilities where the UI needs
 conditional actions, but the backend endpoint remains the enforcement point.

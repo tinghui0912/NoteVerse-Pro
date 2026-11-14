@@ -3,8 +3,7 @@ import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifa
 import { admitPracticeBundle } from './admit-practice-bundle';
 const request = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/api', () => ({ practiceApi: { getPracticeBundle: request } }));
-const envelope = () => ({
-  data: {
+const representation = () => ({
     binding: {
       score_id: 'score-1',
       revision_id: 'revision-1',
@@ -15,15 +14,14 @@ const envelope = () => ({
       musicxml: '<score />',
       mime_type: 'application/vnd.recordare.musicxml+xml',
     },
-  },
-});
+  });
 const load = (signal = new AbortController().signal) =>
   admitPracticeBundle('score-1', 'revision-1', signal);
 beforeEach(() => {
-  request.mockReset().mockImplementation(async () => envelope());
+  request.mockReset().mockImplementation(async () => representation());
 });
 it('fresh complete admission owns the exact returned references independently of cache', async () => {
-  const response = envelope(),
+  const response = representation(),
     signal = new AbortController().signal;
   request.mockResolvedValue(response);
   const source = await load(signal);
@@ -39,20 +37,17 @@ it('fresh complete admission owns the exact returned references independently of
       revisionId: 'revision-1',
       bundleId: 'bundle',
     },
-    artifact: response.data.artifact,
+    artifact: response.artifact,
     musicXml: '<score />',
   });
-  expect(source.artifact).toBe(response.data.artifact);
+  expect(source.artifact).toBe(response.artifact);
   expect(Object.isFrozen(source.artifact)).toBe(true);
   expect(Object.isFrozen(source.artifact.notes[0])).toBe(true);
   expect(Object.isFrozen(source.artifact.moments)).toBe(true);
   request.mockResolvedValueOnce({
-    ...envelope(),
-    data: {
-      ...envelope().data,
-      binding: { ...envelope().data.binding, bundle_id: 'next' },
-    },
-  });
+      ...representation(),
+      binding: { ...representation().binding, bundle_id: 'next' },
+    });
   expect((await load()).binding.bundleId).toBe('next');
   expect(source.binding.bundleId).toBe('bundle');
   expect(request).toHaveBeenCalledTimes(2);
@@ -60,8 +55,8 @@ it('fresh complete admission owns the exact returned references independently of
 it.each(['score_id', 'revision_id'] as const)(
   'rejects a mismatched %s',
   async (field) => {
-    const response = envelope();
-    response.data.binding[field] = 'wrong';
+    const response = representation();
+    response.binding[field] = 'wrong';
     request.mockResolvedValue(response);
     await expect(load()).rejects.toMatchObject({
       kind: 'BUNDLE',
@@ -73,11 +68,9 @@ it.each([undefined, '', 1])(
   'requires Bundle binding identity: %s',
   async (bundle_id) => {
     request.mockResolvedValue({
-      data: {
-        ...envelope().data,
-        binding: { ...envelope().data.binding, bundle_id },
-      },
-    });
+        ...representation(),
+        binding: { ...representation().binding, bundle_id },
+      });
     await expect(load()).rejects.toMatchObject({
       kind: 'BUNDLE',
       code: 'INVALID_SCORE',
@@ -90,16 +83,14 @@ it.each([
   { musicxml: '   ', mime_type: 'application/vnd.recordare.musicxml+xml' },
   { musicxml: '<score />', mime_type: 'text/plain' },
 ])('requires complete notation: %j', async (notation) => {
-  request.mockResolvedValue({ data: { ...envelope().data, notation } });
+  request.mockResolvedValue({ ...representation(), notation });
   await expect(load()).rejects.toMatchObject({
     kind: 'BUNDLE',
     code: 'INVALID_SCORE',
   });
 });
 it('strict artifact admission rejects empty required notation structure', async () => {
-  request.mockResolvedValue({
-    data: { ...envelope().data, artifact: { ...fixture, notes: [] } },
-  });
+  request.mockResolvedValue({ ...representation(), artifact: { ...fixture, notes: [] } });
   await expect(load()).rejects.toMatchObject({
     kind: 'BUNDLE',
     code: 'INVALID_SCORE',
@@ -120,7 +111,7 @@ it('keeps transport/service failures distinct from deterministic invalid Bundle'
   });
 });
 it('caller cancellation reaches the actual transport and a late response cannot admit', async () => {
-  let resolve!: (value: ReturnType<typeof envelope>) => void;
+  let resolve!: (value: ReturnType<typeof representation>) => void;
   request.mockImplementation(
     () =>
       new Promise((done) => {
@@ -132,10 +123,10 @@ it('caller cancellation reaches the actual transport and a late response cannot 
   expect(request.mock.calls[0][3]).toBe(command.signal);
   command.abort();
   expect(request.mock.calls[0][3].aborted).toBe(true);
-  resolve(envelope());
+  resolve(representation());
   expect(await pending).toBe(command.signal.reason);
   const next = new AbortController();
-  request.mockResolvedValue(envelope());
+  request.mockResolvedValue(representation());
   await load(next.signal);
   expect(request.mock.calls[1][3]).toBe(next.signal);
   expect(next.signal.aborted).toBe(false);

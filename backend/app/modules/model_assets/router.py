@@ -6,7 +6,7 @@ from app.api.deps import get_current_user
 from app.db.models.user import User
 from app.modules.model_assets.schemas import PracticeAcousticAccessRead
 from app.modules.model_assets.service import ModelAssetService, get_model_asset_service
-from app.shared.responses import APIResponse, SuccessResponsePayload, success_response
+
 
 router = APIRouter()
 
@@ -14,11 +14,11 @@ router = APIRouter()
 @router.get(
     "/practice-acoustic/access",
     operation_id="practiceAcousticModelAccessGet",
-    response_model=APIResponse[PracticeAcousticAccessRead],
+    response_model=PracticeAcousticAccessRead,
 )
 async def get_practice_acoustic_access(
     current_user: User = Depends(get_current_user),
     service: ModelAssetService = Depends(get_model_asset_service),
-) -> SuccessResponsePayload:
+) -> PracticeAcousticAccessRead:
     """Asset delivery only; no server Practice execution."""
-    return success_response(data=service.get_practice_acoustic_access())
+    return service.get_practice_acoustic_access()

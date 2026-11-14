@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { practiceApi } from '@/lib/api/practice';
 import { queryKeys } from '@/lib/query-client';
 import { BundleFailure } from '@/lib/practice/failure/causal-failure';
-import { readPracticeBundle } from '@/lib/practice/bundle/bundle-envelope';
+import { readPracticeBundle } from '@/lib/practice/bundle/bundle-representation';
 
 export function useSavedTakeExportBundle(
   identity: {

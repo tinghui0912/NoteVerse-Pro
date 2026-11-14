@@ -131,18 +131,16 @@ vi.mock('@/components/practice/recording-playback-player', () => ({
   ),
 }));
 const mockDeleteTakeMutation = vi.hoisted(() => ({
-  mutateAsync: vi.fn().mockResolvedValue({ data: { deleted: true } }),
+  mutateAsync: vi.fn().mockResolvedValue({ deleted: true }),
   isPending: false,
 }));
 const mockPlaybackQuery = vi.hoisted(() => ({
   data: {
-    data: {
       take_id: 'take-1',
       playback_url: 'https://oss.example.com/play-1.webm',
       download_url: 'https://oss.example.com/download-1.webm',
       expires_in: 3600,
     },
-  },
   isLoading: false,
   isError: false,
   refetch: vi.fn(),
@@ -202,13 +200,11 @@ const fixture121Takes: PerformanceTakeRead[] = Array.from(
 let currentTakesTotal = 121;
 interface MockTakesQueryResult {
   data?: {
-    data: {
       items: PerformanceTakeRead[];
       total: number;
       limit: number;
       offset: number;
       has_more: boolean;
-    };
   } | null;
   isLoading: boolean;
   isError: boolean;
@@ -275,14 +271,12 @@ const mockUsePerformanceTakes = vi.fn(
       .slice(offset, offset + limit);
     return {
       data: {
-        data: {
           items,
           total: currentTakesTotal,
           limit,
           offset,
           has_more: offset + limit < currentTakesTotal,
         },
-      },
       isLoading: false,
       isError: false,
       isSuccess: true,
@@ -303,11 +297,9 @@ vi.mock('@/hooks/queries/use-performance-take-queries', () => ({
 }));
 const mockApi = vi.hoisted(() => ({
   getPlaybackUrl: vi.fn().mockResolvedValue({
-    data: {
       playback_url: 'https://oss.example.com/play-1.webm',
       download_url: 'https://oss.example.com/download-1.webm',
-    },
-  }),
+    }),
 }));
 vi.mock('@/lib/api/performance-takes', () => ({
   performanceTakesApi: mockApi,
@@ -373,7 +365,6 @@ describe('MyPerformancesPage', () => {
   it('renders retained score provenance as a score link', () => {
     mockQueryOverride = {
       data: {
-        data: {
           items: [
             {
               recording_media: { mime_type: 'audio/webm', byte_size: 1024 },
@@ -410,7 +401,6 @@ describe('MyPerformancesPage', () => {
           offset: 0,
           has_more: false,
         },
-      },
       isLoading: false,
       isError: false,
       isSuccess: true,
@@ -425,7 +415,6 @@ describe('MyPerformancesPage', () => {
   it('renders retained score provenance as plain text when live score is no longer accessible', () => {
     mockQueryOverride = {
       data: {
-        data: {
           items: [
             {
               recording_media: { mime_type: 'audio/webm', byte_size: 1024 },
@@ -462,7 +451,6 @@ describe('MyPerformancesPage', () => {
           offset: 0,
           has_more: false,
         },
-      },
       isLoading: false,
       isError: false,
       isSuccess: true,
@@ -477,7 +465,6 @@ describe('MyPerformancesPage', () => {
   it('handles playback toggling and playback error retry', () => {
     mockQueryOverride = {
       data: {
-        data: {
           items: [
             {
               recording_media: { mime_type: 'audio/webm', byte_size: 1024 },
@@ -512,7 +499,6 @@ describe('MyPerformancesPage', () => {
           offset: 0,
           has_more: false,
         },
-      },
       isLoading: false,
       isError: false,
       isSuccess: true,
@@ -538,7 +524,6 @@ describe('MyPerformancesPage', () => {
     async (mimeType) => {
       mockQueryOverride = {
         data: {
-          data: {
             items: [
               {
                 recording_media: { mime_type: mimeType, byte_size: 2048 },
@@ -573,7 +558,6 @@ describe('MyPerformancesPage', () => {
             offset: 0,
             has_more: false,
           },
-        },
         isLoading: false,
         isError: false,
         isSuccess: true,
@@ -593,11 +577,9 @@ describe('MyPerformancesPage', () => {
       expect(screen.getByText('Kind: VIDEO')).toBeInTheDocument();
       const extension = mimeType === 'video/mp4' ? 'mp4' : 'webm';
       mockApi.getPlaybackUrl.mockResolvedValueOnce({
-        data: {
           playback_url: `https://oss.example.com/raw.${extension}`,
           download_url: `https://oss.example.com/raw.${extension}`,
-        },
-      });
+        });
       const click = vi
         .spyOn(HTMLAnchorElement.prototype, 'click')
         .mockImplementation(() => {});
@@ -615,7 +597,6 @@ describe('MyPerformancesPage', () => {
   it('triggers download and handles download failure with retry', async () => {
     mockQueryOverride = {
       data: {
-        data: {
           items: [
             {
               recording_media: { mime_type: 'audio/webm', byte_size: 1024 },
@@ -650,7 +631,6 @@ describe('MyPerformancesPage', () => {
           offset: 0,
           has_more: false,
         },
-      },
       isLoading: false,
       isError: false,
       isSuccess: true,
@@ -672,11 +652,9 @@ describe('MyPerformancesPage', () => {
     });
     // Retry
     mockApi.getPlaybackUrl.mockResolvedValueOnce({
-      data: {
         playback_url: 'https://oss.example.com/play-1.webm',
         download_url: 'https://oss.example.com/download-1.webm',
-      },
-    });
+      });
     const retryBtn = screen.getByTestId('retry-download-take-1');
     fireEvent.click(retryBtn);
     await waitFor(() => {
@@ -686,7 +664,6 @@ describe('MyPerformancesPage', () => {
   it('opens confirmation dialog and handles delete failure with retry', async () => {
     mockQueryOverride = {
       data: {
-        data: {
           items: [
             {
               recording_media: { mime_type: 'audio/webm', byte_size: 1024 },
@@ -721,7 +698,6 @@ describe('MyPerformancesPage', () => {
           offset: 0,
           has_more: false,
         },
-      },
       isLoading: false,
       isError: false,
       isSuccess: true,
@@ -744,9 +720,7 @@ describe('MyPerformancesPage', () => {
     // Dialog stays open
     expect(screen.getByText('确定要删除这条演奏记录吗？')).toBeInTheDocument();
     // 2. Retry with success
-    mockDeleteTakeMutation.mutateAsync.mockResolvedValueOnce({
-      data: { deleted: true },
-    });
+    mockDeleteTakeMutation.mutateAsync.mockResolvedValueOnce({ deleted: true });
     fireEvent.click(confirmBtn);
     await waitFor(() => {
       expect(mockDeleteTakeMutation.mutateAsync).toHaveBeenCalledWith('take-1');
@@ -892,14 +866,12 @@ describe('MyPerformancesPage', () => {
           items: PerformanceTakeRead[],
         ): MockTakesQueryResult => ({
           data: {
-            data: {
               items,
               total: items.length,
               limit: 20,
               offset: 0,
               has_more: false,
             },
-          },
           isLoading: false,
           isError: false,
           isSuccess: true,
@@ -912,7 +884,7 @@ describe('MyPerformancesPage', () => {
         mockDeleteTakeMutation.mutateAsync.mockImplementationOnce(async () => {
           mockReactiveQueryIndex = 1;
           notifyReactiveQuery();
-          return { data: { take_id: selected.take_id, deleted: true } };
+          return { take_id: selected.take_id, deleted: true };
         });
         render(<MyPerformancesPage />);
         fireEvent.click(screen.getByTestId('play-take-take-1'));

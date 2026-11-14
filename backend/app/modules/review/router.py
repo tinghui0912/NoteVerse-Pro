@@ -12,14 +12,12 @@ from app.modules.review.schemas import (
     ReviewUpdateRequest,
 )
 from app.modules.review.service import ReviewService
-from app.shared.responses import APIResponse, success_response
+
 
 router = APIRouter()
 
 
-@router.get(
-    "/{job_id}", operation_id="importJobReviewGet", response_model=APIResponse[ImportJobReviewRead]
-)
+@router.get("/{job_id}", operation_id="importJobReviewGet", response_model=ImportJobReviewRead)
 async def get_import_job_review(
     job_id: str,
     current_user: User = Depends(get_current_user),
@@ -28,13 +26,13 @@ async def get_import_job_review(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     result = await service.detail(db, job_id, user_id)
-    return success_response(data=result)
+    return result
 
 
 @router.patch(
     "/{job_id}",
     operation_id="importJobReviewUpdate",
-    response_model=APIResponse[ImportJobReviewRead],
+    response_model=ImportJobReviewRead,
 )
 async def update_import_job_review(
     job_id: str,
@@ -45,13 +43,13 @@ async def update_import_job_review(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     result = await service.update(db, job_id, user_id, request)
-    return success_response(data=result)
+    return result
 
 
 @router.post(
     "/{job_id}/confirm",
     operation_id="importJobReviewConfirm",
-    response_model=APIResponse[ReviewConfirmRead],
+    response_model=ReviewConfirmRead,
 )
 async def confirm_import_job_review(
     job_id: str,
@@ -62,4 +60,4 @@ async def confirm_import_job_review(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     result = await service.confirm(db, job_id, user_id, request)
-    return success_response(data=result)
+    return result

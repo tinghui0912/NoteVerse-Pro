@@ -29,8 +29,6 @@ test('invite routes use InviteShell instead of public marketing navigation', asy
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        success: true,
-        data: {
           invite_id: 'invite-1',
           score_id: scoreId,
           score_title: 'Invite Shell Score',
@@ -41,8 +39,7 @@ test('invite routes use InviteShell instead of public marketing navigation', asy
           expires_at: null,
           requires_login: true,
           can_accept: false,
-        },
-      }),
+        }),
     })
   );
 

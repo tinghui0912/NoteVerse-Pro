@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 from datetime import datetime
 from enum import Enum
 
@@ -9,6 +10,7 @@ from app.db.models.score_access import AccessOrigin
 from app.modules.metadata.schemas import MetadataRead
 from app.modules.score_assets.schemas import ScoreDerivedAssetsRead
 from app.modules.scores.genres import Genres
+from app.shared.api_model import ApiModel
 
 
 class LibraryView(str, Enum):
@@ -67,15 +69,15 @@ class LibraryScoreBatchFavoriteRequest(BaseModel):
     is_favorite: bool
 
 
-class LibraryBatchMoveRead(BaseModel):
+class LibraryBatchMoveRead(ApiModel):
     moved: int
 
 
-class LibraryBatchUpdateRead(BaseModel):
+class LibraryBatchUpdateRead(ApiModel):
     updated: int
 
 
-class LibraryFolderRead(BaseModel):
+class LibraryFolderRead(ApiModel):
     folder_id: str
     name: str
     position: int
@@ -84,7 +86,7 @@ class LibraryFolderRead(BaseModel):
     updated_at: datetime
 
 
-class LibraryFolderOverviewRead(BaseModel):
+class LibraryFolderOverviewRead(ApiModel):
     all_count: int
     favorite_count: int
     created_by_me_count: int
@@ -92,7 +94,7 @@ class LibraryFolderOverviewRead(BaseModel):
     folders: list[LibraryFolderRead]
 
 
-class LibraryScoreRead(BaseModel):
+class LibraryScoreRead(ApiModel):
     score_id: str
     access_origin: AccessOrigin
     folder_id: str | None

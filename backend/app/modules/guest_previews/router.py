@@ -14,7 +14,6 @@ from app.modules.guest_previews.schemas import (
     GuestPreviewRead,
 )
 from app.modules.guest_previews.service import GuestPreviewService
-from app.shared.responses import APIResponse, success_response
 
 
 score_router = APIRouter()
@@ -24,7 +23,7 @@ preview_router = APIRouter()
 @score_router.get(
     "/{score_id}/guest-preview",
     operation_id="scoreGuestPreviewSettingsGet",
-    response_model=APIResponse[GuestPreviewSettingsRead],
+    response_model=GuestPreviewSettingsRead,
 )
 async def read_guest_preview_settings(
     score_id: str,
@@ -32,17 +31,15 @@ async def read_guest_preview_settings(
     db: AsyncSession = Depends(get_db),
     service: GuestPreviewService = Depends(get_guest_preview_service),
 ):
-    return success_response(
-        data=await service.settings(
-            db, score_id, require_persisted_id(current_user.id, entity="user")
-        )
+    return await service.settings(
+        db, score_id, require_persisted_id(current_user.id, entity="user")
     )
 
 
 @score_router.patch(
     "/{score_id}/guest-preview",
     operation_id="scoreGuestPreviewSettingsUpdate",
-    response_model=APIResponse[GuestPreviewSettingsRead],
+    response_model=GuestPreviewSettingsRead,
 )
 async def update_guest_preview_settings(
     score_id: str,
@@ -51,22 +48,18 @@ async def update_guest_preview_settings(
     db: AsyncSession = Depends(get_db),
     service: GuestPreviewService = Depends(get_guest_preview_service),
 ):
-    return success_response(
-        data=await service.update_settings(
-            db, score_id, require_persisted_id(current_user.id, entity="user"), request
-        )
+    return await service.update_settings(
+        db, score_id, require_persisted_id(current_user.id, entity="user"), request
     )
 
 
-@preview_router.get(
-    "/{token}", operation_id="guestPreviewGet", response_model=APIResponse[GuestPreviewRead]
-)
+@preview_router.get("/{token}", operation_id="guestPreviewGet", response_model=GuestPreviewRead)
 async def read_guest_preview(
     token: str,
     db: AsyncSession = Depends(get_db),
     service: GuestPreviewService = Depends(get_guest_preview_service),
 ):
-    return success_response(data=await service.read(db, token))
+    return await service.read(db, token)
 
 
 @preview_router.get(

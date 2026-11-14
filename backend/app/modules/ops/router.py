@@ -30,7 +30,7 @@ from app.modules.ops.command_service import (
     ops_async_operation_command_service,
 )
 from app.shared.pagination import OffsetPage
-from app.shared.responses import APIResponse, success_response
+from app.core.control_plane_responses import APIResponse, success_response
 
 router = APIRouter()
 
@@ -49,7 +49,9 @@ def get_ops_audit_service() -> OpsAuditService:
 
 @router.get("/audit-events", response_model=APIResponse[OffsetPage[OpsAuditEventRead]])
 async def list_ops_audit_events(
-    _operator: OperatorPrincipal = Depends(require_platform_operation(PlatformOperationAction.READ)),
+    _operator: OperatorPrincipal = Depends(
+        require_platform_operation(PlatformOperationAction.READ)
+    ),
     db: AsyncSession = Depends(get_db),
     service: OpsAuditService = Depends(get_ops_audit_service),
     limit: int = Query(default=100, ge=1, le=500),
@@ -79,7 +81,9 @@ async def list_ops_audit_events(
 
 @router.get("/async-operations", response_model=APIResponse[OffsetPage[AsyncOperationRead]])
 async def list_async_operations(
-    _operator: OperatorPrincipal = Depends(require_platform_operation(PlatformOperationAction.READ)),
+    _operator: OperatorPrincipal = Depends(
+        require_platform_operation(PlatformOperationAction.READ)
+    ),
     db: AsyncSession = Depends(get_db),
     service: OpsAsyncOperationQueryService = Depends(get_ops_async_operation_query_service),
     limit: int = Query(default=100, ge=1, le=500),
@@ -107,7 +111,9 @@ async def list_async_operations(
 
 @router.get("/async-operations/summary", response_model=APIResponse[AsyncOperationsSummaryRead])
 async def async_operations_summary(
-    _operator: OperatorPrincipal = Depends(require_platform_operation(PlatformOperationAction.READ)),
+    _operator: OperatorPrincipal = Depends(
+        require_platform_operation(PlatformOperationAction.READ)
+    ),
     db: AsyncSession = Depends(get_db),
     service: OpsAsyncOperationQueryService = Depends(get_ops_async_operation_query_service),
     kind: AsyncOperationKind | None = Query(default=None),
@@ -138,7 +144,9 @@ async def retry_async_operation(
     operation_id: str,
     request: Request,
     command: RetryAsyncOperationCommand = Body(...),
-    operator: OperatorPrincipal = Depends(require_platform_operation(PlatformOperationAction.RETRY)),
+    operator: OperatorPrincipal = Depends(
+        require_platform_operation(PlatformOperationAction.RETRY)
+    ),
     db: AsyncSession = Depends(get_db),
     service: OpsAsyncOperationCommandService = Depends(get_ops_async_operation_command_service),
     audit_service: OpsAuditService = Depends(get_ops_audit_service),

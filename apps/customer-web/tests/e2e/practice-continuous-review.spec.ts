@@ -63,8 +63,8 @@ const testArtifact: PracticeScoreArtifact = {
   scoreTempoSegments: [{ startTick: 0, bpm: 120 }],
 };
 
-function apiResponse(data: unknown) {
-  return JSON.stringify({ success: true, data });
+function representationBody(data: unknown) {
+  return JSON.stringify(data);
 }
 
 /** Advance fake time through count-in, then observe the application publishing RUNNING. */
@@ -108,15 +108,15 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
   });
   // Explicit navigation away from Practice also stays inside the mock backend.
   await page.route('**/api/v1/library/folders', (route) => route.fulfill({ status: 200, contentType: 'application/json',
-    body: apiResponse({ folders: [], all_count: 0, favorite_count: 0, created_by_me_count: 0, shared_with_me_count: 0 } satisfies LibraryFolderOverviewRead) }));
+    body: representationBody({ folders: [], all_count: 0, favorite_count: 0, created_by_me_count: 0, shared_with_me_count: 0 } satisfies LibraryFolderOverviewRead) }));
   await page.route('**/api/v1/library/scores?**', (route) => route.fulfill({ status: 200, contentType: 'application/json',
-    body: JSON.stringify({ success: true, data: [], pagination: { page: 1, page_size: 20, total: 0, total_pages: 0 } }) }));
+    body: JSON.stringify({ items: [], ...{ page: 1, page_size: 20, total: 0, total_pages: 0 } }) }));
   await installAcousticEngineFixture(page);
   await mockAuthenticatedSession(page);
   await mockRealtimeEvents(page);
 
   await page.route('**/api/v1/model-assets/practice-acoustic/access', (route) => route.fulfill({
-    contentType: 'application/json', body: apiResponse({ ...ACOUSTIC_MODEL_ASSET_DESCRIPTOR,
+    contentType: 'application/json', body: representationBody({ ...ACOUSTIC_MODEL_ASSET_DESCRIPTOR,
       downloadUrl: 'https://example.test/controlled-model', downloadUrlExpiresAt: new Date(Date.now() + 3600000).toISOString() }),
   }));
   await page.addInitScript(({ denyMic, camera }) => {
@@ -287,7 +287,7 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: apiResponse({
+      body: representationBody({
         score_id: scoreId,
         title: 'Continuous Review Score',
         head_revision_id: revisionId,
@@ -322,7 +322,7 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: apiResponse({
+      body: representationBody({
         score_id: 0,
         title: 'Continuous Review Score',
         head_revision_id: revisionId,
@@ -386,7 +386,7 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
         segments: accepted.resolved_tempo_plan.segments.map((segment, index) => index === 0 ? { ...segment, bpm: segment.bpm + 1 } : segment) };
     }
     const { practice_binding, media, recording_timebase } = reservedRequest;
-    return route.fulfill({ status: 200, contentType: 'application/json', body: apiResponse({
+    return route.fulfill({ status: 200, contentType: 'application/json', body: representationBody({
       reservation_id: 'upload-res-e2e-1', take_id: 'take-e2e-1', status: 'RESERVED',
       manifest: { practice_binding, capture: media, artifact_id: testArtifact.artifactId,
         score_title_snapshot: 'Continuous Review Score', recording_timebase,
@@ -415,7 +415,7 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
       },
     };
     takesDatabase.push(take);
-    return route.fulfill({ status: 200, contentType: 'application/json', body: apiResponse(take) });
+    return route.fulfill({ status: 200, contentType: 'application/json', body: representationBody(take) });
   });
 
   await page.route('**/api/v1/performance-takes/mock-upload/*', (route) => {
@@ -430,14 +430,14 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
     expect(route.request().method()).toBe('DELETE');
     expect(saveProtocol.events).toEqual(['RESERVATION']);
     saveProtocol.events.push('CANCEL');
-    return route.fulfill({ status: 200, contentType: 'application/json', body: apiResponse({ cancelled: true }) });
+    return route.fulfill({ status: 204, body: '' });
   });
 
   await page.route('**/api/v1/performance-takes/take-e2e-1/playback-url', (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: apiResponse({
+      body: representationBody({
         take_id: 'take-e2e-1',
         playback_url: 'https://mock-oss.noteverse.com/play.webm',
         download_url: 'https://mock-oss.noteverse.com/download.webm',
@@ -451,9 +451,8 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
       const idx = takesDatabase.findIndex((t) => t.take_id === 'take-e2e-1');
       if (idx !== -1) takesDatabase.splice(idx, 1);
       return route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: apiResponse({ take_id: 'take-e2e-1', deleted: true }),
+        status: 204,
+        body: '',
       });
     }
     return route.continue();
@@ -466,7 +465,7 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
         return route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: apiResponse({
+          body: representationBody({
             items: [...takesDatabase],
             total: takesDatabase.length,
             limit: 50,
@@ -485,7 +484,7 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: apiResponse({ binding:{score_id:scoreId,revision_id:revisionId,bundle_id:'bundle-1'}, artifact: testArtifact, notation:
+      body: representationBody({ binding:{score_id:scoreId,revision_id:revisionId,bundle_id:'bundle-1'}, artifact: testArtifact, notation:
         new URL(route.request().url()).searchParams.get('include_notation') === 'true'
           ? { musicxml: sampleMusicXml, mime_type: 'application/vnd.recordare.musicxml+xml' } : null }),
     })
@@ -1975,7 +1974,7 @@ test('real OPFS capture survives Review replay/save/raw download and reclaims on
   await page.route(`**/api/v1/scores/${scoreId}/revision-assets?**`,
     (route) => {
     expect(new URL(route.request().url()).searchParams.get('revision_id')).toBe(revisionId);
-    return route.fulfill({ status: 200, contentType: 'application/json', body: apiResponse({ revision_sources: [], render_assets: [] }) });
+    return route.fulfill({ status: 200, contentType: 'application/json', body: representationBody({ revision_sources: [], render_assets: [] }) });
   });
   await page.addInitScript(() => {
     const writes: Array<{ name: string; bytes: number }> = [];

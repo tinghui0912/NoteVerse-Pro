@@ -23,15 +23,15 @@ async function mockScore(page: Page, role: Role) {
     metadata: null, input_assets: [], created_at: '2026-06-20T00:00:00Z', updated_at: '2026-06-20T00:00:00Z', capabilities: caps,
     derived_assets: { preview: { status: 'ready', asset_id: 'page-a' }, audio: { status: 'pending', asset_id: null } } };
   const revision: RevisionRead = { revision_id: revisionId, revision_number: 1, origin: 'IMPORT', created_at: score.created_at, created_by: null, restore: null, note: null };
-  await page.route(`**/api/v1/scores/${scoreId}`, route => route.fulfill({ json: { success: true, data: score } }));
-  await page.route(`**/api/v1/scores/${scoreId}/revision-assets**`, route => route.fulfill({ json: { success: true, data: { revision_sources: [], render_assets: [] } } }));
+  await page.route(`**/api/v1/scores/${scoreId}`, route => route.fulfill({ json: score }));
+  await page.route(`**/api/v1/scores/${scoreId}/revision-assets**`, route => route.fulfill({ json: { revision_sources: [], render_assets: [] } }));
   await page.route('**/api/v1/render-assets/page-a/view', route => route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect width="200" height="200" fill="white"/></svg>' }));
-  await page.route(`**/api/v1/scores/${scoreId}/revisions?**`, route => route.fulfill({ json: { success: true, data: { items: [revision], next_cursor: null } } }));
-  await page.route(`**/api/v1/scores/${scoreId}/revisions/*/content`, route => route.fulfill({ status: caps.can_edit ? 200 : 403, json: caps.can_edit ? { success: true, data: { ...revision, revision_id: new URL(route.request().url()).pathname.split('/').at(-2), content: musicXml, mime_type: 'application/vnd.recordare.musicxml+xml' } } : {  code: 'no_edit_access', request_id: null } }));
+  await page.route(`**/api/v1/scores/${scoreId}/revisions?**`, route => route.fulfill({ json: { items: [revision], next_cursor: null } }));
+  await page.route(`**/api/v1/scores/${scoreId}/revisions/*/content`, route => route.fulfill({ status: caps.can_edit ? 200 : 403, json: caps.can_edit ? { ...revision, revision_id: new URL(route.request().url()).pathname.split('/').at(-2), content: musicXml, mime_type: 'application/vnd.recordare.musicxml+xml' } : {  code: 'no_edit_access', request_id: null } }));
   await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/bundle?**`, route => {
     expect(caps.can_practice).toBe(true);
     expect(new URL(route.request().url()).searchParams.get('include_notation')).toBe('true');
-    return route.fulfill({ json: { success: true, data: { source_id: 'trusted-admission', artifact: { ...artifactFixture, scoreId, revisionId }, notation: { musicxml: musicXml, mime_type: 'application/vnd.recordare.musicxml+xml' } } } });
+    return route.fulfill({ json: { source_id: 'trusted-admission', artifact: { ...artifactFixture, scoreId, revisionId }, notation: { musicxml: musicXml, mime_type: 'application/vnd.recordare.musicxml+xml' } } });
   });
   return { score, revision };
 }
@@ -83,7 +83,7 @@ test('Editor loads MusicXML and saves a revision without download permission', a
     saved = true;
     score.head_revision_id = 'new-revision';
     score.version = 2;
-    await route.fulfill({ json: { success: true, data: { ...revision, revision_id: 'new-revision', revision_number: 2 } } });
+    await route.fulfill({ json: { ...revision, revision_id: 'new-revision', revision_number: 2 } });
   });
   await page.goto(`/en/score/${scoreId}/edit`);
   await expect(page.locator('svg .note').first()).toBeVisible();
@@ -126,18 +126,18 @@ test('Editor loads MusicXML and saves a revision without download permission', a
 test('Owner invites with default Viewer and can choose Practitioner or Editor and change member roles', async ({ page }) => {
   await mockScore(page, 'OWNER');
   let memberRole = 'VIEWER';
-  await page.route(`**/api/v1/scores/${scoreId}/members`, route => route.fulfill({ json: { success: true, data: [{ membership_id: 10, display_name: 'Member', email: 'member@example.com', role: memberRole, created_at: '2026-06-20T00:00:00Z', revoked_at: null, avatar_url: null }] } }));
+  await page.route(`**/api/v1/scores/${scoreId}/members`, route => route.fulfill({ json: [{ membership_id: 10, display_name: 'Member', email: 'member@example.com', role: memberRole, created_at: '2026-06-20T00:00:00Z', revoked_at: null, avatar_url: null }] }));
   const invited: string[] = [], changed: string[] = [];
   await page.route(`**/api/v1/scores/${scoreId}/invites`, async route => {
     if (route.request().method() === 'POST') {
       const body = route.request().postDataJSON(); invited.push(body.role);
-      await route.fulfill({ json: { success: true, data: { invite_id: `invite-${invited.length}`, token: `token-${invited.length}`, email: body.email, role: body.role, status: 'PENDING', created_at: '2026-06-20T00:00:00Z', expires_at: null, terminal_at: null, created_by: null, terminal_actor: null } } });
-    } else await route.fulfill({ json: { success: true, data: [] } });
+      await route.fulfill({ json: { invite_id: `invite-${invited.length}`, token: `token-${invited.length}`, email: body.email, role: body.role, status: 'PENDING', created_at: '2026-06-20T00:00:00Z', expires_at: null, terminal_at: null, created_by: null, terminal_actor: null } });
+    } else await route.fulfill({ json: [] });
   });
   await page.route(`**/api/v1/scores/${scoreId}/members/10`, async route => {
     memberRole = route.request().postDataJSON().role;
     changed.push(memberRole);
-    await route.fulfill({ json: { success: true, data: { membership_id: 10, role: changed.at(-1), display_name: 'Member', email: 'member@example.com', created_at: '2026-06-20T00:00:00Z', revoked_at: null, avatar_url: null } } });
+    await route.fulfill({ json: { membership_id: 10, role: changed.at(-1), display_name: 'Member', email: 'member@example.com', created_at: '2026-06-20T00:00:00Z', revoked_at: null, avatar_url: null } });
   });
   await page.goto(`/en/score/${scoreId}?tab=collaboration`);
   const selectors = page.getByRole('combobox');
@@ -161,8 +161,8 @@ test('Owner invites with default Viewer and can choose Practitioner or Editor an
 test('Practitioner invitation renders and accepts the same role', async ({ page }) => {
   await mockAuthenticatedSession(page); await mockRealtimeEvents(page);
   let accepted = false;
-  await page.route('**/api/v1/invites/practitioner-token', route => route.fulfill({ json: { success: true, data: { invite_id: 'invite-p', score_id: scoreId, score_title: 'Practice invitation', inviter: { display_name: 'Owner', email: 'owner@example.com', avatar_url: null }, email: 'owner@example.com', role: 'PRACTITIONER', status: 'PENDING', expires_at: null, requires_login: false, can_accept: true } } }));
-  await page.route('**/api/v1/invites/practitioner-token/accept', route => { accepted = true; return route.fulfill({ json: { success: true, data: { score_id: scoreId, role: 'PRACTITIONER', membership_id: 10 } } }); });
+  await page.route('**/api/v1/invites/practitioner-token', route => route.fulfill({ json: { invite_id: 'invite-p', score_id: scoreId, score_title: 'Practice invitation', inviter: { display_name: 'Owner', email: 'owner@example.com', avatar_url: null }, email: 'owner@example.com', role: 'PRACTITIONER', status: 'PENDING', expires_at: null, requires_login: false, can_accept: true } }));
+  await page.route('**/api/v1/invites/practitioner-token/accept', route => { accepted = true; return route.fulfill({ json: { score_id: scoreId, role: 'PRACTITIONER', membership_id: 10 } }); });
   await mockScore(page, 'PRACTITIONER');
   await page.goto('/en/invite/practitioner-token');
   await expect(page.getByText('Practitioner', { exact: true })).toBeVisible();
@@ -196,7 +196,7 @@ test('Version History restores a snapshot as a new head with event provenance', 
   const older = { ...revision, revision_id: 'revision-2', revision_number: 2 };
   const current = { ...revision, revision_number: 4 };
   let items: RevisionRead[] = [current, older];
-  await page.route(`**/api/v1/scores/${scoreId}/revisions?**`, route => route.fulfill({ json: { success: true, data: { items, next_cursor: null } } }));
+  await page.route(`**/api/v1/scores/${scoreId}/revisions?**`, route => route.fulfill({ json: { items, next_cursor: null } }));
   let restored = false;
   await page.route(`**/api/v1/scores/${scoreId}/revisions/revision-2/restore`, route => {
     expect(route.request().postDataJSON()).toEqual({ note: 'Return to revision 2' });
@@ -208,7 +208,7 @@ test('Version History restores a snapshot as a new head with event provenance', 
     score.head_revision_id = next.revision_id;
     score.version = 5;
     restored = true;
-    return route.fulfill({ json: { success: true, data: next } });
+    return route.fulfill({ json: next });
   });
   await page.goto(`/en/score/${scoreId}?tab=versions`);
   await expect(page.getByText('v4', { exact: true })).toBeVisible();

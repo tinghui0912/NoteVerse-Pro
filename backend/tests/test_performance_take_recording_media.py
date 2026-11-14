@@ -102,7 +102,7 @@ def test_recording_admission_preserves_recording_container_kind(
     assert response.status_code == (200 if accepted else 422), response.text
     if accepted:
         assert (
-            response.json()["data"]["manifest"]["capture"]["mime_type"]
+            response.json()["manifest"]["capture"]["mime_type"]
             == mime.split(";")[0].strip().lower()
         )
 
@@ -114,7 +114,7 @@ def test_recording_and_delivery_preserve_exact_raw_capture(recording_client, des
     client, session, storage, service = recording_client
     reserved = reserve(client, kind, mime + ";codecs=browser-selected", len(content))
     assert reserved.status_code == 200, reserved.text
-    data = reserved.json()["data"]
+    data = reserved.json()
     key = _staging_key(session, data["reservation_id"])
     assert key.endswith("." + extension)
     storage.put_bytes(key=key, content=content, content_type=mime)
@@ -122,7 +122,7 @@ def test_recording_and_delivery_preserve_exact_raw_capture(recording_client, des
         f"/api/v1/performance-takes/upload-reservations/{data['reservation_id']}/finalize"
     )
     assert finalized.status_code == 200, finalized.text
-    take = finalized.json()["data"]
+    take = finalized.json()
     assert (
         take["manifest"]["capture"]["kind"],
         take["recording_media"]["mime_type"],
@@ -142,8 +142,8 @@ def test_recording_and_delivery_preserve_exact_raw_capture(recording_client, des
     assert row.recording_object.sha256 == hashlib.sha256(content).hexdigest()
     playback = client.get(f"/api/v1/performance-takes/{take['take_id']}/playback-url")
     assert playback.status_code == 200, playback.text
-    assert set(playback.json()["data"]) == {"take_id", "playback_url", "download_url", "expires_in"}
-    assert playback.json()["data"]["download_url"]
+    assert set(playback.json()) == {"take_id", "playback_url", "download_url", "expires_in"}
+    assert playback.json()["download_url"]
     media = client.get(f"/api/v1/performance-takes/{take['take_id']}/media")
     assert media.status_code == 200, media.text
     assert media.headers["content-type"] == mime
@@ -153,7 +153,7 @@ def test_recording_and_delivery_preserve_exact_raw_capture(recording_client, des
         f"/api/v1/performance-takes/upload-reservations/{data['reservation_id']}/finalize"
     )
     assert replay.status_code == 200
-    assert replay.json()["data"]["take_id"] == take["take_id"]
+    assert replay.json()["take_id"] == take["take_id"]
 
 
 @pytest.mark.parametrize(
@@ -170,7 +170,7 @@ def test_video_finalize_rejects_wrong_container_or_storage_content_type(
     recording_client, mime, stored_mime, content, boundary
 ):
     client, session, storage, service = recording_client
-    data = reserve(client, "VIDEO", mime, len(content)).json()["data"]
+    data = reserve(client, "VIDEO", mime, len(content)).json()
     storage.put_bytes(
         key=_staging_key(session, data["reservation_id"]), content=content, content_type=stored_mime
     )
@@ -202,7 +202,7 @@ def test_unsupported_committed_recording_fails_closed_before_signed_delivery(rec
     client, session, storage, _ = recording_client
     descriptor = ORIGINAL_RECORDING_CONTAINERS[0]
     content = SIGNATURE_HEADERS[descriptor.signature] + b"raw-capture"
-    accepted = reserve(client, descriptor.kind, descriptor.mime_type, len(content)).json()["data"]
+    accepted = reserve(client, descriptor.kind, descriptor.mime_type, len(content)).json()
     storage.put_bytes(
         key=_staging_key(session, accepted["reservation_id"]),
         content=content,

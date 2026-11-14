@@ -54,8 +54,8 @@ const smokeArtifact: PracticeScoreArtifact = {
   scoreTempoSegments: [{ startTick: 0, bpm: 100 }, { startTick: 2, bpm: 90 }],
 };
 
-function apiResponse(data: unknown) {
-  return JSON.stringify({ success: true, data });
+function representationBody(data: unknown) {
+  return JSON.stringify(data);
 }
 
 type SetupPracticeMocksOptions = {
@@ -186,7 +186,7 @@ async function setupPracticeMocks(
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: apiResponse({
+      body: representationBody({
         score_id: scoreId,
         title: 'Practice Smoke Score',
         head_revision_id: revisionId,
@@ -221,7 +221,7 @@ async function setupPracticeMocks(
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: apiResponse({ binding:{score_id:scoreId,revision_id:revisionId,bundle_id:'bundle-1'}, artifact: artifactOverride ?? smokeArtifact, notation:
+        body: representationBody({ binding:{score_id:scoreId,revision_id:revisionId,bundle_id:'bundle-1'}, artifact: artifactOverride ?? smokeArtifact, notation:
           new URL(route.request().url()).searchParams.get('include_notation') === 'true'
             ? { musicxml: selectableMusicXml, mime_type: 'application/vnd.recordare.musicxml+xml' } : null }),
       })
@@ -233,13 +233,13 @@ async function setupPracticeMocks(
       return route.fulfill({
         status: 500,
         contentType: 'application/json',
-        body: JSON.stringify({ success: false, error: { message: 'Model asset unavailable' } }),
+        body: JSON.stringify({ code: 'external_service_error', request_id: 'model-asset-test' }),
       });
     }
     return route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: apiResponse({
+      body: representationBody({
         ...ACOUSTIC_MODEL_ASSET_DESCRIPTOR,
         downloadUrl: 'https://model-assets.example.test/practice-acoustic-robust-browser-v1.onnx?x-oss-signature-version=OSS4-HMAC-SHA256',
         downloadUrlExpiresAt: new Date(Date.now() + 3600_000).toISOString(),

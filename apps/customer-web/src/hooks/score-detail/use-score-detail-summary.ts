@@ -4,13 +4,13 @@ import { useScoreDetail, useScoreRevisionAssets } from '@/hooks/queries/use-scor
 
 export function useScoreDetailSummary(scoreId: string) {
   const scoreQuery = useScoreDetail(scoreId);
-  const score = scoreQuery.data?.data;
+  const score = scoreQuery.data;
   const revisionId = score?.head_revision_id;
   const assetsQuery = useScoreRevisionAssets(scoreId, {
     revisionId: revisionId ?? undefined,
     enabled: Boolean(revisionId),
   });
-  const revisionAssets = assetsQuery.data?.data ?? { revision_sources: [], render_assets: [] };
+  const revisionAssets = assetsQuery.data ?? { revision_sources: [], render_assets: [] };
 
   return {
     revisionAssets,

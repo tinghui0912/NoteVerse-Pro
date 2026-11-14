@@ -31,7 +31,7 @@ export function ImportActivity() {
   const query = useImportJobList(page, 20);
   const retry = useRetryImportJob();
   const remove = useDeleteImportJob();
-  const pagination = query.data?.pagination;
+  const pagination = query.data;
   const mutationError = retry.error || remove.error;
   return (
     <section
@@ -65,9 +65,9 @@ export function ImportActivity() {
           retryLabel={t('retry')}
           onRetry={() => void query.refetch()}
         />
-      ) : query.data?.data.length ? (
+      ) : query.data?.items.length ? (
         <div className="grid gap-4 sm:grid-cols-2">
-          {query.data.data.map((job) => (
+          {query.data.items.map((job) => (
             <ImportJobCard
               key={job.job_id}
               job={job}

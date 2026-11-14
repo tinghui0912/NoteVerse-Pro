@@ -70,7 +70,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const inviteQuery = useScoreInviteAccess(token);
   const acceptInvite = useAcceptScoreInvite();
-  const invite = inviteQuery.data?.data ?? null;
+  const invite = inviteQuery.data ?? null;
   const inviterName = invite?.inviter?.display_name || invite?.inviter?.email || t('unknownInviter');
   const currentUrl = typeof window === 'undefined' ? `/invite/${token}` : `${window.location.pathname}${window.location.search}`;
   const acceptAfterLogin = searchParams.get('accept') === '1';
@@ -86,7 +86,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
   const accept = React.useCallback(() => {
     acceptInvite.mutate(token, {
       onSuccess: (response) => {
-        const scoreId = response.data?.score_id;
+        const scoreId = response?.score_id;
         if (scoreId) router.push(`/score/${scoreId}`);
       },
     });

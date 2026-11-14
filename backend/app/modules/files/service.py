@@ -16,7 +16,7 @@ from app.db.models import StoredObject, StorageUsageCategory, User
 from app.modules.files.repository import FilesRepository
 from app.modules.storage_objects.retirement import retire_after_release
 from app.modules.storage_objects.writes import write_object_async, adopt_written_object
-from app.modules.files.schemas import DeleteUploadedFileRead, UploadFileRead
+from app.modules.files.schemas import UploadFileRead
 from app.modules.storage_usage.service import storage_usage_service
 from app.shared.constants import ErrorCode
 from app.storage import ObjectStorage, object_storage
@@ -105,7 +105,7 @@ class FilesService:
 
     async def delete_uploaded_file(
         self, db: AsyncSession, current_user: User, filename: str
-    ) -> DeleteUploadedFileRead:
+    ) -> None:
         upload = await self.repository.get_upload_by_uuid(db, filename)
         if not upload:
             raise ResourceNotFoundException("file", filename, ErrorCode.FILE_NOT_FOUND)
@@ -138,7 +138,7 @@ class FilesService:
             auto_commit=False,
         )
         await db.commit()
-        return DeleteUploadedFileRead(filename=filename)
+        return None
 
 
 files_service = FilesService()

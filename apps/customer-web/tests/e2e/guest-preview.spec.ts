@@ -87,10 +87,10 @@ test('owner toggles a stable preview link and an anonymous browser opens it', as
     updated_at: '2026-06-20T00:00:00Z',
   };
   await page.route('**/api/v1/scores/preview-owner-score', (route) =>
-    route.fulfill({ json: { success: true, data: score } })
+    route.fulfill({ json: score })
   );
   await page.route('**/api/v1/scores/preview-owner-score/revision-assets**', (route) =>
-    route.fulfill({ json: { success: true, data: { revision_sources: [], render_assets: [] } } })
+    route.fulfill({ json: { revision_sources: [], render_assets: [] } })
   );
   let enabled = false;
   await page.route('**/api/v1/scores/preview-owner-score/guest-preview', async (route) => {
@@ -98,7 +98,7 @@ test('owner toggles a stable preview link and an anonymous browser opens it', as
       expect(Object.keys(route.request().postDataJSON())).toEqual(['enabled']);
       enabled = route.request().postDataJSON().enabled;
     }
-    await route.fulfill({ json: { success: true, data: { token: 'stable-token', enabled } } });
+    await route.fulfill({ json: { token: 'stable-token', enabled } });
   });
   await page.goto('/en/score/preview-owner-score?tab=guest-preview');
   const link = page.getByRole('textbox', { name: 'Guest Preview link' });

@@ -56,5 +56,5 @@ def test_authenticated_current_delivery_over_http():
     with TestClient(application) as client:
         response = client.get("/model-assets/practice-acoustic/access")
         assert response.status_code == 200
-        data = response.json()["data"]
+        data = response.json()
         assert {key: data[key] for key in MODEL_ASSET_DESCRIPTOR} == dict(MODEL_ASSET_DESCRIPTOR)

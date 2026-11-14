@@ -9,7 +9,7 @@ export const preview = {
 
 export async function mockGuestPreview(page: Page, token: string) {
   await page.route(`**/api/v1/guest-previews/${token}`, (route) =>
-    route.fulfill({ json: { success: true, data: preview } })
+    route.fulfill({ json: preview })
   );
   await page.route(`**/api/v1/guest-previews/${token}/render-assets/page-a/view`, (route) =>
     route.fulfill({

@@ -1,6 +1,6 @@
 import type { PerformancePlanRequest } from '@/generated/api';
 import { playbackPerformancePlanCreate } from '@/generated/api';
-import { customerTransport, responseData } from '@/lib/http/customer-browser-transport';
+import { customerTransport, responseBody } from '@/lib/http/customer-browser-transport';
 import { decodePerformancePlan } from '@/lib/score/performance/plan';
 
 export async function compilePerformancePlan(
@@ -8,6 +8,6 @@ export async function compilePerformancePlan(
   signal?: AbortSignal
 ) {
   const request: PerformancePlanRequest = { musicxml };
-  const response = await responseData(playbackPerformancePlanCreate({ ...customerTransport.authenticated, body: request, signal }));
+  const response = await responseBody(playbackPerformancePlanCreate({ ...customerTransport.authenticated, body: request, signal }));
   return decodePerformancePlan(response);
 }

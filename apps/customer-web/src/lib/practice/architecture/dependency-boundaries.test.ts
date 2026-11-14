@@ -1077,7 +1077,7 @@ describe('Practice bounded domain dependencies', () => {
       'StepPracticeController',
     ]);
     const source = imports(
-      path.join(practiceRoot, 'bundle/bundle-envelope.ts'),
+      path.join(practiceRoot, 'bundle/bundle-representation.ts'),
     );
     expect(
       source.find((edge) =>
@@ -2902,7 +2902,7 @@ it('browser execution and Review consume workspace-owned representations rather 
   );
   const transportOwners = [
     'lib/practice/bundle/admit-practice-bundle.ts',
-    'lib/practice/bundle/bundle-envelope.ts',
+    'lib/practice/bundle/bundle-representation.ts',
     'lib/api/practice.ts',
     'hooks/practice/use-saved-take-export-bundle.ts',
     'hooks/queries/use-score-queries.ts',

@@ -71,15 +71,15 @@ export function useDeletePerformanceTake() {
       const take =
         queryClient.getQueryData<PerformanceTakeGetResponse>(
           queryKeys.performanceTakes.detail(takeId),
-        )?.data ??
+        ) ??
         lists
-          .flatMap(([, value]) => value?.data?.items ?? [])
+          .flatMap(([, value]) => value?.items ?? [])
           .find((item) => item.take_id === takeId);
       const matchingScoreFilters = new Set(
         lists.flatMap(([key, value]) => {
           const filter = (key[2] ?? {}) as { score_id?: string };
           return filter.score_id &&
-            value?.data?.items.some((item) => item.take_id === takeId)
+            value?.items.some((item) => item.take_id === takeId)
             ? [filter.score_id]
             : [];
         }),
@@ -93,8 +93,8 @@ export function useDeletePerformanceTake() {
         queryClient.setQueryData<PerformanceTakesListResponse>(
           key,
           (previous) => {
-            if (!previous?.data) return previous;
-            const data = previous.data;
+            if (!previous) return previous;
+            const data = previous;
             const items = data.items.filter((item) => item.take_id !== takeId);
             const total = Math.max(
               0,
@@ -102,13 +102,10 @@ export function useDeletePerformanceTake() {
                 (belongs || items.length !== data.items.length ? 1 : 0),
             );
             return {
-              ...previous,
-              data: {
                 ...data,
                 items,
                 total,
                 has_more: (data.offset ?? 0) + items.length < total,
-              },
             };
           },
         );
@@ -138,7 +135,7 @@ export function useSavePerformanceTake() {
     mutationFn: async (input: SavePerformanceTakeInput) => {
       const request = performanceTakeUploadRequest(input);
       const response = await performanceTakesApi.reserveUpload(request);
-      const reservation = response.data;
+      const reservation = response;
       if (!reservation) throw new Error('Upload reservation is unavailable');
       if (
         !takeManifestAgreesWithRecordedPerformance(
@@ -199,18 +196,18 @@ export function useSavePerformanceTake() {
         reservation.reservation_id,
       );
       if (
-        !finalized.data ||
+        !finalized ||
         !takeManifestAgreesWithRecordedPerformance(
-          finalized.data.manifest,
+          finalized.manifest,
           input.recordedPerformance,
         ) ||
         !savedTakeAgreesWithRecordedPerformance(
-          finalized.data,
+          finalized,
           input.recordedPerformance,
         )
       )
         throw new Error('PERFORMANCE_TAKE_PLAN_MISMATCH');
-      return finalized.data;
+      return finalized;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({

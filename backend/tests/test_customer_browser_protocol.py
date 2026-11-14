@@ -243,14 +243,16 @@ def test_login_refresh_logout_use_canonical_customer_cookie_identity():
             f"{protocol.CUSTOMER_API_PREFIX}/auth/login",
             data={"username": "user@example.test", "password": "secret"},
         )
-        assert login.status_code == 200
+        assert login.status_code == 204
+        assert login.content == b""
         assert set(cookies(login)) == expected
         csrf_before = client.cookies[protocol.CSRF_COOKIE_NAME]
         assert cookies(login)[protocol.AUTH_COOKIE_NAME]["httponly"]
         assert cookies(login)[protocol.REFRESH_COOKIE_NAME]["httponly"]
         assert not cookies(login)[protocol.CSRF_COOKIE_NAME]["httponly"]
         refresh = client.post(f"{protocol.CUSTOMER_API_PREFIX}/auth/refresh")
-        assert refresh.status_code == 200
+        assert refresh.status_code == 204
+        assert refresh.content == b""
         assert set(cookies(refresh)) == expected
         assert client.cookies[protocol.AUTH_COOKIE_NAME] == "access-two"
         assert client.cookies[protocol.REFRESH_COOKIE_NAME] == "refresh-two"
@@ -262,7 +264,8 @@ def test_login_refresh_logout_use_canonical_customer_cookie_identity():
             f"{protocol.CUSTOMER_API_PREFIX}/auth/logout",
             headers={protocol.CSRF_HEADER_NAME: client.cookies[protocol.CSRF_COOKIE_NAME]},
         )
-        assert logout.status_code == 200
+        assert logout.status_code == 204
+        assert logout.content == b""
         assert set(cookies(logout)) == expected
         assert all(cookies(logout)[name]["max-age"] == "0" for name in expected)
         assert all(client.cookies.get(name) is None for name in expected)

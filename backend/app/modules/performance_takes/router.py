@@ -4,7 +4,7 @@ from typing import Optional
 
 from fastapi.responses import Response
 from app.api.response_contracts import binary_responses
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
@@ -17,7 +17,6 @@ from app.modules.performance_takes.dependencies import (
 )
 from app.modules.performance_takes.upload_reservation.service import PerformanceTakeUploadService
 from app.modules.performance_takes.schemas import (
-    PerformanceTakeDeleteResponse,
     PerformanceTakeListResponse,
     PerformanceTakePlaybackRead,
     PerformanceTakeRead,
@@ -25,7 +24,7 @@ from app.modules.performance_takes.schemas import (
     PerformanceTakeUploadReservationRequest,
 )
 from app.modules.performance_takes.service import PerformanceTakeService
-from app.shared.responses import APIResponse, success_response
+
 from app.core.exceptions import ValidationException
 from app.shared.error_codes import ErrorCode
 
@@ -35,7 +34,7 @@ router = APIRouter()
 @router.post(
     "/upload-reservations",
     operation_id="performanceTakeUploadsReserve",
-    response_model=APIResponse[PerformanceTakeUploadReservationRead],
+    response_model=PerformanceTakeUploadReservationRead,
 )
 async def reserve_take_upload(
     request: PerformanceTakeUploadReservationRequest,
@@ -45,13 +44,15 @@ async def reserve_take_upload(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     data = await service.reserve_upload(db, user_id, request)
-    return success_response(data=data)
+    return data
 
 
 @router.delete(
     "/upload-reservations/{reservation_id}",
     operation_id="performanceTakeUploadCancel",
-    response_model=APIResponse[dict[str, bool]],
+    status_code=204,
+    response_model=None,
+    response_class=Response,
 )
 async def cancel_take_upload_reservation(
     reservation_id: str,
@@ -61,13 +62,13 @@ async def cancel_take_upload_reservation(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     await service.cancel_upload_reservation(db, user_id, reservation_id)
-    return success_response(data={"cancelled": True})
+    return Response(status_code=204)
 
 
 @router.post(
     "/upload-reservations/{reservation_id}/finalize",
     operation_id="performanceTakeUploadFinalize",
-    response_model=APIResponse[PerformanceTakeRead],
+    response_model=PerformanceTakeRead,
 )
 async def finalize_take(
     reservation_id: str,
@@ -80,13 +81,13 @@ async def finalize_take(
         raise ValidationException(ErrorCode.VALIDATION_ERROR, field="body")
     user_id = require_persisted_id(current_user.id, entity="user")
     data = await service.finalize_take(db, user_id, reservation_id)
-    return success_response(data=data)
+    return data
 
 
 @router.get(
     "",
     operation_id="performanceTakesList",
-    response_model=APIResponse[PerformanceTakeListResponse],
+    response_model=PerformanceTakeListResponse,
 )
 async def list_takes(
     score_id: Optional[str] = Query(default=None),
@@ -98,13 +99,13 @@ async def list_takes(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     data = await service.list_takes(db, user_id, score_id=score_id, limit=limit, offset=offset)
-    return success_response(data=data)
+    return data
 
 
 @router.get(
     "/{take_id}",
     operation_id="performanceTakeGet",
-    response_model=APIResponse[PerformanceTakeRead],
+    response_model=PerformanceTakeRead,
 )
 async def get_take(
     take_id: str,
@@ -114,13 +115,13 @@ async def get_take(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     data = await service.get_take(db, user_id, take_id)
-    return success_response(data=data)
+    return data
 
 
 @router.get(
     "/{take_id}/playback-url",
     operation_id="performanceTakePlaybackUrlGet",
-    response_model=APIResponse[PerformanceTakePlaybackRead],
+    response_model=PerformanceTakePlaybackRead,
 )
 async def get_playback_url(
     take_id: str,
@@ -130,7 +131,7 @@ async def get_playback_url(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     data = await service.get_playback_url(db, user_id, take_id)
-    return success_response(data=data)
+    return data
 
 
 @router.get(
@@ -162,8 +163,9 @@ async def stream_take_media(
 @router.delete(
     "/{take_id}",
     operation_id="performanceTakeDelete",
-    status_code=status.HTTP_200_OK,
-    response_model=APIResponse[PerformanceTakeDeleteResponse],
+    status_code=204,
+    response_model=None,
+    response_class=Response,
 )
 async def delete_take(
     take_id: str,
@@ -172,5 +174,5 @@ async def delete_take(
     service: PerformanceTakeService = Depends(get_performance_take_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    data = await service.delete_take(db, user_id, take_id)
-    return success_response(data=data, message="Performance take deleted")
+    await service.delete_take(db, user_id, take_id)
+    return Response(status_code=204)

@@ -52,7 +52,7 @@ export function SessionsSettingsPanel() {
   });
 
   const sessions = useMemo(
-    () => sessionsQuery.data?.data?.sessions ?? [],
+    () => sessionsQuery.data?.sessions ?? [],
     [sessionsQuery.data]
   );
 

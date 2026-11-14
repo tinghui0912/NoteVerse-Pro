@@ -22,7 +22,6 @@ from app.modules.performance_takes.dependencies import get_performance_take_serv
 from app.modules.playback.router import get_playback_delivery_service
 from app.modules.score_assets.dependencies import get_score_asset_service
 from app.modules.scores.dependencies import get_score_service
-from app.shared.constants import SuccessCode
 from tests.support.object_storage import InMemoryObjectStorage
 
 
@@ -78,7 +77,7 @@ def test_every_success_body_has_a_concrete_schema_and_media_contract(client):
                     code,
                 )
                 if media_type == "application/json":
-                    assert "$ref" in schema or schema.get("type") == "object", identity
+                    assert "$ref" in schema or schema.get("type") in {"object", "array"}, identity
                 elif media_type == "text/event-stream":
                     assert schema == {"type": "string"}
                 else:
@@ -282,7 +281,7 @@ def test_realtime_success_is_an_event_stream(client, monkeypatch):
         app.dependency_overrides.pop(get_current_user, None)
 
 
-def test_password_reset_retains_its_json_success_envelope(client):
+def test_password_reset_completes_without_a_representation(client):
     service = SimpleNamespace(reset_password=AsyncMock())
 
     async def database():
@@ -294,12 +293,10 @@ def test_password_reset_retains_its_json_success_envelope(client):
         response = client.post(
             "/api/v1/auth/password/reset", json={"token": "token", "new_password": "new-password"}
         )
-        assert response.status_code == 200
-        assert response.json() == {"success": True, "message": SuccessCode.PASSWORD_RESET_SUCCESS}
+        assert response.status_code == 204
+        assert response.content == b""
         operation = operations(client.get("/api/v1/openapi.json").json())["authPasswordReset"]
-        assert operation["responses"]["200"]["content"]["application/json"]["schema"][
-            "$ref"
-        ].endswith("/SuccessResponsePayload")
+        assert "content" not in operation["responses"]["204"]
     finally:
         for dep in (get_db, get_password_reset_service):
             app.dependency_overrides.pop(dep, None)

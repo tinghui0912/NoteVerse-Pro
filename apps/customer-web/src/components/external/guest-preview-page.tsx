@@ -10,7 +10,7 @@ import { ResourceLoadError } from '@/components/states';
 export function GuestPreviewPage({ token }: { token: string }) {
   const t = useTranslations('guestPreview');
   const query = useGuestPreview(token);
-  const preview = query.data?.data;
+  const preview = query.data;
   if (query.isLoading) return <ResourceLoading label={t('loading')} minHeight="md" />;
   if (query.error || !preview) {
     return <ResourceLoadError title={t('title')} description={t('unavailable')} />;

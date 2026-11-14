@@ -35,7 +35,7 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
   const completeSave = useEditorSaveCompletion({ applyXml });
   const showSaveError = useEditorSaveErrorToast();
   const scoreQuery = useScoreDetail(scoreId);
-  const score = scoreQuery.data?.data;
+  const score = scoreQuery.data;
   const [baselineRevisionId, setBaselineRevisionId] = useState('');
   const revisionId = baselineRevisionId || score?.head_revision_id || '';
   const revisionQuery = useRevisionContent(scoreId, revisionId);
@@ -50,7 +50,7 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
     debounceMs: 3000,
     enabled: Boolean(currentXml && revisionId),
   });
-  const xmlContent = revisionQuery.data?.data?.content;
+  const xmlContent = revisionQuery.data?.content;
   const originalArtifacts = useMemo(
     () => (score?.input_assets ?? []).map((asset) => ({
       artifact_id: asset.asset_id,
@@ -116,7 +116,7 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
       },
       {
         onSuccess: async (response) => {
-          const nextRevision = response.data?.revision_id;
+          const nextRevision = response?.revision_id;
           if (nextRevision === revisionId) {
             await clearDraft();
             toast({ title: t('noChangesTitle'), description: t('noChangesDesc') });
@@ -164,8 +164,8 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
       },
       {
         onSuccess: async (response) => {
-          const generatedXml = response.data?.content;
-          if (!response.success || !generatedXml) {
+          const generatedXml = response?.content;
+          if (!generatedXml) {
             toast({
               title: t('fingeringFailed'),
               description: t('fingeringFailedDesc'),

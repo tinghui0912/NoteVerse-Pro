@@ -145,6 +145,11 @@ export function createCustomerBrowserTransport(options: {
 export const customerTransport = createCustomerBrowserTransport();
 
 /** Project SDK result metadata away while retaining the generated success payload. */
-export async function responseData<T>(request: RequestResult<Record<string, T>, unknown, true>): Promise<T> {
+export async function responseBody<T>(request: RequestResult<Record<string, T>, unknown, true>): Promise<T> {
   return (await request).data;
+}
+
+/** Await an acknowledged command without exposing generated result metadata. */
+export async function responseComplete(request: PromiseLike<unknown>): Promise<void> {
+  await request;
 }

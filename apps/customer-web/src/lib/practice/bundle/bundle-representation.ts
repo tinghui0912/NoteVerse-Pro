@@ -11,7 +11,7 @@ type ExpectedBundle = { scoreId: string; revisionId: string } & (
   | { kind: 'EXACT'; bundleId: string; artifactId: string }
 );
 
-/** Shared strict envelope boundary for Setup admission and optional currently authorized export reads. */
+/** Typed representation boundary for Setup admission and authorized export reads. */
 export async function readPracticeBundle(
   request: (signal: AbortSignal) => Promise<PracticeScoreRevisionBundleGetResponse>,
   identity: ExpectedBundle,
@@ -19,7 +19,7 @@ export async function readPracticeBundle(
 ): Promise<AdmittedPracticeBundle> {
   try {
     signal.throwIfAborted();
-    const { data: value } = await request(signal);
+    const value = await request(signal);
     signal.throwIfAborted();
     if (
       !value ||

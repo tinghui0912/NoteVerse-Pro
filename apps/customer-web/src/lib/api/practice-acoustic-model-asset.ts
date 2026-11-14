@@ -1,6 +1,6 @@
 import { practiceAcousticModelAccessGet } from '@/generated/api';
 import type { PracticeAcousticAccessRead } from '@/generated/api/types.gen';
-import { customerTransport, responseData } from '@/lib/http/customer-browser-transport';
+import { customerTransport, responseBody } from '@/lib/http/customer-browser-transport';
 import { ACOUSTIC_MODEL_ASSET_DESCRIPTOR } from '../practice/acoustic/generated/runtime-contract';
 
 export function assertPracticeAcousticModelAccess(value: unknown): asserts value is PracticeAcousticAccessRead {
@@ -13,7 +13,7 @@ export function assertPracticeAcousticModelAccess(value: unknown): asserts value
   }
 }
 export async function getPracticeAcousticModelAccess(signal?: AbortSignal): Promise<PracticeAcousticAccessRead> {
-  const response = await responseData(practiceAcousticModelAccessGet({ ...customerTransport.silent, signal }));
-  assertPracticeAcousticModelAccess(response.data);
-  return Object.freeze({ ...response.data });
+  const response = await responseBody(practiceAcousticModelAccessGet({ ...customerTransport.silent, signal }));
+  assertPracticeAcousticModelAccess(response);
+  return Object.freeze({ ...response });
 }

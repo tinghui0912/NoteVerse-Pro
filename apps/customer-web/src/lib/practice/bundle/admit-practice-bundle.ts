@@ -1,5 +1,5 @@
 import { practiceApi } from '@/lib/api';
-import { readPracticeBundle } from './bundle-envelope';
+import { readPracticeBundle } from './bundle-representation';
 
 /** One fresh, complete transport request per explicit Setup command; no cache admission. */
 export function admitPracticeBundle(

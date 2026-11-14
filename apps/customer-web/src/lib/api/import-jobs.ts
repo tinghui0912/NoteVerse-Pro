@@ -1,6 +1,6 @@
 import type { ImportJobProcessingOptions, ImportJobSubmitRequest } from '@/generated/api';
 import { importJobArtifactDownload, importJobDelete, importJobGet, importJobRetry, importJobsList, importJobsSubmit } from '@/generated/api';
-import { customerTransport, responseData } from '@/lib/http/customer-browser-transport';
+import { customerTransport, responseBody, responseComplete } from '@/lib/http/customer-browser-transport';
 
 async function submitImportJob(
   fileIds: string[],
@@ -12,14 +12,14 @@ async function submitImportJob(
     idempotency_key: idempotencyKey,
     options,
   };
-  return responseData(importJobsSubmit({ ...customerTransport.authenticated, body: request }));
+  return responseBody(importJobsSubmit({ ...customerTransport.authenticated, body: request }));
 }
 
 async function getImportJob(
   jobId: string,
   signal?: AbortSignal,
 ) {
-  return responseData(importJobGet({ ...customerTransport.authenticated, path: { job_id: jobId }, signal }));
+  return responseBody(importJobGet({ ...customerTransport.authenticated, path: { job_id: jobId }, signal }));
 }
 
 async function listImportJobs(
@@ -27,24 +27,24 @@ async function listImportJobs(
   pageSize: number,
   signal?: AbortSignal,
 ) {
-  return responseData(importJobsList({ ...customerTransport.authenticated, query: { page, page_size: pageSize }, signal }));
+  return responseBody(importJobsList({ ...customerTransport.authenticated, query: { page, page_size: pageSize }, signal }));
 }
 
 async function downloadImportJobArtifact(
   jobId: string,
   artifactId: string,
 ): Promise<Blob> {
-  return responseData(importJobArtifactDownload({ ...customerTransport.authenticated, path: { job_id: jobId, artifact_id: artifactId }, parseAs: 'blob' }));
+  return responseBody(importJobArtifactDownload({ ...customerTransport.authenticated, path: { job_id: jobId, artifact_id: artifactId }, parseAs: 'blob' }));
 }
 
 async function deleteImportJob(jobId: string) {
-  return responseData(importJobDelete({ ...customerTransport.authenticated, path: { job_id: jobId } }));
+  return responseComplete(importJobDelete({ ...customerTransport.authenticated, path: { job_id: jobId } }));
 }
 
 async function retryImportJob(
   jobId: string,
 ) {
-  return responseData(importJobRetry({ ...customerTransport.authenticated, path: { job_id: jobId } }));
+  return responseBody(importJobRetry({ ...customerTransport.authenticated, path: { job_id: jobId } }));
 }
 
 export const importJobsApi = {
