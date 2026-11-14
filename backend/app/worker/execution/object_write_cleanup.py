@@ -28,14 +28,12 @@ def execute_object_write_cleanup_task(task, intent_uuid: str) -> dict[str, str]:
                     return {"status": "ignored", "intent_uuid": intent_uuid}
                 existing = _matching_object(db, intent_facts(row))
                 if existing is not None:
-                    cleanup_lifecycle().finish(
-                        row, status="ADOPTED", error=None, now=utc_now_naive()
+                    cleanup_lifecycle().finish_attempt(
+                        row, lease=attempt, status="ADOPTED", error=None, now=utc_now_naive()
                     )
                     return {"status": "adopted", "intent_uuid": intent_uuid}
                 object_storage.delete(row.object_key)
-                cleanup_lifecycle().complete_attempt(
-                    row, expected_attempt=attempt.attempt, now=utc_now_naive()
-                )
+                cleanup_lifecycle().complete_attempt(row, lease=attempt, now=utc_now_naive())
             return {"status": "cleaned", "intent_uuid": intent_uuid}
         except Exception as error:
             with get_worker_db() as db:

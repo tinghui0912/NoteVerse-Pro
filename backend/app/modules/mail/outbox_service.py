@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from uuid import uuid4
 from datetime import datetime, timedelta
 
 from sqlalchemy import delete, or_, select
@@ -23,6 +24,7 @@ from app.modules.async_operations.durable_delivery import (
     DeliveryLifecyclePolicy,
     DeliveryStatuses,
     DurableDeliveryLifecycle,
+    DeliveryAttemptLease,
 )
 from app.utils.timezone import utc_now_naive
 
@@ -53,7 +55,7 @@ class MailOutboxPayload:
     text_body: str
     html_body: str | None
     category: str
-    attempt: int
+    lease: DeliveryAttemptLease
     max_attempts: int
     originating_request_id: str | None = None
     traceparent: str | None = None
@@ -97,7 +99,10 @@ async def queue_mail(
 class MailOutboxService:
     def claim(self, db: Session, outbox_uuid: str) -> MailOutboxPayload | None:
         outbox = db.execute(
-            select(MailOutbox).where(MailOutbox.outbox_uuid == outbox_uuid).with_for_update()
+            select(MailOutbox)
+            .where(MailOutbox.outbox_uuid == outbox_uuid)
+            .with_for_update()
+            .execution_options(populate_existing=True)
         ).scalar_one_or_none()
         if outbox is None or outbox.status in {
             MailOutboxStatus.PROCESSING,
@@ -155,7 +160,8 @@ class MailOutboxService:
             )
             return None
 
-        if not lifecycle.claim(outbox, now=now):
+        lease = lifecycle.claim(outbox, token=str(uuid4()), now=now)
+        if lease is None:
             return None
         clear_async_diagnostic(outbox)
         return MailOutboxPayload(
@@ -165,54 +171,68 @@ class MailOutboxService:
             text_body=outbox.text_body,
             html_body=outbox.html_body,
             category=outbox.category,
-            attempt=outbox.attempt_count,
+            lease=lease,
             max_attempts=settings.MAIL_OUTBOX_MAX_ATTEMPTS,
             originating_request_id=outbox.originating_request_id,
             traceparent=outbox.traceparent,
             tracestate=outbox.tracestate,
         )
 
-    def sent(self, db: Session, outbox_uuid: str, provider_message_id: str | None) -> None:
+    def sent(
+        self,
+        db: Session,
+        outbox_uuid: str,
+        provider_message_id: str | None,
+        *,
+        lease: DeliveryAttemptLease,
+    ) -> bool:
         outbox = self._get(db, outbox_uuid)
-        if outbox is None:
-            return
-        self._finish(outbox, MailOutboxStatus.SENT, now=utc_now_naive(), error=None)
+        if outbox is None or not _delivery_lifecycle().complete_attempt(
+            outbox, lease=lease, now=utc_now_naive()
+        ):
+            return False
+        outbox.text_body = outbox.html_body = None
         outbox.provider_message_id = provider_message_id
         clear_async_diagnostic(outbox)
+        return True
 
-    def transient_failure(self, db: Session, outbox_uuid: str, error: str) -> None:
+    def transient_failure(
+        self, db: Session, outbox_uuid: str, error: str, *, lease: DeliveryAttemptLease
+    ) -> bool:
         outbox = self._get(db, outbox_uuid)
-        if outbox is None:
-            return
-        now = utc_now_naive()
-        lifecycle = _delivery_lifecycle()
+        lifecycle, now = _delivery_lifecycle(), utc_now_naive()
+        if outbox is None or not lifecycle.attempt_matches(outbox, lease):
+            return False
         if outbox.attempt_count >= lifecycle.policy.max_attempts:
-            self._finish(outbox, MailOutboxStatus.PERMANENT_FAILURE, now=now, error=error)
-        else:
-            lifecycle.fail(outbox, error=error, now=now)
-        apply_async_diagnostic(
-            outbox,
-            kind=AsyncOperationKindValue.MAIL,
-            status=(
-                AsyncOperationStatusValue.PERMANENT_FAILED
-                if outbox.status == MailOutboxStatus.PERMANENT_FAILURE
-                else AsyncOperationStatusValue.RETRYING
-            ),
-            raw_status=outbox.status.value,
-            last_error=outbox.last_error,
-            attempts=outbox.attempt_count,
-            max_attempts=settings.MAIL_OUTBOX_MAX_ATTEMPTS,
-        )
+            return self.permanent_failure(db, outbox_uuid, error, lease=lease)
+        lifecycle.fail_attempt(outbox, lease=lease, error=error, now=now)
+        self._failure_diagnostic(outbox)
+        return True
 
-    def permanent_failure(self, db: Session, outbox_uuid: str, error: str) -> None:
+    def permanent_failure(
+        self, db: Session, outbox_uuid: str, error: str, *, lease: DeliveryAttemptLease
+    ) -> bool:
         outbox = self._get(db, outbox_uuid)
-        if outbox is None:
-            return
-        self._finish(outbox, MailOutboxStatus.PERMANENT_FAILURE, now=utc_now_naive(), error=error)
+        if outbox is None or not _delivery_lifecycle().finish_attempt(
+            outbox,
+            lease=lease,
+            status=MailOutboxStatus.PERMANENT_FAILURE,
+            error=error,
+            now=utc_now_naive(),
+        ):
+            return False
+        outbox.text_body = outbox.html_body = None
+        self._failure_diagnostic(outbox)
+        return True
+
+    @staticmethod
+    def _failure_diagnostic(outbox: MailOutbox) -> None:
         apply_async_diagnostic(
             outbox,
             kind=AsyncOperationKindValue.MAIL,
-            status=AsyncOperationStatusValue.PERMANENT_FAILED,
+            status=AsyncOperationStatusValue.PERMANENT_FAILED
+            if outbox.status == MailOutboxStatus.PERMANENT_FAILURE
+            else AsyncOperationStatusValue.RETRYING,
             raw_status=outbox.status.value,
             last_error=outbox.last_error,
             attempts=outbox.attempt_count,
@@ -249,12 +269,15 @@ class MailOutboxService:
         now = utc_now_naive()
         active = (
             db.execute(
-                select(MailOutbox).where(
+                select(MailOutbox)
+                .where(
                     or_(
                         MailOutbox.status == MailOutboxStatus.DISPATCHED,
                         MailOutbox.status == MailOutboxStatus.PROCESSING,
                     )
                 )
+                .with_for_update(skip_locked=True)
+                .execution_options(populate_existing=True)
             )
             .scalars()
             .all()
@@ -275,7 +298,8 @@ class MailOutboxService:
 
         expirable = (
             db.execute(
-                select(MailOutbox).where(
+                select(MailOutbox)
+                .where(
                     col(MailOutbox.expires_at).is_not(None),
                     col(MailOutbox.expires_at) <= now,
                     col(MailOutbox.status).in_(
@@ -286,6 +310,8 @@ class MailOutboxService:
                         ]
                     ),
                 )
+                .with_for_update(skip_locked=True)
+                .execution_options(populate_existing=True)
             )
             .scalars()
             .all()
@@ -349,7 +375,10 @@ class MailOutboxService:
     @staticmethod
     def _get(db: Session, outbox_uuid: str) -> MailOutbox | None:
         return db.execute(
-            select(MailOutbox).where(MailOutbox.outbox_uuid == outbox_uuid)
+            select(MailOutbox)
+            .where(MailOutbox.outbox_uuid == outbox_uuid)
+            .with_for_update()
+            .execution_options(populate_existing=True)
         ).scalar_one_or_none()
 
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from dataclasses import replace
+from dataclasses import asdict
 
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,6 +28,7 @@ from app.modules.async_operations.durable_delivery import (
     DeliveryLifecyclePolicy,
     DeliveryStatuses,
     DurableDeliveryLifecycle,
+    DeliveryAttemptLease,
 )
 from app.modules.score_assets import render_payloads
 from app.utils.timezone import utc_now_naive
@@ -281,21 +282,25 @@ class RenderOutboxService:
         payload = self._build_payload(db, outbox)
         if payload is None:
             return None
-        if not lifecycle.claim(outbox, now=utc_now_naive()):
+        lease = lifecycle.claim(outbox, token=str(uuid.uuid4()), now=utc_now_naive())
+        if lease is None:
             return None
-        return replace(
-            payload, attempt=outbox.attempt_count, max_attempts=lifecycle.policy.max_attempts
+        return render_payloads.RenderOutboxPayload(
+            **asdict(payload), lease=lease, max_attempts=lifecycle.policy.max_attempts
         )
 
     def _build_payload(
         self, db: Session, outbox: RenderOutbox
-    ) -> render_payloads.RenderOutboxPayload | None:
+    ) -> render_payloads.RenderTarget | None:
         result = self.payload_builder.build(db, outbox)
         if result.payload is not None:
             return result.payload
 
         if result.terminal_completed:
-            self.complete(db, outbox.outbox_uuid)
+            _delivery_lifecycle().finish(
+                outbox, status=RenderOutboxStatus.COMPLETED, error=None, now=utc_now_naive()
+            )
+            clear_async_diagnostic(outbox)
             return None
 
         if outbox.status == RenderOutboxStatus.COMPLETED:
@@ -318,27 +323,33 @@ class RenderOutboxService:
             max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
         )
 
-    def supersede(self, db: Session, outbox_uuid: str) -> None:
+    def supersede(self, db: Session, outbox_uuid: str, *, lease: DeliveryAttemptLease) -> bool:
         outbox = self._get(db, outbox_uuid)
-        if outbox is None or outbox.status != RenderOutboxStatus.PROCESSING:
-            return
+        if outbox is None or not _delivery_lifecycle().attempt_matches(outbox, lease):
+            return False
         _delivery_lifecycle().reset(
             outbox, status=RenderOutboxStatus.SUPERSEDED, reset_attempts=False, now=utc_now_naive()
         )
         clear_async_diagnostic(outbox)
+        return True
 
-    def complete(self, db: Session, outbox_uuid: str) -> None:
+    def complete(self, db: Session, outbox_uuid: str, *, lease: DeliveryAttemptLease) -> bool:
         outbox = self._get(db, outbox_uuid)
-        if outbox is None or outbox.status == RenderOutboxStatus.SUPERSEDED:
-            return
-        _delivery_lifecycle().complete(outbox, now=utc_now_naive())
+        if outbox is None or not _delivery_lifecycle().complete_attempt(
+            outbox, lease=lease, now=utc_now_naive()
+        ):
+            return False
         clear_async_diagnostic(outbox)
+        return True
 
-    def fail(self, db: Session, outbox_uuid: str, error: str) -> None:
+    def fail(
+        self, db: Session, outbox_uuid: str, error: str, *, lease: DeliveryAttemptLease
+    ) -> bool:
         outbox = self._get(db, outbox_uuid)
-        if outbox is None or outbox.status == RenderOutboxStatus.SUPERSEDED:
-            return
-        _delivery_lifecycle().fail(outbox, error=error, now=utc_now_naive())
+        if outbox is None or not _delivery_lifecycle().fail_attempt(
+            outbox, lease=lease, error=error, now=utc_now_naive()
+        ):
+            return False
         apply_async_diagnostic(
             outbox,
             kind=AsyncOperationKindValue.RENDER,
@@ -352,6 +363,7 @@ class RenderOutboxService:
             attempts=outbox.attempt_count,
             max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
         )
+        return True
 
     def target_type(self, db: Session, outbox_uuid: str) -> RenderTargetType | None:
         return db.execute(
@@ -385,12 +397,15 @@ class RenderOutboxService:
         now = utc_now_naive()
         stale = (
             db.execute(
-                select(RenderOutbox).where(
+                select(RenderOutbox)
+                .where(
                     or_(
                         RenderOutbox.status == RenderOutboxStatus.DISPATCHED,
                         RenderOutbox.status == RenderOutboxStatus.PROCESSING,
                     )
                 )
+                .with_for_update(skip_locked=True)
+                .execution_options(populate_existing=True)
             )
             .scalars()
             .all()
@@ -431,7 +446,10 @@ class RenderOutboxService:
     @staticmethod
     def _get(db: Session, outbox_uuid: str) -> RenderOutbox | None:
         return db.execute(
-            select(RenderOutbox).where(RenderOutbox.outbox_uuid == outbox_uuid).with_for_update()
+            select(RenderOutbox)
+            .where(RenderOutbox.outbox_uuid == outbox_uuid)
+            .with_for_update()
+            .execution_options(populate_existing=True)
         ).scalar_one_or_none()
 
 

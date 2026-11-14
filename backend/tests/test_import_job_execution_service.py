@@ -38,7 +38,9 @@ def test_pipeline_failure_is_persisted_and_reraised() -> None:
     first_db = Mock()
     failure_db = Mock()
     databases = iter((Mock(), first_db, failure_db))
-    lease = ImportExecutionLease("dispatch", "job-id", 1, "token")
+    lease = ImportExecutionLease(
+        dispatch_uuid="dispatch", job_uuid="job-id", attempt=1, token="token"
+    )
 
     @contextmanager
     def database_scope():
@@ -77,7 +79,7 @@ def test_pipeline_failure_is_persisted_and_reraised() -> None:
 
 def test_stale_execution_aborts_before_materialization_without_domain_failure():
     service = ImportJobExecutionService(storage=Mock())
-    lease = ImportExecutionLease("delivery", "job", 1, "token")
+    lease = ImportExecutionLease(dispatch_uuid="delivery", job_uuid="job", attempt=1, token="token")
 
     @contextmanager
     def database_scope():
@@ -103,7 +105,7 @@ def test_stale_execution_aborts_before_materialization_without_domain_failure():
 def test_journal_invariant_conflict_propagates_without_becoming_a_pipeline_outcome(stage):
     service = ImportJobExecutionService(storage=Mock())
     service.storage.materialize_to_local.return_value = "/work/score.png"
-    lease = ImportExecutionLease("dispatch", "job", 1, "token")
+    lease = ImportExecutionLease(dispatch_uuid="dispatch", job_uuid="job", attempt=1, token="token")
     conflict = DomainEventDedupeConflict("Immutable fact conflicts")
     pipeline, context = Mock(), Mock()
     failure = Mock()
@@ -140,7 +142,7 @@ def test_worker_preserves_journal_conflict_without_completing_delivery():
     from contextlib import nullcontext
     from app.worker.execution import import_job as worker
 
-    lease = ImportExecutionLease("dispatch", "job", 1, "token")
+    lease = ImportExecutionLease(dispatch_uuid="dispatch", job_uuid="job", attempt=1, token="token")
     payload = SimpleNamespace(
         lease=lease,
         job_uuid="job",

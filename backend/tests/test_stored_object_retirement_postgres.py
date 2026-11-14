@@ -236,7 +236,7 @@ async def test_attempt_takeover_fences_stale_work_and_holds_rows_across_delete(
         current = retirement_delivery.claim(db, uuid)
         db.commit()
         assert current.attempt == old.attempt + 1
-        assert not retirement_delivery.fail(db, uuid, "stale", attempt=old.attempt, token=old.token)
+        assert not retirement_delivery.fail(db, old, "stale")
         db.commit()
         operation_id = retirement_delivery.get(db, uuid).id
     monkeypatch.setattr(retirement_delivery, "claim", lambda *_: old)
@@ -267,7 +267,7 @@ async def test_attempt_takeover_fences_stale_work_and_holds_rows_across_delete(
     with Session(sync) as db:
         assert db.get(StoredObject, identity) is None
         assert retirement_delivery.get(db, uuid).status == "COMPLETED"
-        assert not retirement_delivery.fail(db, uuid, "stale", attempt=old.attempt, token=old.token)
+        assert not retirement_delivery.fail(db, old, "stale")
         db.commit()
 
 

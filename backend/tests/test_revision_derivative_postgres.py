@@ -29,6 +29,7 @@ from app.db.models import (
 )
 from app.db.models.score import RevisionOrigin, RevisionSourceFormat
 from app.modules.score_assets import render_service
+from app.modules.async_operations.durable_delivery import DeliveryAttemptLease
 from app.modules.playback import service as playback_service
 from app.processing.engines.playback.renderer import RenderedAudio
 from app.worker.execution import render_outbox, playback_outbox
@@ -194,6 +195,10 @@ def test_final_admission_serializes_with_current_score(monkeypatch, tmp_path, ki
                         editor.scalar(sa.select(model.status))
                         == model.__table__.c.status.type.enum_class.PROCESSING
                     )
+                    active = editor.scalars(sa.select(model)).one()
+                    lease = DeliveryAttemptLease(
+                        attempt=active.attempt_count, token=active.attempt_token
+                    )
                     if change == "head":
                         score.head_revision_id = r2
                     else:
@@ -230,7 +235,7 @@ def test_final_admission_serializes_with_current_score(monkeypatch, tmp_path, ki
                     if kind == "render"
                     else worker.playback_outbox_service
                 )
-                delivery.complete(check, f"race-{kind}")
+                assert not delivery.complete(check, f"race-{kind}", lease=lease)
                 check.commit()
                 check.refresh(work)
                 assert work.status.value == "SUPERSEDED" and work.completed_at is None

@@ -35,7 +35,14 @@ def test_current_write_statuses_key_uniqueness_and_attempt_bounds(monkeypatch):
                 "CLEANED",
             ]
             for status in statuses:
-                db.add(ObjectWriteIntent(object_key="writes/" + status, status=status, **facts))
+                db.add(
+                    ObjectWriteIntent(
+                        object_key="writes/" + status,
+                        status=status,
+                        attempt_token="fixture-token" if status == "CLEANUP_PROCESSING" else None,
+                        **facts,
+                    )
+                )
             db.commit()
             assert set(db.scalars(sa.select(ObjectWriteIntent.status))) == set(statuses)
             for patch in [

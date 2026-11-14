@@ -21,6 +21,28 @@ Revision transactions commit canonical snapshots and outboxes before immediate b
 dispatch through the shared revision producer. Beat relays missed deliveries and recovers
 expired dispatch/processing leases; it is not the normal-path scheduling delay.
 
+## Fenced durable attempts
+
+Dispatch admission and broker rejection do not consume an attempt. Worker claim
+creates an immutable `DeliveryAttemptLease` with a one-based attempt number and a
+fresh opaque token. DurableDeliveryLifecycle owns token installation, matching and
+clearing for Import, Render, Playback, Mail, Score deletion, StoredObject retirement
+and ObjectWrite cleanup. Domain services retain admission, payloads, locking,
+diagnostics and terminal meaning; task entrypoints and execution remain domain-owned.
+
+Outcome commands refresh and lock the delivery row, then require PROCESSING plus
+the exact lease count and token. Recovery clears the old token before a new claim.
+Every accepted terminal/reset clears it as well. ObjectWrite cleanup uses
+CLEANUP_PROCESSING and keeps its physical `write_token` independent. Render/Playback
+publish ready/failed realtime state only after an accepted current-attempt outcome.
+Workers log attempt numbers and tracing context, never fencing tokens.
+
+Fencing protects durable state ownership rather than exactly-once external execution.
+Mail provider calls can be delivered more than once after uncertain network outcomes
+or worker loss; stale sent/failure results cannot overwrite a new attempt or its
+provider message ID. Each domain keeps its own maintenance scan and worker rather
+than sharing a universal job table or runner.
+
 Import finalization commits Job state and a typed DomainEvent atomically, then attempts
 the Import notification and realtime database projectors immediately. Each projector
 commits its database representations with its own locked checkpoint. Notification rows

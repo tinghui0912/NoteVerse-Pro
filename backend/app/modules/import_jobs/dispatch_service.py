@@ -25,6 +25,7 @@ from app.db.models import (
 from app.db.models.import_job import ImportJobState
 from app.modules.async_operations.durable_delivery import (
     DurableDeliveryLifecycle,
+    DeliveryAttemptLease,
     DeliveryStatuses,
     DeliveryLifecyclePolicy,
     ClaimAdmission,
@@ -57,11 +58,9 @@ def import_delivery_exhausted(dispatch: ImportDispatch) -> bool:
 
 
 @dataclass(frozen=True)
-class ImportExecutionLease:
+class ImportExecutionLease(DeliveryAttemptLease):
     dispatch_uuid: str
     job_uuid: str
-    attempt: int
-    token: str
 
 
 class StaleImportDispatchAttempt(RuntimeError):
@@ -93,12 +92,7 @@ def lock_dispatch_job(db: Session, dispatch: ImportDispatch) -> ImportJob:
 
 def require_current_attempt(db: Session, lease: ImportExecutionLease) -> ImportJob:
     dispatch = lock_dispatch(db, lease.dispatch_uuid)
-    if (
-        dispatch is None
-        or dispatch.status != ImportDispatchStatus.PROCESSING
-        or dispatch.attempt_count != lease.attempt
-        or dispatch.attempt_token != lease.token
-    ):
+    if dispatch is None or not ImportDispatchService.lifecycle().attempt_matches(dispatch, lease):
         raise StaleImportDispatchAttempt("Import execution lease is stale")
     job = lock_dispatch_job(db, dispatch)
     if job.job_uuid != lease.job_uuid:
@@ -189,12 +183,14 @@ class ImportDispatchService:
         if not keys:
             self._exhaust(db, row, job, "Import job has no persisted uploads", now)
             return None
-        claimed = lifecycle.claim(row, now=now)
+        claimed = lifecycle.claim(row, token=str(uuid4()), now=now)
         assert claimed
-        row.attempt_token = str(uuid4())
         clear_async_diagnostic(row)
         lease = ImportExecutionLease(
-            row.dispatch_uuid, job.job_uuid, row.attempt_count, row.attempt_token
+            dispatch_uuid=row.dispatch_uuid,
+            job_uuid=job.job_uuid,
+            attempt=row.attempt_count,
+            token=claimed.token,
         )
         return ImportDispatchPayload(
             lease,
@@ -213,8 +209,7 @@ class ImportDispatchService:
     def _reconcile_terminal_attempt(self, row: ImportDispatch, *, now: datetime) -> None:
         # Only an in-flight command can be reconciled with its durable domain outcome.
         if row.status in (ImportDispatchStatus.DISPATCHED, ImportDispatchStatus.PROCESSING):
-            self.lifecycle().complete(row, now=now)
-            row.attempt_token = None
+            self.lifecycle().finish(row, status=ImportDispatchStatus.COMPLETED, error=None, now=now)
             clear_async_diagnostic(row)
 
     def complete(self, db: Session, lease: ImportExecutionLease) -> None:
@@ -225,11 +220,8 @@ class ImportDispatchService:
             select(ImportDispatch).where(ImportDispatch.dispatch_uuid == lease.dispatch_uuid)
         )
         assert row is not None
-        completed = self.lifecycle().complete_attempt(
-            row, expected_attempt=lease.attempt, now=utc_now_naive()
-        )
+        completed = self.lifecycle().complete_attempt(row, lease=lease, now=utc_now_naive())
         assert completed
-        row.attempt_token = None
         clear_async_diagnostic(row)
 
     def release_dispatch(self, db: Session, dispatch_uuid: str, error: str) -> None:
@@ -250,15 +242,15 @@ class ImportDispatchService:
             )
             .order_by(ImportDispatch.id)
             .with_for_update(skip_locked=True)
+            .execution_options(populate_existing=True)
         ).all()
         for row in active:
             job = lock_dispatch_job(db, row)
             was_processing = row.status == ImportDispatchStatus.PROCESSING
             if not lifecycle.recover_lease(row, error="Import delivery lease expired", now=now):
                 continue
-            row.attempt_token = None
             if job.state in TERMINAL_IMPORT_STATES:
-                lifecycle.complete(row, now=now)
+                lifecycle.finish(row, status=ImportDispatchStatus.COMPLETED, error=None, now=now)
                 clear_async_diagnostic(row)
             elif row.attempt_count >= lifecycle.policy.max_attempts:
                 self._exhaust(db, row, job, "Import worker delivery attempts exhausted", now)
@@ -300,7 +292,6 @@ class ImportDispatchService:
         self, db: Session, row: ImportDispatch, job: ImportJob, error: str, now: datetime
     ) -> None:
         self.lifecycle().exhaust(row, error=error, now=now)
-        row.attempt_token = None
         self._diagnose(row, AsyncOperationStatusValue.EXHAUSTED)
         if job.state not in TERMINAL_IMPORT_STATES:
             job.state = ImportJobState.FAILURE

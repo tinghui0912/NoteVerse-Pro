@@ -1,6 +1,5 @@
 """Persisted service witnesses; resource admission has its own domain suites."""
 
-from dataclasses import dataclass
 from datetime import datetime, timedelta
 import importlib
 
@@ -52,12 +51,6 @@ CASES = [
 ]
 
 
-@dataclass(frozen=True)
-class AdmittedPayload:
-    attempt: int = 0
-    max_attempts: int = 0
-
-
 @pytest.fixture(params=CASES, ids=[case[1] for case in CASES])
 def delivery(request, monkeypatch):
     module_name, service_name, prefix, model, fields = request.param
@@ -74,7 +67,26 @@ def delivery(request, monkeypatch):
     service = getattr(module, service_name)()
     if model in (RenderOutbox, PlaybackOutbox):
         # Exercise lifecycle persistence after a successful domain payload admission.
-        monkeypatch.setattr(service, "_build_payload", lambda *_: AdmittedPayload())
+        from app.modules.score_assets.render_payloads import RenderTarget
+        from app.modules.playback.outbox_service import PlaybackTarget
+
+        def admitted(db, row):
+            if model is RenderOutbox:
+                return RenderTarget(
+                    outbox_uuid=row.outbox_uuid,
+                    target_type=row.target_type,
+                    render_profile=row.render_profile,
+                    source_fingerprint=row.source_fingerprint,
+                )
+            return PlaybackTarget(
+                outbox_uuid=row.outbox_uuid,
+                score_uuid="score",
+                revision_uuid="revision",
+                source_fingerprint=row.source_fingerprint,
+                asset_kind=row.asset_kind,
+            )
+
+        monkeypatch.setattr(service, "_build_payload", admitted)
     if model is PlaybackOutbox:
         monkeypatch.setattr(module, "lock_presentation_score", lambda *_: None)
         monkeypatch.setattr(
@@ -101,11 +113,11 @@ def test_domain_delivery_persists_dispatch_claim_retry_and_success(delivery):
     assert row.last_error == ("broker" * 1000)[:4000]
     assert service.mark_dispatched(db, row.outbox_uuid)
     payload = service.claim(db, row.outbox_uuid)
-    assert payload.attempt == row.attempt_count == 1
+    assert payload.lease.attempt == row.attempt_count == 1
     assert payload.max_attempts == 5
     assert service.claim(db, row.outbox_uuid) is None
     fail = service.transient_failure if isinstance(row, MailOutbox) else service.fail
-    fail(db, row.outbox_uuid, "transient" * 1000)
+    fail(db, row.outbox_uuid, "transient" * 1000, lease=payload.lease)
     assert row.status == statuses.failed
     assert row.attempt_count == 1
     assert row.next_attempt_at == NOW + timedelta(seconds=60)
@@ -114,13 +126,15 @@ def test_domain_delivery_persists_dispatch_claim_retry_and_success(delivery):
     clock[0] += timedelta(seconds=60)
     assert service.mark_dispatched(db, row.outbox_uuid)
     payload = service.claim(db, row.outbox_uuid)
-    assert payload.attempt == row.attempt_count == 2
+    assert payload.lease.attempt == row.attempt_count == 2
     if isinstance(row, MailOutbox):
-        service.sent(db, row.outbox_uuid, provider_message_id="provider-message")
+        service.sent(
+            db, row.outbox_uuid, provider_message_id="provider-message", lease=payload.lease
+        )
         assert row.text_body is None and row.html_body is None
         assert row.provider_message_id == "provider-message"
     else:
-        service.complete(db, row.outbox_uuid)
+        service.complete(db, row.outbox_uuid, lease=payload.lease)
     db.commit()
     db.refresh(row)
     assert row.status == statuses.succeeded
@@ -138,6 +152,7 @@ def test_domain_lease_recovery_is_immediately_due_without_consuming_attempt(deli
         row.dispatched_at = NOW - timedelta(seconds=300)
     else:
         row.status = statuses.processing
+        row.attempt_token = "expired-token"
         row.started_at = NOW - timedelta(seconds=1200)
     db.commit()
     assert service.recover_and_list_due(db) == [row.outbox_uuid]

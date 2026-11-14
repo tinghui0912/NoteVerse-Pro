@@ -106,7 +106,6 @@ class OpsAsyncOperationCommandService:
             lambda sync_db: import_dispatch_service.reset_execution(sync_db, job, now)
         )
         import_dispatch_service.lifecycle().rearm(dispatch, now=now)
-        dispatch.attempt_token = None
         clear_async_diagnostic(dispatch)
         await db.commit()
         await db.refresh(job)

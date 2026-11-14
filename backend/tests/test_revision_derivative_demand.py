@@ -175,6 +175,7 @@ def test_processing_is_not_cancelled_and_missing_source_is_not_superseded(revisi
     render, audio = work_rows(db, 1)
     render.status = RenderOutboxStatus.PROCESSING
     audio.status = PlaybackOutboxStatus.PROCESSING
+    render.attempt_token = audio.attempt_token = "fixture-token"
     db.commit()
     assert render_outbox_service.claim(db, "render-1") is None
     assert playback_outbox_service.claim(db, "audio-1") is None

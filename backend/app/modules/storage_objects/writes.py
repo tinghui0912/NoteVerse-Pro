@@ -18,6 +18,7 @@ from app.db.models.object_write_intent import ObjectWriteIntent
 from app.db.models.stored_object import StoredObject
 from app.modules.async_operations.durable_delivery import (
     DurableDeliveryLifecycle,
+    DeliveryAttemptLease,
     DeliveryLifecyclePolicy,
     DeliveryStatuses,
 )
@@ -248,20 +249,20 @@ def receipt_for_intent(db: Session, intent_uuid: str) -> ObjectWriteReceipt:
 
 
 @dataclass(frozen=True)
-class CleanupAttempt:
+class CleanupAttempt(DeliveryAttemptLease):
     intent_uuid: str
     write_token: str
-    attempt: int
-    token: str
 
 
 class ObjectWriteCleanupDelivery:
     def claim(self, db: Session, uuid: str) -> CleanupAttempt | None:
         row = lock_intent(db, uuid)
-        if not cleanup_lifecycle().claim(row, now=utc_now_naive()):
+        lease = cleanup_lifecycle().claim(row, token=str(uuid4()), now=utc_now_naive())
+        if lease is None:
             return None
-        row.attempt_token = str(uuid4())
-        return CleanupAttempt(uuid, row.write_token, row.attempt_count, row.attempt_token)
+        return CleanupAttempt(
+            intent_uuid=uuid, write_token=row.write_token, attempt=lease.attempt, token=lease.token
+        )
 
     def dispatch(self, db: Session, uuid: str) -> bool:
         return cleanup_lifecycle().dispatch(lock_intent(db, uuid), now=utc_now_naive())
@@ -272,19 +273,14 @@ class ObjectWriteCleanupDelivery:
         )
 
     def matches(self, row: ObjectWriteIntent, attempt: CleanupAttempt) -> bool:
-        return (
-            row.write_token == attempt.write_token
-            and row.attempt_token == attempt.token
-            and row.status == "CLEANUP_PROCESSING"
-            and row.attempt_count == attempt.attempt
+        return row.write_token == attempt.write_token and cleanup_lifecycle().attempt_matches(
+            row, attempt
         )
 
     def fail(self, db: Session, attempt: CleanupAttempt, error: str) -> None:
         row = lock_intent(db, attempt.intent_uuid)
         if self.matches(row, attempt):
-            cleanup_lifecycle().fail_attempt(
-                row, expected_attempt=attempt.attempt, error=error, now=utc_now_naive()
-            )
+            cleanup_lifecycle().fail_attempt(row, lease=attempt, error=error, now=utc_now_naive())
 
     def recover_and_list_due(self, db: Session) -> list[str]:
         now = utc_now_naive()
@@ -299,6 +295,7 @@ class ObjectWriteCleanupDelivery:
                     )
                 )
                 .with_for_update(skip_locked=True)
+                .execution_options(populate_existing=True)
             )
         )
         lifecycle = cleanup_lifecycle()

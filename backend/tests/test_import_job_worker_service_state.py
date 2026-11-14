@@ -15,7 +15,7 @@ from app.modules.import_jobs.worker_service import SyncImportJobService
 from app.shared.constants import ErrorCode
 
 
-LEASE = ImportExecutionLease("dispatch-1", "job-1", 2, "token")
+LEASE = ImportExecutionLease(dispatch_uuid="dispatch-1", job_uuid="job-1", attempt=2, token="token")
 
 
 @pytest.fixture(autouse=True)

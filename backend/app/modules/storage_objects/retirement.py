@@ -14,6 +14,7 @@ from app.modules.async_operations.durable_delivery import (
     DeliveryLifecyclePolicy,
     DeliveryStatuses,
     DurableDeliveryLifecycle,
+    DeliveryAttemptLease,
 )
 from app.modules.storage_objects.persistence import object_from_row
 from app.modules.storage_objects.facts import StoredObjectFacts
@@ -106,11 +107,9 @@ def snapshot(operation: StoredObjectRetirement) -> StoredObjectFacts:
 
 
 @dataclass(frozen=True)
-class RetirementAttempt:
+class RetirementAttempt(DeliveryAttemptLease):
     retirement_uuid: str
     stored_object_id: int | None
-    attempt: int
-    token: str
 
 
 class StoredObjectRetirementDelivery:
@@ -125,11 +124,16 @@ class StoredObjectRetirementDelivery:
 
     def claim(self, db: Session, uuid: str) -> RetirementAttempt | None:
         row = self.get(db, uuid, lock=True)
-        if row is None or not delivery_lifecycle().claim(row, now=utc_now_naive()):
+        if row is None:
             return None
-        row.attempt_token = str(uuid4())
+        lease = delivery_lifecycle().claim(row, token=str(uuid4()), now=utc_now_naive())
+        if lease is None:
+            return None
         return RetirementAttempt(
-            row.retirement_uuid, row.stored_object_id, row.attempt_count, row.attempt_token
+            retirement_uuid=row.retirement_uuid,
+            stored_object_id=row.stored_object_id,
+            attempt=lease.attempt,
+            token=lease.token,
         )
 
     def mark_dispatched(self, db: Session, uuid: str) -> bool:
@@ -141,14 +145,10 @@ class StoredObjectRetirementDelivery:
         if row is not None:
             delivery_lifecycle().release_dispatch(row, error=error, now=utc_now_naive())
 
-    def fail(self, db: Session, uuid: str, error: str, *, attempt: int, token: str) -> bool:
-        row = self.get(db, uuid, lock=True)
-        return (
-            row is not None
-            and row.attempt_token == token
-            and delivery_lifecycle().fail_attempt(
-                row, expected_attempt=attempt, error=error, now=utc_now_naive()
-            )
+    def fail(self, db: Session, attempt: RetirementAttempt, error: str) -> bool:
+        row = self.get(db, attempt.retirement_uuid, lock=True)
+        return row is not None and delivery_lifecycle().fail_attempt(
+            row, lease=attempt, error=error, now=utc_now_naive()
         )
 
     def recover_and_list_due(self, db: Session) -> list[str]:
@@ -159,6 +159,7 @@ class StoredObjectRetirementDelivery:
                 select(StoredObjectRetirement)
                 .where(StoredObjectRetirement.status.in_(["DISPATCHED", "PROCESSING"]))
                 .with_for_update(skip_locked=True)
+                .execution_options(populate_existing=True)
             )
         )
         for row in rows:

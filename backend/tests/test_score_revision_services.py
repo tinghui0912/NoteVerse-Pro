@@ -1677,7 +1677,7 @@ def test_render_outbox_claim_failure_and_completion_are_persistent(
     assert outbox.status == RenderOutboxStatus.PROCESSING
     assert outbox.attempt_count == 1
 
-    service.fail(session, outbox.outbox_uuid, "temporary failure")
+    service.fail(session, outbox.outbox_uuid, "temporary failure", lease=payload.lease)
     session.commit()
     assert outbox.status == RenderOutboxStatus.FAILED
     assert outbox.last_error == "temporary failure"
@@ -1687,7 +1687,7 @@ def test_render_outbox_claim_failure_and_completion_are_persistent(
     payload = service.claim(session, outbox.outbox_uuid)
     session.commit()
     assert payload is not None
-    service.complete(session, outbox.outbox_uuid)
+    service.complete(session, outbox.outbox_uuid, lease=payload.lease)
     session.commit()
     assert outbox.status == RenderOutboxStatus.COMPLETED
     assert outbox.completed_at is not None
@@ -1773,15 +1773,18 @@ def test_mail_outbox_retries_and_scrubs_sensitive_content_after_delivery(
     assert payload.text_body == "123456"
     assert outbox.status == MailOutboxStatus.PROCESSING
 
-    service.transient_failure(session, outbox.outbox_uuid, "provider unavailable")
+    service.transient_failure(
+        session, outbox.outbox_uuid, "provider unavailable", lease=payload.lease
+    )
     session.commit()
     assert outbox.status == MailOutboxStatus.FAILED
     assert outbox.text_body == "123456"
 
     outbox.next_attempt_at = utc_now_naive() - timedelta(seconds=1)
     session.commit()
-    assert service.claim(session, outbox.outbox_uuid) is not None
-    service.sent(session, outbox.outbox_uuid, "resend-message-id")
+    payload = service.claim(session, outbox.outbox_uuid)
+    assert payload is not None
+    service.sent(session, outbox.outbox_uuid, "resend-message-id", lease=payload.lease)
     session.commit()
 
     assert outbox.status == MailOutboxStatus.SENT

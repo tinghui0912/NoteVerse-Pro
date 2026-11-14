@@ -191,6 +191,7 @@ def upgrade() -> None:
             ),
             nullable=False,
         ),
+        sa.Column("attempt_token", sa.String(length=36), nullable=True),
         sa.Column("attempt_count", sa.Integer(), nullable=False),
         sa.Column("next_attempt_at", sa.DateTime(), nullable=False),
         sa.Column("expires_at", sa.DateTime(), nullable=True),
@@ -209,6 +210,10 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id", name="pk_mail_outbox"),
         sa.UniqueConstraint("dedupe_key", name="uq_mail_outbox_dedupe_key"),
         sa.UniqueConstraint("outbox_uuid", name="uq_mail_outbox_outbox_uuid"),
+        sa.CheckConstraint(
+            "(status = 'PROCESSING' AND attempt_token IS NOT NULL) OR (status <> 'PROCESSING' AND attempt_token IS NULL)",
+            name="ck_mail_outbox_attempt_token",
+        ),
     )
     op.create_index("idx_mail_outbox_created", "mail_outbox", ["created_at"], unique=False)
     op.create_index(
@@ -260,6 +265,10 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id", name="pk_object_write_intents"),
         sa.UniqueConstraint("intent_uuid", name="uq_object_write_intents_intent_uuid"),
         sa.UniqueConstraint("object_key", name="uq_object_write_intent_key"),
+        sa.CheckConstraint(
+            "(status = 'CLEANUP_PROCESSING' AND attempt_token IS NOT NULL) OR (status <> 'CLEANUP_PROCESSING' AND attempt_token IS NULL)",
+            name="ck_object_write_intents_attempt_token",
+        ),
     )
     op.create_index(
         "ix_object_write_intent_due",
@@ -595,6 +604,10 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id", name="pk_stored_object_retirements"),
         sa.UniqueConstraint("retirement_uuid", name="uq_stored_object_retirements_retirement_uuid"),
         sa.UniqueConstraint("stored_object_id", name="uq_object_retirement_object"),
+        sa.CheckConstraint(
+            "(status = 'PROCESSING' AND attempt_token IS NOT NULL) OR (status <> 'PROCESSING' AND attempt_token IS NULL)",
+            name="ck_stored_object_retirements_attempt_token",
+        ),
     )
     op.create_index(
         "ix_object_retirement_due",
@@ -1921,6 +1934,7 @@ def upgrade() -> None:
             ),
             nullable=False,
         ),
+        sa.Column("attempt_token", sa.String(length=36), nullable=True),
         sa.Column("attempt_count", sa.Integer(), nullable=False),
         sa.Column("next_attempt_at", sa.DateTime(), nullable=False),
         sa.Column("dispatched_at", sa.DateTime(), nullable=True),
@@ -1955,6 +1969,10 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id", name="pk_playback_outbox"),
         sa.UniqueConstraint("outbox_uuid", name="uq_playback_outbox_outbox_uuid"),
         sa.UniqueConstraint("revision_id", "asset_kind", name="uq_playback_outbox_revision_kind"),
+        sa.CheckConstraint(
+            "(status = 'PROCESSING' AND attempt_token IS NOT NULL) OR (status <> 'PROCESSING' AND attempt_token IS NULL)",
+            name="ck_playback_outbox_attempt_token",
+        ),
     )
     op.create_index(
         "idx_playback_outbox_dispatched",
@@ -2013,6 +2031,7 @@ def upgrade() -> None:
             ),
             nullable=False,
         ),
+        sa.Column("attempt_token", sa.String(length=36), nullable=True),
         sa.Column("attempt_count", sa.Integer(), nullable=False),
         sa.Column("next_attempt_at", sa.DateTime(), nullable=False),
         sa.Column("dispatched_at", sa.DateTime(), nullable=True),
@@ -2061,6 +2080,10 @@ def upgrade() -> None:
         sa.UniqueConstraint("outbox_uuid", name="uq_render_outbox_outbox_uuid"),
         sa.UniqueConstraint(
             "revision_id", "render_profile", name="uq_render_outbox_revision_profile"
+        ),
+        sa.CheckConstraint(
+            "(status = 'PROCESSING' AND attempt_token IS NOT NULL) OR (status <> 'PROCESSING' AND attempt_token IS NULL)",
+            name="ck_render_outbox_attempt_token",
         ),
     )
     op.create_index(

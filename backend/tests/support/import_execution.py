@@ -21,5 +21,8 @@ def processing_lease(db, job):
         db.commit()
     assert row.status == ImportDispatchStatus.PROCESSING
     return ImportExecutionLease(
-        row.dispatch_uuid, job.job_uuid, row.attempt_count, row.attempt_token
+        dispatch_uuid=row.dispatch_uuid,
+        job_uuid=job.job_uuid,
+        attempt=row.attempt_count,
+        token=row.attempt_token,
     )

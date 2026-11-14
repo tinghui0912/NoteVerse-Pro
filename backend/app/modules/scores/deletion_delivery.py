@@ -11,6 +11,7 @@ from app.core.exceptions import ResourceNotFoundException, ValidationException
 from app.db.models import ScoreDeletionOperation, ScoreDeletionOperationStatus as Status
 from app.modules.async_operations.durable_delivery import (
     DurableDeliveryLifecycle,
+    DeliveryAttemptLease,
     DeliveryStatuses,
     DeliveryLifecyclePolicy,
     ClaimAdmission,
@@ -25,11 +26,9 @@ from app.utils.timezone import utc_now_naive
 
 
 @dataclass(frozen=True)
-class ScoreDeletionLease:
+class ScoreDeletionLease(DeliveryAttemptLease):
     operation_uuid: str
     score_uuid: str
-    attempt: int
-    token: str
     traceparent: str | None = None
     tracestate: str | None = None
 
@@ -52,9 +51,7 @@ def require_current_attempt(db: Session, lease: ScoreDeletionLease) -> ScoreDele
     row = lock_operation(db, lease.operation_uuid)
     if (
         row is None
-        or row.status != Status.PROCESSING
-        or row.attempt_count != lease.attempt
-        or row.attempt_token != lease.token
+        or not ScoreDeletionDeliveryService.lifecycle().attempt_matches(row, lease)
         or row.score_uuid != lease.score_uuid
     ):
         raise StaleScoreDeletionAttempt("Score deletion execution lease is stale")
@@ -105,20 +102,19 @@ class ScoreDeletionDeliveryService:
         admission = lifecycle.claim_admission(row, now=now)
         if admission is ClaimAdmission.EXHAUSTED:
             lifecycle.exhaust(row, error="Score deletion attempts exhausted", now=now)
-            row.attempt_token = None
             self._diagnose(row)
             return None
-        if not lifecycle.claim(row, now=now):
+        claimed = lifecycle.claim(row, token=str(uuid4()), now=now)
+        if claimed is None:
             return None
-        row.attempt_token = str(uuid4())
         clear_async_diagnostic(row)
         return ScoreDeletionLease(
-            row.operation_uuid,
-            row.score_uuid,
-            row.attempt_count,
-            row.attempt_token,
-            row.traceparent,
-            row.tracestate,
+            operation_uuid=row.operation_uuid,
+            score_uuid=row.score_uuid,
+            attempt=claimed.attempt,
+            token=claimed.token,
+            traceparent=row.traceparent,
+            tracestate=row.tracestate,
         )
 
     def complete(self, db: Session, lease: ScoreDeletionLease) -> bool:
@@ -126,11 +122,8 @@ class ScoreDeletionDeliveryService:
             row = require_current_attempt(db, lease)
         except StaleScoreDeletionAttempt:
             return False
-        if not self.lifecycle().complete_attempt(
-            row, expected_attempt=lease.attempt, now=utc_now_naive()
-        ):
+        if not self.lifecycle().complete_attempt(row, lease=lease, now=utc_now_naive()):
             return False
-        row.attempt_token = None
         clear_async_diagnostic(row)
         return True
 
@@ -139,11 +132,8 @@ class ScoreDeletionDeliveryService:
             row = require_current_attempt(db, lease)
         except StaleScoreDeletionAttempt:
             return False
-        if not self.lifecycle().fail_attempt(
-            row, expected_attempt=lease.attempt, error=error, now=utc_now_naive()
-        ):
+        if not self.lifecycle().fail_attempt(row, lease=lease, error=error, now=utc_now_naive()):
             return False
-        row.attempt_token = None
         self._diagnose(row)
         return True
 
@@ -183,7 +173,6 @@ class ScoreDeletionDeliveryService:
             if self.lifecycle().recover_lease(
                 row, error="Score deletion delivery lease expired", now=now
             ):
-                row.attempt_token = None
                 self._diagnose(row)
             if self.lifecycle().is_dispatchable(row, now=now):
                 due.append(row.operation_uuid)
@@ -217,7 +206,6 @@ class ScoreDeletionDeliveryService:
         if row.status not in (Status.PENDING, Status.FAILED):
             raise ValidationException(field="status", details={"status": row.status.value})
         self.lifecycle().rearm(row, now=utc_now_naive())
-        row.attempt_token = None
         clear_async_diagnostic(row)
 
     @staticmethod

@@ -44,7 +44,7 @@ def execute_playback_outbox_task(task: CeleryTaskLike, outbox_uuid: str) -> dict
             name="noteverse.playback.generate",
             operation_kind="playback",
             operation_id=outbox_uuid,
-            attempt=payload.attempt,
+            attempt=payload.lease.attempt,
             traceparent=payload.traceparent,
             tracestate=payload.tracestate,
         )
@@ -56,7 +56,7 @@ def execute_playback_outbox_task(task: CeleryTaskLike, outbox_uuid: str) -> dict
             "score_id": payload.score_uuid,
             "revision_id": payload.revision_uuid,
             "asset_kind": payload.asset_kind.value,
-            "attempt": payload.attempt,
+            "attempt": payload.lease.attempt,
             "max_attempts": payload.max_attempts,
             "originating_request_id": payload.originating_request_id,
         }
@@ -73,7 +73,9 @@ def execute_playback_outbox_task(task: CeleryTaskLike, outbox_uuid: str) -> dict
                 )
         except RevisionPresentationSuperseded:
             with get_worker_db() as db:
-                playback_outbox_service.supersede(db, outbox_uuid)
+                accepted = playback_outbox_service.supersede(db, outbox_uuid, lease=payload.lease)
+            if not accepted:
+                return {"status": "stale", "outbox_uuid": outbox_uuid}
             operation_logger("playback.superseded", **context, status="superseded").info(
                 "playback.superseded"
             )
@@ -81,8 +83,15 @@ def execute_playback_outbox_task(task: CeleryTaskLike, outbox_uuid: str) -> dict
         except Exception as exc:
             record_current_attempt_failure(exc)
             with get_worker_db() as db:
-                playback_outbox_service.fail(db, outbox_uuid, str(exc))
-                _publish_playback_status(db, payload.score_uuid, payload.revision_uuid, "failed")
+                accepted = playback_outbox_service.fail(
+                    db, outbox_uuid, str(exc), lease=payload.lease
+                )
+                if accepted:
+                    _publish_playback_status(
+                        db, payload.score_uuid, payload.revision_uuid, "failed"
+                    )
+            if not accepted:
+                return {"status": "stale", "outbox_uuid": outbox_uuid}
             operation_logger(
                 "playback.failed",
                 **context,
@@ -92,8 +101,11 @@ def execute_playback_outbox_task(task: CeleryTaskLike, outbox_uuid: str) -> dict
             return {"status": "failed", "outbox_uuid": outbox_uuid}
 
         with get_worker_db() as db:
-            playback_outbox_service.complete(db, outbox_uuid)
-            _publish_playback_status(db, payload.score_uuid, payload.revision_uuid, "ready")
+            accepted = playback_outbox_service.complete(db, outbox_uuid, lease=payload.lease)
+            if accepted:
+                _publish_playback_status(db, payload.score_uuid, payload.revision_uuid, "ready")
+        if not accepted:
+            return {"status": "stale", "outbox_uuid": outbox_uuid}
         operation_logger(
             "playback.completed",
             **context,

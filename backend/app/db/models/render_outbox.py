@@ -43,6 +43,10 @@ class RenderTargetType(str, enum.Enum):
 class RenderOutbox(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "render_outbox"
     __table_args__ = (
+        CheckConstraint(
+            "(status = 'PROCESSING' AND attempt_token IS NOT NULL) OR (status <> 'PROCESSING' AND attempt_token IS NULL)",
+            name="ck_render_outbox_attempt_token",
+        ),
         CheckConstraint("attempt_count >= 0", name="ck_render_outbox_attempt_count"),
         CheckConstraint(
             "(target_type = 'SCORE_REVISION' AND score_id IS NOT NULL AND revision_id IS NOT NULL AND import_job_id IS NULL) OR "
@@ -81,7 +85,7 @@ class RenderOutbox(SQLModel, table=True):  # type: ignore[call-arg]
             BigInteger,
             ForeignKey("scores.id", ondelete="CASCADE"),
             nullable=True,
-        )
+        ),
     )
     revision_id: Optional[int] = Field(
         default=None,
@@ -89,7 +93,7 @@ class RenderOutbox(SQLModel, table=True):  # type: ignore[call-arg]
             BigInteger,
             ForeignKey("score_revisions.id", ondelete="CASCADE"),
             nullable=True,
-        )
+        ),
     )
     import_job_id: Optional[int] = Field(
         default=None,
@@ -122,6 +126,7 @@ class RenderOutbox(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=False,
         ),
     )
+    attempt_token: str | None = Field(default=None, sa_column=Column(String(36)))
     attempt_count: int = Field(
         default=0,
         sa_column=Column(Integer, default=0, nullable=False),

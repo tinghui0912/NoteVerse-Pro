@@ -203,7 +203,7 @@ def test_cancel_rearm_does_not_allow_stale_attempt_aba(retirement_db, monkeypatc
         retire_released_objects(db, identity)
         current = retirement_delivery.claim(db, uuid)
         assert current.attempt == old.attempt and current.token != old.token
-        assert not retirement_delivery.fail(db, uuid, "stale", attempt=old.attempt, token=old.token)
+        assert not retirement_delivery.fail(db, old, "stale")
     monkeypatch.setattr(retirement_delivery, "claim", lambda *_: old)
     delete = Mock(wraps=storage.delete)
     monkeypatch.setattr(storage, "delete", delete)
@@ -229,6 +229,7 @@ def test_exact_lease_cutoff_is_immediately_due_without_consuming_attempt(
     with transaction() as db:
         operation = retirement_delivery.get(db, uuid)
         operation.status = status
+        operation.attempt_token = "fixture-token" if status == "PROCESSING" else None
         operation.attempt_count = 2
         setattr(
             operation, field, now - timedelta(seconds=getattr(delivery_lifecycle().policy, timeout))

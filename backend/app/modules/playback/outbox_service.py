@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, asdict
 
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,6 +29,7 @@ from app.modules.async_operations.durable_delivery import (
     DeliveryLifecyclePolicy,
     DeliveryStatuses,
     DurableDeliveryLifecycle,
+    DeliveryAttemptLease,
 )
 from app.utils.timezone import utc_now_naive
 from app.modules.revisions.presentation_demand import (
@@ -48,26 +49,30 @@ def _delivery_lifecycle() -> DurableDeliveryLifecycle[PlaybackOutboxStatus]:
             succeeded=PlaybackOutboxStatus.COMPLETED,
         ),
         policy=DeliveryLifecyclePolicy(
-            max_attempts=settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
             retry_base_seconds=settings.PLAYBACK_OUTBOX_RETRY_BASE_SECONDS,
             dispatch_timeout_seconds=settings.PLAYBACK_OUTBOX_DISPATCH_TIMEOUT_SECONDS,
             processing_timeout_seconds=settings.PLAYBACK_OUTBOX_PROCESSING_TIMEOUT_SECONDS,
+            max_attempts=settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
         ),
     )
 
 
 @dataclass(frozen=True)
-class PlaybackOutboxPayload:
+class PlaybackTarget:
     outbox_uuid: str
     score_uuid: str
     revision_uuid: str
     source_fingerprint: str
     asset_kind: PlaybackAssetKind
-    attempt: int
-    max_attempts: int
     originating_request_id: str | None = None
     traceparent: str | None = None
     tracestate: str | None = None
+
+
+@dataclass(frozen=True, kw_only=True)
+class PlaybackOutboxPayload(PlaybackTarget):
+    lease: DeliveryAttemptLease
+    max_attempts: int
 
 
 async def create_playback_outbox(
@@ -207,13 +212,14 @@ class PlaybackOutboxService:
         payload = self._build_payload(db, outbox)
         if payload is None:
             return None
-        if not lifecycle.claim(outbox, now=utc_now_naive()):
+        lease = lifecycle.claim(outbox, token=str(uuid.uuid4()), now=utc_now_naive())
+        if lease is None:
             return None
-        return replace(
-            payload, attempt=outbox.attempt_count, max_attempts=lifecycle.policy.max_attempts
+        return PlaybackOutboxPayload(
+            **asdict(payload), lease=lease, max_attempts=lifecycle.policy.max_attempts
         )
 
-    def _build_payload(self, db: Session, outbox: PlaybackOutbox) -> PlaybackOutboxPayload | None:
+    def _build_payload(self, db: Session, outbox: PlaybackOutbox) -> PlaybackTarget | None:
         payload = self._build_revision_audio_payload(db, outbox)
         if payload is not None:
             return payload
@@ -225,7 +231,7 @@ class PlaybackOutboxService:
     def _build_revision_audio_payload(
         db: Session,
         outbox: PlaybackOutbox,
-    ) -> PlaybackOutboxPayload | None:
+    ) -> PlaybackTarget | None:
         score = db.get(Score, outbox.score_id)
         revision = db.get(ScoreRevision, outbox.revision_id)
         if (
@@ -237,14 +243,12 @@ class PlaybackOutboxService:
         ):
             return None
 
-        return PlaybackOutboxPayload(
+        return PlaybackTarget(
             outbox_uuid=outbox.outbox_uuid,
             score_uuid=score.score_uuid,
             revision_uuid=revision.revision_uuid,
             source_fingerprint=outbox.source_fingerprint,
             asset_kind=outbox.asset_kind,
-            attempt=0,
-            max_attempts=settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
             originating_request_id=outbox.originating_request_id,
             traceparent=outbox.traceparent,
             tracestate=outbox.tracestate,
@@ -267,10 +271,10 @@ class PlaybackOutboxService:
             max_attempts=settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
         )
 
-    def supersede(self, db: Session, outbox_uuid: str) -> None:
+    def supersede(self, db: Session, outbox_uuid: str, *, lease: DeliveryAttemptLease) -> bool:
         outbox = self._get(db, outbox_uuid)
-        if outbox is None or outbox.status != PlaybackOutboxStatus.PROCESSING:
-            return
+        if outbox is None or not _delivery_lifecycle().attempt_matches(outbox, lease):
+            return False
         _delivery_lifecycle().reset(
             outbox,
             status=PlaybackOutboxStatus.SUPERSEDED,
@@ -278,19 +282,25 @@ class PlaybackOutboxService:
             now=utc_now_naive(),
         )
         clear_async_diagnostic(outbox)
+        return True
 
-    def complete(self, db: Session, outbox_uuid: str) -> None:
+    def complete(self, db: Session, outbox_uuid: str, *, lease: DeliveryAttemptLease) -> bool:
         outbox = self._get(db, outbox_uuid)
-        if outbox is None or outbox.status == PlaybackOutboxStatus.SUPERSEDED:
-            return
-        _delivery_lifecycle().complete(outbox, now=utc_now_naive())
+        if outbox is None or not _delivery_lifecycle().complete_attempt(
+            outbox, lease=lease, now=utc_now_naive()
+        ):
+            return False
         clear_async_diagnostic(outbox)
+        return True
 
-    def fail(self, db: Session, outbox_uuid: str, error: str) -> None:
+    def fail(
+        self, db: Session, outbox_uuid: str, error: str, *, lease: DeliveryAttemptLease
+    ) -> bool:
         outbox = self._get(db, outbox_uuid)
-        if outbox is None or outbox.status == PlaybackOutboxStatus.SUPERSEDED:
-            return
-        _delivery_lifecycle().fail(outbox, error=error, now=utc_now_naive())
+        if outbox is None or not _delivery_lifecycle().fail_attempt(
+            outbox, lease=lease, error=error, now=utc_now_naive()
+        ):
+            return False
         apply_async_diagnostic(
             outbox,
             kind=AsyncOperationKindValue.PLAYBACK,
@@ -304,6 +314,7 @@ class PlaybackOutboxService:
             attempts=outbox.attempt_count,
             max_attempts=settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
         )
+        return True
 
     def mark_dispatched(self, db: Session, outbox_uuid: str) -> bool:
         outbox = self._get(db, outbox_uuid)
@@ -332,12 +343,15 @@ class PlaybackOutboxService:
         now = utc_now_naive()
         stale = (
             db.execute(
-                select(PlaybackOutbox).where(
+                select(PlaybackOutbox)
+                .where(
                     or_(
                         PlaybackOutbox.status == PlaybackOutboxStatus.DISPATCHED,
                         PlaybackOutbox.status == PlaybackOutboxStatus.PROCESSING,
                     )
                 )
+                .with_for_update(skip_locked=True)
+                .execution_options(populate_existing=True)
             )
             .scalars()
             .all()
@@ -381,6 +395,7 @@ class PlaybackOutboxService:
             select(PlaybackOutbox)
             .where(PlaybackOutbox.outbox_uuid == outbox_uuid)
             .with_for_update()
+            .execution_options(populate_existing=True)
         ).scalar_one_or_none()
 
 

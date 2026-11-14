@@ -23,6 +23,10 @@ from app.utils.timezone import utc_now_naive
 class StoredObjectRetirement(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "stored_object_retirements"
     __table_args__ = (
+        CheckConstraint(
+            "(status = 'PROCESSING' AND attempt_token IS NOT NULL) OR (status <> 'PROCESSING' AND attempt_token IS NULL)",
+            name="ck_stored_object_retirements_attempt_token",
+        ),
         UniqueConstraint("stored_object_id", name="uq_object_retirement_object"),
         CheckConstraint(
             "status IN ('PENDING','DISPATCHED','PROCESSING','FAILED','COMPLETED','CANCELLED')",

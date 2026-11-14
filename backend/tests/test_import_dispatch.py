@@ -432,7 +432,7 @@ def test_pipeline_telemetry_never_swallows_lease_loss(monkeypatch, path):
     from app.modules.import_jobs.dispatch_service import ImportExecutionLease
     from app.pipeline import context as module
 
-    lease = ImportExecutionLease("delivery", "job", 1, "token")
+    lease = ImportExecutionLease(dispatch_uuid="delivery", job_uuid="job", attempt=1, token="token")
     ctx = JobContext(lease=lease, db=Mock(), celery_task=Mock(), image_paths=[])
     stale = Mock(side_effect=StaleImportDispatchAttempt("lost"))
     if path == "progress":

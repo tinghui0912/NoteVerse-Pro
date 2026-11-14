@@ -38,11 +38,7 @@ def _execute(retirement_uuid: str) -> dict[str, str]:
             )
             operation = retirement_delivery.get(db, retirement_uuid, lock=True)
             lifecycle = delivery_lifecycle()
-            if (
-                operation is None
-                or operation.attempt_token != attempt.token
-                or not lifecycle.attempt_matches(operation, attempt.attempt)
-            ):
+            if operation is None or not lifecycle.attempt_matches(operation, attempt):
                 return {"status": "ignored", "retirement_uuid": retirement_uuid}
             if operation.status != "PROCESSING":
                 return {"status": "ignored", "retirement_uuid": retirement_uuid}
@@ -51,14 +47,14 @@ def _execute(retirement_uuid: str) -> dict[str, str]:
             if snapshot(operation) != object_from_row(row):
                 raise ValueError("Retirement snapshot disagrees with StoredObject")
             if stored_object_has_semantic_references(db, row.id):
-                lifecycle.finish(operation, status="CANCELLED", error=None, now=utc_now_naive())
+                lifecycle.finish_attempt(
+                    operation, lease=attempt, status="CANCELLED", error=None, now=utc_now_naive()
+                )
                 return {"status": "cancelled", "retirement_uuid": retirement_uuid}
             db.delete(row)
             db.flush()  # RESTRICT is the final barrier before any physical IO.
             object_storage.delete(operation.object_key)
-            if not lifecycle.complete_attempt(
-                operation, expected_attempt=attempt.attempt, now=utc_now_naive()
-            ):
+            if not lifecycle.complete_attempt(operation, lease=attempt, now=utc_now_naive()):
                 raise ValueError("Retirement completion attempt mismatch")
         return {"status": "completed", "retirement_uuid": retirement_uuid}
     except Exception as error:
@@ -66,7 +62,5 @@ def _execute(retirement_uuid: str) -> dict[str, str]:
             "stored_object_retirement.failed"
         )
         with get_worker_db() as db:
-            retirement_delivery.fail(
-                db, retirement_uuid, str(error), attempt=attempt.attempt, token=attempt.token
-            )
+            retirement_delivery.fail(db, attempt, str(error))
         return {"status": "failed", "retirement_uuid": retirement_uuid}

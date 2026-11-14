@@ -50,7 +50,7 @@ def execute_render_outbox_task(
             name="noteverse.render.generate",
             operation_kind="render",
             operation_id=outbox_uuid,
-            attempt=payload.attempt,
+            attempt=payload.lease.attempt,
             traceparent=payload.traceparent,
             tracestate=payload.tracestate,
         )
@@ -63,7 +63,9 @@ def execute_render_outbox_task(
             artifact_id = _render_target(payload)
         except RevisionPresentationSuperseded:
             with get_worker_db() as db:
-                render_outbox_service.supersede(db, outbox_uuid)
+                accepted = render_outbox_service.supersede(db, outbox_uuid, lease=payload.lease)
+            if not accepted:
+                return {"status": "stale", "outbox_uuid": outbox_uuid}
             operation_logger("render.superseded", **context, status="superseded").info(
                 "render.superseded"
             )
@@ -71,9 +73,13 @@ def execute_render_outbox_task(
         except Exception as exc:
             record_current_attempt_failure(exc)
             with get_worker_db() as db:
-                render_outbox_service.fail(db, outbox_uuid, str(exc))
-                if _is_score_revision_render(payload):
+                accepted = render_outbox_service.fail(
+                    db, outbox_uuid, str(exc), lease=payload.lease
+                )
+                if accepted and _is_score_revision_render(payload):
                     _publish_revision_render_status(db, payload, "failed")
+            if not accepted:
+                return {"status": "stale", "outbox_uuid": outbox_uuid}
             operation_logger(
                 "render.failed",
                 **context,
@@ -83,9 +89,11 @@ def execute_render_outbox_task(
             return {"status": "failed", "outbox_uuid": outbox_uuid}
 
         with get_worker_db() as db:
-            render_outbox_service.complete(db, outbox_uuid)
-            if _is_score_revision_render(payload):
+            accepted = render_outbox_service.complete(db, outbox_uuid, lease=payload.lease)
+            if accepted and _is_score_revision_render(payload):
                 _publish_revision_render_status(db, payload, "ready")
+        if not accepted:
+            return {"status": "stale", "outbox_uuid": outbox_uuid}
         operation_logger(
             "render.completed",
             **context,
@@ -171,7 +179,7 @@ def _render_log_context(
         "revision_id": payload.revision_uuid,
         "job_id": payload.job_uuid,
         "render_profile": payload.render_profile,
-        "attempt": payload.attempt,
+        "attempt": payload.lease.attempt,
         "max_attempts": payload.max_attempts,
         "originating_request_id": payload.originating_request_id,
     }

@@ -57,7 +57,9 @@ def test_job_context_complete_records_review_musicxml_without_creating_score() -
             file_handle.write("<score-partwise />")
 
         ctx = JobContext(
-            lease=ImportExecutionLease("dispatch", "job-review-boundary", 1, "token"),
+            lease=ImportExecutionLease(
+                dispatch_uuid="dispatch", job_uuid="job-review-boundary", attempt=1, token="token"
+            ),
             db=SimpleNamespace(),
             celery_task=SimpleNamespace(
                 request=SimpleNamespace(id="job-review-boundary"),

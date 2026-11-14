@@ -22,6 +22,10 @@ from app.utils.timezone import utc_now_naive
 class ObjectWriteIntent(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "object_write_intents"
     __table_args__ = (
+        CheckConstraint(
+            "(status = 'CLEANUP_PROCESSING' AND attempt_token IS NOT NULL) OR (status <> 'CLEANUP_PROCESSING' AND attempt_token IS NULL)",
+            name="ck_object_write_intents_attempt_token",
+        ),
         UniqueConstraint("object_key", name="uq_object_write_intent_key"),
         CheckConstraint(
             "status IN ('PREPARED','WRITTEN','ADOPTED','CLEANUP_PENDING','CLEANUP_DISPATCHED','CLEANUP_PROCESSING','CLEANUP_FAILED','CLEANED')",

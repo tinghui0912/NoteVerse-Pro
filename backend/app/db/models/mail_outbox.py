@@ -38,6 +38,10 @@ class MailOutboxStatus(str, enum.Enum):
 class MailOutbox(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "mail_outbox"
     __table_args__ = (
+        CheckConstraint(
+            "(status = 'PROCESSING' AND attempt_token IS NOT NULL) OR (status <> 'PROCESSING' AND attempt_token IS NULL)",
+            name="ck_mail_outbox_attempt_token",
+        ),
         CheckConstraint("attempt_count >= 0", name="ck_mail_outbox_attempt_count"),
         Index("idx_mail_outbox_status_available", "status", "next_attempt_at"),
         Index("idx_mail_outbox_dispatched", "status", "dispatched_at"),
@@ -72,6 +76,7 @@ class MailOutbox(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=False,
         ),
     )
+    attempt_token: str | None = Field(default=None, sa_column=Column(String(36)))
     attempt_count: int = Field(default=0, sa_column=Column(Integer, default=0, nullable=False))
     next_attempt_at: datetime = Field(
         default_factory=utc_now_naive,
