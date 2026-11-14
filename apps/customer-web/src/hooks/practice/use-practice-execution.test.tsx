@@ -106,7 +106,7 @@ it('StrictMode READY and candidate scope/tempo edits create zero execution platf
   expect(result.current.lifecycle).toBe('ACTIVE');
   const executed = stepStart.mock.contexts[0];
   rerender(r.options);
-  act(() => result.current.setMetronomeEnabled(false));
+  act(() => result.current.modeCommands?.setMetronomeEnabled(false));
   expect(result.current.executedPlan).toBe(candidate);
   expect(stepStart.mock.contexts[0]).toBe(executed);
   expect(stepStart).toHaveBeenCalledOnce();
@@ -131,11 +131,11 @@ it('Continuous creates no platform until Start, and End returns READY without re
   expect(start).toHaveBeenCalledOnce();
   expect(step).not.toHaveBeenCalled();
   await act(async () => {
-    result.current.pause();
+    if(result.current.modeCommands?.mode==='CONTINUOUS_PLAY') result.current.modeCommands.pause();
   });
   expect(result.current.lifecycle).toBe('PAUSED');
   await act(async () => {
-    result.current.resume();
+    if(result.current.modeCommands?.mode==='CONTINUOUS_PLAY') result.current.modeCommands.resume();
   });
   expect(start).toHaveBeenCalledOnce();
   await act(async () => {
@@ -156,7 +156,7 @@ it('natural STEP completion notifies once and Retry explicitly creates a fresh s
   const id = (start.mock.contexts[0] as StepPracticeController).snapshot()
     .sessionSnapshot!.localSessionId;
   await act(async () => {
-    for (const _group of artifact.moments) result.current.skip();
+    for (const _group of artifact.moments) if(result.current.modeCommands?.mode==='STEP_BY_STEP') result.current.modeCommands.skip();
   });
   await waitFor(() => expect(result.current.lifecycle).toBe('COMPLETED'));
   expect(r.completion).toHaveBeenCalledOnce();

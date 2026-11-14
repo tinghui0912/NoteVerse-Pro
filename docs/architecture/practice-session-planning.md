@@ -49,8 +49,9 @@ and parsed artifact without a query. Page controls read the candidate plan's res
 ```text
 Pinned revision -> Canonical Practice Bundle -> strict artifact admission
   -> PracticeIntent -> candidate PracticePlan -> READY
-  -> explicit Start -> PracticeExecutionActor -> one selected controller
-                                       STEP / Continuous
+  -> explicit Start -> root machine + PracticeExecutionActor effect host
+                    -> browser session factory -> mode execution session
+                                                -> STEP / Continuous controller
 ```
 
 `usePracticeExecution` bridges React presentation and the ordinary
@@ -92,7 +93,7 @@ the pure reducer. Public views are pure projections of accepted state and its la
 leaf observation, without reading controller handles.
 
 The actor runs preparation, construction/start, retirement, disposal and completion-notification
-effects. Its single opaque runtime handle owns the controller, subscription detach
+effects. Its single opaque runtime handle owns a neutral execution session, subscription detach
 and preparation acknowledgement. RELEASING owns an explicit reason (END, REPLACEMENT,
 RETRY or DISPOSE) and phase (RETIRING or DISPOSING). END first waits for leaf abandon
 and late preparation. Only a matching formal SCOPE_COMPLETED event can cross that
@@ -107,7 +108,16 @@ changes, including a leased inference engine, do not revoke an already accepted 
 Natural SCOPE_COMPLETED transitions before one completion notification; Continuous
 also requires its atomic result/recording payload. STOPPED_BY_USER is abandonment.
 
-The React bridge subscribes, forwards commands and supplies candidate admission.
+Mode session adapters own concrete controller/platform construction, snapshot-to-observation
+and failure projection, and their discriminated mode command ports. Root actor code
+calls session lifecycle effects and never routes mode commands. A generic root fence
+requires RUNNING plus exact executionId/current handle before any mode command delegates.
+Release closes this fence synchronously; captured A callbacks cannot mutate a later B.
+The browser session factory is the single cross-mode composition bridge. See
+[execution ownership](practice-execution-ownership.md).
+
+The React bridge subscribes, supplies candidate admission and exposes root commands
+separately from discriminated modeCommands. The pure execution view contains facts only.
 Its cleanup hard-fences the leaf immediately; an effect-lifetime microtask permanently
 disposes the actor only for an actual unmount, preserving StrictMode remounts.
 Device acquisition and mode-specific progression remain outside the actor.

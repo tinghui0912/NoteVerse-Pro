@@ -33,7 +33,7 @@ it('execution views expose mode-owned application codes and presentation perform
   walk(status,node=>{if(ts.isPropertyAccessExpression(node)&&node.expression.getText(status)==='inputError') expect(node.name.text).toBe('code');
     if(ts.isPropertyAssignment(node)&&node.name.getText(status)==='customMessage') expect(node.initializer.getText(status)).not.toBe('inputError');});
 });
-it.each(['step/step-practice-controller.ts','continuous/continuous-practice-controller.ts','application/practice-execution-actor.ts'])('%s branches on typed facts at catches',(file)=>{
+it.each(['step/step-practice-controller.ts','continuous/continuous-practice-controller.ts','step/step-execution-session.ts','continuous/continuous-execution-session.ts'])('%s branches on typed facts at catches',(file)=>{
   const tree=source(file), conditions:ts.Expression[]=[];
   walk(tree,node=>{if(ts.isIfStatement(node)||ts.isConditionalExpression(node)) conditions.push(ts.isIfStatement(node) ? node.expression : node.condition);});
   for(const condition of conditions) walk(condition,node=>{

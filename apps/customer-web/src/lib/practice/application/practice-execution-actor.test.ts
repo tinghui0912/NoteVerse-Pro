@@ -1,8 +1,8 @@
-import { metronomeAudioFixture } from "@/lib/practice/__fixtures__/metronome";
+import type { PracticeExecutionSessionFactory, PracticeExecutionSession, ExecutionSessionRequest, ModeExecutionCommands } from './execution-session';
+import type { ExecutionObservation } from './execution-observation';
 import { beforeEach, expect, it, vi } from "vitest";
 import {
   PracticeExecutionActor,
-  type PracticeExecutionFactories,
 } from "./practice-execution-actor";
 import {
   continuousPracticePlan,
@@ -13,9 +13,6 @@ import { borrowedDevices } from "../__fixtures__/device-roots";
 import { canonicalContinuousResultFixture } from "../__fixtures__/continuous-result";
 import artifactJson from "../__fixtures__/canonical-practice-score-artifact.json";
 import type { PracticeScoreArtifact } from "../score/artifact";
-import * as stepPlatform from "../step/step-platform";
-import * as continuousPlatform from "../continuous/continuous-platform";
-import { ManualClock } from "../session/timebase";
 
 const artifact = artifactJson as PracticeScoreArtifact;
 const tick = async () => {
@@ -31,154 +28,47 @@ const deferred = () => {
 beforeEach(() => {
   vi.restoreAllMocks();
 });
-function rig(mode: "STEP_BY_STEP" | "CONTINUOUS_PLAY" = "STEP_BY_STEP") {
-  const health = rootHealthFixture(),
-    created: {
-      options:
-        | Parameters<PracticeExecutionFactories["step"]>[0]
-        | Parameters<PracticeExecutionFactories["continuous"]>[0];
-      controller: ReturnType<PracticeExecutionFactories["step"]> &
-        ReturnType<PracticeExecutionFactories["continuous"]>;
-      completion: import("../continuous/completion").ContinuousPracticeCompletion;
-      emit(): void;
-      complete(): void;
-      stale(): void;
-      staleObservation(): void;
-      disposeGate: ReturnType<typeof deferred> | null;
-      startGate: ReturnType<typeof deferred> | null;
-    }[] = [];
-  const create = (
-    options:
-      | Parameters<PracticeExecutionFactories["step"]>[0]
-      | Parameters<PracticeExecutionFactories["continuous"]>[0],
-  ) => {
-    let state = "IDLE",
-      session = "IDLE",
-      detachHealth: (() => void) | undefined;
-    const subscribers = new Set<() => void>();
-    const savedCallbacks: (() => void)[] = [];
-    let disposed = false;
-    const result = canonicalContinuousResultFixture(),
-      payload = { result, recording: { status: "NOT_RECORDED" as const } };
-    const sessionSnapshot = {
-      completionReason: "SCOPE_COMPLETED" as const,
-      localSessionId: `session-${created.length}`,
+function rig(mode: 'STEP_BY_STEP' | 'CONTINUOUS_PLAY' = 'STEP_BY_STEP') {
+  const health=rootHealthFixture();
+  type Item = { options: ExecutionSessionRequest; session: PracticeExecutionSession;
+    completion: import('../continuous/completion').ContinuousPracticeCompletion;
+    emit():void; complete():void; stale():void; staleObservation():void;
+    startGate:ReturnType<typeof deferred>|null;disposeGate:ReturnType<typeof deferred>|null };
+  const created:Item[]=[];
+  const factory=vi.fn<PracticeExecutionSessionFactory>(options=>{
+    options.ports.borrowRoots();
+    const subscribers=new Set<()=>void>(),saved:(()=>void)[]=[];
+    let detachHealth:(()=>void)|undefined,disposed=false,completed=false;
+    const payload={result:canonicalContinuousResultFixture(),recording:{status:'NOT_RECORDED' as const}};
+    const evidence={completionReason:'SCOPE_COMPLETED',localSessionId:`session-${created.length}`} as never;
+    const observation=():ExecutionObservation=> options.plan.mode==='STEP_BY_STEP'
+      ? {mode:'STEP_BY_STEP',error:null,activeStepGroup:options.plan.bundle.artifact.moments[options.plan.scope.startIndex],stepInteractionPhase:'READY',pendingPostVerdict:null,canAcceptAttempt:true,analysisIntervention:null,infrastructureIntervention:null}
+      : {mode:'CONTINUOUS_PLAY',error:null,phase:'ACTIVE',transport:null,evaluation:null,recordingIndicator:null,analysisIntervention:null,resourceIntervention:null,completion:completed?payload:null};
+    const item:Item={options,session:null as never,completion:payload,startGate:null,disposeGate:null,
+      emit:()=>subscribers.forEach(f=>f()),
+      complete:()=>{completed=true;item.emit();options.onNaturalCompletion(evidence);},
+      stale:()=>{saved.forEach(f=>f());options.onNaturalCompletion(evidence);},
+      staleObservation:()=>saved.forEach(f=>f()),
     };
-    const item = {
-      options,
-      completion: payload,
-      controller: null as never,
-      emit: () => subscribers.forEach((f) => f()),
-      complete: () => {
-        state = "ENDED";
-        session = "COMPLETE";
-        item.emit();
-        options.onNaturalCompletion?.(sessionSnapshot as never);
-      },
-      stale: () => {
-        savedCallbacks.forEach((f) => f());
-        options.onNaturalCompletion?.(sessionSnapshot as never);
-      },
-      staleObservation: () => savedCallbacks.forEach((f) => f()),
-      disposeGate: null as ReturnType<typeof deferred> | null,
-      startGate: null as ReturnType<typeof deferred> | null,
+    const session:PracticeExecutionSession={mode:options.plan.mode,
+      // Root tests treat mode commands as an opaque capability token.
+      commands:Object.freeze({mode:options.plan.mode}) as ModeExecutionCommands,
+      subscribe:vi.fn(listener=>{subscribers.add(listener);saved.push(listener);return()=>subscribers.delete(listener);}),
+      observe:vi.fn(observation),
+      start:vi.fn(async()=>{item.emit();detachHealth=health.port.subscribe(()=>{});await item.startGate?.promise;if(!disposed)item.emit();}),
+      retire:vi.fn(async()=>{detachHealth?.();}),
+      dispose:vi.fn(async()=>{disposed=true;detachHealth?.();await item.disposeGate?.promise;}),
+      failure:(cause,phase)=>options.plan.mode==='STEP_BY_STEP'
+        ? {mode:'STEP_BY_STEP',code:phase==='RELEASE'?'STEP_RESOURCE_CLEANUP_FAILED':'STEP_ATTEMPT_FAILED',cause}
+        : {mode:'CONTINUOUS_PLAY',code:phase==='RELEASE'?'RESOURCE_CLEANUP_FAILED':'ANALYSIS_FAILED',cause},
     };
-    const controller = {
-      start: vi.fn(async () => {
-        state = "PREPARING";
-        session = "PREPARING";
-        item.emit();
-        detachHealth = health.port.subscribe(() => {});
-        await item.startGate?.promise;
-        if (!disposed) {
-          state = "ACTIVE";
-          session = "ACTIVE";
-          item.emit();
-        }
-      }),
-      dispose: vi.fn(async () => {
-        disposed = true;
-        detachHealth?.();
-        state = "DISPOSED";
-        session = "DISPOSED";
-        await item.disposeGate?.promise;
-      }),
-      abandon: vi.fn(async () => {
-        detachHealth?.();
-      }),
-      subscribe: vi.fn((f: () => void) => {
-        subscribers.add(f);
-        savedCallbacks.push(f);
-        return () => subscribers.delete(f);
-      }),
-      snapshot: () =>
-        options.plan.mode === "STEP_BY_STEP"
-          ? {
-              state,
-              error: null,
-              analysisIntervention: null,
-              infrastructureIntervention: null,
-              stepInteractionPhase: "READY",
-              canAcceptAttempt: true,
-              pendingPostVerdict: null,
-              activeStepGroup:
-                options.plan.bundle.artifact.moments[
-                  options.plan.scope.startIndex
-                ],
-              sessionSnapshot,
-              lastSnapshot: sessionSnapshot,
-            }
-          : {
-              session,
-              transport:
-                session === "ACTIVE"
-                  ? { state: "RUNNING", performanceTimeMs: 5 }
-                  : null,
-              analysis: "NOT_REQUIRED",
-              inputError: null,
-              recording: null,
-              evaluation: null,
-              analysisIntervention: null,
-              resourceIntervention: null,
-              completed: session === "COMPLETE" ? payload : null,
-            },
-      setMetronomeEnabled: vi.fn(),
-      skip: vi.fn(),
-      pause: vi.fn(),
-      resume: vi.fn(),
-      continueWithoutAnalysis: vi.fn(async () => {}),
-      continueWithoutRecording: vi.fn(),
-      continueAfterRecovery: vi.fn(() => true),
-    } as unknown as ReturnType<PracticeExecutionFactories["step"]> &
-      ReturnType<PracticeExecutionFactories["continuous"]>;
-    Object.assign(item, { controller });
-    created.push(item);
-    return controller;
-  };
-  const factories: PracticeExecutionFactories = {
-    step: vi.fn(create),
-    continuous: vi.fn(create),
-  };
-  const borrowRoots = vi.fn(() => borrowedDevices()),
-    acquireInference = vi.fn();
-  const actor = new PracticeExecutionActor(
-    { borrowRoots, rootHealth: health.port, acquireInference },
-    factories,
-  );
-  const plan =
-    mode === "STEP_BY_STEP"
-      ? stepPracticePlan(artifact)
-      : continuousPracticePlan(artifact);
-  actor.setCandidate(plan, true, "score/revision");
-  return {
-    actor,
-    health,
-    created,
-    factories,
-    plan,
-    borrowRoots,
-    acquireInference,
-  };
+    item.session=session;created.push(item);return{status:'READY',session};
+  });
+  const borrowRoots=vi.fn(()=>borrowedDevices()),acquireInference=vi.fn();
+  const actor=new PracticeExecutionActor({borrowRoots,rootHealth:health.port,acquireInference},factory);
+  const plan=mode==='STEP_BY_STEP'?stepPracticePlan(artifact):continuousPracticePlan(artifact);
+  actor.setCandidate(plan,true,'score/revision');
+  return {actor,health,created,factory,plan,borrowRoots,acquireInference};
 }
 it.each(["STEP_BY_STEP", "CONTINUOUS_PLAY"] as const)(
   "%s READY has no controller, subscription or resource use",
@@ -200,12 +90,7 @@ it.each(["STEP_BY_STEP", "CONTINUOUS_PLAY"] as const)(
     await first;
     expect(r.created).toHaveLength(1);
     expect(r.health.listenerCount()).toBe(1);
-    expect(r.factories.step).toHaveBeenCalledTimes(
-      mode === "STEP_BY_STEP" ? 1 : 0,
-    );
-    expect(r.factories.continuous).toHaveBeenCalledTimes(
-      mode === "CONTINUOUS_PLAY" ? 1 : 0,
-    );
+    expect(r.factory).toHaveBeenCalledOnce();
     expect(r.actor.snapshot().executedPlan).toBe(r.plan);
     await r.actor.dispose();
     expect(r.health.listenerCount()).toBe(0);
@@ -228,12 +113,9 @@ it("candidate edits change only pre-Start intent and active execution keeps its 
   await r.actor.start();
   expect(r.created[0].options.plan).toBe(latest);
   r.actor.setCandidate(r.plan, true, "score/revision");
-  r.actor.setMetronomeEnabled(false);
+
   expect(r.actor.snapshot().executedPlan).toBe(latest);
   expect(r.created).toHaveLength(1);
-  expect(
-    r.created[0].controller.setMetronomeEnabled,
-  ).toHaveBeenCalledExactlyOnceWith(false);
   await r.actor.dispose();
 });
 it.each(["STEP_BY_STEP", "CONTINUOUS_PLAY"] as const)(
@@ -250,11 +132,11 @@ it.each(["STEP_BY_STEP", "CONTINUOUS_PLAY"] as const)(
       executedPlan: null,
     });
     expect(r.created).toHaveLength(1);
-    expect(first.controller.dispose).toHaveBeenCalledOnce();
+    expect(first.session.dispose).toHaveBeenCalledOnce();
     expect(r.health.listenerCount()).toBe(0);
     await r.actor.start();
     expect(r.created).toHaveLength(2);
-    expect(r.created[1].controller).not.toBe(first.controller);
+    expect(r.created[1].session).not.toBe(first.session);
     await r.actor.dispose();
   },
 );
@@ -292,8 +174,8 @@ it("release serialization fences Start pending + End + new Start and all stale c
   const r = rig(),
     completion = vi.fn();
   r.actor.setCompletionListener(completion);
-  const create = vi.mocked(r.factories.step).getMockImplementation()!;
-  vi.mocked(r.factories.step).mockImplementationOnce((...args) => {
+  const create = vi.mocked(r.factory).getMockImplementation()! as PracticeExecutionSessionFactory;
+  vi.mocked(r.factory).mockImplementationOnce((...args) => {
     const controller = create(...args);
     r.created[0].startGate = deferred();
     return controller;
@@ -342,8 +224,8 @@ it("composition replacement retires the old actor; candidate-only rerenders do n
 });
 it("disposal during pending Start fences completion and waits for late preparation", async () => {
   const r = rig();
-  const create = vi.mocked(r.factories.step).getMockImplementation()!;
-  vi.mocked(r.factories.step).mockImplementationOnce((...args) => {
+  const create = vi.mocked(r.factory).getMockImplementation()! as PracticeExecutionSessionFactory;
+  vi.mocked(r.factory).mockImplementationOnce((...args) => {
     const result = create(...args);
     r.created[0].startGate = deferred();
     return result;
@@ -404,7 +286,7 @@ it("accepted Continuous completion survives End and only Retry creates a new exe
 it("cleanup failure remains visible and prevents overlapping replacement ownership", async () => {
   const r = rig();
   await r.actor.start();
-  vi.mocked(r.created[0].controller.dispose).mockRejectedValueOnce(
+  vi.mocked(r.created[0].session.dispose).mockRejectedValueOnce(
     new Error("STEP_RESOURCE_CLEANUP_FAILED"),
   );
   await r.actor.end();
@@ -417,78 +299,15 @@ it("cleanup failure remains visible and prevents overlapping replacement ownersh
   expect(r.created).toHaveLength(1);
   await r.actor.dispose();
 });
-it("real STEP explicitly starts without count-in, waits for input, and next Start has a new localSessionId", async () => {
-  const clock = new ManualClock(100),
-    health = rootHealthFixture();
-  const createMidi = vi.fn(() => ({
-    start: vi.fn(async () => {}),
-    refreshInputs: vi.fn(),
-    dispose: vi.fn(),
-  }));
-  const platform = vi
-    .spyOn(stepPlatform, "browserStepPlatform")
-    .mockReturnValue({
-      clock,
-      timer: { schedule: vi.fn(), cancel: vi.fn() },
-      createMidi,
-      createMetronomeAudio: () => metronomeAudioFixture(),
-    });
-  const continuous = vi.spyOn(continuousPlatform, "browserContinuousPlatform");
-  const actor = new PracticeExecutionActor({
-    borrowRoots: () => borrowedDevices(),
-    rootHealth: health.port,
-  });
-  actor.setCandidate(stepPracticePlan(artifact), true, "score/revision");
-  expect(platform).not.toHaveBeenCalled();
-  expect(continuous).not.toHaveBeenCalled();
-  await actor.start();
-  const first = actor.snapshot();
-  expect(first).toMatchObject({
-    mode: "STEP_BY_STEP",
-    lifecycle: "ACTIVE",
-    stepInteractionPhase: "READY",
-    performanceClock: null,
-  });
-  clock.advance(100000);
-  expect(actor.snapshot()).toBe(first);
-  expect(health.listenerCount()).toBe(1);
-  const firstId = Reflect.get(vi.mocked(platform).mock.results[0], "value");
-  expect(firstId).toBeDefined();
-  const controllerIds: string[] = [];
-  // The actual MIDI binding's timebase carries the local session identity.
-  controllerIds.push(
-    createMidi.mock.calls.length
-      ? (
-          vi.mocked(createMidi).mock.calls[0] as unknown as [
-            { timebase: { domainId: string } },
-          ]
-        )[0].timebase.domainId
-      : "",
-  );
-  await actor.end();
-  expect(actor.snapshot().lifecycle).toBe("READY");
-  await actor.start();
-  controllerIds.push(
-    (
-      vi.mocked(createMidi).mock.calls[1] as unknown as [
-        { timebase: { domainId: string } },
-      ]
-    )[0].timebase.domainId,
-  );
-  expect(controllerIds[1]).not.toBe(controllerIds[0]);
-  expect(continuous).not.toHaveBeenCalled();
-  await actor.dispose();
-});
-
 it.each(["STEP_BY_STEP", "CONTINUOUS_PLAY"] as const)(
   "%s unexpected adapter exception stays diagnostic and cannot enter the public view",
   async (mode) => {
     const r = rig(mode),
       cause = new Error("NO_CONNECTED_INPUT https://private/model stack");
     vi.mocked(
-      mode === "STEP_BY_STEP" ? r.factories.step : r.factories.continuous,
+      r.factory,
     ).mockImplementationOnce(() => {
-      throw cause;
+      return {status:"FAILED",failure:{mode,code:mode==="STEP_BY_STEP"?"STEP_ATTEMPT_FAILED":"ANALYSIS_FAILED",cause}};
     });
     await r.actor.start();
     expect(r.actor.snapshot()).toMatchObject({
@@ -506,7 +325,7 @@ it.each(["STEP_BY_STEP", "CONTINUOUS_PLAY"] as const)(
     const r = rig(mode);
     await r.actor.start();
     const cause = new Error("NotAllowedError: private cleanup URL");
-    vi.mocked(r.created[0].controller.dispose).mockRejectedValueOnce(cause);
+    vi.mocked(r.created[0].session.dispose).mockRejectedValueOnce(cause);
     await r.actor.end();
     expect(r.actor.snapshot()).toMatchObject({
       inputError:
@@ -528,20 +347,24 @@ it.each(["STEP_BY_STEP", "CONTINUOUS_PLAY"] as const)(
     const r = rig(mode),
       cause = new Error("NotAllowedError https://private");
     if (mode === "STEP_BY_STEP") {
-      const factory = vi.mocked(r.factories.step),
-        original = factory.getMockImplementation()!;
-      factory.mockImplementationOnce((options, acquire) => {
-        const controller = original(options, acquire);
+      const factory = vi.mocked(r.factory),
+        original = factory.getMockImplementation()! as PracticeExecutionSessionFactory;
+      factory.mockImplementationOnce((options) => {
+        const result = original(options);
+        if(result.status !== "READY") return result;
+        const controller=result.session;
         vi.mocked(controller.start).mockRejectedValueOnce(cause);
-        return controller;
+        return result;
       });
     } else {
-      const factory = vi.mocked(r.factories.continuous),
-        original = factory.getMockImplementation()!;
-      factory.mockImplementationOnce((options, acquire) => {
-        const controller = original(options, acquire);
+      const factory = vi.mocked(r.factory),
+        original = factory.getMockImplementation()! as PracticeExecutionSessionFactory;
+      factory.mockImplementationOnce((options) => {
+        const result = original(options);
+        if(result.status !== "READY") return result;
+        const controller=result.session;
         vi.mocked(controller.start).mockRejectedValueOnce(cause);
-        return controller;
+        return result;
       });
     }
     await r.actor.start();
@@ -553,7 +376,7 @@ it.each(["STEP_BY_STEP", "CONTINUOUS_PLAY"] as const)(
     });
     expect(r.actor.engineeringSnapshot().failureCause).toBe(cause);
     await r.actor.end();
-    expect(r.created[0].controller.dispose).toHaveBeenCalledOnce();
+    expect(r.created[0].session.dispose).toHaveBeenCalledOnce();
     await r.actor.dispose();
   },
 );
@@ -596,11 +419,11 @@ it.each(["ADMISSION", "COMPOSITION"] as const)(
 );
 it("release failure waits every late preparation and cleanup before reporting ERROR and never constructs the queued attempt", async () => {
   const r = rig(),
-    create = vi.mocked(r.factories.step).getMockImplementation()!;
-  vi.mocked(r.factories.step).mockImplementationOnce((...args) => {
+    create = vi.mocked(r.factory).getMockImplementation()! as PracticeExecutionSessionFactory;
+  vi.mocked(r.factory).mockImplementationOnce((...args) => {
     const controller = create(...args);
     r.created[0].startGate = deferred();
-    vi.mocked(controller.dispose).mockRejectedValueOnce(
+    vi.mocked(r.created[0].session.dispose).mockRejectedValueOnce(
       new Error("release failed"),
     );
     return controller;
@@ -649,10 +472,10 @@ it("Continuous refuses completion without the accepted atomic result/recording p
   await r.actor.start();
   r.actor.setCompletionListener(completion);
   const previous = r.created[0],
-    snapshot = previous.controller.snapshot();
-  vi.spyOn(previous.controller, "snapshot").mockReturnValue({
+    snapshot = previous.session.observe();
+  vi.spyOn(previous.session, "observe").mockReturnValue({
     ...snapshot,
-    completed: null,
+    completion: null,
   } as never);
   previous.complete();
   expect(r.actor.snapshot()).toMatchObject({
@@ -662,27 +485,11 @@ it("Continuous refuses completion without the accepted atomic result/recording p
   expect(completion).not.toHaveBeenCalled();
   await r.actor.dispose();
 });
-it("mode commands route only to the owned active adapter and disposed actors remain inert", async () => {
-  const r = rig();
-  r.actor.pause();
-  expect(r.created).toHaveLength(0);
-  await r.actor.start();
-  const controller = r.created[0].controller;
-  r.actor.pause();
-  r.actor.resume();
-  r.actor.continueWithoutRecording();
-  await r.actor.continueWithoutAnalysis();
-  expect(r.actor.continueAfterRecovery()).toBe(false);
-  expect(controller.pause).not.toHaveBeenCalled();
-  expect(controller.resume).not.toHaveBeenCalled();
-  r.actor.skip();
-  expect(controller.skip).toHaveBeenCalledOnce();
-  await Promise.all([r.actor.dispose(), r.actor.dispose()]);
-  r.actor.skip();
-  await r.actor.start();
-  expect(controller.skip).toHaveBeenCalledOnce();
-  expect(controller.dispose).toHaveBeenCalledOnce();
-  expect(r.created).toHaveLength(1);
+it('mode commands are opaque capabilities available only to the RUNNING owner',async()=>{
+ const r=rig();expect(r.actor.modeCommands()).toBeNull();await r.actor.start();
+ expect(r.actor.modeCommands()).toBe(r.created[0].session.commands);
+ const ending=r.actor.end();expect(r.actor.modeCommands()).toBeNull();await ending;
+ await r.actor.dispose();expect(r.actor.modeCommands()).toBeNull();
 });
 
 it("candidate-only rerenders do not republish an unchanged active execution view", async () => {

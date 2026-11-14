@@ -8,8 +8,9 @@ import {
 } from "react";
 import {
   PracticeExecutionActor,
-  type PracticeExecutionPorts,
 } from "@/lib/practice/application/practice-execution-actor";
+import type { PracticeExecutionPorts } from '@/lib/practice/application/execution-session';
+import { browserExecutionSessionFactory } from '@/lib/practice/application/browser-execution-session-factory';
 import type { PracticePlan } from "@/lib/practice/planning/practice-plan";
 
 export function usePracticeExecution(
@@ -22,7 +23,7 @@ export function usePracticeExecution(
     >[0];
   },
 ) {
-  const [actor] = useState(() => new PracticeExecutionActor(options));
+  const [actor] = useState(() => new PracticeExecutionActor(options, browserExecutionSessionFactory));
   const lifetime = useRef({ generation: 0 });
   useLayoutEffect(() => {
     actor.setCompletionListener(options.onNaturalCompletion);
@@ -54,14 +55,6 @@ export function usePracticeExecution(
     start: () => actor.start(),
     end: () => actor.end(),
     retry: () => actor.retry(),
-    skip: () => actor.skip(),
-    pause: () => actor.pause(),
-    resume: () => actor.resume(),
-    setMetronomeEnabled: (enabled: boolean) =>
-      actor.setMetronomeEnabled(enabled),
-    continueWithoutAnalysis: () => actor.continueWithoutAnalysis(),
-    continueWithoutRecording: () => actor.continueWithoutRecording(),
-    continueAfterRecovery: () => actor.continueAfterRecovery(),
   }));
-  return { ...snapshot, ...commands };
+  return { ...snapshot, ...commands, modeCommands: actor.modeCommands() };
 }

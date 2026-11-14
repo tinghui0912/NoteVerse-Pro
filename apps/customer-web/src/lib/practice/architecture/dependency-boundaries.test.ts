@@ -1044,7 +1044,11 @@ describe('Practice bounded domain dependencies', () => {
     ).toMatchObject([
       {
         target: normalize(ownerPath),
-        bindings: ['PracticeExecutionActor', 'PracticeExecutionPorts'],
+        bindings: ['PracticeExecutionActor'],
+      },
+      {
+        target: normalize(path.join(practiceRoot, 'application/browser-execution-session-factory.ts')),
+        bindings: ['browserExecutionSessionFactory'],
       },
     ]);
     const constructions = new Map<string, Set<string>>();
@@ -1071,10 +1075,9 @@ describe('Practice bounded domain dependencies', () => {
       };
       visit(ast);
     }
-    expect([...constructions.keys()]).toEqual([normalize(ownerPath)]);
-    expect([...constructions.get(normalize(ownerPath))!].sort()).toEqual([
-      'ContinuousPracticeController',
-      'StepPracticeController',
+    expect([...constructions.entries()].map(([file, names]) => [relative(file), [...names].sort()]).sort()).toEqual([
+      ['continuous/continuous-execution-session.ts', ['ContinuousPracticeController']],
+      ['step/step-execution-session.ts', ['StepPracticeController']],
     ]);
     const source = imports(
       path.join(practiceRoot, 'bundle/bundle-representation.ts'),
@@ -2351,7 +2354,7 @@ it('keeps terminal Continuous analysis choice separate from resource faults, STE
     ) {
       analysisShell = true;
       expect(node.getText(page)).not.toContain('analysisError');
-      expect(node.getText(page)).toContain('execution.continueWithoutAnalysis');
+      expect(node.getText(page)).toContain('continuousCommands?.continueWithoutAnalysis');
       expect(node.getText(page)).toContain('onEnd={handleEnd}');
     }
     ts.forEachChild(node, visit);

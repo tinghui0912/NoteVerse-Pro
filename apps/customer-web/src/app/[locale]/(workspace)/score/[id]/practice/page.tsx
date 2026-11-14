@@ -143,6 +143,8 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
       setIsCompletionDialogOpen(true);
     },
   });
+  const stepCommands = execution.mode === 'STEP_BY_STEP' && execution.modeCommands?.mode === 'STEP_BY_STEP' ? execution.modeCommands : null;
+  const continuousCommands = execution.mode === 'CONTINUOUS_PLAY' && execution.modeCommands?.mode === 'CONTINUOUS_PLAY' ? execution.modeCommands : null;
   const displayPlan = execution.executedPlan ?? plan;
   const scopeStartTick = displayPlan?.scope.startTick ?? 0;
   const displayRangeRenderNoteIds = execution.executedPlan?.scope.kind === 'RANGE'
@@ -154,9 +156,10 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
   const handleMetronomeEnabledChange = useCallback(
     (enabled: boolean) => {
       setMetronomeEnabled(enabled);
-      execution.setMetronomeEnabled(enabled);
+      if (stepCommands) stepCommands.setMetronomeEnabled(enabled);
+      else continuousCommands?.setMetronomeEnabled(enabled);
     },
-    [execution, setMetronomeEnabled]
+    [stepCommands, continuousCommands, setMetronomeEnabled]
   );
 
   const goToPracticeSetup = () => {
@@ -246,7 +249,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
   const practiceControls = execution.mode === 'STEP_BY_STEP'
     ? <StepPracticeControls {...controlSurfaceProps} lifecycle={execution.lifecycle} />
     : <ContinuousPracticeControls {...controlSurfaceProps} lifecycle={execution.lifecycle}
-        onPause={() => void execution.pause()} onResume={() => void execution.resume()} />;
+        onPause={() => void continuousCommands?.pause()} onResume={() => void continuousCommands?.resume()} />;
 
   const practiceSessionStatus = practiceMode && inputSource ? (
     <PracticeStatus
@@ -329,7 +332,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
                     <PracticeSkipControl
                       visible={true}
                       disabled={!execution.canAcceptAttempt}
-                      onSkip={execution.skip}
+                      onSkip={() => stepCommands?.skip()}
                     />
                   </div>
                 ) : null}
@@ -361,11 +364,11 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
           {execution.mode === 'STEP_BY_STEP' && execution.analysisIntervention && <StepAnalysisInterruptionDialog onEnd={handleEnd} />}
           {execution.mode === 'STEP_BY_STEP' && execution.infrastructureIntervention && <StepInfrastructureInterruptionDialog onEnd={handleEnd} />}
           {execution.mode === 'CONTINUOUS_PLAY' && analysisIntervention && <AnalysisInterruptionDialog
-            onContinueWithoutAnalysis={execution.continueWithoutAnalysis}
+            onContinueWithoutAnalysis={() => continuousCommands?.continueWithoutAnalysis() ?? Promise.resolve()}
             onEnd={handleEnd} />}
           {execution.mode === 'CONTINUOUS_PLAY' && !analysisIntervention && intervention && <ResourceInterruptionDialog
-            intervention={intervention} onContinueWithout={execution.continueWithoutRecording}
-            onContinue={() => { execution.continueAfterRecovery(); }}
+            intervention={intervention} onContinueWithout={() => continuousCommands?.continueWithoutRecording()}
+            onContinue={() => { continuousCommands?.continueAfterRecovery(); }}
             onEnd={handleEnd} />}
           <PracticeCompletionDialog
             open={isCompletionDialogOpen}

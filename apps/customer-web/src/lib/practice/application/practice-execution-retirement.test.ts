@@ -1,7 +1,9 @@
+import type { PracticeExecutionSessionFactory } from './execution-session';
+import { createStepExecutionSession } from '../step/step-execution-session';
+import { createContinuousExecutionSession } from '../continuous/continuous-execution-session';
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   PracticeExecutionActor,
-  type PracticeExecutionFactories,
 } from "./practice-execution-actor";
 import { StepPracticeController } from "../step/step-practice-controller";
 import { ContinuousPracticeController } from "../continuous/continuous-practice-controller";
@@ -118,14 +120,11 @@ function continuousRig(mode: "OFF" | "AUDIO" = "OFF", slow = false) {
     createMetronomeAudio: () => metronomeAudioFixture(),
   };
   let leaf!: ContinuousPracticeController;
-  const factories: PracticeExecutionFactories = {
-    step: () => {
-      throw new Error("Continuous only");
-    },
-    continuous: (options) => {
-      leaf = new ContinuousPracticeController(options, platform);
-      return leaf;
-    },
+  const factory: PracticeExecutionSessionFactory = request => {
+    if(request.plan.mode !== 'CONTINUOUS_PLAY') throw new Error('Continuous only');
+    return createContinuousExecutionSession({...request,plan:request.plan},options=>{
+      leaf=new ContinuousPracticeController(options,platform);return leaf;
+    });
   };
   const actor = new PracticeExecutionActor(
     {
@@ -133,7 +132,7 @@ function continuousRig(mode: "OFF" | "AUDIO" = "OFF", slow = false) {
         borrowedDevices(null, mode === "AUDIO" ? stream() : null),
       rootHealth: health.port,
     },
-    factories,
+    factory,
   );
   const plan = continuousPracticePlan(artifactWithKeys([[60]]), {
     recordingMode: mode,
@@ -177,14 +176,10 @@ describe("real leaf retirement arbitration", () => {
     let leaf!: StepPracticeController;
     const actor = new PracticeExecutionActor(
       { borrowRoots: () => borrowedDevices(), rootHealth: health.port },
-      {
-        continuous: () => {
-          throw new Error("STEP only");
-        },
-        step: (options) => {
-          leaf = new StepPracticeController({
-            ...options,
-            platform: {
+      request => {
+        if(request.plan.mode !== 'STEP_BY_STEP') throw new Error('STEP only');
+        return createStepExecutionSession({...request,plan:request.plan}, options=>{
+          leaf=new StepPracticeController({...options,platform:{
               clock,
               timer: { schedule: vi.fn(), cancel: vi.fn() },
               createMidi: () => ({
@@ -193,10 +188,9 @@ describe("real leaf retirement arbitration", () => {
                 dispose: vi.fn(),
               }),
               createMetronomeAudio: () => metronomeAudioFixture(),
-            },
-          });
+            },});
           return leaf;
-        },
+        });
       },
     );
     actor.setCandidate(
@@ -210,7 +204,9 @@ describe("real leaf retirement arbitration", () => {
     actor.setCompletionListener(listener);
     await actor.start();
     const dispose = vi.spyOn(leaf, "dispose");
-    actor.skip(); // Real final target commits SCOPE_COMPLETED; cleanup awaits its resource retirement.
+    const commands=actor.modeCommands();
+    if(commands?.mode !== 'STEP_BY_STEP') throw new Error('STEP commands required');
+    commands.skip(); // Real final target commits SCOPE_COMPLETED; cleanup awaits its resource retirement.
     expect(leaf.snapshot().sessionSnapshot?.completionReason).toBe(
       "SCOPE_COMPLETED",
     );

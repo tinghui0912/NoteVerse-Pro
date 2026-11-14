@@ -276,11 +276,19 @@ immutable during an attempt; enable/disable is live. Continuous
 application code projects clock snapshots into that contract. Neither shared
 infrastructure imports STEP or Continuous domain code.
 
-`PracticeExecutionActor` owns exactly one explicit execution lifecycle. The page
+`execution-machine.ts` owns the root execution lifecycle; `PracticeExecutionActor`
+hosts its effects for exactly one accepted execution. The page
 supplies an admitted candidate plan and narrow ports through `usePracticeExecution`.
 A pure state machine owns READY, STARTING, RUNNING, COMPLETED, RELEASING, ERROR and
-DISPOSED. Start captures one immutable PracticePlan and constructs a selected leaf
-controller; that controller creates the mode-specific PracticeSession from the plan.
+DISPOSED. Start captures one immutable PracticePlan and constructs a neutral mode
+execution session through the browser session factory. The mode adapter constructs its
+concrete controller/platform and owns observation/failure projection plus its command
+port. The controller creates the mode-specific PracticeSession from the captured plan.
+Root start/end/retry remain separate from STEP skip/metronome and Continuous
+pause/resume/intervention/metronome commands. Each mode command checks exact executionId,
+current session handle and RUNNING admission; RELEASING immediately fences saved callbacks.
+The page narrows modeCommands by discriminator; controls receive presentation callbacks.
+See [execution ownership](practice-execution-ownership.md).
 Controller observations and async outcomes enter as executionId-scoped events.
 Stale events cannot replace an accepted execution. Public views project accepted
 state and leaf observations without accessing a controller.

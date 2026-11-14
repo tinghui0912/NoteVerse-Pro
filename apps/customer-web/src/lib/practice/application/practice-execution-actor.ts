@@ -1,30 +1,5 @@
 import {
-  DeviceFailure,
-  MidiFailure,
-  isPracticeCausalFailure,
-} from "@/lib/practice/failure/causal-failure";
-import { projectStepFailure } from "@/lib/practice/step/step-errors";
-import { projectContinuousFailure } from "@/lib/practice/continuous/continuous-errors";
-import {
-  StepPracticeController,
-  type StepControllerOptions,
-} from "@/lib/practice/step/step-practice-controller";
-import {
-  ContinuousPracticeController,
-  type ContinuousControllerOptions,
-} from "@/lib/practice/continuous/continuous-practice-controller";
-import { browserStepPlatform } from "@/lib/practice/step/step-platform";
-import { browserContinuousPlatform } from "@/lib/practice/continuous/continuous-platform";
-import { PracticeStartupTimings } from "@/lib/practice/diagnostics/startup-timings";
-import type { PracticePlan } from "@/lib/practice/planning/practice-plan";
-import type {
-  PracticeDeviceRoots,
-  PracticeRootHealthPort,
-} from "@/lib/practice/device/device-contract";
-import type { AcousticInferencePort } from "@/lib/practice/acoustic/runtime/inference-types";
-import {
   initialExecutionState,
-  ownedExecution,
   transitionExecution,
   type AcceptedExecution,
   type ExecutionEffect,
@@ -34,8 +9,6 @@ import {
 } from "./execution-machine";
 import type {
   ExecutionCompletion,
-  ExecutionFailure,
-  ExecutionObservation,
 } from "./execution-observation";
 import {
   projectExecutionView,
@@ -43,63 +16,12 @@ import {
   type PracticeExecutionView,
 } from "./execution-view";
 
-type StepController = Pick<
-  StepPracticeController,
-  | "start"
-  | "dispose"
-  | "abandon"
-  | "subscribe"
-  | "snapshot"
-  | "skip"
-  | "setMetronomeEnabled"
->;
-type ContinuousController = Pick<
-  ContinuousPracticeController,
-  | "start"
-  | "dispose"
-  | "abandon"
-  | "subscribe"
-  | "snapshot"
-  | "pause"
-  | "resume"
-  | "continueWithoutAnalysis"
-  | "continueWithoutRecording"
-  | "continueAfterRecovery"
-  | "setMetronomeEnabled"
->;
-export type PracticeExecutionPorts = Readonly<{
-  borrowRoots(): PracticeDeviceRoots | null;
-  rootHealth: PracticeRootHealthPort;
-  acquireInference?: (signal: AbortSignal) => Promise<AcousticInferencePort>;
-}>;
-export type PracticeExecutionFactories = Readonly<{
-  step(
-    options: StepControllerOptions,
-    acquire?: PracticeExecutionPorts["acquireInference"],
-  ): StepController;
-  continuous(
-    options: ContinuousControllerOptions,
-    acquire?: PracticeExecutionPorts["acquireInference"],
-  ): ContinuousController;
-}>;
-const browserFactories: PracticeExecutionFactories = {
-  step: (options, acquire) =>
-    new StepPracticeController({
-      ...options,
-      platform: browserStepPlatform(acquire),
-    }),
-  continuous: (options, acquire) =>
-    new ContinuousPracticeController(
-      options,
-      browserContinuousPlatform(acquire),
-    ),
-};
-type Controller =
-  | Readonly<{ mode: "STEP_BY_STEP"; controller: StepController }>
-  | Readonly<{ mode: "CONTINUOUS_PLAY"; controller: ContinuousController }>;
+import type { PracticePlan } from '@/lib/practice/planning/practice-plan';
+import type { PracticeExecutionPorts, PracticeExecutionSessionFactory, PracticeExecutionSession, ModeExecutionCommands } from './execution-session';
+
 type RuntimeHandle = {
   executionId: ExecutionId;
-  adapter: Controller;
+  session: PracticeExecutionSession;
   detach(): void;
   preparation: Promise<void>;
   retirement?: Promise<void>;
@@ -129,7 +51,7 @@ export class PracticeExecutionActor {
   private view: PracticeExecutionView = projectExecutionView(this.state);
   constructor(
     private readonly ports: PracticeExecutionPorts,
-    private readonly factories = browserFactories,
+    private readonly createSession: PracticeExecutionSessionFactory,
   ) {}
   snapshot = (): PracticeExecutionView => this.view;
   engineeringSnapshot() {
@@ -298,91 +220,40 @@ export class PracticeExecutionActor {
     }
   }
   private constructAndStart(execution: AcceptedExecution): void {
-    const { plan, executionId } = execution;
+    const { executionId } = execution;
+    let handle: RuntimeHandle | null = null;
+    const construction = this.createSession({
+      plan: execution.plan, ports: this.ports,
+      isCommandAccepted: () => this.state.tag === 'RUNNING'
+        && this.state.execution.executionId === executionId && this.handle === handle,
+      onNaturalCompletion: completion => {
+        if (!handle) return;
+        this.dispatch({ type: 'NATURAL_COMPLETION', executionId, session: completion,
+          observation: handle.session.observe() });
+      },
+    });
+    if (construction.status === 'FAILED') {
+      this.dispatch({ type: 'START_FAILED', executionId, failure: construction.failure });
+      return;
+    }
+    const session = construction.session;
+    let prepared!: () => void;
+    handle = { executionId, session, detach: () => {},
+      preparation: new Promise<void>(resolve => { prepared = resolve; }) };
+    this.handle = handle;
+    const changed = () => this.dispatch({ type: 'CONTROLLER_CHANGED', executionId, observation: session.observe() });
     try {
-      const devices = this.ports.borrowRoots();
-      if (!devices)
-        throw plan.resources.input.kind === "MIDI"
-          ? new MidiFailure("ACCESS_UNAVAILABLE")
-          : new DeviceFailure("UNAVAILABLE", "MICROPHONE");
-      const shared = {
-        devices,
-        rootHealth: this.ports.rootHealth,
-        startupTimings: new PracticeStartupTimings(),
-        onNaturalCompletion: (session: ExecutionCompletion) => {
-          this.dispatch({
-            type: "NATURAL_COMPLETION",
-            executionId,
-            session,
-            observation: observe(adapter),
-          });
-        },
-      };
-      const adapter: Controller =
-        plan.mode === "STEP_BY_STEP"
-          ? {
-              mode: plan.mode,
-              controller: this.factories.step(
-                { ...shared, plan },
-                this.ports.acquireInference,
-              ),
-            }
-          : {
-              mode: plan.mode,
-              controller: this.factories.continuous(
-                { ...shared, plan },
-                this.ports.acquireInference,
-              ),
-            };
-      let prepared!: () => void;
-      const handle: RuntimeHandle = {
-        executionId,
-        adapter,
-        detach: () => {},
-        preparation: new Promise<void>((resolve) => {
-          prepared = resolve;
-        }),
-      };
-      this.handle = handle;
-      const changed = () =>
-        this.dispatch({
-          type: "CONTROLLER_CHANGED",
-          executionId,
-          observation: observe(adapter),
-        });
-      try {
-        handle.detach = adapter.controller.subscribe(changed);
-        changed();
-        const preparation = adapter.controller.start();
-        changed();
-        Promise.resolve(preparation)
-          .then(
-            () => {
-              changed();
-              this.dispatch({ type: "START_SUCCEEDED", executionId });
-            },
-            (cause) =>
-              this.dispatch({
-                type: "START_FAILED",
-                executionId,
-                failure: startFailure(plan, cause),
-              }),
-          )
-          .finally(prepared);
-      } catch (cause) {
-        prepared();
-        this.dispatch({
-          type: "START_FAILED",
-          executionId,
-          failure: startFailure(plan, cause),
-        });
-      }
+      handle.detach = session.subscribe(changed);
+      changed();
+      const preparation = session.start();
+      changed();
+      Promise.resolve(preparation).then(() => {
+        changed(); this.dispatch({ type: 'START_SUCCEEDED', executionId });
+      }, cause => this.dispatch({ type: 'START_FAILED', executionId, failure: session.failure(cause, 'START') }))
+        .finally(prepared);
     } catch (cause) {
-      this.dispatch({
-        type: "START_FAILED",
-        executionId,
-        failure: startFailure(plan, cause),
-      });
+      prepared();
+      this.dispatch({ type: 'START_FAILED', executionId, failure: session.failure(cause, 'START') });
     }
   }
   private retire(execution: AcceptedExecution): void {
@@ -392,7 +263,7 @@ export class PracticeExecutionActor {
     if (handle) {
       operations.push(this.requestDetach(handle));
       operations.push(
-        requestOperation(() => handle.adapter.controller.abandon()),
+        requestOperation(() => handle.session.retire()),
       );
       operations.push(handle.preparation);
     }
@@ -413,7 +284,7 @@ export class PracticeExecutionActor {
     if (handle) {
       operations.push(this.requestDetach(handle));
       operations.push(
-        requestOperation(() => handle.adapter.controller.dispose()),
+        requestOperation(() => handle.session.dispose()),
       );
       operations.push(handle.preparation);
       if (handle.retirement) operations.push(handle.retirement);
@@ -438,14 +309,6 @@ export class PracticeExecutionActor {
           (result) => result.status === "rejected",
         );
         if (rejection?.status === "rejected") throw rejection.reason;
-        if (handle) {
-          const observation = observe(handle.adapter);
-          if (
-            observation.error === "STEP_RESOURCE_CLEANUP_FAILED" ||
-            observation.error === "RESOURCE_CLEANUP_FAILED"
-          )
-            throw new Error(observation.error);
-        }
         this.dispatch({
           type:
             phase === "RETIREMENT"
@@ -458,59 +321,13 @@ export class PracticeExecutionActor {
         this.dispatch({
           type: phase === "RETIREMENT" ? "RETIREMENT_FAILED" : "RELEASE_FAILED",
           executionId: execution.executionId,
-          failure:
-            execution.plan.mode === "STEP_BY_STEP"
-              ? {
-                  mode: "STEP_BY_STEP",
-                  code: "STEP_RESOURCE_CLEANUP_FAILED",
-                  cause,
-                }
-              : {
-                  mode: "CONTINUOUS_PLAY",
-                  code: "RESOURCE_CLEANUP_FAILED",
-                  cause,
-                },
+          failure: handle!.session.failure(cause, 'RELEASE'),
         }),
       );
   }
-  private commandHandle(): Controller | null {
-    const execution = ownedExecution(this.state);
-    return execution && this.handle?.executionId === execution.executionId
-      ? this.handle.adapter
-      : null;
-  }
-  setMetronomeEnabled(enabled: boolean): void {
-    this.commandHandle()?.controller.setMetronomeEnabled(enabled);
-  }
-  skip(): void {
-    const adapter = this.commandHandle();
-    if (adapter?.mode === "STEP_BY_STEP") adapter.controller.skip();
-  }
-  pause(): void {
-    const adapter = this.commandHandle();
-    if (adapter?.mode === "CONTINUOUS_PLAY") adapter.controller.pause();
-  }
-  resume(): void {
-    const adapter = this.commandHandle();
-    if (adapter?.mode === "CONTINUOUS_PLAY") adapter.controller.resume();
-  }
-  continueWithoutAnalysis(): Promise<void> {
-    const adapter = this.commandHandle();
-    return adapter?.mode === "CONTINUOUS_PLAY"
-      ? adapter.controller.continueWithoutAnalysis()
-      : settled;
-  }
-  continueWithoutRecording(): void {
-    const adapter = this.commandHandle();
-    if (adapter?.mode === "CONTINUOUS_PLAY")
-      adapter.controller.continueWithoutRecording();
-  }
-  continueAfterRecovery(): boolean {
-    const adapter = this.commandHandle();
-    return (
-      adapter?.mode === "CONTINUOUS_PLAY" &&
-      adapter.controller.continueAfterRecovery()
-    );
+  modeCommands(): ModeExecutionCommands | null {
+    return this.state.tag === 'RUNNING' && this.handle?.executionId === this.state.execution.executionId
+      ? this.handle.session.commands : null;
   }
 }
 function requestOperation(action: () => unknown): Promise<unknown> {
@@ -519,59 +336,4 @@ function requestOperation(action: () => unknown): Promise<unknown> {
   } catch (cause) {
     return Promise.reject(cause);
   }
-}
-function startFailure(plan: PracticePlan, cause: unknown): ExecutionFailure {
-  return plan.mode === "STEP_BY_STEP"
-    ? {
-        mode: plan.mode,
-        code: isPracticeCausalFailure(cause)
-          ? projectStepFailure(cause, "PREPARING")
-          : "STEP_ATTEMPT_FAILED",
-        cause,
-      }
-    : {
-        mode: plan.mode,
-        code: isPracticeCausalFailure(cause)
-          ? projectContinuousFailure(cause, "PREPARING")
-          : "ANALYSIS_FAILED",
-        cause,
-      };
-}
-function observe(adapter: Controller): ExecutionObservation {
-  if (adapter.mode === "STEP_BY_STEP") {
-    const snapshot = adapter.controller.snapshot();
-    return Object.freeze({
-      mode: adapter.mode,
-      error: snapshot.error,
-      activeStepGroup: snapshot.activeStepGroup,
-      stepInteractionPhase: snapshot.stepInteractionPhase,
-      pendingPostVerdict: snapshot.pendingPostVerdict,
-      canAcceptAttempt: snapshot.canAcceptAttempt,
-      analysisIntervention: snapshot.analysisIntervention,
-      infrastructureIntervention: snapshot.infrastructureIntervention,
-    });
-  }
-  const snapshot = adapter.controller.snapshot();
-  return Object.freeze({
-    mode: adapter.mode,
-    error: snapshot.inputError,
-    phase:
-      snapshot.session === "FINALIZING"
-        ? "FINALIZING"
-        : ["FAILED", "FAILED_BEFORE_START"].includes(snapshot.session)
-          ? "ERROR"
-          : snapshot.session === "PREPARING"
-            ? "PREPARING"
-            : snapshot.transport?.state === "PAUSED"
-              ? "PAUSED"
-              : "ACTIVE",
-    transport: snapshot.transport,
-    evaluation: snapshot.evaluation,
-    recordingIndicator: snapshot.recording?.indicatorVisible
-      ? Math.floor(snapshot.recording.elapsedMs / 1000)
-      : null,
-    analysisIntervention: snapshot.analysisIntervention,
-    resourceIntervention: snapshot.resourceIntervention,
-    completion: snapshot.completed,
-  });
 }
