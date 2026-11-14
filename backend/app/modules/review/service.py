@@ -20,19 +20,20 @@ from app.db.models import (
     ImportDispatch,
     NotificationEvent,
     Score,
-    ScoreRevision,
-    ScoreRevisionMetadata,
-    ScoreRevisionSource,
     StorageUsageCategory,
 )
 from app.db.models.import_job import ImportJobState
-from app.db.models.score import MetadataStatus, RevisionOrigin, RevisionSourceFormat
 from app.modules.import_jobs.service import ImportJobService
 from app.modules.score_assets.render_outbox_service import (
     create_review_thumbnail_render_outbox,
 )
 from app.modules.notifications.service import NotificationTypes
-from app.modules.revisions.derivatives import revision_derivative_service
+from app.modules.revisions.writer import (
+    revision_writer,
+    PreparedRevisionSource,
+    InitialRevisionWrite,
+)
+from app.modules.revisions.fast_path import revision_fast_path
 from app.modules.review.confirmation_assets import (
     prewrite_review_thumbnail,
     adopt_review_thumbnail,
@@ -158,22 +159,28 @@ class ReviewService:
             await storage_usage_service.release_reservation(db, reservation.reservation_id)
             raise
 
-        job = (
+        try:
             await db.execute(
-                select(ImportJob)
-                .where(ImportJob.job_uuid == job_uuid)
+                select(ImportDispatch)
+                .where(ImportDispatch.job_id == job.id)
                 .with_for_update()
                 .execution_options(populate_existing=True)
             )
-        ).scalar_one()
-        if job.score_id is not None:
-            existing = await db.get(Score, job.score_id)
-            if existing is not None:
-                return ReviewConfirmRead(score_id=existing.score_uuid)
-        if job.user_id != user_id or job.state != ImportJobState.PENDING_REVIEW:
-            raise ConflictException(ErrorCode.VALIDATION_ERROR, {"job_id": job_uuid})
-        business_committed = False
-        try:
+            job = (
+                await db.execute(
+                    select(ImportJob)
+                    .where(ImportJob.job_uuid == job_uuid)
+                    .with_for_update()
+                    .execution_options(populate_existing=True)
+                )
+            ).scalar_one()
+            if job.score_id is not None:
+                existing = await db.get(Score, job.score_id)
+                if existing is not None:
+                    await storage_usage_service.release_reservation(db, reservation.reservation_id)
+                    return ReviewConfirmRead(score_id=existing.score_uuid)
+            if job.user_id != user_id or job.state != ImportJobState.PENDING_REVIEW:
+                raise ConflictException(ErrorCode.VALIDATION_ERROR, {"job_id": job_uuid})
             score = Score(
                 score_uuid=score_uuid,
                 owner_user_id=user_id,
@@ -186,56 +193,33 @@ class ReviewService:
             db.add(score)
             await db.flush()
             score_id = require_persisted_id(score.id, entity="score")
-            revision = ScoreRevision(
-                revision_uuid=revision_uuid,
-                score_id=score_id,
-                revision_number=1,
-                content_hash=content_hash,
-                idempotency_key=f"job-confirm:{job_uuid}",
-                origin=RevisionOrigin.OMR,
-                created_by_user_id=user_id,
-                created_by_job_id=require_persisted_id(job.id, entity="import job"),
-                created_at=now,
+            prepared = PreparedRevisionSource(
+                revision_uuid,
+                stored,
+                content_hash,
+                "review-confirm",
+                "1",
+                reservation.reservation_id,
             )
-            db.add(revision)
-            await db.flush()
-            revision_id = require_persisted_id(revision.id, entity="score revision")
-            source_uuid = str(uuid.uuid4())
-            db.add(
-                ScoreRevisionSource(
-                    source_uuid=source_uuid,
-                    revision_id=revision_id,
-                    format=RevisionSourceFormat.MUSICXML,
-                    stored_object=await db.run_sync(
-                        lambda sync: adopt_written_object(sync, stored)
+            write_result = await db.run_sync(
+                lambda sync: revision_writer.write(
+                    sync,
+                    InitialRevisionWrite(
+                        score_uuid,
+                        user_id,
+                        prepared,
+                        require_persisted_id(job.id, entity="job"),
+                        f"job-confirm:{job_uuid}",
                     ),
-                    filename=stored.object_key.rsplit("/", 1)[-1],
-                    generator="review-confirm",
-                    generator_version="1",
-                    created_at=now,
                 )
             )
+            revision_id = require_persisted_id(write_result.revision.id, entity="revision")
             await adopt_review_thumbnail(db, thumbnail_write, revision_id=revision_id)
             promoted_inputs = await promote_uploads_to_score_inputs(
                 db,
                 job_id=require_persisted_id(job.id, entity="import job"),
                 score_id=score_id,
             )
-            db.add(
-                ScoreRevisionMetadata(
-                    revision_id=revision_id,
-                    status=MetadataStatus.PENDING,
-                    extractor_version="pending",
-                )
-            )
-            derivative_work = await revision_derivative_service.enqueue(
-                db,
-                score_id=score_id,
-                revision_id=revision_id,
-                requested_by_user_id=user_id,
-                source_fingerprint=content_hash,
-            )
-            score.head_revision_id = revision_id
             job.score_id = score_id
             job.state = ImportJobState.CONFIRMED
             job.updated_at = now
@@ -246,18 +230,6 @@ class ReviewService:
                 score_uuid=score_uuid,
                 score_title=title,
             )
-            await storage_usage_service.commit_reservation(
-                db,
-                reservation.reservation_id,
-                object_type="score_revision_source",
-                object_id=source_uuid,
-                storage_key=stored.object_key,
-                auto_commit=False,
-            )
-            await db.commit()
-            business_committed = True
-            await revision_derivative_service.dispatch_after_commit(derivative_work)
-
             for promoted in promoted_inputs:
                 await storage_usage_service.record_release(
                     db,
@@ -268,6 +240,7 @@ class ReviewService:
                     object_type="upload",
                     object_id=promoted.upload_uuid,
                     storage_key=promoted.storage_key,
+                    auto_commit=False,
                 )
                 await storage_usage_service.record_allocation(
                     db,
@@ -278,20 +251,17 @@ class ReviewService:
                     object_type="score_input_asset",
                     object_id=promoted.asset_uuid,
                     storage_key=promoted.storage_key,
+                    auto_commit=False,
                 )
+            await db.commit()
+            business_committed = True
+            await revision_fast_path(write_result)
         except Exception:
             await db.rollback()
             if not business_committed:
                 await storage_usage_service.release_reservation(db, reservation.reservation_id)
             raise
 
-        await revision_derivative_service.rebuild_metadata_best_effort(
-            db,
-            score_uuid=score_uuid,
-            revision_uuid=revision_uuid,
-            user_id=user_id,
-            storage=self.storage,
-        )
         await ImportJobService(storage=self.storage).cleanup_binary_artifacts(
             db,
             job_uuid,

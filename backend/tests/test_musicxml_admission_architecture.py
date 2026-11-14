@@ -32,12 +32,6 @@ def test_trusted_document_entry_points_share_the_admission_owner():
         ("modules/revisions/service.py", "RevisionService", "restore", 1),
         ("modules/review/service.py", "ReviewService", "confirm", 1),
         ("modules/review/service.py", "ReviewService", "update", 1),
-        (
-            "modules/scores/creation_service.py",
-            "SyncConfirmedScoreCreationService",
-            "create_confirmed_from_job",
-            1,
-        ),
         ("modules/fingering/service.py", "FingeringService", "generate", 2),
     ]
     for path, class_name, method_name, calls in consumers:

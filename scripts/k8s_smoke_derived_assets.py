@@ -115,25 +115,16 @@ from sqlalchemy import select
 
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
-from app.db.models.playback import PlaybackAssetKind, PlaybackOutbox, PlaybackOutboxStatus
-from app.db.models.render_outbox import RenderOutbox, RenderOutboxStatus, RenderTargetType
-from app.db.models.score import (
-    MetadataStatus,
-    RevisionOrigin,
-    RevisionSourceFormat,
-    Score,
-    ScoreRevision,
-    ScoreRevisionMetadata,
-    ScoreRevisionSource,
-)
-from app.db.models.storage_usage import StorageUsageCategory
+from app.db.models import Score, StorageUsageCategory
+from app.db.models.score import RevisionOrigin
 from app.db.sync_session import SessionLocal
-from app.modules.metadata.service import rebuild_metadata_sync
+from app.modules.revisions.writer import revision_writer, InitialRevisionWrite, PreparedRevisionSource
+from app.modules.revisions.dispatch import dispatch_render_outbox, dispatch_playback_outbox
+from app.modules.revisions.metadata_dispatch import dispatch_revision_metadata
+from app.modules.storage_objects.writes import write_object
 from app.modules.storage_usage.service import storage_usage_service
-from app.shared.playback_dispatcher import dispatch_playback_outbox
-from app.shared.render_dispatcher import dispatch_render_outbox
+from app.processing.musicxml.admission import admit_musicxml_document
 from app.storage import object_storage
-from app.utils.timezone import utc_now_naive
 
 email = {email!r}
 musicxml = b'''<?xml version="1.0" encoding="UTF-8"?>
@@ -163,113 +154,37 @@ musicxml = b'''<?xml version="1.0" encoding="UTF-8"?>
 with SessionLocal() as db:
     user = db.execute(select(User).where(User.email == email)).scalar_one()
     user_id = require_persisted_id(user.id, entity="user")
-    now = utc_now_naive()
     score_uuid = str(uuid.uuid4())
     revision_uuid = str(uuid.uuid4())
-    content_hash = hashlib.sha256(musicxml).hexdigest()
-    storage_key = f"scores/{{score_uuid}}/revisions/{{revision_uuid}}/score.musicxml"
-    reservation = storage_usage_service.reserve_sync(
-        db,
-        user_id=user_id,
-        category=StorageUsageCategory.SOURCE,
-        bytes_count=len(musicxml),
-        reason="k8s_smoke_revision_source",
-        object_type="score_revision_source",
-    )
-    stored = object_storage.put_bytes(
-        key=storage_key,
-        content=musicxml,
-        content_type="application/vnd.recordare.musicxml+xml",
-    )
+    musicxml = admit_musicxml_document(musicxml)
+    reservation = storage_usage_service.reserve_sync(db, user_id=user_id, category=StorageUsageCategory.SOURCE,
+        bytes_count=len(musicxml), reason="k8s_smoke_revision_source", object_type="score_revision_source")
     try:
-        score = Score(
-            score_uuid=score_uuid,
-            owner_user_id=user_id,
-            title="K8s Smoke Derived Asset",
-            created_at=now,
-            updated_at=now,
-        )
-        db.add(score)
+        stored = write_object(db, object_storage,
+            key=f"scores/{{score_uuid}}/revisions/{{revision_uuid}}/score.musicxml", content=musicxml,
+            content_type="application/vnd.recordare.musicxml+xml")
+        db.add(Score(score_uuid=score_uuid, owner_user_id=user_id, title="K8s Smoke Derived Asset"))
         db.flush()
-        score_id = require_persisted_id(score.id, entity="score")
-        revision = ScoreRevision(
-            revision_uuid=revision_uuid,
-            score_id=score_id,
-            revision_number=1,
-            content_hash=content_hash,
-            origin=RevisionOrigin.EDIT,
-            created_by_user_id=user_id,
-            created_at=now,
-        )
-        db.add(revision)
-        db.flush()
-        revision_id = require_persisted_id(revision.id, entity="score revision")
-        source_uuid = str(uuid.uuid4())
-        db.add(ScoreRevisionSource(
-            source_uuid=source_uuid,
-            revision_id=revision_id,
-            format=RevisionSourceFormat.MUSICXML,
-            storage_key=stored.object_key,
-            filename=stored.object_key.rsplit("/", 1)[-1],
-            mime_type="application/vnd.recordare.musicxml+xml",
-            size_bytes=stored.size_bytes,
-            sha256=content_hash,
-            generator="k8s-smoke",
-            generator_version="1",
-            created_at=now,
-        ))
-        db.add(ScoreRevisionMetadata(
-            revision_id=revision_id,
-            status=MetadataStatus.PENDING,
-            extractor_version="pending",
-        ))
-        render_outbox = RenderOutbox(
-            outbox_uuid=str(uuid.uuid4()),
-            target_type=RenderTargetType.SCORE_REVISION,
-            score_id=score_id,
-            revision_id=revision_id,
-            requested_by_user_id=user_id,
-            source_fingerprint=content_hash,
-            render_profile="default",
-            status=RenderOutboxStatus.PENDING,
-        )
-        playback_outbox = PlaybackOutbox(
-            outbox_uuid=str(uuid.uuid4()),
-            score_id=score_id,
-            revision_id=revision_id,
-            requested_by_user_id=user_id,
-            source_fingerprint=content_hash,
-            asset_kind=PlaybackAssetKind.AUDIO,
-            status=PlaybackOutboxStatus.PENDING,
-        )
-        db.add(render_outbox)
-        db.add(playback_outbox)
-        score.head_revision_id = revision_id
+        prepared = PreparedRevisionSource(revision_uuid, stored, hashlib.sha256(musicxml).hexdigest(),
+            "k8s-smoke", "1", reservation.reservation_id)
+        result = revision_writer.write(db, InitialRevisionWrite(score_uuid, user_id, prepared, None,
+            "k8s-smoke-initial", RevisionOrigin.EDIT))
         db.commit()
-        storage_usage_service.commit_reservation_sync(
-            db,
-            reservation.reservation_id,
-            object_type="score_revision_source",
-            object_id=source_uuid,
-            storage_key=stored.object_key,
-        )
-        try:
-            rebuild_metadata_sync(db, revision_id, object_storage)
-        except Exception:
-            db.rollback()
-        dispatch_render_outbox(render_outbox.outbox_uuid)
-        dispatch_playback_outbox(playback_outbox.outbox_uuid)
-        print(json.dumps({{
-            "score_id": score_uuid,
-            "revision_id": revision_uuid,
-            "render_outbox_id": render_outbox.outbox_uuid,
-            "playback_outbox_id": playback_outbox.outbox_uuid,
-        }}))
     except Exception:
         db.rollback()
-        object_storage.delete(stored.object_key)
         storage_usage_service.release_reservation_sync(db, reservation.reservation_id)
         raise
+    work = result.derivatives
+    assert work is not None
+    dispatch_render_outbox(work.render_outbox_uuid)
+    dispatch_playback_outbox(work.playback_outbox_uuid)
+    dispatch_revision_metadata(result.metadata_outbox_uuid)
+    print(json.dumps({{
+        "score_id": score_uuid,
+        "revision_id": revision_uuid,
+        "render_outbox_id": work.render_outbox_uuid,
+        "playback_outbox_id": work.playback_outbox_uuid,
+    }}))
 """
     stdout = kubectl_exec_python(namespace, deployment, code)
     last_json = stdout.strip().splitlines()[-1]

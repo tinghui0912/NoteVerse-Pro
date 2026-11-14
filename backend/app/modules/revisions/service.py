@@ -1,5 +1,5 @@
 from __future__ import annotations
-from app.modules.storage_objects.writes import write_object_async, adopt_written_object
+from app.modules.storage_objects.writes import write_object_async
 
 import hashlib
 import uuid
@@ -8,26 +8,22 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import (
-    ConflictException,
     ResourceNotFoundException,
 )
 from app.db.model_utils import require_persisted_id
 from app.db.models import (
     ScoreRevision,
-    ScoreRevisionEvent,
-    ScoreRevisionMetadata,
     ScoreRevisionNote,
-    ScoreRevisionSource,
     StorageUsageCategory,
-    User,
 )
-from app.db.models.score import MetadataStatus, RevisionOrigin, RevisionSourceFormat
-from app.modules.notifications.service import NotificationService
-from app.modules.realtime.publisher import RealtimeEventTypes, publish_score_event_best_effort
-from app.modules.revisions.derived_asset_retention_service import (
-    DerivedAssetRetentionService,
+from app.db.models.score import RevisionOrigin
+from app.modules.revisions.writer import (
+    revision_writer,
+    PreparedRevisionSource,
+    AppendRevisionWrite,
+    RestoreLineage,
 )
-from app.modules.revisions.derivatives import revision_derivative_service
+from app.modules.revisions.fast_path import revision_fast_path
 from app.modules.revisions.read_model import RevisionReadModel
 from app.modules.revisions.schemas import (
     RevisionContentRead,
@@ -54,188 +50,105 @@ class RevisionService:
         asset_repository: ScoreAssetRepository | None = None,
         storage: ObjectStorage | None = None,
         access_policy: ScoreAccessPolicy | None = None,
-        notification_service: NotificationService | None = None,
         read_model: RevisionReadModel | None = None,
     ) -> None:
         self.repository = repository or ScoreRepository()
         self.asset_repository = asset_repository or ScoreAssetRepository()
         self.storage = storage or object_storage
-        self.derived_asset_retention = DerivedAssetRetentionService()
         self.access_policy = access_policy or ScoreAccessPolicy()
-        self.notification_service = notification_service or NotificationService()
         self.read_model = read_model or RevisionReadModel()
 
     async def create(
-        self,
-        db: AsyncSession,
-        score_uuid: str,
-        user_id: int,
-        request: RevisionCreateRequest,
+        self, db: AsyncSession, score_uuid: str, user_id: int, request: RevisionCreateRequest
     ) -> RevisionRead:
         access = await self.access_policy.authorize(
             db, score_uuid, ScoreAction.EDIT, user_id=user_id
         )
-        score = await self.repository.get(db, access.score.score_uuid, lock=True)
-        assert score is not None
+        content = admit_musicxml_document(request.content.encode("utf-8"))
+        return await self._append(
+            db,
+            score_uuid,
+            user_id,
+            content,
+            expected_head_uuid=request.expected_head_revision_id,
+            origin=request.origin,
+            owner_user_id=access.score.owner_user_id,
+            idempotency_key=request.idempotency_key,
+        )
 
-        score_id = require_persisted_id(score.id, entity="score")
-        content = request.content.encode("utf-8")
-        content = admit_musicxml_document(content)
-        content_hash = hashlib.sha256(content).hexdigest()
-
-        if request.idempotency_key:
-            existing = (
-                await db.execute(
-                    select(ScoreRevision).where(
-                        ScoreRevision.score_id == score_id,
-                        ScoreRevision.idempotency_key == request.idempotency_key,
-                    )
-                )
-            ).scalar_one_or_none()
-            if existing:
-                return await self._read(db, existing)
-
-        expected = await self.repository.revision(db, request.expected_head_revision_id)
-        if not expected or expected.score_id != score_id:
-            raise ResourceNotFoundException(
-                "revision", request.expected_head_revision_id, ErrorCode.REVISION_NOT_FOUND
+    async def _append(
+        self,
+        db: AsyncSession,
+        score_uuid: str,
+        user_id: int,
+        content: bytes,
+        *,
+        expected_head_uuid: str,
+        origin: RevisionOrigin,
+        owner_user_id: int,
+        idempotency_key: str | None = None,
+        restore: RestoreLineage | None = None,
+    ) -> RevisionRead:
+        existing = await db.run_sync(
+            lambda sync: revision_writer.existing_append(
+                sync,
+                score_uuid=score_uuid,
+                expected_head_uuid=expected_head_uuid,
+                content_hash=hashlib.sha256(content).hexdigest(),
+                idempotency_key=idempotency_key,
             )
-        head = await db.get(ScoreRevision, score.head_revision_id)
-        if head is None:
-            raise ResourceNotFoundException("revision", score_uuid, ErrorCode.REVISION_NOT_FOUND)
-        if head.id != expected.id:
-            raise ConflictException(
-                ErrorCode.REVISION_CONFLICT,
-                {
-                    "score_id": score_uuid,
-                    "expected_head_revision_id": request.expected_head_revision_id,
-                    "current_head_revision_id": head.revision_uuid,
-                },
-            )
-        if head.content_hash == content_hash:
-            return await self._read(db, head)
-
-        storage_owner_user_id = score.owner_user_id
+        )
+        if existing is not None:
+            await db.commit()
+            return await self._read(db, existing)
         revision_uuid = str(uuid.uuid4())
-        key = f"scores/{score_uuid}/revisions/{revision_uuid}/score.musicxml"
         reservation = await storage_usage_service.reserve(
             db,
-            user_id=storage_owner_user_id,
+            user_id=owner_user_id,
             category=StorageUsageCategory.SOURCE,
             bytes_count=len(content),
-            reason="revision_create",
+            reason="revision_restore" if restore else "revision_create",
             object_type="score_revision_source",
         )
-        business_committed = False
+        committed = False
         try:
-            stored = await write_object_async(
+            receipt = await write_object_async(
                 db,
                 self.storage,
-                key=key,
+                key=f"scores/{score_uuid}/revisions/{revision_uuid}/score.musicxml",
                 content=content,
                 content_type="application/vnd.recordare.musicxml+xml",
             )
-        except Exception:
-            await storage_usage_service.release_reservation(db, reservation.reservation_id)
-            raise
-        try:
-            access = await self.access_policy.authorize(
-                db, score_uuid, ScoreAction.EDIT, user_id=user_id
-            )
-            score = await self.repository.get(db, access.score.score_uuid, lock=True)
-            if score is None:
-                raise ResourceNotFoundException("score", score_uuid, ErrorCode.SCORE_NOT_FOUND)
-            await db.refresh(score)
-            current_head = await db.get(ScoreRevision, score.head_revision_id)
-            if current_head is None or current_head.id != head.id:
-                raise ConflictException(ErrorCode.REVISION_CONFLICT, {"score_id": score_uuid})
-            source_uuid = str(uuid.uuid4())
-            revision = ScoreRevision(
-                revision_uuid=revision_uuid,
-                score_id=score_id,
-                revision_number=head.revision_number + 1,
-                content_hash=content_hash,
-                idempotency_key=request.idempotency_key,
-                origin=request.origin,
-                created_by_user_id=user_id,
-                created_at=utc_now_naive(),
-            )
-            db.add(revision)
-            await db.flush()
-            revision_id = require_persisted_id(revision.id, entity="score revision")
-            db.add(
-                ScoreRevisionSource(
-                    source_uuid=source_uuid,
-                    revision_id=revision_id,
-                    format=RevisionSourceFormat.MUSICXML,
-                    stored_object=await db.run_sync(
-                        lambda sync: adopt_written_object(sync, stored)
-                    ),
-                    filename=stored.object_key.rsplit("/", 1)[-1],
-                    generator="editor",
-                    generator_version="1",
-                )
-            )
-            db.add(
-                ScoreRevisionMetadata(
-                    revision_id=revision_id,
-                    status=MetadataStatus.PENDING,
-                    extractor_version="pending",
-                )
-            )
-            derivative_work = await revision_derivative_service.enqueue(
-                db,
-                score_id=score_id,
-                revision_id=revision_id,
-                requested_by_user_id=user_id,
-                source_fingerprint=content_hash,
-            )
-            score.head_revision_id = revision_id
-            score.version += 1
-            score.updated_at = utc_now_naive()
-            await storage_usage_service.commit_reservation(
-                db,
+            await self.access_policy.authorize(db, score_uuid, ScoreAction.EDIT, user_id=user_id)
+            prepared = PreparedRevisionSource(
+                revision_uuid,
+                receipt,
+                hashlib.sha256(content).hexdigest(),
+                "restore" if restore else "editor",
+                "1",
                 reservation.reservation_id,
-                object_type="score_revision_source",
-                object_id=source_uuid,
-                storage_key=stored.object_key,
-                auto_commit=False,
+            )
+            result = await db.run_sync(
+                lambda sync: revision_writer.write(
+                    sync,
+                    AppendRevisionWrite(
+                        score_uuid,
+                        user_id,
+                        prepared,
+                        expected_head_uuid,
+                        origin,
+                        idempotency_key,
+                        restore,
+                    ),
+                )
             )
             await db.commit()
-            business_committed = True
-            await revision_derivative_service.dispatch_after_commit(derivative_work)
-
-            await db.refresh(revision)
-            actor = await db.get(User, user_id)
-            if actor is not None:
-                await self.notification_service.notify_score_version_created_best_effort(
-                    db,
-                    score=score,
-                    revision=revision,
-                    actor=actor,
-                )
-            await publish_score_event_best_effort(
-                db,
-                score_id=score.score_uuid,
-                revision_id=revision.revision_uuid,
-                type=RealtimeEventTypes.SCORE_REVISION_CREATED,
-                payload={},
-            )
-            await revision_derivative_service.rebuild_metadata_best_effort(
-                db,
-                score_uuid=score_uuid,
-                revision_uuid=revision_uuid,
-                user_id=user_id,
-                storage=self.storage,
-            )
-            await self.derived_asset_retention.cleanup_for_score_best_effort(
-                db,
-                score_id=score_id,
-            )
-            return await self._read(db, revision)
+            committed = True
+            await revision_fast_path(result)
+            return await self._read(db, result.revision)
         except Exception:
             await db.rollback()
-            if not business_committed:
+            if not committed:
                 await storage_usage_service.release_reservation(db, reservation.reservation_id)
             raise
 
@@ -269,166 +182,28 @@ class RevisionService:
         request: RevisionRestoreRequest | None = None,
     ) -> RevisionRead:
         access = await self.access_policy.authorize(
+            db, score_uuid, ScoreAction.EDIT, user_id=user_id, revision_uuid=revision_uuid
+        )
+        target = access.revision
+        head = await db.get(ScoreRevision, access.score.head_revision_id)
+        if head is None:
+            raise ResourceNotFoundException("revision", score_uuid, ErrorCode.REVISION_NOT_FOUND)
+        source = await self.asset_repository.canonical_source(
+            db, require_persisted_id(target.id, entity="revision")
+        )
+        if source is None:
+            raise ResourceNotFoundException("source", revision_uuid, ErrorCode.FILE_NOT_FOUND)
+        content = admit_musicxml_document(self.storage.read_bytes(source.stored_object.object_key))
+        return await self._append(
             db,
             score_uuid,
-            ScoreAction.EDIT,
-            user_id=user_id,
-            revision_uuid=revision_uuid,
+            user_id,
+            content,
+            expected_head_uuid=head.revision_uuid,
+            origin=RevisionOrigin.EDIT,
+            owner_user_id=access.score.owner_user_id,
+            restore=RestoreLineage(revision_uuid, request.note if request else None),
         )
-        score = await self.repository.get(db, access.score.score_uuid, lock=True)
-        assert score is not None
-        score_id = require_persisted_id(score.id, entity="score")
-        target = await self.repository.revision(db, revision_uuid)
-        if not target or target.score_id != score_id:
-            raise ResourceNotFoundException("revision", revision_uuid, ErrorCode.REVISION_NOT_FOUND)
-        head = await db.get(ScoreRevision, score.head_revision_id)
-        if head is None:
-            raise ResourceNotFoundException("revision", revision_uuid, ErrorCode.REVISION_NOT_FOUND)
-        if head.id == target.id:
-            return await self._read(db, head)
-
-        source = await self.asset_repository.canonical_source(
-            db, require_persisted_id(target.id, entity="score revision")
-        )
-        if not source:
-            raise ResourceNotFoundException("source", revision_uuid, ErrorCode.FILE_NOT_FOUND)
-        content = self.storage.read_bytes(source.stored_object.object_key)
-        content = admit_musicxml_document(content)
-        content_hash = hashlib.sha256(content).hexdigest()
-        storage_owner_user_id = score.owner_user_id
-        new_revision_uuid = str(uuid.uuid4())
-        key = f"scores/{score_uuid}/revisions/{new_revision_uuid}/score.musicxml"
-        reservation = await storage_usage_service.reserve(
-            db,
-            user_id=storage_owner_user_id,
-            category=StorageUsageCategory.SOURCE,
-            bytes_count=len(content),
-            reason="revision_restore",
-            object_type="score_revision_source",
-        )
-        business_committed = False
-        try:
-            stored = await write_object_async(
-                db,
-                self.storage,
-                key=key,
-                content=content,
-                content_type="application/vnd.recordare.musicxml+xml",
-            )
-        except Exception:
-            await storage_usage_service.release_reservation(db, reservation.reservation_id)
-            raise
-        try:
-            access = await self.access_policy.authorize(
-                db, score_uuid, ScoreAction.EDIT, user_id=user_id
-            )
-            score = await self.repository.get(db, access.score.score_uuid, lock=True)
-            if score is None:
-                raise ResourceNotFoundException("score", score_uuid, ErrorCode.SCORE_NOT_FOUND)
-            await db.refresh(score)
-            current_head = await db.get(ScoreRevision, score.head_revision_id)
-            if current_head is None or current_head.id != head.id:
-                raise ConflictException(ErrorCode.REVISION_CONFLICT, {"score_id": score_uuid})
-            source_uuid = str(uuid.uuid4())
-            revision = ScoreRevision(
-                revision_uuid=new_revision_uuid,
-                score_id=score_id,
-                revision_number=head.revision_number + 1,
-                content_hash=content_hash,
-                origin=RevisionOrigin.EDIT,
-                created_by_user_id=user_id,
-                created_at=utc_now_naive(),
-            )
-            db.add(revision)
-            await db.flush()
-            revision_id = require_persisted_id(revision.id, entity="score revision")
-            db.add(
-                ScoreRevisionSource(
-                    source_uuid=source_uuid,
-                    revision_id=revision_id,
-                    format=RevisionSourceFormat.MUSICXML,
-                    stored_object=await db.run_sync(
-                        lambda sync: adopt_written_object(sync, stored)
-                    ),
-                    filename=stored.object_key.rsplit("/", 1)[-1],
-                    generator="restore",
-                    generator_version="1",
-                )
-            )
-            db.add(
-                ScoreRevisionMetadata(
-                    revision_id=revision_id,
-                    status=MetadataStatus.PENDING,
-                    extractor_version="pending",
-                )
-            )
-            note = request.note.strip() if request and request.note else None
-            db.add(
-                ScoreRevisionEvent(
-                    score_id=score_id,
-                    revision_id=revision_id,
-                    target_revision_id=target.id,
-                    actor_user_id=user_id,
-                    type="RESTORE",
-                    note=note or None,
-                    created_at=utc_now_naive(),
-                )
-            )
-            derivative_work = await revision_derivative_service.enqueue(
-                db,
-                score_id=score_id,
-                revision_id=revision_id,
-                requested_by_user_id=user_id,
-                source_fingerprint=content_hash,
-            )
-            score.head_revision_id = revision_id
-            score.version += 1
-            score.updated_at = utc_now_naive()
-            await storage_usage_service.commit_reservation(
-                db,
-                reservation.reservation_id,
-                object_type="score_revision_source",
-                object_id=source_uuid,
-                storage_key=stored.object_key,
-                auto_commit=False,
-            )
-            await db.commit()
-            business_committed = True
-            await revision_derivative_service.dispatch_after_commit(derivative_work)
-
-            await db.refresh(revision)
-            actor = await db.get(User, user_id)
-            if actor is not None:
-                await self.notification_service.notify_score_version_created_best_effort(
-                    db,
-                    score=score,
-                    revision=revision,
-                    actor=actor,
-                )
-            await publish_score_event_best_effort(
-                db,
-                score_id=score.score_uuid,
-                revision_id=revision.revision_uuid,
-                type=RealtimeEventTypes.SCORE_REVISION_CREATED,
-                payload={},
-            )
-            await revision_derivative_service.rebuild_metadata_best_effort(
-                db,
-                score_uuid=score_uuid,
-                revision_uuid=new_revision_uuid,
-                user_id=user_id,
-                storage=self.storage,
-            )
-            await self.derived_asset_retention.cleanup_for_score_best_effort(
-                db,
-                score_id=score_id,
-            )
-            return await self._read(db, revision)
-        except Exception:
-            await db.rollback()
-            if not business_committed:
-                await storage_usage_service.release_reservation(db, reservation.reservation_id)
-            raise
 
     async def update_note(
         self,

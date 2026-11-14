@@ -2492,8 +2492,52 @@ def upgrade() -> None:
         )
     )
 
+    op.create_table(
+        "revision_metadata_outbox",
+        sa.Column("id", sa.BigInteger(), autoincrement=True, nullable=False),
+        sa.Column("outbox_uuid", sa.String(36), nullable=False),
+        sa.Column("revision_id", sa.BigInteger(), nullable=False),
+        sa.Column("source_fingerprint", sa.String(64), nullable=False),
+        sa.Column("originating_request_id", sa.String(64), nullable=True),
+        sa.Column("traceparent", sa.String(55), nullable=True),
+        sa.Column("tracestate", sa.String(512), nullable=True),
+        sa.Column("status", sa.String(16), nullable=False),
+        sa.Column("attempt_count", sa.Integer(), nullable=False),
+        sa.Column("attempt_token", sa.String(36), nullable=True),
+        sa.Column("next_attempt_at", sa.DateTime(), nullable=False),
+        sa.Column("dispatched_at", sa.DateTime(), nullable=True),
+        sa.Column("started_at", sa.DateTime(), nullable=True),
+        sa.Column("completed_at", sa.DateTime(), nullable=True),
+        sa.Column("last_error", sa.Text(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.CheckConstraint(
+            "status IN ('PENDING','DISPATCHED','PROCESSING','FAILED','COMPLETED')",
+            name="ck_revision_metadata_status",
+        ),
+        sa.CheckConstraint("attempt_count >= 0", name="ck_revision_metadata_attempts"),
+        sa.CheckConstraint(
+            "(status = 'PROCESSING' AND attempt_token IS NOT NULL) OR (status <> 'PROCESSING' AND attempt_token IS NULL)",
+            name="ck_revision_metadata_token",
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_revision_metadata_outbox"),
+        sa.UniqueConstraint("outbox_uuid", name="uq_revision_metadata_outbox_outbox_uuid"),
+        sa.UniqueConstraint("revision_id", name="uq_revision_metadata_outbox_revision_id"),
+        sa.ForeignKeyConstraint(
+            ["revision_id"],
+            ["score_revisions.id"],
+            name="fk_revision_metadata_outbox_revision_id_score_revisions",
+            ondelete="CASCADE",
+        ),
+    )
+    op.create_index(
+        "ix_revision_metadata_due", "revision_metadata_outbox", ["status", "next_attempt_at"]
+    )
+
 
 def downgrade() -> None:
+    op.drop_index("ix_revision_metadata_due", table_name="revision_metadata_outbox")
+    op.drop_table("revision_metadata_outbox")
     op.drop_table("domain_projection_checkpoints")
     op.drop_index("idx_domain_events_type_id", table_name="domain_events")
     op.drop_index("idx_domain_events_aggregate_id", table_name="domain_events")

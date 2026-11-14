@@ -59,43 +59,6 @@ def _delivery_lifecycle() -> DurableDeliveryLifecycle[RenderOutboxStatus]:
     )
 
 
-async def create_revision_render_outbox(
-    db: AsyncSession,
-    *,
-    score_id: int,
-    revision_id: int,
-    requested_by_user_id: int,
-    source_fingerprint: str,
-    render_profile: str = "default",
-) -> RenderOutbox:
-    existing = (
-        await db.execute(
-            select(RenderOutbox)
-            .where(
-                RenderOutbox.revision_id == revision_id,
-                RenderOutbox.render_profile == render_profile,
-            )
-            .with_for_update()
-            .execution_options(populate_existing=True)
-        )
-    ).scalar_one_or_none()
-    if existing is not None:
-        if existing.status == RenderOutboxStatus.SUPERSEDED:
-            rearm_revision_outbox(existing)
-        return existing
-
-    outbox = _new_revision_render_outbox(
-        score_id=score_id,
-        revision_id=revision_id,
-        requested_by_user_id=requested_by_user_id,
-        source_fingerprint=source_fingerprint,
-        render_profile=render_profile,
-    )
-    db.add(outbox)
-    await db.flush()
-    return outbox
-
-
 def create_revision_render_outbox_sync(
     db: Session,
     *,

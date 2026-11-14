@@ -16,6 +16,15 @@ from sqlmodel import select
 from app.core.security import get_password_hash
 from app.db.models import Score, ScoreRevision, ScoreRevisionSource, User
 from app.db.models.score import RevisionOrigin, RevisionSourceFormat
+from app.modules.revisions.writer import (
+    revision_writer,
+    InitialRevisionWrite,
+    PreparedRevisionSource,
+)
+from app.modules.storage_objects.writes import write_object_async
+from app.modules.storage_usage.service import storage_usage_service
+from app.db.models import StorageUsageCategory
+from app.processing.musicxml.admission import admit_musicxml_document
 from app.db.session import AsyncSessionLocal
 from app.storage import object_storage
 
@@ -24,11 +33,11 @@ INTEGRATION_EMAIL = "integration@example.com"
 INTEGRATION_PASSWORD_ENV = "NOTEVERSE_INTEGRATION_PASSWORD"
 INTEGRATION_PRACTICE_SCORE_ID = "integration-practice-score"
 INTEGRATION_PRACTICE_REVISION_ID = "integration-practice-revision"
-INTEGRATION_MUSICXML = b'''<?xml version="1.0" encoding="UTF-8"?>
+INTEGRATION_MUSICXML = b"""<?xml version="1.0" encoding="UTF-8"?>
 <score-partwise version="3.1">
   <part-list><score-part id="P1"><part-name>Integration</part-name></score-part></part-list>
   <part id="P1"><measure number="1"><attributes><divisions>1</divisions><key><fifths>0</fifths></key><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><type>whole</type></note></measure></part>
-</score-partwise>'''
+</score-partwise>"""
 
 
 async def seed_user() -> None:
@@ -71,51 +80,61 @@ async def seed_user() -> None:
                     f"existing user {INTEGRATION_EMAIL}; refusing to create resources "
                     "under a pre-existing development account."
                 )
-            score = Score(
-                score_uuid=INTEGRATION_PRACTICE_SCORE_ID,
-                owner_user_id=user.id,
-                title="Integration practice score",
-            )
-            session.add(score)
-            await session.flush()
-            revision = ScoreRevision(
-                revision_uuid=INTEGRATION_PRACTICE_REVISION_ID,
-                score_id=score.id,
-                revision_number=1,
-                content_hash=hashlib.sha256(INTEGRATION_MUSICXML).hexdigest(),
-                origin=RevisionOrigin.IMPORT,
-                created_by_user_id=user.id,
-            )
-            session.add(revision)
-            await session.flush()
-            storage_key = (
-                f"scores/{score.score_uuid}/revisions/{revision.revision_uuid}/score.musicxml"
-            )
+            content = admit_musicxml_document(INTEGRATION_MUSICXML)
+            storage_key = f"scores/{INTEGRATION_PRACTICE_SCORE_ID}/revisions/{INTEGRATION_PRACTICE_REVISION_ID}/score.musicxml"
             if object_storage.exists(storage_key):
                 raise RuntimeError(
-                    f"Integration score object already exists at {storage_key}; "
-                    "refusing to overwrite existing development OSS data."
+                    "Integration canonical object already exists; refusing overwrite"
                 )
-            stored = object_storage.put_bytes(
-                key=storage_key,
-                content=INTEGRATION_MUSICXML,
-                content_type="application/vnd.recordare.musicxml+xml",
+            reservation = await storage_usage_service.reserve(
+                session,
+                user_id=user.id,
+                category=StorageUsageCategory.SOURCE,
+                bytes_count=len(content),
+                reason="integration_fixture",
+                object_type="score_revision_source",
             )
-            session.add(
-                ScoreRevisionSource(
-                    source_uuid="integration-practice-bundle",
-                    revision_id=revision.id,
-                    format=RevisionSourceFormat.MUSICXML,
-                    storage_key=stored.object_key,
-                    filename=stored.object_key.rsplit("/", 1)[-1],
-                    mime_type="application/vnd.recordare.musicxml+xml",
-                    size_bytes=stored.size_bytes,
-                    sha256=hashlib.sha256(INTEGRATION_MUSICXML).hexdigest(),
-                    generator="integration-fixture",
-                    generator_version="1",
+            try:
+                stored = await write_object_async(
+                    session,
+                    object_storage,
+                    key=storage_key,
+                    content=content,
+                    content_type="application/vnd.recordare.musicxml+xml",
                 )
-            )
-            score.head_revision_id = revision.id
+                score = Score(
+                    score_uuid=INTEGRATION_PRACTICE_SCORE_ID,
+                    owner_user_id=user.id,
+                    title="Integration practice score",
+                )
+                session.add(score)
+                await session.flush()
+                prepared = PreparedRevisionSource(
+                    INTEGRATION_PRACTICE_REVISION_ID,
+                    stored,
+                    hashlib.sha256(content).hexdigest(),
+                    "integration-fixture",
+                    "1",
+                    reservation.reservation_id,
+                )
+                await session.run_sync(
+                    lambda sync: revision_writer.write(
+                        sync,
+                        InitialRevisionWrite(
+                            INTEGRATION_PRACTICE_SCORE_ID,
+                            user.id,
+                            prepared,
+                            None,
+                            "integration-initial",
+                            RevisionOrigin.IMPORT,
+                        ),
+                    )
+                )
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                await storage_usage_service.release_reservation(session, reservation.reservation_id)
+                raise
         else:
             if score.owner_user_id != user.id:
                 raise RuntimeError(
@@ -139,7 +158,7 @@ async def seed_user() -> None:
                 await session.exec(
                     select(ScoreRevisionSource).where(
                         ScoreRevisionSource.revision_id == revision.id,
-                        ScoreRevisionSource.source_uuid == "integration-practice-bundle",
+                        ScoreRevisionSource.format == RevisionSourceFormat.MUSICXML,
                     )
                 )
             ).one_or_none()

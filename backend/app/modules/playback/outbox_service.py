@@ -4,7 +4,6 @@ import uuid
 from dataclasses import dataclass, asdict
 
 from sqlalchemy import or_, select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from app.core.async_trace_context import get_async_trace_context
@@ -74,43 +73,6 @@ class PlaybackTarget:
 class PlaybackOutboxPayload(PlaybackTarget):
     lease: DeliveryAttemptLease
     max_attempts: int
-
-
-async def create_playback_outbox(
-    db: AsyncSession,
-    *,
-    score_id: int,
-    revision_id: int,
-    requested_by_user_id: int,
-    source_fingerprint: str,
-    asset_kind: PlaybackAssetKind = PlaybackAssetKind.AUDIO,
-) -> PlaybackOutbox:
-    existing = (
-        await db.execute(
-            select(PlaybackOutbox)
-            .where(
-                PlaybackOutbox.revision_id == revision_id,
-                PlaybackOutbox.asset_kind == asset_kind,
-            )
-            .with_for_update()
-            .execution_options(populate_existing=True)
-        )
-    ).scalar_one_or_none()
-    if existing is not None:
-        if existing.status == PlaybackOutboxStatus.SUPERSEDED:
-            rearm_revision_outbox(existing)
-        return existing
-
-    outbox = _new_playback_outbox(
-        score_id=score_id,
-        revision_id=revision_id,
-        requested_by_user_id=requested_by_user_id,
-        source_fingerprint=source_fingerprint,
-        asset_kind=asset_kind,
-    )
-    db.add(outbox)
-    await db.flush()
-    return outbox
 
 
 def create_playback_outbox_sync(

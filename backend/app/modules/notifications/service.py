@@ -4,15 +4,13 @@ from app.modules.account.avatar_presentation import avatar_url_for_user
 from datetime import timedelta
 from typing import Any
 
-from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import col
 
 from app.core.config import settings
 from app.core.exceptions import ResourceNotFoundException, UnauthorizedException
 from app.core.logger import logger
-from app.db.models import NotificationEvent, Score, ScoreMembership, ScoreRevision, User
+from app.db.models import NotificationEvent, User
 from app.modules.notifications.repository import NotificationRepository
 from app.modules.notifications.schemas import (
     NotificationActorRead,
@@ -129,39 +127,6 @@ class NotificationService:
             ).opt(exception=True).warning("Notification event creation failed")
             return None
 
-    async def notify_score_version_created_best_effort(
-        self,
-        db: AsyncSession,
-        *,
-        score: Score,
-        revision: ScoreRevision,
-        actor: User,
-    ) -> None:
-        actor_id = actor.id
-        if actor_id is None:
-            return
-        recipients = await self._score_notification_recipients(db, score)
-        actor_name = actor.display_name or actor.email
-        for recipient_user_id in recipients:
-            await self.create_event_best_effort(
-                db,
-                recipient_user_id=recipient_user_id,
-                actor_user_id=actor_id,
-                type=NotificationTypes.SCORE_VERSION_CREATED,
-                resource_type="score",
-                resource_id=score.score_uuid,
-                score_id=score.score_uuid,
-                title="Score version saved",
-                body=f"{actor_name} saved a new version of {score.title}.",
-                dedupe_key=(
-                    f"{NotificationTypes.SCORE_VERSION_CREATED}:"
-                    f"{revision.revision_uuid}:{recipient_user_id}"
-                ),
-                data={
-                    "score_title": score.title,
-                },
-            )
-
     async def list_for_user(
         self, db: AsyncSession, user_id: int, *, limit: int = 50
     ) -> list[NotificationEventRead]:
@@ -241,17 +206,3 @@ class NotificationService:
             email=user.email,
             avatar_url=avatar_url_for_user(user),
         )
-
-    async def _score_notification_recipients(self, db: AsyncSession, score: Score) -> list[int]:
-        score_id = score.id
-        if score_id is None:
-            return []
-        rows = await db.execute(
-            select(ScoreMembership.user_id).where(
-                ScoreMembership.score_id == score_id,
-                col(ScoreMembership.revoked_at).is_(None),
-            )
-        )
-        recipients = {score.owner_user_id}
-        recipients.update(int(user_id) for user_id in rows.scalars().all())
-        return sorted(recipients)

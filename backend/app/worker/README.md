@@ -21,6 +21,20 @@ Revision transactions commit canonical snapshots and outboxes before immediate b
 dispatch through the shared revision producer. Beat relays missed deliveries and recovers
 expired dispatch/processing leases; it is not the normal-path scheduling delay.
 
+RevisionWriter is the sole revision/source/head write boundary and a transaction
+participant. It admits PENDING metadata, render/playback/metadata work and a typed
+ScoreRevisionCreated fact atomically with source accounting. Revision notification
+and revision realtime projectors have independent checkpoints and fact-time audiences.
+Initial facts have no version-saved presentation. Retention is Beat reconciliation.
+
+`revision_metadata_task` delegates to domain-specific metadata execution. Claim uses
+DeliveryAttemptLease; read/extraction runs outside locks. Final admission locks Score
+then metadata outbox and atomically writes metadata, completes delivery and creates
+score.metadata.updated. Unsupported extraction is a completed FAILED metadata result;
+infrastructure failure uses durable retry. `run_revision_metadata_maintenance` scans
+every five seconds and relays through the shared producer. Post-commit fast paths are
+latency hints backed by durable evidence, never request-path business sagas.
+
 ## Fenced durable attempts
 
 Dispatch admission and broker rejection do not consume an attempt. Worker claim

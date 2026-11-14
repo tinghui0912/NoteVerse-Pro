@@ -1,5 +1,8 @@
 """Authenticated collaboration matrix and real source disclosure boundaries."""
 
+import hashlib
+from app.processing.musicxml.admission import admit_musicxml_document
+from app.db.models import ScoreRevision
 from types import SimpleNamespace
 from datetime import timedelta
 
@@ -75,6 +78,9 @@ def collaboration(score_service_session):
         "<divisions>1</divisions>",
         "<divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time>",
     )
+    practice_xml = admit_musicxml_document(practice_xml.encode()).decode()
+    fingerprint = hashlib.sha256(practice_xml.encode()).hexdigest()
+    session.get(ScoreRevision, 4001).content_hash = fingerprint
     xml = storage.put_bytes(
         key="trusted/score.musicxml",
         content=practice_xml.encode(),
@@ -89,7 +95,7 @@ def collaboration(score_service_session):
                 object_key=xml.object_key,
                 content_type="application/vnd.recordare.musicxml+xml",
                 byte_size=xml.size_bytes,
-                sha256="a" * 64,
+                sha256=fingerprint,
             ),
             filename=xml.object_key.rsplit("/", 1)[-1],
             generator="test",

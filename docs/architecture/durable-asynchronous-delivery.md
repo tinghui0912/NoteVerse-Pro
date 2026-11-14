@@ -10,6 +10,13 @@ Domain outbox
     → domain worker
 ```
 
+RevisionMetadataOutbox is revision-owned execution with the same fenced attempt
+contract. RevisionWriter admits it atomically with the revision. The metadata worker
+computes outside locks and commits result/completion/realtime together after exact
+lease/source validation. Semantic extraction failure completes delivery with a FAILED
+metadata result; infrastructure failure retries. Five-second metadata maintenance
+relays missed work and recovers leases. See [revision writes](revision-writes.md).
+
 [Domain Event projectors](domain-events-and-projections.md) create durable database
 representations or outboxes from committed business facts. Their named checkpoints
 commit with projection writes and have no delivery status, attempt or lease.

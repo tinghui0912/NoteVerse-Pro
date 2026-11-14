@@ -16,7 +16,8 @@ presentation is pending. Cleanup releases semantic references and accounting, th
 unreferenced StoredObjects for durable retirement. Canonical MusicXML snapshots and
 PracticeBundle ownership remain independent and durable.
 
-Post-save/restore cleanup and the daily Beat pass reconcile disposable presentation.
+The daily Beat pass reconciles disposable presentation; revision requests do not run
+retention cleanup after commit.
 Cleanup locks Score and reads its current head; callers supply no head snapshot or
 history-window policy.
 
@@ -33,9 +34,10 @@ MusicXML download does not wait for derived presentation.
 
 ## Durable production
 
-Editor save, append-only restore and Review confirmation create render/playback outboxes
-inside the canonical business transaction. RevisionDerivativeService returns both durable
-identities. After COMMIT, the API immediately attempts best-effort dispatch. Guest Preview
+RevisionWriter admits render/playback and metadata outboxes with source/head/accounting
+and ScoreRevisionCreated in the canonical business transaction. Its result carries
+durable work identities. After COMMIT, the API attempts best-effort relay and projection
+catch-up. Metadata extraction is independently fenced durable execution. Guest Preview
 settings only change bearer access and do not enqueue or reactivate derivative work.
 
 The neutral revision dispatcher and Beat maintenance use the same producer: mark and

@@ -140,6 +140,7 @@ __all__ = [
     "ScoreMembership",
     "RenderOutboxStatus",
     "RenderTargetType",
+    "RevisionMetadataOutbox",
     "RenderOutbox",
     "MailOutbox",
     "MailOutboxStatus",
@@ -163,5 +164,6 @@ __all__ = [
 ]
 
 from .object_write_intent import ObjectWriteIntent
+from .revision_metadata_outbox import RevisionMetadataOutbox
 
 from .score_deletion_operation import ScoreDeletionOperation, ScoreDeletionOperationStatus

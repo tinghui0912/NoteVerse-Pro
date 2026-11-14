@@ -121,7 +121,9 @@ async def test_only_head_protects_rows_objects_and_usage(revisions, enabled, mod
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("active_preview", [False, True])
-async def test_save_disposes_old_head_before_new_derivatives_are_ready(revisions, active_preview):
+async def test_background_retention_disposes_old_head_while_new_derivatives_are_pending(
+    revisions, active_preview
+):
     db, storage, score, rows = revisions
     keys = seed_assets(db, storage, rows[2:])
     token = None
@@ -153,6 +155,8 @@ async def test_save_disposes_old_head_before_new_derivatives_are_ready(revisions
         )
         == PlaybackOutboxStatus.PENDING
     )
+    assert db.scalar(select(ScoreRenderAsset)) is not None
+    DerivedAssetRetentionService().cleanup_for_score_sync(db, score_id=score.id)
     assert db.scalar(select(ScoreRenderAsset)) is None
     assert db.scalar(select(ScorePlaybackAsset)) is None
     assert all(storage.exists(key) for key in keys.values())

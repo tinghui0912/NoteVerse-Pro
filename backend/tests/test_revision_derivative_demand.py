@@ -30,7 +30,6 @@ from app.db.models.score import RevisionOrigin, RevisionSourceFormat
 from app.modules.revisions import dispatch
 from app.modules.revisions.derivatives import revision_derivative_service, RevisionDerivativeService
 from app.modules.revisions.service import RevisionService
-from app.modules.scores.creation_service import SyncConfirmedScoreCreationService
 from app.modules.revisions.schemas import RevisionCreateRequest
 from app.modules.review.service import ReviewService
 from app.modules.review.schemas import ReviewConfirmRequest
@@ -195,7 +194,7 @@ def test_processing_is_not_cancelled_and_missing_source_is_not_superseded(revisi
     assert all(work.status.value == "FAILED" for work in work_rows(db, 3))
 
 
-@pytest.mark.parametrize("operation", ["save", "restore", "confirm", "confirm_sync"])
+@pytest.mark.parametrize("operation", ["save", "restore", "confirm"])
 @pytest.mark.parametrize("broker_fails", [False, True])
 @pytest.mark.asyncio
 async def test_business_commit_precedes_immediate_dispatch_and_broker_failure_is_recoverable(
@@ -252,9 +251,6 @@ async def test_business_commit_precedes_immediate_dispatch_and_broker_failure_is
     async def after_commit(work):
         relay_after_commit(work)
 
-    monkeypatch.setattr(
-        revision_derivative_service, "dispatch_after_commit_sync", relay_after_commit
-    )
     monkeypatch.setattr(revision_derivative_service, "dispatch_after_commit", after_commit)
     async_db = AsyncSessionAdapter(db)
     if operation == "save":
@@ -286,21 +282,6 @@ async def test_business_commit_precedes_immediate_dispatch_and_broker_failure_is
         db.commit()
         await ReviewService(storage=storage).confirm(
             async_db, "confirm-demand", 1, ReviewConfirmRequest(content=MUSICXML_2)
-        )
-    elif operation == "confirm_sync":
-        db.add(
-            ImportJob(
-                id=851,
-                job_uuid="confirm-sync-demand",
-                user_id=1,
-                state=ImportJobState.PENDING_REVIEW,
-            )
-        )
-        db.commit()
-        path = tmp_path / "canonical.musicxml"
-        path.write_text(MUSICXML_2)
-        SyncConfirmedScoreCreationService(storage=storage).create_confirmed_from_job(
-            db, "confirm-sync-demand", str(path)
         )
     assert len(observed) == 1 and len(calls) == 2
     work = observed[0]
@@ -359,9 +340,7 @@ async def test_preview_toggle_only_changes_access_state(revisions, monkeypatch):
         for n in (1, 2, 3)
         for work in work_rows(db, n)
     ]
-    enqueue = AsyncMock(side_effect=AssertionError("Toggle must not enqueue work"))
     relay = AsyncMock(side_effect=AssertionError("Toggle must not dispatch work"))
-    monkeypatch.setattr(revision_derivative_service, "enqueue", enqueue)
     monkeypatch.setattr(revision_derivative_service, "dispatch_after_commit", relay)
     service = GuestPreviewService(storage=storage)
     for enabled in [True, False]:
@@ -373,5 +352,4 @@ async def test_preview_toggle_only_changes_access_state(revisions, monkeypatch):
         for model, identity, status, attempt in snapshot:
             work = db.scalar(select(model).where(model.outbox_uuid == identity))
             assert work.status == status and work.attempt_count == attempt
-    enqueue.assert_not_awaited()
     relay.assert_not_awaited()

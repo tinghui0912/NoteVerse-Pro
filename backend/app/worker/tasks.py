@@ -1,6 +1,10 @@
 """Celery task entrypoints for NoteVerse background work."""
 
 from app.worker.execution.domain_projections import execute_domain_projection_maintenance
+from app.worker.execution.revision_metadata import (
+    execute_revision_metadata_task,
+    execute_revision_metadata_maintenance,
+)
 from app.worker.execution.score_deletion import execute_score_deletion_task
 from app.pipeline.context import CeleryTaskLike
 from app.task_queue.config import celery_app
@@ -26,6 +30,21 @@ from app.worker.execution.maintenance_dispatch import (
 from app.worker.execution.stored_object_retirement import execute_stored_object_retirement_task
 from app.worker.execution.playback_outbox import execute_playback_outbox_task
 from app.worker.execution.render_outbox import execute_render_outbox_task
+
+
+@celery_app.task(
+    bind=True,
+    name="app.worker.tasks.revision_metadata_task",
+    acks_late=True,
+    reject_on_worker_lost=True,
+)
+def revision_metadata_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, str]:
+    return execute_revision_metadata_task(self, outbox_uuid)
+
+
+@celery_app.task(name="app.worker.tasks.run_revision_metadata_maintenance")
+def run_revision_metadata_maintenance() -> dict[str, int]:
+    return execute_revision_metadata_maintenance()
 
 
 @celery_app.task(

@@ -108,6 +108,13 @@ payloads. Append logs explicitly identify their pending business commit. Project
 failure reports include event identity, projection name, attempted count and error
 class; scheduler errors do not expand payload-bearing validation exceptions.
 
-Only Import completion/failure uses these projectors. RevisionService retains its
-own current post-commit orchestration. Notification presentation and browser realtime
-wire schemas remain separate from journal infrastructure.
+RevisionWriter atomically appends ScoreRevisionCreated for every new revision.
+`revision_notifications_v1` and `revision_realtime_v1` independently project the
+fact-time audience. They skip initial-version presentation; notifications exclude
+the actor and keep revision/recipient dedupe. Notification wake-ups share the
+notification/checkpoint transaction. Metadata extraction uses a separately fenced
+durable delivery. See [canonical revision writes](revision-writes.md).
+
+Notification presentation and browser realtime wire schemas remain separate from
+journal infrastructure. Post-commit work is recoverable relay/projection latency
+hints; retention converges through background reconciliation.

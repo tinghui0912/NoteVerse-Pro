@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from sqlmodel import col
 
-from app.core.logger import logger
 from app.db.models import (
     Score,
     ScorePlaybackAsset,
@@ -28,25 +27,6 @@ class DerivedAssetRetentionResult:
 
 
 class DerivedAssetRetentionService:
-    async def cleanup_for_score_best_effort(
-        self,
-        db: AsyncSession,
-        *,
-        score_id: int,
-    ) -> DerivedAssetRetentionResult:
-        try:
-            return await self.cleanup_for_score(
-                db,
-                score_id=score_id,
-            )
-        except Exception as exc:
-            await db.rollback()
-            logger.bind(
-                event="derived_asset_retention.cleanup_failed",
-                score_id=score_id,
-            ).opt(exception=exc).warning("Derived asset retention cleanup failed")
-            return DerivedAssetRetentionResult()
-
     async def cleanup_for_score(
         self,
         db: AsyncSession,

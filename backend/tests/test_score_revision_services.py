@@ -70,7 +70,6 @@ from app.modules.revisions.derived_asset_retention_service import (
 )
 from app.modules.revisions.read_model import RevisionReadModel
 from app.modules.revisions.service import RevisionService
-from app.modules.score_assets.service import ScoreAssetService
 from app.modules.score_assets.derived_assets import derived_asset_status
 from app.modules.score_assets.render_outbox_service import RenderOutboxService
 from app.modules.mail.outbox_service import MailOutboxService
@@ -78,7 +77,6 @@ from app.modules.review.schemas import ReviewConfirmRequest, ReviewUpdateRequest
 from app.modules.review.service import ReviewService
 from app.modules.review.thumbnail_service import ReviewThumbnailService
 from app.modules.scores.service import ScoreService
-from app.modules.scores.creation_service import SyncConfirmedScoreCreationService
 from app.modules.import_jobs.worker_service import SyncImportJobService
 from app.modules.import_jobs.service import ImportJobService
 from app.modules.import_jobs.dispatch_service import ImportDispatchService
@@ -373,47 +371,6 @@ async def test_collaborator_revision_source_usage_counts_against_score_owner(
         session, StorageUsageCounter, user_id=2, category=StorageUsageCategory.SOURCE
     )
     assert collaborator_counter is None or collaborator_counter.used_bytes == 0
-
-
-def test_confirmed_job_creates_one_active_score_and_initial_revision(
-    score_service_session: tuple[Session, InMemoryObjectStorage], tmp_path
-) -> None:
-    session, storage = score_service_session
-    session.add_all(
-        [
-            ImportJob(
-                id=10,
-                job_uuid="job-1",
-                user_id=1,
-                state=ImportJobState.RUNNING,
-            ),
-        ]
-    )
-    session.commit()
-    source = tmp_path / "score.musicxml"
-    source.write_bytes(MUSICXML_1)
-    service = SyncConfirmedScoreCreationService(storage)
-
-    first_id = service.create_confirmed_from_job(
-        session, "job-1", str(source), title="Recognized score"
-    )
-    second_id = service.create_confirmed_from_job(
-        session, "job-1", str(source), title="Recognized score"
-    )
-
-    assert first_id == second_id
-    assert count_rows(session, Score) == 1
-    score = one_row(session, Score)
-    revision = one_row(session, ScoreRevision)
-    revision_source = one_row(session, ScoreRevisionSource)
-    metadata = session.get(ScoreRevisionMetadata, revision.id)
-    assert score.head_revision_id == revision.id
-    assert revision_source.format == RevisionSourceFormat.MUSICXML
-    assert storage.exists(revision_source.stored_object.object_key)
-    assert metadata is not None
-    assert metadata.status == MetadataStatus.READY
-    assert metadata.measure_count == 1
-    assert metadata.playback_duration_ms == 3000
 
 
 def test_completed_job_notifies_owner_when_ready_for_review(
@@ -1273,6 +1230,12 @@ async def test_revision_restore_creates_new_head_from_target_revision(
         origin=RevisionOrigin.EDIT,
     )
     session.add_all([score, revision_1, revision_2])
+    from app.processing.musicxml.admission import admit_musicxml_document
+
+    revision_1.content_hash = hashlib.sha256(admit_musicxml_document(MUSICXML_1)).hexdigest()
+    revision_2.content_hash = hashlib.sha256(
+        admit_musicxml_document(MUSICXML_2.encode())
+    ).hexdigest()
     session.commit()
     score.head_revision_id = 42
     session.add_all(
@@ -1340,6 +1303,9 @@ async def test_revision_restore_creates_new_head_from_target_revision(
     session.refresh(score)
     new_revision = one_row(session, ScoreRevision, revision_uuid=restored.revision_id)
     new_artifact = one_row(session, ScoreRevisionSource, revision_id=new_revision.id)
+    from tests.support.revision_metadata import drain_revision_metadata
+
+    assert all(r["status"] == "completed" for r in drain_revision_metadata(session, storage))
     metadata = session.get(ScoreRevisionMetadata, new_revision.id)
     assert restored.revision_number == 5
     assert restored.revision_id not in {"revision-1", "revision-2"}
@@ -1975,6 +1941,9 @@ async def test_collaborator_revision_save_notifies_score_owner(
         RevisionCreateRequest(content=MUSICXML_2, expected_head_revision_id="collab-base-revision"),
     )
 
+    from app.modules.revisions.projections import catch_up_revision_projections
+
+    catch_up_revision_projections(session)
     notification = one_row(
         session,
         NotificationEvent,
@@ -1987,15 +1956,10 @@ async def test_collaborator_revision_save_notifies_score_owner(
     assert notification.data == {"score_title": "Collaborative Score"}
     assert count_rows(session, NotificationEvent, recipient_user_id=2) == 0
 
-    revision = one_row(session, ScoreRevision, revision_uuid=created.revision_id)
+    assert one_row(session, ScoreRevision, revision_uuid=created.revision_id) is not None
     actor = session.get(User, 2)
     assert actor is not None
-    await service.notification_service.notify_score_version_created_best_effort(
-        db,  # type: ignore[arg-type]
-        score=score,
-        revision=revision,
-        actor=actor,
-    )
+    catch_up_revision_projections(session)
     assert (
         count_rows(
             session,
@@ -2006,49 +1970,6 @@ async def test_collaborator_revision_save_notifies_score_owner(
         )
         == 1
     )
-
-
-@pytest.mark.asyncio
-async def test_source_delivery_checks_score_access_and_reports_missing_objects(
-    score_service_session: tuple[Session, InMemoryObjectStorage], tmp_path
-) -> None:
-    session, storage = score_service_session
-    source = tmp_path / "score.musicxml"
-    source.write_bytes(MUSICXML_1)
-    session.add_all(
-        [
-            ImportJob(
-                id=60,
-                job_uuid="job-source",
-                user_id=1,
-                state=ImportJobState.RUNNING,
-            ),
-        ]
-    )
-    session.commit()
-    score_uuid = SyncConfirmedScoreCreationService(storage).create_confirmed_from_job(
-        session, "job-source", str(source), title="Source score"
-    )
-    score = one_row(session, Score, score_uuid=score_uuid)
-    revision = session.get(ScoreRevision, score.head_revision_id)
-    revision_source = one_row(session, ScoreRevisionSource, revision_id=revision.id)
-    service = ScoreAssetService(storage=storage)
-    async_db = AsyncSessionAdapter(session)
-
-    delivery = await service.source_delivery(
-        async_db,
-        revision_source.source_uuid,
-        1,  # type: ignore[arg-type]
-    )
-    assert delivery.storage_key == revision_source.stored_object.object_key
-    assert storage.read_bytes(delivery.storage_key) == MUSICXML_1
-
-    with pytest.raises(UnauthorizedException):
-        await service.source_delivery(
-            async_db,
-            revision_source.source_uuid,
-            2,  # type: ignore[arg-type]
-        )
 
 
 @pytest.mark.asyncio
@@ -2182,6 +2103,9 @@ async def test_invite_acceptance_creates_editable_membership(
     )
     assert stored_membership.role == MembershipRole.EDITOR
     assert stored_invite.terminal_outcome == InviteTerminalOutcome.ACCEPTED
+    from app.modules.revisions.projections import catch_up_revision_projections
+
+    catch_up_revision_projections(session)
     notification = one_row(
         session,
         NotificationEvent,
@@ -2307,6 +2231,9 @@ async def test_user_pending_invites_can_be_declined(
     assert declined.status == InviteStatus.DECLINED
     assert stored_invite.terminal_outcome == InviteTerminalOutcome.DECLINED
     assert stored_invite.terminal_at is not None
+    from app.modules.revisions.projections import catch_up_revision_projections
+
+    catch_up_revision_projections(session)
     notification = one_row(
         session,
         NotificationEvent,
@@ -2786,63 +2713,6 @@ async def test_service_hash_and_storage_use_exact_admitted_bytes(score_service_s
     assert storage.read_bytes(source.stored_object.object_key) == admitted
 
 
-@pytest.mark.parametrize("content", [INVALID_WRITTEN_XML.encode(), b""])
-def test_sync_confirmed_score_rejects_invalid_document_before_storage(
-    score_service_session, tmp_path, content
-):
-    session, storage = score_service_session
-    session.add(
-        ImportJob(id=10, job_uuid="sync-admission", user_id=1, state=ImportJobState.RUNNING)
-    )
-    session.commit()
-    path = tmp_path / "untrusted.musicxml"
-    path.write_bytes(content)
-    with (
-        patch.object(storage, "put_bytes", wraps=storage.put_bytes) as put,
-        patch("app.modules.scores.creation_service.storage_usage_service.reserve_sync") as reserve,
-    ):
-        with pytest.raises(ValidationException) as caught:
-            SyncConfirmedScoreCreationService(storage).create_confirmed_from_job(
-                session, "sync-admission", str(path), title="Admission"
-            )
-        put.assert_not_called()
-        reserve.assert_not_called()
-    assert caught.value.code == ErrorCode.REVISION_CONTENT_INVALID
-    assert count_rows(session, Score) == count_rows(session, ScoreRevisionSource) == 0
-
-
-def test_sync_confirmed_score_hashes_and_stores_admitted_bytes(score_service_session, tmp_path):
-    from app.processing.musicxml.admission import admit_musicxml_document
-
-    session, storage = score_service_session
-    session.add(
-        ImportJob(id=10, job_uuid="sync-admission", user_id=1, state=ImportJobState.RUNNING)
-    )
-    session.commit()
-    path = tmp_path / "upstream.musicxml"
-    path.write_bytes(MATERIALIZING_XML.encode())
-    admitted = admit_musicxml_document(path.read_bytes())
-    with patch.object(storage, "put_bytes", wraps=storage.put_bytes) as put:
-        service = SyncConfirmedScoreCreationService(storage)
-        result = service.create_confirmed_from_job(
-            session, "sync-admission", str(path), title="Admission"
-        )
-        assert (
-            service.create_confirmed_from_job(
-                session, "sync-admission", str(path), title="Admission"
-            )
-            == result
-        )
-        put.assert_called_once()
-        assert put.call_args.kwargs["content"] == admitted
-    revision = one_row(session, ScoreRevision)
-    source = one_row(session, ScoreRevisionSource)
-    assert (
-        revision.content_hash == source.stored_object.sha256 == hashlib.sha256(admitted).hexdigest()
-    )
-    assert storage.read_bytes(source.stored_object.object_key) == admitted
-
-
 @pytest.mark.asyncio
 async def test_admitted_revision_survives_unsupported_metadata_projection(score_service_session):
     from app.processing.musicxml.admission import admit_musicxml_document
@@ -2868,6 +2738,9 @@ async def test_admitted_revision_survives_unsupported_metadata_projection(score_
     score = one_row(session, Score, score_uuid=result.score_id)
     revision = session.get(ScoreRevision, score.head_revision_id)
     source = one_row(session, ScoreRevisionSource, revision_id=revision.id)
+    from tests.support.revision_metadata import drain_revision_metadata
+
+    assert all(r["status"] == "completed" for r in drain_revision_metadata(session, storage))
     projection = session.get(ScoreRevisionMetadata, revision.id)
     assert storage.read_bytes(source.stored_object.object_key) == admitted
     assert revision.content_hash == hashlib.sha256(admitted).hexdigest()
