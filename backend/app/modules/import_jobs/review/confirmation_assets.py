@@ -23,7 +23,7 @@ from app.db.models import (
 )
 from app.db.models.score import RenderAssetKind, ScoreInputAssetPurpose
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
-from app.storage import ObjectStorage
+from app.storage import AsyncObjectStorage
 
 
 @dataclass(frozen=True)
@@ -41,7 +41,12 @@ class ReviewThumbnailWrite:
 
 
 async def prewrite_review_thumbnail(
-    db: AsyncSession, *, storage: ObjectStorage, job_id: int, score_uuid: str, revision_uuid: str
+    db: AsyncSession,
+    *,
+    storage: AsyncObjectStorage,
+    job_id: int,
+    score_uuid: str,
+    revision_uuid: str,
 ) -> ReviewThumbnailWrite | None:
     thumbnail = (
         await db.execute(
@@ -56,7 +61,7 @@ async def prewrite_review_thumbnail(
     ).scalar_one_or_none()
     if thumbnail is None:
         return None
-    content = storage.read_bytes(thumbnail.stored_object.object_key)
+    content = await storage.read_bytes(thumbnail.stored_object.object_key)
     artifact_uuid = str(uuid.uuid4())
     extension = "." + thumbnail.filename.rsplit(".", 1)[-1] if "." in thumbnail.filename else ".svg"
     written = await write_object_async(

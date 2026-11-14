@@ -14,7 +14,7 @@ from app.db.models import User
 from app.modules.storage_objects.writes import write_object_async, adopt_written_object
 from app.modules.account.avatar_presentation import avatar_url_for_user
 from app.modules.storage_objects.retirement import retire_after_release
-from app.storage import ObjectStorage, object_storage
+from app.storage import ObjectStorage, object_storage, AsyncObjectStorage
 
 
 def avatar_object_key(filename: str) -> str:
@@ -30,6 +30,7 @@ class AvatarService:
 
     def __init__(self, storage: ObjectStorage | None = None) -> None:
         self.storage = storage or object_storage
+        self.async_storage = AsyncObjectStorage(self.storage)
 
     def is_allowed_extension(self, filename: str) -> bool:
         if "." not in filename:
@@ -90,7 +91,7 @@ class AvatarService:
             file_bytes=file_bytes, filename=filename, user_id=user_id
         )
         written = await write_object_async(
-            db, self.storage, key=key, content=content, content_type="image/jpeg"
+            db, self.async_storage, key=key, content=content, content_type="image/jpeg"
         )
         user = (
             await db.execute(
@@ -126,14 +127,14 @@ class AvatarService:
 
     async def clear_missing_avatar_reference(self, db: AsyncSession, user: User) -> bool:
         current = user.avatar_object
-        if current is None or self.avatar_exists(current.object_key.rsplit("/", 1)[-1]):
+        if current is None or (await self.avatar_exists(current.object_key.rsplit("/", 1)[-1])):
             return False
         await self.clear_user_avatar(db, user)
         return True
 
-    def avatar_exists(self, filename: str) -> bool:
+    async def avatar_exists(self, filename: str) -> bool:
         try:
-            return self.storage.exists(avatar_object_key(filename))
+            return await self.async_storage.exists(avatar_object_key(filename))
         except Exception as exc:
             logger.bind(
                 event="account.avatar.exists_check_failed",

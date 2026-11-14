@@ -10,6 +10,7 @@ import { useDropzone } from 'react-dropzone';
 import { UploadPreviewDialog } from './upload-preview-dialog';
 import { InlineLoading } from '@/components/loading';
 import { LoadingSpinner } from '@/components/loading';
+import { RECOMMENDED_SCORE_IMAGE_ACCEPT } from '@/lib/upload/recommended-score-images';
 import type { UploadableFile } from '@/lib/upload/upload-workflow';
 import {
   AlertDialog,
@@ -66,7 +67,7 @@ export function UploadForm(props: UploadFormProps) {
   const [previewStartIndex, setPreviewStartIndex] = useState(0);
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop: props.onFilesAdded,
-    accept: { 'image/*': ['.png', '.jpg', '.jpeg', '.bmp'] },
+    accept: RECOMMENDED_SCORE_IMAGE_ACCEPT,
     noClick: props.files.length > 0,
     noKeyboard: true,
     noPaste: true,

@@ -46,12 +46,12 @@ async def stream_score_revision_playback(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     delivery = await service.score_revision_delivery(db, score_id, revision_id, user_id)
-    return _stream(delivery, service, request)
+    return await _stream(delivery, service, request)
 
 
-def _stream(delivery, service: PlaybackDeliveryService, request: Request):
-    return stream_storage_object(
-        storage=service.storage,
+async def _stream(delivery, service: PlaybackDeliveryService, request: Request):
+    return await stream_storage_object(
+        storage=service.async_storage,
         storage_key=delivery.storage_key,
         filename=delivery.filename,
         media_type=delivery.media_type,

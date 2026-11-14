@@ -1,4 +1,5 @@
 from __future__ import annotations
+from tests.support.images import image_bytes
 
 import os
 import io
@@ -71,15 +72,6 @@ class FakeS3NotFound(Exception):
     response = {"Error": {"Code": "NoSuchKey"}}
 
 
-def test_allowed_file_accepts_supported_extensions() -> None:
-    service = FilesService(repository=Mock())
-
-    assert service.allowed_file("score.png") is True
-    assert service.allowed_file("score.TIFF") is True
-    assert service.allowed_file("score.pdf") is False
-    assert service.allowed_file("score") is False
-
-
 def test_object_storage_put_and_materialize() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
         storage = InMemoryObjectStorage()
@@ -149,7 +141,8 @@ def test_artifact_recorder_persists_intent_before_upload(
 
 
 @pytest.mark.parametrize("mode", ("RGB", "RGBA", "L"))
-def test_avatar_service_stores_processed_image_through_storage(mode: str) -> None:
+@pytest.mark.asyncio
+async def test_avatar_service_stores_processed_image_through_storage(mode: str) -> None:
     with tempfile.TemporaryDirectory():
         storage = InMemoryObjectStorage()
         service = AvatarService(storage=storage)
@@ -179,19 +172,20 @@ def test_avatar_service_stores_processed_image_through_storage(mode: str) -> Non
         assert not storage.exists(avatar_key)
         storage.put_bytes(key=avatar_key, content=avatar_bytes, content_type="image/jpeg")
         with patch.object(storage, "exists", wraps=storage.exists) as exists:
-            assert service.avatar_exists(filename)
+            assert await service.avatar_exists(filename)
             exists.assert_called_once_with(f"avatars/{filename}")
         with patch.object(storage, "delete", wraps=storage.delete) as delete:
             assert storage.delete(f"avatars/{filename}") is True
             delete.assert_called_once_with(f"avatars/{filename}")
 
 
-def test_avatar_service_detects_missing_local_avatar() -> None:
+@pytest.mark.asyncio
+async def test_avatar_service_detects_missing_local_avatar() -> None:
     with tempfile.TemporaryDirectory():
         storage = InMemoryObjectStorage()
         service = AvatarService(storage=storage)
 
-        assert service.avatar_exists("missing.jpg") is False
+        assert await service.avatar_exists("missing.jpg") is False
 
 
 def test_profile_payload_does_not_repair_missing_avatar_reference() -> None:
@@ -426,15 +420,15 @@ async def test_file_upload_reuses_committed_exact_object_without_rewriting(score
     await service.upload_file(
         AsyncSessionAdapter(session),
         user,
-        UploadFile(filename="first.png", file=io.BytesIO(b"score")),
+        UploadFile(filename="first.png", file=io.BytesIO(image_bytes())),
     )
     storage.put_bytes = Mock(wraps=storage.put_bytes)
     second = await service.upload_file(
         AsyncSessionAdapter(session),
         user,
-        UploadFile(filename="second.png", file=io.BytesIO(b"score")),
+        UploadFile(filename="second.png", file=io.BytesIO(image_bytes())),
     )
-    assert second.size == 5 and storage.put_bytes.call_count == 0
+    assert second.size == len(image_bytes()) and storage.put_bytes.call_count == 0
     assert len({row.stored_object_id for row in session.scalars(select(Upload))}) == 1
 
 
@@ -554,7 +548,10 @@ async def test_avatar_response_url_routes_to_current_customer_resolver(
             assert redirect.status_code == 307
             assert redirect.content == b""
             assert redirect.headers["location"] == capability
-        assert storage.download_url.call_args_list == [call(key, content_type="image/jpeg")] * 2
+        assert (
+            storage.download_url.call_args_list
+            == [call(key, filename=None, content_type="image/jpeg", expires_seconds=None)] * 2
+        )
         assert storage.object_metadata(key).content_type == "image/jpeg"
         storage.delete(key)
         assert (await client.get(url)).status_code == 404

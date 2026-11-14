@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.storage import AsyncObjectStorage
 
 from dataclasses import dataclass
 
@@ -59,6 +60,7 @@ class ImportJobService:
         self.read_model = read_model or ImportJobReadModel(self.repository)
         self.submission_service = submission_service or ImportJobSubmissionService(self.repository)
         self.storage = storage or object_storage
+        self.async_storage = AsyncObjectStorage(self.storage)
         self.deletion_service = deletion_service or ImportJobDeletionService()
 
     async def submit(
@@ -171,7 +173,7 @@ class ImportJobService:
             raise ResourceNotFoundException(
                 "import_artifact", artifact_uuid, ErrorCode.FILE_NOT_FOUND
             )
-        if not self.storage.exists(artifact.stored_object.object_key):
+        if not (await self.async_storage.exists(artifact.stored_object.object_key)):
             raise FileException(ErrorCode.FILE_NOT_FOUND, artifact.stored_object.object_key)
         media_type = artifact.stored_object.content_type or "application/octet-stream"
         return ImportArtifactDelivery(
@@ -209,7 +211,7 @@ class ImportJobService:
                 "import_upload", artifact_uuid, ErrorCode.FILE_NOT_FOUND
             )
         _, upload, blob = row
-        if not self.storage.exists(blob.object_key):
+        if not (await self.async_storage.exists(blob.object_key)):
             raise FileException(ErrorCode.FILE_NOT_FOUND, blob.object_key)
         media_type = blob.content_type or "application/octet-stream"
         filename = upload.original_filename

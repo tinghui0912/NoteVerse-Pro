@@ -1,0 +1,229 @@
+"""Content-verified Upload facts and bounded admission before durable prewrite."""
+
+import asyncio
+import io
+import threading
+from unittest.mock import Mock
+
+import pytest
+from fastapi import UploadFile
+from sqlalchemy import select
+from starlette.datastructures import Headers
+
+from app.core.exceptions import ValidationException
+from app.db.models import ObjectWriteIntent, StoredObject, StorageUsageReservation, Upload, User
+from app.modules.files.service import FilesService
+from app.modules.files.upload_admission import (
+    MAX_SCORE_IMPORT_UPLOAD_BYTES,
+    admit_score_import_image,
+    read_score_import_upload,
+)
+from app.storage import AsyncObjectStorage
+from tests.support.images import image_bytes
+from tests.support.object_storage import InMemoryObjectStorage
+from tests.test_score_revision_services import AsyncSessionAdapter
+from tests.test_score_revision_services import score_service_session as score_service_session
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "container,suffix,mime,canonical",
+    [
+        ("PNG", "png", "image/png", "png"),
+        ("JPEG", "jpg", "image/jpeg", "jpg"),
+        ("JPEG", "jpeg", "image/jpeg", "jpg"),
+        ("BMP", "bmp", "image/bmp", "bmp"),
+        ("GIF", "gif", "image/gif", "gif"),
+        ("WEBP", "webp", "image/webp", "webp"),
+        ("TIFF", "tif", "image/tiff", "tiff"),
+        ("TIFF", "tiff", "image/tiff", "tiff"),
+    ],
+)
+async def test_upload_records_detected_container_facts(
+    score_service_session, container, suffix, mime, canonical
+):
+    db, storage = score_service_session
+    content = image_bytes(container)
+    filename = f"original.{suffix}"
+    result = await FilesService(storage=storage).upload_file(
+        AsyncSessionAdapter(db),
+        db.get(User, 1),
+        UploadFile(
+            filename=filename,
+            file=io.BytesIO(content),
+            headers=Headers({"content-type": "text/plain"}),
+        ),
+    )
+    upload = db.scalar(select(Upload))
+    obj = db.scalar(select(StoredObject))
+    intent = db.scalar(select(ObjectWriteIntent))
+    assert upload.original_filename == result.filename == filename
+    assert obj.content_type == intent.content_type == mime
+    assert obj.object_key == intent.object_key and obj.object_key.endswith(f".{canonical}")
+    assert storage.read_bytes(obj.object_key) == content
+
+
+@pytest.mark.parametrize(
+    "content,filename",
+    [
+        (b"", "empty.png"),
+        (b"not an image", "fake.png"),
+        (image_bytes()[:35], "corrupt.png"),
+        (image_bytes("PNG"), "score.jpg"),
+        (image_bytes("JPEG"), "score.png"),
+        (b"%PDF-1.7", "score.pdf"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_invalid_images_have_no_durable_admission(score_service_session, content, filename):
+    db, storage = score_service_session
+    with pytest.raises(ValidationException):
+        await FilesService(storage=storage).upload_file(
+            AsyncSessionAdapter(db),
+            db.get(User, 1),
+            UploadFile(filename=filename, file=io.BytesIO(content)),
+        )
+    for model in (Upload, ObjectWriteIntent, StorageUsageReservation):
+        assert db.scalar(select(model)) is None
+    assert not storage.objects
+
+
+@pytest.mark.asyncio
+async def test_bounded_reader_accepts_exact_limit_and_reads_only_limit_plus_one():
+    from unittest.mock import AsyncMock
+
+    exact = image_bytes()
+    exact += b"\0" * (MAX_SCORE_IMPORT_UPLOAD_BYTES - len(exact))
+    reader = AsyncMock(return_value=exact)
+    content = await read_score_import_upload(type("Input", (), {"read": reader})())
+    assert admit_score_import_image(content, "score.png").container == "PNG"
+    reader.assert_awaited_once_with(MAX_SCORE_IMPORT_UPLOAD_BYTES + 1)
+
+
+@pytest.mark.asyncio
+async def test_oversize_is_rejected_before_quota_or_object_prewrite(score_service_session):
+    db, storage = score_service_session
+    with pytest.raises(ValidationException):
+        await FilesService(storage=storage).upload_file(
+            AsyncSessionAdapter(db),
+            db.get(User, 1),
+            UploadFile(
+                filename="large.png", file=io.BytesIO(b"x" * (MAX_SCORE_IMPORT_UPLOAD_BYTES + 1))
+            ),
+        )
+    for model in (Upload, ObjectWriteIntent, StorageUsageReservation):
+        assert db.scalar(select(model)) is None
+    assert not storage.objects
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mime", ["text/plain", "image/jpeg", "application/octet-stream"])
+async def test_client_mime_cannot_override_detected_png(score_service_session, mime):
+    db, storage = score_service_session
+    await FilesService(storage=storage).upload_file(
+        AsyncSessionAdapter(db),
+        db.get(User, 1),
+        UploadFile(
+            filename="score.png",
+            file=io.BytesIO(image_bytes()),
+            headers=Headers({"content-type": mime}),
+        ),
+    )
+    assert db.scalar(select(StoredObject)).content_type == "image/png"
+
+
+@pytest.mark.asyncio
+async def test_jpeg_aliases_share_one_physical_object_and_preserve_names(score_service_session):
+    db, storage = score_service_session
+    storage.put_bytes = Mock(wraps=storage.put_bytes)
+    service = FilesService(storage=storage)
+    for name in ("first.jpg", "second.jpeg"):
+        await service.upload_file(
+            AsyncSessionAdapter(db),
+            db.get(User, 1),
+            UploadFile(filename=name, file=io.BytesIO(image_bytes("JPEG"))),
+        )
+    uploads = list(db.scalars(select(Upload).order_by(Upload.id)))
+    assert [row.original_filename for row in uploads] == ["first.jpg", "second.jpeg"]
+    assert uploads[0].stored_object_id == uploads[1].stored_object_id
+    assert len(list(db.scalars(select(StoredObject)))) == 1
+    assert storage.put_bytes.call_count == 1
+    assert uploads[0].stored_object.object_key.endswith(".jpg")
+
+
+@pytest.mark.asyncio
+async def test_async_upload_read_metadata_and_presign_execute_off_event_loop(score_service_session):
+    db, storage = score_service_session
+    loop_thread = threading.get_ident()
+    called = []
+    for name in ("put_bytes", "read_bytes", "size_bytes", "download_url"):
+        original = getattr(storage, name)
+
+        def observe(*args, _method=original, _name=name, **kwargs):
+            called.append((_name, threading.get_ident()))
+            return _method(*args, **kwargs)
+
+        setattr(storage, name, observe)
+    service = FilesService(storage=storage)
+    await service.upload_file(
+        AsyncSessionAdapter(db),
+        db.get(User, 1),
+        UploadFile(filename="score.png", file=io.BytesIO(image_bytes())),
+    )
+    key = db.scalar(select(StoredObject)).object_key
+    assert await service.async_storage.read_bytes(key) == image_bytes()
+    assert await service.async_storage.size_bytes(key) == len(image_bytes())
+    from app.modules.model_assets.service import ModelAssetService
+    from app.api.storage_streaming import stream_storage_object
+
+    await ModelAssetService(storage=storage).get_practice_acoustic_access()
+    original_iter = storage.iter_bytes
+
+    def streaming(*args, **kwargs):
+        called.append(("iter_bytes", threading.get_ident()))
+        yield from original_iter(*args, **kwargs)
+
+    storage.iter_bytes = streaming
+    response = await stream_storage_object(
+        storage=service.async_storage,
+        storage_key=key,
+        filename="score.png",
+        media_type="image/png",
+        attachment=False,
+    )
+    assert b"".join([chunk async for chunk in response.body_iterator]) == image_bytes()
+    assert {name for name, _ in called} == {
+        "put_bytes",
+        "read_bytes",
+        "size_bytes",
+        "download_url",
+        "iter_bytes",
+    }
+    assert all(thread != loop_thread for _, thread in called)
+
+
+@pytest.mark.asyncio
+async def test_adapter_cancellation_waits_for_physical_mutation_to_settle():
+    storage = InMemoryObjectStorage()
+    entered, release = threading.Event(), threading.Event()
+    original = storage.put_bytes
+
+    def put(**kwargs):
+        entered.set()
+        assert release.wait(10)
+        return original(**kwargs)
+
+    storage.put_bytes = put
+    task = asyncio.create_task(
+        AsyncObjectStorage(storage).put_bytes(key="cancelled", content=b"bytes")
+    )
+    try:
+        assert await asyncio.to_thread(entered.wait, 5)
+        task.cancel()
+        await asyncio.sleep(0)
+        assert not task.done()
+    finally:
+        release.set()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert storage.read_bytes("cancelled") == b"bytes"

@@ -125,8 +125,10 @@ async def read_avatar(
         .join(User, User.avatar_object_id == StoredObject.id)
         .where(StoredObject.object_key == avatar_object_key(filename))
     )
-    if current is None or not avatar_service.avatar_exists(filename):
+    if current is None or not await avatar_service.avatar_exists(filename):
         raise ResourceNotFoundException("avatar", filename)
     return RedirectResponse(
-        avatar_service.storage.download_url(current.object_key, content_type=current.content_type)
+        await avatar_service.async_storage.download_url(
+            current.object_key, content_type=current.content_type
+        )
     )

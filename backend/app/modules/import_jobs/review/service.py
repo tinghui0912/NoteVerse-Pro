@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.storage import AsyncObjectStorage
 from app.modules.storage_objects.retirement import retire_after_release
 from app.modules.storage_objects.writes import write_object_async, adopt_written_object
 
@@ -66,6 +67,7 @@ class ImportReviewService:
         read_model: ImportReviewReadModel | None = None,
     ) -> None:
         self.storage = storage or object_storage
+        self.async_storage = AsyncObjectStorage(self.storage)
         self.score_repository = score_repository or ScoreRepository()
         self.read_model = read_model or ImportReviewReadModel(self.storage)
 
@@ -139,14 +141,14 @@ class ImportReviewService:
         try:
             stored = await write_object_async(
                 db,
-                self.storage,
+                self.async_storage,
                 key=key,
                 content=content,
                 content_type="application/vnd.recordare.musicxml+xml",
             )
             thumbnail_write = await prewrite_review_thumbnail(
                 db,
-                storage=self.storage,
+                storage=self.async_storage,
                 job_id=require_persisted_id(job.id, entity="import job"),
                 score_uuid=score_uuid,
                 revision_uuid=revision_uuid,
@@ -310,7 +312,7 @@ class ImportReviewService:
 
         stored = await write_object_async(
             db,
-            self.storage,
+            self.async_storage,
             key=f"jobs/{job_uuid}/{ImportArtifactKind.REVIEW_MUSICXML.value}/{uuid.uuid4()}.musicxml",
             content=content,
             content_type="application/vnd.recordare.musicxml+xml",

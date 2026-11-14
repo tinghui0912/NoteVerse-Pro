@@ -1,3 +1,4 @@
+from tests.support.images import image_bytes
 from tests.support.import_execution import processing_lease
 from tests.support.derivative_execution import revision_attempt
 import hashlib
@@ -31,7 +32,8 @@ from tests.test_score_revision_services import (
 @pytest.mark.asyncio
 async def test_upload_dedup_is_owned_by_upload_references(score_service_session):
     db, storage = score_service_session
-    from app.db.models import User
+    from app.db.models import User, ScoreRenderAsset
+    from app.db.models.score import RenderAssetKind
 
     score = add_active_score_with_head_revision(
         db,
@@ -41,17 +43,19 @@ async def test_upload_dedup_is_owned_by_upload_references(score_service_session)
         revision_uuid="same-bytes-revision",
         title="Same bytes",
     )
-    key = "scores/same-bytes/source.musicxml"
-    mime = "application/vnd.recordare.musicxml+xml"
-    storage.put_bytes(key=key, content=MUSICXML_1, content_type=mime)
-    unrelated = object_from_bytes(object_key=key, content=MUSICXML_1, content_type=mime)
+    key = "scores/same-bytes/page.png"
+    mime = "image/png"
+    storage.put_bytes(key=key, content=image_bytes(), content_type=mime)
+    unrelated = object_from_bytes(object_key=key, content=image_bytes(), content_type=mime)
     db.add(
-        ScoreRevisionSource(
-            source_uuid="same-bytes-source",
+        ScoreRenderAsset(
+            asset_uuid="same-bytes-render",
             revision_id=score.head_revision_id,
-            format=RevisionSourceFormat.MUSICXML,
+            kind=RenderAssetKind.RENDERED_PAGE,
+            render_profile="default",
+            page_number=1,
             stored_object=unrelated,
-            filename="score.musicxml",
+            filename="page.png",
             generator="test",
             generator_version="1",
         )
@@ -62,12 +66,14 @@ async def test_upload_dedup_is_owned_by_upload_references(score_service_session)
     put = Mock(wraps=storage.put_bytes)
     storage.put_bytes = put
     first = await service.upload_file(
-        AsyncSessionAdapter(db), user, UploadFile(filename="first.png", file=io.BytesIO(MUSICXML_1))
+        AsyncSessionAdapter(db),
+        user,
+        UploadFile(filename="first.png", file=io.BytesIO(image_bytes())),
     )
     second = await service.upload_file(
         AsyncSessionAdapter(db),
         user,
-        UploadFile(filename="second.png", file=io.BytesIO(MUSICXML_1)),
+        UploadFile(filename="second.png", file=io.BytesIO(image_bytes())),
     )
     uploads = list(db.scalars(select(Upload).order_by(Upload.id)))
     assert [upload.original_filename for upload in uploads] == ["first.png", "second.png"]
@@ -85,7 +91,7 @@ async def test_upload_dedup_is_owned_by_upload_references(score_service_session)
     assert db.scalar(select(StoredObjectRetirement)).status == "PENDING"
     assert drain_retirements(db, storage)[0]["status"] == "completed"
     assert not storage.exists(physical_key)
-    assert storage.read_bytes(key) == MUSICXML_1
+    assert storage.read_bytes(key) == image_bytes()
     assert db.get(StoredObject, unrelated.id) is not None
 
 
@@ -138,7 +144,12 @@ async def test_avatar_reference_and_profile_use_immutable_processed_bytes(score_
     second_redirect = await read_avatar(second_name, AsyncSessionAdapter(db), service)
     assert first_redirect.headers["location"] != second_redirect.headers["location"]
     assert signed.call_count == 2
-    signed.assert_called_with(user.avatar_object.object_key, content_type="image/jpeg")
+    signed.assert_called_with(
+        user.avatar_object.object_key,
+        filename=None,
+        content_type="image/jpeg",
+        expires_seconds=None,
+    )
     assert avatar_url_for_user(user) == second_url
     current_id, current_key = user.avatar_object_id, user.avatar_object.object_key
     assert await service.clear_user_avatar(AsyncSessionAdapter(db), user)
@@ -288,7 +299,9 @@ async def test_upload_release_succeeds_while_score_source_retains_exact_object(
     user = db.get(User, 1)
     service = FilesService(storage=storage)
     response = await service.upload_file(
-        AsyncSessionAdapter(db), user, UploadFile(filename="score.png", file=io.BytesIO(MUSICXML_1))
+        AsyncSessionAdapter(db),
+        user,
+        UploadFile(filename="score.png", file=io.BytesIO(image_bytes())),
     )
     upload = db.scalar(select(Upload))
     identity, key = upload.stored_object_id, upload.stored_object.object_key

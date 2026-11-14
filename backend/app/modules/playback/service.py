@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.storage import AsyncObjectStorage
 from app.modules.storage_objects.retirement import retire_after_release, retire_released_objects
 
 from app.modules.storage_objects.writes import (
@@ -54,6 +55,7 @@ class PlaybackGenerationService:
         asset_repository: ScoreAssetRepository | None = None,
     ) -> None:
         self.storage = storage or object_storage
+        self.async_storage = AsyncObjectStorage(self.storage)
         self.renderer = renderer or FluidSynthAudioRenderer()
         self.asset_repository = asset_repository or ScoreAssetRepository()
 
@@ -97,12 +99,12 @@ class PlaybackGenerationService:
         if source is None:
             raise ResourceNotFoundException("source", revision_uuid, ErrorCode.FILE_NOT_FOUND)
 
-        source_content = self.storage.read_bytes(source.stored_object.object_key)
+        source_content = await self.async_storage.read_bytes(source.stored_object.object_key)
         audio = self.renderer.render(source_content)
         asset_uuid = str(uuid.uuid4())
         stored = await write_object_async(
             db,
-            self.storage,
+            self.async_storage,
             key=playback_storage_key(
                 score_uuid=score_uuid,
                 revision_uuid=revision_uuid,

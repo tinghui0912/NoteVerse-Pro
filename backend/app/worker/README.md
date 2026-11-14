@@ -4,6 +4,13 @@ The Worker package is split by runtime responsibility. Keep these boundaries
 small and explicit so Celery task names stay stable while business execution can
 evolve independently.
 
+Workers retain the synchronous ObjectStorage port. Async HTTP application services
+use AsyncObjectStorage over the same configured namespace; this scheduling boundary
+does not change worker delivery, quota or media-domain semantics. Server writers
+share generation admission/finalization across sync and async execution. An async
+put retains its exact intent lock until the provider call settles, including when
+the request is cancelled. Adopted object deletion remains retirement-owned.
+
 ## Package ownership
 
 | Path                               | Owns                                                                                                                                                                                                                        | Should not own                                                                                                              |

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.storage import AsyncObjectStorage
 from app.modules.storage_objects.writes import write_object_async
 
 import hashlib
@@ -55,6 +56,7 @@ class RevisionService:
         self.repository = repository or ScoreRepository()
         self.asset_repository = asset_repository or ScoreAssetRepository()
         self.storage = storage or object_storage
+        self.async_storage = AsyncObjectStorage(self.storage)
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.read_model = read_model or RevisionReadModel()
 
@@ -114,7 +116,7 @@ class RevisionService:
         try:
             receipt = await write_object_async(
                 db,
-                self.storage,
+                self.async_storage,
                 key=f"scores/{score_uuid}/revisions/{revision_uuid}/score.musicxml",
                 content=content,
                 content_type="application/vnd.recordare.musicxml+xml",
@@ -193,7 +195,9 @@ class RevisionService:
         )
         if source is None:
             raise ResourceNotFoundException("source", revision_uuid, ErrorCode.FILE_NOT_FOUND)
-        content = admit_musicxml_document(self.storage.read_bytes(source.stored_object.object_key))
+        content = admit_musicxml_document(
+            (await self.async_storage.read_bytes(source.stored_object.object_key))
+        )
         return await self._append(
             db,
             score_uuid,
@@ -272,7 +276,9 @@ class RevisionService:
         )
         if not source:
             raise ResourceNotFoundException("source", revision_uuid, ErrorCode.FILE_NOT_FOUND)
-        content = self.storage.read_bytes(source.stored_object.object_key).decode("utf-8")
+        content = (await self.async_storage.read_bytes(source.stored_object.object_key)).decode(
+            "utf-8"
+        )
         base = await self._read(db, revision)
         return RevisionContentRead(
             **base.model_dump(), content=content, mime_type=source.stored_object.content_type

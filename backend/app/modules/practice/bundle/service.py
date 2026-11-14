@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.storage import AsyncObjectStorage
 
 import asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -40,6 +41,7 @@ class PracticeBundleService:
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.asset_repository = asset_repository or ScoreAssetRepository()
         self.storage = storage or object_storage
+        self.async_storage = AsyncObjectStorage(self.storage)
         self.compiler = compiler or PracticeBundleCompiler()
         self.repository = repository or PracticeBundleRepository(self.storage)
 
@@ -57,9 +59,7 @@ class PracticeBundleService:
             if source is None:
                 raise ResourceNotFoundException("source", revision_uuid, ErrorCode.FILE_NOT_FOUND)
             try:
-                canonical = await asyncio.to_thread(
-                    self.storage.read_bytes, source.stored_object.object_key
-                )
+                canonical = await self.async_storage.read_bytes(source.stored_object.object_key)
                 candidate = await asyncio.to_thread(
                     self.compiler.compile, canonical_musicxml=canonical
                 )

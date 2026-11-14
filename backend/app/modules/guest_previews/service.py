@@ -1,3 +1,4 @@
+from app.storage import AsyncObjectStorage
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
@@ -30,6 +31,7 @@ class GuestPreviewService:
         access_policy: ScoreAccessPolicy | None = None,
     ) -> None:
         self.storage = storage or object_storage
+        self.async_storage = AsyncObjectStorage(self.storage)
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.assets = ScoreAssetRepository()
         self.playback = PlaybackDeliveryReadModel(
@@ -90,10 +92,11 @@ class GuestPreviewService:
             render_assets=[
                 GuestPreviewPageRead(asset_id=a.asset_uuid, page_number=a.page_number)
                 for a in pages
-                if a.page_number is not None and self.storage.exists(a.stored_object.object_key)
+                if a.page_number is not None
+                and (await self.async_storage.exists(a.stored_object.object_key))
             ],
             audio_available=audio is not None
-            and self.storage.exists(audio.stored_object.object_key),
+            and (await self.async_storage.exists(audio.stored_object.object_key)),
         )
 
     async def image(self, db: AsyncSession, token: str, asset_uuid: str) -> ScoreAssetDelivery:
@@ -103,7 +106,7 @@ class GuestPreviewService:
             asset is None
             or asset.revision_id != revision.id
             or asset.kind != RenderAssetKind.RENDERED_PAGE
-            or not self.storage.exists(asset.stored_object.object_key)
+            or not (await self.async_storage.exists(asset.stored_object.object_key))
         ):
             raise ResourceNotFoundException("render_asset", code=ErrorCode.FILE_NOT_FOUND)
         return ScoreAssetDelivery(

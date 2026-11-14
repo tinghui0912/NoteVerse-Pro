@@ -4122,8 +4122,8 @@ def test_final_blob_sha_is_the_complete_candidate_and_actual_object_digest(test_
     hashes = {}
     original = module._sha256_storage_object
 
-    def record(storage, key):
-        result = original(storage, key)
+    async def record(storage, key):
+        result = await original(storage, key)
         hashes[key] = result
         return result
 

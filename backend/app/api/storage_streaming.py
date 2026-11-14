@@ -7,7 +7,7 @@ from urllib.parse import quote
 from fastapi import Request, status
 from fastapi.responses import Response, StreamingResponse
 
-from app.storage import ObjectStorage
+from app.storage import AsyncObjectStorage
 
 DEFAULT_STREAM_CHUNK_SIZE = 1024 * 1024
 
@@ -18,9 +18,9 @@ class ByteRange:
     end: int
 
 
-def stream_storage_object(
+async def stream_storage_object(
     *,
-    storage: ObjectStorage,
+    storage: AsyncObjectStorage,
     storage_key: str,
     filename: str,
     media_type: str,
@@ -29,7 +29,7 @@ def stream_storage_object(
     enable_range: bool = False,
     chunk_size: int = DEFAULT_STREAM_CHUNK_SIZE,
 ) -> Response:
-    size = storage.size_bytes(storage_key)
+    size = await storage.size_bytes(storage_key)
     headers = {
         "Content-Disposition": _content_disposition(filename, attachment=attachment),
         "Content-Length": str(size),

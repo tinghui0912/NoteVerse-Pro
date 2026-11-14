@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import json
 from datetime import timedelta
 from enum import Enum
@@ -20,6 +19,7 @@ from app.db.models.practice_bundle import (
 )
 from app.shared.constants import ErrorCode
 from app.storage.base import ObjectStorage
+from app.storage import AsyncObjectStorage
 from app.utils.timezone import utc_now_naive
 from app.modules.practice.score.artifact import (
     canonical_practice_artifact_bytes,
@@ -46,6 +46,7 @@ class BundleRowLock(Enum):
 class PracticeBundleRepository:
     def __init__(self, storage: ObjectStorage):
         self.storage = storage
+        self.async_storage = AsyncObjectStorage(storage)
 
     @staticmethod
     def _reference(bundle: PracticeBundleRecord) -> PracticeBundleRef:
@@ -177,13 +178,13 @@ class PracticeBundleRepository:
                 ]:
                     receipt = await write_object_async(
                         db,
-                        self.storage,
+                        self.async_storage,
                         key=f"practice-bundles/{bundle.bundle_id}/{suffix}",
                         content=representation.data,
                         content_type=representation.mime_type,
                     )
                     if (
-                        await asyncio.to_thread(self.storage.read_bytes, receipt.object_key)
+                        await self.async_storage.read_bytes(receipt.object_key)
                         != representation.data
                     ):
                         raise ValueError("Practice bundle storage read-back mismatch")
@@ -294,13 +295,11 @@ class PracticeBundleRepository:
                 details={"reason": "representation_type_mismatch"},
             )
         xml = PracticeBundleRepresentation(
-            await asyncio.to_thread(
-                self.storage.read_bytes, row.prepared_musicxml_object.object_key
-            ),
+            await self.async_storage.read_bytes(row.prepared_musicxml_object.object_key),
             "application/vnd.recordare.musicxml+xml",
         )
         data = PracticeBundleRepresentation(
-            await asyncio.to_thread(self.storage.read_bytes, row.artifact_object.object_key),
+            await self.async_storage.read_bytes(row.artifact_object.object_key),
             "application/json",
         )
         for representation, expected_sha, expected_size, reason in [

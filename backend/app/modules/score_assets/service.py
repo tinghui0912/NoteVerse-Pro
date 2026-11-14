@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.storage import AsyncObjectStorage
 
 from dataclasses import dataclass
 import io
@@ -42,6 +43,7 @@ class ScoreAssetService:
         self.repository = repository or ScoreAssetRepository()
         self.score_repository = score_repository or ScoreRepository()
         self.storage = storage or object_storage
+        self.async_storage = AsyncObjectStorage(self.storage)
         self.access_policy = access_policy or ScoreAccessPolicy()
 
     async def list_revision_assets(
@@ -69,9 +71,10 @@ class ScoreAssetService:
         )
         render_assets = await self.repository.list_render_assets(db, revision_id)
         return ScoreRevisionAssetsRead(
-            revision_sources=[self._source_read(source, revision) for source in sources],
+            revision_sources=[(await self._source_read(source, revision)) for source in sources],
             render_assets=[
-                self._render_asset_read(render_asset, revision) for render_asset in render_assets
+                (await self._render_asset_read(render_asset, revision))
+                for render_asset in render_assets
             ],
         )
 
@@ -87,7 +90,7 @@ class ScoreAssetService:
             user_id,
             ScoreAction.DOWNLOAD,
         )
-        return self._delivery(source)
+        return await self._delivery(source)
 
     async def render_asset_delivery(
         self,
@@ -103,7 +106,7 @@ class ScoreAssetService:
             user_id,
             ScoreAction.DOWNLOAD if download else ScoreAction.VIEW,
         )
-        return self._delivery(render_asset)
+        return await self._delivery(render_asset)
 
     async def source_access_url(
         self,
@@ -117,7 +120,7 @@ class ScoreAssetService:
             user_id,
             ScoreAction.DOWNLOAD,
         )
-        return self._access_read(source, source.source_uuid, "revision-sources")
+        return await self._access_read(source, source.source_uuid, "revision-sources")
 
     async def render_asset_access_url(
         self,
@@ -131,7 +134,7 @@ class ScoreAssetService:
             user_id,
             ScoreAction.DOWNLOAD,
         )
-        return self._access_read(render_asset, render_asset.asset_uuid, "render-assets")
+        return await self._access_read(render_asset, render_asset.asset_uuid, "render-assets")
 
     async def render_asset_archive(
         self,
@@ -159,10 +162,10 @@ class ScoreAssetService:
         archive = io.BytesIO()
         with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as bundle:
             for render_asset in render_assets:
-                self._require_object(render_asset)
+                (await self._require_object(render_asset))
                 bundle.writestr(
                     render_asset.filename,
-                    self.storage.read_bytes(render_asset.stored_object.object_key),
+                    (await self.async_storage.read_bytes(render_asset.stored_object.object_key)),
                 )
         archive.seek(0)
         return archive, f"score-{score_uuid}-{kind.value.lower()}.zip"
@@ -235,18 +238,18 @@ class ScoreAssetService:
             revision_uuid=revision.revision_uuid,
         )
 
-    def _delivery(self, asset: ScoreAssetRecord) -> ScoreAssetDelivery:
-        self._require_object(asset)
+    async def _delivery(self, asset: ScoreAssetRecord) -> ScoreAssetDelivery:
+        (await self._require_object(asset))
         return ScoreAssetDelivery(
             filename=asset.filename,
             media_type=asset.stored_object.content_type,
             storage_key=asset.stored_object.object_key,
         )
 
-    def _access_read(
+    async def _access_read(
         self, asset: ScoreAssetRecord, asset_uuid: str, route_prefix: str
     ) -> AssetAccessRead:
-        self._require_object(asset)
+        (await self._require_object(asset))
         return AssetAccessRead(
             asset_id=asset_uuid,
             url=f"{CUSTOMER_API_PREFIX}/{route_prefix}/{asset_uuid}/download",
@@ -255,21 +258,21 @@ class ScoreAssetService:
             expires_in=None,
         )
 
-    def _require_object(self, asset: ScoreAssetRecord) -> None:
-        if not self.storage.exists(asset.stored_object.object_key):
+    async def _require_object(self, asset: ScoreAssetRecord) -> None:
+        if not (await self.async_storage.exists(asset.stored_object.object_key)):
             raise FileException(ErrorCode.FILE_NOT_FOUND, asset.stored_object.object_key)
 
-    def source_read(
+    async def source_read(
         self, source: ScoreRevisionSource, revision: ScoreRevision
     ) -> RevisionSourceRead:
-        return self._source_read(source, revision)
+        return await self._source_read(source, revision)
 
-    def render_asset_read(
+    async def render_asset_read(
         self, render_asset: ScoreRenderAsset, revision: ScoreRevision
     ) -> RenderAssetRead:
-        return self._render_asset_read(render_asset, revision)
+        return await self._render_asset_read(render_asset, revision)
 
-    def _source_read(
+    async def _source_read(
         self, source: ScoreRevisionSource, revision: ScoreRevision
     ) -> RevisionSourceRead:
         return RevisionSourceRead(
@@ -280,10 +283,10 @@ class ScoreAssetService:
             mime_type=source.stored_object.content_type,
             size_bytes=source.stored_object.byte_size,
             created_at=source.created_at,
-            available=self.storage.exists(source.stored_object.object_key),
+            available=(await self.async_storage.exists(source.stored_object.object_key)),
         )
 
-    def _render_asset_read(
+    async def _render_asset_read(
         self, render_asset: ScoreRenderAsset, revision: ScoreRevision
     ) -> RenderAssetRead:
         return RenderAssetRead(
@@ -295,5 +298,5 @@ class ScoreAssetService:
             size_bytes=render_asset.stored_object.byte_size,
             page_number=render_asset.page_number,
             created_at=render_asset.created_at,
-            available=self.storage.exists(render_asset.stored_object.object_key),
+            available=(await self.async_storage.exists(render_asset.stored_object.object_key)),
         )

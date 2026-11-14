@@ -7,6 +7,7 @@ from datetime import timedelta
 from threading import Event
 
 import pytest
+from tests.support.images import image_bytes
 import pytest_asyncio
 from fastapi import UploadFile
 from starlette.datastructures import Headers
@@ -35,7 +36,8 @@ from app.worker.execution import stored_object_retirement as worker
 from app.utils.timezone import utc_now_naive
 
 pytest_plugins = ["tests.test_practice_bundle_postgres"]
-CONTENT = b"immutable image bytes"
+
+CONTENT = image_bytes()
 
 
 @pytest_asyncio.fixture

@@ -25,6 +25,7 @@ from tests.test_stored_object_retirement_postgres import (
     assert_blocked,
 )
 from tests.test_object_write_intents import facts
+from tests.support.images import image_bytes
 
 pytest_plugins = ["tests.test_practice_bundle_postgres"]
 
@@ -288,7 +289,7 @@ async def test_two_equal_files_uploads_share_key_and_both_commit(retirement_post
                 FilesService(storage=storage).upload_file(
                     AsyncSessionAdapter(db),
                     user,
-                    UploadFile(filename=name, file=io.BytesIO(b"same bytes")),
+                    UploadFile(filename=name, file=io.BytesIO(image_bytes())),
                 )
             )
 
@@ -304,7 +305,7 @@ async def test_two_equal_files_uploads_share_key_and_both_commit(retirement_post
         assert len({row.stored_object_id for row in uploads}) == 1
         assert (
             intents[0].status == "ADOPTED"
-            and storage.read_bytes(objects[0].object_key) == b"same bytes"
+            and storage.read_bytes(objects[0].object_key) == image_bytes()
         )
 
 

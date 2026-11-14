@@ -1,9 +1,9 @@
 import hashlib
+import asyncio
 
 from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
 from app.core.exceptions import (
     ConflictException,
     FileException,
@@ -19,7 +19,8 @@ from app.modules.storage_objects.writes import write_object_async, adopt_written
 from app.modules.files.schemas import UploadFileRead
 from app.modules.storage_usage.service import storage_usage_service
 from app.shared.constants import ErrorCode
-from app.storage import ObjectStorage, object_storage
+from app.storage import ObjectStorage, object_storage, AsyncObjectStorage
+from app.modules.files.upload_admission import read_score_import_upload, admit_score_import_image
 
 
 def blob_object_key(sha256: str, extension: str) -> str:
@@ -34,28 +35,18 @@ class FilesService:
     ) -> None:
         self.repository = repository or FilesRepository()
         self.storage = storage or object_storage
-
-    @staticmethod
-    def allowed_file(filename: str) -> bool:
-        return "." in filename and filename.rsplit(".", 1)[1].lower() in settings.ALLOWED_EXTENSIONS
+        self.async_storage = AsyncObjectStorage(self.storage)
 
     async def upload_file(
         self, db: AsyncSession, current_user: User, file: UploadFile
     ) -> UploadFileRead:
         if not file.filename:
             raise ValidationException(code=ErrorCode.NO_FILE_SELECTED, field="file")
-        if not self.allowed_file(file.filename):
-            raise ValidationException(
-                code=ErrorCode.FILE_TYPE_NOT_ALLOWED,
-                field="file",
-                details={"allowed": list(settings.ALLOWED_EXTENSIONS)},
-            )
-        content = await file.read()
+        content = await read_score_import_upload(file)
+        media = await asyncio.to_thread(admit_score_import_image, content, file.filename)
         file_hash = hashlib.sha256(content).hexdigest()
-        extension = f".{file.filename.rsplit('.', 1)[1].lower()}"
-        content_type = (
-            (file.content_type or "application/octet-stream").split(";", 1)[0].strip().lower()
-        )
+        extension = media.extension
+        content_type = media.mime_type
         user_id = require_persisted_id(current_user.id, entity="user")
         reservation = await storage_usage_service.reserve(
             db,
@@ -68,11 +59,9 @@ class FilesService:
         )
         blob = await self.repository.get_upload_object_by_sha256(db, file_hash)
         key = blob.object_key if blob is not None else blob_object_key(file_hash, extension)
-        if blob is not None:
-            content_type = blob.content_type
         try:
             written = await write_object_async(
-                db, self.storage, key=key, content=content, content_type=content_type
+                db, self.async_storage, key=key, content=content, content_type=content_type
             )
             persisted_blob = await db.run_sync(lambda sync: adopt_written_object(sync, written))
             upload = await self.repository.create_upload(

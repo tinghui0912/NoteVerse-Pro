@@ -19,8 +19,9 @@ def delivery():
     return ModelAssetService(storage=InMemoryObjectStorage())
 
 
-def test_current_delivery_matches_canonical_descriptor_and_content_addressed_key():
-    access = delivery().get_practice_acoustic_access()
+@pytest.mark.asyncio
+async def test_current_delivery_matches_canonical_descriptor_and_content_addressed_key():
+    access = await delivery().get_practice_acoustic_access()
     assert access.model_dump(include=set(MODEL_ASSET_DESCRIPTOR)) == dict(MODEL_ASSET_DESCRIPTOR)
     assert MODEL_ASSET.storage_key in access.downloadUrl
     assert access.downloadUrl.startswith("https://objects.example/")

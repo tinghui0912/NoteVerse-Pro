@@ -75,8 +75,8 @@ async def view_guest_preview_page(
     service: GuestPreviewService = Depends(get_guest_preview_service),
 ):
     delivery = await service.image(db, token, asset_id)
-    response = stream_storage_object(
-        storage=service.storage,
+    response = await stream_storage_object(
+        storage=service.async_storage,
         storage_key=delivery.storage_key,
         filename=delivery.filename,
         media_type=delivery.media_type,
@@ -98,8 +98,8 @@ async def listen_guest_preview(
     service: GuestPreviewService = Depends(get_guest_preview_service),
 ):
     delivery = await service.audio(db, token)
-    response = stream_storage_object(
-        storage=service.storage,
+    response = await stream_storage_object(
+        storage=service.async_storage,
         storage_key=delivery.storage_key,
         filename=delivery.filename,
         media_type=delivery.media_type,

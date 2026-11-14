@@ -36,7 +36,7 @@ async def download_revision_source(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     delivery = await service.source_delivery(db, source_id, user_id)
-    return _stream_asset(delivery, service, attachment=True)
+    return await _stream_asset(delivery, service, attachment=True)
 
 
 @source_router.get(
@@ -69,7 +69,7 @@ async def download_render_asset(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     delivery = await service.render_asset_delivery(db, render_asset_id, user_id)
-    return _stream_asset(delivery, service, attachment=True)
+    return await _stream_asset(delivery, service, attachment=True)
 
 
 @render_asset_router.get(
@@ -86,7 +86,7 @@ async def view_render_asset(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     delivery = await service.render_asset_delivery(db, render_asset_id, user_id, download=False)
-    return _stream_asset(delivery, service, attachment=False)
+    return await _stream_asset(delivery, service, attachment=False)
 
 
 @render_asset_router.get(
@@ -151,9 +151,9 @@ async def archive_score_render_assets(
     )
 
 
-def _stream_asset(delivery, service: ScoreAssetService, *, attachment: bool):
-    return stream_storage_object(
-        storage=service.storage,
+async def _stream_asset(delivery, service: ScoreAssetService, *, attachment: bool):
+    return await stream_storage_object(
+        storage=service.async_storage,
         storage_key=delivery.storage_key,
         filename=delivery.filename,
         media_type=delivery.media_type,

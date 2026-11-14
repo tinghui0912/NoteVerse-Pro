@@ -1,5 +1,6 @@
 """Consumer operations have explicit semantic identities and truthful success bodies."""
 
+from app.storage import AsyncObjectStorage
 import fnmatch
 import io
 import re
@@ -207,7 +208,11 @@ def test_storage_route_success_matches_its_declared_binary_content(
     storage.put_bytes(key="object", content=content, content_type=mime)
     delivery = SimpleNamespace(storage_key="object", filename="resource", media_type=mime)
     result = ("object", "resource", mime) if method == "get_media_delivery" else delivery
-    service = SimpleNamespace(storage=storage, **{method: AsyncMock(return_value=result)})
+    service = SimpleNamespace(
+        storage=storage,
+        async_storage=AsyncObjectStorage(storage),
+        **{method: AsyncMock(return_value=result)},
+    )
 
     async def database():
         yield object()
@@ -306,8 +311,8 @@ def test_avatar_resolution_is_a_bodyless_redirect_with_location(client):
     filename = "1_" + "a" * 64 + "_" + "b" * 32 + ".jpg"
     target = "https://objects.example/avatar.jpg?signature=capability"
     service = SimpleNamespace(
-        avatar_exists=lambda filename: True,
-        storage=SimpleNamespace(download_url=lambda *args, **kwargs: target),
+        avatar_exists=AsyncMock(return_value=True),
+        async_storage=SimpleNamespace(download_url=AsyncMock(return_value=target)),
     )
 
     async def database():

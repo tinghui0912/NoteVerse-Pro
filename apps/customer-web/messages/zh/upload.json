@@ -2,7 +2,7 @@
   "title": "创建乐谱",
   "subtitle": "拖放或点击选择图片文件，开始识别你的乐谱。",
   "dropzoneText": "将文件拖到此处，或点击选择文件",
-  "dropzoneHint": "支持 PNG、JPG、BMP 格式图片",
+  "dropzoneHint": "建议使用 PNG、JPG 或 BMP",
   "startRecognition": "开始识别",
   "scoreNameLabel": "乐谱名称",
   "scoreNamePlaceholder": "例如：Canon in D",

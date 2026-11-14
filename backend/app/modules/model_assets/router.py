@@ -21,4 +21,4 @@ async def get_practice_acoustic_access(
     service: ModelAssetService = Depends(get_model_asset_service),
 ) -> PracticeAcousticAccessRead:
     """Asset delivery only; no server Practice execution."""
-    return service.get_practice_acoustic_access()
+    return await service.get_practice_acoustic_access()

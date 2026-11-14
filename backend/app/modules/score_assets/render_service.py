@@ -1,7 +1,13 @@
 from __future__ import annotations
+import asyncio
+from app.storage import AsyncObjectStorage
 from app.modules.storage_objects.retirement import retire_after_release, retire_released_objects
 
-from app.modules.storage_objects.writes import write_object, adopt_written_object
+from app.modules.storage_objects.writes import (
+    write_object,
+    write_object_async,
+    adopt_written_object,
+)
 
 import os
 import tempfile
@@ -65,6 +71,7 @@ class RevisionRenderService:
         self.repository = repository or ScoreAssetRepository()
         self.score_repository = score_repository or ScoreRepository()
         self.storage = storage or object_storage
+        self.async_storage = AsyncObjectStorage(self.storage)
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.asset_service = ScoreAssetService(
             self.repository,
@@ -98,17 +105,18 @@ class RevisionRenderService:
         uploaded_keys: list[str] = []
         try:
             source_key = source.stored_object.object_key
-            pages = await db.run_sync(
-                lambda sync: self._render_records(
-                    sync,
-                    score_uuid=score_uuid,
-                    revision_uuid=revision_uuid,
-                    revision_id=revision_id,
-                    canonical_storage_key=source_key,
-                    profile=profile,
-                    uploaded_keys=uploaded_keys,
+            content = await self.async_storage.read_bytes(source_key)
+            outputs = await asyncio.to_thread(self._render_outputs, content, revision_uuid)
+            pages = []
+            for output in outputs:
+                item, key, media_type, content = self._render_descriptor(
+                    output, score_uuid, revision_uuid, revision_id, profile
                 )
-            )
+                written = await write_object_async(
+                    db, self.async_storage, key=key, content=content, content_type=media_type
+                )
+                uploaded_keys.append(written.object_key)
+                pages.append(dict(written=written, **item))
             access = await self.access_policy.authorize(
                 db, score_uuid, ScoreAction.EDIT, user_id=user_id, revision_uuid=revision_uuid
             )
@@ -171,7 +179,7 @@ class RevisionRenderService:
         except Exception:
             await db.rollback()
             raise
-        return [self.asset_service.render_asset_read(item, revision) for item in new_records]
+        return [await self.asset_service.render_asset_read(item, revision) for item in new_records]
 
     def render_for_worker(
         self,
@@ -309,12 +317,51 @@ class RevisionRenderService:
         profile: str,
         uploaded_keys: list[str],
     ) -> list[dict]:
-        new_records: list[dict] = []
+        outputs = self._render_outputs(
+            self.storage.read_bytes(canonical_storage_key), revision_uuid
+        )
+        records = []
+        for output in outputs:
+            item, key, media_type, content = self._render_descriptor(
+                output, score_uuid, revision_uuid, revision_id, profile
+            )
+            stored = write_object(
+                db, self.storage, key=key, content=content, content_type=media_type
+            )
+            uploaded_keys.append(stored.object_key)
+            records.append(dict(written=stored, **item))
+        return records
+
+    @staticmethod
+    def _render_descriptor(
+        output: dict, score_uuid: str, revision_uuid: str, revision_id: int, profile: str
+    ) -> tuple[dict, str, str, bytes]:
+        artifact_uuid = str(uuid.uuid4())
+        key = render_storage_key(
+            score_uuid=score_uuid,
+            revision_uuid=revision_uuid,
+            profile=profile,
+            page=output["page"],
+            asset_uuid=artifact_uuid,
+            extension=output["extension"],
+        )
+        item = dict(
+            asset_uuid=artifact_uuid,
+            revision_id=revision_id,
+            page_number=output["page"],
+            profile=profile,
+            generator=output["generator"],
+        )
+        return item, key, output["mime_type"], output["content"]
+
+    @staticmethod
+    def _render_outputs(content: bytes, revision_uuid: str) -> list[dict]:
+        outputs = []
         os.makedirs(settings.WORK_ROOT, exist_ok=True)
         with tempfile.TemporaryDirectory(dir=settings.WORK_ROOT) as work_dir:
             xml_path = os.path.join(work_dir, "score.musicxml")
             with open(xml_path, "wb") as target:
-                target.write(self.storage.read_bytes(canonical_storage_key))
+                target.write(content)
             engine = create_score_render_engine(output_folder=work_dir)
             result = engine.render_score(xml_path=xml_path, output_name="page")
             if not result["success"] or not result.get("files"):
@@ -322,38 +369,16 @@ class RevisionRenderService:
                     code=str(result.get("code") or ErrorCode.SCORE_PREVIEW_FAILED),
                     details={"revision_id": revision_uuid},
                 )
-            generator = str(result.get("engine") or "score-renderer")
             for output in result["files"]:
-                path = output["path"]
-                with open(path, "rb") as source:
-                    content = source.read()
-                artifact_uuid = str(uuid.uuid4())
-                page = int(output["page"])
-                extension = os.path.splitext(path)[1] or ".svg"
-                key = render_storage_key(
-                    score_uuid=score_uuid,
-                    revision_uuid=revision_uuid,
-                    profile=profile,
-                    page=page,
-                    asset_uuid=artifact_uuid,
-                    extension=extension,
-                )
-                stored = write_object(
-                    db,
-                    self.storage,
-                    key=key,
-                    content=content,
-                    content_type=output["mime_type"],
-                )
-                uploaded_keys.append(stored.object_key)
-                new_records.append(
+                with open(output["path"], "rb") as source:
+                    data = source.read()
+                outputs.append(
                     dict(
-                        asset_uuid=artifact_uuid,
-                        revision_id=revision_id,
-                        written=stored,
-                        page_number=page,
-                        profile=profile,
-                        generator=generator,
+                        content=data,
+                        page=int(output["page"]),
+                        mime_type=output["mime_type"],
+                        extension=os.path.splitext(output["path"])[1] or ".svg",
+                        generator=str(result.get("engine") or "score-renderer"),
                     )
                 )
-        return new_records
+        return outputs

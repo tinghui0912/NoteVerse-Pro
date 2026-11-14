@@ -28,7 +28,6 @@ from app.core.settings.storage import StorageSettings
 from app.core.settings.token_signing import TokenSigningSettings
 from app.core.settings.transactional_mail_provider import TransactionalMailProviderSettings
 from app.core.settings.trusted_proxy import TrustedProxySettings
-from app.core.settings.upload_admission import UploadAdmissionSettings
 from app.core.settings.sync_database import SyncDatabaseSettings
 
 
@@ -61,7 +60,6 @@ class Settings(
     TokenSigningSettings,
     TransactionalMailProviderSettings,
     TrustedProxySettings,
-    UploadAdmissionSettings,
     SyncDatabaseSettings,
     BaseSettings,
 ):

@@ -149,8 +149,8 @@ async def stream_take_media(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     storage_key, filename, media_type = await service.get_media_delivery(db, user_id, take_id)
-    return stream_storage_object(
-        storage=service.storage,
+    return await stream_storage_object(
+        storage=service.async_storage,
         storage_key=storage_key,
         filename=filename,
         media_type=media_type,

@@ -43,6 +43,11 @@ is explicitly accepted. Owner role PATCH cannot reactivate revoked membership.
 
 ## Upload And Import Activity
 
+The image picker recommends PNG, JPG or BMP. The backend independently verifies
+actual image content, filename/container consistency and a 20 MiB per-file limit;
+client MIME does not establish stored media facts. See
+[upload media admission](../architecture/upload-media-admission.md).
+
 Upload is the global creation action. The Upload page contains the upload form
 and paginated Import Activity. Import Jobs are processing records, not Library
 Scores. Queued and running jobs show progress without cancellation actions.

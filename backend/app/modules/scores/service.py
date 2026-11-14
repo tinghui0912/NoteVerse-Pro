@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.storage import AsyncObjectStorage
 
 from dataclasses import dataclass
 
@@ -60,6 +61,7 @@ class ScoreService:
         self.repository = repository or ScoreRepository()
         self.asset_repository = asset_repository or ScoreAssetRepository()
         self.storage = storage or object_storage
+        self.async_storage = AsyncObjectStorage(self.storage)
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.render_service = render_service or RevisionRenderService(
             access_policy=self.access_policy,
@@ -143,7 +145,7 @@ class ScoreService:
                 "score_input_asset", asset_uuid, ErrorCode.FILE_NOT_FOUND
             )
         _asset, upload, blob = row
-        if not self.storage.exists(blob.object_key):
+        if not (await self.async_storage.exists(blob.object_key)):
             raise FileException(ErrorCode.FILE_NOT_FOUND, blob.object_key)
         filename = upload.original_filename
         return ScoreInputAssetDelivery(

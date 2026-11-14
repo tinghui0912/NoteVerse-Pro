@@ -6,6 +6,30 @@ NoteVerse uses one private `ObjectStorage` namespace per deployment. The capabil
 
 `modules/storage_objects/facts.py` validates the immutable `StoredObjectFacts` value. `persistence.py` is the physical-fact hydration/creation boundary. Application-verified complete bytes establish size and SHA; provider checksums and ETags do not establish durable SHA authority.
 
+## Async application IO
+
+`ObjectStorage` is synchronous infrastructure for workers, maintenance and sync
+persistence code. The storage composition root also exposes `async_object_storage`,
+an `AsyncObjectStorage` over the same configured namespace. Async application
+services use that adapter for put, exists, read, size/metadata, copy, delete, presign
+and materialization. Provider calls run through `asyncio.to_thread`; streaming
+preparation and iterator advancement also cross this boundary. The adapter owns
+scheduling only, with no database or domain policy.
+
+Sync and async server writers share generation preparation, exact admission and
+WRITTEN finalization primitives. The async writer runs only DB primitives inside
+`AsyncSession.run_sync`. Physical put runs through the async adapter while the
+same intent transaction retains its row lock. Cancellation waits for in-flight
+provider IO to settle before rolling back and releasing that lock. PREPARED stays
+durable on failed or uncertain writes; cleanup owns unadopted bytes.
+
+Score-import image admission is described in
+[upload media admission](upload-media-admission.md). Avatar normalization and
+PerformanceTake recording admission remain independent domain policies. Async IO
+does not grant request services permission to delete adopted objects: semantic
+release still records accounting and retirement; durable cleanup/retirement owns
+physical deletion.
+
 ## Semantic references
 
 Upload, ImportArtifact, ScoreRevisionSource, ScoreRenderAsset and ScorePlaybackAsset reference `stored_object`. PerformanceTake references `recording_object` alongside its independent TakeManifest. PracticeBundle references `prepared_musicxml_object` and `artifact_object`. User references its current `avatar_object`. Their foreign keys restrict physical-row removal while any semantic reference remains.

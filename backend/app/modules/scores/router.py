@@ -87,8 +87,8 @@ async def download_score_input_asset(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     delivery = await service.input_asset_delivery(db, score_id, asset_id, user_id)
-    return stream_storage_object(
-        storage=service.storage,
+    return await stream_storage_object(
+        storage=service.async_storage,
         storage_key=delivery.storage_key,
         filename=delivery.filename,
         media_type=delivery.media_type,

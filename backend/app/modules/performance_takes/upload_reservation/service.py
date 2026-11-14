@@ -1,8 +1,8 @@
 from __future__ import annotations
+from app.storage import AsyncObjectStorage
 
 from app.modules.performance_takes.upload_reservation.domain import UploadReservationStatus
 
-import asyncio
 from dataclasses import asdict
 from datetime import datetime, timedelta
 import hashlib
@@ -111,9 +111,9 @@ def _build_final_candidate_object_key(
     return f"performance-takes/{user_id}/{take_uuid}/{finalizing_token}.{ext}"
 
 
-def _sha256_storage_object(storage: ObjectStorage, key: str) -> str:
+async def _sha256_storage_object(storage: AsyncObjectStorage, key: str) -> str:
     digest = hashlib.sha256()
-    for chunk in storage.iter_bytes(key, chunk_size=1024 * 1024):
+    async for chunk in storage.iter_bytes(key, chunk_size=1024 * 1024):
         digest.update(chunk)
     return digest.hexdigest()
 
@@ -147,6 +147,7 @@ class PerformanceTakeUploadService:
             score_access_policy=score_access_policy,
         )
         self.storage = storage or object_storage
+        self.async_storage = AsyncObjectStorage(self.storage)
         self.storage_usage_service = storage_usage_service or StorageUsageService()
         self.score_access_policy = score_access_policy or ScoreAccessPolicy()
         self.practice_bundle_service = practice_bundle_service or PracticeBundleService(
@@ -269,21 +270,16 @@ class PerformanceTakeUploadService:
         await self._apply(db, reservation, transition, now=now)
         await db.commit()
 
-    def _delete_candidate_final_best_effort(self, candidate_key: str | None) -> None:
-        if not candidate_key or self.storage is None:
+    async def _delete_candidate_final_async(self, candidate_key: str | None) -> None:
+        if not candidate_key:
             return
         try:
-            if self.storage.exists(candidate_key):
-                self.storage.delete(candidate_key)
+            if await self.async_storage.exists(candidate_key):
+                await self.async_storage.delete(candidate_key)
         except Exception:
             logger.opt(exception=True).error(
                 "performance_take_upload.finalize_candidate_cleanup_failed"
             )
-
-    async def _delete_candidate_final_async(self, candidate_key: str | None) -> None:
-        if not candidate_key or self.storage is None:
-            return
-        await asyncio.to_thread(self._delete_candidate_final_best_effort, candidate_key)
 
     async def _recover_after_db_disconnect(
         self,
@@ -377,7 +373,7 @@ class PerformanceTakeUploadService:
                 field="client_request_id",
                 details={"reason": "client_request_id_expired_use_new_id"},
             )
-        upload_target = self.storage.upload_url(
+        upload_target = await self.async_storage.upload_url(
             key=reservation.staging_object_key,
             content_type=manifest_from_row(reservation.manifest).snapshot.capture.mime_type,
             checksum_sha256="",
@@ -463,7 +459,7 @@ class PerformanceTakeUploadService:
         )
         take_uuid = str(uuid4())
         staging_key = _build_staging_object_key(user_id, take_uuid, media.kind, media.mime_type)
-        upload_target = self.storage.upload_url(
+        upload_target = await self.async_storage.upload_url(
             key=staging_key, content_type=media.mime_type, checksum_sha256=""
         )
         storage_reservation = await self.storage_usage_service.reserve(
@@ -644,7 +640,7 @@ class PerformanceTakeUploadService:
         await db.commit()
         log_stage("lease_acquired", started_at=finalize_started)
 
-        staging_exists = await asyncio.to_thread(self.storage.exists, staging_key)
+        staging_exists = await self.async_storage.exists(staging_key)
         if reservation_expiry < now:
             reservation = await self.repository.get_reservation_by_take_uuid(
                 db, user_id, take_uuid, lock=True
@@ -698,7 +694,7 @@ class PerformanceTakeUploadService:
                 ErrorCode.FILE_NOT_FOUND,
             )
 
-        metadata = await asyncio.to_thread(self.storage.object_metadata, source_key)
+        metadata = await self.async_storage.object_metadata(source_key)
         if metadata.size_bytes != manifest.snapshot.capture.byte_size:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_byte_size")
         if (
@@ -708,9 +704,13 @@ class PerformanceTakeUploadService:
         ):
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
 
-        header_storage = self.storage
-        header_bytes = await asyncio.to_thread(
-            lambda: b"".join(header_storage.iter_bytes(source_key, chunk_size=64, start=0, end=63))
+        header_bytes = b"".join(
+            [
+                chunk
+                async for chunk in self.async_storage.iter_bytes(
+                    source_key, chunk_size=64, start=0, end=63
+                )
+            ]
         )
         if not verify_recording_container_signature(
             manifest.snapshot.capture.kind,
@@ -718,11 +718,7 @@ class PerformanceTakeUploadService:
             header_bytes,
         ):
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
-        verified_staging_sha256 = await asyncio.to_thread(
-            _sha256_storage_object,
-            self.storage,
-            staging_key,
-        )
+        verified_staging_sha256 = await _sha256_storage_object(self.async_storage, staging_key)
         log_stage("staging_verified", started_at=finalize_started)
         log_stage("staging_hash_complete", started_at=finalize_started)
 
@@ -734,14 +730,8 @@ class PerformanceTakeUploadService:
                 take_uuid=take_uuid,
                 finalizing_token=finalizing_token,
             )
-            await asyncio.to_thread(
-                self.storage.copy,
-                staging_key,
-                candidate_key,
-            )
-            candidate_metadata = await asyncio.to_thread(
-                self.storage.object_metadata, candidate_key
-            )
+            await self.async_storage.copy(staging_key, candidate_key)
+            candidate_metadata = await self.async_storage.object_metadata(candidate_key)
             if candidate_metadata.size_bytes != manifest.snapshot.capture.byte_size:
                 raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_byte_size")
             if (
@@ -751,11 +741,7 @@ class PerformanceTakeUploadService:
             ):
                 raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
             log_stage("candidate_copy_complete", started_at=finalize_started)
-            candidate_sha256 = await asyncio.to_thread(
-                _sha256_storage_object,
-                self.storage,
-                candidate_key,
-            )
+            candidate_sha256 = await _sha256_storage_object(self.async_storage, candidate_key)
             if not _safe_compare_digest(candidate_sha256, verified_staging_sha256):
                 raise ValidationException(
                     ErrorCode.VALIDATION_ERROR,

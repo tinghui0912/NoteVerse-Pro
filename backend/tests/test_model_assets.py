@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 import datetime
 from datetime import timezone
 
@@ -72,10 +73,11 @@ def test_model_asset_access_authenticated_returns_descriptor() -> None:
         app.dependency_overrides.pop(get_model_asset_service, None)
 
 
-def test_model_asset_service_unit() -> None:
+@pytest.mark.asyncio
+async def test_model_asset_service_unit() -> None:
     """Service directly creates valid signed URLs through ObjectStorage."""
     service = create_test_model_asset_service()
-    access = service.get_practice_acoustic_access()
+    access = await service.get_practice_acoustic_access()
 
     assert access.model_dump(include=set(MODEL_ASSET_DESCRIPTOR)) == dict(MODEL_ASSET_DESCRIPTOR)
 

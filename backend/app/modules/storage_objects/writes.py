@@ -25,7 +25,8 @@ from app.modules.async_operations.durable_delivery import (
 from app.modules.storage_objects.facts import StoredObjectFacts
 from app.modules.storage_objects.persistence import object_from_row, object_to_row
 from app.modules.storage_objects.retirement import retain_for_reference
-from app.storage.base import ObjectStorage
+from app.storage.base import ObjectStorage, ObjectWriteResult
+from app.storage import AsyncObjectStorage
 from app.utils.timezone import utc_now_naive
 
 
@@ -149,9 +150,10 @@ def require_generation(row: ObjectWriteIntent, receipt: ObjectWriteReceipt) -> N
         raise ValueError("Stale object write generation")
 
 
-def perform_write(
-    db: Session, storage: ObjectStorage, receipt: ObjectWriteReceipt, content: bytes
-) -> None:
+def inspect_write(
+    db: Session, receipt: ObjectWriteReceipt, content: bytes
+) -> tuple[ObjectWriteIntent, bool]:
+    """Lock and validate exact generation/facts before either physical IO scheduler."""
     row = lock_intent(db, receipt.intent_uuid)
     require_generation(row, receipt)
     if (
@@ -163,24 +165,50 @@ def perform_write(
         raise ValueError("Write bytes disagree with intent")
     existing = _matching_object(db, receipt.facts)
     if existing is not None and row.status in ("PREPARED", "WRITTEN", "ADOPTED"):
-        # This generation borrows committed authority rather than claiming a new
-        # write. If retirement wins before attachment, ADOPTED cannot create a
-        # replacement row; the caller must prepare/write a fresh generation.
         cleanup_lifecycle().finish(row, status="ADOPTED", error=None, now=utc_now_naive())
-        db.commit()
-        return
+        return row, False
     if row.status not in ("PREPARED", "WRITTEN") or row.write_expires_at <= utc_now_naive():
         raise ValueError("Object write lease is not active")
-    if row.status == "PREPARED" and existing is None:
-        result = storage.put_bytes(
+    return row, row.status == "PREPARED" and existing is None
+
+
+def finalize_write(
+    row: ObjectWriteIntent, receipt: ObjectWriteReceipt, result: ObjectWriteResult | None
+) -> None:
+    require_generation(row, receipt)
+    if result is not None and (
+        result.object_key != receipt.object_key or result.size_bytes != receipt.facts.byte_size
+    ):
+        raise ValueError("Object write result disagrees with intent")
+    if row.status != "ADOPTED":
+        row.status = "WRITTEN"
+        row.written_at = row.written_at or utc_now_naive()
+        row.updated_at = utc_now_naive()
+
+
+def perform_write(
+    db: Session, storage: ObjectStorage, receipt: ObjectWriteReceipt, content: bytes
+) -> None:
+    row, needs_put = inspect_write(db, receipt, content)
+    result = (
+        storage.put_bytes(
             key=receipt.object_key, content=content, content_type=receipt.facts.content_type
         )
-        if result.object_key != receipt.object_key or result.size_bytes != receipt.facts.byte_size:
-            raise ValueError("Object write result disagrees with intent")
-    row.status = "WRITTEN"
-    row.written_at = row.written_at or utc_now_naive()
-    row.updated_at = utc_now_naive()
-    db.commit()  # The intent row lock covers put and WRITTEN persistence.
+        if needs_put
+        else None
+    )
+    finalize_write(row, receipt, result)
+    db.commit()  # The exact intent lock covers physical put and WRITTEN persistence.
+
+
+def prepare_object_write(
+    db: Session, *, key: str, content: bytes, content_type: str
+) -> ObjectWriteReceipt:
+    if db.new or db.dirty or db.deleted:
+        raise ValueError("Prewrite requires a clean semantic transaction")
+    return prepare_write(
+        db, StoredObjectFacts.from_bytes(object_key=key, content=content, content_type=content_type)
+    )
 
 
 def write_object(
@@ -191,20 +219,41 @@ def write_object(
     content: bytes,
     content_type: str = "application/octet-stream",
 ) -> ObjectWriteReceipt:
-    if db.new or db.dirty or db.deleted:
-        raise ValueError("Prewrite requires a clean semantic transaction")
-    facts = StoredObjectFacts.from_bytes(object_key=key, content=content, content_type=content_type)
     try:
-        receipt = prepare_write(db, facts)
+        receipt = prepare_object_write(db, key=key, content=content, content_type=content_type)
         perform_write(db, storage, receipt, content)
         return receipt
-    except Exception:
-        db.rollback()  # A committed PREPARED generation remains cleanup-owned.
+    except BaseException:
+        db.rollback()
         raise
 
 
-async def write_object_async(db, storage: ObjectStorage, **kwargs) -> ObjectWriteReceipt:
-    return await db.run_sync(lambda sync: write_object(sync, storage, **kwargs))
+async def write_object_async(
+    db,
+    storage: AsyncObjectStorage,
+    *,
+    key: str,
+    content: bytes,
+    content_type: str = "application/octet-stream",
+) -> ObjectWriteReceipt:
+    try:
+        receipt = await db.run_sync(
+            lambda sync: prepare_object_write(
+                sync, key=key, content=content, content_type=content_type
+            )
+        )
+        row, needs_put = await db.run_sync(lambda sync: inspect_write(sync, receipt, content))
+        result = (
+            await storage.put_bytes(key=key, content=content, content_type=content_type)
+            if needs_put
+            else None
+        )
+        finalize_write(row, receipt, result)
+        await db.commit()
+        return receipt
+    except BaseException:
+        await db.rollback()  # PREPARED remains durable; cancellation settles IO before this unlock.
+        raise
 
 
 def retain_existing_object(db: Session, facts: StoredObjectFacts) -> StoredObject | None:

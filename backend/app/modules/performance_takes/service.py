@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.storage import AsyncObjectStorage
 
 
 from typing import Optional
@@ -37,6 +38,7 @@ class PerformanceTakeService:
     ) -> None:
         self.repository = repository or PerformanceTakeRepository()
         self.storage = storage or object_storage
+        self.async_storage = AsyncObjectStorage(self.storage)
         self.score_access_policy = score_access_policy or ScoreAccessPolicy()
 
     def _to_read_dto(
@@ -163,12 +165,12 @@ class PerformanceTakeService:
 
         facts = take_from_row(take)
         manifest, recording = facts.manifest, facts.recording_object
-        playback_url = self.storage.download_url(
+        playback_url = await self.async_storage.download_url(
             recording.object_key,
             content_type=recording.content_type,
         )
         ext = recording_extension(manifest.snapshot.capture.kind, recording.content_type)
-        download_url = self.storage.download_url(
+        download_url = await self.async_storage.download_url(
             recording.object_key,
             filename=f"performance-{manifest.take_uuid}.{ext}",
             content_type=recording.content_type,

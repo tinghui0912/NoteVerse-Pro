@@ -21,12 +21,13 @@ from app.modules.import_jobs.review.schemas import (
     ReviewMusicXmlRead,
 )
 from app.shared.constants import ErrorCode
-from app.storage import ObjectStorage
+from app.storage import ObjectStorage, AsyncObjectStorage
 
 
 class ImportReviewReadModel:
     def __init__(self, storage: ObjectStorage) -> None:
         self.storage = storage
+        self.async_storage = AsyncObjectStorage(storage)
 
     async def detail(
         self,
@@ -78,14 +79,14 @@ class ImportReviewReadModel:
         )
         if musicxml_artifact is None:
             raise ResourceNotFoundException("import_artifact", job_uuid, ErrorCode.XML_NOT_FOUND)
-        if not self.storage.exists(musicxml_artifact.stored_object.object_key):
+        if not (await self.async_storage.exists(musicxml_artifact.stored_object.object_key)):
             raise FileException(
                 ErrorCode.FILE_NOT_FOUND, musicxml_artifact.stored_object.object_key
             )
 
-        content = self.storage.read_bytes(musicxml_artifact.stored_object.object_key).decode(
-            "utf-8"
-        )
+        content = (
+            await self.async_storage.read_bytes(musicxml_artifact.stored_object.object_key)
+        ).decode("utf-8")
         options = processing_options_adapter.validate_python(
             job.requested_options if job.requested_options is not None else {}
         )

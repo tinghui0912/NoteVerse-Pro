@@ -1,4 +1,5 @@
 from __future__ import annotations
+from tests.support.images import image_bytes
 
 import hashlib
 from collections.abc import Iterator
@@ -410,7 +411,7 @@ async def test_file_upload_quota_exceeded_does_not_store_file(
         {
             "filename": "too-large.png",
             "content_type": "image/png",
-            "read": lambda self: _async_bytes(b"123456789"),
+            "read": lambda self, size: _async_bytes(image_bytes()),
         },
     )()
     with pytest.raises(ValidationException) as exc_info:
@@ -444,7 +445,7 @@ def test_file_upload_api_returns_storage_quota_error_without_storing_file(
     try:
         response = client.post(
             "/api/v1/files/upload",
-            files={"file": ("too-large.png", b"123456789", "image/png")},
+            files={"file": ("too-large.png", image_bytes(), "image/png")},
         )
     finally:
         app.dependency_overrides.pop(get_files_service, None)
@@ -481,7 +482,7 @@ def test_file_upload_api_hides_storage_key(
     try:
         response = client.post(
             "/api/v1/files/upload",
-            files={"file": ("score.png", b"image-bytes", "image/png")},
+            files={"file": ("score.png", image_bytes(), "image/png")},
         )
     finally:
         app.dependency_overrides.pop(get_files_service, None)
@@ -492,7 +493,7 @@ def test_file_upload_api_hides_storage_key(
     payload = response.json()
     assert payload["file_id"]
     assert payload["filename"] == "score.png"
-    assert payload["size"] == len(b"image-bytes")
+    assert payload["size"] == len(image_bytes())
     assert "storage_key" not in payload
 
 
@@ -957,7 +958,7 @@ async def test_files_owns_sha_key_dedup_and_last_upload_deletion(
 
     session, storage = storage_usage_session
     _set_quota(session, 1024)
-    content = b"identical image bytes"
+    content = image_bytes()
     key = blob_object_key(hashlib.sha256(content).hexdigest(), ".png")
     if preexisting_object:
         storage.put_bytes(key=key, content=content, content_type="image/png")
@@ -1010,7 +1011,7 @@ async def test_files_failed_upload_retires_only_newly_written_bytes(
 
     session, storage = storage_usage_session
     _set_quota(session, 1024)
-    content = b"image upload"
+    content = image_bytes()
     key = blob_object_key(hashlib.sha256(content).hexdigest(), ".png")
     if preexisting_object:
         storage.put_bytes(key=key, content=content, content_type="image/png")

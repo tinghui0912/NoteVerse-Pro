@@ -2,7 +2,7 @@
   "title": "Create a score",
   "subtitle": "Drag & drop or click to select image files to start your musical journey.",
   "dropzoneText": "Drag files here, or click to select files",
-  "dropzoneHint": "Supports PNG, JPG, BMP formats",
+  "dropzoneHint": "Recommended: PNG, JPG, or BMP",
   "startRecognition": "Start Recognition",
   "scoreNameLabel": "Score Name",
   "scoreNamePlaceholder": "e.g., Canon in D",

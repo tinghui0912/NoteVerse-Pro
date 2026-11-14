@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.storage import AsyncObjectStorage
 
 from dataclasses import dataclass
 
@@ -31,6 +32,7 @@ class PlaybackDeliveryReadModel:
         access_policy: ScoreAccessPolicy,
     ) -> None:
         self.storage = storage
+        self.async_storage = AsyncObjectStorage(storage)
         self.access_policy = access_policy
 
     async def score_revision_delivery(
@@ -64,7 +66,7 @@ class PlaybackDeliveryReadModel:
                 )
             )
         ).scalar_one_or_none()
-        if asset is None or not self.storage.exists(asset.stored_object.object_key):
+        if asset is None or not (await self.async_storage.exists(asset.stored_object.object_key)):
             raise ResourceNotFoundException("playback_asset", code=ErrorCode.FILE_NOT_FOUND)
         return PlaybackDelivery(
             filename=asset.filename,
@@ -83,6 +85,7 @@ class PlaybackDeliveryService:
         delivery_read_model: PlaybackDeliveryReadModel | None = None,
     ) -> None:
         self.storage = storage or object_storage
+        self.async_storage = AsyncObjectStorage(self.storage)
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.delivery_read_model = delivery_read_model or PlaybackDeliveryReadModel(
             storage=self.storage,
