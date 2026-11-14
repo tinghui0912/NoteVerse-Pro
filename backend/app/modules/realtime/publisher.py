@@ -52,7 +52,7 @@ async def _notify_event(db: AsyncSession, event: RealtimeEvent) -> None:
 
 
 def _notify_event_sync(db: Session, event: RealtimeEvent) -> None:
-    if not _supports_postgres_notify() or event.id is None:
+    if db.get_bind().dialect.name != "postgresql" or event.id is None:
         return
     db.execute(
         text("SELECT pg_notify(:channel, :payload)"),

@@ -10,6 +10,12 @@ Domain outbox
     → domain worker
 ```
 
+[Domain Event projectors](domain-events-and-projections.md) create durable database
+representations or outboxes from committed business facts. Their named checkpoints
+commit with projection writes and have no delivery status, attempt or lease.
+DurableDeliveryLifecycle governs external execution of domain-owned outboxes; it is
+independent of journal/checkpoint processing.
+
 `backend/app/modules/async_operations/durable_delivery.py` owns the shared lifecycle.
 `DeliveryRecord` is a narrow structural protocol, not an ORM base. `DeliveryStatuses`
 maps the domain's persisted statuses, and `DeliveryLifecyclePolicy` carries explicit

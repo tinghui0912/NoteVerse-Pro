@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.core.config import Settings
+from app.modules.domain_events.policy import PROJECTION_SCAN_INTERVAL_SECONDS
 
 
 BeatSchedule = dict[str, dict[str, Any]]
@@ -20,6 +21,10 @@ def build_beat_schedule(settings: Settings) -> BeatSchedule:
     """
 
     return {
+        "domain-projection-maintenance": {
+            "task": "app.worker.tasks.run_domain_projection_maintenance",
+            "schedule": PROJECTION_SCAN_INTERVAL_SECONDS,
+        },
         "job-maintenance-every-five-minutes": {
             "task": "app.worker.tasks.run_job_maintenance",
             "schedule": 300.0,

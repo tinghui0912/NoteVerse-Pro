@@ -36,6 +36,9 @@ from app.modules.async_operations.diagnostics import (
     clear_async_diagnostic,
 )
 from app.modules.import_jobs.schemas import ImportJobProcessingOptions
+from app.modules.domain_events.journal import append_fact
+from app.modules.import_jobs.events import ImportJobFailed
+from app.modules.import_jobs.public_errors import public_import_job_error
 from app.shared.constants import ErrorCode
 from app.utils.timezone import utc_now_naive
 
@@ -171,7 +174,7 @@ class ImportDispatchService:
         if admission is ClaimAdmission.INACTIVE or admission is ClaimAdmission.NOT_DUE:
             return None
         if admission is ClaimAdmission.EXHAUSTED:
-            self._exhaust(row, job, "Import worker delivery attempts exhausted", now)
+            self._exhaust(db, row, job, "Import worker delivery attempts exhausted", now)
             return None
         if job.state != ImportJobState.PENDING:
             return None
@@ -184,7 +187,7 @@ class ImportDispatchService:
             .order_by(col(ImportJobUpload.sort_order).asc(), col(ImportJobUpload.id).asc())
         ).all()
         if not keys:
-            self._exhaust(row, job, "Import job has no persisted uploads", now)
+            self._exhaust(db, row, job, "Import job has no persisted uploads", now)
             return None
         claimed = lifecycle.claim(row, now=now)
         assert claimed
@@ -258,7 +261,7 @@ class ImportDispatchService:
                 lifecycle.complete(row, now=now)
                 clear_async_diagnostic(row)
             elif row.attempt_count >= lifecycle.policy.max_attempts:
-                self._exhaust(row, job, "Import worker delivery attempts exhausted", now)
+                self._exhaust(db, row, job, "Import worker delivery attempts exhausted", now)
             else:
                 if was_processing:
                     self.reset_execution(db, job, now)
@@ -293,7 +296,9 @@ class ImportDispatchService:
         job.updated_at = now
         db.execute(delete(ImportJobStep).where(ImportJobStep.job_id == job.id))
 
-    def _exhaust(self, row: ImportDispatch, job: ImportJob, error: str, now: datetime) -> None:
+    def _exhaust(
+        self, db: Session, row: ImportDispatch, job: ImportJob, error: str, now: datetime
+    ) -> None:
         self.lifecycle().exhaust(row, error=error, now=now)
         row.attempt_token = None
         self._diagnose(row, AsyncOperationStatusValue.EXHAUSTED)
@@ -310,6 +315,16 @@ class ImportDispatchService:
                 last_error=job.error,
                 attempts=row.attempt_count,
                 max_attempts=None,
+            )
+            public_code, _ = public_import_job_error(job)
+            append_fact(
+                db,
+                ImportJobFailed(
+                    job_id=job.job_uuid,
+                    recipient_user_id=job.user_id,
+                    public_failure_code=public_code,
+                ),
+                occurred_at=now,
             )
 
     @staticmethod

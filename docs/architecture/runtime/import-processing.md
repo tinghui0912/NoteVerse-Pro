@@ -11,6 +11,13 @@ commits the Job, Dispatch and ordered upload links as one admission transaction.
 Worker execution uses a synchronous `Session` through `SyncImportJobService` for
 progress/step mutations, artifact production and finalization.
 
+Finalization commits Job state and its typed completion/failure DomainEvent together.
+Review-thumbnail admission shares the success transaction. Independent durable database
+projectors create notifications and realtime signals; finalization attempts them
+immediately after commit and Beat catches up missed work. Projection failure cannot
+roll back the committed fact. See
+[Domain Events and Database Projections](../domain-events-and-projections.md).
+
 Each Job has one `ImportDispatch`, created atomically with the Job and its upload
 links. The dispatch owns broker/worker delivery status, attempt count, lease,
 delivery diagnostics, originating request correlation and W3C trace context.

@@ -21,6 +21,16 @@ Revision transactions commit canonical snapshots and outboxes before immediate b
 dispatch through the shared revision producer. Beat relays missed deliveries and recovers
 expired dispatch/processing leases; it is not the normal-path scheduling delay.
 
+Import finalization commits Job state and a typed DomainEvent atomically, then attempts
+the Import notification and realtime database projectors immediately. Each projector
+commits its database representations with its own locked checkpoint. Notification rows
+and their `notification.created` wake-ups belong to one projection transaction.
+`run_domain_projection_maintenance` delegates to `execution/domain_projections.py` and
+catches up registered projectors every five seconds through `run_scheduler_scan`.
+Projection handlers perform database-only work; external delivery retains domain-owned
+outboxes and DurableDeliveryLifecycle. See
+[Domain Events and Database Projections](../../../docs/architecture/domain-events-and-projections.md).
+
 ## Directional dependency rules
 
 - `tasks.py` may import from `execution/`, but `execution/` must not import from

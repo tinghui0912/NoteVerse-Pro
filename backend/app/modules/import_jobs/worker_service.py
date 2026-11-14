@@ -27,10 +27,10 @@ from app.modules.async_operations.diagnostics import (
 from app.modules.import_jobs.dispatch_service import ImportExecutionLease, require_current_attempt
 from app.modules.import_jobs.repository import SyncImportJobRepository
 from app.modules.import_jobs.artifact_records import ImportJobStoredArtifactItem
-from app.modules.notifications.sync_service import (
-    SyncNotificationService,
-    sync_notification_service,
-)
+from app.modules.domain_events.journal import append_fact
+from app.modules.import_jobs.events import ImportJobCompleted, ImportJobFailed
+from app.modules.import_jobs.projections import catch_up_import_projections_best_effort
+from app.modules.import_jobs.public_errors import public_import_job_error
 from app.modules.storage_usage.service import storage_usage_service
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from app.modules.score_assets.render_outbox_service import (
@@ -43,10 +43,8 @@ class SyncImportJobService:
     def __init__(
         self,
         repository: SyncImportJobRepository | None = None,
-        notification_service: SyncNotificationService | None = None,
     ) -> None:
         self.repository = repository or SyncImportJobRepository()
-        self.notification_service = notification_service or sync_notification_service
 
     def update_progress(
         self,
@@ -100,9 +98,19 @@ class SyncImportJobService:
                 import_job_id=require_persisted_id(job.id, entity="import job"),
                 source_fingerprint=review_xml.stored_object.sha256,
             )
+        requested_options = job.requested_options if isinstance(job.requested_options, dict) else {}
+        requested_title = requested_options.get("title")
+        append_fact(
+            db,
+            ImportJobCompleted(
+                job_id=job.job_uuid,
+                recipient_user_id=job.user_id,
+                requested_title=requested_title if isinstance(requested_title, str) else None,
+            ),
+            occurred_at=now,
+        )
         db.commit()
-        require_current_attempt(db, lease)
-        self._notify_success(db, job)
+        catch_up_import_projections_best_effort(db)
 
     def finalize_failure(
         self,
@@ -131,23 +139,18 @@ class SyncImportJobService:
         job.last_heartbeat_at = now
         job.finished_at = now
         job.updated_at = now
+        public_code, _ = public_import_job_error(job)
+        append_fact(
+            db,
+            ImportJobFailed(
+                job_id=job.job_uuid,
+                recipient_user_id=job.user_id,
+                public_failure_code=public_code,
+            ),
+            occurred_at=now,
+        )
         db.commit()
-        require_current_attempt(db, lease)
-        self.notification_service.notify_import_failed_best_effort(
-            db,
-            job_uuid=job.job_uuid,
-            recipient_user_id=job.user_id,
-        )
-
-    def _notify_success(self, db: Session, job) -> None:
-        requested_options = job.requested_options if isinstance(job.requested_options, dict) else {}
-        requested_title = requested_options.get("title")
-        self.notification_service.notify_import_completed_best_effort(
-            db,
-            job_uuid=job.job_uuid,
-            recipient_user_id=job.user_id,
-            title=requested_title if isinstance(requested_title, str) else None,
-        )
+        catch_up_import_projections_best_effort(db)
 
     def upsert_step(
         self,

@@ -125,6 +125,16 @@ class StructuredLogFieldPolicy:
     ALLOWED_EXTRA_FIELDS = frozenset(
         {
             "accepted",
+            # Journal/projection metadata: stable identities, counts and classes only.
+            "aggregate_type",
+            "aggregate_id",
+            "commit_pending",
+            "event_id",
+            "last_event_id",
+            "projection_name",
+            "processed_count",
+            "scanned_count",
+            "error_class",
             "active_streak",
             "alignment_confidence",
             "alignment_state",

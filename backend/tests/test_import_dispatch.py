@@ -13,6 +13,7 @@ from sqlmodel import Session
 from app.core.exceptions import ResourceNotFoundException
 from app.db.models import (
     ImportDispatch,
+    DomainEvent,
     ImportDispatchStatus,
     ImportJob,
     ImportJobState,
@@ -225,6 +226,7 @@ def test_exhausted_processing_has_distinct_delivery_and_domain_outcomes(setup_de
     assert row.internal_error_code and job.internal_error_code
     assert job.state == ImportJobState.FAILURE and job.finished_at
     assert job.error_type == "ImportDispatchFailure"
+    assert db.scalar(select(DomainEvent.event_type)) == "import.job.failed"
     from app.modules.ops.operation_projection import read_import_operation
 
     projected = read_import_operation(job, row)
@@ -246,7 +248,7 @@ def test_only_current_execution_lease_can_mutate_job(setup_delivery, mutation):
     first = claim(db, row)
     second = takeover(db, row)
     assert second.attempt == first.attempt + 1 and second.token != first.token
-    worker = SyncImportJobService(notification_service=Mock())
+    worker = SyncImportJobService()
     actions = {
         "binding": lambda: execution_manifest.bind_import_job_execution_manifest(db, first),
         "progress": lambda: worker.update_progress(db, first, "RUNNING", 99),
@@ -264,6 +266,7 @@ def test_only_current_execution_lease_can_mutate_job(setup_delivery, mutation):
     assert db.scalar(select(ImportJobStep)) is None
     assert db.scalar(select(ImportArtifact)) is None
     assert job.execution_manifest_id is None
+    assert db.scalar(select(DomainEvent.id)) is None
 
 
 @pytest.mark.parametrize(
@@ -287,7 +290,7 @@ def test_written_artifact_requires_current_lease_at_transactional_adoption(
 ):
     db, storage, job, row = setup_delivery
     first = claim(db, row)
-    worker = SyncImportJobService(notification_service=Mock())
+    worker = SyncImportJobService()
     worker.upsert_step(db, first, "ocr", "RUNNING")
 
     # A write can finish after its execution lease is lost. ObjectWriteIntent owns it.
@@ -355,7 +358,7 @@ def test_written_artifact_requires_current_lease_at_transactional_adoption(
 def test_domain_pipeline_failure_completes_current_delivery(setup_delivery):
     db, _, job, row = setup_delivery
     lease = claim(db, row)
-    worker = SyncImportJobService(notification_service=Mock())
+    worker = SyncImportJobService()
     worker.finalize_failure(db, lease, error="OMR failed", error_type="PipelineError")
     ImportDispatchService().complete(db, lease)
     db.commit()
@@ -472,7 +475,7 @@ def test_worker_completes_delivery_after_durable_domain_outcome(
             db.rollback()
             raise
 
-    worker = SyncImportJobService(notification_service=Mock())
+    worker = SyncImportJobService()
 
     def run(task, lease, keys, options):
         assert lease.dispatch_uuid == row.dispatch_uuid and lease.job_uuid == job.job_uuid
@@ -510,9 +513,7 @@ def test_final_attempt_domain_failure_completes_delivery_and_preserves_terminal_
     db.commit()
     lease = claim(db, row)
     assert lease.attempt == dispatch_module.settings.IMPORT_DISPATCH_MAX_ATTEMPTS
-    SyncImportJobService(notification_service=Mock()).finalize_failure(
-        db, lease, "OMR failed", "PipelineError"
-    )
+    SyncImportJobService().finalize_failure(db, lease, "OMR failed", "PipelineError")
     assert read_import_operation(job, row).status.value == "failed"
     ImportDispatchService().complete(db, lease)
     db.commit()

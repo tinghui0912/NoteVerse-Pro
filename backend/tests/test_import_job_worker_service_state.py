@@ -6,6 +6,7 @@ from app.modules.import_jobs.dispatch_service import (
     StaleImportDispatchAttempt,
 )
 from app.modules.import_jobs import worker_service
+from app.modules.import_jobs.events import ImportJobCompleted, ImportJobFailed
 
 import pytest
 
@@ -21,6 +22,8 @@ LEASE = ImportExecutionLease("dispatch-1", "job-1", 2, "token")
 def fence(monkeypatch):
     guard = Mock(side_effect=StaleImportDispatchAttempt("stale"))
     monkeypatch.setattr(worker_service, "require_current_attempt", guard)
+    monkeypatch.setattr(worker_service, "append_fact", Mock())
+    monkeypatch.setattr(worker_service, "catch_up_import_projections_best_effort", Mock())
     return guard
 
 
@@ -53,14 +56,13 @@ def _service_with_job(job: object | None) -> tuple[SyncImportJobService, Mock, M
         worker_service.require_current_attempt.return_value = job
     repository = Mock()
     repository.get_by_uuid.return_value = job
-    notifications = Mock()
+    journal = worker_service.append_fact
     return (
         SyncImportJobService(
             repository=repository,
-            notification_service=notifications,
         ),
         repository,
-        notifications,
+        journal,
     )
 
 
@@ -72,7 +74,7 @@ def _database() -> Mock:
 
 def test_update_progress_records_state_and_preserves_existing_started_time() -> None:
     job = _job()
-    service, _repository, _notifications = _service_with_job(job)
+    service, _repository, _journal = _service_with_job(job)
     database = _database()
     started_at = datetime(2026, 8, 9, tzinfo=timezone.utc)
 
@@ -108,9 +110,9 @@ def test_update_progress_rejects_stale_execution() -> None:
     database.commit.assert_not_called()
 
 
-def test_finalize_success_marks_job_ready_and_notifies_owner() -> None:
+def test_finalize_success_marks_job_ready_and_records_business_fact() -> None:
     job = _job()
-    service, _repository, notifications = _service_with_job(job)
+    service, _repository, journal = _service_with_job(job)
     database = _database()
 
     service.finalize_success(database, LEASE)
@@ -122,17 +124,18 @@ def test_finalize_success_marks_job_ready_and_notifies_owner() -> None:
     assert job.internal_error_stage is None
     assert job.internal_error_class is None
     assert job.internal_error_retryable is None
-    notifications.notify_import_completed_best_effort.assert_called_once_with(
+    assert journal.call_args.args == (
         database,
-        job_uuid="job-1",
-        recipient_user_id=7,
-        title="Imported score",
+        ImportJobCompleted(job_id="job-1", recipient_user_id=7, requested_title="Imported score"),
     )
+    assert journal.call_args.kwargs["occurred_at"] == job.finished_at
+    database.commit.assert_called_once()
+    worker_service.catch_up_import_projections_best_effort.assert_called_once_with(database)
 
 
-def test_finalize_failure_records_diagnostic_and_notifies_owner() -> None:
+def test_finalize_failure_records_diagnostic_and_records_business_fact() -> None:
     job = _job()
-    service, _repository, notifications = _service_with_job(job)
+    service, _repository, journal = _service_with_job(job)
     database = _database()
 
     service.finalize_failure(
@@ -150,28 +153,32 @@ def test_finalize_failure_records_diagnostic_and_notifies_owner() -> None:
     assert job.code == ErrorCode.TASK_TIMEOUT
     assert job.internal_error_class == "transient"
     assert job.internal_error_retryable is True
-    notifications.notify_import_failed_best_effort.assert_called_once_with(
+    assert journal.call_args.args == (
         database,
-        job_uuid="job-1",
-        recipient_user_id=7,
+        ImportJobFailed(
+            job_id="job-1", recipient_user_id=7, public_failure_code=ErrorCode.TASK_TIMEOUT
+        ),
     )
+    assert journal.call_args.kwargs["occurred_at"] == job.finished_at
+    database.commit.assert_called_once()
+    worker_service.catch_up_import_projections_best_effort.assert_called_once_with(database)
 
 
 def test_terminal_updates_reject_stale_execution() -> None:
-    service, _, notifications = _service_with_job(None)
+    service, _, journal = _service_with_job(None)
     database = _database()
     with pytest.raises(StaleImportDispatchAttempt):
         service.finalize_success(database, LEASE)
     with pytest.raises(StaleImportDispatchAttempt):
         service.finalize_failure(database, LEASE, error="timeout", error_type="TimeoutError")
     database.commit.assert_not_called()
-    notifications.notify_import_completed_best_effort.assert_not_called()
-    notifications.notify_import_failed_best_effort.assert_not_called()
+    journal.assert_not_called()
+    worker_service.catch_up_import_projections_best_effort.assert_not_called()
 
 
 def test_upsert_step_creates_and_updates_a_named_step() -> None:
     job = _job()
-    service, repository, _notifications = _service_with_job(job)
+    service, repository, _journal = _service_with_job(job)
     database = _database()
     repository.get_step.return_value = None
 
@@ -214,7 +221,7 @@ def test_upsert_step_creates_and_updates_a_named_step() -> None:
 
 
 def test_upsert_step_rejects_missing_jobs() -> None:
-    service, _repository, _notifications = _service_with_job(None)
+    service, _repository, _journal = _service_with_job(None)
 
     with pytest.raises(StaleImportDispatchAttempt):
         service.upsert_step(_database(), LEASE, "ocr", "RUNNING")

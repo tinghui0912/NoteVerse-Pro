@@ -96,6 +96,51 @@ def upgrade() -> None:
         "RESERVED", "COMMITTED", "RELEASED", name="storageusagereservationstatus"
     ).create(op.get_bind(), checkfirst=False)
     op.create_table(
+        "domain_events",
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("event_uuid", sa.String(36), nullable=False),
+        sa.Column("event_type", sa.String(96), nullable=False),
+        sa.Column("schema_version", sa.Integer(), nullable=False),
+        sa.Column("aggregate_type", sa.String(64), nullable=False),
+        sa.Column("aggregate_id", sa.String(128), nullable=False),
+        sa.Column("dedupe_key", sa.String(256), nullable=False),
+        sa.Column(
+            "payload",
+            sa.JSON().with_variant(postgresql.JSONB(astext_type=sa.Text()), "postgresql"),
+            nullable=False,
+        ),
+        sa.Column("occurred_at", sa.DateTime(), nullable=False),
+        sa.Column("recorded_at", sa.DateTime(), nullable=False),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("event_uuid"),
+        sa.UniqueConstraint("dedupe_key"),
+        sa.CheckConstraint("schema_version >= 1", name="ck_domain_events_schema_version"),
+    )
+    op.create_index("idx_domain_events_type_id", "domain_events", ["event_type", "id"])
+    op.create_index(
+        "idx_domain_events_aggregate_id", "domain_events", ["aggregate_type", "aggregate_id", "id"]
+    )
+    op.execute("""
+        CREATE FUNCTION reject_domain_event_mutation() RETURNS trigger LANGUAGE plpgsql AS $$
+        BEGIN RAISE EXCEPTION 'Domain journal facts are append-only'; END;
+        $$;
+        CREATE TRIGGER domain_events_append_only BEFORE UPDATE OR DELETE ON domain_events
+        FOR EACH ROW EXECUTE FUNCTION reject_domain_event_mutation();
+    """)
+    op.create_table(
+        "domain_projection_checkpoints",
+        sa.Column("projection_name", sa.String(96), nullable=False),
+        sa.Column("last_event_id", sa.BigInteger(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.PrimaryKeyConstraint("projection_name"),
+        sa.CheckConstraint("last_event_id >= 0", name="ck_domain_projection_checkpoint_progress"),
+    )
+    op.create_table(
         "execution_manifests",
         sa.Column(
             "id",
@@ -2426,6 +2471,11 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.drop_table("domain_projection_checkpoints")
+    op.drop_index("idx_domain_events_type_id", table_name="domain_events")
+    op.drop_index("idx_domain_events_aggregate_id", table_name="domain_events")
+    op.drop_table("domain_events")
+    op.execute("DROP FUNCTION reject_domain_event_mutation()")
     op.drop_constraint("fk_scores_head_revision", "scores", type_="foreignkey")
     op.drop_constraint(
         "fk_refresh_tokens_replaced_by_token_id_refresh_tokens",
