@@ -1,5 +1,6 @@
 """Application orchestration and outer transaction ownership for Take finalization."""
 
+import asyncio
 from datetime import timedelta
 from uuid import uuid4
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -94,7 +95,6 @@ class PerformanceTakeFinalizationService:
         )
         staging_key = row.staging_object_key
         await db.commit()
-        committing = False
         try:
             candidate = await self.media.verify(manifest, lease, staging_key)
             # Long physical IO may outlive a connection; retry only the DB lock, never media.
@@ -105,19 +105,15 @@ class PerformanceTakeFinalizationService:
             except Exception as error:
                 if not is_transient_db_disconnect(error):
                     raise
-                await self._discard_connection(db)
+                await self._discard_uncertain_session(db)
                 row = await self.repository.get_reservation_by_take_uuid(
                     db, user_id, manifest.take_uuid, lock=True
                 )
             if row is not None:
                 winner = await self.repository.get_by_reservation(db, user_id, row.id)
                 if winner is not None:
-                    await self.recovery.recover(
-                        db,
-                        user_id=user_id,
-                        take_uuid=manifest.take_uuid,
-                        lease=lease,
-                        unknown_outcome=False,
+                    await self.recovery.recover_known_failure(
+                        db, user_id=user_id, take_uuid=manifest.take_uuid, lease=lease
                     )
                     await db.commit()
                     return await self.takes.get_take(db, user_id, manifest.take_uuid)
@@ -128,40 +124,92 @@ class PerformanceTakeFinalizationService:
                 manifest=manifest,
                 candidate=candidate,
             )
-            committing = True
-            await db.commit()
         except BaseException as error:
+            # No semantic COMMIT has been invoked: rollback establishes a known non-commit.
+            await db.rollback()
             disconnected = is_transient_db_disconnect(error)
             if disconnected:
-                await self._discard_connection(db)
-                await self.recovery.after_disconnect(
-                    user_id=user_id, take_uuid=manifest.take_uuid, lease=lease
-                )
+                await db.invalidate()
+            await self.recovery.recover_known_failure(
+                db, user_id=user_id, take_uuid=manifest.take_uuid, lease=lease
+            )
+            await db.commit()
+            if disconnected:
                 raise ExternalServiceException(
                     "database",
                     details={"retryable": True, "operation": "performance_take_finalize"},
                 ) from error
-            # A failed COMMIT with no reliable acknowledgement is conservatively unknown.
-            await db.rollback()
-            await self.recovery.recover(
-                db,
-                user_id=user_id,
-                take_uuid=manifest.take_uuid,
-                lease=lease,
-                unknown_outcome=committing,
-            )
-            await db.commit()
             if isinstance(error, ReservationTransitionError):
                 raise ValidationException(
                     ErrorCode.VALIDATION_ERROR, field="status", details={"reason": error.code}
                 ) from error
             raise
+
+        # Only normal acknowledgement establishes success. Exception type cannot resolve COMMIT.
+        try:
+            await db.commit()
+        except BaseException as error:
+            try:
+                await self._reconcile_unknown_commit(
+                    db,
+                    user_id=user_id,
+                    take_uuid=manifest.take_uuid,
+                    lease=lease,
+                    cancelled=error if isinstance(error, asyncio.CancelledError) else None,
+                )
+            except Exception as recovery_error:
+                # The persisted lease remains cleanup/recovery evidence if reconciliation fails.
+                logger.bind(error_class=type(recovery_error).__name__).error(
+                    "performance_take.finalize.lineage_recovery_failed"
+                )
+            raise ExternalServiceException(
+                "database",
+                details={"retryable": True, "operation": "performance_take_finalize"},
+            ) from error
         return await self.takes.get_take(db, user_id, manifest.take_uuid)
 
+    async def _reconcile_unknown_commit(
+        self,
+        db: AsyncSession,
+        *,
+        user_id: int,
+        take_uuid: str,
+        lease: FinalizeLease,
+        cancelled: asyncio.CancelledError | None,
+    ) -> None:
+        async def reconcile() -> None:
+            # Discard is connection hygiene only; fresh persisted lineage decides the outcome.
+            await self._discard_uncertain_session(db)
+            await self.recovery.recover_unknown_commit(
+                user_id=user_id, take_uuid=take_uuid, lease=lease
+            )
+
+        task = asyncio.create_task(reconcile())
+        while not task.done():
+            try:
+                await asyncio.shield(task)
+            except asyncio.CancelledError as error:
+                cancelled = error
+            except Exception:
+                if cancelled is None:
+                    raise
+        if cancelled is not None:
+            if not task.cancelled():
+                failure = task.exception()
+                if failure is not None:
+                    logger.bind(error_class=type(failure).__name__).error(
+                        "performance_take.finalize.lineage_recovery_failed"
+                    )
+            raise cancelled
+        task.result()
+
     @staticmethod
-    async def _discard_connection(db: AsyncSession) -> None:
+    async def _discard_uncertain_session(db: AsyncSession) -> None:
         try:
             await db.rollback()
         except Exception:
-            logger.debug("performance_take.finalize.db_rollback_failed_after_disconnect")
-        await db.invalidate()
+            logger.debug("performance_take.finalize.db_rollback_failed_after_uncertainty")
+        try:
+            await db.invalidate()
+        except Exception:
+            logger.debug("performance_take.finalize.db_invalidate_failed_after_uncertainty")

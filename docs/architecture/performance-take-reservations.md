@@ -128,10 +128,22 @@ cannot be reopened with the same client request ID.
 Cancellation accepts RESERVED and is idempotent for CANCELLED. Other states return
 an error rather than reporting successful cancellation.
 
-Database-disconnect recovery reads current reservation/Take lineage in a fresh
-transaction. An atomically completed Take wins; otherwise only the matching
-lease may recover to RESERVED, retaining the uncertain candidate for cleanup.
-Unexpected active-reservation/Take combinations are invariant violations.
+Known failures before the semantic COMMIT invocation may recover through the healthy
+request session after successful rollback, with immediate candidate-cleanup eligibility.
+Every semantic COMMIT invocation that does not return normally is an unknown outcome.
+Failure to receive normal acknowledgement, rather than `connection_invalidated` or
+exception class, selects fresh-session recovery.
+
+`PerformanceTakeFinalizationRecovery.recover_unknown_commit()` opens an independent
+session and reads current persisted reservation/Take lineage. It never trusts request
+session identity-map state, rollback or invalidation as semantic evidence. An atomically
+completed Take wins; otherwise only the matching lease may recover to RESERVED with a
+thirty-minute unknown-outcome candidate grace, or EXPIRED with quota release. A new
+lease and its quota ownership remain untouched. COMPLETED deletion lineage never
+recreates a Take. Unexpected active-reservation/Take combinations are invariant violations.
+Cancellation waits for shielded fresh-lineage reconciliation and then propagates;
+other unacknowledged COMMIT failures return a retryable infrastructure error, followed
+by idempotent replay on the same reservation.
 
 `UploadReservationCleanupService` performs bounded expiry/recovery scans and
 storage cleanup. It uses the same domain commands and explicit effects as

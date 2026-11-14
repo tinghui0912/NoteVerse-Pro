@@ -54,8 +54,8 @@ async def setup(postgres_bundle):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("stage", ["object", "take", "complete", "quota", "commit"])
-async def test_use_case_rollback_preserves_manifest_quota_and_cleanup_evidence(
+@pytest.mark.parametrize("stage", ["object", "take", "complete", "quota"])
+async def test_precommit_failure_preserves_manifest_quota_and_immediate_cleanup_evidence(
     postgres_bundle, stage
 ):
     sessions, reservations, service, storage, request, accepted, manifest, key = await setup(
@@ -65,15 +65,7 @@ async def test_use_case_rollback_preserves_manifest_quota_and_cleanup_evidence(
     def fail():
         raise RuntimeError("admission interrupted")
 
-    class BeforeCommit(AsyncSession):
-        async def commit(self):
-            if stage == "commit" and any(
-                getattr(item, "status", None) == "COMPLETED" for item in self.identity_map.values()
-            ):
-                fail()
-            await super().commit()
-
-    async with BeforeCommit(postgres_bundle[0], expire_on_commit=False) as db:
+    async with sessions() as db:
 
         async def create_take(*args, **kwargs):
             value = await original_create(*args, **kwargs)
@@ -127,6 +119,7 @@ async def test_use_case_rollback_preserves_manifest_quota_and_cleanup_evidence(
         assert account.used_bytes == 0 and account.reserved_bytes == len(MEDIA)
         candidates = lifecycle_from_row(row).orphan_candidates
         assert len(candidates) == 1 and storage.exists(candidates[0].key)
+        assert candidates[0].remove_after <= utc_now_naive()
 
 
 @pytest.mark.asyncio

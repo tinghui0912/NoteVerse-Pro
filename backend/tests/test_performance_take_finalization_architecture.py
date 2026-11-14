@@ -82,8 +82,63 @@ def test_finalization_orchestrates_verification_writer_and_outer_commit():
         for call in calls(MODULE / "finalization.py")
         if isinstance(call.func, ast.Attribute)
     }
-    assert {"verify", "adopt", "commit", "recover", "after_disconnect"} <= attributes
+    assert {
+        "verify",
+        "adopt",
+        "commit",
+        "recover_known_failure",
+        "recover_unknown_commit",
+    } <= attributes
     assert (
         not {"authorize_bundle_for_save", "resolve_practice_score_plan", "object_to_row"}
         & attributes
+    )
+
+
+def test_semantic_commit_exception_boundary_reconciles_independently():
+    tree = ast.parse((MODULE / "finalization.py").read_text())
+    service = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "PerformanceTakeFinalizationService"
+    )
+    finalize = next(
+        node
+        for node in service.body
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == "finalize_take"
+    )
+    boundary = next(
+        node
+        for node in finalize.body
+        if isinstance(node, ast.Try)
+        and len(node.body) == 1
+        and isinstance(node.body[0], ast.Expr)
+        and isinstance(node.body[0].value, ast.Await)
+        and isinstance(node.body[0].value.value, ast.Call)
+        and ast.unparse(node.body[0].value.value.func) == "db.commit"
+    )
+    assert len(boundary.handlers) == 1
+    assert ast.unparse(boundary.handlers[0].type) == "BaseException"
+    handler_calls = [node for node in ast.walk(boundary.handlers[0]) if isinstance(node, ast.Call)]
+    names = {ast.unparse(node.func) for node in handler_calls}
+    assert "self._reconcile_unknown_commit" in names
+    assert "is_transient_db_disconnect" not in names
+    assert not {"self.recovery.recover", "self.recovery.recover_known_failure"} & names
+    for call in calls(MODULE / "finalization.py"):
+        assert not any(keyword.arg == "unknown_outcome" for keyword in call.keywords)
+    recovery_tree = ast.parse((MODULE / "upload_reservation/recovery.py").read_text())
+    fresh = next(
+        node
+        for node in ast.walk(recovery_tree)
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == "recover_unknown_commit"
+    )
+    assert not any(arg.arg == "db" for arg in fresh.args.args + fresh.args.kwonlyargs)
+    assert any(
+        isinstance(node, ast.AsyncWith)
+        and any(
+            isinstance(item.context_expr, ast.Call)
+            and ast.unparse(item.context_expr.func) == "AsyncSessionLocal"
+            for item in node.items
+        )
+        for node in ast.walk(fresh)
     )

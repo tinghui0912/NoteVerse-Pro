@@ -42,12 +42,29 @@ Manifest intact; an expired reservation becomes EXPIRED and releases its hold. A
 that may exist is recorded for immediate orphan cleanup. Retrying uses the same request
 identity and can obtain a fresh upload capability without waiting for lease timeout.
 
-`PerformanceTakeFinalizationRecovery` handles database disconnects through a fresh session.
-It reads persisted Reservation/Take lineage, without authorization, planning or recopying.
+Pre-commit failures may recover using the healthy request session after its transaction
+successfully rolls back. `recover_known_failure()` preserves immediate orphan eligibility.
+A normal semantic COMMIT acknowledgement establishes success and needs no recovery.
+Any semantic COMMIT invocation that raises or is interrupted has an unknown outcome,
+regardless of exception type or the driver's `connection_invalidated` flag.
+
+`PerformanceTakeFinalizationRecovery.recover_unknown_commit()` opens an independent fresh
+session and reads persisted Reservation/Take lineage, without authorization, planning or
+recopying. It accepts only user/Take identity and the immutable FinalizeLease, never ORM
+instances from the request identity map. The uncertain request session is discarded as
+best-effort connection hygiene; rollback/invalidation results do not determine the outcome.
 A committed Take wins. If no Take exists and the old lease remains current, recovery
-relinquishes it and records the candidate with thirty-minute `UNKNOWN_OUTCOME_GRACE`.
+relinquishes it and records the candidate with thirty-minute `UNKNOWN_OUTCOME_GRACE`,
+preserving quota hold unless the reservation expires. Expiry releases that hold.
 A different lease remains untouched; late physical results refresh orphan evidence.
 Unknown commit acknowledgement never permits guessing or direct candidate deletion.
+
+Reconciliation runs in a shielded task and settles before cancellation propagates,
+including repeated request cancellation. A non-cancellation COMMIT exception returns a
+retryable database infrastructure error even when fresh lineage finds a committed Take.
+The caller retries the same reservation to obtain that Take through COMPLETED replay.
+If fresh reconciliation is unavailable, persisted lease/orphan evidence remains the
+recovery authority; the request never claims semantic success.
 
 An active lease excludes concurrent finalizers. Expired takeover uses a fresh token and
 candidate key. Only the exact live lease can adopt. Completed reserve/finalize replay

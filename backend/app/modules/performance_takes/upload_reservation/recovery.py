@@ -84,7 +84,18 @@ class PerformanceTakeFinalizationRecovery:
             transition = state.remember_uncertain_candidate(key=lease.object_key, now=now)
         await apply_reservation_transition(self.storage_usage_service, db, row, transition, now=now)
 
-    async def after_disconnect(self, *, user_id: int, take_uuid: str, lease: FinalizeLease) -> None:
+    async def recover_known_failure(
+        self, db: AsyncSession, *, user_id: int, take_uuid: str, lease: FinalizeLease
+    ) -> None:
+        """Participate only after a known pre-commit rollback, with immediate orphan eligibility."""
+        await self.recover(
+            db, user_id=user_id, take_uuid=take_uuid, lease=lease, unknown_outcome=False
+        )
+
+    async def recover_unknown_commit(
+        self, *, user_id: int, take_uuid: str, lease: FinalizeLease
+    ) -> None:
+        """Resolve every unacknowledged semantic COMMIT from independent persisted lineage."""
         async with AsyncSessionLocal() as db:
             await self.recover(
                 db, user_id=user_id, take_uuid=take_uuid, lease=lease, unknown_outcome=True
