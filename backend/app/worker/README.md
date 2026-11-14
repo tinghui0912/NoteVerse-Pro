@@ -61,6 +61,15 @@ services do not commit between adoption and completion. StaleDeliveryAttempt ret
 `stale` with no semantic/outbox/realtime mutation. Unadopted ObjectWriteIntents own
 abandoned physical writes and durable cleanup, without direct best-effort deletion.
 
+Metadata completion and Render/Playback accepted ready/failed outcomes use strict
+transactional `publish_score_event_sync`. It resolves current recipients, persists
+and flushes all realtime rows and issues transactional pg_notify without handling
+exceptions or owning commit/rollback. Partial fan-out/NOTIFY failure rolls back the
+whole authoritative transaction. Failed metadata/ready publication can then enter
+fenced retry in a new transaction. If failed derivative publication also fails,
+its FAILED transition rolls back and the worker raises; lease recovery remains
+authoritative. Explicit best-effort notification hints use a separate outer API.
+
 Fencing protects durable state ownership rather than exactly-once external execution.
 Mail provider calls can be delivered more than once after uncertain network outcomes
 or worker loss; stale sent/failure results cannot overwrite a new attempt or its

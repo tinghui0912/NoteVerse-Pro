@@ -68,6 +68,18 @@ services flush that transaction without committing it. Ready realtime rows follo
 accepted completion in the same transaction. Physical render/audio computation and
 storage prewrite run outside aggregate/delivery locks.
 
+Ready and accepted failed signals use strict `publish_score_event_sync`. Recipient
+lookup, every RealtimeEvent flush and transactional pg_notify must succeed before
+the caller commits. Ready publication failure rolls back adoption, usage,
+retirements, completion and partial recipient rows. ObjectWriteIntent retains
+the unadopted physical prewrites for cleanup. The worker can fail its exact lease
+in a new transaction and publish failed atomically with that transition.
+
+Failed publication failure also propagates: FAILED and partial signals roll back,
+leaving the processing lease for maintenance recovery. No best-effort fallback
+weakens these accepted-outcome guarantees. Genuine best-effort notification hints
+remain a separate explicit policy and retain their own transaction handling.
+
 If the revision loses head status, final admission discards its generated receipts without
 creating asset rows or allocating derived usage. ObjectWriteIntent cleanup owns physical
 convergence of those unadopted writes. No direct storage deletion substitutes for that

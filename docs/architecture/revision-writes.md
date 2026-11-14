@@ -51,6 +51,16 @@ run outside final locks. Final admission locks Score then refreshed metadata out
 validates exact lease/source, and atomically writes metadata, completes delivery and
 adds score.metadata.updated realtime. Stale workers change none of these facts.
 
+`publish_score_event_sync` is strict transactional persistence: recipient resolution,
+RealtimeEvent inserts/flush and PostgreSQL NOTIFY share the caller transaction.
+It never commits, rolls back or catches publication failures. A partial-recipient
+or NOTIFY failure rolls back metadata result and delivery completion together; the
+worker may then fail the same processing lease in a new transaction for retry.
+This includes semantic FAILED metadata results as well as READY results.
+
+Explicit best-effort notification wake-ups use their separate outer policy API;
+that policy is not an authoritative metadata transaction participant.
+
 MetadataExtractionError is a semantic FAILED result with stable error code, completing
 delivery successfully. Storage/read/infrastructure exceptions retry delivery, leaving
 metadata PENDING until a result exists. Missing/mismatched canonical source is also

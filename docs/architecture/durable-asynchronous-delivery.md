@@ -72,6 +72,20 @@ generation failure. It creates no asset/accounting/outbox/realtime mutation. Phy
 prewrites remain unadopted ObjectWriteIntents and converge through durable cleanup.
 Expensive rendering and storage writes never retain delivery locks across execution.
 
+Authoritative metadata and Render/Playback outcome transactions use strict sync
+score realtime publication. Recipient resolution, all RealtimeEvent writes/flushes
+and pg_notify participate in the same transaction without exception swallowing.
+Partial publication failure rolls back the authoritative outcome and every partial
+recipient row. Metadata and ready-adoption failure may fail the exact processing
+lease in a separate transaction for bounded retry. Accepted derivative FAILED
+state and failed realtime also commit together; failed-signal publication failure
+leaves PROCESSING for lease recovery. No commit follows a swallowed publication error.
+
+Best-effort notification hints select the explicit best-effort API, whose outer
+policy handles its own commit/rollback and logging. They do not provide an atomic
+authoritative outcome guarantee. PostgreSQL NOTIFY remains transactional and is
+delivered only after commit; the persisted realtime row remains replay authority.
+
 Domain responsibilities remain explicit:
 
 | Domain                  | Domain-owned semantics                                                                                                                                    |

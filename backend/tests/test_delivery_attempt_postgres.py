@@ -279,7 +279,7 @@ def test_stale_derivative_worker_cannot_publish_status(database, monkeypatch, ki
 
     monkeypatch.setattr(module, "get_worker_db", transaction)
     publish = Mock()
-    monkeypatch.setattr(module, "publish_score_event_sync_best_effort", publish)
+    monkeypatch.setattr(module, "publish_score_event_sync", publish)
     if kind == "render":
         monkeypatch.setattr(module, "_render_target", generate)
         execute = module.execute_render_outbox_task

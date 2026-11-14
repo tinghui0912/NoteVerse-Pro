@@ -317,9 +317,9 @@ def test_semantic_adoption_and_completion_roll_back_together(generation, monkeyp
     def fail_after_completion(db, uuid, *, lease):
         assert complete(db, uuid, lease=lease)
         if kind != "thumbnail":
-            from app.modules.realtime.publisher import publish_score_event_sync_best_effort
+            from app.modules.realtime.publisher import publish_score_event_sync
 
-            publish_score_event_sync_best_effort(
+            publish_score_event_sync(
                 db,
                 score_id="score",
                 revision_id="revision",

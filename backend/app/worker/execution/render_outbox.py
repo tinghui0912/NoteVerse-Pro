@@ -13,7 +13,7 @@ from app.db.models import RenderTargetType
 from app.db.sync_session import get_worker_db
 from app.modules.realtime.publisher import (
     RealtimeEventTypes,
-    publish_score_event_sync_best_effort,
+    publish_score_event_sync,
 )
 from app.modules.review.thumbnail_service import review_thumbnail_service
 from app.modules.score_assets.render_outbox_service import render_outbox_service
@@ -153,7 +153,7 @@ def _publish_revision_render_status(
 ) -> None:
     if payload.score_uuid is None or payload.revision_uuid is None:
         return
-    publish_score_event_sync_best_effort(
+    publish_score_event_sync(
         db,
         score_id=payload.score_uuid,
         revision_id=payload.revision_uuid,

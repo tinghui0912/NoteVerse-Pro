@@ -13,7 +13,7 @@ from app.modules.playback.outbox_service import playback_outbox_service
 from app.modules.playback.service import PlaybackGenerationService
 from app.modules.realtime.publisher import (
     RealtimeEventTypes,
-    publish_score_event_sync_best_effort,
+    publish_score_event_sync,
 )
 from app.pipeline.context import CeleryTaskLike
 from app.worker.task_runtime import (
@@ -119,7 +119,7 @@ def execute_playback_outbox_task(task: CeleryTaskLike, outbox_uuid: str) -> dict
 
 
 def _publish_playback_status(db: Any, score_uuid: str, revision_uuid: str, status: str) -> None:
-    publish_score_event_sync_best_effort(
+    publish_score_event_sync(
         db,
         score_id=score_uuid,
         revision_id=revision_uuid,
