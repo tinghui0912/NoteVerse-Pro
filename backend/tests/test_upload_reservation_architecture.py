@@ -45,7 +45,11 @@ def test_lifecycle_writes_belong_to_persistence_adapter():
         "staging_cleanup_after",
         "staging_cleanup_completed_at",
     }
-    for name in ["upload_reservation/service.py", "upload_reservation/cleanup.py", "router.py"]:
+    for name in [
+        "upload_reservation/reservation_service.py",
+        "upload_reservation/cleanup.py",
+        "router.py",
+    ]:
         tree = ast.parse((MODULE / name).read_text())
         for node in ast.walk(tree):
             if isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
@@ -54,7 +58,7 @@ def test_lifecycle_writes_belong_to_persistence_adapter():
                     isinstance(target, ast.Attribute) and target.attr in fields
                     for target in targets
                 )
-    for name in ["service.py", "cleanup.py"]:
+    for name in ["reservation_service.py", "cleanup.py"]:
         dependencies = imports(MODULE / "upload_reservation" / name)
         assert "app.modules.performance_takes.upload_reservation.persistence" in dependencies
         assert "app.modules.performance_takes.upload_reservation.domain" in dependencies
@@ -62,17 +66,19 @@ def test_lifecycle_writes_belong_to_persistence_adapter():
 
 def test_archive_admission_and_physical_retirement_have_distinct_owners():
     from app.modules.performance_takes.service import PerformanceTakeService
-    from app.modules.performance_takes.upload_reservation.service import (
-        PerformanceTakeUploadService,
+    from app.modules.performance_takes.upload_reservation.reservation_service import (
+        PerformanceTakeReservationService,
     )
+    from app.modules.performance_takes.finalization import PerformanceTakeFinalizationService
     from app.modules.storage_objects.retirement import StoredObjectRetirementDelivery
 
     assert {"list_takes", "get_take", "get_playback_url", "delete_take"} <= set(
         vars(PerformanceTakeService)
     )
-    assert {"reserve_upload", "cancel_upload_reservation", "finalize_take"} <= set(
-        vars(PerformanceTakeUploadService)
+    assert {"reserve_upload", "cancel_upload_reservation"} <= set(
+        vars(PerformanceTakeReservationService)
     )
+    assert "finalize_take" in vars(PerformanceTakeFinalizationService)
     assert {"claim", "fail", "mark_dispatched", "release_dispatch", "recover_and_list_due"} <= set(
         vars(StoredObjectRetirementDelivery)
     )
@@ -116,7 +122,7 @@ def test_manifest_semantics_and_persistence_have_explicit_dependency_owners():
     assert {"manifest", "app.db.models.performance_take_manifest"} <= dependencies
     assert "app.modules.performance_takes.aggregate" in imports(MODULE / "service.py")
     assert "app.modules.performance_takes.manifest_persistence" in imports(
-        MODULE / "upload_reservation/service.py"
+        MODULE / "upload_reservation/reservation_service.py"
     )
     assert {"manifest_persistence", "app.modules.storage_objects.persistence"} <= imports(
         MODULE / "aggregate.py"

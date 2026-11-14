@@ -1,0 +1,547 @@
+"""Authoritative Take admission, rollback, and persisted-lineage recovery on PostgreSQL."""
+
+from dataclasses import replace
+from datetime import timedelta
+from unittest.mock import patch
+import pytest
+from sqlalchemy import select, func, event
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import DBAPIError
+from app.core.exceptions import (
+    ExternalServiceException,
+    ResourceNotFoundException,
+    ValidationException,
+)
+from app.db.models import PerformanceTake, StoredObject, StorageUsageAccount, StoredObjectRetirement
+from app.modules.performance_takes.finalization import PerformanceTakeFinalizationService
+from app.modules.performance_takes.upload_reservation.reservation_service import (
+    PerformanceTakeReservationService,
+)
+from app.modules.performance_takes.upload_reservation import effects, recovery
+from app.modules.performance_takes.upload_reservation.persistence import (
+    lifecycle_from_row,
+    apply_transition,
+)
+from app.modules.performance_takes.manifest_persistence import manifest_from_row
+from app.modules.performance_takes.upload_reservation.domain import (
+    FinalizeLease,
+    ReservationTransitionError,
+    UNKNOWN_OUTCOME_GRACE,
+)
+from app.modules.storage_usage.service import StorageUsageService
+from app.utils.timezone import utc_now_naive
+from tests.test_upload_reservation_postgres import setup_bundle, MEDIA
+
+pytest_plugins = ["tests.test_practice_bundle_postgres"]
+
+
+async def setup(postgres_bundle):
+    sessions, source, storage, request = await setup_bundle(postgres_bundle)
+    usage = StorageUsageService()
+    reservations = PerformanceTakeReservationService(
+        storage=storage, practice_bundle_service=source, storage_usage_service=usage
+    )
+    finalization = PerformanceTakeFinalizationService(
+        repository=reservations.repository, storage=storage, storage_usage_service=usage
+    )
+    async with sessions() as db:
+        accepted = await reservations.reserve_upload(db, 1, request)
+        row = await reservations.repository.get_reservation_by_uuid(db, 1, accepted.reservation_id)
+        manifest = manifest_from_row(row.manifest)
+        key = row.staging_object_key
+        storage.put_bytes(key=key, content=MEDIA, content_type="audio/webm")
+    return sessions, reservations, finalization, storage, request, accepted, manifest, key
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("stage", ["object", "take", "complete", "quota", "commit"])
+async def test_use_case_rollback_preserves_manifest_quota_and_cleanup_evidence(
+    postgres_bundle, stage
+):
+    sessions, reservations, service, storage, request, accepted, manifest, key = await setup(
+        postgres_bundle
+    )
+
+    def fail():
+        raise RuntimeError("admission interrupted")
+
+    class BeforeCommit(AsyncSession):
+        async def commit(self):
+            if stage == "commit" and any(
+                getattr(item, "status", None) == "COMPLETED" for item in self.identity_map.values()
+            ):
+                fail()
+            await super().commit()
+
+    async with BeforeCommit(postgres_bundle[0], expire_on_commit=False) as db:
+
+        async def create_take(*args, **kwargs):
+            value = await original_create(*args, **kwargs)
+            if stage == "take":
+                fail()
+            return value
+
+        async def quota(*args, **kwargs):
+            await original_quota(*args, **kwargs)
+            if stage == "quota":
+                fail()
+
+        def transition(*args, **kwargs):
+            original_transition(*args, **kwargs)
+            if stage == "complete" and args[1].after.status.value == "COMPLETED":
+                fail()
+
+        def after_flush(sync, context):
+            if stage == "object" and any(
+                isinstance(item, StoredObject) and item.object_key.startswith("performance-takes/")
+                for item in sync.new
+            ):
+                fail()
+
+        original_create = service.repository.create_take
+        original_quota = service.writer.storage_usage_service.commit_reservation
+        original_transition = effects.apply_transition
+        event.listen(db.sync_session, "after_flush", after_flush)
+        with (
+            patch.object(service.repository, "create_take", side_effect=create_take),
+            patch.object(
+                service.writer.storage_usage_service, "commit_reservation", side_effect=quota
+            ),
+            patch.object(effects, "apply_transition", side_effect=transition),
+        ):
+            with pytest.raises(RuntimeError, match="admission interrupted"):
+                await service.finalize_take(db, 1, accepted.reservation_id)
+    async with sessions() as observer:
+        row = await reservations.repository.get_reservation_by_uuid(
+            observer, 1, accepted.reservation_id
+        )
+        assert row.status == "RESERVED" and row.finalizing_token is None
+        assert manifest_from_row(row.manifest) == manifest
+        assert await observer.scalar(select(func.count()).select_from(PerformanceTake)) == 0
+        assert not (
+            await observer.scalars(
+                select(StoredObject).where(StoredObject.object_key.like("performance-takes/%"))
+            )
+        ).all()
+        account = await observer.get(StorageUsageAccount, 1)
+        assert account.used_bytes == 0 and account.reserved_bytes == len(MEDIA)
+        candidates = lifecycle_from_row(row).orphan_candidates
+        assert len(candidates) == 1 and storage.exists(candidates[0].key)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", ["missing", "size", "mime", "signature", "copy"])
+async def test_known_failure_recovers_immediately_and_preserves_upload_hold(
+    postgres_bundle, failure
+):
+    sessions, reservations, service, storage, request, accepted, manifest, key = await setup(
+        postgres_bundle
+    )
+    if failure == "missing":
+        storage.delete(key)
+    elif failure == "size":
+        storage.put_bytes(key=key, content=MEDIA + b"!", content_type="audio/webm")
+    elif failure == "mime":
+        storage.put_bytes(key=key, content=MEDIA, content_type="audio/ogg")
+    elif failure == "signature":
+        storage.put_bytes(key=key, content=b"x" * len(MEDIA), content_type="audio/webm")
+    async with sessions() as db:
+        with (
+            patch.object(storage, "copy", side_effect=RuntimeError("copy failed"))
+            if failure == "copy"
+            else patch.object(storage, "copy", wraps=storage.copy)
+        ):
+            with pytest.raises((ValidationException, ResourceNotFoundException, RuntimeError)):
+                await service.finalize_take(db, 1, accepted.reservation_id)
+        replay = await reservations.reserve_upload(db, 1, request)
+        assert replay.status == "RESERVED" and replay.upload_target is not None
+        row = await reservations.repository.get_reservation_by_uuid(db, 1, accepted.reservation_id)
+        assert manifest_from_row(row.manifest) == manifest
+        assert row.finalizing_token is None
+        assert all(
+            item.remove_after <= utc_now_naive()
+            for item in lifecycle_from_row(row).orphan_candidates
+        )
+        assert (await db.get(StorageUsageAccount, 1)).reserved_bytes == len(MEDIA)
+        storage.put_bytes(key=key, content=MEDIA, content_type="audio/webm")
+        take = await service.finalize_take(db, 1, accepted.reservation_id)
+        assert take.take_id == accepted.take_id
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("committed", [False, True])
+async def test_unknown_commit_outcome_reads_fresh_postgres_lineage(postgres_bundle, committed):
+    sessions, reservations, service, storage, request, accepted, manifest, key = await setup(
+        postgres_bundle
+    )
+
+    class LostAcknowledgement(AsyncSession):
+        lost = False
+
+        async def commit(self):
+            if not self.lost and any(
+                getattr(item, "status", None) == "COMPLETED" for item in self.identity_map.values()
+            ):
+                self.lost = True
+                if committed:
+                    await super().commit()
+                raise DBAPIError.instance(
+                    "COMMIT",
+                    {},
+                    Exception("connection closed"),
+                    Exception,
+                    connection_invalidated=True,
+                )
+            await super().commit()
+
+    with patch.object(recovery, "AsyncSessionLocal", sessions):
+        async with LostAcknowledgement(postgres_bundle[0], expire_on_commit=False) as db:
+            with pytest.raises(ExternalServiceException):
+                await service.finalize_take(db, 1, accepted.reservation_id)
+    async with sessions() as db:
+        row = await reservations.repository.get_reservation_by_uuid(db, 1, accepted.reservation_id)
+        assert row.status == ("COMPLETED" if committed else "RESERVED")
+        if not committed:
+            orphan = lifecycle_from_row(row).orphan_candidates[0]
+            assert orphan.remove_after > utc_now_naive() + UNKNOWN_OUTCOME_GRACE - timedelta(
+                seconds=10
+            )
+            assert storage.exists(orphan.key)
+        take = await service.finalize_take(db, 1, accepted.reservation_id)
+        assert take.take_id == accepted.take_id
+        assert await db.scalar(select(func.count()).select_from(PerformanceTake)) == 1
+        assert (await db.get(StorageUsageAccount, 1)).used_bytes == len(MEDIA)
+
+
+@pytest.mark.asyncio
+async def test_writer_participates_without_commit_and_rejects_stale_evidence(postgres_bundle):
+    sessions, reservations, service, storage, request, accepted, manifest, key = await setup(
+        postgres_bundle
+    )
+    now = utc_now_naive()
+    lease = FinalizeLease("a", "performance-takes/a.webm", now + timedelta(minutes=15))
+    async with sessions() as db:
+        row = await reservations.repository.get_reservation_by_uuid(
+            db, 1, accepted.reservation_id, lock=True
+        )
+        apply_transition(row, lifecycle_from_row(row).begin_finalize(lease=lease, now=now), now=now)
+        await db.commit()
+        candidate = await service.media.verify(manifest, lease, key)
+        # A stale capability cannot declare the current owner's candidate abandoned.
+        await service.recovery.recover(
+            db,
+            user_id=1,
+            take_uuid=manifest.take_uuid,
+            lease=replace(lease, token="stale"),
+            unknown_outcome=False,
+        )
+        await db.commit()
+        row = await reservations.repository.get_reservation_by_uuid(db, 1, accepted.reservation_id)
+        assert lifecycle_from_row(row).lease == lease
+        assert lifecycle_from_row(row).orphan_candidates == ()
+        with pytest.raises(ReservationTransitionError):
+            await service.writer.adopt(
+                db,
+                user_id=1,
+                reservation_id=accepted.reservation_id,
+                manifest=manifest,
+                candidate=replace(candidate, lease=replace(lease, token="stale")),
+            )
+        await db.rollback()
+        with pytest.raises(ValidationException):
+            await service.writer.adopt(
+                db,
+                user_id=1,
+                reservation_id=accepted.reservation_id,
+                manifest=manifest,
+                candidate=replace(candidate, manifest_sha256="0" * 64),
+            )
+        await db.rollback()
+        changed = replace(
+            manifest,
+            snapshot=manifest.snapshot.model_copy(
+                update={"score_title_snapshot": "different snapshot"}
+            ),
+        )
+        with pytest.raises(ValidationException):
+            await service.writer.adopt(
+                db,
+                user_id=1,
+                reservation_id=accepted.reservation_id,
+                manifest=changed,
+                candidate=candidate,
+            )
+        await db.rollback()
+        with pytest.raises(ValidationException):
+            await service.writer.adopt(
+                db,
+                user_id=1,
+                reservation_id=accepted.reservation_id,
+                manifest=manifest,
+                candidate=replace(
+                    candidate,
+                    object_facts=replace(candidate.object_facts, object_key="different candidate"),
+                ),
+            )
+        await db.rollback()
+        await service.writer.adopt(
+            db,
+            user_id=1,
+            reservation_id=accepted.reservation_id,
+            manifest=manifest,
+            candidate=candidate,
+        )
+        async with sessions() as observer:
+            assert await observer.scalar(select(PerformanceTake)) is None
+        await db.rollback()
+    async with sessions() as observer:
+        row = await reservations.repository.get_reservation_by_uuid(
+            observer, 1, accepted.reservation_id
+        )
+        assert row.status == "FINALIZING" and row.finalizing_token == lease.token
+        assert await observer.scalar(select(PerformanceTake)) is None
+        assert (await observer.get(StorageUsageAccount, 1)).reserved_bytes == len(MEDIA)
+
+
+@pytest.mark.asyncio
+async def test_completed_deleted_resource_replay_cannot_resurrect_take(postgres_bundle):
+    sessions, reservations, service, storage, request, accepted, manifest, key = await setup(
+        postgres_bundle
+    )
+    async with sessions() as db:
+        take = await service.finalize_take(db, 1, accepted.reservation_id)
+        await service.takes.delete_take(db, 1, take.take_id)
+        for command in [
+            lambda: reservations.reserve_upload(db, 1, request),
+            lambda: service.finalize_take(db, 1, accepted.reservation_id),
+        ]:
+            with pytest.raises(ResourceNotFoundException):
+                await command()
+            await db.rollback()
+        assert await db.scalar(select(PerformanceTake)) is None
+        row = await reservations.repository.get_reservation_by_uuid(db, 1, accepted.reservation_id)
+        assert row.status == "COMPLETED" and manifest_from_row(row.manifest) == manifest
+        assert (await db.get(StorageUsageAccount, 1)).used_bytes == 0
+        assert await db.scalar(select(StoredObjectRetirement)) is not None
+
+
+@pytest.mark.asyncio
+async def test_delete_after_finalize_visibility_has_one_serial_accounting_outcome(postgres_bundle):
+    import asyncio
+
+    sessions, reservations, service, storage, request, accepted, manifest, key = await setup(
+        postgres_bundle
+    )
+    visible, deleted = asyncio.Event(), asyncio.Event()
+    hydrate = service.takes.get_take
+
+    async def read_after_delete(*args, **kwargs):
+        visible.set()
+        await deleted.wait()
+        return await hydrate(*args, **kwargs)
+
+    async with sessions() as final_db, sessions() as delete_db:
+        with patch.object(service.takes, "get_take", side_effect=read_after_delete):
+            pending = asyncio.create_task(
+                service.finalize_take(final_db, 1, accepted.reservation_id)
+            )
+            try:
+                await asyncio.wait_for(visible.wait(), 10)
+                await service.takes.delete_take(delete_db, 1, accepted.take_id)
+            finally:
+                deleted.set()
+            # Deletion may win before response hydration; it never reverses completion lineage.
+            with pytest.raises(ResourceNotFoundException):
+                await asyncio.wait_for(pending, 10)
+    async with sessions() as observer:
+        assert await observer.scalar(select(PerformanceTake)) is None
+        row = await reservations.repository.get_reservation_by_uuid(
+            observer, 1, accepted.reservation_id
+        )
+        assert row.status == "COMPLETED"
+        account = await observer.get(StorageUsageAccount, 1)
+        assert account.used_bytes == account.reserved_bytes == 0
+        retirement = await observer.scalar(select(StoredObjectRetirement))
+        assert retirement is not None
+        assert storage.exists(retirement.object_key)
+
+
+@pytest.mark.asyncio
+async def test_known_failure_after_reservation_expiry_releases_hold(postgres_bundle):
+    sessions, reservations, service, storage, request, accepted, manifest, key = await setup(
+        postgres_bundle
+    )
+
+    async def expired_media(*args):
+        async with sessions() as other:
+            row = await reservations.repository.get_reservation_by_uuid(
+                other, 1, accepted.reservation_id, lock=True
+            )
+            # Time advances while physical verification is in flight.
+            row.expires_at = utc_now_naive() - timedelta(seconds=1)
+            await other.commit()
+        raise ValidationException("validation_error", field="media_byte_size")
+
+    async with sessions() as db:
+        with patch.object(service.media, "verify", side_effect=expired_media):
+            with pytest.raises(ValidationException):
+                await service.finalize_take(db, 1, accepted.reservation_id)
+        row = await reservations.repository.get_reservation_by_uuid(db, 1, accepted.reservation_id)
+        assert row.status == "EXPIRED" and row.finalizing_token is None
+        account = await db.get(StorageUsageAccount, 1)
+        assert account.used_bytes == account.reserved_bytes == 0
+
+
+@pytest.mark.asyncio
+async def test_late_io_records_orphan_after_winner_even_if_prior_cleanup_saw_absence(
+    postgres_bundle,
+):
+    sessions, reservations, service, storage, request, accepted, manifest, key = await setup(
+        postgres_bundle
+    )
+    async with sessions() as db:
+        await service.finalize_take(db, 1, accepted.reservation_id)
+        late = FinalizeLease(
+            "old", "performance-takes/late-old.webm", utc_now_naive() - timedelta(hours=1)
+        )
+        storage.copy(key, late.object_key)
+        await service.recovery.recover(
+            db, user_id=1, take_uuid=accepted.take_id, lease=late, unknown_outcome=False
+        )
+        await db.commit()
+        row = await reservations.repository.get_reservation_by_uuid(db, 1, accepted.reservation_id)
+        assert row.status == "COMPLETED"
+        assert late.object_key in {item.key for item in lifecycle_from_row(row).orphan_candidates}
+        winner = await reservations.repository.get_by_reservation(db, 1, row.id)
+        assert winner.recording_object.object_key != late.object_key
+        assert (await db.get(StorageUsageAccount, 1)).used_bytes == len(MEDIA)
+
+
+@pytest.mark.asyncio
+async def test_independent_retry_can_complete_while_known_failure_returns(postgres_bundle):
+    import asyncio
+
+    sessions, reservations, service, storage, request, accepted, manifest, key = await setup(
+        postgres_bundle
+    )
+    recovered, release = asyncio.Event(), asyncio.Event()
+
+    class RecoveringSession(AsyncSession):
+        async def commit(self):
+            is_recovery = any(
+                getattr(item, "status", None) == "RESERVED"
+                and getattr(item, "orphan_final_object_keys", "[]") != "[]"
+                for item in self.identity_map.values()
+            )
+            await super().commit()
+            if is_recovery:
+                recovered.set()
+                await release.wait()
+
+    verify = service.media.verify
+    first = True
+
+    async def fail_first(*args, **kwargs):
+        nonlocal first
+        if first:
+            first = False
+            raise ValidationException("validation_error", field="media_byte_size")
+        return await verify(*args, **kwargs)
+
+    async with RecoveringSession(postgres_bundle[0], expire_on_commit=False) as a, sessions() as b:
+        with patch.object(service.media, "verify", side_effect=fail_first):
+            failing = asyncio.create_task(service.finalize_take(a, 1, accepted.reservation_id))
+            try:
+                await asyncio.wait_for(recovered.wait(), 10)
+                replay = await reservations.reserve_upload(b, 1, request)
+                assert replay.status == "RESERVED" and replay.manifest == manifest.snapshot
+                assert (await b.get(StorageUsageAccount, 1)).reserved_bytes == len(MEDIA)
+                saved = await service.finalize_take(b, 1, accepted.reservation_id)
+                assert saved.take_id == accepted.take_id
+            finally:
+                release.set()
+            with pytest.raises(ValidationException):
+                await asyncio.wait_for(failing, 10)
+    async with sessions() as observer:
+        row = await reservations.repository.get_reservation_by_uuid(
+            observer, 1, accepted.reservation_id
+        )
+        assert row.status == "COMPLETED"
+        assert await observer.scalar(select(func.count()).select_from(PerformanceTake)) == 1
+        account = await observer.get(StorageUsageAccount, 1)
+        assert account.used_bytes == len(MEDIA) and account.reserved_bytes == 0
+
+
+@pytest.mark.asyncio
+async def test_late_candidate_cannot_adopt_or_recover_new_inflight_lease(postgres_bundle):
+    import asyncio
+    from threading import Event
+
+    sessions, reservations, service, storage, request, accepted, manifest, key = await setup(
+        postgres_bundle
+    )
+    entered = [Event(), Event()]
+    release = [Event(), Event()]
+    candidates = []
+    original_copy = storage.copy
+
+    def held_copy(source, target):
+        index = len(candidates)
+        candidates.append(target)
+        original_copy(source, target)
+        entered[index].set()
+        assert release[index].wait(15), "candidate IO was not released"
+
+    async with sessions() as a, sessions() as b, sessions() as observer:
+        with patch.object(storage, "copy", side_effect=held_copy):
+            first = asyncio.create_task(service.finalize_take(a, 1, accepted.reservation_id))
+            second = None
+            try:
+                assert await asyncio.to_thread(entered[0].wait, 10)
+                row = await reservations.repository.get_reservation_by_uuid(
+                    observer, 1, accepted.reservation_id, lock=True
+                )
+                lease_a = lifecycle_from_row(row).lease
+                row.finalizing_expires_at = utc_now_naive() - timedelta(seconds=1)
+                await observer.commit()
+                second = asyncio.create_task(service.finalize_take(b, 1, accepted.reservation_id))
+                assert await asyncio.to_thread(entered[1].wait, 10)
+                row = await reservations.repository.get_reservation_by_uuid(
+                    observer, 1, accepted.reservation_id
+                )
+                lease_b = lifecycle_from_row(row).lease
+                assert lease_a.token != lease_b.token and lease_a.object_key != lease_b.object_key
+                await observer.commit()
+                release[0].set()
+                with pytest.raises(ValidationException):
+                    await asyncio.wait_for(first, 10)
+                row = await reservations.repository.get_reservation_by_uuid(
+                    observer, 1, accepted.reservation_id
+                )
+                assert row.status == "FINALIZING" and lifecycle_from_row(row).lease == lease_b
+                assert await observer.scalar(select(PerformanceTake)) is None
+                assert (
+                    await observer.scalar(
+                        select(StoredObject).where(StoredObject.object_key == candidates[0])
+                    )
+                    is None
+                )
+                account = await observer.get(StorageUsageAccount, 1)
+                assert account.used_bytes == 0 and account.reserved_bytes == len(MEDIA)
+                assert candidates[0] in {
+                    item.key for item in lifecycle_from_row(row).orphan_candidates
+                }
+                await observer.commit()
+                release[1].set()
+                assert (await asyncio.wait_for(second, 10)).take_id == accepted.take_id
+            finally:
+                for barrier in release:
+                    barrier.set()
+                await asyncio.gather(
+                    *[task for task in [first, second] if task is not None], return_exceptions=True
+                )
+    async with sessions() as observer:
+        take = await observer.scalar(select(PerformanceTake))
+        await observer.refresh(take, attribute_names=["recording_object"])
+        assert take.recording_object.object_key == candidates[1]
+        assert await observer.scalar(select(func.count()).select_from(PerformanceTake)) == 1

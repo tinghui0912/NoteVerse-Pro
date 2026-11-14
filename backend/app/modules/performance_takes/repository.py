@@ -23,15 +23,9 @@ class PerformanceTakeRepository:
         self,
         db: AsyncSession,
         take: PerformanceTake,
-        *,
-        auto_commit: bool = True,
     ) -> PerformanceTake:
         db.add(take)
-        if auto_commit:
-            await db.commit()
-            await db.refresh(take)
-        else:
-            await db.flush()
+        await db.flush()
         return take
 
     async def get_by_uuid(
@@ -126,15 +120,9 @@ class PerformanceTakeRepository:
         self,
         db: AsyncSession,
         reservation: PerformanceTakeUploadReservation,
-        *,
-        auto_commit: bool = True,
     ) -> PerformanceTakeUploadReservation:
         db.add(reservation)
-        if auto_commit:
-            await db.commit()
-            await db.refresh(reservation)
-        else:
-            await db.flush()
+        await db.flush()
         return reservation
 
     async def get_reservation_by_client_request_id(

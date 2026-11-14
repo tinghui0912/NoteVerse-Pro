@@ -164,13 +164,14 @@ async def test_http_source_disclosure_and_editing_boundaries(collaboration, role
     source = PracticeBundleService(storage=storage)
     admitted = await source.resolve_bundle(db, score.score_uuid, 1, "trusted-revision")
     bundle_id = admitted.bundle.bundle_id
-    from app.modules.performance_takes.dependencies import get_performance_take_upload_service
-    from app.modules.performance_takes.upload_reservation.service import (
-        PerformanceTakeUploadService,
+    from app.modules.performance_takes.dependencies import (
+        get_performance_take_reservation_service,
+        get_performance_take_finalization_service,
     )
+    from tests.support.take_lifecycle import TakeLifecycleServices
 
     services = {
-        get_performance_take_upload_service: PerformanceTakeUploadService(
+        get_performance_take_reservation_service: TakeLifecycleServices(
             storage=storage, practice_bundle_service=source
         ),
         get_score_service: ScoreService(storage=storage),
@@ -181,13 +182,21 @@ async def test_http_source_disclosure_and_editing_boundaries(collaboration, role
         get_score_invite_service: ScoreInviteService(),
     }
 
+    services[get_performance_take_finalization_service] = services[
+        get_performance_take_reservation_service
+    ]
+
     async def database():
         yield db
 
     app.dependency_overrides[get_db] = database
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=user_id, is_active=True)
+
+    def provide(value):
+        return lambda: value
+
     for dependency, service in services.items():
-        app.dependency_overrides[dependency] = lambda service=service: service
+        app.dependency_overrides[dependency] = provide(service)
     can_edit = ScoreAction.EDIT in ALLOWED[role]
     can_practice = ScoreAction.PRACTICE in ALLOWED[role]
     can_download = role == "OWNER"

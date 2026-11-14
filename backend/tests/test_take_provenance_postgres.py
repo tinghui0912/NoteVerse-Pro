@@ -19,7 +19,7 @@ from app.db.models import (
     PerformanceTakeUploadReservation,
 )
 from app.modules.performance_takes.manifest_persistence import manifest_from_row
-from app.modules.performance_takes.upload_reservation.service import PerformanceTakeUploadService
+from tests.support.take_lifecycle import TakeLifecycleServices
 from app.modules.performance_takes.upload_reservation.domain import FinalizeLease
 from app.modules.performance_takes.upload_reservation.persistence import (
     initialize_lifecycle,
@@ -43,7 +43,7 @@ async def wait_for_database_lock(observer, pid):
 @pytest.mark.asyncio
 async def test_save_admission_commits_before_waiting_score_deletion(postgres_bundle):
     sessions, source, storage, request = await setup_bundle(postgres_bundle)
-    service = PerformanceTakeUploadService(storage=storage, practice_bundle_service=source)
+    service = TakeLifecycleServices(storage=storage, practice_bundle_service=source)
     admitted, release = asyncio.Event(), asyncio.Event()
     authorize = source.authorize_bundle_for_save
 
@@ -93,7 +93,7 @@ async def test_save_admission_commits_before_waiting_score_deletion(postgres_bun
 @pytest.mark.asyncio
 async def test_score_deletion_commit_denies_waiting_new_save(postgres_bundle):
     sessions, source, storage, request = await setup_bundle(postgres_bundle)
-    service = PerformanceTakeUploadService(storage=storage, practice_bundle_service=source)
+    service = TakeLifecycleServices(storage=storage, practice_bundle_service=source)
     deleting, release = asyncio.Event(), asyncio.Event()
 
     class DeletionTransaction(AsyncSession):
@@ -129,7 +129,7 @@ async def test_score_deletion_commit_denies_waiting_new_save(postgres_bundle):
 @pytest.mark.parametrize("postgres_bundle", ["durable-practice-score.musicxml"], indirect=True)
 async def test_snapshot_replay_finalize_and_take_reads_survive_bundle_gc(postgres_bundle):
     sessions, source, storage, request = await setup_bundle(postgres_bundle)
-    service = PerformanceTakeUploadService(storage=storage, practice_bundle_service=source)
+    service = TakeLifecycleServices(storage=storage, practice_bundle_service=source)
     async with sessions() as db:
         accepted = await service.reserve_upload(db, 1, request)
         row = await service.repository.get_reservation_by_uuid(db, 1, accepted.reservation_id)
@@ -168,7 +168,7 @@ async def test_snapshot_replay_finalize_and_take_reads_survive_bundle_gc(postgre
 
         with (
             patch(
-                "app.modules.performance_takes.upload_reservation.service.resolve_practice_score_plan",
+                "app.modules.performance_takes.upload_reservation.reservation_service.resolve_practice_score_plan",
                 side_effect=AssertionError("Manifest finalization does not plan"),
             ),
             patch.object(
@@ -228,7 +228,7 @@ async def test_snapshot_replay_finalize_and_take_reads_survive_bundle_gc(postgre
 @pytest.mark.asyncio
 async def test_revision_only_retention_with_existing_reservation_or_take(postgres_bundle, status):
     sessions, source, storage, request = await setup_bundle(postgres_bundle)
-    service = PerformanceTakeUploadService(storage=storage, practice_bundle_service=source)
+    service = TakeLifecycleServices(storage=storage, practice_bundle_service=source)
     async with sessions() as db:
         accepted = await service.reserve_upload(db, 1, request)
         row = await service.repository.get_reservation_by_uuid(db, 1, accepted.reservation_id)

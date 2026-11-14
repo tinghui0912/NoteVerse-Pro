@@ -1331,7 +1331,23 @@ browser evidence; saved Take admission verifies agreement between those authorit
 Playback responses carry only take_id, playback_url, download_url and expires_in.
 
 DELETE completes semantic Take deletion and logical quota release transactionally before
-HTTP 200 `{ take_id, deleted: true }`. The Take is absent from reads, playback and lists
+bodyless HTTP 204. The Take is absent from reads, playback and lists
 immediately. StoredObjectRetirement independently converges physical cleanup without a
 Take-level deletion status. My Performances updates cached lists/totals, clears the
 removed Take's playback/detail caches and invalidates list/storage usage without polling.
+
+
+## PerformanceTake Save owners
+
+[PerformanceTake lifecycle](performance-take-lifecycle.md) separates upload reservation
+capability, DB-free verified media candidates and the sole `PerformanceTakeWriter`
+semantic adoption participant. `PerformanceTakeFinalizationService` owns the outer
+StoredObject/Take/reservation/quota commit. Known failed attempts immediately release
+their finalize lease; unknown commit outcomes recover only from persisted lineage.
+Reservation cleanup deletes temporary staging/orphans; retirement deletes adopted media.
+
+The browser `PerformanceTakeSaveCommand` owns reserve/PUT/finalize agreement and retry.
+It synchronously retains exact recording media before asynchronous mutation scheduling
+and releases its lease once. React Query owns invocation and cache integration. Review
+keeps its request identity across retry; finalize transport uncertainty never cancels.
+Completed deletion lineage cannot resurrect a Take on replay.

@@ -277,9 +277,7 @@ async def test_attempt_takeover_fences_stale_work_and_holds_rows_across_delete(
 async def test_shared_take_release_keeps_lineage_and_accounts_before_physical_retirement(
     postgres_bundle, retirement_postgres, monkeypatch
 ):
-    from app.modules.performance_takes.upload_reservation.service import (
-        PerformanceTakeUploadService,
-    )
+    from tests.support.take_lifecycle import TakeLifecycleServices
     from app.modules.storage_usage.service import storage_usage_service
     from app.db.models import (
         PerformanceTake,
@@ -292,7 +290,7 @@ async def test_shared_take_release_keeps_lineage_and_accounts_before_physical_re
 
     engine, sync, sessions, storage = retirement_postgres
     _, bundles, _, request = await setup_bundle(postgres_bundle)
-    service = PerformanceTakeUploadService(storage=storage, practice_bundle_service=bundles)
+    service = TakeLifecycleServices(storage=storage, practice_bundle_service=bundles)
     async with sessions() as db:
         accepted = await service.reserve_upload(db, 1, request)
         reservation = await service.repository.get_reservation_by_uuid(

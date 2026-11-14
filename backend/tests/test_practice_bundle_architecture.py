@@ -106,7 +106,7 @@ def test_durable_planning_depends_only_on_score_domain_and_standard_library():
             else:
                 assert node.module in {"__future__", "dataclasses", "typing"}
     service = ast.parse(
-        (ROOT / "modules/performance_takes/upload_reservation/service.py").read_text()
+        (ROOT / "modules/performance_takes/upload_reservation/reservation_service.py").read_text()
     )
     calls = [
         node

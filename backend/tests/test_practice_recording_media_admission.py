@@ -172,7 +172,13 @@ def test_check_detects_drift_without_writing_and_normal_generation_repairs(tmp_p
 
 
 def test_manifest_upload_and_delivery_depend_on_the_admission_adapter():
-    for name in ["manifest.py", "service.py", "upload_reservation/service.py"]:
+    for name in [
+        "manifest.py",
+        "service.py",
+        "upload_reservation/reservation_service.py",
+        "final_media.py",
+        "finalization.py",
+    ]:
         tree = ast.parse(
             (ROOT / "backend/app/modules/performance_takes" / name).read_text(encoding="utf-8")
         )

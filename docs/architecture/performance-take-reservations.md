@@ -2,9 +2,12 @@
 
 UploadReservation is a persisted lifecycle aggregate. Its pure owner is
 `backend/app/modules/performance_takes/upload_reservation/domain.py`.
-HTTP DTOs carry intent and recording evidence. `PerformanceTakeUploadService`
-authorizes the exact bound Bundle, calls the Practice planner, orchestrates storage IO,
-and executes explicit transition effects. `PerformanceTakeService` owns the durable
+HTTP DTOs carry intent and recording evidence. `PerformanceTakeReservationService`
+authorizes the exact bound Bundle, calls the Practice planner, holds quota and issues
+upload capabilities. `PerformanceTakeFinalizationService` orchestrates physical verification,
+exact-lease admission and the outer semantic commit. `PerformanceTakeWriter` is the sole
+Take constructor and transaction participant. [Take lifecycle](performance-take-lifecycle.md)
+describes those owners and the browser Save command. `PerformanceTakeService` owns the durable
 Take library: reads, playback, download and deletion, using the shared immutable Manifest.
 
 ## Capture, saved recording and Composite Video
@@ -72,7 +75,12 @@ Finalization verifies staging size, MIME/container and full SHA-256, copies to a
 unique token-owned candidate, and verifies candidate size and SHA-256 equality.
 An active finite lease cannot be taken over. Expired takeover assigns a new token
 and key and retains the old candidate with a thirty-minute unknown-outcome grace.
-Copy and completion both check lease identity; completion also requires a live lease.
+Physical verification uses the unique lease candidate key without holding a database lock.
+Final semantic admission locks the reservation and requires the exact live lease; a late
+physical result can only leave orphan evidence, never replace a current winner.
+Known media/admission failure immediately recovers the exact lease to RESERVED, or EXPIRED
+when its reservation expires. RESERVED recovery preserves the Manifest and quota hold.
+Candidate/staging deletion belongs exclusively to reservation cleanup; requests never delete them.
 
 New durable save admission authorizes and verifies a live exact bound Bundle under Score,
 Revision, selected access fact, Binding and Bundle locks. The lock order and delete/admit ordering
@@ -113,7 +121,8 @@ Equal normalized request intent/evidence replays the same reservation. RESERVED
 replay compares the Manifest's typed `admitted_upload_metadata` projection with request
 metadata, without Bundle reauthorization or planning. RESERVED
 can refresh the upload capability; FINALIZING returns state without a new upload;
-COMPLETED returns the same Take. Changed metadata conflicts. CANCELLED/EXPIRED
+COMPLETED returns the same Take while it remains in the library; an intentionally deleted
+completed Take returns unavailable and is never recreated. Changed metadata conflicts. CANCELLED/EXPIRED
 cannot be reopened with the same client request ID.
 
 Cancellation accepts RESERVED and is idempotent for CANCELLED. Other states return
@@ -125,8 +134,8 @@ lease may recover to RESERVED, retaining the uncertain candidate for cleanup.
 Unexpected active-reservation/Take combinations are invariant violations.
 
 `UploadReservationCleanupService` performs bounded expiry/recovery scans and
-storage cleanup. It uses the same domain commands and explicit effects as the
-upload service. Recovery commits before slow storage IO. Staging cleanup waits
+storage cleanup. It uses the same domain commands and explicit effects as
+reservation commands and finalization. Recovery commits before slow storage IO. Staging cleanup waits
 until all issued upload capabilities have expired. Orphan deletion checks committed StoredObject
 identity and grace; acknowledgment rehydrates current state so extended grace
 cannot be erased by a stale result. Completed reservation cleanup also supports

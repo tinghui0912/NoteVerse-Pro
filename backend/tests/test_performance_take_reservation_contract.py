@@ -6,7 +6,7 @@ from app.db.models.performance_take import PerformanceTake
 from app.db.models.performance_take_upload_reservation import PerformanceTakeUploadReservation
 from app.main import app
 from app.modules.performance_takes.schemas import PerformanceTakeUploadReservationRequest
-from app.modules.performance_takes.upload_reservation.service import PerformanceTakeUploadService
+from app.modules.performance_takes.finalization import PerformanceTakeFinalizationService
 
 
 def test_manifest_and_lifecycle_persistence_ownership():
@@ -67,7 +67,7 @@ def test_manifest_and_lifecycle_persistence_ownership():
 
 
 def test_finalize_contract_consumes_only_user_scoped_reservation_identity():
-    assert list(inspect.signature(PerformanceTakeUploadService.finalize_take).parameters) == [
+    assert list(inspect.signature(PerformanceTakeFinalizationService.finalize_take).parameters) == [
         "self",
         "db",
         "user_id",

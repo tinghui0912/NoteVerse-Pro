@@ -60,10 +60,11 @@ from app.db.models import StoredObjectRetirement
 from app.worker.execution import stored_object_retirement
 from app.modules.performance_takes.dependencies import (
     get_performance_take_service,
-    get_performance_take_upload_service,
+    get_performance_take_reservation_service,
+    get_performance_take_finalization_service,
 )
 from app.modules.performance_takes.service import PerformanceTakeService
-from app.modules.performance_takes.upload_reservation.service import PerformanceTakeUploadService
+from tests.support.take_lifecycle import TakeLifecycleServices
 from app.modules.performance_takes.schemas import PerformanceTakeUploadReservationRequest
 from app.modules.performance_takes.manifest import TakeManifest
 from app.modules.performance_takes.schemas import (
@@ -160,10 +161,10 @@ def _performance_take_service(
     session: Session,
     storage: InMemoryObjectStorage,
     storage_usage_service: StorageUsageService | None = None,
-) -> PerformanceTakeUploadService:
+) -> TakeLifecycleServices:
     if session.get(ScoreRevisionPracticeBinding, 100) is None:
         _create_default_bundle(session, storage, revision_id=100)
-    return PerformanceTakeUploadService(
+    return TakeLifecycleServices(
         storage=storage,
         storage_usage_service=storage_usage_service,
         practice_bundle_service=PracticeBundleService(storage=storage),
@@ -687,7 +688,8 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
     app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
-    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_reservation_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_finalization_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -968,7 +970,8 @@ def test_score_access_and_validation(test_env):
     app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
-    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_reservation_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_finalization_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -1075,7 +1078,8 @@ def test_cross_user_score_permission(test_env):
     app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
-    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_reservation_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_finalization_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -1146,7 +1150,8 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
     app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
-    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_reservation_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_finalization_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -1324,7 +1329,8 @@ def test_quota_rejection(test_env):
     app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
-    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_reservation_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_finalization_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -1367,7 +1373,8 @@ def test_cancel_upload_reservation(test_env, monkeypatch: pytest.MonkeyPatch):
     app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
-    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_reservation_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_finalization_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -1473,7 +1480,8 @@ def test_pagination(test_env):
     app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
-    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_reservation_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_finalization_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -1547,7 +1555,8 @@ def test_audio_container_magic_bytes_validation(test_env):
     app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
-    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_reservation_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_finalization_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -1658,7 +1667,8 @@ def test_finalize_safe_retry_idempotency(test_env):
     app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
-    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_reservation_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_finalization_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -1765,7 +1775,8 @@ def test_finalize_recovers_first_post_storage_db_disconnect(test_env):
     app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
-    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_reservation_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_finalization_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -1844,7 +1855,8 @@ def test_finalize_range_video_preserves_scope_identity_and_recording_timebase(te
     app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
-    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_reservation_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_finalization_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
     try:
@@ -1954,7 +1966,8 @@ def test_finalize_rejects_candidate_when_staging_changes_after_validation(test_e
     app.dependency_overrides[get_object_storage] = lambda: mutating_storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
-    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_reservation_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_finalization_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -2020,7 +2033,8 @@ def test_video_take_finalize_uses_video_media_kind_and_candidate(test_env):
     app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
-    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_reservation_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_finalization_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -2155,7 +2169,8 @@ def test_crash_abandoned_after_reservation(test_env, monkeypatch: pytest.MonkeyP
     app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
-    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_reservation_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_finalization_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -2249,7 +2264,8 @@ def test_expired_reservation_staging_delete_failure_is_retryable(test_env, monke
     app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
-    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_reservation_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_finalization_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -2338,7 +2354,8 @@ def test_completed_reservation_late_staging_put_is_cleaned_after_expiry(test_env
     app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
-    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_reservation_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_finalization_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -2437,7 +2454,8 @@ def test_score_deleted_between_reserve_and_finalize_preserves_provenance(test_en
     app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
-    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_reservation_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_finalization_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -2530,7 +2548,8 @@ def test_expired_reservation_cleanup_releases_db_lock_before_storage_delete(test
     app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
-    app.dependency_overrides[get_performance_take_upload_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_reservation_service] = lambda: take_svc
+    app.dependency_overrides[get_performance_take_finalization_service] = lambda: take_svc
 
     client = PerformanceTakeTestClient(app)
 
@@ -2737,7 +2756,7 @@ def test_reservation_cleanup_does_not_complete_when_final_head_fails(test_env):
     assert auth.staging_cleanup_completed_at is None
 
 
-def test_finalize_copy_lease_rejects_expired_executor_before_storage_copy(test_env):
+def test_finalize_in_progress_rejects_competing_executor_before_storage_copy(test_env):
     session, _storage, user_1, _ = test_env
     take_svc = _performance_take_service(session=session, storage=_storage)
     expired = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=1)
@@ -2757,22 +2776,17 @@ def test_finalize_copy_lease_rejects_expired_executor_before_storage_copy(test_e
         status=UploadReservationStatus.FINALIZING,
         expires_at=expired + timedelta(hours=2),
         finalizing_token="expired-token",
-        finalizing_expires_at=expired,
+        finalizing_expires_at=expired + timedelta(hours=1),
     )
     session.add(auth)
     session.commit()
 
     with pytest.raises(Exception) as exc_info:
         _run_async(
-            take_svc._ensure_finalize_copy_lease(
-                AsyncSessionAdapter(session),
-                user_id=user_1.id,
-                take_uuid=auth.manifest.take_uuid,
-                finalizing_token="expired-token",
-            )
+            take_svc.finalize_take(AsyncSessionAdapter(session), user_1.id, auth.reservation_uuid)
         )
 
-    assert getattr(exc_info.value, "details", {}).get("reason") == "finalize_lease_lost"
+    assert getattr(exc_info.value, "details", {}).get("reason") == "finalize_in_progress"
 
 
 def test_completed_reservation_cleanup_does_not_touch_storage(test_env):
@@ -3100,7 +3114,8 @@ def _reservation_client(session, storage, user):
     app.dependency_overrides[get_db] = db
     app.dependency_overrides[get_current_user] = lambda: user
     app.dependency_overrides[get_performance_take_service] = lambda: service.takes
-    app.dependency_overrides[get_performance_take_upload_service] = lambda: service
+    app.dependency_overrides[get_performance_take_reservation_service] = lambda: service
+    app.dependency_overrides[get_performance_take_finalization_service] = lambda: service
     try:
         yield PerformanceTakeTestClient(app), service
     finally:
@@ -3248,7 +3263,7 @@ def test_finalize_unknown_commit_outcome_recovers_via_reservation_lineage(
     test_env, monkeypatch, committed
 ):
     from contextlib import asynccontextmanager
-    import app.modules.performance_takes.upload_reservation.service as service_module
+    import app.modules.performance_takes.upload_reservation.recovery as service_module
 
     session, storage, user, _ = test_env
     with _reservation_client(session, storage, user) as (client, _):
@@ -3335,7 +3350,7 @@ def test_bound_bundle_authorization_preserves_admitted_representation_identity(t
         )
     )
     bundles = PracticeBundleService(storage=storage, asset_repository=assets)
-    uploads = PerformanceTakeUploadService(storage=storage, practice_bundle_service=bundles)
+    uploads = TakeLifecycleServices(storage=storage, practice_bundle_service=bundles)
 
     async def override_db():
         yield AsyncSessionAdapter(session)
@@ -3346,7 +3361,8 @@ def test_bound_bundle_authorization_preserves_admitted_representation_identity(t
             get_current_user: lambda: user,
             get_practice_bundle_service: lambda: bundles,
             get_performance_take_service: lambda: uploads.takes,
-            get_performance_take_upload_service: lambda: uploads,
+            get_performance_take_reservation_service: lambda: uploads,
+            get_performance_take_finalization_service: lambda: uploads,
         }
     )
     client = PerformanceTakeTestClient(app)
@@ -3600,7 +3616,7 @@ def test_reservation_derives_and_transfers_exact_bundle_plan(test_env, scope_kin
                 side_effect=AssertionError("Admitted reservation uses its snapshot"),
             ),
             patch(
-                "app.modules.performance_takes.upload_reservation.service.resolve_practice_score_plan",
+                "app.modules.performance_takes.upload_reservation.reservation_service.resolve_practice_score_plan",
                 side_effect=AssertionError("Replay and finalize consume persisted truth"),
             ),
         ):
@@ -3745,7 +3761,9 @@ def test_cleanup_rejects_active_reservation_with_take_as_invariant_violation(tes
         {key: value for key, value in _upload_intent().items() if key != "client_request_id"}
     )
     with pytest.raises(ReservationInvariantError, match="atomic"):
-        _run_async(service._replay_reservation(AsyncSessionAdapter(session), row, metadata))
+        _run_async(
+            service.reservations._replay_reservation(AsyncSessionAdapter(session), row, metadata)
+        )
 
 
 def test_recording_microseconds_survive_reservation_finalize_and_take_reads(test_env):
@@ -3928,7 +3946,7 @@ def test_segmented_recording_manifest_round_trips_through_reserve_finalize_and_r
 
 
 @pytest.mark.parametrize(
-    "object_stage, expected_status", [("staging", "FINALIZING"), ("candidate", "RESERVED")]
+    "object_stage, expected_status", [("staging", "RESERVED"), ("candidate", "RESERVED")]
 )
 @pytest.mark.parametrize("size_delta", [-1, 1])
 def test_finalize_requires_exact_admitted_object_size(
@@ -4002,7 +4020,7 @@ def test_exact_custom_tempo_survives_reserve_replay_finalize_and_reads(test_env,
                 side_effect=AssertionError("Replay uses admitted semantics"),
             ),
             patch(
-                "app.modules.performance_takes.upload_reservation.service.resolve_practice_score_plan",
+                "app.modules.performance_takes.upload_reservation.reservation_service.resolve_practice_score_plan",
                 side_effect=AssertionError("Replay does not plan"),
             ),
         ):
@@ -4047,9 +4065,9 @@ def test_failed_reserve_rolls_back_manifest_reservation_and_quota(test_env):
     service = _performance_take_service(session=session, storage=storage)
 
     class FailureAfterManifest(PerformanceTakeRepository):
-        async def create_reservation(self, db, reservation, *, auto_commit=True):
+        async def create_reservation(self, db, reservation):
             assert reservation.manifest_id is not None
-            await super().create_reservation(db, reservation, auto_commit=False)
+            await super().create_reservation(db, reservation)
             raise RuntimeError("reservation transaction failed")
 
     service.repository = FailureAfterManifest()
@@ -4117,7 +4135,7 @@ def test_take_deletion_retires_media_but_preserves_manifest_and_reservation(test
 
 def test_final_blob_sha_is_the_complete_candidate_and_actual_object_digest(test_env):
     session, storage, user, _ = test_env
-    from app.modules.performance_takes.upload_reservation import service as module
+    from app.modules.performance_takes import final_media as module
 
     hashes = {}
     original = module._sha256_storage_object

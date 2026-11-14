@@ -25,7 +25,7 @@ from app.db.models.storage_usage import StorageUsageReservation
 from app.modules.performance_takes.manifest_persistence import manifest_from_row
 from app.modules.performance_takes.repository import PerformanceTakeRepository
 from app.modules.performance_takes.schemas import PerformanceTakeUploadReservationRequest
-from app.modules.performance_takes.upload_reservation.service import PerformanceTakeUploadService
+from tests.support.take_lifecycle import TakeLifecycleServices
 from app.modules.performance_takes.upload_reservation.cleanup import (
     upload_reservation_cleanup_service,
 )
@@ -53,7 +53,7 @@ async def test_terminal_transitions_atomically_release_quota_and_preserve_proven
     from app.utils.timezone import utc_now_naive
 
     sessions, source, storage, request = await setup_bundle(postgres_bundle)
-    service = PerformanceTakeUploadService(storage=storage, practice_bundle_service=source)
+    service = TakeLifecycleServices(storage=storage, practice_bundle_service=source)
     async with sessions() as db:
         reserved = await service.reserve_upload(db, 1, request)
         row = await service.repository.get_reservation_by_uuid(db, 1, reserved.reservation_id)
@@ -109,7 +109,7 @@ async def test_take_creation_completion_and_quota_commit_share_one_transaction(p
     from unittest.mock import patch
 
     sessions, source, storage, request = await setup_bundle(postgres_bundle)
-    service = PerformanceTakeUploadService(storage=storage, practice_bundle_service=source)
+    service = TakeLifecycleServices(storage=storage, practice_bundle_service=source)
     async with sessions() as db:
         reserved = await service.reserve_upload(db, 1, request)
         row = await service.repository.get_reservation_by_uuid(db, 1, reserved.reservation_id)
@@ -129,7 +129,7 @@ async def test_take_creation_completion_and_quota_commit_share_one_transaction(p
     async with sessions() as observer:
         row = await service.repository.get_reservation_by_uuid(observer, 1, reserved.reservation_id)
         assert (
-            row.status == "FINALIZING"
+            row.status == "RESERVED"
             and manifest_from_row(row.manifest).snapshot.practice_binding.bundle_id == bundle_id
         )
         assert await observer.scalar(select(func.count()).select_from(PerformanceTake)) == 0
@@ -225,7 +225,7 @@ async def test_two_creators_share_one_reservation_and_one_quota_hold(postgres_bu
                 await asyncio.wait_for(both_absent.wait(), 5)
             return value
 
-    service = PerformanceTakeUploadService(
+    service = TakeLifecycleServices(
         repository=SynchronizedRepository(), storage=storage, practice_bundle_service=source
     )
     async with sessions() as a, sessions() as b:
@@ -254,7 +254,7 @@ async def test_finalize_lease_blocks_concurrency_and_expired_takeover_preserves_
     postgres_bundle, takeover
 ):
     sessions, source, storage, request = await setup_bundle(postgres_bundle)
-    service = PerformanceTakeUploadService(storage=storage, practice_bundle_service=source)
+    service = TakeLifecycleServices(storage=storage, practice_bundle_service=source)
     async with sessions() as a:
         reserved = await service.reserve_upload(a, 1, request)
         row = await service.repository.get_reservation_by_uuid(a, 1, reserved.reservation_id)
@@ -345,6 +345,20 @@ async def test_finalize_lease_blocks_concurrency_and_expired_takeover_preserves_
         if takeover:
             assert candidates[0] in row.orphan_final_object_keys
             assert candidates[0] != take.recording_object.object_key
+            # Durable orphan cleanup removes the late loser's bytes, preserving adopted authority.
+            from unittest.mock import patch
+
+            with patch(
+                "app.modules.performance_takes.upload_reservation.cleanup.utc_now_naive",
+                return_value=utc_now_naive() + timedelta(hours=2),
+            ):
+                await db.run_sync(
+                    lambda sync: upload_reservation_cleanup_service.cleanup_expired_reservations(
+                        sync, storage, StorageUsageService()
+                    )
+                )
+            assert not storage.exists(candidates[0])
+            assert storage.exists(take.recording_object.object_key)
         account = await db.get(StorageUsageAccount, 1)
         assert account.used_bytes == len(MEDIA) and account.reserved_bytes == 0
 
@@ -358,7 +372,7 @@ async def test_exact_bundle_admission_lock_fences_owner_release_until_reservatio
     from app.modules.practice.bundle.retention import practice_bundle_retention
 
     sessions, source, storage, request = await setup_bundle(postgres_bundle)
-    service = PerformanceTakeUploadService(storage=storage, practice_bundle_service=source)
+    service = TakeLifecycleServices(storage=storage, practice_bundle_service=source)
     admitted, release = asyncio.Event(), asyncio.Event()
     authorize = source.authorize_bundle_for_save
 
@@ -436,7 +450,7 @@ async def test_persisted_manifest_coordinate_corruption_fails_closed(postgres_bu
     import json
 
     sessions, source, storage, request = await setup_bundle(postgres_bundle)
-    service = PerformanceTakeUploadService(storage=storage, practice_bundle_service=source)
+    service = TakeLifecycleServices(storage=storage, practice_bundle_service=source)
     async with sessions() as db:
         accepted = await service.reserve_upload(db, 1, request)
         reservation = await service.repository.get_reservation_by_uuid(

@@ -1,13 +1,7 @@
 'use client';
-import { recordedPerformance } from '@/lib/practice/recording/recorded-performance';
-import {
-performanceTakeUploadRequest,
-savedTakeAgreesWithRecordedPerformance,
-takeManifestAgreesWithRecordedPerformance,
-type SavePerformanceTakeInput,
-} from '@/lib/practice/saved-take/save';
-
-import { releaseLocalMediaAsset } from '@/lib/practice/media/local-media-asset';
+import { uploadMediaToSignedUrl } from '@/lib/http/direct-object-upload';
+import { PerformanceTakeSaveCommand } from '@/lib/practice/saved-take/save-command';
+import type { SavePerformanceTakeInput } from '@/lib/practice/saved-take/save';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -15,7 +9,6 @@ import type { PerformanceTakeGetResponse, PerformanceTakesListResponse } from '@
 import {
 performanceTakesApi
 } from '@/lib/api/performance-takes';
-import { uploadMediaToSignedUrl } from '@/lib/http/direct-object-upload';
 import { queryKeys } from '@/lib/query-client';
 
 export function usePerformanceTakes(
@@ -132,83 +125,7 @@ export function useSavePerformanceTake() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async (input: SavePerformanceTakeInput) => {
-      const request = performanceTakeUploadRequest(input);
-      const response = await performanceTakesApi.reserveUpload(request);
-      const reservation = response;
-      if (!reservation) throw new Error('Upload reservation is unavailable');
-      if (
-        !takeManifestAgreesWithRecordedPerformance(
-          reservation.manifest,
-          input.recordedPerformance,
-        )
-      ) {
-        if (reservation.status === 'RESERVED') {
-          try {
-            await performanceTakesApi.cancelUploadReservation(
-              reservation.reservation_id,
-            );
-          } catch {
-            // Expiry processing retains cleanup ownership if cancellation is unavailable.
-          }
-        }
-        throw new Error('PERFORMANCE_TAKE_PLAN_MISMATCH');
-      }
-      if (reservation.status === 'COMPLETED') {
-        if (!reservation.take)
-          throw new Error('Completed reservation has no saved take');
-        if (
-          !takeManifestAgreesWithRecordedPerformance(
-            reservation.take.manifest,
-            input.recordedPerformance,
-          ) ||
-          !savedTakeAgreesWithRecordedPerformance(
-            reservation.take,
-            input.recordedPerformance,
-          )
-        )
-          throw new Error('PERFORMANCE_TAKE_PLAN_MISMATCH');
-        return reservation.take;
-      }
-      if (reservation.status === 'RESERVED') {
-        const target = reservation.upload_target;
-        if (!target) throw new Error('Reserved upload has no upload target');
-        try {
-          await uploadMediaToSignedUrl(
-            target.url,
-            target.method,
-            target.headers,
-            input.recordedPerformance.recording.media.blob,
-          );
-        } catch (error) {
-          try {
-            await performanceTakesApi.cancelUploadReservation(
-              reservation.reservation_id,
-            );
-          } catch {
-            // Reservation expiry processing retains cleanup ownership.
-          }
-          throw error;
-        }
-      }
-      // Unknown finalize outcomes retain the reservation for an idempotent retry.
-      const finalized = await performanceTakesApi.finalizeTake(
-        reservation.reservation_id,
-      );
-      if (
-        !finalized ||
-        !takeManifestAgreesWithRecordedPerformance(
-          finalized.manifest,
-          input.recordedPerformance,
-        ) ||
-        !savedTakeAgreesWithRecordedPerformance(
-          finalized,
-          input.recordedPerformance,
-        )
-      )
-        throw new Error('PERFORMANCE_TAKE_PLAN_MISMATCH');
-      return finalized;
-    },
+    mutationFn: (command: PerformanceTakeSaveCommand) => command.execute(),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.performanceTakes.all,
@@ -218,21 +135,11 @@ export function useSavePerformanceTake() {
   });
   return {
     async mutateAsync(input: SavePerformanceTakeInput) {
-      // Retain synchronously with the command, before React Query can schedule transport.
-      const lease = input.recordedPerformance.recording.media.retain();
+      const command = new PerformanceTakeSaveCommand(input, performanceTakesApi, uploadMediaToSignedUrl);
       try {
-        return await mutation.mutateAsync({
-          ...input,
-          recordedPerformance: recordedPerformance(
-            input.recordedPerformance.executed,
-            Object.freeze({
-              ...input.recordedPerformance.recording,
-              media: lease,
-            }),
-          ),
-        });
+        return await mutation.mutateAsync(command);
       } finally {
-        await releaseLocalMediaAsset(lease);
+        await command.release();
       }
     },
   };

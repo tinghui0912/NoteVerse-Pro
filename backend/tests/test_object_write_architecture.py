@@ -20,7 +20,7 @@ def test_server_object_mutations_and_authority_have_explicit_owners():
     assert create_owners == {
         "modules/storage_objects/writes.py",
         "modules/storage_objects/persistence.py",
-        "modules/performance_takes/upload_reservation/service.py",
+        "modules/performance_takes/writer.py",
     }
     # The pipeline composes the same write/adoption boundary rather than granting
     # another physical-storage mutation capability to its artifact recorder.
