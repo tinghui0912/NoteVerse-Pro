@@ -6,7 +6,7 @@ from app.worker.execution.revision_metadata import (
     execute_revision_metadata_maintenance,
 )
 from app.worker.execution.score_deletion import execute_score_deletion_task
-from app.pipeline.context import CeleryTaskLike
+from app.task_queue.protocols import CeleryTaskLike
 from app.task_queue.config import celery_app
 from app.worker.execution.object_write_cleanup import execute_object_write_cleanup_task
 from app.worker.execution.maintenance_dispatch import execute_object_write_cleanup_maintenance

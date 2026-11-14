@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from app.processing.engines.ocr.paddle_worker import _build_paddleocr_kwargs
-from app.pipeline.steps.text import TextOcrStep
+from app.modules.import_jobs.pipeline.steps.text import TextOcrStep
 from app.processing.engines.ocr.paddle import run_ocr_subprocess
 from app.processing.text.recognition import TextRecognitionEngine
 

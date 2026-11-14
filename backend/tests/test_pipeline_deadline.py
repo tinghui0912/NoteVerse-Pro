@@ -3,8 +3,8 @@ from unittest.mock import Mock
 import pytest
 
 from app.core.exceptions import TimeoutException
-from app.pipeline.base import Pipeline, Step
-from app.pipeline.context import JobContext
+from app.modules.import_jobs.pipeline.base import Pipeline, Step
+from app.modules.import_jobs.pipeline.context import JobContext
 
 
 class DeadlineTestStep(Step):

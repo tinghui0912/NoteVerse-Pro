@@ -15,11 +15,11 @@ from app.modules.realtime.publisher import (
     RealtimeEventTypes,
     publish_score_event_sync,
 )
-from app.modules.review.thumbnail_service import review_thumbnail_service
+from app.modules.import_jobs.review.thumbnail_service import import_review_thumbnail_service
 from app.modules.score_assets.render_outbox_service import render_outbox_service
 from app.modules.score_assets.render_payloads import RenderOutboxPayload
 from app.modules.score_assets.render_service import RevisionRenderService
-from app.pipeline.context import CeleryTaskLike
+from app.task_queue.protocols import CeleryTaskLike
 from app.worker.task_runtime import (
     bind_task_context,
     clear_task_context,
@@ -136,7 +136,7 @@ def _render_review_thumbnail(db: Session, payload: RenderOutboxPayload) -> str |
     if payload.job_uuid is None:
         raise ValueError("Review thumbnail render payload is incomplete")
 
-    return review_thumbnail_service.render(
+    return import_review_thumbnail_service.render(
         db,
         payload.job_uuid,
         expected_source_fingerprint=payload.source_fingerprint,

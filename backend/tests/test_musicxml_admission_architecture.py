@@ -30,8 +30,8 @@ def test_trusted_document_entry_points_share_the_admission_owner():
     consumers = [
         ("modules/revisions/service.py", "RevisionService", "create", 1),
         ("modules/revisions/service.py", "RevisionService", "restore", 1),
-        ("modules/review/service.py", "ReviewService", "confirm", 1),
-        ("modules/review/service.py", "ReviewService", "update", 1),
+        ("modules/import_jobs/review/service.py", "ImportReviewService", "confirm", 1),
+        ("modules/import_jobs/review/service.py", "ImportReviewService", "update", 1),
         ("modules/fingering/service.py", "FingeringService", "generate", 2),
     ]
     for path, class_name, method_name, calls in consumers:

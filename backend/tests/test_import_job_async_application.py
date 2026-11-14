@@ -409,8 +409,8 @@ async def test_review_confirmation_wins_over_stale_customer_delete_and_retains_p
     from app.core.exceptions import ValidationException
     from app.db.models import ScoreRevision, ScoreInputAsset
     from app.modules.import_jobs.deletion_service import ImportJobDeletionService
-    from app.modules.review.service import ReviewService
-    from app.modules.review.schemas import ReviewConfirmRequest
+    from app.modules.import_jobs.review.service import ImportReviewService
+    from app.modules.import_jobs.review.schemas import ReviewConfirmRequest
     from tests.support.object_storage import InMemoryObjectStorage
     from tests.test_score_revision_services import MUSICXML_1
 
@@ -462,7 +462,7 @@ async def test_review_confirmation_wins_over_stale_customer_delete_and_retains_p
         )
         await asyncio.wait_for(observed.wait(), 10)
         try:
-            review = ReviewService(storage=storage)
+            review = ImportReviewService(storage=storage)
             confirmed = await review.confirm(
                 confirming, job.job_uuid, 1, ReviewConfirmRequest(content=MUSICXML_1.decode())
             )
@@ -473,7 +473,7 @@ async def test_review_confirmation_wins_over_stale_customer_delete_and_retains_p
         assert error.value.code == ErrorCode.VALIDATION_ERROR
         assert error.value.details == {"field": "state"}
         await deleting.rollback()
-        # Idempotent confirmation still runs legitimate CONFIRMED binary cleanup.
+        # Idempotent confirmation returns the same fully committed Score.
         replay = await review.confirm(
             confirming, job.job_uuid, 1, ReviewConfirmRequest(content=MUSICXML_1.decode())
         )

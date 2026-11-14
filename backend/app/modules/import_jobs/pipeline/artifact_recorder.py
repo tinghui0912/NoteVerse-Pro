@@ -1,7 +1,7 @@
 """
-Files recorder service for import-job outputs.
+Import artifact recorder for processing outputs.
 
-This module records job-related file paths into the database after worker-side
+This module records ImportArtifact ownership in the database after worker-side
 pipeline steps complete.
 """
 

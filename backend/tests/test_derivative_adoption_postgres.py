@@ -38,7 +38,7 @@ from app.db.models.score import RevisionOrigin, RevisionSourceFormat
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from app.modules.score_assets import render_service
 from app.modules.playback import service as playback_service
-from app.modules.review import thumbnail_service
+from app.modules.import_jobs.review import thumbnail_service
 from app.modules.score_assets.render_outbox_service import (
     render_outbox_service,
     _delivery_lifecycle as render_lifecycle,
@@ -174,10 +174,10 @@ def generation(request, monkeypatch, tmp_path):
         )
         render = render_service.RevisionRenderService(storage=storage)
         playback = playback_service.PlaybackGenerationService(storage=storage, renderer=audio)
-        thumbnail = thumbnail_service.ReviewThumbnailService(storage=storage)
+        thumbnail = thumbnail_service.ImportReviewThumbnailService(storage=storage)
         monkeypatch.setattr(render_outbox, "RevisionRenderService", lambda: render)
         monkeypatch.setattr(playback_outbox, "PlaybackGenerationService", lambda: playback)
-        monkeypatch.setattr(render_outbox, "review_thumbnail_service", thumbnail)
+        monkeypatch.setattr(render_outbox, "import_review_thumbnail_service", thumbnail)
         worker = playback_outbox if kind == "playback" else render_outbox
         monkeypatch.setattr(worker, "get_worker_db", transaction)
         service = playback_outbox_service if kind == "playback" else render_outbox_service

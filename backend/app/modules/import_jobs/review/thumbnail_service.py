@@ -23,7 +23,7 @@ from app.modules.revisions.presentation_demand import RevisionPresentationSupers
 from app.storage import ObjectStorage, object_storage
 
 
-class ReviewThumbnailService:
+class ImportReviewThumbnailService:
     def __init__(
         self,
         repository: SyncImportJobRepository | None = None,
@@ -169,4 +169,4 @@ class ReviewThumbnailService:
         return thumbnail.artifact_uuid
 
 
-review_thumbnail_service = ReviewThumbnailService()
+import_review_thumbnail_service = ImportReviewThumbnailService()

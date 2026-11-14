@@ -20,10 +20,10 @@ OCR output requires human confirmation before it becomes a stable score. Job-sco
    `ImportJob.score_id`.
 6. `/review/:jobId` is the review route.
 7. `/review/:jobId/edit` is a job-scoped editor for the temporary review MusicXML artifact.
-8. Saving in `/review/:jobId/edit` updates the review artifact through `PATCH /review/:jobId`.
+8. Saving in `/review/:jobId/edit` updates the review artifact through `PATCH /import-jobs/{job_id}/review`.
    It does not create a Score revision.
 9. Confirming review creates the first Score, its first revision, the canonical MusicXML
-   revision source, metadata projection, and a library entry. Render assets and playback
+   revision source, pending metadata projection and its durable work. Render assets and playback
    assets are generated asynchronously as rebuildable derived outputs.
 10. Score routes and capabilities start after confirm:
     `/score/:scoreId`, `/score/:scoreId/edit`, `/score/:scoreId/practice`, Guest Preview, invites,
@@ -45,13 +45,13 @@ Upload
 ## API Contract
 
 ```text
-GET   /api/v1/review/{job_id}
-PATCH /api/v1/review/{job_id}
-POST  /api/v1/review/{job_id}/confirm
+GET   /api/v1/import-jobs/{job_id}/review
+PATCH /api/v1/import-jobs/{job_id}/review
+POST  /api/v1/import-jobs/{job_id}/review/confirm
 ```
 
-`PATCH /review/{job_id}` validates and replaces the temporary review MusicXML artifact.
-`POST /review/{job_id}/confirm` creates or returns the canonical Score for that job.
+`PATCH /import-jobs/{job_id}/review` validates and replaces the temporary review MusicXML artifact.
+`POST /import-jobs/{job_id}/review/confirm` creates or returns the canonical Score for that job.
 
 ## Consequences
 
@@ -60,4 +60,12 @@ POST  /api/v1/review/{job_id}/confirm
 - Upload Import Activity displays pending reviews as job cards, separate from Library Scores.
 - Score has no review lifecycle state column.
 - Import-completed notifications route to `/review/:jobId` until confirm. After confirm,
-  existing import notifications may include the created `score_id` for direct score navigation.
+  the ImportJobConfirmed projector enriches the same import notification with score identity and title for direct score navigation.
+
+Import Review and execution orchestration belong to `app.modules.import_jobs`.
+Shared OMR/MusicXML/text processing engines remain independent capabilities.
+Confirmation creates the Score and delegates initial revision admission to
+RevisionWriter. Score/revision, durable derivative work, source/input accounting,
+Job CONFIRMED state/link, temporary artifact/link release, retirement admission and
+ImportJobConfirmed commit as one transaction. Physical deletion is background work.
+The user-facing Review workspace URLs are independent of the API resource namespace.

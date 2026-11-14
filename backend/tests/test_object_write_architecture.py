@@ -24,7 +24,9 @@ def test_server_object_mutations_and_authority_have_explicit_owners():
     }
     # The pipeline composes the same write/adoption boundary rather than granting
     # another physical-storage mutation capability to its artifact recorder.
-    pipeline = ast.parse((root / "pipeline/files_recorder.py").read_text(encoding="utf8"))
+    pipeline = ast.parse(
+        (root / "modules/import_jobs/pipeline/artifact_recorder.py").read_text(encoding="utf8")
+    )
     assert all(
         not (
             isinstance(n, ast.Call)

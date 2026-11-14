@@ -12,7 +12,7 @@ ROOT = Path(__file__).parents[1] / "app"
 
 def test_application_depends_on_storage_port_and_composition_only():
     allowed = {"app.storage", "app.storage.base", "app.storage.factory", "app.storage.paths"}
-    for directory in ("modules", "worker", "pipeline", "api"):
+    for directory in ("modules", "worker", "api"):
         for path in (ROOT / directory).rglob("*.py"):
             for node in ast.walk(ast.parse(path.read_text(encoding="utf-8-sig"))):
                 if isinstance(node, ast.ImportFrom) and (node.module or "").startswith(

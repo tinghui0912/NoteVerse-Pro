@@ -1,7 +1,7 @@
 # Canonical revision writes
 
 `app/modules/revisions/writer.py` owns immutable revision admission. RevisionService
-owns authenticated edit/restore requests; ReviewService owns Import confirmation and
+owns authenticated edit/restore requests; ImportReviewService owns Import confirmation and
 Score creation. Both enter one sync RevisionWriter through AsyncSession.run_sync.
 Writer participates in the caller's transaction and never commits or rolls back.
 

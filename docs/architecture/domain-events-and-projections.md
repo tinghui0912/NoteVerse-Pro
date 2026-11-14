@@ -70,9 +70,10 @@ from notifications or browser delivery rows.
 
 - `import.job.completed`: Job UUID, recipient user ID and requested-title snapshot.
 - `import.job.failed`: Job UUID, recipient user ID and an optional public failure code.
+- `import.job.confirmed`: Job UUID, recipient user ID, Score UUID and Score title.
 
 Dedupe keys are `import.job.completed:{job_uuid}` and
-`import.job.failed:{job_uuid}`. Payloads contain no notification copy, browser event
+`import.job.failed:{job_uuid}`; confirmation uses `import.job.confirmed:{job_uuid}`. Payloads contain no notification copy, browser event
 types, raw worker exceptions or private diagnostics. Public failure codes use the
 Import domain's existing safe vocabulary.
 
@@ -118,3 +119,10 @@ durable delivery. See [canonical revision writes](revision-writes.md).
 Notification presentation and browser realtime wire schemas remain separate from
 journal infrastructure. Post-commit work is recoverable relay/projection latency
 hints; retention converges through background reconciliation.
+
+Import Review confirmation appends ImportJobConfirmed atomically with Score/initial
+revision admission, Job state/link and temporary-resource release. The Import
+notification projector enriches the existing completed notification with score_id,
+data.score_id and data.score_title. Completed evidence must exist in journal replay;
+missing notification evidence is an invariant failure that blocks the checkpoint.
+The realtime projector has an independent checkpoint and no confirmation wire event.

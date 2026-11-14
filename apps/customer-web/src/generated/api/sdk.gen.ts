@@ -188,6 +188,35 @@ export const importJobArtifactDownload = <ThrowOnError extends boolean = false>(
 export const importJobRetry = <ThrowOnError extends boolean = false>(options: Options<ImportJobRetryData, ThrowOnError>): RequestResult<ImportJobRetryResponses, ImportJobRetryErrors, ThrowOnError> => options.client.post<ImportJobRetryResponses, ImportJobRetryErrors, ThrowOnError>({ url: '/api/v1/import-jobs/{job_id}/retry', ...options });
 
 /**
+ * Get Import Job Review
+ */
+export const importJobReviewGet = <ThrowOnError extends boolean = false>(options: Options<ImportJobReviewGetData, ThrowOnError>): RequestResult<ImportJobReviewGetResponses, ImportJobReviewGetErrors, ThrowOnError> => options.client.get<ImportJobReviewGetResponses, ImportJobReviewGetErrors, ThrowOnError>({ url: '/api/v1/import-jobs/{job_id}/review', ...options });
+
+/**
+ * Update Import Job Review
+ */
+export const importJobReviewUpdate = <ThrowOnError extends boolean = false>(options: Options<ImportJobReviewUpdateData, ThrowOnError>): RequestResult<ImportJobReviewUpdateResponses, ImportJobReviewUpdateErrors, ThrowOnError> => options.client.patch<ImportJobReviewUpdateResponses, ImportJobReviewUpdateErrors, ThrowOnError>({
+    url: '/api/v1/import-jobs/{job_id}/review',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Confirm Import Job Review
+ */
+export const importJobReviewConfirm = <ThrowOnError extends boolean = false>(options: Options<ImportJobReviewConfirmData, ThrowOnError>): RequestResult<ImportJobReviewConfirmResponses, ImportJobReviewConfirmErrors, ThrowOnError> => options.client.post<ImportJobReviewConfirmResponses, ImportJobReviewConfirmErrors, ThrowOnError>({
+    url: '/api/v1/import-jobs/{job_id}/review/confirm',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
  * Inspect Invite
  */
 export const scoreInviteInspect = <ThrowOnError extends boolean = false>(options: Options<ScoreInviteInspectData, ThrowOnError>): RequestResult<ScoreInviteInspectResponses, ScoreInviteInspectErrors, ThrowOnError> => options.client.get<ScoreInviteInspectResponses, ScoreInviteInspectErrors, ThrowOnError>({ url: '/api/v1/invites/{token}', ...options });
@@ -481,35 +510,6 @@ export const scoreRenderAssetDownload = <ThrowOnError extends boolean = false>(o
  * View Render Asset
  */
 export const scoreRenderAssetView = <ThrowOnError extends boolean = false>(options: Options<ScoreRenderAssetViewData, ThrowOnError>): RequestResult<ScoreRenderAssetViewResponses, ScoreRenderAssetViewErrors, ThrowOnError> => options.client.get<ScoreRenderAssetViewResponses, ScoreRenderAssetViewErrors, ThrowOnError>({ url: '/api/v1/render-assets/{render_asset_id}/view', ...options });
-
-/**
- * Get Import Job Review
- */
-export const importJobReviewGet = <ThrowOnError extends boolean = false>(options: Options<ImportJobReviewGetData, ThrowOnError>): RequestResult<ImportJobReviewGetResponses, ImportJobReviewGetErrors, ThrowOnError> => options.client.get<ImportJobReviewGetResponses, ImportJobReviewGetErrors, ThrowOnError>({ url: '/api/v1/review/{job_id}', ...options });
-
-/**
- * Update Import Job Review
- */
-export const importJobReviewUpdate = <ThrowOnError extends boolean = false>(options: Options<ImportJobReviewUpdateData, ThrowOnError>): RequestResult<ImportJobReviewUpdateResponses, ImportJobReviewUpdateErrors, ThrowOnError> => options.client.patch<ImportJobReviewUpdateResponses, ImportJobReviewUpdateErrors, ThrowOnError>({
-    url: '/api/v1/review/{job_id}',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Confirm Import Job Review
- */
-export const importJobReviewConfirm = <ThrowOnError extends boolean = false>(options: Options<ImportJobReviewConfirmData, ThrowOnError>): RequestResult<ImportJobReviewConfirmResponses, ImportJobReviewConfirmErrors, ThrowOnError> => options.client.post<ImportJobReviewConfirmResponses, ImportJobReviewConfirmErrors, ThrowOnError>({
-    url: '/api/v1/review/{job_id}/confirm',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
 
 /**
  * Get Revision Source Access Url

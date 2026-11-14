@@ -15,7 +15,7 @@ from app.db.models import ImportArtifact, ImportJob, ImportJobUpload, Score, Sto
 from app.db.models.import_job import ImportJobState
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from app.modules.import_jobs.schemas import processing_options_adapter
-from app.modules.review.schemas import (
+from app.modules.import_jobs.review.schemas import (
     ImportJobReviewRead,
     ReviewArtifactRead,
     ReviewMusicXmlRead,
@@ -24,7 +24,7 @@ from app.shared.constants import ErrorCode
 from app.storage import ObjectStorage
 
 
-class ReviewReadModel:
+class ImportReviewReadModel:
     def __init__(self, storage: ObjectStorage) -> None:
         self.storage = storage
 

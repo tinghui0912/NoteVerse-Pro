@@ -7,7 +7,7 @@ import sys
 from app.core.background_tracing import record_current_attempt_failure
 from app.db.sync_session import get_worker_db
 from app.modules.mail.outbox_service import mail_outbox_service
-from app.pipeline.context import CeleryTaskLike
+from app.task_queue.protocols import CeleryTaskLike
 from app.utils.email import MailPermanentError, MailTransientError, send_email
 from app.worker.task_runtime import (
     bind_task_context,

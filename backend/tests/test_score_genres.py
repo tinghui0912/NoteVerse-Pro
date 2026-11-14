@@ -14,8 +14,8 @@ from app.modules.import_jobs.submission_service import ImportJobSubmissionServic
 from app.modules.import_jobs.service import ImportJobService
 from app.modules.library.schemas import LibrarySort, LibraryView
 from app.modules.library.service import LibraryService
-from app.modules.review.schemas import ReviewConfirmRequest
-from app.modules.review.service import ReviewService
+from app.modules.import_jobs.review.schemas import ReviewConfirmRequest
+from app.modules.import_jobs.review.service import ImportReviewService
 from app.modules.scores.genres import ScoreGenre, ordered_unique_genres
 from app.modules.scores.schemas import ScoreUpdateRequest
 from app.modules.scores.service import ScoreService
@@ -178,7 +178,7 @@ async def test_import_review_score_and_library_share_score_genres(
     )
     session.commit()
     db = AsyncSessionAdapter(session)
-    review = ReviewService(storage=storage)
+    review = ImportReviewService(storage=storage)
     assert (await review.detail(db, job.job_uuid, 1)).genres == ordered_unique_genres(requested)
     assert (await ImportJobService().detail(db, job.job_uuid, 1)).genres == ordered_unique_genres(
         requested

@@ -17,8 +17,8 @@ from app.modules.import_jobs.schemas import (
 )
 from app.modules.import_jobs.worker_service import sync_import_job_service
 from app.modules.import_jobs.execution_manifest import bind_import_job_execution_manifest
-from app.pipeline import JobContext, PipelineBuilder
-from app.pipeline.context import CeleryTaskLike
+from app.modules.import_jobs.pipeline import JobContext, PipelineBuilder
+from app.task_queue.protocols import CeleryTaskLike
 from app.shared.constants import ErrorCode
 from app.storage import ObjectStorage, object_storage
 from app.storage.paths import object_work_path

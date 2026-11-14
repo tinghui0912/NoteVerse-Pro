@@ -4,25 +4,27 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user, get_db
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
-from app.modules.review.dependencies import get_review_service
-from app.modules.review.schemas import (
+from app.modules.import_jobs.review.dependencies import get_import_review_service
+from app.modules.import_jobs.review.schemas import (
     ImportJobReviewRead,
     ReviewConfirmRead,
     ReviewConfirmRequest,
     ReviewUpdateRequest,
 )
-from app.modules.review.service import ReviewService
+from app.modules.import_jobs.review.service import ImportReviewService
 
 
 router = APIRouter()
 
 
-@router.get("/{job_id}", operation_id="importJobReviewGet", response_model=ImportJobReviewRead)
+@router.get(
+    "/{job_id}/review", operation_id="importJobReviewGet", response_model=ImportJobReviewRead
+)
 async def get_import_job_review(
     job_id: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    service: ReviewService = Depends(get_review_service),
+    service: ImportReviewService = Depends(get_import_review_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     result = await service.detail(db, job_id, user_id)
@@ -30,7 +32,7 @@ async def get_import_job_review(
 
 
 @router.patch(
-    "/{job_id}",
+    "/{job_id}/review",
     operation_id="importJobReviewUpdate",
     response_model=ImportJobReviewRead,
 )
@@ -39,7 +41,7 @@ async def update_import_job_review(
     request: ReviewUpdateRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    service: ReviewService = Depends(get_review_service),
+    service: ImportReviewService = Depends(get_import_review_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     result = await service.update(db, job_id, user_id, request)
@@ -47,7 +49,7 @@ async def update_import_job_review(
 
 
 @router.post(
-    "/{job_id}/confirm",
+    "/{job_id}/review/confirm",
     operation_id="importJobReviewConfirm",
     response_model=ReviewConfirmRead,
 )
@@ -56,7 +58,7 @@ async def confirm_import_job_review(
     request: ReviewConfirmRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    service: ReviewService = Depends(get_review_service),
+    service: ImportReviewService = Depends(get_import_review_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     result = await service.confirm(db, job_id, user_id, request)

@@ -27,7 +27,7 @@ from app.modules.account.profile_service import ProfileService
 from app.modules.import_jobs.execution_service import ImportJobExecutionService
 from app.modules.import_jobs.maintenance_service import ImportJobMaintenanceService
 from app.modules.import_jobs.submission_service import ImportJobSubmissionService
-from app.pipeline.files_recorder import _build_file_item
+from app.modules.import_jobs.pipeline.artifact_recorder import _build_file_item
 from app.shared.constants import ErrorCode
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from tests.support.object_storage import InMemoryObjectStorage
@@ -116,7 +116,7 @@ def test_object_storage_rejects_path_traversal_keys() -> None:
         (ImportArtifactKind.REVIEW_MUSICXML, "jpg", b"jpg", "image/jpeg"),
     ],
 )
-def test_files_recorder_persists_intent_before_upload(
+def test_artifact_recorder_persists_intent_before_upload(
     score_service_session, monkeypatch, tmp_path, kind, extension, content, mime
 ):
     from contextlib import contextmanager
@@ -130,8 +130,10 @@ def test_files_recorder_persists_intent_before_upload(
         yield db
         db.commit()
 
-    monkeypatch.setattr("app.pipeline.files_recorder.get_worker_db", session)
-    monkeypatch.setattr("app.pipeline.files_recorder.object_storage", storage)
+    monkeypatch.setattr("app.modules.import_jobs.pipeline.artifact_recorder.get_worker_db", session)
+    monkeypatch.setattr(
+        "app.modules.import_jobs.pipeline.artifact_recorder.object_storage", storage
+    )
     path = tmp_path / f"output.{extension}"
     path.write_bytes(content)
     item = _build_file_item("task-1", kind, str(path), page=1)

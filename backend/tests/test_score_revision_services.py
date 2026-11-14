@@ -73,9 +73,9 @@ from app.modules.revisions.service import RevisionService
 from app.modules.score_assets.derived_assets import derived_asset_status
 from app.modules.score_assets.render_outbox_service import RenderOutboxService
 from app.modules.mail.outbox_service import MailOutboxService
-from app.modules.review.schemas import ReviewConfirmRequest, ReviewUpdateRequest
-from app.modules.review.service import ReviewService
-from app.modules.review.thumbnail_service import ReviewThumbnailService
+from app.modules.import_jobs.review.schemas import ReviewConfirmRequest, ReviewUpdateRequest
+from app.modules.import_jobs.review.service import ImportReviewService
+from app.modules.import_jobs.review.thumbnail_service import ImportReviewThumbnailService
 from app.modules.scores.service import ScoreService
 from app.modules.import_jobs.worker_service import SyncImportJobService
 from app.modules.import_jobs.service import ImportJobService
@@ -535,7 +535,7 @@ async def test_review_detail_reads_pending_job_artifacts(
     session.commit()
     session.add(ImportJobUpload(job_id=13, upload_id=130, page_number=1, sort_order=1))
     session.commit()
-    service = ReviewService(storage=storage)
+    service = ImportReviewService(storage=storage)
 
     detail = await service.detail(
         AsyncSessionAdapter(session),  # type: ignore[arg-type]
@@ -766,7 +766,7 @@ def test_review_thumbnail_records_temp_import_usage(
             }
 
     with patch(
-        "app.modules.review.thumbnail_service.create_score_render_engine",
+        "app.modules.import_jobs.review.thumbnail_service.create_score_render_engine",
         side_effect=lambda output_folder: FakeEngine(output_folder),
     ):
         outbox = RenderOutbox(
@@ -779,7 +779,7 @@ def test_review_thumbnail_records_temp_import_usage(
         session.commit()
         payload = RenderOutboxService().claim(session, outbox.outbox_uuid)
         session.commit()
-        artifact_id = ReviewThumbnailService(storage=storage).render(
+        artifact_id = ImportReviewThumbnailService(storage=storage).render(
             session,
             "job-thumbnail-usage",
             expected_source_fingerprint="5d17f78acc41e8e8ad4fe9dfc2c0e998b718a0acb7283f077b797581fb9f715d",
@@ -830,7 +830,7 @@ async def test_review_update_replaces_pending_review_musicxml(
         )
     )
     session.commit()
-    service = ReviewService(storage=storage)
+    service = ImportReviewService(storage=storage)
 
     detail = await service.update(
         AsyncSessionAdapter(session),  # type: ignore[arg-type]
@@ -871,18 +871,15 @@ async def test_review_confirm_creates_active_score_once(
             requested_options={"title": "Confirmed Score"},
         )
     )
-    session.add(
-        NotificationEvent(
-            notification_uuid="notification-review-ready",
-            recipient_user_id=1,
-            actor_user_id=None,
-            type=NotificationTypes.IMPORT_COMPLETED,
-            resource_type="job",
-            resource_id="job-confirm-review",
-            score_id=None,
-            title="Processing complete",
-            data={"job_id": "job-confirm-review", "job_title": "Confirmed Score"},
-        )
+    from app.modules.domain_events.journal import append_fact
+    from app.modules.import_jobs.events import ImportJobCompleted
+
+    append_fact(
+        session,
+        ImportJobCompleted(
+            job_id="job-confirm-review", recipient_user_id=1, requested_title="Confirmed Score"
+        ),
+        occurred_at=utc_now_naive(),
     )
     session.flush()
     session.add(ImportDispatch(job_id=14, status=ImportDispatchStatus.COMPLETED))
@@ -903,7 +900,7 @@ async def test_review_confirm_creates_active_score_once(
         )
     )
     session.commit()
-    service = ReviewService(storage=storage)
+    service = ImportReviewService(storage=storage)
     db = AsyncSessionAdapter(session)
 
     first = await service.confirm(
@@ -930,9 +927,7 @@ async def test_review_confirm_creates_active_score_once(
     assert score.head_revision_id == revision.id
     assert job.state == ImportJobState.CONFIRMED
     assert job.score_id == score.id
-    notification = one_row(
-        session, NotificationEvent, notification_uuid="notification-review-ready"
-    )
+    notification = one_row(session, NotificationEvent, resource_id="job-confirm-review")
     assert notification.score_id == score.score_uuid
     assert notification.data["score_id"] == score.score_uuid
     assert notification.data["score_title"] == "Confirmed Score"
@@ -2627,11 +2622,12 @@ async def test_review_semantic_admission_precedes_storage(score_service_session,
     )
     session.add(artifact)
     session.commit()
-    service = ReviewService(storage=storage)
+    service = ImportReviewService(storage=storage)
     with (
         patch.object(storage, "put_bytes", wraps=storage.put_bytes) as put,
         patch(
-            "app.modules.review.service.storage_usage_service.reserve", new_callable=AsyncMock
+            "app.modules.import_jobs.review.service.storage_usage_service.reserve",
+            new_callable=AsyncMock,
         ) as reserve,
     ):
         with pytest.raises(ValidationException) as caught:
@@ -2697,7 +2693,7 @@ async def test_service_hash_and_storage_use_exact_admitted_bytes(score_service_s
             )
             revision = one_row(session, ScoreRevision, revision_uuid=result.revision_id)
         else:
-            result = await ReviewService(storage=storage).confirm(
+            result = await ImportReviewService(storage=storage).confirm(
                 AsyncSessionAdapter(session),
                 "admission-review",
                 1,
@@ -2732,7 +2728,7 @@ async def test_admitted_revision_survives_unsupported_metadata_projection(score_
     )
     admitted = admit_musicxml_document(content.encode())
     assert parse_score_semantics(admitted).keys[0].fifths is None
-    result = await ReviewService(storage=storage).confirm(
+    result = await ImportReviewService(storage=storage).confirm(
         AsyncSessionAdapter(session), "admission-review", 1, ReviewConfirmRequest(content=content)
     )
     score = one_row(session, Score, score_uuid=result.score_id)

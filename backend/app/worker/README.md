@@ -135,3 +135,14 @@ and attempt token. Score hard deletion, usage releases, retirement enqueue and o
 completion share one database transaction. The completed operation retains the resource
 UUID after its nullable Score FK is cleared. `run_score_deletion_maintenance` recovers
 missed publication, due retries and expired leases through DurableDeliveryLifecycle.
+
+## Import execution ownership
+
+Import pipeline composition, artifacts, deadlines and progress live under
+`app.modules.import_jobs.pipeline`; OMR/MusicXML/text engines remain shared processing
+capabilities. Workers use the neutral `app.task_queue.protocols.CeleryTaskLike`.
+Render REVIEW_THUMBNAIL calls `import_jobs.review` and retains exact lease fencing.
+Import Review APIs are ImportJob sub-resources. Confirmation records ImportJobConfirmed
+with Score/RevisionWriter admission, input promotion and temporary release in one
+transaction. Import notification projection enriches the completed notification in
+journal order; realtime projection keeps its existing completed/failed wire signals.

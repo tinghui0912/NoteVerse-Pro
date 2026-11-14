@@ -50,11 +50,16 @@ Pending review jobs open Review. Failed jobs offer backend Retry.
 Delete import is allowed only for PENDING_REVIEW and FAILURE, with state admission
 checked under the Dispatch then Job locks. Queued/running imports cannot be deleted
 because cancellation is not implemented. Confirmed import history is retained and
-links to its formal Score. Internal binary cleanup retains the confirmed Job and
-Score provenance. Only active jobs keep the list polling.
+links to its formal Score. Confirmation atomically promotes Score inputs and releases temporary Import ownership,
+while retaining the confirmed Job and Score provenance. Only active jobs keep the list polling.
 
 ## Access Authority
 
 [Score access policy](../adr/0004-score-access-collaboration-and-guest-preview.md)
 defines authorization. Collaboration grants do not transfer Score ownership or
 storage-quota responsibility. Guest Preview remains explicit link sharing.
+
+Import Review is an ImportJob API sub-resource. The `/review/:jobId` workspace and
+its editor remain product navigation routes. Confirmation records ImportJobConfirmed
+with Score/revision admission and temporary cleanup; notification projection enriches
+the existing import-completed notification with the Score navigation target.

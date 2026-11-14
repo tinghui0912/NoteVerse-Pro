@@ -48,3 +48,24 @@ class ImportJobFailed(DomainFact):
     @property
     def dedupe_key(self) -> str:
         return f"{self.event_type}:{self.job_id}"
+
+
+class ImportJobConfirmed(DomainFact):
+    """A reviewed Import becomes a Score and releases temporary ownership."""
+
+    event_type: ClassVar[str] = "import.job.confirmed"
+    schema_version: ClassVar[int] = 1
+    aggregate_type: ClassVar[str] = "import_job"
+
+    job_id: str = Field(min_length=1, max_length=128)
+    recipient_user_id: int = Field(gt=0)
+    score_id: str = Field(min_length=1, max_length=128)
+    score_title: str
+
+    @property
+    def aggregate_id(self) -> str:
+        return self.job_id
+
+    @property
+    def dedupe_key(self) -> str:
+        return f"{self.event_type}:{self.job_id}"

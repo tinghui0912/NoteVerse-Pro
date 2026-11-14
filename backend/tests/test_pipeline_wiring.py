@@ -11,10 +11,10 @@ from unittest.mock import patch
 import pytest
 
 from app.modules.import_jobs.dispatch_service import ImportExecutionLease
-from app.pipeline import PipelineBuilder
-from app.pipeline.steps.input import CopyImageStep
-from app.pipeline.steps.normalize import XmlNormalizeStep
-from app.pipeline.steps.omr import OmrStep
+from app.modules.import_jobs.pipeline import PipelineBuilder
+from app.modules.import_jobs.pipeline.steps.input import CopyImageStep
+from app.modules.import_jobs.pipeline.steps.normalize import XmlNormalizeStep
+from app.modules.import_jobs.pipeline.steps.omr import OmrStep
 from app.processing.engines.omr.factory import create_omr_engine
 from app.processing.engines.omr.legato import LegatoOmrEngine
 from app.processing.engines.render.factory import create_score_render_engine
@@ -48,7 +48,7 @@ def test_copy_image_step_copies_input_and_updates_context() -> None:
 
 
 def test_job_context_complete_records_review_musicxml_without_creating_score() -> None:
-    from app.pipeline.context import JobContext
+    from app.modules.import_jobs.pipeline.context import JobContext
     from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -70,9 +70,9 @@ def test_job_context_complete_records_review_musicxml_without_creating_score() -
         ctx.main_xml = main_xml
         ctx._tracker = None
 
-        with patch("app.pipeline.context.replace_files") as replace_files_mock:
+        with patch("app.modules.import_jobs.pipeline.context.replace_files") as replace_files_mock:
             with patch(
-                "app.pipeline.context.job_service.finalize_success"
+                "app.modules.import_jobs.pipeline.context.job_service.finalize_success"
             ) as finalize_success_mock:
                 ctx.complete()
 

@@ -10,7 +10,7 @@ from app.modules.revisions.metadata_delivery import (
     metadata_lifecycle,
 )
 from app.modules.async_operations.durable_delivery import StaleDeliveryAttempt
-from app.pipeline.context import CeleryTaskLike
+from app.task_queue.protocols import CeleryTaskLike
 from app.storage import object_storage
 from app.worker.task_runtime import (
     bind_task_context,

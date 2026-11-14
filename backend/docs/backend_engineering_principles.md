@@ -19,7 +19,7 @@ The backend now uses a hybrid architecture:
 - business features live under `app/modules/*`;
 - database sessions and ORM models live under `app/db/*`;
 - durable storage lives under `app/storage/*`;
-- processing orchestration lives under `app/pipeline/*`;
+- processing orchestration lives under `app/modules/import_jobs/pipeline/*`;
 - OCR, MusicXML, rendering, realtime, and audio engines live under `app/processing/*`;
 - Celery runtime wiring and durable outbox dispatch adapters live under `app/worker/*`;
 - application runtime concerns live under `app/core/*`;
@@ -125,9 +125,9 @@ Owns import lifecycle:
 
 Do not put durable score editing or Guest Preview rules here.
 
-### `app.pipeline` and `app.processing`
+### `app.modules.import_jobs.pipeline` and `app.processing`
 
-`app.pipeline` owns the import workflow composition:
+`app.modules.import_jobs.pipeline` owns the import workflow composition:
 
 - step ordering;
 - per-step progress updates;
@@ -145,18 +145,20 @@ Do not put durable score editing or Guest Preview rules here.
 
 `app.processing` should remain product-agnostic. It must not import `ImportJob`,
 `ImportArtifact`, Score memberships, Guest Preview, notifications, or API schemas. Product
-lifecycle belongs in `modules/import_jobs`, `modules/review`, `modules/scores`, and
-`app.pipeline` orchestration.
+lifecycle belongs in `modules/import_jobs`, `modules/import_jobs/review`, `modules/scores`, and
+`app.modules.import_jobs.pipeline` orchestration.
 
-### `modules/review`
+### `modules/import_jobs/review`
 
 Owns the pre-Score human review boundary:
 
 - reading `PENDING_REVIEW` job artifacts;
 - returning original images, preview images, and review MusicXML by `job_id`;
-- updating the temporary review MusicXML artifact through `PATCH /review/{job_id}`;
+- updating the temporary review MusicXML artifact through `PATCH /import-jobs/{job_id}/review`;
 - confirming review and creating the first active Score;
-- attaching the created `score_id` back to the import job and import notification.
+- atomically linking the Score to ImportJob and recording ImportJobConfirmed;
+- releasing temporary Import ownership within confirmation;
+- projecting confirmation into import notification navigation fields.
 
 Do not expose review as a Score route. Do not create Score revisions when editing review
 artifacts. Do not allow Guest Preview, invites or practice to target unconfirmed

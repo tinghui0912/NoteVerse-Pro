@@ -18,7 +18,7 @@ from app.modules.scheduler_observability.service import (
     scheduler_observability_service,
 )
 from app.modules.scheduler_lock.service import scheduler_lock_service
-from app.pipeline.context import CeleryTaskLike
+from app.task_queue.protocols import CeleryTaskLike
 
 
 def bind_task_context(task: CeleryTaskLike | None) -> None:

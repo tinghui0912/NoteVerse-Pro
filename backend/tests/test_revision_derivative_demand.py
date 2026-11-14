@@ -31,8 +31,8 @@ from app.modules.revisions import dispatch
 from app.modules.revisions.derivatives import revision_derivative_service, RevisionDerivativeService
 from app.modules.revisions.service import RevisionService
 from app.modules.revisions.schemas import RevisionCreateRequest
-from app.modules.review.service import ReviewService
-from app.modules.review.schemas import ReviewConfirmRequest
+from app.modules.import_jobs.review.service import ImportReviewService
+from app.modules.import_jobs.review.schemas import ReviewConfirmRequest
 from app.modules.guest_previews.service import GuestPreviewService
 from app.modules.guest_previews.schemas import GuestPreviewUpdateRequest
 from app.modules.score_assets.render_outbox_service import render_outbox_service
@@ -280,7 +280,7 @@ async def test_business_commit_precedes_immediate_dispatch_and_broker_failure_is
         db.commit()
         db.add(ImportDispatch(job_id=850, status=ImportDispatchStatus.COMPLETED))
         db.commit()
-        await ReviewService(storage=storage).confirm(
+        await ImportReviewService(storage=storage).confirm(
             async_db, "confirm-demand", 1, ReviewConfirmRequest(content=MUSICXML_2)
         )
     assert len(observed) == 1 and len(calls) == 2

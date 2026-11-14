@@ -441,8 +441,8 @@ def test_metadata_mid_compute_takeover_and_atomic_completion(database, monkeypat
 
 def test_review_confirm_concurrency_uses_one_initial_revision(database, monkeypatch):
     engine, storage = database
-    from app.modules.review import service as review_module
-    from app.modules.review.schemas import ReviewConfirmRequest
+    from app.modules.import_jobs.review import service as review_module
+    from app.modules.import_jobs.review.schemas import ReviewConfirmRequest
 
     barrier = Barrier(2)
     write = review_module.write_object_async
@@ -461,7 +461,7 @@ def test_review_confirm_concurrency_uses_one_initial_revision(database, monkeypa
     def confirm():
         with Session(engine) as db:
             return asyncio.run(
-                review_module.ReviewService(storage=storage).confirm(
+                review_module.ImportReviewService(storage=storage).confirm(
                     AsyncSessionAdapter(db), "job", 1, ReviewConfirmRequest(content=MUSICXML_2)
                 )
             ).score_id
@@ -471,7 +471,7 @@ def test_review_confirm_concurrency_uses_one_initial_revision(database, monkeypa
     assert results[0] == results[1]
     with Session(engine) as db:
         assert db.scalar(sa.select(sa.func.count()).select_from(ScoreRevision)) == 1
-        assert db.scalar(sa.select(sa.func.count()).select_from(DomainEvent)) == 1
+        assert db.scalar(sa.select(sa.func.count()).select_from(DomainEvent)) == 2
         for model in (RenderOutbox, PlaybackOutbox, RevisionMetadataOutbox):
             assert db.scalar(sa.select(sa.func.count()).select_from(model)) == 1
 

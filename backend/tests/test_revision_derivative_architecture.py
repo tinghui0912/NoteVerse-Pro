@@ -55,7 +55,7 @@ def test_worker_generation_admission_and_completion_share_the_callers_transactio
     cases = [
         ("modules/score_assets/render_service.py", "render_for_worker", "require_revision_attempt"),
         ("modules/playback/service.py", "_render_asset_sync", "require_attempt"),
-        ("modules/review/thumbnail_service.py", "render", "require_thumbnail_attempt"),
+        ("modules/import_jobs/review/thumbnail_service.py", "render", "require_thumbnail_attempt"),
     ]
     for relative, method, admission in cases:
         tree = ast.parse((ROOT / relative).read_text(encoding="utf-8"))

@@ -56,7 +56,7 @@ def test_revision_writer_is_a_transaction_participant_admitting_all_durable_work
 
 
 def test_use_cases_delegate_revision_admission_and_only_hint_after_commit():
-    for file in ("modules/revisions/service.py", "modules/review/service.py"):
+    for file in ("modules/revisions/service.py", "modules/import_jobs/review/service.py"):
         tree = ast.parse((ROOT / file).read_text())
         imports = {node.module for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)}
         assert "app.modules.revisions.writer" in imports

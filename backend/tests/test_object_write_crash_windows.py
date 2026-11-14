@@ -23,8 +23,8 @@ from app.db.models import (
 from app.db.models.import_job import ImportJobState
 from app.db.models.score import RevisionSourceFormat
 from app.modules.storage_objects.persistence import object_from_bytes
-from app.modules.review.service import ReviewService
-from app.modules.review.schemas import ReviewConfirmRequest
+from app.modules.import_jobs.review.service import ImportReviewService
+from app.modules.import_jobs.review.schemas import ReviewConfirmRequest
 from app.modules.score_assets.render_service import RevisionRenderService
 from tests.support.write_cleanup import drain_write_cleanup
 from tests.test_score_revision_services import (
@@ -57,10 +57,9 @@ async def test_review_confirm_source_and_thumbnail_survive_failed_semantic_adopt
         )
     )
     db.commit()
-    service = ReviewService(storage=storage)
+    service = ImportReviewService(storage=storage)
     monkeypatch.setattr(
-        service,
-        "_attach_score_to_import_notification",
+        "app.modules.import_jobs.review.service.ImportJobDeletionService.cleanup_binary_artifacts",
         AsyncMock(side_effect=RuntimeError("semantic confirmation failed")),
     )
     with pytest.raises(RuntimeError, match="semantic confirmation failed"):
@@ -154,7 +153,7 @@ def test_render_partial_pages_remain_cleanup_owned(score_service_session, monkey
 def test_import_artifact_handoff_failure_leaves_intent_until_cleanup(
     score_service_session, monkeypatch, tmp_path
 ):
-    from app.pipeline import files_recorder
+    from app.modules.import_jobs.pipeline import artifact_recorder
     from app.modules.import_jobs.worker_service import sync_import_job_service
 
     db, storage = score_service_session
@@ -175,9 +174,9 @@ def test_import_artifact_handoff_failure_leaves_intent_until_cleanup(
             db.rollback()
             raise
 
-    monkeypatch.setattr(files_recorder, "get_worker_db", session)
+    monkeypatch.setattr(artifact_recorder, "get_worker_db", session)
     monkeypatch.setattr("app.db.sync_session.get_worker_db", session)
-    monkeypatch.setattr(files_recorder, "object_storage", storage)
+    monkeypatch.setattr(artifact_recorder, "object_storage", storage)
     monkeypatch.setattr(
         sync_import_job_service,
         "replace_artifacts",
@@ -186,7 +185,7 @@ def test_import_artifact_handoff_failure_leaves_intent_until_cleanup(
     path = tmp_path / "review.musicxml"
     path.write_bytes(MUSICXML_1)
     with pytest.raises(RuntimeError, match="artifact adoption failed"):
-        files_recorder.replace_files(lease, "review_musicxml", [str(path)])
+        artifact_recorder.replace_files(lease, "review_musicxml", [str(path)])
     row = db.scalar(select(ObjectWriteIntent))
     assert row.status == "WRITTEN" and row.sha256 == hashlib.sha256(MUSICXML_1).hexdigest()
     assert db.scalar(select(ImportArtifact)) is None and db.scalar(select(StoredObject)) is None

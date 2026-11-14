@@ -22,7 +22,7 @@ Canonical structure:
 - `app/db/*` for DB/session entrypoints and ORM models
 - `app/shared/*` for shared helpers and enums
 - `app/worker/*` for Celery runtime entrypoints
-- `app/pipeline/*` and `app/processing/*` for processing workflows
+- `app/modules/import_jobs/pipeline/*` and `app/processing/*` for processing workflows
 - `app/api/v1/router.py` for top-level route aggregation
 
 `scripts/` owns runtime and operational tools; `tests/` owns core backend behavior

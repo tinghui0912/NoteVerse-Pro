@@ -18,29 +18,30 @@ from app.db.models import (
     ImportArtifact,
     ImportJob,
     ImportDispatch,
-    NotificationEvent,
     Score,
     StorageUsageCategory,
 )
 from app.db.models.import_job import ImportJobState
-from app.modules.import_jobs.service import ImportJobService
+from app.modules.import_jobs.deletion_service import ImportJobDeletionService
+from app.modules.import_jobs.events import ImportJobConfirmed
+from app.modules.domain_events.journal import append_fact
+from app.modules.import_jobs.projections import catch_up_import_projections_best_effort
 from app.modules.score_assets.render_outbox_service import (
     create_review_thumbnail_render_outbox,
 )
-from app.modules.notifications.service import NotificationTypes
 from app.modules.revisions.writer import (
     revision_writer,
     PreparedRevisionSource,
     InitialRevisionWrite,
 )
 from app.modules.revisions.fast_path import revision_fast_path
-from app.modules.review.confirmation_assets import (
+from app.modules.import_jobs.review.confirmation_assets import (
     prewrite_review_thumbnail,
     adopt_review_thumbnail,
     promote_uploads_to_score_inputs,
 )
-from app.modules.review.read_model import ReviewReadModel
-from app.modules.review.schemas import (
+from app.modules.import_jobs.review.read_model import ImportReviewReadModel
+from app.modules.import_jobs.review.schemas import (
     ImportJobReviewRead,
     ReviewConfirmRead,
     ReviewConfirmRequest,
@@ -57,16 +58,16 @@ from app.storage import ObjectStorage, object_storage
 from app.utils.timezone import utc_now_naive
 
 
-class ReviewService:
+class ImportReviewService:
     def __init__(
         self,
         storage: ObjectStorage | None = None,
         score_repository: ScoreRepository | None = None,
-        read_model: ReviewReadModel | None = None,
+        read_model: ImportReviewReadModel | None = None,
     ) -> None:
         self.storage = storage or object_storage
         self.score_repository = score_repository or ScoreRepository()
-        self.read_model = read_model or ReviewReadModel(self.storage)
+        self.read_model = read_model or ImportReviewReadModel(self.storage)
 
     async def detail(
         self,
@@ -110,11 +111,6 @@ class ReviewService:
         if job.score_id is not None:
             score = await db.get(Score, job.score_id)
             if score:
-                await ImportJobService(storage=self.storage).cleanup_binary_artifacts(
-                    db,
-                    job_uuid,
-                    user_id,
-                )
                 return ReviewConfirmRead(score_id=score.score_uuid)
         if job.state != ImportJobState.PENDING_REVIEW:
             raise ConflictException(
@@ -173,7 +169,9 @@ class ReviewService:
                     .with_for_update()
                     .execution_options(populate_existing=True)
                 )
-            ).scalar_one()
+            ).scalar_one_or_none()
+            if job is None:
+                raise ResourceNotFoundException("job", job_uuid, ErrorCode.JOB_NOT_FOUND)
             if job.score_id is not None:
                 existing = await db.get(Score, job.score_id)
                 if existing is not None:
@@ -223,13 +221,6 @@ class ReviewService:
             job.score_id = score_id
             job.state = ImportJobState.CONFIRMED
             job.updated_at = now
-            await self._attach_score_to_import_notification(
-                db,
-                job_uuid=job_uuid,
-                user_id=user_id,
-                score_uuid=score_uuid,
-                score_title=title,
-            )
             for promoted in promoted_inputs:
                 await storage_usage_service.record_release(
                     db,
@@ -253,6 +244,19 @@ class ReviewService:
                     storage_key=promoted.storage_key,
                     auto_commit=False,
                 )
+            await ImportJobDeletionService().cleanup_binary_artifacts(db, job, user_id)
+            await db.run_sync(
+                lambda sync: append_fact(
+                    sync,
+                    ImportJobConfirmed(
+                        job_id=job_uuid,
+                        recipient_user_id=user_id,
+                        score_id=score_uuid,
+                        score_title=title,
+                    ),
+                    occurred_at=now,
+                )
+            )
             await db.commit()
             business_committed = True
             await revision_fast_path(write_result)
@@ -262,11 +266,7 @@ class ReviewService:
                 await storage_usage_service.release_reservation(db, reservation.reservation_id)
             raise
 
-        await ImportJobService(storage=self.storage).cleanup_binary_artifacts(
-            db,
-            job_uuid,
-            user_id,
-        )
+        await db.run_sync(catch_up_import_projections_best_effort)
         return ReviewConfirmRead(score_id=score_uuid)
 
     async def update(
@@ -383,33 +383,6 @@ class ReviewService:
         return await self.detail(db, job_uuid, user_id)
 
     @staticmethod
-    async def _attach_score_to_import_notification(
-        db: AsyncSession,
-        *,
-        job_uuid: str,
-        user_id: int,
-        score_uuid: str,
-        score_title: str,
-    ) -> None:
-        event = (
-            await db.execute(
-                select(NotificationEvent).where(
-                    NotificationEvent.recipient_user_id == user_id,
-                    NotificationEvent.type == NotificationTypes.IMPORT_COMPLETED,
-                    NotificationEvent.resource_type == "job",
-                    NotificationEvent.resource_id == job_uuid,
-                )
-            )
-        ).scalar_one_or_none()
-        if event is None:
-            return
-        data = dict(event.data or {})
-        data["score_id"] = score_uuid
-        data["score_title"] = score_title
-        event.score_id = score_uuid
-        event.data = data
-
-    @staticmethod
     def _confirmed_title(
         job: ImportJob,
         request: ReviewConfirmRequest,
@@ -434,4 +407,4 @@ class ReviewService:
         return options.get("genres", [])
 
 
-review_service = ReviewService()
+import_review_service = ImportReviewService()

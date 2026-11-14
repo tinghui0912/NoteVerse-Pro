@@ -232,6 +232,7 @@ def test_deletion_contends_on_dispatch_before_job_and_rechecks_state(monkeypatch
                             AsyncSessionAdapter(deleting), stale_job, 1
                         )
                     )
+                    deleting.commit()  # The public use case owns the release transaction.
                 result.put(None)
             except BaseException as exc:
                 result.put(exc)

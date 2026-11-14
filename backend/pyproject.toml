@@ -169,7 +169,6 @@ files = [
   "app/db/sync_session.py",
   "app/main.py",
   "app/modules",
-  "app/pipeline",
   "app/processing",
   "app/shared",
   "app/score_semantics",

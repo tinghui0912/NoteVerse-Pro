@@ -52,7 +52,9 @@ class TextOcrStep(Step):
             ).warning("Text recognition skipped")
             return None
         if ctx.remaining() <= 0:
-            raise TimeoutException(details={"error": "Task deadline exceeded before text recognition"})
+            raise TimeoutException(
+                details={"error": "Task deadline exceeded before text recognition"}
+            )
 
         worker_settings = get_worker_runtime_settings()
         logger.bind(
@@ -205,4 +207,4 @@ class TextOcrStep(Step):
         compact = " ".join(value.split())
         if len(compact) <= max_length:
             return repr(compact)
-        return repr(f"{compact[:max_length - 1]}...")
+        return repr(f"{compact[: max_length - 1]}...")

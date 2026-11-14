@@ -3464,6 +3464,108 @@ export type ImportJobRetryResponses = {
 
 export type ImportJobRetryResponse = ImportJobRetryResponses[keyof ImportJobRetryResponses];
 
+export type ImportJobReviewGetData = {
+    body?: never;
+    path: {
+        /**
+         * Job Id
+         */
+        job_id: string;
+    };
+    query?: never;
+    url: '/api/v1/import-jobs/{job_id}/review';
+};
+
+export type ImportJobReviewGetErrors = {
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type ImportJobReviewGetError = ImportJobReviewGetErrors[keyof ImportJobReviewGetErrors];
+
+export type ImportJobReviewGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ImportJobReviewRead;
+};
+
+export type ImportJobReviewGetResponse = ImportJobReviewGetResponses[keyof ImportJobReviewGetResponses];
+
+export type ImportJobReviewUpdateData = {
+    body: ReviewUpdateRequest;
+    path: {
+        /**
+         * Job Id
+         */
+        job_id: string;
+    };
+    query?: never;
+    url: '/api/v1/import-jobs/{job_id}/review';
+};
+
+export type ImportJobReviewUpdateErrors = {
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type ImportJobReviewUpdateError = ImportJobReviewUpdateErrors[keyof ImportJobReviewUpdateErrors];
+
+export type ImportJobReviewUpdateResponses = {
+    /**
+     * Successful Response
+     */
+    200: ImportJobReviewRead;
+};
+
+export type ImportJobReviewUpdateResponse = ImportJobReviewUpdateResponses[keyof ImportJobReviewUpdateResponses];
+
+export type ImportJobReviewConfirmData = {
+    body: ReviewConfirmRequest;
+    path: {
+        /**
+         * Job Id
+         */
+        job_id: string;
+    };
+    query?: never;
+    url: '/api/v1/import-jobs/{job_id}/review/confirm';
+};
+
+export type ImportJobReviewConfirmErrors = {
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type ImportJobReviewConfirmError = ImportJobReviewConfirmErrors[keyof ImportJobReviewConfirmErrors];
+
+export type ImportJobReviewConfirmResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReviewConfirmRead;
+};
+
+export type ImportJobReviewConfirmResponse = ImportJobReviewConfirmResponses[keyof ImportJobReviewConfirmResponses];
+
 export type ScoreInviteInspectData = {
     body?: never;
     path: {
@@ -4915,108 +5017,6 @@ export type ScoreRenderAssetViewResponses = {
 };
 
 export type ScoreRenderAssetViewResponse = ScoreRenderAssetViewResponses[keyof ScoreRenderAssetViewResponses];
-
-export type ImportJobReviewGetData = {
-    body?: never;
-    path: {
-        /**
-         * Job Id
-         */
-        job_id: string;
-    };
-    query?: never;
-    url: '/api/v1/review/{job_id}';
-};
-
-export type ImportJobReviewGetErrors = {
-    /**
-     * Request or application validation failure.
-     */
-    422: ApiErrorResponse;
-    /**
-     * Application failure.
-     */
-    default: ApiErrorResponse;
-};
-
-export type ImportJobReviewGetError = ImportJobReviewGetErrors[keyof ImportJobReviewGetErrors];
-
-export type ImportJobReviewGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: ImportJobReviewRead;
-};
-
-export type ImportJobReviewGetResponse = ImportJobReviewGetResponses[keyof ImportJobReviewGetResponses];
-
-export type ImportJobReviewUpdateData = {
-    body: ReviewUpdateRequest;
-    path: {
-        /**
-         * Job Id
-         */
-        job_id: string;
-    };
-    query?: never;
-    url: '/api/v1/review/{job_id}';
-};
-
-export type ImportJobReviewUpdateErrors = {
-    /**
-     * Request or application validation failure.
-     */
-    422: ApiErrorResponse;
-    /**
-     * Application failure.
-     */
-    default: ApiErrorResponse;
-};
-
-export type ImportJobReviewUpdateError = ImportJobReviewUpdateErrors[keyof ImportJobReviewUpdateErrors];
-
-export type ImportJobReviewUpdateResponses = {
-    /**
-     * Successful Response
-     */
-    200: ImportJobReviewRead;
-};
-
-export type ImportJobReviewUpdateResponse = ImportJobReviewUpdateResponses[keyof ImportJobReviewUpdateResponses];
-
-export type ImportJobReviewConfirmData = {
-    body: ReviewConfirmRequest;
-    path: {
-        /**
-         * Job Id
-         */
-        job_id: string;
-    };
-    query?: never;
-    url: '/api/v1/review/{job_id}/confirm';
-};
-
-export type ImportJobReviewConfirmErrors = {
-    /**
-     * Request or application validation failure.
-     */
-    422: ApiErrorResponse;
-    /**
-     * Application failure.
-     */
-    default: ApiErrorResponse;
-};
-
-export type ImportJobReviewConfirmError = ImportJobReviewConfirmErrors[keyof ImportJobReviewConfirmErrors];
-
-export type ImportJobReviewConfirmResponses = {
-    /**
-     * Successful Response
-     */
-    200: ReviewConfirmRead;
-};
-
-export type ImportJobReviewConfirmResponse = ImportJobReviewConfirmResponses[keyof ImportJobReviewConfirmResponses];
 
 export type ScoreRevisionSourceAccessUrlGetData = {
     body?: never;

@@ -109,8 +109,10 @@ def test_projection_semantics_are_database_only_and_commit_belongs_to_runner():
         assert calls <= {
             "isinstance",
             "TypeError",
+            "RuntimeError",
             "select",
             "select(NotificationEvent.id).where",
+            "select(NotificationEvent).where",
             "db.scalar",
             "db.add",
             "db.flush",

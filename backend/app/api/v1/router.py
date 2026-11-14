@@ -14,7 +14,7 @@ from app.modules.notifications.router import router as notifications
 from app.modules.playback.router import router as playback
 from app.modules.model_assets.router import router as model_assets
 from app.modules.realtime.router import router as realtime
-from app.modules.review.router import router as review
+from app.modules.import_jobs.review.router import router as review
 from app.modules.performance_takes.router import router as performance_takes
 from app.modules.practice.bundle.router import router as practice_bundles
 from app.modules.scores.router import router as scores
@@ -68,7 +68,7 @@ api_router.include_router(storage_usage, prefix="/me", tags=["Storage Usage"])
 api_router.include_router(playback, tags=["Playback"])
 api_router.include_router(model_assets, prefix="/model-assets", tags=["Model Assets"])
 api_router.include_router(realtime, prefix="/realtime", tags=["Realtime"])
-api_router.include_router(review, prefix="/review", tags=["Review"])
+api_router.include_router(review, prefix="/import-jobs", tags=["Import Review"])
 api_router.include_router(
     performance_takes, prefix="/performance-takes", tags=["Performance Takes"]
 )

@@ -36,8 +36,8 @@ from app.modules.import_jobs.dispatch_service import (
 from app.modules.import_jobs.worker_service import SyncImportJobService
 from app.modules.import_jobs.submission_service import ImportJobSubmissionService
 from app.modules.storage_objects.writes import write_object
-from app.pipeline.context import JobContext
-from app.pipeline.step_tracker import StepTracker
+from app.modules.import_jobs.pipeline.context import JobContext
+from app.modules.import_jobs.pipeline.step_tracker import StepTracker
 from app.task_queue.tracing import import_dispatch_trace_context
 from app.utils.timezone import utc_now_naive
 from tests.test_score_revision_services import score_service_session as score_service_session
@@ -430,7 +430,7 @@ async def test_submission_atomically_creates_one_delivery_and_upload_links(
 @pytest.mark.parametrize("path", ["progress", "step", "tracker", "complete"])
 def test_pipeline_telemetry_never_swallows_lease_loss(monkeypatch, path):
     from app.modules.import_jobs.dispatch_service import ImportExecutionLease
-    from app.pipeline import context as module
+    from app.modules.import_jobs.pipeline import context as module
 
     lease = ImportExecutionLease(dispatch_uuid="delivery", job_uuid="job", attempt=1, token="token")
     ctx = JobContext(lease=lease, db=Mock(), celery_task=Mock(), image_paths=[])

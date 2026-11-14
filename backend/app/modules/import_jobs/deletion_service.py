@@ -46,6 +46,8 @@ class ImportJobDeletionService:
         await self._release(db, job, user_id, delete_job=False)
 
     async def _release(self, db, job, user_id, *, delete_job):
+        # Caller-owned confirmation writes must survive the locked refresh below.
+        await db.flush()
         job_id = require_persisted_id(job.id, entity="import job")
         # Match worker/recovery lock order before any destructive domain mutation.
         dispatch = (
@@ -130,7 +132,6 @@ class ImportJobDeletionService:
                 storage_key=key,
                 auto_commit=False,
             )
-        await db.commit()
 
     async def _orphan_uploads_after_job_delete(
         self,

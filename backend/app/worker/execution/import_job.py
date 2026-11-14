@@ -13,7 +13,7 @@ from app.modules.import_jobs.dispatch_service import (
     TERMINAL_IMPORT_STATES,
 )
 from app.modules.import_jobs.execution_service import job_execution_service
-from app.pipeline.context import CeleryTaskLike
+from app.task_queue.protocols import CeleryTaskLike
 from app.worker.task_runtime import (
     bind_task_context,
     clear_task_context,

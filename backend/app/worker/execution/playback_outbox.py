@@ -15,7 +15,7 @@ from app.modules.realtime.publisher import (
     RealtimeEventTypes,
     publish_score_event_sync,
 )
-from app.pipeline.context import CeleryTaskLike
+from app.task_queue.protocols import CeleryTaskLike
 from app.worker.task_runtime import (
     bind_task_context,
     clear_task_context,

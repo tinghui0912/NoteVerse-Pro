@@ -8,12 +8,32 @@ from app.core.logger import logger
 from app.db.models.domain_event import DomainEvent
 from app.modules.domain_events.definitions import DomainFact
 from app.modules.domain_events.projections import ProjectionDefinition, run_projections
-from app.modules.import_jobs.events import ImportJobCompleted, ImportJobFailed
+from app.modules.import_jobs.events import ImportJobCompleted, ImportJobFailed, ImportJobConfirmed
 from app.modules.notifications.service import NotificationTypes
 from app.modules.realtime.publisher import RealtimeEventTypes, publish_event_sync
 
 
 def project_import_notification(db: Session, event: DomainEvent, fact: DomainFact) -> None:
+    if isinstance(fact, ImportJobConfirmed):
+        notification = db.scalar(
+            select(NotificationEvent).where(
+                NotificationEvent.dedupe_key
+                == f"{NotificationTypes.IMPORT_COMPLETED}:{fact.job_id}:{fact.recipient_user_id}",
+                NotificationEvent.recipient_user_id == fact.recipient_user_id,
+                NotificationEvent.type == NotificationTypes.IMPORT_COMPLETED,
+                NotificationEvent.resource_type == "job",
+                NotificationEvent.resource_id == fact.job_id,
+            )
+        )
+        if notification is None:
+            raise RuntimeError("Import confirmation requires its completed notification projection")
+        notification.score_id = fact.score_id
+        notification.data = {
+            **(notification.data or {}),
+            "score_id": fact.score_id,
+            "score_title": fact.score_title,
+        }
+        return
     if not isinstance(fact, (ImportJobCompleted, ImportJobFailed)):
         raise TypeError("Import notification requires an Import fact")
     completed = isinstance(fact, ImportJobCompleted)
@@ -74,7 +94,7 @@ def project_import_realtime(db: Session, event: DomainEvent, fact: DomainFact) -
 IMPORT_PROJECTIONS = (
     ProjectionDefinition(
         "import_notifications_v1",
-        (ImportJobCompleted, ImportJobFailed),
+        (ImportJobCompleted, ImportJobFailed, ImportJobConfirmed),
         project_import_notification,
     ),
     ProjectionDefinition(

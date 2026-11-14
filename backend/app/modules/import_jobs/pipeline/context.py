@@ -3,7 +3,8 @@
 import os
 import time
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, List, Optional, Protocol, TypedDict
+from typing import TYPE_CHECKING, List, Optional
+from app.task_queue.protocols import CeleryTaskLike
 
 from sqlalchemy.orm import Session
 
@@ -17,34 +18,12 @@ from app.modules.import_jobs.dispatch_service import (
 )
 from app.processing.engines.omr import OmrSuccessResult
 from app.modules.import_jobs.worker_service import sync_import_job_service as job_service
-from app.pipeline.files_recorder import replace_files
-from app.pipeline.step_tracker import StepTracker
+from app.modules.import_jobs.pipeline.artifact_recorder import replace_files
+from app.modules.import_jobs.pipeline.step_tracker import StepTracker
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 
 if TYPE_CHECKING:
-    from app.pipeline.base import Pipeline
-
-
-class CeleryStateMeta(TypedDict):
-    """Progress payload sent back to Celery state updates."""
-
-    status: str
-    progress: int
-    current_step: str
-
-
-class CeleryRequestLike(Protocol):
-    """Subset of the Celery request object used by task execution."""
-
-    id: str
-
-
-class CeleryTaskLike(Protocol):
-    """Subset of Celery task behavior needed by the pipeline context."""
-
-    request: CeleryRequestLike
-
-    def update_state(self, state: str, meta: CeleryStateMeta) -> None: ...
+    from app.modules.import_jobs.pipeline.base import Pipeline
 
 
 def _default_job_options() -> ImportJobProcessingOptions:

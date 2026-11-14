@@ -154,15 +154,7 @@ class ImportJobService:
     async def delete(self, db: AsyncSession, job_uuid: str, user_id: int) -> None:
         job = await self.get_owned_job(db, job_uuid, user_id)
         await self.deletion_service.delete_job(db, job, user_id)
-
-    async def cleanup_binary_artifacts(
-        self,
-        db: AsyncSession,
-        job_uuid: str,
-        user_id: int,
-    ) -> None:
-        job = await self.get_owned_job(db, job_uuid, user_id)
-        await self.deletion_service.cleanup_binary_artifacts(db, job, user_id)
+        await db.commit()
 
     async def artifact_delivery(
         self,

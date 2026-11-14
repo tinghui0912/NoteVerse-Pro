@@ -66,8 +66,37 @@ Review API and score identity are defined in
 The pipeline records raw OMR/intermediate XML as job-scoped review candidates; those
 artifacts are not trusted canonical revision sources. User Review MusicXML updates
 and confirmation use [canonical document admission](../score-semantics.md#document-admission)
-before storing the trusted editable document or revision source. The synchronous
-confirmed-score creation entry point enforces the same boundary. Admission requires
+before storing the trusted editable document or revision source. RevisionWriter owns
+canonical revision admission. Admission requires
 partwise representation, materializes explicit tempo facts and validates the exact
 stored bytes with canonical written semantics. Pipeline artifact recording remains
 independent of downstream Practice and metadata projection support.
+
+## Import-owned review and confirmation
+
+`app.modules.import_jobs.review` owns ImportReviewService, its read model, temporary
+candidate updates and fenced thumbnail implementation. Its API is the ImportJob
+sub-resource `/api/v1/import-jobs/{job_id}/review` (GET/PATCH) with POST `/confirm`.
+The browser workspace remains `/review/:jobId` and `/review/:jobId/edit`.
+
+`app.modules.import_jobs.pipeline` owns step composition, deadline/progress tracking
+and ImportArtifact recording. Shared processing engines stay in `app.processing`;
+Celery structural task protocols belong to `app.task_queue.protocols`.
+
+Confirmation locks ImportDispatch before ImportJob, prepares physical source/thumbnail
+writes, then reacquires those locks and revalidates admission. Its single business
+transaction creates Score, calls RevisionWriter, promotes required thumbnail/inputs,
+updates Job CONFIRMED/score link, transfers accounting and releases temporary Import
+artifacts/upload links through ImportJobDeletionService. That release primitive never
+commits and is shared with the customer deletion use case, which owns its commit.
+StoredObject retirement owns physical convergence; confirmation does no storage delete.
+
+ImportJobConfirmed v1 records job/recipient/score identity and score title with semantic
+key `import.job.confirmed:{job_id}` in that same transaction. `import_notifications_v1`
+replays completed, failed and confirmed facts in journal order. Confirmation enriches
+the existing completed notification; missing completed evidence blocks the projection.
+Projection failure rolls back enrichment/checkpoint, while committed confirmation and
+the independently checkpointed realtime projector remain valid. No confirmed browser
+realtime type is introduced. Repeated confirmation returns the existing Score without
+repeating writes, accounting or cleanup. Revision and Import projection fast paths
+are recoverable latency hints after commit; Beat owns recovery.
