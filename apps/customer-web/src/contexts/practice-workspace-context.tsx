@@ -1,5 +1,4 @@
 'use client';
-import { usePathname } from 'next/navigation';
 import {
   createContext,
   useCallback,
@@ -19,11 +18,10 @@ import {
   readPracticePreferences,
   writePracticePreferences,
 } from '@/lib/practice/configuration/preference-storage';
-import { planPracticeResources } from '@/lib/practice/planning/resource-plan';
-import {
-  matchesPreparationConfiguration,
-  type PreparedPractice,
-} from '@/lib/practice/preparation/prepared-practice';
+import { planPracticeResources, samePracticeResourcePlan } from '@/lib/practice/planning/resource-plan';
+import type { PreparedPractice } from '@/lib/practice/preparation/prepared-practice';
+import { createPracticePreparationKey, samePracticePreparationKey, preparationKeyMatchesConfiguration, type PracticePreparationKey } from '@/lib/practice/preparation/preparation-key';
+import { PracticePreparationTransaction } from '@/lib/practice/preparation/preparation-transaction';
 import { PracticeEnvironment } from '@/lib/practice/environment/practice-environment';
 import {
   releaseTransientReviewSession,
@@ -35,7 +33,6 @@ import type { PracticeScope } from '@/lib/practice/planning/scope';
 import type { PracticeTempoSelection } from '@/lib/practice/planning/tempo';
 
 function useWorkspaceState(createEnvironment: () => PracticeEnvironment) {
-  const pathname = usePathname();
   const [environment] = useState(createEnvironment);
   const [profile, setProfile] = useState<PracticePreferenceProfile>(
     emptyPracticePreferences,
@@ -51,14 +48,18 @@ function useWorkspaceState(createEnvironment: () => PracticeEnvironment) {
   const [reviewSession, setReviewSession] =
     useState<TransientReviewSession | null>(null);
   const review = useRef<TransientReviewSession | null>(null);
+  const reviewVisit = useRef(0);
   const clearReviewSession = useCallback(() => {
+    ++reviewVisit.current;
     const previous = review.current;
     review.current = null;
     setReviewSession(null);
     return releaseTransientReviewSession(previous);
   }, []);
   const prepared = useRef<PreparedPractice | null>(null);
-  const preparation = useRef<AbortController | null>(null);
+  const preparation = useRef<PracticePreparationTransaction | null>(null);
+  const preparationGeneration = useRef(0);
+  const target = useRef<PracticePreparationKey | null>(null);
   const configurationRef = useRef<
     ReturnType<typeof resolvePracticeConfiguration>
   >(resolvePracticeConfiguration(profile));
@@ -69,39 +70,58 @@ function useWorkspaceState(createEnvironment: () => PracticeEnvironment) {
     prepared.current = null;
     setPreparedPractice(null);
   }, []);
-  useEffect(() => {
-    // Route entry invalidates handoffs; a handoff created before navigation survives
-    // rerenders on the unchanged Practice route.
-    let current = true;
-    queueMicrotask(() => {
-      if (!current) return;
-      if (!pathname?.endsWith('/review')) clearReviewSession();
-      if (!pathname?.endsWith('/practice')) clearPreparedPractice();
-    });
-    return () => {
-      current = false;
-    };
-  }, [pathname, clearPreparedPractice, clearReviewSession]);
-  const beginPreparation = useCallback(() => {
-    clearReviewSession();
+  const enterSetup = useCallback((key: PracticePreparationKey | null) => {
     clearPreparedPractice();
-    const transaction = new AbortController();
+    void clearReviewSession();
+    target.current = key;
+  }, [clearPreparedPractice, clearReviewSession]);
+  const preparedFor = useCallback((key: PracticePreparationKey | null) => {
+    return samePracticePreparationKey(preparedPractice?.key, key) ? preparedPractice : null;
+  }, [preparedPractice]);
+  const enterPractice = useCallback((key: PracticePreparationKey | null) => {
+    void clearReviewSession();
+    if (!samePracticePreparationKey(target.current, key)) clearPreparedPractice();
+    target.current = key;
+    return samePracticePreparationKey(prepared.current?.key, key) ? prepared.current : null;
+  }, [clearPreparedPractice, clearReviewSession]);
+  const enterReview = useCallback((scoreId: string) => {
+    clearPreparedPractice();
+    if (review.current?.result.executed.bundle.binding.scoreId !== scoreId) void clearReviewSession();
+    const visit = ++reviewVisit.current;
+    // Immediate effect remount acquires a fresh visit before this disposal runs.
+    return () => queueMicrotask(() => {
+      if (visit === reviewVisit.current) void clearReviewSession();
+    });
+  }, [clearPreparedPractice, clearReviewSession]);
+  const beginPreparation = useCallback((key: PracticePreparationKey) => {
+    const resolution = configurationRef.current;
+    if (!preparationKeyMatchesConfiguration(key, resolution.status === 'COMPLETE' ? resolution.configuration : null)) {
+      throw new Error('Current resource choices required for preparation.');
+    }
+    void clearReviewSession();
+    clearPreparedPractice();
+    target.current = key;
+    const transaction = new PracticePreparationTransaction(++preparationGeneration.current, key);
     preparation.current = transaction;
     return transaction;
   }, [clearPreparedPractice, clearReviewSession]);
+  const cancelPreparation = useCallback((transaction: PracticePreparationTransaction) => {
+    if (preparation.current?.id !== transaction.id) return;
+    preparation.current.abort();
+    preparation.current = null;
+  }, []);
   const commitPreparedPractice = useCallback(
-    (value: PreparedPractice, transaction: AbortController) => {
+    (value: PreparedPractice, transaction: PracticePreparationTransaction) => {
       const resolution = configurationRef.current;
       if (
-        preparation.current !== transaction ||
+        preparation.current?.id !== transaction.id ||
         transaction.signal.aborted ||
-        resolution.status !== 'COMPLETE' ||
-        !matchesPreparationConfiguration(
-          value.admission,
-          resolution.configuration,
-        ) ||
-        value.binding.resourcePlan !==
-          planPracticeResources(resolution.configuration) ||
+        !samePracticePreparationKey(target.current, transaction.key) ||
+        !samePracticePreparationKey(transaction.key, value.key) ||
+        !preparationKeyMatchesConfiguration(value.key, resolution.status === 'COMPLETE' ? resolution.configuration : null) ||
+        value.bundle.binding.scoreId !== value.key.scoreId ||
+        value.bundle.binding.revisionId !== value.key.revisionId ||
+        !samePracticeResourcePlan(value.binding.resourcePlan, planPracticeResources(value.key)) ||
         !value.binding.borrowRoots()
       ) {
         value.binding.close();
@@ -112,16 +132,17 @@ function useWorkspaceState(createEnvironment: () => PracticeEnvironment) {
       preparation.current = null;
       setPreparedPractice(value);
       return true;
-    },
-    [],
+    }, [],
   );
   const handoffToReview = useCallback(
-    (completion: ContinuousPracticeCompletion) => {
+    (completion: ContinuousPracticeCompletion, key: PracticePreparationKey) => {
       if (
         !prepared.current ||
-        prepared.current.admission.configuration.mode !== 'CONTINUOUS_PLAY' ||
+        !samePracticePreparationKey(prepared.current.key, key) ||
+        !samePracticePreparationKey(target.current, key) ||
+        prepared.current.key.mode !== 'CONTINUOUS_PLAY' ||
         completion.result.inputKind !==
-          prepared.current.admission.configuration.inputSource
+          prepared.current.key.inputSource
       ) {
         throw new Error(
           'Matching prepared Continuous Practice required for Review handoff.',
@@ -129,9 +150,10 @@ function useWorkspaceState(createEnvironment: () => PracticeEnvironment) {
       }
       const session = createTransientReviewSession(
         completion,
-        prepared.current.admission.bundle,
+        prepared.current.bundle,
       );
       clearPreparedPractice();
+      ++reviewVisit.current;
       const previous = review.current;
       review.current = session;
       setReviewSession(session);
@@ -170,18 +192,12 @@ function useWorkspaceState(createEnvironment: () => PracticeEnvironment) {
   const updateProfile = useCallback(
     (next: PracticePreferenceProfile) => {
       const nextResolution = resolvePracticeConfiguration(next);
-      const previous = configurationRef.current;
-      if (
-        previous.status !== nextResolution.status ||
-        (previous.status === 'COMPLETE' &&
-          nextResolution.status === 'COMPLETE' &&
-          (previous.configuration.mode !== nextResolution.configuration.mode ||
-            previous.configuration.inputSource !==
-              nextResolution.configuration.inputSource ||
-            previous.configuration.recordingMode !==
-              nextResolution.configuration.recordingMode))
-      )
+      const key = target.current;
+      if (key && !preparationKeyMatchesConfiguration(key, nextResolution.status === 'COMPLETE' ? nextResolution.configuration : null)) {
         clearPreparedPractice();
+        target.current = nextResolution.status === 'COMPLETE'
+          ? createPracticePreparationKey(key.scoreId, key.revisionId, nextResolution.configuration) : null;
+      }
       configurationRef.current = nextResolution;
       setProfile(next);
       try {
@@ -214,7 +230,12 @@ function useWorkspaceState(createEnvironment: () => PracticeEnvironment) {
     handoffToReview,
     clearReviewSession,
     preparedPractice,
+    enterSetup,
+    enterPractice,
+    enterReview,
+    preparedFor,
     beginPreparation,
+    cancelPreparation,
     commitPreparedPractice,
     clearPreparedPractice,
     scope,

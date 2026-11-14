@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/routing';
 import { useSearchParams } from 'next/navigation';
-import { matchesPreparationConfiguration } from '@/lib/practice/preparation/prepared-practice';
+import { createPracticePreparationKey } from '@/lib/practice/preparation/preparation-key';
 import { usePracticeExecution } from '@/hooks/practice/use-practice-execution';
 import { usePracticeResourceBinding } from '@/hooks/practice/use-practice-resource-binding';
 import { usePracticeWorkspace } from '@/contexts/practice-workspace-context';
@@ -86,12 +86,20 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
   const [isCompletionDialogOpen, setIsCompletionDialogOpen] = useState(false);
 
   const selectedRevisionId = useSearchParams().get('practiceRevisionId') ?? undefined;
-  const prepared = workspace.preparedPractice;
-  const admission = prepared?.admission;
-  const matching = Boolean(admission && admission.bundle.binding.scoreId === id
-    && admission.bundle.binding.revisionId === selectedRevisionId
-    && matchesPreparationConfiguration(admission, workspace.configuration));
-  const bundle = matching ? admission!.bundle : null;
+  const configuration = workspace.configuration;
+  const preparationMode = configuration?.mode, preparationInput = configuration?.inputSource, preparationRecording = configuration?.recordingMode;
+  const expectedKey = selectedRevisionId && preparationMode && preparationInput && preparationRecording
+    ? createPracticePreparationKey(id, selectedRevisionId, { mode: preparationMode, inputSource: preparationInput, recordingMode: preparationRecording }) : null;
+  const { enterPractice, preparedFor, hydrated } = workspace;
+  const prepared = preparedFor(expectedKey);
+  const matching = prepared !== null;
+  const bundle = prepared?.bundle ?? null;
+  useLayoutEffect(() => {
+    if (!hydrated) return;
+    const target = selectedRevisionId && preparationMode && preparationInput && preparationRecording
+      ? createPracticePreparationKey(id, selectedRevisionId, { mode: preparationMode, inputSource: preparationInput, recordingMode: preparationRecording }) : null;
+    if (!enterPractice(target)) router.replace(practiceLocation(id, 'setup', selectedRevisionId));
+  }, [id, selectedRevisionId, preparationMode, preparationInput, preparationRecording, hydrated, enterPractice, router]);
   const artifact = bundle?.artifact ?? null;
   const xmlContent = bundle?.musicXml ?? null;
 
@@ -105,7 +113,6 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
   const { practiceScope, selectedRangeRenderNoteIds } = range;
 
 
-  const configuration = workspace.configuration;
   const intent = useMemo<PracticeIntent | null>(() => {
     if (!configuration || !practiceScope) return null;
     return Object.freeze({ mode: configuration.mode, inputSource: configuration.inputSource,
@@ -154,7 +161,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
 
   const goToPracticeSetup = () => {
     setIsSettingsOpen(false);
-    workspace.clearPreparedPractice();
+    workspace.enterSetup(expectedKey);
     router.push(practiceLocation(id, 'setup', selectedRevisionId));
   };
   const handleRetry = async () => {
@@ -166,9 +173,10 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
   const handleViewSummary = useCallback(() => {
     setIsCompletionDialogOpen(false);
     if (!execution.completion) throw new Error('Continuous completion required for Review.');
-    workspace.handoffToReview(execution.completion);
+    if (!expectedKey) throw new Error('Prepared Practice identity required for Review.');
+    workspace.handoffToReview(execution.completion, expectedKey);
     router.push(`/score/${id}/practice/review`);
-  }, [id, router, workspace, execution.completion]);
+  }, [id, router, workspace, execution.completion, expectedKey]);
 
   const handleAdjustSelectedSection = async () => {
     setIsCompletionDialogOpen(false);

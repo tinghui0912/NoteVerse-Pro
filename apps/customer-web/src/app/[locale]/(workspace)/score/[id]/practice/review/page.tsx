@@ -8,6 +8,7 @@ import { practiceLocation } from '@/lib/practice/configuration/practice-location
 import React, {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -79,6 +80,8 @@ export default function PracticeReviewPage({
   const router = useRouter();
 
   const workspace = usePracticeWorkspace();
+  const { enterReview } = workspace;
+  useLayoutEffect(() => enterReview(id), [id, enterReview]);
   const reviewSession = workspace.reviewSession;
   const result = reviewSession?.result ?? null;
   const recording = reviewSession?.recording ?? null;

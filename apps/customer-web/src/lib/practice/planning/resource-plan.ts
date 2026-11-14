@@ -31,6 +31,18 @@ export function planPracticeResources(
   return plans[intent.inputSource][intent.recordingMode];
 }
 
+/** Compare resource requirements by value; callers need no interned plan references. */
+export function samePracticeResourcePlan(a: PracticeResourcePlan, b: PracticeResourcePlan): boolean {
+  const value = (plan: PracticeResourcePlan) => JSON.stringify([
+    plan.input.kind, plan.input.root,
+    plan.analysis.kind, plan.analysis.kind === 'ACOUSTIC' ? plan.analysis.sourceRoot : null,
+    plan.recording.mode, plan.recording.mode === 'OFF' ? null : plan.recording.audioRoot,
+    plan.recording.mode === 'VIDEO' ? plan.recording.videoRoot : null,
+    [...plan.qualification].sort(), [...plan.liveRoots].sort(),
+  ]);
+  return value(a) === value(b);
+}
+
 function resources(inputSource: 'MICROPHONE' | 'MIDI', mode: 'OFF' | 'AUDIO' | 'VIDEO'): PracticeResourcePlan {
   const input: PracticeInputResourcePlan = inputSource === 'MICROPHONE'
     ? Object.freeze({ kind: 'MICROPHONE', root: 'inputMicrophone' }) : Object.freeze({ kind: 'MIDI', root: 'midi' });

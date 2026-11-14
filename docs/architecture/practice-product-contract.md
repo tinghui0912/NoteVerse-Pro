@@ -57,7 +57,7 @@ SCORE, OFF and FULL. Retry and same-page Try Again retain all these options.
 
 Setup exclusively edits mode, input source and recording mode. Practice exposes execution
 controls and presentation preferences, with no inline editors for readiness-affecting
-configuration. Unavailable admission stays on Practice with explicit Setup navigation;
+configuration. Missing or mismatched preparation replaces navigation with pinned Setup;
 an active recording intervention keeps the current attempt while the user decides. STEP settings contains configuration navigation only. Continuous Live Feedback uses a labelled, keyboard-accessible Switch in Practice,
 not Setup. The switch controls score feedback visibility independently of readiness,
 session identity, inference, evaluation, Review and Composite Video. The preference
@@ -74,11 +74,15 @@ Selectors are locked while the command runs; stale completion cannot navigate.
 Setup does not probe and release physical roots before Practice.
 The explicit Setup command acquires the live roots that the admitted Practice execution will actually borrow.
 Successful preparation does not create a persistent readiness flag.
-It creates a retained resource binding plus exact Bundle admission.
+It creates `PreparedPractice { key, bundle, binding }`. PracticePreparationKey is a
+frozen value of scoreId, revisionId, mode, inputSource and recordingMode, with a
+canonical JSON tuple string identity. Scope, tempo, metronome, live feedback and
+bundleId are outside that identity. Bundle binding remains separate server evidence.
+Equal fresh configuration or resource-plan objects retain the same valid preparation.
 
 Practice uses the admitted representation and verifies URL identity locally. Direct
 entry or full reload has no retained
-admission and shows Setup required, with no Bundle fallback or physical acquisition.
+admission and replaces the location with pinned Setup, with no Bundle fallback or physical acquisition.
 User navigation back to Setup retains the pinned revision and releases the binding.
 Review also releases physical resources; its Retry opens Setup for a fresh command.
 Candidate scope, tempo, metronome and live-feedback choices remain workspace-local.
@@ -86,8 +90,11 @@ Candidate scope, tempo, metronome and live-feedback choices remain workspace-loc
 `PracticeResourceBinding` owns one retained microphone/camera/MIDIAccess acquisition,
 physical-health interpretation and exactly-once release. Practice and attempts borrow
 its objects. Attempt End, natural completion and same-page Retry retain the same roots.
-Entering Setup, Review, leaving the Practice flow or replacing resource configuration
-releases them. No physical fault triggers automatic reacquisition.
+Setup calls `enterSetup(key)` on semantic page entry. Practice calls
+`enterPractice(key)` and consumes only `preparedFor(key)`. Review receives an explicit
+keyed handoff and owns an `enterReview(scoreId)` visit. Resource-choice replacement
+immediately retires preparation; provider disposal is final safety cleanup. Navigation
+and pathname suffixes do not determine physical resource lifetime. No physical fault triggers automatic reacquisition.
 Physical roots may fail after successful preparation; such a failure is an event on the same retained binding, not a second acquisition failure.
 
 Physical HEALTHY/INTERRUPTED/LOST facts drive read-only status icons and mode-owned

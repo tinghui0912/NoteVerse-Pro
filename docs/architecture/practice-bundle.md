@@ -24,6 +24,16 @@ manifest containing bundleSchemaVersion, artifactSchemaVersion, preparedMusicxml
 and artifactSha256. Sorted keys, compact separators and UTF-8 define canonical bytes.
 Ownership, timestamps, binding IDs and storage locators do not participate in identity.
 
+## Browser preparation identity
+
+PracticePreparationKey is browser-local score/revision plus mode, inputSource and
+recordingMode, compared by canonical value. It does not replace bundleId, artifactId
+or ScoreRevisionPracticeBinding. Explicit Setup requests fresh authorization and
+admission, then Workspace retains `{ key, bundle, binding }` in memory. Practice uses
+only an exact keyed preparation. Navigation does not own resource lifetime; explicit
+page commands and provider disposal do. Preferences persist; preparation and transient
+Review handoffs do not. Reload requires Setup and never reconstructs device readiness.
+
 ## Revision read and authorization
 
 The authenticated endpoint is:

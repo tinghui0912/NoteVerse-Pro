@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useRouter } from '@/i18n/routing';
@@ -11,16 +11,16 @@ import { BundleFailure } from '@/lib/practice/failure/causal-failure';
 import { useTranslations } from 'next-intl';
 import { usePracticeWorkspace } from '@/contexts/practice-workspace-context';
 import { practiceLocation } from '@/lib/practice/configuration/practice-location';
-import type { PracticeConfiguration } from '@/lib/practice/configuration/preferences';
+import { createPracticePreparationKey, samePracticePreparationKey, type PracticePreparationKey } from '@/lib/practice/preparation/preparation-key';
+import type { PracticePreparationTransaction } from '@/lib/practice/preparation/preparation-transaction';
 import type { PracticeMode } from '@/lib/practice/planning/intent';
 import type { PracticeInputSource } from '@/lib/practice/planning/intent';
 import type { PracticeRecordingMode } from '@/lib/practice/recording/recording-mode';
 import { planPracticeResources, type PracticeQualificationRequirement } from '@/lib/practice/planning/resource-plan';
 
 type Preparation = {
-  revisionId: string;
-  configuration: PracticeConfiguration;
-  stage: 'BUNDLE' | 'ACQUIRING' | 'VALIDATING' | 'FAILED';
+  key: PracticePreparationKey;
+  stage: 'BUNDLE' | 'ACQUIRING' | 'VALIDATING' | 'PREPARED' | 'FAILED';
   failure: 'BUNDLE' | 'RESOURCES' | null;
   components?: Partial<Record<PracticeQualificationRequirement, 'READY'>>;
   progress?: number | null;
@@ -30,34 +30,42 @@ export default function PracticeSetupPage() {
   const workspace = usePracticeWorkspace(), t = useTranslations('practice');
   const params = useParams<{ id: string }>(), router = useRouter();
   const route = usePracticeRouteScore(params.id);
-  const { profile, updateProfile, configuration, resourcePlan, environment, beginPreparation, commitPreparedPractice, clearPreparedPractice } = workspace;
+  const { profile, updateProfile, configuration, resourcePlan, environment, beginPreparation, commitPreparedPractice, cancelPreparation, enterSetup } = workspace;
   const [preparation, setPreparation] = useState<Preparation | null>(null);
   const [invalidRevision, setInvalidRevision] = useState<string | null>(null);
-  const transaction = useRef<AbortController | null>(null);
-  useEffect(() => {
-    clearPreparedPractice();
-    return () => { transaction.current?.abort(); transaction.current = null; };
-  }, [params.id, route.revisionId, configuration?.mode, configuration?.inputSource, configuration?.recordingMode, clearPreparedPractice]);
-  const current = preparation?.revisionId === route.revisionId && preparation?.configuration === configuration ? preparation : null;
+  const transaction = useRef<PracticePreparationTransaction | null>(null);
+  const scoreId = params.id, revisionId = route.revisionId;
+  const mode = configuration?.mode, inputSource = configuration?.inputSource, recordingMode = configuration?.recordingMode;
+  const key = revisionId && mode && inputSource && recordingMode
+    ? createPracticePreparationKey(scoreId, revisionId, { mode, inputSource, recordingMode }) : null;
+  useLayoutEffect(() => {
+    enterSetup(revisionId && mode && inputSource && recordingMode
+      ? createPracticePreparationKey(scoreId, revisionId, { mode, inputSource, recordingMode }) : null);
+    return () => {
+      if (transaction.current) cancelPreparation(transaction.current);
+      transaction.current = null;
+    };
+  }, [scoreId, revisionId, mode, inputSource, recordingMode, enterSetup, cancelPreparation]);
+  const current = samePracticePreparationKey(preparation?.key, key) ? preparation : null;
   const checking = current?.stage === 'BUNDLE' || current?.stage === 'ACQUIRING' || current?.stage === 'VALIDATING';
   const invalid = invalidRevision !== null && invalidRevision === route.revisionId;
   const currentRequirements = resourcePlan?.qualification ?? [];
   const prepare = async () => {
     const revisionId = route.revisionId;
     if (transaction.current || invalid || !workspace.hydrated || !configuration
-      || !revisionId || !route.pinned || !route.canPractice || route.scoreQuery.isError) return;
-    const command = beginPreparation(); transaction.current = command;
-    const captured = { revisionId, configuration };
-    const active = () => transaction.current === command && !command.signal.aborted;
+      || !key || !revisionId || !route.pinned || !route.canPractice || route.scoreQuery.isError) return;
+    const command = beginPreparation(key); transaction.current = command;
+    const captured = { key: command.key };
+    const active = () => transaction.current?.id === command.id && !command.signal.aborted;
     let binding: PracticeResourceBinding | null = null;
     let committed = false;
     let failure: Preparation['failure'] = 'BUNDLE';
     setPreparation({ ...captured, stage: 'BUNDLE', failure: null });
     try {
-      const admitted = await admitPracticeBundle(params.id, revisionId, command.signal);
+      const admitted = await admitPracticeBundle(command.key.scoreId, command.key.revisionId, command.signal);
       if (!active()) return;
       failure = 'RESOURCES';
-      const resources = planPracticeResources(configuration);
+      const resources = planPracticeResources(command.key);
       setPreparation({ ...captured, stage: 'ACQUIRING', failure: null });
       binding = new PracticeResourceBinding(resources);
       const owner = binding;
@@ -74,11 +82,12 @@ export default function PracticeSetupPage() {
           onProgress: progress => { if (active()) setPreparation(previous => previous ? { ...previous, progress } : previous); },
         });
         if (!active()) return;
-        const admission = Object.freeze({ bundle: admitted, configuration: Object.freeze({
-          mode: configuration.mode, inputSource: configuration.inputSource, recordingMode: configuration.recordingMode,
-        }) });
-        committed = commitPreparedPractice(Object.freeze({ admission, binding }), command);
-        if (committed) router.replace(practiceLocation(params.id, 'practice', revisionId));
+        committed = commitPreparedPractice(Object.freeze({ key: command.key, bundle: admitted, binding }), command);
+        if (committed) {
+          transaction.current = null; // Ownership has transferred to Workspace.
+          setPreparation({ ...captured, stage: 'PREPARED', failure: null });
+          router.replace(practiceLocation(command.key.scoreId, 'practice', command.key.revisionId));
+        }
       } finally { command.signal.removeEventListener('abort', close); }
     } catch (error) {
       if (active()) {
@@ -86,8 +95,8 @@ export default function PracticeSetupPage() {
         setPreparation({ ...captured, stage: 'FAILED', failure });
       }
     } finally {
-      if (!committed) binding?.close();
-      if (transaction.current === command) transaction.current = null;
+      if (!committed) { binding?.close(); cancelPreparation(command); }
+      if (transaction.current?.id === command.id) transaction.current = null;
     }
   };
 

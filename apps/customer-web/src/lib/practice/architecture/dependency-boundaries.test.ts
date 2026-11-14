@@ -2532,7 +2532,7 @@ it('keeps execution device status informational and requalification exclusively 
       expect(text).toContain(
         "router.push(practiceLocation(id, 'setup', selectedRevisionId))",
       );
-      expect(text).toContain('workspace.clearPreparedPractice()');
+      expect(text).toContain('workspace.enterSetup(expectedKey)');
       expect(text).not.toMatch(/device\.|execution\./);
     }
     if (

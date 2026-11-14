@@ -230,6 +230,7 @@ const createMockArtifact = (overrides: Record<string, unknown> = {}) => ({
 let currentMockArtifact = createMockArtifact();
 
 const reviewWorkspace = {
+  enterReview: vi.fn(() => () => {}),
   reviewSession: null as TransientReviewSession | null,
   clearReviewSession: vi.fn(() => {
     const session = reviewWorkspace.reviewSession;

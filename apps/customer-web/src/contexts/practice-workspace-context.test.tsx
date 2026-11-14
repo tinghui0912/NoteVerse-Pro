@@ -1,14 +1,10 @@
-import { continuousPracticePlan } from '@/lib/practice/__fixtures__/practice-plan';
-import { createContinuousPerformanceResult } from '@/lib/practice/result/continuous-performance-result';
-import { unavailableContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/session';
 // @vitest-environment jsdom
-import { recordingSinkFixture } from '@/lib/practice/__fixtures__/recording-sink';
+import { StrictMode } from 'react';
 import { act, render, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
-import {
-  PracticeWorkspaceProvider,
-  usePracticeWorkspace,
-} from './practice-workspace-context';
+import { PracticeWorkspaceProvider, usePracticeWorkspace } from './practice-workspace-context';
+import { createPracticePreparationKey } from '@/lib/practice/preparation/preparation-key';
+import { PracticePreparationTransaction } from '@/lib/practice/preparation/preparation-transaction';
 import { PracticeEnvironment } from '@/lib/practice/environment/practice-environment';
 import { PracticeResourceBinding } from '@/lib/practice/device/practice-resource-binding';
 import { planPracticeResources } from '@/lib/practice/planning/resource-plan';
@@ -16,20 +12,19 @@ import { midiDeviceFixture } from '@/lib/practice/__fixtures__/device-roots';
 import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 import type { PracticeScoreArtifact } from '@/lib/practice/score/artifact';
 import { completedContinuousSessionFixture } from '@/lib/practice/__fixtures__/continuous-result';
+import { recordingSinkFixture } from '@/lib/practice/__fixtures__/recording-sink';
+import { continuousPracticePlan } from '@/lib/practice/__fixtures__/practice-plan';
+import { createContinuousPerformanceResult } from '@/lib/practice/result/continuous-performance-result';
+import { unavailableContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/session';
 import { PRACTICE_PREFERENCES_KEY } from '@/lib/practice/configuration/preference-storage';
-const route = vi.hoisted(() => ({ path: '/score/s/practice/setup' }));
-vi.mock('next/navigation', () => ({ usePathname: () => route.path }));
-afterEach(() => {
-  localStorage.clear();
-  route.path = '/score/s/practice/setup';
-});
+afterEach(() => { localStorage.clear(); });
 const profile = {
   schemaVersion: 1 as const,
   mode: 'STEP_BY_STEP' as const,
   inputSource: 'MIDI' as const,
   continuous: { recordingMode: 'OFF' as const, liveFeedbackEnabled: false },
 };
-async function rig() {
+async function rig(strict = false) {
   let current!: ReturnType<typeof usePracticeWorkspace>;
   function Capture() {
     current = usePracticeWorkspace();
@@ -45,13 +40,14 @@ async function rig() {
       <Capture />
     </PracticeWorkspaceProvider>
   );
-  const view = render(tree());
+  const renderTree = () => strict ? <StrictMode>{tree()}</StrictMode> : tree();
+  const view = render(renderTree());
   await waitFor(() => expect(current.hydrated).toBe(true));
   act(() => current.updateProfile(profile));
   const prepare = async () => {
-    let transaction!: AbortController;
+    let transaction!: PracticePreparationTransaction;
     act(() => {
-      transaction = current.beginPreparation();
+      transaction = current.beginPreparation(createPracticePreparationKey("score-1", "revision-1", current.configuration!));
     });
     const track = Object.assign(new EventTarget(), {
       kind: 'audio',
@@ -73,272 +69,134 @@ async function rig() {
         },
       );
     await binding.open();
-    const admission = Object.freeze({
-      bundle: Object.freeze({
-        binding: {
-          scoreId: 'score-1',
-          revisionId: 'revision-1',
-          bundleId: 'source-fixture',
-        },
-        artifact: { ...(fixture as PracticeScoreArtifact) },
-        musicXml: '<score />',
-      }),
-      configuration: Object.freeze({
-        mode: current.configuration!.mode,
-        inputSource: current.configuration!.inputSource,
-        recordingMode: current.configuration!.recordingMode,
-      }),
+    const bundle = Object.freeze({
+      binding: { scoreId: 'score-1', revisionId: 'revision-1', bundleId: 'source-fixture' },
+      artifact: { ...(fixture as PracticeScoreArtifact) }, musicXml: '<score />',
     });
-    return { transaction, value: Object.freeze({ admission, binding }), midi };
+    return { transaction, value: Object.freeze({ key: transaction.key, bundle, binding }), midi };
   };
   return {
     get current() {
       return current;
     },
     view,
-    tree,
+    tree: renderTree,
     prepare,
     environment,
   };
 }
-it('commits admission and retained binding atomically; preferences persist without resource admission', async () => {
-  const r = await rig();
-  expect(r.current.preparedPractice).toBeNull();
-  const p = await r.prepare();
-  act(() => {
-    expect(r.current.commitPreparedPractice(p.value, p.transaction)).toBe(true);
-  });
-  expect(r.current.preparedPractice).toBe(p.value);
+
+it('commits key, Bundle evidence and binding; preferences persist without prepared readiness', async () => {
+  const r = await rig(), p = await r.prepare();
+  act(() => { expect(r.current.commitPreparedPractice(p.value, p.transaction)).toBe(true); });
+  expect(r.current.preparedFor(createPracticePreparationKey('score-1','revision-1',{ ...r.current.configuration! }))).toBe(p.value);
   expect(p.value.binding.borrowRoots()!.midi).toBe(p.midi.access);
-  expect(
-    Object.keys(
-      JSON.parse(localStorage.getItem(PRACTICE_PREFERENCES_KEY)!),
-    ).sort(),
-  ).toEqual(['continuous', 'inputSource', 'mode', 'schemaVersion']);
+  expect(Object.keys(JSON.parse(localStorage.getItem(PRACTICE_PREFERENCES_KEY)!)).sort()).toEqual(['continuous','inputSource','mode','schemaVersion']);
   r.view.unmount();
   await waitFor(() => expect(p.value.binding.snapshot().state).toBe('CLOSED'));
   const next = await rig();
   expect(next.current.preparedPractice).toBeNull();
-  expect(next.current.configuration?.inputSource).toBe('MIDI');
 });
-it('retains one binding across Practice candidate scope/tempo/metronome/feedback edits', async () => {
-  const r = await rig(),
-    p = await r.prepare();
+it('fresh equal configuration and candidate scope/tempo/metronome/feedback retain the exact preparation', async () => {
+  const r = await rig(), p = await r.prepare();
+  act(() => { r.current.commitPreparedPractice(p.value,p.transaction); });
   act(() => {
-    r.current.commitPreparedPractice(p.value, p.transaction);
-  });
-  route.path = '/score/s/practice';
-  r.view.rerender(r.tree());
-  act(() => {
-    r.current.setScope({ kind: 'FULL' });
-    r.current.setTempoSelection({ mode: 'CUSTOM_FIXED_BPM', bpm: 90 });
+    r.current.enterPractice(createPracticePreparationKey('score-1','revision-1',{...r.current.configuration!}));
+    r.current.setScope({kind:'FULL'}); r.current.setTempoSelection({mode:'CUSTOM_FIXED_BPM',bpm:90});
     r.current.setMetronomeEnabled(true);
-    r.current.updateProfile({
-      ...r.current.profile,
-      continuous: {
-        ...r.current.profile.continuous,
-        liveFeedbackEnabled: true,
-      },
-    });
+    r.current.updateProfile({...profile,continuous:{...profile.continuous,liveFeedbackEnabled:true}});
   });
+  r.view.rerender(r.tree());
   expect(r.current.preparedPractice).toBe(p.value);
   expect(p.value.binding.borrowRoots()!.midi).toBe(p.midi.access);
 });
-it.each(['/score/s/practice/setup', '/score/s/practice/review'])(
-  'entering %s releases the binding, including browser Back',
-  async (path) => {
-    route.path = '/score/s/practice';
-    const r = await rig(),
-      p = await r.prepare();
-    act(() => {
-      r.current.commitPreparedPractice(p.value, p.transaction);
-    });
-    route.path = path;
-    r.view.rerender(r.tree());
-    await waitFor(() => expect(r.current.preparedPractice).toBeNull());
-    expect(p.value.binding.snapshot().state).toBe('CLOSED');
-  },
-);
-it('resource configuration replacement retires admission while presentation preferences do not', async () => {
-  const r = await rig(),
-    p = await r.prepare();
-  act(() => {
-    r.current.commitPreparedPractice(p.value, p.transaction);
-  });
-  act(() => r.current.updateProfile({ ...profile, inputSource: 'MICROPHONE' }));
-  expect(r.current.preparedPractice).toBeNull();
-  expect(p.value.binding.snapshot().state).toBe('CLOSED');
+it('accepts semantically equal fresh resource plans', async () => {
+  const r = await rig(), p = await r.prepare();
+  const binding = new PracticeResourceBinding(structuredClone(p.value.binding.resourcePlan),{acquireMidi:async()=>p.midi.access,acquireStream:vi.fn()});
+  await binding.open();
+  expect(binding.resourcePlan).not.toBe(p.value.binding.resourcePlan);
+  act(() => { expect(r.current.commitPreparedPractice({...p.value,binding},p.transaction)).toBe(true); });
+  p.value.binding.close();
+  expect(r.current.preparedPractice?.binding).toBe(binding);
 });
-it('superseding a preparation fences its commit and closes a stale binding', async () => {
-  const r = await rig(),
-    first = await r.prepare(),
-    second = await r.prepare();
-  expect(first.transaction.signal.aborted).toBe(true);
-  act(() => {
-    expect(
-      r.current.commitPreparedPractice(first.value, first.transaction),
-    ).toBe(false);
-    expect(
-      r.current.commitPreparedPractice(second.value, second.transaction),
-    ).toBe(true);
-  });
-  expect(first.value.binding.snapshot().state).toBe('CLOSED');
-  expect(r.current.preparedPractice).toBe(second.value);
-  act(() => r.current.clearPreparedPractice());
-  expect(second.value.binding.borrowRoots()).toBeNull();
-  expect(r.current.preparedPractice).toBeNull();
+it('enterSetup releases one binding and is idle; the next explicit command owns fresh admission', async () => {
+  const r = await rig(), p = await r.prepare(), close=vi.spyOn(p.value.binding,'close');
+  act(() => {r.current.commitPreparedPractice(p.value,p.transaction);r.current.enterPractice(p.value.key);});
+  act(() => {r.current.enterSetup(p.value.key);r.current.enterSetup(p.value.key);});
+  expect(close).toHaveBeenCalledOnce(); expect(r.current.preparedPractice).toBeNull();
+  expect(r.environment.acousticState()).toBe('EMPTY');
 });
-
-it('View Review atomically retains canonical references and releases roots; the same-route render preserves the handoff', async () => {
-  route.path = '/score/s/practice';
-  const r = await rig();
-  act(() => r.current.updateProfile({ ...profile, mode: 'CONTINUOUS_PLAY' }));
-  const p = await r.prepare();
-  act(() => {
-    r.current.commitPreparedPractice(p.value, p.transaction);
+it.each(['mode','inputSource','recordingMode','scoreId','revisionId'] as const)('%s replacement retires the keyed owner immediately', async field => {
+  const r=await rig();
+  act(()=>r.current.updateProfile({...profile,mode:'CONTINUOUS_PLAY'}));
+  const p=await r.prepare();act(()=>{r.current.commitPreparedPractice(p.value,p.transaction);});
+  act(()=>{
+    if(field==='mode')r.current.updateProfile({...r.current.profile,mode:'STEP_BY_STEP'});
+    else if(field==='inputSource')r.current.updateProfile({...r.current.profile,inputSource:'MICROPHONE'});
+    else if(field==='recordingMode')r.current.updateProfile({...r.current.profile,continuous:{...r.current.profile.continuous,recordingMode:'AUDIO'}});
+    else r.current.enterPractice(createPracticePreparationKey(field==='scoreId'?'other-score':'score-1',field==='revisionId'?'other-revision':'revision-1',r.current.configuration!));
   });
-  const result = reviewResult(p.value.admission.bundle),
-    recording = { status: 'NOT_RECORDED' as const };
-  act(() => {
-    r.current.handoffToReview({ result, recording });
-  });
-  const session = r.current.reviewSession!;
-  expect(session.result).toBe(result);
-  expect(session.recording).toBe(recording);
-  expect(session.result.executed.bundle.artifact).toBe(
-    p.value.admission.bundle.artifact,
-  );
-  expect(session.musicXml).toBe('<score />');
-  expect(r.current.preparedPractice).toBeNull();
-  expect(p.value.binding.snapshot().state).toBe('CLOSED');
-  r.view.rerender(r.tree());
-  await act(async () => {});
-  expect(r.current.reviewSession).toBe(session);
-  route.path = '/score/s/practice/review';
-  r.view.rerender(r.tree());
-  await act(async () => {});
-  expect(r.current.reviewSession).toBe(session);
-  route.path = '/score/s/practice';
-  r.view.rerender(r.tree());
-  await waitFor(() => expect(r.current.reviewSession).toBeNull());
-  route.path = '/score/s/practice/review';
-  r.view.rerender(r.tree());
-  await act(async () => {});
-  expect(r.current.reviewSession).toBeNull();
+  expect(r.current.preparedPractice).toBeNull();expect(p.value.binding.snapshot().state).toBe('CLOSED');
 });
-it('invalid handoff preserves the prepared transaction; explicit clear drops only Review references', async () => {
-  route.path = '/score/s/practice';
-  const r = await rig();
-  act(() => r.current.updateProfile({ ...profile, mode: 'CONTINUOUS_PLAY' }));
-  const p = await r.prepare();
-  act(() => {
-    r.current.commitPreparedPractice(p.value, p.transaction);
+it('superseding fences late A after B committed, without mutating B', async () => {
+  const r=await rig(), a=await r.prepare(), b=await r.prepare();
+  expect(a.transaction.signal.aborted).toBe(true);
+  act(()=>{
+    expect(r.current.commitPreparedPractice(b.value,b.transaction)).toBe(true);
+    expect(r.current.commitPreparedPractice(a.value,a.transaction)).toBe(false);
+    r.current.cancelPreparation(a.transaction);
   });
-  const result = reviewResult(p.value.admission.bundle),
-    recording = { status: 'NOT_RECORDED' as const };
-  expect(() =>
-    r.current.handoffToReview({
-      result,
-      recording: { status: 'READY' } as never,
-    }),
-  ).toThrow();
+  expect(a.value.binding.snapshot().state).toBe('CLOSED');expect(r.current.preparedPractice).toBe(b.value);
+  expect(b.value.binding.borrowRoots()).not.toBeNull();
+});
+it.each(['transaction','key','bundle-score','bundle-revision','plan','binding'] as const)('rejects inconsistent %s admission before granting handoff',async reason=>{
+  const r=await rig(),p=await r.prepare();let value=p.value,transaction=p.transaction;
+  if(reason==='transaction')transaction=new PracticePreparationTransaction(p.transaction.generation,p.value.key);
+  if(reason==='key')value={...value,key:createPracticePreparationKey('other','revision-1',r.current.configuration!)};
+  if(reason==='bundle-score'||reason==='bundle-revision')value={...value,bundle:{...value.bundle,binding:{...value.bundle.binding,...(reason==='bundle-score'?{scoreId:'other'}:{revisionId:'other'})}}};
+  if(reason==='plan') value={...value,binding:new PracticeResourceBinding(planPracticeResources({mode:'STEP_BY_STEP',inputSource:'MICROPHONE',recordingMode:'OFF'}))};
+  if(reason==='binding')value.binding.close();
+  act(()=>{expect(r.current.commitPreparedPractice(value,transaction)).toBe(false);});
+  expect(value.binding.borrowRoots()).toBeNull();expect(r.current.preparedPractice).toBeNull();p.value.binding.close();
+});
+it('Review handoff requires exact prepared key and executed Bundle; explicit Review visits retain media through immediate remount',async()=>{
+  const r=await rig(true);act(()=>r.current.updateProfile({...profile,mode:'CONTINUOUS_PLAY'}));
+  const p=await r.prepare();act(()=>{r.current.commitPreparedPractice(p.value,p.transaction);});
+  const capture=recordingSinkFixture();await capture.sink.append(new Blob(['capture']));
+  const media=await capture.sink.seal('audio/webm');
+  const recording={status:'READY' as const,kind:'AUDIO' as const,media,mimeType:'audio/webm',timebase:{nominalMediaDurationUs:10000000,activeSegments:[{performanceStartUs:0,performanceEndUs:10000000,mediaStartUs:0,mediaEndUs:10000000}]}};
+  const result=reviewResult(p.value.bundle);
+  expect(()=>r.current.handoffToReview({result,recording},createPracticePreparationKey('other','revision-1',r.current.configuration!))).toThrow();
+  expect(()=>r.current.handoffToReview({result:{...result,executed:{...result.executed,bundle:{...result.executed.bundle,artifact:{...result.executed.bundle.artifact}}}},recording},p.value.key)).toThrow();
   expect(r.current.preparedPractice).toBe(p.value);
-  expect(p.value.binding.borrowRoots()).not.toBeNull();
-  expect(r.current.reviewSession).toBeNull();
-  act(() => {
-    r.current.handoffToReview({ result, recording });
-  });
-  expect(r.current.reviewSession).not.toBeNull();
-  await act(async () => {
-    await r.current.clearReviewSession();
-  });
-  expect(r.current.reviewSession).toBeNull();
+  act(()=>{r.current.handoffToReview({result,recording},p.value.key);});
+  const session=r.current.reviewSession;
+  expect(session?.result.executed.bundle.artifact).toBe(p.value.bundle.artifact);
+  expect(p.value.binding.snapshot().state).toBe('CLOSED');
+  await media.release();expect(capture.exists()).toBe(true);
+  let exit!:()=>void;
+  act(()=>{const first=r.current.enterReview('score-1');first();exit=r.current.enterReview('score-1');});
+  r.view.rerender(r.tree());await act(async()=>{});
+  expect(r.current.reviewSession).toBe(session);expect(capture.exists()).toBe(true);
+  act(()=>exit());await waitFor(()=>expect(capture.exists()).toBe(false));
+  expect(capture.remove).toHaveBeenCalledOnce();expect(r.current.reviewSession).toBeNull();
 });
-
-it.each(['clear', 'route', 'provider', 'new-preparation'] as const)(
-  'releases the explicit Review media owner on %s',
-  async (ending) => {
-    route.path = '/score/s/practice';
-    const r = await rig();
-    act(() =>
-      r.current.updateProfile({
-        ...profile,
-        mode: 'CONTINUOUS_PLAY',
-        continuous: { ...profile.continuous, recordingMode: 'AUDIO' },
-      }),
-    );
-    const prepared = await r.prepare();
-    act(() => {
-      r.current.commitPreparedPractice(prepared.value, prepared.transaction);
-    });
-    const capture = recordingSinkFixture();
-    await capture.sink.append(new Blob(['raw capture']));
-    const media = await capture.sink.seal('audio/webm');
-    const result = reviewResult(prepared.value.admission.bundle);
-    const recording = {
-      status: 'READY' as const,
-      kind: 'AUDIO' as const,
-      media,
-      mimeType: 'audio/webm',
-      timebase: {
-        nominalMediaDurationUs: 10000000,
-        activeSegments: [
-          {
-            performanceStartUs: 0,
-            performanceEndUs: 10000000,
-            mediaStartUs: 0,
-            mediaEndUs: 10000000,
-          },
-        ],
-      },
-    };
-    expect(() =>
-      r.current.handoffToReview({
-        result: {
-          ...result,
-          executed: {
-            ...result.executed,
-            bundle: {
-              ...result.executed.bundle,
-              binding: { ...result.executed.bundle.binding, bundleId: 'wrong' },
-            },
-          },
-        },
-        recording,
-      }),
-    ).toThrow();
-    act(() => {
-      r.current.handoffToReview({ result, recording });
-    });
-    expect(prepared.value.binding.snapshot().state).toBe('CLOSED');
-    await media.release();
-    expect(capture.exists()).toBe(true);
-    expect(
-      r.current.reviewSession?.recording.status === 'READY' &&
-        r.current.reviewSession.recording.media.blob,
-    ).toBe(media.blob);
-    route.path = '/score/s/practice/review';
-    r.view.rerender(r.tree());
-    await act(async () => {});
-    if (ending === 'clear')
-      await act(async () => {
-        await r.current.clearReviewSession();
-        await r.current.clearReviewSession();
-      });
-    if (ending === 'route') {
-      route.path = '/score/s/practice';
-      r.view.rerender(r.tree());
-    }
-    if (ending === 'provider') r.view.unmount();
-    if (ending === 'new-preparation')
-      act(() => {
-        r.current.beginPreparation();
-      });
-    await waitFor(() => expect(capture.exists()).toBe(false));
-    expect(capture.remove).toHaveBeenCalledOnce();
-  },
-);
-
+it.each(['setup','practice','new-preparation','provider'] as const)('explicit %s transition releases Review ownership exactly once',async transition=>{
+  const r=await rig();act(()=>r.current.updateProfile({...profile,mode:'CONTINUOUS_PLAY'}));
+  const p=await r.prepare();act(()=>{r.current.commitPreparedPractice(p.value,p.transaction);});
+  const capture=recordingSinkFixture();await capture.sink.append(new Blob(['capture']));const media=await capture.sink.seal('audio/webm');
+  const recording={status:'READY' as const,kind:'AUDIO' as const,media,mimeType:'audio/webm',timebase:{nominalMediaDurationUs:10000000,activeSegments:[{performanceStartUs:0,performanceEndUs:10000000,mediaStartUs:0,mediaEndUs:10000000}]}};
+  act(()=>{r.current.handoffToReview({result:reviewResult(p.value.bundle),recording},p.value.key);});await media.release();
+  act(()=>{if(transition==='setup')r.current.enterSetup(p.value.key);if(transition==='practice')expect(r.current.enterPractice(p.value.key)).toBeNull();if(transition==='new-preparation')r.current.beginPreparation(p.value.key);if(transition==='provider')r.view.unmount();});
+  await waitFor(()=>expect(capture.exists()).toBe(false));expect(capture.remove).toHaveBeenCalledOnce();
+});
+it('StrictMode effect replay preserves the environment and retained binding until final provider disposal',async()=>{
+  const r=await rig(true),dispose=vi.spyOn(r.environment,'dispose'),p=await r.prepare(),close=vi.spyOn(p.value.binding,'close');
+  act(()=>{r.current.commitPreparedPractice(p.value,p.transaction);});
+  r.view.rerender(r.tree());await act(async()=>{});
+  expect(close).not.toHaveBeenCalled();expect(dispose).not.toHaveBeenCalled();
+  r.view.unmount();await waitFor(()=>expect(dispose).toHaveBeenCalledOnce());expect(close).toHaveBeenCalledOnce();
+});
 function reviewResult(source: {
   binding: import('@/lib/practice/bundle/admitted-practice-bundle').PracticeBundleBinding;
   artifact: import('@/lib/practice/score/artifact').PracticeScoreArtifact;

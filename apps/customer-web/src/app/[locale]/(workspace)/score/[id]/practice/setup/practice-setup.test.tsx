@@ -18,7 +18,7 @@ import { browserDevicePlatform } from '@/lib/practice/device/browser-device-plat
 import { midiDeviceFixture } from '@/lib/practice/__fixtures__/device-roots';
 import { usePracticeWorkspace } from '@/contexts/practice-workspace-context';
 import { AcousticEngine } from '@/lib/practice/acoustic/model/acoustic-engine';
-const admission = vi.hoisted(() => ({ request: vi.fn(), supported: true, events: [] as string[], revision: 'revision-id' as string | null }));
+const admission = vi.hoisted(() => ({ request: vi.fn(), supported: true, events: [] as string[], revision: 'revision-id' as string | null, scoreId: 'score-id' }));
 vi.mock('@/lib/api', () => ({ practiceApi: { getPracticeBundle: (...args: unknown[]) => admission.request(...args) } }));
 vi.mock('@/hooks/queries/use-score-queries', () => ({ useScoreDetail: () => ({ data: { head_revision_id: 'head-id', capabilities: { can_practice: true } }, isError: false }) }));
 vi.mock('@/lib/practice/input-capability', () => ({
@@ -27,12 +27,12 @@ vi.mock('@/lib/practice/input-capability', () => ({
 }));
 const navigation = vi.hoisted(() => ({ replace: vi.fn(), push: vi.fn() }));
 vi.mock('@/i18n/routing', () => ({ useRouter: () => navigation }));
-vi.mock('next/navigation', () => ({ useParams: () => ({ id: 'score-id' }), usePathname: () => '/score/score-id/practice/setup',
+vi.mock('next/navigation', () => ({ useParams: () => ({ id: admission.scoreId }), usePathname: () => '/score/score-id/practice/setup',
   useSearchParams: () => new URLSearchParams(admission.revision ? `practiceRevisionId=${admission.revision}` : ''), useRouter: () => navigation }));
-function representation() { return { binding:{score_id:'score-id',revision_id:admission.revision ?? 'head-id',bundle_id:'bundle'}, artifact: fixture, notation: { musicxml: '<score />', mime_type: 'application/vnd.recordare.musicxml+xml' } }; }
+function representation() { return { binding:{score_id:admission.scoreId,revision_id:admission.revision ?? 'head-id',bundle_id:'bundle'}, artifact: fixture, notation: { musicxml: '<score />', mime_type: 'application/vnd.recordare.musicxml+xml' } }; }
 
 beforeEach(() => {
-  admission.supported = true; admission.revision = 'revision-id'; admission.events = [];
+  admission.scoreId='score-id'; admission.supported = true; admission.revision = 'revision-id'; admission.events = [];
   admission.request.mockReset().mockImplementation(async () => { admission.events.push('source'); return representation(); });
 });
 afterEach(() => { localStorage.clear(); navigation.replace.mockReset(); navigation.push.mockReset(); vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers(); });
@@ -68,8 +68,9 @@ it('fresh Source parse precedes one physical acquisition, SAME-root validation, 
   expect(admission.request).toHaveBeenCalledExactlyOnceWith('score-id','revision-id',true,expect.any(AbortSignal));
   expect(admission.events).toEqual(['source','acquire','capability']);expect(parse).toHaveBeenCalledOnce();expect(r.acquireMidi).toHaveBeenCalledOnce();
   expect(r.workspace.preparedPractice!.binding.borrowRoots()!.midi).toBe(r.midi.access);
-  expect(r.workspace.preparedPractice!.admission).toEqual({bundle:{binding: { scoreId: 'score-id', revisionId: 'revision-id', bundleId: 'bundle' },artifact:representation().artifact,musicXml:'<score />'},configuration:{mode:'STEP_BY_STEP',inputSource:'MIDI',recordingMode:'OFF'}});
-  expect(Object.isFrozen(r.workspace.preparedPractice!.admission.bundle)).toBe(true);
+  expect(r.workspace.preparedPractice!.bundle).toEqual({binding:{scoreId:'score-id',revisionId:'revision-id',bundleId:'bundle'},artifact:representation().artifact,musicXml:'<score />'});
+  expect(r.workspace.preparedPractice!.key).toMatchObject({scoreId:'score-id',revisionId:'revision-id',mode:'STEP_BY_STEP',inputSource:'MIDI',recordingMode:'OFF'});
+  expect(Object.isFrozen(r.workspace.preparedPractice!.bundle)).toBe(true);
   expect(navigation.replace).toHaveBeenCalledWith('/score/score-id/practice?practiceRevisionId=revision-id');
 });
 it.each(['parser','server'] as const)('%s invalid score never acquires physical roots',async kind=>{
@@ -150,7 +151,7 @@ it('superseded recording validation releases A immediately, lets B commit and ig
   await act(async()=>{fireEvent.click(button());await vi.advanceTimersByTimeAsync(0);});
   expect(probe.instances).toHaveLength(2);const b=probe.instances[1];b.completeOnStop=true;
   await act(async()=>{b.stop();await vi.advanceTimersByTimeAsync(0);});
-  const prepared=r.workspace.preparedPractice!;expect(prepared.admission.bundle.binding.bundleId).toBe('bundle-B');
+  const prepared=r.workspace.preparedPractice!;expect(prepared.bundle.binding.bundleId).toBe('bundle-B');
   expect(prepared.binding.borrowRoots()!.recordingMicrophone).toBe(second.stream);expect(prepared.binding.snapshot().state).toBe('READY');
   for(const root of [second,camera]){expect(root.track.clones[0].stop).toHaveBeenCalledOnce();expect(root.track.stop).not.toHaveBeenCalled();}
   expect(r.acquireStream).toHaveBeenCalledTimes(3);
@@ -158,4 +159,55 @@ it('superseded recording validation releases A immediately, lets B commit and ig
   await act(async()=>{lateError();lateStop();await vi.advanceTimersByTimeAsync(0);});
   expect(r.workspace.preparedPractice).toBe(prepared);for(const root of [second,camera])expect(root.track.stop).not.toHaveBeenCalled();expect(screen.queryByRole('alert')).toBeNull();
   expect(navigation.replace).toHaveBeenCalledOnce();
+});
+
+it('equal fresh configuration rerenders retain an in-flight command and its committed handoff',async()=>{
+  const r=await setup();selectMidi();let finish!:(value:ReturnType<typeof representation>)=>void;
+  admission.request.mockImplementationOnce(()=>new Promise(resolve=>{finish=resolve;}));
+  await start();const signal=admission.request.mock.calls[0][3] as AbortSignal;
+  act(()=>r.workspace.updateProfile({...r.workspace.profile,continuous:{...r.workspace.profile.continuous}}));
+  r.view.rerender(r.tree());expect(signal.aborted).toBe(false);expect(admission.request).toHaveBeenCalledOnce();
+  await act(async()=>finish(representation()));
+  const prepared=r.workspace.preparedPractice!;
+  act(()=>r.workspace.updateProfile({...r.workspace.profile,continuous:{...r.workspace.profile.continuous,liveFeedbackEnabled:true}}));
+  r.view.rerender(r.tree());expect(r.workspace.preparedPractice).toBe(prepared);
+  expect(prepared.binding.snapshot().state).toBe('READY');expect(r.acquireMidi).toHaveBeenCalledOnce();
+  r.view.rerender(r.tree(false));await act(async()=>{});
+  expect(r.workspace.preparedPractice).toBe(prepared);expect(prepared.binding.snapshot().state).toBe('READY');
+});
+it.each(['score','revision','resource'] as const)('%s changes fence a pending Bundle request; late A cannot replace committed B',async change=>{
+  const r=await setup();selectMidi();let finish!:(value:ReturnType<typeof representation>)=>void;
+  const original=representation();admission.request.mockImplementationOnce(()=>new Promise(resolve=>{finish=resolve;}));
+  await start();const signal=admission.request.mock.calls[0][3] as AbortSignal;
+  if(change==='score')admission.scoreId='score-B';
+  if(change==='revision')admission.revision='revision-B';
+  if(change==='resource')act(()=>r.workspace.updateProfile({...r.workspace.profile,mode:'CONTINUOUS_PLAY',continuous:{...r.workspace.profile.continuous,recordingMode:'OFF'}}));
+  r.view.rerender(r.tree());await act(async()=>{});expect(signal.aborted).toBe(true);
+  await start();const b=r.workspace.preparedPractice!;expect(b).not.toBeNull();
+  await act(async()=>finish(original));
+  expect(r.workspace.preparedPractice).toBe(b);expect(b.binding.snapshot().state).toBe('READY');
+  expect(r.acquireMidi).toHaveBeenCalledOnce();expect(navigation.replace).toHaveBeenCalledExactlyOnceWith(`/score/${admission.scoreId}/practice?practiceRevisionId=${admission.revision}`);
+});
+it('device acquisition takeover closes late A roots while B remains the exact committed owner',async()=>{
+  const r=await setup();let finish!:(value:MediaStream)=>void;
+  r.acquireStream.mockImplementationOnce(()=>new Promise(resolve=>{finish=resolve;}));
+  fireEvent.click(screen.getByRole('button',{name:/Step-by-step/}));fireEvent.click(screen.getByRole('button',{name:'Microphone'}));
+  await start();await waitFor(()=>expect(finish).toBeTypeOf('function'));
+  act(()=>r.workspace.updateProfile({...r.workspace.profile,inputSource:'MIDI'}));await start();
+  const b=r.workspace.preparedPractice!;
+  await act(async()=>finish(r.microphone.media));
+  expect(r.microphone.stop).toHaveBeenCalledOnce();expect(r.workspace.preparedPractice).toBe(b);
+  expect(b.binding.snapshot().state).toBe('READY');expect(navigation.replace).toHaveBeenCalledOnce();
+});
+it('navigation failure leaves the successfully transferred preparation owned by Workspace',async()=>{
+  const r=await setup();selectMidi();navigation.replace.mockImplementationOnce(()=>{throw new Error('navigation failed');});await start();
+  expect(r.workspace.preparedPractice!.binding.snapshot().state).toBe('READY');expect(r.workspace.preparedPractice!.binding.borrowRoots()).not.toBeNull();
+});
+
+it('invalid source evidence is revision-scoped and cannot block a newly pinned revision',async()=>{
+  admission.request.mockRejectedValueOnce({code:'practice_score_invalid'});
+  const r=await setup();selectMidi();await start();expect(button()).toBeDisabled();
+  admission.revision='valid-new-revision';r.view.rerender(r.tree());await start();
+  expect(r.workspace.preparedPractice!.key.revisionId).toBe('valid-new-revision');
+  expect(r.acquireMidi).toHaveBeenCalledOnce();
 });

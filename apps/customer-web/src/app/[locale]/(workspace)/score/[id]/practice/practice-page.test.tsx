@@ -12,6 +12,7 @@ import artifact from '@/lib/practice/__fixtures__/canonical-practice-score-artif
 import { borrowedDevices } from '@/lib/practice/__fixtures__/device-roots';
 import { rootHealthFixture } from '@/lib/practice/__fixtures__/root-health';
 import { planPracticeResources } from '@/lib/practice/planning/resource-plan';
+import { createPracticePreparationKey, samePracticePreparationKey, type PracticePreparationKey } from '@/lib/practice/preparation/preparation-key';
 import type { PracticeConfiguration } from '@/lib/practice/configuration/preferences';
 import { ManualClock } from '@/lib/practice/session/timebase';
 import { StepPracticeController } from '@/lib/practice/step/step-practice-controller';
@@ -30,7 +31,9 @@ let clock: ManualClock;
 const environment = { acquireInference: vi.fn(), acousticState: () => 'READY_IDLE', subscribeAcoustic: () => () => {} };
 const binding = {};
 const admittedArtifact = artifact;
-const workspace = { get preparedPractice() { return ready ? { admission: { bundle: { binding: { scoreId: 'score-id', revisionId: 'pinned-revision', bundleId: 'source' }, artifact: admittedArtifact, musicXml: '<score />' }, configuration: { mode: fake.mismatchMode ? 'OTHER' : mode, inputSource: 'MIDI', recordingMode: 'OFF' } }, binding } : null; }, clearPreparedPractice: vi.fn(), handoffToReview: vi.fn(), hydrated: true,
+const workspace = { get preparedPractice() { return ready ? { key:createPracticePreparationKey('score-id','pinned-revision',{mode:fake.mismatchMode?(mode==='STEP_BY_STEP'?'CONTINUOUS_PLAY':'STEP_BY_STEP'):mode,inputSource:'MIDI',recordingMode:'OFF'}),bundle: { binding: { scoreId: 'score-id', revisionId: 'pinned-revision', bundleId: 'source' }, artifact: admittedArtifact, musicXml: '<score />' }, binding } : null; },
+  preparedFor(key:PracticePreparationKey|null) { const prepared=workspace.preparedPractice;return samePracticePreparationKey(prepared?.key,key)?prepared:null; },
+  enterPractice: vi.fn((key:PracticePreparationKey|null)=>workspace.preparedFor(key)), enterSetup:vi.fn(), handoffToReview: vi.fn(), hydrated: true,
   get profile() { return { mode: fake.incomplete ? null : mode, inputSource: fake.incomplete ? null : 'MIDI', continuous: { recordingMode: 'OFF', liveFeedbackEnabled: false } }; },
   get configuration(): PracticeConfiguration | null { return fake.incomplete ? null : { mode, inputSource: 'MIDI', recordingMode: 'OFF', liveFeedbackEnabled: false }; },
   get resourcePlan() { return this.configuration ? planPracticeResources(this.configuration) : null; }, scope: { kind: 'FULL' },
@@ -103,7 +106,7 @@ it.each(['analysisIntervention', 'infrastructureIntervention'] as const)('STEP %
 });
 it.each(['score','revision','unpinned','configuration'] as const)('browser-known %s mismatch requires Setup without acquiring or querying', async kind => {
   if(kind==='score')fake.routeScoreId='other';if(kind==='revision')fake.revision='other';if(kind==='unpinned')fake.revision=null;if(kind==='configuration')fake.mismatchMode=true;
-  await openPage();expect(screen.getByText(practice.setupRequired)).toBeVisible();
+  await openPage();expect(fake.router.replace).toHaveBeenCalledWith(`/score/${fake.routeScoreId}/practice/setup${fake.revision ? `?practiceRevisionId=${fake.revision}` : ''}`);expect(screen.getByText(practice.setupRequired)).toBeVisible();
   expect(fake.leaseEnabled).toHaveBeenLastCalledWith(false);expect(fake.step).not.toHaveBeenCalled();expect(fake.continuous).not.toHaveBeenCalled();
   expect(fake.sourceRequest).not.toHaveBeenCalled();expect(fake.scoreRequest).not.toHaveBeenCalled();expect(fake.router.push).not.toHaveBeenCalled();
 });
@@ -115,7 +118,7 @@ it('admitted Practice renders and starts from owned representations while Score 
 it('Setup navigation retains pinned revision and has no qualification/device side effects', async () => {
   await openPage(); fireEvent.click(screen.getByRole('button', { name: practice.practiceSetup }));
   expect(fake.router.push).toHaveBeenCalledWith('/score/score-id/practice/setup?practiceRevisionId=pinned-revision');
-  expect(workspace.clearPreparedPractice).toHaveBeenCalledOnce(); expect(fake.step).not.toHaveBeenCalled();
+  expect(workspace.enterSetup).toHaveBeenCalledOnce(); expect(fake.step).not.toHaveBeenCalled();
 });
 
 it('STEP PREPARING exposes End and locks scope/tempo without accepting another Start', async () => {
@@ -144,10 +147,10 @@ it.each([true, false])('natural STEP completion shows one dialog; Try Again with
   expect(fake.router.push).not.toHaveBeenCalled(); expect(fake.router.replace).not.toHaveBeenCalled();
 });
 
-it.each(['incomplete', 'environment'] as const)('%s admission stays in place without an execution owner', async condition => {
+it.each(['incomplete', 'environment'] as const)('%s preparation redirects to pinned Setup without an execution owner', async condition => {
   if (condition === 'environment') ready = false; else fake[condition] = true;
   await openPage();
-  expect(fake.router.replace).not.toHaveBeenCalled(); expect(fake.router.push).not.toHaveBeenCalled();
+  expect(fake.router.replace).toHaveBeenCalledExactlyOnceWith('/score/score-id/practice/setup?practiceRevisionId=pinned-revision'); expect(fake.router.push).not.toHaveBeenCalled();
   expect(fake.step).not.toHaveBeenCalled(); expect(fake.continuous).not.toHaveBeenCalled();
   if (condition === 'incomplete' || condition === 'environment') expect(fake.leaseEnabled).toHaveBeenLastCalledWith(false);
   if (condition === 'incomplete' || condition === 'environment') expect(screen.getByText(practice.setupRequired)).toBeVisible();
@@ -169,7 +172,7 @@ it('View Review explicitly hands the current completion to workspace without a S
   act(()=>clock.advance(100000));const report=await screen.findByRole('button',{name:practice.viewSummary});
   const completion=(started.mock.contexts[0] as ContinuousPracticeController).snapshot().completed;expect(completion).not.toBeNull();
   expect(workspace.handoffToReview).not.toHaveBeenCalled();
-  fireEvent.click(report);expect(workspace.handoffToReview).toHaveBeenCalledExactlyOnceWith(completion);
+  fireEvent.click(report);expect(workspace.handoffToReview).toHaveBeenCalledExactlyOnceWith(completion,expect.objectContaining({scoreId:'score-id',revisionId:'pinned-revision',mode:'CONTINUOUS_PLAY'}));
   expect(fake.router.push).toHaveBeenCalledWith('/score/score-id/practice/review');
-  expect(fake.sourceRequest).not.toHaveBeenCalled();expect(fake.scoreRequest).not.toHaveBeenCalled();expect(workspace.clearPreparedPractice).not.toHaveBeenCalled();
+  expect(fake.sourceRequest).not.toHaveBeenCalled();expect(fake.scoreRequest).not.toHaveBeenCalled();expect(workspace.enterSetup).not.toHaveBeenCalled();
 });

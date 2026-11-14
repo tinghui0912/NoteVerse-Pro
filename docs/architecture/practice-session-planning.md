@@ -157,12 +157,18 @@ completion with an abort signal. Bundle admission uses `admitPracticeBundle`
 and the canonical strict parser before any acquisition. Invalid revision admission
 blocks this command; transient Bundle failure remains retryable through the same CTA.
 
-`PracticePreparationAdmission` is immutable: a complete AdmittedPracticeBundle
-(binding, artifact, musicXml) and mode/inputSource/recordingMode. The artifact alone
-owns score/revision/artifact IDs. `PreparedPractice` pairs that admission with its
-retained `PracticeResourceBinding` from the same successful transaction. It exists only
-in workspace memory. Scope, tempo, metronome and live feedback do not identify this
-admission. Resource choices change it; candidate musical/presentation edits do not.
+`PracticePreparationKey` owns browser-local preparation identity: scoreId,
+revisionId, mode, inputSource and recordingMode. Its frozen value carries a canonical
+JSON tuple identity. Scope, tempo, metronome, live feedback and bundleId are not inputs.
+`PreparedPractice` carries `{ key, bundle, binding }`; the Bundle's score/revision/
+bundleId binding remains independent server-admitted evidence. Equal fields match
+without React configuration references or interned resource-plan references.
+
+Each explicit Setup command gets a typed PracticePreparationTransaction with key,
+unique command identity, lifecycle generation, signal and abort. A newer command
+aborts its predecessor. Commit requires the exact current command and key, current
+workspace resource choices, matching Bundle binding, semantically equal resource
+requirements and healthy borrowable roots. Rejected candidates close their binding.
 
 Setup does not probe and release physical roots before Practice.
 The explicit Setup command acquires the live roots that the admitted Practice execution will actually borrow.
@@ -171,7 +177,13 @@ It creates a retained resource binding plus exact Bundle admission.
 
 The transaction rolls back its binding on acquisition, validation, cancellation or
 stale completion. Commit checks transaction identity, configuration and current root
-health atomically. Entering Setup retires any admitted binding before another command.
+health atomically. The Setup page calls `enterSetup(key)` to retire any admitted
+binding and Review session before another command. Equal-value rerenders do not
+repeat page entry. Page entry and cleanup run at the layout-effect boundary, fencing
+pending work as the target commits or the page unmounts. Setup cleanup cancels only
+its uncommitted command; successful
+commit transfers binding ownership to Workspace before navigation. Navigation failure
+does not revoke that committed ownership.
 Unmount, revision/resource configuration replacement and superseding commands fence
 pending work; late acquisitions are closed rather than published.
 
@@ -184,9 +196,11 @@ the resource binding alone releases retained originals. Late probe callbacks can
 publish into a subsequent transaction.
 
 Practice uses only PreparedPractice, browser URL identity and resource configuration.
-It verifies route score/revision against the admitted binding and makes no Bundle or
-Score-detail request. Direct entry/reload without the memory-only admission shows
-Setup required without acquisition, inference or controller construction.
+The page derives its expected key and calls `preparedFor(key)`; Workspace owns the
+matching rule. It makes no Bundle or Score-detail request. `enterPractice(key)` retires
+incompatible preparation and stale Review ownership. Direct entry/reload without
+exact preparation replaces navigation with pinned Setup, without acquisition,
+inference or controller construction.
 
 Practice Start checks matching admission, healthy retained roots, valid candidate
 scope/tempo and the engine's actual acquisition lifecycle. Capability validation belongs
@@ -196,7 +210,7 @@ to Setup. Candidate musical/presentation edits do not replace the physical bindi
 
 The execution actor retains `{ result, recording }` for its current natural Continuous
 completion. Try Again creates no ReviewSession. Only View Review calls the workspace's
-`handoffToReview(completion)` command. The command checks bundleId and artifact identity,
+`handoffToReview(completion, key)` command. The command checks bundleId and artifact identity,
 validates the typed completion against the exact admitted artifact reference and
 stable binding identities, validates recording and non-empty notation, and builds
 `{ result, recording, musicXml }`. Artifact is read from result.executed.bundle.artifact.
@@ -210,9 +224,13 @@ projection and Verovio render errors remain presentation failures; a second serv
 Bundle or revision cannot replace admitted notation. Replay, annotations and current
 local composite/export use the owned representation even after Score/Revision deletion.
 
-Explicit Review exit clears the handoff. Route entry into Setup or Practice also
-invalidates it, including browser Back; unchanged-route renders between handoff and
-Review navigation preserve it. Provider disposal releases browser references. A direct
+Explicit Review exit clears the handoff. Setup and Practice page entry commands also
+invalidate it, including browser Back. Review page disposal releases its visit; an
+exact lifecycle generation defers disposal across immediate effect remount, preserving
+StrictMode handoff and media ownership. Ordinary rerenders do not exit a visit. Provider
+disposal aborts preparation, closes binding, releases Review media and disposes the
+Environment, with a generation fence protecting effect replay. Workspace imports no
+router and never infers lifecycle from pathname strings. A direct
 Review visit/reload has no handoff and is expired, with no recovery read or persistence.
 Review Retry opens pinned Setup for a fresh admission and physical binding.
 
@@ -278,9 +296,9 @@ Replacement/clear immediately hides retired roots and fences late owner callback
 The binding alone interprets physical health. It never reacquires after a fault.
 Physical roots may fail after successful preparation; such a failure is an event on the same retained binding, not a second acquisition failure.
 
-Attempt End, natural completion and same-page Retry retain the binding. Entering
-Setup, Review, leaving the route family, configuration replacement or explicit
-abandonment closes it exactly once. Review navigation releases physical roots before
+Attempt End, natural completion and same-page Retry retain the binding. Explicit
+Setup entry, Review handoff/entry, resource-choice replacement, abandonment and final
+provider disposal close it idempotently. Review navigation releases physical roots before
 routing; Review owns only its transient handoff. Pipeline faults do not close the binding.
 
 Resource planning defines requirements and bindings, not acquisition or Start/End

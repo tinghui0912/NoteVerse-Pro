@@ -184,7 +184,7 @@ describe('route shell groups', () => {
     }
 
 
-    expect(practicePage).toContain('workspace.preparedPractice');
+    expect(practicePage).toContain('preparedFor(expectedKey)');
     expect(practicePage).toContain("t('setupRequired')");
     expect(practicePage).toContain('canPreparePractice');
     expect(practiceControls).toContain('canPrepareSession');
