@@ -34,6 +34,8 @@ from app.modules.playback.asset_records import (
     playback_storage_key,
 )
 from app.modules.playback.execution_manifest import build_playback_execution_manifest
+from app.modules.playback.outbox_service import playback_outbox_service
+from app.modules.async_operations.durable_delivery import DeliveryAttemptLease, StaleDeliveryAttempt
 from app.processing.engines.playback import FluidSynthAudioRenderer
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.storage_usage.service import storage_usage_service
@@ -184,6 +186,8 @@ class PlaybackGenerationService:
         revision_uuid: str,
         *,
         source_fingerprint: str,
+        outbox_uuid: str,
+        lease: DeliveryAttemptLease,
         asset_kind: PlaybackAssetKind = PlaybackAssetKind.AUDIO,
     ) -> ScorePlaybackAsset:
         if asset_kind != PlaybackAssetKind.AUDIO:
@@ -226,6 +230,8 @@ class PlaybackGenerationService:
             source_fingerprint=source_fingerprint,
             asset_kind=asset_kind,
             source=self.storage.read_bytes(source.stored_object.object_key),
+            outbox_uuid=outbox_uuid,
+            lease=lease,
         )
 
     def _render_asset_sync(
@@ -238,6 +244,8 @@ class PlaybackGenerationService:
         source_fingerprint: str,
         asset_kind: PlaybackAssetKind,
         source: bytes,
+        outbox_uuid: str,
+        lease: DeliveryAttemptLease,
     ) -> ScorePlaybackAsset:
         audio = self.renderer.render(source)
         asset_uuid = str(uuid.uuid4())
@@ -259,6 +267,15 @@ class PlaybackGenerationService:
             .with_for_update()
             .execution_options(populate_existing=True)
         ).scalar_one_or_none()
+        playback_outbox_service.require_attempt(
+            db,
+            outbox_uuid=outbox_uuid,
+            lease=lease,
+            score_id=require_persisted_id(score.id, entity="score") if score else -1,
+            revision_id=revision_id,
+            source_fingerprint=source_fingerprint,
+            asset_kind=asset_kind,
+        )
         admit_generated_revision(db, score, revision_id, source_fingerprint)
         assert score is not None
         previous = db.execute(
@@ -310,10 +327,11 @@ class PlaybackGenerationService:
                     storage_key=previous_usage.storage_key,
                     auto_commit=False,
                 )
-            db.commit()
+            if not playback_outbox_service.complete(db, outbox_uuid, lease=lease):
+                raise StaleDeliveryAttempt("Playback completion lost execution ownership")
+            db.flush()
         except Exception:
             db.rollback()
             raise
 
-        db.refresh(asset)
         return asset

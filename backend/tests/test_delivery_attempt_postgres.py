@@ -268,6 +268,10 @@ def test_stale_derivative_worker_cannot_publish_status(database, monkeypatch, ki
 
     def generate(*args, **kwargs):
         takeover(database, kind)
+        if result == "complete":
+            from app.modules.async_operations.durable_delivery import StaleDeliveryAttempt
+
+            raise StaleDeliveryAttempt("Execution lost its lease before adoption")
         if result == "fail":
             raise RuntimeError("render failed")
         if result == "supersede":

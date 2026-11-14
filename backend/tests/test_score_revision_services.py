@@ -812,11 +812,25 @@ def test_review_thumbnail_records_temp_import_usage(
         "app.modules.review.thumbnail_service.create_score_render_engine",
         side_effect=lambda output_folder: FakeEngine(output_folder),
     ):
+        outbox = RenderOutbox(
+            outbox_uuid="thumbnail-usage",
+            target_type=RenderTargetType.REVIEW_THUMBNAIL,
+            import_job_id=17,
+            source_fingerprint="5d17f78acc41e8e8ad4fe9dfc2c0e998b718a0acb7283f077b797581fb9f715d",
+        )
+        session.add(outbox)
+        session.commit()
+        payload = RenderOutboxService().claim(session, outbox.outbox_uuid)
+        session.commit()
         artifact_id = ReviewThumbnailService(storage=storage).render(
             session,
             "job-thumbnail-usage",
             expected_source_fingerprint="5d17f78acc41e8e8ad4fe9dfc2c0e998b718a0acb7283f077b797581fb9f715d",
+            outbox_uuid=payload.outbox_uuid,
+            lease=payload.lease,
+            profile=payload.render_profile,
         )
+        session.commit()
 
     assert artifact_id is not None
     counter = one_row(

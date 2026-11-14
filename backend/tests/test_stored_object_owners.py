@@ -1,4 +1,5 @@
 from tests.support.import_execution import processing_lease
+from tests.support.derivative_execution import revision_attempt
 import hashlib
 import io
 from unittest.mock import Mock
@@ -389,13 +390,18 @@ def test_derived_replacement_commits_new_asset_and_old_retirement_atomically(
         monkeypatch.setattr(service, "_render_records", records)
 
         def generate():
-            return service.render_for_worker(
+            payload = revision_attempt(db, kind, score, revision)
+            asset = service.render_for_worker(
                 db,
                 score.score_uuid,
                 revision.revision_uuid,
                 source_fingerprint=revision.content_hash,
                 profile="default",
+                outbox_uuid=payload.outbox_uuid,
+                lease=payload.lease,
             )[0]
+            db.commit()
+            return asset
     else:
         renderer = Mock()
         renderer.render.return_value = RenderedAudio(
@@ -411,12 +417,17 @@ def test_derived_replacement_commits_new_asset_and_old_retirement_atomically(
         model, category = ScorePlaybackAsset, StorageUsageCategory.DERIVED_AUDIO
 
         def generate():
-            return service.render_sync(
+            payload = revision_attempt(db, kind, score, revision)
+            asset = service.render_sync(
                 db,
                 score.score_uuid,
                 revision.revision_uuid,
                 source_fingerprint=revision.content_hash,
+                outbox_uuid=payload.outbox_uuid,
+                lease=payload.lease,
             )
+            db.commit()
+            return asset
 
     old = generate()
     old_id, key, size = (

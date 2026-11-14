@@ -36,6 +36,8 @@ from app.modules.score_assets.render_asset_records import (
 )
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.score_assets.render_execution_manifest import build_render_execution_manifest
+from app.modules.score_assets.render_outbox_service import render_outbox_service
+from app.modules.async_operations.durable_delivery import DeliveryAttemptLease, StaleDeliveryAttempt
 from app.modules.score_assets.schemas import RenderAssetRead
 from app.modules.score_assets.service import ScoreAssetService
 from app.modules.scores.repository import ScoreRepository
@@ -179,6 +181,8 @@ class RevisionRenderService:
         *,
         source_fingerprint: str,
         profile: str,
+        outbox_uuid: str,
+        lease: DeliveryAttemptLease,
     ) -> list[ScoreRenderAsset]:
         """Generate an outbox-authorized render using the worker's sync session."""
         score = db.execute(
@@ -224,6 +228,15 @@ class RevisionRenderService:
                 uploaded_keys=uploaded_keys,
             )
             score = lock_presentation_score(db, score.id)
+            render_outbox_service.require_revision_attempt(
+                db,
+                outbox_uuid=outbox_uuid,
+                lease=lease,
+                score_id=require_persisted_id(score.id, entity="score") if score else -1,
+                revision_id=revision_id,
+                source_fingerprint=source_fingerprint,
+                profile=profile,
+            )
             admit_generated_revision(db, score, revision_id, source_fingerprint)
             assert score is not None
             manifest = get_or_create_execution_manifest(db, build_render_execution_manifest())
@@ -276,7 +289,9 @@ class RevisionRenderService:
                     storage_key=usage.storage_key,
                     auto_commit=False,
                 )
-            db.commit()
+            if not render_outbox_service.complete(db, outbox_uuid, lease=lease):
+                raise StaleDeliveryAttempt("Render completion lost execution ownership")
+            db.flush()
         except Exception:
             db.rollback()
             raise

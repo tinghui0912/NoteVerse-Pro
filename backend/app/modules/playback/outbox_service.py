@@ -30,6 +30,7 @@ from app.modules.async_operations.durable_delivery import (
     DeliveryStatuses,
     DurableDeliveryLifecycle,
     DeliveryAttemptLease,
+    StaleDeliveryAttempt,
 )
 from app.utils.timezone import utc_now_naive
 from app.modules.revisions.presentation_demand import (
@@ -167,6 +168,30 @@ def _new_playback_outbox(
 
 
 class PlaybackOutboxService:
+    def require_attempt(
+        self,
+        db: Session,
+        *,
+        outbox_uuid: str,
+        lease: DeliveryAttemptLease,
+        score_id: int,
+        revision_id: int,
+        source_fingerprint: str,
+        asset_kind: PlaybackAssetKind,
+    ) -> PlaybackOutbox:
+        """Caller holds Score; refresh the delivery fence before semantic mutation."""
+        row = self._get(db, outbox_uuid)
+        if row is None or not _delivery_lifecycle().attempt_matches(row, lease):
+            raise StaleDeliveryAttempt("Playback execution lease is stale")
+        if (row.score_id, row.revision_id, row.source_fingerprint, row.asset_kind) != (
+            score_id,
+            revision_id,
+            source_fingerprint,
+            asset_kind,
+        ):
+            raise StaleDeliveryAttempt("Playback attempt target disagrees with execution")
+        return row
+
     def claim(self, db: Session, outbox_uuid: str) -> PlaybackOutboxPayload | None:
         target = db.execute(
             select(PlaybackOutbox).where(PlaybackOutbox.outbox_uuid == outbox_uuid)

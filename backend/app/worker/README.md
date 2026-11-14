@@ -37,6 +37,16 @@ CLEANUP_PROCESSING and keeps its physical `write_token` independent. Render/Play
 publish ready/failed realtime state only after an accepted current-attempt outcome.
 Workers log attempt numbers and tracing context, never fencing tokens.
 
+Derivative generation releases claim locks before expensive computation and physical
+prewrite. Final Render/Playback admission locks Score then the refreshed outbox;
+review thumbnails lock ImportJob then RenderOutbox. The exact lease and domain
+target/source identity are checked before adopting bytes or changing assets,
+accounting and retirements. Successful adoption and outbox completion commit once in
+the worker transaction; ready realtime is added after accepted completion. Generation
+services do not commit between adoption and completion. StaleDeliveryAttempt returns
+`stale` with no semantic/outbox/realtime mutation. Unadopted ObjectWriteIntents own
+abandoned physical writes and durable cleanup, without direct best-effort deletion.
+
 Fencing protects durable state ownership rather than exactly-once external execution.
 Mail provider calls can be delivered more than once after uncertain network outcomes
 or worker loss; stale sent/failure results cannot overwrite a new attempt or its

@@ -11,11 +11,15 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.model_utils import require_persisted_id
-from app.db.models import ImportArtifact, StorageUsageCategory
+from app.db.models import ImportArtifact, StorageUsageCategory, StoredObject
 from app.modules.import_jobs.repository import SyncImportJobRepository
 from app.modules.storage_usage.service import storage_usage_service
 from app.processing.engines.render import create_score_render_engine
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
+from app.db.models.import_job import ImportJobState
+from app.modules.async_operations.durable_delivery import DeliveryAttemptLease, StaleDeliveryAttempt
+from app.modules.score_assets.render_outbox_service import render_outbox_service
+from app.modules.revisions.presentation_demand import RevisionPresentationSuperseded
 from app.storage import ObjectStorage, object_storage
 
 
@@ -33,7 +37,10 @@ class ReviewThumbnailService:
         db: Session,
         job_uuid: str,
         *,
-        expected_source_fingerprint: str | None = None,
+        expected_source_fingerprint: str,
+        outbox_uuid: str,
+        lease: DeliveryAttemptLease,
+        profile: str,
     ) -> str | None:
         job = self.repository.get_by_uuid(db, job_uuid)
         if not job:
@@ -47,11 +54,8 @@ class ReviewThumbnailService:
         ).scalar_one_or_none()
         if review_xml is None:
             raise RuntimeError(f"Review MusicXML for {job_uuid} is unavailable")
-        if (
-            expected_source_fingerprint is not None
-            and review_xml.stored_object.sha256 != expected_source_fingerprint
-        ):
-            return None
+        if review_xml.stored_object.sha256 != expected_source_fingerprint:
+            raise RevisionPresentationSuperseded()
 
         os.makedirs(settings.WORK_ROOT, exist_ok=True)
         with tempfile.TemporaryDirectory(dir=settings.WORK_ROOT) as work_dir:
@@ -80,32 +84,39 @@ class ReviewThumbnailService:
                 content=content,
                 content_type=output["mime_type"],
             )
-            job = db.execute(
-                select(type(job))
-                .where(type(job).id == job_id)
-                .with_for_update()
-                .execution_options(populate_existing=True)
-            ).scalar_one()
-            current_xml = db.execute(
-                select(ImportArtifact).where(
-                    ImportArtifact.job_id == job_id,
-                    ImportArtifact.kind == ImportArtifactKind.REVIEW_MUSICXML.value,
-                )
-            ).scalar_one_or_none()
-            if current_xml is None or (
-                expected_source_fingerprint is not None
-                and current_xml.stored_object.sha256 != expected_source_fingerprint
-            ):
-                db.rollback()
-                return None
-            thumbnail = ImportArtifact(
-                artifact_uuid=artifact_uuid,
-                job_id=job_id,
-                kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
-                stored_object=adopt_written_object(db, stored),
-                filename=stored.object_key.rsplit("/", 1)[-1],
-                page_number=1,
+        job = db.execute(
+            select(type(job))
+            .where(type(job).id == job_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        ).scalar_one()
+        render_outbox_service.require_thumbnail_attempt(
+            db,
+            outbox_uuid=outbox_uuid,
+            lease=lease,
+            job_id=job_id,
+            source_fingerprint=expected_source_fingerprint,
+            profile=profile,
+        )
+        current_xml = db.execute(
+            select(ImportArtifact)
+            .join(StoredObject, ImportArtifact.stored_object_id == StoredObject.id)
+            .where(
+                ImportArtifact.job_id == job_id,
+                ImportArtifact.kind == ImportArtifactKind.REVIEW_MUSICXML.value,
+                StoredObject.sha256 == expected_source_fingerprint,
             )
+        ).scalar_one_or_none()
+        if job.state != ImportJobState.PENDING_REVIEW or current_xml is None:
+            raise RevisionPresentationSuperseded()
+        thumbnail = ImportArtifact(
+            artifact_uuid=artifact_uuid,
+            job_id=job_id,
+            kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
+            stored_object=adopt_written_object(db, stored),
+            filename=stored.object_key.rsplit("/", 1)[-1],
+            page_number=1,
+        )
 
         previous = list(
             db.execute(
@@ -148,7 +159,9 @@ class ReviewThumbnailService:
                 storage_key=thumbnail.stored_object.object_key,
                 auto_commit=False,
             )
-            db.commit()
+            if not render_outbox_service.complete(db, outbox_uuid, lease=lease):
+                raise StaleDeliveryAttempt("Thumbnail completion lost execution ownership")
+            db.flush()
         except Exception:
             db.rollback()
             raise

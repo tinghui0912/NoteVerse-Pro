@@ -52,6 +52,19 @@ CLEANUP_PROCESSING; its separate `write_token` identifies a physical-write gener
 Dispatch, failure, completion, recovery and other terminal/reset transitions clear
 the processing token. A fresh claim is the only processing entry.
 
+Attempt fencing also guards final semantic adoption. Render and Playback generate and
+prewrite outside aggregate/delivery locks, then lock and refresh Score followed by
+the exact outbox. Review thumbnails use ImportJob followed by RenderOutbox. Admission
+checks the common lease and the domain target/source identity before StoredObject
+adoption, asset replacement, accounting or retirement enqueue. Successful semantic
+adoption and exact delivery completion share one caller-owned transaction. Worker
+ready realtime rows are added after accepted completion in that transaction.
+
+Ownership loss raises `StaleDeliveryAttempt`, distinct from domain supersession or
+generation failure. It creates no asset/accounting/outbox/realtime mutation. Physical
+prewrites remain unadopted ObjectWriteIntents and converge through durable cleanup.
+Expensive rendering and storage writes never retain delivery locks across execution.
+
 Domain responsibilities remain explicit:
 
 | Domain                  | Domain-owned semantics                                                                                                                                    |

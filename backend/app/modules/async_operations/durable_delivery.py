@@ -14,6 +14,10 @@ from typing import Generic, Protocol, TypeVar
 Status = TypeVar("Status")
 
 
+class StaleDeliveryAttempt(RuntimeError):
+    """Execution no longer owns the authoritative durable attempt."""
+
+
 def _truncate_error(error: str | None) -> str | None:
     return error[:4000] if error is not None else None
 

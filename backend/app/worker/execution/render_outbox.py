@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import sys
+from sqlalchemy.orm import Session
+from app.modules.async_operations.durable_delivery import StaleDeliveryAttempt
 from app.modules.revisions.presentation_demand import RevisionPresentationSuperseded
 from typing import Any
 
@@ -60,7 +62,12 @@ def execute_render_outbox_task(
         operation_logger("render.started", **context).info("render.started")
 
         try:
-            artifact_id = _render_target(payload)
+            with get_worker_db() as db:
+                artifact_id = _render_target(db, payload)
+                if _is_score_revision_render(payload):
+                    _publish_revision_render_status(db, payload, "ready")
+        except StaleDeliveryAttempt:
+            return {"status": "stale", "outbox_uuid": outbox_uuid}
         except RevisionPresentationSuperseded:
             with get_worker_db() as db:
                 accepted = render_outbox_service.supersede(db, outbox_uuid, lease=payload.lease)
@@ -88,12 +95,6 @@ def execute_render_outbox_task(
             ).opt(exception=True).error("render.failed")
             return {"status": "failed", "outbox_uuid": outbox_uuid}
 
-        with get_worker_db() as db:
-            accepted = render_outbox_service.complete(db, outbox_uuid, lease=payload.lease)
-            if accepted and _is_score_revision_render(payload):
-                _publish_revision_render_status(db, payload, "ready")
-        if not accepted:
-            return {"status": "stale", "outbox_uuid": outbox_uuid}
         operation_logger(
             "render.completed",
             **context,
@@ -107,39 +108,42 @@ def execute_render_outbox_task(
         clear_task_context()
 
 
-def _render_target(payload: RenderOutboxPayload) -> str | None:
+def _render_target(db: Session, payload: RenderOutboxPayload) -> str | None:
     if payload.target_type == RenderTargetType.SCORE_REVISION:
-        _render_score_revision(payload)
+        _render_score_revision(db, payload)
         return None
     if payload.target_type == RenderTargetType.REVIEW_THUMBNAIL:
-        return _render_review_thumbnail(payload)
+        return _render_review_thumbnail(db, payload)
     raise ValueError(f"Unsupported render target: {payload.target_type}")
 
 
-def _render_score_revision(payload: RenderOutboxPayload) -> None:
+def _render_score_revision(db: Session, payload: RenderOutboxPayload) -> None:
     if payload.score_uuid is None or payload.revision_uuid is None or payload.user_id is None:
         raise ValueError("Revision render payload is incomplete")
 
-    with get_worker_db() as db:
-        RevisionRenderService().render_for_worker(
-            db,
-            payload.score_uuid,
-            payload.revision_uuid,
-            source_fingerprint=payload.source_fingerprint,
-            profile=payload.render_profile,
-        )
+    RevisionRenderService().render_for_worker(
+        db,
+        payload.score_uuid,
+        payload.revision_uuid,
+        source_fingerprint=payload.source_fingerprint,
+        profile=payload.render_profile,
+        outbox_uuid=payload.outbox_uuid,
+        lease=payload.lease,
+    )
 
 
-def _render_review_thumbnail(payload: RenderOutboxPayload) -> str | None:
+def _render_review_thumbnail(db: Session, payload: RenderOutboxPayload) -> str | None:
     if payload.job_uuid is None:
         raise ValueError("Review thumbnail render payload is incomplete")
 
-    with get_worker_db() as db:
-        return review_thumbnail_service.render(
-            db,
-            payload.job_uuid,
-            expected_source_fingerprint=payload.source_fingerprint,
-        )
+    return review_thumbnail_service.render(
+        db,
+        payload.job_uuid,
+        expected_source_fingerprint=payload.source_fingerprint,
+        outbox_uuid=payload.outbox_uuid,
+        lease=payload.lease,
+        profile=payload.render_profile,
+    )
 
 
 def _publish_revision_render_status(

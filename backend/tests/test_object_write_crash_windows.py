@@ -1,6 +1,7 @@
 """Feature failures leave committed intent evidence, not best-effort orphan cleanup."""
 
 import hashlib
+from tests.support.derivative_execution import revision_attempt
 from contextlib import contextmanager
 from unittest.mock import AsyncMock, Mock
 
@@ -124,6 +125,10 @@ def test_render_partial_pages_remain_cleanup_owned(score_service_session, monkey
         return put(**kwargs)
 
     monkeypatch.setattr(storage, "put_bytes", put_page)
+    revision = db.get(ScoreRevision, 702)
+    revision.content_hash = hashlib.sha256(MUSICXML_1).hexdigest()
+    db.commit()
+    payload = revision_attempt(db, "render", score, revision)
     with pytest.raises(OSError, match="third page"):
         RevisionRenderService(storage=storage).render_for_worker(
             db,
@@ -131,6 +136,8 @@ def test_render_partial_pages_remain_cleanup_owned(score_service_session, monkey
             "partial-revision",
             source_fingerprint=db.get(ScoreRevision, 702).content_hash,
             profile="default",
+            outbox_uuid=payload.outbox_uuid,
+            lease=payload.lease,
         )
     intents = list(db.scalars(select(ObjectWriteIntent)))
     assert len(intents) == 3 and sorted(row.status for row in intents) == [

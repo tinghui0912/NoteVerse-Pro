@@ -51,9 +51,20 @@ through its finite lease. Beat retains stale PROCESSING recovery and existing re
 ## Worker admission and lock order
 
 Workers lock Score before outbox, recheck current demand, then claim expensive generation.
-After physical generation, workers lock and refresh Score again before semantic asset
-adoption or quota allocation. This final admission uses the same presentation-demand
-policy and serializes with head writers. Score locks precede adoption and intent locks.
+After physical generation and ObjectWriteIntent prewrite, workers lock and refresh
+Score, then the exact outbox. They validate the immutable DeliveryAttemptLease and
+target revision, source fingerprint and render profile/audio kind before semantic
+asset adoption or quota allocation. This final admission uses the same
+presentation-demand policy and serializes with head writers. Score precedes outbox,
+then subordinate object/adoption locks. Claim uses the same order; maintenance and
+terminal outcome commands lock outboxes without subsequently acquiring Score.
+Retention/head writers lock Score before changing presentation or rearming outboxes.
+
+Asset replacement, StoredObject adoption, usage allocation/release, retirement enqueue
+and exact delivery completion commit in one worker-owned transaction. Generation
+services flush that transaction without committing it. Ready realtime rows follow
+accepted completion in the same transaction. Physical render/audio computation and
+storage prewrite run outside aggregate/delivery locks.
 
 If the revision loses head status, final admission discards its generated receipts without
 creating asset rows or allocating derived usage. ObjectWriteIntent cleanup owns physical
@@ -71,6 +82,21 @@ outbox history remains distinct from replaceable derived assets.
 REVIEW_THUMBNAIL is outside revision demand. It continues to follow PENDING_REVIEW and
 its current source fingerprint. Current-head public status remains presentation-oriented;
 an internal SUPERSEDED record maps safely to pending when no ready asset exists.
+
+Thumbnail claim and final adoption lock ImportJob before RenderOutbox, followed by
+subordinate adoption/accounting locks. Review confirmation and Import deletion acquire
+ImportDispatch before ImportJob; they never acquire ImportDispatch after holding a
+thumbnail outbox. Confirmation/temporary-artifact release serializes on ImportJob,
+so thumbnail final admission observes current state/source before any mutation.
+Thumbnail artifact replacement, TEMP_IMPORT accounting, retirement and outbox
+completion share one transaction.
+
+Lease loss raises StaleDeliveryAttempt and returns `stale` without completing,
+failing or superseding the current attempt. Domain head/source invalidation remains
+a separate superseded/unavailable outcome. A stale generator leaves only physical
+prewrites owned by ObjectWriteIntent cleanup, with no semantic asset/accounting write
+or ready/failed realtime publication. Mail external delivery remains at-least-once;
+its provider side effect is outside these database adoption transactions.
 
 Structured superseded/fast-dispatch failure logs carry Score, revision, outbox and
 asset-kind correlation without MusicXML or bearer tokens.

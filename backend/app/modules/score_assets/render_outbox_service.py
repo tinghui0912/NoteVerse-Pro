@@ -13,6 +13,7 @@ from app.core.config import settings
 from app.core.logger import logger
 from app.core.request_correlation import get_request_id
 from app.db.models import (
+    ImportJob,
     RenderOutbox,
     RenderOutboxStatus,
     RenderTargetType,
@@ -29,6 +30,7 @@ from app.modules.async_operations.durable_delivery import (
     DeliveryStatuses,
     DurableDeliveryLifecycle,
     DeliveryAttemptLease,
+    StaleDeliveryAttempt,
 )
 from app.modules.score_assets import render_payloads
 from app.utils.timezone import utc_now_naive
@@ -223,6 +225,62 @@ def _new_review_thumbnail_outbox(
 
 
 class RenderOutboxService:
+    def require_revision_attempt(
+        self,
+        db: Session,
+        *,
+        outbox_uuid: str,
+        lease: DeliveryAttemptLease,
+        score_id: int,
+        revision_id: int,
+        source_fingerprint: str,
+        profile: str,
+    ) -> RenderOutbox:
+        """Caller holds Score; acquire the refreshed delivery row before adoption."""
+        row = self._require_attempt(db, outbox_uuid, lease)
+        if (
+            row.target_type,
+            row.score_id,
+            row.revision_id,
+            row.source_fingerprint,
+            row.render_profile,
+        ) != (
+            RenderTargetType.SCORE_REVISION,
+            score_id,
+            revision_id,
+            source_fingerprint,
+            profile,
+        ):
+            raise StaleDeliveryAttempt("Render attempt target disagrees with execution")
+        return row
+
+    def require_thumbnail_attempt(
+        self,
+        db: Session,
+        *,
+        outbox_uuid: str,
+        lease: DeliveryAttemptLease,
+        job_id: int,
+        source_fingerprint: str,
+        profile: str,
+    ) -> RenderOutbox:
+        """Caller holds ImportJob; acquire the refreshed delivery row before adoption."""
+        row = self._require_attempt(db, outbox_uuid, lease)
+        if (row.target_type, row.import_job_id, row.source_fingerprint, row.render_profile) != (
+            RenderTargetType.REVIEW_THUMBNAIL,
+            job_id,
+            source_fingerprint,
+            profile,
+        ):
+            raise StaleDeliveryAttempt("Thumbnail attempt target disagrees with execution")
+        return row
+
+    def _require_attempt(self, db: Session, uuid: str, lease: DeliveryAttemptLease) -> RenderOutbox:
+        row = self._get(db, uuid)
+        if row is None or not _delivery_lifecycle().attempt_matches(row, lease):
+            raise StaleDeliveryAttempt("Render execution lease is stale")
+        return row
+
     def __init__(
         self,
         payload_builder: render_payloads.RenderPayloadBuilder | None = None,
@@ -238,6 +296,13 @@ class RenderOutboxService:
             if target is not None and target.target_type == RenderTargetType.SCORE_REVISION
             else None
         )
+        if target is not None and target.target_type == RenderTargetType.REVIEW_THUMBNAIL:
+            db.execute(
+                select(ImportJob)
+                .where(ImportJob.id == target.import_job_id)
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            ).scalar_one_or_none()
         outbox = db.execute(
             select(RenderOutbox)
             .where(RenderOutbox.outbox_uuid == outbox_uuid)

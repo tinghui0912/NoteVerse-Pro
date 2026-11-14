@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from app.modules.async_operations.durable_delivery import StaleDeliveryAttempt
 from app.modules.revisions.presentation_demand import RevisionPresentationSuperseded
 from typing import Any
 
@@ -70,7 +71,12 @@ def execute_playback_outbox_task(task: CeleryTaskLike, outbox_uuid: str) -> dict
                     payload.revision_uuid,
                     source_fingerprint=payload.source_fingerprint,
                     asset_kind=payload.asset_kind,
+                    outbox_uuid=payload.outbox_uuid,
+                    lease=payload.lease,
                 )
+                _publish_playback_status(db, payload.score_uuid, payload.revision_uuid, "ready")
+        except StaleDeliveryAttempt:
+            return {"status": "stale", "outbox_uuid": outbox_uuid}
         except RevisionPresentationSuperseded:
             with get_worker_db() as db:
                 accepted = playback_outbox_service.supersede(db, outbox_uuid, lease=payload.lease)
@@ -100,12 +106,6 @@ def execute_playback_outbox_task(task: CeleryTaskLike, outbox_uuid: str) -> dict
             ).opt(exception=True).error("playback.failed")
             return {"status": "failed", "outbox_uuid": outbox_uuid}
 
-        with get_worker_db() as db:
-            accepted = playback_outbox_service.complete(db, outbox_uuid, lease=payload.lease)
-            if accepted:
-                _publish_playback_status(db, payload.score_uuid, payload.revision_uuid, "ready")
-        if not accepted:
-            return {"status": "stale", "outbox_uuid": outbox_uuid}
         operation_logger(
             "playback.completed",
             **context,
