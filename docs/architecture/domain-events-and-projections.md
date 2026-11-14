@@ -16,7 +16,14 @@ resource deletion and have no processing status or mutable timestamps.
 
 Business code appends frozen typed definitions through
 `modules/domain_events/journal.py`. It validates the definition and uses conflict-safe
-semantic deduplication without committing. PostgreSQL serializes appends with a
+semantic deduplication without committing. Identical immutable facts are idempotent:
+event type, schema version, aggregate type/identity and canonical JSON payload must
+all match the persisted fact. Reusing a key with any different semantic value is an
+invariant violation and raises `DomainEventDedupeConflict`. Payload comparison uses
+object equality, independent of JSON key order. IDs, event UUIDs, occurrence times
+and recording times do not participate in equivalence; the first persisted fact's
+metadata remains authoritative. Conflict exceptions do not include payload values.
+PostgreSQL serializes appends with a
 transaction-scoped advisory lock held until the business transaction ends. IDs
 therefore follow commit order: a checkpoint cannot pass an earlier uncommitted fact
 simply because another transaction allocated a larger sequence value. Sequence gaps

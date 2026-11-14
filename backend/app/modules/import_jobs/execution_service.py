@@ -10,6 +10,7 @@ from app.modules.import_jobs.dispatch_service import (
     require_current_attempt,
 )
 from app.db.sync_session import get_worker_db
+from app.modules.domain_events.journal import DomainEventDedupeConflict
 from app.modules.import_jobs.schemas import (
     ImportJobProcessingOptions,
     PipelineExecutionSuccessResult,
@@ -85,7 +86,7 @@ class ImportJobExecutionService:
                 context.status("RUNNING", "completed", 100, current_step="ocr_completed")
                 context.complete()
                 return {"success": True, "job_id": job_id}
-        except StaleImportDispatchAttempt:
+        except (StaleImportDispatchAttempt, DomainEventDedupeConflict):
             raise
         except Exception as exc:
             code = self.get_error_code(exc)
@@ -104,7 +105,7 @@ class ImportJobExecutionService:
                         error_type=type(exc).__name__,
                         code=code,
                     )
-            except StaleImportDispatchAttempt:
+            except (StaleImportDispatchAttempt, DomainEventDedupeConflict):
                 raise
             except Exception:
                 pass

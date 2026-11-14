@@ -5,6 +5,7 @@ from __future__ import annotations
 import sys
 
 from app.db.sync_session import get_worker_db
+from app.modules.domain_events.journal import DomainEventDedupeConflict
 from app.modules.import_jobs.dispatch_service import (
     import_dispatch_service,
     require_current_attempt,
@@ -71,7 +72,7 @@ def execute_import_dispatch_task(
                 payload.storage_keys,
                 payload.options,
             )
-        except StaleImportDispatchAttempt:
+        except (StaleImportDispatchAttempt, DomainEventDedupeConflict):
             raise
         except Exception as exc:
             operation_logger(

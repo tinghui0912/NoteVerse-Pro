@@ -18,6 +18,10 @@ from app.utils.timezone import utc_now_naive
 JOURNAL_APPEND_LOCK = 0x4E56444F4D41494E
 
 
+class DomainEventDedupeConflict(RuntimeError):
+    """A semantic key resolves to a different immutable business fact."""
+
+
 def append_fact(db: Session, fact: DomainFact, *, occurred_at: datetime) -> DomainEvent:
     dialect = db.get_bind().dialect.name
     if dialect == "postgresql":
@@ -29,6 +33,7 @@ def append_fact(db: Session, fact: DomainFact, *, occurred_at: datetime) -> Doma
         raise ValueError("Domain journal requires PostgreSQL or SQLite")
     # Round-trip through the definition even if the caller used model_construct.
     fact = type(fact).model_validate(fact.model_dump(mode="json"))
+    payload = fact.model_dump(mode="json")
     event_id = db.scalar(
         insert(DomainEvent)
         .values(
@@ -38,7 +43,7 @@ def append_fact(db: Session, fact: DomainFact, *, occurred_at: datetime) -> Doma
             aggregate_type=fact.aggregate_type,
             aggregate_id=fact.aggregate_id,
             dedupe_key=fact.dedupe_key,
-            payload=fact.model_dump(mode="json"),
+            payload=payload,
             occurred_at=occurred_at,
             recorded_at=utc_now_naive(),
         )
@@ -48,16 +53,24 @@ def append_fact(db: Session, fact: DomainFact, *, occurred_at: datetime) -> Doma
     row = (
         db.get(DomainEvent, event_id)
         if event_id is not None
-        else db.scalar(select(DomainEvent).where(DomainEvent.dedupe_key == fact.dedupe_key))
+        else db.scalar(
+            select(DomainEvent)
+            .where(DomainEvent.dedupe_key == fact.dedupe_key)
+            .execution_options(populate_existing=True)
+        )
     )
     if row is None:
         raise RuntimeError("Journal append did not resolve a fact")
-    if (row.event_type, row.aggregate_type, row.aggregate_id) != (
+    if (row.event_type, row.schema_version, row.aggregate_type, row.aggregate_id, row.payload) != (
         fact.event_type,
+        fact.schema_version,
         fact.aggregate_type,
         fact.aggregate_id,
+        payload,
     ):
-        raise ValueError("A dedupe key must identify the same semantic fact")
+        raise DomainEventDedupeConflict(
+            "Dedupe key resolves to a different immutable domain fact"
+        ) from None
     if event_id is not None:
         logger.bind(
             event="domain_event.recorded",
