@@ -23,8 +23,6 @@ export const customerRoutes = {
   authPasswordResetRequest: { method: "POST", url: "/api/v1/auth/password/forgot" },
   authRefresh: { method: "POST", url: "/api/v1/auth/refresh" },
   authRegister: { method: "POST", url: "/api/v1/auth/register" },
-  fileDelete: { method: "DELETE", url: "/api/v1/files/{filename}" },
-  filesUpload: { method: "POST", url: "/api/v1/files/upload" },
   guestPreviewGet: { method: "GET", url: "/api/v1/guest-previews/{token}" },
   guestPreviewPageView: { method: "GET", url: "/api/v1/guest-previews/{token}/render-assets/{asset_id}/view" },
   guestPreviewPlaybackStream: { method: "GET", url: "/api/v1/guest-previews/{token}/playback" },
@@ -93,4 +91,6 @@ export const customerRoutes = {
   scoresGet: { method: "GET", url: "/api/v1/scores/{score_id}" },
   scoresUpdate: { method: "PATCH", url: "/api/v1/scores/{score_id}" },
   serviceInfoGet: { method: "GET", url: "/" },
+  uploadDelete: { method: "DELETE", url: "/api/v1/uploads/{upload_id}" },
+  uploadsCreate: { method: "POST", url: "/api/v1/uploads" },
 } as const;

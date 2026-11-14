@@ -11,7 +11,7 @@ from app.api.deps import get_current_user, get_db
 from app.main import create_app
 from app.modules.account.dependencies import get_profile_service
 from app.modules.account.schemas import ProfileRead, ProfileUserRead
-from app.modules.files.dependencies import get_files_service
+from app.modules.uploads.dependencies import get_upload_service
 from app.modules.import_jobs.dependencies import get_import_job_service
 from app.modules.import_jobs.schemas import ImportJobSubmitRead
 from app.modules.library.dependencies import get_library_service
@@ -34,7 +34,7 @@ BODYLESS_COMMANDS = {
     "accountEmailChangeRequest",
     "accountSessionRevoke",
     "accountOtherSessionsRevoke",
-    "fileDelete",
+    "uploadDelete",
     "importJobDelete",
     "libraryFolderDelete",
     "scoreMembershipLeave",
@@ -109,7 +109,7 @@ def test_real_customer_routes_return_direct_nested_representations_pages_and_emp
         retry=AsyncMock(return_value=admission),
         list_jobs=AsyncMock(return_value=([], 21)),
     )
-    files = SimpleNamespace(delete_uploaded_file=AsyncMock())
+    uploads = SimpleNamespace(delete_upload=AsyncMock())
 
     async def database():
         yield object()
@@ -121,7 +121,7 @@ def test_real_customer_routes_return_direct_nested_representations_pages_and_emp
     )
     app.dependency_overrides[get_library_service] = lambda: library
     app.dependency_overrides[get_import_job_service] = lambda: imports
-    app.dependency_overrides[get_files_service] = lambda: files
+    app.dependency_overrides[get_upload_service] = lambda: uploads
     app.dependency_overrides[get_score_invite_service] = lambda: SimpleNamespace(
         list_invites=AsyncMock(return_value=InviteListRead(items=[], next_cursor="opaque"))
     )
@@ -148,7 +148,7 @@ def test_real_customer_routes_return_direct_nested_representations_pages_and_emp
             and updated.json()["updated_at"] == "2026-11-13T12:34:56.000000Z"
         )
         for response in [
-            client.post("/api/v1/import-jobs", json={"file_ids": ["upload"]}),
+            client.post("/api/v1/import-jobs", json={"upload_ids": ["upload"]}),
             client.post("/api/v1/import-jobs/job/retry"),
         ]:
             assert response.status_code == 202 and response.json() == admission.model_dump(
@@ -166,10 +166,10 @@ def test_real_customer_routes_return_direct_nested_representations_pages_and_emp
             }
         page = client.get("/api/v1/scores/score/invites")
         assert page.status_code == 200 and page.json() == {"items": [], "next_cursor": "opaque"}
-        deleted = client.delete("/api/v1/files/upload")
+        deleted = client.delete("/api/v1/uploads/upload-1")
         assert deleted.status_code == 204 and deleted.content == b""
         assert "content-type" not in deleted.headers
-        files.delete_uploaded_file.assert_awaited_once()
+        uploads.delete_upload.assert_awaited_once()
 
 
 def test_bodyless_account_security_commands_preserve_rotated_and_cleared_cookies():

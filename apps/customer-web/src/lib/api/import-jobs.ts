@@ -3,12 +3,12 @@ import { importJobArtifactDownload, importJobDelete, importJobGet, importJobRetr
 import { customerTransport, responseBody, responseComplete } from '@/lib/http/customer-browser-transport';
 
 async function submitImportJob(
-  fileIds: string[],
+  uploadIds: string[],
   options?: ImportJobProcessingOptions,
   idempotencyKey?: string,
 ) {
   const request: ImportJobSubmitRequest = {
-    file_ids: fileIds,
+    upload_ids: uploadIds,
     idempotency_key: idempotencyKey,
     options,
   };

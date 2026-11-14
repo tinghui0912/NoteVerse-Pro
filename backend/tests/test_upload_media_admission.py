@@ -12,8 +12,8 @@ from starlette.datastructures import Headers
 
 from app.core.exceptions import ValidationException
 from app.db.models import ObjectWriteIntent, StoredObject, StorageUsageReservation, Upload, User
-from app.modules.files.service import FilesService
-from app.modules.files.upload_admission import (
+from app.modules.uploads.service import UploadService
+from app.modules.uploads.upload_admission import (
     MAX_SCORE_IMPORT_UPLOAD_BYTES,
     admit_score_import_image,
     read_score_import_upload,
@@ -45,7 +45,7 @@ async def test_upload_records_detected_container_facts(
     db, storage = score_service_session
     content = image_bytes(container)
     filename = f"original.{suffix}"
-    result = await FilesService(storage=storage).upload_file(
+    result = await UploadService(storage=storage).create_upload(
         AsyncSessionAdapter(db),
         db.get(User, 1),
         UploadFile(
@@ -57,7 +57,7 @@ async def test_upload_records_detected_container_facts(
     upload = db.scalar(select(Upload))
     obj = db.scalar(select(StoredObject))
     intent = db.scalar(select(ObjectWriteIntent))
-    assert upload.original_filename == result.filename == filename
+    assert upload.original_filename == result.original_filename == filename
     assert obj.content_type == intent.content_type == mime
     assert obj.object_key == intent.object_key and obj.object_key.endswith(f".{canonical}")
     assert storage.read_bytes(obj.object_key) == content
@@ -78,7 +78,7 @@ async def test_upload_records_detected_container_facts(
 async def test_invalid_images_have_no_durable_admission(score_service_session, content, filename):
     db, storage = score_service_session
     with pytest.raises(ValidationException):
-        await FilesService(storage=storage).upload_file(
+        await UploadService(storage=storage).create_upload(
             AsyncSessionAdapter(db),
             db.get(User, 1),
             UploadFile(filename=filename, file=io.BytesIO(content)),
@@ -104,7 +104,7 @@ async def test_bounded_reader_accepts_exact_limit_and_reads_only_limit_plus_one(
 async def test_oversize_is_rejected_before_quota_or_object_prewrite(score_service_session):
     db, storage = score_service_session
     with pytest.raises(ValidationException):
-        await FilesService(storage=storage).upload_file(
+        await UploadService(storage=storage).create_upload(
             AsyncSessionAdapter(db),
             db.get(User, 1),
             UploadFile(
@@ -120,7 +120,7 @@ async def test_oversize_is_rejected_before_quota_or_object_prewrite(score_servic
 @pytest.mark.parametrize("mime", ["text/plain", "image/jpeg", "application/octet-stream"])
 async def test_client_mime_cannot_override_detected_png(score_service_session, mime):
     db, storage = score_service_session
-    await FilesService(storage=storage).upload_file(
+    await UploadService(storage=storage).create_upload(
         AsyncSessionAdapter(db),
         db.get(User, 1),
         UploadFile(
@@ -136,9 +136,9 @@ async def test_client_mime_cannot_override_detected_png(score_service_session, m
 async def test_jpeg_aliases_share_one_physical_object_and_preserve_names(score_service_session):
     db, storage = score_service_session
     storage.put_bytes = Mock(wraps=storage.put_bytes)
-    service = FilesService(storage=storage)
+    service = UploadService(storage=storage)
     for name in ("first.jpg", "second.jpeg"):
-        await service.upload_file(
+        await service.create_upload(
             AsyncSessionAdapter(db),
             db.get(User, 1),
             UploadFile(filename=name, file=io.BytesIO(image_bytes("JPEG"))),
@@ -164,8 +164,8 @@ async def test_async_upload_read_metadata_and_presign_execute_off_event_loop(sco
             return _method(*args, **kwargs)
 
         setattr(storage, name, observe)
-    service = FilesService(storage=storage)
-    await service.upload_file(
+    service = UploadService(storage=storage)
+    await service.create_upload(
         AsyncSessionAdapter(db),
         db.get(User, 1),
         UploadFile(filename="score.png", file=io.BytesIO(image_bytes())),

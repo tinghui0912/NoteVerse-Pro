@@ -19,7 +19,7 @@ class ImportJobProcessingOptions(TypedDict, total=False):
 
 class ImportJobSubmitRequestLike(Protocol):
     @property
-    def file_ids(self) -> List[str]: ...
+    def upload_ids(self) -> List[str]: ...
 
     @property
     def options(self) -> Optional[ImportJobProcessingOptions]: ...
@@ -96,7 +96,7 @@ class PipelineExecutionSuccessResult(TypedDict):
 class ImportJobSubmitRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    file_ids: List[str] = Field(..., min_length=1)
+    upload_ids: List[str] = Field(..., min_length=1)
     idempotency_key: Optional[str] = Field(default=None, min_length=8, max_length=128)
     options: Optional[ImportJobProcessingOptions] = None
 

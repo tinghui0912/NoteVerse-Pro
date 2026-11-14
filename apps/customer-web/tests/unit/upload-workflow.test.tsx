@@ -15,15 +15,15 @@ import zhErrors from '@/../messages/zh/errors.json';
 import uploadMessages from '@/../messages/zh/upload.json';
 import { scoreGenresForDisplay } from '@/lib/score/genres';
 
-const uploadFileMock = vi.fn();
+const createUploadMock = vi.fn();
 const submitImportJobMock = vi.fn();
 const getImportJobMock = vi.fn();
 const toastMock = vi.fn();
 const pushMock = vi.fn();
 
 vi.mock('@/lib/api', () => ({
-  filesApi: {
-    uploadFile: (...args: unknown[]) => uploadFileMock(...args),
+  uploadsApi: {
+    createUpload: (...args: unknown[]) => createUploadMock(...args),
   },
   importJobsApi: {
     getImportJob: (...args: unknown[]) => getImportJobMock(...args),
@@ -72,7 +72,7 @@ function selectedImage(name = 'score.png') {
 }
 
 beforeEach(() => {
-  uploadFileMock.mockReset();
+  createUploadMock.mockReset();
   submitImportJobMock.mockReset();
   getImportJobMock.mockReset();
   toastMock.mockReset();
@@ -116,7 +116,7 @@ describe('upload error messages', () => {
 
 describe('upload workflow storage quota handling', () => {
   it('marks the file and toast with the quota message when upload exceeds storage quota', async () => {
-    uploadFileMock.mockRejectedValue(
+    createUploadMock.mockRejectedValue(
       new ApiError(422, 'storage_quota_exceeded', 'storage_quota_exceeded'),
     );
     const queryClient = createQueryClient();
@@ -148,11 +148,10 @@ describe('upload workflow storage quota handling', () => {
   });
 
   it('refreshes storage usage after a successful file upload', async () => {
-    uploadFileMock.mockResolvedValue({
-        file_id: 'uploaded-file-id',
-        filename: 'score.png',
-        storage_key: 'scores/score.png',
-        size: 3,
+    createUploadMock.mockResolvedValue({
+        upload_id: 'uploaded-upload-id',
+        original_filename: 'score.png',
+        byte_size: 3,
       });
     submitImportJobMock.mockResolvedValue({ job_id: 'job-1' });
     const queryClient = createQueryClient();
@@ -169,9 +168,9 @@ describe('upload workflow storage quota handling', () => {
       await result.current.startRecognition();
     });
 
-    expect(uploadFileMock).toHaveBeenCalledTimes(1);
+    expect(createUploadMock).toHaveBeenCalledTimes(1);
     expect(submitImportJobMock).toHaveBeenCalledWith(
-      ['uploaded-file-id'],
+      ['uploaded-upload-id'],
       { title: undefined, genres: [...scoreGenresForDisplay] },
       'upload-workflow-test-key',
     );

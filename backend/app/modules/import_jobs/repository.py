@@ -88,13 +88,13 @@ class ImportJobRepository:
             )
         ).scalar_one_or_none()
 
-    async def submission_uploads(self, db: AsyncSession, file_ids: list[str]) -> list[RowMapping]:
+    async def submission_uploads(self, db: AsyncSession, upload_ids: list[str]) -> list[RowMapping]:
         return list(
             (
                 await db.execute(
                     select(Upload.id, Upload.upload_uuid, Upload.uploader_user_id)
                     .join(StoredObject, Upload.stored_object_id == StoredObject.id)
-                    .where(Upload.__table__.c.upload_uuid.in_(file_ids))
+                    .where(Upload.__table__.c.upload_uuid.in_(upload_ids))
                 )
             )
             .mappings()

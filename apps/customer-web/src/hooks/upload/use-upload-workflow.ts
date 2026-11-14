@@ -11,7 +11,7 @@ import {
   useSubmitImportJob,
 } from '@/hooks/queries/use-import-job-queries';
 import { useToast } from '@/hooks/use-toast';
-import { filesApi } from '@/lib/api';
+import { uploadsApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
 import { knownGenres } from '@/lib/score/genres';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
@@ -272,11 +272,11 @@ export function useUploadWorkflow() {
     setIsUploading(true);
 
     try {
-      const uploadedFileIds: string[] = [];
+      const uploadIds: string[] = [];
       for (let index = 0; index < filesRef.current.length; index += 1) {
         const currentFile = filesRef.current[index];
-        if (currentFile.status === 'uploaded' && currentFile.fileId) {
-          uploadedFileIds.push(currentFile.fileId);
+        if (currentFile.status === 'uploaded' && currentFile.uploadId) {
+          uploadIds.push(currentFile.uploadId);
           continue;
         }
         if (currentFile.file.size === 0) {
@@ -297,24 +297,24 @@ export function useUploadWorkflow() {
           ),
         );
         try {
-          const response = await filesApi.uploadFile(currentFile.file);
-          const fileId = response?.file_id;
-          if (!fileId) throw new Error(tCommon('operationFailed'));
-          uploadedFileIds.push(fileId);
+          const response = await uploadsApi.createUpload(currentFile.file);
+          const uploadId = response?.upload_id;
+          if (!uploadId) throw new Error(tCommon('operationFailed'));
+          uploadIds.push(uploadId);
           void queryClient.invalidateQueries({
             queryKey: queryKeys.storageUsage.current(),
           });
           setTrackedFiles((current) =>
             current.map((item, itemIndex) =>
               itemIndex === index
-                ? { ...item, status: 'uploaded', fileId }
+                ? { ...item, status: 'uploaded', uploadId }
                 : item,
             ),
           );
         } catch (error) {
           reportUnexpectedClientError(error, {
             area: 'upload',
-            action: 'upload_file',
+            action: 'create_upload',
             file_index: index,
             file_size: currentFile.file.size,
           });
@@ -338,7 +338,7 @@ export function useUploadWorkflow() {
       dispatchTask({ type: 'submit_started' });
       submissionKeyRef.current ??= createSubmissionIdempotencyKey();
       const response = await submitJobMutation.mutateAsync({
-        fileIds: uploadedFileIds,
+        uploadIds: uploadIds,
         idempotencyKey: submissionKeyRef.current,
         options: {
           title: scoreName || undefined,

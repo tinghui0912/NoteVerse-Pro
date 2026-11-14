@@ -1,6 +1,6 @@
 # Score-import upload media admission
 
-`app.modules.files.upload_admission` is the backend product authority for uploaded
+`app.modules.uploads.upload_admission` is the backend product authority for uploaded
 Score-import images. Support is source-owned, not environment configuration.
 The maximum is 20 MiB per file; no separate deployment file-size contract narrows
 this application policy. Bounded reading requests at most the limit plus one byte.
@@ -35,3 +35,18 @@ The frontend picker recommends PNG, JPEG or BMP as a narrower UX choice. Its
 constants and localized copy express recommendations, not a backend allowlist.
 Avatar retains its 5 MiB input policy and normalized JPEG representation;
 PerformanceTake retains its independent recording-container contract.
+
+## Upload resource contract
+
+`app.modules.uploads` owns Upload admission, persistence and semantic deletion;
+`app.db.models.upload.Upload` maps to the `uploads` table. `UploadService` and
+`UploadRepository` operate on Upload identities. `POST /api/v1/uploads`
+(`uploadsCreate`) returns `UploadRead { upload_id, original_filename, byte_size }`.
+`DELETE /api/v1/uploads/{upload_id}` (`uploadDelete`) accepts the public Upload UUID
+and returns bodyless 204. `original_filename` remains browser-supplied display metadata;
+byte size comes from StoredObject, and a blob key is never a public resource identity.
+
+The frontend `uploadsApi` owns createUpload/createUploads/deleteUpload transport through
+generated operations. Browser `File`, multipart `UploadFile` and physical/download
+filenames retain their meanings. The `/upload` page is a user action, independent of
+the `/api/v1/uploads` resource collection. Import submission accepts ordered `upload_ids`.

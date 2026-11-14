@@ -6,14 +6,14 @@ import { completedContinuousSessionFixture } from '@/lib/practice/__fixtures__/c
 import {
   artifact,
   take,
-} from "@/lib/practice/composite-video/__fixtures__/saved-take";
+} from "@/lib/practice/composite-video/__fixtures__/performance-take";
 import { createNaturalContinuousCompletion } from '@/lib/practice/continuous/natural-completion';
 import { unavailableContinuousEvaluation } from '@/lib/practice/continuous/domain/evaluation/session';
 import {
   createTransientReviewSession,
   releaseTransientReviewSession,
 } from '@/lib/practice/review/transient-review-session';
-import { admitSavedRecordedPerformance } from '@/lib/practice/saved-take/admission';
+import { admitPerformanceTakeRecordedPerformance } from '@/lib/practice/performance-take/admission';
 import { localMediaAssetFixture } from '@/lib/practice/__fixtures__/local-media-asset';
 
 it('keeps exact natural Session owners and passes one authority through Review and recording', async () => {
@@ -61,7 +61,7 @@ it('keeps exact natural Session owners and passes one authority through Review a
   );
   expect(recorded.executed).toBe(executed);
   expect(recorded.recording).toBe(review.recording);
-  const saved = admitSavedRecordedPerformance(
+  const saved = admitPerformanceTakeRecordedPerformance(
     {
       ...take,
       manifest: {

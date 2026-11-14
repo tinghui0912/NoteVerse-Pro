@@ -4,7 +4,7 @@ import { completedContinuousSessionFixture } from './continuous-result';
 import { executedPerformanceFromCompletion } from '@/lib/practice/run/executed-performance';
 import { recordedPerformance } from '@/lib/practice/recording/recorded-performance';
 import type { ContinuousPracticePlan } from '@/lib/practice/planning/practice-plan';
-import { artifact } from "@/lib/practice/composite-video/__fixtures__/saved-take";
+import { artifact } from "@/lib/practice/composite-video/__fixtures__/performance-take";
 import { localMediaAssetFixture } from './local-media-asset';
 export function recordedPerformanceFixture(
   plan: ContinuousPracticePlan = continuousPracticePlan(artifact),

@@ -392,7 +392,7 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
         score_title_snapshot: 'Continuous Review Score', recording_timebase,
         score_timebase: accepted.score_timebase, scope: accepted.resolved_scope,
         tempo_plan: accepted.resolved_tempo_plan },
-      upload_target: { url: '/api/v1/performance-takes/mock-upload/take-e2e-1', method: 'PUT',
+      upload_target: { url: new URL('/api/v1/performance-takes/mock-upload/take-e2e-1', route.request().url()).href, method: 'PUT',
         headers: { 'content-type': media.mime_type }, expires_in: 3600 },
     }) });
   });

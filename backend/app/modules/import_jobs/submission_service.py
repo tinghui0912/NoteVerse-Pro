@@ -39,12 +39,12 @@ class ImportJobSubmissionService:
         try:
             uploads = {
                 row["upload_uuid"]: row
-                for row in await self.repository.submission_uploads(db, request.file_ids)
+                for row in await self.repository.submission_uploads(db, request.upload_ids)
             }
-            for file_id in request.file_ids:
-                upload = uploads.get(file_id)
+            for upload_id in request.upload_ids:
+                upload = uploads.get(upload_id)
                 if upload is None or upload["uploader_user_id"] != user_id:
-                    raise ResourceNotFoundException("file", file_id, ErrorCode.FILE_NOT_FOUND)
+                    raise ResourceNotFoundException("upload", upload_id, ErrorCode.FILE_NOT_FOUND)
             now = utc_now_naive()
             job_uuid = str(uuid.uuid4())
             traceparent, tracestate = get_async_trace_context()
@@ -70,11 +70,11 @@ class ImportJobSubmissionService:
                     tracestate=tracestate,
                 )
             )
-            for index, file_id in enumerate(request.file_ids, 1):
+            for index, upload_id in enumerate(request.upload_ids, 1):
                 db.add(
                     ImportJobUpload(
                         job_id=job_id,
-                        upload_id=uploads[file_id]["id"],
+                        upload_id=uploads[upload_id]["id"],
                         page_number=index,
                         sort_order=index,
                     )
@@ -94,7 +94,11 @@ class ImportJobSubmissionService:
 
     @staticmethod
     def _result(job_uuid: str, request: ImportJobSubmitRequestLike) -> ImportJobSubmitResult:
-        return {"job_id": job_uuid, "count": len(request.file_ids), "state": ImportJobState.PENDING}
+        return {
+            "job_id": job_uuid,
+            "count": len(request.upload_ids),
+            "state": ImportJobState.PENDING,
+        }
 
     @staticmethod
     def _normalize_key(value: object) -> str | None:

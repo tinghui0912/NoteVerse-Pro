@@ -48,14 +48,14 @@ export function useSubmitImportJob() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({
-      fileIds,
+      uploadIds,
       options,
       idempotencyKey,
     }: {
-      fileIds: string[];
+      uploadIds: string[];
       options?: ImportJobProcessingOptions;
       idempotencyKey?: string;
-    }) => importJobsApi.submitImportJob(fileIds, options, idempotencyKey),
+    }) => importJobsApi.submitImportJob(uploadIds, options, idempotencyKey),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: queryKeys.importJobs.all }),
   });

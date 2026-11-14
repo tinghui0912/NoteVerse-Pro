@@ -5,7 +5,7 @@ const source = (path: string) => readFileSync(resolve(process.cwd(), 'src', path
 describe('Save lifecycle ownership', () => {
   it('keeps protocol sequencing in an application command and query integration in the hook', () => {
     const hook = source('hooks/queries/use-performance-take-queries.ts');
-    const command = source('lib/practice/saved-take/save-command.ts');
+    const command = source('lib/practice/performance-take/save-command.ts');
     expect(hook).toContain('new PerformanceTakeSaveCommand(input,');
     expect(hook).toContain('command.execute()');
     for (const method of ['reserveUpload(', 'finalizeTake(', 'uploadMediaToSignedUrl(', 'cancelUploadReservation(']) expect(hook).not.toContain(method);

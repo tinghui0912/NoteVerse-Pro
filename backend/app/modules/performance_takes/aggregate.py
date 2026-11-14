@@ -1,4 +1,4 @@
-"""Admit the saved Take aggregate across Capture and durable server bytes."""
+"""Admit the PerformanceTake aggregate across Capture and durable server bytes."""
 
 from dataclasses import dataclass
 from app.core.exceptions import ValidationException
@@ -11,7 +11,7 @@ from .manifest_persistence import manifest_from_row
 
 
 @dataclass(frozen=True)
-class SavedTakeFacts:
+class PerformanceTakeFacts:
     manifest: TakeManifest
     recording_object: StoredObjectFacts
 
@@ -21,12 +21,12 @@ class SavedTakeFacts:
             capture.byte_size != self.recording_object.byte_size
             or capture.mime_type != self.recording_object.content_type
         ):
-            raise ValueError("Saved recording bytes must preserve the admitted Capture")
+            raise ValueError("PerformanceTake recording bytes must preserve the admitted Capture")
 
 
-def take_from_row(row: PerformanceTake) -> SavedTakeFacts:
+def performance_take_facts_from_row(row: PerformanceTake) -> PerformanceTakeFacts:
     try:
-        return SavedTakeFacts(
+        return PerformanceTakeFacts(
             manifest_from_row(row.manifest), object_from_row(row.recording_object)
         )
     except (ValueError, TypeError, AttributeError) as error:

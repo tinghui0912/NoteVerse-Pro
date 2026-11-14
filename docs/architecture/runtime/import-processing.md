@@ -8,6 +8,9 @@ creates its canonical revision.
 HTTP submission, list/detail and retry use the request's `AsyncSession`.
 `ImportJobReadModel` bulk-hydrates the shared list/detail projection. Submission
 commits the Job, Dispatch and ordered upload links as one admission transaction.
+`POST /api/v1/import-jobs` accepts `upload_ids`, public UUIDs from the Upload resource
+at `/api/v1/uploads`. Retry reuses the same ordered Upload identities. Artifact
+filenames remain file facts and are independent of Upload resource identity.
 Worker execution uses a synchronous `Session` through `SyncImportJobService` for
 progress/step mutations, artifact production and finalization.
 

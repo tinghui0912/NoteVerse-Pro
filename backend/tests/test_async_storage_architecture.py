@@ -81,7 +81,7 @@ def test_async_prewrite_uses_shared_admission_and_threaded_physical_io():
 
 
 def test_score_upload_admission_is_application_owned_and_domain_specific():
-    from app.modules.files.upload_admission import (
+    from app.modules.uploads.upload_admission import (
         SCORE_IMPORT_IMAGES,
         MAX_SCORE_IMPORT_UPLOAD_BYTES,
     )
@@ -98,7 +98,7 @@ def test_score_upload_admission_is_application_owned_and_domain_specific():
     assert MAX_SCORE_IMPORT_UPLOAD_BYTES == 20 * 1024 * 1024
     assert "ALLOWED_EXTENSIONS" not in Settings.model_fields
     assert AvatarService.MAX_FILE_SIZE == 5 * 1024 * 1024
-    source = (ROOT / "modules/files/service.py").read_text()
+    source = (ROOT / "modules/uploads/service.py").read_text()
     assert (
         "admit_score_import_image" in source
         and "media.mime_type" in source

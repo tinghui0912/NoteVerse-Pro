@@ -4,7 +4,7 @@ from .stored_object import StoredObject
 from .performance_take_manifest import PerformanceTakeManifest
 from .user import User
 from .auth import AuthToken, EmailChangeRequest, PendingRegistration, RefreshToken
-from .file import Upload
+from .upload import Upload
 from .notification import NotificationEvent
 from .ops_audit import OpsAuditEvent
 from .operator import (

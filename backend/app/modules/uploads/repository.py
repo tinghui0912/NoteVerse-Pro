@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import ImportJobUpload, ScoreInputAsset, StoredObject, Upload
 
 
-class FilesRepository:
+class UploadRepository:
     async def get_upload_object_by_sha256(
         self, db: AsyncSession, sha256: str
     ) -> StoredObject | None:
@@ -63,4 +63,4 @@ class FilesRepository:
         await db.execute(delete(Upload).where(Upload.id == upload_id))
 
 
-files_repository = FilesRepository()
+upload_repository = UploadRepository()

@@ -116,9 +116,9 @@ export type BodyAuthLogin = {
 };
 
 /**
- * Body_filesUpload
+ * Body_uploadsCreate
  */
-export type BodyFilesUpload = {
+export type BodyUploadsCreate = {
     /**
      * File
      */
@@ -487,14 +487,14 @@ export type ImportJobSubmitRead = {
  */
 export type ImportJobSubmitRequest = {
     /**
-     * File Ids
-     */
-    file_ids: Array<string>;
-    /**
      * Idempotency Key
      */
     idempotency_key?: string | null;
     options?: ImportJobProcessingOptions | null;
+    /**
+     * Upload Ids
+     */
+    upload_ids: Array<string>;
 };
 
 /**
@@ -2687,21 +2687,21 @@ export type UpdateProfileRequest = {
 };
 
 /**
- * UploadFileRead
+ * UploadRead
  */
-export type UploadFileRead = {
+export type UploadRead = {
     /**
-     * File Id
+     * Byte Size
      */
-    file_id: string;
+    byte_size: number;
     /**
-     * Filename
+     * Original Filename
      */
-    filename: string;
+    original_filename: string;
     /**
-     * Size
+     * Upload Id
      */
-    size: number;
+    upload_id: string;
 };
 
 /**
@@ -3050,69 +3050,6 @@ export type AuthRegisterResponses = {
 };
 
 export type AuthRegisterResponse = AuthRegisterResponses[keyof AuthRegisterResponses];
-
-export type FilesUploadData = {
-    body: BodyFilesUpload;
-    path?: never;
-    query?: never;
-    url: '/api/v1/files/upload';
-};
-
-export type FilesUploadErrors = {
-    /**
-     * Request or application validation failure.
-     */
-    422: ApiErrorResponse;
-    /**
-     * Application failure.
-     */
-    default: ApiErrorResponse;
-};
-
-export type FilesUploadError = FilesUploadErrors[keyof FilesUploadErrors];
-
-export type FilesUploadResponses = {
-    /**
-     * Successful Response
-     */
-    200: UploadFileRead;
-};
-
-export type FilesUploadResponse = FilesUploadResponses[keyof FilesUploadResponses];
-
-export type FileDeleteData = {
-    body?: never;
-    path: {
-        /**
-         * Filename
-         */
-        filename: string;
-    };
-    query?: never;
-    url: '/api/v1/files/{filename}';
-};
-
-export type FileDeleteErrors = {
-    /**
-     * Request or application validation failure.
-     */
-    422: ApiErrorResponse;
-    /**
-     * Application failure.
-     */
-    default: ApiErrorResponse;
-};
-
-export type FileDeleteError = FileDeleteErrors[keyof FileDeleteErrors];
-
-export type FileDeleteResponses = {
-    /**
-     * Successful Response
-     */
-    204: void;
-};
-
-export type FileDeleteResponse = FileDeleteResponses[keyof FileDeleteResponses];
 
 export type GuestPreviewGetData = {
     body?: never;
@@ -5875,6 +5812,69 @@ export type ScoreRevisionRestoreResponses = {
 };
 
 export type ScoreRevisionRestoreResponse = ScoreRevisionRestoreResponses[keyof ScoreRevisionRestoreResponses];
+
+export type UploadsCreateData = {
+    body: BodyUploadsCreate;
+    path?: never;
+    query?: never;
+    url: '/api/v1/uploads';
+};
+
+export type UploadsCreateErrors = {
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type UploadsCreateError = UploadsCreateErrors[keyof UploadsCreateErrors];
+
+export type UploadsCreateResponses = {
+    /**
+     * Successful Response
+     */
+    200: UploadRead;
+};
+
+export type UploadsCreateResponse = UploadsCreateResponses[keyof UploadsCreateResponses];
+
+export type UploadDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Upload Id
+         */
+        upload_id: string;
+    };
+    query?: never;
+    url: '/api/v1/uploads/{upload_id}';
+};
+
+export type UploadDeleteErrors = {
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type UploadDeleteError = UploadDeleteErrors[keyof UploadDeleteErrors];
+
+export type UploadDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type UploadDeleteResponse = UploadDeleteResponses[keyof UploadDeleteResponses];
 
 export type HealthLiveData = {
     body?: never;

@@ -174,18 +174,18 @@ def main() -> int:
     upload_headers.update(headers)
     uploaded = request_json(
         opener,
-        f"{args.api_base}/files/upload",
+        f"{args.api_base}/uploads",
         method="POST",
         data=upload_body,
         headers=upload_headers,
         timeout=60,
     )
-    file_id = uploaded["data"]["file_id"]  # type: ignore[index]
+    upload_id = uploaded["data"]["upload_id"]  # type: ignore[index]
     after_upload = quota_used(opener, args.api_base)
 
     request_json(
         opener,
-        f"{args.api_base}/files/{file_id}",
+        f"{args.api_base}/uploads/{upload_id}",
         method="DELETE",
         headers=headers,
         timeout=60,
@@ -193,7 +193,7 @@ def main() -> int:
     after_delete = quota_used(opener, args.api_base)
 
     result = {
-        "file_id": file_id,
+        "upload_id": upload_id,
         "upload_delta": after_upload - before,
         "delete_delta": after_delete - before,
     }

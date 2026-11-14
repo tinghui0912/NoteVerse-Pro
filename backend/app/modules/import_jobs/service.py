@@ -42,7 +42,7 @@ class ImportArtifactDelivery:
 
 @dataclass(frozen=True)
 class RetryJobRequest:
-    file_ids: list[str]
+    upload_ids: list[str]
     options: ImportJobProcessingOptions | None
     idempotency_key: str | None = None
 
@@ -85,8 +85,8 @@ class ImportJobService:
             .where(ImportJobUpload.job_id == job_id)
             .order_by(col(ImportJobUpload.sort_order).asc(), col(ImportJobUpload.id).asc())
         )
-        file_ids = list(rows.scalars().all())
-        if not file_ids:
+        upload_ids = list(rows.scalars().all())
+        if not upload_ids:
             raise ResourceNotFoundException("job_upload", job_uuid, ErrorCode.FILE_NOT_FOUND)
         options = (
             processing_options_adapter.validate_python(job.requested_options)
@@ -97,7 +97,7 @@ class ImportJobService:
             db,
             current_user,
             RetryJobRequest(
-                file_ids=file_ids,
+                upload_ids=upload_ids,
                 options=options,
             ),
         )

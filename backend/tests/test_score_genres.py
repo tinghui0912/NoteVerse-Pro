@@ -59,7 +59,7 @@ def test_request_boundaries_normalize_genres(genres):
     expected = ordered_unique_genres(genres)
     assert ScoreUpdateRequest(genres=genres, expected_version=1).genres == expected
     assert ReviewConfirmRequest(content="xml", genres=genres).genres == expected
-    request = ImportJobSubmitRequest(file_ids=["file"], options={"genres": genres})
+    request = ImportJobSubmitRequest(upload_ids=["file"], options={"genres": genres})
     assert request.options == {"genres": expected}
     assert all(isinstance(genre, ScoreGenre) for genre in request.options["genres"])
     assert request.model_dump(mode="json")["options"]["genres"] == [
@@ -72,7 +72,7 @@ def test_request_boundaries_reject_invalid_genre_values(genres):
     for schema, values in [
         (ScoreUpdateRequest, {"expected_version": 1, "genres": genres}),
         (ReviewConfirmRequest, {"content": "xml", "genres": genres}),
-        (ImportJobSubmitRequest, {"file_ids": ["file"], "options": {"genres": genres}}),
+        (ImportJobSubmitRequest, {"upload_ids": ["file"], "options": {"genres": genres}}),
     ]:
         with pytest.raises(ValidationError):
             schema.model_validate(values)
@@ -82,7 +82,7 @@ def test_request_boundaries_reject_unrecognized_fields():
     for schema, values in [
         (ScoreUpdateRequest, {"expected_version": 1, "taxonomy_tags": []}),
         (ReviewConfirmRequest, {"content": "xml", "taxonomy_tags": []}),
-        (ImportJobSubmitRequest, {"file_ids": ["file"], "options": {"taxonomy_tags": []}}),
+        (ImportJobSubmitRequest, {"upload_ids": ["file"], "options": {"taxonomy_tags": []}}),
     ]:
         with pytest.raises(ValidationError):
             schema.model_validate(values)
@@ -155,7 +155,7 @@ async def test_import_review_score_and_library_share_score_genres(
         AsyncSessionAdapter(session),
         session.get(User, 1),
         ImportJobSubmitRequest(
-            file_ids=[upload.upload_uuid], options={"title": "Genres", "genres": requested}
+            upload_ids=[upload.upload_uuid], options={"title": "Genres", "genres": requested}
         ),
     )
     job = session.scalar(sa.select(ImportJob).where(ImportJob.job_uuid == result["job_id"]))

@@ -57,13 +57,13 @@ test('Next proxy submits and reads an authenticated score import job', async ({ 
     origin: new URL(page.url()).origin,
   };
 
-  const upload = await page.request.post('/api/v1/files/upload', {
+  const upload = await page.request.post('/api/v1/uploads', {
     headers: csrfHeaders,
     multipart: {
       file: {
         name: 'score.png',
         mimeType: 'image/png',
-        buffer: Buffer.from('not-a-real-image'),
+        buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4//8/AAX+Av4N70a4AAAAAElFTkSuQmCC', 'base64'),
       },
     },
   });
@@ -73,7 +73,7 @@ test('Next proxy submits and reads an authenticated score import job', async ({ 
   const importJob = await page.request.post('/api/v1/import-jobs', {
     headers: csrfHeaders,
     data: {
-      file_ids: [uploadBody.file_id],
+      upload_ids: [uploadBody.upload_id],
       idempotency_key: 'integration-score-import-001',
       options: {
         title: 'Integration score',

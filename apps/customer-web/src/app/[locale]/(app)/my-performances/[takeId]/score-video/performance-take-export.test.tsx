@@ -6,7 +6,7 @@ import { ApiError } from "@/lib/http/customer-browser-transport";
 import {
 artifact,
 take,
-} from "@/lib/practice/composite-video/__fixtures__/saved-take";
+} from "@/lib/practice/composite-video/__fixtures__/performance-take";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
 cleanup,
@@ -121,7 +121,7 @@ it.each([403, 404])(
     openPage();
     await screen.findByTestId("raw-source");
     await screen.findByText(
-      practice.savedTakeCompositeVideoRevisionUnavailable,
+      practice.performanceTakeCompositeVideoRevisionUnavailable,
     );
     expect(screen.queryByTestId("score-export")).toBeNull();
     expect(calls.player.mock.calls.at(-1)![0].source.media.blob).toBe(blob);
@@ -149,7 +149,7 @@ it("refuses different exact representation identity while retaining raw media", 
       },
     });
   openPage();
-  await screen.findByText(practice.savedTakeCompositeVideoRevisionUnavailable);
+  await screen.findByText(practice.performanceTakeCompositeVideoRevisionUnavailable);
   expect(screen.getByTestId("raw-source")).toBeVisible();
   expect(screen.queryByTestId("score-export")).toBeNull();
 });
@@ -197,9 +197,9 @@ it("failed download retries with a new operation and owns only the successful me
     .mockRejectedValueOnce(new Error("network"))
     .mockResolvedValueOnce(media);
   const view = openPage();
-  await screen.findByText(practice.savedTakeCompositeVideoTemporaryUnavailable);
+  await screen.findByText(practice.performanceTakeCompositeVideoTemporaryUnavailable);
   fireEvent.click(
-    screen.getByRole("button", { name: practice.savedTakeCompositeVideoRetry }),
+    screen.getByRole("button", { name: practice.performanceTakeCompositeVideoRetry }),
   );
   await screen.findByTestId("raw-source");
   expect(calls.media).toHaveBeenCalledTimes(2);

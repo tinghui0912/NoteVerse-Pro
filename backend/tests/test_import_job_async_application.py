@@ -267,12 +267,12 @@ async def test_read_model_validates_persisted_processing_options(application_db)
 async def test_submission_rolls_back_the_whole_admission_unit(application_db, failure):
     db = application_db
     user = await db.get(User, 1)
-    file_ids = {
+    upload_ids = {
         "missing": ["upload-a", "absent"],
         "foreign": ["upload-other"],
         "links": ["upload-a", "upload-a"],
     }[failure]
-    request = ImportJobSubmitRequest(file_ids=file_ids)
+    request = ImportJobSubmitRequest(upload_ids=upload_ids)
     error = IntegrityError if failure == "links" else ResourceNotFoundException
     with pytest.raises(error) as caught:
         await ImportJobSubmissionService().submit(db, user, request)
@@ -303,7 +303,7 @@ async def test_concurrent_idempotency_admits_one_job_dispatch_and_ordered_link_s
 
     service = ImportJobSubmissionService(repository=ConcurrentRepository())
     request = ImportJobSubmitRequest(
-        file_ids=["upload-b", "upload-a"], idempotency_key="parallel-admission"
+        upload_ids=["upload-b", "upload-a"], idempotency_key="parallel-admission"
     )
 
     async def submit():
@@ -346,7 +346,7 @@ async def test_http_list_detail_submit_retry_use_only_injected_async_session(app
             assert detail.status_code == 200, detail.text
             assert response.json()["items"][0] == detail.json()
             request = dict(
-                file_ids=["upload-b", "upload-a"],
+                upload_ids=["upload-b", "upload-a"],
                 idempotency_key="http-admission",
                 options={"title": "New", "genres": ["jazz"]},
             )

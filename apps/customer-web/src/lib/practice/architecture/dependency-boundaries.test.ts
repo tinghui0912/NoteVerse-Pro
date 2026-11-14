@@ -174,11 +174,11 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
           target.startsWith('planning/') ||
           (edge.typeOnly && target === 'continuous/domain/session.ts')),
     );
-  if (source.startsWith('saved-take/'))
+  if (source.startsWith('performance-take/'))
     return Boolean(
       (target &&
         [
-          'saved-take/',
+          'performance-take/',
           'recording/',
           'run/',
           'planning/',
@@ -636,8 +636,8 @@ describe('Practice bounded domain dependencies', () => {
     expect(savedBindings).toEqual(
       expect.arrayContaining([
         "CompositeVideoStudio",
-        'admitSavedRecordedPerformance',
-        'useSavedTakeExportBundle',
+        'admitPerformanceTakeRecordedPerformance',
+        'usePerformanceTakeExportBundle',
       ]),
     );
     const review = path.join(
@@ -1392,7 +1392,7 @@ describe('Practice bounded domain dependencies', () => {
       'review/transient-review-session',
       'result/continuous-performance-result',
       "composite-video/export",
-      'saved-take/admission',
+      'performance-take/admission',
       'run/executed-performance',
       'recording/recorded-performance',
     ]) {
@@ -1681,7 +1681,7 @@ describe('Practice bounded domain dependencies', () => {
             "result/",
             "continuous/",
             "step/",
-            "saved-take/",
+            "performance-take/",
             "api/",
           ].some((owner) => target.startsWith(owner)),
           file + " -> " + target,
@@ -1765,7 +1765,7 @@ describe('Practice bounded domain dependencies', () => {
         '@/app/page',
         '@/lib/api/performance-takes',
         '@/generated/api/types.gen',
-        '@/lib/practice/saved-take/admission',
+        '@/lib/practice/performance-take/admission',
         "@/lib/practice/composite-video/export",
       ]) {
         expect(
@@ -1778,11 +1778,11 @@ describe('Practice bounded domain dependencies', () => {
       }
     }
     for (const edge of imports(
-      path.join(practiceRoot, 'saved-take/admission.ts'),
+      path.join(practiceRoot, 'performance-take/admission.ts'),
     )) {
       expect(
         dependencyAllowed(
-          path.join(practiceRoot, 'saved-take/admission.ts'),
+          path.join(practiceRoot, 'performance-take/admission.ts'),
           edge,
         ),
       ).toBe(true);
@@ -2907,7 +2907,7 @@ it('browser execution and Review consume workspace-owned representations rather 
     'lib/practice/bundle/admit-practice-bundle.ts',
     'lib/practice/bundle/bundle-representation.ts',
     'lib/api/practice.ts',
-    'hooks/practice/use-saved-take-export-bundle.ts',
+    'hooks/practice/use-performance-take-export-bundle.ts',
     'hooks/queries/use-score-queries.ts',
   ].map((file) => normalize(path.join(sourceRoot, file)));
   for (const file of [
@@ -2968,9 +2968,9 @@ it('Recording consumes its Capture sink port and adapter', () => {
 });
 
 
-it('routes saved Take transport through its current semantic owner', () => {
-  expect(existsSync(path.join(practiceRoot, 'saved-take/admission.ts'))).toBe(true);
-  expect(existsSync(path.join(practiceRoot, 'saved-take/save.ts'))).toBe(true);
+it('routes PerformanceTake transport through its current semantic owner', () => {
+  expect(existsSync(path.join(practiceRoot, 'performance-take/admission.ts'))).toBe(true);
+  expect(existsSync(path.join(practiceRoot, 'performance-take/save.ts'))).toBe(true);
   expect(existsSync(path.join(practiceRoot, 'archive'))).toBe(false);
   for (const [file, edges] of sourceGraph)
     for (const edge of edges)

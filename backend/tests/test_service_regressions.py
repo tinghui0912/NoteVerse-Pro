@@ -17,7 +17,7 @@ from app.core.exceptions import (
 )
 from app.db.models.user import User
 from app.db.models.import_job import ImportJobState
-from app.modules.files.service import FilesService
+from app.modules.uploads.service import UploadService
 import hashlib
 from app.modules.account.avatar_service import AvatarService
 from app.modules.account.avatar_presentation import avatar_url_for_user
@@ -324,7 +324,7 @@ async def test_import_job_submission_persists_without_contacting_celery() -> Non
         ]
     )
     service = ImportJobSubmissionService(repository=repository)
-    request = SimpleNamespace(file_ids=["abc"], options={}, idempotency_key=None)
+    request = SimpleNamespace(upload_ids=["abc"], options={}, idempotency_key=None)
     current_user = SimpleNamespace(id=5)
     db = Mock(commit=AsyncMock(), rollback=AsyncMock())
 
@@ -348,7 +348,7 @@ async def test_import_job_submission_reuses_existing_idempotency_key() -> None:
     )
     repository.submission_uploads = AsyncMock()
     service = ImportJobSubmissionService(repository=repository)
-    request = SimpleNamespace(file_ids=["abc"], options={}, idempotency_key="submission-key-1")
+    request = SimpleNamespace(upload_ids=["abc"], options={}, idempotency_key="submission-key-1")
     current_user = SimpleNamespace(id=5)
     db = Mock(commit=AsyncMock())
     result = await service.submit(db, current_user, request)
@@ -374,7 +374,7 @@ def test_import_job_submission_serializes_genres_for_json_storage() -> None:
     }
 
 
-def test_import_job_execution_resolves_file_ids_inside_worker() -> None:
+def test_import_job_execution_resolves_upload_ids_inside_worker() -> None:
     storage = Mock()
     storage.materialize_to_local.return_value = "C:/worker/cache/score.png"
     service = ImportJobExecutionService(storage=storage)
@@ -401,7 +401,7 @@ async def test_import_job_submission_rejects_upload_owned_by_another_user() -> N
         await service.submit(
             db,
             SimpleNamespace(id=5),
-            SimpleNamespace(file_ids=["abc"], options=None, idempotency_key=None),
+            SimpleNamespace(upload_ids=["abc"], options=None, idempotency_key=None),
         )
     assert context.value.code == ErrorCode.FILE_NOT_FOUND
     db.rollback.assert_awaited_once()
@@ -409,50 +409,50 @@ async def test_import_job_submission_rejects_upload_owned_by_another_user() -> N
 
 
 @pytest.mark.asyncio
-async def test_file_upload_reuses_committed_exact_object_without_rewriting(score_service_session):
+async def test_upload_reuses_committed_exact_object_without_rewriting(score_service_session):
     from fastapi import UploadFile
     from sqlalchemy import select
     from app.db.models import Upload
 
     session, storage = score_service_session
-    service = FilesService(storage=storage)
+    service = UploadService(storage=storage)
     user = session.get(User, 1)
-    await service.upload_file(
+    await service.create_upload(
         AsyncSessionAdapter(session),
         user,
         UploadFile(filename="first.png", file=io.BytesIO(image_bytes())),
     )
     storage.put_bytes = Mock(wraps=storage.put_bytes)
-    second = await service.upload_file(
+    second = await service.create_upload(
         AsyncSessionAdapter(session),
         user,
         UploadFile(filename="second.png", file=io.BytesIO(image_bytes())),
     )
-    assert second.size == len(image_bytes()) and storage.put_bytes.call_count == 0
+    assert second.byte_size == len(image_bytes()) and storage.put_bytes.call_count == 0
     assert len({row.stored_object_id for row in session.scalars(select(Upload))}) == 1
 
 
 @pytest.mark.asyncio
-async def test_delete_uploaded_file_rejects_non_owner() -> None:
+async def test_delete_upload_rejects_non_owner() -> None:
     repository = Mock()
     repository.get_upload_by_uuid = AsyncMock(
         return_value=SimpleNamespace(
             id=1, upload_uuid="upload-1", stored_object_id=5, uploader_user_id=99
         )
     )
-    service = FilesService(repository=repository)
+    service = UploadService(repository=repository)
     db = AsyncMock()
     current_user = SimpleNamespace(id=1)
 
     with pytest.raises(UnauthorizedException) as context:
-        await service.delete_uploaded_file(db, current_user, "test.png")
+        await service.delete_upload(db, current_user, "upload-1")
 
     assert context.value.code == ErrorCode.NO_DELETE_ACCESS
     db.commit.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_delete_uploaded_file_removes_owned_file_and_record() -> None:
+async def test_delete_upload_removes_owned_upload_and_reference() -> None:
     repository = Mock()
     repository.get_upload_by_uuid = AsyncMock(
         return_value=SimpleNamespace(
@@ -461,7 +461,7 @@ async def test_delete_uploaded_file_removes_owned_file_and_record() -> None:
     )
     repository.upload_reference_count = AsyncMock(return_value=0)
     repository.delete_upload_by_id = AsyncMock()
-    service = FilesService(repository=repository)
+    service = UploadService(repository=repository)
     db = AsyncMock()
     db.get.return_value = SimpleNamespace(
         id=5,
@@ -478,16 +478,16 @@ async def test_delete_uploaded_file_removes_owned_file_and_record() -> None:
             file_handle.write(b"png")
 
         storage = InMemoryObjectStorage()
-        service = FilesService(repository=repository, storage=storage)
+        service = UploadService(repository=repository, storage=storage)
         with (
             patch(
-                "app.modules.files.service.storage_usage_service.record_release"
+                "app.modules.uploads.service.storage_usage_service.record_release"
             ) as release_usage,
             patch(
-                "app.modules.files.service.retire_after_release", return_value=["retirement"]
+                "app.modules.uploads.service.retire_after_release", return_value=["retirement"]
             ) as retire,
         ):
-            result = await service.delete_uploaded_file(db, current_user, "owned.png")
+            result = await service.delete_upload(db, current_user, "upload-owned")
 
     assert result is None
     repository.delete_upload_by_id.assert_awaited_once_with(db, 7)

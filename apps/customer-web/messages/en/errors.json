@@ -33,7 +33,7 @@
   "task_timeout": "Processing took too long. Please try again later.",
   "job_not_found": "This processing task does not exist or has been deleted.",
   "job_running": "This processing task is still running.",
-  "no_file_ids": "Please upload at least one file.",
+  "no_upload_ids": "Please upload at least one file.",
   "score_not_found": "The score does not exist or has been deleted.",
   "revision_not_found": "The score revision does not exist or has been deleted.",
   "revision_conflict": "This score was updated elsewhere. Please refresh and try again.",

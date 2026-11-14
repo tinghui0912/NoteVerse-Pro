@@ -34,8 +34,8 @@ from app.db.models import (
 )
 from app.db.models.import_job import ImportJobState
 from app.db.models.score import RevisionOrigin, RevisionSourceFormat
-from app.modules.files.service import FilesService
-from app.modules.files.dependencies import get_files_service
+from app.modules.uploads.service import UploadService
+from app.modules.uploads.dependencies import get_upload_service
 from app.modules.import_jobs.service import ImportJobService
 from app.modules.revisions.schemas import RevisionCreateRequest
 from app.modules.revisions.service import RevisionService
@@ -394,13 +394,13 @@ def test_storage_usage_commit_and_release_updates_account_and_counter(
 
 
 @pytest.mark.asyncio
-async def test_file_upload_quota_exceeded_does_not_store_file(
+async def test_upload_quota_exceeded_does_not_store_file(
     storage_usage_session: tuple[Session, InMemoryObjectStorage],
     tmp_path,
 ) -> None:
     session, storage = storage_usage_session
     _set_quota(session, 3)
-    service = FilesService(storage=storage)
+    service = UploadService(storage=storage)
     db = AsyncSessionAdapter(session)
     user = session.get(User, 1)
     assert user is not None
@@ -415,7 +415,7 @@ async def test_file_upload_quota_exceeded_does_not_store_file(
         },
     )()
     with pytest.raises(ValidationException) as exc_info:
-        await service.upload_file(db, user, upload)  # type: ignore[arg-type]
+        await service.create_upload(db, user, upload)  # type: ignore[arg-type]
 
     assert exc_info.value.code == ErrorCode.STORAGE_QUOTA_EXCEEDED
     session.rollback()
@@ -423,7 +423,7 @@ async def test_file_upload_quota_exceeded_does_not_store_file(
     assert not storage.objects
 
 
-def test_file_upload_api_returns_storage_quota_error_without_storing_file(
+def test_upload_api_returns_storage_quota_error_without_storing_file(
     client: TestClient,
     storage_usage_session: tuple[Session, InMemoryObjectStorage],
     tmp_path,
@@ -441,14 +441,14 @@ def test_file_upload_api_returns_storage_quota_error_without_storing_file(
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_user] = override_current_user
-    app.dependency_overrides[get_files_service] = lambda: FilesService(storage=storage)
+    app.dependency_overrides[get_upload_service] = lambda: UploadService(storage=storage)
     try:
         response = client.post(
-            "/api/v1/files/upload",
+            "/api/v1/uploads",
             files={"file": ("too-large.png", image_bytes(), "image/png")},
         )
     finally:
-        app.dependency_overrides.pop(get_files_service, None)
+        app.dependency_overrides.pop(get_upload_service, None)
         app.dependency_overrides.pop(get_current_user, None)
         app.dependency_overrides.pop(get_db, None)
 
@@ -461,7 +461,7 @@ def test_file_upload_api_returns_storage_quota_error_without_storing_file(
     assert not storage.objects
 
 
-def test_file_upload_api_hides_storage_key(
+def test_upload_api_hides_storage_key(
     client: TestClient,
     storage_usage_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
@@ -478,22 +478,23 @@ def test_file_upload_api_hides_storage_key(
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_user] = override_current_user
-    app.dependency_overrides[get_files_service] = lambda: FilesService(storage=storage)
+    app.dependency_overrides[get_upload_service] = lambda: UploadService(storage=storage)
     try:
         response = client.post(
-            "/api/v1/files/upload",
+            "/api/v1/uploads",
             files={"file": ("score.png", image_bytes(), "image/png")},
         )
     finally:
-        app.dependency_overrides.pop(get_files_service, None)
+        app.dependency_overrides.pop(get_upload_service, None)
         app.dependency_overrides.pop(get_current_user, None)
         app.dependency_overrides.pop(get_db, None)
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["file_id"]
-    assert payload["filename"] == "score.png"
-    assert payload["size"] == len(image_bytes())
+    assert set(payload) == {"upload_id", "original_filename", "byte_size"}
+    assert payload["upload_id"]
+    assert payload["original_filename"] == "score.png"
+    assert payload["byte_size"] == len(image_bytes())
     assert "storage_key" not in payload
 
 
@@ -947,14 +948,14 @@ async def test_import_job_delete_keeps_shared_upload_usage_and_storage(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("preexisting_object", [False, True])
-async def test_files_owns_sha_key_dedup_and_last_upload_deletion(
+async def test_uploads_owns_sha_key_dedup_and_last_upload_deletion(
     storage_usage_session, monkeypatch, preexisting_object
 ):
     import io
     import hashlib
     from unittest.mock import Mock
     from starlette.datastructures import UploadFile, Headers
-    from app.modules.files.service import blob_object_key
+    from app.modules.uploads.service import blob_object_key
 
     session, storage = storage_usage_session
     _set_quota(session, 1024)
@@ -965,7 +966,7 @@ async def test_files_owns_sha_key_dedup_and_last_upload_deletion(
     put = Mock(wraps=storage.put_bytes)
     monkeypatch.setattr(storage, "put_bytes", put)
     service, db, user = (
-        FilesService(storage=storage),
+        UploadService(storage=storage),
         AsyncSessionAdapter(session),
         session.get(User, 1),
     )
@@ -975,8 +976,8 @@ async def test_files_owns_sha_key_dedup_and_last_upload_deletion(
             io.BytesIO(content), filename=name, headers=Headers({"content-type": "image/png"})
         )
 
-    first = await service.upload_file(db, user, upload("first.png"))
-    second = await service.upload_file(db, user, upload("second.png"))
+    first = await service.create_upload(db, user, upload("first.png"))
+    second = await service.create_upload(db, user, upload("second.png"))
     blobs = session.scalars(select(StoredObject)).all()
     assert len(blobs) == 1 and blobs[0].object_key == key
     uploads = session.scalars(select(Upload)).all()
@@ -984,9 +985,9 @@ async def test_files_owns_sha_key_dedup_and_last_upload_deletion(
     assert put.call_count == 1
     if not preexisting_object:
         put.assert_called_once_with(key=key, content=content, content_type="image/png")
-    await service.delete_uploaded_file(db, user, first.file_id)
+    await service.delete_upload(db, user, first.upload_id)
     assert storage.exists(key)
-    await service.delete_uploaded_file(db, user, second.file_id)
+    await service.delete_upload(db, user, second.upload_id)
     assert storage.exists(key)
     from tests.support.retirement import drain_retirements
 
@@ -999,7 +1000,7 @@ async def test_files_owns_sha_key_dedup_and_last_upload_deletion(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("preexisting_object", [False, True])
-async def test_files_failed_upload_retires_only_newly_written_bytes(
+async def test_uploads_failed_upload_retires_only_newly_written_bytes(
     storage_usage_session, monkeypatch, preexisting_object
 ):
     import io
@@ -1007,7 +1008,7 @@ async def test_files_failed_upload_retires_only_newly_written_bytes(
     from unittest.mock import AsyncMock
     from starlette.datastructures import UploadFile, Headers
     from app.core.exceptions import FileException
-    from app.modules.files.service import blob_object_key
+    from app.modules.uploads.service import blob_object_key
 
     session, storage = storage_usage_session
     _set_quota(session, 1024)
@@ -1015,7 +1016,7 @@ async def test_files_failed_upload_retires_only_newly_written_bytes(
     key = blob_object_key(hashlib.sha256(content).hexdigest(), ".png")
     if preexisting_object:
         storage.put_bytes(key=key, content=content, content_type="image/png")
-    service = FilesService(storage=storage)
+    service = UploadService(storage=storage)
     monkeypatch.setattr(
         service.repository,
         "create_upload",
@@ -1025,7 +1026,7 @@ async def test_files_failed_upload_retires_only_newly_written_bytes(
         io.BytesIO(content), filename="image.png", headers=Headers({"content-type": "image/png"})
     )
     with pytest.raises(FileException):
-        await service.upload_file(AsyncSessionAdapter(session), session.get(User, 1), upload)
+        await service.create_upload(AsyncSessionAdapter(session), session.get(User, 1), upload)
     assert storage.exists(key)
     from app.db.models import ObjectWriteIntent
     from tests.support.write_cleanup import drain_write_cleanup

@@ -57,6 +57,6 @@ logs/
 Thumbs.db
 
 # Project specific
-uploads/
+/uploads/
 output/
 temp/

@@ -15,7 +15,7 @@ from app.db.models import StorageUsageCategory
 from app.modules.storage_usage.service import storage_usage_service
 from app.modules.storage_objects.retirement import retire_after_release
 from app.db.models.score import Score
-from app.modules.performance_takes.aggregate import take_from_row
+from app.modules.performance_takes.aggregate import performance_take_facts_from_row
 from app.modules.performance_takes.recording_media_admission import recording_extension
 from app.modules.performance_takes.repository import PerformanceTakeRepository
 from app.modules.performance_takes.schemas import (
@@ -48,7 +48,7 @@ class PerformanceTakeService:
         score: Score | None = None,
         can_open_score: bool = False,
     ) -> PerformanceTakeRead:
-        facts = take_from_row(take)
+        facts = performance_take_facts_from_row(take)
         manifest, recording = facts.manifest, facts.recording_object
         linked_score_id = (
             score.score_uuid
@@ -163,7 +163,7 @@ class PerformanceTakeService:
                 "performance_take", take_id, ErrorCode.RESOURCE_NOT_FOUND
             )
 
-        facts = take_from_row(take)
+        facts = performance_take_facts_from_row(take)
         manifest, recording = facts.manifest, facts.recording_object
         playback_url = await self.async_storage.download_url(
             recording.object_key,
@@ -195,7 +195,7 @@ class PerformanceTakeService:
             raise ResourceNotFoundException(
                 "performance_take", take_id, ErrorCode.RESOURCE_NOT_FOUND
             )
-        facts = take_from_row(take)
+        facts = performance_take_facts_from_row(take)
         manifest, recording = facts.manifest, facts.recording_object
         extension = recording_extension(manifest.snapshot.capture.kind, recording.content_type)
         return (
@@ -216,7 +216,7 @@ class PerformanceTakeService:
                 "performance_take", take_id, ErrorCode.RESOURCE_NOT_FOUND
             )
 
-        facts = take_from_row(take)
+        facts = performance_take_facts_from_row(take)
         object_id = take.recording_object_id
         await db.delete(take)
         operations = await retire_after_release(db, object_id)

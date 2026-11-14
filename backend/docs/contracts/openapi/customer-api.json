@@ -178,7 +178,7 @@
         "title": "Body_authLogin",
         "type": "object"
       },
-      "Body_filesUpload": {
+      "Body_uploadsCreate": {
         "properties": {
           "file": {
             "contentMediaType": "application/octet-stream",
@@ -189,7 +189,7 @@
         "required": [
           "file"
         ],
-        "title": "Body_filesUpload",
+        "title": "Body_uploadsCreate",
         "type": "object"
       },
       "ChangePasswordRequest": {
@@ -837,14 +837,6 @@
       "ImportJobSubmitRequest": {
         "additionalProperties": false,
         "properties": {
-          "file_ids": {
-            "items": {
-              "type": "string"
-            },
-            "minItems": 1,
-            "title": "File Ids",
-            "type": "array"
-          },
           "idempotency_key": {
             "anyOf": [
               {
@@ -867,10 +859,18 @@
                 "type": "null"
               }
             ]
+          },
+          "upload_ids": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Upload Ids",
+            "type": "array"
           }
         },
         "required": [
-          "file_ids"
+          "upload_ids"
         ],
         "title": "ImportJobSubmitRequest",
         "type": "object"
@@ -4871,27 +4871,27 @@
         "title": "UpdateProfileRequest",
         "type": "object"
       },
-      "UploadFileRead": {
+      "UploadRead": {
         "properties": {
-          "file_id": {
-            "title": "File Id",
-            "type": "string"
-          },
-          "filename": {
-            "title": "Filename",
-            "type": "string"
-          },
-          "size": {
-            "title": "Size",
+          "byte_size": {
+            "title": "Byte Size",
             "type": "integer"
+          },
+          "original_filename": {
+            "title": "Original Filename",
+            "type": "string"
+          },
+          "upload_id": {
+            "title": "Upload Id",
+            "type": "string"
           }
         },
         "required": [
-          "file_id",
-          "filename",
-          "size"
+          "upload_id",
+          "original_filename",
+          "byte_size"
         ],
-        "title": "UploadFileRead",
+        "title": "UploadRead",
         "type": "object"
       },
       "User": {
@@ -5415,136 +5415,6 @@
         "summary": "Register User",
         "tags": [
           "Authentication"
-        ]
-      }
-    },
-    "/api/v1/files/upload": {
-      "post": {
-        "operationId": "filesUpload",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "$ref": "#/components/schemas/Body_filesUpload"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UploadFileRead"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponse"
-                }
-              }
-            },
-            "description": "Request or application validation failure."
-          },
-          "default": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponse"
-                }
-              }
-            },
-            "description": "Application failure."
-          }
-        },
-        "summary": "Upload File",
-        "tags": [
-          "File Operations"
-        ]
-      }
-    },
-    "/api/v1/files/{filename}": {
-      "delete": {
-        "operationId": "fileDelete",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "filename",
-            "required": true,
-            "schema": {
-              "title": "Filename",
-              "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponse"
-                }
-              }
-            },
-            "description": "Request or application validation failure."
-          },
-          "default": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponse"
-                }
-              }
-            },
-            "description": "Application failure."
-          }
-        },
-        "summary": "Delete File",
-        "tags": [
-          "File Operations"
         ]
       }
     },
@@ -11429,6 +11299,136 @@
         "summary": "Restore Revision",
         "tags": [
           "Scores"
+        ]
+      }
+    },
+    "/api/v1/uploads": {
+      "post": {
+        "operationId": "uploadsCreate",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_uploadsCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request or application validation failure."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Application failure."
+          }
+        },
+        "summary": "Create Upload",
+        "tags": [
+          "Uploads"
+        ]
+      }
+    },
+    "/api/v1/uploads/{upload_id}": {
+      "delete": {
+        "operationId": "uploadDelete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "upload_id",
+            "required": true,
+            "schema": {
+              "title": "Upload Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request or application validation failure."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Application failure."
+          }
+        },
+        "summary": "Delete Upload",
+        "tags": [
+          "Uploads"
         ]
       }
     },

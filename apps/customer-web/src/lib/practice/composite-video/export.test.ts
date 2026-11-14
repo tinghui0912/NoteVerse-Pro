@@ -1,6 +1,6 @@
 import { recordedPerformanceFixture } from "@/lib/practice/__fixtures__/recorded-performance";
 import { continuousPracticePlan } from "@/lib/practice/__fixtures__/practice-plan";
-import { artifact as videoArtifact } from "./__fixtures__/saved-take";
+import { artifact as videoArtifact } from "./__fixtures__/performance-take";
 // @vitest-environment jsdom
 
 import { beforeEach, describe, expect, it, vi } from "vitest";

@@ -85,7 +85,7 @@ physical deletion is deferred to retirement. Manifest and Reservation survive de
 
 ## Browser Save application command
 
-`PerformanceTakeSaveCommand` under `lib/practice/saved-take/save-command.ts` owns one
+`PerformanceTakeSaveCommand` under `lib/practice/performance-take/save-command.ts` owns one
 reserve → signed PUT → finalize operation and all Manifest/recording agreement checks.
 Construction synchronously retains one exact LocalMediaAsset lease, before React Query
 can schedule work. Execution/release is idempotent and releases that lease exactly once.

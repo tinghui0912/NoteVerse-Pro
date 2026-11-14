@@ -3,7 +3,7 @@ type UploadFileStatus = 'pending' | 'uploading' | 'uploaded' | 'error';
 export interface UploadableFile {
   file: File;
   preview: string;
-  fileId?: string;
+  uploadId?: string;
   status: UploadFileStatus;
   error?: string;
 }

@@ -44,7 +44,7 @@ import {
   type PerformanceTakeRead,
 } from '@/lib/api/performance-takes';
 import type { RecordingPlaybackSource } from '@/lib/practice/recording/recording-playback';
-import { isSavedCompositeVideoCandidate } from '@/lib/practice/saved-take/admission';
+import { isPerformanceTakeCompositeVideoCandidate } from '@/lib/practice/performance-take/admission';
 import { useToast } from '@/hooks/use-toast';
 
 function normalizePage(value?: string | number): number {
@@ -267,7 +267,7 @@ function PerformanceTakeCard({
                     : t('downloadRecording')}
               </Button>
 
-              {isSavedCompositeVideoCandidate(take) ? (
+              {isPerformanceTakeCompositeVideoCandidate(take) ? (
                 <Button asChild variant="outline" size="sm" className="gap-1.5">
                   <Link
                     href={`/my-performances/${take.take_id}/score-video`}

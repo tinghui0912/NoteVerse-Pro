@@ -236,7 +236,7 @@ def test_protected_endpoints_require_authentication(client: TestClient) -> None:
 
 def test_jobs_feature_routes_require_authentication(client: TestClient) -> None:
     protected_requests = [
-        ("post", "/api/v1/import-jobs", {"file_ids": ["file-1"]}),
+        ("post", "/api/v1/import-jobs", {"upload_ids": ["upload-1"]}),
         ("get", "/api/v1/import-jobs/test-job", None),
         ("post", "/api/v1/import-jobs/status/batch", {"job_ids": ["job-1"]}),
         ("delete", "/api/v1/import-jobs/test-job", None),
@@ -301,10 +301,10 @@ def test_library_feature_routes_require_authentication(client: TestClient) -> No
         assert response.status_code == 401, f"{method.upper()} {path}"
 
 
-def test_files_feature_routes_require_authentication(client: TestClient) -> None:
+def test_uploads_feature_routes_require_authentication(client: TestClient) -> None:
     protected_requests = [
-        ("post", "/api/v1/files/upload", None),
-        ("delete", "/api/v1/files/test.png", None),
+        ("post", "/api/v1/uploads", None),
+        ("delete", "/api/v1/uploads/test-upload-id", None),
     ]
 
     for method, path, payload in protected_requests:

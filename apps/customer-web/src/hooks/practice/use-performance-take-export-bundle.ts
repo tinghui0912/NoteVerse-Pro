@@ -5,7 +5,7 @@ import { queryKeys } from '@/lib/query-client';
 import { BundleFailure } from '@/lib/practice/failure/causal-failure';
 import { readPracticeBundle } from '@/lib/practice/bundle/bundle-representation';
 
-export function useSavedTakeExportBundle(
+export function usePerformanceTakeExportBundle(
   identity: {
     bundleId: string;
     scoreId: string;
@@ -16,7 +16,7 @@ export function useSavedTakeExportBundle(
 ) {
   const bundleQuery = useQuery({
     queryKey: [
-      ...queryKeys.savedTakeExport.bundle(identity.bundleId),
+      ...queryKeys.performanceTakeExport.bundle(identity.bundleId),
       identity,
     ],
     queryFn: ({ signal }) =>

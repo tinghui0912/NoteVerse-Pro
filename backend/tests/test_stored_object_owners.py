@@ -16,7 +16,7 @@ from app.modules.account.avatar_service import AvatarService
 from app.modules.account.avatar_presentation import avatar_url_for_user
 from app.modules.account.profile_service import ProfileService
 from app.modules.auth.schemas import User as UserRead
-from app.modules.files.service import FilesService
+from app.modules.uploads.service import UploadService
 from app.modules.storage_objects.persistence import object_from_bytes
 from app.modules.storage_objects.writes import write_object
 from tests.support.retirement import drain_retirements
@@ -62,15 +62,15 @@ async def test_upload_dedup_is_owned_by_upload_references(score_service_session)
     )
     db.commit()
     user = db.get(User, 1)
-    service = FilesService(storage=storage)
+    service = UploadService(storage=storage)
     put = Mock(wraps=storage.put_bytes)
     storage.put_bytes = put
-    first = await service.upload_file(
+    first = await service.create_upload(
         AsyncSessionAdapter(db),
         user,
         UploadFile(filename="first.png", file=io.BytesIO(image_bytes())),
     )
-    second = await service.upload_file(
+    second = await service.create_upload(
         AsyncSessionAdapter(db),
         user,
         UploadFile(filename="second.png", file=io.BytesIO(image_bytes())),
@@ -84,9 +84,9 @@ async def test_upload_dedup_is_owned_by_upload_references(score_service_session)
         == 2
     )
     physical_key = uploads[0].stored_object.object_key
-    await service.delete_uploaded_file(AsyncSessionAdapter(db), user, first.file_id)
+    await service.delete_upload(AsyncSessionAdapter(db), user, first.upload_id)
     assert storage.exists(physical_key)
-    await service.delete_uploaded_file(AsyncSessionAdapter(db), user, second.file_id)
+    await service.delete_upload(AsyncSessionAdapter(db), user, second.upload_id)
     assert storage.exists(physical_key)
     assert db.scalar(select(StoredObjectRetirement)).status == "PENDING"
     assert drain_retirements(db, storage)[0]["status"] == "completed"
@@ -297,8 +297,8 @@ async def test_upload_release_succeeds_while_score_source_retains_exact_object(
 
     db, storage = score_service_session
     user = db.get(User, 1)
-    service = FilesService(storage=storage)
-    response = await service.upload_file(
+    service = UploadService(storage=storage)
+    response = await service.create_upload(
         AsyncSessionAdapter(db),
         user,
         UploadFile(filename="score.png", file=io.BytesIO(image_bytes())),
@@ -324,7 +324,7 @@ async def test_upload_release_succeeds_while_score_source_retains_exact_object(
     )
     db.add(source)
     db.commit()
-    await service.delete_uploaded_file(AsyncSessionAdapter(db), user, response.file_id)
+    await service.delete_upload(AsyncSessionAdapter(db), user, response.upload_id)
     assert db.scalar(select(Upload)) is None
     assert db.get(StoredObject, identity) is not None and storage.exists(key)
     assert db.scalar(select(StoredObjectRetirement)) is None

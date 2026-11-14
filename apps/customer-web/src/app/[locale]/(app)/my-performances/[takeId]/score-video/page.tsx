@@ -22,12 +22,12 @@ import {
 } from "@/lib/practice/media/local-media-asset";
 import { downloadLocalMedia } from "@/lib/practice/media/download-local-media";
 import { ApiError } from "@/lib/http/customer-browser-transport";
-import { useSavedTakeExportBundle } from "@/hooks/practice/use-saved-take-export-bundle";
+import { usePerformanceTakeExportBundle } from "@/hooks/practice/use-performance-take-export-bundle";
 import { recordingPlaybackSource } from "@/lib/practice/recording/recording-playback";
 import {
-  admitSavedRecordedPerformance,
-  isSavedCompositeVideoCandidate,
-} from "@/lib/practice/saved-take/admission";
+  admitPerformanceTakeRecordedPerformance,
+  isPerformanceTakeCompositeVideoCandidate,
+} from "@/lib/practice/performance-take/admission";
 import { PracticeVerovioAdapter } from "@/lib/practice/score-view/verovio-adapter";
 
 function takeIdFromParams(params: ReturnType<typeof useParams>): string {
@@ -41,7 +41,7 @@ function isPermanentResourceError(error: unknown): boolean {
   );
 }
 
-function SavedTakeExportUnavailable({
+function PerformanceTakeExportUnavailable({
   message,
   backLabel,
   onBack,
@@ -75,16 +75,16 @@ function SavedTakeExportUnavailable({
   );
 }
 
-export default function SavedPerformanceCompositeVideoPage() {
+export default function PerformanceTakeCompositeVideoPage() {
   const params = useParams();
   const router = useRouter();
   const t = useTranslations("practice");
   const takeId = takeIdFromParams(params);
   const takeQuery = usePerformanceTakeDetail(takeId);
   const take = takeQuery.data ?? null;
-  const isBaseEligible = Boolean(take && isSavedCompositeVideoCandidate(take));
+  const isBaseEligible = Boolean(take && isPerformanceTakeCompositeVideoCandidate(take));
 
-  const bundle = useSavedTakeExportBundle(
+  const bundle = usePerformanceTakeExportBundle(
     {
       bundleId: take?.manifest.practice_binding.bundle_id ?? "",
       scoreId: take?.manifest.practice_binding.score_id ?? "",
@@ -169,7 +169,7 @@ export default function SavedPerformanceCompositeVideoPage() {
   const isBundleReady = Boolean(bundle.artifact && bundle.musicXml);
   const admission = useMemo(() => {
     if (!take || !mediaHandle || !artifact || !isBundleReady) return null;
-    return admitSavedRecordedPerformance(
+    return admitPerformanceTakeRecordedPerformance(
       take,
       {
         binding: bundle.binding!,
@@ -208,17 +208,17 @@ export default function SavedPerformanceCompositeVideoPage() {
   }
   if (takeQuery.isError || !take) {
     return (
-      <SavedTakeExportUnavailable
+      <PerformanceTakeExportUnavailable
         message={
           isPermanentResourceError(takeQuery.error)
-            ? t("savedTakeCompositeVideoUnavailable")
-            : t("savedTakeCompositeVideoTemporaryUnavailable")
+            ? t("performanceTakeCompositeVideoUnavailable")
+            : t("performanceTakeCompositeVideoTemporaryUnavailable")
         }
-        backLabel={t("savedTakeCompositeVideoBack")}
+        backLabel={t("performanceTakeCompositeVideoBack")}
         retryLabel={
           isPermanentResourceError(takeQuery.error)
             ? undefined
-            : t("savedTakeCompositeVideoRetry")
+            : t("performanceTakeCompositeVideoRetry")
         }
         onRetry={
           isPermanentResourceError(takeQuery.error)
@@ -229,26 +229,26 @@ export default function SavedPerformanceCompositeVideoPage() {
       />
     );
   }
-  if (!isSavedCompositeVideoCandidate(take)) {
+  if (!isPerformanceTakeCompositeVideoCandidate(take)) {
     return (
-      <SavedTakeExportUnavailable
-        message={t("savedTakeCompositeVideoUnavailable")}
-        backLabel={t("savedTakeCompositeVideoBack")}
+      <PerformanceTakeExportUnavailable
+        message={t("performanceTakeCompositeVideoUnavailable")}
+        backLabel={t("performanceTakeCompositeVideoBack")}
         onBack={() => router.push("/my-performances")}
       />
     );
   }
   if (mediaError) {
     return (
-      <SavedTakeExportUnavailable
+      <PerformanceTakeExportUnavailable
         message={
           mediaErrorPermanent
-            ? t("savedTakeCompositeVideoUnavailable")
-            : t("savedTakeCompositeVideoTemporaryUnavailable")
+            ? t("performanceTakeCompositeVideoUnavailable")
+            : t("performanceTakeCompositeVideoTemporaryUnavailable")
         }
-        backLabel={t("savedTakeCompositeVideoBack")}
+        backLabel={t("performanceTakeCompositeVideoBack")}
         retryLabel={
-          mediaErrorPermanent ? undefined : t("savedTakeCompositeVideoRetry")
+          mediaErrorPermanent ? undefined : t("performanceTakeCompositeVideoRetry")
         }
         onRetry={
           mediaErrorPermanent
@@ -271,12 +271,12 @@ export default function SavedPerformanceCompositeVideoPage() {
   if (!playbackSource) {
     return (
       <div className="mx-auto max-w-4xl space-y-6 px-4 py-8">
-        <PageHeader title={t("savedTakeCompositeVideoTitle")} />
+        <PageHeader title={t("performanceTakeCompositeVideoTitle")} />
         <Card>
           <CardContent className="flex min-h-48 flex-col items-center justify-center gap-3 p-8 text-sm text-muted-foreground">
             {mediaProgress.totalBytes ? (
               <p>
-                {t("savedTakeCompositeVideoLoadingMedia", {
+                {t("performanceTakeCompositeVideoLoadingMedia", {
                   progress: ` ${Math.round(
                     (mediaProgress.loadedBytes / mediaProgress.totalBytes) *
                       100,
@@ -285,7 +285,7 @@ export default function SavedPerformanceCompositeVideoPage() {
               </p>
             ) : (
               <p>
-                {t("savedTakeCompositeVideoLoadingMedia", { progress: "" })}
+                {t("performanceTakeCompositeVideoLoadingMedia", { progress: "" })}
               </p>
             )}
             {mediaProgress.totalBytes ? (
@@ -296,7 +296,7 @@ export default function SavedPerformanceCompositeVideoPage() {
                   mediaProgress.totalBytes,
                 )}
                 max={mediaProgress.totalBytes}
-                aria-label={t("savedTakeCompositeVideoLoadingMedia", {
+                aria-label={t("performanceTakeCompositeVideoLoadingMedia", {
                   progress: `${Math.round(
                     (mediaProgress.loadedBytes / mediaProgress.totalBytes) *
                       100,
@@ -307,7 +307,7 @@ export default function SavedPerformanceCompositeVideoPage() {
               <Loader2 className="h-5 w-5 animate-spin" />
             )}
             {!mediaHandle ? null : (
-              <p>{t("savedTakeCompositeVideoPreparing")}</p>
+              <p>{t("performanceTakeCompositeVideoPreparing")}</p>
             )}
           </CardContent>
         </Card>
@@ -318,7 +318,7 @@ export default function SavedPerformanceCompositeVideoPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
       <PageHeader
-        title={t("savedTakeCompositeVideoTitle")}
+        title={t("performanceTakeCompositeVideoTitle")}
         description={take.manifest.score_title_snapshot}
         actions={
           <Button
@@ -326,7 +326,7 @@ export default function SavedPerformanceCompositeVideoPage() {
             onClick={() => router.push("/my-performances")}
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
-            {t("savedTakeCompositeVideoBack")}
+            {t("performanceTakeCompositeVideoBack")}
           </Button>
         }
       />
@@ -335,7 +335,7 @@ export default function SavedPerformanceCompositeVideoPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-sm">
-              {t("savedTakeCompositeVideoRecording")}
+              {t("performanceTakeCompositeVideoRecording")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -359,7 +359,7 @@ export default function SavedPerformanceCompositeVideoPage() {
         <Card className="overflow-hidden">
           <CardHeader>
             <CardTitle className="text-sm">
-              {t("savedTakeCompositeVideoScore")}
+              {t("performanceTakeCompositeVideoScore")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -368,8 +368,8 @@ export default function SavedPerformanceCompositeVideoPage() {
                 <p>
                   {t(
                     exportUnavailable
-                      ? "savedTakeCompositeVideoRevisionUnavailable"
-                      : "savedTakeCompositeVideoTemporaryUnavailable",
+                      ? "performanceTakeCompositeVideoRevisionUnavailable"
+                      : "performanceTakeCompositeVideoTemporaryUnavailable",
                   )}
                 </p>
                 {!exportUnavailable && (
@@ -378,7 +378,7 @@ export default function SavedPerformanceCompositeVideoPage() {
                       void bundleQuery.refetch();
                     }}
                   >
-                    {t("savedTakeCompositeVideoRetry")}
+                    {t("performanceTakeCompositeVideoRetry")}
                   </Button>
                 )}
               </div>
@@ -393,12 +393,12 @@ export default function SavedPerformanceCompositeVideoPage() {
                 svgClassName="w-full"
                 loadingContent={
                   <div className="p-8 text-sm text-muted-foreground">
-                    {t("savedTakeCompositeVideoLoading")}
+                    {t("performanceTakeCompositeVideoLoading")}
                   </div>
                 }
                 emptyContent={
                   <div className="p-8 text-sm text-muted-foreground">
-                    {t("savedTakeCompositeVideoEmptyScore")}
+                    {t("performanceTakeCompositeVideoEmptyScore")}
                   </div>
                 }
                 renderError={(message) => (

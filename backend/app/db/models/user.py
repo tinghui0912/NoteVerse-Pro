@@ -9,7 +9,7 @@ from app.utils.timezone import utc_now_naive
 
 if TYPE_CHECKING:
     from .auth import RefreshToken
-    from .file import Upload
+    from .upload import Upload
 
 
 class User(SQLModel, table=True):  # type: ignore[call-arg]

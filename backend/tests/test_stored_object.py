@@ -4,7 +4,7 @@ from dataclasses import FrozenInstanceError
 import pytest
 from app.modules.storage_objects.facts import StoredObjectFacts
 from app.modules.storage_objects.persistence import object_from_row, object_to_row
-from app.modules.performance_takes.aggregate import SavedTakeFacts
+from app.modules.performance_takes.aggregate import PerformanceTakeFacts
 from tests.test_take_manifest import value as manifest_value
 
 
@@ -17,7 +17,7 @@ def test_exact_object_facts_round_trip_and_immutable_value():
     assert object_from_row(object_to_row(original)) == original
     with pytest.raises(FrozenInstanceError):
         original.byte_size = 1
-    assert SavedTakeFacts(manifest_value(), original).recording_object is original
+    assert PerformanceTakeFacts(manifest_value(), original).recording_object is original
 
 
 def test_exact_bytes_include_empty_objects_and_sha_is_not_globally_unique():
@@ -115,7 +115,7 @@ def test_aggregate_rejects_archive_that_does_not_preserve_capture(update):
     from dataclasses import replace
 
     with pytest.raises(ValueError):
-        SavedTakeFacts(manifest_value(), replace(facts(), **update))
+        PerformanceTakeFacts(manifest_value(), replace(facts(), **update))
 
 
 def test_physical_schema_and_dependency_ownership():

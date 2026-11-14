@@ -10,7 +10,7 @@ export { authApi } from './auth';
 export { importJobsApi } from './import-jobs';
 
 // File API.
-export { filesApi } from './files';
+export { uploadsApi } from './uploads';
 
 // XML editing API.
 

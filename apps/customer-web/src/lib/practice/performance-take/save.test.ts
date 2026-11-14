@@ -2,16 +2,16 @@ import { expect, it } from 'vitest';
 import {
   artifact,
   take,
-} from '@/lib/practice/composite-video/__fixtures__/saved-take';
+} from '@/lib/practice/composite-video/__fixtures__/performance-take';
 import { localMediaAssetFixture } from '@/lib/practice/__fixtures__/local-media-asset';
-import { admitSavedRecordedPerformance } from './admission';
+import { admitPerformanceTakeRecordedPerformance } from './admission';
 import {
-  savedTakeAgreesWithRecordedPerformance,
+  performanceTakeAgreesWithRecordedPerformance,
   performanceTakeUploadRequest,
   takeManifestAgreesWithRecordedPerformance,
 } from './save';
 
-const admitted = admitSavedRecordedPerformance(
+const admitted = admitPerformanceTakeRecordedPerformance(
   take,
   {
     binding: {
@@ -42,7 +42,7 @@ it('projects a reservation solely from the recorded execution and request identi
   expect(
     takeManifestAgreesWithRecordedPerformance(take.manifest, performance),
   ).toBe(true);
-  expect(savedTakeAgreesWithRecordedPerformance(take, performance)).toBe(true);
+  expect(performanceTakeAgreesWithRecordedPerformance(take, performance)).toBe(true);
 });
 
 const corruptions: [string, (value: typeof take) => void][] = [
@@ -145,7 +145,7 @@ it.each(corruptions)(
     expect(
       takeManifestAgreesWithRecordedPerformance(value.manifest, performance),
     ).toBe(false);
-    expect(savedTakeAgreesWithRecordedPerformance(value, performance)).toBe(
+    expect(performanceTakeAgreesWithRecordedPerformance(value, performance)).toBe(
       false,
     );
   },
@@ -156,7 +156,7 @@ it.each(['mime_type', 'byte_size'] as const)(
     const value = structuredClone(take);
     if (field === 'mime_type') value.recording_media.mime_type = 'video/mp4';
     else value.recording_media.byte_size++;
-    expect(savedTakeAgreesWithRecordedPerformance(value, performance)).toBe(
+    expect(performanceTakeAgreesWithRecordedPerformance(value, performance)).toBe(
       false,
     );
   },

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import {
-  authLogin, authLogout, authRefresh, filesUpload, guestPreviewGet, importJobArtifactDownload,
+  authLogin, authLogout, authRefresh, uploadsCreate, guestPreviewGet, importJobArtifactDownload,
   performanceTakeMediaStream, performanceTakeDelete, scoreInvitesCreate, scoreInvitesList, scoresGet,
   type ApiErrorResponse,
 } from '@/generated/api';
@@ -59,7 +59,7 @@ it('uses generated OAuth form encoding without refreshing an auth-bootstrap requ
 
 it('uses generated multipart encoding with a browser-supplied boundary', async () => {
   const send = vi.fn<typeof fetch>(async () => success());
-  await filesUpload({ ...transport(send).authenticated, body: { file: new File(['score bytes'], 'score.xml', { type: 'application/xml' }) } });
+  await uploadsCreate({ ...transport(send).authenticated, body: { file: new File(['score bytes'], 'score.xml', { type: 'application/xml' }) } });
   const request = requestAt(send);
   expect(request.headers.get('Content-Type')).toMatch(/^multipart\/form-data; boundary=/);
   const file = (await request.formData()).get('file') as File;
@@ -113,7 +113,7 @@ it.each(['json', 'form', 'multipart', 'bodyless'] as const)('replays the complet
   const options = transport(send).authenticated;
   if (kind === 'json') await scoreInvitesCreate({ ...options, path: { score_id: 's' }, body: inviteBody });
   if (kind === 'form') await authLogin({ ...options, body: { username: 'user', password: 'secret & value' } });
-  if (kind === 'multipart') await filesUpload({ ...options, body: { file: new File(['contents'], 'a.xml') } });
+  if (kind === 'multipart') await uploadsCreate({ ...options, body: { file: new File(['contents'], 'a.xml') } });
   if (kind === 'bodyless') await authLogout({ ...options });
   expect(refreshCount).toBe(1);
   expect(originalCount).toBe(2);

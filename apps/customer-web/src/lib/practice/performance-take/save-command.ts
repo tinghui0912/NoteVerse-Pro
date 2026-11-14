@@ -3,7 +3,7 @@ import { releaseLocalMediaAsset } from '@/lib/practice/media/local-media-asset';
 import type { performanceTakesApi } from '@/lib/api/performance-takes';
 import {
   performanceTakeUploadRequest,
-  savedTakeAgreesWithRecordedPerformance,
+  performanceTakeAgreesWithRecordedPerformance,
   takeManifestAgreesWithRecordedPerformance,
   type SavePerformanceTakeInput,
 } from './save';
@@ -67,13 +67,13 @@ export class PerformanceTakeSaveCommand {
     }
     if (reservation.status === 'COMPLETED') {
       if (!reservation.take)
-        throw new Error('Completed reservation has no saved take');
+        throw new Error('Completed reservation has no PerformanceTake');
       if (
         !takeManifestAgreesWithRecordedPerformance(
           reservation.take.manifest,
           this.input.recordedPerformance,
         ) ||
-        !savedTakeAgreesWithRecordedPerformance(
+        !performanceTakeAgreesWithRecordedPerformance(
           reservation.take,
           this.input.recordedPerformance,
         )
@@ -112,7 +112,7 @@ export class PerformanceTakeSaveCommand {
         finalized.manifest,
         this.input.recordedPerformance,
       ) ||
-      !savedTakeAgreesWithRecordedPerformance(
+      !performanceTakeAgreesWithRecordedPerformance(
         finalized,
         this.input.recordedPerformance,
       )

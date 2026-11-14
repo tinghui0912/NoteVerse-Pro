@@ -15,7 +15,7 @@ PUBLIC_IMPORT_JOB_ERROR_CODES = {
     ErrorCode.INPUT_FILE_MISSING,
     ErrorCode.JOB_NOT_FOUND,
     ErrorCode.JOB_RUNNING,
-    ErrorCode.NO_FILE_IDS,
+    ErrorCode.NO_UPLOAD_IDS,
     ErrorCode.SCORE_RECOGNITION_FAILED,
     ErrorCode.STORAGE_QUOTA_EXCEEDED,
     ErrorCode.TASK_ERROR,
@@ -29,4 +29,3 @@ def public_import_job_error(job: ImportJobFailureLike) -> tuple[str | None, str 
     if job.error:
         return ErrorCode.TASK_ERROR, ErrorCode.TASK_ERROR
     return None, None
-

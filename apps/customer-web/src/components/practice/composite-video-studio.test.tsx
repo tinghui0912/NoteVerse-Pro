@@ -11,11 +11,11 @@ import { CompositeVideoStudio } from "./composite-video-studio";
 import { exportCompositeVideo } from "@/lib/practice/composite-video/export";
 import { downloadCompositeVideo } from "@/lib/practice/composite-video/download";
 import { createLocalMediaAsset } from "@/lib/practice/media/local-media-asset";
-import { admitSavedRecordedPerformance } from "@/lib/practice/saved-take/admission";
+import { admitPerformanceTakeRecordedPerformance } from "@/lib/practice/performance-take/admission";
 import {
   take,
   artifact,
-} from "@/lib/practice/composite-video/__fixtures__/saved-take";
+} from "@/lib/practice/composite-video/__fixtures__/performance-take";
 
 vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
 vi.mock("@/lib/practice/composite-video/preview", () => ({
@@ -37,7 +37,7 @@ function studio() {
     new Blob(["derivative"], { type: "video/webm" }),
     outputRemoved,
   );
-  const adapted = admitSavedRecordedPerformance(
+  const adapted = admitPerformanceTakeRecordedPerformance(
     take,
     {
       binding: {

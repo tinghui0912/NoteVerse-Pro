@@ -1020,7 +1020,7 @@ performs no Bundle recovery. Saved media does not reconstruct a Practice Report.
 
 Save Recording persists media only through an explicit user action. It does not
 persist evaluation, metrics or provenance, and does not extend the report lifetime.
-My Performances is a saved Take library with playback/download/composite-video actions,
+My Performances is a PerformanceTake library with playback/download/composite-video actions,
 without learner report statistics or saved learner-report navigation.
 
 ## PerformanceTake Upload Reservation
@@ -1050,7 +1050,7 @@ Client-request
 idempotency belongs to this boundary: equal normalized metadata returns the same
 reservation/take identities; different metadata conflicts. RESERVED replay can refresh
 the signed upload target. FINALIZING replay provides state, and COMPLETED replay returns
-the saved Take. The nested upload target is an ephemeral URL/method/headers/expiry capability.
+the PerformanceTake. The nested upload target is an ephemeral URL/method/headers/expiry capability.
 
 `POST /performance-takes/upload-reservations/{reservation_id}/finalize` has no body.
 It references the admitted immutable Manifest without Bundle reads or replanning. Live score deletion,
@@ -1150,10 +1150,10 @@ recording. TransientReviewSession contains `{ result, recording, musicXml }` and
 retains its recording media once. For READY recording, the Review route derives one
 memoized pairing that borrows the retained recording for Save, replay and Composite Video.
 
-`saved-take/admission.ts` is the saved Take API-to-domain admission boundary.
+`performance-take/admission.ts` is the PerformanceTake API-to-domain admission boundary.
 It validates the Manifest against the reauthorized Bundle and materialized media;
 saved score replay and export share the admitted RecordedPerformance. Save
-request projection and Manifest agreement live in `saved-take/save.ts`.
+request projection and Manifest agreement live in `performance-take/save.ts`.
 CompositeVideoStudio accepts the cohesive CompositeVideoInput and open/export-operation
 callbacks. It receives no Review DOM, renderer, decoder, playback time or score-identity flag.
 The core owns its source lease and output recorder; Studio owns local download and retires
@@ -1220,7 +1220,7 @@ Neither depends on Practice product domains.
 
 Recording owns Capture semantics and its RecordingSink port. The OPFS recording
 adapter maps media-storage admission errors into RecordingFailure. PerformanceTake
-owns durable saved Take semantics; Composite Video owns derivative composition. These
+owns durable PerformanceTake semantics; Composite Video owns derivative composition. These
 consumers depend on shared media and do not own its generic byte infrastructure.
 
 All locally materialized performance media uses `LocalMediaAsset`: one handle owns
@@ -1267,7 +1267,7 @@ lock succeeds. Other tabs' live captures are protected; crashed owners lose thei
 locks and their files become reclaimable. No age heuristic or cross-namespace sweep
 is used. OPFS is temporary storage, not Review recovery: reload still expires Review.
 
-Saved Take score-video export streams its authenticated HTTP response directly into
+PerformanceTake score-video export streams its authenticated HTTP response directly into
 temporary OPFS, writing each chunk before reading the next. It never buffers the whole
 source media in JavaScript heap. Content-Length, when present, must agree with durable
 Take size; the final written byte count must match that size, and response MIME must
@@ -1322,12 +1322,12 @@ Manifest facts. Take hydration rejects recording/Capture disagreement. Take dele
 and accounting while retaining Manifest and Reservation. StoredObjectRetirement queues physical deletion
 only after all semantic references disappear. StorageUsage owns accounting, not byte-object identity.
 
-## Saved Take public resource
+## PerformanceTake public resource
 
 A PerformanceTake references one immutable admitted Manifest and one original recording
 StoredObject, plus optional live Score navigation and library membership. `recording_media`
 projects verified StoredObject MIME and byte size. `manifest.capture` remains the admitted
-browser evidence; saved Take admission verifies agreement between those authorities.
+browser evidence; PerformanceTake admission verifies agreement between those authorities.
 Playback responses carry only take_id, playback_url, download_url and expires_in.
 
 DELETE completes semantic Take deletion and logical quota release transactionally before

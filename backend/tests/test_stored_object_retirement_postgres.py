@@ -25,7 +25,7 @@ from app.db.models import (
     StorageUsageCounter,
     StorageUsageCategory,
 )
-from app.modules.files.service import FilesService, blob_object_key
+from app.modules.uploads.service import UploadService, blob_object_key
 from app.modules.storage_objects.persistence import object_from_bytes
 from app.modules.storage_objects.retirement import (
     retire_released_objects,
@@ -110,7 +110,7 @@ async def seed(fixture, *, prior_owner=False, queued=True):
             db.add(upload)
         await db.commit()
         if prior_owner:
-            await FilesService(storage=storage).delete_uploaded_file(
+            await UploadService(storage=storage).delete_upload(
                 db, await db.get(User, 1), upload.upload_uuid
             )
         elif queued:
@@ -160,7 +160,7 @@ async def test_retirement_vs_upload_reacquisition_after_last_reference_release(
             pid = await db.scalar(text("SELECT pg_backend_pid()"))
             user = await db.get(User, 1)
             upload = asyncio.create_task(
-                FilesService(storage=storage).upload_file(
+                UploadService(storage=storage).create_upload(
                     db,
                     user,
                     UploadFile(
@@ -179,7 +179,7 @@ async def test_retirement_vs_upload_reacquisition_after_last_reference_release(
         outcome = await asyncio.wait_for(deleting, 10)
         assert outcome["status"] == ("completed" if worker_wins else "ignored")
         async with sessions() as db:
-            row = await db.scalar(select(Upload).where(Upload.upload_uuid == uploaded.file_id))
+            row = await db.scalar(select(Upload).where(Upload.upload_uuid == uploaded.upload_id))
             assert storage.read_bytes(row.stored_object.object_key) == CONTENT
             assert (row.stored_object_id != identity) is worker_wins
             operation = await db.scalar(
@@ -328,7 +328,7 @@ async def test_shared_take_release_keeps_lineage_and_accounts_before_physical_re
         assert (await db.get(StorageUsageAccount, 1)).used_bytes == len(MEDIA)
         assert manifest_from_row(await db.get(PerformanceTakeManifest, manifest_id)) == manifest
         assert (await db.scalar(select(PerformanceTakeUploadReservation))).status == "COMPLETED"
-        await FilesService(storage=storage).delete_uploaded_file(
+        await UploadService(storage=storage).delete_upload(
             db, await db.get(User, 1), upload.upload_uuid
         )
         operation = await db.scalar(select(StoredObjectRetirement))

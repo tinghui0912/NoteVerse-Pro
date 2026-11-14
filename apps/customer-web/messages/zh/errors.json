@@ -33,7 +33,7 @@
   "task_timeout": "处理时间过长，请稍后重试。",
   "job_not_found": "该处理任务不存在或已被删除。",
   "job_running": "该处理任务仍在运行中。",
-  "no_file_ids": "请至少上传一个文件。",
+  "no_upload_ids": "请至少上传一个文件。",
   "score_not_found": "乐谱不存在或已被删除。",
   "revision_not_found": "乐谱版本不存在或已被删除。",
   "revision_conflict": "这份乐谱已在其他地方更新，请刷新后重试。",

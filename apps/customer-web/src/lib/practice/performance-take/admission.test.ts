@@ -1,9 +1,9 @@
 import { expect, it } from "vitest";
-import { admitSavedRecordedPerformance } from "./admission";
+import { admitPerformanceTakeRecordedPerformance } from "./admission";
 import {
   artifact,
   take,
-} from "@/lib/practice/composite-video/__fixtures__/saved-take";
+} from "@/lib/practice/composite-video/__fixtures__/performance-take";
 import { localMediaAssetFixture } from "@/lib/practice/__fixtures__/local-media-asset";
 import { recordingPlaybackSource } from "@/lib/practice/recording/recording-playback";
 const bundle = {
@@ -25,7 +25,7 @@ it.each([20.5, 80.5, 300.25])("hydrates exact saved Custom BPM %s", (bpm) => {
     selection: { mode: "CUSTOM_FIXED_BPM", bpm },
     segments: [{ startTick: 0, bpm, source: "CUSTOM" }],
   };
-  const result = admitSavedRecordedPerformance(value, bundle, media());
+  const result = admitPerformanceTakeRecordedPerformance(value, bundle, media());
   expect(result.status).toBe("supported");
   if (result.status !== "supported") throw new Error(result.reason);
   expect(result.recordedPerformance.executed.tempoPlan).toEqual(
@@ -34,7 +34,7 @@ it.each([20.5, 80.5, 300.25])("hydrates exact saved Custom BPM %s", (bpm) => {
 });
 it("admits exactly one recording with canonical artifact and durable scope/tempo/timebase", () => {
   const handle = media(),
-    result = admitSavedRecordedPerformance(take, bundle, handle);
+    result = admitPerformanceTakeRecordedPerformance(take, bundle, handle);
   expect(result.status).toBe("supported");
   if (result.status !== "supported") throw new Error(result.reason);
   const p = result.recordedPerformance;
@@ -63,7 +63,7 @@ it("validates range identity and ticks before admitting the persisted selection"
     start_tick: 4,
     terminal_tick: 16,
   };
-  const result = admitSavedRecordedPerformance(value, bundle, media());
+  const result = admitPerformanceTakeRecordedPerformance(value, bundle, media());
   expect(result.status).toBe("supported");
   if (result.status === "supported")
     expect(result.recordedPerformance.executed.scope).toMatchObject({
@@ -254,13 +254,13 @@ it.each(corruptions)("rejects %s without repair", (_, change) => {
   const value = structuredClone(take);
   change(value);
   const before = structuredClone(value);
-  expect(admitSavedRecordedPerformance(value, bundle, media()).status).toBe(
+  expect(admitPerformanceTakeRecordedPerformance(value, bundle, media()).status).toBe(
     "unsupported",
   );
   expect(value).toEqual(before);
 });
 it("rejects local byte size mismatch", () => {
-  expect(admitSavedRecordedPerformance(take, bundle, media(9)).status).toBe(
+  expect(admitPerformanceTakeRecordedPerformance(take, bundle, media(9)).status).toBe(
     "unsupported",
   );
 });

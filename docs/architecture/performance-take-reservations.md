@@ -19,7 +19,7 @@ its generated projections feed browser Recording and the backend PerformanceTake
 Codec parameters normalize to the
 container MIME for Save admission without transcoding or changing the accepted MIME set.
 
-PerformanceTake is a durable saved Take retaining the exact original recording bytes.
+PerformanceTake is a durable resource retaining the exact original recording bytes.
 Signed upload, staging verification and the final recording object preserve those bytes
 and container. WebM requires its EBML header; MP4 audio/video requires the ISO BMFF
 `ftyp` signature at byte offset four. Media kind and Content-Type agree with the

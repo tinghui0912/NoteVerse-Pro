@@ -384,7 +384,7 @@ raw MediaRecorder writes, and READY media carries one `LocalMediaAsset`. Control
 retirement, Review handoff and asynchronous media consumers retain/release that owner
 without changing borrowed physical roots or the performance timebase. Storage write
 failure is a recording-only hard intervention, not acoustic failure or root loss.
-Saved Take media streams into a separate temporary OPFS namespace and yields the
+PerformanceTake media streams into a separate temporary OPFS namespace and yields the
 same handle contract. Review/replay, raw download, save and VideoExport hold explicit
 leases; the last reference removes backing storage. RecordedPerformance pairs the executed semantics with one READY recording.
 The studio retains its recording media for every export operation. Downloaded Take bytes are not buffered wholesale in JavaScript heap
@@ -490,7 +490,7 @@ its recording supplies media and RecordingTimebase. Review and VideoExport use t
 same recorded-performance media-time-to-score-tick mapping. CursorScope is derived
 presentation, and MusicXML remains a separate notation representation.
 
-The archive admission boundary validates a saved TakeManifest against the
+The archive admission boundary validates a PerformanceTakeManifest against the
 reauthorized Bundle and materialized media once. Saved replay and VideoExport
 share that RecordedPerformance. Raw saved media playback remains independent of
 Bundle availability. Save transport projects its request from RecordedPerformance

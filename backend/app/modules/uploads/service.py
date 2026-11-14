@@ -13,33 +13,33 @@ from app.core.exceptions import (
 )
 from app.db.model_utils import require_persisted_id
 from app.db.models import StoredObject, StorageUsageCategory, User
-from app.modules.files.repository import FilesRepository
+from app.modules.uploads.repository import UploadRepository
 from app.modules.storage_objects.retirement import retire_after_release
 from app.modules.storage_objects.writes import write_object_async, adopt_written_object
-from app.modules.files.schemas import UploadFileRead
+from app.modules.uploads.schemas import UploadRead
 from app.modules.storage_usage.service import storage_usage_service
 from app.shared.constants import ErrorCode
 from app.storage import ObjectStorage, object_storage, AsyncObjectStorage
-from app.modules.files.upload_admission import read_score_import_upload, admit_score_import_image
+from app.modules.uploads.upload_admission import read_score_import_upload, admit_score_import_image
 
 
 def blob_object_key(sha256: str, extension: str) -> str:
     return f"blobs/{sha256[:2]}/{sha256}{extension}"
 
 
-class FilesService:
+class UploadService:
     """Own uploaded processing inputs; score source and derived delivery live elsewhere."""
 
     def __init__(
-        self, repository: FilesRepository | None = None, storage: ObjectStorage | None = None
+        self, repository: UploadRepository | None = None, storage: ObjectStorage | None = None
     ) -> None:
-        self.repository = repository or FilesRepository()
+        self.repository = repository or UploadRepository()
         self.storage = storage or object_storage
         self.async_storage = AsyncObjectStorage(self.storage)
 
-    async def upload_file(
+    async def create_upload(
         self, db: AsyncSession, current_user: User, file: UploadFile
-    ) -> UploadFileRead:
+    ) -> UploadRead:
         if not file.filename:
             raise ValidationException(code=ErrorCode.NO_FILE_SELECTED, field="file")
         content = await read_score_import_upload(file)
@@ -53,7 +53,7 @@ class FilesService:
             user_id=user_id,
             category=StorageUsageCategory.UPLOAD,
             bytes_count=len(content),
-            reason="upload_file",
+            reason="upload_created",
             object_type="upload",
             object_id=file_hash,
         )
@@ -86,22 +86,20 @@ class FilesService:
                 code=ErrorCode.FILE_SAVE_FAILED,
                 filename=file.filename,
             ) from exc
-        return UploadFileRead(
-            file_id=upload.upload_uuid,
-            filename=file.filename,
-            size=persisted_blob.byte_size,
+        return UploadRead(
+            upload_id=upload.upload_uuid,
+            original_filename=upload.original_filename,
+            byte_size=persisted_blob.byte_size,
         )
 
-    async def delete_uploaded_file(
-        self, db: AsyncSession, current_user: User, filename: str
-    ) -> None:
-        upload = await self.repository.get_upload_by_uuid(db, filename)
+    async def delete_upload(self, db: AsyncSession, current_user: User, upload_id: str) -> None:
+        upload = await self.repository.get_upload_by_uuid(db, upload_id)
         if not upload:
-            raise ResourceNotFoundException("file", filename, ErrorCode.FILE_NOT_FOUND)
+            raise ResourceNotFoundException("upload", upload_id, ErrorCode.FILE_NOT_FOUND)
         if upload.uploader_user_id != current_user.id:
-            raise UnauthorizedException(ErrorCode.NO_DELETE_ACCESS, {"filename": filename})
-        upload_id = require_persisted_id(upload.id, entity="upload")
-        if await self.repository.upload_reference_count(db, upload_id) > 0:
+            raise UnauthorizedException(ErrorCode.NO_DELETE_ACCESS, {"upload_id": upload_id})
+        upload_pk = require_persisted_id(upload.id, entity="upload")
+        if await self.repository.upload_reference_count(db, upload_pk) > 0:
             raise ConflictException(ErrorCode.VALIDATION_ERROR, {"upload_id": upload.upload_uuid})
         blob = await db.get(StoredObject, upload.stored_object_id)
         if blob is None:
@@ -130,4 +128,4 @@ class FilesService:
         return None
 
 
-files_service = FilesService()
+upload_service = UploadService()

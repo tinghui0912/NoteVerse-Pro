@@ -136,7 +136,7 @@ function recordingTimebaseMatchesExecution(
   );
 }
 
-export function savedTakeAgreesWithRecordedPerformance(
+export function performanceTakeAgreesWithRecordedPerformance(
   take: PerformanceTakeRead,
   performance: RecordedPerformance,
 ): boolean {

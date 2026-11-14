@@ -7,7 +7,7 @@ from app.modules.auth.email_change_router import me_router as account_email_chan
 from app.modules.auth.password_router import router as auth_password
 from app.modules.auth.security_router import router as auth_security
 from app.modules.auth.sessions_router import router as auth_sessions
-from app.modules.files.router import router as files
+from app.modules.uploads.router import router as uploads
 from app.modules.import_jobs.router import router as jobs
 from app.modules.library.router import router as library
 from app.modules.notifications.router import router as notifications
@@ -53,7 +53,7 @@ api_router.include_router(
 api_router.include_router(
     render_asset_router, prefix="/render-assets", tags=["Score Render Assets"]
 )
-api_router.include_router(files, prefix="/files", tags=["File Operations"])
+api_router.include_router(uploads, prefix="/uploads", tags=["Uploads"])
 api_router.include_router(jobs, prefix="/import-jobs", tags=["Import Jobs"])
 api_router.include_router(library, prefix="/library", tags=["Library"])
 api_router.include_router(scores, prefix="/scores", tags=["Scores"])

@@ -18,21 +18,21 @@ import type {
   ResolvedPracticeTempoPlan,
 } from '@/lib/practice/planning/tempo';
 
-export type SavedTakeAdmission =
+export type PerformanceTakeAdmission =
   | { status: 'supported'; recordedPerformance: RecordedPerformance }
   | { status: 'unsupported' | 'temporarily_unavailable'; reason: string };
 
 /** Display eligibility only; semantic admission happens once after all owners are available. */
-export function isSavedCompositeVideoCandidate(
+export function isPerformanceTakeCompositeVideoCandidate(
   take: PerformanceTakeRead,
 ): boolean {
   return ['AUDIO', 'VIDEO'].includes(take.manifest.capture.kind);
 }
-export function admitSavedRecordedPerformance(
+export function admitPerformanceTakeRecordedPerformance(
   take: PerformanceTakeRead,
   bundle: PracticePlanBundle,
   media: LocalMediaAsset,
-): SavedTakeAdmission {
+): PerformanceTakeAdmission {
   try {
     const { manifest, recording_media: recordingMedia } = take;
     const { artifact, binding } = bundle;
@@ -82,7 +82,7 @@ export function admitSavedRecordedPerformance(
       scope.terminalTick !== terminalTick
     )
       throw new Error('scope_identity_mismatch');
-    const tempoPlan = parseSavedTempoPlan(manifest.tempo_plan);
+    const tempoPlan = parsePerformanceTakeTempoPlan(manifest.tempo_plan);
     if (
       tempoPlan.segments.some(
         (segment) => segment.startTick > artifact.scoreEndTick,
@@ -120,11 +120,11 @@ export function admitSavedRecordedPerformance(
     return {
       status: 'unsupported',
       reason:
-        error instanceof Error ? error.message : 'saved_performance_invalid',
+        error instanceof Error ? error.message : 'performance_take_invalid',
     };
   }
 }
-function parseSavedTempoPlan(
+function parsePerformanceTakeTempoPlan(
   raw: PerformanceTakeTempoPlan | null | undefined,
 ): ResolvedPracticeTempoPlan {
   if (!raw) {
@@ -203,5 +203,5 @@ function requireFinitePositive(value: unknown, field: string): number {
 
 function exactFields(value: object, fields: string[]): void {
   if (Object.keys(value).sort().join() !== fields.sort().join())
-    throw new Error('saved_fields_invalid');
+    throw new Error('performance_take_fields_invalid');
 }

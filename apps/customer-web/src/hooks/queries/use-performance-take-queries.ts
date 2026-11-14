@@ -1,7 +1,7 @@
 'use client';
 import { uploadMediaToSignedUrl } from '@/lib/http/direct-object-upload';
-import { PerformanceTakeSaveCommand } from '@/lib/practice/saved-take/save-command';
-import type { SavePerformanceTakeInput } from '@/lib/practice/saved-take/save';
+import { PerformanceTakeSaveCommand } from '@/lib/practice/performance-take/save-command';
+import type { SavePerformanceTakeInput } from '@/lib/practice/performance-take/save';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 

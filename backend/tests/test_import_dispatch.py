@@ -396,7 +396,7 @@ async def test_submission_atomically_creates_one_delivery_and_upload_links(
         lambda: ("00-0123456789abcdef0123456789abcdef-0123456789abcdef-01", "vendor=import"),
     )
     request = SimpleNamespace(
-        file_ids=["original-upload"], idempotency_key="submission", options={"title": "New"}
+        upload_ids=["original-upload"], idempotency_key="submission", options={"title": "New"}
     )
     user = db.get(User, 1)
     first = await service.submit(async_db, user, request)
@@ -418,7 +418,7 @@ async def test_submission_atomically_creates_one_delivery_and_upload_links(
             async_db,
             user,
             SimpleNamespace(
-                file_ids=["original-upload", "missing"],
+                upload_ids=["original-upload", "missing"],
                 options=None,
                 idempotency_key="aborted-import",
             ),

@@ -38,7 +38,7 @@ class ImportErrorCode:
     TASK_TIMEOUT = "task_timeout"
     JOB_NOT_FOUND = "job_not_found"
     JOB_RUNNING = "job_running"
-    NO_FILE_IDS = "no_file_ids"
+    NO_UPLOAD_IDS = "no_upload_ids"
     INPUT_FILE_MISSING = "input_file_missing"
     SCORE_RECOGNITION_FAILED = "score_recognition_failed"
 

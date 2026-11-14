@@ -258,7 +258,7 @@ async def test_adoption_and_cleanup_have_one_safe_winner(
 @pytest.mark.asyncio
 async def test_two_equal_files_uploads_share_key_and_both_commit(retirement_postgres, monkeypatch):
     from fastapi import UploadFile
-    from app.modules.files.service import FilesService
+    from app.modules.uploads.service import UploadService
     import io
     from tests.test_score_revision_services import AsyncSessionAdapter
 
@@ -286,7 +286,7 @@ async def test_two_equal_files_uploads_share_key_and_both_commit(retirement_post
         with Session(sync, expire_on_commit=False) as db:
             user = db.get(User, 1)
             return asyncio.run(
-                FilesService(storage=storage).upload_file(
+                UploadService(storage=storage).create_upload(
                     AsyncSessionAdapter(db),
                     user,
                     UploadFile(filename=name, file=io.BytesIO(image_bytes())),
@@ -296,7 +296,7 @@ async def test_two_equal_files_uploads_share_key_and_both_commit(retirement_post
     one, two = await asyncio.gather(
         asyncio.to_thread(upload, "one.png"), asyncio.to_thread(upload, "two.png")
     )
-    assert one.file_id != two.file_id
+    assert one.upload_id != two.upload_id
     async with sessions() as db:
         uploads = list(await db.scalars(select(Upload)))
         objects = list(await db.scalars(select(StoredObject)))

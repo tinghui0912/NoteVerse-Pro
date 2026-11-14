@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback } from 'react';
-import { filesApi, scoresApi } from '@/lib/api';
+import { scoresApi } from '@/lib/api';
 import type { ScoreRevisionAssetsRead } from '@/generated/api';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslations } from 'next-intl';
@@ -40,7 +40,7 @@ export function useDownload({ id, assets = emptyAssets }: UseDownloadOptions): U
                 const source = assets.revision_sources.find((item) => item.format === 'MUSICXML');
                 if (!source) throw new Error('FILE_NOT_FOUND');
                 const blob = await scoresApi.downloadRevisionSource(source.source_id);
-                filesApi.triggerDownload(blob, `score_${id}.musicxml`);
+                triggerDownload(blob, `score_${id}.musicxml`);
                 return;
             } else {
                 const pages = assets.render_assets.filter((item) => item.kind === 'RENDERED_PAGE');
@@ -48,7 +48,7 @@ export function useDownload({ id, assets = emptyAssets }: UseDownloadOptions): U
                 const blob = pages.length === 1
                     ? await scoresApi.downloadRenderAsset(pages[0].render_asset_id)
                     : await scoresApi.downloadRenderAssetArchive(id, pages[0].revision_id, 'RENDERED_PAGE');
-                filesApi.triggerDownload(
+                triggerDownload(
                     blob,
                     pages.length === 1 ? `score_${id}.${extensionFromBlob(blob)}` : `score_${id}.zip`
                 );
@@ -70,4 +70,15 @@ export function useDownload({ id, assets = emptyAssets }: UseDownloadOptions): U
     }, [id, assets, toast, t, tErrors]);
 
     return { handleDownload };
+}
+
+function triggerDownload(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
 }

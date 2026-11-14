@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { useDeletePerformanceTake, useSavePerformanceTake } from './use-performance-take-queries';
-import { PerformanceTakeSaveCommand } from '@/lib/practice/saved-take/save-command';
+import { PerformanceTakeSaveCommand } from '@/lib/practice/performance-take/save-command';
 import { performanceTakesApi } from '@/lib/api/performance-takes';
 import type { PerformanceTakeRead, PerformanceTakeTempoPlan, RecordingTimebase } from '@/lib/api/performance-takes';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -8,7 +8,7 @@ import { act, renderHook } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { recordedPerformanceFixture } from '@/lib/practice/__fixtures__/recorded-performance';
-import { artifact as videoArtifact } from '@/lib/practice/composite-video/__fixtures__/saved-take';
+import { artifact as videoArtifact } from '@/lib/practice/composite-video/__fixtures__/performance-take';
 vi.mock('@/lib/api/performance-takes', () => ({ performanceTakesApi: { deleteTake: vi.fn() } }));
 const tempoPlan: PerformanceTakeTempoPlan = {
   selection: { mode: 'SCORE' },
@@ -25,7 +25,7 @@ const recordingTimebase: RecordingTimebase = {
     },
   ],
 };
-const savedTake: PerformanceTakeRead = {
+const performanceTake: PerformanceTakeRead = {
   recording_media: { mime_type: 'audio/wav', byte_size: 12 },
   take_id: 'take-1',
 
@@ -68,7 +68,7 @@ describe('semantic Take deletion cache admission', () => {
     const second = queryKeys.performanceTakes.list({ limit: 1, offset: 1 });
     const matching = queryKeys.performanceTakes.list({ score_id: 'score-1' });
     const unrelated = queryKeys.performanceTakes.list({ score_id: 'score-2' });
-    const other = { ...savedTake, take_id: 'other' };
+    const other = { ...performanceTake, take_id: 'other' };
     const list = (items: PerformanceTakeRead[], total: number, offset = 0) => ({
         items,
         total,
@@ -76,11 +76,11 @@ describe('semantic Take deletion cache admission', () => {
         offset,
         has_more: offset + items.length < total,
       });
-    client.setQueryData(first, list([savedTake], 2));
+    client.setQueryData(first, list([performanceTake], 2));
     client.setQueryData(second, list([other], 2, 1));
-    client.setQueryData(matching, list([savedTake], 1));
+    client.setQueryData(matching, list([performanceTake], 1));
     client.setQueryData(unrelated, list([other], 1));
-    client.setQueryData(queryKeys.performanceTakes.detail('take-1'), savedTake);
+    client.setQueryData(queryKeys.performanceTakes.detail('take-1'), performanceTake);
     client.setQueryData(queryKeys.performanceTakes.playbackUrl('take-1'), { playback_url: 'signed-deleted' });
     client.setQueryData(queryKeys.performanceTakes.playbackUrl('other'), { playback_url: 'signed-other' });
     const invalidate = vi
@@ -123,7 +123,7 @@ describe('semantic Take deletion cache admission', () => {
       defaultOptions: { mutations: { retry: false } },
     });
     const key = queryKeys.performanceTakes.list();
-    const cached = { items: [savedTake], total: 1 };
+    const cached = { items: [performanceTake], total: 1 };
     client.setQueryData(key, cached);
     const invalidate = vi.spyOn(client, 'invalidateQueries');
     vi.mocked(performanceTakesApi.deleteTake).mockRejectedValue(
@@ -151,7 +151,7 @@ it('cancels stale deleted-resource/list reads while another Take playback remain
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   const key = queryKeys.performanceTakes.list();
-  client.setQueryData(key, { items: [savedTake], total: 1, offset: 0 });
+  client.setQueryData(key, { items: [performanceTake], total: 1, offset: 0 });
   let listSignal!: AbortSignal, otherSignal!: AbortSignal;
   let finishList!: (data: unknown) => void,
     finishOther!: (data: unknown) => void;
@@ -186,7 +186,7 @@ it('cancels stale deleted-resource/list reads while another Take playback remain
   });
   expect(listSignal.aborted).toBe(true);
   expect(otherSignal.aborted).toBe(false);
-  finishList({ items: [savedTake], total: 1 });
+  finishList({ items: [performanceTake], total: 1 });
   finishOther({ playback_url: 'other-signed-recording' });
   await stale;
   await other;
@@ -201,13 +201,13 @@ it('cancels stale deleted-resource/list reads while another Take playback remain
 it('invokes one Save command and invalidates library and quota cache after success', async () => {
   const client = new QueryClient({defaultOptions: {mutations: {retry: false}}});
   const invalidate = vi.spyOn(client, 'invalidateQueries');
-  const execute = vi.spyOn(PerformanceTakeSaveCommand.prototype, 'execute').mockResolvedValue(savedTake);
+  const execute = vi.spyOn(PerformanceTakeSaveCommand.prototype, 'execute').mockResolvedValue(performanceTake);
   const wrapper = ({children}: {children: ReactNode}) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
   const {result} = renderHook(() => useSavePerformanceTake(), {wrapper});
   const recording = recordedPerformanceFixture();
   await act(async () => {
     const pending = result.current.mutateAsync({clientRequestId: 'stable-review-id', recordedPerformance: recording});
-    expect(await pending).toEqual(savedTake);
+    expect(await pending).toEqual(performanceTake);
   });
   expect(execute).toHaveBeenCalledOnce();
   expect(invalidate).toHaveBeenCalledTimes(2);

@@ -66,7 +66,7 @@ and binds the revision. The null-FK creation lease commits before both represent
 concurrent creation and binding. An existing binding wins over a new compiler candidate.
 
 Bundle ID possession is not authorization. There is no Bundle-ID-only authorization
-route. Saved Take score export reauthorizes its saved Score/Revision through this route
+route. PerformanceTake score export reauthorizes its saved Score/Revision through this route
 and requires exact saved bundleId and artifactId agreement. Deleted or inaccessible
 revisions make score export unavailable; raw Take playback and download remain independent.
 
