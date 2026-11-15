@@ -8,7 +8,7 @@ from fastapi import Cookie, Depends
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
-from app.core.control_plane_settings import require_control_plane_settings
+from app.core.generated.control_plane_browser_protocol import OPERATOR_AUTH_COOKIE_NAME
 from app.core.exceptions import AuthenticationException
 from app.db.models import Operator, OperatorIdentity, OperatorRole, OperatorSession
 from app.modules.platform_operators.service import (
@@ -37,7 +37,7 @@ def get_current_operator(
     db: Session = Depends(get_db, scope="function"),
     session_cookie: str | None = Cookie(
         default=None,
-        alias=require_control_plane_settings().auth_cookie_name,
+        alias=OPERATOR_AUTH_COOKIE_NAME,
     ),
     service: OperatorAuthenticationService = Depends(get_operator_authentication_service),
 ) -> OperatorPrincipal:

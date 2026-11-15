@@ -10,6 +10,11 @@ from app.api.deps import get_db
 from app.main import app
 from app.modules.guest_previews.dependencies import get_guest_preview_service
 from app.shared.constants import ErrorCode
+from app.core.generated.control_plane_browser_protocol import (
+    OPERATOR_AUTH_COOKIE_NAME,
+    OPERATOR_CSRF_COOKIE_NAME,
+)
+from app.core.control_plane_errors import ControlPlaneErrorResponse
 from app.shared.responses import ApiErrorResponse
 
 
@@ -90,9 +95,6 @@ def test_ordinary_unhandled_errors_do_not_expose_exception_details() -> None:
 def test_control_plane_errors_do_not_expose_internal_details_before_authorization(
     monkeypatch,
 ) -> None:
-    monkeypatch.setenv("CONTROL_PLANE_AUTH_COOKIE_NAME", "noteverse_control_auth")
-    monkeypatch.setenv("CONTROL_PLANE_CSRF_COOKIE_NAME", "noteverse_control_csrf")
-    monkeypatch.setenv("CONTROL_PLANE_CSRF_HEADER_NAME", "x-control-csrf-token")
     monkeypatch.setenv("CONTROL_PLANE_COOKIE_SECURE", "false")
     monkeypatch.setenv("CONTROL_PLANE_COOKIE_SAMESITE", "lax")
     monkeypatch.setenv("CONTROL_PLANE_SESSION_EXPIRE_MINUTES", "30")
@@ -105,8 +107,8 @@ def test_control_plane_errors_do_not_expose_internal_details_before_authorizatio
 
     try:
         with TestClient(create_app()) as control_client:
-            control_client.cookies.set("noteverse_control_auth", "invalid-token")
-            control_client.cookies.set("noteverse_control_csrf", "csrf-token")
+            control_client.cookies.set(OPERATOR_AUTH_COOKIE_NAME, "invalid-token")
+            control_client.cookies.set(OPERATOR_CSRF_COOKIE_NAME, "csrf-token")
             response = control_client.post(
                 "/api/v1/ops/async-operations/retry",
                 json={"operation_kind": "render", "operation_id": "op-1"},
@@ -117,7 +119,7 @@ def test_control_plane_errors_do_not_expose_internal_details_before_authorizatio
 
     assert response.status_code == 403
     payload = response.json()
-    assert payload["success"] is False
-    assert payload["public_code"] == ErrorCode.CSRF_TOKEN_INVALID
+    assert ControlPlaneErrorResponse.model_validate(payload).model_dump() == payload
+    assert payload["code"] == ErrorCode.CSRF_TOKEN_INVALID
     assert "internal_details" not in payload
     assert payload["request_id"] == "ops-csrf-contract"

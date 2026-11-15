@@ -4,6 +4,7 @@ import enum
 from datetime import datetime
 
 from pydantic import BaseModel, Field
+from app.shared.api_model import ApiModel
 from app.modules.durable_work.failure import DurableFailureClass
 
 
@@ -37,7 +38,7 @@ class RetryAsyncOperationCommand(BaseModel):
     reason: str = Field(min_length=3, max_length=500)
 
 
-class AsyncOperationRead(BaseModel):
+class AsyncOperationRead(ApiModel):
     operation_id: str
     kind: AsyncOperationKind
     resource_type: str
@@ -74,7 +75,7 @@ class OpsAuditOutcome(str, enum.Enum):
     FAILED = "failed"
 
 
-class OpsAuditEventRead(BaseModel):
+class OpsAuditEventRead(ApiModel):
     event_id: str
     actor_operator_id: int | None
     action: str

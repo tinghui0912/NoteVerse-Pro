@@ -5,14 +5,14 @@ from app.core.http_application import HttpApplication
 from app.api.runtime_endpoints import install_process_endpoints
 from app.core.config import settings
 from app.core.control_plane_errors import control_plane_error_response
-from app.core.control_plane_settings import CONTROL_PLANE_API_PREFIX, require_control_plane_settings
+from app.core.control_plane_settings import require_control_plane_settings
+from app.core.generated.control_plane_browser_protocol import CONTROL_PLANE_API_PREFIX
+from app.api.control_plane import router as control_plane_router
 from app.core.http_runtime import install_http_runtime
 from app.core.lifespan import create_app_lifespan
 from app.core.logging_setup import configure_uvicorn_logging
 from app.core.middleware import CookieCsrfSettings
 from app.core.runtime_checks import RuntimeRole
-from app.modules.ops.router import router as ops_router
-from app.modules.platform_operators.router import router as operator_auth_router
 from app.modules.platform_operators.router import login_operator
 
 
@@ -46,13 +46,8 @@ def create_app() -> HttpApplication:
         cors_origins=list(control_settings.cors_origins),
         error_response_factory=control_plane_error_response,
     )
-    app.include_router(
-        operator_auth_router,
-        prefix=f"{CONTROL_PLANE_API_PREFIX}/auth",
-        tags=["Operator Authentication"],
-    )
-    app.include_router(ops_router, prefix=f"{CONTROL_PLANE_API_PREFIX}/ops", tags=["Operations"])
-    install_process_endpoints(app)
+    app.include_router(control_plane_router)
+    install_process_endpoints(app, health_operation_ids=("healthLive", "healthReady"))
     return app
 
 

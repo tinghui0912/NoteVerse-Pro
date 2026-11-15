@@ -1,242 +1,6 @@
 {
   "components": {
     "schemas": {
-      "APIResponse_AsyncOperationRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AsyncOperationRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[AsyncOperationRead]",
-        "type": "object"
-      },
-      "APIResponse_AsyncOperationsSummaryRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AsyncOperationsSummaryRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[AsyncOperationsSummaryRead]",
-        "type": "object"
-      },
-      "APIResponse_OffsetPage_AsyncOperationRead__": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/OffsetPage_AsyncOperationRead_"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[OffsetPage[AsyncOperationRead]]",
-        "type": "object"
-      },
-      "APIResponse_OffsetPage_OpsAuditEventRead__": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/OffsetPage_OpsAuditEventRead_"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[OffsetPage[OpsAuditEventRead]]",
-        "type": "object"
-      },
       "AsyncOperationFailure": {
         "properties": {
           "classification": {
@@ -479,6 +243,26 @@
         "title": "AsyncOperationsSummaryRead",
         "type": "object"
       },
+      "ControlPlaneErrorResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "request_id": {
+            "minLength": 1,
+            "title": "Request Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "request_id"
+        ],
+        "title": "ControlPlaneErrorResponse",
+        "type": "object"
+      },
       "DurableFailureClass": {
         "enum": [
           "transient",
@@ -489,17 +273,18 @@
         "title": "DurableFailureClass",
         "type": "string"
       },
-      "HTTPValidationError": {
+      "LivenessRead": {
         "properties": {
-          "detail": {
-            "items": {
-              "$ref": "#/components/schemas/ValidationError"
-            },
-            "title": "Detail",
-            "type": "array"
+          "status": {
+            "const": "ok",
+            "title": "Status",
+            "type": "string"
           }
         },
-        "title": "HTTPValidationError",
+        "required": [
+          "status"
+        ],
+        "title": "LivenessRead",
         "type": "object"
       },
       "OffsetPage_AsyncOperationRead_": {
@@ -756,6 +541,63 @@
         "title": "OpsAuditOutcome",
         "type": "string"
       },
+      "ReadinessRead": {
+        "properties": {
+          "checks": {
+            "additionalProperties": {
+              "enum": [
+                "ok",
+                "failed",
+                "degraded"
+              ],
+              "type": "string"
+            },
+            "title": "Checks",
+            "type": "object"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "degraded"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "checks"
+        ],
+        "title": "ReadinessRead",
+        "type": "object"
+      },
+      "ReadinessUnavailableRead": {
+        "properties": {
+          "checks": {
+            "additionalProperties": {
+              "enum": [
+                "ok",
+                "failed",
+                "degraded"
+              ],
+              "type": "string"
+            },
+            "title": "Checks",
+            "type": "object"
+          },
+          "status": {
+            "const": "not_ready",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "checks"
+        ],
+        "title": "ReadinessUnavailableRead",
+        "type": "object"
+      },
       "RetryAsyncOperationCommand": {
         "properties": {
           "reason": {
@@ -770,68 +612,6 @@
         ],
         "title": "RetryAsyncOperationCommand",
         "type": "object"
-      },
-      "SuccessResponsePayload": {
-        "description": "Default success response payload shape.",
-        "properties": {
-          "code": {
-            "title": "Code",
-            "type": "string"
-          },
-          "data": {
-            "title": "Data"
-          },
-          "message": {
-            "title": "Message",
-            "type": "string"
-          },
-          "success": {
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "title": "SuccessResponsePayload",
-        "type": "object"
-      },
-      "ValidationError": {
-        "properties": {
-          "ctx": {
-            "title": "Context",
-            "type": "object"
-          },
-          "input": {
-            "title": "Input"
-          },
-          "loc": {
-            "items": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "integer"
-                }
-              ]
-            },
-            "title": "Location",
-            "type": "array"
-          },
-          "msg": {
-            "title": "Message",
-            "type": "string"
-          },
-          "type": {
-            "title": "Error Type",
-            "type": "string"
-          }
-        },
-        "required": [
-          "loc",
-          "msg",
-          "type"
-        ],
-        "title": "ValidationError",
-        "type": "object"
       }
     }
   },
@@ -844,7 +624,7 @@
   "paths": {
     "/api/v1/auth/login": {
       "post": {
-        "operationId": "login_operator_api_v1_auth_login_post",
+        "operationId": "operatorLogin",
         "requestBody": {
           "content": {
             "application/json": {
@@ -856,25 +636,28 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponsePayload"
-                }
-              }
-            },
+          "204": {
             "description": "Successful Response"
           },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Unprocessable Entity"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
+                }
+              }
+            },
+            "description": "Default Response"
           }
         },
         "summary": "Login Operator",
@@ -885,11 +668,11 @@
     },
     "/api/v1/auth/logout": {
       "post": {
-        "operationId": "logout_operator_api_v1_auth_logout_post",
+        "operationId": "operatorLogout",
         "parameters": [
           {
             "in": "cookie",
-            "name": "openapi_control_session",
+            "name": "noteverse_operator_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -900,30 +683,33 @@
                   "type": "null"
                 }
               ],
-              "title": "Openapi Control Session"
+              "title": "Noteverse Operator Session"
             }
           }
         ],
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponsePayload"
-                }
-              }
-            },
+          "204": {
             "description": "Successful Response"
           },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Unprocessable Entity"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
+                }
+              }
+            },
+            "description": "Default Response"
           }
         },
         "summary": "Logout Operator",
@@ -934,11 +720,11 @@
     },
     "/api/v1/auth/me": {
       "get": {
-        "operationId": "current_operator_api_v1_auth_me_get",
+        "operationId": "operatorCurrentGet",
         "parameters": [
           {
             "in": "cookie",
-            "name": "openapi_control_session",
+            "name": "noteverse_operator_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -949,7 +735,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Openapi Control Session"
+              "title": "Noteverse Operator Session"
             }
           }
         ],
@@ -968,11 +754,21 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Unprocessable Entity"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
+                }
+              }
+            },
+            "description": "Default Response"
           }
         },
         "summary": "Current Operator",
@@ -983,7 +779,7 @@
     },
     "/api/v1/ops/async-operations": {
       "get": {
-        "operationId": "list_async_operations_api_v1_ops_async_operations_get",
+        "operationId": "opsAsyncOperationsList",
         "parameters": [
           {
             "in": "query",
@@ -1111,7 +907,7 @@
           },
           {
             "in": "cookie",
-            "name": "openapi_control_session",
+            "name": "noteverse_operator_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -1122,7 +918,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Openapi Control Session"
+              "title": "Noteverse Operator Session"
             }
           }
         ],
@@ -1131,7 +927,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_OffsetPage_AsyncOperationRead__"
+                  "$ref": "#/components/schemas/OffsetPage_AsyncOperationRead_"
                 }
               }
             },
@@ -1141,11 +937,21 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Unprocessable Entity"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
+                }
+              }
+            },
+            "description": "Default Response"
           }
         },
         "summary": "List Async Operations",
@@ -1156,7 +962,7 @@
     },
     "/api/v1/ops/async-operations/summary": {
       "get": {
-        "operationId": "async_operations_summary_api_v1_ops_async_operations_summary_get",
+        "operationId": "opsAsyncOperationsSummaryGet",
         "parameters": [
           {
             "in": "query",
@@ -1260,7 +1066,7 @@
           },
           {
             "in": "cookie",
-            "name": "openapi_control_session",
+            "name": "noteverse_operator_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -1271,7 +1077,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Openapi Control Session"
+              "title": "Noteverse Operator Session"
             }
           }
         ],
@@ -1280,7 +1086,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_AsyncOperationsSummaryRead_"
+                  "$ref": "#/components/schemas/AsyncOperationsSummaryRead"
                 }
               }
             },
@@ -1290,11 +1096,21 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Unprocessable Entity"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
+                }
+              }
+            },
+            "description": "Default Response"
           }
         },
         "summary": "Async Operations Summary",
@@ -1305,7 +1121,7 @@
     },
     "/api/v1/ops/async-operations/{kind}/{operation_id}/retry": {
       "post": {
-        "operationId": "retry_async_operation_api_v1_ops_async_operations__kind___operation_id__retry_post",
+        "operationId": "opsAsyncOperationRetry",
         "parameters": [
           {
             "in": "path",
@@ -1326,7 +1142,7 @@
           },
           {
             "in": "cookie",
-            "name": "openapi_control_session",
+            "name": "noteverse_operator_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -1337,7 +1153,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Openapi Control Session"
+              "title": "Noteverse Operator Session"
             }
           }
         ],
@@ -1356,7 +1172,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_AsyncOperationRead_"
+                  "$ref": "#/components/schemas/AsyncOperationRead"
                 }
               }
             },
@@ -1366,11 +1182,21 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Unprocessable Entity"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
+                }
+              }
+            },
+            "description": "Default Response"
           }
         },
         "summary": "Retry Async Operation",
@@ -1381,7 +1207,7 @@
     },
     "/api/v1/ops/audit-events": {
       "get": {
-        "operationId": "list_ops_audit_events_api_v1_ops_audit_events_get",
+        "operationId": "opsAuditEventsList",
         "parameters": [
           {
             "in": "query",
@@ -1528,7 +1354,7 @@
           },
           {
             "in": "cookie",
-            "name": "openapi_control_session",
+            "name": "noteverse_operator_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -1539,7 +1365,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Openapi Control Session"
+              "title": "Noteverse Operator Session"
             }
           }
         ],
@@ -1548,7 +1374,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_OffsetPage_OpsAuditEventRead__"
+                  "$ref": "#/components/schemas/OffsetPage_OpsAuditEventRead_"
                 }
               }
             },
@@ -1558,11 +1384,21 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Unprocessable Entity"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
+                }
+              }
+            },
+            "description": "Default Response"
           }
         },
         "summary": "List Ops Audit Events",
@@ -1574,17 +1410,13 @@
     "/health/live": {
       "get": {
         "description": "Report whether this process can serve requests.",
-        "operationId": "liveness_health_live_get",
+        "operationId": "healthLive",
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {
-                    "type": "string"
-                  },
-                  "title": "Response Liveness Health Live Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/LivenessRead"
                 }
               }
             },
@@ -1600,15 +1432,27 @@
     "/health/ready": {
       "get": {
         "description": "Report readiness for this runtime's declared dependencies.",
-        "operationId": "readiness_health_ready_get",
+        "operationId": "healthReady",
         "responses": {
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessRead"
+                }
               }
             },
             "description": "Successful Response"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessUnavailableRead"
+                }
+              }
+            },
+            "description": "Process dependencies are not ready."
           }
         },
         "summary": "Readiness",

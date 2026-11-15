@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - "apps/platform-admin/**"
+      - "backend/docs/contracts/openapi/control-plane-api.json"
+      - "contracts/http/control-plane-browser-protocol.json"
+      - "scripts/generate_control_plane_browser_protocol.py"
       - ".github/workflows/platform-admin-quality.yml"
       - ".github/dependency-exceptions.json"
       - ".github/scripts/dependency_governance.py"
@@ -13,6 +16,9 @@ on:
   pull_request:
     paths:
       - "apps/platform-admin/**"
+      - "backend/docs/contracts/openapi/control-plane-api.json"
+      - "contracts/http/control-plane-browser-protocol.json"
+      - "scripts/generate_control_plane_browser_protocol.py"
       - ".github/workflows/platform-admin-quality.yml"
       - ".github/dependency-exceptions.json"
       - ".github/scripts/dependency_governance.py"
@@ -31,8 +37,6 @@ jobs:
         working-directory: apps/platform-admin
     env:
       NEXT_CONTROL_PLANE_ORIGIN: http://127.0.0.1:8002
-      NEXT_PUBLIC_CONTROL_PLANE_CSRF_COOKIE_NAME: noteverse_operator_csrf
-      NEXT_PUBLIC_CONTROL_PLANE_CSRF_HEADER_NAME: x-operator-csrf-token
 
     steps:
       - name: Checkout repository
@@ -53,6 +57,12 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Check generated API
+        run: npm run check:api
+
+      - name: Check browser protocol
+        run: npm run check:browser-protocol
 
       - name: Run ESLint
         run: npm run lint

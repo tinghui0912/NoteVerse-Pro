@@ -55,12 +55,6 @@ from app.modules.durable_work.failure import DurableFailureClass
 from app.utils.timezone import utc_now_naive
 
 
-CONTROL_PLANE_AUTH_COOKIE_NAME = "noteverse_control_session"
-CONTROL_PLANE_CSRF_COOKIE_NAME = "noteverse_control_csrf"
-CONTROL_PLANE_CSRF_HEADER_NAME = "x-control-csrf-token"
-os.environ.setdefault("CONTROL_PLANE_AUTH_COOKIE_NAME", CONTROL_PLANE_AUTH_COOKIE_NAME)
-os.environ.setdefault("CONTROL_PLANE_CSRF_COOKIE_NAME", CONTROL_PLANE_CSRF_COOKIE_NAME)
-os.environ.setdefault("CONTROL_PLANE_CSRF_HEADER_NAME", CONTROL_PLANE_CSRF_HEADER_NAME)
 os.environ.setdefault("CONTROL_PLANE_COOKIE_SECURE", "false")
 os.environ.setdefault("CONTROL_PLANE_COOKIE_SAMESITE", "lax")
 os.environ.setdefault("CONTROL_PLANE_SESSION_EXPIRE_MINUTES", "30")
@@ -214,7 +208,8 @@ def test_control_plane_login_uses_an_independent_operator_session_cookie(
             json={"username": "operator@example.test", "password": "a-long-operator-password"},
         )
 
-        assert response.status_code == 200
+        assert response.status_code == 204
+        assert response.content == b""
         assert control_settings.auth_cookie_name in response.headers["set-cookie"]
         assert AUTH_COOKIE_NAME not in response.headers["set-cookie"]
 
@@ -247,11 +242,11 @@ def test_control_plane_logout_requires_its_own_csrf_header(
             "/api/v1/auth/login",
             json={"username": "operator@example.test", "password": "a-long-operator-password"},
         )
-        assert login.status_code == 200
+        assert login.status_code == 204
 
         missing_csrf = client.post("/api/v1/auth/logout")
         assert missing_csrf.status_code == 403
-        assert missing_csrf.json()["public_code"] == "csrf_token_invalid"
+        assert missing_csrf.json()["code"] == "csrf_token_invalid"
 
         csrf_token = client.cookies.get(control_settings.csrf_cookie_name)
         assert csrf_token
@@ -259,7 +254,7 @@ def test_control_plane_logout_requires_its_own_csrf_header(
             "/api/v1/auth/logout",
             headers={control_settings.csrf_header_name: csrf_token},
         )
-        assert logout.status_code == 200
+        assert logout.status_code == 204
         assert client.get("/api/v1/auth/me").status_code == 401
     finally:
         _clear_ops_dependency_overrides()
@@ -404,7 +399,7 @@ def test_ops_api_rejects_non_admin_users_without_diagnostics(
 
     assert response.status_code == 403
     payload = response.json()
-    assert payload["public_code"] == "no_access"
+    assert payload["code"] == "no_access"
     assert "internal_details" not in payload
 
 
@@ -426,7 +421,7 @@ def test_ops_api_requires_authentication_without_diagnostics(
 
     assert response.status_code == 401
     payload = response.json()
-    assert payload["public_code"] == "token_invalid_expired"
+    assert payload["code"] == "token_invalid_expired"
     assert "internal_details" not in payload
 
 
@@ -462,73 +457,12 @@ def test_ops_api_summary_is_available_to_admin(
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["success"] is True
-    assert payload["data"]["total"] == 1
-    assert payload["data"]["kinds"][0]["kind"] == "mail"
-    assert payload["data"]["kinds"][0]["statuses"][0] == {
+    assert payload["total"] == 1
+    assert payload["kinds"][0]["kind"] == "mail"
+    assert payload["kinds"][0]["statuses"][0] == {
         "status": "retrying",
         "count": 1,
     }
-
-
-def test_ops_openapi_contract_freezes_response_shapes(client: TestClient) -> None:
-    schema = client.get("/api/v1/openapi.json").json()
-    paths = schema["paths"]
-
-    assert paths["/api/v1/ops/async-operations"]["get"]["responses"]["200"]["content"][
-        "application/json"
-    ]["schema"] == {"$ref": "#/components/schemas/APIResponse_OffsetPage_AsyncOperationRead__"}
-    assert paths["/api/v1/ops/audit-events"]["get"]["responses"]["200"]["content"][
-        "application/json"
-    ]["schema"] == {"$ref": "#/components/schemas/APIResponse_OffsetPage_OpsAuditEventRead__"}
-    assert paths["/api/v1/ops/async-operations/{kind}/{operation_id}/retry"]["post"]["responses"][
-        "200"
-    ]["content"]["application/json"]["schema"] == {
-        "$ref": "#/components/schemas/APIResponse_AsyncOperationRead_"
-    }
-
-    components = schema["components"]["schemas"]
-    operation_page = components["OffsetPage_AsyncOperationRead_"]["properties"]
-    audit_page = components["OffsetPage_OpsAuditEventRead_"]["properties"]
-    for page in (operation_page, audit_page):
-        assert set(page) == {"items", "limit", "offset", "has_more"}
-        assert page["limit"]["type"] == "integer"
-        assert page["offset"]["type"] == "integer"
-        assert page["has_more"]["type"] == "boolean"
-
-    operation_fields = set(components["AsyncOperationRead"]["properties"])
-    assert {
-        "operation_id",
-        "kind",
-        "resource_type",
-        "resource_id",
-        "status",
-        "attempts",
-        "max_attempts",
-        "next_attempt_at",
-        "failure",
-        "created_at",
-        "updated_at",
-    }.issubset(operation_fields)
-
-    audit_fields = set(components["OpsAuditEventRead"]["properties"])
-    assert {
-        "event_id",
-        "actor_operator_id",
-        "action",
-        "operation_kind",
-        "operation_id",
-        "outcome",
-        "error_code",
-        "reason",
-        "request_id",
-        "peer_address",
-        "client_address",
-        "previous_state",
-        "new_state",
-        "created_at",
-    }.issubset(audit_fields)
-    assert "reason" in components["RetryAsyncOperationCommand"]["required"]
 
 
 def test_ops_api_async_operations_supports_offset_pagination(
@@ -590,12 +524,11 @@ def test_ops_api_async_operations_supports_offset_pagination(
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["success"] is True
-    assert payload["data"]["limit"] == 1
-    assert payload["data"]["offset"] == 1
-    assert payload["data"]["has_more"] is True
-    assert len(payload["data"]["items"]) == 1
-    operation = payload["data"]["items"][0]
+    assert payload["limit"] == 1
+    assert payload["offset"] == 1
+    assert payload["has_more"] is True
+    assert len(payload["items"]) == 1
+    operation = payload["items"][0]
     assert operation["failure"] == {
         "code": "mail_execution_failed",
         "classification": "system_error",
@@ -639,7 +572,7 @@ def test_ops_api_admin_can_retry_failed_mail_operation(
         _clear_ops_dependency_overrides()
 
     assert response.status_code == 200
-    data = response.json()["data"]
+    data = response.json()
     assert data["operation_id"] == operation_id
     assert data["status"] == "queued"
     assert data["attempts"] == 0
@@ -679,11 +612,10 @@ def test_ops_api_admin_can_retry_failed_mail_operation(
 
     assert audit_response.status_code == 200
     audit_payload = audit_response.json()
-    assert audit_payload["success"] is True
-    assert audit_payload["data"]["limit"] == 100
-    assert audit_payload["data"]["offset"] == 0
-    assert audit_payload["data"]["has_more"] is False
-    assert audit_payload["data"]["items"] == [
+    assert audit_payload["limit"] == 100
+    assert audit_payload["offset"] == 0
+    assert audit_payload["has_more"] is False
+    assert audit_payload["items"] == [
         {
             "event_id": audit_event.event_uuid,
             "actor_operator_id": 1,
@@ -749,12 +681,11 @@ def test_ops_api_audit_events_supports_offset_pagination(
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["success"] is True
-    assert payload["data"]["limit"] == 1
-    assert payload["data"]["offset"] == 1
-    assert payload["data"]["has_more"] is True
-    assert len(payload["data"]["items"]) == 1
-    assert payload["data"]["items"][0]["operation_id"] == "audit-middle"
+    assert payload["limit"] == 1
+    assert payload["offset"] == 1
+    assert payload["has_more"] is True
+    assert len(payload["items"]) == 1
+    assert payload["items"][0]["operation_id"] == "audit-middle"
 
 
 def test_ops_api_retry_rejects_completed_mail_and_records_audit(
@@ -784,7 +715,7 @@ def test_ops_api_retry_rejects_completed_mail_and_records_audit(
 
     assert response.status_code == 422
     payload = response.json()
-    assert payload["public_code"] == "validation_error"
+    assert payload["code"] == "validation_error"
     assert "internal_details" not in payload
     ops_session.refresh(outbox)
     assert outbox.status == MailOutboxStatus.SENT
@@ -807,7 +738,7 @@ def test_ops_api_retry_requires_a_bounded_reason(
         _clear_ops_dependency_overrides()
 
     assert response.status_code == 422
-    assert response.json()["public_code"] == "validation_error"
+    assert response.json()["code"] == "validation_error"
     assert ops_session.scalars(select(OpsAuditEvent)).all() == []
 
 
@@ -828,7 +759,7 @@ def test_ops_api_retry_unknown_operation_records_audit(
 
     assert response.status_code == 404
     payload = response.json()
-    assert payload["public_code"] == "resource_not_found"
+    assert payload["code"] == "resource_not_found"
     assert "internal_details" not in payload
     audit_event = ops_session.scalars(select(OpsAuditEvent)).one()
     assert audit_event.action == "retry_async_operation"
@@ -995,7 +926,7 @@ def test_ops_api_admin_can_retry_failed_import_job(
         _clear_ops_dependency_overrides()
 
     assert response.status_code == 200
-    data = response.json()["data"]
+    data = response.json()
     assert data["kind"] == "import"
     assert data["operation_id"] == dispatch.dispatch_uuid
     assert data["resource_id"] == job.job_uuid
@@ -1066,7 +997,7 @@ def test_ops_api_admin_can_retry_failed_render_outbox(
         _clear_ops_dependency_overrides()
 
     assert response.status_code == 200
-    data = response.json()["data"]
+    data = response.json()
     assert data["kind"] == "render"
     assert data["operation_id"] == outbox.outbox_uuid
     assert data["status"] == "queued"
@@ -1129,7 +1060,7 @@ def test_ops_api_admin_can_retry_failed_playback_outbox(
         _clear_ops_dependency_overrides()
 
     assert response.status_code == 200
-    data = response.json()["data"]
+    data = response.json()
     assert data["kind"] == "playback"
     assert data["operation_id"] == outbox.outbox_uuid
     assert data["status"] == "queued"
@@ -1189,7 +1120,7 @@ def test_ops_api_admin_can_rearm_score_deletion_operation(
         _clear_ops_dependency_overrides()
 
     assert response.status_code == 200
-    data = response.json()["data"]
+    data = response.json()
     assert data["kind"] == "score_deletion"
     assert data["operation_id"] == operation.operation_uuid
     assert data["status"] == "queued"

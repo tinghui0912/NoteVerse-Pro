@@ -2,6 +2,8 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { login } from "../../lib/control-plane-api";
+import { ControlPlaneRequestError } from "../../lib/control-plane-browser-transport";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,18 +16,12 @@ export default function LoginPage() {
     setError(null);
     const form = new FormData(event.currentTarget);
     try {
-      const response = await fetch("/api/v1/auth/login", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ username: form.get("username"), password: form.get("password") }),
-      });
-      if (!response.ok) {
-        setError("Sign-in failed. Check your operator credentials.");
-        return;
-      }
+      await login({ username: String(form.get("username") ?? ""), password: String(form.get("password") ?? "") });
       router.replace("/operations");
-    } catch {
-      setError("Sign-in is temporarily unavailable.");
+    } catch (error) {
+      setError(error instanceof ControlPlaneRequestError && [401, 403, 422].includes(error.status)
+        ? "Sign-in failed. Check your operator credentials."
+        : "Sign-in is temporarily unavailable.");
     } finally {
       setSubmitting(false);
     }

@@ -23,9 +23,6 @@ RUNTIME_MODULES = {
     "control-plane-api": "app.control_plane_main",
 }
 CONTROL_PLANE_CONTRACT_DEFAULTS = {
-    "CONTROL_PLANE_AUTH_COOKIE_NAME": "openapi_control_session",
-    "CONTROL_PLANE_CSRF_COOKIE_NAME": "openapi_control_csrf",
-    "CONTROL_PLANE_CSRF_HEADER_NAME": "x-openapi-control-csrf-token",
     "CONTROL_PLANE_COOKIE_SECURE": "false",
     "CONTROL_PLANE_COOKIE_SAMESITE": "lax",
     "CONTROL_PLANE_SESSION_EXPIRE_MINUTES": "30",

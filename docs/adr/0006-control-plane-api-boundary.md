@@ -34,7 +34,10 @@ the existence of a local operator provider does not establish that qualification
 ## Invariants and consequences
 
 - No generic administrative module duplicates domain transaction ownership.
-- Operator and customer clients use separate generated OpenAPI contracts.
+- Operator and customer clients use separate generated OpenAPI contracts. Platform
+  Admin consumes the Control Plane SDK; each app has an independently versioned
+  browser identity protocol. Success representations are direct and operator errors
+  use the Control Plane-owned machine-readable code/request-ID schema.
 - Internal diagnostics never become ordinary customer errors or stdout dumps.
 - Control-plane rollback and availability can be managed separately from customer
   API, Worker and the internal metrics exporter.

@@ -58,9 +58,6 @@ def packaging_environment(role: str):
         if role == "api":
             env.update(
                 {
-                    "CONTROL_PLANE_AUTH_COOKIE_NAME": "contract_control",
-                    "CONTROL_PLANE_CSRF_COOKIE_NAME": "contract_control_csrf",
-                    "CONTROL_PLANE_CSRF_HEADER_NAME": "x-contract-control-csrf",
                     "CONTROL_PLANE_COOKIE_SECURE": "false",
                     "CONTROL_PLANE_COOKIE_SAMESITE": "lax",
                     "CONTROL_PLANE_SESSION_EXPIRE_MINUTES": "30",

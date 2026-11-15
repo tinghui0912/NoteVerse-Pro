@@ -2,17 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ControlPlaneRequestError } from "../../lib/control-plane-browser-transport";
+import type { AsyncOperationRead } from "../../generated/api/types.gen";
 import {
-  ControlPlaneRequestError,
-  getCurrentOperator,
+  currentOperator,
   listAsyncOperations,
-  signOut,
-  type AsyncOperation,
-} from "../../lib/control-plane-client";
+  logout,
+} from "../../lib/control-plane-api";
 
 export default function OperationsPage() {
   const router = useRouter();
-  const [operations, setOperations] = useState<AsyncOperation[]>([]);
+  const [operations, setOperations] = useState<AsyncOperationRead[]>([]);
   const [operatorName, setOperatorName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +26,7 @@ export default function OperationsPage() {
   }
 
   useEffect(() => {
-    void Promise.all([listAsyncOperations(offset), getCurrentOperator()])
+    void Promise.all([listAsyncOperations({ limit: 50, offset }), currentOperator()])
       .then(([operationsPage, operator]) => {
         setOperations(operationsPage.items);
         setHasMore(operationsPage.has_more);
@@ -49,7 +49,7 @@ export default function OperationsPage() {
         <div className="header-actions">
           <span className="environment">{operatorName ? `${operatorName} · Control plane` : "Control plane"}</span>
           <button className="secondary-button" type="button" onClick={() => {
-            void signOut().finally(() => router.replace("/login"));
+            void logout().finally(() => router.replace("/login"));
           }}>Sign out</button>
         </div>
       </header>

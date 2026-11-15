@@ -23,7 +23,8 @@ contract behind. Do not manually edit generated JSON.
 Backend domain types, Pydantic schemas, and FastAPI routes define the HTTP schemas.
 The generated OpenAPI documents project those definitions and are the HTTP schema
 authority for consumers. Customer Web API types are generated from
-`openapi/customer-api.json`.
+`openapi/customer-api.json`. Platform Admin generates its TypeScript SDK from
+`openapi/control-plane-api.json` using its own generator configuration.
 
 Each Customer route declares an explicit, globally unique lowerCamelCase
 `operationId`. It is the stable semantic identity of the operation, independent
@@ -122,3 +123,24 @@ Origin/Referer validation. Unknown operations, missing identities and method
 mismatches require CSRF; logout also requires CSRF. Control Plane supplies its own
 independent matched-operation policy. Browser protocol projections own cookie and
 header identities rather than exemption decisions.
+
+## Control Plane application contract
+
+Control Plane operations declare explicit semantic lowerCamelCase operation IDs.
+Login and logout return bodyless 204 responses and set or clear host-only operator
+cookies. Current operator, operation pages/summary/retry and audit pages return
+their direct typed representations. Both HTTP contracts use status plus a concrete
+representation, with no generic success envelope. Nested operator timestamps use
+explicit UTC `Z` serialization through the shared ApiModel primitive.
+
+Control Plane owns `ControlPlaneErrorResponse { code, request_id }`, independently
+of the Customer error schema. Its aggregate router declares default and 422
+failures; exception handlers and CSRF rejection emit that representation with the
+same ingress correlation ID as the response header. Browser presentation belongs
+to Platform Admin. Its generated SDK owns methods, paths, query/body serialization
+and DTOs; the thin browser transport owns same-origin credentials, CSRF and bounded
+error normalization. Operator sessions have no refresh/replay protocol.
+
+The independently versioned browser protocols under `contracts/http/` own each
+API prefix and cookie/header identities. Generated Backend and browser constants
+consume those protocols; deployment configures policy and service topology.

@@ -1,18 +1,12 @@
 import type { NextConfig } from "next";
+import { CONTROL_PLANE_API_PREFIX } from "./generated/browser-protocol";
 
 const controlPlaneOrigin = process.env.NEXT_CONTROL_PLANE_ORIGIN;
-const csrfCookieName = process.env.NEXT_PUBLIC_CONTROL_PLANE_CSRF_COOKIE_NAME;
-const csrfHeaderName = process.env.NEXT_PUBLIC_CONTROL_PLANE_CSRF_HEADER_NAME;
-
-if (!controlPlaneOrigin || !csrfCookieName || !csrfHeaderName) {
-  throw new Error("NEXT_CONTROL_PLANE_ORIGIN and Control Plane CSRF settings are required.");
+if (!controlPlaneOrigin) {
+  throw new Error("NEXT_CONTROL_PLANE_ORIGIN is required.");
 }
 
 const nextConfig: NextConfig = {
-  env: {
-    NEXT_PUBLIC_CONTROL_PLANE_CSRF_COOKIE_NAME: csrfCookieName,
-    NEXT_PUBLIC_CONTROL_PLANE_CSRF_HEADER_NAME: csrfHeaderName,
-  },
   async headers() {
     return [{
       source: "/:path*",
@@ -25,8 +19,8 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
-        source: "/api/v1/:path*",
-        destination: `${controlPlaneOrigin.replace(/\/$/, "")}/api/v1/:path*`,
+        source: `${CONTROL_PLANE_API_PREFIX}/:path*`,
+        destination: `${controlPlaneOrigin.replace(/\/$/, "")}${CONTROL_PLANE_API_PREFIX}/:path*`,
       },
     ];
   },

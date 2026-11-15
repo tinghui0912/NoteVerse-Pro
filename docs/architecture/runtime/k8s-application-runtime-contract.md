@@ -244,9 +244,6 @@ role-specific ConfigMaps for runtime-owned settings:
   - overrides Hugging Face offline flags to online mode only for controlled
     cache hydration.
 - Control Plane ConfigMap:
-  - `CONTROL_PLANE_AUTH_COOKIE_NAME`;
-  - `CONTROL_PLANE_CSRF_COOKIE_NAME`;
-  - `CONTROL_PLANE_CSRF_HEADER_NAME`;
   - `CONTROL_PLANE_COOKIE_SECURE`;
   - `CONTROL_PLANE_COOKIE_SAMESITE`;
   - `CONTROL_PLANE_SESSION_EXPIRE_MINUTES`;

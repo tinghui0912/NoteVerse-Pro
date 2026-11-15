@@ -30,7 +30,6 @@ from app.modules.ops.command_service import (
     ops_async_operation_command_service,
 )
 from app.shared.pagination import OffsetPage
-from app.core.control_plane_responses import APIResponse, success_response
 
 router = APIRouter()
 
@@ -47,7 +46,9 @@ def get_ops_audit_service() -> OpsAuditService:
     return ops_audit_service
 
 
-@router.get("/audit-events", response_model=APIResponse[OffsetPage[OpsAuditEventRead]])
+@router.get(
+    "/audit-events", response_model=OffsetPage[OpsAuditEventRead], operation_id="opsAuditEventsList"
+)
 def list_ops_audit_events(
     _operator: OperatorPrincipal = Depends(
         require_platform_operation(PlatformOperationAction.READ)
@@ -76,10 +77,14 @@ def list_ops_audit_events(
         created_after=created_after,
         created_before=created_before,
     )
-    return success_response(data=result)
+    return result
 
 
-@router.get("/async-operations", response_model=APIResponse[OffsetPage[AsyncOperationRead]])
+@router.get(
+    "/async-operations",
+    response_model=OffsetPage[AsyncOperationRead],
+    operation_id="opsAsyncOperationsList",
+)
 def list_async_operations(
     _operator: OperatorPrincipal = Depends(
         require_platform_operation(PlatformOperationAction.READ)
@@ -106,10 +111,14 @@ def list_async_operations(
         created_after=created_after,
         updated_before=updated_before,
     )
-    return success_response(data=result)
+    return result
 
 
-@router.get("/async-operations/summary", response_model=APIResponse[AsyncOperationsSummaryRead])
+@router.get(
+    "/async-operations/summary",
+    response_model=AsyncOperationsSummaryRead,
+    operation_id="opsAsyncOperationsSummaryGet",
+)
 def async_operations_summary(
     _operator: OperatorPrincipal = Depends(
         require_platform_operation(PlatformOperationAction.READ)
@@ -132,12 +141,13 @@ def async_operations_summary(
         created_after=created_after,
         updated_before=updated_before,
     )
-    return success_response(data=result)
+    return result
 
 
 @router.post(
     "/async-operations/{kind}/{operation_id}/retry",
-    response_model=APIResponse[AsyncOperationRead],
+    response_model=AsyncOperationRead,
+    operation_id="opsAsyncOperationRetry",
 )
 def retry_async_operation(
     kind: AsyncOperationKind,
@@ -188,4 +198,4 @@ def retry_async_operation(
         previous_state=result.previous_state,
         new_state=result.operation.status.value,
     )
-    return success_response(data=result.operation)
+    return result.operation

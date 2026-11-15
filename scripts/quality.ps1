@@ -79,12 +79,14 @@ function Invoke-CustomerWebNpm {
 function Invoke-PlatformAdminNpm {
     param([string] $Script)
 
+    if ($Script -eq "test") {
+        Invoke-PlatformAdminNpm "check:api"
+        Invoke-PlatformAdminNpm "check:browser-protocol"
+    }
     Invoke-Step "platform-admin:$Script" {
         Push-Location $PlatformAdminRoot
         try {
             $env:NEXT_CONTROL_PLANE_ORIGIN = "http://127.0.0.1:8002"
-            $env:NEXT_PUBLIC_CONTROL_PLANE_CSRF_COOKIE_NAME = "noteverse_operator_csrf"
-            $env:NEXT_PUBLIC_CONTROL_PLANE_CSRF_HEADER_NAME = "x-operator-csrf-token"
             npm run $Script
         }
         finally {

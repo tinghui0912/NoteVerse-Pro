@@ -9,43 +9,40 @@ from pydantic import AnyHttpUrl, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-# The operator API is served on its own host. This path is a versioned source
-# contract, not a deployment knob and not an alias for the customer API prefix.
-CONTROL_PLANE_API_PREFIX = "/api/v1"
+from app.core.generated.control_plane_browser_protocol import (
+    OPERATOR_AUTH_COOKIE_NAME,
+    OPERATOR_CSRF_COOKIE_NAME,
+    OPERATOR_CSRF_HEADER_NAME,
+)
 
 
 @dataclass(frozen=True, slots=True)
 class ControlPlaneSettings:
-    auth_cookie_name: str
-    csrf_cookie_name: str
-    csrf_header_name: str
     cookie_secure: bool
     cookie_samesite: str
     session_expire_minutes: int
     cors_origins: tuple[str, ...]
 
+    @property
+    def auth_cookie_name(self) -> str:
+        return OPERATOR_AUTH_COOKIE_NAME
+
+    @property
+    def csrf_cookie_name(self) -> str:
+        return OPERATOR_CSRF_COOKIE_NAME
+
+    @property
+    def csrf_header_name(self) -> str:
+        return OPERATOR_CSRF_HEADER_NAME
+
 
 class ControlPlaneRuntimeSettings(BaseSettings):
     """Required environment contract for the operator-only HTTP runtime."""
 
-    CONTROL_PLANE_AUTH_COOKIE_NAME: str
-    CONTROL_PLANE_CSRF_COOKIE_NAME: str
-    CONTROL_PLANE_CSRF_HEADER_NAME: str
     CONTROL_PLANE_COOKIE_SECURE: bool
     CONTROL_PLANE_COOKIE_SAMESITE: str
     CONTROL_PLANE_SESSION_EXPIRE_MINUTES: int
     CONTROL_PLANE_CORS_ORIGINS: list[AnyHttpUrl]
-
-    @field_validator(
-        "CONTROL_PLANE_AUTH_COOKIE_NAME",
-        "CONTROL_PLANE_CSRF_COOKIE_NAME",
-        "CONTROL_PLANE_CSRF_HEADER_NAME",
-    )
-    @classmethod
-    def validate_non_blank_name(cls, value: str) -> str:
-        if not value.strip():
-            raise ValueError("control-plane cookie and header names must not be blank")
-        return value
 
     @field_validator("CONTROL_PLANE_COOKIE_SAMESITE")
     @classmethod
@@ -72,9 +69,6 @@ class ControlPlaneRuntimeSettings(BaseSettings):
 
     def to_security_settings(self) -> ControlPlaneSettings:
         return ControlPlaneSettings(
-            auth_cookie_name=self.CONTROL_PLANE_AUTH_COOKIE_NAME,
-            csrf_cookie_name=self.CONTROL_PLANE_CSRF_COOKIE_NAME,
-            csrf_header_name=self.CONTROL_PLANE_CSRF_HEADER_NAME,
             cookie_secure=self.CONTROL_PLANE_COOKIE_SECURE,
             cookie_samesite=self.CONTROL_PLANE_COOKIE_SAMESITE,
             session_expire_minutes=self.CONTROL_PLANE_SESSION_EXPIRE_MINUTES,

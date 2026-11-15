@@ -28,10 +28,12 @@ tables or shared parent-domain cookies. The CSRF cookie/header contract is
 separate from customer CSRF. Production cookies require Secure, `/` scope and
 explicit SameSite policy.
 
-Control-plane startup requires its own cookie names, CSRF header, Secure and
-SameSite settings, session lifetime and CORS origins. Missing values fail startup
-rather than inheriting customer defaults. Customer-only startup need not supply
-operator configuration.
+The versioned `contracts/http/control-plane-browser-protocol.json` owns the API
+prefix, `noteverse_operator_session`, `noteverse_operator_csrf` and
+`x-operator-csrf-token`. Generated Python and Platform Admin constants consume
+these identities. Startup requires deployment policy: Secure, SameSite, session
+lifetime and CORS origins. Missing policy fails startup. Customer-only startup
+need not supply operator policy. Operator and Customer credentials remain separate.
 
 Local credentials use the approved adaptive password hash. Bootstrap uses the
 TTY-only operator command with hidden input. Passwords do not belong in command
