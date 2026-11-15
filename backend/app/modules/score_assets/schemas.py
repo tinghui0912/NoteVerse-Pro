@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-from datetime import datetime
+from app.shared.time import Instant
 from typing import Literal
 
 from pydantic import BaseModel
@@ -17,7 +17,7 @@ class RevisionSourceRead(BaseModel):
     filename: str
     mime_type: str
     size_bytes: int | None
-    created_at: datetime
+    created_at: Instant
     available: bool
 
 
@@ -29,7 +29,7 @@ class RenderAssetRead(BaseModel):
     mime_type: str
     size_bytes: int | None
     page_number: int | None
-    created_at: datetime
+    created_at: Instant
     available: bool
 
 

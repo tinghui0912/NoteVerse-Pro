@@ -39,7 +39,7 @@ and retry return 202 with `ImportJobSubmitRead`. Page-number resources contain
 `items`, `page`, `page_size`, `total` and `total_pages`; cursor resources retain
 `items` and `next_cursor`. There is no generic Customer success envelope. Frontend
 i18n owns localized success presentation. Typed API models serialize nested
-UTC-naive database timestamps with an explicit UTC `Z` suffix.
+timezone-aware instants from PostgreSQL TIMESTAMPTZ as RFC3339 UTC date-times.
 
 Protocol-native success contracts retain their bodies:
 stored bytes use binary schemas, ZIP archives use `application/zip`, and realtime
@@ -131,7 +131,7 @@ Login and logout return bodyless 204 responses and set or clear host-only operat
 cookies. Current operator, operation pages/summary/retry and audit pages return
 their direct typed representations. Both HTTP contracts use status plus a concrete
 representation, with no generic success envelope. Nested operator timestamps use
-explicit UTC `Z` serialization through the shared ApiModel primitive.
+canonical UTC serialization through the shared ApiModel primitive.
 
 Control Plane owns `ControlPlaneErrorResponse { code, request_id }`, independently
 of the Customer error schema. Its aggregate router declares default and 422
@@ -150,3 +150,17 @@ Ingress and both application-error schemas consume its one token-pattern authori
 the schemas declare a length of 1–128. The Control Plane SDK generator also projects
 runtime schemas for browser validation. These HTTP representation constraints are
 independent of the browser identity protocols.
+
+## Instant semantics
+
+All persisted lifecycle, audit, expiry and heartbeat instants use PostgreSQL
+TIMESTAMPTZ. `app.shared.time` owns `utc_now()`, aware UTC normalization and the
+reusable `Instant` API type. Time filters and expiry inputs require an explicit
+offset: `Z` and non-UTC offsets are accepted and normalized to UTC; timezone-free
+values are invalid. The application database connection uses a UTC session policy.
+
+API date-times are RFC3339 UTC instants. Fractional-second display width is not
+part of the wire contract. ApiModel serializes aware instants as UTC and
+rejects timezone-free programming values. ORM flush admission likewise requires
+aware datetime assignments. Duration, musical position and calendar-date concepts
+retain their own units and semantics.

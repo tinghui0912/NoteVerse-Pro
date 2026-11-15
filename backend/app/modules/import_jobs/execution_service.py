@@ -22,7 +22,7 @@ from app.task_queue.protocols import CeleryTaskLike
 from app.shared.constants import ErrorCode
 from app.storage import ObjectStorage, object_storage
 from app.storage.paths import object_work_path
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 class ImportJobExecutionService:
@@ -94,7 +94,7 @@ class ImportJobExecutionService:
                     "initialization",
                     0,
                     current_step="initialization",
-                    started_at=utc_now_naive(),
+                    started_at=utc_now(),
                 )
                 context.update_celery_state("initialization", 0, "initialization")
                 pipeline = PipelineBuilder.build(image_paths, options)

@@ -1,10 +1,10 @@
 from sqlalchemy.orm import Session
-from sqlmodel import SQLModel, create_engine, select
+from sqlmodel import SQLModel, select
 
 from tests.support.import_execution import processing_lease
 
 from app.db.execution_manifests import manifest_sha256
-from app.db.models import ExecutionManifest, ImportJob, ImportJobState
+from app.db.models import ExecutionManifest, ImportJob, ImportJobState, User
 from app.modules.import_jobs import execution_manifest
 from app.modules.import_jobs.service import ImportJobService
 
@@ -30,12 +30,16 @@ def test_execution_manifest_digest_is_stable_for_equivalent_content() -> None:
     )
 
 
-def test_import_jobs_reuse_one_execution_manifest_and_preserve_first_binding(monkeypatch) -> None:
-    engine = create_engine("sqlite:///:memory:")
+def test_import_jobs_reuse_one_execution_manifest_and_preserve_first_binding(
+    postgres_engine, monkeypatch
+) -> None:
+    engine = postgres_engine
     SQLModel.metadata.create_all(engine)
     monkeypatch.setattr(execution_manifest, "build_omr_manifest", _manifest)
 
     with Session(engine) as session:
+        session.add(User(id=1, email="manifest@example.test", password_hash="hash"))
+        session.commit()
         first_job = _job("job-first")
         second_job = _job("job-second")
         session.add_all((first_job, second_job))
@@ -68,13 +72,16 @@ def test_import_jobs_reuse_one_execution_manifest_and_preserve_first_binding(mon
 
 
 def test_import_job_detail_exposes_manifest_digest_without_manifest_contents(
+    postgres_engine,
     monkeypatch,
 ) -> None:
-    engine = create_engine("sqlite:///:memory:")
+    engine = postgres_engine
     SQLModel.metadata.create_all(engine)
     monkeypatch.setattr(execution_manifest, "build_omr_manifest", _manifest)
 
     with Session(engine) as session:
+        session.add(User(id=1, email="manifest@example.test", password_hash="hash"))
+        session.commit()
         job = _job("job-detail")
         session.add(job)
         session.commit()

@@ -4,7 +4,7 @@ from typing import Optional, TYPE_CHECKING
 from sqlalchemy import BigInteger, Column, DateTime, ForeignKey, Index, Integer, String
 from sqlmodel import Field, Relationship, SQLModel
 
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 if TYPE_CHECKING:
     from .user import User
@@ -26,17 +26,21 @@ class RefreshToken(SQLModel, table=True):  # type: ignore[call-arg]
     device_id: Optional[str] = Field(default=None, sa_column=Column(String(64), nullable=True))
     user_agent: Optional[str] = Field(default=None, sa_column=Column(String(512), nullable=True))
     ip_address: Optional[str] = Field(default=None, sa_column=Column(String(64), nullable=True))
-    expires_at: datetime = Field(sa_column=Column(DateTime, nullable=False))
-    revoked_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime, nullable=True))
+    expires_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
+    revoked_at: Optional[datetime] = Field(
+        default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
     replaced_by_token_id: Optional[int] = Field(
         default=None,
         sa_column=Column(BigInteger, ForeignKey("refresh_tokens.id"), nullable=True),
     )
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
-    last_used_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime, nullable=True))
+    last_used_at: Optional[datetime] = Field(
+        default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
 
     user: "User" = Relationship(back_populates="refresh_tokens")
 
@@ -57,11 +61,13 @@ class AuthToken(SQLModel, table=True):  # type: ignore[call-arg]
     token_hash: str = Field(sa_column=Column(String(64), unique=True, nullable=False))
     user_agent: Optional[str] = Field(default=None, sa_column=Column(String(512), nullable=True))
     ip_address: Optional[str] = Field(default=None, sa_column=Column(String(64), nullable=True))
-    expires_at: datetime = Field(sa_column=Column(DateTime, nullable=False))
-    used_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime, nullable=True))
+    expires_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
+    used_at: Optional[datetime] = Field(
+        default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
 
 
@@ -83,18 +89,20 @@ class PendingRegistration(SQLModel, table=True):  # type: ignore[call-arg]
     attempt_count: int = Field(default=0, sa_column=Column(Integer, default=0, nullable=False))
     user_agent: Optional[str] = Field(default=None, sa_column=Column(String(512), nullable=True))
     ip_address: Optional[str] = Field(default=None, sa_column=Column(String(64), nullable=True))
-    expires_at: datetime = Field(sa_column=Column(DateTime, nullable=False))
-    consumed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime, nullable=True))
+    expires_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
+    consumed_at: Optional[datetime] = Field(
+        default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
     updated_at: datetime = Field(
-        default_factory=utc_now_naive,
+        default_factory=utc_now,
         sa_column=Column(
-            DateTime,
-            default=utc_now_naive,
-            onupdate=utc_now_naive,
+            DateTime(timezone=True),
+            default=utc_now,
+            onupdate=utc_now,
             nullable=False,
         ),
     )
@@ -119,18 +127,20 @@ class EmailChangeRequest(SQLModel, table=True):  # type: ignore[call-arg]
     locale: str = Field(default="zh", sa_column=Column(String(8), default="zh", nullable=False))
     user_agent: Optional[str] = Field(default=None, sa_column=Column(String(512), nullable=True))
     ip_address: Optional[str] = Field(default=None, sa_column=Column(String(64), nullable=True))
-    expires_at: datetime = Field(sa_column=Column(DateTime, nullable=False))
-    consumed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime, nullable=True))
+    expires_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
+    consumed_at: Optional[datetime] = Field(
+        default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
     updated_at: datetime = Field(
-        default_factory=utc_now_naive,
+        default_factory=utc_now,
         sa_column=Column(
-            DateTime,
-            default=utc_now_naive,
-            onupdate=utc_now_naive,
+            DateTime(timezone=True),
+            default=utc_now,
+            onupdate=utc_now,
             nullable=False,
         ),
     )

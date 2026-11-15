@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import enum
-from datetime import datetime
+from app.shared.time import Instant
 
 from pydantic import BaseModel, Field
 from app.shared.api_model import ApiModel
@@ -47,10 +47,10 @@ class AsyncOperationRead(ApiModel):
     status: AsyncOperationStatus
     attempts: int
     max_attempts: int | None
-    next_attempt_at: datetime | None
+    next_attempt_at: Instant | None
     failure: AsyncOperationFailure | None = None
-    created_at: datetime | None
-    updated_at: datetime | None
+    created_at: Instant | None
+    updated_at: Instant | None
 
 
 class AsyncOperationStatusCount(BaseModel):
@@ -89,4 +89,4 @@ class OpsAuditEventRead(ApiModel):
     client_address: str | None
     previous_state: str | None
     new_state: str | None
-    created_at: datetime
+    created_at: Instant

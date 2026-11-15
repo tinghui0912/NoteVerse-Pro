@@ -43,7 +43,7 @@ from app.modules.storage_objects.writes import write_object
 from app.modules.import_jobs.pipeline.context import JobContext
 from app.modules.import_jobs.pipeline.step_tracker import StepTracker
 from app.task_queue.tracing import import_dispatch_trace_context
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from tests.test_score_revision_services import score_service_session as score_service_session
 from tests.support.write_cleanup import drain_write_cleanup
 
@@ -89,7 +89,7 @@ def claim(db, row):
 
 
 def expire(db, row):
-    row.started_at = utc_now_naive() - timedelta(
+    row.started_at = utc_now() - timedelta(
         seconds=dispatch_module.settings.IMPORT_PROCESSING_TIMEOUT_SECONDS + 1
     )
     db.add(row)
@@ -157,7 +157,7 @@ def test_expired_dispatch_preserves_domain_progress_and_steps(setup_delivery):
     db, _, job, row = setup_delivery
     service = ImportDispatchService()
     assert service.mark_dispatched(db, row.dispatch_uuid)
-    row.dispatched_at = utc_now_naive() - timedelta(
+    row.dispatched_at = utc_now() - timedelta(
         seconds=dispatch_module.settings.IMPORT_DISPATCH_TIMEOUT_SECONDS + 1
     )
     job.progress, job.current_step = 17, "queued"
@@ -178,7 +178,7 @@ def test_expired_processing_resets_execution_and_preserves_inputs_and_binding(se
     db.flush()
     job.execution_manifest_id = manifest.id
     job.state, job.progress, job.current_step = ImportJobState.RUNNING, 73, "ocr"
-    job.started_at = job.last_heartbeat_at = utc_now_naive()
+    job.started_at = job.last_heartbeat_at = utc_now()
     job.code = job.error = job.error_type = "attempt-local"
     job.internal_error_code = "attempt-local"
     job.internal_error_stage = "pipeline"
@@ -192,7 +192,7 @@ def test_expired_processing_resets_execution_and_preserves_inputs_and_binding(se
     assert row.status == ImportDispatchStatus.FAILED and row.attempt_count == lease.attempt
     assert row.internal_error_code == "import_dispatch_lease_expired"
     assert row.internal_error_class == "transient" and row.internal_error_retryable is True
-    assert row.attempt_token is None and row.next_attempt_at <= utc_now_naive()
+    assert row.attempt_token is None and row.next_attempt_at <= utc_now()
     assert job.state == ImportJobState.PENDING and job.progress == 0
     assert job.current_step is job.started_at is job.last_heartbeat_at is job.finished_at is None
     assert job.code is job.error is job.error_type is job.internal_error_code is None

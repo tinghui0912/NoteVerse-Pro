@@ -54,7 +54,7 @@ from app.modules.storage_usage.service import storage_usage_service
 from app.shared.constants import ErrorCode
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from app.storage import object_storage
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 class ImportReviewService:
@@ -122,7 +122,7 @@ class ImportReviewService:
         content_hash = hashlib.sha256(content).hexdigest()
         score_uuid = str(uuid.uuid4())
         revision_uuid = str(uuid.uuid4())
-        now = utc_now_naive()
+        now = utc_now()
         title = self._confirmed_title(job, request)
         genres = self._confirmed_genres(job, request)
         key = f"scores/{score_uuid}/revisions/{revision_uuid}/score.musicxml"
@@ -333,7 +333,7 @@ class ImportReviewService:
             artifact.filename = stored.object_key.rsplit("/", 1)[-1]
             db.flush()
             retire_after_release(db, previous_object.id)
-            job.updated_at = utc_now_naive()
+            job.updated_at = utc_now()
             create_review_thumbnail_render_outbox(
                 db,
                 import_job_id=job_id,

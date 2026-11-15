@@ -6,7 +6,7 @@ from app.db.models.score import Score
 from app.db.models.performance_take import PerformanceTake
 from app.modules.storage_objects.persistence import object_to_row
 from app.modules.storage_usage.service import StorageUsageService
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from app.core.exceptions import ValidationException
 from app.shared.constants import ErrorCode
 from .final_media import VerifiedPerformanceTakeCandidate
@@ -41,7 +41,7 @@ class PerformanceTakeWriter:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="reservation_id")
         state = lifecycle_from_row(reservation)
         current_lease = state.require_current_lease(
-            token=candidate.lease.token, object_key=candidate.lease.object_key, now=utc_now_naive()
+            token=candidate.lease.token, object_key=candidate.lease.object_key, now=utc_now()
         )
         if current_lease != candidate.lease:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="candidate")
@@ -49,7 +49,7 @@ class PerformanceTakeWriter:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="manifest")
         candidate.validate(manifest)
         transition = state.complete(
-            token=candidate.lease.token, object_key=candidate.lease.object_key, now=utc_now_naive()
+            token=candidate.lease.token, object_key=candidate.lease.object_key, now=utc_now()
         )
         current_score = (
             (
@@ -77,7 +77,7 @@ class PerformanceTakeWriter:
         )
         self.repository.create_take(db, take)
         apply_reservation_transition(
-            self.storage_usage_service, db, reservation, transition, now=utc_now_naive()
+            self.storage_usage_service, db, reservation, transition, now=utc_now()
         )
         db.flush()
         return take

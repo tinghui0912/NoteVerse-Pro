@@ -1,5 +1,8 @@
 """Pure effective invitation projection, admission and recipient eligibility."""
 
+from datetime import UTC
+
+
 from datetime import datetime, timedelta
 import pytest
 from app.core.exceptions import ValidationException
@@ -17,7 +20,7 @@ from app.modules.score_invites.rules import (
 )
 from app.shared.constants import ErrorCode
 
-NOW = datetime(2026, 8, 11, 8)
+NOW = datetime(2026, 8, 11, 8, tzinfo=UTC)
 
 
 def invite(*, outcome=None, expires_at=None):

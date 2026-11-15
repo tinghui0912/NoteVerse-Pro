@@ -1,4 +1,4 @@
-from datetime import datetime
+from app.shared.time import Instant
 from typing import Annotated, Literal
 from pydantic import Field, TypeAdapter
 from app.shared.api_model import ApiModel
@@ -10,7 +10,7 @@ class ChangeBaseRead(ApiModel):
     schemaVersion: Literal[1] = REALTIME_CHANGE_SCHEMA_VERSION
     sequence: int
     changeId: str
-    createdAt: datetime
+    createdAt: Instant
 
 
 class NotificationsChangedRead(ChangeBaseRead):

@@ -32,7 +32,7 @@ from app.modules.storage_objects.retirement import (
     delivery_lifecycle,
 )
 from app.worker.execution import stored_object_retirement as worker
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 pytest_plugins = ["tests.test_practice_bundle_postgres"]
 
@@ -218,7 +218,7 @@ async def test_attempt_takeover_fences_stale_work_and_holds_rows_across_delete(
         old = retirement_delivery.claim(db, uuid)
         db.commit()
         operation = retirement_delivery.get(db, uuid)
-        operation.started_at = utc_now_naive() - timedelta(
+        operation.started_at = utc_now() - timedelta(
             seconds=delivery_lifecycle().policy.processing_timeout_seconds
         )
         db.commit()
@@ -332,7 +332,7 @@ async def test_shared_take_release_keeps_lineage_and_accounts_before_physical_re
         assert db.scalar(select(PerformanceTake)) is None
         assert (db.get(StorageUsageAccount, 1)).used_bytes == 0
         assert manifest_from_row(db.get(PerformanceTakeManifest, manifest_id)) == manifest
-        operation.next_attempt_at = utc_now_naive()
+        operation.next_attempt_at = utc_now()
         db.commit()
     monkeypatch.setattr(storage, "delete", delete)
     assert (await asyncio.to_thread(worker.execute_stored_object_retirement_task, None, uuid))[

@@ -57,7 +57,7 @@ from app.modules.storage_objects.writes import write_object
 from app.core.exceptions import ConflictException
 from app.modules.durable_work.delivery import StaleDeliveryAttempt
 from app.processing.musicxml.admission import admit_musicxml_document
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from tests.support.postgres_schema import postgres_schema_database
 from tests.support.object_storage import InMemoryObjectStorage
 from tests.support.write_cleanup import drain_write_cleanup
@@ -367,7 +367,7 @@ def test_revision_consequences_keep_the_transaction_audience(database):
         assert notice.score_title_snapshot == "Etudes"
         assert db.scalar(sa.select(StorageUsageAccount)).reserved_bytes == 0
         member = db.scalar(sa.select(ScoreMembership))
-        member.revoked_at = utc_now_naive()
+        member.revoked_at = utc_now()
         db.add(
             ScoreMembership(
                 score_id=member.score_id,
@@ -424,7 +424,7 @@ def test_metadata_mid_compute_takeover_and_atomic_completion(database, monkeypat
             with Session(engine) as db:
                 row = db.scalar(sa.select(RevisionMetadataOutbox))
                 token = row.attempt_token
-                row.started_at = utc_now_naive() - timedelta(days=1)
+                row.started_at = utc_now() - timedelta(days=1)
                 db.commit()
                 assert metadata_delivery.recover_and_list_due(db) == [uuid]
                 second = metadata_delivery.claim(db, uuid)

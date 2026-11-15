@@ -1,3 +1,4 @@
+from datetime import UTC
 from datetime import datetime, timedelta
 
 import pytest
@@ -12,7 +13,7 @@ from app.modules.performance_takes.upload_reservation.domain import (
     UNKNOWN_OUTCOME_GRACE,
 )
 
-NOW = datetime(2026, 11, 1)
+NOW = datetime(2026, 11, 1, tzinfo=UTC)
 
 
 def reserved():
@@ -160,13 +161,16 @@ def test_refresh_and_cleanup_are_domain_commands():
     assert cleaned.staging_cleanup_completed_at == NOW + timedelta(hours=2)
 
 
-@pytest.mark.parametrize("status,lease", [
-    (UploadReservationStatus.RESERVED, FinalizeLease("t", "k", NOW)),
-    (UploadReservationStatus.FINALIZING, None),
-    (UploadReservationStatus.COMPLETED, FinalizeLease("t", "k", NOW)),
-    (UploadReservationStatus.CANCELLED, FinalizeLease("t", "k", NOW)),
-    (UploadReservationStatus.EXPIRED, FinalizeLease("t", "k", NOW)),
-])
+@pytest.mark.parametrize(
+    "status,lease",
+    [
+        (UploadReservationStatus.RESERVED, FinalizeLease("t", "k", NOW)),
+        (UploadReservationStatus.FINALIZING, None),
+        (UploadReservationStatus.COMPLETED, FinalizeLease("t", "k", NOW)),
+        (UploadReservationStatus.CANCELLED, FinalizeLease("t", "k", NOW)),
+        (UploadReservationStatus.EXPIRED, FinalizeLease("t", "k", NOW)),
+    ],
+)
 def test_invalid_hydration_fails_closed(status, lease):
     with pytest.raises(ReservationInvariantError):
         UploadReservationLifecycle(status, NOW, lease)
@@ -176,9 +180,9 @@ def test_take_presence_is_an_atomic_invariant():
     with pytest.raises(ReservationInvariantError):
         reserved().assert_take_presence(True)
     with pytest.raises(ReservationInvariantError):
-        UploadReservationLifecycle(
-            UploadReservationStatus.COMPLETED, NOW
-        ).assert_take_presence(False)
+        UploadReservationLifecycle(UploadReservationStatus.COMPLETED, NOW).assert_take_presence(
+            False
+        )
 
 
 def test_expired_lease_cleanup_uses_same_recovery_rules():
@@ -209,10 +213,16 @@ def test_partial_row_lease_and_noncanonical_candidate_json_fail_closed():
 
 def test_active_finalize_lease_remains_fenced_when_reservation_deadline_passes():
     from dataclasses import replace
+
     state = replace(finalizing(), expires_at=NOW)
     with pytest.raises(ReservationTransitionError, match="finalize_in_progress"):
-        state.begin_finalize(lease=FinalizeLease("other", "other-key", NOW + timedelta(minutes=20)), now=NOW)
+        state.begin_finalize(
+            lease=FinalizeLease("other", "other-key", NOW + timedelta(minutes=20)), now=NOW
+        )
     with pytest.raises(ReservationTransitionError, match="finalize_in_progress"):
         state.expire(now=NOW)
     # Only the matching current executor may retire its active expired reservation.
-    assert state.expire(now=NOW, token="token", object_key="candidate").after.status is UploadReservationStatus.EXPIRED
+    assert (
+        state.expire(now=NOW, token="token", object_key="candidate").after.status
+        is UploadReservationStatus.EXPIRED
+    )

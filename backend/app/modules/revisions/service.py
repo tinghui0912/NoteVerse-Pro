@@ -41,7 +41,7 @@ from app.modules.storage_usage.service import storage_usage_service
 from app.processing.musicxml.admission import admit_musicxml_document
 from app.shared.constants import ErrorCode
 from app.storage import object_storage
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 class RevisionService:
@@ -234,14 +234,14 @@ class RevisionService:
                         revision_id=revision_id,
                         author_user_id=user_id,
                         note=note_text,
-                        created_at=utc_now_naive(),
-                        updated_at=utc_now_naive(),
+                        created_at=utc_now(),
+                        updated_at=utc_now(),
                     )
                 )
             else:
                 existing.author_user_id = user_id
                 existing.note = note_text
-                existing.updated_at = utc_now_naive()
+                existing.updated_at = utc_now()
         elif existing is not None:
             db.delete(existing)
         db.commit()

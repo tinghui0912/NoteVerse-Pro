@@ -19,7 +19,7 @@ from app.db.models.practice_bundle import (
 )
 from app.shared.constants import ErrorCode
 from app.storage.base import ObjectStorage
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from app.modules.practice.score.artifact import (
     canonical_practice_artifact_bytes,
     practice_artifact_id,
@@ -132,7 +132,7 @@ class PracticeBundleRepository:
                         artifact_id=bundle.artifact.artifact_id,
                         artifact_schema_version=bundle.artifact.schema_version,
                         status=PracticeBundleStatus.CREATING.value,
-                        creation_expires_at=utc_now_naive()
+                        creation_expires_at=utc_now()
                         + timedelta(seconds=BUNDLE_CREATION_LEASE_SECONDS),
                     )
                     db.add(row)
@@ -214,7 +214,7 @@ class PracticeBundleRepository:
                     details={"reason": "creation_lease_lost"},
                 )
             if row.status == PracticeBundleStatus.CREATING.value:
-                if row.creation_expires_at <= utc_now_naive():
+                if row.creation_expires_at <= utc_now():
                     raise ValueError("Bundle creation lease expired")
                 prepared_object = adopt_written_object(db, receipts[0])
                 artifact_object = adopt_written_object(db, receipts[1])

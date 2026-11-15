@@ -59,3 +59,13 @@ def isolated_score_deletion_immediate_dispatch(monkeypatch):
     monkeypatch.setattr(
         "app.worker.dispatch.score_deletion.dispatch_score_deletion_best_effort", Mock()
     )
+
+
+@pytest.fixture
+def postgres_engine(monkeypatch):
+    from sqlmodel import SQLModel
+    from tests.support.postgres_schema import postgres_schema_database
+
+    with postgres_schema_database(monkeypatch) as (engine, _):
+        SQLModel.metadata.create_all(engine)
+        yield engine

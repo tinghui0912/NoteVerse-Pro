@@ -7,10 +7,20 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import BigInteger, Column, DateTime, Enum as SAEnum, ForeignKey, Index, Integer, String, UniqueConstraint
+from sqlalchemy import (
+    BigInteger,
+    Column,
+    DateTime,
+    Enum as SAEnum,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+)
 from sqlmodel import Field, SQLModel
 
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
@@ -39,9 +49,7 @@ class Operator(SQLModel, table=True):  # type: ignore[call-arg]
     """Authorization principal for a person operating the platform."""
 
     __tablename__ = "operators"
-    __table_args__ = (
-        Index("idx_operators_status", "status"),
-    )
+    __table_args__ = (Index("idx_operators_status", "status"),)
 
     id: Optional[int] = Field(
         default=None,
@@ -69,12 +77,14 @@ class Operator(SQLModel, table=True):  # type: ignore[call-arg]
         ),
     )
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
     updated_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(
+            DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
+        ),
     )
 
 
@@ -83,7 +93,9 @@ class OperatorIdentity(SQLModel, table=True):  # type: ignore[call-arg]
 
     __tablename__ = "operator_identities"
     __table_args__ = (
-        UniqueConstraint("provider", "issuer", "subject", name="uq_operator_identities_provider_issuer_subject"),
+        UniqueConstraint(
+            "provider", "issuer", "subject", name="uq_operator_identities_provider_issuer_subject"
+        ),
         Index("idx_operator_identities_operator", "operator_id"),
     )
 
@@ -111,10 +123,12 @@ class OperatorIdentity(SQLModel, table=True):  # type: ignore[call-arg]
     issuer: str = Field(sa_column=Column(String(255), nullable=False))
     subject: str = Field(sa_column=Column(String(255), nullable=False))
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
-    last_authenticated_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    last_authenticated_at: Optional[datetime] = Field(
+        default=None, sa_column=Column(DateTime(timezone=True))
+    )
 
 
 class OperatorPasswordCredential(SQLModel, table=True):  # type: ignore[call-arg]
@@ -136,16 +150,18 @@ class OperatorPasswordCredential(SQLModel, table=True):  # type: ignore[call-arg
     )
     password_hash: str = Field(sa_column=Column(String(255), nullable=False))
     password_changed_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
     updated_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(
+            DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
+        ),
     )
 
 
@@ -181,13 +197,15 @@ class OperatorSession(SQLModel, table=True):  # type: ignore[call-arg]
     user_agent: Optional[str] = Field(default=None, sa_column=Column(String(512)))
     ip_address: Optional[str] = Field(default=None, sa_column=Column(String(64)))
     authenticated_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
-    expires_at: datetime = Field(sa_column=Column(DateTime, nullable=False))
-    revoked_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    expires_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
+    revoked_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
-    last_used_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    last_used_at: Optional[datetime] = Field(
+        default=None, sa_column=Column(DateTime(timezone=True))
+    )

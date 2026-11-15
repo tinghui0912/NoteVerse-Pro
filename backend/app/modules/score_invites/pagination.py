@@ -10,6 +10,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.exceptions import ValidationException
+from app.shared.time import require_utc
 
 DEFAULT_PAGE_SIZE = 100
 MAX_PAGE_SIZE = 100
@@ -31,7 +32,7 @@ def encode_cursor(kind: CollectionKind, scope: str, created_at: datetime, row_id
         version=1,
         kind=kind,
         scope=scope,
-        created_at=created_at.isoformat(timespec="microseconds"),
+        created_at=require_utc(created_at).isoformat(timespec="microseconds"),
         row_id=row_id,
     )
     raw = json.dumps(payload.model_dump(), sort_keys=True, separators=(",", ":")).encode()
@@ -57,12 +58,11 @@ def decode_cursor(
             raise ValueError("Invalid cursor encoding")
         raw = base64.b64decode(cursor + "=" * (-len(cursor) % 4), altchars=b"-_", validate=True)
         payload = _Cursor.model_validate(json.loads(raw, object_pairs_hook=_unique_fields))
-        created_at = datetime.fromisoformat(payload.created_at)
+        created_at = require_utc(datetime.fromisoformat(payload.created_at))
         if (
             payload.version != 1
             or payload.kind != kind
             or payload.scope != scope
-            or created_at.tzinfo is not None
             or created_at.isoformat(timespec="microseconds") != payload.created_at
         ):
             raise ValueError("Invalid cursor position")

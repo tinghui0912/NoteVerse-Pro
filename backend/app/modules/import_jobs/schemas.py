@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-from datetime import datetime
+from app.shared.time import Instant
 from typing import List, Optional, Protocol, TypedDict
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator, with_config
@@ -117,7 +117,7 @@ class ImportJobStatusUpdate(TypedDict, total=False):
     error: Optional[str]
     error_type: Optional[str]
     code: Optional[str]
-    started_at: Optional[datetime]
+    started_at: Optional[Instant]
 
 
 processing_options_adapter = TypeAdapter(ImportJobProcessingOptions)

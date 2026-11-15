@@ -9,7 +9,7 @@ from pwdlib.exceptions import UnknownHashError
 
 from .config import settings
 from app.core.token_constants import TOKEN_ALGORITHM
-from app.utils.timezone import utc_now
+from app.shared.time import utc_now
 
 
 password_hash = PasswordHash.recommended()

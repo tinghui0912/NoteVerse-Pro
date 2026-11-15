@@ -22,7 +22,7 @@ from app.db.models.import_job import ImportJobState
 from app.modules.import_jobs import notifications, dispatch_service
 from app.modules.import_jobs.worker_service import ImportJobExecutionService
 from app.modules.realtime import publisher
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from tests.support.postgres_schema import postgres_schema_database
 from tests.support.import_execution import processing_lease
 
@@ -86,7 +86,7 @@ def exhaust(engine):
     with Session(engine) as db:
         row = db.scalar(sa.select(ImportDispatch))
         row.attempt_count = dispatch_service.settings.IMPORT_DISPATCH_MAX_ATTEMPTS
-        row.started_at = utc_now_naive() - timedelta(days=1)
+        row.started_at = utc_now() - timedelta(days=1)
         db.commit()
 
 

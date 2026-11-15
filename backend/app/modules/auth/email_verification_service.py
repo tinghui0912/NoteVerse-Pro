@@ -17,7 +17,7 @@ from app.modules.auth.schemas import RegisterRequest, VerifyEmailRequest
 from app.modules.mail.outbox_service import queue_mail
 from app.modules.mail.templates.auth import build_email_verification_email
 from app.shared.constants import ErrorCode
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 class EmailVerificationService:
@@ -51,7 +51,7 @@ class EmailVerificationService:
 
         ttl_seconds = settings.EMAIL_VERIFY_TOKEN_MAX_AGE_SECONDS
         token = self._new_token()
-        now = utc_now_naive()
+        now = utc_now()
         password_hash = security.get_password_hash(request.password)
         pending_result = db.execute(
             select(PendingRegistration).where(PendingRegistration.email == email)
@@ -99,7 +99,7 @@ class EmailVerificationService:
         db.commit()
 
     def verify_email(self, db: Session, request: VerifyEmailRequest) -> User:
-        now = utc_now_naive()
+        now = utc_now()
         result = db.execute(
             select(PendingRegistration).where(
                 PendingRegistration.token_hash == self._hash_token(request.token)

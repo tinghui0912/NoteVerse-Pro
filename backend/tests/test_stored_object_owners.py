@@ -460,7 +460,7 @@ def test_orphan_scan_retirement_failure_rolls_back_only_that_owner(
     from app.db.models import StorageUsageAccount, StorageUsageCategory
     from app.modules.import_jobs.maintenance_service import ImportJobMaintenanceService
     from app.modules.storage_usage.service import storage_usage_service
-    from app.utils.timezone import utc_now_naive
+    from app.shared.time import utc_now
 
     db, storage = score_service_session
     uploads = []
@@ -472,7 +472,7 @@ def test_orphan_scan_retirement_failure_rolls_back_only_that_owner(
             stored_object=obj,
             original_filename="orphan.png",
             uploader_user_id=1,
-            created_at=utc_now_naive() - timedelta(days=365),
+            created_at=utc_now() - timedelta(days=365),
         )
         db.add(upload)
         db.commit()

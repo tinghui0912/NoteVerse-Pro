@@ -17,7 +17,7 @@ from app.db.models.score_access import MembershipRole, InviteTerminalOutcome
 from app.modules.score_invites.rules import hash_invite_token
 from app.modules.score_invites.service import ScoreInviteService
 from app.shared.constants import ErrorCode
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from tests.support.postgres_schema import postgres_schema_database
 from tests.test_score_revision_services import add_active_score_with_head_revision
 
@@ -74,7 +74,7 @@ def test_invite_terminal_commands_serialize_on_postgres_row(
                 created_by_user_id=1,
             )
             setup.add(invite)
-            revoked_at = utc_now_naive() - timedelta(days=1)
+            revoked_at = utc_now() - timedelta(days=1)
             if existing_revoked_membership:
                 setup.add(
                     ScoreMembership(

@@ -63,7 +63,7 @@ from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.storage_usage.service import StorageUsageService
 from app.shared.constants import ErrorCode
 from app.storage.factory import object_storage
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 from .effects import apply_reservation_transition
 from .responses import reservation_read, completed_reservation_response
@@ -107,7 +107,7 @@ class PerformanceTakeReservationService:
         db: Session,
         reservation: PerformanceTakeUploadReservation,
     ) -> str:
-        now = utc_now_naive()
+        now = utc_now()
         apply_reservation_transition(
             self.storage_usage_service,
             db,
@@ -156,7 +156,7 @@ class PerformanceTakeReservationService:
                 field="client_request_id",
                 details={"reason": f"client_request_id_{status.lower()}"},
             )
-        if reservation.expires_at <= utc_now_naive():
+        if reservation.expires_at <= utc_now():
             self._expire_reservation(db, reservation)
             raise ValidationException(
                 ErrorCode.VALIDATION_ERROR,
@@ -168,7 +168,7 @@ class PerformanceTakeReservationService:
             content_type=manifest_from_row(reservation.manifest).snapshot.capture.mime_type,
             checksum_sha256="",
         )
-        now = utc_now_naive()
+        now = utc_now()
         apply_reservation_transition(
             self.storage_usage_service,
             db,
@@ -263,7 +263,7 @@ class PerformanceTakeReservationService:
             object_id=take_uuid,
             storage_key=staging_key,
         )
-        now = utc_now_naive()
+        now = utc_now()
         put_expiry = self._put_url_expires_at(now)
         manifest = TakeManifest(
             take_uuid,
@@ -336,7 +336,7 @@ class PerformanceTakeReservationService:
         )
         if reservation is None:
             raise ResourceNotFoundException("upload_reservation", reservation_id)
-        now = utc_now_naive()
+        now = utc_now()
         state = lifecycle_from_row(reservation)
         take = self.repository.get_by_reservation(db, user_id, reservation.id)
         state.assert_take_presence(take is not None, allow_deleted_take=True)

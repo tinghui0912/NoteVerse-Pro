@@ -319,7 +319,7 @@ def test_interrupted_creation_has_durable_lease_for_orphan_cleanup(postgres_bund
     from unittest.mock import patch
     from app.db.models import ScoreRevisionPracticeBinding
     from app.modules.practice.bundle.retention import practice_bundle_retention
-    from app.utils.timezone import utc_now_naive
+    from app.shared.time import utc_now
 
     engine, repository, bundle, storage = postgres_bundle
     sessions = sessionmaker(engine, expire_on_commit=False)
@@ -348,7 +348,7 @@ def test_interrupted_creation_has_durable_lease_for_orphan_cleanup(postgres_bund
         assert intent.status == "PREPARED" and storage.exists(intent.object_key)
         assert db.scalar(select(StoredObject)) is None
         assert db.scalar(select(ScoreRevisionPracticeBinding)) is None
-        row.creation_expires_at = utc_now_naive() - timedelta(seconds=1)
+        row.creation_expires_at = utc_now() - timedelta(seconds=1)
         db.commit()
         due = practice_bundle_retention.recover_stale_creating(db)
         db.commit()

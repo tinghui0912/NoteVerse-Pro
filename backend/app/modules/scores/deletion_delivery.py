@@ -21,7 +21,7 @@ from app.modules.durable_work.failure import (
     set_failure_metadata,
     clear_failure_metadata,
 )
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 @dataclass(frozen=True)
@@ -79,16 +79,14 @@ class ScoreDeletionDeliveryService:
 
     def mark_dispatched(self, db: Session, operation_uuid: str) -> bool:
         row = lock_operation(db, operation_uuid)
-        if row is None or not self.lifecycle().dispatch(row, now=utc_now_naive()):
+        if row is None or not self.lifecycle().dispatch(row, now=utc_now()):
             return False
         clear_failure_metadata(row)
         return True
 
     def release_dispatch(self, db: Session, operation_uuid: str, error: str) -> bool:
         row = lock_operation(db, operation_uuid)
-        if row is None or not self.lifecycle().release_dispatch(
-            row, error=error, now=utc_now_naive()
-        ):
+        if row is None or not self.lifecycle().release_dispatch(row, error=error, now=utc_now()):
             return False
         self._record_failure(
             row,
@@ -102,7 +100,7 @@ class ScoreDeletionDeliveryService:
         row = lock_operation(db, operation_uuid)
         if row is None:
             return None
-        lifecycle, now = self.lifecycle(), utc_now_naive()
+        lifecycle, now = self.lifecycle(), utc_now()
         admission = lifecycle.claim_admission(row, now=now)
         if admission is ClaimAdmission.EXHAUSTED:
             lifecycle.exhaust(row, error="Score deletion attempts exhausted", now=now)
@@ -131,7 +129,7 @@ class ScoreDeletionDeliveryService:
             row = require_current_attempt(db, lease)
         except StaleScoreDeletionAttempt:
             return False
-        if not self.lifecycle().complete_attempt(row, lease=lease, now=utc_now_naive()):
+        if not self.lifecycle().complete_attempt(row, lease=lease, now=utc_now()):
             return False
         clear_failure_metadata(row)
         return True
@@ -141,7 +139,7 @@ class ScoreDeletionDeliveryService:
             row = require_current_attempt(db, lease)
         except StaleScoreDeletionAttempt:
             return False
-        if not self.lifecycle().fail_attempt(row, lease=lease, error=error, now=utc_now_naive()):
+        if not self.lifecycle().fail_attempt(row, lease=lease, error=error, now=utc_now()):
             return False
         self._record_failure(
             row,
@@ -152,7 +150,7 @@ class ScoreDeletionDeliveryService:
         return True
 
     def recover_and_list_due(self, db: Session) -> list[str]:
-        now = utc_now_naive()
+        now = utc_now()
         columns = ScoreDeletionOperation.__table__.c
         rows = db.scalars(
             select(ScoreDeletionOperation)
@@ -208,7 +206,7 @@ class ScoreDeletionDeliveryService:
     def _rearm(self, row: ScoreDeletionOperation) -> None:
         if row.status not in (Status.PENDING, Status.FAILED) or row.internal_error_code is None:
             raise ValidationException(field="status", details={"status": row.status.value})
-        self.lifecycle().rearm(row, now=utc_now_naive())
+        self.lifecycle().rearm(row, now=utc_now())
         clear_failure_metadata(row)
 
     @staticmethod

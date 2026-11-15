@@ -16,7 +16,7 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlmodel import Field, SQLModel
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 class RealtimeChangeKind(StrEnum):
@@ -76,8 +76,8 @@ class RealtimeChange(SQLModel, table=True):  # type: ignore[call-arg]
     revision_id: str | None = Field(default=None, sa_column=Column(String(36)))
     import_job_id: str | None = Field(default=None, sa_column=Column(String(36)))
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
 
 
@@ -97,5 +97,5 @@ class RealtimeStreamState(SQLModel, table=True):  # type: ignore[call-arg]
     high_watermark_sequence: int = Field(default=0, sa_column=Column(BigInteger, nullable=False))
     replay_floor_sequence: int = Field(default=0, sa_column=Column(BigInteger, nullable=False))
     updated_at: datetime = Field(
-        default_factory=utc_now_naive, sa_column=Column(DateTime, nullable=False)
+        default_factory=utc_now, sa_column=Column(DateTime(timezone=True), nullable=False)
     )

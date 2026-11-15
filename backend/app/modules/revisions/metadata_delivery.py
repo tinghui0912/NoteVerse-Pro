@@ -27,7 +27,7 @@ from app.processing.musicxml import (
     MetadataExtractionError,
     MusicXMLMetadata,
 )
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from app.core.logger import logger
 
 from app.modules.revisions.metadata_policy import METADATA_BATCH_SIZE
@@ -84,14 +84,14 @@ class RevisionMetadataDelivery:
         row = self.get(db, uuid)
         if row is None:
             return None
-        lease = metadata_lifecycle().claim(row, token=str(uuid4()), now=utc_now_naive())
+        lease = metadata_lifecycle().claim(row, token=str(uuid4()), now=utc_now())
         if lease is None:
             return None
         try:
             source = self._source(db, row)
         except ValueError:
             metadata_lifecycle().fail_attempt(
-                row, lease=lease, error="canonical_source_unavailable", now=utc_now_naive()
+                row, lease=lease, error="canonical_source_unavailable", now=utc_now()
             )
             logger.bind(
                 event="revision_metadata.source_unavailable", outbox_id=uuid, attempt=lease.attempt
@@ -152,12 +152,12 @@ class RevisionMetadataDelivery:
             raise ValueError("RevisionWriter must admit metadata before execution")
         if result.metadata is not None:
             MetadataProjectionService._apply_result(projection, result.metadata)
-            projection.computed_at = utc_now_naive()
+            projection.computed_at = utc_now()
         else:
             MetadataProjectionService._mark_failed(
                 projection, result.error_code or "metadata_extraction_failed"
             )
-        assert metadata_lifecycle().complete_attempt(row, lease=payload.lease, now=utc_now_naive())
+        assert metadata_lifecycle().complete_attempt(row, lease=payload.lease, now=utc_now())
         publish_score_change(
             db,
             score_id=payload.score_uuid,
@@ -169,12 +169,12 @@ class RevisionMetadataDelivery:
     def fail(self, db: Session, uuid: str, lease: DeliveryAttemptLease, error: str) -> bool:
         row = self.get(db, uuid)
         return row is not None and metadata_lifecycle().fail_attempt(
-            row, lease=lease, error=error, now=utc_now_naive()
+            row, lease=lease, error=error, now=utc_now()
         )
 
     def mark_dispatched(self, db: Session, uuid: str) -> bool:
         row = self.get(db, uuid)
-        return row is not None and metadata_lifecycle().dispatch(row, now=utc_now_naive())
+        return row is not None and metadata_lifecycle().dispatch(row, now=utc_now())
 
     def rearm(self, db: Session, uuid: str) -> None:
         target = db.scalar(
@@ -190,15 +190,15 @@ class RevisionMetadataDelivery:
             raise ValueError("Metadata rebuild requires an active revision")
         if row.status in ("PROCESSING", "DISPATCHED"):
             raise ValueError("Metadata execution already owns this delivery")
-        metadata_lifecycle().rearm(row, now=utc_now_naive())
+        metadata_lifecycle().rearm(row, now=utc_now())
 
     def release_dispatch(self, db: Session, uuid: str, error: str) -> None:
         row = self.get(db, uuid)
         if row is not None:
-            metadata_lifecycle().release_dispatch(row, error=error, now=utc_now_naive())
+            metadata_lifecycle().release_dispatch(row, error=error, now=utc_now())
 
     def recover_and_list_due(self, db: Session) -> list[str]:
-        now, lifecycle = utc_now_naive(), metadata_lifecycle()
+        now, lifecycle = utc_now(), metadata_lifecycle()
         rows = db.scalars(
             select(RevisionMetadataOutbox)
             .where(RevisionMetadataOutbox.status.in_(["DISPATCHED", "PROCESSING"]))

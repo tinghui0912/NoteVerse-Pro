@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import UTC
+
 import ast
 from dataclasses import FrozenInstanceError, asdict, dataclass, replace
 from datetime import datetime, timedelta
@@ -16,7 +18,7 @@ from app.modules.durable_work.delivery import (
     DeliveryAttemptLease,
 )
 
-NOW = datetime(2026, 11, 6, 12)
+NOW = datetime(2026, 11, 6, 12, tzinfo=UTC)
 LIFECYCLE = DurableDeliveryLifecycle(
     DeliveryStatuses("PENDING", "DISPATCHED", "PROCESSING", "FAILED", "COMPLETED"),
     DeliveryLifecyclePolicy(5, 60, 300, 1200),

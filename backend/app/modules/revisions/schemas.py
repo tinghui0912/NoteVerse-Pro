@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-from datetime import datetime
+from app.shared.time import Instant
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -34,7 +34,7 @@ class RevisionRestoreRead(BaseModel):
     restored_from_revision_number: int | None
     note: str | None
     actor: RevisionActorRead | None
-    created_at: datetime
+    created_at: Instant
 
 
 class RevisionNoteUpdateRequest(BaseModel):
@@ -44,14 +44,14 @@ class RevisionNoteUpdateRequest(BaseModel):
 class RevisionNoteRead(BaseModel):
     note: str
     author: RevisionActorRead | None
-    updated_at: datetime
+    updated_at: Instant
 
 
 class RevisionRead(ApiModel):
     revision_id: str
     revision_number: int
     origin: RevisionOrigin
-    created_at: datetime
+    created_at: Instant
     created_by: RevisionActorRead | None
     restore: RevisionRestoreRead | None
     note: RevisionNoteRead | None

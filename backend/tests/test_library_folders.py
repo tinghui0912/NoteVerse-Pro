@@ -29,7 +29,7 @@ from app.modules.library.schemas import (
 )
 from app.modules.library.service import LibraryService
 from app.modules.library.repository import LibraryRepository
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from tests.test_score_revision_services import (
     add_active_score_with_head_revision,
     score_service_session as score_service_session,
@@ -113,7 +113,7 @@ def test_revoked_or_deleted_scores_disappear_despite_organization(workspace):
     )
     # A persisted preference cannot make a private Score accessible.
     sync.add(ScoreLibraryOrganization(user_id=1, score_id=30, is_favorite=True))
-    member.revoked_at = utc_now_naive()
+    member.revoked_at = utc_now()
     sync.commit()
     for view, selected in [
         (LibraryView.ALL, None),
@@ -130,7 +130,7 @@ def test_revoked_or_deleted_scores_disappear_despite_organization(workspace):
         overview.shared_with_me_count,
     ) == (1, 1, 1, 0)
     assert overview.folders[0].score_count == 1
-    scores[0].deleted_at = utc_now_naive()
+    scores[0].deleted_at = utc_now()
     sync.commit()
     assert (listed(service, db))[1] == 0
 
@@ -168,7 +168,7 @@ def test_favorites_are_reversible_and_do_not_change_score_timestamps(workspace):
         assert (listed(service, db, LibraryView.FAVORITES))[1] == (2 if favorite else 0)
         assert (listed(service, db))[1] == 2
     assert [s.updated_at for s in scores] == before
-    scores[0].updated_at = utc_now_naive() + timedelta(days=1)
+    scores[0].updated_at = utc_now() + timedelta(days=1)
     sync.commit()
     assert [r.score_id for r in (listed(service, db, sort=LibrarySort.UPDATED_DESC))[0]] == [
         "A",
@@ -231,7 +231,7 @@ def test_folder_name_uniqueness_rename_position_and_ownership(workspace):
 def test_repository_access_query_count_is_independent_of_page_size(workspace):
     sync, db, _, _ = workspace
     for i in range(50):
-        sync.add(Score(score_uuid=f"extra-{i}", owner_user_id=1, title=f"Extra {i}"))
+        sync.add(Score(id=1000 + i, score_uuid=f"extra-{i}", owner_user_id=1, title=f"Extra {i}"))
     sync.commit()
     count = 0
 

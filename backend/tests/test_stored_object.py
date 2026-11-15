@@ -20,9 +20,11 @@ def test_exact_object_facts_round_trip_and_immutable_value():
     assert PerformanceTakeFacts(manifest_value(), original).recording_object is original
 
 
-def test_exact_bytes_include_empty_objects_and_sha_is_not_globally_unique():
+def test_exact_bytes_include_empty_objects_and_sha_is_not_globally_unique(
+    postgres_engine,
+):
     import hashlib
-    from sqlalchemy import create_engine, select
+    from sqlalchemy import select
     from sqlalchemy.orm import Session
     from sqlalchemy.exc import IntegrityError
     from app.db.models import StoredObject
@@ -32,8 +34,7 @@ def test_exact_bytes_include_empty_objects_and_sha_is_not_globally_unique():
     )
     assert empty.byte_size == 0
     assert empty.sha256 == hashlib.sha256(b"").hexdigest()
-    engine = create_engine("sqlite://")
-    StoredObject.__table__.create(engine)
+    engine = postgres_engine
     with Session(engine) as db:
         db.add_all(
             [

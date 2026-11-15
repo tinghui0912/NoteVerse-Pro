@@ -14,7 +14,7 @@ from sqlalchemy import (
     Text,
 )
 from sqlmodel import Field, SQLModel
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 class RevisionMetadataOutbox(SQLModel, table=True):  # type: ignore[call-arg]
@@ -57,15 +57,15 @@ class RevisionMetadataOutbox(SQLModel, table=True):  # type: ignore[call-arg]
     attempt_count: int = Field(default=0, sa_column=Column(Integer, nullable=False))
     attempt_token: str | None = Field(default=None, sa_column=Column(String(36)))
     next_attempt_at: datetime = Field(
-        default_factory=utc_now_naive, sa_column=Column(DateTime, nullable=False)
+        default_factory=utc_now, sa_column=Column(DateTime(timezone=True), nullable=False)
     )
-    dispatched_at: datetime | None = Field(default=None, sa_column=Column(DateTime))
-    started_at: datetime | None = Field(default=None, sa_column=Column(DateTime))
-    completed_at: datetime | None = Field(default=None, sa_column=Column(DateTime))
+    dispatched_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    started_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    completed_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     last_error: str | None = Field(default=None, sa_column=Column(Text))
     created_at: datetime = Field(
-        default_factory=utc_now_naive, sa_column=Column(DateTime, nullable=False)
+        default_factory=utc_now, sa_column=Column(DateTime(timezone=True), nullable=False)
     )
     updated_at: datetime = Field(
-        default_factory=utc_now_naive, sa_column=Column(DateTime, nullable=False)
+        default_factory=utc_now, sa_column=Column(DateTime(timezone=True), nullable=False)
     )

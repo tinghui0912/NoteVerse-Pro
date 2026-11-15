@@ -39,7 +39,7 @@ from app.modules.durable_work.failure import (
 from app.modules.import_jobs.schemas import ImportJobProcessingOptions
 from app.modules.import_jobs.notifications import admit_import_outcome
 from app.shared.constants import ErrorCode
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 TERMINAL_IMPORT_STATES = {
     ImportJobState.PENDING_REVIEW,
@@ -140,11 +140,9 @@ class ImportDispatchService:
             return False
         job = lock_dispatch_job(db, row)
         if job.state in TERMINAL_IMPORT_STATES:
-            self._reconcile_terminal_attempt(row, now=utc_now_naive())
+            self._reconcile_terminal_attempt(row, now=utc_now())
             return False
-        if job.state != ImportJobState.PENDING or not self.lifecycle().dispatch(
-            row, now=utc_now_naive()
-        ):
+        if job.state != ImportJobState.PENDING or not self.lifecycle().dispatch(row, now=utc_now()):
             return False
         clear_failure_metadata(row)
         return True
@@ -157,7 +155,7 @@ class ImportDispatchService:
             or import_delivery_exhausted(row)
         ):
             return None
-        lifecycle, now = self.lifecycle(), utc_now_naive()
+        lifecycle, now = self.lifecycle(), utc_now()
         job = lock_dispatch_job(db, row)
         if job.state in TERMINAL_IMPORT_STATES:
             self._reconcile_terminal_attempt(row, now=now)
@@ -227,19 +225,17 @@ class ImportDispatchService:
             select(ImportDispatch).where(ImportDispatch.dispatch_uuid == lease.dispatch_uuid)
         )
         assert row is not None
-        completed = self.lifecycle().complete_attempt(row, lease=lease, now=utc_now_naive())
+        completed = self.lifecycle().complete_attempt(row, lease=lease, now=utc_now())
         assert completed
         clear_failure_metadata(row)
 
     def release_dispatch(self, db: Session, dispatch_uuid: str, error: str) -> None:
         row = lock_dispatch(db, dispatch_uuid)
-        if row is not None and self.lifecycle().release_dispatch(
-            row, error=error, now=utc_now_naive()
-        ):
+        if row is not None and self.lifecycle().release_dispatch(row, error=error, now=utc_now()):
             self._record_failure(row, code="import_dispatch_failed")
 
     def recover_and_list_due(self, db: Session) -> list[str]:
-        lifecycle, now = self.lifecycle(), utc_now_naive()
+        lifecycle, now = self.lifecycle(), utc_now()
         active = db.scalars(
             select(ImportDispatch)
             .where(
@@ -351,8 +347,8 @@ class ImportDispatchService:
         ):
             raise ValidationException(field="status", details={"status": job.state.value})
         previous = f"{job.state.value}/{dispatch.status.value}"
-        self.reset_execution(db, job, utc_now_naive())
-        self.lifecycle().rearm(dispatch, now=utc_now_naive())
+        self.reset_execution(db, job, utc_now())
+        self.lifecycle().rearm(dispatch, now=utc_now())
         clear_failure_metadata(dispatch)
         return previous
 

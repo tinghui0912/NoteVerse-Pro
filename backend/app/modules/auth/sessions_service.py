@@ -15,7 +15,7 @@ from app.db.models.auth import RefreshToken
 from app.db.models.user import User
 from app.modules.auth.schemas import SessionSummary
 from app.shared.constants import ErrorCode
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 class SessionService:
@@ -50,7 +50,7 @@ class SessionService:
             device_id=device_id,
             user_agent=user_agent,
             ip_address=ip_address,
-            expires_at=utc_now_naive() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
+            expires_at=utc_now() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
         )
         db.add(record)
         db.flush()
@@ -68,7 +68,7 @@ class SessionService:
         token_hash = self._hash_token(refresh_token)
         result = db.execute(select(RefreshToken).where(RefreshToken.token_hash == token_hash))
         current_token = result.scalars().one_or_none()
-        now = utc_now_naive()
+        now = utc_now()
 
         if not current_token:
             raise AuthenticationException(
@@ -127,7 +127,7 @@ class SessionService:
         )
         record = result.scalars().one_or_none()
         if record and record.revoked_at is None:
-            record.revoked_at = utc_now_naive()
+            record.revoked_at = utc_now()
             db.commit()
 
     def list_user_sessions(
@@ -138,7 +138,7 @@ class SessionService:
         current_refresh_token: str | None = None,
         limit: int = 100,
     ) -> list[SessionSummary]:
-        now = utc_now_naive()
+        now = utc_now()
         current_token_hash = self._current_token_hash(current_refresh_token)
         revoked_at_column = RefreshToken.__table__.c.revoked_at
         result = db.execute(
@@ -178,7 +178,7 @@ class SessionService:
         *,
         current_refresh_token: str | None = None,
     ) -> bool:
-        now = utc_now_naive()
+        now = utc_now()
         result = db.execute(
             select(RefreshToken).where(
                 RefreshToken.id == session_id,
@@ -224,7 +224,7 @@ class SessionService:
                 details={"reason": "missing_refresh_token"},
             )
 
-        now = utc_now_naive()
+        now = utc_now()
         current_token_hash = self._hash_token(current_refresh_token)
         revoked_at_column = RefreshToken.__table__.c.revoked_at
         result = db.execute(
@@ -252,7 +252,7 @@ class SessionService:
         revoked_at=None,
         commit: bool = True,
     ) -> None:
-        now = revoked_at or utc_now_naive()
+        now = revoked_at or utc_now()
         revoked_at_column = RefreshToken.__table__.c.revoked_at
         result = db.execute(
             select(RefreshToken).where(

@@ -4,7 +4,7 @@ from uuid import uuid4
 from sqlalchemy import select
 from app.db.models import ImportDispatch, ImportDispatchStatus
 from app.modules.import_jobs.dispatch_service import ImportExecutionLease
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 def processing_lease(db, job):
@@ -15,7 +15,7 @@ def processing_lease(db, job):
             status=ImportDispatchStatus.PROCESSING,
             attempt_count=1,
             attempt_token=str(uuid4()),
-            started_at=utc_now_naive(),
+            started_at=utc_now(),
         )
         db.add(row)
         db.commit()

@@ -25,7 +25,7 @@ from sqlmodel import Field, Relationship, SQLModel
 from sqlalchemy.orm import relationship
 from .stored_object import StoredObject
 
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 metadata_json_type = JSON().with_variant(JSONB, "postgresql")
@@ -93,10 +93,14 @@ class ImportJob(SQLModel, table=True):  # type: ignore[call-arg]
     code: Optional[str] = Field(default=None, sa_column=Column(String(64)))
     error: Optional[str] = Field(default=None, sa_column=Column(Text))
     error_type: Optional[str] = Field(default=None, sa_column=Column(String(64)))
-    requested_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    started_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    last_heartbeat_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    finished_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    requested_at: Optional[datetime] = Field(
+        default=None, sa_column=Column(DateTime(timezone=True))
+    )
+    started_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    last_heartbeat_at: Optional[datetime] = Field(
+        default=None, sa_column=Column(DateTime(timezone=True))
+    )
+    finished_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     score_id: Optional[int] = Field(
         default=None,
         sa_column=Column(
@@ -110,15 +114,15 @@ class ImportJob(SQLModel, table=True):  # type: ignore[call-arg]
         ),
     )
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
     updated_at: datetime = Field(
-        default_factory=utc_now_naive,
+        default_factory=utc_now,
         sa_column=Column(
-            DateTime,
-            default=utc_now_naive,
-            onupdate=utc_now_naive,
+            DateTime(timezone=True),
+            default=utc_now,
+            onupdate=utc_now,
             nullable=False,
         ),
     )
@@ -149,8 +153,8 @@ class ImportJobStep(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=False,
         )
     )
-    start_time: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    end_time: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    start_time: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    end_time: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     step_order: int = Field(sa_column=Column(Integer, nullable=False))
 
 
@@ -212,6 +216,6 @@ class ImportArtifact(SQLModel, table=True):  # type: ignore[call-arg]
     filename: str = Field(sa_column=Column(String(255), nullable=False))
     page_number: Optional[int] = Field(default=None, sa_column=Column(Integer))
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )

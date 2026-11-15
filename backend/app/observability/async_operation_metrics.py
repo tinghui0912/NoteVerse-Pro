@@ -29,7 +29,7 @@ from app.modules.ops.operation_projection import operation_projection
 from app.modules.ops.schemas import AsyncOperationKind
 from app.modules.scheduler_lock.constants import BEAT_LEADER_SCHEDULER_NAME
 from app.modules.scheduler_observability.service import scheduler_observability_service
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 def async_operation_metrics_text(db: Session) -> str:
@@ -206,7 +206,7 @@ def _projected_age_lines(
             select(c.kind, func.min(c[column])).where(c.status.in_(statuses)).group_by(c.kind)
         ).all()
     )
-    now = utc_now_naive()
+    now = utc_now()
     return [
         _metric_line(
             metric,
@@ -229,7 +229,7 @@ def _completed_duration_average_lines(db: Session) -> list[str]:
                 c.status == "succeeded",
                 c.started_at.is_not(None),
                 c.completed_at.is_not(None),
-                c.completed_at >= utc_now_naive() - timedelta(hours=24),
+                c.completed_at >= utc_now() - timedelta(hours=24),
             )
             .group_by(c.kind)
         ).all()
@@ -385,7 +385,7 @@ def _scheduler_leader_lines(db: Session) -> list[str]:
     )
     active = int(
         heartbeat_timestamp > 0
-        and utc_now_naive().timestamp() - heartbeat_timestamp
+        and utc_now().timestamp() - heartbeat_timestamp
         <= settings.SCHEDULER_LEADER_HEARTBEAT_INTERVAL_SECONDS * 2
     )
     return [
@@ -407,7 +407,7 @@ def _scheduler_leader_lines(db: Session) -> list[str]:
 
 
 def _scheduler_lag_lines(db: Session) -> list[str]:
-    now = utc_now_naive()
+    now = utc_now()
     rows = [
         (
             "import",

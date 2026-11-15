@@ -23,7 +23,7 @@ from app.modules.revisions.metadata_delivery import (
     MetadataResult,
 )
 from app.modules.durable_work.delivery import StaleDeliveryAttempt
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from tests.test_revision_writer_postgres import database as database, initial
 from tests.test_derivative_adoption_postgres import generation as generation, semantic_snapshot
 from tests.support.write_cleanup import drain_write_cleanup
@@ -93,7 +93,7 @@ def test_metadata_partial_publication_rolls_back_and_retry_is_authoritative(
         assert metadata_delivery.fail(db, uuid, first.lease, "realtime publication unavailable")
         db.commit()
         row = db.scalar(sa.select(RevisionMetadataOutbox))
-        row.next_attempt_at = utc_now_naive() - timedelta(seconds=1)
+        row.next_attempt_at = utc_now() - timedelta(seconds=1)
         db.commit()
         second = metadata_delivery.claim(db, uuid)
         db.commit()
@@ -123,7 +123,7 @@ def test_derivative_ready_publication_failure_rolls_back_adoption_and_fails_exac
     if replace_existing:
         assert execute(None, "delivery")["status"] in ("rendered", "generated")
         with Session(engine) as db:
-            lifecycle().rearm(db.scalar(sa.select(model)), now=utc_now_naive())
+            lifecycle().rearm(db.scalar(sa.select(model)), now=utc_now())
             db.commit()
     with Session(engine) as db:
         before = semantic_snapshot(db)
@@ -178,7 +178,7 @@ def test_failed_outcome_publication_failure_leaves_processing_for_lease_recovery
         assert row.status.value == "PROCESSING" and row.attempt_token is not None
         assert row.last_error is None and db.scalar(sa.select(RealtimeChange)) is None
         token = row.attempt_token
-        row.started_at = utc_now_naive() - timedelta(days=1)
+        row.started_at = utc_now() - timedelta(days=1)
         db.commit()
         assert service.recover_and_list_due(db) == ["delivery"]
         db.commit()
@@ -233,7 +233,7 @@ def test_metadata_worker_retries_publication_infrastructure_failure(database, mo
     with Session(engine) as db:
         row = db.scalar(sa.select(RevisionMetadataOutbox))
         assert row.status == "FAILED" and row.attempt_token is None
-        row.next_attempt_at = utc_now_naive() - timedelta(seconds=1)
+        row.next_attempt_at = utc_now() - timedelta(seconds=1)
         db.commit()
     monkeypatch.setattr(publisher, "_notify_change", original)
     assert worker.execute_revision_metadata_task(None, uuid)["status"] == "completed"

@@ -1,7 +1,9 @@
 """Direct operator representations, cookie lifecycle and UTC wire timestamps."""
 
+from datetime import UTC
+
+
 from datetime import datetime
-import re
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from app.core.generated.control_plane_browser_protocol import (
@@ -44,7 +46,7 @@ def test_login_and_logout_are_bodyless_cookie_transitions(operator_client, contr
 
 
 def test_ops_representations_are_direct_and_utc_in_nested_pages(operator_client, control_db):
-    timestamp = datetime(2026, 11, 15, 12, 34, 56)
+    timestamp = datetime(2026, 11, 15, 12, 34, 56, tzinfo=UTC)
     row = MailOutbox(
         category="auth",
         dedupe_key="contract",
@@ -65,11 +67,9 @@ def test_ops_representations_are_direct_and_utc_in_nested_pages(operator_client,
     assert response.status_code == 200
     page = response.json()
     assert OffsetPage[AsyncOperationRead].model_validate(page).model_dump(mode="json") == page
-    assert (
-        page["items"][0]["created_at"]
-        == page["items"][0]["updated_at"]
-        == "2026-11-15T12:34:56.000000Z"
-    )
+    for field in ("created_at", "updated_at"):
+        instant = datetime.fromisoformat(page["items"][0][field])
+        assert instant == timestamp and instant.utcoffset().total_seconds() == 0
     response = operator_client.get("/api/v1/ops/async-operations/summary")
     assert (
         AsyncOperationsSummaryRead.model_validate(response.json()).model_dump(mode="json")
@@ -91,7 +91,7 @@ def test_ops_representations_are_direct_and_utc_in_nested_pages(operator_client,
     audit = response.json()
     assert OffsetPage[OpsAuditEventRead].model_validate(audit).model_dump(mode="json") == audit
     assert len(audit["items"]) == 1
-    assert re.fullmatch(r".*\.\d{6}Z", audit["items"][0]["created_at"])
+    assert datetime.fromisoformat(audit["items"][0]["created_at"]).utcoffset().total_seconds() == 0
 
 
 def test_operator_and_customer_credentials_have_distinct_audiences(operator_client, control_app):

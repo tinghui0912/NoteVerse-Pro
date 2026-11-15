@@ -20,7 +20,7 @@ from sqlalchemy import (
     Text,
 )
 from sqlmodel import Field, SQLModel
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 class ScoreDeletionOperationStatus(str, enum.Enum):
@@ -76,12 +76,16 @@ class ScoreDeletionOperation(SQLModel, table=True):  # type: ignore[call-arg]
     )
     attempt_count: int = Field(default=0, sa_column=Column(Integer, default=0, nullable=False))
     next_attempt_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
-    dispatched_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    started_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    dispatched_at: Optional[datetime] = Field(
+        default=None, sa_column=Column(DateTime(timezone=True))
+    )
+    started_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    completed_at: Optional[datetime] = Field(
+        default=None, sa_column=Column(DateTime(timezone=True))
+    )
     last_error: Optional[str] = Field(default=None, sa_column=Column(Text))
     attempt_token: Optional[str] = Field(default=None, sa_column=Column(String(36)))
     internal_error_code: Optional[str] = Field(default=None, sa_column=Column(String(128)))
@@ -89,10 +93,12 @@ class ScoreDeletionOperation(SQLModel, table=True):  # type: ignore[call-arg]
     internal_error_class: Optional[str] = Field(default=None, sa_column=Column(String(32)))
     internal_error_retryable: Optional[bool] = Field(default=None, sa_column=Column(Boolean))
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
     updated_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(
+            DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
+        ),
     )

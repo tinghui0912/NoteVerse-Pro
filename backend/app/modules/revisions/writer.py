@@ -30,7 +30,7 @@ from app.modules.revisions.derivatives import RevisionDerivativeOutboxes
 from app.modules.realtime.publisher import score_recipients, publish_change
 from app.modules.notifications.service import notification_service
 from app.shared.constants import ErrorCode
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 @dataclass(frozen=True)
@@ -156,7 +156,7 @@ class RevisionWriter:
             if head.content_hash == prepared.content_hash:
                 return self._unused(db, prepared, head)
             number, origin = head.revision_number + 1, command.origin
-        now = utc_now_naive()
+        now = utc_now()
         revision = ScoreRevision(
             revision_uuid=prepared.revision_uuid,
             score_id=score_id,

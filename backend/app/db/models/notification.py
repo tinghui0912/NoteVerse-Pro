@@ -15,7 +15,7 @@ from sqlalchemy import (
     String,
 )
 from sqlmodel import Field, SQLModel
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 class NotificationKind(StrEnum):
@@ -84,8 +84,8 @@ class Notification(SQLModel, table=True):  # type: ignore[call-arg]
     import_job_id: str | None = Field(default=None, sa_column=Column(String(36)))
     score_title_snapshot: str | None = Field(default=None, sa_column=Column(String(255)))
     job_title_snapshot: str | None = Field(default=None, sa_column=Column(String(255)))
-    read_at: datetime | None = Field(default=None, sa_column=Column(DateTime))
+    read_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )

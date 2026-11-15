@@ -1,5 +1,8 @@
 """Customer success is an operation's typed representation or bodyless acknowledgement."""
 
+from datetime import UTC
+
+
 from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -110,7 +113,7 @@ def test_customer_operations_publish_typed_success_and_bodyless_command_contract
 
 def test_real_customer_routes_return_direct_nested_representations_pages_and_empty_commands():
     app = create_app()
-    now = datetime(2026, 11, 13, 12, 34, 56)
+    now = datetime(2026, 11, 13, 12, 34, 56, tzinfo=UTC)
     profile = ProfileRead(
         user=ProfileUserRead(
             id=1, email="owner@example.com", display_name="Owner", is_active=True, created_at=now
@@ -155,10 +158,17 @@ def test_real_customer_routes_return_direct_nested_representations_pages_and_emp
                 "email": "owner@example.com",
                 "display_name": "Owner",
                 "is_active": True,
-                "created_at": "2026-11-13T12:34:56.000000Z",
+                "created_at": response.json()["user"]["created_at"],
                 "avatar_url": None,
             }
         }
+        assert datetime.fromisoformat(response.json()["user"]["created_at"]) == now
+        assert (
+            datetime.fromisoformat(response.json()["user"]["created_at"])
+            .utcoffset()
+            .total_seconds()
+            == 0
+        )
         changed_profile = client.put("/api/v1/me/profile", json={"display_name": "Etudes"})
         assert changed_profile.status_code == 204 and changed_profile.content == b""
         created = client.post("/api/v1/library/folders", json={"name": "Etudes"})
@@ -166,7 +176,7 @@ def test_real_customer_routes_return_direct_nested_representations_pages_and_emp
         updated = client.patch("/api/v1/library/folders/folder", json={"name": "Etudes"})
         assert (
             updated.status_code == 200
-            and updated.json()["updated_at"] == "2026-11-13T12:34:56.000000Z"
+            and datetime.fromisoformat(updated.json()["updated_at"]) == now
         )
         for response in [
             client.post("/api/v1/import-jobs", json={"upload_ids": ["upload"]}),

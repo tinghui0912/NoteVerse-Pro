@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 import json
+from app.shared.time import require_utc
 
 from app.db.models.performance_take_upload_reservation import PerformanceTakeUploadReservation
 from app.modules.performance_takes.upload_reservation.domain import (
@@ -31,7 +32,9 @@ def decode_orphan_candidates(value: str) -> tuple[OrphanFinalCandidate, ...]:
             ):
                 raise ValueError("Candidate shape invalid")
             candidates.append(
-                OrphanFinalCandidate(item["key"], datetime.fromisoformat(item["remove_after"]))
+                OrphanFinalCandidate(
+                    item["key"], require_utc(datetime.fromisoformat(item["remove_after"]))
+                )
             )
         return tuple(candidates)
     except (TypeError, ValueError) as error:
@@ -40,7 +43,10 @@ def decode_orphan_candidates(value: str) -> tuple[OrphanFinalCandidate, ...]:
 
 def encode_orphan_candidates(value: tuple[OrphanFinalCandidate, ...]) -> str:
     return json.dumps(
-        [{"key": item.key, "remove_after": item.remove_after.isoformat()} for item in value],
+        [
+            {"key": item.key, "remove_after": require_utc(item.remove_after).isoformat()}
+            for item in value
+        ],
         sort_keys=True,
         separators=(",", ":"),
     )

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from app.shared.time import Instant
 
 from pydantic import BaseModel
 
@@ -18,4 +18,4 @@ class MetadataRead(BaseModel):
     key_signature_events: list[dict[str, object]]
     time_signature_events: list[dict[str, object]]
     tempo_events: list[dict[str, object]]
-    computed_at: datetime | None
+    computed_at: Instant | None

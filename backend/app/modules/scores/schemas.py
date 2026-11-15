@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-from datetime import datetime
+from app.shared.time import Instant
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -42,8 +42,8 @@ class ScoreRead(ApiModel):
     input_assets: list[ScoreInputAssetRead]
     metadata: MetadataRead | None
     capabilities: ScoreCapabilities
-    created_at: datetime
-    updated_at: datetime
+    created_at: Instant
+    updated_at: Instant
 
 
 class ScoreBatchDeleteRead(ApiModel):

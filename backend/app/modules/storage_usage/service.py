@@ -29,7 +29,7 @@ from app.modules.storage_usage.schemas import (
     StorageUsageRead,
 )
 from app.shared.constants import ErrorCode
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 @dataclass(frozen=True)
@@ -239,8 +239,8 @@ class StorageUsageService:
             used_bytes=0,
             reserved_bytes=0,
             quota_limit_bytes=policy.quota_limit_bytes,
-            created_at=utc_now_naive(),
-            updated_at=utc_now_naive(),
+            created_at=utc_now(),
+            updated_at=utc_now(),
         )
         db.add(account)
         db.flush()
@@ -262,7 +262,7 @@ class StorageUsageService:
             category=category,
             used_bytes=0,
             reserved_bytes=0,
-            updated_at=utc_now_naive(),
+            updated_at=utc_now(),
         )
         db.add(counter)
         db.flush()

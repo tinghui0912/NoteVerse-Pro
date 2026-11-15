@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-from datetime import datetime
+from app.shared.time import Instant
 from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -82,8 +82,8 @@ class LibraryFolderRead(ApiModel):
     name: str
     position: int
     score_count: int
-    created_at: datetime
-    updated_at: datetime
+    created_at: Instant
+    updated_at: Instant
 
 
 class LibraryFolderOverviewRead(ApiModel):
@@ -103,5 +103,5 @@ class LibraryScoreRead(ApiModel):
     genres: Genres
     metadata: MetadataRead | None
     is_favorite: bool
-    created_at: datetime
-    updated_at: datetime
+    created_at: Instant
+    updated_at: Instant

@@ -31,7 +31,7 @@ from app.modules.durable_work.delivery import (
     DeliveryAttemptLease,
     StaleDeliveryAttempt,
 )
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from app.modules.revisions.presentation_demand import (
     revision_presentation_demand,
     lock_presentation_score,
@@ -182,7 +182,7 @@ class PlaybackOutboxService:
                 outbox,
                 status=PlaybackOutboxStatus.SUPERSEDED,
                 reset_attempts=False,
-                now=utc_now_naive(),
+                now=utc_now(),
             )
             clear_failure_metadata(outbox)
             logger.bind(
@@ -194,11 +194,9 @@ class PlaybackOutboxService:
             ).info("revision_derivative.superseded")
             return None
         lifecycle = _delivery_lifecycle()
-        admission = lifecycle.claim_admission(outbox, now=utc_now_naive())
+        admission = lifecycle.claim_admission(outbox, now=utc_now())
         if admission is ClaimAdmission.EXHAUSTED:
-            lifecycle.exhaust(
-                outbox, error="Playback delivery attempts exhausted", now=utc_now_naive()
-            )
+            lifecycle.exhaust(outbox, error="Playback delivery attempts exhausted", now=utc_now())
             self._record_failure(
                 outbox,
                 code="playback_attempts_exhausted",
@@ -211,7 +209,7 @@ class PlaybackOutboxService:
         payload = self._build_payload(db, outbox)
         if payload is None:
             return None
-        lease = lifecycle.claim(outbox, token=str(uuid.uuid4()), now=utc_now_naive())
+        lease = lifecycle.claim(outbox, token=str(uuid.uuid4()), now=utc_now())
         if lease is None:
             return None
         clear_failure_metadata(outbox)
@@ -259,7 +257,7 @@ class PlaybackOutboxService:
         _delivery_lifecycle().exhaust(
             outbox,
             error="Playback outbox references unavailable or stale resources",
-            now=utc_now_naive(),
+            now=utc_now(),
         )
         set_failure_metadata(
             outbox,
@@ -276,7 +274,7 @@ class PlaybackOutboxService:
             outbox,
             status=PlaybackOutboxStatus.SUPERSEDED,
             reset_attempts=False,
-            now=utc_now_naive(),
+            now=utc_now(),
         )
         clear_failure_metadata(outbox)
         return True
@@ -284,7 +282,7 @@ class PlaybackOutboxService:
     def complete(self, db: Session, outbox_uuid: str, *, lease: DeliveryAttemptLease) -> bool:
         outbox = self._get(db, outbox_uuid)
         if outbox is None or not _delivery_lifecycle().complete_attempt(
-            outbox, lease=lease, now=utc_now_naive()
+            outbox, lease=lease, now=utc_now()
         ):
             return False
         clear_failure_metadata(outbox)
@@ -295,7 +293,7 @@ class PlaybackOutboxService:
     ) -> bool:
         outbox = self._get(db, outbox_uuid)
         if outbox is None or not _delivery_lifecycle().fail_attempt(
-            outbox, lease=lease, error=error, now=utc_now_naive()
+            outbox, lease=lease, error=error, now=utc_now()
         ):
             return False
         self._record_failure(
@@ -308,7 +306,7 @@ class PlaybackOutboxService:
 
     def mark_dispatched(self, db: Session, outbox_uuid: str) -> bool:
         outbox = self._get(db, outbox_uuid)
-        if outbox is None or not _delivery_lifecycle().dispatch(outbox, now=utc_now_naive()):
+        if outbox is None or not _delivery_lifecycle().dispatch(outbox, now=utc_now()):
             return False
         clear_failure_metadata(outbox)
         return True
@@ -316,7 +314,7 @@ class PlaybackOutboxService:
     def release_dispatch(self, db: Session, outbox_uuid: str, error: str) -> None:
         outbox = self._get(db, outbox_uuid)
         if outbox is None or not _delivery_lifecycle().release_dispatch(
-            outbox, error=error, now=utc_now_naive()
+            outbox, error=error, now=utc_now()
         ):
             return
         self._record_failure(
@@ -327,7 +325,7 @@ class PlaybackOutboxService:
         )
 
     def recover_and_list_due(self, db: Session) -> list[str]:
-        now = utc_now_naive()
+        now = utc_now()
         stale = (
             db.execute(
                 select(PlaybackOutbox)
@@ -400,7 +398,7 @@ class PlaybackOutboxService:
         ):
             raise ValidationException(field="status", details={"status": outbox.status.value})
         previous = outbox.status.value
-        _delivery_lifecycle().rearm(outbox, now=utc_now_naive())
+        _delivery_lifecycle().rearm(outbox, now=utc_now())
         clear_failure_metadata(outbox)
         return previous
 
@@ -418,7 +416,7 @@ playback_outbox_service = PlaybackOutboxService()
 
 
 def rearm_revision_outbox(outbox: PlaybackOutbox) -> None:
-    _delivery_lifecycle().rearm(outbox, now=utc_now_naive())
+    _delivery_lifecycle().rearm(outbox, now=utc_now())
     clear_failure_metadata(outbox)
     logger.bind(
         event="revision_derivative.reactivated",

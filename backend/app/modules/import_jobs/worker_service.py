@@ -36,7 +36,7 @@ from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from app.modules.score_assets.render_outbox_service import (
     create_review_thumbnail_render_outbox,
 )
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 class ImportJobExecutionService:
@@ -67,7 +67,7 @@ class ImportJobExecutionService:
         job.error_type = error_type if error_type is not None else job.error_type
         if started_at is not None and job.started_at is None:
             job.started_at = started_at
-        now = utc_now_naive()
+        now = utc_now()
         job.last_heartbeat_at = now
         job.updated_at = now
         db.commit()
@@ -82,7 +82,7 @@ class ImportJobExecutionService:
         if job.state in TERMINAL_IMPORT_STATES:
             db.commit()
             return
-        now = utc_now_naive()
+        now = utc_now()
         job.state = ImportJobState.PENDING_REVIEW
         job.progress = 100
         job.last_heartbeat_at = now
@@ -120,7 +120,7 @@ class ImportJobExecutionService:
         if job.state in TERMINAL_IMPORT_STATES:
             db.commit()
             return
-        now = utc_now_naive()
+        now = utc_now()
         job.state = ImportJobState.FAILURE
         job.progress = 0
         job.error = error
@@ -162,7 +162,7 @@ class ImportJobExecutionService:
                 job_id=job_id,
                 name=name,
                 status=normalized,
-                start_time=start_time or utc_now_naive(),
+                start_time=start_time or utc_now(),
                 end_time=end_time,
                 step_order=step_order or 0,
             )

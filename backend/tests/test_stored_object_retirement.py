@@ -5,9 +5,8 @@ from datetime import timedelta
 from unittest.mock import Mock
 
 import pytest
-from sqlalchemy import UniqueConstraint, create_engine, event, select
+from sqlalchemy import UniqueConstraint, event, select
 from sqlalchemy.orm import Session
-from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel
 
 from app.db.models import StoredObject, StoredObjectRetirement, Upload, User
@@ -20,19 +19,13 @@ from app.modules.storage_objects.retirement import (
     delivery_lifecycle,
 )
 from app.worker.execution import stored_object_retirement as worker
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from tests.support.object_storage import InMemoryObjectStorage
 
 
 @pytest.fixture
-def retirement_db(monkeypatch):
-    engine = create_engine(
-        "sqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
-    )
-
-    @event.listens_for(engine, "connect")
-    def foreign_keys(connection, _):
-        connection.execute("PRAGMA foreign_keys=ON")
+def retirement_db(postgres_engine, monkeypatch):
+    engine = postgres_engine
 
     SQLModel.metadata.create_all(engine)
     storage = InMemoryObjectStorage()
@@ -225,7 +218,7 @@ def test_exact_lease_cutoff_is_immediately_due_without_consuming_attempt(
 ):
     engine, storage, transaction = retirement_db
     identity, uuid = unowned(retirement_db)
-    now = utc_now_naive()
+    now = utc_now()
     with transaction() as db:
         operation = retirement_delivery.get(db, uuid)
         operation.status = status
@@ -234,7 +227,7 @@ def test_exact_lease_cutoff_is_immediately_due_without_consuming_attempt(
         setattr(
             operation, field, now - timedelta(seconds=getattr(delivery_lifecycle().policy, timeout))
         )
-    monkeypatch.setattr("app.modules.storage_objects.retirement.utc_now_naive", lambda: now)
+    monkeypatch.setattr("app.modules.storage_objects.retirement.utc_now", lambda: now)
     with transaction() as db:
         assert retirement_delivery.recover_and_list_due(db) == [uuid]
         operation = retirement_delivery.get(db, uuid)

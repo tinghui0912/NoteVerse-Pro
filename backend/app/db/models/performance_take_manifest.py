@@ -15,7 +15,7 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlmodel import Field, SQLModel
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 
@@ -43,6 +43,6 @@ class PerformanceTakeManifest(SQLModel, table=True):  # type: ignore[call-arg]
     manifest_json: str = Field(sa_column=Column(Text, nullable=False))
     manifest_sha256: str = Field(sa_column=Column(String(64), nullable=False))
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )

@@ -1,7 +1,7 @@
 """Attempt-fenced physical deletion, independent of semantic domains and accounting."""
 
 from app.core.logger import logger
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from app.db.session import SessionLocal
 from app.modules.storage_objects.persistence import object_from_row
 from app.modules.storage_objects.references import stored_object_has_semantic_references
@@ -51,14 +51,14 @@ def _execute(retirement_uuid: str) -> dict[str, str]:
                 raise ValueError("Retirement snapshot disagrees with StoredObject")
             if stored_object_has_semantic_references(db, row.id):
                 lifecycle.finish_attempt(
-                    operation, lease=attempt, status="CANCELLED", error=None, now=utc_now_naive()
+                    operation, lease=attempt, status="CANCELLED", error=None, now=utc_now()
                 )
                 db.commit()
                 return {"status": "cancelled", "retirement_uuid": retirement_uuid}
             db.delete(row)
             db.flush()  # RESTRICT is the final barrier before any physical IO.
             object_storage.delete(operation.object_key)
-            if not lifecycle.complete_attempt(operation, lease=attempt, now=utc_now_naive()):
+            if not lifecycle.complete_attempt(operation, lease=attempt, now=utc_now()):
                 raise ValueError("Retirement completion attempt mismatch")
             db.commit()
         return {"status": "completed", "retirement_uuid": retirement_uuid}

@@ -21,11 +21,13 @@ def postgres_schema_database(monkeypatch):
     url = make_url(raw_url).set(drivername="postgresql+psycopg")
     assert (url.database or "").startswith("noteverse_test_")
     schema = "schema_test_" + uuid4().hex
-    admin = sa.create_engine(url)
+    admin = sa.create_engine(url, connect_args={"options": "-c timezone=UTC"})
     with admin.begin() as connection:
         connection.execute(sa.text(f'CREATE SCHEMA "{schema}"'))
     monkeypatch.setenv("PGOPTIONS", f"-csearch_path={schema}")
-    engine = sa.create_engine(url)
+    engine = sa.create_engine(
+        url, connect_args={"options": f"-c timezone=UTC -c search_path={schema}"}
+    )
     backend = Path(__file__).resolve().parents[2]
     config = Config(str(backend / "alembic.ini"))
     config.set_main_option("script_location", str(backend / "alembic"))

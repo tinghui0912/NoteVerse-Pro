@@ -1,6 +1,6 @@
 """Stable Score bearer settings and current-head presentation boundaries."""
 
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from app.core.generated.customer_browser_protocol import AUTH_COOKIE_NAME
 
 import pytest
@@ -206,7 +206,7 @@ def test_disabled_missing_and_deleted_are_unavailable(preview_context):
                 with pytest.raises(ResourceNotFoundException) as error:
                     action(db, token)
                 assert error.value.code == "guest_preview_not_found"
-    score.deleted_at = utc_now_naive()
+    score.deleted_at = utc_now()
     session.commit()
     for secret in [token, "missing"]:
         with pytest.raises(ResourceNotFoundException) as error:
@@ -371,7 +371,7 @@ async def test_unavailable_bearer_responses_are_not_cacheable(
     if state == "unknown":
         token = "unknown-token"
     elif state == "deleted":
-        score.deleted_at = utc_now_naive()
+        score.deleted_at = utc_now()
     session.commit()
     async with AsyncClient(
         transport=ASGITransport(app=preview_http_app), base_url="http://test"

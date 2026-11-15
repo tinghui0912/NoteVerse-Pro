@@ -5,7 +5,7 @@ from sqlalchemy import Column, String, Boolean, DateTime, BigInteger, ForeignKey
 from sqlalchemy.orm import relationship
 from .stored_object import StoredObject
 
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 if TYPE_CHECKING:
     from .auth import RefreshToken
@@ -21,11 +21,11 @@ class User(SQLModel, table=True):  # type: ignore[call-arg]
     password_hash: str = Field(sa_column=Column(String(255), nullable=False))
     is_active: bool = Field(default=True, sa_column=Column(Boolean, default=True, nullable=False))
     email_verified_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
-    last_login: Optional[datetime] = Field(sa_column=Column(DateTime))
-    password_changed_at: Optional[datetime] = Field(sa_column=Column(DateTime))
+    last_login: Optional[datetime] = Field(sa_column=Column(DateTime(timezone=True)))
+    password_changed_at: Optional[datetime] = Field(sa_column=Column(DateTime(timezone=True)))
     avatar_object_id: Optional[int] = Field(
         default=None,
         sa_column=Column(
@@ -39,12 +39,14 @@ class User(SQLModel, table=True):  # type: ignore[call-arg]
         sa_relationship=relationship(StoredObject, lazy="selectin")
     )
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
     updated_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(
+            DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
+        ),
     )
 
     uploads: List["Upload"] = Relationship(back_populates="uploader")

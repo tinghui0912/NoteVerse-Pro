@@ -14,7 +14,7 @@ from app.db.models import (
     PerformanceTakeUploadReservation,
     PerformanceTake,
 )
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from tests.support.postgres_schema import postgres_schema_database
 
 
@@ -35,7 +35,7 @@ def reservation_values(user_id, manifest_id):
         client_request_id="request",
         staging_object_key="staging",
         storage_reservation_id="quota",
-        expires_at=utc_now_naive() + timedelta(hours=1),
+        expires_at=utc_now() + timedelta(hours=1),
         status="RESERVED",
     ).model_dump(exclude={"id"})
 
@@ -59,7 +59,7 @@ def test_fresh_manifest_shared_by_reservation_and_take(monkeypatch):
                 client_request_id="request",
                 staging_object_key="staging",
                 storage_reservation_id="quota",
-                expires_at=utc_now_naive() + timedelta(hours=1),
+                expires_at=utc_now() + timedelta(hours=1),
                 status="RESERVED",
             )
             take = PerformanceTake(
@@ -100,7 +100,7 @@ def test_fresh_manifest_shared_by_reservation_and_take(monkeypatch):
                     client_request_id="request",
                     staging_object_key="other-staging",
                     storage_reservation_id="other-quota",
-                    expires_at=utc_now_naive() + timedelta(hours=1),
+                    expires_at=utc_now() + timedelta(hours=1),
                     status="RESERVED",
                 )
             )

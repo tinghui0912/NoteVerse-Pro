@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.models import RealtimeChange
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from app.modules.realtime.stream_state import lock_stream_state
 
 
@@ -30,7 +30,7 @@ class RealtimeMaintenanceService:
         )
         if days <= 0:
             raise ValueError("realtime change retention days must be positive")
-        cutoff = utc_now_naive() - timedelta(days=days)
+        cutoff = utc_now() - timedelta(days=days)
         recipients = db.scalars(
             select(RealtimeChange.recipient_user_id)
             .where(RealtimeChange.created_at < cutoff)
@@ -50,7 +50,7 @@ class RealtimeMaintenanceService:
             maximum = db.scalar(select(func.max(RealtimeChange.sequence)).where(*expired))
             if maximum is not None:
                 state.replay_floor_sequence = max(state.replay_floor_sequence, maximum)
-                state.updated_at = utc_now_naive()
+                state.updated_at = utc_now()
                 result = db.execute(delete(RealtimeChange).where(*expired))
                 deleted += int(result.rowcount or 0)
             db.commit()

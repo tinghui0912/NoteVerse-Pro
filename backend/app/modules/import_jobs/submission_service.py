@@ -19,7 +19,7 @@ from app.modules.import_jobs.schemas import (
     ImportJobSubmitResult,
 )
 from app.shared.constants import ErrorCode
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 class ImportJobSubmissionService:
@@ -45,7 +45,7 @@ class ImportJobSubmissionService:
                 upload = uploads.get(upload_id)
                 if upload is None or upload["uploader_user_id"] != user_id:
                     raise ResourceNotFoundException("upload", upload_id, ErrorCode.FILE_NOT_FOUND)
-            now = utc_now_naive()
+            now = utc_now()
             job_uuid = str(uuid.uuid4())
             traceparent, tracestate = get_async_trace_context()
             job = ImportJob(

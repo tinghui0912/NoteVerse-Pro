@@ -9,7 +9,7 @@ from sqlmodel import col
 
 from app.db.models import RealtimeChange, RealtimeChangeKind, Score, ScoreMembership
 from app.modules.realtime.stream_state import admit_stream_state
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 REALTIME_NOTIFY_CHANNEL = "realtime_changes"
 
@@ -61,7 +61,7 @@ def publish_change(
     """Admit a change and transactional wake-up; the caller owns commit/rollback."""
     state = admit_stream_state(db, recipient_user_id)
     state.high_watermark_sequence += 1
-    state.updated_at = utc_now_naive()
+    state.updated_at = utc_now()
     change = RealtimeChange(
         recipient_user_id=recipient_user_id,
         sequence=state.high_watermark_sequence,

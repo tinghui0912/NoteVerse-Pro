@@ -19,7 +19,7 @@ from sqlalchemy import (
 )
 from sqlmodel import Field, SQLModel
 
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
@@ -50,12 +50,14 @@ class StorageQuotaPolicy(SQLModel, table=True):  # type: ignore[call-arg]
     plan_code: str = Field(sa_column=Column(String(64), unique=True, nullable=False))
     quota_limit_bytes: int = Field(sa_column=Column(BigInteger, nullable=False))
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
     updated_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(
+            DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
+        ),
     )
 
 
@@ -63,8 +65,12 @@ class StorageUsageAccount(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "storage_usage_accounts"
     __table_args__ = (
         CheckConstraint("used_bytes >= 0", name="ck_storage_usage_accounts_used_non_negative"),
-        CheckConstraint("reserved_bytes >= 0", name="ck_storage_usage_accounts_reserved_non_negative"),
-        CheckConstraint("quota_limit_bytes >= 0", name="ck_storage_usage_accounts_limit_non_negative"),
+        CheckConstraint(
+            "reserved_bytes >= 0", name="ck_storage_usage_accounts_reserved_non_negative"
+        ),
+        CheckConstraint(
+            "quota_limit_bytes >= 0", name="ck_storage_usage_accounts_limit_non_negative"
+        ),
     )
 
     user_id: int = Field(
@@ -79,12 +85,14 @@ class StorageUsageAccount(SQLModel, table=True):  # type: ignore[call-arg]
     reserved_bytes: int = Field(default=0, sa_column=Column(BigInteger, default=0, nullable=False))
     quota_limit_bytes: int = Field(sa_column=Column(BigInteger, nullable=False))
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
     updated_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(
+            DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
+        ),
     )
 
 
@@ -93,7 +101,9 @@ class StorageUsageCounter(SQLModel, table=True):  # type: ignore[call-arg]
     __table_args__ = (
         UniqueConstraint("user_id", "category", name="uq_storage_usage_counters_user_category"),
         CheckConstraint("used_bytes >= 0", name="ck_storage_usage_counters_used_non_negative"),
-        CheckConstraint("reserved_bytes >= 0", name="ck_storage_usage_counters_reserved_non_negative"),
+        CheckConstraint(
+            "reserved_bytes >= 0", name="ck_storage_usage_counters_reserved_non_negative"
+        ),
         Index("idx_storage_usage_counters_user", "user_id"),
     )
 
@@ -110,15 +120,19 @@ class StorageUsageCounter(SQLModel, table=True):  # type: ignore[call-arg]
     used_bytes: int = Field(default=0, sa_column=Column(BigInteger, default=0, nullable=False))
     reserved_bytes: int = Field(default=0, sa_column=Column(BigInteger, default=0, nullable=False))
     updated_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(
+            DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
+        ),
     )
 
 
 class StorageUsageReservation(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "storage_usage_reservations"
     __table_args__ = (
-        CheckConstraint("bytes_reserved >= 0", name="ck_storage_usage_reservations_bytes_non_negative"),
+        CheckConstraint(
+            "bytes_reserved >= 0", name="ck_storage_usage_reservations_bytes_non_negative"
+        ),
         Index("idx_storage_usage_reservations_user_status", "user_id", "status"),
     )
 
@@ -146,12 +160,14 @@ class StorageUsageReservation(SQLModel, table=True):  # type: ignore[call-arg]
     object_id: Optional[str] = Field(default=None, sa_column=Column(String(128)))
     storage_key: Optional[str] = Field(default=None, sa_column=Column(String(768)))
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
     updated_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(
+            DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
+        ),
     )
 
 
@@ -179,6 +195,6 @@ class StorageUsageEvent(SQLModel, table=True):  # type: ignore[call-arg]
     object_id: Optional[str] = Field(default=None, sa_column=Column(String(128)))
     storage_key: Optional[str] = Field(default=None, sa_column=Column(String(768)))
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )

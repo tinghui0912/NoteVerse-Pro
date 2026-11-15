@@ -1,3 +1,4 @@
+from datetime import UTC
 from datetime import datetime
 from unittest.mock import Mock, call
 
@@ -22,7 +23,7 @@ def notification(user_id: int, *, read_at: datetime | None = None) -> Notificati
 
 def test_mark_all_read_updates_the_entire_owned_unread_set(score_service_session):
     session, _ = score_service_session
-    previous_read_at = datetime(2026, 1, 1)
+    previous_read_at = datetime(2026, 1, 1, tzinfo=UTC)
     unread = [notification(1) for _ in range(250)]
     already_read = [notification(1, read_at=previous_read_at) for _ in range(3)]
     other_user = [notification(2) for _ in range(4)]
@@ -64,7 +65,7 @@ def test_repository_mark_all_read_reports_affected_set_size(score_service_sessio
     session.commit()
     db = session
     repository = NotificationRepository()
-    read_at = datetime(2026, 2, 1)
+    read_at = datetime(2026, 2, 1, tzinfo=UTC)
 
     assert repository.mark_all_read_for_user(db, 1, read_at=read_at) == 2
     db.commit()
@@ -73,9 +74,9 @@ def test_repository_mark_all_read_reports_affected_set_size(score_service_sessio
 
 
 def test_mark_all_read_returns_count_observed_after_commit(monkeypatch):
-    now = datetime(2026, 3, 1)
+    now = datetime(2026, 3, 1, tzinfo=UTC)
     clock = Mock(return_value=now)
-    monkeypatch.setattr("app.modules.notifications.service.utc_now_naive", clock)
+    monkeypatch.setattr("app.modules.notifications.service.utc_now", clock)
     repository = Mock(spec=NotificationRepository)
     repository.mark_all_read_for_user = Mock(return_value=250)
     repository.unread_count = Mock(return_value=1)

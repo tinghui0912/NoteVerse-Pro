@@ -8,14 +8,14 @@ from typing import cast
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.pool import StaticPool
 from sqlalchemy.orm import Session
-from sqlmodel import SQLModel, create_engine, select
+from sqlmodel import SQLModel, select
 
 from app.api.deps import get_db
-from app.core.config import settings
 from app.db.models import (
+    User,
     ImportDispatch,
     ImportDispatchStatus,
     ImportJob,
@@ -52,7 +52,7 @@ from app.modules.ops.query_service import (
     selected_query_operation_kinds,
 )
 from app.modules.durable_work.failure import DurableFailureClass
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 os.environ.setdefault("CONTROL_PLANE_COOKIE_SECURE", "false")
@@ -93,18 +93,21 @@ def client() -> TestClient:
 
 
 def _api_utc_datetime(value: datetime) -> str:
-    return f"{value.isoformat()}Z"
+    return value.isoformat().replace("+00:00", "Z")
 
 
 @pytest.fixture
-def ops_session() -> Session:
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
+def ops_session(
+    postgres_engine,
+) -> Session:
+    engine = postgres_engine
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
+        session.add(User(id=1, email="ops@example.test", password_hash="hash"))
+        session.add(Operator(id=1, display_name="Admin"))
+        session.commit()
+        session.execute(text("SELECT setval(pg_get_serial_sequence('operators', 'id'), 1, true)"))
+        session.commit()
         yield session
 
 
@@ -122,7 +125,7 @@ def _override_ops_dependencies(session: Session, *, authorized: bool) -> None:
         if authorized
         else cast(OperatorRole, "unsupported_test_operator_role")
     )
-    app.dependency_overrides[get_current_operator] = lambda: OperatorPrincipal(
+    principal = OperatorPrincipal(
         operator=operator,
         identity=OperatorIdentity(
             id=1,
@@ -136,9 +139,10 @@ def _override_ops_dependencies(session: Session, *, authorized: bool) -> None:
             operator_id=1,
             identity_id=1,
             token_hash="test",
-            expires_at=utc_now_naive() + timedelta(hours=1),
+            expires_at=utc_now() + timedelta(hours=1),
         ),
     )
+    app.dependency_overrides[get_current_operator] = lambda: principal
 
 
 def test_local_operator_identity_creates_and_resolves_opaque_session(
@@ -335,7 +339,7 @@ def test_ops_projects_domain_delivery_state(ops_session, status, retryable, expe
 
 
 def test_ops_summary_uses_aggregated_status_counts(ops_session: Session) -> None:
-    now = utc_now_naive()
+    now = utc_now()
     ops_session.add_all(
         [
             MailOutbox(
@@ -437,7 +441,7 @@ def test_ops_api_summary_is_available_to_admin(
             subject="Subject",
             status=MailOutboxStatus.FAILED,
             attempt_count=1,
-            next_attempt_at=utc_now_naive() + timedelta(minutes=5),
+            next_attempt_at=utc_now() + timedelta(minutes=5),
             last_error="smtp temporarily unavailable",
             internal_error_code="mail_provider_transient",
             internal_error_stage="delivery",
@@ -469,7 +473,7 @@ def test_ops_api_async_operations_supports_offset_pagination(
     client: TestClient,
     ops_session: Session,
 ) -> None:
-    now = utc_now_naive()
+    now = utc_now()
     ops_session.add_all(
         [
             MailOutbox(
@@ -550,7 +554,7 @@ def test_ops_api_admin_can_retry_failed_mail_operation(
         text_body="Body",
         status=MailOutboxStatus.FAILED,
         attempt_count=3,
-        next_attempt_at=utc_now_naive() + timedelta(hours=1),
+        next_attempt_at=utc_now() + timedelta(hours=1),
         last_error="smtp temporarily unavailable",
         internal_error_code="mail_transient_failure",
         internal_error_stage="delivery",
@@ -639,7 +643,7 @@ def test_ops_api_audit_events_supports_offset_pagination(
     client: TestClient,
     ops_session: Session,
 ) -> None:
-    now = utc_now_naive()
+    now = utc_now()
     ops_session.add_all(
         [
             OpsAuditEvent(
@@ -887,7 +891,7 @@ def test_ops_api_admin_can_retry_failed_import_job(
     client: TestClient,
     ops_session: Session,
 ) -> None:
-    next_attempt_at = utc_now_naive() + timedelta(hours=1)
+    next_attempt_at = utc_now() + timedelta(hours=1)
     job = ImportJob(
         job_uuid="00000000-0000-0000-0000-000000000111",
         user_id=1,
@@ -900,8 +904,8 @@ def test_ops_api_admin_can_retry_failed_import_job(
         internal_error_retryable=True,
         error="job failed",
         error_type="system",
-        started_at=utc_now_naive() - timedelta(minutes=10),
-        finished_at=utc_now_naive(),
+        started_at=utc_now() - timedelta(minutes=10),
+        finished_at=utc_now(),
     )
     ops_session.add(job)
     ops_session.flush()
@@ -974,10 +978,10 @@ def test_ops_api_admin_can_retry_failed_render_outbox(
         source_fingerprint="8bd70392968d39fd8c94730768c9b2e2def65c4dfe9e0a675a8493143407cf2a",
         status=RenderOutboxStatus.FAILED,
         attempt_count=3,
-        next_attempt_at=utc_now_naive() + timedelta(hours=1),
-        dispatched_at=utc_now_naive() - timedelta(minutes=4),
-        started_at=utc_now_naive() - timedelta(minutes=3),
-        completed_at=utc_now_naive() - timedelta(minutes=2),
+        next_attempt_at=utc_now() + timedelta(hours=1),
+        dispatched_at=utc_now() - timedelta(minutes=4),
+        started_at=utc_now() - timedelta(minutes=3),
+        completed_at=utc_now() - timedelta(minutes=2),
         last_error="renderer unavailable",
         internal_error_code="render_transient_failure",
         internal_error_stage="render",
@@ -1037,10 +1041,10 @@ def test_ops_api_admin_can_retry_failed_playback_outbox(
         asset_kind=PlaybackAssetKind.AUDIO,
         status=PlaybackOutboxStatus.FAILED,
         attempt_count=3,
-        next_attempt_at=utc_now_naive() + timedelta(hours=1),
-        dispatched_at=utc_now_naive() - timedelta(minutes=4),
-        started_at=utc_now_naive() - timedelta(minutes=3),
-        completed_at=utc_now_naive() - timedelta(minutes=2),
+        next_attempt_at=utc_now() + timedelta(hours=1),
+        dispatched_at=utc_now() - timedelta(minutes=4),
+        started_at=utc_now() - timedelta(minutes=3),
+        completed_at=utc_now() - timedelta(minutes=2),
         last_error="soundfont unavailable",
         internal_error_code="playback_transient_failure",
         internal_error_stage="playback",
@@ -1089,7 +1093,7 @@ def test_ops_api_admin_can_rearm_score_deletion_operation(
         score_uuid="00000000-0000-0000-0000-000000000304",
         owner_user_id=1,
         title="Deleting score",
-        deleted_at=utc_now_naive(),
+        deleted_at=utc_now(),
     )
     ops_session.add(score)
     ops_session.commit()
@@ -1100,7 +1104,7 @@ def test_ops_api_admin_can_rearm_score_deletion_operation(
         owner_user_id=1,
         status=ScoreDeletionOperationStatus.FAILED,
         attempt_count=5,
-        next_attempt_at=utc_now_naive() + timedelta(hours=1),
+        next_attempt_at=utc_now() + timedelta(hours=1),
         last_error="object storage unavailable",
         internal_error_code="score_deletion_transient_failure",
         internal_error_stage="cleanup",
@@ -1139,7 +1143,7 @@ def test_ops_api_admin_can_rearm_score_deletion_operation(
 
 
 def test_filtered_pagination_reaches_matching_work_beyond_recent_batches(ops_session):
-    now = utc_now_naive()
+    now = utc_now()
     ops_session.add_all(
         [
             MailOutbox(
@@ -1203,8 +1207,8 @@ def test_superseded_work_is_terminal_for_queries_metrics_and_operator_rearm(
         _completed_duration_average_lines,
     )
 
-    monkeypatch.setattr(settings, "DATABASE_URL", "sqlite://")
-    now = utc_now_naive()
+    _create_score_revision(ops_session)
+    now = utc_now()
     row = model(
         outbox_uuid="superseded",
         score_id=1,

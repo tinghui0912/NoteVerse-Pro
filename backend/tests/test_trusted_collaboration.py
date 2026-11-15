@@ -36,7 +36,7 @@ from app.modules.score_invites.dependencies import get_score_invite_service
 from app.modules.score_invites.service import ScoreInviteService
 from app.modules.score_invites.schemas import InviteCreateRequest, MemberUpdateRequest
 from app.modules.score_invites.rules import ROLE_RANK
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from tests.test_score_revision_services import score_service_session as score_service_session
 from tests.test_score_revision_services import (
     add_active_score_with_head_revision,
@@ -312,7 +312,7 @@ def test_invite_acceptance_preserves_role_rank(collaboration, existing, invited,
         member_for(session, existing)
         member = session.execute(select(ScoreMembership)).scalar_one()
         if revoked:
-            member.revoked_at = utc_now_naive() - timedelta(days=1)
+            member.revoked_at = utc_now() - timedelta(days=1)
             session.add(member)
             session.commit()
     service = ScoreInviteService()

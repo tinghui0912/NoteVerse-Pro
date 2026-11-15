@@ -1,5 +1,8 @@
 """Fresh collaboration schema, unresolved lookup and terminal fact coherence."""
 
+from datetime import UTC
+
+
 import sqlalchemy as sa
 from alembic import command
 from sqlalchemy.orm import Session
@@ -109,7 +112,11 @@ def test_postgres_invitation_terminal_facts_and_unresolved_index(monkeypatch):
             db.add(Score(id=10, score_uuid="schema-score", owner_user_id=1, title="Schema"))
             db.commit()
             for number, (outcome, at, actor) in enumerate(
-                product([None, *InviteTerminalOutcome], [None, datetime(2026, 1, 1)], [None, 2])
+                product(
+                    [None, *InviteTerminalOutcome],
+                    [None, datetime(2026, 1, 1, tzinfo=UTC)],
+                    [None, 2],
+                )
             ):
                 valid = (outcome is None and at is None and actor is None) or (
                     outcome is not None and at is not None and actor is not None

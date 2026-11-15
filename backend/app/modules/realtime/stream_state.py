@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from app.db.models import RealtimeStreamState
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 def lock_stream_state(
@@ -27,7 +27,7 @@ def admit_stream_state(db: Session, recipient_user_id: int) -> RealtimeStreamSta
             recipient_user_id=recipient_user_id,
             high_watermark_sequence=0,
             replay_floor_sequence=0,
-            updated_at=utc_now_naive(),
+            updated_at=utc_now(),
         )
         .on_conflict_do_nothing(index_elements=["recipient_user_id"])
     )

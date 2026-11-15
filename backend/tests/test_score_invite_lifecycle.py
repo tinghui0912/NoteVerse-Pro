@@ -17,7 +17,7 @@ from app.modules.score_invites.schemas import InviteCreateRequest
 from app.modules.score_invites.service import ScoreInviteService
 from app.modules.score_invites.repository import ScoreInviteRepository
 from app.shared.constants import ErrorCode
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from tests.test_score_revision_services import score_service_session as score_service_session
 from tests.test_trusted_collaboration import collaboration as collaboration
 
@@ -62,7 +62,7 @@ async def test_owner_revoke_http_admits_effective_status_without_writing_rejecti
     collaboration, outcome, expired, error_code
 ):
     session, _, score, db = collaboration
-    original_time = utc_now_naive() - timedelta(days=1)
+    original_time = utc_now() - timedelta(days=1)
     invite = ScoreInvite(
         invite_uuid="lifecycle",
         score_id=score.id,
@@ -124,16 +124,13 @@ async def test_owner_revoke_http_admits_effective_status_without_writing_rejecti
             assert (
                 read["status"]
                 == inspected["status"]
-                == effective_invite_status(invite, now=utc_now_naive())
+                == effective_invite_status(invite, now=utc_now())
             )
             assert "token" not in read
             if invite.terminal_at is None:
                 assert read["terminal_at"] is None
             else:
-                assert (
-                    datetime.fromisoformat(read["terminal_at"]).replace(tzinfo=None)
-                    == invite.terminal_at
-                )
+                assert datetime.fromisoformat(read["terminal_at"]) == invite.terminal_at
             assert (
                 read["terminal_actor"] is None
                 if invite.terminal_actor_user_id is None
@@ -167,7 +164,7 @@ async def test_expired_recipient_command_has_no_write_or_commit(collaboration, p
         role=MembershipRole.VIEWER,
         token_hash=hash_invite_token("invite"),
         created_by_user_id=1,
-        expires_at=utc_now_naive() - timedelta(seconds=1),
+        expires_at=utc_now() - timedelta(seconds=1),
     )
     session.add(invite)
     session.commit()
@@ -188,16 +185,16 @@ async def test_expired_recipient_command_has_no_write_or_commit(collaboration, p
         app.dependency_overrides.clear()
     session.refresh(invite)
     assert facts(invite) == (None, None, None)
-    assert effective_invite_status(invite, now=utc_now_naive()) == InviteStatus.EXPIRED
+    assert effective_invite_status(invite, now=utc_now()) == InviteStatus.EXPIRED
     assert session.scalar(select(func.count()).select_from(ScoreMembership)) == 0
 
 
 @pytest.mark.parametrize("existing", [False, True])
 def test_accept_rechecks_expiry_after_membership_contention(collaboration, monkeypatch, existing):
     session, _, score, db = collaboration
-    now = utc_now_naive()
+    now = utc_now()
     clock = [now]
-    monkeypatch.setattr("app.modules.score_invites.service.utc_now_naive", lambda: clock[0])
+    monkeypatch.setattr("app.modules.score_invites.service.utc_now", lambda: clock[0])
     invite = ScoreInvite(
         invite_uuid="expiring",
         score_id=score.id,

@@ -48,7 +48,7 @@ from app.worker.dispatch import score_deletion as producer
 from app.worker.execution import score_deletion as execution
 from app.worker.execution import maintenance_dispatch
 from app.worker.tasks import score_deletion_task
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from tests.test_score_revision_services import (
     score_service_session as score_service_session,
     add_active_score_with_head_revision,
@@ -75,7 +75,7 @@ def score_db(score_service_session):
 
 
 def admitted(db, score):
-    score.deleted_at = utc_now_naive()
+    score.deleted_at = utc_now()
     operation = ScoreDeletionOperation(
         score_id=score.id, score_uuid=score.score_uuid, owner_user_id=score.owner_user_id
     )
@@ -191,12 +191,12 @@ def test_expired_delivery_recovers_without_consuming_an_attempt(score_db, proces
     service = ScoreDeletionDeliveryService()
     if processing:
         lease = service.claim(db, operation.operation_uuid)
-        operation.started_at = utc_now_naive() - timedelta(
+        operation.started_at = utc_now() - timedelta(
             seconds=settings.SCORE_DELETION_PROCESSING_TIMEOUT_SECONDS + 1
         )
     else:
         service.mark_dispatched(db, operation.operation_uuid)
-        operation.dispatched_at = utc_now_naive() - timedelta(
+        operation.dispatched_at = utc_now() - timedelta(
             seconds=settings.SCORE_DELETION_DISPATCH_TIMEOUT_SECONDS + 1
         )
     attempts = operation.attempt_count
@@ -223,14 +223,14 @@ def test_failed_attempts_exhaust_and_operator_rearm_uses_lifecycle(score_db, mon
     operation = admitted(db, score)
     service = ScoreDeletionDeliveryService()
     for attempt in range(1, settings.SCORE_DELETION_MAX_ATTEMPTS + 1):
-        operation.next_attempt_at = utc_now_naive()
+        operation.next_attempt_at = utc_now()
         db.commit()
         lease = service.claim(db, operation.operation_uuid)
         db.commit()
         assert lease.attempt == attempt
-        failed_at = utc_now_naive()
+        failed_at = utc_now()
         with monkeypatch.context() as clock:
-            clock.setattr("app.modules.scores.deletion_delivery.utc_now_naive", lambda: failed_at)
+            clock.setattr("app.modules.scores.deletion_delivery.utc_now", lambda: failed_at)
             assert service.fail(db, lease, "object storage temporarily unavailable" + "x" * 5000)
         if attempt >= 7:
             assert operation.next_attempt_at == failed_at + timedelta(
@@ -480,7 +480,7 @@ def test_score_operation_list_and_summary_share_domain_failure_facts(
     operation = admitted(db, score)
     operation.status, operation.attempt_count = status, attempts
     operation.attempt_token = "current" if status == Status.PROCESSING else None
-    operation.next_attempt_at = utc_now_naive() + timedelta(hours=1 if future else -1)
+    operation.next_attempt_at = utc_now() + timedelta(hours=1 if future else -1)
     if status == Status.FAILED:
         set_failure_metadata(
             operation,

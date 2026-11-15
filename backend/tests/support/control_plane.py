@@ -3,8 +3,6 @@
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-from sqlalchemy import create_engine
-from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel
 from app.api.deps import get_db
 from app.core.control_plane_settings import get_control_plane_runtime_settings
@@ -30,10 +28,8 @@ def control_app(monkeypatch):
 
 
 @pytest.fixture
-def control_db(control_app):
-    engine = create_engine(
-        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
-    )
+def control_db(postgres_engine, control_app):
+    engine = postgres_engine
     SQLModel.metadata.create_all(engine)
     with Session(engine) as db:
 

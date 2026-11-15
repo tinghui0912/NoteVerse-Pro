@@ -36,7 +36,7 @@ from app.modules.mail.outbox_service import mail_outbox_service
 from app.modules.playback.outbox_service import playback_outbox_service
 from app.modules.revisions.presentation_demand import RevisionPresentationSuperseded
 from app.modules.score_assets.render_outbox_service import render_outbox_service
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from tests.support.postgres_schema import postgres_schema_database
 
 SERVICES = {
@@ -108,7 +108,7 @@ def database(monkeypatch):
                         recipient="reader@example.test",
                         subject="Mail",
                         text_body="Body",
-                        expires_at=utc_now_naive() + timedelta(days=1),
+                        expires_at=utc_now() + timedelta(days=1),
                     ),
                     ImportDispatch(job_id=job.id),
                     ScoreDeletionOperation(
@@ -126,7 +126,7 @@ def database(monkeypatch):
                         sha256="f" * 64,
                         content_type="application/octet-stream",
                         write_token="generation",
-                        write_expires_at=utc_now_naive() + timedelta(days=1),
+                        write_expires_at=utc_now() + timedelta(days=1),
                     ),
                 ]
             )
@@ -143,7 +143,7 @@ def takeover(engine, kind):
     model, service = SERVICES[kind]
     with Session(engine) as db:
         row = db.scalars(sa.select(model)).one()
-        row.started_at = utc_now_naive() - timedelta(days=1)
+        row.started_at = utc_now() - timedelta(days=1)
         db.commit()
         assert kind in service.recover_and_list_due(db)
         db.commit()
@@ -228,7 +228,7 @@ def test_locked_terminal_mutation_refreshes_preloaded_attempt(database, kind):
         with Session(database) as winner:
             row = winner.scalars(sa.select(model).with_for_update()).one()
             # Simulate maintenance then a fresh claim while holding the authoritative row.
-            row.started_at = utc_now_naive() - timedelta(days=1)
+            row.started_at = utc_now() - timedelta(days=1)
             winner.commit()
             assert kind in service.recover_and_list_due(winner)
             second = service.claim(winner, kind).lease

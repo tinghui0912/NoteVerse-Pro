@@ -1,11 +1,14 @@
 """Persisted service witnesses; resource admission has its own domain suites."""
 
+from datetime import UTC
+
+
 from datetime import datetime, timedelta
 import importlib
 
 import pytest
 from sqlalchemy.orm import Session
-from sqlmodel import SQLModel, create_engine
+from sqlmodel import SQLModel
 
 from app.core.config import settings
 from app.db.models import (
@@ -13,10 +16,16 @@ from app.db.models import (
     PlaybackOutbox,
     RenderOutbox,
     RenderTargetType,
+    User,
+    ImportJob,
+    ImportJobState,
+    Score,
+    ScoreRevision,
+    RevisionOrigin,
 )
 from app.modules.revisions.presentation_demand import RevisionPresentationDemand
 
-NOW = datetime(2026, 11, 6, 12)
+NOW = datetime(2026, 11, 6, 12, tzinfo=UTC)
 CASES = [
     (
         "score_assets.render_outbox_service",
@@ -53,11 +62,11 @@ CASES = [
 
 
 @pytest.fixture(params=CASES, ids=[case[1] for case in CASES])
-def delivery(request, monkeypatch):
+def delivery(postgres_engine, request, monkeypatch):
     module_name, service_name, prefix, model, fields = request.param
     module = importlib.import_module(f"app.modules.{module_name}")
     clock = [NOW]
-    monkeypatch.setattr(module, "utc_now_naive", lambda: clock[0])
+    monkeypatch.setattr(module, "utc_now", lambda: clock[0])
     for suffix, value in [
         ("MAX_ATTEMPTS", 5),
         ("RETRY_BASE_SECONDS", 60),
@@ -93,9 +102,29 @@ def delivery(request, monkeypatch):
         monkeypatch.setattr(
             module, "revision_presentation_demand", lambda *_: RevisionPresentationDemand.DEMANDED
         )
-    engine = create_engine("sqlite://")
+    engine = postgres_engine
     SQLModel.metadata.create_all(engine)
     with Session(engine) as db:
+        db.add(User(id=1, email="delivery@example.test", password_hash="hash"))
+        db.flush()
+        db.add_all(
+            [
+                ImportJob(id=1, job_uuid="job", user_id=1, state=ImportJobState.PENDING_REVIEW),
+                Score(id=1, score_uuid="score", owner_user_id=1, title="Score"),
+            ]
+        )
+        db.flush()
+        db.add(
+            ScoreRevision(
+                id=1,
+                revision_uuid="revision",
+                score_id=1,
+                revision_number=1,
+                content_hash="f" * 64,
+                origin=RevisionOrigin.IMPORT,
+            )
+        )
+        db.flush()
         row = model(outbox_uuid="delivery", next_attempt_at=NOW, **fields)
         db.add(row)
         db.commit()

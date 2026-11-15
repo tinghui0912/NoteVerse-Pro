@@ -17,6 +17,7 @@ def test_application_sessions_use_the_configured_postgresql_engine():
     with SessionLocal() as db:
         assert isinstance(db, Session)
         assert db.get_bind() is engine
+        assert db.scalar(text("SHOW timezone")) == "UTC"
 
 
 def test_independent_application_sessions_observe_committed_state():

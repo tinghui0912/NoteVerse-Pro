@@ -1,5 +1,8 @@
 """Score collaboration keyset continuation, HTTP admission and current schema."""
 
+from datetime import UTC
+
+
 import base64
 import json
 from datetime import datetime, timedelta
@@ -21,7 +24,7 @@ from tests.support.postgres_schema import postgres_schema_database
 from tests.test_trusted_collaboration import collaboration as collaboration
 from tests.test_score_revision_services import score_service_session as score_service_session
 
-NOW = datetime(2026, 1, 1, 12)
+NOW = datetime(2026, 1, 1, 12, tzinfo=UTC)
 
 
 def invite(score_id, index, *, created_at=NOW, **kwargs):

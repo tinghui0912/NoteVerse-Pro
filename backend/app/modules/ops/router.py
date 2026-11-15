@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from app.shared.time import Instant
 
 from fastapi import APIRouter, Body, Depends, Query, Request
 from sqlalchemy.orm import Session
@@ -62,8 +62,8 @@ def list_ops_audit_events(
     operation_kind: AsyncOperationKind | None = Query(default=None),
     operation_id: str | None = Query(default=None, min_length=1, max_length=128),
     outcome: OpsAuditOutcome | None = Query(default=None),
-    created_after: datetime | None = Query(default=None),
-    created_before: datetime | None = Query(default=None),
+    created_after: Instant | None = Query(default=None),
+    created_before: Instant | None = Query(default=None),
 ):
     result = service.list_events(
         db,
@@ -97,8 +97,8 @@ def list_async_operations(
     status: AsyncOperationStatus | None = Query(default=None),
     failure_class: DurableFailureClass | None = Query(default=None),
     resource_type: str | None = Query(default=None, min_length=1, max_length=64),
-    created_after: datetime | None = Query(default=None),
-    updated_before: datetime | None = Query(default=None),
+    created_after: Instant | None = Query(default=None),
+    updated_before: Instant | None = Query(default=None),
 ):
     result = service.list_operations(
         db,
@@ -129,8 +129,8 @@ def async_operations_summary(
     status: AsyncOperationStatus | None = Query(default=None),
     failure_class: DurableFailureClass | None = Query(default=None),
     resource_type: str | None = Query(default=None, min_length=1, max_length=64),
-    created_after: datetime | None = Query(default=None),
-    updated_before: datetime | None = Query(default=None),
+    created_after: Instant | None = Query(default=None),
+    updated_before: Instant | None = Query(default=None),
 ):
     result = service.summary(
         db,

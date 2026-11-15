@@ -64,7 +64,7 @@ def test_notification_admission_propagates_publication_failure_without_owning_tr
             recipient_user_id=7,
             import_job_id="job",
             job_title=None,
-            created_at=notifications.utc_now_naive(),
+            created_at=notifications.utc_now(),
         )
     assert raised.value is failure
     db.add.assert_called_once()

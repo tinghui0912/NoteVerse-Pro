@@ -1,5 +1,8 @@
 """Real Session Import HTTP admission, bulk projection and idempotency."""
 
+from datetime import UTC
+
+
 import asyncio
 from threading import Barrier, Event
 from concurrent.futures import ThreadPoolExecutor
@@ -39,7 +42,7 @@ from app.modules.import_jobs.submission_service import ImportJobSubmissionServic
 from app.shared.constants import ErrorCode
 from tests.support.postgres_schema import postgres_schema_database
 
-NOW = datetime(2026, 11, 13, 1, 2, 3, 456789)
+NOW = datetime(2026, 11, 13, 1, 2, 3, 456789, tzinfo=UTC)
 MANIFEST = {"schema_version": 1, "kind": "omr", "engine": "legato"}
 
 

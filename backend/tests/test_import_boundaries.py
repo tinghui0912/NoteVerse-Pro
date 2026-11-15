@@ -7,7 +7,7 @@ from unittest.mock import Mock
 
 from app.api.deps import get_current_user, get_db
 from app.modules.import_jobs.review.dependencies import get_import_review_service
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 from app.main import app
 from app.modules.import_jobs.review.service import ImportReviewService
@@ -64,8 +64,8 @@ def test_review_http_subresources_delegate_to_import_owned_use_cases(client):
         state="PENDING_REVIEW",
         genres=[],
         original_images=[],
-        created_at=utc_now_naive(),
-        updated_at=utc_now_naive(),
+        created_at=utc_now(),
+        updated_at=utc_now(),
     )
     service = SimpleNamespace(
         detail=Mock(return_value=representation),

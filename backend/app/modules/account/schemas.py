@@ -1,6 +1,6 @@
 """Account request and response schemas."""
 
-from datetime import datetime
+from app.shared.time import Instant
 
 from pydantic import BaseModel, EmailStr, Field
 from app.shared.api_model import ApiModel
@@ -19,7 +19,7 @@ class ProfileUserRead(BaseModel):
     id: int
     email: EmailStr
     display_name: str
-    created_at: datetime | None = None
+    created_at: Instant | None = None
     is_active: bool
     avatar_url: str | None = None
 

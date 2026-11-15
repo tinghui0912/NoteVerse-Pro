@@ -15,6 +15,7 @@ from loguru import logger as _logger
 
 from app.core.config import settings
 from app.core.request_correlation import get_request_id
+from app.shared.time import require_utc
 
 _logger.remove()
 
@@ -340,7 +341,7 @@ def json_format(record) -> str:
     task_id = get_task_id()
 
     log_record = {
-        "timestamp": record["time"].strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
+        "timestamp": require_utc(record["time"]).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
         "level": record["level"].name,
         "logger": record["name"],
         "message": SensitiveDataFilter.filter_string(str(record["message"])),

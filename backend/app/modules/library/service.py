@@ -22,7 +22,7 @@ from app.modules.score_assets.derived_assets import score_derived_assets
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.score_assets.schemas import ScoreDerivedAssetRead, ScoreDerivedAssetsRead
 from app.modules.scores.repository import ScoreRepository
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 class LibraryService:
@@ -62,7 +62,7 @@ class LibraryService:
     def create_folder(
         self, db: Session, user_id: int, request: LibraryFolderCreateRequest
     ) -> LibraryFolderRead:
-        now = utc_now_naive()
+        now = utc_now()
         folder = ScoreLibraryFolder(
             user_id=user_id,
             name=request.name,
@@ -91,7 +91,7 @@ class LibraryService:
             folder.name = request.name
         if request.position is not None:
             folder.position = request.position
-        folder.updated_at = utc_now_naive()
+        folder.updated_at = utc_now()
         try:
             db.commit()
         except Exception as exc:
@@ -168,7 +168,7 @@ class LibraryService:
                 row.folder_id = (
                     require_persisted_id(folder.id, entity="library folder") if folder else None
                 )
-                row.updated_at = utc_now_naive()
+                row.updated_at = utc_now()
             db.commit()
             return len(rows)
         except Exception:
@@ -182,7 +182,7 @@ class LibraryService:
             rows = self._organizations_for_mutation(db, user_id, request.score_ids)
             for row in rows:
                 row.is_favorite = request.is_favorite
-                row.updated_at = utc_now_naive()
+                row.updated_at = utc_now()
             db.commit()
             return len(rows)
         except Exception:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-from datetime import datetime
+from app.shared.time import Instant
 
 from typing import Literal
 
@@ -24,7 +24,7 @@ class InviteCreateRequest(BaseModel):
 
     email: EmailStr = Field(max_length=255)
     role: MembershipRole = MembershipRole.VIEWER
-    expires_at: datetime | None = None
+    expires_at: Instant | None = None
     locale: Literal["en", "zh"] = "zh"
 
     @field_validator("email")
@@ -38,9 +38,9 @@ class InviteRead(ApiModel):
     email: str | None
     role: MembershipRole
     status: InviteStatus
-    expires_at: datetime | None
-    terminal_at: datetime | None
-    created_at: datetime
+    expires_at: Instant | None
+    terminal_at: Instant | None
+    created_at: Instant
     created_by: InviteActorRead | None
     terminal_actor: InviteActorRead | None
 
@@ -57,8 +57,8 @@ class PendingInviteRead(ApiModel):
     email: str | None
     role: MembershipRole
     status: InviteStatus
-    expires_at: datetime | None
-    created_at: datetime
+    expires_at: Instant | None
+    created_at: Instant
 
 
 class InviteAccessRead(ApiModel):
@@ -69,7 +69,7 @@ class InviteAccessRead(ApiModel):
     email: str | None
     role: MembershipRole
     status: InviteStatus
-    expires_at: datetime | None
+    expires_at: Instant | None
     requires_login: bool
     can_accept: bool
 
@@ -86,8 +86,8 @@ class MemberRead(ApiModel):
     email: str
     avatar_url: str | None
     role: MembershipRole
-    created_at: datetime
-    revoked_at: datetime | None
+    created_at: Instant
+    revoked_at: Instant | None
 
 
 class MemberUpdateRequest(BaseModel):

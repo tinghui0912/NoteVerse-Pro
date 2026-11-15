@@ -11,7 +11,7 @@ from app.db.models import StoredObject, StorageUsageCategory
 from app.modules.import_jobs.repository import ImportJobRepository
 from app.modules.storage_usage.service import storage_usage_service
 from app.modules.storage_objects.retirement import retire_after_release
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 @dataclass(frozen=True)
@@ -32,7 +32,7 @@ class ImportJobMaintenanceService:
         )
 
     def cleanup_orphan_uploads(self, db: Session) -> int:
-        cutoff = utc_now_naive() - timedelta(seconds=settings.ORPHAN_UPLOAD_TTL_SECONDS)
+        cutoff = utc_now() - timedelta(seconds=settings.ORPHAN_UPLOAD_TTL_SECONDS)
         deleted = 0
         for upload in self.repository.list_orphan_uploads(db, cutoff):
             try:

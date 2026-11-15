@@ -15,7 +15,7 @@ from app.db.models import (
 )
 from app.modules.practice.bundle.retention import practice_bundle_retention
 from app.modules.storage_objects.retirement import retire_after_release
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from tests.test_performance_takes import (
     test_env as test_env,
     _create_default_bundle,
@@ -84,7 +84,7 @@ def test_stale_creation_lease_has_no_physical_authority(test_env):
         artifact_id="artifact",
         artifact_schema_version=1,
         status="CREATING",
-        creation_expires_at=utc_now_naive() - timedelta(seconds=1),
+        creation_expires_at=utc_now() - timedelta(seconds=1),
     )
     db.add(bundle)
     db.commit()

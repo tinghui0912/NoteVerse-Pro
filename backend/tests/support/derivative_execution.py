@@ -11,7 +11,7 @@ from app.modules.playback.outbox_service import (
     playback_outbox_service,
     _delivery_lifecycle as playback_lifecycle,
 )
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 def revision_attempt(db, kind, score, revision):
@@ -35,7 +35,7 @@ def revision_attempt(db, kind, score, revision):
         db.add(row)
     else:
         # This fixture explicitly requests a fresh replacement generation.
-        lifecycle().rearm(row, now=utc_now_naive())
+        lifecycle().rearm(row, now=utc_now())
     db.commit()
     payload = service.claim(db, row.outbox_uuid)
     assert payload is not None

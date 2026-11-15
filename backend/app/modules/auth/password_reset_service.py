@@ -24,7 +24,7 @@ from app.modules.mail.templates.auth import (
     build_password_reset_email,
 )
 from app.shared.constants import ErrorCode
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 AUTH_TOKEN_PASSWORD_RESET = "password_reset"
 
@@ -54,7 +54,7 @@ class PasswordResetService:
         user_agent: str | None = None,
         ip_address: str | None = None,
     ) -> str:
-        now = utc_now_naive()
+        now = utc_now()
         used_at_column = AuthToken.__table__.c.used_at
         result = db.execute(
             select(AuthToken).where(
@@ -88,7 +88,7 @@ class PasswordResetService:
             )
         )
         record = result.scalars().one_or_none()
-        now = utc_now_naive()
+        now = utc_now()
 
         if not record or record.used_at is not None or record.expires_at <= now:
             raise ValidationException(code=ErrorCode.RESET_TOKEN_INVALID, field="token")
@@ -134,7 +134,7 @@ class PasswordResetService:
             subject=email_content.subject,
             text_body=email_content.text_body,
             html_body=email_content.html_body,
-            expires_at=utc_now_naive() + timedelta(seconds=ttl_seconds),
+            expires_at=utc_now() + timedelta(seconds=ttl_seconds),
         )
         db.commit()
 
@@ -150,7 +150,7 @@ class PasswordResetService:
             raise ValidationException(code=ErrorCode.RESET_TOKEN_INVALID, field="token")
 
         user.password_hash = security.get_password_hash(request.new_password)
-        changed_at = utc_now_naive()
+        changed_at = utc_now()
         user.password_changed_at = changed_at
         user_id = require_persisted_id(user.id, entity="user")
         self.session_service.revoke_user_refresh_tokens(

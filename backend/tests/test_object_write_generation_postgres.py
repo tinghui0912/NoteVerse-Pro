@@ -16,7 +16,7 @@ from app.modules.storage_objects.writes import (
     write_cleanup_delivery,
     lock_intent,
 )
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from tests.test_stored_object_retirement_postgres import (
     retirement_postgres as retirement_postgres,
     assert_blocked,
@@ -90,7 +90,7 @@ def test_physical_put_holds_generation_lock_until_settled(
         db.rollback()
         assert db.scalar(select(StoredObject)) is None
         row = lock_intent(db, receipt.intent_uuid)
-        row.write_expires_at = utc_now_naive() - timedelta(seconds=1)
+        row.write_expires_at = utc_now() - timedelta(seconds=1)
         db.commit()
         write_cleanup_delivery.recover_and_list_due(db)
         db.commit()

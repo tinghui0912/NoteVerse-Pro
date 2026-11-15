@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import ast
+from datetime import UTC, datetime, timedelta, timezone
+import json
 from pathlib import Path
 
 from app.core.logger import StructuredLogFieldPolicy, json_format
@@ -111,7 +113,7 @@ def test_bound_log_fields_are_classified_by_the_field_policy() -> None:
 
 def test_json_logs_omit_unknown_and_sensitive_extra_fields() -> None:
     record = {
-        "time": __import__("datetime").datetime.now(),
+        "time": datetime.now(UTC),
         "level": type("Level", (), {"name": "ERROR"})(),
         "name": "test",
         "message": "failed",
@@ -139,3 +141,19 @@ def test_json_logs_omit_unknown_and_sensitive_extra_fields() -> None:
     assert "storage_key" not in payload
     assert "image_path" not in payload
     assert "unreviewed_field" not in payload
+
+
+def test_json_log_timestamp_preserves_the_instant_in_utc() -> None:
+    instant = datetime(2026, 11, 15, 18, tzinfo=timezone(timedelta(hours=8)))
+    record = {
+        "time": instant,
+        "level": type("Level", (), {"name": "INFO"})(),
+        "name": "test",
+        "message": "event",
+        "function": "test",
+        "line": 1,
+        "extra": {},
+        "exception": None,
+    }
+    value = datetime.fromisoformat(json.loads(json_format(record))["timestamp"])
+    assert value == instant and value.utcoffset() == timedelta(0)

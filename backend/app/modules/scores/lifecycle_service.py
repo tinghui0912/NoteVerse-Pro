@@ -6,7 +6,7 @@ from app.db.model_utils import require_persisted_id
 from app.db.models import ScoreDeletionOperation
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.scores.repository import ScoreRepository
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from sqlalchemy.orm import Session
 
 
@@ -27,7 +27,7 @@ class ScoreLifecycleService:
             )
             if score is None or score.deleted_at is not None:
                 return
-            now = utc_now_naive()
+            now = utc_now()
             score.deleted_at = now
             traceparent, tracestate = get_async_trace_context()
             operation = ScoreDeletionOperation(

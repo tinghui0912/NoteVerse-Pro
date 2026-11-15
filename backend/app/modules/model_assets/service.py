@@ -9,7 +9,7 @@ from app.modules.model_assets.generated.practice_acoustic_model_asset import (
     MODEL_ASSET_DESCRIPTOR,
 )
 from app.storage import object_storage, ObjectStorage
-from app.utils.timezone import utc_now
+from app.shared.time import utc_now
 
 
 class ModelAssetService:

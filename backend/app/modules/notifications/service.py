@@ -15,7 +15,7 @@ from app.modules.notifications.schemas import (
 )
 from app.shared.constants import ErrorCode
 from app.modules.realtime.publisher import publish_change
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 notification_read_adapter: TypeAdapter[NotificationRead] = TypeAdapter(NotificationRead)
 
@@ -172,7 +172,7 @@ class NotificationService:
                 "notification", notification_uuid, ErrorCode.NOTIFICATION_NOT_FOUND
             )
         if notification.read_at is None:
-            notification.read_at = utc_now_naive()
+            notification.read_at = utc_now()
             publish_change(
                 db,
                 recipient_user_id=user_id,
@@ -184,7 +184,7 @@ class NotificationService:
         return self._notification_read(db, notification)
 
     def mark_all_read(self, db: Session, user_id: int) -> NotificationUnreadCountRead:
-        now = utc_now_naive()
+        now = utc_now()
         changed = self.repository.mark_all_read_for_user(db, user_id, read_at=now)
         if changed:
             publish_change(
@@ -201,7 +201,7 @@ class NotificationService:
         )
         if days <= 0:
             raise ValueError("notification retention days must be positive")
-        cutoff = utc_now_naive() - timedelta(days=days)
+        cutoff = utc_now() - timedelta(days=days)
         deleted = self.repository.delete_older_than(db, cutoff)
         if deleted:
             db.commit()

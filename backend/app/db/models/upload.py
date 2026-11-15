@@ -16,7 +16,7 @@ from sqlmodel import Field, Relationship, SQLModel
 from sqlalchemy.orm import relationship
 from .stored_object import StoredObject
 
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 if TYPE_CHECKING:
     from .user import User
@@ -55,12 +55,14 @@ class Upload(SQLModel, table=True):  # type: ignore[call-arg]
         default=None, sa_column=Column(BigInteger, ForeignKey("users.id"))
     )
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
     updated_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(
+            DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
+        ),
     )
 
     uploader: Optional["User"] = Relationship(back_populates="uploads")

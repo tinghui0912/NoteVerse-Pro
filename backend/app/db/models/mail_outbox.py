@@ -19,7 +19,7 @@ from sqlalchemy import (
 )
 from sqlmodel import Field, SQLModel
 
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
@@ -83,13 +83,17 @@ class MailOutbox(SQLModel, table=True):  # type: ignore[call-arg]
     attempt_token: str | None = Field(default=None, sa_column=Column(String(36)))
     attempt_count: int = Field(default=0, sa_column=Column(Integer, default=0, nullable=False))
     next_attempt_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
-    expires_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    dispatched_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    started_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    expires_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    dispatched_at: Optional[datetime] = Field(
+        default=None, sa_column=Column(DateTime(timezone=True))
+    )
+    started_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    completed_at: Optional[datetime] = Field(
+        default=None, sa_column=Column(DateTime(timezone=True))
+    )
     provider_message_id: Optional[str] = Field(default=None, sa_column=Column(String(128)))
     last_error: Optional[str] = Field(default=None, sa_column=Column(Text))
     internal_error_code: Optional[str] = Field(default=None, sa_column=Column(String(128)))
@@ -97,15 +101,15 @@ class MailOutbox(SQLModel, table=True):  # type: ignore[call-arg]
     internal_error_class: Optional[str] = Field(default=None, sa_column=Column(String(32)))
     internal_error_retryable: Optional[bool] = Field(default=None, sa_column=Column(Boolean))
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
     updated_at: datetime = Field(
-        default_factory=utc_now_naive,
+        default_factory=utc_now,
         sa_column=Column(
-            DateTime,
-            default=utc_now_naive,
-            onupdate=utc_now_naive,
+            DateTime(timezone=True),
+            default=utc_now,
+            onupdate=utc_now,
             nullable=False,
         ),
     )

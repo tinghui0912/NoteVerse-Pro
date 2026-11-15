@@ -5,7 +5,7 @@ from sqlalchemy.exc import DBAPIError, InterfaceError
 from app.db.session import SessionLocal
 from app.modules.performance_takes.repository import PerformanceTakeRepository
 from app.modules.storage_usage.service import StorageUsageService
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from .domain import FinalizeLease, UploadReservationStatus
 from .persistence import lifecycle_from_row
 from .effects import apply_reservation_transition
@@ -42,7 +42,7 @@ class PerformanceTakeFinalizationRecovery:
         take = self.repository.get_by_reservation(db, user_id, row.id)
         # COMPLETED without a Take is valid deletion lineage and cannot resurrect it.
         state.assert_take_presence(take is not None, allow_deleted_take=True)
-        now = utc_now_naive()
+        now = utc_now()
         if take is not None:
             if take.recording_object.object_key != lease.object_key:
                 # Refresh orphan evidence after late IO, even if an earlier cleanup saw absence.

@@ -3,10 +3,19 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import BigInteger, Column, DateTime, ForeignKey, Index, Integer, String, UniqueConstraint
+from sqlalchemy import (
+    BigInteger,
+    Column,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+)
 from sqlmodel import Field, SQLModel
 
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 
@@ -42,15 +51,15 @@ class ScoreRevisionNote(SQLModel, table=True):  # type: ignore[call-arg]
     )
     note: str = Field(sa_column=Column(String(500), nullable=False))
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
     updated_at: datetime = Field(
-        default_factory=utc_now_naive,
+        default_factory=utc_now,
         sa_column=Column(
-            DateTime,
-            default=utc_now_naive,
-            onupdate=utc_now_naive,
+            DateTime(timezone=True),
+            default=utc_now,
+            onupdate=utc_now,
             nullable=False,
         ),
     )

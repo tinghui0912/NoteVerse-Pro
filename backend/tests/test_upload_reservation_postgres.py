@@ -39,7 +39,7 @@ from app.modules.performance_takes.upload_reservation.persistence import (
 from app.modules.performance_takes.upload_reservation.domain import FinalizeLease
 from app.modules.storage_usage.service import StorageUsageService
 from app.modules.practice.bundle.service import PracticeBundleService
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 pytest_plugins = ["tests.test_practice_bundle_postgres"]
 
@@ -58,7 +58,7 @@ def test_terminal_transitions_atomically_release_quota_and_preserve_provenance(
 ):
     from unittest.mock import patch
     from app.db.models import PracticeBundleRecord
-    from app.utils.timezone import utc_now_naive
+    from app.shared.time import utc_now
 
     sessions, source, storage, request = setup_bundle(postgres_bundle)
     service = TakeLifecycleServices(storage=storage, practice_bundle_service=source)
@@ -71,7 +71,7 @@ def test_terminal_transitions_atomically_release_quota_and_preserve_provenance(
                 select(PracticeBundleRecord).where(PracticeBundleRecord.bundle_id == bundle_id)
             )
         ).status == "READY"
-        now = utc_now_naive()
+        now = utc_now()
         if command == "expire-finalizing":
             state = lifecycle_from_row(row)
             initialize_lifecycle(
@@ -92,7 +92,7 @@ def test_terminal_transitions_atomically_release_quota_and_preserve_provenance(
         else:
             db.commit()
             with patch(
-                "app.modules.performance_takes.upload_reservation.cleanup.utc_now_naive",
+                "app.modules.performance_takes.upload_reservation.cleanup.utc_now",
                 return_value=now + timedelta(hours=2),
             ):
                 upload_reservation_cleanup_service.cleanup_expired_reservations(
@@ -292,7 +292,7 @@ async def test_finalize_lease_blocks_concurrency_and_expired_takeover_preserves_
                     b, 1, reserved.reservation_id, lock=True
                 )
                 assert current is cached and current.status == "FINALIZING"
-                current.finalizing_expires_at = utc_now_naive() - timedelta(seconds=1)
+                current.finalizing_expires_at = utc_now() - timedelta(seconds=1)
                 b.commit()
                 completed = service.finalize_take(b, 1, reserved.reservation_id)
             else:
@@ -347,8 +347,8 @@ async def test_finalize_lease_blocks_concurrency_and_expired_takeover_preserves_
             from unittest.mock import patch
 
             with patch(
-                "app.modules.performance_takes.upload_reservation.cleanup.utc_now_naive",
-                return_value=utc_now_naive() + timedelta(hours=2),
+                "app.modules.performance_takes.upload_reservation.cleanup.utc_now",
+                return_value=utc_now() + timedelta(hours=2),
             ):
                 upload_reservation_cleanup_service.cleanup_expired_reservations(
                     db, storage, StorageUsageService()

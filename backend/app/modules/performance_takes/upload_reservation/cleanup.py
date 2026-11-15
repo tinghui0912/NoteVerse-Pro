@@ -13,7 +13,7 @@ from app.modules.performance_takes.upload_reservation.persistence import (
 )
 from app.modules.storage_usage.service import StorageUsageService
 from app.storage.base import ObjectStorage
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 class UploadReservationCleanupService:
@@ -22,7 +22,7 @@ class UploadReservationCleanupService:
     def cleanup_expired_reservations(
         self, db: Session, storage: ObjectStorage, storage_usage_service: StorageUsageService
     ) -> int:
-        now = utc_now_naive()
+        now = utc_now()
         ids = list(
             db.scalars(
                 select(PerformanceTakeUploadReservation.id)

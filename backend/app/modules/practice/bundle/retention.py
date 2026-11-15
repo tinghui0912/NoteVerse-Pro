@@ -4,7 +4,7 @@ from sqlalchemy import select
 from app.core.config import settings
 from app.db.models import PracticeBundleRecord, ScoreRevisionPracticeBinding
 from app.modules.storage_objects.retirement import retire_after_release
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 class PracticeBundleRetention:
@@ -50,7 +50,7 @@ class PracticeBundleRetention:
                 select(PracticeBundleRecord)
                 .where(
                     PracticeBundleRecord.status == "CREATING",
-                    PracticeBundleRecord.creation_expires_at <= utc_now_naive(),
+                    PracticeBundleRecord.creation_expires_at <= utc_now(),
                 )
                 .order_by(PracticeBundleRecord.id)
                 .limit(settings.PRACTICE_BUNDLE_GC_BATCH_SIZE)

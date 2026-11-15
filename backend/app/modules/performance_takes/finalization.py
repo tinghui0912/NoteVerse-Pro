@@ -14,7 +14,7 @@ from app.modules.storage_usage.service import StorageUsageService
 from app.shared.constants import ErrorCode
 from app.storage import ObjectStorage
 from app.storage.factory import object_storage
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from .final_media import PerformanceTakeFinalMedia
 from .writer import PerformanceTakeWriter
 from .repository import PerformanceTakeRepository
@@ -64,7 +64,7 @@ class PerformanceTakeFinalizationService:
         if existing is not None:
             db.commit()
             return self.takes.get_take(db, user_id, manifest.take_uuid)
-        now = utc_now_naive()
+        now = utc_now()
         token = str(uuid4())
         extension = recording_extension(
             manifest.snapshot.capture.kind, manifest.snapshot.capture.mime_type

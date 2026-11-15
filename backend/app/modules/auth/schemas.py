@@ -1,6 +1,6 @@
 """Canonical Pydantic schemas for the auth module."""
 
-from datetime import datetime
+from app.shared.time import Instant
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
@@ -70,16 +70,16 @@ class SessionSummary(BaseModel):
     device_id: str | None = None
     user_agent: str | None = None
     ip_address: str | None = None
-    created_at: datetime
-    last_used_at: datetime | None = None
-    expires_at: datetime
+    created_at: Instant
+    last_used_at: Instant | None = None
+    expires_at: Instant
     is_current: bool = False
 
 
 class SecurityOverview(BaseModel):
     email: EmailStr
-    email_verified_at: datetime | None = None
-    password_changed_at: datetime | None = None
+    email_verified_at: Instant | None = None
+    password_changed_at: Instant | None = None
     mfa_enabled: bool = False
     mfa_available: bool = False
 
@@ -105,10 +105,10 @@ class User(ApiModel):
     email: EmailStr | None = None
     display_name: str | None = None
     is_active: bool | None = True
-    created_at: datetime | None = None
-    updated_at: datetime | None = None
+    created_at: Instant | None = None
+    updated_at: Instant | None = None
     avatar_url: str | None = None
-    email_verified_at: datetime | None = None
+    email_verified_at: Instant | None = None
 
     @model_validator(mode="before")
     @classmethod

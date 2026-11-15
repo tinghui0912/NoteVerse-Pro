@@ -12,7 +12,7 @@ from app.modules.auth.sessions_service import SessionService
 from app.modules.mail.outbox_service import queue_mail
 from app.modules.mail.templates.auth import build_password_changed_email
 from app.shared.constants import ErrorCode
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 class PasswordService:
@@ -37,7 +37,7 @@ class PasswordService:
                 field="current_password",
             )
 
-        changed_at = utc_now_naive()
+        changed_at = utc_now()
         user.password_hash = security.get_password_hash(request.new_password)
         user.password_changed_at = changed_at
 

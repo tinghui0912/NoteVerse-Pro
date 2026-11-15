@@ -7,7 +7,7 @@ from typing import Optional
 from sqlalchemy import BigInteger, Column, DateTime, ForeignKey, Index, Integer, String
 from sqlmodel import Field, SQLModel
 
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 
@@ -47,6 +47,6 @@ class OpsAuditEvent(SQLModel, table=True):  # type: ignore[call-arg]
     previous_state: Optional[str] = Field(default=None, sa_column=Column(String(128)))
     new_state: Optional[str] = Field(default=None, sa_column=Column(String(128)))
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )

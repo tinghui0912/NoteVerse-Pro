@@ -83,7 +83,7 @@ def test_current_bundle_creation_and_ready_tuples(monkeypatch):
     from sqlalchemy.orm import Session
     from sqlalchemy.exc import IntegrityError
     from app.db.models import PracticeBundleRecord
-    from app.utils.timezone import utc_now_naive
+    from app.shared.time import utc_now
 
     with postgres_schema_database(monkeypatch) as (engine, config):
         command.upgrade(config, "head")
@@ -101,7 +101,7 @@ def test_current_bundle_creation_and_ready_tuples(monkeypatch):
             )
             db.commit()
             objects = list(db.scalars(sa.select(StoredObject.id).order_by(StoredObject.id)))
-            expiry = utc_now_naive() + timedelta(minutes=15)
+            expiry = utc_now() + timedelta(minutes=15)
             tuples = [
                 ("CREATING", expiry, None, None, True),
                 ("READY", None, *objects, True),

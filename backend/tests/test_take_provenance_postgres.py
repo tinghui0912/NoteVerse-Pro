@@ -6,7 +6,7 @@ from time import monotonic, sleep
 from tests.test_stored_object_retirement_postgres import assert_blocked
 from datetime import timedelta
 from fractions import Fraction
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from unittest.mock import patch
 
 import pytest
@@ -234,7 +234,7 @@ def test_revision_only_retention_with_existing_reservation_or_take(postgres_bund
             storage.put_bytes(key=row.staging_object_key, content=MEDIA, content_type="audio/webm")
             service.finalize_take(db, 1, accepted.reservation_id)
         elif status == "FINALIZING":
-            now = utc_now_naive()
+            now = utc_now()
             initialize_lifecycle(
                 row,
                 lifecycle_from_row(row)
@@ -322,7 +322,7 @@ def test_save_holds_current_authorization_facts_until_commit(postgres_bundle, ro
             db.execute(
                 update(ScoreMembership)
                 .where(ScoreMembership.id == fact_id)
-                .values(revoked_at=utc_now_naive())
+                .values(revoked_at=utc_now())
             )
             db.commit()
 

@@ -7,14 +7,14 @@ from sqlalchemy import select
 from app.db.models import ObjectWriteIntent
 from app.modules.storage_objects.writes import write_cleanup_delivery
 from app.worker.execution import object_write_cleanup as worker
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 def drain_write_cleanup(db, storage):
     for row in db.scalars(
         select(ObjectWriteIntent).where(ObjectWriteIntent.status.in_(["PREPARED", "WRITTEN"]))
     ):
-        row.write_expires_at = utc_now_naive() - timedelta(seconds=1)
+        row.write_expires_at = utc_now() - timedelta(seconds=1)
     db.commit()
     due = write_cleanup_delivery.recover_and_list_due(db)
     db.commit()

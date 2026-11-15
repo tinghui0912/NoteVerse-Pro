@@ -22,7 +22,7 @@ from sqlmodel import Field, Relationship, SQLModel
 from sqlalchemy.orm import relationship
 from .stored_object import StoredObject
 
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
@@ -92,8 +92,8 @@ class ScorePlaybackAsset(SQLModel, table=True):  # type: ignore[call-arg]
     generator: str = Field(sa_column=Column(String(64), nullable=False))
     generator_version: str = Field(sa_column=Column(String(64), nullable=False))
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
 
 
@@ -170,27 +170,31 @@ class PlaybackOutbox(SQLModel, table=True):  # type: ignore[call-arg]
         sa_column=Column(Integer, default=0, nullable=False),
     )
     next_attempt_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
-    dispatched_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    started_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    dispatched_at: Optional[datetime] = Field(
+        default=None, sa_column=Column(DateTime(timezone=True))
+    )
+    started_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    completed_at: Optional[datetime] = Field(
+        default=None, sa_column=Column(DateTime(timezone=True))
+    )
     last_error: Optional[str] = Field(default=None, sa_column=Column(Text))
     internal_error_code: Optional[str] = Field(default=None, sa_column=Column(String(128)))
     internal_error_stage: Optional[str] = Field(default=None, sa_column=Column(String(64)))
     internal_error_class: Optional[str] = Field(default=None, sa_column=Column(String(32)))
     internal_error_retryable: Optional[bool] = Field(default=None, sa_column=Column(Boolean))
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
     updated_at: datetime = Field(
-        default_factory=utc_now_naive,
+        default_factory=utc_now,
         sa_column=Column(
-            DateTime,
-            default=utc_now_naive,
-            onupdate=utc_now_naive,
+            DateTime(timezone=True),
+            default=utc_now,
+            onupdate=utc_now,
             nullable=False,
         ),
     )

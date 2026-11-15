@@ -48,7 +48,7 @@ from app.modules.playback.outbox_service import (
     _delivery_lifecycle as playback_lifecycle,
 )
 from app.processing.engines.playback.renderer import RenderedAudio
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from app.worker.execution import render_outbox, playback_outbox
 from tests.support.object_storage import InMemoryObjectStorage
 from tests.support.postgres_schema import postgres_schema_database
@@ -256,7 +256,7 @@ def test_mid_generation_takeover_cannot_adopt_or_replace(generation, monkeypatch
     if existing_asset:
         assert execute(None, "delivery")["status"] in ("rendered", "generated")
         with Session(engine) as db:
-            lifecycle().rearm(db.scalars(sa.select(model)).one(), now=utc_now_naive())
+            lifecycle().rearm(db.scalars(sa.select(model)).one(), now=utc_now())
             db.commit()
     with Session(engine) as db:
         before = semantic_snapshot(db)
@@ -280,7 +280,7 @@ def test_mid_generation_takeover_cannot_adopt_or_replace(generation, monkeypatch
                 first = db.scalars(sa.select(model)).one()
                 token_a = first.attempt_token
                 assert first.status.value == "PROCESSING" and first.attempt_count == 1
-                first.started_at = utc_now_naive() - timedelta(days=1)
+                first.started_at = utc_now() - timedelta(days=1)
                 db.commit()
                 assert service.recover_and_list_due(db) == ["delivery"]
                 second = service.claim(db, "delivery")

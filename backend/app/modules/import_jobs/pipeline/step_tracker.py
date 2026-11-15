@@ -11,7 +11,7 @@ from typing import Callable, Dict, Optional, Set
 
 from app.core.logger import logger
 from app.modules.import_jobs.dispatch_service import StaleImportDispatchAttempt
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 class StepTracker:
@@ -59,7 +59,7 @@ class StepTracker:
                 self._upsert(
                     "initialization",
                     status="completed",
-                    end_time=utc_now_naive(),
+                    end_time=utc_now(),
                     step_order=init_order,
                 )
             except StaleImportDispatchAttempt:
@@ -77,7 +77,7 @@ class StepTracker:
                 self._upsert(
                     self.last_step,
                     status="completed",
-                    end_time=utc_now_naive(),
+                    end_time=utc_now(),
                 )
             except StaleImportDispatchAttempt:
                 raise
@@ -96,7 +96,7 @@ class StepTracker:
                 self._upsert(
                     step,
                     status="running",
-                    start_time=utc_now_naive(),
+                    start_time=utc_now(),
                     step_order=step_order,
                 )
             else:
@@ -120,7 +120,7 @@ class StepTracker:
         Args:
             final_step_name: Optional name for the final completion step.
         """
-        now = utc_now_naive()
+        now = utc_now()
 
         if self.last_step:
             try:
@@ -171,14 +171,14 @@ class StepTracker:
                 self._upsert(
                     step_name,
                     status="failed",
-                    end_time=utc_now_naive(),
+                    end_time=utc_now(),
                 )
             else:
                 if "initialization" in self.order_map:
                     self._upsert(
                         "initialization",
                         status="failed",
-                        end_time=utc_now_naive(),
+                        end_time=utc_now(),
                         step_order=self.order_map.get("initialization"),
                     )
         except StaleImportDispatchAttempt:

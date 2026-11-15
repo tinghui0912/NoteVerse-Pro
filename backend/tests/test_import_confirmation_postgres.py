@@ -43,7 +43,7 @@ from app.modules.import_jobs.notifications import admit_import_outcome
 from app.modules.storage_objects.persistence import object_from_bytes
 from app.modules.storage_usage.service import storage_usage_service
 from app.core.exceptions import ResourceNotFoundException, ValidationException
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from tests.support.postgres_schema import postgres_schema_database
 from tests.support.object_storage import InMemoryObjectStorage
 from tests.support.write_cleanup import drain_write_cleanup
@@ -117,7 +117,7 @@ def confirmation(monkeypatch):
                 reason="fixture",
                 object_type="upload",
             )
-            admit_import_outcome(db, job, created_at=utc_now_naive())
+            admit_import_outcome(db, job, created_at=utc_now())
             db.commit()
 
         def latency_only(*args):

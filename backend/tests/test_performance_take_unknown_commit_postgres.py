@@ -16,7 +16,7 @@ from app.modules.performance_takes.upload_reservation import recovery
 from app.modules.performance_takes.upload_reservation.domain import UNKNOWN_OUTCOME_GRACE
 from app.modules.performance_takes.upload_reservation.persistence import lifecycle_from_row
 from app.modules.performance_takes.manifest_persistence import manifest_from_row
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from tests.test_performance_take_finalization_postgres import setup
 from tests.test_upload_reservation_postgres import MEDIA
 
@@ -72,11 +72,8 @@ def assert_persisted_outcome(db, reservations, accepted, manifest, candidate, co
         assert take.recording_object.object_key == candidate.lease.object_key
     else:
         assert len(orphans) == 1 and orphans[0].key == candidate.lease.object_key
-        assert (
-            utc_now_naive() + UNKNOWN_OUTCOME_GRACE - timedelta(seconds=10)
-            <= orphans[0].remove_after
-        )
-        assert orphans[0].remove_after <= utc_now_naive() + UNKNOWN_OUTCOME_GRACE
+        assert utc_now() + UNKNOWN_OUTCOME_GRACE - timedelta(seconds=10) <= orphans[0].remove_after
+        assert orphans[0].remove_after <= utc_now() + UNKNOWN_OUTCOME_GRACE
 
 
 @pytest.mark.parametrize("committed", [False, True])

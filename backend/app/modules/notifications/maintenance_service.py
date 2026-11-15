@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.models import Notification
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 @dataclass(frozen=True)
@@ -30,7 +30,7 @@ class NotificationMaintenanceService:
         )
         if days <= 0:
             raise ValueError("notification retention days must be positive")
-        cutoff = utc_now_naive() - timedelta(days=days)
+        cutoff = utc_now() - timedelta(days=days)
         result = db.execute(delete(Notification).where(Notification.created_at < cutoff))
         deleted = int(result.rowcount or 0)
         if deleted:

@@ -21,7 +21,7 @@ from sqlmodel import Field, Relationship, SQLModel
 from sqlalchemy.orm import relationship
 from .performance_take_manifest import PerformanceTakeManifest
 
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from app.modules.performance_takes.upload_reservation.domain import UploadReservationStatus
 
 bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
@@ -77,18 +77,18 @@ class PerformanceTakeUploadReservation(SQLModel, table=True):  # type: ignore[ca
     staging_object_key: str = Field(sa_column=Column(String(768), nullable=False))
 
     storage_reservation_id: str = Field(sa_column=Column(String(36), index=True, nullable=False))
-    expires_at: datetime = Field(sa_column=Column(DateTime, nullable=False))
+    expires_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     last_put_url_expires_at: Optional[datetime] = Field(
         default=None,
-        sa_column=Column(DateTime, nullable=True),
+        sa_column=Column(DateTime(timezone=True), nullable=True),
     )
     staging_cleanup_after: Optional[datetime] = Field(
         default=None,
-        sa_column=Column(DateTime, nullable=True),
+        sa_column=Column(DateTime(timezone=True), nullable=True),
     )
     staging_cleanup_completed_at: Optional[datetime] = Field(
         default=None,
-        sa_column=Column(DateTime, nullable=True),
+        sa_column=Column(DateTime(timezone=True), nullable=True),
     )
 
     finalizing_object_key: Optional[str] = Field(
@@ -105,7 +105,7 @@ class PerformanceTakeUploadReservation(SQLModel, table=True):  # type: ignore[ca
     )
     finalizing_expires_at: Optional[datetime] = Field(
         default=None,
-        sa_column=Column(DateTime, nullable=True),
+        sa_column=Column(DateTime(timezone=True), nullable=True),
     )
     status: str = Field(
         default=UploadReservationStatus.RESERVED.value,
@@ -116,15 +116,15 @@ class PerformanceTakeUploadReservation(SQLModel, table=True):  # type: ignore[ca
         ),
     )
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
     updated_at: datetime = Field(
-        default_factory=utc_now_naive,
+        default_factory=utc_now,
         sa_column=Column(
-            DateTime,
-            default=utc_now_naive,
-            onupdate=utc_now_naive,
+            DateTime(timezone=True),
+            default=utc_now,
+            onupdate=utc_now,
             nullable=False,
         ),
     )

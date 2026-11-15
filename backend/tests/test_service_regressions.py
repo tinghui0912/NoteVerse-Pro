@@ -33,7 +33,7 @@ from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from tests.support.object_storage import InMemoryObjectStorage
 from app.storage.s3_compatible import S3CompatibleObjectStorage
 from app.storage.paths import object_work_path
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 class FakeS3Client:
@@ -277,7 +277,7 @@ def test_import_job_maintenance_releases_orphan_upload_and_queues_retirement() -
         upload_uuid="upload-orphan",
         stored_object_id=9,
         uploader_user_id=7,
-        created_at=utc_now_naive() - timedelta(days=2),
+        created_at=utc_now() - timedelta(days=2),
     )
     blob = SimpleNamespace(id=9, byte_size=123, object_key="blobs/or/orphan.png")
     repository.list_orphan_uploads.return_value = [upload]

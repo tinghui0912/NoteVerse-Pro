@@ -20,7 +20,7 @@ from sqlalchemy import (
 )
 from sqlmodel import Field, SQLModel
 
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 
@@ -69,10 +69,10 @@ class ScoreMembership(SQLModel, table=True):  # type: ignore[call-arg]
         sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=False)
     )
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
-    revoked_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    revoked_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
 
 
 class ScoreInvite(SQLModel, table=True):  # type: ignore[call-arg]
@@ -127,8 +127,8 @@ class ScoreInvite(SQLModel, table=True):  # type: ignore[call-arg]
         sa_column=Column(BigInteger, ForeignKey("users.id")),
     )
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
-    expires_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    terminal_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    expires_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    terminal_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))

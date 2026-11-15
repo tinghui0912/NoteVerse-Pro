@@ -26,7 +26,7 @@ from app.modules.auth.schemas import (
 )
 from app.modules.auth.sessions_service import SessionService
 from app.shared.constants import ErrorCode
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 class FakeResult:
@@ -208,7 +208,7 @@ def test_verify_email_creates_user_and_removes_pending_registration(
             display_name="User",
             password_hash=security.get_password_hash("secret123"),
             token_hash=service._hash_token(token),
-            expires_at=utc_now_naive() + timedelta(minutes=10),
+            expires_at=utc_now() + timedelta(minutes=10),
         )
     )
 
@@ -257,7 +257,7 @@ def test_request_email_change_creates_request_and_sends_confirmation_link(
         display_name="User",
         password_hash=security.get_password_hash("current-password"),
         is_active=True,
-        email_verified_at=utc_now_naive(),
+        email_verified_at=utc_now(),
     )
     db.add(user)
 
@@ -290,7 +290,7 @@ def test_confirm_email_change_updates_user_and_consumes_request(
         display_name="User",
         password_hash=security.get_password_hash("current-password"),
         is_active=True,
-        email_verified_at=utc_now_naive() - timedelta(days=1),
+        email_verified_at=utc_now() - timedelta(days=1),
     )
     db.add(user)
     db.add(
@@ -299,7 +299,7 @@ def test_confirm_email_change_updates_user_and_consumes_request(
             new_email="new@example.com",
             token_hash=service._hash_token(token),
             locale="en",
-            expires_at=utc_now_naive() + timedelta(minutes=10),
+            expires_at=utc_now() + timedelta(minutes=10),
         )
     )
 
@@ -339,7 +339,7 @@ def test_password_reset_token_is_single_use(
         display_name="User",
         password_hash=security.get_password_hash("old-password"),
         is_active=True,
-        email_verified_at=utc_now_naive(),
+        email_verified_at=utc_now(),
     )
     db.add(user)
 
@@ -376,7 +376,7 @@ def test_expired_password_reset_token_is_rejected(
         display_name="User",
         password_hash=security.get_password_hash("old-password"),
         is_active=True,
-        email_verified_at=utc_now_naive(),
+        email_verified_at=utc_now(),
     )
     db.add(user)
 
@@ -386,7 +386,7 @@ def test_expired_password_reset_token_is_rejected(
         user.id,
         ttl_seconds=settings.EMAIL_PASSWORD_RESET_TOKEN_TTL_SECONDS,
     )
-    db.auth_tokens[0].expires_at = utc_now_naive() - timedelta(seconds=1)
+    db.auth_tokens[0].expires_at = utc_now() - timedelta(seconds=1)
 
     with pytest.raises(ValidationException) as exc:
         service.reset_password(
@@ -413,14 +413,14 @@ def test_current_user_password_change_revokes_sessions_and_sends_notice(
         display_name="User",
         password_hash=security.get_password_hash("old-password"),
         is_active=True,
-        email_verified_at=utc_now_naive(),
+        email_verified_at=utc_now(),
     )
     db.add(user)
     db.add(
         RefreshToken(
             user_id=user.id,
             token_hash="refresh-token-hash",
-            expires_at=utc_now_naive() + timedelta(days=1),
+            expires_at=utc_now() + timedelta(days=1),
         )
     )
 
@@ -451,7 +451,7 @@ def test_current_user_password_change_rejects_wrong_current_password() -> None:
         display_name="User",
         password_hash=security.get_password_hash("old-password"),
         is_active=True,
-        email_verified_at=utc_now_naive(),
+        email_verified_at=utc_now(),
     )
     db.add(user)
 
@@ -482,7 +482,7 @@ def test_session_list_marks_current_active_session() -> None:
             token_hash=service._hash_token(current_token),
             user_agent="Current Browser",
             ip_address="127.0.0.1",
-            expires_at=utc_now_naive() + timedelta(days=1),
+            expires_at=utc_now() + timedelta(days=1),
         )
     )
     db.add(
@@ -491,21 +491,21 @@ def test_session_list_marks_current_active_session() -> None:
             token_hash=service._hash_token("other-refresh-token"),
             user_agent="Other Browser",
             ip_address="127.0.0.2",
-            expires_at=utc_now_naive() + timedelta(days=1),
+            expires_at=utc_now() + timedelta(days=1),
         )
     )
     db.add(
         RefreshToken(
             user_id=1,
             token_hash=service._hash_token(expired_token),
-            expires_at=utc_now_naive() - timedelta(seconds=1),
+            expires_at=utc_now() - timedelta(seconds=1),
         )
     )
     db.add(
         RefreshToken(
             user_id=2,
             token_hash=service._hash_token("another-user-token"),
-            expires_at=utc_now_naive() + timedelta(days=1),
+            expires_at=utc_now() + timedelta(days=1),
         )
     )
 
@@ -529,12 +529,12 @@ def test_revoke_user_session_revokes_only_target_session() -> None:
     target = RefreshToken(
         user_id=1,
         token_hash=service._hash_token("target-token"),
-        expires_at=utc_now_naive() + timedelta(days=1),
+        expires_at=utc_now() + timedelta(days=1),
     )
     current = RefreshToken(
         user_id=1,
         token_hash=service._hash_token(current_token),
-        expires_at=utc_now_naive() + timedelta(days=1),
+        expires_at=utc_now() + timedelta(days=1),
     )
     db.add(target)
     db.add(current)
@@ -559,17 +559,17 @@ def test_revoke_other_user_sessions_keeps_current_session() -> None:
     current = RefreshToken(
         user_id=1,
         token_hash=service._hash_token(current_token),
-        expires_at=utc_now_naive() + timedelta(days=1),
+        expires_at=utc_now() + timedelta(days=1),
     )
     other = RefreshToken(
         user_id=1,
         token_hash=service._hash_token("other-refresh-token"),
-        expires_at=utc_now_naive() + timedelta(days=1),
+        expires_at=utc_now() + timedelta(days=1),
     )
     another_user = RefreshToken(
         user_id=2,
         token_hash=service._hash_token("another-user-token"),
-        expires_at=utc_now_naive() + timedelta(days=1),
+        expires_at=utc_now() + timedelta(days=1),
     )
     db.add(current)
     db.add(other)
@@ -594,8 +594,8 @@ def test_security_overview_returns_identity_security_summary() -> None:
         display_name="User",
         password_hash=security.get_password_hash("password"),
         is_active=True,
-        email_verified_at=utc_now_naive(),
-        password_changed_at=utc_now_naive(),
+        email_verified_at=utc_now(),
+        password_changed_at=utc_now(),
     )
     db.add(user)
 

@@ -23,7 +23,7 @@ from app.modules.mail.templates.auth import (
     build_email_changed_email,
 )
 from app.shared.constants import ErrorCode
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 class EmailChangeService:
@@ -69,7 +69,7 @@ class EmailChangeService:
                 details={"email": new_email},
             )
 
-        now = utc_now_naive()
+        now = utc_now()
         user_id = require_persisted_id(user.id, entity="user")
         consumed_at_column = EmailChangeRequest.__table__.c.consumed_at
         pending_result = db.execute(
@@ -119,7 +119,7 @@ class EmailChangeService:
         db: Session,
         request: ConfirmEmailChangeRequest,
     ) -> User:
-        now = utc_now_naive()
+        now = utc_now()
         result = db.execute(
             select(EmailChangeRequest).where(
                 EmailChangeRequest.token_hash == self._hash_token(request.token)

@@ -15,7 +15,7 @@ from app.processing.musicxml import (
 )
 from app.shared.constants import ErrorCode
 from app.storage import ObjectStorage, object_storage
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 class MetadataProjectionService:
@@ -66,7 +66,7 @@ class MetadataProjectionService:
     def _mark_failed(projection: ScoreRevisionMetadata, error_code: str) -> None:
         projection.status = MetadataStatus.FAILED
         projection.error_code = error_code
-        projection.computed_at = utc_now_naive()
+        projection.computed_at = utc_now()
         projection.measure_count = None
         projection.playback_duration_ms = None
         projection.part_count = None

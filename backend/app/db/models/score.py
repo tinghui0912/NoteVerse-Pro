@@ -25,7 +25,7 @@ from sqlmodel import Field, Relationship, SQLModel
 from sqlalchemy.orm import relationship
 from .stored_object import StoredObject
 
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 class RevisionOrigin(str, enum.Enum):
@@ -103,17 +103,17 @@ class Score(SQLModel, table=True):  # type: ignore[call-arg]
         ),
     )
     version: int = Field(default=1, sa_column=Column(Integer, default=1, nullable=False))
-    deleted_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    deleted_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
     updated_at: datetime = Field(
-        default_factory=utc_now_naive,
+        default_factory=utc_now,
         sa_column=Column(
-            DateTime,
-            default=utc_now_naive,
-            onupdate=utc_now_naive,
+            DateTime(timezone=True),
+            default=utc_now,
+            onupdate=utc_now,
             nullable=False,
         ),
     )
@@ -160,8 +160,8 @@ class ScoreInputAsset(SQLModel, table=True):  # type: ignore[call-arg]
     page_number: Optional[int] = Field(default=None, sa_column=Column(Integer))
     sort_order: int = Field(default=0, sa_column=Column(Integer, default=0, nullable=False))
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
 
 
@@ -213,8 +213,8 @@ class ScoreRevision(SQLModel, table=True):  # type: ignore[call-arg]
         ),
     )
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
 
 
@@ -254,8 +254,8 @@ class ScoreRevisionSource(SQLModel, table=True):  # type: ignore[call-arg]
     generator: str = Field(sa_column=Column(String(64), nullable=False))
     generator_version: str = Field(sa_column=Column(String(64), nullable=False))
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
 
 
@@ -316,8 +316,8 @@ class ScoreRenderAsset(SQLModel, table=True):  # type: ignore[call-arg]
     generator: str = Field(sa_column=Column(String(64), nullable=False))
     generator_version: str = Field(sa_column=Column(String(64), nullable=False))
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
 
 
@@ -370,4 +370,4 @@ class ScoreRevisionMetadata(SQLModel, table=True):  # type: ignore[call-arg]
     )
     extractor_version: str = Field(sa_column=Column(String(64), nullable=False))
     error_code: Optional[str] = Field(default=None, sa_column=Column(String(64)))
-    computed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    computed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))

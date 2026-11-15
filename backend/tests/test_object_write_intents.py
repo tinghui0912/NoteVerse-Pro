@@ -19,7 +19,7 @@ from app.modules.storage_objects.writes import (
     write_cleanup_delivery,
     lock_intent,
 )
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from app.worker.execution import object_write_cleanup as worker
 from tests.test_stored_object_retirement import retirement_db as retirement_db
 
@@ -40,7 +40,7 @@ def facts():
 def expire(transaction, uuid):
     with transaction() as db:
         row = lock_intent(db, uuid)
-        row.write_expires_at = utc_now_naive() - timedelta(seconds=1)
+        row.write_expires_at = utc_now() - timedelta(seconds=1)
     with transaction() as db:
         assert write_cleanup_delivery.recover_and_list_due(db) == [uuid]
 
@@ -156,7 +156,7 @@ def test_delete_failure_and_uncertain_completion_retry_idempotently(retirement_d
     with transaction() as db:
         row = lock_intent(db, receipt.intent_uuid)
         assert row.status == "CLEANUP_FAILED" and row.attempt_count == 1
-        row.next_attempt_at = utc_now_naive()
+        row.next_attempt_at = utc_now()
     monkeypatch.setattr(storage, "delete", delete)
     commits = 0
 
@@ -176,7 +176,7 @@ def test_delete_failure_and_uncertain_completion_retry_idempotently(retirement_d
     assert not storage.exists(receipt.object_key)
     monkeypatch.setattr(worker, "SessionLocal", transaction)
     with transaction() as db:
-        lock_intent(db, receipt.intent_uuid).next_attempt_at = utc_now_naive()
+        lock_intent(db, receipt.intent_uuid).next_attempt_at = utc_now()
     assert (
         worker.execute_object_write_cleanup_task(None, receipt.intent_uuid)["status"] == "cleaned"
     )
@@ -245,7 +245,7 @@ def test_cleanup_generation_takeover_rejects_stale_failure(retirement_db, monkey
         row = lock_intent(db, receipt.intent_uuid)
         from app.modules.storage_objects.writes import cleanup_lifecycle
 
-        row.started_at = utc_now_naive() - timedelta(
+        row.started_at = utc_now() - timedelta(
             seconds=cleanup_lifecycle().policy.processing_timeout_seconds
         )
     with transaction() as db:

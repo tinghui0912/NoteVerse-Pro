@@ -17,7 +17,7 @@ from app.modules.ops.schemas import (
     AsyncOperationKind,
     AsyncOperationStatus,
 )
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from tests.test_score_revision_services import (
     score_service_session as score_service_session,
 )
@@ -47,7 +47,7 @@ def test_import_projection_and_summary_agree(
     score_service_session, job_state, status, attempt, future, expected, owner
 ):
     db, _ = score_service_session
-    now = utc_now_naive()
+    now = utc_now()
     job = ImportJob(
         job_uuid="resource",
         user_id=1,
@@ -104,7 +104,7 @@ def test_import_projection_and_summary_agree(
 
 def test_delivery_updates_drive_operation_order_and_timestamp_filters(score_service_session):
     db, _ = score_service_session
-    now = utc_now_naive()
+    now = utc_now()
     first = ImportJob(
         job_uuid="recent-delivery",
         user_id=1,

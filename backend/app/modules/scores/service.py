@@ -38,7 +38,7 @@ from app.modules.score_access.schemas import ScoreCapabilities
 from app.modules.score_assets.render_service import RevisionRenderService
 from app.shared.constants import ErrorCode
 from app.storage import object_storage
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 @dataclass(frozen=True)
@@ -105,7 +105,7 @@ class ScoreService:
         if request.genres is not None:
             score.genres = [genre.value for genre in request.genres]
         score.version += 1
-        score.updated_at = utc_now_naive()
+        score.updated_at = utc_now()
         db.commit()
         db.refresh(score)
         return self._read(db, score, access.capabilities)

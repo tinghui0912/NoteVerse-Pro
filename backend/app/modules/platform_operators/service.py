@@ -23,7 +23,7 @@ from app.db.models import (
     OperatorStatus,
 )
 from app.shared.constants import ErrorCode
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 LOCAL_PASSWORD_ISSUER = "noteverse-control-plane-local"
@@ -120,7 +120,7 @@ class OperatorAuthenticationService:
         ):
             raise AuthenticationException(code=ErrorCode.INVALID_CREDENTIALS)
 
-        now = utc_now_naive()
+        now = utc_now()
         token = secrets.token_urlsafe(48)
         db.add(
             OperatorSession(
@@ -140,7 +140,7 @@ class OperatorAuthenticationService:
     def resolve_session(
         self, db: Session, *, token: str
     ) -> tuple[Operator, OperatorIdentity, OperatorSession]:
-        now = utc_now_naive()
+        now = utc_now()
         session = (
             db.execute(
                 select(OperatorSession).where(OperatorSession.token_hash == self._hash_token(token))
@@ -167,7 +167,7 @@ class OperatorAuthenticationService:
         ).scalar_one_or_none()
         if session is None or session.revoked_at is not None:
             return
-        session.revoked_at = utc_now_naive()
+        session.revoked_at = utc_now()
         db.commit()
 
 

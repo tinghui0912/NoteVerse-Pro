@@ -34,7 +34,7 @@ from app.modules.score_assets.render_outbox_service import RenderOutboxService
 from app.modules.playback.outbox_service import PlaybackOutboxService
 from app.modules.mail.outbox_service import MailOutboxService
 from app.modules.scores.deletion_delivery import ScoreDeletionDeliveryService, ScoreDeletionLease
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 @pytest.mark.parametrize(
@@ -86,7 +86,7 @@ def test_derivative_execution_failure_is_explicit_and_attempt_fenced(
         status=status.PROCESSING,
         attempt_count=max_attempts if exhausted else 1,
         attempt_token="current",
-        started_at=utc_now_naive(),
+        started_at=utc_now(),
     )
     owner = service()
     owner._get = Mock(return_value=row)
@@ -118,7 +118,7 @@ def test_mail_provider_outcome_owns_failure_taxonomy(method, code, classificatio
         attempt_count=settings.MAIL_OUTBOX_MAX_ATTEMPTS if exhausted else 1,
         attempt_token="current",
         text_body="body",
-        started_at=utc_now_naive(),
+        started_at=utc_now(),
     )
     owner = MailOutboxService()
     owner._get = Mock(return_value=row)
@@ -141,7 +141,7 @@ def test_score_deletion_failure_records_system_class_and_terminal_exhaustion(mon
         attempt_count=settings.SCORE_DELETION_MAX_ATTEMPTS,
         attempt_token="current",
         score_uuid="score",
-        started_at=utc_now_naive(),
+        started_at=utc_now(),
     )
     monkeypatch.setattr("app.modules.scores.deletion_delivery.lock_operation", lambda *_: row)
     lease = ScoreDeletionLease(
@@ -204,7 +204,7 @@ def test_derivative_lease_recovery_records_exact_cause_and_retry_capacity(
         status=status.PROCESSING,
         attempt_count=max_attempts if exhausted else 1,
         attempt_token="current",
-        started_at=utc_now_naive() - timedelta(days=1),
+        started_at=utc_now() - timedelta(days=1),
     )
     db = Mock()
     db.execute.return_value.scalars.return_value.all.side_effect = [[row], []]
@@ -285,7 +285,7 @@ def test_mail_admission_records_non_retryable_failure(cause, code, classificatio
         status=MailOutboxStatus.PENDING,
         text_body="body" if cause != "body" else None,
         attempt_count=settings.MAIL_OUTBOX_MAX_ATTEMPTS if cause == "attempts" else 0,
-        expires_at=utc_now_naive() - timedelta(seconds=1) if cause == "expired" else None,
+        expires_at=utc_now() - timedelta(seconds=1) if cause == "expired" else None,
     )
     db = Mock()
     db.execute.return_value.scalar_one_or_none.return_value = row
@@ -305,7 +305,7 @@ def test_mail_lease_recovery_preserves_transient_cause_until_attempts_exhausted(
         text_body="body",
         attempt_token="current",
         attempt_count=settings.MAIL_OUTBOX_MAX_ATTEMPTS if exhausted else 1,
-        started_at=utc_now_naive() - timedelta(days=1),
+        started_at=utc_now() - timedelta(days=1),
     )
     db = Mock()
     db.execute.return_value.scalars.return_value.all.side_effect = [[row], [], []]
@@ -326,7 +326,7 @@ def test_score_deletion_lease_recovery_owns_retry_capacity(exhausted):
         status=ScoreDeletionOperationStatus.PROCESSING,
         attempt_token="current",
         attempt_count=settings.SCORE_DELETION_MAX_ATTEMPTS if exhausted else 1,
-        started_at=utc_now_naive() - timedelta(days=1),
+        started_at=utc_now() - timedelta(days=1),
     )
     db = Mock()
     db.scalars.return_value.all.return_value = [row]

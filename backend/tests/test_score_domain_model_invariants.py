@@ -4,10 +4,9 @@ from app.db.models import StoredObject
 from collections.abc import Iterator
 
 import pytest
-from sqlalchemy import event
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from sqlmodel import SQLModel, create_engine
+from sqlmodel import SQLModel
 
 from app.db.models.score import (
     MetadataStatus,
@@ -29,14 +28,10 @@ from app.db.models.user import User
 
 
 @pytest.fixture
-def score_session() -> Iterator[Session]:
-    engine = create_engine("sqlite:///:memory:")
-
-    @event.listens_for(engine, "connect")
-    def enable_sqlite_foreign_keys(dbapi_connection, _connection_record) -> None:
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.close()
+def score_session(
+    postgres_engine,
+) -> Iterator[Session]:
+    engine = postgres_engine
 
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:

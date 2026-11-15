@@ -1,5 +1,5 @@
 from __future__ import annotations
-from datetime import datetime
+from app.shared.time import Instant
 from typing import Annotated, Literal
 from pydantic import BaseModel, Field
 from app.shared.api_model import ApiModel
@@ -13,8 +13,8 @@ class NotificationActorRead(BaseModel):
 
 class NotificationBaseRead(ApiModel):
     notification_id: str
-    read_at: datetime | None
-    created_at: datetime
+    read_at: Instant | None
+    created_at: Instant
 
 
 class ScoreInviteAcceptedNotificationRead(NotificationBaseRead):

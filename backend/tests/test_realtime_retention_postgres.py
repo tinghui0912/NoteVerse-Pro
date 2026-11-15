@@ -12,7 +12,7 @@ from app.db.models import User, RealtimeChange, RealtimeChangeKind, RealtimeStre
 from app.modules.realtime.publisher import publish_change
 from app.modules.realtime.replay import read_page
 from app.modules.realtime.maintenance_service import RealtimeMaintenanceService
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from tests.support.postgres_schema import postgres_schema_database
 
 
@@ -41,7 +41,7 @@ def publish(db, recipient, job="job"):
 def stream(database):
     with Session(database) as db:
         for job in ("a", "b"):
-            publish(db, 1, job).created_at = utc_now_naive() - timedelta(days=30)
+            publish(db, 1, job).created_at = utc_now() - timedelta(days=30)
         db.commit()
     return database
 
@@ -114,7 +114,7 @@ def test_retention_floor_and_deletion_roll_back_together(stream, monkeypatch):
 
 def test_retention_without_expired_rows_keeps_the_floor(stream):
     with Session(stream) as db:
-        db.execute(sa.update(RealtimeChange).values(created_at=utc_now_naive()))
+        db.execute(sa.update(RealtimeChange).values(created_at=utc_now()))
         db.commit()
         assert RealtimeMaintenanceService().cleanup_expired_changes(db) == 0
         assert db.get(RealtimeStreamState, 1).replay_floor_sequence == 0
@@ -248,7 +248,7 @@ def test_replay_uses_recipient_local_watermark(database):
 def test_retention_advances_only_the_recipient_floor(database):
     with Session(database) as db:
         for _ in range(20):
-            publish(db, 1).created_at = utc_now_naive() - timedelta(days=30)
+            publish(db, 1).created_at = utc_now() - timedelta(days=30)
         for _ in range(2):
             publish(db, 2)
         db.commit()
@@ -291,7 +291,7 @@ def test_publication_failure_rolls_back_sequence_allocation(database, monkeypatc
 
 def test_retention_commits_each_recipient_independently(stream, monkeypatch):
     with Session(stream) as db:
-        publish(db, 2).created_at = utc_now_naive() - timedelta(days=30)
+        publish(db, 2).created_at = utc_now() - timedelta(days=30)
         db.commit()
         original = db.commit
         calls = 0
@@ -334,7 +334,7 @@ def test_retention_processes_a_bounded_recipient_batch(stream, monkeypatch):
 
     monkeypatch.setattr(maintenance_service, "RETENTION_RECIPIENT_BATCH_SIZE", 1)
     with Session(stream) as db:
-        publish(db, 2).created_at = utc_now_naive() - timedelta(days=30)
+        publish(db, 2).created_at = utc_now() - timedelta(days=30)
         db.commit()
         assert RealtimeMaintenanceService().cleanup_expired_changes(db) == 2
         assert db.get(RealtimeStreamState, 1).replay_floor_sequence == 2

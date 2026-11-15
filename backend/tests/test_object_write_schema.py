@@ -7,7 +7,7 @@ from alembic import command
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from app.db.models import ObjectWriteIntent
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from tests.support.postgres_schema import postgres_schema_database
 
 
@@ -22,7 +22,7 @@ def test_current_write_statuses_key_uniqueness_and_attempt_bounds(monkeypatch):
                 sha256="a" * 64,
                 content_type="application/octet-stream",
                 write_token="generation",
-                write_expires_at=utc_now_naive() + timedelta(minutes=15),
+                write_expires_at=utc_now() + timedelta(minutes=15),
             )
             statuses = [
                 "PREPARED",

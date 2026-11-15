@@ -1,6 +1,6 @@
 """Real PostgreSQL head-writer / final-admission serialization for both derivatives."""
 
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
@@ -202,7 +202,7 @@ def test_final_admission_serializes_with_current_score(monkeypatch, tmp_path, ki
                     if change == "head":
                         score.head_revision_id = r2
                     else:
-                        score.deleted_at = utc_now_naive()
+                        score.deleted_at = utc_now()
                     editor.commit()
             finally:
                 admit.set()

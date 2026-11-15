@@ -26,7 +26,7 @@ from app.modules.storage_objects.facts import StoredObjectFacts
 from app.modules.storage_objects.persistence import object_from_row, object_to_row
 from app.modules.storage_objects.retirement import retain_for_reference
 from app.storage.base import ObjectStorage, ObjectWriteResult
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 @dataclass(frozen=True)
@@ -91,7 +91,7 @@ def _matching_object(db: Session, facts: StoredObjectFacts) -> StoredObject | No
 
 
 def prepare_write(db: Session, facts: StoredObjectFacts) -> ObjectWriteReceipt:
-    now = utc_now_naive()
+    now = utc_now()
     row = db.scalar(
         select(ObjectWriteIntent)
         .where(ObjectWriteIntent.object_key == facts.object_key)
@@ -164,9 +164,9 @@ def inspect_write(
         raise ValueError("Write bytes disagree with intent")
     existing = _matching_object(db, receipt.facts)
     if existing is not None and row.status in ("PREPARED", "WRITTEN", "ADOPTED"):
-        cleanup_lifecycle().finish(row, status="ADOPTED", error=None, now=utc_now_naive())
+        cleanup_lifecycle().finish(row, status="ADOPTED", error=None, now=utc_now())
         return row, False
-    if row.status not in ("PREPARED", "WRITTEN") or row.write_expires_at <= utc_now_naive():
+    if row.status not in ("PREPARED", "WRITTEN") or row.write_expires_at <= utc_now():
         raise ValueError("Object write lease is not active")
     return row, row.status == "PREPARED" and existing is None
 
@@ -181,8 +181,8 @@ def finalize_write(
         raise ValueError("Object write result disagrees with intent")
     if row.status != "ADOPTED":
         row.status = "WRITTEN"
-        row.written_at = row.written_at or utc_now_naive()
-        row.updated_at = utc_now_naive()
+        row.written_at = row.written_at or utc_now()
+        row.updated_at = utc_now()
 
 
 def perform_write(
@@ -249,7 +249,7 @@ def adopt_written_object(db: Session, receipt: ObjectWriteReceipt) -> StoredObje
         if retained is None:
             raise ValueError("Committed object retired during attachment")
         return retained
-    if row.status != "WRITTEN" or row.write_expires_at <= utc_now_naive():
+    if row.status != "WRITTEN" or row.write_expires_at <= utc_now():
         raise ValueError("New StoredObject requires a live WRITTEN intent")
     if existing is None:
         existing = object_to_row(receipt.facts)
@@ -259,7 +259,7 @@ def adopt_written_object(db: Session, receipt: ObjectWriteReceipt) -> StoredObje
         existing = retain_for_reference(db, existing.id)
         if existing is None:
             raise ValueError("Committed object retired during adoption")
-    cleanup_lifecycle().finish(row, status="ADOPTED", error=None, now=utc_now_naive())
+    cleanup_lifecycle().finish(row, status="ADOPTED", error=None, now=utc_now())
     return existing
 
 
@@ -277,7 +277,7 @@ class CleanupAttempt(DeliveryAttemptLease):
 class ObjectWriteCleanupDelivery:
     def claim(self, db: Session, uuid: str) -> CleanupAttempt | None:
         row = lock_intent(db, uuid)
-        lease = cleanup_lifecycle().claim(row, token=str(uuid4()), now=utc_now_naive())
+        lease = cleanup_lifecycle().claim(row, token=str(uuid4()), now=utc_now())
         if lease is None:
             return None
         return CleanupAttempt(
@@ -285,11 +285,11 @@ class ObjectWriteCleanupDelivery:
         )
 
     def dispatch(self, db: Session, uuid: str) -> bool:
-        return cleanup_lifecycle().dispatch(lock_intent(db, uuid), now=utc_now_naive())
+        return cleanup_lifecycle().dispatch(lock_intent(db, uuid), now=utc_now())
 
     def release(self, db: Session, uuid: str, error: str) -> bool:
         return cleanup_lifecycle().release_dispatch(
-            lock_intent(db, uuid), error=error, now=utc_now_naive()
+            lock_intent(db, uuid), error=error, now=utc_now()
         )
 
     def matches(self, row: ObjectWriteIntent, attempt: CleanupAttempt) -> bool:
@@ -300,10 +300,10 @@ class ObjectWriteCleanupDelivery:
     def fail(self, db: Session, attempt: CleanupAttempt, error: str) -> None:
         row = lock_intent(db, attempt.intent_uuid)
         if self.matches(row, attempt):
-            cleanup_lifecycle().fail_attempt(row, lease=attempt, error=error, now=utc_now_naive())
+            cleanup_lifecycle().fail_attempt(row, lease=attempt, error=error, now=utc_now())
 
     def recover_and_list_due(self, db: Session) -> list[str]:
-        now = utc_now_naive()
+        now = utc_now()
         rows = list(
             db.scalars(
                 select(ObjectWriteIntent)

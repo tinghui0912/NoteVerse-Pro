@@ -11,7 +11,7 @@ from app.modules.performance_takes.manifest import TakeManifest
 from app.modules.performance_takes.schemas import PerformanceTakeManifestRead
 from app.modules.performance_takes.upload_reservation.domain import FinalizeLease
 from app.storage.base import ObjectMetadata
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from tests.support.object_storage import InMemoryObjectStorage
 
 MEDIA = b"\x1a\x45\xdf\xa3" + b"a full recording body"
@@ -73,7 +73,7 @@ def test_media_verifier_requires_full_agreement_and_never_deletes(manifest, fail
     content = MEDIA if failure != "signature" else b"x" * len(MEDIA)
     if failure != "missing":
         storage.put_bytes(key="staging", content=content, content_type="audio/webm")
-    lease = FinalizeLease("token", "candidate", utc_now_naive() + timedelta(minutes=15))
+    lease = FinalizeLease("token", "candidate", utc_now() + timedelta(minutes=15))
     metadata = storage.object_metadata
     copy = storage.copy
 

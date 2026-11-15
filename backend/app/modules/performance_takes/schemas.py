@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-from datetime import datetime
+from app.shared.time import Instant
 from typing import Literal, Optional, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -148,7 +148,7 @@ class PerformanceTakeRead(ApiModel, StrictPerformanceTakeModel):
     recording_media: PerformanceTakeRecordingMediaRead
     linked_score_id: Optional[str] = None
     can_open_score: bool = False
-    created_at: datetime
+    created_at: Instant
 
 
 class PerformanceTakePlaybackRead(ApiModel, StrictPerformanceTakeModel):

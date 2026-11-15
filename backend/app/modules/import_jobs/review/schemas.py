@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-from datetime import datetime
+from app.shared.time import Instant
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -32,8 +32,8 @@ class ImportJobReviewRead(ApiModel):
     genres: Genres
     musicxml: ReviewMusicXmlRead | None = None
     original_images: list[ReviewArtifactRead]
-    created_at: datetime
-    updated_at: datetime
+    created_at: Instant
+    updated_at: Instant
 
 
 class ReviewConfirmRequest(BaseModel):

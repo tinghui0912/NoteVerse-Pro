@@ -10,7 +10,7 @@ from app.modules.storage_objects.writes import (
     write_cleanup_delivery,
 )
 from app.storage import object_storage
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from app.worker.task_runtime import bind_task_context, clear_task_context
 
 
@@ -31,12 +31,12 @@ def execute_object_write_cleanup_task(task, intent_uuid: str) -> dict[str, str]:
                 existing = _matching_object(db, intent_facts(row))
                 if existing is not None:
                     cleanup_lifecycle().finish_attempt(
-                        row, lease=attempt, status="ADOPTED", error=None, now=utc_now_naive()
+                        row, lease=attempt, status="ADOPTED", error=None, now=utc_now()
                     )
                     db.commit()
                     return {"status": "adopted", "intent_uuid": intent_uuid}
                 object_storage.delete(row.object_key)
-                cleanup_lifecycle().complete_attempt(row, lease=attempt, now=utc_now_naive())
+                cleanup_lifecycle().complete_attempt(row, lease=attempt, now=utc_now())
                 db.commit()
             return {"status": "cleaned", "intent_uuid": intent_uuid}
         except Exception as error:

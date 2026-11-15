@@ -7,15 +7,13 @@ from collections.abc import Iterator
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 import pytest
-from sqlalchemy import event
-from sqlalchemy.pool import StaticPool
 from sqlalchemy.orm import Session
-from sqlmodel import SQLModel, create_engine
+from sqlmodel import SQLModel
 from app.db.models import User, RealtimeStreamState
 from app.modules.realtime.router import _format_sse, _payload_matches_user
 from app.modules.realtime.replay import parse_cursor, read_page
 from app.modules.realtime.schemas import change_read_adapter
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 @pytest.mark.asyncio
@@ -61,7 +59,7 @@ async def test_postgresql_listener_wakes_the_stream_and_closes_its_connection(mo
                         {
                             "sequence": 42,
                             "changeId": "change",
-                            "createdAt": utc_now_naive(),
+                            "createdAt": utc_now(),
                             "kind": "import_jobs.changed",
                             "importJobId": "job",
                         }
@@ -100,16 +98,10 @@ async def test_postgresql_listener_wakes_the_stream_and_closes_its_connection(mo
 
 
 @pytest.fixture
-def realtime_session() -> Iterator[Session]:
-    engine = create_engine(
-        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
-    )
-
-    @event.listens_for(engine, "connect")
-    def enable_foreign_keys(dbapi_connection, _connection_record) -> None:
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.close()
+def realtime_session(
+    postgres_engine,
+) -> Iterator[Session]:
+    engine = postgres_engine
 
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
@@ -155,7 +147,7 @@ def test_change_sse_envelope_has_sequence_and_typed_resource_identity():
             kind="score.derived_assets.changed",
             scoreId="score",
             revisionId="revision",
-            createdAt=utc_now_naive(),
+            createdAt=utc_now(),
         )
     )
     lines = _format_sse(data).strip().splitlines()
@@ -373,7 +365,7 @@ async def test_resync_control_advances_cursor_then_keeps_the_same_stream_live(mo
                 changeId="live",
                 kind="import_jobs.changed",
                 importJobId="job",
-                createdAt=utc_now_naive(),
+                createdAt=utc_now(),
             )
         )
         return ReplayPage(43, (change,))

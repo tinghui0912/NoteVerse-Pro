@@ -12,7 +12,7 @@ from app.db.models import (
     StorageUsageReservationStatus,
 )
 from app.shared.constants import ErrorCode
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 DEFAULT_PLAN_CODE = "FREE"
@@ -53,7 +53,7 @@ def new_reservation(
     object_id: str | None = None,
     storage_key: str | None = None,
 ) -> StorageUsageReservation:
-    now = utc_now_naive()
+    now = utc_now()
     return StorageUsageReservation(
         reservation_uuid=str(uuid.uuid4()),
         user_id=user_id,
@@ -90,7 +90,7 @@ def new_usage_event(
         object_type=object_type,
         object_id=object_id,
         storage_key=storage_key,
-        created_at=utc_now_naive(),
+        created_at=utc_now(),
     )
 
 
@@ -104,9 +104,9 @@ def apply_reservation_hold(
     if counts_toward_quota:
         assert_quota_available(account, bytes_count)
         account.reserved_bytes += bytes_count
-        account.updated_at = utc_now_naive()
+        account.updated_at = utc_now()
     counter.reserved_bytes += bytes_count
-    counter.updated_at = utc_now_naive()
+    counter.updated_at = utc_now()
 
 
 def commit_reserved_usage(
@@ -121,15 +121,15 @@ def commit_reserved_usage(
     if reservation.counts_toward_quota:
         account.reserved_bytes -= reservation.bytes_reserved
         account.used_bytes += reservation.bytes_reserved
-        account.updated_at = utc_now_naive()
+        account.updated_at = utc_now()
     counter.reserved_bytes -= reservation.bytes_reserved
     counter.used_bytes += reservation.bytes_reserved
-    counter.updated_at = utc_now_naive()
+    counter.updated_at = utc_now()
     reservation.status = StorageUsageReservationStatus.COMMITTED
     reservation.object_type = object_type or reservation.object_type
     reservation.object_id = object_id or reservation.object_id
     reservation.storage_key = storage_key or reservation.storage_key
-    reservation.updated_at = utc_now_naive()
+    reservation.updated_at = utc_now()
 
 
 def release_reserved_usage(
@@ -140,11 +140,11 @@ def release_reserved_usage(
 ) -> None:
     if reservation.counts_toward_quota:
         account.reserved_bytes -= reservation.bytes_reserved
-        account.updated_at = utc_now_naive()
+        account.updated_at = utc_now()
     counter.reserved_bytes -= reservation.bytes_reserved
-    counter.updated_at = utc_now_naive()
+    counter.updated_at = utc_now()
     reservation.status = StorageUsageReservationStatus.RELEASED
-    reservation.updated_at = utc_now_naive()
+    reservation.updated_at = utc_now()
 
 
 def release_used_usage(
@@ -157,7 +157,7 @@ def release_used_usage(
     released = min(bytes_count, counter.used_bytes)
     if counts_toward_quota:
         account.used_bytes = max(account.used_bytes - released, 0)
-        account.updated_at = utc_now_naive()
+        account.updated_at = utc_now()
     counter.used_bytes = max(counter.used_bytes - released, 0)
-    counter.updated_at = utc_now_naive()
+    counter.updated_at = utc_now()
     return released

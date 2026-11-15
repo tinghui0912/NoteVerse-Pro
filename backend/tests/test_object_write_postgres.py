@@ -17,7 +17,7 @@ from app.modules.storage_objects.writes import (
     lock_intent,
     write_cleanup_delivery,
 )
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from app.worker.execution import object_write_cleanup as worker
 from tests.test_stored_object_retirement_postgres import (
     retirement_postgres as retirement_postgres,
@@ -47,7 +47,7 @@ async def prepared(fixture, monkeypatch, *, written=True, cleanup=False):
                 perform_write(db, storage, receipt, b"bytes")
             if cleanup:
                 row = lock_intent(db, receipt.intent_uuid)
-                row.write_expires_at = utc_now_naive() - timedelta(seconds=1)
+                row.write_expires_at = utc_now() - timedelta(seconds=1)
                 db.commit()
                 write_cleanup_delivery.recover_and_list_due(db)
                 db.commit()
@@ -83,7 +83,7 @@ async def test_writer_put_lock_blocks_cleanup_and_prepared_is_durable(
             row = lock_intent(db, receipt.intent_uuid)
             # Recovery observes the successful write after the blocking IO, then
             # expires the lease for deterministic cleanup without timing guesses.
-            row.write_expires_at = utc_now_naive() - timedelta(seconds=1)
+            row.write_expires_at = utc_now() - timedelta(seconds=1)
             db.commit()
             write_cleanup_delivery.recover_and_list_due(db)
             db.commit()
@@ -335,7 +335,7 @@ async def test_bundle_creating_gc_during_put_leaves_only_cleanup_owned_bytes(
             row = db.scalar(select(PracticeBundleRecord))
             assert row.prepared_musicxml_object_id is None and row.artifact_object_id is None
             assert db.scalar(select(StoredObject)) is None
-            row.creation_expires_at = utc_now_naive() - timedelta(seconds=1)
+            row.creation_expires_at = utc_now() - timedelta(seconds=1)
             db.commit()
             assert practice_bundle_retention.recover_stale_creating(db) == []
             db.commit()
@@ -349,7 +349,7 @@ async def test_bundle_creating_gc_during_put_leaves_only_cleanup_owned_bytes(
         rows = list(db.scalars(select(ObjectWriteIntent)))
         assert len(rows) == 2 and all(row.status == "WRITTEN" for row in rows)
         for row in rows:
-            row.write_expires_at = utc_now_naive() - timedelta(seconds=1)
+            row.write_expires_at = utc_now() - timedelta(seconds=1)
         db.commit()
         due = write_cleanup_delivery.recover_and_list_due(db)
         db.commit()

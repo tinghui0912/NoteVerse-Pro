@@ -18,7 +18,7 @@ from app.modules.durable_work.delivery import (
 from app.modules.storage_objects.persistence import object_from_row
 from app.modules.storage_objects.facts import StoredObjectFacts
 from app.modules.storage_objects.references import stored_object_has_semantic_references
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 def delivery_lifecycle() -> DurableDeliveryLifecycle[str]:
@@ -60,7 +60,7 @@ def retain_for_reference(db: Session, object_id: int) -> StoredObject | None:
     if operation is not None:
         if operation.status == "COMPLETED":
             raise ValueError("Completed retirement still references a physical object")
-        delivery_lifecycle().finish(operation, status="CANCELLED", error=None, now=utc_now_naive())
+        delivery_lifecycle().finish(operation, status="CANCELLED", error=None, now=utc_now())
     return row
 
 
@@ -84,7 +84,7 @@ def retire_if_unreferenced(db: Session, object_id: int) -> StoredObjectRetiremen
     elif operation.status == "CANCELLED":
         if snapshot(operation) != facts:
             raise ValueError("Retirement snapshot disagrees with StoredObject")
-        delivery_lifecycle().rearm(operation, now=utc_now_naive())
+        delivery_lifecycle().rearm(operation, now=utc_now())
     return operation
 
 
@@ -120,7 +120,7 @@ class StoredObjectRetirementDelivery:
         row = self.get(db, uuid, lock=True)
         if row is None:
             return None
-        lease = delivery_lifecycle().claim(row, token=str(uuid4()), now=utc_now_naive())
+        lease = delivery_lifecycle().claim(row, token=str(uuid4()), now=utc_now())
         if lease is None:
             return None
         return RetirementAttempt(
@@ -132,21 +132,21 @@ class StoredObjectRetirementDelivery:
 
     def mark_dispatched(self, db: Session, uuid: str) -> bool:
         row = self.get(db, uuid, lock=True)
-        return row is not None and delivery_lifecycle().dispatch(row, now=utc_now_naive())
+        return row is not None and delivery_lifecycle().dispatch(row, now=utc_now())
 
     def release_dispatch(self, db: Session, uuid: str, error: str) -> None:
         row = self.get(db, uuid, lock=True)
         if row is not None:
-            delivery_lifecycle().release_dispatch(row, error=error, now=utc_now_naive())
+            delivery_lifecycle().release_dispatch(row, error=error, now=utc_now())
 
     def fail(self, db: Session, attempt: RetirementAttempt, error: str) -> bool:
         row = self.get(db, attempt.retirement_uuid, lock=True)
         return row is not None and delivery_lifecycle().fail_attempt(
-            row, lease=attempt, error=error, now=utc_now_naive()
+            row, lease=attempt, error=error, now=utc_now()
         )
 
     def recover_and_list_due(self, db: Session) -> list[str]:
-        now = utc_now_naive()
+        now = utc_now()
         lifecycle = delivery_lifecycle()
         rows = list(
             db.scalars(

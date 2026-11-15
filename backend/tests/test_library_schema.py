@@ -77,7 +77,7 @@ def test_postgres_workspace_access_and_organization_lifetimes(postgres_workspace
     from app.db.models.score_access import MembershipRole
     from app.modules.library.repository import LibraryRepository
     from app.modules.library.schemas import LibraryView, LibrarySort
-    from app.utils.timezone import utc_now_naive
+    from app.shared.time import utc_now
     from tests.test_score_revision_services import Session
 
     with Session(postgres_workspace) as db:
@@ -126,7 +126,7 @@ def test_postgres_workspace_access_and_organization_lifetimes(postgres_workspace
         db.commit()
         db.refresh(organization)
         assert organization.folder_id is None and visible() == ["A", "B"]
-        membership.revoked_at = utc_now_naive()
+        membership.revoked_at = utc_now()
         db.commit()
         assert visible() == ["A"]
         organization_id = organization.id

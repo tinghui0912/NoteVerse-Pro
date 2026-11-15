@@ -6,7 +6,7 @@ from alembic import command
 from sqlalchemy.orm import Session
 from app.db.models import User, Notification, RealtimeChange
 from app.modules.notifications.service import NotificationService
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from tests.support.postgres_schema import postgres_schema_database
 
 
@@ -32,7 +32,7 @@ def test_notification_admission_obeys_caller_commit_rollback_and_dedupe(notifica
             score_id="score",
             revision_id="revision",
             score_title="Etudes",
-            created_at=utc_now_naive(),
+            created_at=utc_now(),
         )
         service.admit_score_version_created(db, **fields)
         db.rollback()
@@ -55,7 +55,7 @@ def test_each_notification_kind_hydrates_a_typed_variant_and_read_preserves_sema
 ):
     engine = notifications
     service = NotificationService()
-    now = utc_now_naive()
+    now = utc_now()
     with Session(engine) as db:
         for accepted in (True, False):
             service.admit_score_invite_response(
@@ -125,7 +125,7 @@ def test_mark_all_read_emits_one_collection_change_only_for_an_actual_transition
                 recipient_user_id=1,
                 import_job_id=job,
                 job_title=job,
-                created_at=utc_now_naive(),
+                created_at=utc_now(),
             )
         db.commit()
         assert service.mark_all_read(db, 1).count == 0
@@ -148,7 +148,7 @@ def test_read_transition_and_change_admission_roll_back_together(
             recipient_user_id=1,
             import_job_id="job",
             job_title="Etudes",
-            created_at=utc_now_naive(),
+            created_at=utc_now(),
         )
         notification_id = notice.notification_uuid
         db.commit()

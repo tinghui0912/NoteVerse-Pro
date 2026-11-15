@@ -6,10 +6,9 @@ from collections.abc import Iterator
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import event, func, select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
-from sqlalchemy.pool import StaticPool
-from sqlmodel import SQLModel, create_engine
+from sqlmodel import SQLModel
 
 from app.api.deps import get_current_user, get_db
 from app.main import app
@@ -46,7 +45,7 @@ from app.modules.storage_usage.service import storage_usage_service
 from app.shared.constants import ErrorCode
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from tests.support.object_storage import InMemoryObjectStorage
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 MUSICXML_BASE = """<?xml version="1.0" encoding="UTF-8"?>
@@ -78,19 +77,10 @@ MUSICXML_CHANGED = MUSICXML_BASE.replace("<step>C</step>", "<step>D</step>")
 
 
 @pytest.fixture
-def storage_usage_session(tmp_path) -> Iterator[tuple[Session, InMemoryObjectStorage]]:
-    engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-
-    @event.listens_for(engine, "connect")
-    def _set_sqlite_pragma(dbapi_connection, connection_record) -> None:  # type: ignore[no-untyped-def]
-        del connection_record
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.close()
+def storage_usage_session(
+    postgres_engine, tmp_path
+) -> Iterator[tuple[Session, InMemoryObjectStorage]]:
+    engine = postgres_engine
 
     SQLModel.metadata.create_all(engine)
     storage = InMemoryObjectStorage()
@@ -107,8 +97,8 @@ def storage_usage_session(tmp_path) -> Iterator[tuple[Session, InMemoryObjectSto
             StorageQuotaPolicy(
                 plan_code="FREE",
                 quota_limit_bytes=1000,
-                created_at=utc_now_naive(),
-                updated_at=utc_now_naive(),
+                created_at=utc_now(),
+                updated_at=utc_now(),
             )
         )
         session.commit()
@@ -120,12 +110,12 @@ def _set_quota(session: Session, limit_bytes: int) -> None:
         select(StorageQuotaPolicy).where(StorageQuotaPolicy.plan_code == "FREE")
     ).scalar_one()
     policy.quota_limit_bytes = limit_bytes
-    policy.updated_at = utc_now_naive()
+    policy.updated_at = utc_now()
     session.add(policy)
     account = session.get(StorageUsageAccount, 1)
     if account is not None:
         account.quota_limit_bytes = limit_bytes
-        account.updated_at = utc_now_naive()
+        account.updated_at = utc_now()
         session.add(account)
     session.commit()
 
@@ -144,8 +134,8 @@ def _seed_score_with_source(
         owner_user_id=owner_user_id,
         title="Storage Test",
         version=1,
-        created_at=utc_now_naive(),
-        updated_at=utc_now_naive(),
+        created_at=utc_now(),
+        updated_at=utc_now(),
     )
     session.add(score)
     session.flush()
@@ -158,7 +148,7 @@ def _seed_score_with_source(
         content_hash=content_hash,
         origin=RevisionOrigin.OMR,
         created_by_user_id=owner_user_id,
-        created_at=utc_now_naive(),
+        created_at=utc_now(),
     )
     session.add(revision)
     session.flush()
@@ -182,7 +172,7 @@ def _seed_score_with_source(
         filename=stored.object_key.rsplit("/", 1)[-1],
         generator="test",
         generator_version="1",
-        created_at=utc_now_naive(),
+        created_at=utc_now(),
     )
     session.add(source)
     score.head_revision_id = revision_id
@@ -215,12 +205,10 @@ def test_storage_usage_reservation_blocks_when_quota_would_be_exceeded(
     assert _count(session, StorageUsageReservation) == 0
 
 
-def test_storage_usage_requires_seeded_default_policy() -> None:
-    engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
+def test_storage_usage_requires_seeded_default_policy(
+    postgres_engine,
+) -> None:
+    engine = postgres_engine
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
         session.add(
@@ -553,7 +541,7 @@ def test_score_deletion_execution_records_delivery_retry_on_failure(
 
     session, storage = storage_usage_session
     score, _, _ = _seed_score_with_source(session, storage)
-    score.deleted_at = utc_now_naive()
+    score.deleted_at = utc_now()
     operation = ScoreDeletionOperation(
         score_id=score.id, score_uuid=score.score_uuid, owner_user_id=1
     )

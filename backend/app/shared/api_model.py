@@ -1,23 +1,20 @@
 """Typed API representation serialization with explicit UTC timestamps."""
 
 from collections.abc import Mapping, Sequence
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, SerializationInfo, SerializerFunctionWrapHandler, model_serializer
 
+from app.shared.time import require_utc
+
 
 def format_utc_datetime(value: datetime) -> str:
-    utc_value = (
-        value.replace(tzinfo=timezone.utc)
-        if value.tzinfo is None
-        else value.astimezone(timezone.utc)
-    )
-    return utc_value.isoformat(timespec="microseconds").replace("+00:00", "Z")
+    return require_utc(value).isoformat().replace("+00:00", "Z")
 
 
 def serialize_utc_values(value: Any) -> Any:
-    """Normalize nested UTC-naive database timestamps without changing field shape."""
+    """Serialize nested timezone-aware UTC instants without changing field shape."""
     if isinstance(value, datetime):
         return format_utc_datetime(value)
     if isinstance(value, BaseModel):

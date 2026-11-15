@@ -11,10 +11,9 @@ from unittest.mock import Mock, patch
 import pytest
 from app.modules.score_invites.lifecycle import InviteStatus
 from app.db.models.score_access import InviteTerminalOutcome
-from sqlalchemy import event, func, select
-from sqlalchemy.pool import StaticPool
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
-from sqlmodel import SQLModel, create_engine
+from sqlmodel import SQLModel
 
 from app.core.exceptions import (
     ConflictException,
@@ -95,7 +94,7 @@ from app.modules.realtime.maintenance_service import RealtimeMaintenanceService
 from app.shared.constants import ErrorCode
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from tests.support.object_storage import InMemoryObjectStorage
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 MUSICXML_1 = b"""<?xml version='1.0'?><score-partwise version='4.0'>
 <part-list><score-part id='P1'><part-name>Piano</part-name></score-part></part-list>
@@ -187,16 +186,10 @@ def add_active_score_with_head_revision(
 
 
 @pytest.fixture
-def score_service_session(tmp_path) -> Iterator[tuple[Session, InMemoryObjectStorage]]:
-    engine = create_engine(
-        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
-    )
-
-    @event.listens_for(engine, "connect")
-    def enable_foreign_keys(dbapi_connection, _connection_record) -> None:
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.close()
+def score_service_session(
+    postgres_engine, tmp_path
+) -> Iterator[tuple[Session, InMemoryObjectStorage]]:
+    engine = postgres_engine
 
     SQLModel.metadata.create_all(engine)
     storage = InMemoryObjectStorage()
@@ -218,8 +211,8 @@ def score_service_session(tmp_path) -> Iterator[tuple[Session, InMemoryObjectSto
                 StorageQuotaPolicy(
                     plan_code="FREE",
                     quota_limit_bytes=100 * 1024 * 1024,
-                    created_at=utc_now_naive(),
-                    updated_at=utc_now_naive(),
+                    created_at=utc_now(),
+                    updated_at=utc_now(),
                 ),
             ]
         )
@@ -836,7 +829,7 @@ def test_review_confirm_creates_active_score_once(
 
     from app.modules.import_jobs.notifications import admit_import_outcome
 
-    admit_import_outcome(session, session.get(ImportJob, 14), created_at=utc_now_naive())
+    admit_import_outcome(session, session.get(ImportJob, 14), created_at=utc_now())
     session.flush()
     session.add(ImportDispatch(job_id=14, status=ImportDispatchStatus.COMPLETED))
     session.commit()
@@ -1513,7 +1506,7 @@ def test_render_outbox_recovers_stale_delivery_and_lists_due_work(
         revision_uuid="render-outbox-revision",
         title="Render Outbox",
     )
-    now = utc_now_naive()
+    now = utc_now()
     stale = RenderOutbox(
         outbox_uuid="render-outbox-stale",
         target_type=RenderTargetType.SCORE_REVISION,
@@ -1603,7 +1596,7 @@ def test_render_outbox_claim_failure_and_completion_are_persistent(
     assert outbox.status == RenderOutboxStatus.FAILED
     assert outbox.last_error == "temporary failure"
 
-    outbox.next_attempt_at = utc_now_naive() - timedelta(seconds=1)
+    outbox.next_attempt_at = utc_now() - timedelta(seconds=1)
     session.commit()
     payload = service.claim(session, outbox.outbox_uuid)
     session.commit()
@@ -1682,7 +1675,7 @@ def test_mail_outbox_retries_and_scrubs_sensitive_content_after_delivery(
         subject="Verification code",
         text_body="123456",
         html_body="<strong>123456</strong>",
-        expires_at=utc_now_naive() + timedelta(minutes=10),
+        expires_at=utc_now() + timedelta(minutes=10),
     )
     session.add(outbox)
     session.commit()
@@ -1701,7 +1694,7 @@ def test_mail_outbox_retries_and_scrubs_sensitive_content_after_delivery(
     assert outbox.status == MailOutboxStatus.FAILED
     assert outbox.text_body == "123456"
 
-    outbox.next_attempt_at = utc_now_naive() - timedelta(seconds=1)
+    outbox.next_attempt_at = utc_now() - timedelta(seconds=1)
     session.commit()
     payload = service.claim(session, outbox.outbox_uuid)
     assert payload is not None
@@ -1726,7 +1719,7 @@ def test_expired_verification_mail_is_never_dispatched(
         subject="Expired code",
         text_body="654321",
         html_body="<strong>654321</strong>",
-        expires_at=utc_now_naive() - timedelta(seconds=1),
+        expires_at=utc_now() - timedelta(seconds=1),
     )
     session.add(outbox)
     session.commit()
@@ -1787,7 +1780,7 @@ def test_import_dispatch_recovers_stale_worker_without_failing_business_job(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
-    now = utc_now_naive()
+    now = utc_now()
     job = ImportJob(
         id=503,
         job_uuid="stale-import-dispatch",
@@ -1822,7 +1815,7 @@ def test_import_dispatch_publish_release_preserves_domain_and_attempt(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
-    now = utc_now_naive()
+    now = utc_now()
     job = ImportJob(
         id=504,
         job_uuid="broker-backoff-job",
@@ -2192,7 +2185,7 @@ def test_notifications_are_scoped_and_can_be_marked_read(
         recipient_user_id=1,
         import_job_id="score-1",
         job_title="Etudes",
-        created_at=utc_now_naive(),
+        created_at=utc_now(),
     )
     assert created is not None
 
@@ -2226,14 +2219,14 @@ def test_notification_dedupe_key_returns_existing_event(
         recipient_user_id=1,
         import_job_id="score-1",
         job_title="Etudes",
-        created_at=utc_now_naive(),
+        created_at=utc_now(),
     )
     second = service.admit_import_completed(
         db,
         recipient_user_id=1,
         import_job_id="score-1",
         job_title="Etudes",
-        created_at=utc_now_naive(),
+        created_at=utc_now(),
     )
 
     assert first is not None
@@ -2248,7 +2241,7 @@ def test_notification_cleanup_removes_events_older_than_retention(
     session, _storage = score_service_session
     db = session
     service = NotificationService()
-    now = utc_now_naive()
+    now = utc_now()
 
     old_event = Notification(
         recipient_user_id=1,
@@ -2281,7 +2274,7 @@ def test_notification_maintenance_removes_events_older_than_retention(
 ) -> None:
     session, _storage = score_service_session
     service = NotificationMaintenanceService()
-    now = utc_now_naive()
+    now = utc_now()
 
     session.add(
         Notification(
@@ -2313,7 +2306,7 @@ def test_realtime_maintenance_removes_events_older_than_retention(
 ) -> None:
     session, _storage = score_service_session
     service = RealtimeMaintenanceService()
-    now = utc_now_naive()
+    now = utc_now()
 
     from app.modules.realtime.publisher import publish_change
     from app.db.models import RealtimeChangeKind

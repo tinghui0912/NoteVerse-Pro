@@ -43,7 +43,7 @@ from app.modules.score_invites.schemas import (
 )
 from app.modules.notifications.service import NotificationService
 from app.shared.constants import ErrorCode
-from app.utils.timezone import to_utc_naive, utc_now_naive
+from app.shared.time import require_utc, utc_now
 
 
 class ScoreInviteService:
@@ -76,8 +76,8 @@ class ScoreInviteService:
             email=request.email,
             role=request.role,
             created_by_user_id=user_id,
-            created_at=utc_now_naive(),
-            expires_at=to_utc_naive(request.expires_at),
+            created_at=utc_now(),
+            expires_at=require_utc(request.expires_at) if request.expires_at is not None else None,
         )
         db.add(invite)
         db.flush()
@@ -111,7 +111,7 @@ class ScoreInviteService:
     ) -> InviteRead:
         invite = self._managed_invite(db, score_uuid, invite_uuid, user_id)
         if invite.terminal_outcome != InviteTerminalOutcome.REVOKED:
-            now = utc_now_naive()
+            now = utc_now()
             require_pending_invite(invite, field="invite_id", now=now)
             invite.terminal_outcome = InviteTerminalOutcome.REVOKED
             invite.terminal_at = now
@@ -126,7 +126,7 @@ class ScoreInviteService:
         if not score:
             raise ResourceNotFoundException("score", code=ErrorCode.SCORE_NOT_FOUND)
         user = db.get(User, user_id) if user_id is not None else None
-        now = utc_now_naive()
+        now = utc_now()
         can_accept = can_user_accept_invite(invite, user, now=now)
         return InviteAccessRead(
             invite_id=invite.invite_uuid,
@@ -160,7 +160,7 @@ class ScoreInviteService:
             db,
             user.email.lower(),
             user_id=user_id,
-            now=utc_now_naive(),
+            now=utc_now(),
             limit=limit,
             cursor=cursor,
         )
@@ -181,7 +181,7 @@ class ScoreInviteService:
     ) -> PendingInviteRead:
         invite = self._invite_by_uuid(db, invite_uuid)
         user = self._ensure_invite_target_user(db, invite, user_id)
-        now = utc_now_naive()
+        now = utc_now()
         require_pending_invite(invite, field="invite_id", now=now)
         invite.terminal_outcome = InviteTerminalOutcome.DECLINED
         invite.terminal_at = now
@@ -207,7 +207,7 @@ class ScoreInviteService:
         if not score:
             raise ResourceNotFoundException("score", code=ErrorCode.SCORE_NOT_FOUND)
         if score.owner_user_id == user_id:
-            now = utc_now_naive()
+            now = utc_now()
             require_pending_invite(invite, field="invite_id", now=now)
             invite.terminal_outcome = InviteTerminalOutcome.ACCEPTED
             invite.terminal_actor_user_id = user_id
@@ -229,7 +229,7 @@ class ScoreInviteService:
 
         membership = self.repository.membership_for_update(db, invite.score_id, user_id)
         # Waiting on membership may outlast expiry; do not restore access after it.
-        now = utc_now_naive()
+        now = utc_now()
         require_pending_invite(invite, field="invite_id", now=now)
         if membership:
             if membership.revoked_at is not None:
@@ -319,7 +319,7 @@ class ScoreInviteService:
         if membership.user_id == access.score.owner_user_id:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="membership_id")
         if membership.revoked_at is None:
-            membership.revoked_at = utc_now_naive()
+            membership.revoked_at = utc_now()
         db.commit()
         db.refresh(membership)
         return self._member_read(db, membership)
@@ -333,7 +333,7 @@ class ScoreInviteService:
         self.access_policy.authorize(db, score_uuid, ScoreAction.LEAVE, user_id=user_id)
         if membership is None:
             raise UnauthorizedException(ErrorCode.NO_ACCESS)
-        membership.revoked_at = utc_now_naive()
+        membership.revoked_at = utc_now()
         db.commit()
 
     def _managed_invite(
@@ -357,21 +357,21 @@ class ScoreInviteService:
             raise ResourceNotFoundException("invite", code=ErrorCode.INVITE_NOT_FOUND)
         if allow_inactive:
             return invite
-        require_pending_invite(invite, field="token", now=utc_now_naive())
+        require_pending_invite(invite, field="token", now=utc_now())
         return invite
 
     def _invite_by_uuid(self, db: Session, invite_uuid: str) -> ScoreInvite:
         invite = self.repository.invite_by_uuid(db, invite_uuid, lock=True)
         if not invite:
             raise ResourceNotFoundException("invite", invite_uuid, ErrorCode.INVITE_NOT_FOUND)
-        require_pending_invite(invite, field="invite_id", now=utc_now_naive())
+        require_pending_invite(invite, field="invite_id", now=utc_now())
         return invite
 
     def _ensure_invite_target_user(self, db: Session, invite: ScoreInvite, user_id: int) -> User:
         user = db.get(User, user_id)
         if user is None:
             raise UnauthorizedException(ErrorCode.NO_ACCESS)
-        require_pending_invite(invite, field="invite_id", now=utc_now_naive())
+        require_pending_invite(invite, field="invite_id", now=utc_now())
         if invite.email != user.email.lower():
             raise ValidationException(ErrorCode.INVITE_EMAIL_MISMATCH, field="email")
         return user
@@ -415,7 +415,7 @@ class ScoreInviteService:
             invite_id=invite.invite_uuid,
             email=invite.email,
             role=invite.role,
-            status=effective_invite_status(invite, now=utc_now_naive()),
+            status=effective_invite_status(invite, now=utc_now()),
             expires_at=invite.expires_at,
             terminal_at=invite.terminal_at,
             created_at=invite.created_at,
@@ -434,7 +434,7 @@ class ScoreInviteService:
             inviter=self._actor(db, invite.created_by_user_id),
             email=invite.email,
             role=invite.role,
-            status=effective_invite_status(invite, now=utc_now_naive()),
+            status=effective_invite_status(invite, now=utc_now()),
             expires_at=invite.expires_at,
             created_at=invite.created_at,
         )

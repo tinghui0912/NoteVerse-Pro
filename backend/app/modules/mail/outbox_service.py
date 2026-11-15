@@ -25,7 +25,7 @@ from app.modules.durable_work.delivery import (
     DurableDeliveryLifecycle,
     DeliveryAttemptLease,
 )
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 def _delivery_lifecycle() -> DurableDeliveryLifecycle[MailOutboxStatus]:
@@ -110,7 +110,7 @@ class MailOutboxService:
             MailOutboxStatus.EXPIRED,
         }:
             return None
-        now = utc_now_naive()
+        now = utc_now()
         if outbox.expires_at is not None and outbox.expires_at <= now:
             self._finish(outbox, MailOutboxStatus.EXPIRED, now=now, error=outbox.last_error)
             set_failure_metadata(
@@ -176,7 +176,7 @@ class MailOutboxService:
     ) -> bool:
         outbox = self._get(db, outbox_uuid)
         if outbox is None or not _delivery_lifecycle().complete_attempt(
-            outbox, lease=lease, now=utc_now_naive()
+            outbox, lease=lease, now=utc_now()
         ):
             return False
         outbox.text_body = outbox.html_body = None
@@ -188,7 +188,7 @@ class MailOutboxService:
         self, db: Session, outbox_uuid: str, error: str, *, lease: DeliveryAttemptLease
     ) -> bool:
         outbox = self._get(db, outbox_uuid)
-        lifecycle, now = _delivery_lifecycle(), utc_now_naive()
+        lifecycle, now = _delivery_lifecycle(), utc_now()
         if outbox is None or not lifecycle.attempt_matches(outbox, lease):
             return False
         if outbox.attempt_count >= lifecycle.policy.max_attempts:
@@ -212,7 +212,7 @@ class MailOutboxService:
             lease=lease,
             status=MailOutboxStatus.PERMANENT_FAILURE,
             error=error,
-            now=utc_now_naive(),
+            now=utc_now(),
         ):
             return False
         outbox.text_body = outbox.html_body = None
@@ -245,7 +245,7 @@ class MailOutboxService:
     ) -> bool:
         outbox = self._get(db, outbox_uuid)
         if outbox is None or not _delivery_lifecycle().fail_attempt(
-            outbox, lease=lease, error=error, now=utc_now_naive()
+            outbox, lease=lease, error=error, now=utc_now()
         ):
             return False
         self._record_failure(
@@ -259,7 +259,7 @@ class MailOutboxService:
         outbox = self._get(db, operation_id)
         if outbox is None:
             raise ResourceNotFoundException("async_operation", operation_id)
-        now = utc_now_naive()
+        now = utc_now()
         if (
             outbox.status not in (MailOutboxStatus.PENDING, MailOutboxStatus.FAILED)
             or outbox.internal_error_code is None
@@ -275,7 +275,7 @@ class MailOutboxService:
 
     def mark_dispatched(self, db: Session, outbox_uuid: str) -> bool:
         outbox = self._get(db, outbox_uuid)
-        now = utc_now_naive()
+        now = utc_now()
         if outbox is None or (outbox.expires_at is not None and outbox.expires_at <= now):
             return False
         if not _delivery_lifecycle().dispatch(outbox, now=now):
@@ -286,7 +286,7 @@ class MailOutboxService:
     def release_dispatch(self, db: Session, outbox_uuid: str, error: str) -> None:
         outbox = self._get(db, outbox_uuid)
         if outbox is None or not _delivery_lifecycle().release_dispatch(
-            outbox, error=error, now=utc_now_naive()
+            outbox, error=error, now=utc_now()
         ):
             return
         self._record_failure(
@@ -297,7 +297,7 @@ class MailOutboxService:
         )
 
     def recover_and_list_due(self, db: Session) -> list[str]:
-        now = utc_now_naive()
+        now = utc_now()
         active = (
             db.execute(
                 select(MailOutbox)
@@ -370,7 +370,7 @@ class MailOutboxService:
         return list(due)
 
     def cleanup(self, db: Session) -> int:
-        cutoff = utc_now_naive() - timedelta(days=settings.MAIL_OUTBOX_RETENTION_DAYS)
+        cutoff = utc_now() - timedelta(days=settings.MAIL_OUTBOX_RETENTION_DAYS)
         result = db.execute(
             delete(MailOutbox).where(
                 col(MailOutbox.status).in_(

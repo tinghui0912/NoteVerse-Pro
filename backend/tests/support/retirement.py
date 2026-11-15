@@ -5,7 +5,7 @@ from unittest.mock import patch
 from sqlalchemy import select
 from app.db.models import StoredObjectRetirement
 from app.worker.execution import stored_object_retirement as worker
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 def drain_retirements(db, storage):
@@ -13,7 +13,7 @@ def drain_retirements(db, storage):
         db.scalars(
             select(StoredObjectRetirement.retirement_uuid).where(
                 StoredObjectRetirement.status.in_(["PENDING", "FAILED"]),
-                StoredObjectRetirement.next_attempt_at <= utc_now_naive(),
+                StoredObjectRetirement.next_attempt_at <= utc_now(),
             )
         )
     )

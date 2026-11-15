@@ -5,7 +5,7 @@ import sqlalchemy as sa
 from alembic import command
 from sqlalchemy.exc import IntegrityError
 from app.db.models import User
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from tests.support.postgres_schema import postgres_schema_database
 from tests.test_performance_take_schema import reservation_values, manifest_values
 
@@ -53,7 +53,7 @@ def test_fresh_schema_enforces_current_lifecycle_tuples(monkeypatch, status, lea
             values.update(
                 finalizing_token="token",
                 finalizing_object_key="candidate",
-                finalizing_expires_at=utc_now_naive(),
+                finalizing_expires_at=utc_now(),
             )
         if valid:
             with engine.begin() as connection:

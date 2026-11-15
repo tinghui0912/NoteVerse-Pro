@@ -29,7 +29,7 @@ from app.modules.performance_takes.upload_reservation.domain import (
     UNKNOWN_OUTCOME_GRACE,
 )
 from app.modules.storage_usage.service import StorageUsageService
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from tests.test_upload_reservation_postgres import setup_bundle, MEDIA
 
 pytest_plugins = ["tests.test_practice_bundle_postgres"]
@@ -122,7 +122,7 @@ async def test_precommit_failure_preserves_manifest_quota_and_immediate_cleanup_
         assert account.used_bytes == 0 and account.reserved_bytes == len(MEDIA)
         candidates = lifecycle_from_row(row).orphan_candidates
         assert len(candidates) == 1 and storage.exists(candidates[0].key)
-        assert candidates[0].remove_after <= utc_now_naive()
+        assert candidates[0].remove_after <= utc_now()
 
 
 @pytest.mark.parametrize("failure", ["missing", "size", "mime", "signature", "copy"])
@@ -152,8 +152,7 @@ def test_known_failure_recovers_immediately_and_preserves_upload_hold(postgres_b
         assert manifest_from_row(row.manifest) == manifest
         assert row.finalizing_token is None
         assert all(
-            item.remove_after <= utc_now_naive()
-            for item in lifecycle_from_row(row).orphan_candidates
+            item.remove_after <= utc_now() for item in lifecycle_from_row(row).orphan_candidates
         )
         assert (db.get(StorageUsageAccount, 1)).reserved_bytes == len(MEDIA)
         storage.put_bytes(key=key, content=MEDIA, content_type="audio/webm")
@@ -195,9 +194,7 @@ def test_unknown_commit_outcome_reads_fresh_postgres_lineage(postgres_bundle, co
         assert row.status == ("COMPLETED" if committed else "RESERVED")
         if not committed:
             orphan = lifecycle_from_row(row).orphan_candidates[0]
-            assert orphan.remove_after > utc_now_naive() + UNKNOWN_OUTCOME_GRACE - timedelta(
-                seconds=10
-            )
+            assert orphan.remove_after > utc_now() + UNKNOWN_OUTCOME_GRACE - timedelta(seconds=10)
             assert storage.exists(orphan.key)
         take = service.finalize_take(db, 1, accepted.reservation_id)
         assert take.take_id == accepted.take_id
@@ -209,7 +206,7 @@ def test_writer_participates_without_commit_and_rejects_stale_evidence(postgres_
     sessions, reservations, service, storage, request, accepted, manifest, key = setup(
         postgres_bundle
     )
-    now = utc_now_naive()
+    now = utc_now()
     lease = FinalizeLease("a", "performance-takes/a.webm", now + timedelta(minutes=15))
     with sessions() as db:
         row = reservations.repository.get_reservation_by_uuid(
@@ -364,7 +361,7 @@ def test_known_failure_after_reservation_expiry_releases_hold(postgres_bundle):
                 other, 1, accepted.reservation_id, lock=True
             )
             # Time advances while physical verification is in flight.
-            row.expires_at = utc_now_naive() - timedelta(seconds=1)
+            row.expires_at = utc_now() - timedelta(seconds=1)
             other.commit()
         raise ValidationException("validation_error", field="media_byte_size")
 
@@ -387,7 +384,7 @@ def test_late_io_records_orphan_after_winner_even_if_prior_cleanup_saw_absence(
     with sessions() as db:
         service.finalize_take(db, 1, accepted.reservation_id)
         late = FinalizeLease(
-            "old", "performance-takes/late-old.webm", utc_now_naive() - timedelta(hours=1)
+            "old", "performance-takes/late-old.webm", utc_now() - timedelta(hours=1)
         )
         storage.copy(key, late.object_key)
         service.recovery.recover(
@@ -492,7 +489,7 @@ async def test_late_candidate_cannot_adopt_or_recover_new_inflight_lease(postgre
                     observer, 1, accepted.reservation_id, lock=True
                 )
                 lease_a = lifecycle_from_row(row).lease
-                row.finalizing_expires_at = utc_now_naive() - timedelta(seconds=1)
+                row.finalizing_expires_at = utc_now() - timedelta(seconds=1)
                 observer.commit()
                 second = asyncio.create_task(
                     asyncio.to_thread(

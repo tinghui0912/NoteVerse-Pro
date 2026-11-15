@@ -23,7 +23,7 @@ from app.modules.import_jobs.dispatch_service import (
     StaleImportDispatchAttempt,
 )
 from app.modules.import_jobs.worker_service import ImportJobExecutionService
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 from tests.support.postgres_schema import postgres_schema_database
 
 
@@ -165,7 +165,7 @@ def test_mutation_lock_excludes_recovery_and_reclaimed_attempt_fences_cached_wor
             service = ImportDispatchService()
             first = service.claim(setup, row.dispatch_uuid).lease
             setup.commit()
-            row.started_at = utc_now_naive() - timedelta(
+            row.started_at = utc_now() - timedelta(
                 seconds=service.lifecycle().policy.processing_timeout_seconds + 1
             )
             setup.add(row)

@@ -1,4 +1,7 @@
 from __future__ import annotations
+
+from datetime import UTC
+from uuid import uuid4
 from tests.support.score_deletion import complete_score_deletions
 
 from app.modules.performance_takes.upload_reservation.cleanup import (
@@ -29,11 +32,10 @@ from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import event, select, text, inspect as inspect_row
+from sqlalchemy import select, text, inspect as inspect_row
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
-from sqlalchemy.pool import StaticPool
-from sqlmodel import SQLModel, create_engine
+from sqlmodel import SQLModel
 
 from app.api.deps import get_current_user, get_db
 from app.core.exceptions import ValidationException, ResourceNotFoundException
@@ -291,10 +293,10 @@ def _create_default_take(
         client_request_id=client_request_id,
         staging_object_key=media_object_key + ".staging",
         storage_reservation_id="quota-" + take_uuid,
-        expires_at=datetime.now(timezone.utc).replace(tzinfo=None),
+        expires_at=datetime.now(timezone.utc),
         status="COMPLETED",
     )
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(timezone.utc)
     state = UploadReservationLifecycle.reserved(
         expires_at=now + timedelta(hours=1), put_expires_at=now + timedelta(minutes=10)
     )
@@ -479,19 +481,10 @@ def _run_retirement(monkeypatch, session, storage, uuid):
 
 
 @pytest.fixture
-def test_env(tmp_path) -> Iterator[tuple[Session, InMemoryObjectStorage, User, User]]:
-    engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-
-    @event.listens_for(engine, "connect")
-    def _set_sqlite_pragma(dbapi_connection, connection_record) -> None:  # type: ignore[no-untyped-def]
-        del connection_record
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.close()
+def test_env(
+    postgres_engine, tmp_path
+) -> Iterator[tuple[Session, InMemoryObjectStorage, User, User]]:
+    engine = postgres_engine
 
     SQLModel.metadata.create_all(engine)
     storage = InMemoryObjectStorage()
@@ -754,9 +747,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
                 PerformanceTakeUploadReservation.client_request_id == "req-001"
             )
         ).scalar_one()
-        auth.last_put_url_expires_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(
-            minutes=1
-        )
+        auth.last_put_url_expires_at = datetime.now(timezone.utc) - timedelta(minutes=1)
         auth.staging_cleanup_after = auth.last_put_url_expires_at
         session.commit()
         cleaned_count = upload_reservation_cleanup_service.cleanup_expired_reservations(
@@ -1360,9 +1351,7 @@ def test_cancel_upload_reservation(test_env, monkeypatch: pytest.MonkeyPatch):
             )
         ).scalar_one()
         assert manifest_from_row(auth.manifest).snapshot.practice_binding.bundle_id == _bundle_id()
-        auth.last_put_url_expires_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(
-            minutes=1
-        )
+        auth.last_put_url_expires_at = datetime.now(timezone.utc) - timedelta(minutes=1)
         auth.staging_cleanup_after = auth.last_put_url_expires_at
         session.commit()
         cleaned_count = upload_reservation_cleanup_service.cleanup_expired_reservations(
@@ -1660,6 +1649,9 @@ def test_finalize_safe_retry_idempotency(test_env):
             .all()
         )
         assert len(takes) == 1
+        session.expire(takes[0], ["created_at"])
+        assert takes[0].created_at.tzinfo is not None
+        assert takes[0].created_at.utcoffset() == timedelta(0)
 
     finally:
         app.dependency_overrides.clear()
@@ -2031,7 +2023,7 @@ def test_video_take_finalize_uses_video_media_kind_and_candidate(test_env):
 def test_reserve_finalizing_snapshot_retries_without_new_put(test_env):
     session, _storage, user_1, _ = test_env
     source = _create_default_bundle(session, _storage)
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(timezone.utc)
     auth = PerformanceTakeUploadReservation(
         manifest=_manifest_row(
             source, user_id=user_1.id, take_uuid="take-finalizing-reserve", title="Moonlight Sonata"
@@ -2140,7 +2132,7 @@ def test_crash_abandoned_after_reservation(test_env, monkeypatch: pytest.MonkeyP
         assert source is not None
         musicxml_key = source.prepared_musicxml_object.object_key
         artifact_key = source.artifact_object.object_key
-        auth.expires_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=2)
+        auth.expires_at = datetime.now(timezone.utc) - timedelta(hours=2)
         auth.last_put_url_expires_at = auth.expires_at
         auth.staging_cleanup_after = auth.expires_at
         session.commit()
@@ -2224,7 +2216,7 @@ def test_expired_reservation_staging_delete_failure_is_retryable(test_env, monke
                 PerformanceTakeUploadReservation.client_request_id == "req-expired-delete-retry"
             )
         ).scalar_one()
-        auth.expires_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=2)
+        auth.expires_at = datetime.now(timezone.utc) - timedelta(hours=2)
         auth.last_put_url_expires_at = auth.expires_at
         auth.staging_cleanup_after = auth.expires_at
         session.commit()
@@ -2335,7 +2327,7 @@ def test_completed_reservation_late_staging_put_is_cleaned_after_expiry(test_env
         )
         assert storage.exists(staging_key)
 
-        auth.expires_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=1)
+        auth.expires_at = datetime.now(timezone.utc) - timedelta(minutes=1)
         auth.last_put_url_expires_at = auth.expires_at
         auth.staging_cleanup_after = auth.expires_at
         session.commit()
@@ -2516,7 +2508,7 @@ def test_expired_reservation_cleanup_releases_db_lock_before_storage_delete(test
                 PerformanceTakeUploadReservation.client_request_id == "req-expired-no-lock-delete"
             )
         ).scalar_one()
-        auth.expires_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=2)
+        auth.expires_at = datetime.now(timezone.utc) - timedelta(hours=2)
         auth.last_put_url_expires_at = auth.expires_at
         auth.staging_cleanup_after = auth.expires_at
         session.commit()
@@ -2544,7 +2536,7 @@ def _expired_cleanup_auth(
     staging_key: str,
     final_key: str,
 ) -> PerformanceTakeUploadReservation:
-    expired_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=2)
+    expired_at = datetime.now(timezone.utc) - timedelta(hours=2)
     row = PerformanceTakeUploadReservation(
         manifest=_manifest_row(
             source, user_id=user_id, take_uuid=f"take-{client_request_id}", title="Cleanup test"
@@ -2552,7 +2544,7 @@ def _expired_cleanup_auth(
         user_id=user_id,
         client_request_id=client_request_id,
         staging_object_key=staging_key,
-        storage_reservation_id=f"reservation-{client_request_id}",
+        storage_reservation_id=str(uuid4()),
         expires_at=expired_at,
         last_put_url_expires_at=expired_at,
         staging_cleanup_after=expired_at,
@@ -2686,7 +2678,7 @@ def test_reservation_cleanup_does_not_complete_when_final_head_fails(test_env):
 def test_finalize_in_progress_rejects_competing_executor_before_storage_copy(test_env):
     session, _storage, user_1, _ = test_env
     take_svc = _performance_take_service(session=session, storage=_storage)
-    expired = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=1)
+    expired = datetime.now(timezone.utc) - timedelta(minutes=1)
     source = _create_default_bundle(session, _storage)
     auth = PerformanceTakeUploadReservation(
         manifest=_manifest_row(
@@ -2716,7 +2708,7 @@ def test_finalize_in_progress_rejects_competing_executor_before_storage_copy(tes
 
 def test_completed_reservation_cleanup_does_not_touch_storage(test_env):
     session, _storage, user_1, _ = test_env
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(timezone.utc)
     past = now - timedelta(hours=2)
     source = _create_default_bundle(session, _storage)
     auth = _expired_cleanup_auth(
@@ -2760,9 +2752,9 @@ def test_reservation_cleanup_retries_orphan_final_without_touching_completed_sta
         staging_key="staging/performance-takes/1/orphan-final-only/recording.webm",
         final_key="performance-takes/1/orphan-final-only/current.webm",
     )
-    auth.staging_cleanup_completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    auth.staging_cleanup_completed_at = datetime.now(timezone.utc)
     auth.orphan_final_object_keys = encode_orphan_candidates(
-        (OrphanFinalCandidate(orphan_key, datetime(2020, 1, 1)),)
+        (OrphanFinalCandidate(orphan_key, datetime(2020, 1, 1, tzinfo=UTC)),)
     )
     session.add(auth)
     session.commit()
@@ -2799,7 +2791,7 @@ def test_reservation_cleanup_retries_orphan_final_without_touching_completed_sta
 
 def test_reservation_cleanup_keeps_unknown_absent_orphan_until_grace_then_converges(test_env):
     session, storage, user_1, _ = test_env
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(timezone.utc)
     orphan_key = "performance-takes/1/orphan-late/old-token.webm"
     source = _create_default_bundle(session, storage)
     auth = _expired_cleanup_auth(
@@ -2847,7 +2839,7 @@ def test_reservation_cleanup_keeps_unknown_absent_orphan_until_grace_then_conver
 
 def test_reservation_cleanup_removes_absent_known_orphan(test_env):
     session, storage, user_1, _ = test_env
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(timezone.utc)
     orphan_key = "performance-takes/1/absent-known/old-token.webm"
     source = _create_default_bundle(session, storage)
     auth = _expired_cleanup_auth(
@@ -2859,7 +2851,7 @@ def test_reservation_cleanup_removes_absent_known_orphan(test_env):
     )
     auth.staging_cleanup_completed_at = now
     auth.orphan_final_object_keys = encode_orphan_candidates(
-        (OrphanFinalCandidate(orphan_key, datetime(2020, 1, 1)),)
+        (OrphanFinalCandidate(orphan_key, datetime(2020, 1, 1, tzinfo=UTC)),)
     )
     session.add(auth)
     session.commit()
@@ -2878,7 +2870,7 @@ def test_reservation_cleanup_removes_absent_known_orphan(test_env):
 
 def test_reservation_cleanup_preserves_remaining_orphan_remove_after(test_env):
     session, storage, user_1, _ = test_env
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(timezone.utc)
     removable_key = "performance-takes/1/two-orphans/removable.webm"
     waiting_key = "performance-takes/1/two-orphans/waiting.webm"
     waiting_until = now + timedelta(minutes=15)
@@ -2918,7 +2910,7 @@ def test_reservation_cleanup_preserves_remaining_orphan_remove_after(test_env):
 
 def test_reservation_cleanup_does_not_remove_orphan_when_remove_after_was_extended(test_env):
     session, _storage, user_1, _ = test_env
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(timezone.utc)
     orphan_key = "performance-takes/1/remove-after-extended/token.webm"
     source = _create_default_bundle(session, _storage)
     auth = _expired_cleanup_auth(
@@ -2951,7 +2943,7 @@ def test_reservation_cleanup_does_not_remove_orphan_when_remove_after_was_extend
 
 def test_reservation_cleanup_does_not_delete_orphan_key_referenced_by_take(test_env):
     session, storage, user_1, _ = test_env
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(timezone.utc)
     referenced_key = "performance-takes/1/referenced-orphan/token.webm"
     storage.put_bytes(key=referenced_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
     source = _create_default_bundle(session, storage)
@@ -2964,7 +2956,7 @@ def test_reservation_cleanup_does_not_delete_orphan_key_referenced_by_take(test_
     )
     auth.staging_cleanup_completed_at = now
     auth.orphan_final_object_keys = encode_orphan_candidates(
-        (OrphanFinalCandidate(referenced_key, datetime(2020, 1, 1)),)
+        (OrphanFinalCandidate(referenced_key, datetime(2020, 1, 1, tzinfo=UTC)),)
     )
     session.add(auth)
     session.flush()
@@ -2994,7 +2986,7 @@ def test_reservation_cleanup_does_not_delete_orphan_key_referenced_by_take(test_
 def test_expired_finalizing_lease_records_candidate_before_retry(test_env):
     session, storage, user_1, _ = test_env
     source = _create_default_bundle(session, storage)
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(timezone.utc)
     candidate_key = "performance-takes/1/finalizing-expired/old-token.webm"
     auth = PerformanceTakeUploadReservation(
         manifest=_manifest_row(
@@ -3626,7 +3618,7 @@ def test_cancel_rejects_nonpending_reservation_without_claiming_success(test_env
                 == 200
             )
         else:
-            now = datetime.now(timezone.utc).replace(tzinfo=None)
+            now = datetime.now(timezone.utc)
             transition = lifecycle_from_row(row).begin_finalize(
                 lease=FinalizeLease("active", "active-key", now + timedelta(minutes=15)), now=now
             )
@@ -3661,7 +3653,7 @@ def test_cleanup_rejects_active_reservation_with_take_as_invariant_violation(tes
     # Deliberate cross-row corruption: individual tuple constraints cannot enforce
     # atomic Take creation. Cleanup must reject it instead of repairing it.
     row.status = "RESERVED"
-    row.expires_at = datetime(2020, 1, 1)
+    row.expires_at = datetime(2020, 1, 1, tzinfo=UTC)
     session.commit()
     with pytest.raises(ReservationInvariantError, match="atomic"):
         upload_reservation_cleanup_service.cleanup_expired_reservations(
