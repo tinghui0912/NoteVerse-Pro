@@ -407,9 +407,6 @@ def test_failed_job_notifies_owner_once(
     job_service.finalize_failure(
         session,
         processing_lease(session, session.get(ImportJob, 12)),
-        error="OCR failed",
-        error_type="PipelineError",
-        code=ErrorCode.UNKNOWN_ERROR,
         failure=DurableFailure(
             "import_pipeline_failed", "pipeline", DurableFailureClass.SYSTEM_ERROR, False
         ),
@@ -417,9 +414,6 @@ def test_failed_job_notifies_owner_once(
     job_service.finalize_failure(
         session,
         processing_lease(session, session.get(ImportJob, 12)),
-        error="OCR failed again",
-        error_type="PipelineError",
-        code=ErrorCode.UNKNOWN_ERROR,
         failure=DurableFailure(
             "import_pipeline_failed", "pipeline", DurableFailureClass.SYSTEM_ERROR, False
         ),
@@ -616,9 +610,11 @@ def test_import_job_detail_exposes_public_failure_fields_only(
             job_uuid="job-public-failure",
             user_id=1,
             state=ImportJobState.FAILURE,
-            error=ErrorCode.SCORE_RECOGNITION_FAILED,
-            code=ErrorCode.SCORE_RECOGNITION_FAILED,
-            error_type="PipelineEngineError",
+            failure_code="import_pipeline_rejected",
+            failure_stage="pipeline",
+            failure_classification="user_error",
+            failure_retryable=False,
+            failure_detail=ErrorCode.SCORE_RECOGNITION_FAILED,
         )
     )
     session.add(
@@ -627,9 +623,11 @@ def test_import_job_detail_exposes_public_failure_fields_only(
             job_uuid="job-raw-failure",
             user_id=1,
             state=ImportJobState.FAILURE,
-            error="paddleocr crashed while reading /internal/path/score.png",
-            code=None,
-            error_type="PipelineEngineError",
+            failure_code="import_pipeline_failed",
+            failure_stage="pipeline",
+            failure_classification="system_error",
+            failure_retryable=False,
+            failure_detail="paddleocr crashed while reading /internal/path/score.png",
         )
     )
     session.add(
@@ -638,9 +636,11 @@ def test_import_job_detail_exposes_public_failure_fields_only(
             job_uuid="job-unsafe-code-failure",
             user_id=1,
             state=ImportJobState.FAILURE,
-            error="redis broker unavailable",
-            code="redis broker unavailable",
-            error_type="ImportDispatchFailure",
+            failure_code="unclassified_dispatch_fault",
+            failure_stage="dispatch",
+            failure_classification="system_error",
+            failure_retryable=False,
+            failure_detail="redis broker unavailable",
         )
     )
     session.commit()
@@ -656,16 +656,11 @@ def test_import_job_detail_exposes_public_failure_fields_only(
     ).model_dump(exclude_unset=True)
 
     assert detail["public_code"] == ErrorCode.SCORE_RECOGNITION_FAILED
-    assert detail["public_message"] == ErrorCode.SCORE_RECOGNITION_FAILED
-    assert "error" not in detail
-    assert "code" not in detail
-    assert "error_type" not in detail
+    assert "failure_detail" not in detail
     assert raw_detail["public_code"] == ErrorCode.TASK_ERROR
-    assert raw_detail["public_message"] == ErrorCode.TASK_ERROR
     assert "paddleocr" not in str(raw_detail)
     assert "/internal/path" not in str(raw_detail)
-    assert unsafe_code_detail["public_code"] == ErrorCode.TASK_ERROR
-    assert unsafe_code_detail["public_message"] == ErrorCode.TASK_ERROR
+    assert unsafe_code_detail["public_code"] is None
     assert "redis" not in str(unsafe_code_detail)
 
 
@@ -1539,7 +1534,7 @@ def test_render_outbox_recovers_stale_delivery_and_lists_due_work(
     assert due == ["render-outbox-stale", "render-outbox-failed"]
     session.refresh(stale)
     assert stale.status == RenderOutboxStatus.FAILED
-    assert stale.last_error == "Render delivery lease expired"
+    assert stale.failure_detail == "Render delivery lease expired"
 
 
 def test_render_outbox_claim_failure_and_completion_are_persistent(
@@ -1594,7 +1589,7 @@ def test_render_outbox_claim_failure_and_completion_are_persistent(
     service.fail(session, outbox.outbox_uuid, "temporary failure", lease=payload.lease)
     session.commit()
     assert outbox.status == RenderOutboxStatus.FAILED
-    assert outbox.last_error == "temporary failure"
+    assert outbox.failure_detail == "temporary failure"
 
     outbox.next_attempt_at = utc_now() - timedelta(seconds=1)
     session.commit()
@@ -1605,7 +1600,7 @@ def test_render_outbox_claim_failure_and_completion_are_persistent(
     session.commit()
     assert outbox.status == RenderOutboxStatus.COMPLETED
     assert outbox.completed_at is not None
-    assert outbox.last_error is None
+    assert outbox.failure_detail is None
 
 
 def test_review_thumbnail_outbox_claims_only_the_current_musicxml(
@@ -1808,7 +1803,6 @@ def test_import_dispatch_recovers_stale_worker_without_failing_business_job(
     assert dispatch.status == ImportDispatchStatus.FAILED
     assert job.progress == 0
     assert job.current_step is None
-    assert job.error is None
 
 
 def test_import_dispatch_publish_release_preserves_domain_and_attempt(
@@ -1840,7 +1834,7 @@ def test_import_dispatch_publish_release_preserves_domain_and_attempt(
     assert dispatch.status == ImportDispatchStatus.PENDING
     assert dispatch.attempt_count == 0
     assert dispatch.next_attempt_at == now
-    assert dispatch.last_error == "broker unavailable"
+    assert dispatch.failure_detail == "broker unavailable"
 
 
 def test_collaborator_revision_save_notifies_score_owner(

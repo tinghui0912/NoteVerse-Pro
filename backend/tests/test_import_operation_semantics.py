@@ -52,10 +52,10 @@ def test_import_projection_and_summary_agree(
         job_uuid="resource",
         user_id=1,
         state=ImportJobState(job_state),
-        internal_error_code="domain-error",
-        internal_error_class="permanent",
-        internal_error_stage="processing",
-        internal_error_retryable=False,
+        failure_code="domain-error" if job_state == "FAILURE" else None,
+        failure_classification="permanent" if job_state == "FAILURE" else None,
+        failure_stage="processing" if job_state == "FAILURE" else None,
+        failure_retryable=False if job_state == "FAILURE" else None,
     )
     db.add(job)
     db.flush()
@@ -65,10 +65,10 @@ def test_import_projection_and_summary_agree(
         attempt_count=attempt,
         attempt_token="current" if status == "PROCESSING" else None,
         next_attempt_at=now + timedelta(hours=1) if future else now - timedelta(seconds=1),
-        internal_error_code="delivery-error",
-        internal_error_class="transient",
-        internal_error_stage="dispatch",
-        internal_error_retryable=attempt < settings.IMPORT_DISPATCH_MAX_ATTEMPTS,
+        failure_code="delivery-error",
+        failure_classification="transient",
+        failure_stage="dispatch",
+        failure_retryable=attempt < settings.IMPORT_DISPATCH_MAX_ATTEMPTS,
     )
     db.add(dispatch)
     db.commit()
@@ -179,7 +179,15 @@ def test_delivery_updates_drive_operation_order_and_timestamp_filters(score_serv
 
 def test_ops_retry_uses_dispatch_identity_only(score_service_session):
     db, _ = score_service_session
-    job = ImportJob(job_uuid="domain-resource", user_id=1, state=ImportJobState.FAILURE)
+    job = ImportJob(
+        job_uuid="domain-resource",
+        user_id=1,
+        state=ImportJobState.FAILURE,
+        failure_code="import_pipeline_failed",
+        failure_stage="pipeline",
+        failure_classification="system_error",
+        failure_retryable=False,
+    )
     db.add(job)
     db.flush()
     dispatch = ImportDispatch(

@@ -39,7 +39,7 @@ from app.modules.ops.query_service import OpsAsyncOperationQueryService
 from app.modules.durable_work.failure import (
     DurableFailure,
     DurableFailureClass,
-    set_failure_metadata,
+    set_failure_facts,
 )
 from app.modules.ops.operation_summary import AsyncOperationSummaryQuery
 from app.modules.ops.schemas import AsyncOperationKind
@@ -237,8 +237,8 @@ def test_failed_attempts_exhaust_and_operator_rearm_uses_lifecycle(score_db, mon
                 seconds=settings.SCORE_DELETION_RETRY_BASE_SECONDS * 64
             )
         db.commit()
-        assert operation.status == Status.FAILED and len(operation.last_error) == 4000
-        assert operation.internal_error_code and operation.internal_error_stage == "cleanup"
+        assert operation.status == Status.FAILED and len(operation.failure_detail) == 4000
+        assert operation.failure_code and operation.failure_stage == "cleanup"
         assert operation.next_attempt_at > operation.started_at
     assert service.recover_and_list_due(db) == []
     assert service.mark_dispatched(db, operation.operation_uuid) is False
@@ -255,7 +255,7 @@ def test_failed_attempts_exhaust_and_operator_rearm_uses_lifecycle(score_db, mon
     db.commit()
     assert operation.status == Status.PENDING and operation.attempt_count == 0
     assert operation.started_at is operation.dispatched_at is operation.completed_at is None
-    assert operation.last_error is operation.internal_error_code is operation.attempt_token is None
+    assert operation.failure_detail is operation.failure_code is operation.attempt_token is None
     assert service.recover_and_list_due(db) == [operation.operation_uuid]
 
 
@@ -482,7 +482,7 @@ def test_score_operation_list_and_summary_share_domain_failure_facts(
     operation.attempt_token = "current" if status == Status.PROCESSING else None
     operation.next_attempt_at = utc_now() + timedelta(hours=1 if future else -1)
     if status == Status.FAILED:
-        set_failure_metadata(
+        set_failure_facts(
             operation,
             DurableFailure(
                 "score_deletion_execution_failed",

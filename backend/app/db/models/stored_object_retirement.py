@@ -67,7 +67,7 @@ class StoredObjectRetirement(SQLModel, table=True):  # type: ignore[call-arg]
     dispatched_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     started_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     completed_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
-    last_error: str | None = Field(default=None, sa_column=Column(Text))
+    failure_detail: str | None = Field(default=None, sa_column=Column(Text))
     created_at: datetime = Field(
         default_factory=utc_now,
         sa_column=Column(DateTime(timezone=True), nullable=False, default=utc_now),

@@ -2,6 +2,7 @@
 
 import os
 import time
+from datetime import datetime
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, List, Optional
 from app.task_queue.protocols import CeleryTaskLike
@@ -93,7 +94,15 @@ class JobContext:
         """Return remaining task time in seconds."""
         return max(0, int(self._deadline - time.time()))
 
-    def status(self, state: str, msg: str, prog: int, **kw) -> None:
+    def status(
+        self,
+        state: str,
+        msg: str,
+        prog: int,
+        *,
+        current_step: str | None = None,
+        started_at: datetime | None = None,
+    ) -> None:
         """Persist and log task progress updates."""
         try:
             job_service.update_progress(
@@ -101,10 +110,8 @@ class JobContext:
                 self.lease,
                 state,
                 prog,
-                current_step=kw.get("current_step"),
-                code=kw.get("code"),
-                error=kw.get("error"),
-                started_at=kw.get("started_at"),
+                current_step=current_step,
+                started_at=started_at,
             )
         except StaleImportDispatchAttempt:
             raise
@@ -114,13 +121,13 @@ class JobContext:
                 job_id=self.job_id,
                 state=state,
                 progress=prog,
-                current_step=kw.get("current_step"),
+                current_step=current_step,
                 exception_type=type(exc).__name__,
             ).opt(exception=exc).error("Import pipeline progress update failed")
             self._recover_session()
 
         try:
-            step = kw.get("current_step")
+            step = current_step
             if step and self._tracker:
                 self._tracker.on_progress(step)
         except StaleImportDispatchAttempt:
@@ -129,7 +136,7 @@ class JobContext:
             logger.bind(
                 event="import_pipeline.tracker_progress_failed",
                 job_id=self.job_id,
-                current_step=kw.get("current_step"),
+                current_step=current_step,
                 exception_type=type(exc).__name__,
             ).opt(exception=exc).warning("Import pipeline tracker progress update failed")
 
@@ -139,8 +146,7 @@ class JobContext:
             state=state,
             status=msg,
             progress=prog,
-            current_step=kw.get("current_step"),
-            public_code=kw.get("code"),
+            current_step=current_step,
         ).info("Import pipeline progress updated")
 
     def _recover_session(self) -> None:

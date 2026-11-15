@@ -448,10 +448,6 @@ export type ImportJobRead = {
      */
     public_code?: string | null;
     /**
-     * Public Message
-     */
-    public_message?: string | null;
-    /**
      * Score Id
      */
     score_id?: string | null;
@@ -524,10 +520,6 @@ export type ImportJobStatusRead = {
      * Public Code
      */
     public_code?: string | null;
-    /**
-     * Public Message
-     */
-    public_message?: string | null;
     /**
      * Score Id
      */

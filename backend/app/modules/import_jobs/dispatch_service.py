@@ -33,12 +33,11 @@ from app.modules.durable_work.delivery import (
 from app.modules.durable_work.failure import (
     DurableFailure,
     DurableFailureClass,
-    set_failure_metadata,
-    clear_failure_metadata,
+    set_failure_facts,
+    clear_failure_facts,
 )
 from app.modules.import_jobs.schemas import ImportJobProcessingOptions
 from app.modules.import_jobs.notifications import admit_import_outcome
-from app.shared.constants import ErrorCode
 from app.shared.time import utc_now
 
 TERMINAL_IMPORT_STATES = {
@@ -144,7 +143,7 @@ class ImportDispatchService:
             return False
         if job.state != ImportJobState.PENDING or not self.lifecycle().dispatch(row, now=utc_now()):
             return False
-        clear_failure_metadata(row)
+        clear_failure_facts(row)
         return True
 
     def claim(self, db: Session, dispatch_uuid: str) -> ImportDispatchPayload | None:
@@ -190,7 +189,7 @@ class ImportDispatchService:
             return None
         claimed = lifecycle.claim(row, token=str(uuid4()), now=now)
         assert claimed
-        clear_failure_metadata(row)
+        clear_failure_facts(row)
         lease = ImportExecutionLease(
             dispatch_uuid=row.dispatch_uuid,
             job_uuid=job.job_uuid,
@@ -215,7 +214,7 @@ class ImportDispatchService:
         # Only an in-flight command can be reconciled with its durable domain outcome.
         if row.status in (ImportDispatchStatus.DISPATCHED, ImportDispatchStatus.PROCESSING):
             self.lifecycle().finish(row, status=ImportDispatchStatus.COMPLETED, error=None, now=now)
-            clear_failure_metadata(row)
+            clear_failure_facts(row)
 
     def complete(self, db: Session, lease: ImportExecutionLease) -> None:
         job = require_current_attempt(db, lease)
@@ -227,7 +226,7 @@ class ImportDispatchService:
         assert row is not None
         completed = self.lifecycle().complete_attempt(row, lease=lease, now=utc_now())
         assert completed
-        clear_failure_metadata(row)
+        clear_failure_facts(row)
 
     def release_dispatch(self, db: Session, dispatch_uuid: str, error: str) -> None:
         row = lock_dispatch(db, dispatch_uuid)
@@ -254,7 +253,7 @@ class ImportDispatchService:
                 continue
             if job.state in TERMINAL_IMPORT_STATES:
                 lifecycle.finish(row, status=ImportDispatchStatus.COMPLETED, error=None, now=now)
-                clear_failure_metadata(row)
+                clear_failure_facts(row)
             elif row.attempt_count >= lifecycle.policy.max_attempts:
                 self._exhaust(db, row, job, "Import worker delivery attempts exhausted", now)
             else:
@@ -286,9 +285,7 @@ class ImportDispatchService:
         job.progress = 0
         job.current_step = None
         job.started_at = job.last_heartbeat_at = job.finished_at = None
-        job.code = job.error = job.error_type = None
-        clear_failure_metadata(job)
-        job.internal_error_detail = None
+        clear_failure_facts(job)
         job.updated_at = now
         db.execute(delete(ImportJobStep).where(ImportJobStep.job_id == job.id))
 
@@ -305,20 +302,17 @@ class ImportDispatchService:
         ),
     ) -> None:
         self.lifecycle().exhaust(row, error=error, now=now)
-        set_failure_metadata(row, failure)
+        set_failure_facts(row, failure, detail=row.failure_detail)
         if job.state not in TERMINAL_IMPORT_STATES:
             job.state = ImportJobState.FAILURE
-            job.code = job.error = ErrorCode.FEATURE_TEMPORARILY_UNAVAILABLE
-            job.error_type = "ImportDispatchFailure"
             job.finished_at = job.updated_at = now
-            set_failure_metadata(job, failure)
-            job.internal_error_detail = error[:4000]
+            set_failure_facts(job, failure, detail=error)
             admit_import_outcome(db, job, created_at=now)
 
     @staticmethod
     def _record_failure(row: ImportDispatch, *, code: str) -> None:
         retryable = row.attempt_count < settings.IMPORT_DISPATCH_MAX_ATTEMPTS
-        set_failure_metadata(
+        set_failure_facts(
             row,
             DurableFailure(
                 code if retryable else "import_dispatch_attempts_exhausted",
@@ -326,6 +320,7 @@ class ImportDispatchService:
                 DurableFailureClass.TRANSIENT,
                 retryable,
             ),
+            detail=row.failure_detail,
         )
 
     def rearm_for_operator(self, db: Session, operation_id: str) -> str:
@@ -343,13 +338,13 @@ class ImportDispatchService:
                 ImportDispatchStatus.FAILED,
                 ImportDispatchStatus.COMPLETED,
             )
-            or (job.state != ImportJobState.FAILURE and dispatch.internal_error_code is None)
+            or (job.state != ImportJobState.FAILURE and dispatch.failure_code is None)
         ):
             raise ValidationException(field="status", details={"status": job.state.value})
         previous = f"{job.state.value}/{dispatch.status.value}"
         self.reset_execution(db, job, utc_now())
         self.lifecycle().rearm(dispatch, now=utc_now())
-        clear_failure_metadata(dispatch)
+        clear_failure_facts(dispatch)
         return previous
 
 

@@ -57,7 +57,6 @@ class ImportJobRead(ApiModel):
     started_at: Instant | None = None
     finished_at: Instant | None = None
     public_code: str | None = None
-    public_message: str | None = None
     execution_manifest_sha256: str | None = None
     original_images: list[ImportArtifactRead] = []
 
@@ -72,7 +71,6 @@ class ImportJobStatusRead(BaseModel):
     state: ImportJobState
     progress: int
     public_code: str | None = None
-    public_message: str | None = None
     score_id: str | None = None
 
 
@@ -84,7 +82,6 @@ class ImportJobStatusEntry(TypedDict):
     state: ImportJobState | str
     progress: int
     public_code: Optional[str]
-    public_message: Optional[str]
     score_id: Optional[str]
 
 
@@ -114,9 +111,6 @@ class BatchImportJobStatusRequest(BaseModel):
 
 class ImportJobStatusUpdate(TypedDict, total=False):
     current_step: Optional[str]
-    error: Optional[str]
-    error_type: Optional[str]
-    code: Optional[str]
     started_at: Optional[Instant]
 
 

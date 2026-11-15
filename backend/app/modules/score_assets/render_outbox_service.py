@@ -20,8 +20,8 @@ from app.db.models import (
 from app.modules.durable_work.failure import (
     DurableFailure,
     DurableFailureClass,
-    set_failure_metadata,
-    clear_failure_metadata,
+    set_failure_facts,
+    clear_failure_facts,
 )
 from app.modules.durable_work.delivery import (
     ClaimAdmission,
@@ -266,7 +266,7 @@ class RenderOutboxService:
                 reset_attempts=False,
                 now=utc_now(),
             )
-            clear_failure_metadata(outbox)
+            clear_failure_facts(outbox)
             logger.bind(
                 event="revision_derivative.superseded",
                 score_id=outbox.score_id,
@@ -294,7 +294,7 @@ class RenderOutboxService:
         lease = lifecycle.claim(outbox, token=str(uuid.uuid4()), now=utc_now())
         if lease is None:
             return None
-        clear_failure_metadata(outbox)
+        clear_failure_facts(outbox)
         return render_payloads.RenderOutboxPayload(
             **asdict(payload), lease=lease, max_attempts=lifecycle.policy.max_attempts
         )
@@ -310,7 +310,7 @@ class RenderOutboxService:
             _delivery_lifecycle().finish(
                 outbox, status=RenderOutboxStatus.COMPLETED, error=None, now=utc_now()
             )
-            clear_failure_metadata(outbox)
+            clear_failure_facts(outbox)
             return None
 
         if outbox.status == RenderOutboxStatus.COMPLETED:
@@ -323,11 +323,12 @@ class RenderOutboxService:
         _delivery_lifecycle().exhaust(
             outbox, error="Render outbox references unavailable resources", now=utc_now()
         )
-        set_failure_metadata(
+        set_failure_facts(
             outbox,
             DurableFailure(
                 "render_resources_unavailable", "render", DurableFailureClass.PERMANENT, False
             ),
+            detail=outbox.failure_detail,
         )
 
     def supersede(self, db: Session, outbox_uuid: str, *, lease: DeliveryAttemptLease) -> bool:
@@ -337,7 +338,7 @@ class RenderOutboxService:
         _delivery_lifecycle().reset(
             outbox, status=RenderOutboxStatus.SUPERSEDED, reset_attempts=False, now=utc_now()
         )
-        clear_failure_metadata(outbox)
+        clear_failure_facts(outbox)
         return True
 
     def complete(self, db: Session, outbox_uuid: str, *, lease: DeliveryAttemptLease) -> bool:
@@ -346,7 +347,7 @@ class RenderOutboxService:
             outbox, lease=lease, now=utc_now()
         ):
             return False
-        clear_failure_metadata(outbox)
+        clear_failure_facts(outbox)
         return True
 
     def fail(
@@ -374,7 +375,7 @@ class RenderOutboxService:
         outbox = self._get(db, outbox_uuid)
         if outbox is None or not _delivery_lifecycle().dispatch(outbox, now=utc_now()):
             return False
-        clear_failure_metadata(outbox)
+        clear_failure_facts(outbox)
         return True
 
     def release_dispatch(self, db: Session, outbox_uuid: str, error: str) -> None:
@@ -442,7 +443,7 @@ class RenderOutboxService:
         outbox: RenderOutbox, *, code: str, stage: str, classification: DurableFailureClass
     ) -> None:
         retryable = outbox.attempt_count < settings.RENDER_OUTBOX_MAX_ATTEMPTS
-        set_failure_metadata(
+        set_failure_facts(
             outbox,
             DurableFailure(
                 code if retryable else "render_attempts_exhausted",
@@ -450,6 +451,7 @@ class RenderOutboxService:
                 classification,
                 retryable,
             ),
+            detail=outbox.failure_detail,
         )
 
     def rearm_for_operator(self, db: Session, operation_id: str) -> str:
@@ -460,12 +462,12 @@ class RenderOutboxService:
             raise ResourceNotFoundException("async_operation", operation_id)
         if (
             outbox.status not in (RenderOutboxStatus.PENDING, RenderOutboxStatus.FAILED)
-            or outbox.internal_error_code is None
+            or outbox.failure_code is None
         ):
             raise ValidationException(field="status", details={"status": outbox.status.value})
         previous = outbox.status.value
         _delivery_lifecycle().rearm(outbox, now=utc_now())
-        clear_failure_metadata(outbox)
+        clear_failure_facts(outbox)
         return previous
 
     @staticmethod
@@ -483,7 +485,7 @@ render_outbox_service = RenderOutboxService()
 
 def rearm_revision_outbox(outbox: RenderOutbox) -> None:
     _delivery_lifecycle().rearm(outbox, now=utc_now())
-    clear_failure_metadata(outbox)
+    clear_failure_facts(outbox)
     logger.bind(
         event="revision_derivative.reactivated",
         score_id=outbox.score_id,

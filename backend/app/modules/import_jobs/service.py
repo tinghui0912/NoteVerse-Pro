@@ -17,7 +17,7 @@ from app.db.models import ImportJob, ImportJobUpload, StoredObject, Upload, User
 from app.db.models.import_job import ImportJobState
 from app.db.model_utils import require_persisted_id
 from app.modules.import_jobs.deletion_service import ImportJobDeletionService
-from app.modules.import_jobs.public_errors import public_import_job_error
+from app.modules.import_jobs.public_errors import public_import_job_error_code
 from app.modules.import_jobs.repository import ImportJobRepository
 from app.modules.import_jobs.schemas import (
     ImportJobRead,
@@ -142,12 +142,10 @@ class ImportJobService:
             job.job_uuid: {
                 "state": job.state,
                 "progress": job.progress,
-                "public_code": public_code,
-                "public_message": public_message,
+                "public_code": public_import_job_error_code(job),
                 "score_id": None,
             }
             for job in jobs
-            for public_code, public_message in [public_import_job_error(job)]
         }
 
     def delete(self, db: Session, job_uuid: str, user_id: int) -> None:

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.db.model_utils import require_persisted_id
 from app.db.models import ImportJob
-from .public_errors import public_import_job_error
+from .public_errors import public_import_job_error_code
 from .repository import ImportJobRepository
 from .schemas import ImportArtifactRead, ImportJobRead, processing_options_adapter
 
@@ -60,7 +60,6 @@ class ImportJobReadModel:
             options = processing_options_adapter.validate_python(
                 job.requested_options if job.requested_options is not None else {}
             )
-            public_code, public_message = public_import_job_error(job)
             result.append(
                 ImportJobRead(
                     job_id=job.job_uuid,
@@ -74,8 +73,7 @@ class ImportJobReadModel:
                     updated_at=job.updated_at,
                     started_at=job.started_at,
                     finished_at=job.finished_at,
-                    public_code=public_code,
-                    public_message=public_message,
+                    public_code=public_import_job_error_code(job),
                     execution_manifest_sha256=digests.get(job.execution_manifest_id)
                     if job.execution_manifest_id is not None
                     else None,

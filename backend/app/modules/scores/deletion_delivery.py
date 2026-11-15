@@ -18,8 +18,8 @@ from app.modules.durable_work.delivery import (
 from app.modules.durable_work.failure import (
     DurableFailure,
     DurableFailureClass,
-    set_failure_metadata,
-    clear_failure_metadata,
+    set_failure_facts,
+    clear_failure_facts,
 )
 from app.shared.time import utc_now
 
@@ -81,7 +81,7 @@ class ScoreDeletionDeliveryService:
         row = lock_operation(db, operation_uuid)
         if row is None or not self.lifecycle().dispatch(row, now=utc_now()):
             return False
-        clear_failure_metadata(row)
+        clear_failure_facts(row)
         return True
 
     def release_dispatch(self, db: Session, operation_uuid: str, error: str) -> bool:
@@ -114,7 +114,7 @@ class ScoreDeletionDeliveryService:
         claimed = lifecycle.claim(row, token=str(uuid4()), now=now)
         if claimed is None:
             return None
-        clear_failure_metadata(row)
+        clear_failure_facts(row)
         return ScoreDeletionLease(
             operation_uuid=row.operation_uuid,
             score_uuid=row.score_uuid,
@@ -131,7 +131,7 @@ class ScoreDeletionDeliveryService:
             return False
         if not self.lifecycle().complete_attempt(row, lease=lease, now=utc_now()):
             return False
-        clear_failure_metadata(row)
+        clear_failure_facts(row)
         return True
 
     def fail(self, db: Session, lease: ScoreDeletionLease, error: str) -> bool:
@@ -204,17 +204,17 @@ class ScoreDeletionDeliveryService:
         return previous
 
     def _rearm(self, row: ScoreDeletionOperation) -> None:
-        if row.status not in (Status.PENDING, Status.FAILED) or row.internal_error_code is None:
+        if row.status not in (Status.PENDING, Status.FAILED) or row.failure_code is None:
             raise ValidationException(field="status", details={"status": row.status.value})
         self.lifecycle().rearm(row, now=utc_now())
-        clear_failure_metadata(row)
+        clear_failure_facts(row)
 
     @staticmethod
     def _record_failure(
         row: ScoreDeletionOperation, *, code: str, stage: str, classification: DurableFailureClass
     ) -> None:
         retryable = row.attempt_count < settings.SCORE_DELETION_MAX_ATTEMPTS
-        set_failure_metadata(
+        set_failure_facts(
             row,
             DurableFailure(
                 code if retryable else "score_deletion_attempts_exhausted",
@@ -222,6 +222,7 @@ class ScoreDeletionDeliveryService:
                 classification,
                 retryable,
             ),
+            detail=row.failure_detail,
         )
 
 

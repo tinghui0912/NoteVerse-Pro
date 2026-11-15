@@ -140,7 +140,7 @@ def test_domain_delivery_persists_dispatch_claim_retry_and_success(delivery):
     service.release_dispatch(db, row.outbox_uuid, "broker" * 1000)
     assert row.status == statuses.pending
     assert row.attempt_count == 0 and row.dispatched_at is None
-    assert row.last_error == ("broker" * 1000)[:4000]
+    assert row.failure_detail == ("broker" * 1000)[:4000]
     assert service.mark_dispatched(db, row.outbox_uuid)
     payload = service.claim(db, row.outbox_uuid)
     assert payload.lease.attempt == row.attempt_count == 1
@@ -151,7 +151,7 @@ def test_domain_delivery_persists_dispatch_claim_retry_and_success(delivery):
     assert row.status == statuses.failed
     assert row.attempt_count == 1
     assert row.next_attempt_at == NOW + timedelta(seconds=60)
-    assert row.last_error == ("transient" * 1000)[:4000]
+    assert row.failure_detail == ("transient" * 1000)[:4000]
     assert not service.mark_dispatched(db, row.outbox_uuid)
     clock[0] += timedelta(seconds=60)
     assert service.mark_dispatched(db, row.outbox_uuid)
@@ -169,7 +169,7 @@ def test_domain_delivery_persists_dispatch_claim_retry_and_success(delivery):
     db.refresh(row)
     assert row.status == statuses.succeeded
     assert row.completed_at == clock[0] and row.updated_at == clock[0]
-    assert row.last_error is None
+    assert row.failure_detail is None
     assert service.claim(db, row.outbox_uuid) is None
 
 
@@ -191,4 +191,4 @@ def test_domain_lease_recovery_is_immediately_due_without_consuming_attempt(deli
     assert row.status == statuses.failed
     assert row.attempt_count == 2
     assert row.next_attempt_at == NOW and row.updated_at == NOW
-    assert row.last_error.endswith("lease expired")
+    assert row.failure_detail.endswith("lease expired")

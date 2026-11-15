@@ -72,8 +72,6 @@ def finish(db, lease, result):
         service.finalize_failure(
             db,
             lease,
-            "private provider exception",
-            "ProviderError",
             failure=DurableFailure(
                 "import_pipeline_failed", "pipeline", DurableFailureClass.SYSTEM_ERROR, False
             ),

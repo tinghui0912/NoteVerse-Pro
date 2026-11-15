@@ -728,17 +728,6 @@
             ],
             "title": "Public Code"
           },
-          "public_message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Public Message"
-          },
           "score_id": {
             "anyOf": [
               {
@@ -906,17 +895,6 @@
               }
             ],
             "title": "Public Code"
-          },
-          "public_message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Public Message"
           },
           "score_id": {
             "anyOf": [

@@ -20,8 +20,8 @@ from app.db.models import (
 from app.modules.durable_work.failure import (
     DurableFailure,
     DurableFailureClass,
-    set_failure_metadata,
-    clear_failure_metadata,
+    set_failure_facts,
+    clear_failure_facts,
 )
 from app.modules.durable_work.delivery import (
     ClaimAdmission,
@@ -184,7 +184,7 @@ class PlaybackOutboxService:
                 reset_attempts=False,
                 now=utc_now(),
             )
-            clear_failure_metadata(outbox)
+            clear_failure_facts(outbox)
             logger.bind(
                 event="revision_derivative.superseded",
                 score_id=outbox.score_id,
@@ -212,7 +212,7 @@ class PlaybackOutboxService:
         lease = lifecycle.claim(outbox, token=str(uuid.uuid4()), now=utc_now())
         if lease is None:
             return None
-        clear_failure_metadata(outbox)
+        clear_failure_facts(outbox)
         return PlaybackOutboxPayload(
             **asdict(payload), lease=lease, max_attempts=lifecycle.policy.max_attempts
         )
@@ -259,11 +259,12 @@ class PlaybackOutboxService:
             error="Playback outbox references unavailable or stale resources",
             now=utc_now(),
         )
-        set_failure_metadata(
+        set_failure_facts(
             outbox,
             DurableFailure(
                 "playback_resources_unavailable", "playback", DurableFailureClass.PERMANENT, False
             ),
+            detail=outbox.failure_detail,
         )
 
     def supersede(self, db: Session, outbox_uuid: str, *, lease: DeliveryAttemptLease) -> bool:
@@ -276,7 +277,7 @@ class PlaybackOutboxService:
             reset_attempts=False,
             now=utc_now(),
         )
-        clear_failure_metadata(outbox)
+        clear_failure_facts(outbox)
         return True
 
     def complete(self, db: Session, outbox_uuid: str, *, lease: DeliveryAttemptLease) -> bool:
@@ -285,7 +286,7 @@ class PlaybackOutboxService:
             outbox, lease=lease, now=utc_now()
         ):
             return False
-        clear_failure_metadata(outbox)
+        clear_failure_facts(outbox)
         return True
 
     def fail(
@@ -308,7 +309,7 @@ class PlaybackOutboxService:
         outbox = self._get(db, outbox_uuid)
         if outbox is None or not _delivery_lifecycle().dispatch(outbox, now=utc_now()):
             return False
-        clear_failure_metadata(outbox)
+        clear_failure_facts(outbox)
         return True
 
     def release_dispatch(self, db: Session, outbox_uuid: str, error: str) -> None:
@@ -376,7 +377,7 @@ class PlaybackOutboxService:
         outbox: PlaybackOutbox, *, code: str, stage: str, classification: DurableFailureClass
     ) -> None:
         retryable = outbox.attempt_count < settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS
-        set_failure_metadata(
+        set_failure_facts(
             outbox,
             DurableFailure(
                 code if retryable else "playback_attempts_exhausted",
@@ -384,6 +385,7 @@ class PlaybackOutboxService:
                 classification,
                 retryable,
             ),
+            detail=outbox.failure_detail,
         )
 
     def rearm_for_operator(self, db: Session, operation_id: str) -> str:
@@ -394,12 +396,12 @@ class PlaybackOutboxService:
             raise ResourceNotFoundException("async_operation", operation_id)
         if (
             outbox.status not in (PlaybackOutboxStatus.PENDING, PlaybackOutboxStatus.FAILED)
-            or outbox.internal_error_code is None
+            or outbox.failure_code is None
         ):
             raise ValidationException(field="status", details={"status": outbox.status.value})
         previous = outbox.status.value
         _delivery_lifecycle().rearm(outbox, now=utc_now())
-        clear_failure_metadata(outbox)
+        clear_failure_facts(outbox)
         return previous
 
     @staticmethod
@@ -417,7 +419,7 @@ playback_outbox_service = PlaybackOutboxService()
 
 def rearm_revision_outbox(outbox: PlaybackOutbox) -> None:
     _delivery_lifecycle().rearm(outbox, now=utc_now())
-    clear_failure_metadata(outbox)
+    clear_failure_facts(outbox)
     logger.bind(
         event="revision_derivative.reactivated",
         score_id=outbox.score_id,

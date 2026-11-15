@@ -24,6 +24,10 @@ def test_read_model_preserves_lifecycle_instants_and_emits_utc():
         user_id=1,
         state=ImportJobState.FAILURE,
         **dict.fromkeys(TIME_FIELDS, source),
+        failure_code="import_pipeline_failed",
+        failure_stage="pipeline",
+        failure_classification="system_error",
+        failure_retryable=False,
     )
     repository = Mock(spec=ImportJobRepository)
     repository.score_uuids.return_value = {}

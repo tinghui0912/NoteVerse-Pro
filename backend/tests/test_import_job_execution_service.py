@@ -11,18 +11,19 @@ from app.modules.import_jobs.dispatch_service import (
     StaleImportDispatchAttempt,
 )
 from app.modules.import_jobs.execution_service import ImportJobExecutionService
-from app.shared.constants import ErrorCode
 from app.modules.durable_work.failure import DurableFailure, DurableFailureClass
 
 
-def test_soft_time_limit_maps_to_task_timeout() -> None:
-    assert (
-        ImportJobExecutionService.get_error_code(SoftTimeLimitExceeded()) == ErrorCode.TASK_TIMEOUT
+def test_soft_time_limit_maps_to_pipeline_timeout() -> None:
+    assert ImportJobExecutionService.failure_for_exception(
+        SoftTimeLimitExceeded()
+    ) == DurableFailure("import_pipeline_timeout", "pipeline", DurableFailureClass.TRANSIENT, False)
+
+
+def test_pipeline_timeout_has_transient_terminal_facts() -> None:
+    assert ImportJobExecutionService.failure_for_exception(TimeoutException()) == DurableFailure(
+        "import_pipeline_timeout", "pipeline", DurableFailureClass.TRANSIENT, False
     )
-
-
-def test_pipeline_timeout_maps_to_task_timeout() -> None:
-    assert ImportJobExecutionService.get_error_code(TimeoutException()) == ErrorCode.TASK_TIMEOUT
 
 
 def test_pipeline_failure_is_persisted_and_reraised() -> None:
@@ -47,6 +48,9 @@ def test_pipeline_failure_is_persisted_and_reraised() -> None:
         yield next(databases)
 
     with (
+        patch.object(
+            service, "failure_for_exception", wraps=service.failure_for_exception
+        ) as mapper,
         patch("app.modules.import_jobs.execution_service.require_current_attempt"),
         patch("app.modules.import_jobs.execution_service.bind_import_job_execution_manifest"),
         patch(
@@ -68,12 +72,10 @@ def test_pipeline_failure_is_persisted_and_reraised() -> None:
     ):
         service.run_pipeline(task, lease, ["upload-id"])
 
+    mapper.assert_called_once_with(pipeline.run.side_effect)
     finalize_failure.assert_called_once_with(
         failure_db,
         lease,
-        error=ErrorCode.TASK_TIMEOUT,
-        error_type="TimeoutException",
-        code=ErrorCode.TASK_TIMEOUT,
         failure=DurableFailure(
             "import_pipeline_timeout", "pipeline", DurableFailureClass.TRANSIENT, False
         ),

@@ -171,6 +171,8 @@ class StructuredLogFieldPolicy:
             "enhanced",
             "environment",
             "error_code",
+            "failure_code",
+            "failure_classification",
             "evaluation_profile",
             "event",
             "event_type",

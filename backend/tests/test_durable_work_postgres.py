@@ -22,12 +22,43 @@ from app.db.models import (
 from app.modules.durable_work.failure import (
     DurableFailure,
     DurableFailureClass,
-    set_failure_metadata,
-    clear_failure_metadata,
+    set_failure_facts,
+    clear_failure_facts,
 )
 from app.modules.ops.query_service import OpsAsyncOperationQueryService
 from app.modules.ops.schemas import AsyncOperationKind
 from tests.support.postgres_schema import postgres_schema_database
+
+
+def test_import_terminal_state_requires_complete_failure_facts(monkeypatch):
+    with postgres_schema_database(monkeypatch) as (engine, config):
+        command.upgrade(config, "head")
+        with Session(engine) as db:
+            db.add(User(id=1, email="state@example.test", password_hash="hash"))
+            db.commit()
+            for state in ImportJobState:
+                for failed in (False, True):
+                    job = ImportJob(job_uuid=f"{state.value}-{failed}", user_id=1, state=state)
+                    if failed:
+                        set_failure_facts(
+                            job,
+                            DurableFailure(
+                                "import_pipeline_failed",
+                                "pipeline",
+                                DurableFailureClass.SYSTEM_ERROR,
+                                False,
+                            ),
+                        )
+                    db.add(job)
+                    if failed == (state == ImportJobState.FAILURE):
+                        db.commit()
+                        db.expire_all()
+                        assert job.state == state and job.failure_detail is None
+                        assert (job.failure_code is not None) is failed
+                    else:
+                        with pytest.raises(sa.exc.IntegrityError):
+                            db.commit()
+                        db.rollback()
 
 
 def test_persisted_failure_facts_are_complete_and_shared_by_ops_queries(monkeypatch):
@@ -75,17 +106,17 @@ def test_persisted_failure_facts_are_complete_and_shared_by_ops_queries(monkeypa
             rows = [job, dispatch, render, playback, mail, deletion]
             for row in rows:
                 for values in [
-                    {"internal_error_code": "failure"},
+                    {"failure_code": "failure"},
                     {
-                        "internal_error_code": "failure",
-                        "internal_error_stage": "execution",
-                        "internal_error_class": "transient",
+                        "failure_code": "failure",
+                        "failure_stage": "execution",
+                        "failure_classification": "transient",
                     },
                     {
-                        "internal_error_code": "failure",
-                        "internal_error_stage": "execution",
-                        "internal_error_class": "invalid",
-                        "internal_error_retryable": False,
+                        "failure_code": "failure",
+                        "failure_stage": "execution",
+                        "failure_classification": "invalid",
+                        "failure_retryable": False,
                     },
                 ]:
                     with pytest.raises(sa.exc.IntegrityError):
@@ -93,7 +124,9 @@ def test_persisted_failure_facts_are_complete_and_shared_by_ops_queries(monkeypa
                             db.execute(
                                 sa.update(type(row)).where(type(row).id == row.id).values(**values)
                             )
-                set_failure_metadata(
+                if row is job:
+                    continue
+                set_failure_facts(
                     row,
                     DurableFailure(
                         "domain_failure", "execution", DurableFailureClass.SYSTEM_ERROR, True
@@ -109,22 +142,23 @@ def test_persisted_failure_facts_are_complete_and_shared_by_ops_queries(monkeypa
             assert {item.status.value for item in page.items} == {"retrying"}
             assert {item.kind for item in page.items} == set(AsyncOperationKind)
             job.state = ImportJobState.FAILURE
-            set_failure_metadata(
+            set_failure_facts(
                 job,
                 DurableFailure(
                     "import_pipeline_failed", "pipeline", DurableFailureClass.SYSTEM_ERROR, False
                 ),
             )
-            job.internal_error_detail = "private bounded execution evidence"
+            job.failure_detail = "private bounded execution evidence"
             db.commit()
             operation = query.get_operation(
                 db, kind=AsyncOperationKind.IMPORT, operation_id=dispatch.dispatch_uuid
             )
             assert operation.status.value == "failed"
             assert operation.failure.code == "import_pipeline_failed"
-            assert operation.failure.detail == job.internal_error_detail
+            assert operation.failure.detail == job.failure_detail
             assert operation.failure.retryable is False
             for row in rows:
-                clear_failure_metadata(row)
+                clear_failure_facts(row)
+            job.state = ImportJobState.PENDING
             db.commit()
             assert query.summary(db, failure_class=DurableFailureClass.SYSTEM_ERROR).total == 0

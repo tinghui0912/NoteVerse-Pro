@@ -30,14 +30,6 @@ class ImportJobExecutionService:
         self.storage = storage or object_storage
 
     @staticmethod
-    def get_error_code(exception: Exception) -> str:
-        if isinstance(exception, SoftTimeLimitExceeded):
-            return ErrorCode.TASK_TIMEOUT
-        if isinstance(exception, PipelineException):
-            return exception.code
-        return ErrorCode.UNKNOWN_ERROR
-
-    @staticmethod
     def failure_for_exception(exception: Exception) -> DurableFailure:
         if isinstance(exception, SoftTimeLimitExceeded) or (
             isinstance(exception, PipelineException) and exception.code == ErrorCode.TASK_TIMEOUT
@@ -112,11 +104,12 @@ class ImportJobExecutionService:
         except StaleImportDispatchAttempt:
             raise
         except Exception as exc:
-            code = self.get_error_code(exc)
+            failure = self.failure_for_exception(exc)
             logger.bind(
                 event="import_job.pipeline_failed",
                 job_id=job_id,
-                public_code=code,
+                failure_code=failure.code,
+                failure_classification=failure.classification.value,
                 exception_type=type(exc).__name__,
             ).opt(exception=exc).error("Import job pipeline failed")
             try:
@@ -124,10 +117,7 @@ class ImportJobExecutionService:
                     import_job_execution_service.finalize_failure(
                         db,
                         lease,
-                        error=code,
-                        error_type=type(exc).__name__,
-                        code=code,
-                        failure=self.failure_for_exception(exc),
+                        failure=failure,
                         detail=str(exc),
                     )
                     db.commit()

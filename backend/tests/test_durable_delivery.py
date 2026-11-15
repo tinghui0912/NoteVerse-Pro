@@ -34,7 +34,7 @@ class Record:
     dispatched_at: datetime | None = None
     started_at: datetime | None = None
     completed_at: datetime | None = None
-    last_error: str | None = None
+    failure_detail: str | None = None
     updated_at: datetime = NOW - timedelta(days=1)
 
 
@@ -81,7 +81,7 @@ def test_dispatch_release_is_pending_without_consuming_attempt_and_truncates_err
         None,
         NOW,
     )
-    assert row.last_error == "x" * 4000
+    assert row.failure_detail == "x" * 4000
     before = asdict(row)
     assert not LIFECYCLE.release_dispatch(row, error="late broker response", now=NOW)
     assert asdict(row) == before
@@ -142,7 +142,7 @@ def test_retry_uses_current_one_based_attempt(attempt: int, seconds: int) -> Non
         attempt,
         NOW,
     )
-    assert row.last_error == "e" * 4000
+    assert row.failure_detail == "e" * 4000
     if attempt == 5:
         assert not LIFECYCLE.is_dispatchable(row, now=row.next_attempt_at)
 
@@ -161,10 +161,13 @@ def test_retry_respects_domain_delay_ceiling(attempt: int, seconds: int) -> None
 def test_completion_uses_domain_success_mapping(success: str) -> None:
     lifecycle = replace(LIFECYCLE, statuses=replace(LIFECYCLE.statuses, succeeded=success))
     row = Record(
-        status="PROCESSING", attempt_token="token", last_error="transient failure", attempt_count=2
+        status="PROCESSING",
+        attempt_token="token",
+        failure_detail="transient failure",
+        attempt_count=2,
     )
     lifecycle.complete_attempt(row, lease=DeliveryAttemptLease(attempt=2, token="token"), now=NOW)
-    assert (row.status, row.completed_at, row.last_error, row.updated_at) == (
+    assert (row.status, row.completed_at, row.failure_detail, row.updated_at) == (
         success,
         NOW,
         None,
@@ -190,7 +193,7 @@ def test_lease_cutoff_is_inclusive_and_recovery_is_immediately_due(
     recovered = LIFECYCLE.recover_lease(row, error="domain lease expired", now=NOW)
     assert recovered is (offset_us <= 0)
     if recovered:
-        assert (row.status, row.next_attempt_at, row.updated_at, row.last_error) == (
+        assert (row.status, row.next_attempt_at, row.updated_at, row.failure_detail) == (
             "FAILED",
             NOW,
             NOW,
@@ -245,7 +248,7 @@ def test_rearm_resets_common_fields_and_domain_reset_can_preserve_attempts() -> 
     row = Record(
         status="SUPERSEDED",
         attempt_count=4,
-        last_error="error",
+        failure_detail="error",
         dispatched_at=NOW,
         started_at=NOW,
         completed_at=NOW,
@@ -260,23 +263,33 @@ def test_rearm_resets_common_fields_and_domain_reset_can_preserve_attempts() -> 
 def test_domain_terminal_and_exhaustion_decisions_use_common_field_mechanics() -> None:
     row = Record(status="PROCESSING", attempt_token="token", attempt_count=1)
     LIFECYCLE.finish(row, status="EXPIRED", error="expiry detail", now=NOW)
-    assert (row.status, row.completed_at, row.updated_at, row.last_error) == (
+    assert (row.status, row.completed_at, row.updated_at, row.failure_detail) == (
         "EXPIRED",
         NOW,
         NOW,
         "expiry detail",
     )
     LIFECYCLE.exhaust(row, error="resource unavailable", now=NOW)
-    assert (row.status, row.attempt_count, row.last_error) == ("FAILED", 5, "resource unavailable")
+    assert (row.status, row.attempt_count, row.failure_detail) == (
+        "FAILED",
+        5,
+        "resource unavailable",
+    )
 
 
-def test_lifecycle_dependencies_are_standard_library_only() -> None:
-    path = Path(__file__).parents[1] / "app/modules/durable_work/delivery.py"
-    for node in ast.walk(ast.parse(path.read_text())):
-        if isinstance(node, ast.ImportFrom):
-            assert (node.module or "").split(".")[0] in sys.stdlib_module_names
-        elif isinstance(node, ast.Import):
-            assert all(alias.name.split(".")[0] in sys.stdlib_module_names for alias in node.names)
+def test_delivery_and_failure_primitives_have_only_pure_dependencies() -> None:
+    root = Path(__file__).parents[1] / "app/modules/durable_work"
+    for name in ("delivery.py", "failure.py"):
+        for node in ast.walk(ast.parse((root / name).read_text())):
+            if isinstance(node, ast.ImportFrom):
+                module = node.module or ""
+                assert module.split(".")[0] in sys.stdlib_module_names or (
+                    name == "delivery.py" and module == "app.modules.durable_work.failure"
+                )
+            elif isinstance(node, ast.Import):
+                assert all(
+                    alias.name.split(".")[0] in sys.stdlib_module_names for alias in node.names
+                )
 
 
 def test_claim_is_the_single_processing_entry_and_lease_is_immutable():

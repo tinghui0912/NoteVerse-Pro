@@ -96,9 +96,9 @@ Domain responsibilities remain explicit:
 
 Services own SQL predicates, row locks, maintenance ordering/batches and transactions.
 They supply immutable `DurableFailure(code, stage, classification, retryable)` facts
-and use `set_failure_metadata()` / `clear_failure_metadata()` after shared transitions.
-`durable_work/failure.py` only copies or clears these facts; classification comes from
-typed domain outcomes, never from exception text. The four metadata fields are all
+and use `set_failure_facts()` / `clear_failure_facts()` after shared transitions.
+`durable_work/failure.py` sets or clears these facts and bounds diagnostic detail; classification comes from
+typed domain outcomes, never from exception text. The four taxonomy fields are all
 null or all populated, with one of transient, permanent, user_error or system_error.
 `retryable` means automatic durable retry remains; manual operator rearm is a separate
 domain eligibility decision. Exhaustion records a domain attempts-exhausted code and
@@ -121,9 +121,10 @@ There is no universal delivery ORM or job runner. Broker publication uses the si
 Ops reads five kinds: import, render, playback, mail and score_deletion. Its canonical
 query-time UNION ALL projection normalizes queued, dispatched, processing, retrying,
 succeeded, failed and superseded. Automatic retry facts determine retrying regardless
-of due time. Terminal ImportJob failure supplies pipeline facts; active delivery uses
-ImportDispatch facts. ImportJob.internal_error_detail holds bounded operator-only
-exception evidence; customer code/error/error_type remain the public failure contract.
+of due time. Terminal ImportJob failure supplies domain facts; active delivery uses
+ImportDispatch facts. ImportJob.failure_detail holds bounded operator-only
+exception evidence. Customer Import responses expose only an explicit product-code
+projection as `public_code`; unknown causes have no invented public code.
 
 List filtering, stable ordering and pagination happen in SQL after this projection.
 Summary groups the same projection, and generic open/processing/completed-duration

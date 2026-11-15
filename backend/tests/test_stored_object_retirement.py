@@ -119,7 +119,7 @@ def test_fk_flush_precedes_physical_delete_and_completion(
         assert db.get(StoredObject, identity) is None
         operation = retirement_delivery.get(db, uuid)
         assert operation.status == "COMPLETED" and operation.stored_object_id is None
-        assert operation.completed_at is not None and operation.last_error is None
+        assert operation.completed_at is not None and operation.failure_detail is None
     assert not storage.exists("immutable/object")
 
 
@@ -294,6 +294,6 @@ def test_dispatch_commits_before_publish_and_rejection_releases_without_attempt(
         operation = retirement_delivery.get(db, uuid)
         assert operation.status == ("DISPATCHED" if broker_accepts else "PENDING")
         assert operation.attempt_count == 0
-        assert operation.last_error == (None if broker_accepts else "broker rejected")
+        assert operation.failure_detail == (None if broker_accepts else "broker rejected")
         if not broker_accepts:
             assert operation.dispatched_at is None

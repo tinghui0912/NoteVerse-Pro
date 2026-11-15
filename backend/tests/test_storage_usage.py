@@ -570,7 +570,7 @@ def test_score_deletion_execution_records_delivery_retry_on_failure(
     assert operation.status == ScoreDeletionOperationStatus.FAILED
     assert operation.attempt_count == 1
     assert operation.next_attempt_at > operation.started_at
-    assert operation.last_error == "object storage temporarily unavailable"
+    assert operation.failure_detail == "object storage temporarily unavailable"
 
 
 def test_score_delete_cleans_single_origin_import_job_storage(

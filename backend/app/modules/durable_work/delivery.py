@@ -11,15 +11,13 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Generic, Protocol, TypeVar
 
+from app.modules.durable_work.failure import bounded_failure_detail
+
 Status = TypeVar("Status")
 
 
 class StaleDeliveryAttempt(RuntimeError):
     """Execution no longer owns the authoritative durable attempt."""
-
-
-def _truncate_error(error: str | None) -> str | None:
-    return error[:4000] if error is not None else None
 
 
 class DeliveryRecord(Protocol[Status]):
@@ -30,7 +28,7 @@ class DeliveryRecord(Protocol[Status]):
     dispatched_at: datetime | None
     started_at: datetime | None
     completed_at: datetime | None
-    last_error: str | None
+    failure_detail: str | None
     updated_at: datetime
 
 
@@ -100,7 +98,7 @@ class DurableDeliveryLifecycle(Generic[Status]):
         record.status = self.statuses.pending
         record.attempt_token = None
         record.dispatched_at = None
-        record.last_error = _truncate_error(error)
+        record.failure_detail = bounded_failure_detail(error)
         record.updated_at = now
         return True
 
@@ -140,7 +138,7 @@ class DurableDeliveryLifecycle(Generic[Status]):
         record.status = self.statuses.failed
         record.attempt_token = None
         record.next_attempt_at = now + timedelta(seconds=delay)
-        record.last_error = _truncate_error(error)
+        record.failure_detail = bounded_failure_detail(error)
         record.updated_at = now
 
     def finish(
@@ -152,7 +150,7 @@ class DurableDeliveryLifecycle(Generic[Status]):
         record.status = status
         record.attempt_token = None
         record.completed_at = now
-        record.last_error = _truncate_error(error)
+        record.failure_detail = bounded_failure_detail(error)
         record.updated_at = now
 
     def attempt_matches(self, record: DeliveryRecord[Status], lease: DeliveryAttemptLease) -> bool:
@@ -212,7 +210,7 @@ class DurableDeliveryLifecycle(Generic[Status]):
         record.status = self.statuses.failed
         record.attempt_token = None
         record.next_attempt_at = now
-        record.last_error = _truncate_error(error)
+        record.failure_detail = bounded_failure_detail(error)
         record.updated_at = now
         return True
 
@@ -229,7 +227,7 @@ class DurableDeliveryLifecycle(Generic[Status]):
         record.dispatched_at = None
         record.started_at = None
         record.completed_at = None
-        record.last_error = None
+        record.failure_detail = None
         record.updated_at = now
 
     def rearm(self, record: DeliveryRecord[Status], *, now: datetime) -> None:
@@ -239,5 +237,5 @@ class DurableDeliveryLifecycle(Generic[Status]):
         record.status = self.statuses.failed
         record.attempt_token = None
         record.attempt_count = self.policy.max_attempts
-        record.last_error = _truncate_error(error)
+        record.failure_detail = bounded_failure_detail(error)
         record.updated_at = now

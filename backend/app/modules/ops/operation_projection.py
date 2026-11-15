@@ -21,7 +21,7 @@ def _delivery_status(c, *, succeeded="COMPLETED"):
         (status == "SUPERSEDED", "superseded"),
         (status == "PROCESSING", "processing"),
         (status == "DISPATCHED", "dispatched"),
-        (c.internal_error_retryable.is_(True), "retrying"),
+        (c.failure_retryable.is_(True), "retrying"),
         (status.in_(["FAILED", "PERMANENT_FAILURE", "EXPIRED"]), "failed"),
         else_="queued",
     )
@@ -41,11 +41,11 @@ def _delivery_projection(
         c.attempt_count.label("attempts"),
         literal(max_attempts).label("max_attempts"),
         c.next_attempt_at,
-        c.internal_error_code.label("failure_code"),
-        c.internal_error_stage.label("failure_stage"),
-        c.internal_error_class.label("failure_class"),
-        c.internal_error_retryable.label("failure_retryable"),
-        c.last_error.label("failure_detail"),
+        c.failure_code.label("failure_code"),
+        c.failure_stage.label("failure_stage"),
+        c.failure_classification.label("failure_class"),
+        c.failure_retryable.label("failure_retryable"),
+        c.failure_detail.label("failure_detail"),
         c.created_at,
         c.updated_at,
         c.started_at,
@@ -63,9 +63,7 @@ def _import_projection():
     )
 
     def failure(name):
-        return case(
-            (terminal_failure, j["internal_error_" + name]), else_=d["internal_error_" + name]
-        )
+        return case((terminal_failure, j["failure_" + name]), else_=d["failure_" + name])
 
     return select(
         d.dispatch_uuid.label("operation_id"),
@@ -79,11 +77,9 @@ def _import_projection():
         d.next_attempt_at,
         failure("code").label("failure_code"),
         failure("stage").label("failure_stage"),
-        failure("class").label("failure_class"),
+        failure("classification").label("failure_class"),
         failure("retryable").label("failure_retryable"),
-        case((terminal_failure, j.internal_error_detail), else_=d.last_error).label(
-            "failure_detail"
-        ),
+        case((terminal_failure, j.failure_detail), else_=d.failure_detail).label("failure_detail"),
         d.created_at,
         case((j.updated_at > d.updated_at, j.updated_at), else_=d.updated_at).label("updated_at"),
         func.coalesce(j.started_at, d.started_at).label("started_at"),

@@ -50,8 +50,12 @@ class ImportJob(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "import_jobs"
     __table_args__ = (
         CheckConstraint(
-            "((internal_error_code IS NULL AND internal_error_stage IS NULL AND internal_error_class IS NULL AND internal_error_retryable IS NULL) OR (internal_error_code IS NOT NULL AND internal_error_stage IS NOT NULL AND internal_error_class IS NOT NULL AND internal_error_retryable IS NOT NULL AND internal_error_class IN ('transient', 'permanent', 'user_error', 'system_error')))",
-            name="ck_import_jobs_failure_metadata",
+            "((failure_code IS NULL AND failure_stage IS NULL AND failure_classification IS NULL AND failure_retryable IS NULL) OR (failure_code IS NOT NULL AND failure_stage IS NOT NULL AND failure_classification IS NOT NULL AND failure_retryable IS NOT NULL AND failure_classification IN ('transient', 'permanent', 'user_error', 'system_error')))",
+            name="ck_import_jobs_failure_facts",
+        ),
+        CheckConstraint(
+            "(state = 'FAILURE' AND failure_code IS NOT NULL AND failure_stage IS NOT NULL AND failure_classification IS NOT NULL AND failure_retryable IS NOT NULL) OR (state <> 'FAILURE' AND failure_code IS NULL AND failure_stage IS NULL AND failure_classification IS NULL AND failure_retryable IS NULL)",
+            name="ck_import_jobs_state_failure",
         ),
         UniqueConstraint(
             "user_id",
@@ -85,14 +89,11 @@ class ImportJob(SQLModel, table=True):  # type: ignore[call-arg]
         default=None,
         sa_column=Column(BigInteger, ForeignKey("execution_manifests.id"), index=True),
     )
-    internal_error_code: Optional[str] = Field(default=None, sa_column=Column(String(128)))
-    internal_error_stage: Optional[str] = Field(default=None, sa_column=Column(String(64)))
-    internal_error_class: Optional[str] = Field(default=None, sa_column=Column(String(32)))
-    internal_error_retryable: Optional[bool] = Field(default=None, sa_column=Column(Boolean))
-    internal_error_detail: Optional[str] = Field(default=None, sa_column=Column(Text))
-    code: Optional[str] = Field(default=None, sa_column=Column(String(64)))
-    error: Optional[str] = Field(default=None, sa_column=Column(Text))
-    error_type: Optional[str] = Field(default=None, sa_column=Column(String(64)))
+    failure_code: Optional[str] = Field(default=None, sa_column=Column(String(128)))
+    failure_stage: Optional[str] = Field(default=None, sa_column=Column(String(64)))
+    failure_classification: Optional[str] = Field(default=None, sa_column=Column(String(32)))
+    failure_retryable: Optional[bool] = Field(default=None, sa_column=Column(Boolean))
+    failure_detail: Optional[str] = Field(default=None, sa_column=Column(Text))
     requested_at: Optional[datetime] = Field(
         default=None, sa_column=Column(DateTime(timezone=True))
     )

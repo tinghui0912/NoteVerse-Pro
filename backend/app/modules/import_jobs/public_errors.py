@@ -1,31 +1,26 @@
-from __future__ import annotations
+"""Customer product failure codes projected from canonical Import failure facts."""
 
 from typing import Protocol
 
 from app.shared.constants import ErrorCode
 
 
-class ImportJobFailureLike(Protocol):
-    code: str | None
-    error: str | None
+class ImportFailureFacts(Protocol):
+    failure_code: str | None
+    failure_stage: str | None
 
 
-PUBLIC_IMPORT_JOB_ERROR_CODES = {
-    ErrorCode.FEATURE_TEMPORARILY_UNAVAILABLE,
-    ErrorCode.INPUT_FILE_MISSING,
-    ErrorCode.JOB_NOT_FOUND,
-    ErrorCode.JOB_RUNNING,
-    ErrorCode.NO_UPLOAD_IDS,
-    ErrorCode.SCORE_RECOGNITION_FAILED,
-    ErrorCode.STORAGE_QUOTA_EXCEEDED,
-    ErrorCode.TASK_ERROR,
-    ErrorCode.TASK_TIMEOUT,
+PUBLIC_IMPORT_FAILURE_CODES = {
+    ("import_pipeline_timeout", "pipeline"): ErrorCode.TASK_TIMEOUT,
+    ("import_inputs_unavailable", "pipeline"): ErrorCode.INPUT_FILE_MISSING,
+    ("import_pipeline_rejected", "pipeline"): ErrorCode.SCORE_RECOGNITION_FAILED,
+    ("import_pipeline_failed", "pipeline"): ErrorCode.TASK_ERROR,
+    ("import_dispatch_attempts_exhausted", "dispatch"): ErrorCode.FEATURE_TEMPORARILY_UNAVAILABLE,
+    ("import_inputs_unavailable", "dispatch"): ErrorCode.FEATURE_TEMPORARILY_UNAVAILABLE,
 }
 
 
-def public_import_job_error(job: ImportJobFailureLike) -> tuple[str | None, str | None]:
-    if job.code in PUBLIC_IMPORT_JOB_ERROR_CODES:
-        return job.code, job.code
-    if job.error:
-        return ErrorCode.TASK_ERROR, ErrorCode.TASK_ERROR
-    return None, None
+def public_import_job_error_code(job: ImportFailureFacts) -> str | None:
+    if job.failure_code is None or job.failure_stage is None:
+        return None
+    return PUBLIC_IMPORT_FAILURE_CODES.get((job.failure_code, job.failure_stage))

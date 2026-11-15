@@ -26,8 +26,8 @@ from app.modules.durable_work.delivery import DeliveryAttemptLease
 from app.modules.durable_work.failure import (
     DurableFailure,
     DurableFailureClass,
-    set_failure_metadata,
-    clear_failure_metadata,
+    set_failure_facts,
+    clear_failure_facts,
 )
 from app.modules.import_jobs.execution_service import ImportJobExecutionService
 from app.modules.score_assets.render_outbox_service import RenderOutboxService
@@ -35,6 +35,16 @@ from app.modules.playback.outbox_service import PlaybackOutboxService
 from app.modules.mail.outbox_service import MailOutboxService
 from app.modules.scores.deletion_delivery import ScoreDeletionDeliveryService, ScoreDeletionLease
 from app.shared.time import utc_now
+
+
+def failure_facts(record):
+    return (
+        record.failure_code,
+        record.failure_stage,
+        record.failure_classification,
+        record.failure_retryable,
+        record.failure_detail,
+    )
 
 
 @pytest.mark.parametrize(
@@ -92,15 +102,15 @@ def test_derivative_execution_failure_is_explicit_and_attempt_fenced(
     owner._get = Mock(return_value=row)
     lease = DeliveryAttemptLease(attempt=row.attempt_count, token="current")
     assert owner.fail(Mock(), "operation", message, lease=lease)
-    assert row.internal_error_code == (
+    assert row.failure_code == (
         kind + "_attempts_exhausted" if exhausted else kind + "_execution_failed"
     )
-    assert row.internal_error_class == "system_error"
-    assert row.internal_error_retryable is (not exhausted)
-    assert row.last_error == message
-    facts = (row.internal_error_code, row.internal_error_class, row.status)
+    assert row.failure_classification == "system_error"
+    assert row.failure_retryable is (not exhausted)
+    assert row.failure_detail == message
+    facts = (failure_facts(row), row.status)
     assert not owner.fail(Mock(), "operation", "late timeout", lease=lease)
-    assert (row.internal_error_code, row.internal_error_class, row.status) == facts
+    assert (failure_facts(row), row.status) == facts
 
 
 @pytest.mark.parametrize(
@@ -128,11 +138,20 @@ def test_mail_provider_outcome_owns_failure_taxonomy(method, code, classificatio
         "timeout unsupported storage",
         lease=DeliveryAttemptLease(attempt=row.attempt_count, token="current"),
     )
-    assert row.internal_error_class == classification
-    assert row.internal_error_code == (
+    assert row.failure_classification == classification
+    assert row.failure_code == (
         "mail_attempts_exhausted" if exhausted and method != "permanent_failure" else code
     )
-    assert row.internal_error_retryable is (not exhausted and method != "permanent_failure")
+    assert row.failure_retryable is (not exhausted and method != "permanent_failure")
+    assert row.failure_stage == "delivery" and row.failure_detail == "timeout unsupported storage"
+    facts = failure_facts(row)
+    assert not getattr(owner, method)(
+        Mock(),
+        "operation",
+        "late evidence",
+        lease=DeliveryAttemptLease(attempt=row.attempt_count, token="current"),
+    )
+    assert failure_facts(row) == facts
 
 
 def test_score_deletion_failure_records_system_class_and_terminal_exhaustion(monkeypatch):
@@ -148,29 +167,35 @@ def test_score_deletion_failure_records_system_class_and_terminal_exhaustion(mon
         operation_uuid="operation", score_uuid="score", attempt=row.attempt_count, token="current"
     )
     assert ScoreDeletionDeliveryService().fail(Mock(), lease, "timeout unavailable unsupported")
-    assert row.internal_error_code == "score_deletion_attempts_exhausted"
-    assert row.internal_error_class == "system_error"
-    assert row.internal_error_retryable is False
+    assert row.failure_code == "score_deletion_attempts_exhausted"
+    assert row.failure_classification == "system_error"
+    assert row.failure_retryable is False
+    assert row.failure_detail == "timeout unavailable unsupported"
+    facts = failure_facts(row)
+    assert not ScoreDeletionDeliveryService().fail(Mock(), lease, "late evidence")
+    assert failure_facts(row) == facts
 
 
-def test_failure_metadata_copies_and_clears_exact_facts():
+def test_failure_facts_copies_and_clears_exact_facts():
     row = Mock()
     failure = DurableFailure(
         "render_execution_failed", "render", DurableFailureClass.SYSTEM_ERROR, True
     )
-    set_failure_metadata(row, failure)
+    set_failure_facts(row, failure, detail="provider evidence" * 1000)
+    assert row.failure_detail == ("provider evidence" * 1000)[:4000]
     assert (
-        row.internal_error_code,
-        row.internal_error_stage,
-        row.internal_error_class,
-        row.internal_error_retryable,
+        row.failure_code,
+        row.failure_stage,
+        row.failure_classification,
+        row.failure_retryable,
     ) == (failure.code, failure.stage, failure.classification, True)
-    clear_failure_metadata(row)
+    clear_failure_facts(row)
     assert (
-        row.internal_error_code
-        is row.internal_error_stage
-        is row.internal_error_class
-        is row.internal_error_retryable
+        row.failure_code
+        is row.failure_stage
+        is row.failure_classification
+        is row.failure_retryable
+        is row.failure_detail
         is None
     )
 
@@ -209,11 +234,11 @@ def test_derivative_lease_recovery_records_exact_cause_and_retry_capacity(
     db = Mock()
     db.execute.return_value.scalars.return_value.all.side_effect = [[row], []]
     service().recover_and_list_due(db)
-    assert row.internal_error_code == (
+    assert row.failure_code == (
         kind + "_attempts_exhausted" if exhausted else kind + "_delivery_lease_expired"
     )
-    assert row.internal_error_class == "transient"
-    assert row.internal_error_retryable is (not exhausted)
+    assert row.failure_classification == "transient"
+    assert row.failure_retryable is (not exhausted)
     assert row.attempt_token is None
 
 
@@ -251,9 +276,9 @@ def test_broker_rejection_records_dispatch_failure_without_consuming_attempt(
     owner._get = Mock(return_value=row)
     owner.release_dispatch(Mock(), "operation", "unsupported timeout provider")
     assert row.attempt_count == 1 and row.status == status.PENDING
-    assert row.internal_error_code == kind + "_dispatch_failed"
-    assert row.internal_error_stage == "dispatch"
-    assert row.internal_error_class == "transient" and row.internal_error_retryable is True
+    assert row.failure_code == kind + "_dispatch_failed"
+    assert row.failure_stage == "dispatch"
+    assert row.failure_classification == "transient" and row.failure_retryable is True
 
 
 @pytest.mark.parametrize(
@@ -266,8 +291,8 @@ def test_broker_rejection_records_dispatch_failure_without_consuming_attempt(
 def test_unavailable_derivative_input_is_permanent(kind, model, service):
     row = model()
     service()._exhaust_unavailable_resources(row)
-    assert row.internal_error_code == kind + "_resources_unavailable"
-    assert row.internal_error_class == "permanent" and row.internal_error_retryable is False
+    assert row.failure_code == kind + "_resources_unavailable"
+    assert row.failure_classification == "permanent" and row.failure_retryable is False
 
 
 @pytest.mark.parametrize(
@@ -290,10 +315,10 @@ def test_mail_admission_records_non_retryable_failure(cause, code, classificatio
     db = Mock()
     db.execute.return_value.scalar_one_or_none.return_value = row
     assert MailOutboxService().claim(db, "operation") is None
-    assert row.internal_error_code == code
-    assert row.internal_error_stage == "delivery"
-    assert row.internal_error_class == classification
-    assert row.internal_error_retryable is False
+    assert row.failure_code == code
+    assert row.failure_stage == "delivery"
+    assert row.failure_classification == classification
+    assert row.failure_retryable is False
 
 
 @pytest.mark.parametrize("exhausted", [False, True])
@@ -310,11 +335,11 @@ def test_mail_lease_recovery_preserves_transient_cause_until_attempts_exhausted(
     db = Mock()
     db.execute.return_value.scalars.return_value.all.side_effect = [[row], [], []]
     MailOutboxService().recover_and_list_due(db)
-    assert row.internal_error_code == (
+    assert row.failure_code == (
         "mail_attempts_exhausted" if exhausted else "mail_delivery_lease_expired"
     )
-    assert row.internal_error_class == "transient"
-    assert row.internal_error_retryable is (not exhausted)
+    assert row.failure_classification == "transient"
+    assert row.failure_retryable is (not exhausted)
     assert row.attempt_token is None
 
 
@@ -331,11 +356,11 @@ def test_score_deletion_lease_recovery_owns_retry_capacity(exhausted):
     db = Mock()
     db.scalars.return_value.all.return_value = [row]
     ScoreDeletionDeliveryService().recover_and_list_due(db)
-    assert row.internal_error_code == (
+    assert row.failure_code == (
         "score_deletion_attempts_exhausted" if exhausted else "score_deletion_lease_expired"
     )
-    assert row.internal_error_class == "transient"
-    assert row.internal_error_retryable is (not exhausted)
+    assert row.failure_classification == "transient"
+    assert row.failure_retryable is (not exhausted)
     assert row.attempt_token is None
 
 
@@ -355,7 +380,7 @@ def test_healthy_queued_delivery_rejects_operator_rearm(model, service):
     owner._get = Mock(return_value=row)
     with pytest.raises(ValidationException):
         owner.rearm_for_operator(Mock(), "operation")
-    assert row.attempt_count == 0 and row.internal_error_code is None
+    assert row.attempt_count == 0 and row.failure_code is None
 
 
 @pytest.mark.parametrize("kind", ["import", "render", "playback", "mail", "score_deletion"])
@@ -393,10 +418,10 @@ def test_import_broker_rejection_records_delivery_facts_without_mutating_job(mon
     ImportDispatchService().release_dispatch(Mock(), "operation", "timeout storage unsupported")
     assert row.status == ImportDispatchStatus.PENDING and row.attempt_count == 0
     assert (
-        row.internal_error_code,
-        row.internal_error_stage,
-        row.internal_error_class,
-        row.internal_error_retryable,
+        row.failure_code,
+        row.failure_stage,
+        row.failure_classification,
+        row.failure_retryable,
     ) == ("import_dispatch_failed", "dispatch", "transient", True)
 
 
@@ -408,8 +433,8 @@ def test_score_deletion_broker_rejection_records_dispatch_facts(monkeypatch):
     )
     assert row.status == ScoreDeletionOperationStatus.PENDING and row.attempt_count == 0
     assert (
-        row.internal_error_code,
-        row.internal_error_stage,
-        row.internal_error_class,
-        row.internal_error_retryable,
+        row.failure_code,
+        row.failure_stage,
+        row.failure_classification,
+        row.failure_retryable,
     ) == ("score_deletion_dispatch_failed", "dispatch", "transient", True)

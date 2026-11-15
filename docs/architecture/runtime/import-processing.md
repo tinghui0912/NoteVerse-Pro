@@ -75,6 +75,22 @@ partwise representation, materializes explicit tempo facts and validates the exa
 stored bytes with canonical written semantics. Pipeline artifact recording remains
 independent of downstream Practice and metadata projection support.
 
+## Failure facts and Customer projection
+
+ImportJob terminal failures own `failure_code`, `failure_stage`,
+`failure_classification`, `failure_retryable` and optional `failure_detail`.
+The four taxonomy facts are complete in FAILURE and absent in every other state.
+ImportDispatch independently owns delivery failures and retry/lease decisions.
+The execution owner maps each pipeline exception once to DurableFailure;
+finalization records those facts with at most 4000 diagnostic characters.
+
+Ops projects the terminal Job failure or the nonterminal Dispatch failure.
+Customer responses expose only `public_code`, explicitly mapped from the canonical
+code and stage. Unmapped failures have no public code. The browser localizes known
+product codes and uses the Import failed copy otherwise; diagnostic detail stays
+inside operator/engineering boundaries. Shared delivery records use the same typed
+failure-facts helpers, and callers continue to own their transactions.
+
 ## Import-owned review and confirmation
 
 `app.modules.import_jobs.review` owns ImportReviewService, its read model, temporary

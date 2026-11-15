@@ -123,12 +123,15 @@ def complete_jobs(db, count=1):
             score_id=1,
             execution_manifest_id=1,
             requested_options={"title": "Submitted title", "genres": ["jazz", "classical", "jazz"]},
-            code=ErrorCode.SCORE_RECOGNITION_FAILED,
-            error="internal pipeline detail",
             created_at=NOW,
             updated_at=NOW,
             started_at=NOW,
             finished_at=NOW,
+            failure_code="import_pipeline_rejected",
+            failure_stage="pipeline",
+            failure_classification="user_error",
+            failure_retryable=False,
+            failure_detail="internal pipeline detail",
         )
         for index in range(count)
     ]
@@ -199,7 +202,7 @@ def test_list_and_detail_share_the_complete_current_projection(application_db):
     assert value["title"] == "Submitted title" and value["genres"] == ["classical", "jazz"]
     assert value["state"] == "FAILURE" and value["progress"] == 70
     assert value["execution_manifest_sha256"] == manifest_sha256(MANIFEST)
-    assert value["public_code"] == value["public_message"] == ErrorCode.SCORE_RECOGNITION_FAILED
+    assert value["public_code"] == ErrorCode.SCORE_RECOGNITION_FAILED
     for name in ["created_at", "updated_at", "started_at", "finished_at"]:
         instant = datetime.fromisoformat(value[name])
         assert instant == NOW and instant.utcoffset().total_seconds() == 0
@@ -369,7 +372,15 @@ async def test_http_list_detail_submit_retry_use_only_injected_session(applicati
 @pytest.mark.asyncio
 async def test_http_owned_job_authorization_precedes_projection_and_mutation(application_db):
     db = application_db
-    other = ImportJob(job_uuid="other-job", user_id=2, state=ImportJobState.FAILURE)
+    other = ImportJob(
+        job_uuid="other-job",
+        user_id=2,
+        state=ImportJobState.FAILURE,
+        failure_code="import_pipeline_failed",
+        failure_stage="pipeline",
+        failure_classification="system_error",
+        failure_retryable=False,
+    )
     db.add(other)
     db.flush()
     db.add(ImportDispatch(job_id=other.id, status=ImportDispatchStatus.COMPLETED, completed_at=NOW))

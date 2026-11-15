@@ -12,7 +12,6 @@ import pytest
 
 from app.db.models.import_job import ImportJobState, ImportJobStepStatus
 from app.modules.import_jobs.worker_service import ImportJobExecutionService
-from app.shared.constants import ErrorCode
 
 
 LEASE = ImportExecutionLease(dispatch_uuid="dispatch-1", job_uuid="job-1", attempt=2, token="token")
@@ -34,18 +33,16 @@ def _job(*, state: ImportJobState = ImportJobState.RUNNING) -> SimpleNamespace:
         state=state,
         progress=10,
         current_step="queued",
-        code=None,
-        error=None,
-        error_type=None,
         started_at=None,
         last_heartbeat_at=None,
         finished_at=None,
         updated_at=None,
         requested_options={"title": "Imported score"},
-        internal_error_code="old-code",
-        internal_error_stage="old-stage",
-        internal_error_class="system_error",
-        internal_error_retryable=False,
+        failure_code="import_pipeline_failed" if state == ImportJobState.FAILURE else None,
+        failure_stage="pipeline" if state == ImportJobState.FAILURE else None,
+        failure_classification="system_error" if state == ImportJobState.FAILURE else None,
+        failure_retryable=False if state == ImportJobState.FAILURE else None,
+        failure_detail=None,
     )
 
 
@@ -83,16 +80,22 @@ def test_update_progress_records_state_and_preserves_existing_started_time() -> 
         ImportJobState.RUNNING,
         60,
         current_step="ocr",
-        code="processing",
         started_at=started_at,
     )
 
     assert job.state == ImportJobState.RUNNING
     assert job.progress == 60
     assert job.current_step == "ocr"
-    assert job.code == "processing"
     assert job.started_at == started_at
     assert job.last_heartbeat_at is not None
+    assert (
+        job.failure_code
+        is job.failure_stage
+        is job.failure_classification
+        is job.failure_retryable
+        is job.failure_detail
+        is None
+    )
     assert database.commit.call_count == 1
 
     service.update_progress(database, LEASE, "RUNNING", 70, started_at=started_at)
@@ -119,10 +122,11 @@ def test_finalize_success_marks_job_ready_and_admits_terminal_consequences() -> 
     assert job.state == ImportJobState.PENDING_REVIEW
     assert job.progress == 100
     assert job.finished_at is not None
-    assert job.internal_error_code is None
-    assert job.internal_error_stage is None
-    assert job.internal_error_class is None
-    assert job.internal_error_retryable is None
+    assert job.failure_code is None
+    assert job.failure_stage is None
+    assert job.failure_classification is None
+    assert job.failure_retryable is None
+    assert job.failure_detail is None
     admission.assert_called_once_with(database, job, created_at=job.finished_at)
     database.commit.assert_called_once()
 
@@ -135,9 +139,6 @@ def test_finalize_failure_records_bounded_internal_evidence_and_terminal_consequ
     service.finalize_failure(
         database,
         LEASE,
-        error="worker timeout while processing image",
-        error_type="TimeoutError",
-        code=ErrorCode.TASK_TIMEOUT,
         failure=DurableFailure(
             "import_pipeline_failed", "pipeline", DurableFailureClass.SYSTEM_ERROR, False
         ),
@@ -146,12 +147,9 @@ def test_finalize_failure_records_bounded_internal_evidence_and_terminal_consequ
 
     assert job.state == ImportJobState.FAILURE
     assert job.progress == 0
-    assert job.error == "worker timeout while processing image"
-    assert job.error_type == "TimeoutError"
-    assert job.code == ErrorCode.TASK_TIMEOUT
-    assert job.internal_error_detail == ("private provider evidence " * 300)[:4000]
-    assert job.internal_error_class == "system_error"
-    assert job.internal_error_retryable is False
+    assert job.failure_detail == ("private provider evidence " * 300)[:4000]
+    assert job.failure_classification == "system_error"
+    assert job.failure_retryable is False
     admission.assert_called_once_with(database, job, created_at=job.finished_at)
     database.commit.assert_called_once()
 
@@ -165,8 +163,6 @@ def test_terminal_updates_reject_stale_execution() -> None:
         service.finalize_failure(
             database,
             LEASE,
-            error="timeout",
-            error_type="TimeoutError",
             failure=DurableFailure(
                 "import_pipeline_failed", "pipeline", DurableFailureClass.SYSTEM_ERROR, False
             ),

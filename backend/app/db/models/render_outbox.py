@@ -44,8 +44,8 @@ class RenderOutbox(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "render_outbox"
     __table_args__ = (
         CheckConstraint(
-            "((internal_error_code IS NULL AND internal_error_stage IS NULL AND internal_error_class IS NULL AND internal_error_retryable IS NULL) OR (internal_error_code IS NOT NULL AND internal_error_stage IS NOT NULL AND internal_error_class IS NOT NULL AND internal_error_retryable IS NOT NULL AND internal_error_class IN ('transient', 'permanent', 'user_error', 'system_error')))",
-            name="ck_render_outbox_failure_metadata",
+            "((failure_code IS NULL AND failure_stage IS NULL AND failure_classification IS NULL AND failure_retryable IS NULL) OR (failure_code IS NOT NULL AND failure_stage IS NOT NULL AND failure_classification IS NOT NULL AND failure_retryable IS NOT NULL AND failure_classification IN ('transient', 'permanent', 'user_error', 'system_error')))",
+            name="ck_render_outbox_failure_facts",
         ),
         CheckConstraint(
             "(status = 'PROCESSING' AND attempt_token IS NOT NULL) OR (status <> 'PROCESSING' AND attempt_token IS NULL)",
@@ -146,11 +146,11 @@ class RenderOutbox(SQLModel, table=True):  # type: ignore[call-arg]
     completed_at: Optional[datetime] = Field(
         default=None, sa_column=Column(DateTime(timezone=True))
     )
-    last_error: Optional[str] = Field(default=None, sa_column=Column(Text))
-    internal_error_code: Optional[str] = Field(default=None, sa_column=Column(String(128)))
-    internal_error_stage: Optional[str] = Field(default=None, sa_column=Column(String(64)))
-    internal_error_class: Optional[str] = Field(default=None, sa_column=Column(String(32)))
-    internal_error_retryable: Optional[bool] = Field(default=None, sa_column=Column(Boolean))
+    failure_detail: Optional[str] = Field(default=None, sa_column=Column(Text))
+    failure_code: Optional[str] = Field(default=None, sa_column=Column(String(128)))
+    failure_stage: Optional[str] = Field(default=None, sa_column=Column(String(64)))
+    failure_classification: Optional[str] = Field(default=None, sa_column=Column(String(32)))
+    failure_retryable: Optional[bool] = Field(default=None, sa_column=Column(Boolean))
     created_at: datetime = Field(
         default_factory=utc_now,
         sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),

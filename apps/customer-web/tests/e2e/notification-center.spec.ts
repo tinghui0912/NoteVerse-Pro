@@ -188,7 +188,6 @@ test('failed processing notification opens Import Activity', async ({ page }) =>
             state: 'FAILURE',
             progress: 0,
             title: 'Failed upload',
-            public_message: 'Recognition failed',
           },
         ],
         ...{ page: 1, page_size: 20, total: 1, total_pages: 1 },

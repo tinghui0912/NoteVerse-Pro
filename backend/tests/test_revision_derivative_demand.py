@@ -138,11 +138,11 @@ def test_historical_revisions_are_not_generation_demand_and_never_runs_generator
     for number in (1, 2):
         for work in work_rows(db, number):
             work.attempt_count = 2
-            work.last_error = "an earlier retry"
-            work.internal_error_code = "render_execution_failed"
-            work.internal_error_stage = "render"
-            work.internal_error_class = "system_error"
-            work.internal_error_retryable = True
+            work.failure_detail = "an earlier retry"
+            work.failure_code = "render_execution_failed"
+            work.failure_stage = "render"
+            work.failure_classification = "system_error"
+            work.failure_retryable = True
         db.commit()
         assert (
             render_outbox.execute_render_outbox_task(None, f"render-{number}")["status"]
@@ -155,8 +155,8 @@ def test_historical_revisions_are_not_generation_demand_and_never_runs_generator
         for work in work_rows(db, number):
             assert work.status.value == "SUPERSEDED" and work.attempt_count == 2
             assert (
-                work.last_error
-                is work.internal_error_code
+                work.failure_detail
+                is work.failure_code
                 is work.dispatched_at
                 is work.started_at
                 is None
@@ -189,7 +189,7 @@ def test_processing_is_not_cancelled_and_missing_source_is_not_superseded(revisi
     db.commit()
     assert render_outbox_service.claim(db, "render-2") is None
     assert playback_outbox_service.claim(db, "audio-2") is None
-    assert all(work.status.value == "FAILED" and work.last_error for work in work_rows(db, 2))
+    assert all(work.status.value == "FAILED" and work.failure_detail for work in work_rows(db, 2))
     score.deleted_at = utc_now()
     db.commit()
     assert render_outbox_service.claim(db, "render-3") is None

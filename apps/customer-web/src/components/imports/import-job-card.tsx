@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { formatApiDateTime } from '@/lib/date-time';
-import { userFacingErrorMessage } from '@/lib/i18n/error-message';
+import { translateErrorCode } from '@/lib/i18n/error-message';
 import type { ImportJobRead } from '@/generated/api';
 
 export function ImportJobCard({
@@ -45,10 +45,10 @@ export function ImportJobCard({
         ) : null}
         {job.state === 'FAILURE' ? (
           <p className="text-sm text-destructive">
-            {userFacingErrorMessage(
+            {translateErrorCode(
               errors,
-              { code: job.public_code, message: job.public_message },
-              job.public_message || t('failed'),
+              job.public_code,
+              t('failed'),
             )}
           </p>
         ) : null}

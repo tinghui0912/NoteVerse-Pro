@@ -19,6 +19,7 @@ import { ImportActivity } from '@/components/imports/import-activity';
 import { useImportJobList } from '@/hooks/queries/use-import-job-queries';
 import { queryKeys } from '@/lib/query-client';
 import messages from '../../messages/en/imports.json';
+import errorMessages from '../../messages/en/errors.json';
 import type { ImportJobRead } from '@/generated/api';
 const api = vi.hoisted(() => ({
   listImportJobs: vi.fn(),
@@ -39,8 +40,7 @@ const job = (state: ImportJobRead['state']): ImportJobRead => ({
   created_at: '2026-11-15T10:00:00Z',
   updated_at: '2026-11-15T10:00:00Z',
   score_id: state === 'CONFIRMED' ? 'formal-score' : null,
-  public_code: state === 'FAILURE' ? 'recognition_failed' : null,
-  public_message: state === 'FAILURE' ? 'No readable notes' : null,
+  public_code: state === 'FAILURE' ? 'score_recognition_failed' : null,
 });
 const jobs = [
   'PENDING',
@@ -57,7 +57,7 @@ function harness() {
     <QueryClientProvider client={client}>
       <NextIntlClientProvider
         locale="en"
-        messages={{ imports: messages, errors: {} }}
+        messages={{ imports: messages, errors: errorMessages }}
       >
         {children}
       </NextIntlClientProvider>
@@ -102,7 +102,7 @@ it('presents each processing state with only its current commands', async () => 
     within(card('PENDING_REVIEW')).getByRole('link', { name: 'Review' }),
   ).toHaveAttribute('href', '/review/PENDING_REVIEW');
   expect(
-    within(card('FAILURE')).getByText('No readable notes'),
+    within(card('FAILURE')).getByText(errorMessages.score_recognition_failed),
   ).toBeInTheDocument();
   expect(
     within(card('FAILURE')).getByRole('button', { name: 'Retry' }),
@@ -190,4 +190,14 @@ it.each([
     );
   hook.unmount();
   client.clear();
+});
+
+
+it.each([null, 'private_provider_failure'])('uses product fallback for an unmapped public code %s', async (code) => {
+  api.listImportJobs.mockResolvedValue({ items: [{ ...job('FAILURE'), public_code: code }], page: 1, page_size: 20, total: 1 });
+  const { wrapper } = harness();
+  render(<ImportActivity />, { wrapper });
+  const title = await screen.findByText('FAILURE import');
+  expect(within(title.parentElement!).getByText(messages.failed)).toBeInTheDocument();
+  expect(screen.queryByText('private_provider_failure')).not.toBeInTheDocument();
 });

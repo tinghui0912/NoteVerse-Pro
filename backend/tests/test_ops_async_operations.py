@@ -310,7 +310,7 @@ def _create_score_revision(
     ],
 )
 def test_ops_projects_domain_delivery_state(ops_session, status, retryable, expected):
-    from app.modules.durable_work.failure import DurableFailure, set_failure_metadata
+    from app.modules.durable_work.failure import DurableFailure, set_failure_facts
 
     row = MailOutbox(
         category="auth",
@@ -321,7 +321,7 @@ def test_ops_projects_domain_delivery_state(ops_session, status, retryable, expe
         attempt_token="token" if status == MailOutboxStatus.PROCESSING else None,
     )
     if retryable is not None:
-        set_failure_metadata(
+        set_failure_facts(
             row,
             DurableFailure(
                 "mail_provider_transient", "delivery", DurableFailureClass.TRANSIENT, retryable
@@ -350,11 +350,11 @@ def test_ops_summary_uses_aggregated_status_counts(ops_session: Session) -> None
                 status=MailOutboxStatus.FAILED,
                 attempt_count=1,
                 next_attempt_at=now + timedelta(minutes=5),
-                last_error="smtp temporarily unavailable",
-                internal_error_code="mail_provider_transient",
-                internal_error_stage="delivery",
-                internal_error_retryable=True,
-                internal_error_class=DurableFailureClass.TRANSIENT.value,
+                failure_detail="smtp temporarily unavailable",
+                failure_code="mail_provider_transient",
+                failure_stage="delivery",
+                failure_retryable=True,
+                failure_classification=DurableFailureClass.TRANSIENT.value,
             ),
             MailOutbox(
                 category="auth",
@@ -442,11 +442,11 @@ def test_ops_api_summary_is_available_to_admin(
             status=MailOutboxStatus.FAILED,
             attempt_count=1,
             next_attempt_at=utc_now() + timedelta(minutes=5),
-            last_error="smtp temporarily unavailable",
-            internal_error_code="mail_provider_transient",
-            internal_error_stage="delivery",
-            internal_error_retryable=True,
-            internal_error_class=DurableFailureClass.TRANSIENT.value,
+            failure_detail="smtp temporarily unavailable",
+            failure_code="mail_provider_transient",
+            failure_stage="delivery",
+            failure_retryable=True,
+            failure_classification=DurableFailureClass.TRANSIENT.value,
         )
     )
     ops_session.commit()
@@ -484,7 +484,7 @@ def test_ops_api_async_operations_supports_offset_pagination(
                 status=MailOutboxStatus.FAILED,
                 attempt_count=1,
                 next_attempt_at=now + timedelta(minutes=10),
-                last_error="oldest error",
+                failure_detail="oldest error",
                 updated_at=now - timedelta(minutes=3),
             ),
             MailOutbox(
@@ -495,11 +495,11 @@ def test_ops_api_async_operations_supports_offset_pagination(
                 status=MailOutboxStatus.FAILED,
                 attempt_count=1,
                 next_attempt_at=now + timedelta(minutes=10),
-                last_error="middle error",
-                internal_error_code="mail_execution_failed",
-                internal_error_stage="delivery",
-                internal_error_class=DurableFailureClass.SYSTEM_ERROR.value,
-                internal_error_retryable=True,
+                failure_detail="middle error",
+                failure_code="mail_execution_failed",
+                failure_stage="delivery",
+                failure_classification=DurableFailureClass.SYSTEM_ERROR.value,
+                failure_retryable=True,
                 updated_at=now - timedelta(minutes=2),
             ),
             MailOutbox(
@@ -510,7 +510,7 @@ def test_ops_api_async_operations_supports_offset_pagination(
                 status=MailOutboxStatus.FAILED,
                 attempt_count=1,
                 next_attempt_at=now + timedelta(minutes=10),
-                last_error="newest error",
+                failure_detail="newest error",
                 updated_at=now - timedelta(minutes=1),
             ),
         ]
@@ -555,11 +555,11 @@ def test_ops_api_admin_can_retry_failed_mail_operation(
         status=MailOutboxStatus.FAILED,
         attempt_count=3,
         next_attempt_at=utc_now() + timedelta(hours=1),
-        last_error="smtp temporarily unavailable",
-        internal_error_code="mail_transient_failure",
-        internal_error_stage="delivery",
-        internal_error_class=DurableFailureClass.TRANSIENT.value,
-        internal_error_retryable=True,
+        failure_detail="smtp temporarily unavailable",
+        failure_code="mail_transient_failure",
+        failure_stage="delivery",
+        failure_classification=DurableFailureClass.TRANSIENT.value,
+        failure_retryable=True,
     )
     ops_session.add(outbox)
     ops_session.commit()
@@ -583,11 +583,11 @@ def test_ops_api_admin_can_retry_failed_mail_operation(
     ops_session.refresh(outbox)
     assert outbox.status == MailOutboxStatus.PENDING
     assert outbox.attempt_count == 0
-    assert outbox.last_error is None
-    assert outbox.internal_error_code is None
-    assert outbox.internal_error_stage is None
-    assert outbox.internal_error_class is None
-    assert outbox.internal_error_retryable is None
+    assert outbox.failure_detail is None
+    assert outbox.failure_code is None
+    assert outbox.failure_stage is None
+    assert outbox.failure_classification is None
+    assert outbox.failure_retryable is None
     audit_event = ops_session.scalars(select(OpsAuditEvent)).one()
     assert audit_event.actor_operator_id == 1
     assert audit_event.action == "retry_async_operation"
@@ -898,14 +898,13 @@ def test_ops_api_admin_can_retry_failed_import_job(
         state=ImportJobState.FAILURE,
         progress=80,
         current_step="render",
-        internal_error_code="import_transient_failure",
-        internal_error_stage="dispatch",
-        internal_error_class=DurableFailureClass.TRANSIENT.value,
-        internal_error_retryable=True,
-        error="job failed",
-        error_type="system",
+        failure_code="import_transient_failure",
+        failure_stage="dispatch",
+        failure_classification=DurableFailureClass.TRANSIENT.value,
+        failure_retryable=True,
         started_at=utc_now() - timedelta(minutes=10),
         finished_at=utc_now(),
+        failure_detail="job failed",
     )
     ops_session.add(job)
     ops_session.flush()
@@ -916,7 +915,7 @@ def test_ops_api_admin_can_retry_failed_import_job(
     dispatch.status = ImportDispatchStatus.FAILED
     dispatch.attempt_count = 4
     dispatch.next_attempt_at = next_attempt_at
-    dispatch.last_error = "redis unavailable"
+    dispatch.failure_detail = "redis unavailable"
     ops_session.add(dispatch)
     ops_session.commit()
 
@@ -942,13 +941,12 @@ def test_ops_api_admin_can_retry_failed_import_job(
     assert job.progress == 0
     assert job.current_step is None
     assert dispatch.attempt_count == 0
-    assert dispatch.last_error is None
-    assert job.internal_error_code is None
-    assert job.internal_error_stage is None
-    assert job.internal_error_class is None
-    assert job.internal_error_retryable is None
-    assert job.error is None
-    assert job.error_type is None
+    assert dispatch.failure_detail is None
+    assert job.failure_code is None
+    assert job.failure_stage is None
+    assert job.failure_classification is None
+    assert job.failure_retryable is None
+    assert job.failure_detail is None
     assert job.started_at is None
     assert job.finished_at is None
     audit_event = ops_session.scalars(select(OpsAuditEvent)).one()
@@ -982,11 +980,11 @@ def test_ops_api_admin_can_retry_failed_render_outbox(
         dispatched_at=utc_now() - timedelta(minutes=4),
         started_at=utc_now() - timedelta(minutes=3),
         completed_at=utc_now() - timedelta(minutes=2),
-        last_error="renderer unavailable",
-        internal_error_code="render_transient_failure",
-        internal_error_stage="render",
-        internal_error_class=DurableFailureClass.TRANSIENT.value,
-        internal_error_retryable=True,
+        failure_detail="renderer unavailable",
+        failure_code="render_transient_failure",
+        failure_stage="render",
+        failure_classification=DurableFailureClass.TRANSIENT.value,
+        failure_retryable=True,
     )
     ops_session.add(outbox)
     ops_session.commit()
@@ -1011,11 +1009,11 @@ def test_ops_api_admin_can_retry_failed_render_outbox(
     assert outbox.dispatched_at is None
     assert outbox.started_at is None
     assert outbox.completed_at is None
-    assert outbox.last_error is None
-    assert outbox.internal_error_code is None
-    assert outbox.internal_error_stage is None
-    assert outbox.internal_error_class is None
-    assert outbox.internal_error_retryable is None
+    assert outbox.failure_detail is None
+    assert outbox.failure_code is None
+    assert outbox.failure_stage is None
+    assert outbox.failure_classification is None
+    assert outbox.failure_retryable is None
     audit_event = ops_session.scalars(select(OpsAuditEvent)).one()
     assert audit_event.operation_kind == "render"
     assert audit_event.operation_id == outbox.outbox_uuid
@@ -1045,11 +1043,11 @@ def test_ops_api_admin_can_retry_failed_playback_outbox(
         dispatched_at=utc_now() - timedelta(minutes=4),
         started_at=utc_now() - timedelta(minutes=3),
         completed_at=utc_now() - timedelta(minutes=2),
-        last_error="soundfont unavailable",
-        internal_error_code="playback_transient_failure",
-        internal_error_stage="playback",
-        internal_error_class=DurableFailureClass.TRANSIENT.value,
-        internal_error_retryable=True,
+        failure_detail="soundfont unavailable",
+        failure_code="playback_transient_failure",
+        failure_stage="playback",
+        failure_classification=DurableFailureClass.TRANSIENT.value,
+        failure_retryable=True,
     )
     ops_session.add(outbox)
     ops_session.commit()
@@ -1074,11 +1072,11 @@ def test_ops_api_admin_can_retry_failed_playback_outbox(
     assert outbox.dispatched_at is None
     assert outbox.started_at is None
     assert outbox.completed_at is None
-    assert outbox.last_error is None
-    assert outbox.internal_error_code is None
-    assert outbox.internal_error_stage is None
-    assert outbox.internal_error_class is None
-    assert outbox.internal_error_retryable is None
+    assert outbox.failure_detail is None
+    assert outbox.failure_code is None
+    assert outbox.failure_stage is None
+    assert outbox.failure_classification is None
+    assert outbox.failure_retryable is None
     audit_event = ops_session.scalars(select(OpsAuditEvent)).one()
     assert audit_event.operation_kind == "playback"
     assert audit_event.operation_id == outbox.outbox_uuid
@@ -1105,11 +1103,11 @@ def test_ops_api_admin_can_rearm_score_deletion_operation(
         status=ScoreDeletionOperationStatus.FAILED,
         attempt_count=5,
         next_attempt_at=utc_now() + timedelta(hours=1),
-        last_error="object storage unavailable",
-        internal_error_code="score_deletion_transient_failure",
-        internal_error_stage="cleanup",
-        internal_error_class=DurableFailureClass.TRANSIENT.value,
-        internal_error_retryable=True,
+        failure_detail="object storage unavailable",
+        failure_code="score_deletion_transient_failure",
+        failure_stage="cleanup",
+        failure_classification=DurableFailureClass.TRANSIENT.value,
+        failure_retryable=True,
     )
     ops_session.add(operation)
     ops_session.commit()
@@ -1131,11 +1129,11 @@ def test_ops_api_admin_can_rearm_score_deletion_operation(
     ops_session.refresh(score)
     assert score.deleted_at is not None
     assert operation.attempt_count == 0
-    assert operation.last_error is None
-    assert operation.internal_error_code is None
-    assert operation.internal_error_stage is None
-    assert operation.internal_error_class is None
-    assert operation.internal_error_retryable is None
+    assert operation.failure_detail is None
+    assert operation.failure_code is None
+    assert operation.failure_stage is None
+    assert operation.failure_classification is None
+    assert operation.failure_retryable is None
     audit_event = ops_session.scalars(select(OpsAuditEvent)).one()
     assert audit_event.operation_kind == "score_deletion"
     assert audit_event.operation_id == operation.operation_uuid
@@ -1163,10 +1161,10 @@ def test_filtered_pagination_reaches_matching_work_beyond_recent_batches(ops_ses
         recipient="user@example.com",
         subject="subject",
         status=MailOutboxStatus.FAILED,
-        internal_error_code="mail_provider_transient",
-        internal_error_stage="delivery",
-        internal_error_class="transient",
-        internal_error_retryable=True,
+        failure_code="mail_provider_transient",
+        failure_stage="delivery",
+        failure_classification="transient",
+        failure_retryable=True,
         created_at=now - timedelta(days=2),
         updated_at=now - timedelta(days=1),
     )

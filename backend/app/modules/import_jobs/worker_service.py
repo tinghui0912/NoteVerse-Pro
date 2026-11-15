@@ -20,8 +20,8 @@ from app.db.models import (
 from app.db.models.import_job import ImportJobState, ImportJobStepStatus
 from app.modules.durable_work.failure import (
     DurableFailure,
-    set_failure_metadata,
-    clear_failure_metadata,
+    set_failure_facts,
+    clear_failure_facts,
 )
 from app.modules.import_jobs.dispatch_service import (
     ImportExecutionLease,
@@ -53,18 +53,12 @@ class ImportJobExecutionService:
         state: ImportJobState | str,
         progress: int,
         current_step: Optional[str] = None,
-        code: Optional[str] = None,
-        error: Optional[str] = None,
-        error_type: Optional[str] = None,
         started_at: Optional[datetime] = None,
     ) -> None:
         job = require_current_attempt(db, lease)
         job.state = state if isinstance(state, ImportJobState) else ImportJobState(state)
         job.progress = progress
         job.current_step = current_step or job.current_step
-        job.code = code if code is not None else job.code
-        job.error = error if error is not None else job.error
-        job.error_type = error_type if error_type is not None else job.error_type
         if started_at is not None and job.started_at is None:
             job.started_at = started_at
         now = utc_now()
@@ -87,8 +81,7 @@ class ImportJobExecutionService:
         job.progress = 100
         job.last_heartbeat_at = now
         job.finished_at = now
-        clear_failure_metadata(job)
-        job.internal_error_detail = None
+        clear_failure_facts(job)
         job.updated_at = now
         review_xml = db.execute(
             select(ImportArtifact).where(
@@ -109,9 +102,6 @@ class ImportJobExecutionService:
         self,
         db: Session,
         lease: ImportExecutionLease,
-        error: str,
-        error_type: str,
-        code: Optional[str] = None,
         *,
         failure: DurableFailure,
         detail: str | None = None,
@@ -123,11 +113,7 @@ class ImportJobExecutionService:
         now = utc_now()
         job.state = ImportJobState.FAILURE
         job.progress = 0
-        job.error = error
-        job.error_type = error_type
-        job.code = code or job.code
-        set_failure_metadata(job, failure)
-        job.internal_error_detail = detail[:4000] if detail else None
+        set_failure_facts(job, failure, detail=detail)
         job.last_heartbeat_at = now
         job.finished_at = now
         job.updated_at = now

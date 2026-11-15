@@ -19,6 +19,7 @@ from app.db.models import (
 from app.db.models.import_job import ImportJobState
 from app.modules.storage_objects.persistence import object_from_bytes
 from app.modules.import_jobs.deletion_service import ImportJobDeletionService
+from app.modules.durable_work.failure import DurableFailure, DurableFailureClass, set_failure_facts
 from app.modules.storage_usage.service import storage_usage_service
 from tests.test_score_revision_services import (
     score_service_session as score_service_session,
@@ -40,6 +41,13 @@ def test_import_release_accounts_atomically_and_protects_other_owners(
 ):
     db, storage = score_service_session
     job = ImportJob(job_uuid="release-job", user_id=1, state=state)
+    if job.state == ImportJobState.FAILURE:
+        set_failure_facts(
+            job,
+            DurableFailure(
+                "import_pipeline_failed", "pipeline", DurableFailureClass.SYSTEM_ERROR, False
+            ),
+        )
     db.add(job)
     db.flush()
     db.add(ImportDispatch(job_id=job.id))
@@ -128,6 +136,13 @@ def test_import_release_rechecks_locked_job_state(score_service_session, state):
 
     db, _ = score_service_session
     job = ImportJob(job_uuid="state-changed-job", user_id=1, state=ImportJobState.PENDING_REVIEW)
+    if job.state == ImportJobState.FAILURE:
+        set_failure_facts(
+            job,
+            DurableFailure(
+                "import_pipeline_failed", "pipeline", DurableFailureClass.SYSTEM_ERROR, False
+            ),
+        )
     db.add(job)
     db.flush()
     db.add(ImportDispatch(job_id=job.id))
@@ -159,6 +174,13 @@ def test_internal_binary_cleanup_rechecks_locked_running_state(score_service_ses
 
     db, _ = score_service_session
     job = ImportJob(job_uuid="running-cleanup", user_id=1, state=ImportJobState.RUNNING)
+    if job.state == ImportJobState.FAILURE:
+        set_failure_facts(
+            job,
+            DurableFailure(
+                "import_pipeline_failed", "pipeline", DurableFailureClass.SYSTEM_ERROR, False
+            ),
+        )
     db.add(job)
     db.flush()
     db.add(ImportDispatch(job_id=job.id))
@@ -174,7 +196,15 @@ def test_internal_binary_cleanup_rechecks_locked_running_state(score_service_ses
 @pytest.mark.parametrize("keep_job", [False, True])
 def test_import_release_requires_delivery_ownership(score_service_session, keep_job):
     db, _ = score_service_session
-    job = ImportJob(job_uuid="missing-delivery", user_id=1, state=ImportJobState.FAILURE)
+    job = ImportJob(
+        job_uuid="missing-delivery",
+        user_id=1,
+        state=ImportJobState.FAILURE,
+        failure_code="import_pipeline_failed",
+        failure_stage="pipeline",
+        failure_classification="system_error",
+        failure_retryable=False,
+    )
     db.add(job)
     db.commit()
     identity = job.id
@@ -195,6 +225,13 @@ async def test_customer_delete_http_state_matrix_preserves_owned_data(score_serv
 
     db, storage = score_service_session
     job = ImportJob(job_uuid="http-delete", user_id=1, state=state)
+    if job.state == ImportJobState.FAILURE:
+        set_failure_facts(
+            job,
+            DurableFailure(
+                "import_pipeline_failed", "pipeline", DurableFailureClass.SYSTEM_ERROR, False
+            ),
+        )
     db.add(job)
     db.flush()
     db.add(ImportDispatch(job_id=job.id))

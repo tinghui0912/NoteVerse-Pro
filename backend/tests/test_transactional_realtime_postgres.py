@@ -176,7 +176,7 @@ def test_failed_outcome_publication_failure_leaves_processing_for_lease_recovery
         row = db.scalar(sa.select(model))
         assert recipients == [1, 2]
         assert row.status.value == "PROCESSING" and row.attempt_token is not None
-        assert row.last_error is None and db.scalar(sa.select(RealtimeChange)) is None
+        assert row.failure_detail is None and db.scalar(sa.select(RealtimeChange)) is None
         token = row.attempt_token
         row.started_at = utc_now() - timedelta(days=1)
         db.commit()
