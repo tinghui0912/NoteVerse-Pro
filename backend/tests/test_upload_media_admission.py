@@ -4,7 +4,7 @@ import asyncio
 import io
 import threading
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import Mock
 
 import pytest
 from fastapi import UploadFile
@@ -23,18 +23,16 @@ from app.modules.uploads.upload_admission import (
 from app.storage import AsyncObjectStorage
 from tests.support.images import image_bytes
 from tests.support.object_storage import InMemoryObjectStorage
-from tests.test_score_revision_services import AsyncSessionAdapter
 from tests.test_score_revision_services import score_service_session as score_service_session
 
 
-@pytest.mark.asyncio
-async def test_upload_delete_identifies_the_missing_resource():
-    repository = AsyncMock(spec=UploadRepository)
+def test_upload_delete_identifies_the_missing_resource():
+    repository = Mock(spec=UploadRepository)
     repository.get_upload_by_uuid.return_value = None
-    db = AsyncMock()
+    db = Mock()
 
     with pytest.raises(ResourceNotFoundException) as failure:
-        await UploadService(repository=repository).delete_upload(
+        UploadService(repository=repository).delete_upload(
             db, SimpleNamespace(id=1), "upload-missing"
         )
 
@@ -43,31 +41,29 @@ async def test_upload_delete_identifies_the_missing_resource():
         "resource_type": "upload",
         "resource_id": "upload-missing",
     }
-    repository.delete_upload_by_id.assert_not_awaited()
-    db.commit.assert_not_awaited()
+    repository.delete_upload_by_id.assert_not_called()
+    db.commit.assert_not_called()
 
 
-@pytest.mark.asyncio
-async def test_upload_delete_requires_its_persisted_stored_object():
-    repository = AsyncMock(spec=UploadRepository)
+def test_upload_delete_requires_its_persisted_stored_object():
+    repository = Mock(spec=UploadRepository)
     repository.get_upload_by_uuid.return_value = SimpleNamespace(
         id=11, uploader_user_id=1, stored_object_id=7
     )
     repository.upload_reference_count.return_value = 0
-    db = AsyncMock()
+    db = Mock()
     db.get.return_value = None
 
     with pytest.raises(RuntimeError, match="Upload is missing its required stored object"):
-        await UploadService(repository=repository).delete_upload(
+        UploadService(repository=repository).delete_upload(
             db, SimpleNamespace(id=1), "upload-present"
         )
 
-    db.get.assert_awaited_once_with(StoredObject, 7)
-    repository.delete_upload_by_id.assert_not_awaited()
-    db.commit.assert_not_awaited()
+    db.get.assert_called_once_with(StoredObject, 7)
+    repository.delete_upload_by_id.assert_not_called()
+    db.commit.assert_not_called()
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "container,suffix,mime,canonical",
     [
@@ -81,14 +77,14 @@ async def test_upload_delete_requires_its_persisted_stored_object():
         ("TIFF", "tiff", "image/tiff", "tiff"),
     ],
 )
-async def test_upload_records_detected_container_facts(
+def test_upload_records_detected_container_facts(
     score_service_session, container, suffix, mime, canonical
 ):
     db, storage = score_service_session
     content = image_bytes(container)
     filename = f"original.{suffix}"
-    result = await UploadService(storage=storage).create_upload(
-        AsyncSessionAdapter(db),
+    result = UploadService(storage=storage).create_upload(
+        db,
         db.get(User, 1),
         UploadFile(
             filename=filename,
@@ -116,12 +112,11 @@ async def test_upload_records_detected_container_facts(
         (b"%PDF-1.7", "score.pdf"),
     ],
 )
-@pytest.mark.asyncio
-async def test_invalid_images_have_no_durable_admission(score_service_session, content, filename):
+def test_invalid_images_have_no_durable_admission(score_service_session, content, filename):
     db, storage = score_service_session
     with pytest.raises(ValidationException):
-        await UploadService(storage=storage).create_upload(
-            AsyncSessionAdapter(db),
+        UploadService(storage=storage).create_upload(
+            db,
             db.get(User, 1),
             UploadFile(filename=filename, file=io.BytesIO(content)),
         )
@@ -130,24 +125,22 @@ async def test_invalid_images_have_no_durable_admission(score_service_session, c
     assert not storage.objects
 
 
-@pytest.mark.asyncio
-async def test_bounded_reader_accepts_exact_limit_and_reads_only_limit_plus_one():
-    from unittest.mock import AsyncMock
+def test_bounded_reader_accepts_exact_limit_and_reads_only_limit_plus_one():
+    from unittest.mock import Mock
 
     exact = image_bytes()
     exact += b"\0" * (MAX_SCORE_IMPORT_UPLOAD_BYTES - len(exact))
-    reader = AsyncMock(return_value=exact)
-    content = await read_score_import_upload(type("Input", (), {"read": reader})())
+    reader = Mock(return_value=exact)
+    content = read_score_import_upload(SimpleNamespace(file=SimpleNamespace(read=reader)))
     assert admit_score_import_image(content, "score.png").container == "PNG"
-    reader.assert_awaited_once_with(MAX_SCORE_IMPORT_UPLOAD_BYTES + 1)
+    reader.assert_called_once_with(MAX_SCORE_IMPORT_UPLOAD_BYTES + 1)
 
 
-@pytest.mark.asyncio
-async def test_oversize_is_rejected_before_quota_or_object_prewrite(score_service_session):
+def test_oversize_is_rejected_before_quota_or_object_prewrite(score_service_session):
     db, storage = score_service_session
     with pytest.raises(ValidationException):
-        await UploadService(storage=storage).create_upload(
-            AsyncSessionAdapter(db),
+        UploadService(storage=storage).create_upload(
+            db,
             db.get(User, 1),
             UploadFile(
                 filename="large.png", file=io.BytesIO(b"x" * (MAX_SCORE_IMPORT_UPLOAD_BYTES + 1))
@@ -158,12 +151,11 @@ async def test_oversize_is_rejected_before_quota_or_object_prewrite(score_servic
     assert not storage.objects
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("mime", ["text/plain", "image/jpeg", "application/octet-stream"])
-async def test_client_mime_cannot_override_detected_png(score_service_session, mime):
+def test_client_mime_cannot_override_detected_png(score_service_session, mime):
     db, storage = score_service_session
-    await UploadService(storage=storage).create_upload(
-        AsyncSessionAdapter(db),
+    UploadService(storage=storage).create_upload(
+        db,
         db.get(User, 1),
         UploadFile(
             filename="score.png",
@@ -174,14 +166,13 @@ async def test_client_mime_cannot_override_detected_png(score_service_session, m
     assert db.scalar(select(StoredObject)).content_type == "image/png"
 
 
-@pytest.mark.asyncio
-async def test_jpeg_aliases_share_one_physical_object_and_preserve_names(score_service_session):
+def test_jpeg_aliases_share_one_physical_object_and_preserve_names(score_service_session):
     db, storage = score_service_session
     storage.put_bytes = Mock(wraps=storage.put_bytes)
     service = UploadService(storage=storage)
     for name in ("first.jpg", "second.jpeg"):
-        await service.create_upload(
-            AsyncSessionAdapter(db),
+        service.create_upload(
+            db,
             db.get(User, 1),
             UploadFile(filename=name, file=io.BytesIO(image_bytes("JPEG"))),
         )
@@ -193,12 +184,19 @@ async def test_jpeg_aliases_share_one_physical_object_and_preserve_names(score_s
     assert uploads[0].stored_object.object_key.endswith(".jpg")
 
 
-@pytest.mark.asyncio
-async def test_async_upload_read_metadata_and_presign_execute_off_event_loop(score_service_session):
+def test_http_upload_and_delivery_schedule_provider_io_off_event_loop(score_service_session):
+    from fastapi.testclient import TestClient
+    from sqlalchemy.orm import Session
+    from app.main import create_app
+    from app.api.deps import get_db, get_current_user
+    from app.modules.uploads.dependencies import get_upload_service
+    from app.api.storage_streaming import stream_storage_object
+
     db, storage = score_service_session
-    loop_thread = threading.get_ident()
+    bind = db.get_bind()
+    caller_thread = threading.get_ident()
     called = []
-    for name in ("put_bytes", "read_bytes", "size_bytes", "download_url"):
+    for name in ("put_bytes", "read_bytes", "size_bytes", "download_url", "iter_bytes"):
         original = getattr(storage, name)
 
         def observe(*args, _method=original, _name=name, **kwargs):
@@ -207,33 +205,37 @@ async def test_async_upload_read_metadata_and_presign_execute_off_event_loop(sco
 
         setattr(storage, name, observe)
     service = UploadService(storage=storage)
-    await service.create_upload(
-        AsyncSessionAdapter(db),
-        db.get(User, 1),
-        UploadFile(filename="score.png", file=io.BytesIO(image_bytes())),
-    )
-    key = db.scalar(select(StoredObject)).object_key
-    assert await service.async_storage.read_bytes(key) == image_bytes()
-    assert await service.async_storage.size_bytes(key) == len(image_bytes())
-    from app.modules.model_assets.service import ModelAssetService
-    from app.api.storage_streaming import stream_storage_object
+    application = create_app()
 
-    await ModelAssetService(storage=storage).get_practice_acoustic_access()
-    original_iter = storage.iter_bytes
+    def database():
+        with Session(bind) as request_db:
+            yield request_db
 
-    def streaming(*args, **kwargs):
-        called.append(("iter_bytes", threading.get_ident()))
-        yield from original_iter(*args, **kwargs)
+    application.dependency_overrides[get_db] = database
+    application.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
+    application.dependency_overrides[get_upload_service] = lambda: service
+    key = []
 
-    storage.iter_bytes = streaming
-    response = await stream_storage_object(
-        storage=service.async_storage,
-        storage_key=key,
-        filename="score.png",
-        media_type="image/png",
-        attachment=False,
-    )
-    assert b"".join([chunk async for chunk in response.body_iterator]) == image_bytes()
+    @application.get("/delivery")
+    def delivery():
+        assert storage.read_bytes(key[0]) == image_bytes()
+        assert storage.download_url(key[0])
+        return stream_storage_object(
+            storage=storage,
+            storage_key=key[0],
+            filename="score.png",
+            media_type="image/png",
+            attachment=False,
+        )
+
+    with TestClient(application) as client:
+        response = client.post(
+            "/api/v1/uploads", files={"file": ("score.png", image_bytes(), "image/png")}
+        )
+        assert response.status_code == 200
+        key.append(db.scalar(select(StoredObject)).object_key)
+        response = client.get("/delivery")
+        assert response.status_code == 200 and response.content == image_bytes()
     assert {name for name, _ in called} == {
         "put_bytes",
         "read_bytes",
@@ -241,7 +243,7 @@ async def test_async_upload_read_metadata_and_presign_execute_off_event_loop(sco
         "download_url",
         "iter_bytes",
     }
-    assert all(thread != loop_thread for _, thread in called)
+    assert all(thread != caller_thread for _, thread in called)
 
 
 @pytest.mark.asyncio

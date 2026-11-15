@@ -9,13 +9,13 @@ from app.modules.import_jobs.dispatch_service import (
     StaleImportDispatchAttempt,
     require_current_attempt,
 )
-from app.db.sync_session import get_worker_db
+from app.db.session import SessionLocal
 from app.modules.domain_events.journal import DomainEventDedupeConflict
 from app.modules.import_jobs.schemas import (
     ImportJobProcessingOptions,
     PipelineExecutionSuccessResult,
 )
-from app.modules.import_jobs.worker_service import sync_import_job_service
+from app.modules.import_jobs.worker_service import import_job_execution_service
 from app.modules.import_jobs.execution_manifest import bind_import_job_execution_manifest
 from app.modules.import_jobs.pipeline import JobContext, PipelineBuilder
 from app.task_queue.protocols import CeleryTaskLike
@@ -55,10 +55,11 @@ class ImportJobExecutionService:
     ) -> PipelineExecutionSuccessResult:
         job_id = lease.job_uuid
         try:
-            with get_worker_db() as db:
+            with SessionLocal() as db:
                 require_current_attempt(db, lease)
+                db.commit()
             image_paths = self._resolve_input_paths(storage_keys)
-            with get_worker_db() as db:
+            with SessionLocal() as db:
                 bind_import_job_execution_manifest(db, lease)
                 context = JobContext(
                     lease=lease,
@@ -85,6 +86,7 @@ class ImportJobExecutionService:
                 pipeline.run(context)
                 context.status("RUNNING", "completed", 100, current_step="ocr_completed")
                 context.complete()
+                db.commit()
                 return {"success": True, "job_id": job_id}
         except (StaleImportDispatchAttempt, DomainEventDedupeConflict):
             raise
@@ -97,14 +99,15 @@ class ImportJobExecutionService:
                 exception_type=type(exc).__name__,
             ).opt(exception=exc).error("Import job pipeline failed")
             try:
-                with get_worker_db() as db:
-                    sync_import_job_service.finalize_failure(
+                with SessionLocal() as db:
+                    import_job_execution_service.finalize_failure(
                         db,
                         lease,
                         error=code,
                         error_type=type(exc).__name__,
                         code=code,
                     )
+                    db.commit()
             except (StaleImportDispatchAttempt, DomainEventDedupeConflict):
                 raise
             except Exception:

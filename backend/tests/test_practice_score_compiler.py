@@ -1,6 +1,6 @@
 """Cross-projection witnesses for the canonical quarter-note beat axis."""
 
-from unittest.mock import AsyncMock
+from unittest.mock import Mock
 import xml.etree.ElementTree as ET
 
 from tests.practice_bundle_fixtures import bundle_service_for_notation, authorize_test_revision
@@ -201,27 +201,25 @@ def test_malformed_chronology_fails_closed(body):
         compile_practice_score(score(body))
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("body", BAD)
-async def test_chronology_failure_is_invalid_score_at_bundle_boundary(tmp_path, body):
+def test_chronology_failure_is_invalid_score_at_bundle_boundary(tmp_path, body):
     path = tmp_path / "score.musicxml"
     path.write_bytes(score(body))
     service = bundle_service_for_notation(path.read_bytes())
     with pytest.raises(ValidationException) as caught:
-        await service.read_bundle(AsyncMock(), "s", 1, "r")
+        service.read_bundle(Mock(), "s", 1, "r")
     assert caught.value.code == "practice_score_invalid"
     assert caught.value.status_code == 422
     assert isinstance(caught.value.__cause__, PracticeScoreInvalidError)
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("xml", [b"<score-partwise>", b"\xff"])
-async def test_unreadable_musicxml_is_invalid_score_not_infrastructure(tmp_path, xml):
+def test_unreadable_musicxml_is_invalid_score_not_infrastructure(tmp_path, xml):
     path = tmp_path / "score.musicxml"
     path.write_bytes(xml)
     service = bundle_service_for_notation(path.read_bytes())
     with pytest.raises(ValidationException) as caught:
-        await service.read_bundle(AsyncMock(), "s", 1, "r")
+        service.read_bundle(Mock(), "s", 1, "r")
     assert caught.value.code == "practice_score_invalid"
     assert caught.value.status_code == 422
 

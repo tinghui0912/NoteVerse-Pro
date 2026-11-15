@@ -22,7 +22,6 @@ from app.db.models.score_access import MembershipRole
 from app.modules.guest_previews.schemas import GuestPreviewUpdateRequest
 from app.modules.guest_previews.service import GuestPreviewService
 from tests.test_score_revision_services import (
-    AsyncSessionAdapter,
     add_active_score_with_head_revision,
     score_service_session as score_service_session,
 )
@@ -43,7 +42,7 @@ def preview_context(score_service_session):
         session,
         storage,
         score,
-        AsyncSessionAdapter(session),
+        session,
         GuestPreviewService(storage=storage),
     )
 
@@ -117,36 +116,35 @@ def add_head_b(session, score):
     session.commit()
 
 
-@pytest.mark.asyncio
-async def test_owner_settings_token_stability_and_generic_disclosure(preview_context):
+def test_owner_settings_token_stability_and_generic_disclosure(preview_context):
     session, _, score, db, service = preview_context
     token = score.guest_preview_token
     assert len(token) >= 43
     assert not score.guest_preview_enabled
-    assert (await service.settings(db, score.score_uuid, 1)).model_dump() == {
+    assert (service.settings(db, score.score_uuid, 1)).model_dump() == {
         "enabled": False,
         "token": token,
     }
     for enabled in [True, False, True]:
-        result = await service.update_settings(
+        result = service.update_settings(
             db, score.score_uuid, 1, GuestPreviewUpdateRequest(enabled=enabled)
         )
         assert result.token == token and result.enabled == enabled
     from app.modules.scores.service import ScoreService
     from app.modules.scores.schemas import ScoreUpdateRequest
 
-    await ScoreService().update(
+    ScoreService().update(
         db,
         score.score_uuid,
         1,
         ScoreUpdateRequest(expected_version=score.version, title="Updated", genres=["jazz"]),
     )
     add_head_b(session, score)
-    assert (await service.settings(db, score.score_uuid, 1)).token == token
+    assert (service.settings(db, score.score_uuid, 1)).token == token
     assert token not in repr(score)
     assert "guest_preview_token" not in score.model_dump()
     assert "guest_preview_token" not in dict(score)
-    read = await ScoreService().get(db, score.score_uuid, 1)
+    read = ScoreService().get(db, score.score_uuid, 1)
     assert token not in read.model_dump_json()
     other = Score(score_uuid="distinct", owner_user_id=1, title="Other")
     session.add(other)
@@ -161,60 +159,58 @@ async def test_only_owner_can_read_or_update_settings(preview_context, role):
     session.add(ScoreMembership(score_id=score.id, user_id=2, role=role, created_by_user_id=1))
     session.commit()
     for action in [
-        service.settings(db, score.score_uuid, 2),
-        service.update_settings(db, score.score_uuid, 2, GuestPreviewUpdateRequest(enabled=True)),
+        lambda: service.settings(db, score.score_uuid, 2),
+        lambda: service.update_settings(
+            db, score.score_uuid, 2, GuestPreviewUpdateRequest(enabled=True)
+        ),
     ]:
         with pytest.raises(UnauthorizedException):
-            await action
+            action()
 
 
-@pytest.mark.asyncio
-async def test_bearer_follows_head_and_never_falls_back(preview_context):
+def test_bearer_follows_head_and_never_falls_back(preview_context):
     session, storage, score, db, service = preview_context
     add_page(session, storage, 901, "page-a")
     add_audio(session, storage, 901)
-    enabled = await service.update_settings(
+    enabled = service.update_settings(
         db, score.score_uuid, 1, GuestPreviewUpdateRequest(enabled=True)
     )
-    first = await service.read(db, enabled.token)
+    first = service.read(db, enabled.token)
     assert [p.asset_id for p in first.render_assets] == ["page-a"] and first.audio_available
     add_head_b(session, score)
-    waiting = await service.read(db, enabled.token)
+    waiting = service.read(db, enabled.token)
     assert waiting.render_assets == [] and not waiting.audio_available
     with pytest.raises(ResourceNotFoundException):
-        await service.image(db, enabled.token, "page-a")
+        service.image(db, enabled.token, "page-a")
     with pytest.raises(ResourceNotFoundException):
-        await service.audio(db, enabled.token)
+        service.audio(db, enabled.token)
     add_page(session, storage, 902, "page-b")
     add_audio(session, storage, 902)
-    latest = await service.read(db, enabled.token)
+    latest = service.read(db, enabled.token)
     assert [p.asset_id for p in latest.render_assets] == ["page-b"] and latest.audio_available
-    assert (await service.image(db, enabled.token, "page-b")).storage_key.endswith("page-b.svg")
-    assert (await service.audio(db, enabled.token)).storage_key.endswith("902.wav")
+    assert (service.image(db, enabled.token, "page-b")).storage_key.endswith("page-b.svg")
+    assert (service.audio(db, enabled.token)).storage_key.endswith("902.wav")
     assert set(latest.model_dump()) == {"title", "shared_by", "render_assets", "audio_available"}
     assert latest.shared_by == "owner"
 
 
-@pytest.mark.asyncio
-async def test_disabled_missing_and_deleted_are_unavailable(preview_context):
+def test_disabled_missing_and_deleted_are_unavailable(preview_context):
     session, _, score, db, service = preview_context
     token = score.guest_preview_token
     for enabled in [False, True, False, True]:
-        await service.update_settings(
-            db, score.score_uuid, 1, GuestPreviewUpdateRequest(enabled=enabled)
-        )
+        service.update_settings(db, score.score_uuid, 1, GuestPreviewUpdateRequest(enabled=enabled))
         for action in [service.read, service.audio]:
             if enabled and action == service.read:
-                assert (await action(db, token)).title == score.title
+                assert (action(db, token)).title == score.title
             elif not enabled:
                 with pytest.raises(ResourceNotFoundException) as error:
-                    await action(db, token)
+                    action(db, token)
                 assert error.value.code == "guest_preview_not_found"
     score.deleted_at = utc_now_naive()
     session.commit()
     for secret in [token, "missing"]:
         with pytest.raises(ResourceNotFoundException) as error:
-            await service.read(db, secret)
+            service.read(db, secret)
         assert error.value.code == "guest_preview_not_found"
 
 
@@ -257,7 +253,7 @@ async def test_bearer_routes_are_anonymous_inline_private_and_disclosure_safe(pr
     score.guest_preview_enabled = True
     session.commit()
 
-    async def database():
+    def database():
         yield db
 
     def no_account_authorization():
@@ -313,7 +309,7 @@ async def test_owner_settings_http_state_and_authorization(preview_context):
     token = score.guest_preview_token
     user = session.get(User, 1)
 
-    async def database():
+    def database():
         yield db
 
     app.dependency_overrides[get_current_user] = lambda: user
@@ -353,7 +349,7 @@ def preview_http_app(preview_context):
     _, _, _, db, service = preview_context
     application = create_app()
 
-    async def database():
+    def database():
         yield db
 
     application.dependency_overrides[get_db] = database
@@ -419,7 +415,7 @@ async def test_unhandled_bearer_errors_are_not_cacheable(
 
     _, _, score, _, service = preview_context
 
-    async def unavailable(*args):
+    def unavailable(*args):
         raise RuntimeError("Presentation service unavailable")
 
     monkeypatch.setattr(service, operation, unavailable)

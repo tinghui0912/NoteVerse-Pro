@@ -1,10 +1,10 @@
 from __future__ import annotations
-from app.storage import AsyncObjectStorage
+from app.storage import ObjectStorage
 
 from dataclasses import dataclass
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from sqlmodel import col
 
 from app.core.exceptions import (
@@ -37,7 +37,7 @@ from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.score_access.schemas import ScoreCapabilities
 from app.modules.score_assets.render_service import RevisionRenderService
 from app.shared.constants import ErrorCode
-from app.storage import ObjectStorage, object_storage
+from app.storage import object_storage
 from app.utils.timezone import utc_now_naive
 
 
@@ -61,7 +61,6 @@ class ScoreService:
         self.repository = repository or ScoreRepository()
         self.asset_repository = asset_repository or ScoreAssetRepository()
         self.storage = storage or object_storage
-        self.async_storage = AsyncObjectStorage(self.storage)
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.render_service = render_service or RevisionRenderService(
             access_policy=self.access_policy,
@@ -72,33 +71,29 @@ class ScoreService:
             access_policy=self.access_policy,
         )
 
-    async def get(self, db: AsyncSession, score_uuid: str, user_id: int) -> ScoreRead:
-        access = await self.access_policy.authorize(
-            db, score_uuid, ScoreAction.VIEW, user_id=user_id
-        )
-        return await self._read(db, access.score, access.capabilities)
+    def get(self, db: Session, score_uuid: str, user_id: int) -> ScoreRead:
+        access = self.access_policy.authorize(db, score_uuid, ScoreAction.VIEW, user_id=user_id)
+        return self._read(db, access.score, access.capabilities)
 
-    async def batch_delete(self, db: AsyncSession, score_uuids: list[str], user_id: int) -> int:
+    def batch_delete(self, db: Session, score_uuids: list[str], user_id: int) -> int:
         removed = 0
         for score_uuid in score_uuids:
             try:
-                await self.delete(db, score_uuid, user_id)
+                self.delete(db, score_uuid, user_id)
             except (ResourceNotFoundException, UnauthorizedException):
                 continue
             removed += 1
         return removed
 
-    async def update(
+    def update(
         self,
-        db: AsyncSession,
+        db: Session,
         score_uuid: str,
         user_id: int,
         request: ScoreUpdateRequest,
     ) -> ScoreRead:
-        access = await self.access_policy.authorize(
-            db, score_uuid, ScoreAction.EDIT, user_id=user_id
-        )
-        score = await self.repository.get(db, access.score.score_uuid, lock=True)
+        access = self.access_policy.authorize(db, score_uuid, ScoreAction.EDIT, user_id=user_id)
+        score = self.repository.get(db, access.score.score_uuid, lock=True)
         assert score is not None
         if score.version != request.expected_version:
             raise ConflictException(
@@ -111,26 +106,24 @@ class ScoreService:
             score.genres = [genre.value for genre in request.genres]
         score.version += 1
         score.updated_at = utc_now_naive()
-        await db.commit()
-        await db.refresh(score)
-        return await self._read(db, score, access.capabilities)
+        db.commit()
+        db.refresh(score)
+        return self._read(db, score, access.capabilities)
 
-    async def delete(self, db: AsyncSession, score_uuid: str, user_id: int) -> None:
-        await self.lifecycle_service.delete_score(db, score_uuid, user_id)
+    def delete(self, db: Session, score_uuid: str, user_id: int) -> None:
+        self.lifecycle_service.delete_score(db, score_uuid, user_id)
 
-    async def input_asset_delivery(
+    def input_asset_delivery(
         self,
-        db: AsyncSession,
+        db: Session,
         score_uuid: str,
         asset_uuid: str,
         user_id: int,
     ) -> ScoreInputAssetDelivery:
-        access = await self.access_policy.authorize(
-            db, score_uuid, ScoreAction.EDIT, user_id=user_id
-        )
+        access = self.access_policy.authorize(db, score_uuid, ScoreAction.EDIT, user_id=user_id)
         score_id = require_persisted_id(access.score.id, entity="score")
         row = (
-            await db.execute(
+            db.execute(
                 select(ScoreInputAsset, Upload, StoredObject)
                 .join(Upload, ScoreInputAsset.upload_id == Upload.id)
                 .join(StoredObject, Upload.stored_object_id == StoredObject.id)
@@ -145,7 +138,7 @@ class ScoreService:
                 "score_input_asset", asset_uuid, ErrorCode.FILE_NOT_FOUND
             )
         _asset, upload, blob = row
-        if not (await self.async_storage.exists(blob.object_key)):
+        if not (self.storage.exists(blob.object_key)):
             raise FileException(ErrorCode.FILE_NOT_FOUND, blob.object_key)
         filename = upload.original_filename
         return ScoreInputAssetDelivery(
@@ -154,23 +147,21 @@ class ScoreService:
             storage_key=blob.object_key,
         )
 
-    async def _read(
+    def _read(
         self,
-        db: AsyncSession,
+        db: Session,
         score: Score,
         capabilities: ScoreCapabilities,
     ) -> ScoreRead:
-        head = (
-            await db.get(ScoreRevision, score.head_revision_id) if score.head_revision_id else None
-        )
+        head = db.get(ScoreRevision, score.head_revision_id) if score.head_revision_id else None
         projection = (
-            await db.get(ScoreRevisionMetadata, score.head_revision_id)
+            db.get(ScoreRevisionMetadata, score.head_revision_id)
             if score.head_revision_id
             else None
         )
         score_id = require_persisted_id(score.id, entity="score")
         derived_assets = (
-            await score_derived_assets(db, self.asset_repository, revision=head)
+            score_derived_assets(db, self.asset_repository, revision=head)
             if head
             else ScoreDerivedAssetsRead(
                 preview=ScoreDerivedAssetRead(status="pending", asset_id=None),
@@ -179,7 +170,7 @@ class ScoreService:
         )
         input_asset_rows = (
             (
-                await db.execute(
+                db.execute(
                     select(ScoreInputAsset, Upload, StoredObject)
                     .join(Upload, ScoreInputAsset.upload_id == Upload.id)
                     .join(StoredObject, Upload.stored_object_id == StoredObject.id)

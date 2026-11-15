@@ -77,41 +77,6 @@ MUSICXML_BASE = """<?xml version="1.0" encoding="UTF-8"?>
 MUSICXML_CHANGED = MUSICXML_BASE.replace("<step>C</step>", "<step>D</step>")
 
 
-class AsyncSessionAdapter:
-    def __init__(self, session: Session) -> None:
-        self.session = session
-
-    async def run_sync(self, function, *args, **kwargs):
-        return function(self.session, *args, **kwargs)
-
-    async def execute(self, statement, params=None, *args, **kwargs):  # type: ignore[no-untyped-def]
-        return self.session.execute(statement, params=params, *args, **kwargs)
-
-    async def scalars(self, statement):
-        return self.session.scalars(statement)
-
-    async def commit(self) -> None:
-        self.session.commit()
-
-    async def rollback(self) -> None:
-        self.session.rollback()
-
-    async def flush(self) -> None:
-        self.session.flush()
-
-    async def refresh(self, instance) -> None:  # type: ignore[no-untyped-def]
-        self.session.refresh(instance)
-
-    async def get(self, model, identity):  # type: ignore[no-untyped-def]
-        return self.session.get(model, identity)
-
-    async def delete(self, instance) -> None:  # type: ignore[no-untyped-def]
-        self.session.delete(instance)
-
-    def add(self, instance) -> None:  # type: ignore[no-untyped-def]
-        self.session.add(instance)
-
-
 @pytest.fixture
 def storage_usage_session(tmp_path) -> Iterator[tuple[Session, InMemoryObjectStorage]]:
     engine = create_engine(
@@ -237,7 +202,7 @@ def test_storage_usage_reservation_blocks_when_quota_would_be_exceeded(
     _set_quota(session, 8)
 
     with pytest.raises(ValidationException) as exc_info:
-        storage_usage_service.reserve_sync(
+        storage_usage_service.reserve(
             session,
             user_id=1,
             category=StorageUsageCategory.UPLOAD,
@@ -269,7 +234,7 @@ def test_storage_usage_requires_seeded_default_policy() -> None:
         session.commit()
 
         with pytest.raises(ResourceNotFoundException) as exc_info:
-            storage_usage_service.reserve_sync(
+            storage_usage_service.reserve(
                 session,
                 user_id=1,
                 category=StorageUsageCategory.UPLOAD,
@@ -285,7 +250,7 @@ def test_storage_usage_api_returns_quota_and_breakdown(
     storage_usage_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = storage_usage_session
-    storage_usage_service.record_allocation_sync(
+    storage_usage_service.record_allocation(
         session,
         user_id=1,
         category=StorageUsageCategory.SOURCE,
@@ -295,7 +260,7 @@ def test_storage_usage_api_returns_quota_and_breakdown(
         object_id="source-api",
         storage_key="scores/api/source.musicxml",
     )
-    storage_usage_service.record_allocation_sync(
+    storage_usage_service.record_allocation(
         session,
         user_id=1,
         category=StorageUsageCategory.DERIVED_RENDER,
@@ -309,10 +274,10 @@ def test_storage_usage_api_returns_quota_and_breakdown(
     user = session.get(User, 1)
     assert user is not None
 
-    async def override_get_db():
-        yield AsyncSessionAdapter(session)
+    def override_get_db():
+        yield session
 
-    async def override_current_user():
+    def override_current_user():
         return user
 
     app.dependency_overrides[get_db] = override_get_db
@@ -343,7 +308,7 @@ def test_storage_usage_commit_and_release_updates_account_and_counter(
 ) -> None:
     session, _storage = storage_usage_session
 
-    handle = storage_usage_service.reserve_sync(
+    handle = storage_usage_service.reserve(
         session,
         user_id=1,
         category=StorageUsageCategory.SOURCE,
@@ -355,7 +320,7 @@ def test_storage_usage_commit_and_release_updates_account_and_counter(
     assert account.used_bytes == 0
     assert account.reserved_bytes == 40
 
-    storage_usage_service.commit_reservation_sync(
+    storage_usage_service.commit_reservation(
         session,
         handle.reservation_id,
         object_type="score_revision_source",
@@ -374,7 +339,7 @@ def test_storage_usage_commit_and_release_updates_account_and_counter(
     assert counter.used_bytes == 40
     assert counter.reserved_bytes == 0
 
-    storage_usage_service.record_release_sync(
+    storage_usage_service.record_release(
         session,
         user_id=1,
         category=StorageUsageCategory.SOURCE,
@@ -394,15 +359,14 @@ def test_storage_usage_commit_and_release_updates_account_and_counter(
     assert event.delta_bytes == -15
 
 
-@pytest.mark.asyncio
-async def test_upload_quota_exceeded_does_not_store_file(
+def test_upload_quota_exceeded_does_not_store_file(
     storage_usage_session: tuple[Session, InMemoryObjectStorage],
     tmp_path,
 ) -> None:
     session, storage = storage_usage_session
     _set_quota(session, 3)
     service = UploadService(storage=storage)
-    db = AsyncSessionAdapter(session)
+    db = session
     user = session.get(User, 1)
     assert user is not None
 
@@ -412,11 +376,11 @@ async def test_upload_quota_exceeded_does_not_store_file(
         {
             "filename": "too-large.png",
             "content_type": "image/png",
-            "read": lambda self, size: _async_bytes(image_bytes()),
+            "file": __import__("io").BytesIO(image_bytes()),
         },
     )()
     with pytest.raises(ValidationException) as exc_info:
-        await service.create_upload(db, user, upload)  # type: ignore[arg-type]
+        service.create_upload(db, user, upload)  # type: ignore[arg-type]
 
     assert exc_info.value.code == ErrorCode.STORAGE_QUOTA_EXCEEDED
     session.rollback()
@@ -434,10 +398,10 @@ def test_upload_api_returns_storage_quota_error_without_storing_file(
     user = session.get(User, 1)
     assert user is not None
 
-    async def override_get_db():
-        yield AsyncSessionAdapter(session)
+    def override_get_db():
+        yield session
 
-    async def override_current_user():
+    def override_current_user():
         return user
 
     app.dependency_overrides[get_db] = override_get_db
@@ -471,10 +435,10 @@ def test_upload_api_hides_storage_key(
     user = session.get(User, 1)
     assert user is not None
 
-    async def override_get_db():
-        yield AsyncSessionAdapter(session)
+    def override_get_db():
+        yield session
 
-    async def override_current_user():
+    def override_current_user():
         return user
 
     app.dependency_overrides[get_db] = override_get_db
@@ -499,23 +463,22 @@ def test_upload_api_hides_storage_key(
     assert "storage_key" not in payload
 
 
-async def _async_bytes(content: bytes) -> bytes:
+def _async_bytes(content: bytes) -> bytes:
     return content
 
 
-@pytest.mark.asyncio
-async def test_revision_create_quota_exceeded_does_not_create_revision_or_source(
+def test_revision_create_quota_exceeded_does_not_create_revision_or_source(
     storage_usage_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = storage_usage_session
     _seed_score_with_source(session, storage)
     _set_quota(session, 1)
     service = RevisionService(storage=storage)
-    db = AsyncSessionAdapter(session)
+    db = session
 
     base = session.execute(select(ScoreRevision)).scalar_one()
     with pytest.raises(ValidationException) as exc_info:
-        await service.create(
+        service.create(
             db,
             "score-storage-test",
             1,
@@ -533,8 +496,7 @@ async def test_revision_create_quota_exceeded_does_not_create_revision_or_source
     assert _count(session, StorageUsageReservation) == 0
 
 
-@pytest.mark.asyncio
-async def test_score_delete_releases_source_usage_and_storage_object(
+def test_score_delete_releases_source_usage_and_storage_object(
     storage_usage_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = storage_usage_session
@@ -542,7 +504,7 @@ async def test_score_delete_releases_source_usage_and_storage_object(
     assert score.score_uuid is not None
     assert source.stored_object.byte_size is not None
     source_storage_key = source.stored_object.object_key
-    storage_usage_service.record_allocation_sync(
+    storage_usage_service.record_allocation(
         session,
         user_id=1,
         category=StorageUsageCategory.SOURCE,
@@ -556,7 +518,7 @@ async def test_score_delete_releases_source_usage_and_storage_object(
     assert storage.exists(source_storage_key)
 
     service = ScoreService(storage=storage)
-    await service.delete(AsyncSessionAdapter(session), score.score_uuid, 1)
+    service.delete(session, score.score_uuid, 1)
 
     marked_score = session.get(Score, score.id)
     assert marked_score is not None
@@ -607,7 +569,7 @@ def test_score_deletion_execution_records_delivery_retry_on_failure(
             session.rollback()
             raise
 
-    monkeypatch.setattr("app.worker.execution.score_deletion.get_worker_db", worker_db)
+    monkeypatch.setattr("app.worker.execution.score_deletion.SessionLocal", worker_db)
     monkeypatch.setattr(
         ScoreDeletionExecutor,
         "execute",
@@ -623,8 +585,7 @@ def test_score_deletion_execution_records_delivery_retry_on_failure(
     assert operation.last_error == "object storage temporarily unavailable"
 
 
-@pytest.mark.asyncio
-async def test_score_delete_cleans_single_origin_import_job_storage(
+def test_score_delete_cleans_single_origin_import_job_storage(
     storage_usage_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = storage_usage_session
@@ -689,7 +650,7 @@ async def test_score_delete_cleans_single_origin_import_job_storage(
         )
     )
     session.commit()
-    storage_usage_service.record_allocation_sync(
+    storage_usage_service.record_allocation(
         session,
         user_id=1,
         category=StorageUsageCategory.SOURCE,
@@ -699,7 +660,7 @@ async def test_score_delete_cleans_single_origin_import_job_storage(
         object_id=source.source_uuid,
         storage_key=source.stored_object.object_key,
     )
-    storage_usage_service.record_allocation_sync(
+    storage_usage_service.record_allocation(
         session,
         user_id=1,
         category=StorageUsageCategory.UPLOAD,
@@ -709,7 +670,7 @@ async def test_score_delete_cleans_single_origin_import_job_storage(
         object_id="9d65812087c4c1d2c9fa7d298b12c5224c0a29ed5b752296874c2b1bf6711f9d",
         storage_key=upload.object_key,
     )
-    storage_usage_service.record_allocation_sync(
+    storage_usage_service.record_allocation(
         session,
         user_id=1,
         category=StorageUsageCategory.TEMP_IMPORT,
@@ -725,7 +686,7 @@ async def test_score_delete_cleans_single_origin_import_job_storage(
     review_source_storage_key = review_source.object_key
 
     service = ScoreService(storage=storage)
-    await service.delete(AsyncSessionAdapter(session), score.score_uuid, 1)
+    service.delete(session, score.score_uuid, 1)
 
     marked_score = session.get(Score, score.id)
     assert marked_score is not None
@@ -749,8 +710,7 @@ async def test_score_delete_cleans_single_origin_import_job_storage(
     assert account.used_bytes == 0
 
 
-@pytest.mark.asyncio
-async def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
+def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
     storage_usage_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = storage_usage_session
@@ -827,7 +787,7 @@ async def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
         )
     )
     session.commit()
-    storage_usage_service.record_allocation_sync(
+    storage_usage_service.record_allocation(
         session,
         user_id=1,
         category=StorageUsageCategory.UPLOAD,
@@ -837,7 +797,7 @@ async def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
         object_id="a4117a1f0ff460c600674eeeeb14cf60f9f4ddc1c63b49a64d4f5b2ff873f7cb",
         storage_key=upload.object_key,
     )
-    storage_usage_service.record_allocation_sync(
+    storage_usage_service.record_allocation(
         session,
         user_id=1,
         category=StorageUsageCategory.TEMP_IMPORT,
@@ -848,7 +808,7 @@ async def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
     )
     session.commit()
 
-    await ImportJobService(storage=storage).delete(AsyncSessionAdapter(session), job_uuid, 1)
+    ImportJobService(storage=storage).delete(session, job_uuid, 1)
 
     assert session.get(ImportJob, 1001) is None
     assert session.get(Upload, 1002) is None
@@ -873,8 +833,7 @@ async def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
     assert counters[StorageUsageCategory.TEMP_IMPORT] == 0
 
 
-@pytest.mark.asyncio
-async def test_import_job_delete_keeps_shared_upload_usage_and_storage(
+def test_import_job_delete_keeps_shared_upload_usage_and_storage(
     storage_usage_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = storage_usage_session
@@ -924,7 +883,7 @@ async def test_import_job_delete_keeps_shared_upload_usage_and_storage(
         ]
     )
     session.commit()
-    storage_usage_service.record_allocation_sync(
+    storage_usage_service.record_allocation(
         session,
         user_id=1,
         category=StorageUsageCategory.UPLOAD,
@@ -936,8 +895,8 @@ async def test_import_job_delete_keeps_shared_upload_usage_and_storage(
     )
     session.commit()
 
-    await ImportJobService(storage=storage).delete(
-        AsyncSessionAdapter(session),
+    ImportJobService(storage=storage).delete(
+        session,
         "job-delete-shared-a",
         1,
     )
@@ -951,9 +910,8 @@ async def test_import_job_delete_keeps_shared_upload_usage_and_storage(
     assert account.used_bytes == upload.size_bytes
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("preexisting_object", [False, True])
-async def test_uploads_owns_sha_key_dedup_and_last_upload_deletion(
+def test_uploads_owns_sha_key_dedup_and_last_upload_deletion(
     storage_usage_session, monkeypatch, preexisting_object
 ):
     import io
@@ -972,7 +930,7 @@ async def test_uploads_owns_sha_key_dedup_and_last_upload_deletion(
     monkeypatch.setattr(storage, "put_bytes", put)
     service, db, user = (
         UploadService(storage=storage),
-        AsyncSessionAdapter(session),
+        session,
         session.get(User, 1),
     )
 
@@ -981,8 +939,8 @@ async def test_uploads_owns_sha_key_dedup_and_last_upload_deletion(
             io.BytesIO(content), filename=name, headers=Headers({"content-type": "image/png"})
         )
 
-    first = await service.create_upload(db, user, upload("first.png"))
-    second = await service.create_upload(db, user, upload("second.png"))
+    first = service.create_upload(db, user, upload("first.png"))
+    second = service.create_upload(db, user, upload("second.png"))
     blobs = session.scalars(select(StoredObject)).all()
     assert len(blobs) == 1 and blobs[0].object_key == key
     uploads = session.scalars(select(Upload)).all()
@@ -990,9 +948,9 @@ async def test_uploads_owns_sha_key_dedup_and_last_upload_deletion(
     assert put.call_count == 1
     if not preexisting_object:
         put.assert_called_once_with(key=key, content=content, content_type="image/png")
-    await service.delete_upload(db, user, first.upload_id)
+    service.delete_upload(db, user, first.upload_id)
     assert storage.exists(key)
-    await service.delete_upload(db, user, second.upload_id)
+    service.delete_upload(db, user, second.upload_id)
     assert storage.exists(key)
     from tests.support.retirement import drain_retirements
 
@@ -1003,14 +961,13 @@ async def test_uploads_owns_sha_key_dedup_and_last_upload_deletion(
     assert account.used_bytes == account.reserved_bytes == 0
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("preexisting_object", [False, True])
-async def test_uploads_failed_upload_retires_only_newly_written_bytes(
+def test_uploads_failed_upload_retires_only_newly_written_bytes(
     storage_usage_session, monkeypatch, preexisting_object
 ):
     import io
     import hashlib
-    from unittest.mock import AsyncMock
+    from unittest.mock import Mock
     from starlette.datastructures import UploadFile, Headers
     from app.core.exceptions import FileException
     from app.modules.uploads.service import blob_object_key
@@ -1025,13 +982,13 @@ async def test_uploads_failed_upload_retires_only_newly_written_bytes(
     monkeypatch.setattr(
         service.repository,
         "create_upload",
-        AsyncMock(side_effect=RuntimeError("database write failed")),
+        Mock(side_effect=RuntimeError("database write failed")),
     )
     upload = UploadFile(
         io.BytesIO(content), filename="image.png", headers=Headers({"content-type": "image/png"})
     )
     with pytest.raises(FileException):
-        await service.create_upload(AsyncSessionAdapter(session), session.get(User, 1), upload)
+        service.create_upload(session, session.get(User, 1), upload)
     assert storage.exists(key)
     from app.db.models import ObjectWriteIntent
     from tests.support.write_cleanup import drain_write_cleanup

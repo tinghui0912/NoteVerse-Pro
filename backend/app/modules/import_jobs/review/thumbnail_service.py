@@ -1,5 +1,5 @@
 from __future__ import annotations
-from app.modules.storage_objects.retirement import retire_released_objects
+from app.modules.storage_objects.retirement import retire_after_release
 from app.modules.storage_objects.writes import write_object, adopt_written_object
 
 import os
@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.model_utils import require_persisted_id
 from app.db.models import ImportArtifact, StorageUsageCategory, StoredObject
-from app.modules.import_jobs.repository import SyncImportJobRepository
+from app.modules.import_jobs.repository import ImportJobRepository
 from app.modules.storage_usage.service import storage_usage_service
 from app.processing.engines.render import create_score_render_engine
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
@@ -26,10 +26,10 @@ from app.storage import ObjectStorage, object_storage
 class ImportReviewThumbnailService:
     def __init__(
         self,
-        repository: SyncImportJobRepository | None = None,
+        repository: ImportJobRepository | None = None,
         storage: ObjectStorage | None = None,
     ) -> None:
-        self.repository = repository or SyncImportJobRepository()
+        self.repository = repository or ImportJobRepository()
         self.storage = storage or object_storage
 
     def render(
@@ -133,11 +133,11 @@ class ImportReviewThumbnailService:
         try:
             for item in previous:
                 db.delete(item)
-                retire_released_objects(db, item.stored_object_id)
+                retire_after_release(db, item.stored_object_id)
             db.flush()
             db.add(thumbnail)
             for artifact_uuid, storage_key, size_bytes in previous_usage:
-                storage_usage_service.record_release_sync(
+                storage_usage_service.record_release(
                     db,
                     user_id=job.user_id,
                     category=StorageUsageCategory.TEMP_IMPORT,
@@ -147,7 +147,7 @@ class ImportReviewThumbnailService:
                     object_id=artifact_uuid,
                     storage_key=storage_key,
                 )
-            storage_usage_service.record_allocation_sync(
+            storage_usage_service.record_allocation(
                 db,
                 user_id=job.user_id,
                 category=StorageUsageCategory.TEMP_IMPORT,

@@ -1,4 +1,5 @@
-from sqlmodel import SQLModel, Session, create_engine, select
+from sqlalchemy.orm import Session
+from sqlmodel import SQLModel, create_engine, select
 
 from app.db.execution_manifests import get_or_create_execution_manifest, manifest_sha256
 from app.db.models import ExecutionManifest
@@ -23,4 +24,4 @@ def test_render_execution_manifest_reuses_the_normalized_record() -> None:
         session.commit()
 
         assert first.id == second.id
-        assert len(list(session.exec(select(ExecutionManifest)))) == 1
+        assert len(list(session.scalars(select(ExecutionManifest)))) == 1

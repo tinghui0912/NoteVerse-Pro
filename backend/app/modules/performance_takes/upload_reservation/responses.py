@@ -8,7 +8,7 @@ from app.modules.performance_takes.schemas import (
     PerformanceTakeUploadReservationRead,
     PerformanceTakeUploadTarget,
 )
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 
 def reservation_read(
@@ -34,13 +34,13 @@ def reservation_read(
     )
 
 
-async def completed_reservation_response(
+def completed_reservation_response(
     takes: PerformanceTakeService,
-    db: AsyncSession,
+    db: Session,
     reservation: PerformanceTakeUploadReservation,
     take: PerformanceTake,
 ) -> PerformanceTakeUploadReservationRead:
     return reservation_read(
         reservation,
-        take=await takes.get_take(db, take.manifest.user_id, take.manifest.take_uuid),
+        take=takes.get_take(db, take.manifest.user_id, take.manifest.take_uuid),
     )

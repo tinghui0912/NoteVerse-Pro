@@ -5,7 +5,6 @@ from datetime import timedelta
 from uuid import uuid4
 from sqlalchemy import select, or_, and_
 from sqlalchemy.orm import Session
-from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.exceptions import ResourceNotFoundException, ValidationException
 from app.db.models import ScoreDeletionOperation, ScoreDeletionOperationStatus as Status
@@ -178,24 +177,8 @@ class ScoreDeletionDeliveryService:
                 due.append(row.operation_uuid)
         return due
 
-    def rearm(self, db: Session, operation_uuid: str) -> ScoreDeletionOperation:
+    def rearm(self, db: Session, operation_uuid: str) -> tuple[ScoreDeletionOperation, str]:
         row = lock_operation(db, operation_uuid)
-        if row is None:
-            raise ResourceNotFoundException("async_operation", operation_uuid)
-        self._rearm(row)
-        return row
-
-    async def rearm_async(
-        self, db: AsyncSession, operation_uuid: str
-    ) -> tuple[ScoreDeletionOperation, str]:
-        row = (
-            await db.execute(
-                select(ScoreDeletionOperation)
-                .where(ScoreDeletionOperation.operation_uuid == operation_uuid)
-                .with_for_update()
-                .execution_options(populate_existing=True)
-            )
-        ).scalar_one_or_none()
         if row is None:
             raise ResourceNotFoundException("async_operation", operation_uuid)
         previous = row.status.value

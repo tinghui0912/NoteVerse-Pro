@@ -28,7 +28,7 @@ from app.modules.domain_events.journal import append_fact
 from app.modules.domain_events.projections import run_projection_batch, run_projections
 from app.modules.import_jobs.events import ImportJobCompleted
 from app.modules.import_jobs.projections import IMPORT_PROJECTIONS
-from app.modules.import_jobs.worker_service import SyncImportJobService
+from app.modules.import_jobs.worker_service import ImportJobExecutionService
 from app.shared.error_codes import ErrorCode
 from app.utils.timezone import utc_now_naive
 from tests.support.import_execution import processing_lease
@@ -77,7 +77,7 @@ def seed_job(engine):
 
 
 def finalize(db, lease, outcome):
-    service = SyncImportJobService()
+    service = ImportJobExecutionService()
     if outcome == "completed":
         service.finalize_success(db, lease)
     else:
@@ -393,7 +393,7 @@ def test_committed_import_survives_fast_path_failure_and_maintenance_repairs_pro
             yield db
             db.commit()
 
-    monkeypatch.setattr(maintenance, "get_worker_db", worker_database)
+    monkeypatch.setattr(maintenance, "SessionLocal", worker_database)
     monkeypatch.setattr(maintenance, "run_scheduler_scan", lambda key, callback: callback())
     assert maintenance.execute_domain_projection_maintenance() == {"processed": 2}
     assert maintenance.execute_domain_projection_maintenance() == {"processed": 0}

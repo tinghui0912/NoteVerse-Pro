@@ -1,6 +1,9 @@
 """Durable save admission ordering and source-independent media on PostgreSQL."""
 
-import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from threading import Event
+from time import monotonic, sleep
+from tests.test_stored_object_retirement_postgres import assert_blocked
 from datetime import timedelta
 from fractions import Fraction
 from app.utils.timezone import utc_now_naive
@@ -8,7 +11,7 @@ from unittest.mock import patch
 
 import pytest
 from sqlalchemy import delete, select, text
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.core.exceptions import ResourceNotFoundException
 from app.db.models import (
@@ -32,107 +35,107 @@ from tests.test_upload_reservation_postgres import setup_bundle, MEDIA
 pytest_plugins = ["tests.test_practice_bundle_postgres"]
 
 
-async def wait_for_database_lock(observer, pid):
-    async with asyncio.timeout(10):
-        while not await observer.scalar(
-            text("SELECT cardinality(pg_blocking_pids(:pid)) > 0"), {"pid": pid}
-        ):
-            await observer.commit()
-
-
-@pytest.mark.asyncio
-async def test_save_admission_commits_before_waiting_score_deletion(postgres_bundle):
-    sessions, source, storage, request = await setup_bundle(postgres_bundle)
+def test_save_admission_commits_before_waiting_score_deletion(postgres_bundle):
+    sessions, source, storage, request = setup_bundle(postgres_bundle)
     service = TakeLifecycleServices(storage=storage, practice_bundle_service=source)
-    admitted, release = asyncio.Event(), asyncio.Event()
+    admitted, release = Event(), Event()
     authorize = source.authorize_bundle_for_save
 
-    async def hold_admission(*args, **kwargs):
-        value = await authorize(*args, **kwargs)
+    def hold_admission(*args, **kwargs):
+        value = authorize(*args, **kwargs)
         admitted.set()
-        await release.wait()
+        assert release.wait(10)
         return value
 
-    with patch.object(source, "authorize_bundle_for_save", side_effect=hold_admission):
-        async with sessions() as a, sessions() as b, sessions() as observer:
-            pid = await b.scalar(text("SELECT pg_backend_pid()"))
-            reserve = asyncio.create_task(service.reserve_upload(a, 1, request))
-            await asyncio.wait_for(admitted.wait(), 10)
-            deletion = asyncio.create_task(
-                ScoreLifecycleService().delete_score(b, postgres_bundle[1].test_score_uuid, 1)
-            )
-            try:
-                await wait_for_database_lock(observer, pid)
-                assert not deletion.done()
-            finally:
-                release.set()
-            result = await asyncio.wait_for(reserve, 10)
-            await asyncio.wait_for(deletion, 10)
-            row = await service.repository.get_reservation_by_uuid(a, 1, result.reservation_id)
-            assert (
-                manifest_from_row(row.manifest).snapshot.practice_binding.bundle_id
-                == request.practice_binding.bundle_id
-            )
-            assert (
-                manifest_from_row(row.manifest).snapshot.practice_binding.score_id
-                == postgres_bundle[1].test_score_uuid
-            )
-            assert (
-                manifest_from_row(row.manifest).snapshot.practice_binding.revision_id
-                == postgres_bundle[1].test_revision_uuid
-            )
-            assert (
-                manifest_from_row(row.manifest).snapshot.artifact_id
-                == postgres_bundle[2].artifact.artifact_id
-            )
-            assert manifest_from_row(row.manifest).snapshot.score_title_snapshot == "Source"
-            score = await b.scalar(select(Score))
-            assert score.deleted_at is not None
+    pid = []
 
+    def reserve():
+        with sessions() as db:
+            return service.reserve_upload(db, 1, request)
 
-@pytest.mark.asyncio
-async def test_score_deletion_commit_denies_waiting_new_save(postgres_bundle):
-    sessions, source, storage, request = await setup_bundle(postgres_bundle)
-    service = TakeLifecycleServices(storage=storage, practice_bundle_service=source)
-    deleting, release = asyncio.Event(), asyncio.Event()
+    def delete_score():
+        with sessions() as db:
+            pid.append(db.scalar(text("SELECT pg_backend_pid()")))
+            ScoreLifecycleService().delete_score(db, postgres_bundle[1].test_score_uuid, 1)
 
-    class DeletionTransaction(AsyncSession):
-        async def commit(self):
-            deleting.set()
-            await release.wait()
-            await super().commit()
-
-    async with (
-        DeletionTransaction(postgres_bundle[0], expire_on_commit=False) as a,
-        sessions() as b,
-        sessions() as observer,
+    with (
+        patch.object(source, "authorize_bundle_for_save", side_effect=hold_admission),
+        ThreadPoolExecutor(max_workers=2) as pool,
     ):
-        deletion = asyncio.create_task(
-            ScoreLifecycleService().delete_score(a, postgres_bundle[1].test_score_uuid, 1)
-        )
-        await asyncio.wait_for(deleting.wait(), 10)
-        pid = await b.scalar(text("SELECT pg_backend_pid()"))
-        reserve = asyncio.create_task(service.reserve_upload(b, 1, request))
+        reserving = pool.submit(reserve)
         try:
-            await wait_for_database_lock(observer, pid)
-            assert not reserve.done()
+            assert admitted.wait(10)
+            deletion = pool.submit(delete_score)
+            deadline = monotonic() + 10
+            while not pid:
+                assert monotonic() < deadline
+                sleep(0.01)
+            assert_blocked(postgres_bundle[0], pid[0])
+            assert not deletion.done()
         finally:
             release.set()
-        await asyncio.wait_for(deletion, 10)
-        with pytest.raises(ResourceNotFoundException):
-            await asyncio.wait_for(reserve, 10)
-        await b.rollback()
-        assert await b.scalar(select(PerformanceTakeUploadReservation)) is None
+        result = reserving.result(10)
+        deletion.result(10)
+    with sessions() as db:
+        row = service.repository.get_reservation_by_uuid(db, 1, result.reservation_id)
+        snapshot = manifest_from_row(row.manifest).snapshot
+        assert snapshot.practice_binding.bundle_id == request.practice_binding.bundle_id
+        assert snapshot.practice_binding.score_id == postgres_bundle[1].test_score_uuid
+        assert snapshot.practice_binding.revision_id == postgres_bundle[1].test_revision_uuid
+        assert snapshot.artifact_id == postgres_bundle[2].artifact.artifact_id
+        assert snapshot.score_title_snapshot == "Source"
+        assert db.scalar(select(Score)).deleted_at is not None
 
 
-@pytest.mark.asyncio
-@pytest.mark.parametrize("postgres_bundle", ["durable-practice-score.musicxml"], indirect=True)
-async def test_snapshot_replay_finalize_and_take_reads_survive_bundle_gc(postgres_bundle):
-    sessions, source, storage, request = await setup_bundle(postgres_bundle)
+def test_score_deletion_commit_denies_waiting_new_save(postgres_bundle):
+    sessions, source, storage, request = setup_bundle(postgres_bundle)
     service = TakeLifecycleServices(storage=storage, practice_bundle_service=source)
-    async with sessions() as db:
-        accepted = await service.reserve_upload(db, 1, request)
-        row = await service.repository.get_reservation_by_uuid(db, 1, accepted.reservation_id)
+    deleting, release = Event(), Event()
+
+    class DeletionSession(Session):
+        def commit(self):
+            deleting.set()
+            assert release.wait(10)
+            super().commit()
+
+    pid = []
+
+    def delete_score():
+        with DeletionSession(postgres_bundle[0], expire_on_commit=False) as db:
+            ScoreLifecycleService().delete_score(db, postgres_bundle[1].test_score_uuid, 1)
+
+    def reserve():
+        with sessions() as db:
+            pid.append(db.scalar(text("SELECT pg_backend_pid()")))
+            return service.reserve_upload(db, 1, request)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        deletion = pool.submit(delete_score)
+        try:
+            assert deleting.wait(10)
+            reserving = pool.submit(reserve)
+            deadline = monotonic() + 10
+            while not pid:
+                assert monotonic() < deadline
+                sleep(0.01)
+            assert_blocked(postgres_bundle[0], pid[0])
+            assert not reserving.done()
+        finally:
+            release.set()
+        deletion.result(10)
+        with pytest.raises(ResourceNotFoundException):
+            reserving.result(10)
+    with sessions() as db:
+        assert db.scalar(select(PerformanceTakeUploadReservation)) is None
+
+
+@pytest.mark.parametrize("postgres_bundle", ["durable-practice-score.musicxml"], indirect=True)
+def test_snapshot_replay_finalize_and_take_reads_survive_bundle_gc(postgres_bundle):
+    sessions, source, storage, request = setup_bundle(postgres_bundle)
+    service = TakeLifecycleServices(storage=storage, practice_bundle_service=source)
+    with sessions() as db:
+        accepted = service.reserve_upload(db, 1, request)
+        row = service.repository.get_reservation_by_uuid(db, 1, accepted.reservation_id)
         snapshot = manifest_from_row(row.manifest)
         manifest_id = row.manifest_id
         assert snapshot.snapshot.score_timebase.ticks_per_quarter == 60
@@ -143,28 +146,24 @@ async def test_snapshot_replay_finalize_and_take_reads_survive_bundle_gc(postgre
             snapshot.snapshot.tempo_plan.model_dump(mode="json")["segments"][-1]["startTick"], 60
         ) == Fraction(113, 60)
         storage.put_bytes(key=row.staging_object_key, content=MEDIA, content_type="audio/webm")
-        score = await db.scalar(select(Score))
+        score = db.scalar(select(Score))
         score.title = "Title after admission"
-        await db.commit()
-        await ScoreLifecycleService().delete_score(db, score.score_uuid, 1)
+        db.commit()
+        ScoreLifecycleService().delete_score(db, score.score_uuid, 1)
         score.head_revision_id = None
-        await db.flush()
-        await db.execute(delete(ScoreRevision))
-        await db.execute(delete(Score))
-        await db.commit()
-        due = await db.run_sync(
-            lambda sync: practice_bundle_retention.collect_unowned_ready(
-                sync,
-            )
-        )
+        db.flush()
+        db.execute(delete(ScoreRevision))
+        db.execute(delete(Score))
+        db.commit()
+        due = practice_bundle_retention.collect_unowned_ready(db)
         assert len(due) == 2
         from tests.support.retirement import drain_retirements
 
-        results = await db.run_sync(lambda sync: drain_retirements(sync, storage))
+        results = drain_retirements(db, storage)
         assert all(result["status"] == "completed" for result in results)
-        await db.commit()
-        assert await db.scalar(select(PracticeBundleRecord)) is None
-        await db.commit()
+        db.commit()
+        assert db.scalar(select(PracticeBundleRecord)) is None
+        db.commit()
 
         with (
             patch(
@@ -182,15 +181,15 @@ async def test_snapshot_replay_finalize_and_take_reads_survive_bundle_gc(postgre
                 side_effect=AssertionError("No source read after admission"),
             ),
         ):
-            replay = await service.reserve_upload(db, 1, request)
+            replay = service.reserve_upload(db, 1, request)
             assert replay.reservation_id == accepted.reservation_id
             assert replay.manifest == accepted.manifest
             assert replay.manifest.score_timebase == accepted.manifest.score_timebase
             assert replay.manifest.score_timebase.ticks_per_quarter == 60
             assert replay.manifest.scope == accepted.manifest.scope
             assert replay.manifest.tempo_plan == accepted.manifest.tempo_plan
-            take = await service.finalize_take(db, 1, accepted.reservation_id)
-            completed = await service.reserve_upload(db, 1, request)
+            take = service.finalize_take(db, 1, accepted.reservation_id)
+            completed = service.reserve_upload(db, 1, request)
             assert completed.take == take
             assert row.manifest_id == manifest_id
             assert manifest_from_row(row.manifest) == snapshot
@@ -210,31 +209,30 @@ async def test_snapshot_replay_finalize_and_take_reads_survive_bundle_gc(postgre
             )
             assert take.manifest.score_title_snapshot == snapshot.snapshot.score_title_snapshot
             assert take.linked_score_id is None and not take.can_open_score
-            listed = await service.takes.list_takes(db, 1)
+            listed = service.takes.list_takes(db, 1)
             assert listed.items == [take]
-            assert await service.takes.get_take(db, 1, take.take_id) == take
-            key, filename, mime = await service.takes.get_media_delivery(db, 1, take.take_id)
+            assert service.takes.get_take(db, 1, take.take_id) == take
+            key, filename, mime = service.takes.get_media_delivery(db, 1, take.take_id)
             assert (
                 storage.read_bytes(key) == MEDIA
                 and filename.endswith("webm")
                 and mime == "audio/webm"
             )
-            stored = await db.scalar(select(PerformanceTake))
+            stored = db.scalar(select(PerformanceTake))
             assert stored.manifest_id == manifest_id
             assert manifest_from_row(stored.manifest) == snapshot
 
 
 @pytest.mark.parametrize("status", ["RESERVED", "FINALIZING", "COMPLETED"])
-@pytest.mark.asyncio
-async def test_revision_only_retention_with_existing_reservation_or_take(postgres_bundle, status):
-    sessions, source, storage, request = await setup_bundle(postgres_bundle)
+def test_revision_only_retention_with_existing_reservation_or_take(postgres_bundle, status):
+    sessions, source, storage, request = setup_bundle(postgres_bundle)
     service = TakeLifecycleServices(storage=storage, practice_bundle_service=source)
-    async with sessions() as db:
-        accepted = await service.reserve_upload(db, 1, request)
-        row = await service.repository.get_reservation_by_uuid(db, 1, accepted.reservation_id)
+    with sessions() as db:
+        accepted = service.reserve_upload(db, 1, request)
+        row = service.repository.get_reservation_by_uuid(db, 1, accepted.reservation_id)
         if status == "COMPLETED":
             storage.put_bytes(key=row.staging_object_key, content=MEDIA, content_type="audio/webm")
-            await service.finalize_take(db, 1, accepted.reservation_id)
+            service.finalize_take(db, 1, accepted.reservation_id)
         elif status == "FINALIZING":
             now = utc_now_naive()
             initialize_lifecycle(
@@ -246,114 +244,108 @@ async def test_revision_only_retention_with_existing_reservation_or_take(postgre
                 )
                 .after,
             )
-            await db.commit()
-        source_row = await db.scalar(select(PracticeBundleRecord))
-        assert (
-            await db.run_sync(
-                lambda sync: practice_bundle_retention.collect_unowned_ready(
-                    sync,
-                )
-            )
-            == []
-        )
-        score = await db.scalar(select(Score))
+            db.commit()
+        source_row = db.scalar(select(PracticeBundleRecord))
+        assert practice_bundle_retention.collect_unowned_ready(db) == []
+        score = db.scalar(select(Score))
         score.head_revision_id = None
-        await db.flush()
-        await db.execute(delete(ScoreRevision))
-        await db.commit()
-        due = await db.run_sync(
-            lambda sync: practice_bundle_retention.collect_unowned_ready(
-                sync,
-            )
-        )
+        db.flush()
+        db.execute(delete(ScoreRevision))
+        db.commit()
+        due = practice_bundle_retention.collect_unowned_ready(db)
         assert len(due) == 2
-        assert await db.get(PracticeBundleRecord, source_row.id) is None
+        assert db.get(PracticeBundleRecord, source_row.id) is None
         assert (
             manifest_from_row(row.manifest).snapshot.practice_binding.bundle_id
             == request.practice_binding.bundle_id
         )
         assert row.status == status
         if status == "COMPLETED":
-            take = await db.scalar(select(PerformanceTake))
+            take = db.scalar(select(PerformanceTake))
             assert (
                 manifest_from_row(take.manifest).snapshot.practice_binding.bundle_id
                 == manifest_from_row(row.manifest).snapshot.practice_binding.bundle_id
             )
-        await db.commit()
+        db.commit()
         from tests.support.retirement import drain_retirements
 
-        results = await db.run_sync(lambda sync: drain_retirements(sync, storage))
+        results = drain_retirements(db, storage)
         assert all(result["status"] == "completed" for result in results)
-        await db.commit()
-        assert await db.scalar(select(PracticeBundleRecord)) is None
-        await db.refresh(row)
+        db.commit()
+        assert db.scalar(select(PracticeBundleRecord)) is None
+        db.refresh(row)
         assert (
             manifest_from_row(row.manifest).snapshot.practice_binding.bundle_id
             == request.practice_binding.bundle_id
             and row.status == status
         )
         if status == "COMPLETED":
-            retained = await service.takes.get_take(db, 1, take.manifest.take_uuid)
+            retained = service.takes.get_take(db, 1, take.manifest.take_uuid)
             assert (
                 retained.manifest.practice_binding.bundle_id == request.practice_binding.bundle_id
             )
-            assert (await service.takes.list_takes(db, 1)).items == [retained]
-            key, _, _ = await service.takes.get_media_delivery(db, 1, take.manifest.take_uuid)
+            assert (service.takes.list_takes(db, 1)).items == [retained]
+            key, _, _ = service.takes.get_media_delivery(db, 1, take.manifest.take_uuid)
             assert storage.read_bytes(key) == MEDIA
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("role", ["PRACTITIONER", "EDITOR"])
-async def test_save_holds_current_authorization_facts_until_commit(postgres_bundle, role):
+def test_save_holds_current_authorization_facts_until_commit(postgres_bundle, role):
     from sqlalchemy import update
     from app.core.exceptions import UnauthorizedException
     from app.db.models import User, ScoreMembership
     from app.db.models.score_access import MembershipRole
 
-    sessions, source, _, request = await setup_bundle(postgres_bundle)
-    async with sessions() as seed:
+    sessions, source, _, request = setup_bundle(postgres_bundle)
+    with sessions() as seed:
         user = User(
             email="practitioner@example.com", display_name="Practitioner", password_hash="test"
         )
         seed.add(user)
-        await seed.flush()
+        seed.flush()
         user_id = user.id
-        score = await seed.scalar(select(Score))
+        score = seed.scalar(select(Score))
         fact = ScoreMembership(
             score_id=score.id, user_id=user_id, role=MembershipRole(role), created_by_user_id=1
         )
         seed.add(fact)
-        await seed.flush()
+        seed.flush()
         fact_id = fact.id
-        await seed.commit()
-    async with sessions() as a, sessions() as b, sessions() as observer:
-        admitted = await source.authorize_bundle_for_save(
-            a,
+        seed.commit()
+    ready = Event()
+    pid = []
+
+    def revoke():
+        with sessions() as db:
+            pid.append(db.scalar(text("SELECT pg_backend_pid()")))
+            ready.set()
+            db.execute(
+                update(ScoreMembership)
+                .where(ScoreMembership.id == fact_id)
+                .values(revoked_at=utc_now_naive())
+            )
+            db.commit()
+
+    with ThreadPoolExecutor(max_workers=1) as pool, sessions() as db:
+        admitted = source.authorize_bundle_for_save(
+            db,
             user_id,
             request.practice_binding.score_id,
             request.practice_binding.revision_id,
             request.practice_binding.bundle_id,
         )
         assert admitted.bundle.bundle_id == request.practice_binding.bundle_id
-        pid = await b.scalar(text("SELECT pg_backend_pid()"))
-        fact_model = ScoreMembership
-        revocation = asyncio.create_task(
-            b.execute(
-                update(fact_model)
-                .where(fact_model.id == fact_id)
-                .values(revoked_at=utc_now_naive())
-            )
-        )
+        revocation = pool.submit(revoke)
         try:
-            await wait_for_database_lock(observer, pid)
+            assert ready.wait(10)
+            assert_blocked(postgres_bundle[0], pid[0])
             assert not revocation.done()
         finally:
-            await a.commit()
-        await asyncio.wait_for(revocation, 10)
-        await b.commit()
+            db.commit()
+        revocation.result(10)
         with pytest.raises(UnauthorizedException):
-            await source.authorize_bundle_for_save(
-                a,
+            source.authorize_bundle_for_save(
+                db,
                 user_id,
                 request.practice_binding.score_id,
                 request.practice_binding.revision_id,

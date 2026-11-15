@@ -3,7 +3,7 @@
 from contextlib import contextmanager
 from dataclasses import replace
 from datetime import timedelta
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import Mock
 import asyncio
 
 import pytest
@@ -12,7 +12,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select, func, inspect
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy import create_engine
 
 from app.api.deps import get_current_user, get_db
 from app.core.config import settings
@@ -47,7 +47,6 @@ from app.utils.timezone import utc_now_naive
 from tests.test_score_revision_services import (
     score_service_session as score_service_session,
     add_active_score_with_head_revision,
-    AsyncSessionAdapter,
 )
 from tests.test_storage_usage import (
     storage_usage_session as storage_usage_session,
@@ -93,8 +92,7 @@ def worker_sessions(db):
     return transaction
 
 
-@pytest.mark.asyncio
-async def test_admission_commits_tombstone_operation_and_attempts_immediate_dispatch(
+def test_admission_commits_tombstone_operation_and_attempts_immediate_dispatch(
     score_db, monkeypatch
 ):
     db, score = score_db
@@ -107,7 +105,7 @@ async def test_admission_commits_tombstone_operation_and_attempts_immediate_disp
         "app.modules.scores.lifecycle_service.get_async_trace_context",
         lambda: ("traceparent", "tracestate"),
     )
-    await ScoreLifecycleService().delete_score(AsyncSessionAdapter(db), score.score_uuid, 1)
+    ScoreLifecycleService().delete_score(db, score.score_uuid, 1)
     operation = db.scalar(select(ScoreDeletionOperation))
     assert score.deleted_at is not None
     assert operation.status == Status.PENDING
@@ -118,13 +116,11 @@ async def test_admission_commits_tombstone_operation_and_attempts_immediate_disp
     send.assert_called_once_with(operation.operation_uuid)
 
 
-@pytest.mark.asyncio
-async def test_admission_failure_rolls_back_tombstone_and_operation(score_db):
+def test_admission_failure_rolls_back_tombstone_and_operation(score_db):
     db, score = score_db
-    async_db = AsyncSessionAdapter(db)
-    async_db.commit = AsyncMock(side_effect=RuntimeError("commit failed"))
+    db.commit = Mock(side_effect=RuntimeError("commit failed"))
     with pytest.raises(RuntimeError, match="commit failed"):
-        await ScoreLifecycleService().delete_score(async_db, score.score_uuid, 1)
+        ScoreLifecycleService().delete_score(db, score.score_uuid, 1)
     db.refresh(score)
     assert score.deleted_at is None
     assert db.scalar(select(func.count()).select_from(ScoreDeletionOperation)) == 0
@@ -134,10 +130,10 @@ async def test_admission_failure_rolls_back_tombstone_and_operation(score_db):
 async def test_http_delete_hides_resource_before_cleanup(score_db):
     db, score = score_db
 
-    async def database():
-        yield AsyncSessionAdapter(db)
+    def database():
+        yield db
 
-    async def user():
+    def user():
         return db.get(User, 1)
 
     app.dependency_overrides[get_db] = database
@@ -167,7 +163,7 @@ async def test_http_delete_hides_resource_before_cleanup(score_db):
 def test_producer_publishes_operation_uuid_and_releases_broker_failure(score_db, monkeypatch):
     db, score = score_db
     operation = admitted(db, score)
-    monkeypatch.setattr(producer, "get_worker_db", worker_sessions(db))
+    monkeypatch.setattr(producer, "SessionLocal", worker_sessions(db))
     send = Mock(side_effect=RuntimeError("broker unavailable"))
     monkeypatch.setattr("app.task_queue.producer.celery_app.send_task", send)
     assert producer.dispatch_score_deletion(operation.operation_uuid) is False
@@ -297,7 +293,7 @@ def test_completion_failure_rolls_back_graph_accounting_and_retirements(
     db, storage = storage_usage_session
     score, revision, source = _seed_score_with_source(db, storage)
     source_id, score_id, size = source.id, score.id, source.stored_object.byte_size
-    storage_usage_service.record_allocation_sync(
+    storage_usage_service.record_allocation(
         db,
         user_id=1,
         category=StorageUsageCategory.SOURCE,
@@ -325,7 +321,7 @@ def test_completion_failure_rolls_back_graph_accounting_and_retirements(
 def test_worker_runs_claim_execution_completion_and_failure_transactions(score_db, monkeypatch):
     db, score = score_db
     operation = admitted(db, score)
-    monkeypatch.setattr(execution, "get_worker_db", worker_sessions(db))
+    monkeypatch.setattr(execution, "SessionLocal", worker_sessions(db))
     result = execution.execute_score_deletion_task(None, operation.operation_uuid)
     assert result["status"] == "completed"
     assert operation.status == Status.COMPLETED
@@ -339,7 +335,7 @@ def test_maintenance_relays_due_operation_ids(score_db, monkeypatch):
     db, score = score_db
     operation = admitted(db, score)
     send = Mock(return_value=True)
-    monkeypatch.setattr(maintenance_dispatch, "get_worker_db", worker_sessions(db))
+    monkeypatch.setattr(maintenance_dispatch, "SessionLocal", worker_sessions(db))
     monkeypatch.setattr(maintenance_dispatch, "run_scheduler_scan", lambda key, scan: scan())
     monkeypatch.setattr(producer, "dispatch_score_deletion", send)
     assert maintenance_dispatch.execute_score_deletion_maintenance() == {"due": 1, "dispatched": 1}
@@ -423,35 +419,34 @@ def test_postgres_operation_constraints_indexes_and_retention(postgres_score):
 
 @pytest.mark.asyncio
 async def test_postgres_concurrent_admission_creates_one_operation(postgres_score, monkeypatch):
-    engine = create_async_engine(postgres_score.url)
-    barrier, arrivals = asyncio.Event(), 0
+    engine = create_engine(postgres_score.url)
+    barrier, arrivals = __import__("threading").Barrier(2), 0
 
     class ConcurrentPolicy(ScoreAccessPolicy):
-        async def authorize(self, *args, **kwargs):
+        def authorize(self, *args, **kwargs):
             nonlocal arrivals
-            result = await super().authorize(*args, **kwargs)
+            result = super().authorize(*args, **kwargs)
             arrivals += 1
-            if arrivals == 2:
-                barrier.set()
-            await asyncio.wait_for(barrier.wait(), 10)
+            barrier.wait(10)
             return result
 
     service = ScoreLifecycleService(access_policy=ConcurrentPolicy())
 
-    async def delete():
-        async with AsyncSession(engine, expire_on_commit=False) as db:
-            await service.delete_score(db, "deletion-score", 1)
+    def delete():
+        with Session(engine, expire_on_commit=False) as db:
+            service.delete_score(db, "deletion-score", 1)
 
     try:
-        await asyncio.wait_for(asyncio.gather(delete(), delete()), 20)
-        async with AsyncSession(engine) as db:
-            assert await db.scalar(select(func.count()).select_from(ScoreDeletionOperation)) == 1
-            assert (await db.get(Score, 500)).deleted_at is not None
+        await asyncio.wait_for(
+            asyncio.gather(asyncio.to_thread(delete), asyncio.to_thread(delete)), 20
+        )
+        with Session(engine) as db:
+            assert db.scalar(select(func.count()).select_from(ScoreDeletionOperation)) == 1
+            assert (db.get(Score, 500)).deleted_at is not None
     finally:
-        await engine.dispose()
+        engine.dispose()
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "status,attempts,future,expected",
     [
@@ -464,9 +459,7 @@ async def test_postgres_concurrent_admission_creates_one_operation(postgres_scor
         (Status.COMPLETED, 1, False, "succeeded"),
     ],
 )
-async def test_score_operation_python_and_sql_summary_agree(
-    score_db, status, attempts, future, expected
-):
+def test_score_operation_python_and_sql_summary_agree(score_db, status, attempts, future, expected):
     db, score = score_db
     operation = admitted(db, score)
     operation.status, operation.attempt_count = status, attempts
@@ -474,8 +467,8 @@ async def test_score_operation_python_and_sql_summary_agree(
     operation.next_attempt_at = utc_now_naive() + timedelta(hours=1 if future else -1)
     db.commit()
     read = read_score_deletion_operation(operation)
-    rows = await AsyncOperationSummaryQuery._score_deletion_summary_rows(
-        AsyncSessionAdapter(db),
+    rows = AsyncOperationSummaryQuery._score_deletion_summary_rows(
+        db,
         AsyncOperationFilters(),
     )
     assert read.status.value == expected

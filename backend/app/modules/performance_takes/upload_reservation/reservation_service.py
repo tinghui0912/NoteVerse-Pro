@@ -1,5 +1,5 @@
 from __future__ import annotations
-from app.storage import AsyncObjectStorage
+from app.storage import ObjectStorage
 
 from app.modules.performance_takes.upload_reservation.domain import UploadReservationStatus
 
@@ -18,7 +18,7 @@ from app.modules.performance_takes.manifest_persistence import (
     manifest_to_row,
 )
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.exceptions import (
@@ -62,7 +62,6 @@ from app.modules.practice.score.domain import PracticeTempoSegment
 from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.storage_usage.service import StorageUsageService
 from app.shared.constants import ErrorCode
-from app.storage.base import ObjectStorage
 from app.storage.factory import object_storage
 from app.utils.timezone import utc_now_naive
 
@@ -93,7 +92,6 @@ class PerformanceTakeReservationService:
             score_access_policy=score_access_policy,
         )
         self.storage = storage or object_storage
-        self.async_storage = AsyncObjectStorage(self.storage)
         self.storage_usage_service = storage_usage_service or StorageUsageService()
         self.score_access_policy = score_access_policy or ScoreAccessPolicy()
         self.practice_bundle_service = practice_bundle_service or PracticeBundleService(
@@ -104,33 +102,31 @@ class PerformanceTakeReservationService:
     def _put_url_expires_at(self, now: datetime) -> datetime:
         return now + timedelta(seconds=settings.OBJECT_STORAGE_SIGNED_URL_EXPIRE_SECONDS)
 
-    async def _expire_reservation(
+    def _expire_reservation(
         self,
-        db: AsyncSession,
+        db: Session,
         reservation: PerformanceTakeUploadReservation,
     ) -> str:
         now = utc_now_naive()
-        await apply_reservation_transition(
+        apply_reservation_transition(
             self.storage_usage_service,
             db,
             reservation,
             lifecycle_from_row(reservation).expire(now=now),
             now=now,
         )
-        await db.commit()
+        db.commit()
         return reservation.staging_object_key
 
-    async def _replay_reservation(
+    def _replay_reservation(
         self,
-        db: AsyncSession,
+        db: Session,
         reservation: PerformanceTakeUploadReservation,
         metadata: PerformanceTakeUploadMetadata,
     ) -> PerformanceTakeUploadReservationRead:
         state = lifecycle_from_row(reservation)
         status = state.status.value
-        completed_take = await self.repository.get_by_reservation(
-            db, reservation.user_id, reservation.id
-        )
+        completed_take = self.repository.get_by_reservation(db, reservation.user_id, reservation.id)
         if state.status is UploadReservationStatus.COMPLETED and completed_take is None:
             raise ResourceNotFoundException("performance_take", reservation.manifest.take_uuid)
         state.assert_take_presence(completed_take is not None)
@@ -151,7 +147,7 @@ class PerformanceTakeReservationService:
                 details={"reason": "client_request_id_reuse_conflict"},
             )
         if completed_take is not None:
-            return await completed_reservation_response(self.takes, db, reservation, completed_take)
+            return completed_reservation_response(self.takes, db, reservation, completed_take)
         if status == UploadReservationStatus.FINALIZING.value:
             return reservation_read(reservation)
         if status != UploadReservationStatus.RESERVED.value:
@@ -161,19 +157,19 @@ class PerformanceTakeReservationService:
                 details={"reason": f"client_request_id_{status.lower()}"},
             )
         if reservation.expires_at <= utc_now_naive():
-            await self._expire_reservation(db, reservation)
+            self._expire_reservation(db, reservation)
             raise ValidationException(
                 ErrorCode.VALIDATION_ERROR,
                 field="client_request_id",
                 details={"reason": "client_request_id_expired_use_new_id"},
             )
-        upload_target = await self.async_storage.upload_url(
+        upload_target = self.storage.upload_url(
             key=reservation.staging_object_key,
             content_type=manifest_from_row(reservation.manifest).snapshot.capture.mime_type,
             checksum_sha256="",
         )
         now = utc_now_naive()
-        await apply_reservation_transition(
+        apply_reservation_transition(
             self.storage_usage_service,
             db,
             reservation,
@@ -183,12 +179,12 @@ class PerformanceTakeReservationService:
             now=now,
         )
         response = reservation_read(reservation, upload_target=upload_target)
-        await db.commit()
+        db.commit()
         return response
 
-    async def reserve_upload(
+    def reserve_upload(
         self,
-        db: AsyncSession,
+        db: Session,
         user_id: int,
         request: PerformanceTakeUploadReservationRequest,
     ) -> PerformanceTakeUploadReservationRead:
@@ -200,15 +196,15 @@ class PerformanceTakeReservationService:
         metadata = metadata.model_copy(update={"media": media})
         if not is_admitted_recording_mime(media.kind, media.mime_type):
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
-        existing = await self.repository.get_reservation_by_client_request_id(
+        existing = self.repository.get_reservation_by_client_request_id(
             db,
             user_id,
             request.client_request_id,
             lock=True,
         )
         if existing is not None:
-            return await self._replay_reservation(db, existing, metadata)
-        authorized_bundle = await self.practice_bundle_service.authorize_bundle_for_save(
+            return self._replay_reservation(db, existing, metadata)
+        authorized_bundle = self.practice_bundle_service.authorize_bundle_for_save(
             db,
             user_id,
             metadata.practice_binding.score_id,
@@ -254,10 +250,10 @@ class PerformanceTakeReservationService:
         )
         take_uuid = str(uuid4())
         staging_key = _build_staging_object_key(user_id, take_uuid, media.kind, media.mime_type)
-        upload_target = await self.async_storage.upload_url(
+        upload_target = self.storage.upload_url(
             key=staging_key, content_type=media.mime_type, checksum_sha256=""
         )
-        storage_reservation = await self.storage_usage_service.reserve(
+        storage_reservation = self.storage_usage_service.reserve(
             db,
             user_id=user_id,
             category=StorageUsageCategory.UPLOAD,
@@ -307,15 +303,15 @@ class PerformanceTakeReservationService:
             ),
         )
         try:
-            await self.repository.create_manifest(db, manifest_row)
+            self.repository.create_manifest(db, manifest_row)
             reservation.manifest_id = manifest_row.id
             reservation.manifest = manifest_row
-            await self.repository.create_reservation(db, reservation)
+            self.repository.create_reservation(db, reservation)
             response = reservation_read(reservation, upload_target=upload_target)
-            await db.commit()
+            db.commit()
         except IntegrityError:
-            await db.rollback()
-            winner = await self.repository.get_reservation_by_client_request_id(
+            db.rollback()
+            winner = self.repository.get_reservation_by_client_request_id(
                 db,
                 user_id,
                 request.client_request_id,
@@ -323,26 +319,26 @@ class PerformanceTakeReservationService:
             )
             if winner is None:
                 raise
-            return await self._replay_reservation(db, winner, metadata)
+            return self._replay_reservation(db, winner, metadata)
         except Exception:
-            await db.rollback()
+            db.rollback()
             raise
         return response
 
-    async def cancel_upload_reservation(
+    def cancel_upload_reservation(
         self,
-        db: AsyncSession,
+        db: Session,
         user_id: int,
         reservation_id: str,
     ) -> None:
-        reservation = await self.repository.get_reservation_by_uuid(
+        reservation = self.repository.get_reservation_by_uuid(
             db, user_id, reservation_id, lock=True
         )
         if reservation is None:
             raise ResourceNotFoundException("upload_reservation", reservation_id)
         now = utc_now_naive()
         state = lifecycle_from_row(reservation)
-        take = await self.repository.get_by_reservation(db, user_id, reservation.id)
+        take = self.repository.get_by_reservation(db, user_id, reservation.id)
         state.assert_take_presence(take is not None, allow_deleted_take=True)
         try:
             transition = state.cancel(now=now)
@@ -350,7 +346,7 @@ class PerformanceTakeReservationService:
             raise ValidationException(
                 ErrorCode.VALIDATION_ERROR, field="status", details={"reason": error.code}
             ) from error
-        await apply_reservation_transition(
+        apply_reservation_transition(
             self.storage_usage_service, db, reservation, transition, now=now
         )
-        await db.commit()
+        db.commit()

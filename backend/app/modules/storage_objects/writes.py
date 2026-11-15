@@ -26,7 +26,6 @@ from app.modules.storage_objects.facts import StoredObjectFacts
 from app.modules.storage_objects.persistence import object_from_row, object_to_row
 from app.modules.storage_objects.retirement import retain_for_reference
 from app.storage.base import ObjectStorage, ObjectWriteResult
-from app.storage import AsyncObjectStorage
 from app.utils.timezone import utc_now_naive
 
 
@@ -225,34 +224,6 @@ def write_object(
         return receipt
     except BaseException:
         db.rollback()
-        raise
-
-
-async def write_object_async(
-    db,
-    storage: AsyncObjectStorage,
-    *,
-    key: str,
-    content: bytes,
-    content_type: str = "application/octet-stream",
-) -> ObjectWriteReceipt:
-    try:
-        receipt = await db.run_sync(
-            lambda sync: prepare_object_write(
-                sync, key=key, content=content, content_type=content_type
-            )
-        )
-        row, needs_put = await db.run_sync(lambda sync: inspect_write(sync, receipt, content))
-        result = (
-            await storage.put_bytes(key=key, content=content, content_type=content_type)
-            if needs_put
-            else None
-        )
-        finalize_write(row, receipt, result)
-        await db.commit()
-        return receipt
-    except BaseException:
-        await db.rollback()  # PREPARED remains durable; cancellation settles IO before this unlock.
         raise
 
 

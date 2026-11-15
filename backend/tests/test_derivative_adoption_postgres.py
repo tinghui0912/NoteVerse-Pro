@@ -179,7 +179,7 @@ def generation(request, monkeypatch, tmp_path):
         monkeypatch.setattr(playback_outbox, "PlaybackGenerationService", lambda: playback)
         monkeypatch.setattr(render_outbox, "import_review_thumbnail_service", thumbnail)
         worker = playback_outbox if kind == "playback" else render_outbox
-        monkeypatch.setattr(worker, "get_worker_db", transaction)
+        monkeypatch.setattr(worker, "SessionLocal", transaction)
         service = playback_outbox_service if kind == "playback" else render_outbox_service
         model = PlaybackOutbox if kind == "playback" else RenderOutbox
         module = {
@@ -206,7 +206,7 @@ def generation(request, monkeypatch, tmp_path):
                     **common,
                 )
             if kind == "playback":
-                return playback.render_sync(
+                return playback.render_for_worker(
                     db,
                     payload.score_uuid,
                     payload.revision_uuid,
@@ -317,9 +317,9 @@ def test_semantic_adoption_and_completion_roll_back_together(generation, monkeyp
     def fail_after_completion(db, uuid, *, lease):
         assert complete(db, uuid, lease=lease)
         if kind != "thumbnail":
-            from app.modules.realtime.publisher import publish_score_event_sync
+            from app.modules.realtime.publisher import publish_score_event
 
-            publish_score_event_sync(
+            publish_score_event(
                 db,
                 score_id="score",
                 revision_id="revision",

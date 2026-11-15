@@ -38,11 +38,11 @@ class TakeLifecycleServices:
     def practice_bundle_service(self):
         return self.reservations.practice_bundle_service
 
-    async def reserve_upload(self, *args, **kwargs):
-        return await self.reservations.reserve_upload(*args, **kwargs)
+    def reserve_upload(self, *args, **kwargs):
+        return self.reservations.reserve_upload(*args, **kwargs)
 
-    async def cancel_upload_reservation(self, *args, **kwargs):
-        return await self.reservations.cancel_upload_reservation(*args, **kwargs)
+    def cancel_upload_reservation(self, *args, **kwargs):
+        return self.reservations.cancel_upload_reservation(*args, **kwargs)
 
-    async def finalize_take(self, *args, **kwargs):
-        return await self.finalization.finalize_take(*args, **kwargs)
+    def finalize_take(self, *args, **kwargs):
+        return self.finalization.finalize_take(*args, **kwargs)

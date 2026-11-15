@@ -22,7 +22,6 @@ from app.modules.ops.schemas import (
 from app.utils.timezone import utc_now_naive
 from tests.test_score_revision_services import (
     score_service_session as score_service_session,
-    AsyncSessionAdapter,
 )
 
 
@@ -45,9 +44,8 @@ CASES = [
 ]
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("job_state,status,attempt,future,expected,owner", CASES)
-async def test_import_projection_and_summary_agree(
+def test_import_projection_and_summary_agree(
     score_service_session, job_state, status, attempt, future, expected, owner
 ):
     db, _ = score_service_session
@@ -86,14 +84,14 @@ async def test_import_projection_and_summary_agree(
         select(import_operation_status_sql()).select_from(ImportJob).join(ImportDispatch)
     )
     assert sql_status == expected
-    summary = await AsyncOperationSummaryQuery().summary(
-        AsyncSessionAdapter(db),
+    summary = AsyncOperationSummaryQuery().summary(
+        db,
         kinds=(AsyncOperationKind.IMPORT,),
         filters=AsyncOperationFilters(status=operation.status, error_class=operation.error_class),
     )
     assert summary.total == 1 and summary.statuses[0].status == operation.status
-    excluded = await AsyncOperationSummaryQuery().summary(
-        AsyncSessionAdapter(db),
+    excluded = AsyncOperationSummaryQuery().summary(
+        db,
         kinds=(AsyncOperationKind.IMPORT,),
         filters=AsyncOperationFilters(
             error_class=AsyncOperationErrorClass.TRANSIENT
@@ -104,8 +102,7 @@ async def test_import_projection_and_summary_agree(
     assert excluded.total == 0
 
 
-@pytest.mark.asyncio
-async def test_delivery_updates_drive_operation_order_and_timestamp_filters(score_service_session):
+def test_delivery_updates_drive_operation_order_and_timestamp_filters(score_service_session):
     db, _ = score_service_session
     now = utc_now_naive()
     first = ImportJob(
@@ -132,8 +129,8 @@ async def test_delivery_updates_drive_operation_order_and_timestamp_filters(scor
     )
     db.add_all([d1, d2])
     db.commit()
-    service, adapter = OpsAsyncOperationQueryService(), AsyncSessionAdapter(db)
-    before = await service._import_operations(adapter, limit=1)
+    service, adapter = OpsAsyncOperationQueryService(), db
+    before = service._import_operations(adapter, limit=1)
     assert before[0].operation_id == d2.dispatch_uuid
     job_updated_at = first.updated_at
     assert ImportDispatchService().mark_dispatched(db, d1.dispatch_uuid)
@@ -143,29 +140,28 @@ async def test_delivery_updates_drive_operation_order_and_timestamp_filters(scor
     assert read_import_operation(first, d1).updated_at == d1.updated_at > job_updated_at
     assert read_import_operation(second, d2).updated_at == second.updated_at
     # Limit inside the source query must use the same combined timestamp as projection.
-    ordered = await service._import_operations(adapter, limit=1)
+    ordered = service._import_operations(adapter, limit=1)
     assert [o.operation_id for o in ordered] == [d1.dispatch_uuid]
-    listed = await service.list_operations(adapter, limit=2, kind=AsyncOperationKind.IMPORT)
+    listed = service.list_operations(adapter, limit=2, kind=AsyncOperationKind.IMPORT)
     assert [o.operation_id for o in listed.items] == [d1.dispatch_uuid, d2.dispatch_uuid]
     cutoff = now - timedelta(minutes=30)
-    filtered = await service.list_operations(
+    filtered = service.list_operations(
         adapter, limit=2, kind=AsyncOperationKind.IMPORT, updated_before=cutoff
     )
-    summary = await service.summary(adapter, kind=AsyncOperationKind.IMPORT, updated_before=cutoff)
+    summary = service.summary(adapter, kind=AsyncOperationKind.IMPORT, updated_before=cutoff)
     assert summary.total == len(filtered.items) == 1
     assert filtered.items[0].operation_id == d2.dispatch_uuid
-    filtered = await service.list_operations(
+    filtered = service.list_operations(
         adapter, limit=2, kind=AsyncOperationKind.IMPORT, created_after=now - timedelta(hours=36)
     )
-    summary = await service.summary(
+    summary = service.summary(
         adapter, kind=AsyncOperationKind.IMPORT, created_after=now - timedelta(hours=36)
     )
     assert summary.total == len(filtered.items) == 1
     assert filtered.items[0].operation_id == d1.dispatch_uuid
 
 
-@pytest.mark.asyncio
-async def test_ops_retry_uses_dispatch_identity_only(score_service_session):
+def test_ops_retry_uses_dispatch_identity_only(score_service_session):
     db, _ = score_service_session
     job = ImportJob(job_uuid="domain-resource", user_id=1, state=ImportJobState.FAILURE)
     db.add(job)
@@ -177,12 +173,10 @@ async def test_ops_retry_uses_dispatch_identity_only(score_service_session):
     )
     db.add(dispatch)
     db.commit()
-    service, adapter = OpsAsyncOperationCommandService(), AsyncSessionAdapter(db)
+    service, adapter = OpsAsyncOperationCommandService(), db
     with pytest.raises(ResourceNotFoundException):
-        await service.retry_operation(
-            adapter, kind=AsyncOperationKind.IMPORT, operation_id=job.job_uuid
-        )
-    result = await service.retry_operation(
+        service.retry_operation(adapter, kind=AsyncOperationKind.IMPORT, operation_id=job.job_uuid)
+    result = service.retry_operation(
         adapter, kind=AsyncOperationKind.IMPORT, operation_id=dispatch.dispatch_uuid
     )
     assert result.operation.operation_id == dispatch.dispatch_uuid

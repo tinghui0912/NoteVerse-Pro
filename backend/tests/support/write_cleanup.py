@@ -29,7 +29,7 @@ def drain_write_cleanup(db, storage):
             raise
 
     with (
-        patch.object(worker, "get_worker_db", transaction),
+        patch.object(worker, "SessionLocal", transaction),
         patch.object(worker, "object_storage", storage),
     ):
         return [worker.execute_object_write_cleanup_task(None, uuid) for uuid in due]

@@ -82,7 +82,6 @@ def test_database_capability_uses_the_psycopg_driver_family():
         {"include-group": "core"},
         "sqlmodel==0.0.48",
         "psycopg[binary]==3.3.6",
-        "greenlet==3.5.6",
     ]
 
 

@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
+from time import monotonic, sleep
 from datetime import timedelta
 from threading import Event
 
 import pytest
 from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlalchemy.orm import sessionmaker
 
 from app.core.exceptions import ValidationException
 from app.db.models import (
@@ -40,26 +43,31 @@ from app.utils.timezone import utc_now_naive
 
 pytest_plugins = ["tests.test_practice_bundle_postgres"]
 
+
+def finalize_in_session(sessions, service, reservation_id):
+    with sessions() as db:
+        return service.finalize_take(db, 1, reservation_id)
+
+
 MEDIA = b"\x1a\x45\xdf\xa3" + b"reserved-recording"
 
 
 @pytest.mark.parametrize("command", ["cancel", "expire", "expire-finalizing"])
-@pytest.mark.asyncio
-async def test_terminal_transitions_atomically_release_quota_and_preserve_provenance(
+def test_terminal_transitions_atomically_release_quota_and_preserve_provenance(
     postgres_bundle, command
 ):
     from unittest.mock import patch
     from app.db.models import PracticeBundleRecord
     from app.utils.timezone import utc_now_naive
 
-    sessions, source, storage, request = await setup_bundle(postgres_bundle)
+    sessions, source, storage, request = setup_bundle(postgres_bundle)
     service = TakeLifecycleServices(storage=storage, practice_bundle_service=source)
-    async with sessions() as db:
-        reserved = await service.reserve_upload(db, 1, request)
-        row = await service.repository.get_reservation_by_uuid(db, 1, reserved.reservation_id)
+    with sessions() as db:
+        reserved = service.reserve_upload(db, 1, request)
+        row = service.repository.get_reservation_by_uuid(db, 1, reserved.reservation_id)
         bundle_id = manifest_from_row(row.manifest).snapshot.practice_binding.bundle_id
         assert (
-            await db.scalar(
+            db.scalar(
                 select(PracticeBundleRecord).where(PracticeBundleRecord.bundle_id == bundle_id)
             )
         ).status == "READY"
@@ -75,67 +83,64 @@ async def test_terminal_transitions_atomically_release_quota_and_preserve_proven
                     now=now,
                 ).after,
             )
-            await db.commit()
+            db.commit()
             assert manifest_from_row(row.manifest).snapshot.practice_binding.bundle_id == bundle_id
         if command == "cancel":
-            await service.cancel_upload_reservation(db, 1, reserved.reservation_id)
+            service.cancel_upload_reservation(db, 1, reserved.reservation_id)
             # Idempotent cancellation does not release quota twice.
-            await service.cancel_upload_reservation(db, 1, reserved.reservation_id)
+            service.cancel_upload_reservation(db, 1, reserved.reservation_id)
         else:
-            await db.commit()
+            db.commit()
             with patch(
                 "app.modules.performance_takes.upload_reservation.cleanup.utc_now_naive",
                 return_value=now + timedelta(hours=2),
             ):
-                await db.run_sync(
-                    lambda sync_db: upload_reservation_cleanup_service.cleanup_expired_reservations(
-                        sync_db, storage, StorageUsageService()
-                    )
+                upload_reservation_cleanup_service.cleanup_expired_reservations(
+                    db, storage, StorageUsageService()
                 )
-        await db.refresh(row)
+        db.refresh(row)
         assert row.status == ("CANCELLED" if command == "cancel" else "EXPIRED")
         assert manifest_from_row(row.manifest).snapshot.practice_binding.bundle_id == bundle_id
         assert (
             row.finalizing_token is row.finalizing_object_key is row.finalizing_expires_at is None
         )
-        account = await db.get(StorageUsageAccount, 1)
+        account = db.get(StorageUsageAccount, 1)
         assert account.reserved_bytes == account.used_bytes == 0
         if command == "expire-finalizing":
             assert "worker-candidate" in row.orphan_final_object_keys
 
 
-@pytest.mark.asyncio
-async def test_take_creation_completion_and_quota_commit_share_one_transaction(postgres_bundle):
+def test_take_creation_completion_and_quota_commit_share_one_transaction(postgres_bundle):
     from unittest.mock import patch
 
-    sessions, source, storage, request = await setup_bundle(postgres_bundle)
+    sessions, source, storage, request = setup_bundle(postgres_bundle)
     service = TakeLifecycleServices(storage=storage, practice_bundle_service=source)
-    async with sessions() as db:
-        reserved = await service.reserve_upload(db, 1, request)
-        row = await service.repository.get_reservation_by_uuid(db, 1, reserved.reservation_id)
+    with sessions() as db:
+        reserved = service.reserve_upload(db, 1, request)
+        row = service.repository.get_reservation_by_uuid(db, 1, reserved.reservation_id)
         bundle_id = manifest_from_row(row.manifest).snapshot.practice_binding.bundle_id
         storage.put_bytes(key=row.staging_object_key, content=MEDIA, content_type="audio/webm")
-        await db.commit()
+        db.commit()
 
-        async def fail_commit(*args, **kwargs):
+        def fail_commit(*args, **kwargs):
             raise RuntimeError("quota transaction rejected")
 
         with patch.object(
             service.storage_usage_service, "commit_reservation", side_effect=fail_commit
         ):
             with pytest.raises(RuntimeError, match="quota transaction rejected"):
-                await service.finalize_take(db, 1, reserved.reservation_id)
-        await db.rollback()
-    async with sessions() as observer:
-        row = await service.repository.get_reservation_by_uuid(observer, 1, reserved.reservation_id)
+                service.finalize_take(db, 1, reserved.reservation_id)
+        db.rollback()
+    with sessions() as observer:
+        row = service.repository.get_reservation_by_uuid(observer, 1, reserved.reservation_id)
         assert (
             row.status == "RESERVED"
             and manifest_from_row(row.manifest).snapshot.practice_binding.bundle_id == bundle_id
         )
-        assert await observer.scalar(select(func.count()).select_from(PerformanceTake)) == 0
+        assert observer.scalar(select(func.count()).select_from(PerformanceTake)) == 0
         bundle_objects = set(
             (
-                await observer.execute(
+                observer.execute(
                     select(
                         PracticeBundleRecord.prepared_musicxml_object_id,
                         PracticeBundleRecord.artifact_object_id,
@@ -143,21 +148,21 @@ async def test_take_creation_completion_and_quota_commit_share_one_transaction(p
                 )
             ).one()
         )
-        assert set((await observer.scalars(select(StoredObject.id))).all()) == bundle_objects
+        assert set((observer.scalars(select(StoredObject.id))).all()) == bundle_objects
         assert (
-            await observer.scalar(
+            observer.scalar(
                 select(StoredObject).where(StoredObject.object_key == row.finalizing_object_key)
             )
             is None
         )
-        account = await observer.get(StorageUsageAccount, 1)
+        account = observer.get(StorageUsageAccount, 1)
         assert account.reserved_bytes == len(MEDIA) and account.used_bytes == 0
 
 
-async def setup_bundle(postgres_bundle):
+def setup_bundle(postgres_bundle):
     engine, repository, bundle, storage = postgres_bundle
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
-    async with sessions() as db:
+    sessions = sessionmaker(engine, expire_on_commit=False)
+    with sessions() as db:
         db.add(
             StorageUsageAccount(
                 user_id=1,
@@ -172,8 +177,8 @@ async def setup_bundle(postgres_bundle):
                 user_id=1, category=StorageUsageCategory.UPLOAD, used_bytes=0, reserved_bytes=0
             )
         )
-        await db.commit()
-        reference, verified_bundle = await repository.get_or_create(
+        db.commit()
+        reference, verified_bundle = repository.get_or_create(
             db, bundle, revision_id=repository.test_revision_id
         )
     source = PracticeBundleService(repository=repository, storage=storage)
@@ -208,43 +213,34 @@ async def setup_bundle(postgres_bundle):
     return sessions, source, storage, request
 
 
-@pytest.mark.asyncio
-async def test_two_creators_share_one_reservation_and_one_quota_hold(postgres_bundle):
-    sessions, source, storage, request = await setup_bundle(postgres_bundle)
-    both_absent = asyncio.Event()
-    arrivals = 0
+def test_two_creators_share_one_reservation_and_one_quota_hold(postgres_bundle):
+    sessions, source, storage, request = setup_bundle(postgres_bundle)
+    both_absent = Barrier(2)
 
     class SynchronizedRepository(PerformanceTakeRepository):
-        async def get_reservation_by_client_request_id(self, *args, **kwargs):
-            nonlocal arrivals
-            value = await super().get_reservation_by_client_request_id(*args, **kwargs)
+        def get_reservation_by_client_request_id(self, *args, **kwargs):
+            value = super().get_reservation_by_client_request_id(*args, **kwargs)
             if value is None:
-                arrivals += 1
-                if arrivals == 2:
-                    both_absent.set()
-                await asyncio.wait_for(both_absent.wait(), 5)
+                both_absent.wait(5)
             return value
 
     service = TakeLifecycleServices(
         repository=SynchronizedRepository(), storage=storage, practice_bundle_service=source
     )
-    async with sessions() as a, sessions() as b:
-        first, second = await asyncio.wait_for(
-            asyncio.gather(
-                service.reserve_upload(a, 1, request),
-                service.reserve_upload(b, 1, request),
-            ),
-            15,
-        )
-        assert first.reservation_id == second.reservation_id
-        assert first.take_id == second.take_id
-    async with sessions() as db:
-        assert (
-            await db.scalar(select(func.count()).select_from(PerformanceTakeUploadReservation)) == 1
-        )
-        assert await db.scalar(select(func.count()).select_from(PerformanceTakeManifest)) == 1
-        assert await db.scalar(select(func.count()).select_from(StorageUsageReservation)) == 1
-        account = await db.get(StorageUsageAccount, 1)
+
+    def reserve():
+        with sessions() as db:
+            return service.reserve_upload(db, 1, request)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        a, b = pool.submit(reserve), pool.submit(reserve)
+        first, second = a.result(15), b.result(15)
+    assert first.reservation_id == second.reservation_id and first.take_id == second.take_id
+    with sessions() as db:
+        assert db.scalar(select(func.count()).select_from(PerformanceTakeUploadReservation)) == 1
+        assert db.scalar(select(func.count()).select_from(PerformanceTakeManifest)) == 1
+        assert db.scalar(select(func.count()).select_from(StorageUsageReservation)) == 1
+        account = db.get(StorageUsageAccount, 1)
         assert account.reserved_bytes == len(MEDIA) and account.used_bytes == 0
 
 
@@ -253,16 +249,16 @@ async def test_two_creators_share_one_reservation_and_one_quota_hold(postgres_bu
 async def test_finalize_lease_blocks_concurrency_and_expired_takeover_preserves_one_take(
     postgres_bundle, takeover
 ):
-    sessions, source, storage, request = await setup_bundle(postgres_bundle)
+    sessions, source, storage, request = setup_bundle(postgres_bundle)
     service = TakeLifecycleServices(storage=storage, practice_bundle_service=source)
-    async with sessions() as a:
-        reserved = await service.reserve_upload(a, 1, request)
-        row = await service.repository.get_reservation_by_uuid(a, 1, reserved.reservation_id)
+    with sessions() as a:
+        reserved = service.reserve_upload(a, 1, request)
+        row = service.repository.get_reservation_by_uuid(a, 1, reserved.reservation_id)
         bundle_id = manifest_from_row(row.manifest).snapshot.practice_binding.bundle_id
         admitted_manifest = manifest_from_row(row.manifest)
         manifest_id = row.manifest_id
         storage.put_bytes(key=row.staging_object_key, content=MEDIA, content_type="audio/webm")
-        await a.commit()
+        a.commit()
     entered, release = Event(), Event()
     copy = storage.copy
     candidates = []
@@ -275,35 +271,37 @@ async def test_finalize_lease_blocks_concurrency_and_expired_takeover_preserves_
         return copy(source_key, candidate_key)
 
     storage.copy = held_copy
-    async with sessions() as a, sessions() as b:
+    with sessions() as a, sessions() as b:
         # Retain RESERVED in B's identity map before A acquires its lease.
-        cached = await service.repository.get_reservation_by_uuid(b, 1, reserved.reservation_id)
-        await b.commit()
-        first = asyncio.create_task(service.finalize_take(a, 1, reserved.reservation_id))
+        cached = service.repository.get_reservation_by_uuid(b, 1, reserved.reservation_id)
+        b.commit()
+        first = asyncio.create_task(
+            asyncio.to_thread(finalize_in_session, sessions, service, reserved.reservation_id)
+        )
         try:
             assert await asyncio.to_thread(entered.wait, 10)
-            current_observation = await service.repository.get_reservation_by_uuid(
+            current_observation = service.repository.get_reservation_by_uuid(
                 b, 1, reserved.reservation_id
             )
             assert current_observation.status == "FINALIZING"
             assert current_observation.manifest_id == manifest_id
             assert manifest_from_row(current_observation.manifest) == admitted_manifest
-            await b.commit()
+            b.commit()
             if takeover:
-                current = await service.repository.get_reservation_by_uuid(
+                current = service.repository.get_reservation_by_uuid(
                     b, 1, reserved.reservation_id, lock=True
                 )
                 assert current is cached and current.status == "FINALIZING"
                 current.finalizing_expires_at = utc_now_naive() - timedelta(seconds=1)
-                await b.commit()
-                completed = await service.finalize_take(b, 1, reserved.reservation_id)
+                b.commit()
+                completed = service.finalize_take(b, 1, reserved.reservation_id)
             else:
                 with pytest.raises(ValidationException) as failure:
-                    await service.finalize_take(b, 1, reserved.reservation_id)
+                    service.finalize_take(b, 1, reserved.reservation_id)
                 assert failure.value.details["reason"] == "finalize_in_progress"
             release.set()
             completed_first = await first
-            repeated = await service.finalize_take(b, 1, reserved.reservation_id)
+            repeated = service.finalize_take(b, 1, reserved.reservation_id)
             assert completed_first.take_id == repeated.take_id == reserved.take_id
             if takeover:
                 assert completed.take_id == repeated.take_id
@@ -311,13 +309,13 @@ async def test_finalize_lease_blocks_concurrency_and_expired_takeover_preserves_
             release.set()
             if not first.done():
                 await first
-    async with sessions() as db:
-        assert await db.scalar(select(func.count()).select_from(PerformanceTake)) == 1
-        row = await service.repository.get_reservation_by_uuid(db, 1, reserved.reservation_id)
-        take = await service.repository.get_by_reservation(db, 1, row.id)
+    with sessions() as db:
+        assert db.scalar(select(func.count()).select_from(PerformanceTake)) == 1
+        row = service.repository.get_reservation_by_uuid(db, 1, reserved.reservation_id)
+        take = service.repository.get_by_reservation(db, 1, row.id)
         bundle_objects = set(
             (
-                await db.execute(
+                db.execute(
                     select(
                         PracticeBundleRecord.prepared_musicxml_object_id,
                         PracticeBundleRecord.artifact_object_id,
@@ -325,7 +323,7 @@ async def test_finalize_lease_blocks_concurrency_and_expired_takeover_preserves_
                 )
             ).one()
         )
-        assert set((await db.scalars(select(StoredObject.id))).all()) == bundle_objects | {
+        assert set((db.scalars(select(StoredObject.id))).all()) == bundle_objects | {
             take.recording_object_id
         }
         assert take.manifest.take_uuid == reserved.take_id and row.status == "COMPLETED"
@@ -352,74 +350,67 @@ async def test_finalize_lease_blocks_concurrency_and_expired_takeover_preserves_
                 "app.modules.performance_takes.upload_reservation.cleanup.utc_now_naive",
                 return_value=utc_now_naive() + timedelta(hours=2),
             ):
-                await db.run_sync(
-                    lambda sync: upload_reservation_cleanup_service.cleanup_expired_reservations(
-                        sync, storage, StorageUsageService()
-                    )
+                upload_reservation_cleanup_service.cleanup_expired_reservations(
+                    db, storage, StorageUsageService()
                 )
             assert not storage.exists(candidates[0])
             assert storage.exists(take.recording_object.object_key)
-        account = await db.get(StorageUsageAccount, 1)
+        account = db.get(StorageUsageAccount, 1)
         assert account.used_bytes == len(MEDIA) and account.reserved_bytes == 0
 
 
-@pytest.mark.asyncio
-async def test_exact_bundle_admission_lock_fences_owner_release_until_reservation_commit(
-    postgres_bundle,
-):
+def test_exact_bundle_admission_lock_fences_owner_release_until_reservation_commit(postgres_bundle):
     from sqlalchemy import delete, text, update
-    from app.db.models import Score, ScoreRevision, PracticeBundleRecord
+    from app.db.models import Score, ScoreRevision, ScoreRevisionPracticeBinding
     from app.modules.practice.bundle.retention import practice_bundle_retention
+    from tests.test_stored_object_retirement_postgres import assert_blocked
 
-    sessions, source, storage, request = await setup_bundle(postgres_bundle)
+    sessions, source, storage, request = setup_bundle(postgres_bundle)
     service = TakeLifecycleServices(storage=storage, practice_bundle_service=source)
-    admitted, release = asyncio.Event(), asyncio.Event()
+    admitted, release = Event(), Event()
     authorize = source.authorize_bundle_for_save
 
-    async def held_authorize(*args, **kwargs):
-        value = await authorize(*args, **kwargs)
+    def held_authorize(*args, **kwargs):
+        value = authorize(*args, **kwargs)
         admitted.set()
-        await asyncio.wait_for(release.wait(), 15)
+        assert release.wait(15)
         return value
 
     source.authorize_bundle_for_save = held_authorize
-    async with sessions() as a, sessions() as b, sessions() as observer:
-        pid = await b.scalar(text("SELECT pg_backend_pid()"))
-        reserve = asyncio.create_task(service.reserve_upload(a, 1, request))
-        await asyncio.wait_for(admitted.wait(), 15)
+    pid = []
 
-        async def delete_revision():
-            await b.execute(update(Score).values(head_revision_id=None))
-            await b.execute(
+    def reserve():
+        with sessions() as db:
+            return service.reserve_upload(db, 1, request)
+
+    def delete_revision():
+        with sessions() as db:
+            pid.append(db.scalar(text("SELECT pg_backend_pid()")))
+            db.execute(update(Score).values(head_revision_id=None))
+            db.execute(
                 delete(ScoreRevision).where(ScoreRevision.id == postgres_bundle[1].test_revision_id)
             )
+            db.commit()
 
-        deletion = asyncio.create_task(delete_revision())
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        reserving = pool.submit(reserve)
         try:
-
-            async def wait_for_row_lock():
-                while (
-                    await observer.scalar(
-                        text("SELECT wait_event_type FROM pg_stat_activity WHERE pid = :pid"),
-                        {"pid": pid},
-                    )
-                    != "Lock"
-                ):
-                    await observer.commit()
-                    await asyncio.sleep(0.01)
-
-            await asyncio.wait_for(wait_for_row_lock(), 15)
+            assert admitted.wait(15)
+            deletion = pool.submit(delete_revision)
+            deadline = monotonic() + 15
+            while not pid:
+                assert monotonic() < deadline
+                sleep(0.01)
+            assert_blocked(postgres_bundle[0], pid[0])
             assert not deletion.done()
         finally:
             release.set()
-        result = await asyncio.wait_for(reserve, 15)
-        await asyncio.wait_for(deletion, 15)
-        await b.commit()
-        row = (await b.execute(select(PracticeBundleRecord))).scalar_one()
-        from app.db.models import ScoreRevisionPracticeBinding
-
-        assert await b.scalar(select(ScoreRevisionPracticeBinding)) is None
-        reservation = (await b.execute(select(PerformanceTakeUploadReservation))).scalar_one()
+        result = reserving.result(15)
+        deletion.result(15)
+    with sessions() as db:
+        row = db.scalar(select(PracticeBundleRecord))
+        assert db.scalar(select(ScoreRevisionPracticeBinding)) is None
+        reservation = db.scalar(select(PerformanceTakeUploadReservation))
         assert (
             manifest_from_row(reservation.manifest).snapshot.practice_binding.bundle_id
             == row.bundle_id
@@ -429,39 +420,27 @@ async def test_exact_bundle_admission_lock_fences_owner_release_until_reservatio
             == row.bundle_id
             == request.practice_binding.bundle_id
         )
-        assert (
-            len(
-                await b.run_sync(
-                    lambda db: practice_bundle_retention.collect_unowned_ready(
-                        db,
-                    )
-                )
-            )
-            == 2
-        )
-        assert await b.get(PracticeBundleRecord, row.id) is None
+        assert len(practice_bundle_retention.collect_unowned_ready(db)) == 2
+        assert db.get(PracticeBundleRecord, row.id) is None
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("owner", ["reservation", "take"])
-async def test_persisted_manifest_coordinate_corruption_fails_closed(postgres_bundle, owner):
+def test_persisted_manifest_coordinate_corruption_fails_closed(postgres_bundle, owner):
     from app.core.exceptions import ValidationException
     import hashlib
     import json
 
-    sessions, source, storage, request = await setup_bundle(postgres_bundle)
+    sessions, source, storage, request = setup_bundle(postgres_bundle)
     service = TakeLifecycleServices(storage=storage, practice_bundle_service=source)
-    async with sessions() as db:
-        accepted = await service.reserve_upload(db, 1, request)
-        reservation = await service.repository.get_reservation_by_uuid(
-            db, 1, accepted.reservation_id
-        )
+    with sessions() as db:
+        accepted = service.reserve_upload(db, 1, request)
+        reservation = service.repository.get_reservation_by_uuid(db, 1, accepted.reservation_id)
         if owner == "take":
             storage.put_bytes(
                 key=reservation.staging_object_key, content=MEDIA, content_type="audio/webm"
             )
-            await service.finalize_take(db, 1, accepted.reservation_id)
-        await db.commit()
+            service.finalize_take(db, 1, accepted.reservation_id)
+        db.commit()
         document_json = reservation.manifest.manifest_json
         invalid = [
             ("score_timebase", "ticks_per_quarter", 0),
@@ -484,9 +463,9 @@ async def test_persisted_manifest_coordinate_corruption_fails_closed(postgres_bu
             reservation.manifest.manifest_sha256 = hashlib.sha256(
                 corrupted.encode("utf-8")
             ).hexdigest()
-            await db.commit()
+            db.commit()
             with pytest.raises(ValidationException):
-                await service.reserve_upload(db, 1, request)
+                service.reserve_upload(db, 1, request)
             if owner == "take":
                 with pytest.raises(ValidationException):
-                    await service.takes.get_take(db, 1, accepted.take_id)
+                    service.takes.get_take(db, 1, accepted.take_id)

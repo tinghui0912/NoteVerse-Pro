@@ -1,7 +1,7 @@
 """Runtime and consumer projections share the application failure schema."""
 
-from collections.abc import AsyncGenerator
-from unittest.mock import AsyncMock
+from collections.abc import Generator
+from unittest.mock import Mock, AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -75,10 +75,10 @@ def pydantic_failure():
     ],
 )
 def test_application_failure_runtime_matches_openapi(exception, status, code):
-    async def fake_db() -> AsyncGenerator[object, None]:
+    def fake_db() -> Generator[object, None]:
         yield object()
 
-    service = type("Service", (), {"audio": AsyncMock(side_effect=exception)})()
+    service = type("Service", (), {"audio": Mock(side_effect=exception)})()
     app.dependency_overrides[get_db] = fake_db
     app.dependency_overrides[get_guest_preview_service] = lambda: service
     try:

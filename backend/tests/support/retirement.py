@@ -28,7 +28,7 @@ def drain_retirements(db, storage):
             raise
 
     with (
-        patch.object(worker, "get_worker_db", transaction),
+        patch.object(worker, "SessionLocal", transaction),
         patch.object(worker, "object_storage", storage),
     ):
         return [worker.execute_stored_object_retirement_task(None, uuid) for uuid in uuids]

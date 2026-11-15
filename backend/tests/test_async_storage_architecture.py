@@ -22,62 +22,35 @@ PROVIDER_IO = {
 }
 
 
-def test_async_application_provider_calls_use_the_async_port():
-    callers = set()
-    for path in ROOT.rglob("*.py"):
-        if "storage" == path.parent.name:
-            continue  # Infrastructure implements the scheduling boundary.
-        tree = ast.parse(path.read_text(encoding="utf-8-sig"))
-        parents = {child: node for node in ast.walk(tree) for child in ast.iter_child_nodes(node)}
-        for node in ast.walk(tree):
-            if (
-                not isinstance(node, ast.Call)
-                or not isinstance(node.func, ast.Attribute)
-                or node.func.attr not in PROVIDER_IO
-            ):
-                continue
-            receiver = ast.unparse(node.func.value)
-            if "storage" not in receiver:
-                continue
-            parent = node
-            while parent in parents:
-                parent = parents[parent]
-                if isinstance(parent, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                    break
-            if not isinstance(parent, ast.AsyncFunctionDef):
-                continue
-            callers.add(path.relative_to(ROOT).as_posix())
-            if receiver == "storage":
-                arg = next(
-                    arg for arg in parent.args.args + parent.args.kwonlyargs if arg.arg == "storage"
-                )
-                assert ast.unparse(arg.annotation) == "AsyncObjectStorage", (path, node.lineno)
-            else:
-                assert receiver.endswith(".async_storage"), (path, node.lineno)
-    assert {"modules/account/router.py", "api/storage_streaming.py"} <= callers
+def test_database_backed_delivery_executes_in_synchronous_http_operations():
+    import inspect
+    from app.modules.uploads.router import create_upload
+    from app.api.storage_streaming import stream_storage_object
+
+    assert not inspect.iscoroutinefunction(create_upload)
+    assert not inspect.iscoroutinefunction(stream_storage_object)
     assert isinstance(async_object_storage, AsyncObjectStorage)
     assert async_object_storage._storage is object_storage
 
 
-def test_async_prewrite_uses_shared_admission_and_threaded_physical_io():
+def test_object_write_protocol_uses_exact_generation_admission():
     tree = ast.parse((ROOT / "modules/storage_objects/writes.py").read_text())
     writer = next(
         node
         for node in tree.body
-        if isinstance(node, ast.AsyncFunctionDef) and node.name == "write_object_async"
+        if isinstance(node, ast.FunctionDef) and node.name == "write_object"
     )
-    calls = [ast.unparse(node.func) for node in ast.walk(writer) if isinstance(node, ast.Call)]
-    assert {"prepare_object_write", "inspect_write", "finalize_write", "storage.put_bytes"} <= set(
-        calls
+    calls = {ast.unparse(node.func) for node in ast.walk(writer) if isinstance(node, ast.Call)}
+    assert {"prepare_object_write", "perform_write"} <= calls
+    physical = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "perform_write"
     )
-    for node in ast.walk(writer):
-        if isinstance(node, ast.Lambda):
-            assert not any(
-                isinstance(call, ast.Call)
-                and isinstance(call.func, ast.Attribute)
-                and call.func.attr in PROVIDER_IO
-                for call in ast.walk(node)
-            )
+    physical_calls = {
+        ast.unparse(node.func) for node in ast.walk(physical) if isinstance(node, ast.Call)
+    }
+    assert {"inspect_write", "finalize_write", "storage.put_bytes", "db.commit"} <= physical_calls
 
 
 def test_score_upload_admission_is_application_owned_and_domain_specific():

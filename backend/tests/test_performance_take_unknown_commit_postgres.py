@@ -2,13 +2,13 @@
 
 import asyncio
 from datetime import timedelta
-from contextlib import asynccontextmanager
+from contextlib import contextmanager
 from unittest.mock import patch
 
 import pytest
 from sqlalchemy import func, select
 from sqlalchemy.exc import DBAPIError, OperationalError
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.core.exceptions import ExternalServiceException
 from app.db.models import PerformanceTake, StoredObject, StorageUsageAccount
@@ -23,12 +23,12 @@ from tests.test_upload_reservation_postgres import MEDIA
 pytest_plugins = ["tests.test_practice_bundle_postgres"]
 
 
-class UncertainRequestSession(AsyncSession):
+class UncertainRequestSession(Session):
     uncertain = False
 
-    async def execute(self, *args, **kwargs):
+    def execute(self, *args, **kwargs):
         assert not self.uncertain, "Request-session queries cannot decide an unknown COMMIT"
-        return await super().execute(*args, **kwargs)
+        return super().execute(*args, **kwargs)
 
     def completing(self):
         assert not self.uncertain, "Uncertain request session cannot commit recovery"
@@ -51,16 +51,16 @@ def commit_error(kind):
     )
 
 
-async def assert_persisted_outcome(db, reservations, accepted, manifest, candidate, committed):
-    row = await reservations.repository.get_reservation_by_uuid(db, 1, accepted.reservation_id)
+def assert_persisted_outcome(db, reservations, accepted, manifest, candidate, committed):
+    row = reservations.repository.get_reservation_by_uuid(db, 1, accepted.reservation_id)
     assert row.status == ("COMPLETED" if committed else "RESERVED")
     assert row.finalizing_token is None
     assert manifest_from_row(row.manifest) == manifest
-    account = await db.get(StorageUsageAccount, 1)
+    account = db.get(StorageUsageAccount, 1)
     assert account.used_bytes == (len(MEDIA) if committed else 0)
     assert account.reserved_bytes == (0 if committed else len(MEDIA))
-    assert await db.scalar(select(func.count()).select_from(PerformanceTake)) == int(committed)
-    assert await db.scalar(
+    assert db.scalar(select(func.count()).select_from(PerformanceTake)) == int(committed)
+    assert db.scalar(
         select(func.count())
         .select_from(StoredObject)
         .where(StoredObject.object_key == candidate.object_facts.object_key)
@@ -68,7 +68,7 @@ async def assert_persisted_outcome(db, reservations, accepted, manifest, candida
     orphans = lifecycle_from_row(row).orphan_candidates
     if committed:
         assert orphans == ()
-        take = await reservations.repository.get_by_reservation(db, 1, row.id)
+        take = reservations.repository.get_by_reservation(db, 1, row.id)
         assert take.recording_object.object_key == candidate.lease.object_key
     else:
         assert len(orphans) == 1 and orphans[0].key == candidate.lease.object_key
@@ -79,48 +79,47 @@ async def assert_persisted_outcome(db, reservations, accepted, manifest, candida
         assert orphans[0].remove_after <= utc_now_naive() + UNKNOWN_OUTCOME_GRACE
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("committed", [False, True])
 @pytest.mark.parametrize(
     "error_kind", ["runtime", "dbapi_noninvalidated", "operational", "timeout"]
 )
-async def test_every_noninvalidated_commit_exception_reads_fresh_lineage(
+def test_every_noninvalidated_commit_exception_reads_fresh_lineage(
     postgres_bundle, committed, error_kind
 ):
-    sessions, reservations, service, storage, request, accepted, manifest, key = await setup(
+    sessions, reservations, service, storage, request, accepted, manifest, key = setup(
         postgres_bundle
     )
     candidates = []
     opened = []
     verify = service.media.verify
 
-    async def capture(*args):
-        candidate = await verify(*args)
+    def capture(*args):
+        candidate = verify(*args)
         candidates.append(candidate)
         return candidate
 
     class LostAcknowledgement(UncertainRequestSession):
-        async def commit(self):
+        def commit(self):
             if self.completing():
                 if committed:
-                    await super().commit()
+                    super().commit()
                 self.uncertain = True
                 raise commit_error(error_kind)
-            await super().commit()
+            super().commit()
 
-    @asynccontextmanager
-    async def fresh_session():
-        async with sessions() as db:
+    @contextmanager
+    def fresh_session():
+        with sessions() as db:
             opened.append(db)
             yield db
 
     with (
-        patch.object(recovery, "AsyncSessionLocal", fresh_session),
+        patch.object(recovery, "SessionLocal", fresh_session),
         patch.object(service.media, "verify", side_effect=capture),
     ):
-        async with LostAcknowledgement(postgres_bundle[0], expire_on_commit=False) as request_db:
+        with LostAcknowledgement(postgres_bundle[0], expire_on_commit=False) as request_db:
             with pytest.raises(ExternalServiceException) as failure:
-                await service.finalize_take(request_db, 1, accepted.reservation_id)
+                service.finalize_take(request_db, 1, accepted.reservation_id)
             assert failure.value.details == {
                 "service": "database",
                 "retryable": True,
@@ -129,103 +128,75 @@ async def test_every_noninvalidated_commit_exception_reads_fresh_lineage(
             assert request_db.uncertain
             assert len(opened) == 1 and opened[0] is not request_db
     assert len(candidates) == 1
-    async with sessions() as observer:
-        await assert_persisted_outcome(
+    with sessions() as observer:
+        assert_persisted_outcome(
             observer, reservations, accepted, manifest, candidates[0], committed
         )
-        saved = await service.finalize_take(observer, 1, accepted.reservation_id)
-        replay = await service.finalize_take(observer, 1, accepted.reservation_id)
+        saved = service.finalize_take(observer, 1, accepted.reservation_id)
+        replay = service.finalize_take(observer, 1, accepted.reservation_id)
         assert saved.take_id == replay.take_id == accepted.take_id
-        assert await observer.scalar(select(func.count()).select_from(PerformanceTake)) == 1
-        row = await reservations.repository.get_reservation_by_uuid(
-            observer, 1, accepted.reservation_id
-        )
-        take = await reservations.repository.get_by_reservation(observer, 1, row.id)
+        assert observer.scalar(select(func.count()).select_from(PerformanceTake)) == 1
+        row = reservations.repository.get_reservation_by_uuid(observer, 1, accepted.reservation_id)
+        take = reservations.repository.get_by_reservation(observer, 1, row.id)
         assert (
-            await observer.scalar(
+            observer.scalar(
                 select(func.count())
                 .select_from(StoredObject)
                 .where(StoredObject.object_key == take.recording_object.object_key)
             )
             == 1
         )
-        account = await observer.get(StorageUsageAccount, 1)
-        await observer.refresh(account)
+        account = observer.get(StorageUsageAccount, 1)
+        observer.refresh(account)
         assert account.used_bytes == len(MEDIA) and account.reserved_bytes == 0
         assert storage.exists(candidates[0].lease.object_key)
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("committed", [False, True])
-async def test_commit_cancellation_settles_fresh_lineage_before_propagation(
-    postgres_bundle, committed
-):
-    sessions, reservations, service, storage, request, accepted, manifest, key = await setup(
+def test_commit_cancellation_settles_fresh_lineage_before_propagation(postgres_bundle, committed):
+    sessions, reservations, service, storage, request, accepted, manifest, key = setup(
         postgres_bundle
     )
-    commit_entered = asyncio.Event()
-    recovery_entered = asyncio.Event()
-    allow_recovery = asyncio.Event()
-    opened = []
-    candidates = []
-    verify = service.media.verify
+    opened, candidates = [], []
+    verified = service.media.verify
 
-    async def capture(*args):
-        candidate = await verify(*args)
+    def capture(*args):
+        candidate = verified(*args)
         candidates.append(candidate)
         return candidate
 
     class InterruptedCommit(UncertainRequestSession):
-        async def commit(self):
+        def commit(self):
             if self.completing():
                 if committed:
-                    await super().commit()
+                    super().commit()
                 self.uncertain = True
-                commit_entered.set()
-                await asyncio.Event().wait()  # Cancellation interrupts the COMMIT invocation.
-            else:
-                await super().commit()
+                raise asyncio.CancelledError()
+            super().commit()
 
-    @asynccontextmanager
-    async def fresh_session():
-        async with sessions() as db:
+    @contextmanager
+    def fresh_session():
+        with sessions() as db:
             opened.append(db)
-            recovery_entered.set()
-            await allow_recovery.wait()
             yield db
 
     with (
-        patch.object(recovery, "AsyncSessionLocal", fresh_session),
+        patch.object(recovery, "SessionLocal", fresh_session),
         patch.object(service.media, "verify", side_effect=capture),
     ):
-        async with InterruptedCommit(postgres_bundle[0], expire_on_commit=False) as request_db:
-            pending = asyncio.create_task(
+        with InterruptedCommit(postgres_bundle[0], expire_on_commit=False) as request_db:
+            with pytest.raises(asyncio.CancelledError):
                 service.finalize_take(request_db, 1, accepted.reservation_id)
-            )
-            try:
-                await asyncio.wait_for(commit_entered.wait(), 10)
-                pending.cancel()
-                await asyncio.wait_for(recovery_entered.wait(), 10)
-                assert len(opened) == 1 and opened[0] is not request_db
-                # Repeated cancellation cannot abandon the independent reconciliation task.
-                pending.cancel()
-                await asyncio.sleep(0)
-                assert not pending.done()
-                allow_recovery.set()
-                with pytest.raises(asyncio.CancelledError):
-                    await asyncio.wait_for(pending, 10)
-            finally:
-                allow_recovery.set()
-                if not pending.done():
-                    pending.cancel()
-                await asyncio.gather(pending, return_exceptions=True)
-    async with sessions() as observer:
-        await assert_persisted_outcome(
-            observer, reservations, accepted, manifest, candidates[0], committed
-        )
-        saved = await service.finalize_take(observer, 1, accepted.reservation_id)
+            assert request_db.uncertain
+            assert len(opened) == 1 and opened[0] is not request_db
+            # Cancellation is propagated only after persisted lineage has converged.
+            with sessions() as observer:
+                assert_persisted_outcome(
+                    observer, reservations, accepted, manifest, candidates[0], committed
+                )
+    with sessions() as observer:
+        saved = service.finalize_take(observer, 1, accepted.reservation_id)
         assert saved.take_id == accepted.take_id
-        assert await observer.scalar(select(func.count()).select_from(PerformanceTake)) == 1
-        account = await observer.get(StorageUsageAccount, 1)
-        await observer.refresh(account)
+        assert observer.scalar(select(func.count()).select_from(PerformanceTake)) == 1
+        account = observer.get(StorageUsageAccount, 1)
         assert account.used_bytes == len(MEDIA) and account.reserved_bytes == 0

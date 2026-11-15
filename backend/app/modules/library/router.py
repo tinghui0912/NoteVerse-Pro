@@ -1,6 +1,6 @@
 from fastapi import Response, APIRouter, Depends, Query
 
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.db.model_utils import require_persisted_id
@@ -31,25 +31,25 @@ router = APIRouter()
     operation_id="libraryFoldersOverviewGet",
     response_model=LibraryFolderOverviewRead,
 )
-async def list_library_folders(
+def list_library_folders(
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: LibraryService = Depends(get_library_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    result = await service.folder_overview(db, user_id)
+    result = service.folder_overview(db, user_id)
     return result
 
 
 @router.post("/folders", operation_id="libraryFoldersCreate", response_model=LibraryFolderRead)
-async def create_library_folder(
+def create_library_folder(
     request: LibraryFolderCreateRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: LibraryService = Depends(get_library_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    result = await service.create_folder(db, user_id, request)
+    result = service.create_folder(db, user_id, request)
     return result
 
 
@@ -58,15 +58,15 @@ async def create_library_folder(
     operation_id="libraryFolderUpdate",
     response_model=LibraryFolderRead,
 )
-async def update_library_folder(
+def update_library_folder(
     folder_id: str,
     request: LibraryFolderUpdateRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: LibraryService = Depends(get_library_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    result = await service.update_folder(db, user_id, folder_id, request)
+    result = service.update_folder(db, user_id, folder_id, request)
     return result
 
 
@@ -77,21 +77,21 @@ async def update_library_folder(
     response_model=None,
     response_class=Response,
 )
-async def delete_library_folder(
+def delete_library_folder(
     folder_id: str,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: LibraryService = Depends(get_library_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    await service.delete_folder(db, user_id, folder_id)
+    service.delete_folder(db, user_id, folder_id)
     return Response(status_code=204)
 
 
 @router.get(
     "/scores", operation_id="libraryScoresList", response_model=PageNumberPage[LibraryScoreRead]
 )
-async def list_library_scores(
+def list_library_scores(
     view: LibraryView = Query(LibraryView.ALL),
     folder_id: str | None = Query(default=None),
     search: str | None = Query(default=None),
@@ -99,11 +99,11 @@ async def list_library_scores(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: LibraryService = Depends(get_library_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    items, total = await service.list_scores(
+    items, total = service.list_scores(
         db,
         user_id,
         view=view,
@@ -121,14 +121,14 @@ async def list_library_scores(
     operation_id="libraryScoresBatchMove",
     response_model=LibraryBatchMoveRead,
 )
-async def batch_move_library_scores(
+def batch_move_library_scores(
     request: LibraryScoreBatchMoveRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: LibraryService = Depends(get_library_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    moved = await service.batch_move(db, user_id, request)
+    moved = service.batch_move(db, user_id, request)
     return LibraryBatchMoveRead(moved=moved)
 
 
@@ -137,12 +137,12 @@ async def batch_move_library_scores(
     operation_id="libraryScoresBatchFavorite",
     response_model=LibraryBatchUpdateRead,
 )
-async def batch_favorite_library_scores(
+def batch_favorite_library_scores(
     request: LibraryScoreBatchFavoriteRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: LibraryService = Depends(get_library_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    updated = await service.batch_set_favorite(db, user_id, request)
+    updated = service.batch_set_favorite(db, user_id, request)
     return LibraryBatchUpdateRead(updated=updated)

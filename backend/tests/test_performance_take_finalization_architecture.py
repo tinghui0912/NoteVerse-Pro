@@ -105,7 +105,7 @@ def test_semantic_commit_exception_boundary_reconciles_independently():
     finalize = next(
         node
         for node in service.body
-        if isinstance(node, ast.AsyncFunctionDef) and node.name == "finalize_take"
+        if isinstance(node, ast.FunctionDef) and node.name == "finalize_take"
     )
     boundary = next(
         node
@@ -113,9 +113,8 @@ def test_semantic_commit_exception_boundary_reconciles_independently():
         if isinstance(node, ast.Try)
         and len(node.body) == 1
         and isinstance(node.body[0], ast.Expr)
-        and isinstance(node.body[0].value, ast.Await)
-        and isinstance(node.body[0].value.value, ast.Call)
-        and ast.unparse(node.body[0].value.value.func) == "db.commit"
+        and isinstance(node.body[0].value, ast.Call)
+        and ast.unparse(node.body[0].value.func) == "db.commit"
     )
     assert len(boundary.handlers) == 1
     assert ast.unparse(boundary.handlers[0].type) == "BaseException"
@@ -130,14 +129,14 @@ def test_semantic_commit_exception_boundary_reconciles_independently():
     fresh = next(
         node
         for node in ast.walk(recovery_tree)
-        if isinstance(node, ast.AsyncFunctionDef) and node.name == "recover_unknown_commit"
+        if isinstance(node, ast.FunctionDef) and node.name == "recover_unknown_commit"
     )
     assert not any(arg.arg == "db" for arg in fresh.args.args + fresh.args.kwonlyargs)
     assert any(
-        isinstance(node, ast.AsyncWith)
+        isinstance(node, ast.With)
         and any(
             isinstance(item.context_expr, ast.Call)
-            and ast.unparse(item.context_expr.func) == "AsyncSessionLocal"
+            and ast.unparse(item.context_expr.func) == "SessionLocal"
             for item in node.items
         )
         for node in ast.walk(fresh)

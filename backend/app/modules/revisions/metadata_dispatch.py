@@ -1,19 +1,21 @@
 """Revision metadata broker relay; durable admission is already committed."""
 
 from uuid import uuid4
-from app.db.sync_session import get_worker_db
+from app.db.session import SessionLocal
 from app.modules.revisions.metadata_delivery import metadata_delivery
 from app.task_queue.producer import send_durable_task
 from app.task_queue.tracing import DurableTraceContext
 
 
 def dispatch_revision_metadata(outbox_uuid: str) -> bool:
-    with get_worker_db() as db:
+    with SessionLocal() as db:
         if not metadata_delivery.mark_dispatched(db, outbox_uuid):
+            db.commit()
             return False
         row = metadata_delivery.get(db, outbox_uuid)
         assert row is not None
         trace = DurableTraceContext(row.traceparent, row.tracestate)
+        db.commit()
     return send_durable_task(
         task_name="app.worker.tasks.revision_metadata_task",
         task_kwargs={"outbox_uuid": outbox_uuid},
@@ -30,5 +32,6 @@ def dispatch_revision_metadata(outbox_uuid: str) -> bool:
 
 
 def release(uuid: str, error: str) -> None:
-    with get_worker_db() as db:
+    with SessionLocal() as db:
         metadata_delivery.release_dispatch(db, uuid, error)
+        db.commit()

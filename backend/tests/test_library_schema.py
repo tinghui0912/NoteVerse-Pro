@@ -72,14 +72,13 @@ def postgres_workspace(monkeypatch):
         yield engine
 
 
-@pytest.mark.asyncio
-async def test_postgres_workspace_access_and_organization_lifetimes(postgres_workspace):
+def test_postgres_workspace_access_and_organization_lifetimes(postgres_workspace):
     from app.db.models import Score, ScoreMembership, ScoreLibraryOrganization
     from app.db.models.score_access import MembershipRole
     from app.modules.library.repository import LibraryRepository
     from app.modules.library.schemas import LibraryView, LibrarySort
     from app.utils.timezone import utc_now_naive
-    from tests.test_score_revision_services import AsyncSessionAdapter
+    from tests.test_score_revision_services import Session
 
     with Session(postgres_workspace) as db:
         db.add_all(
@@ -109,9 +108,9 @@ async def test_postgres_workspace_access_and_organization_lifetimes(postgres_wor
         )
         db.commit()
 
-        async def visible():
-            rows, _ = await LibraryRepository().list_scores(
-                AsyncSessionAdapter(db),
+        def visible():
+            rows, _ = LibraryRepository().list_scores(
+                db,
                 1,
                 view=LibraryView.ALL,
                 folder_id=None,
@@ -122,14 +121,14 @@ async def test_postgres_workspace_access_and_organization_lifetimes(postgres_wor
             )
             return [score.score_uuid for score, *_ in rows]
 
-        assert await visible() == ["A", "B"]
+        assert visible() == ["A", "B"]
         db.delete(folder)
         db.commit()
         db.refresh(organization)
-        assert organization.folder_id is None and await visible() == ["A", "B"]
+        assert organization.folder_id is None and visible() == ["A", "B"]
         membership.revoked_at = utc_now_naive()
         db.commit()
-        assert await visible() == ["A"]
+        assert visible() == ["A"]
         organization_id = organization.id
         db.delete(scores[1])
         db.commit()

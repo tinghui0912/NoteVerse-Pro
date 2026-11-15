@@ -277,14 +277,14 @@ def test_stale_derivative_worker_cannot_publish_status(database, monkeypatch, ki
         if result == "supersede":
             raise RevisionPresentationSuperseded()
 
-    monkeypatch.setattr(module, "get_worker_db", transaction)
+    monkeypatch.setattr(module, "SessionLocal", transaction)
     publish = Mock()
-    monkeypatch.setattr(module, "publish_score_event_sync", publish)
+    monkeypatch.setattr(module, "publish_score_event", publish)
     if kind == "render":
         monkeypatch.setattr(module, "_render_target", generate)
         execute = module.execute_render_outbox_task
     else:
-        monkeypatch.setattr(module.PlaybackGenerationService, "render_sync", generate)
+        monkeypatch.setattr(module.PlaybackGenerationService, "render_for_worker", generate)
         execute = module.execute_playback_outbox_task
     assert execute(None, kind)["status"] == "stale"
     publish.assert_not_called()

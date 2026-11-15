@@ -8,7 +8,7 @@ from datetime import timedelta
 from urllib.parse import urlencode
 
 from sqlmodel import select
-from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.core import security
 from app.core.config import settings
@@ -39,9 +39,9 @@ class EmailChangeService:
         base_url = settings.FRONTEND_BASE_URL.rstrip("/")
         return f"{base_url}{path}?{urlencode({'token': token})}"
 
-    async def request_email_change(
+    def request_email_change(
         self,
-        db: AsyncSession,
+        db: Session,
         user: User,
         request: RequestEmailChangeRequest,
         *,
@@ -56,10 +56,14 @@ class EmailChangeService:
                 details={"reason": "email_unchanged"},
             )
         if not security.verify_password(request.current_password, user.password_hash):
-            raise ValidationException(code=ErrorCode.CURRENT_PASSWORD_WRONG, field="current_password")
+            raise ValidationException(
+                code=ErrorCode.CURRENT_PASSWORD_WRONG, field="current_password"
+            )
 
-        existing_result = await db.exec(select(User).where(User.email == new_email))
-        if next((item for item in existing_result.all() if item.email == new_email), None):
+        existing_result = db.execute(select(User).where(User.email == new_email))
+        if next(
+            (item for item in existing_result.scalars().all() if item.email == new_email), None
+        ):
             raise ResourceAlreadyExistsException(
                 resource_type="user",
                 details={"email": new_email},
@@ -68,13 +72,13 @@ class EmailChangeService:
         now = utc_now_naive()
         user_id = require_persisted_id(user.id, entity="user")
         consumed_at_column = EmailChangeRequest.__table__.c.consumed_at
-        pending_result = await db.exec(
+        pending_result = db.execute(
             select(EmailChangeRequest).where(
                 EmailChangeRequest.user_id == user_id,
                 consumed_at_column.is_(None),
             )
         )
-        for pending in pending_result.all():
+        for pending in pending_result.scalars().all():
             if pending.user_id == user_id and pending.consumed_at is None:
                 pending.consumed_at = now
 
@@ -90,7 +94,7 @@ class EmailChangeService:
             expires_at=now + timedelta(seconds=ttl_seconds),
         )
         db.add(email_change)
-        await db.flush()
+        db.flush()
 
         email_content = build_email_change_confirmation_email(
             locale=request.locale,
@@ -98,7 +102,7 @@ class EmailChangeService:
             confirmation_url=self._frontend_url("/auth/confirm-email-change", token),
             ttl_seconds=ttl_seconds,
         )
-        await queue_mail(
+        queue_mail(
             db,
             category="email.change.requested",
             dedupe_key=f"email.change:{user_id}:{self._hash_token(token)}",
@@ -108,15 +112,15 @@ class EmailChangeService:
             html_body=email_content.html_body,
             expires_at=now + timedelta(seconds=ttl_seconds),
         )
-        await db.commit()
+        db.commit()
 
-    async def confirm_email_change(
+    def confirm_email_change(
         self,
-        db: AsyncSession,
+        db: Session,
         request: ConfirmEmailChangeRequest,
     ) -> User:
         now = utc_now_naive()
-        result = await db.exec(
+        result = db.execute(
             select(EmailChangeRequest).where(
                 EmailChangeRequest.token_hash == self._hash_token(request.token)
             )
@@ -124,7 +128,7 @@ class EmailChangeService:
         record = next(
             (
                 item
-                for item in result.all()
+                for item in result.scalars().all()
                 if item.token_hash == self._hash_token(request.token)
             ),
             None,
@@ -132,14 +136,16 @@ class EmailChangeService:
         if not record or record.consumed_at is not None or record.expires_at <= now:
             raise ValidationException(code=ErrorCode.TOKEN_INVALID_EXPIRED, field="token")
 
-        user_result = await db.exec(select(User).where(User.id == record.user_id))
-        user = next((item for item in user_result.all() if item.id == record.user_id), None)
+        user_result = db.execute(select(User).where(User.id == record.user_id))
+        user = next(
+            (item for item in user_result.scalars().all() if item.id == record.user_id), None
+        )
         if not user or not user.is_active:
             raise ValidationException(code=ErrorCode.TOKEN_INVALID_EXPIRED, field="token")
 
-        existing_result = await db.exec(select(User).where(User.email == record.new_email))
+        existing_result = db.execute(select(User).where(User.email == record.new_email))
         existing = next(
-            (item for item in existing_result.all() if item.email == record.new_email),
+            (item for item in existing_result.scalars().all() if item.email == record.new_email),
             None,
         )
         if existing and existing.id != user.id:
@@ -158,7 +164,7 @@ class EmailChangeService:
             project_name=settings.PROJECT_NAME,
             new_email=record.new_email,
         )
-        await queue_mail(
+        queue_mail(
             db,
             category="email.change.completed",
             dedupe_key=f"email.change.completed:{require_persisted_id(user.id, entity='user')}:{now.isoformat()}",
@@ -167,6 +173,6 @@ class EmailChangeService:
             text_body=email_content.text_body,
             html_body=email_content.html_body,
         )
-        await db.commit()
-        await db.refresh(user)
+        db.commit()
+        db.refresh(user)
         return user

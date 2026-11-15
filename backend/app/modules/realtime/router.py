@@ -18,7 +18,7 @@ from app.api.deps import get_current_user
 from app.core.config import settings
 from app.core.metrics import realtime_connection_closed, realtime_connection_opened
 from app.db.model_utils import require_persisted_id
-from app.db.session import AsyncSessionLocal, engine
+from app.db.session import SessionLocal, engine
 from app.db.models import RealtimeEvent, User
 from app.modules.realtime.publisher import REALTIME_NOTIFY_CHANNEL
 from app.modules.realtime.schemas import RealtimeEventRead
@@ -79,15 +79,15 @@ def _pending_events_statement(user_id: int, last_sequence: int) -> Select[tuple[
     )
 
 
-async def _fetch_pending_events(user_id: int, last_sequence: int) -> list[RealtimeEvent]:
-    async with AsyncSessionLocal() as db:
-        return (await db.execute(_pending_events_statement(user_id, last_sequence))).scalars().all()
+def _fetch_pending_events(user_id: int, last_sequence: int) -> list[RealtimeEvent]:
+    with SessionLocal() as db:
+        return (db.execute(_pending_events_statement(user_id, last_sequence))).scalars().all()
 
 
 async def _emit_pending_events(user_id: int, last_sequence: int) -> tuple[int, list[str]]:
     messages: list[str] = []
     while True:
-        rows = await _fetch_pending_events(user_id, last_sequence)
+        rows = await asyncio.to_thread(_fetch_pending_events, user_id, last_sequence)
         if not rows:
             break
         for event in rows:

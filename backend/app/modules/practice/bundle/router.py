@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.db.models import User
@@ -25,16 +25,16 @@ def get_practice_bundle_service() -> PracticeBundleService:
     operation_id="practiceScoreRevisionBundleGet",
     response_model=PracticeBundleRead,
 )
-async def read_bundle(
+def read_bundle(
     score_id: str,
     revision_id: str,
     include_notation: bool = False,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     practice_bundle_service: PracticeBundleService = Depends(get_practice_bundle_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    result = await practice_bundle_service.read_bundle(
+    result = practice_bundle_service.read_bundle(
         db,
         score_id,
         user_id,

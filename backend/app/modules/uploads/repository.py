@@ -1,16 +1,14 @@
 from sqlalchemy import delete, func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.db.models import ImportJobUpload, ScoreInputAsset, StoredObject, Upload
 
 
 class UploadRepository:
-    async def get_upload_object_by_sha256(
-        self, db: AsyncSession, sha256: str
-    ) -> StoredObject | None:
+    def get_upload_object_by_sha256(self, db: Session, sha256: str) -> StoredObject | None:
         # Upload-domain reuse only; other domains' identical bytes are not candidates.
         return (
-            await db.execute(
+            db.execute(
                 select(StoredObject)
                 .join(Upload, Upload.stored_object_id == StoredObject.id)
                 .where(StoredObject.sha256 == sha256)
@@ -19,14 +17,14 @@ class UploadRepository:
             )
         ).scalar_one_or_none()
 
-    async def get_object_by_key(self, db: AsyncSession, key: str) -> StoredObject | None:
+    def get_object_by_key(self, db: Session, key: str) -> StoredObject | None:
         return (
-            await db.execute(select(StoredObject).where(StoredObject.object_key == key))
+            db.execute(select(StoredObject).where(StoredObject.object_key == key))
         ).scalar_one_or_none()
 
-    async def create_upload(
+    def create_upload(
         self,
-        db: AsyncSession,
+        db: Session,
         *,
         stored_object_id: int,
         original_filename: str,
@@ -38,29 +36,29 @@ class UploadRepository:
             uploader_user_id=uploader_user_id,
         )
         db.add(upload)
-        await db.flush()
+        db.flush()
         return upload
 
-    async def get_upload_by_uuid(self, db: AsyncSession, upload_uuid: str) -> Upload | None:
+    def get_upload_by_uuid(self, db: Session, upload_uuid: str) -> Upload | None:
         return (
-            await db.execute(select(Upload).where(Upload.upload_uuid == upload_uuid))
+            db.execute(select(Upload).where(Upload.upload_uuid == upload_uuid))
         ).scalar_one_or_none()
 
-    async def upload_reference_count(self, db: AsyncSession, upload_id: int) -> int:
+    def upload_reference_count(self, db: Session, upload_id: int) -> int:
         import_refs = (
-            await db.execute(
+            db.execute(
                 select(func.count(ImportJobUpload.id)).where(ImportJobUpload.upload_id == upload_id)
             )
         ).scalar_one()
         input_refs = (
-            await db.execute(
+            db.execute(
                 select(func.count(ScoreInputAsset.id)).where(ScoreInputAsset.upload_id == upload_id)
             )
         ).scalar_one()
         return int(import_refs) + int(input_refs)
 
-    async def delete_upload_by_id(self, db: AsyncSession, upload_id: int) -> None:
-        await db.execute(delete(Upload).where(Upload.id == upload_id))
+    def delete_upload_by_id(self, db: Session, upload_id: int) -> None:
+        db.execute(delete(Upload).where(Upload.id == upload_id))
 
 
 upload_repository = UploadRepository()

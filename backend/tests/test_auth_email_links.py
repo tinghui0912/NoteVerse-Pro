@@ -30,6 +30,9 @@ from app.utils.timezone import utc_now_naive
 
 
 class FakeResult:
+    def scalars(self):
+        return self
+
     def __init__(self, rows: list[object]) -> None:
         self.rows = rows
 
@@ -71,25 +74,25 @@ class FakeDb:
         elif isinstance(record, RefreshToken):
             self.refresh_tokens.append(record)
 
-    async def delete(self, record) -> None:
+    def delete(self, record) -> None:
         if isinstance(record, PendingRegistration):
             self.pending_registrations = [
                 pending for pending in self.pending_registrations if pending is not record
             ]
 
-    async def flush(self) -> None:
+    def flush(self) -> None:
         return None
 
-    async def commit(self) -> None:
+    def commit(self) -> None:
         self.commits += 1
 
-    async def rollback(self) -> None:
+    def rollback(self) -> None:
         self.rollbacks += 1
 
-    async def refresh(self, _record) -> None:
+    def refresh(self, _record) -> None:
         return None
 
-    async def exec(self, statement):
+    def execute(self, statement):
         entity = statement.column_descriptions[0].get("entity")
         if entity is User:
             return FakeResult(self.users)
@@ -108,7 +111,7 @@ class FakeDb:
 def verification_queued_mail(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, object]]:
     queued: list[dict[str, object]] = []
 
-    async def capture_mail(_db, **kwargs) -> None:
+    def capture_mail(_db, **kwargs) -> None:
         queued.append(kwargs)
 
     monkeypatch.setattr("app.modules.auth.email_verification_service.queue_mail", capture_mail)
@@ -119,7 +122,7 @@ def verification_queued_mail(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, 
 def auth_queued_mail(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, object]]:
     queued: list[dict[str, object]] = []
 
-    async def capture_mail(_db, **kwargs) -> None:
+    def capture_mail(_db, **kwargs) -> None:
         queued.append(kwargs)
 
     monkeypatch.setattr("app.modules.auth.password_reset_service.queue_mail", capture_mail)
@@ -130,21 +133,20 @@ def auth_queued_mail(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, object]]
 def email_change_queued_mail(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, object]]:
     queued: list[dict[str, object]] = []
 
-    async def capture_mail(_db, **kwargs) -> None:
+    def capture_mail(_db, **kwargs) -> None:
         queued.append(kwargs)
 
     monkeypatch.setattr("app.modules.auth.email_change_service.queue_mail", capture_mail)
     return queued
 
 
-@pytest.mark.asyncio
-async def test_register_creates_pending_registration_and_sends_verification_link(
+def test_register_creates_pending_registration_and_sends_verification_link(
     verification_queued_mail: list[dict[str, object]],
 ) -> None:
     db = FakeDb()
     service = EmailVerificationService()
 
-    await service.register(
+    service.register(
         db,  # type: ignore[arg-type]
         RegisterRequest(
             email="User@Example.com",
@@ -161,13 +163,12 @@ async def test_register_creates_pending_registration_and_sends_verification_link
     assert "/auth/verify-email?token=" in str(verification_queued_mail[0]["text_body"])
 
 
-@pytest.mark.asyncio
-async def test_register_refreshes_existing_pending_registration(
+def test_register_refreshes_existing_pending_registration(
     verification_queued_mail: list[dict[str, object]],
 ) -> None:
     db = FakeDb()
     service = EmailVerificationService()
-    await service.register(
+    service.register(
         db,  # type: ignore[arg-type]
         RegisterRequest(
             email="user@example.com",
@@ -178,7 +179,7 @@ async def test_register_refreshes_existing_pending_registration(
     )
     first_token_hash = db.pending_registrations[0].token_hash
 
-    await service.register(
+    service.register(
         db,  # type: ignore[arg-type]
         RegisterRequest(
             email="user@example.com",
@@ -195,8 +196,7 @@ async def test_register_refreshes_existing_pending_registration(
     assert len(verification_queued_mail) == 2
 
 
-@pytest.mark.asyncio
-async def test_verify_email_creates_user_and_removes_pending_registration(
+def test_verify_email_creates_user_and_removes_pending_registration(
     verification_queued_mail: list[dict[str, object]],
 ) -> None:
     db = FakeDb()
@@ -212,7 +212,7 @@ async def test_verify_email_creates_user_and_removes_pending_registration(
         )
     )
 
-    user = await service.verify_email(
+    user = service.verify_email(
         db,  # type: ignore[arg-type]
         VerifyEmailRequest(token=token),
     )
@@ -224,8 +224,7 @@ async def test_verify_email_creates_user_and_removes_pending_registration(
     assert db.pending_registrations == []
 
 
-@pytest.mark.asyncio
-async def test_register_rejects_existing_verified_user() -> None:
+def test_register_rejects_existing_verified_user() -> None:
     db = FakeDb()
     db.add(
         User(
@@ -238,7 +237,7 @@ async def test_register_rejects_existing_verified_user() -> None:
     service = EmailVerificationService()
 
     with pytest.raises(ResourceAlreadyExistsException):
-        await service.register(
+        service.register(
             db,  # type: ignore[arg-type]
             RegisterRequest(
                 email="user@example.com",
@@ -249,8 +248,7 @@ async def test_register_rejects_existing_verified_user() -> None:
         )
 
 
-@pytest.mark.asyncio
-async def test_request_email_change_creates_request_and_sends_confirmation_link(
+def test_request_email_change_creates_request_and_sends_confirmation_link(
     email_change_queued_mail: list[dict[str, object]],
 ) -> None:
     db = FakeDb()
@@ -263,7 +261,7 @@ async def test_request_email_change_creates_request_and_sends_confirmation_link(
     )
     db.add(user)
 
-    await EmailChangeService().request_email_change(
+    EmailChangeService().request_email_change(
         db,  # type: ignore[arg-type]
         user,
         RequestEmailChangeRequest(
@@ -281,8 +279,7 @@ async def test_request_email_change_creates_request_and_sends_confirmation_link(
     assert db.commits == 1
 
 
-@pytest.mark.asyncio
-async def test_confirm_email_change_updates_user_and_consumes_request(
+def test_confirm_email_change_updates_user_and_consumes_request(
     email_change_queued_mail: list[dict[str, object]],
 ) -> None:
     db = FakeDb()
@@ -306,7 +303,7 @@ async def test_confirm_email_change_updates_user_and_consumes_request(
         )
     )
 
-    updated_user = await service.confirm_email_change(
+    updated_user = service.confirm_email_change(
         db,  # type: ignore[arg-type]
         ConfirmEmailChangeRequest(token=token),
     )
@@ -318,14 +315,13 @@ async def test_confirm_email_change_updates_user_and_consumes_request(
     assert db.commits == 1
 
 
-@pytest.mark.asyncio
-async def test_password_reset_request_is_generic_for_unknown_email(
+def test_password_reset_request_is_generic_for_unknown_email(
     auth_queued_mail: list[dict[str, object]],
 ) -> None:
     db = FakeDb()
     service = PasswordResetService()
 
-    await service.request_password_reset(
+    service.request_password_reset(
         db,  # type: ignore[arg-type]
         ForgotPasswordRequest(email="missing@example.com", locale="en"),
     )
@@ -334,8 +330,7 @@ async def test_password_reset_request_is_generic_for_unknown_email(
     assert db.auth_tokens == []
 
 
-@pytest.mark.asyncio
-async def test_password_reset_token_is_single_use(
+def test_password_reset_token_is_single_use(
     auth_queued_mail: list[dict[str, object]],
 ) -> None:
     db = FakeDb()
@@ -349,13 +344,13 @@ async def test_password_reset_token_is_single_use(
     db.add(user)
 
     service = PasswordResetService()
-    token = await service._create_token(
+    token = service._create_token(
         db,  # type: ignore[arg-type]
         user.id,
         ttl_seconds=settings.EMAIL_PASSWORD_RESET_TOKEN_TTL_SECONDS,
     )
 
-    await service.reset_password(
+    service.reset_password(
         db,  # type: ignore[arg-type]
         ResetPasswordRequest(new_password="new-password", token=token, locale="en"),
     )
@@ -364,7 +359,7 @@ async def test_password_reset_token_is_single_use(
     assert db.auth_tokens[0].used_at is not None
 
     with pytest.raises(ValidationException) as exc:
-        await service.reset_password(
+        service.reset_password(
             db,  # type: ignore[arg-type]
             ResetPasswordRequest(new_password="newer-password", token=token, locale="en"),
         )
@@ -372,8 +367,7 @@ async def test_password_reset_token_is_single_use(
     assert exc.value.code == ErrorCode.RESET_TOKEN_INVALID
 
 
-@pytest.mark.asyncio
-async def test_expired_password_reset_token_is_rejected(
+def test_expired_password_reset_token_is_rejected(
     auth_queued_mail: list[dict[str, object]],
 ) -> None:
     db = FakeDb()
@@ -387,7 +381,7 @@ async def test_expired_password_reset_token_is_rejected(
     db.add(user)
 
     service = PasswordResetService()
-    token = await service._create_token(
+    token = service._create_token(
         db,  # type: ignore[arg-type]
         user.id,
         ttl_seconds=settings.EMAIL_PASSWORD_RESET_TOKEN_TTL_SECONDS,
@@ -395,7 +389,7 @@ async def test_expired_password_reset_token_is_rejected(
     db.auth_tokens[0].expires_at = utc_now_naive() - timedelta(seconds=1)
 
     with pytest.raises(ValidationException) as exc:
-        await service.reset_password(
+        service.reset_password(
             db,  # type: ignore[arg-type]
             ResetPasswordRequest(new_password="new-password", token=token, locale="en"),
         )
@@ -403,13 +397,12 @@ async def test_expired_password_reset_token_is_rejected(
     assert exc.value.code == ErrorCode.RESET_TOKEN_INVALID
 
 
-@pytest.mark.asyncio
-async def test_current_user_password_change_revokes_sessions_and_sends_notice(
+def test_current_user_password_change_revokes_sessions_and_sends_notice(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     queued: list[dict[str, object]] = []
 
-    async def capture_mail(_db, **kwargs) -> None:
+    def capture_mail(_db, **kwargs) -> None:
         queued.append(kwargs)
 
     monkeypatch.setattr("app.modules.auth.password_service.queue_mail", capture_mail)
@@ -431,7 +424,7 @@ async def test_current_user_password_change_revokes_sessions_and_sends_notice(
         )
     )
 
-    await PasswordService().change_current_user_password(
+    PasswordService().change_current_user_password(
         db,  # type: ignore[arg-type]
         user,
         ChangePasswordRequest(
@@ -451,8 +444,7 @@ async def test_current_user_password_change_revokes_sessions_and_sends_notice(
     assert db.commits == 1
 
 
-@pytest.mark.asyncio
-async def test_current_user_password_change_rejects_wrong_current_password() -> None:
+def test_current_user_password_change_rejects_wrong_current_password() -> None:
     db = FakeDb()
     user = User(
         email="user@example.com",
@@ -464,7 +456,7 @@ async def test_current_user_password_change_rejects_wrong_current_password() -> 
     db.add(user)
 
     with pytest.raises(ValidationException) as exc:
-        await PasswordService().change_current_user_password(
+        PasswordService().change_current_user_password(
             db,  # type: ignore[arg-type]
             user,
             ChangePasswordRequest(
@@ -479,8 +471,7 @@ async def test_current_user_password_change_rejects_wrong_current_password() -> 
     assert db.commits == 0
 
 
-@pytest.mark.asyncio
-async def test_session_list_marks_current_active_session() -> None:
+def test_session_list_marks_current_active_session() -> None:
     db = FakeDb()
     service = SessionService()
     current_token = "current-refresh-token"
@@ -518,7 +509,7 @@ async def test_session_list_marks_current_active_session() -> None:
         )
     )
 
-    sessions = await service.list_user_sessions(
+    sessions = service.list_user_sessions(
         db,  # type: ignore[arg-type]
         1,
         current_refresh_token=current_token,
@@ -531,8 +522,7 @@ async def test_session_list_marks_current_active_session() -> None:
     )
 
 
-@pytest.mark.asyncio
-async def test_revoke_user_session_revokes_only_target_session() -> None:
+def test_revoke_user_session_revokes_only_target_session() -> None:
     db = FakeDb()
     service = SessionService()
     current_token = "current-refresh-token"
@@ -549,7 +539,7 @@ async def test_revoke_user_session_revokes_only_target_session() -> None:
     db.add(target)
     db.add(current)
 
-    revoked_current = await service.revoke_user_session(
+    revoked_current = service.revoke_user_session(
         db,  # type: ignore[arg-type]
         1,
         target.id,
@@ -562,8 +552,7 @@ async def test_revoke_user_session_revokes_only_target_session() -> None:
     assert db.commits == 1
 
 
-@pytest.mark.asyncio
-async def test_revoke_other_user_sessions_keeps_current_session() -> None:
+def test_revoke_other_user_sessions_keeps_current_session() -> None:
     db = FakeDb()
     service = SessionService()
     current_token = "current-refresh-token"
@@ -586,7 +575,7 @@ async def test_revoke_other_user_sessions_keeps_current_session() -> None:
     db.add(other)
     db.add(another_user)
 
-    await service.revoke_other_user_sessions(
+    service.revoke_other_user_sessions(
         db,  # type: ignore[arg-type]
         1,
         current_refresh_token=current_token,
@@ -598,8 +587,7 @@ async def test_revoke_other_user_sessions_keeps_current_session() -> None:
     assert db.commits == 1
 
 
-@pytest.mark.asyncio
-async def test_security_overview_returns_identity_security_summary() -> None:
+def test_security_overview_returns_identity_security_summary() -> None:
     db = FakeDb()
     user = User(
         email="user@example.com",
@@ -611,7 +599,7 @@ async def test_security_overview_returns_identity_security_summary() -> None:
     )
     db.add(user)
 
-    overview = await SecurityService().overview(db, user)  # type: ignore[arg-type]
+    overview = SecurityService().overview(db, user)  # type: ignore[arg-type]
 
     assert overview.email == "user@example.com"
     assert overview.email_verified_at is not None

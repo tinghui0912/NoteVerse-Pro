@@ -3,7 +3,7 @@
 import sys
 from hashlib import sha256
 from app.core.background_tracing import record_current_attempt_failure
-from app.db.sync_session import get_worker_db
+from app.db.session import SessionLocal
 from app.modules.revisions.metadata_delivery import (
     metadata_delivery,
     compute_metadata,
@@ -25,8 +25,9 @@ def execute_revision_metadata_task(task: CeleryTaskLike, outbox_uuid: str) -> di
     bind_task_context(task)
     trace = None
     try:
-        with get_worker_db() as db:
+        with SessionLocal() as db:
             payload = metadata_delivery.claim(db, outbox_uuid)
+            db.commit()
         if payload is None:
             return {"status": "ignored"}
         trace = start_attempt_trace(
@@ -43,16 +44,18 @@ def execute_revision_metadata_task(task: CeleryTaskLike, outbox_uuid: str) -> di
             if sha256(content).hexdigest() != payload.source_fingerprint:
                 raise ValueError("canonical_source_fingerprint_mismatch")
             result = compute_metadata(content)
-            with get_worker_db() as db:
+            with SessionLocal() as db:
                 metadata_delivery.adopt(db, payload, result)
+                db.commit()
         except StaleDeliveryAttempt:
             return {"status": "stale"}
         except Exception as exc:
             record_current_attempt_failure(exc)
-            with get_worker_db() as db:
+            with SessionLocal() as db:
                 accepted = metadata_delivery.fail(
                     db, outbox_uuid, payload.lease, type(exc).__name__
                 )
+                db.commit()
             operation_logger(
                 "revision_metadata.failed",
                 operation_kind="revision_metadata",
@@ -81,8 +84,9 @@ def execute_revision_metadata_maintenance() -> dict[str, int]:
     def scan():
         from app.modules.revisions.metadata_dispatch import dispatch_revision_metadata
 
-        with get_worker_db() as db:
+        with SessionLocal() as db:
             due = metadata_delivery.recover_and_list_due(db)
+            db.commit()
         return {
             "due": len(due),
             "dispatched": sum(dispatch_revision_metadata(uuid) for uuid in due),

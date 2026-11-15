@@ -1,7 +1,7 @@
 from fastapi.responses import Response
 from app.api.response_contracts import binary_responses
 from fastapi import APIRouter, Depends, Query, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.api.storage_streaming import stream_storage_object
@@ -23,15 +23,15 @@ router = APIRouter()
 
 
 @router.get("", operation_id="importJobsList", response_model=PageNumberPage[ImportJobRead])
-async def list_jobs(
+def list_jobs(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: ImportJobService = Depends(get_import_job_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    rows, total = await service.list_jobs(db, user_id, page=page, page_size=page_size)
+    rows, total = service.list_jobs(db, user_id, page=page, page_size=page_size)
     return PageNumberPage(items=rows, page=page, page_size=page_size, total=total)
 
 
@@ -41,13 +41,13 @@ async def list_jobs(
     response_model=ImportJobSubmitRead,
     status_code=status.HTTP_202_ACCEPTED,
 )
-async def submit_job(
+def submit_job(
     request: ImportJobSubmitRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: ImportJobService = Depends(get_import_job_service),
 ):
-    result = await service.submit(db, current_user, request)
+    result = service.submit(db, current_user, request)
     return result
 
 
@@ -57,26 +57,26 @@ async def submit_job(
     response_model=ImportJobSubmitRead,
     status_code=status.HTTP_202_ACCEPTED,
 )
-async def retry_job(
+def retry_job(
     job_id: str,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: ImportJobService = Depends(get_import_job_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    result = await service.retry(db, job_id, current_user, user_id)
+    result = service.retry(db, job_id, current_user, user_id)
     return result
 
 
 @router.get("/{job_id}", operation_id="importJobGet", response_model=ImportJobRead)
-async def get_job(
+def get_job(
     job_id: str,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: ImportJobService = Depends(get_import_job_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    return await service.detail(db, job_id, user_id)
+    return service.detail(db, job_id, user_id)
 
 
 @router.post(
@@ -84,14 +84,14 @@ async def get_job(
     operation_id="importJobsBatchStatusGet",
     response_model=ImportJobBatchStatusRead,
 )
-async def batch_job_status(
+def batch_job_status(
     request: BatchImportJobStatusRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: ImportJobService = Depends(get_import_job_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    jobs = await service.batch_status(db, request.job_ids, user_id)
+    jobs = service.batch_status(db, request.job_ids, user_id)
     return ImportJobBatchStatusRead(jobs=jobs)
 
 
@@ -102,14 +102,14 @@ async def batch_job_status(
     response_model=None,
     response_class=Response,
 )
-async def delete_job(
+def delete_job(
     job_id: str,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: ImportJobService = Depends(get_import_job_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    await service.delete(db, job_id, user_id)
+    service.delete(db, job_id, user_id)
     return Response(status_code=204)
 
 
@@ -119,17 +119,17 @@ async def delete_job(
     responses=binary_responses("*/*"),
     operation_id="importJobArtifactDownload",
 )
-async def download_job_artifact(
+def download_job_artifact(
     job_id: str,
     artifact_id: str,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: ImportJobService = Depends(get_import_job_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    delivery = await service.artifact_delivery(db, job_id, artifact_id, user_id)
-    return await stream_storage_object(
-        storage=service.async_storage,
+    delivery = service.artifact_delivery(db, job_id, artifact_id, user_id)
+    return stream_storage_object(
+        storage=service.storage,
         storage_key=delivery.storage_key,
         filename=delivery.filename,
         media_type=delivery.media_type,

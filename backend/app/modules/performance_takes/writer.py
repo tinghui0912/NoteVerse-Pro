@@ -1,7 +1,7 @@
 """The transaction participant that admits a verified recording as a durable Take."""
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from app.db.models.score import Score
 from app.db.models.performance_take import PerformanceTake
 from app.modules.storage_objects.persistence import object_to_row
@@ -24,9 +24,9 @@ class PerformanceTakeWriter:
         self.repository = repository
         self.storage_usage_service = storage_usage_service
 
-    async def adopt(
+    def adopt(
         self,
-        db: AsyncSession,
+        db: Session,
         *,
         user_id: int,
         reservation_id: str,
@@ -34,7 +34,7 @@ class PerformanceTakeWriter:
         candidate: VerifiedPerformanceTakeCandidate,
     ) -> PerformanceTake:
         # Refresh under the authoritative row lock; callers cannot supply an unlocked row.
-        reservation = await self.repository.get_reservation_by_uuid(
+        reservation = self.repository.get_reservation_by_uuid(
             db, user_id, reservation_id, lock=True
         )
         if reservation is None or user_id != manifest.user_id:
@@ -53,7 +53,7 @@ class PerformanceTakeWriter:
         )
         current_score = (
             (
-                await db.execute(
+                db.execute(
                     select(Score)
                     .where(
                         Score.score_uuid == manifest.snapshot.practice_binding.score_id,
@@ -67,7 +67,7 @@ class PerformanceTakeWriter:
         )
         blob = object_to_row(candidate.object_facts)
         db.add(blob)
-        await db.flush()
+        db.flush()
         take = PerformanceTake(
             recording_object_id=blob.id,
             recording_object=blob,
@@ -75,9 +75,9 @@ class PerformanceTakeWriter:
             manifest=reservation.manifest,
             linked_score_id=current_score.id if current_score is not None else None,
         )
-        await self.repository.create_take(db, take)
-        await apply_reservation_transition(
+        self.repository.create_take(db, take)
+        apply_reservation_transition(
             self.storage_usage_service, db, reservation, transition, now=utc_now_naive()
         )
-        await db.flush()
+        db.flush()
         return take

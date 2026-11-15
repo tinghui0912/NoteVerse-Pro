@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import Mock
 
 from fastapi.routing import iter_route_contexts
 from fastapi.testclient import TestClient
@@ -121,30 +121,30 @@ def test_real_customer_routes_return_direct_nested_representations_pages_and_emp
     )
     admission = ImportJobSubmitRead(job_id="job", count=1, state="PENDING")
     library = SimpleNamespace(
-        create_folder=AsyncMock(return_value=folder),
-        update_folder=AsyncMock(return_value=folder),
-        list_scores=AsyncMock(return_value=([], 21)),
+        create_folder=Mock(return_value=folder),
+        update_folder=Mock(return_value=folder),
+        list_scores=Mock(return_value=([], 21)),
     )
     imports = SimpleNamespace(
-        submit=AsyncMock(return_value=admission),
-        retry=AsyncMock(return_value=admission),
-        list_jobs=AsyncMock(return_value=([], 21)),
+        submit=Mock(return_value=admission),
+        retry=Mock(return_value=admission),
+        list_jobs=Mock(return_value=([], 21)),
     )
-    uploads = SimpleNamespace(delete_upload=AsyncMock())
+    uploads = SimpleNamespace(delete_upload=Mock())
 
-    async def database():
+    def database():
         yield object()
 
     app.dependency_overrides[get_db] = database
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
     app.dependency_overrides[get_profile_service] = lambda: SimpleNamespace(
-        profile_payload=lambda _: profile, update_profile=AsyncMock()
+        profile_payload=lambda _: profile, update_profile=Mock()
     )
     app.dependency_overrides[get_library_service] = lambda: library
     app.dependency_overrides[get_import_job_service] = lambda: imports
     app.dependency_overrides[get_upload_service] = lambda: uploads
     app.dependency_overrides[get_score_invite_service] = lambda: SimpleNamespace(
-        list_invites=AsyncMock(return_value=InviteListRead(items=[], next_cursor="opaque"))
+        list_invites=Mock(return_value=InviteListRead(items=[], next_cursor="opaque"))
     )
     with TestClient(app) as client:
         response = client.get("/api/v1/me/profile")
@@ -190,7 +190,7 @@ def test_real_customer_routes_return_direct_nested_representations_pages_and_emp
         deleted = client.delete("/api/v1/uploads/upload-1")
         assert deleted.status_code == 204 and deleted.content == b""
         assert "content-type" not in deleted.headers
-        uploads.delete_upload.assert_awaited_once()
+        uploads.delete_upload.assert_called_once()
 
 
 def test_bodyless_account_security_commands_preserve_rotated_and_cleared_cookies():
@@ -201,15 +201,15 @@ def test_bodyless_account_security_commands_preserve_rotated_and_cleared_cookies
 
     app = create_app()
 
-    async def database():
+    def database():
         yield object()
 
     app.dependency_overrides[get_db] = database
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
     password = SimpleNamespace(
-        change_current_user_password=AsyncMock(return_value=("rotated-access", "rotated-refresh"))
+        change_current_user_password=Mock(return_value=("rotated-access", "rotated-refresh"))
     )
-    sessions = SimpleNamespace(revoke_user_session=AsyncMock(return_value=True))
+    sessions = SimpleNamespace(revoke_user_session=Mock(return_value=True))
     app.dependency_overrides[get_password_service] = lambda: password
     app.dependency_overrides[get_session_service] = lambda: sessions
     expected = {protocol.AUTH_COOKIE_NAME, protocol.REFRESH_COOKIE_NAME, protocol.CSRF_COOKIE_NAME}

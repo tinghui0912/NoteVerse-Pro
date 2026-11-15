@@ -1,16 +1,18 @@
 from collections.abc import Iterable
 from uuid import uuid4
 from app.core.logger import logger
-from app.db.sync_session import get_worker_db
+from app.db.session import SessionLocal
 from app.modules.storage_objects.writes import write_cleanup_delivery
 from app.task_queue.producer import send_durable_task
 from app.task_queue.tracing import DurableTraceContext
 
 
 def dispatch_object_write_cleanup(intent_uuid: str) -> bool:
-    with get_worker_db() as db:
+    with SessionLocal() as db:
         if not write_cleanup_delivery.dispatch(db, intent_uuid):
+            db.commit()
             return False
+        db.commit()
     return send_durable_task(
         task_name="app.worker.tasks.object_write_cleanup_task",
         task_kwargs={"intent_uuid": intent_uuid},
@@ -27,8 +29,9 @@ def dispatch_object_write_cleanup(intent_uuid: str) -> bool:
 
 
 def _release(uuid: str, error: str) -> None:
-    with get_worker_db() as db:
+    with SessionLocal() as db:
         write_cleanup_delivery.release(db, uuid, error)
+        db.commit()
 
 
 def dispatch_write_cleanups_best_effort(uuids: Iterable[str]) -> None:

@@ -4,7 +4,7 @@ from app.modules.account.avatar_presentation import avatar_url_for_user
 
 from app.db.models import User
 from app.modules.account.schemas import ProfileRead, ProfileUserRead, UpdateProfileRequest
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 
 class ProfileService:
@@ -25,9 +25,9 @@ class ProfileService:
             )
         )
 
-    async def update_profile(
+    def update_profile(
         self,
-        db: AsyncSession,
+        db: Session,
         user: User,
         request: UpdateProfileRequest,
     ) -> list[str]:
@@ -38,6 +38,6 @@ class ProfileService:
             updated_fields.append("display_name")
 
         if updated_fields:
-            await db.commit()
+            db.commit()
 
         return updated_fields

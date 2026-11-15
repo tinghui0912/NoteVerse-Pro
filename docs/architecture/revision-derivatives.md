@@ -44,7 +44,7 @@ The neutral revision dispatcher and Beat maintenance use the same producer: mark
 commit DISPATCHED, publish the stable Celery task, and release dispatch on broker failure.
 The shared `app.task_queue` package owns Celery assembly, runtime options, producer tracing
 and schedule wiring; it imports no worker execution implementation. API relays execute
-outside the async transaction on a sync database connection.
+after the semantic transaction using a short-lived synchronous Session.
 
 Broker or dispatcher failure does not invalidate the saved revision. A released PENDING
 outbox is due for Beat recovery. A relay crash that leaves DISPATCHED work is recoverable
@@ -68,7 +68,7 @@ services flush that transaction without committing it. Ready realtime rows follo
 accepted completion in the same transaction. Physical render/audio computation and
 storage prewrite run outside aggregate/delivery locks.
 
-Ready and accepted failed signals use strict `publish_score_event_sync`. Recipient
+Ready and accepted failed signals use strict `publish_score_event`. Recipient
 lookup, every RealtimeEvent flush and transactional pg_notify must succeed before
 the caller commits. Ready publication failure rolls back adoption, usage,
 retirements, completion and partial recipient rows. ObjectWriteIntent retains

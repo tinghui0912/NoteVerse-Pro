@@ -1,7 +1,7 @@
 """Lock-bearing live authorization for Practice binding and durable-save mutations."""
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.core.exceptions import ResourceNotFoundException, UnauthorizedException
 from app.db.models import (
@@ -13,8 +13,8 @@ from app.modules.score_access.policy import ScoreAccessContext, ScoreAccessPolic
 from app.shared.constants import ErrorCode
 
 
-async def lock_live_practice_mutation_access(
-    db: AsyncSession,
+def lock_live_practice_mutation_access(
+    db: Session,
     policy: ScoreAccessPolicy,
     *,
     user_id: int,
@@ -27,7 +27,7 @@ async def lock_live_practice_mutation_access(
     Reauthorization under the selected fact locks fails closed if that authority changed.
     """
     score = (
-        await db.execute(
+        db.execute(
             select(Score)
             .where(
                 Score.score_uuid == score_uuid,
@@ -40,7 +40,7 @@ async def lock_live_practice_mutation_access(
     if score is None:
         raise ResourceNotFoundException("score", score_uuid, ErrorCode.SCORE_NOT_FOUND)
     revision = (
-        await db.execute(
+        db.execute(
             select(ScoreRevision)
             .where(
                 ScoreRevision.score_id == score.id,
@@ -52,7 +52,7 @@ async def lock_live_practice_mutation_access(
     ).scalar_one_or_none()
     if revision is None:
         raise ResourceNotFoundException("revision", revision_uuid, ErrorCode.REVISION_NOT_FOUND)
-    access = await policy.authorize(
+    access = policy.authorize(
         db, score_uuid, ScoreAction.PRACTICE, user_id=user_id, revision_uuid=revision_uuid
     )
     authority = (
@@ -61,7 +61,7 @@ async def lock_live_practice_mutation_access(
     )
     if access.membership is not None:
         membership = (
-            await db.execute(
+            db.execute(
                 select(ScoreMembership)
                 .where(ScoreMembership.id == access.membership.id)
                 .with_for_update()
@@ -70,7 +70,7 @@ async def lock_live_practice_mutation_access(
         ).scalar_one_or_none()
         if membership is None:
             raise UnauthorizedException(ErrorCode.NO_PRACTICE_ACCESS)
-    current = await policy.authorize(
+    current = policy.authorize(
         db, score_uuid, ScoreAction.PRACTICE, user_id=user_id, revision_uuid=revision_uuid
     )
     if authority != (

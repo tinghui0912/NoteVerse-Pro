@@ -28,7 +28,7 @@ from app.modules.storage_usage.service import storage_usage_service
 from app.shared.constants import ErrorCode
 from tests.test_revision_derivative_demand import revisions as revisions
 from tests.test_guest_previews import add_page, add_audio
-from tests.test_score_revision_services import AsyncSessionAdapter, MUSICXML_2
+from tests.test_score_revision_services import MUSICXML_2
 from tests.test_score_revision_services import score_service_session as score_service_session
 
 
@@ -43,7 +43,7 @@ def seed_assets(db, storage, rows):
     ):
         for asset in db.scalars(select(model)).all():
             keys[(category, asset.revision_id)] = asset.stored_object.object_key
-            storage_usage_service.record_allocation_sync(
+            storage_usage_service.record_allocation(
                 db,
                 user_id=1,
                 category=category,
@@ -57,11 +57,10 @@ def seed_assets(db, storage, rows):
     return keys
 
 
-@pytest.mark.asyncio
-async def test_head_projection_and_playback_do_not_read_other_revision(revisions):
+def test_head_projection_and_playback_do_not_read_other_revision(revisions):
     db, storage, score, rows = revisions
     seed_assets(db, storage, rows[:1])
-    detail = await ScoreService(storage=storage).get(AsyncSessionAdapter(db), score.score_uuid, 1)
+    detail = ScoreService(storage=storage).get(db, score.score_uuid, 1)
     assert detail.head_revision_id == rows[2].revision_uuid
     assert detail.derived_assets.model_dump() == {
         "preview": {"status": "processing", "asset_id": None},
@@ -69,23 +68,22 @@ async def test_head_projection_and_playback_do_not_read_other_revision(revisions
     }
     delivery = PlaybackDeliveryReadModel(storage=storage, access_policy=ScoreAccessPolicy())
     with pytest.raises(ResourceNotFoundException) as missing:
-        await delivery.delivery_for_revision(AsyncSessionAdapter(db), rows[2].id)
+        delivery.delivery_for_revision(db, rows[2].id)
     assert missing.value.code == ErrorCode.FILE_NOT_FOUND
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("enabled", [False, True])
 @pytest.mark.parametrize("mode", ["async", "sync", "daily"])
-async def test_only_head_protects_rows_objects_and_usage(revisions, enabled, mode):
+def test_only_head_protects_rows_objects_and_usage(revisions, enabled, mode):
     db, storage, score, rows = revisions
     keys = seed_assets(db, storage, rows)
     score.guest_preview_enabled = enabled
     db.commit()
     cleanup = DerivedAssetRetentionService()
     if mode == "async":
-        result = await cleanup.cleanup_for_score(AsyncSessionAdapter(db), score_id=score.id)
+        result = cleanup.cleanup_for_score(db, score_id=score.id)
     elif mode == "sync":
-        result = cleanup.cleanup_for_score_sync(db, score_id=score.id)
+        result = cleanup.cleanup_for_score(db, score_id=score.id)
     else:
         result = cleanup.cleanup_due_scores(db)
     protected = {rows[2].id}
@@ -120,9 +118,8 @@ async def test_only_head_protects_rows_objects_and_usage(revisions, enabled, mod
     )
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("active_preview", [False, True])
-async def test_background_retention_disposes_old_head_while_new_derivatives_are_pending(
+def test_background_retention_disposes_old_head_while_new_derivatives_are_pending(
     revisions, active_preview
 ):
     db, storage, score, rows = revisions
@@ -131,15 +128,15 @@ async def test_background_retention_disposes_old_head_while_new_derivatives_are_
     previews = GuestPreviewService(storage=storage)
     if active_preview:
         token = (
-            await previews.update_settings(
-                AsyncSessionAdapter(db),
+            previews.update_settings(
+                db,
                 score.score_uuid,
                 1,
                 GuestPreviewUpdateRequest(enabled=True),
             )
         ).token
-    created = await RevisionService(storage=storage).create(
-        AsyncSessionAdapter(db),
+    created = RevisionService(storage=storage).create(
+        db,
         score.score_uuid,
         1,
         RevisionCreateRequest(
@@ -157,7 +154,7 @@ async def test_background_retention_disposes_old_head_while_new_derivatives_are_
         == PlaybackOutboxStatus.PENDING
     )
     assert db.scalar(select(ScoreRenderAsset)) is not None
-    DerivedAssetRetentionService().cleanup_for_score_sync(db, score_id=score.id)
+    DerivedAssetRetentionService().cleanup_for_score(db, score_id=score.id)
     assert db.scalar(select(ScoreRenderAsset)) is None
     assert db.scalar(select(ScorePlaybackAsset)) is None
     assert all(storage.exists(key) for key in keys.values())
@@ -166,5 +163,5 @@ async def test_background_retention_disposes_old_head_while_new_derivatives_are_
     assert all(item["status"] == "completed" for item in outcomes)
     assert all(not storage.exists(key) for key in keys.values())
     if token:
-        read = await previews.read(AsyncSessionAdapter(db), token)
+        read = previews.read(db, token)
         assert not read.audio_available and read.render_assets == []

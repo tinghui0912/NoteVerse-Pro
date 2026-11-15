@@ -1,6 +1,6 @@
 from dataclasses import replace
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import Mock, patch
 
 from tests.practice_bundle_fixtures import bundle_service_for_notation, authorize_test_revision
 import pytest
@@ -86,14 +86,13 @@ def test_invalid_meter_fails_before_timeline_projection(tmp_path, initial, later
         build(path.read_bytes())
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("initial,later", INVALID)
-async def test_real_builder_meter_failure_maps_to_existing_invalid_score(tmp_path, initial, later):
+def test_real_builder_meter_failure_maps_to_existing_invalid_score(tmp_path, initial, later):
     path = tmp_path / "score.musicxml"
     path.write_bytes(xml(initial, later))
     service = bundle_service_for_notation(path.read_bytes())
     with pytest.raises(ValidationException) as caught:
-        await service.read_bundle(AsyncMock(), "s", 1, "r")
+        service.read_bundle(Mock(), "s", 1, "r")
     assert caught.value.code == "practice_score_invalid"
     assert caught.value.status_code == 422
     assert isinstance(caught.value.__cause__, PracticeScoreInvalidError)
@@ -306,7 +305,7 @@ def test_unsafe_musicxml_meter_is_invalid_score_over_http(tmp_path, numerator, d
     register_exception_handlers(app)
     app.include_router(router, prefix="/api/v1/practice")
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
-    app.dependency_overrides[get_db] = lambda: AsyncMock()
+    app.dependency_overrides[get_db] = lambda: Mock()
     app.dependency_overrides[get_practice_bundle_service] = lambda: service
     with patch.object(service.compiler, "compile", wraps=service.compiler.compile) as builder:
         response = TestClient(app).get("/api/v1/practice/scores/s/revisions/r/bundle")

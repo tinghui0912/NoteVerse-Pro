@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import uuid4
 
-from app.db.sync_session import get_worker_db
+from app.db.session import SessionLocal
 from app.modules.mail.outbox_service import mail_outbox_service
 from app.task_queue.producer import send_durable_task
 from app.task_queue.tracing import mail_trace_context
@@ -10,10 +10,12 @@ from app.task_queue.tracing import mail_trace_context
 
 def dispatch_mail_outbox(outbox_uuid: str) -> bool:
     task_id = uuid4().hex
-    with get_worker_db() as db:
+    with SessionLocal() as db:
         if not mail_outbox_service.mark_dispatched(db, outbox_uuid):
+            db.commit()
             return False
         trace_context = mail_trace_context(db, outbox_uuid)
+        db.commit()
     return send_durable_task(
         task_name="app.worker.tasks.send_mail_outbox_task",
         task_kwargs={"outbox_uuid": outbox_uuid},
@@ -30,5 +32,6 @@ def dispatch_mail_outbox(outbox_uuid: str) -> bool:
 
 
 def _release_dispatch(outbox_uuid: str, error: str) -> None:
-    with get_worker_db() as db:
+    with SessionLocal() as db:
         mail_outbox_service.release_dispatch(db, outbox_uuid, error)
+        db.commit()

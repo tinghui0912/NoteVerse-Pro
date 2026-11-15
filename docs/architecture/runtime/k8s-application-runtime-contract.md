@@ -81,7 +81,7 @@ Runtime:
 
 Required runtime dependencies:
 
-- sync database connection;
+- application database connection;
 - Redis broker/result backend;
 - writable work root;
 - OMR engine files;
@@ -165,9 +165,17 @@ into the browser bundle.
 ### Kubernetes Secrets
 
 Backend application database access is configured by one PostgreSQL psycopg
-`DATABASE_URL` (`postgresql+psycopg://...`). API and worker execution adapters,
-including Alembic, consume the same database identity. Runtime checks report the
-API database execution path and worker database execution path independently.
+`DATABASE_URL` (`postgresql+psycopg://...`). Domain, application, repository, API,
+Control Plane, worker and maintenance persistence use the synchronous engine and
+SessionLocal factory in `app.db.session`. Alembic uses synchronous PostgreSQL
+execution with the same configuration. The `database` runtime check validates
+this application database authority for each role.
+
+FastAPI executes ordinary database-backed path operations in worker threads.
+Function-scoped database dependencies close the request Session before response
+body streaming begins.
+Realtime SSE remains asynchronous for LISTEN, wake-ups and connection lifetime;
+catch-up batches run off the event loop in their own short-lived synchronous Sessions.
 `SCHEDULER_LOCK_DATABASE_URL` configures the Beat advisory-lock session and retains
 its direct PostgreSQL or session-pooling policy.
 

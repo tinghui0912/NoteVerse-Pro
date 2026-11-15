@@ -1,7 +1,7 @@
 """Membership mutations serialize on the current PostgreSQL row, including cached reads."""
 
-import asyncio
 from queue import Queue
+from unittest.mock import patch
 from threading import Thread
 from time import monotonic
 
@@ -18,7 +18,6 @@ from app.core.exceptions import ValidationException
 from app.modules.score_invites.rules import hash_invite_token
 from tests.support.postgres_schema import postgres_schema_database
 from tests.test_score_revision_services import add_active_score_with_head_revision
-from tests.test_performance_takes import AsyncSessionAdapter
 
 
 @pytest.mark.parametrize(
@@ -67,26 +66,24 @@ def test_membership_lifecycle_serializes_after_locked_reread(monkeypatch, first,
             member_id = member.id
         service = ScoreInviteService()
 
-        async def command_for(db, action):
+        def command_for(db, action):
             if action == "leave":
-                await service.leave_score(db, "shared", 2)
+                service.leave_score(db, "shared", 2)
             elif action == "remove":
-                await service.remove_member(db, "shared", member_id, 1)
+                service.remove_member(db, "shared", member_id, 1)
             elif action == "update":
-                await service.update_member(
+                service.update_member(
                     db, "shared", member_id, 1, MemberUpdateRequest(role=MembershipRole.EDITOR)
                 )
             else:
-                await service.accept_invite(db, "new-invite", 2)
+                service.accept_invite(db, "new-invite", 2)
 
         # Keep the first command's actual mutation/row lock open until contention is observed.
-        class HeldCommit(AsyncSessionAdapter):
-            async def commit(self):
-                self.session.flush()
 
         ready, result = Queue(), Queue()
         with Session(engine, expire_on_commit=False) as first_session:
-            asyncio.run(command_for(HeldCommit(first_session), first))
+            with patch.object(first_session, "commit", side_effect=first_session.flush):
+                command_for(first_session, first)
             first_revoked_at = first_session.get(ScoreMembership, member_id).revoked_at
             first_pid = first_session.scalar(text("SELECT pg_backend_pid()"))
 
@@ -97,7 +94,7 @@ def test_membership_lifecycle_serializes_after_locked_reread(monkeypatch, first,
                         cached = db.get(ScoreMembership, member_id)
                         assert cached.revoked_at is None
                         ready.put(db.scalar(text("SELECT pg_backend_pid()")))
-                        asyncio.run(command_for(AsyncSessionAdapter(db), second))
+                        command_for(db, second)
                     result.put(None)
                 except BaseException as exc:
                     result.put(exc)

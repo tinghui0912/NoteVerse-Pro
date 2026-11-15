@@ -1,6 +1,6 @@
-from app.storage import AsyncObjectStorage
+from app.storage import ObjectStorage
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from sqlmodel import col
 from app.db.model_utils import require_persisted_id
 
@@ -18,7 +18,7 @@ from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.score_assets.service import ScoreAssetDelivery
 from app.shared.constants import ErrorCode
-from app.storage import ObjectStorage, object_storage
+from app.storage import object_storage
 
 
 class GuestPreviewService:
@@ -31,29 +31,26 @@ class GuestPreviewService:
         access_policy: ScoreAccessPolicy | None = None,
     ) -> None:
         self.storage = storage or object_storage
-        self.async_storage = AsyncObjectStorage(self.storage)
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.assets = ScoreAssetRepository()
         self.playback = PlaybackDeliveryReadModel(
             storage=self.storage, access_policy=self.access_policy
         )
 
-    async def settings(
-        self, db: AsyncSession, score_uuid: str, user_id: int
-    ) -> GuestPreviewSettingsRead:
-        access = await self.access_policy.authorize(
+    def settings(self, db: Session, score_uuid: str, user_id: int) -> GuestPreviewSettingsRead:
+        access = self.access_policy.authorize(
             db, score_uuid, ScoreAction.MANAGE_GUEST_PREVIEWS, user_id=user_id
         )
         return self._settings(access.score)
 
-    async def update_settings(
-        self, db: AsyncSession, score_uuid: str, user_id: int, request: GuestPreviewUpdateRequest
+    def update_settings(
+        self, db: Session, score_uuid: str, user_id: int, request: GuestPreviewUpdateRequest
     ) -> GuestPreviewSettingsRead:
-        await self.access_policy.authorize(
+        self.access_policy.authorize(
             db, score_uuid, ScoreAction.MANAGE_GUEST_PREVIEWS, user_id=user_id
         )
         score = (
-            await db.execute(
+            db.execute(
                 select(Score)
                 .where(
                     Score.score_uuid == score_uuid,
@@ -67,8 +64,8 @@ class GuestPreviewService:
         if score is None:
             raise ResourceNotFoundException("score", code=ErrorCode.SCORE_NOT_FOUND)
         score.guest_preview_enabled = request.enabled
-        await db.commit()
-        await db.refresh(score)
+        db.commit()
+        db.refresh(score)
         return self._settings(score)
 
     @staticmethod
@@ -77,36 +74,33 @@ class GuestPreviewService:
             enabled=score.guest_preview_enabled, token=score.guest_preview_token
         )
 
-    async def read(self, db: AsyncSession, token: str) -> GuestPreviewRead:
-        score, revision = await self._authorize(db, token)
-        pages = await self.assets.list_render_assets(
+    def read(self, db: Session, token: str) -> GuestPreviewRead:
+        score, revision = self._authorize(db, token)
+        pages = self.assets.list_render_assets(
             db, require_persisted_id(revision.id, entity="revision"), RenderAssetKind.RENDERED_PAGE
         )
-        audio = await self.assets.playback_asset(
-            db, require_persisted_id(revision.id, entity="revision")
-        )
-        owner = await db.get(User, score.owner_user_id)
+        audio = self.assets.playback_asset(db, require_persisted_id(revision.id, entity="revision"))
+        owner = db.get(User, score.owner_user_id)
         return GuestPreviewRead(
             title=score.title,
             shared_by=(owner.display_name or "") if owner else "",
             render_assets=[
                 GuestPreviewPageRead(asset_id=a.asset_uuid, page_number=a.page_number)
                 for a in pages
-                if a.page_number is not None
-                and (await self.async_storage.exists(a.stored_object.object_key))
+                if a.page_number is not None and (self.storage.exists(a.stored_object.object_key))
             ],
             audio_available=audio is not None
-            and (await self.async_storage.exists(audio.stored_object.object_key)),
+            and (self.storage.exists(audio.stored_object.object_key)),
         )
 
-    async def image(self, db: AsyncSession, token: str, asset_uuid: str) -> ScoreAssetDelivery:
-        _, revision = await self._authorize(db, token)
-        asset = await self.assets.get_render_asset(db, asset_uuid)
+    def image(self, db: Session, token: str, asset_uuid: str) -> ScoreAssetDelivery:
+        _, revision = self._authorize(db, token)
+        asset = self.assets.get_render_asset(db, asset_uuid)
         if (
             asset is None
             or asset.revision_id != revision.id
             or asset.kind != RenderAssetKind.RENDERED_PAGE
-            or not (await self.async_storage.exists(asset.stored_object.object_key))
+            or not (self.storage.exists(asset.stored_object.object_key))
         ):
             raise ResourceNotFoundException("render_asset", code=ErrorCode.FILE_NOT_FOUND)
         return ScoreAssetDelivery(
@@ -115,15 +109,15 @@ class GuestPreviewService:
             storage_key=asset.stored_object.object_key,
         )
 
-    async def audio(self, db: AsyncSession, token: str) -> PlaybackDelivery:
-        _, revision = await self._authorize(db, token)
-        return await self.playback.delivery_for_revision(
+    def audio(self, db: Session, token: str) -> PlaybackDelivery:
+        _, revision = self._authorize(db, token)
+        return self.playback.delivery_for_revision(
             db, require_persisted_id(revision.id, entity="revision")
         )
 
-    async def _authorize(self, db: AsyncSession, token: str) -> tuple[Score, ScoreRevision]:
+    def _authorize(self, db: Session, token: str) -> tuple[Score, ScoreRevision]:
         score = (
-            await db.execute(
+            db.execute(
                 select(Score)
                 .where(
                     Score.guest_preview_token == token,
@@ -134,7 +128,7 @@ class GuestPreviewService:
             )
         ).scalar_one_or_none()
         revision = (
-            await db.get(ScoreRevision, score.head_revision_id)
+            db.get(ScoreRevision, score.head_revision_id)
             if score is not None and score.head_revision_id is not None
             else None
         )

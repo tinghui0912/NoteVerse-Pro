@@ -1,10 +1,10 @@
 from __future__ import annotations
-from app.storage import AsyncObjectStorage
+from app.storage import ObjectStorage
 
 from dataclasses import dataclass
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.core.exceptions import ResourceNotFoundException
 from app.db.model_utils import require_persisted_id
@@ -14,7 +14,7 @@ from app.db.models import (
 )
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.shared.constants import ErrorCode
-from app.storage import ObjectStorage, object_storage
+from app.storage import object_storage
 
 
 @dataclass(frozen=True)
@@ -32,41 +32,40 @@ class PlaybackDeliveryReadModel:
         access_policy: ScoreAccessPolicy,
     ) -> None:
         self.storage = storage
-        self.async_storage = AsyncObjectStorage(storage)
         self.access_policy = access_policy
 
-    async def score_revision_delivery(
+    def score_revision_delivery(
         self,
-        db: AsyncSession,
+        db: Session,
         score_uuid: str,
         revision_uuid: str,
         user_id: int,
     ) -> PlaybackDelivery:
-        access = await self.access_policy.authorize(
+        access = self.access_policy.authorize(
             db,
             score_uuid,
             ScoreAction.PRACTICE,
             user_id=user_id,
             revision_uuid=revision_uuid,
         )
-        return await self.delivery_for_revision(
+        return self.delivery_for_revision(
             db, require_persisted_id(access.revision.id, entity="score revision")
         )
 
-    async def delivery_for_revision(
+    def delivery_for_revision(
         self,
-        db: AsyncSession,
+        db: Session,
         revision_id: int,
     ) -> PlaybackDelivery:
         asset = (
-            await db.execute(
+            db.execute(
                 select(ScorePlaybackAsset).where(
                     ScorePlaybackAsset.revision_id == revision_id,
                     ScorePlaybackAsset.kind == PlaybackAssetKind.AUDIO,
                 )
             )
         ).scalar_one_or_none()
-        if asset is None or not (await self.async_storage.exists(asset.stored_object.object_key)):
+        if asset is None or not (self.storage.exists(asset.stored_object.object_key)):
             raise ResourceNotFoundException("playback_asset", code=ErrorCode.FILE_NOT_FOUND)
         return PlaybackDelivery(
             filename=asset.filename,
@@ -85,21 +84,20 @@ class PlaybackDeliveryService:
         delivery_read_model: PlaybackDeliveryReadModel | None = None,
     ) -> None:
         self.storage = storage or object_storage
-        self.async_storage = AsyncObjectStorage(self.storage)
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.delivery_read_model = delivery_read_model or PlaybackDeliveryReadModel(
             storage=self.storage,
             access_policy=self.access_policy,
         )
 
-    async def score_revision_delivery(
+    def score_revision_delivery(
         self,
-        db: AsyncSession,
+        db: Session,
         score_uuid: str,
         revision_uuid: str,
         user_id: int,
     ) -> PlaybackDelivery:
-        return await self.delivery_read_model.score_revision_delivery(
+        return self.delivery_read_model.score_revision_delivery(
             db,
             score_uuid,
             revision_uuid,

@@ -75,7 +75,7 @@ class PlaybackOutboxPayload(PlaybackTarget):
     max_attempts: int
 
 
-def create_playback_outbox_sync(
+def create_playback_outbox(
     db: Session,
     *,
     score_id: int,

@@ -10,7 +10,6 @@ from app.modules.performance_takes.final_media import PerformanceTakeFinalMedia
 from app.modules.performance_takes.manifest import TakeManifest
 from app.modules.performance_takes.schemas import PerformanceTakeManifestRead
 from app.modules.performance_takes.upload_reservation.domain import FinalizeLease
-from app.storage import AsyncObjectStorage
 from app.storage.base import ObjectMetadata
 from app.utils.timezone import utc_now_naive
 from tests.support.object_storage import InMemoryObjectStorage
@@ -55,7 +54,6 @@ def manifest():
     )
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "failure",
     [
@@ -70,7 +68,7 @@ def manifest():
         "candidate_hash",
     ],
 )
-async def test_media_verifier_requires_full_agreement_and_never_deletes(manifest, failure):
+def test_media_verifier_requires_full_agreement_and_never_deletes(manifest, failure):
     storage = InMemoryObjectStorage()
     content = MEDIA if failure != "signature" else b"x" * len(MEDIA)
     if failure != "missing":
@@ -105,12 +103,12 @@ async def test_media_verifier_requires_full_agreement_and_never_deletes(manifest
             storage, "delete", side_effect=AssertionError("cleanup owns physical deletion")
         ),
     ):
-        verifier = PerformanceTakeFinalMedia(AsyncObjectStorage(storage))
+        verifier = PerformanceTakeFinalMedia(storage)
         if failure:
             with pytest.raises((ValidationException, ResourceNotFoundException, RuntimeError)):
-                await verifier.verify(manifest, lease, "staging")
+                verifier.verify(manifest, lease, "staging")
         else:
-            candidate = await verifier.verify(manifest, lease, "staging")
+            candidate = verifier.verify(manifest, lease, "staging")
             candidate.validate(manifest)
             assert candidate.object_facts.sha256 == hashlib.sha256(MEDIA).hexdigest()
             assert candidate.object_facts.object_key == lease.object_key

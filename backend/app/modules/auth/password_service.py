@@ -1,6 +1,6 @@
 """Password management for authenticated users."""
 
-from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.core import security
 from app.core.config import settings
@@ -21,9 +21,9 @@ class PasswordService:
     def __init__(self, session_service: SessionService | None = None) -> None:
         self.session_service = session_service or SessionService()
 
-    async def change_current_user_password(
+    def change_current_user_password(
         self,
-        db: AsyncSession,
+        db: Session,
         user: User,
         request: ChangePasswordRequest,
         *,
@@ -42,13 +42,13 @@ class PasswordService:
         user.password_changed_at = changed_at
 
         user_id = require_persisted_id(user.id, entity="user")
-        await self.session_service.revoke_user_refresh_tokens(
+        self.session_service.revoke_user_refresh_tokens(
             db,
             user_id,
             revoked_at=changed_at,
             commit=False,
         )
-        access_token, refresh_token, _ = await self.session_service.create_token_pair(
+        access_token, refresh_token, _ = self.session_service.create_token_pair(
             db,
             user_id,
             user_agent=user_agent,
@@ -60,7 +60,7 @@ class PasswordService:
             locale=request.locale,
             project_name=settings.PROJECT_NAME,
         )
-        await queue_mail(
+        queue_mail(
             db,
             category="password.changed",
             dedupe_key=f"password.changed:{user_id}:{changed_at.isoformat()}",
@@ -69,5 +69,5 @@ class PasswordService:
             text_body=email_content.text_body,
             html_body=email_content.html_body,
         )
-        await db.commit()
+        db.commit()
         return access_token, refresh_token

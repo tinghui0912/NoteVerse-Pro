@@ -1,7 +1,7 @@
 """Access-derived Scores and user-local folder/favorite organization."""
 
 from datetime import timedelta
-from unittest.mock import AsyncMock
+from unittest.mock import Mock
 import pytest
 from pydantic import ValidationError
 from sqlalchemy import select, func, event
@@ -31,7 +31,6 @@ from app.modules.library.service import LibraryService
 from app.modules.library.repository import LibraryRepository
 from app.utils.timezone import utc_now_naive
 from tests.test_score_revision_services import (
-    AsyncSessionAdapter,
     add_active_score_with_head_revision,
     score_service_session as score_service_session,
 )
@@ -68,20 +67,19 @@ def workspace(score_service_session):
         )
     )
     db.commit()
-    return db, AsyncSessionAdapter(db), scores, member
+    return db, db, scores, member
 
 
-async def listed(service, db, view=LibraryView.ALL, folder=None, sort=LibrarySort.NAME_ASC):
-    return await service.list_scores(
+def listed(service, db, view=LibraryView.ALL, folder=None, sort=LibrarySort.NAME_ASC):
+    return service.list_scores(
         db, 1, view=view, folder_id=folder, search=None, sort=sort, page=1, page_size=100
     )
 
 
-@pytest.mark.asyncio
-async def test_owned_and_shared_scores_need_no_organization_row(workspace):
+def test_owned_and_shared_scores_need_no_organization_row(workspace):
     sync, db, scores, member = workspace
     service = LibraryService()
-    service.access_policy.authorize = AsyncMock(
+    service.access_policy.authorize = Mock(
         side_effect=AssertionError("list must use SQL access eligibility")
     )
     for view, expected in [
@@ -90,9 +88,9 @@ async def test_owned_and_shared_scores_need_no_organization_row(workspace):
         (LibraryView.SHARED_WITH_ME, ["B"]),
         (LibraryView.FAVORITES, []),
     ]:
-        rows, count = await listed(service, db, view)
+        rows, count = listed(service, db, view)
         assert [r.score_id for r in rows] == expected and count == len(expected)
-    rows, _ = await listed(service, db)
+    rows, _ = listed(service, db)
     assert [r.access_origin.value for r in rows] == ["OWNER", "MEMBERSHIP"]
     assert all(r.folder_id is None and not r.is_favorite for r in rows)
     assert rows[0].created_at == scores[0].created_at and rows[0].updated_at == scores[0].updated_at
@@ -100,18 +98,17 @@ async def test_owned_and_shared_scores_need_no_organization_row(workspace):
     for role in MembershipRole:
         member.role = role
         sync.commit()
-        assert (await listed(service, db))[1] == 2
+        assert (listed(service, db))[1] == 2
 
 
-@pytest.mark.asyncio
-async def test_revoked_or_deleted_scores_disappear_despite_organization(workspace):
+def test_revoked_or_deleted_scores_disappear_despite_organization(workspace):
     sync, db, scores, member = workspace
     service = LibraryService()
-    folder = await service.create_folder(db, 1, LibraryFolderCreateRequest(name="Studies"))
-    await service.batch_move(
+    folder = service.create_folder(db, 1, LibraryFolderCreateRequest(name="Studies"))
+    service.batch_move(
         db, 1, LibraryScoreBatchMoveRequest(score_ids=["A", "B"], target_folder_id=folder.folder_id)
     )
-    await service.batch_set_favorite(
+    service.batch_set_favorite(
         db, 1, LibraryScoreBatchFavoriteRequest(score_ids=["A", "B"], is_favorite=True)
     )
     # A persisted preference cannot make a private Score accessible.
@@ -123,9 +120,9 @@ async def test_revoked_or_deleted_scores_disappear_despite_organization(workspac
         (LibraryView.FAVORITES, None),
         (LibraryView.ALL, folder.folder_id),
     ]:
-        assert [r.score_id for r in (await listed(service, db, view, selected))[0]] == ["A"]
-    assert (await listed(service, db, LibraryView.SHARED_WITH_ME))[1] == 0
-    overview = await service.folder_overview(db, 1)
+        assert [r.score_id for r in (listed(service, db, view, selected))[0]] == ["A"]
+    assert (listed(service, db, LibraryView.SHARED_WITH_ME))[1] == 0
+    overview = service.folder_overview(db, 1)
     assert (
         overview.all_count,
         overview.favorite_count,
@@ -135,108 +132,103 @@ async def test_revoked_or_deleted_scores_disappear_despite_organization(workspac
     assert overview.folders[0].score_count == 1
     scores[0].deleted_at = utc_now_naive()
     sync.commit()
-    assert (await listed(service, db))[1] == 0
+    assert (listed(service, db))[1] == 0
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("favorite", [True, False])
-async def test_organization_mutation_requires_access_and_is_atomic(workspace, favorite):
+def test_organization_mutation_requires_access_and_is_atomic(workspace, favorite):
     sync, db, _, _ = workspace
     service = LibraryService()
     with pytest.raises(UnauthorizedException):
-        await service.batch_set_favorite(
+        service.batch_set_favorite(
             db, 1, LibraryScoreBatchFavoriteRequest(score_ids=["A", "C"], is_favorite=favorite)
         )
     assert sync.scalar(select(func.count()).select_from(ScoreLibraryOrganization)) == 0
     with pytest.raises(UnauthorizedException):
-        await service.batch_move(db, 1, LibraryScoreBatchMoveRequest(score_ids=["C"]))
+        service.batch_move(db, 1, LibraryScoreBatchMoveRequest(score_ids=["C"]))
     with pytest.raises(ResourceNotFoundException):
-        await service.batch_set_favorite(
+        service.batch_set_favorite(
             db, 1, LibraryScoreBatchFavoriteRequest(score_ids=["absent"], is_favorite=True)
         )
 
 
-@pytest.mark.asyncio
-async def test_favorites_are_reversible_and_do_not_change_score_timestamps(workspace):
+def test_favorites_are_reversible_and_do_not_change_score_timestamps(workspace):
     sync, db, scores, _ = workspace
     service = LibraryService()
     before = [s.updated_at for s in scores]
     for favorite in [True, False]:
         assert (
-            await service.batch_set_favorite(
+            service.batch_set_favorite(
                 db,
                 1,
                 LibraryScoreBatchFavoriteRequest(score_ids=["B", "A", "A"], is_favorite=favorite),
             )
             == 2
         )
-        assert (await listed(service, db, LibraryView.FAVORITES))[1] == (2 if favorite else 0)
-        assert (await listed(service, db))[1] == 2
+        assert (listed(service, db, LibraryView.FAVORITES))[1] == (2 if favorite else 0)
+        assert (listed(service, db))[1] == 2
     assert [s.updated_at for s in scores] == before
     scores[0].updated_at = utc_now_naive() + timedelta(days=1)
     sync.commit()
-    assert [r.score_id for r in (await listed(service, db, sort=LibrarySort.UPDATED_DESC))[0]] == [
+    assert [r.score_id for r in (listed(service, db, sort=LibrarySort.UPDATED_DESC))[0]] == [
         "A",
         "B",
     ]
 
 
-@pytest.mark.asyncio
-async def test_folders_move_owned_and_shared_scores_and_delete_only_organization(workspace):
+def test_folders_move_owned_and_shared_scores_and_delete_only_organization(workspace):
     sync, db, scores, member = workspace
     service = LibraryService()
-    a = await service.create_folder(db, 1, LibraryFolderCreateRequest(name=" Alpha "))
-    b = await service.create_folder(db, 1, LibraryFolderCreateRequest(name="Beta"))
+    a = service.create_folder(db, 1, LibraryFolderCreateRequest(name=" Alpha "))
+    b = service.create_folder(db, 1, LibraryFolderCreateRequest(name="Beta"))
     for ids, target in [
         (["A", "B"], a.folder_id),
         (["A"], b.folder_id),
         (["B"], None),
         (["B"], b.folder_id),
     ]:
-        await service.batch_move(
+        service.batch_move(
             db, 1, LibraryScoreBatchMoveRequest(score_ids=ids, target_folder_id=target)
         )
-    assert (await listed(service, db, folder=a.folder_id))[1] == 0
-    assert [r.score_id for r in (await listed(service, db, folder=b.folder_id))[0]] == ["A", "B"]
-    other = await service.create_folder(db, 2, LibraryFolderCreateRequest(name="Other"))
+    assert (listed(service, db, folder=a.folder_id))[1] == 0
+    assert [r.score_id for r in (listed(service, db, folder=b.folder_id))[0]] == ["A", "B"]
+    other = service.create_folder(db, 2, LibraryFolderCreateRequest(name="Other"))
     with pytest.raises(ResourceNotFoundException):
-        await service.batch_move(
+        service.batch_move(
             db, 1, LibraryScoreBatchMoveRequest(score_ids=["A"], target_folder_id=other.folder_id)
         )
     folder_db_id = sync.scalar(
         select(ScoreLibraryFolder.id).where(ScoreLibraryFolder.folder_uuid == b.folder_id)
     )
-    await service.delete_folder(db, 1, b.folder_id)
+    service.delete_folder(db, 1, b.folder_id)
     sync.expire_all()
     assert sync.get(ScoreLibraryFolder, folder_db_id) is None
-    rows, total = await listed(service, db)
+    rows, total = listed(service, db)
     assert total == 2 and all(r.folder_id is None for r in rows)
     assert [s.owner_user_id for s in scores] == [1, 2, 2] and member.revoked_at is None
-    assert len((await service.folder_overview(db, 1)).folders) == 1
+    assert len((service.folder_overview(db, 1)).folders) == 1
 
 
-@pytest.mark.asyncio
-async def test_folder_name_uniqueness_rename_position_and_ownership(workspace):
+def test_folder_name_uniqueness_rename_position_and_ownership(workspace):
     _, db, _, _ = workspace
     service = LibraryService()
-    a = await service.create_folder(db, 1, LibraryFolderCreateRequest(name="Studies"))
+    a = service.create_folder(db, 1, LibraryFolderCreateRequest(name="Studies"))
     with pytest.raises(ResourceAlreadyExistsException):
-        await service.create_folder(db, 1, LibraryFolderCreateRequest(name="Studies"))
-    await service.create_folder(db, 2, LibraryFolderCreateRequest(name="Studies"))
-    updated = await service.update_folder(
+        service.create_folder(db, 1, LibraryFolderCreateRequest(name="Studies"))
+    service.create_folder(db, 2, LibraryFolderCreateRequest(name="Studies"))
+    updated = service.update_folder(
         db, 1, a.folder_id, LibraryFolderUpdateRequest(name=" Renamed ", position=3)
     )
     assert (updated.name, updated.position) == ("Renamed", 3)
     with pytest.raises(ResourceNotFoundException):
-        await service.delete_folder(db, 2, a.folder_id)
-    await service.delete_folder(db, 1, a.folder_id)
+        service.delete_folder(db, 2, a.folder_id)
+    service.delete_folder(db, 1, a.folder_id)
     assert (
-        await service.create_folder(db, 1, LibraryFolderCreateRequest(name="Renamed"))
+        service.create_folder(db, 1, LibraryFolderCreateRequest(name="Renamed"))
     ).folder_id != a.folder_id
 
 
-@pytest.mark.asyncio
-async def test_repository_access_query_count_is_independent_of_page_size(workspace):
+def test_repository_access_query_count_is_independent_of_page_size(workspace):
     sync, db, _, _ = workspace
     for i in range(50):
         sync.add(Score(score_uuid=f"extra-{i}", owner_user_id=1, title=f"Extra {i}"))
@@ -252,7 +244,7 @@ async def test_repository_access_query_count_is_independent_of_page_size(workspa
         counts = []
         for size in [1, 50]:
             count = 0
-            await LibraryRepository().list_scores(
+            LibraryRepository().list_scores(
                 db,
                 1,
                 view=LibraryView.ALL,
@@ -296,10 +288,10 @@ async def test_workspace_http_routes_use_current_access_and_score_identity(works
 
     sync, db, _, _ = workspace
 
-    async def database():
+    def database():
         yield db
 
-    async def user():
+    def user():
         return sync.get(User, 1)
 
     app.dependency_overrides[get_db] = database

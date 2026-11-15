@@ -5,7 +5,7 @@ import inspect
 from dataclasses import fields
 from textwrap import dedent
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import Mock
 
 import pytest
 from fastapi import APIRouter
@@ -42,17 +42,17 @@ from app.modules.auth.dependencies import (
 def customer():
     app = create_app()
     service = SimpleNamespace(
-        login=AsyncMock(return_value=("access", "refresh")),
-        refresh_session=AsyncMock(return_value=("access-rotated", "refresh-rotated")),
-        revoke_refresh_token=AsyncMock(),
-        register=AsyncMock(),
-        verify_email=AsyncMock(return_value={"email": "member@example.com"}),
-        confirm_email_change=AsyncMock(return_value=SimpleNamespace(email="new@example.com")),
-        request_password_reset=AsyncMock(),
-        reset_password=AsyncMock(),
+        login=Mock(return_value=("access", "refresh")),
+        refresh_session=Mock(return_value=("access-rotated", "refresh-rotated")),
+        revoke_refresh_token=Mock(),
+        register=Mock(),
+        verify_email=Mock(return_value={"email": "member@example.com"}),
+        confirm_email_change=Mock(return_value=SimpleNamespace(email="new@example.com")),
+        request_password_reset=Mock(),
+        reset_password=Mock(),
     )
 
-    async def database():
+    def database():
         yield object()
 
     app.dependency_overrides[get_db] = database
@@ -110,11 +110,11 @@ def test_public_auth_operations_accept_stale_cookies_without_csrf(
     assert response.status_code == expected_status, response.text
     if expected_status == 204:
         assert response.content == b""
-    getattr(service, method).assert_awaited_once()
+    getattr(service, method).assert_called_once()
     if identity == "authRefresh":
         assert client.cookies[CSRF_COOKIE_NAME]
         assert response.cookies[AUTH_COOKIE_NAME] == "access-rotated"
-        assert service.refresh_session.await_args.args[1] == "refresh-cookie"
+        assert service.refresh_session.call_args.args[1] == "refresh-cookie"
 
 
 @pytest.mark.parametrize("identity,method,payload", PUBLIC_COMMANDS)
@@ -127,7 +127,7 @@ def test_exemption_preserves_origin_validation(customer, identity, method, paylo
     )
     assert response.status_code == 403
     assert response.json()["code"] == "request_origin_invalid"
-    getattr(service, method).assert_not_awaited()
+    getattr(service, method).assert_not_called()
 
 
 @pytest.mark.parametrize("cookie", [AUTH_COOKIE_NAME, REFRESH_COOKIE_NAME])
@@ -139,14 +139,14 @@ def test_logout_requires_matching_csrf_with_customer_cookies(customer, cookie):
         response = client.post(routes["authLogout"].path, headers=headers)
         assert response.status_code == 403
         assert response.json()["code"] == "csrf_token_invalid"
-    service.revoke_refresh_token.assert_not_awaited()
+    service.revoke_refresh_token.assert_not_called()
     response = client.post(routes["authLogout"].path, headers={CSRF_HEADER_NAME: "matching-token"})
     assert response.status_code == 204
     assert response.content == b""
-    service.revoke_refresh_token.assert_awaited_once()
+    service.revoke_refresh_token.assert_called_once()
 
 
-async def admitted():
+def admitted():
     return {"admitted": True}
 
 
@@ -197,7 +197,7 @@ def test_only_a_full_match_to_an_explicit_exempt_operation_skips_csrf(case):
         app.add_api_route(path, admitted, methods=["POST"], operation_id="authRefresh")
     elif case == "non_api_route":
 
-        async def starlette_handler(request):
+        def starlette_handler(request):
             return JSONResponse({"admitted": True})
 
         app.router.routes.append(

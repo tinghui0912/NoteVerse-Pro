@@ -11,7 +11,7 @@ from app.modules.import_jobs.events import ImportJobCompleted, ImportJobFailed
 import pytest
 
 from app.db.models.import_job import ImportJobState, ImportJobStepStatus
-from app.modules.import_jobs.worker_service import SyncImportJobService
+from app.modules.import_jobs.worker_service import ImportJobExecutionService
 from app.shared.constants import ErrorCode
 
 
@@ -50,7 +50,7 @@ def _job(*, state: ImportJobState = ImportJobState.RUNNING) -> SimpleNamespace:
     )
 
 
-def _service_with_job(job: object | None) -> tuple[SyncImportJobService, Mock, Mock]:
+def _service_with_job(job: object | None) -> tuple[ImportJobExecutionService, Mock, Mock]:
     if job is not None:
         worker_service.require_current_attempt.side_effect = None
         worker_service.require_current_attempt.return_value = job
@@ -58,7 +58,7 @@ def _service_with_job(job: object | None) -> tuple[SyncImportJobService, Mock, M
     repository.get_by_uuid.return_value = job
     journal = worker_service.append_fact
     return (
-        SyncImportJobService(
+        ImportJobExecutionService(
             repository=repository,
         ),
         repository,

@@ -140,7 +140,7 @@ def test_final_admission_serializes_with_current_score(monkeypatch, tmp_path, ki
                     raise
 
         monkeypatch.setattr(service_module, "write_object", paused_write)
-        monkeypatch.setattr(worker, "get_worker_db", database)
+        monkeypatch.setattr(worker, "SessionLocal", database)
         publish = Mock()
         if kind == "render":
             svg = tmp_path / "page.svg"

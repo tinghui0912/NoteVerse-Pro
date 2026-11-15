@@ -6,26 +6,28 @@ NoteVerse uses one private `ObjectStorage` namespace per deployment. The capabil
 
 `modules/storage_objects/facts.py` validates the immutable `StoredObjectFacts` value. `persistence.py` is the physical-fact hydration/creation boundary. Application-verified complete bytes establish size and SHA; provider checksums and ETags do not establish durable SHA authority.
 
-## Async application IO
+## Application IO and HTTP transport
 
-`ObjectStorage` is synchronous infrastructure for workers, maintenance and sync
-persistence code. The storage composition root also exposes `async_object_storage`,
-an `AsyncObjectStorage` over the same configured namespace. Async application
-services use that adapter for put, exists, read, size/metadata, copy, delete, presign
-and materialization. Provider calls run through `asyncio.to_thread`; streaming
-preparation and iterator advancement also cross this boundary. The adapter owns
-scheduling only, with no database or domain policy.
+`ObjectStorage` is synchronous infrastructure. Backend application services,
+repositories, API use cases and workers use the canonical synchronous SQLAlchemy
+`Session` from `app.db.session`. FastAPI executes ordinary database-backed path
+operations in worker threads. Authorization, metadata and signed-URL preparation
+run in that request execution path.
 
-Sync and async server writers share generation preparation, exact admission and
-WRITTEN finalization primitives. The async writer runs only DB primitives inside
-`AsyncSession.run_sync`. Physical put runs through the async adapter while the
-same intent transaction retains its row lock. Cancellation waits for in-flight
-provider IO to settle before rolling back and releasing that lock. PREPARED stays
-durable on failed or uncertain writes; cleanup owns unadopted bytes.
+HTTP byte streaming uses `AsyncObjectStorage` over the same namespace. Provider
+iterator construction and advancement cross its `asyncio.to_thread` boundary;
+the adapter owns scheduling only, with no database or domain policy.
+
+Server-created durable objects use `write_object()` with synchronous ObjectStorage.
+Generation preparation and exact admission precede physical put; the intent row
+lock protects the physical mutation until WRITTEN finalization. PREPARED is durable
+before IO and WRITTEN is durable before semantic adoption. Failed or uncertain
+writes remain cleanup-owned. Adoption, semantic references and accounting commit
+in the caller-owned semantic transaction.
 
 Score-import image admission is described in
 [upload media admission](upload-media-admission.md). Avatar normalization and
-PerformanceTake recording admission remain independent domain policies. Async IO
+PerformanceTake recording admission remain independent domain policies. IO scheduling
 does not grant request services permission to delete adopted objects: semantic
 release still records accounting and retirement; durable cleanup/retirement owns
 physical deletion.

@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import argparse
-import asyncio
 import getpass
 import sys
 
 from app.db.models import OperatorRole
-from app.db.session import AsyncSessionLocal
+from app.db.session import SessionLocal
 from app.modules.platform_operators.service import operator_authentication_service
 
 
@@ -25,9 +24,9 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-async def create_operator(args: argparse.Namespace, password: str) -> str:
-    async with AsyncSessionLocal() as db:
-        operator = await operator_authentication_service.create_local_operator(
+def create_operator(args: argparse.Namespace, password: str) -> str:
+    with SessionLocal() as db:
+        operator = operator_authentication_service.create_local_operator(
             db,
             username=args.username,
             password=password,
@@ -39,7 +38,9 @@ async def create_operator(args: argparse.Namespace, password: str) -> str:
 
 def main() -> int:
     if not sys.stdin.isatty():
-        raise SystemExit("A TTY is required; passwords are never accepted through arguments or stdin.")
+        raise SystemExit(
+            "A TTY is required; passwords are never accepted through arguments or stdin."
+        )
 
     args = parse_args()
     password = getpass.getpass("Operator password: ")
@@ -49,7 +50,7 @@ def main() -> int:
     if len(password) < 12:
         raise SystemExit("Operator passwords must contain at least 12 characters.")
 
-    operator_uuid = asyncio.run(create_operator(args, password))
+    operator_uuid = create_operator(args, password)
     print(f"Created operator {operator_uuid}")
     return 0
 

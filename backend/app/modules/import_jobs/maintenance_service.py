@@ -8,9 +8,9 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.logger import logger
 from app.db.models import StoredObject, StorageUsageCategory
-from app.modules.import_jobs.repository import SyncImportJobRepository
+from app.modules.import_jobs.repository import ImportJobRepository
 from app.modules.storage_usage.service import storage_usage_service
-from app.modules.storage_objects.retirement import retire_released_objects
+from app.modules.storage_objects.retirement import retire_after_release
 from app.utils.timezone import utc_now_naive
 
 
@@ -22,9 +22,9 @@ class JobMaintenanceResult:
 class ImportJobMaintenanceService:
     def __init__(
         self,
-        repository: SyncImportJobRepository | None = None,
+        repository: ImportJobRepository | None = None,
     ) -> None:
-        self.repository = repository or SyncImportJobRepository()
+        self.repository = repository or ImportJobRepository()
 
     def run(self, db: Session) -> JobMaintenanceResult:
         return JobMaintenanceResult(
@@ -43,7 +43,7 @@ class ImportJobMaintenanceService:
                         deleted += 1
                         continue
                     if upload.uploader_user_id is not None and blob.byte_size:
-                        storage_usage_service.record_release_sync(
+                        storage_usage_service.record_release(
                             db,
                             user_id=upload.uploader_user_id,
                             category=StorageUsageCategory.UPLOAD,
@@ -54,7 +54,7 @@ class ImportJobMaintenanceService:
                             storage_key=blob.object_key,
                         )
                     db.delete(upload)
-                    retire_released_objects(db, blob.id)
+                    retire_after_release(db, blob.id)
                     deleted += 1
             except Exception as exc:
                 logger.bind(

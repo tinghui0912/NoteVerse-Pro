@@ -6,7 +6,8 @@ from collections.abc import Iterator
 import pytest
 from sqlalchemy import event
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session, SQLModel, create_engine
+from sqlalchemy.orm import Session
+from sqlmodel import SQLModel, create_engine
 
 from app.db.models.score import (
     MetadataStatus,

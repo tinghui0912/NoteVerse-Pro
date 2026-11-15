@@ -4,11 +4,9 @@ import json
 from typing import Any, Iterable
 
 from sqlalchemy import select, text
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from sqlmodel import col
 
-from app.core.config import settings
 from app.core.logger import logger
 from app.db.models import RealtimeEvent, Score, ScoreMembership
 
@@ -28,10 +26,6 @@ def _unique_user_ids(user_ids: Iterable[int | None]) -> list[int]:
     return sorted({int(user_id) for user_id in user_ids if user_id is not None})
 
 
-def _supports_postgres_notify() -> bool:
-    return settings.DATABASE_URL.startswith(("postgresql://", "postgresql+"))
-
-
 def _notification_payload(event: RealtimeEvent) -> str:
     return json.dumps(
         {
@@ -42,16 +36,7 @@ def _notification_payload(event: RealtimeEvent) -> str:
     )
 
 
-async def _notify_event(db: AsyncSession, event: RealtimeEvent) -> None:
-    if not _supports_postgres_notify() or event.id is None:
-        return
-    await db.execute(
-        text("SELECT pg_notify(:channel, :payload)"),
-        {"channel": REALTIME_NOTIFY_CHANNEL, "payload": _notification_payload(event)},
-    )
-
-
-def _notify_event_sync(db: Session, event: RealtimeEvent) -> None:
+def _notify_event(db: Session, event: RealtimeEvent) -> None:
     if db.get_bind().dialect.name != "postgresql" or event.id is None:
         return
     db.execute(
@@ -60,7 +45,7 @@ def _notify_event_sync(db: Session, event: RealtimeEvent) -> None:
     )
 
 
-def score_recipients_sync(db: Session, score_uuid: str) -> list[int]:
+def score_recipients(db: Session, score_uuid: str) -> list[int]:
     score = db.execute(
         select(Score).where(
             Score.score_uuid == score_uuid,
@@ -78,41 +63,15 @@ def score_recipients_sync(db: Session, score_uuid: str) -> list[int]:
     return _unique_user_ids([score.owner_user_id, *member_rows.scalars().all()])
 
 
-async def publish_event(
-    db: AsyncSession,
-    *,
-    recipient_user_id: int,
-    type: str,
-    payload: dict[str, Any],
-    resource_type: str | None = None,
-    resource_id: str | None = None,
-    score_id: str | None = None,
-    revision_id: str | None = None,
-) -> RealtimeEvent:
-    event = RealtimeEvent(
-        recipient_user_id=recipient_user_id,
-        type=type,
-        resource_type=resource_type,
-        resource_id=resource_id,
-        score_id=score_id,
-        revision_id=revision_id,
-        payload=payload,
-    )
-    db.add(event)
-    await db.flush()
-    await _notify_event(db, event)
-    return event
-
-
-async def publish_event_best_effort(
-    db: AsyncSession,
+def publish_event_best_effort(
+    db: Session,
     **kwargs: Any,
 ) -> None:
     try:
-        await publish_event(db, **kwargs)
-        await db.commit()
+        publish_event(db, **kwargs)
+        db.commit()
     except Exception:
-        await db.rollback()
+        db.rollback()
         logger.bind(
             event="realtime.event.publish_failed",
             event_type=kwargs.get("type"),
@@ -124,7 +83,7 @@ async def publish_event_best_effort(
         ).opt(exception=True).warning("Realtime event publish failed")
 
 
-def publish_event_sync(
+def publish_event(
     db: Session,
     *,
     recipient_user_id: int,
@@ -146,11 +105,11 @@ def publish_event_sync(
     )
     db.add(event)
     db.flush()
-    _notify_event_sync(db, event)
+    _notify_event(db, event)
     return event
 
 
-def publish_score_event_sync(
+def publish_score_event(
     db: Session,
     *,
     score_id: str,
@@ -164,8 +123,8 @@ def publish_score_event_sync(
 
     Publication failures propagate, including partial fan-out and pg_notify failures.
     """
-    for recipient_user_id in score_recipients_sync(db, score_id):
-        publish_event_sync(
+    for recipient_user_id in score_recipients(db, score_id):
+        publish_event(
             db,
             recipient_user_id=recipient_user_id,
             type=type,

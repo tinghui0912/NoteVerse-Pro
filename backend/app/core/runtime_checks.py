@@ -176,50 +176,31 @@ def check_control_plane_settings(_: bool = False) -> CheckResult:
     return _result("control_plane_settings", True, "independent control-plane configuration loaded")
 
 
-async def check_api_database_execution(_: bool = False) -> CheckResult:
+def check_database(_: bool = False) -> CheckResult:
     from sqlalchemy import text
 
     from app.db.session import engine
 
     try:
-        async with engine.connect() as connection:
-            await connection.execute(text("select 1"))
-        return _result("api_database_execution", True, "API database execution path reachable")
-    except Exception as exc:
-        return _result(
-            "api_database_execution",
-            False,
-            f"API database execution path unreachable: {type(exc).__name__}: {exc}",
-        )
-
-
-def check_worker_database_execution(_: bool = False) -> CheckResult:
-    from sqlalchemy import text
-
-    from app.db.sync_session import sync_engine
-
-    try:
-        with sync_engine.connect() as connection:
+        with engine.connect() as connection:
             connection.execute(text("select 1"))
-        return _result(
-            "worker_database_execution", True, "Worker database execution path reachable"
-        )
+        return _result("database", True, "Application database execution path reachable")
     except Exception as exc:
         return _result(
-            "worker_database_execution",
+            "database",
             False,
-            f"Worker database execution path unreachable: {type(exc).__name__}: {exc}",
+            f"Application database execution path unreachable: {type(exc).__name__}: {exc}",
         )
 
 
 def check_storage_quota_policy(_: bool = False) -> CheckResult:
     from sqlalchemy import text
 
-    from app.db.sync_session import sync_engine
+    from app.db.session import engine
     from app.modules.storage_usage.accounting import DEFAULT_PLAN_CODE
 
     try:
-        with sync_engine.connect() as connection:
+        with engine.connect() as connection:
             row = connection.execute(
                 text(
                     """
@@ -502,7 +483,7 @@ def check_playback_renderer(_: bool = False) -> CheckResult:
 ROLE_CHECK_NAMES: dict[RuntimeRole, tuple[str, ...]] = {
     RuntimeRole.API: (
         "settings",
-        "api_database_execution",
+        "database",
         "storage_quota_policy",
         "redis",
         "storage",
@@ -510,15 +491,15 @@ ROLE_CHECK_NAMES: dict[RuntimeRole, tuple[str, ...]] = {
     RuntimeRole.CONTROL_PLANE: (
         "settings",
         "control_plane_settings",
-        "api_database_execution",
+        "database",
         "storage_quota_policy",
         "redis",
     ),
-    RuntimeRole.OBSERVABILITY_EXPORTER: ("settings", "api_database_execution"),
+    RuntimeRole.OBSERVABILITY_EXPORTER: ("settings", "database"),
     RuntimeRole.WORKER: (
         "settings",
         "worker_settings",
-        "worker_database_execution",
+        "database",
         "storage_quota_policy",
         "redis",
         "work_root",
@@ -550,10 +531,7 @@ CHECKS: dict[str, CheckSpec] = {
     "settings": CheckSpec("settings", check_settings),
     "worker_settings": CheckSpec("worker_settings", check_worker_settings),
     "control_plane_settings": CheckSpec("control_plane_settings", check_control_plane_settings),
-    "api_database_execution": CheckSpec("api_database_execution", check_api_database_execution),
-    "worker_database_execution": CheckSpec(
-        "worker_database_execution", check_worker_database_execution
-    ),
+    "database": CheckSpec("database", check_database),
     "storage_quota_policy": CheckSpec("storage_quota_policy", check_storage_quota_policy),
     "redis": CheckSpec("redis", check_redis),
     "storage": CheckSpec("storage", check_api_storage),
@@ -574,7 +552,7 @@ async def run_runtime_checks(
 ) -> list[CheckResult]:
     results: list[CheckResult] = []
     for name in ROLE_CHECK_NAMES[role]:
-        outcome = CHECKS[name].run(include_sizes)
+        outcome = await asyncio.to_thread(CHECKS[name].run, include_sizes)
         if isinstance(outcome, Awaitable):
             outcome = await outcome
         results.append(outcome)
@@ -583,7 +561,7 @@ async def run_runtime_checks(
 
 async def check_database_readiness(timeout_seconds: float = 2.0) -> bool:
     try:
-        result = await asyncio.wait_for(check_api_database_execution(), timeout=timeout_seconds)
+        result = await asyncio.wait_for(asyncio.to_thread(check_database), timeout=timeout_seconds)
         return result.ok
     except TimeoutError:
         return False

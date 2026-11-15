@@ -3,7 +3,7 @@
 from fastapi import Response, APIRouter, Depends, Request
 
 
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.api import deps
 from app.core.client_address import client_address
@@ -28,14 +28,14 @@ auth_router = APIRouter()
     response_model=None,
     response_class=Response,
 )
-async def request_my_email_change(
+def request_my_email_change(
     request_context: Request,
     request: RequestEmailChangeRequest,
     current_user: User = Depends(deps.get_current_user),
-    db: AsyncSession = Depends(deps.get_db),
+    db: Session = Depends(deps.get_db),
     email_change_service: EmailChangeService = Depends(get_email_change_service),
 ) -> Response:
-    await email_change_service.request_email_change(
+    email_change_service.request_email_change(
         db,
         current_user,
         request,
@@ -50,10 +50,10 @@ async def request_my_email_change(
     operation_id="authEmailChangeConfirm",
     response_model=EmailChangeConfirmedRead,
 )
-async def confirm_email_change(
+def confirm_email_change(
     request: ConfirmEmailChangeRequest,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Session = Depends(deps.get_db),
     email_change_service: EmailChangeService = Depends(get_email_change_service),
 ) -> EmailChangeConfirmedRead:
-    user = await email_change_service.confirm_email_change(db, request)
+    user = email_change_service.confirm_email_change(db, request)
     return EmailChangeConfirmedRead(email=user.email)

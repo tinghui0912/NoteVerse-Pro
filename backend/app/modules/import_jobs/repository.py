@@ -1,10 +1,9 @@
 from __future__ import annotations
-from app.modules.storage_objects.retirement import retire_released_objects
+from app.modules.storage_objects.retirement import retire_after_release
 
 from datetime import datetime
 
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from sqlalchemy.engine import RowMapping
 
@@ -27,9 +26,9 @@ job_created_col = ImportJob.__table__.c.created_at
 
 
 class ImportJobRepository:
-    async def list_for_user(
+    def list_for_user(
         self,
-        db: AsyncSession,
+        db: Session,
         user_id: int,
         *,
         page: int,
@@ -37,12 +36,10 @@ class ImportJobRepository:
     ) -> tuple[list[ImportJob], int]:
         total = int(
             (
-                await db.execute(
-                    select(func.count(ImportJob.id)).where(ImportJob.user_id == user_id)
-                )
+                db.execute(select(func.count(ImportJob.id)).where(ImportJob.user_id == user_id))
             ).scalar_one()
         )
-        rows = await db.execute(
+        rows = db.execute(
             select(ImportJob)
             .where(ImportJob.user_id == user_id)
             .order_by(job_created_col.desc())
@@ -51,17 +48,17 @@ class ImportJobRepository:
         )
         return list(rows.scalars().all()), total
 
-    async def get_by_uuid(self, db: AsyncSession, job_uuid: str) -> ImportJob | None:
-        result = await db.execute(select(ImportJob).where(ImportJob.job_uuid == job_uuid))
+    def get_by_uuid(self, db: Session, job_uuid: str) -> ImportJob | None:
+        result = db.execute(select(ImportJob).where(ImportJob.job_uuid == job_uuid))
         return result.scalars().first()
 
-    async def batch_status(
+    def batch_status(
         self,
-        db: AsyncSession,
+        db: Session,
         job_uuids: list[str],
         user_id: int,
     ) -> list[ImportJob]:
-        result = await db.execute(
+        result = db.execute(
             select(ImportJob).where(
                 ImportJob.user_id == user_id,
                 job_uuid_col.in_(job_uuids),
@@ -69,18 +66,14 @@ class ImportJobRepository:
         )
         return list(result.scalars().all())
 
-    async def artifact_by_uuid(self, db: AsyncSession, artifact_uuid: str) -> ImportArtifact | None:
+    def artifact_by_uuid(self, db: Session, artifact_uuid: str) -> ImportArtifact | None:
         return (
-            await db.execute(
-                select(ImportArtifact).where(ImportArtifact.artifact_uuid == artifact_uuid)
-            )
+            db.execute(select(ImportArtifact).where(ImportArtifact.artifact_uuid == artifact_uuid))
         ).scalar_one_or_none()
 
-    async def get_by_idempotency_key(
-        self, db: AsyncSession, user_id: int, key: str
-    ) -> ImportJob | None:
+    def get_by_idempotency_key(self, db: Session, user_id: int, key: str) -> ImportJob | None:
         return (
-            await db.execute(
+            db.execute(
                 select(ImportJob).where(
                     ImportJob.user_id == user_id,
                     ImportJob.idempotency_key == key,
@@ -88,10 +81,10 @@ class ImportJobRepository:
             )
         ).scalar_one_or_none()
 
-    async def submission_uploads(self, db: AsyncSession, upload_ids: list[str]) -> list[RowMapping]:
+    def submission_uploads(self, db: Session, upload_ids: list[str]) -> list[RowMapping]:
         return list(
             (
-                await db.execute(
+                db.execute(
                     select(Upload.id, Upload.upload_uuid, Upload.uploader_user_id)
                     .join(StoredObject, Upload.stored_object_id == StoredObject.id)
                     .where(Upload.__table__.c.upload_uuid.in_(upload_ids))
@@ -101,25 +94,23 @@ class ImportJobRepository:
             .all()
         )
 
-    async def score_uuids(self, db: AsyncSession, score_ids: set[int]) -> dict[int, str]:
+    def score_uuids(self, db: Session, score_ids: set[int]) -> dict[int, str]:
         if not score_ids:
             return {}
         return dict(
             (
-                await db.execute(
+                db.execute(
                     select(Score.id, Score.score_uuid).where(Score.__table__.c.id.in_(score_ids))
                 )
             ).all()
         )
 
-    async def execution_manifest_digests(
-        self, db: AsyncSession, manifest_ids: set[int]
-    ) -> dict[int, str]:
+    def execution_manifest_digests(self, db: Session, manifest_ids: set[int]) -> dict[int, str]:
         if not manifest_ids:
             return {}
         return dict(
             (
-                await db.execute(
+                db.execute(
                     select(ExecutionManifest.id, ExecutionManifest.sha256).where(
                         ExecutionManifest.__table__.c.id.in_(manifest_ids)
                     )
@@ -127,12 +118,10 @@ class ImportJobRepository:
             ).all()
         )
 
-    async def preview_artifacts_for_jobs(
-        self, db: AsyncSession, job_ids: list[int]
-    ) -> list[RowMapping]:
+    def preview_artifacts_for_jobs(self, db: Session, job_ids: list[int]) -> list[RowMapping]:
         return list(
             (
-                await db.execute(
+                db.execute(
                     select(
                         ImportArtifact.job_id,
                         ImportArtifact.artifact_uuid,
@@ -153,10 +142,10 @@ class ImportJobRepository:
             .all()
         )
 
-    async def uploads_for_jobs(self, db: AsyncSession, job_ids: list[int]) -> list[RowMapping]:
+    def uploads_for_jobs(self, db: Session, job_ids: list[int]) -> list[RowMapping]:
         return list(
             (
-                await db.execute(
+                db.execute(
                     select(
                         ImportJobUpload.job_id,
                         ImportJobUpload.page_number,
@@ -178,14 +167,6 @@ class ImportJobRepository:
             .mappings()
             .all()
         )
-
-
-class SyncImportJobRepository:
-    @staticmethod
-    def get_by_uuid(db: Session, job_uuid: str) -> ImportJob | None:
-        return db.execute(
-            select(ImportJob).where(ImportJob.job_uuid == job_uuid)
-        ).scalar_one_or_none()
 
     @staticmethod
     def get_step(db: Session, job_id: int, name: str) -> ImportJobStep | None:
@@ -213,7 +194,7 @@ class SyncImportJobRepository:
         )
         for row in rows:
             db.delete(row)
-            retire_released_objects(db, row.stored_object_id)
+            retire_after_release(db, row.stored_object_id)
         db.flush()
 
     @staticmethod

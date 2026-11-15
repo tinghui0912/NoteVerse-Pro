@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Optional
 
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from sqlalchemy.orm import selectinload
 from app.db.models.performance_take_manifest import PerformanceTakeManifest
 
@@ -12,25 +12,25 @@ from app.db.models.performance_take_upload_reservation import PerformanceTakeUpl
 
 
 class PerformanceTakeRepository:
-    async def create_manifest(
-        self, db: AsyncSession, manifest: PerformanceTakeManifest
+    def create_manifest(
+        self, db: Session, manifest: PerformanceTakeManifest
     ) -> PerformanceTakeManifest:
         db.add(manifest)
-        await db.flush()
+        db.flush()
         return manifest
 
-    async def create_take(
+    def create_take(
         self,
-        db: AsyncSession,
+        db: Session,
         take: PerformanceTake,
     ) -> PerformanceTake:
         db.add(take)
-        await db.flush()
+        db.flush()
         return take
 
-    async def get_by_uuid(
+    def get_by_uuid(
         self,
-        db: AsyncSession,
+        db: Session,
         user_id: int,
         take_uuid: str,
         *,
@@ -50,12 +50,12 @@ class PerformanceTakeRepository:
         )
         if lock:
             statement = statement.with_for_update(of=PerformanceTake)
-        result = await db.execute(statement)
+        result = db.execute(statement)
         return result.scalars().first()
 
-    async def get_by_reservation(
+    def get_by_reservation(
         self,
-        db: AsyncSession,
+        db: Session,
         user_id: int,
         reservation_id: int,
     ) -> Optional[PerformanceTake]:
@@ -78,12 +78,12 @@ class PerformanceTakeRepository:
             )
             .execution_options(populate_existing=True)
         )
-        result = await db.execute(statement)
+        result = db.execute(statement)
         return result.scalars().first()
 
-    async def list_takes(
+    def list_takes(
         self,
-        db: AsyncSession,
+        db: Session,
         user_id: int,
         linked_score_id: Optional[int] = None,
         limit: int = 50,
@@ -96,7 +96,7 @@ class PerformanceTakeRepository:
         count_stmt = (
             select(func.count(PerformanceTake.id)).join(PerformanceTakeManifest).where(*filters)
         )
-        count_res = await db.execute(count_stmt)
+        count_res = db.execute(count_stmt)
         total = count_res.scalar_one_or_none() or 0
 
         statement = (
@@ -111,23 +111,23 @@ class PerformanceTakeRepository:
             .limit(limit)
             .offset(offset)
         )
-        result = await db.execute(statement)
+        result = db.execute(statement)
         items = list(result.scalars().all())
         return items, total
 
     # Reservation methods
-    async def create_reservation(
+    def create_reservation(
         self,
-        db: AsyncSession,
+        db: Session,
         reservation: PerformanceTakeUploadReservation,
     ) -> PerformanceTakeUploadReservation:
         db.add(reservation)
-        await db.flush()
+        db.flush()
         return reservation
 
-    async def get_reservation_by_client_request_id(
+    def get_reservation_by_client_request_id(
         self,
-        db: AsyncSession,
+        db: Session,
         user_id: int,
         client_request_id: str,
         *,
@@ -144,12 +144,12 @@ class PerformanceTakeRepository:
         statement = statement.execution_options(populate_existing=True)
         if lock:
             statement = statement.with_for_update()
-        result = await db.execute(statement)
+        result = db.execute(statement)
         return result.scalars().first()
 
-    async def get_reservation_by_take_uuid(
+    def get_reservation_by_take_uuid(
         self,
-        db: AsyncSession,
+        db: Session,
         user_id: int,
         take_uuid: str,
         *,
@@ -172,12 +172,12 @@ class PerformanceTakeRepository:
         statement = statement.execution_options(populate_existing=True)
         if lock:
             statement = statement.with_for_update()
-        result = await db.execute(statement)
+        result = db.execute(statement)
         return result.scalars().first()
 
-    async def get_reservation_by_uuid(
+    def get_reservation_by_uuid(
         self,
-        db: AsyncSession,
+        db: Session,
         user_id: int,
         reservation_uuid: str,
         *,
@@ -194,5 +194,5 @@ class PerformanceTakeRepository:
         )
         if lock:
             statement = statement.with_for_update()
-        result = await db.execute(statement)
+        result = db.execute(statement)
         return result.scalars().first()

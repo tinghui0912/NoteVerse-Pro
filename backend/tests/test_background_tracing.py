@@ -132,7 +132,7 @@ def test_relay_dispatch_log_is_emitted_inside_its_producer_span(
 
     @contextmanager
     def fake_db() -> Iterator[object]:
-        yield object()
+        yield __import__("unittest.mock", fromlist=["Mock"]).Mock()
 
     class CapturingLogger:
         def bind(self, **_context: object) -> CapturingLogger:
@@ -141,7 +141,7 @@ def test_relay_dispatch_log_is_emitted_inside_its_producer_span(
         def info(self, _message: str) -> None:
             log_contexts.append(get_otel_trace_context())
 
-    monkeypatch.setattr(import_jobs, "get_worker_db", fake_db)
+    monkeypatch.setattr(import_jobs, "SessionLocal", fake_db)
     monkeypatch.setattr(import_jobs.import_dispatch_service, "mark_dispatched", lambda *_: True)
     monkeypatch.setattr(
         import_jobs,

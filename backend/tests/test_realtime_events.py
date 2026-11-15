@@ -8,7 +8,9 @@ from unittest.mock import AsyncMock
 
 import pytest
 from sqlalchemy import event
-from sqlmodel import Session, SQLModel, create_engine
+from sqlalchemy.pool import StaticPool
+from sqlalchemy.orm import Session
+from sqlmodel import SQLModel, create_engine
 
 from app.db.models import RealtimeEvent, User
 from app.modules.realtime.router import (
@@ -61,8 +63,8 @@ async def test_postgresql_listener_wakes_the_stream_and_closes_its_connection(mo
         assert await anext(stream) == ": connected\n\n"
         message = asyncio.create_task(anext(stream))
         await asyncio.wait_for(ready.wait(), 5)
-        async with engine.begin() as connection:
-            await connection.execute(
+        with engine.begin() as connection:
+            connection.execute(
                 text("SELECT pg_notify(:channel, :payload)"),
                 {
                     "channel": stream_router.REALTIME_NOTIFY_CHANNEL,
@@ -78,13 +80,15 @@ async def test_postgresql_listener_wakes_the_stream_and_closes_its_connection(mo
             except asyncio.CancelledError:
                 pass
         await stream.aclose()
-        await engine.dispose()
+        engine.dispose()
     assert len(connections) == 1 and connections[0].closed
 
 
 @pytest.fixture
 def realtime_session() -> Iterator[Session]:
-    engine = create_engine("sqlite:///:memory:")
+    engine = create_engine(
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
 
     @event.listens_for(engine, "connect")
     def enable_foreign_keys(dbapi_connection, _connection_record) -> None:
@@ -230,3 +234,88 @@ def test_pending_events_statement_is_user_scoped_and_sequence_scoped(
 
     assert [event.id for event in events] == [12, 13]
     assert [event.recipient_user_id for event in events] == [7, 7]
+
+
+@pytest.mark.asyncio
+async def test_pending_event_catchup_reads_cursor_batches_in_short_worker_sessions(
+    realtime_session, monkeypatch
+):
+    import threading
+    from app.modules.realtime import router as stream_router
+
+    realtime_session.add_all(
+        [
+            RealtimeEvent(
+                id=identity, recipient_user_id=recipient, type="score.metadata.updated", payload={}
+            )
+            for identity, recipient in [(1, 7), (2, 8), (3, 7), (4, 7), (5, 7), (6, 7)]
+        ]
+    )
+    realtime_session.commit()
+    bind = realtime_session.get_bind()
+    loop_thread = threading.get_ident()
+    opened, closed, threads = [], [], []
+
+    class CatchupSession(Session):
+        def __enter__(self):
+            opened.append(self)
+            threads.append(threading.get_ident())
+            return super().__enter__()
+
+        def __exit__(self, *args):
+            try:
+                return super().__exit__(*args)
+            finally:
+                closed.append(self)
+
+    monkeypatch.setattr(stream_router, "EVENT_BATCH_SIZE", 2)
+    monkeypatch.setattr(stream_router, "SessionLocal", lambda: CatchupSession(bind))
+    cursor, messages = await stream_router._emit_pending_events(7, 1)
+    assert cursor == 6
+    assert [message.splitlines()[0] for message in messages] == ["id: 3", "id: 4", "id: 5", "id: 6"]
+    assert len(opened) == 3 and closed == opened
+    assert all(thread != loop_thread for thread in threads)
+    # An already caught-up cursor remains idle without replaying its last accepted event.
+    assert await stream_router._emit_pending_events(7, cursor) == (cursor, [])
+    assert len(opened) == 4 and closed == opened
+
+
+def test_sse_authentication_releases_its_session_before_streaming(realtime_session, monkeypatch):
+    from fastapi.testclient import TestClient
+    from app.main import create_app
+    from app.core.security import create_access_token
+    from app.core.generated.customer_browser_protocol import AUTH_COOKIE_NAME
+    from app.db import session as database
+    from app.modules.realtime import router as stream_router
+
+    bind = realtime_session.get_bind()
+    opened, closed = [], []
+
+    class AuthenticationSession(Session):
+        def __enter__(self):
+            opened.append(self)
+            return super().__enter__()
+
+        def __exit__(self, *args):
+            try:
+                return super().__exit__(*args)
+            finally:
+                closed.append(self)
+
+    def sessions():
+        return AuthenticationSession(bind)
+
+    async def events(request, user_id, last_sequence):
+        assert user_id == 7 and last_sequence == 12
+        assert len(opened) == 1 and closed == opened
+        yield ": authenticated\n\n"
+
+    monkeypatch.setattr(database, "SessionLocal", sessions)
+    monkeypatch.setattr(stream_router, "_event_stream", events)
+    application = create_app()
+    with TestClient(application) as client:
+        client.cookies.set(AUTH_COOKIE_NAME, create_access_token("7"))
+        response = client.get("/api/v1/realtime/events", headers={"Last-Event-ID": "12"})
+    assert response.status_code == 200
+    assert response.content == b": authenticated\n\n"
+    assert len(opened) == 1 and closed == opened

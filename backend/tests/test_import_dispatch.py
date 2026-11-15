@@ -8,7 +8,7 @@ from unittest.mock import Mock
 
 import pytest
 from sqlalchemy import select
-from sqlmodel import Session
+from sqlalchemy.orm import Session
 
 from app.core.exceptions import ResourceNotFoundException
 from app.db.models import (
@@ -33,7 +33,7 @@ from app.modules.import_jobs.dispatch_service import (
     StaleImportDispatchAttempt,
     require_current_attempt,
 )
-from app.modules.import_jobs.worker_service import SyncImportJobService
+from app.modules.import_jobs.worker_service import ImportJobExecutionService
 from app.modules.import_jobs.submission_service import ImportJobSubmissionService
 from app.modules.storage_objects.writes import write_object
 from app.modules.import_jobs.pipeline.context import JobContext
@@ -248,7 +248,7 @@ def test_only_current_execution_lease_can_mutate_job(setup_delivery, mutation):
     first = claim(db, row)
     second = takeover(db, row)
     assert second.attempt == first.attempt + 1 and second.token != first.token
-    worker = SyncImportJobService()
+    worker = ImportJobExecutionService()
     actions = {
         "binding": lambda: execution_manifest.bind_import_job_execution_manifest(db, first),
         "progress": lambda: worker.update_progress(db, first, "RUNNING", 99),
@@ -290,7 +290,7 @@ def test_written_artifact_requires_current_lease_at_transactional_adoption(
 ):
     db, storage, job, row = setup_delivery
     first = claim(db, row)
-    worker = SyncImportJobService()
+    worker = ImportJobExecutionService()
     worker.upsert_step(db, first, "ocr", "RUNNING")
 
     # A write can finish after its execution lease is lost. ObjectWriteIntent owns it.
@@ -300,7 +300,7 @@ def test_written_artifact_requires_current_lease_at_transactional_adoption(
             yield own
             own.commit()
 
-    monkeypatch.setattr("app.db.sync_session.get_worker_db", worker_db)
+    monkeypatch.setattr("app.db.session.SessionLocal", worker_db)
     original = write_object(
         db, storage, key="jobs/current-result", content=b"current", content_type="application/xml"
     )
@@ -358,7 +358,7 @@ def test_written_artifact_requires_current_lease_at_transactional_adoption(
 def test_domain_pipeline_failure_completes_current_delivery(setup_delivery):
     db, _, job, row = setup_delivery
     lease = claim(db, row)
-    worker = SyncImportJobService()
+    worker = ImportJobExecutionService()
     worker.finalize_failure(db, lease, error="OMR failed", error_type="PipelineError")
     ImportDispatchService().complete(db, lease)
     db.commit()
@@ -375,18 +375,9 @@ def test_trace_context_belongs_to_dispatch(setup_delivery):
     assert import_dispatch_trace_context(db, job.job_uuid).traceparent is None
 
 
-@pytest.mark.asyncio
-async def test_submission_atomically_creates_one_delivery_and_upload_links(
-    setup_delivery, monkeypatch
-):
+def test_submission_atomically_creates_one_delivery_and_upload_links(setup_delivery, monkeypatch):
     db, _, _, _ = setup_delivery
-    from tests.test_score_revision_services import AsyncSessionAdapter
 
-    async_db = AsyncSessionAdapter(db)
-    monkeypatch.setattr(
-        "app.db.sync_session.get_db_session",
-        lambda: pytest.fail("HTTP path requires only AsyncSession"),
-    )
     service = ImportJobSubmissionService()
     monkeypatch.setattr(
         "app.modules.import_jobs.submission_service.get_request_id", lambda: "submission-request"
@@ -399,8 +390,8 @@ async def test_submission_atomically_creates_one_delivery_and_upload_links(
         upload_ids=["original-upload"], idempotency_key="submission", options={"title": "New"}
     )
     user = db.get(User, 1)
-    first = await service.submit(async_db, user, request)
-    replay = await service.submit(async_db, user, request)
+    first = service.submit(db, user, request)
+    replay = service.submit(db, user, request)
     assert first["job_id"] == replay["job_id"]
     rows = list(db.scalars(select(ImportJob).where(ImportJob.idempotency_key == "submission")))
     assert len(rows) == 1 and rows[0].state == ImportJobState.PENDING
@@ -414,8 +405,8 @@ async def test_submission_atomically_creates_one_delivery_and_upload_links(
         == 1
     )
     with pytest.raises(ResourceNotFoundException):
-        await service.submit(
-            async_db,
+        service.submit(
+            db,
             user,
             SimpleNamespace(
                 upload_ids=["original-upload", "missing"],
@@ -475,7 +466,7 @@ def test_worker_completes_delivery_after_durable_domain_outcome(
             db.rollback()
             raise
 
-    worker = SyncImportJobService()
+    worker = ImportJobExecutionService()
 
     def run(task, lease, keys, options):
         assert lease.dispatch_uuid == row.dispatch_uuid and lease.job_uuid == job.job_uuid
@@ -485,7 +476,7 @@ def test_worker_completes_delivery_after_durable_domain_outcome(
         worker.finalize_success(db, lease)
         return {"success": True, "job_id": job.job_uuid}
 
-    monkeypatch.setattr(executor, "get_worker_db", worker_db)
+    monkeypatch.setattr(executor, "SessionLocal", worker_db)
     monkeypatch.setattr(executor.job_execution_service, "run_pipeline", run)
     task = Mock()
     task.request.id = "celery-task"
@@ -513,7 +504,7 @@ def test_final_attempt_domain_failure_completes_delivery_and_preserves_terminal_
     db.commit()
     lease = claim(db, row)
     assert lease.attempt == dispatch_module.settings.IMPORT_DISPATCH_MAX_ATTEMPTS
-    SyncImportJobService().finalize_failure(db, lease, "OMR failed", "PipelineError")
+    ImportJobExecutionService().finalize_failure(db, lease, "OMR failed", "PipelineError")
     assert read_import_operation(job, row).status.value == "failed"
     ImportDispatchService().complete(db, lease)
     db.commit()

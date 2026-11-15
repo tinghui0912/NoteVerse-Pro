@@ -77,7 +77,7 @@ Dedupe keys are `import.job.completed:{job_uuid}` and
 types, raw worker exceptions or private diagnostics. Public failure codes use the
 Import domain's existing safe vocabulary.
 
-`SyncImportJobService` locks and validates the current attempt, updates the Job and
+`ImportJobExecutionService` locks and validates the current attempt, updates the Job and
 appends its fact in one commit. Success also admits the review-thumbnail outbox in
 that transaction when a review source exists. Failure retains diagnostics on the
 Job, not in the event payload. Import delivery exhaustion appends the same typed

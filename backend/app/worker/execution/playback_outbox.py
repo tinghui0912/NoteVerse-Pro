@@ -8,12 +8,12 @@ from app.modules.revisions.presentation_demand import RevisionPresentationSupers
 from typing import Any
 
 from app.core.background_tracing import record_current_attempt_failure
-from app.db.sync_session import get_worker_db
+from app.db.session import SessionLocal
 from app.modules.playback.outbox_service import playback_outbox_service
 from app.modules.playback.service import PlaybackGenerationService
 from app.modules.realtime.publisher import (
     RealtimeEventTypes,
-    publish_score_event_sync,
+    publish_score_event,
 )
 from app.task_queue.protocols import CeleryTaskLike
 from app.worker.task_runtime import (
@@ -30,8 +30,9 @@ def execute_playback_outbox_task(task: CeleryTaskLike, outbox_uuid: str) -> dict
     bind_task_context(task)
     trace_scope = None
     try:
-        with get_worker_db() as db:
+        with SessionLocal() as db:
             payload = playback_outbox_service.claim(db, outbox_uuid)
+            db.commit()
         if payload is None:
             operation_logger(
                 "playback.ignored",
@@ -64,8 +65,8 @@ def execute_playback_outbox_task(task: CeleryTaskLike, outbox_uuid: str) -> dict
         operation_logger("playback.started", **context).info("playback.started")
 
         try:
-            with get_worker_db() as db:
-                PlaybackGenerationService().render_sync(
+            with SessionLocal() as db:
+                PlaybackGenerationService().render_for_worker(
                     db,
                     payload.score_uuid,
                     payload.revision_uuid,
@@ -75,11 +76,13 @@ def execute_playback_outbox_task(task: CeleryTaskLike, outbox_uuid: str) -> dict
                     lease=payload.lease,
                 )
                 _publish_playback_status(db, payload.score_uuid, payload.revision_uuid, "ready")
+                db.commit()
         except StaleDeliveryAttempt:
             return {"status": "stale", "outbox_uuid": outbox_uuid}
         except RevisionPresentationSuperseded:
-            with get_worker_db() as db:
+            with SessionLocal() as db:
                 accepted = playback_outbox_service.supersede(db, outbox_uuid, lease=payload.lease)
+                db.commit()
             if not accepted:
                 return {"status": "stale", "outbox_uuid": outbox_uuid}
             operation_logger("playback.superseded", **context, status="superseded").info(
@@ -88,7 +91,7 @@ def execute_playback_outbox_task(task: CeleryTaskLike, outbox_uuid: str) -> dict
             return {"status": "superseded", "outbox_uuid": outbox_uuid}
         except Exception as exc:
             record_current_attempt_failure(exc)
-            with get_worker_db() as db:
+            with SessionLocal() as db:
                 accepted = playback_outbox_service.fail(
                     db, outbox_uuid, str(exc), lease=payload.lease
                 )
@@ -96,6 +99,7 @@ def execute_playback_outbox_task(task: CeleryTaskLike, outbox_uuid: str) -> dict
                     _publish_playback_status(
                         db, payload.score_uuid, payload.revision_uuid, "failed"
                     )
+                db.commit()
             if not accepted:
                 return {"status": "stale", "outbox_uuid": outbox_uuid}
             operation_logger(
@@ -119,7 +123,7 @@ def execute_playback_outbox_task(task: CeleryTaskLike, outbox_uuid: str) -> dict
 
 
 def _publish_playback_status(db: Any, score_uuid: str, revision_uuid: str, status: str) -> None:
-    publish_score_event_sync(
+    publish_score_event(
         db,
         score_id=score_uuid,
         revision_id=revision_uuid,

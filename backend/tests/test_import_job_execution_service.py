@@ -50,7 +50,7 @@ def test_pipeline_failure_is_persisted_and_reraised() -> None:
         patch("app.modules.import_jobs.execution_service.require_current_attempt"),
         patch("app.modules.import_jobs.execution_service.bind_import_job_execution_manifest"),
         patch(
-            "app.modules.import_jobs.execution_service.get_worker_db",
+            "app.modules.import_jobs.execution_service.SessionLocal",
             side_effect=database_scope,
         ),
         patch(
@@ -62,7 +62,7 @@ def test_pipeline_failure_is_persisted_and_reraised() -> None:
             return_value=pipeline,
         ),
         patch(
-            "app.modules.import_jobs.execution_service.sync_import_job_service.finalize_failure"
+            "app.modules.import_jobs.execution_service.import_job_execution_service.finalize_failure"
         ) as finalize_failure,
         pytest.raises(TimeoutException),
     ):
@@ -86,13 +86,13 @@ def test_stale_execution_aborts_before_materialization_without_domain_failure():
         yield Mock()
 
     with (
-        patch("app.modules.import_jobs.execution_service.get_worker_db", database_scope),
+        patch("app.modules.import_jobs.execution_service.SessionLocal", database_scope),
         patch(
             "app.modules.import_jobs.execution_service.require_current_attempt",
             side_effect=StaleImportDispatchAttempt("lost"),
         ),
         patch(
-            "app.modules.import_jobs.execution_service.sync_import_job_service.finalize_failure"
+            "app.modules.import_jobs.execution_service.import_job_execution_service.finalize_failure"
         ) as failure,
         pytest.raises(StaleImportDispatchAttempt),
     ):
@@ -120,7 +120,7 @@ def test_journal_invariant_conflict_propagates_without_becoming_a_pipeline_outco
         yield Mock()
 
     with (
-        patch("app.modules.import_jobs.execution_service.get_worker_db", database_scope),
+        patch("app.modules.import_jobs.execution_service.SessionLocal", database_scope),
         patch("app.modules.import_jobs.execution_service.require_current_attempt"),
         patch("app.modules.import_jobs.execution_service.bind_import_job_execution_manifest"),
         patch("app.modules.import_jobs.execution_service.JobContext", return_value=context),
@@ -128,7 +128,7 @@ def test_journal_invariant_conflict_propagates_without_becoming_a_pipeline_outco
             "app.modules.import_jobs.execution_service.PipelineBuilder.build", return_value=pipeline
         ),
         patch(
-            "app.modules.import_jobs.execution_service.sync_import_job_service.finalize_failure",
+            "app.modules.import_jobs.execution_service.import_job_execution_service.finalize_failure",
             failure,
         ),
         pytest.raises(DomainEventDedupeConflict) as raised,
@@ -161,7 +161,7 @@ def test_worker_preserves_journal_conflict_without_completing_delivery():
         yield Mock()
 
     with (
-        patch.object(worker, "get_worker_db", database_scope),
+        patch.object(worker, "SessionLocal", database_scope),
         patch.object(worker, "start_attempt_trace", return_value=nullcontext()),
         patch.object(worker.import_dispatch_service, "claim", return_value=payload),
         patch.object(worker.job_execution_service, "run_pipeline", side_effect=conflict),

@@ -75,7 +75,7 @@ def ensure_user(namespace: str, deployment: str, email: str, password: str) -> N
     code = f"""
 from sqlalchemy import select
 from app.core.security import get_password_hash
-from app.db.sync_session import SessionLocal
+from app.db.session import SessionLocal
 from app.db.models.user import User
 from app.utils.timezone import utc_now_naive
 
@@ -117,7 +117,7 @@ from app.db.model_utils import require_persisted_id
 from app.db.models import User
 from app.db.models import Score, StorageUsageCategory
 from app.db.models.score import RevisionOrigin
-from app.db.sync_session import SessionLocal
+from app.db.session import SessionLocal
 from app.modules.revisions.writer import revision_writer, InitialRevisionWrite, PreparedRevisionSource
 from app.modules.revisions.dispatch import dispatch_render_outbox, dispatch_playback_outbox
 from app.modules.revisions.metadata_dispatch import dispatch_revision_metadata
@@ -157,7 +157,7 @@ with SessionLocal() as db:
     score_uuid = str(uuid.uuid4())
     revision_uuid = str(uuid.uuid4())
     musicxml = admit_musicxml_document(musicxml)
-    reservation = storage_usage_service.reserve_sync(db, user_id=user_id, category=StorageUsageCategory.SOURCE,
+    reservation = storage_usage_service.reserve(db, user_id=user_id, category=StorageUsageCategory.SOURCE,
         bytes_count=len(musicxml), reason="k8s_smoke_revision_source", object_type="score_revision_source")
     try:
         db.commit()
@@ -173,7 +173,7 @@ with SessionLocal() as db:
         db.commit()
     except Exception:
         db.rollback()
-        storage_usage_service.release_reservation_sync(db, reservation.reservation_id)
+        storage_usage_service.release_reservation(db, reservation.reservation_id)
         db.commit()
         raise
     work = result.derivatives
@@ -350,7 +350,7 @@ def wait_for_score_deletion(namespace: str, deployment: str, score_id: str) -> N
 import time
 from sqlalchemy import select
 from app.db.models import ScoreDeletionOperation, ScoreDeletionOperationStatus
-from app.db.sync_session import SessionLocal
+from app.db.session import SessionLocal
 from app.worker.tasks import run_score_deletion_maintenance
 
 run_score_deletion_maintenance()
@@ -375,7 +375,7 @@ def assert_owner_usage_zero(namespace: str, deployment: str, email: str) -> None
 from sqlalchemy import select
 from app.db.models.storage_usage import StorageUsageCounter
 from app.db.models.user import User
-from app.db.sync_session import SessionLocal
+from app.db.session import SessionLocal
 
 email = {email!r}
 with SessionLocal() as db:

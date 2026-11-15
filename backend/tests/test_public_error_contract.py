@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from app.core.generated.customer_browser_protocol import AUTH_COOKIE_NAME, CSRF_COOKIE_NAME
 
-from collections.abc import AsyncGenerator
+from collections.abc import Generator
 
 from fastapi.testclient import TestClient
 
@@ -60,10 +60,10 @@ def test_ordinary_csrf_errors_do_not_expose_security_details(client: TestClient)
 
 def test_ordinary_unhandled_errors_do_not_expose_exception_details() -> None:
     class FailingPlaybackService:
-        async def audio(self, db, token: str):
+        def audio(self, db, token: str):
             raise RuntimeError("redis worker failed while reading /internal/storage/path")
 
-    async def fake_get_db() -> AsyncGenerator[object, None]:
+    def fake_get_db() -> Generator[object, None]:
         yield object()
 
     app.dependency_overrides[get_db] = fake_get_db

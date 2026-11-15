@@ -23,14 +23,12 @@ from tests.support.retirement import drain_retirements
 from app.db.models import StoredObjectRetirement
 from tests.test_score_revision_services import score_service_session as score_service_session
 from tests.test_score_revision_services import (
-    AsyncSessionAdapter,
     add_active_score_with_head_revision,
     MUSICXML_1,
 )
 
 
-@pytest.mark.asyncio
-async def test_upload_dedup_is_owned_by_upload_references(score_service_session):
+def test_upload_dedup_is_owned_by_upload_references(score_service_session):
     db, storage = score_service_session
     from app.db.models import User, ScoreRenderAsset
     from app.db.models.score import RenderAssetKind
@@ -65,13 +63,13 @@ async def test_upload_dedup_is_owned_by_upload_references(score_service_session)
     service = UploadService(storage=storage)
     put = Mock(wraps=storage.put_bytes)
     storage.put_bytes = put
-    first = await service.create_upload(
-        AsyncSessionAdapter(db),
+    first = service.create_upload(
+        db,
         user,
         UploadFile(filename="first.png", file=io.BytesIO(image_bytes())),
     )
-    second = await service.create_upload(
-        AsyncSessionAdapter(db),
+    second = service.create_upload(
+        db,
         user,
         UploadFile(filename="second.png", file=io.BytesIO(image_bytes())),
     )
@@ -84,9 +82,9 @@ async def test_upload_dedup_is_owned_by_upload_references(score_service_session)
         == 2
     )
     physical_key = uploads[0].stored_object.object_key
-    await service.delete_upload(AsyncSessionAdapter(db), user, first.upload_id)
+    service.delete_upload(db, user, first.upload_id)
     assert storage.exists(physical_key)
-    await service.delete_upload(AsyncSessionAdapter(db), user, second.upload_id)
+    service.delete_upload(db, user, second.upload_id)
     assert storage.exists(physical_key)
     assert db.scalar(select(StoredObjectRetirement)).status == "PENDING"
     assert drain_retirements(db, storage)[0]["status"] == "completed"
@@ -95,8 +93,7 @@ async def test_upload_dedup_is_owned_by_upload_references(score_service_session)
     assert db.get(StoredObject, unrelated.id) is not None
 
 
-@pytest.mark.asyncio
-async def test_avatar_reference_and_profile_use_immutable_processed_bytes(score_service_session):
+def test_avatar_reference_and_profile_use_immutable_processed_bytes(score_service_session):
     db, storage = score_service_session
     from app.db.models import User
 
@@ -110,15 +107,15 @@ async def test_avatar_reference_and_profile_use_immutable_processed_bytes(score_
         Image.new("RGB", (20, 20), color).save(output, format="PNG")
         return output.getvalue()
 
-    first_name, first_url = await service.replace_user_avatar(
-        AsyncSessionAdapter(db), user, file_bytes=image("red"), filename="same.png"
+    first_name, first_url = service.replace_user_avatar(
+        db, user, file_bytes=image("red"), filename="same.png"
     )
     first_id = user.avatar_object_id
     first_key = user.avatar_object.object_key
     first_bytes = storage.read_bytes(first_key)
     assert user.avatar_object.sha256 == hashlib.sha256(first_bytes).hexdigest()
-    second_name, second_url = await service.replace_user_avatar(
-        AsyncSessionAdapter(db), user, file_bytes=image("blue"), filename="same.png"
+    second_name, second_url = service.replace_user_avatar(
+        db, user, file_bytes=image("blue"), filename="same.png"
     )
     assert first_name != second_name and first_url != second_url
     assert user.avatar_object_id != first_id
@@ -140,19 +137,17 @@ async def test_avatar_reference_and_profile_use_immutable_processed_bytes(score_
 
     signed = Mock(side_effect=["https://delivery.example/one", "https://delivery.example/two"])
     storage.download_url = signed
-    first_redirect = await read_avatar(second_name, AsyncSessionAdapter(db), service)
-    second_redirect = await read_avatar(second_name, AsyncSessionAdapter(db), service)
+    first_redirect = read_avatar(second_name, db, service)
+    second_redirect = read_avatar(second_name, db, service)
     assert first_redirect.headers["location"] != second_redirect.headers["location"]
     assert signed.call_count == 2
     signed.assert_called_with(
         user.avatar_object.object_key,
-        filename=None,
         content_type="image/jpeg",
-        expires_seconds=None,
     )
     assert avatar_url_for_user(user) == second_url
     current_id, current_key = user.avatar_object_id, user.avatar_object.object_key
-    assert await service.clear_user_avatar(AsyncSessionAdapter(db), user)
+    assert service.clear_user_avatar(db, user)
     assert user.avatar_object_id is None and user.avatar_object is None
     assert avatar_url_for_user(user) is None
     assert db.get(StoredObject, current_id) is not None
@@ -161,21 +156,20 @@ async def test_avatar_reference_and_profile_use_immutable_processed_bytes(score_
     assert not storage.exists(current_key)
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("cleanup_fails", [False, True])
-async def test_import_artifact_replacement_uses_complete_immutable_object_facts(
+def test_import_artifact_replacement_uses_complete_immutable_object_facts(
     score_service_session, monkeypatch, cleanup_fails
 ):
     from app.db.models import ImportJob, ImportArtifact
     from app.db.models.import_job import ImportJobState
-    from app.modules.import_jobs.worker_service import SyncImportJobService
+    from app.modules.import_jobs.worker_service import ImportJobExecutionService
     from app.modules.import_jobs.service import ImportJobService
 
     db, storage = score_service_session
     job = ImportJob(job_uuid="physical-import", user_id=1, state=ImportJobState.PENDING_REVIEW)
     db.add(job)
     db.commit()
-    worker = SyncImportJobService()
+    worker = ImportJobExecutionService()
 
     def item(key, content):
         written = write_object(
@@ -216,17 +210,14 @@ async def test_import_artifact_replacement_uses_complete_immutable_object_facts(
     assert current.stored_object.byte_size == len(b"second")
     assert current.stored_object.sha256 == hashlib.sha256(b"second").hexdigest()
     assert storage.exists(first_key) is cleanup_fails
-    delivery = await ImportJobService(storage=storage).artifact_delivery(
-        AsyncSessionAdapter(db), job.job_uuid, current.artifact_uuid, 1
+    delivery = ImportJobService(storage=storage).artifact_delivery(
+        db, job.job_uuid, current.artifact_uuid, 1
     )
     assert delivery.filename == "score.xml" and delivery.media_type == "application/xml"
     assert storage.read_bytes(delivery.storage_key) == b"second"
 
 
-@pytest.mark.asyncio
-async def test_avatar_retirement_failure_cannot_revert_new_reference(
-    score_service_session, monkeypatch
-):
+def test_avatar_retirement_failure_cannot_revert_new_reference(score_service_session, monkeypatch):
     db, storage = score_service_session
     from app.db.models import User
 
@@ -238,15 +229,13 @@ async def test_avatar_retirement_failure_cannot_revert_new_reference(
         Image.new("RGB", (2, 2), color).save(output, format="PNG")
         return output.getvalue()
 
-    await service.replace_user_avatar(
-        AsyncSessionAdapter(db), user, file_bytes=picture("red"), filename="same.png"
-    )
+    service.replace_user_avatar(db, user, file_bytes=picture("red"), filename="same.png")
     before = user.avatar_object_id
     monkeypatch.setattr(
         storage, "delete", Mock(side_effect=OSError("physical deletion unavailable"))
     )
-    _, current_url = await service.replace_user_avatar(
-        AsyncSessionAdapter(db), user, file_bytes=picture("blue"), filename="same.png"
+    _, current_url = service.replace_user_avatar(
+        db, user, file_bytes=picture("blue"), filename="same.png"
     )
     current = user.avatar_object_id
     assert current != before and storage.delete.call_count == 0
@@ -254,7 +243,7 @@ async def test_avatar_retirement_failure_cannot_revert_new_reference(
     db.refresh(user)
     assert user.avatar_object_id == current and avatar_url_for_user(user) == current_url
     assert db.get(StoredObject, before) is not None
-    await service.clear_user_avatar(AsyncSessionAdapter(db), user)
+    service.clear_user_avatar(db, user)
     assert user.avatar_object_id is None
     assert (
         db.scalar(
@@ -264,33 +253,33 @@ async def test_avatar_retirement_failure_cannot_revert_new_reference(
     )
 
 
-@pytest.mark.asyncio
-async def test_avatar_post_commit_refresh_failure_preserves_committed_bytes(
+def test_avatar_post_commit_refresh_failure_preserves_committed_bytes(
     score_service_session, monkeypatch
 ):
-    from unittest.mock import AsyncMock
+    from unittest.mock import Mock
     from app.db.models import User
 
     db, storage = score_service_session
     user = db.get(User, 1)
     output = io.BytesIO()
     Image.new("RGB", (2, 2), "blue").save(output, format="PNG")
-    adapter = AsyncSessionAdapter(db)
-    adapter.refresh = AsyncMock(side_effect=RuntimeError("refresh failed"))
+    adapter = db
+    original_refresh = db.refresh
+    monkeypatch.setattr(db, "refresh", Mock(side_effect=RuntimeError("refresh failed")))
     delete = Mock(wraps=storage.delete)
     monkeypatch.setattr(storage, "delete", delete)
     with pytest.raises(RuntimeError, match="refresh failed"):
-        await AvatarService(storage=storage).replace_user_avatar(
+        AvatarService(storage=storage).replace_user_avatar(
             adapter, user, file_bytes=output.getvalue(), filename="new.png"
         )
+    monkeypatch.setattr(db, "refresh", original_refresh)
     db.refresh(user)
     assert user.avatar_object_id is not None
     assert storage.exists(user.avatar_object.object_key)
     assert delete.call_count == 0
 
 
-@pytest.mark.asyncio
-async def test_upload_release_succeeds_while_score_source_retains_exact_object(
+def test_upload_release_succeeds_while_score_source_retains_exact_object(
     score_service_session,
 ):
     from app.db.models import User, StorageUsageAccount
@@ -298,8 +287,8 @@ async def test_upload_release_succeeds_while_score_source_retains_exact_object(
     db, storage = score_service_session
     user = db.get(User, 1)
     service = UploadService(storage=storage)
-    response = await service.create_upload(
-        AsyncSessionAdapter(db),
+    response = service.create_upload(
+        db,
         user,
         UploadFile(filename="score.png", file=io.BytesIO(image_bytes())),
     )
@@ -324,7 +313,7 @@ async def test_upload_release_succeeds_while_score_source_retains_exact_object(
     )
     db.add(source)
     db.commit()
-    await service.delete_upload(AsyncSessionAdapter(db), user, response.upload_id)
+    service.delete_upload(db, user, response.upload_id)
     assert db.scalar(select(Upload)) is None
     assert db.get(StoredObject, identity) is not None and storage.exists(key)
     assert db.scalar(select(StoredObjectRetirement)) is None
@@ -431,7 +420,7 @@ def test_derived_replacement_commits_new_asset_and_old_retirement_atomically(
 
         def generate():
             payload = revision_attempt(db, kind, score, revision)
-            asset = service.render_sync(
+            asset = service.render_for_worker(
                 db,
                 score.score_uuid,
                 revision.revision_uuid,
@@ -488,20 +477,20 @@ def test_orphan_scan_retirement_failure_rolls_back_only_that_owner(
         db.add(upload)
         db.commit()
         uploads.append((upload.id, obj.id))
-        storage_usage_service.record_allocation_sync(
+        storage_usage_service.record_allocation(
             db, user_id=1, category=StorageUsageCategory.UPLOAD, bytes_count=3, reason="test_orphan"
         )
     db.commit()
     from app.modules.import_jobs import maintenance_service as maintenance
 
-    retire = maintenance.retire_released_objects
+    retire = maintenance.retire_after_release
 
     def queue(session, object_id):
         if object_id == uploads[1][1]:
             raise ValueError("retirement admission unavailable")
         return retire(session, object_id)
 
-    monkeypatch.setattr(maintenance, "retire_released_objects", queue)
+    monkeypatch.setattr(maintenance, "retire_after_release", queue)
     assert ImportJobMaintenanceService().cleanup_orphan_uploads(db) == 1
     assert db.get(Upload, uploads[0][0]) is None
     assert db.get(Upload, uploads[1][0]) is not None

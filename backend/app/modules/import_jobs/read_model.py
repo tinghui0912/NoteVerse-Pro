@@ -3,7 +3,7 @@
 from collections import defaultdict
 from collections.abc import Sequence
 
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.db.model_utils import require_persisted_id
 from app.db.models import ImportJob
@@ -16,23 +16,21 @@ class ImportJobReadModel:
     def __init__(self, repository: ImportJobRepository | None = None) -> None:
         self.repository = repository or ImportJobRepository()
 
-    async def detail(self, db: AsyncSession, job: ImportJob) -> ImportJobRead:
-        return (await self.details_for_jobs(db, [job]))[0]
+    def detail(self, db: Session, job: ImportJob) -> ImportJobRead:
+        return (self.details_for_jobs(db, [job]))[0]
 
-    async def details_for_jobs(
-        self, db: AsyncSession, jobs: Sequence[ImportJob]
-    ) -> list[ImportJobRead]:
+    def details_for_jobs(self, db: Session, jobs: Sequence[ImportJob]) -> list[ImportJobRead]:
         if not jobs:
             return []
         job_ids = [require_persisted_id(job.id, entity="import job") for job in jobs]
-        score_uuids = await self.repository.score_uuids(
+        score_uuids = self.repository.score_uuids(
             db, {job.score_id for job in jobs if job.score_id is not None}
         )
-        digests = await self.repository.execution_manifest_digests(
+        digests = self.repository.execution_manifest_digests(
             db, {job.execution_manifest_id for job in jobs if job.execution_manifest_id is not None}
         )
-        previews = await self.repository.preview_artifacts_for_jobs(db, job_ids)
-        uploads = await self.repository.uploads_for_jobs(db, job_ids)
+        previews = self.repository.preview_artifacts_for_jobs(db, job_ids)
+        uploads = self.repository.uploads_for_jobs(db, job_ids)
         thumbnails: dict[int, ImportArtifactRead] = {}
         for preview in previews:
             if preview["job_id"] not in thumbnails:

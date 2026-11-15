@@ -47,7 +47,7 @@ def add_member(engine):
 
 
 def interrupt_second_notify(monkeypatch, *, status=None):
-    original = publisher._notify_event_sync
+    original = publisher._notify_event
     recipients = []
 
     def notify(db, event):
@@ -58,7 +58,7 @@ def interrupt_second_notify(monkeypatch, *, status=None):
                 assert db.scalar(sa.select(sa.func.count()).select_from(RealtimeEvent)) >= 2
                 raise RuntimeError("partial realtime fan-out interrupted")
 
-    monkeypatch.setattr(publisher, "_notify_event_sync", notify)
+    monkeypatch.setattr(publisher, "_notify_event", notify)
     return original, recipients
 
 
@@ -101,7 +101,7 @@ def test_metadata_partial_publication_rolls_back_and_retry_is_authoritative(
         with pytest.raises(StaleDeliveryAttempt):
             metadata_delivery.adopt(db, first, result)
         db.rollback()
-        monkeypatch.setattr(publisher, "_notify_event_sync", original)
+        monkeypatch.setattr(publisher, "_notify_event", original)
         metadata_delivery.adopt(db, second, result)
         db.commit()
         assert db.scalar(sa.select(ScoreRevisionMetadata)).status == (
@@ -166,7 +166,7 @@ def test_failed_outcome_publication_failure_leaves_processing_for_lease_recovery
     if kind == "render":
         monkeypatch.setattr(render_outbox, "_render_target", fail)
     else:
-        monkeypatch.setattr(playback_outbox.PlaybackGenerationService(), "render_sync", fail)
+        monkeypatch.setattr(playback_outbox.PlaybackGenerationService(), "render_for_worker", fail)
     original, recipients = interrupt_second_notify(monkeypatch, status="failed")
     with pytest.raises(RuntimeError, match="fan-out interrupted"):
         execute(None, "delivery")
@@ -183,9 +183,9 @@ def test_failed_outcome_publication_failure_leaves_processing_for_lease_recovery
         second = service.claim(db, "delivery")
         db.commit()
         assert second.lease.token != token and second.lease.attempt == 2
-        monkeypatch.setattr(publisher, "_notify_event_sync", original)
+        monkeypatch.setattr(publisher, "_notify_event", original)
         assert service.fail(db, "delivery", "current failure", lease=second.lease)
-        publisher.publish_score_event_sync(
+        publisher.publish_score_event(
             db,
             score_id=second.score_uuid,
             revision_id=second.revision_uuid,
@@ -213,7 +213,7 @@ def test_metadata_worker_retries_publication_infrastructure_failure(database, mo
                 db.rollback()
                 raise
 
-    monkeypatch.setattr(worker, "get_worker_db", transaction)
+    monkeypatch.setattr(worker, "SessionLocal", transaction)
     monkeypatch.setattr(worker, "object_storage", storage)
     original, _ = interrupt_second_notify(monkeypatch)
     failure = metadata_delivery.fail
@@ -234,7 +234,7 @@ def test_metadata_worker_retries_publication_infrastructure_failure(database, mo
         assert row.status == "FAILED" and row.attempt_token is None
         row.next_attempt_at = utc_now_naive() - timedelta(seconds=1)
         db.commit()
-    monkeypatch.setattr(publisher, "_notify_event_sync", original)
+    monkeypatch.setattr(publisher, "_notify_event", original)
     assert worker.execute_revision_metadata_task(None, uuid)["status"] == "completed"
     with Session(engine) as db:
         assert db.scalar(sa.select(RevisionMetadataOutbox)).attempt_count == 2

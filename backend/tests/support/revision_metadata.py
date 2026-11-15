@@ -27,7 +27,7 @@ def drain_revision_metadata(db, storage):
             raise
 
     with (
-        patch.object(worker, "get_worker_db", transaction),
+        patch.object(worker, "SessionLocal", transaction),
         patch.object(worker, "object_storage", storage),
     ):
         return [worker.execute_revision_metadata_task(None, uuid) for uuid in identities]

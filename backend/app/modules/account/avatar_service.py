@@ -6,15 +6,15 @@ from uuid import uuid4
 from sqlalchemy import select
 
 from PIL import Image
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.core.logger import logger
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
-from app.modules.storage_objects.writes import write_object_async, adopt_written_object
+from app.modules.storage_objects.writes import write_object, adopt_written_object
 from app.modules.account.avatar_presentation import avatar_url_for_user
 from app.modules.storage_objects.retirement import retire_after_release
-from app.storage import ObjectStorage, object_storage, AsyncObjectStorage
+from app.storage import object_storage, ObjectStorage
 
 
 def avatar_object_key(filename: str) -> str:
@@ -30,7 +30,6 @@ class AvatarService:
 
     def __init__(self, storage: ObjectStorage | None = None) -> None:
         self.storage = storage or object_storage
-        self.async_storage = AsyncObjectStorage(self.storage)
 
     def is_allowed_extension(self, filename: str) -> bool:
         if "." not in filename:
@@ -78,9 +77,9 @@ class AvatarService:
             ).opt(exception=exc).error("Avatar processing failed")
             raise ValueError(f"Image processing failed: {str(exc)}")
 
-    async def replace_user_avatar(
+    def replace_user_avatar(
         self,
-        db: AsyncSession,
+        db: Session,
         user: User,
         *,
         file_bytes: bytes,
@@ -90,11 +89,11 @@ class AvatarService:
         key, content = self.process_avatar(
             file_bytes=file_bytes, filename=filename, user_id=user_id
         )
-        written = await write_object_async(
-            db, self.async_storage, key=key, content=content, content_type="image/jpeg"
+        written = write_object(
+            db, self.storage, key=key, content=content, content_type="image/jpeg"
         )
         user = (
-            await db.execute(
+            db.execute(
                 select(User)
                 .where(User.id == user_id)
                 .with_for_update()
@@ -103,38 +102,38 @@ class AvatarService:
         ).scalar_one()
         previous = user.avatar_object
         try:
-            current = await db.run_sync(lambda sync: adopt_written_object(sync, written))
+            current = adopt_written_object(db, written)
             user.avatar_object = current
             db.add(user)
             if previous is not None:
-                await retire_after_release(db, previous.id)
-            await db.commit()
-            await db.refresh(user)
+                retire_after_release(db, previous.id)
+            db.commit()
+            db.refresh(user)
         except Exception:
-            await db.rollback()
+            db.rollback()
             raise
         return current.object_key.rsplit("/", 1)[-1], avatar_url_for_user(user) or ""
 
-    async def clear_user_avatar(self, db: AsyncSession, user: User) -> bool:
+    def clear_user_avatar(self, db: Session, user: User) -> bool:
         previous = user.avatar_object
         if previous is None:
             return False
         user.avatar_object = None
         user.avatar_object_id = None
-        await retire_after_release(db, previous.id)
-        await db.commit()
+        retire_after_release(db, previous.id)
+        db.commit()
         return True
 
-    async def clear_missing_avatar_reference(self, db: AsyncSession, user: User) -> bool:
+    def clear_missing_avatar_reference(self, db: Session, user: User) -> bool:
         current = user.avatar_object
-        if current is None or (await self.avatar_exists(current.object_key.rsplit("/", 1)[-1])):
+        if current is None or (self.avatar_exists(current.object_key.rsplit("/", 1)[-1])):
             return False
-        await self.clear_user_avatar(db, user)
+        self.clear_user_avatar(db, user)
         return True
 
-    async def avatar_exists(self, filename: str) -> bool:
+    def avatar_exists(self, filename: str) -> bool:
         try:
-            return await self.async_storage.exists(avatar_object_key(filename))
+            return self.storage.exists(avatar_object_key(filename))
         except Exception as exc:
             logger.bind(
                 event="account.avatar.exists_check_failed",

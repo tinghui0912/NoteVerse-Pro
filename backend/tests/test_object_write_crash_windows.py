@@ -3,7 +3,7 @@
 import hashlib
 from tests.support.derivative_execution import revision_attempt
 from contextlib import contextmanager
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import Mock
 
 import pytest
 from sqlalchemy import select
@@ -29,14 +29,12 @@ from app.modules.score_assets.render_service import RevisionRenderService
 from tests.support.write_cleanup import drain_write_cleanup
 from tests.test_score_revision_services import (
     score_service_session as score_service_session,
-    AsyncSessionAdapter,
     MUSICXML_1,
     add_active_score_with_head_revision,
 )
 
 
-@pytest.mark.asyncio
-async def test_review_confirm_source_and_thumbnail_survive_failed_semantic_adoption_as_intents(
+def test_review_confirm_source_and_thumbnail_survive_failed_semantic_adoption_as_intents(
     score_service_session, monkeypatch
 ):
     db, storage = score_service_session
@@ -60,11 +58,11 @@ async def test_review_confirm_source_and_thumbnail_survive_failed_semantic_adopt
     service = ImportReviewService(storage=storage)
     monkeypatch.setattr(
         "app.modules.import_jobs.review.service.ImportJobDeletionService.cleanup_binary_artifacts",
-        AsyncMock(side_effect=RuntimeError("semantic confirmation failed")),
+        Mock(side_effect=RuntimeError("semantic confirmation failed")),
     )
     with pytest.raises(RuntimeError, match="semantic confirmation failed"):
-        await service.confirm(
-            AsyncSessionAdapter(db),
+        service.confirm(
+            db,
             job.job_uuid,
             1,
             ReviewConfirmRequest(content=MUSICXML_1.decode()),
@@ -154,7 +152,7 @@ def test_import_artifact_handoff_failure_leaves_intent_until_cleanup(
     score_service_session, monkeypatch, tmp_path
 ):
     from app.modules.import_jobs.pipeline import artifact_recorder
-    from app.modules.import_jobs.worker_service import sync_import_job_service
+    from app.modules.import_jobs.worker_service import import_job_execution_service
 
     db, storage = score_service_session
     from app.db.models import ImportJob
@@ -174,11 +172,11 @@ def test_import_artifact_handoff_failure_leaves_intent_until_cleanup(
             db.rollback()
             raise
 
-    monkeypatch.setattr(artifact_recorder, "get_worker_db", session)
-    monkeypatch.setattr("app.db.sync_session.get_worker_db", session)
+    monkeypatch.setattr(artifact_recorder, "SessionLocal", session)
+    monkeypatch.setattr("app.db.session.SessionLocal", session)
     monkeypatch.setattr(artifact_recorder, "object_storage", storage)
     monkeypatch.setattr(
-        sync_import_job_service,
+        import_job_execution_service,
         "replace_artifacts",
         Mock(side_effect=RuntimeError("artifact adoption failed")),
     )

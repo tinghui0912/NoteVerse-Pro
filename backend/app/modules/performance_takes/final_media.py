@@ -5,7 +5,7 @@ import hashlib
 import hmac
 from app.core.exceptions import ResourceNotFoundException, ValidationException
 from app.shared.constants import ErrorCode
-from app.storage import AsyncObjectStorage
+from app.storage import ObjectStorage
 from app.modules.storage_objects.facts import StoredObjectFacts
 from .manifest import TakeManifest
 from .recording_media_admission import (
@@ -38,28 +38,28 @@ class VerifiedPerformanceTakeCandidate:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="candidate")
 
 
-async def _sha256_storage_object(storage: AsyncObjectStorage, key: str) -> str:
+def _sha256_storage_object(storage: ObjectStorage, key: str) -> str:
     digest = hashlib.sha256()
-    async for chunk in storage.iter_bytes(key, chunk_size=1024 * 1024):
+    for chunk in storage.iter_bytes(key, chunk_size=1024 * 1024):
         digest.update(chunk)
     return digest.hexdigest()
 
 
 class PerformanceTakeFinalMedia:
-    def __init__(self, storage: AsyncObjectStorage) -> None:
-        self.async_storage = storage
+    def __init__(self, storage: ObjectStorage) -> None:
+        self.storage = storage
 
-    async def verify(
+    def verify(
         self, manifest: TakeManifest, lease: FinalizeLease, staging_key: str
     ) -> VerifiedPerformanceTakeCandidate:
         capture = manifest.snapshot.capture
-        if not await self.async_storage.exists(staging_key):
+        if not self.storage.exists(staging_key):
             raise ResourceNotFoundException(
                 "performance_take_media_object", manifest.take_uuid, ErrorCode.FILE_NOT_FOUND
             )
 
-        async def validate_metadata(key: str) -> None:
-            metadata = await self.async_storage.object_metadata(key)
+        def validate_metadata(key: str) -> None:
+            metadata = self.storage.object_metadata(key)
             if metadata.size_bytes != capture.byte_size:
                 raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_byte_size")
             if (
@@ -68,21 +68,19 @@ class PerformanceTakeFinalMedia:
             ):
                 raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
 
-        await validate_metadata(staging_key)
+        validate_metadata(staging_key)
         header = b"".join(
             [
                 chunk
-                async for chunk in self.async_storage.iter_bytes(
-                    staging_key, chunk_size=64, start=0, end=63
-                )
+                for chunk in self.storage.iter_bytes(staging_key, chunk_size=64, start=0, end=63)
             ]
         )
         if not verify_recording_container_signature(capture.kind, capture.mime_type, header):
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
-        staging_sha = await _sha256_storage_object(self.async_storage, staging_key)
-        await self.async_storage.copy(staging_key, lease.object_key)
-        await validate_metadata(lease.object_key)
-        candidate_sha = await _sha256_storage_object(self.async_storage, lease.object_key)
+        staging_sha = _sha256_storage_object(self.storage, staging_key)
+        self.storage.copy(staging_key, lease.object_key)
+        validate_metadata(lease.object_key)
+        candidate_sha = _sha256_storage_object(self.storage, lease.object_key)
         if not hmac.compare_digest(staging_sha, candidate_sha):
             raise ValidationException(
                 ErrorCode.VALIDATION_ERROR,

@@ -17,7 +17,7 @@ from app.modules.import_jobs.dispatch_service import (
     StaleImportDispatchAttempt,
 )
 from app.processing.engines.omr import OmrSuccessResult
-from app.modules.import_jobs.worker_service import sync_import_job_service as job_service
+from app.modules.import_jobs.worker_service import import_job_execution_service as job_service
 from app.modules.import_jobs.pipeline.artifact_recorder import replace_files
 from app.modules.import_jobs.pipeline.step_tracker import StepTracker
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind

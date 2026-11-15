@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from sqlalchemy import func, select, and_
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from sqlmodel import col
 from app.db.models import Score, ScoreLibraryOrganization, ScoreLibraryFolder, ScoreRevisionMetadata
 from app.modules.score_access.queries import accessible_score_predicate
@@ -9,20 +9,20 @@ from app.modules.library.schemas import LibrarySort, LibraryView
 
 
 class LibraryRepository:
-    async def folder_by_uuid(
-        self, db: AsyncSession, user_id: int, folder_uuid: str, *, lock: bool = False
+    def folder_by_uuid(
+        self, db: Session, user_id: int, folder_uuid: str, *, lock: bool = False
     ) -> ScoreLibraryFolder | None:
         statement = select(ScoreLibraryFolder).where(
             ScoreLibraryFolder.user_id == user_id, ScoreLibraryFolder.folder_uuid == folder_uuid
         )
         if lock:
             statement = statement.with_for_update().execution_options(populate_existing=True)
-        return (await db.execute(statement)).scalar_one_or_none()
+        return (db.execute(statement)).scalar_one_or_none()
 
-    async def folders(self, db: AsyncSession, user_id: int) -> list[ScoreLibraryFolder]:
+    def folders(self, db: Session, user_id: int) -> list[ScoreLibraryFolder]:
         return list(
             (
-                await db.execute(
+                db.execute(
                     select(ScoreLibraryFolder)
                     .where(ScoreLibraryFolder.user_id == user_id)
                     .order_by(ScoreLibraryFolder.position, ScoreLibraryFolder.name)
@@ -32,11 +32,11 @@ class LibraryRepository:
             .all()
         )
 
-    async def organization(
-        self, db: AsyncSession, user_id: int, score_id: int
+    def organization(
+        self, db: Session, user_id: int, score_id: int
     ) -> ScoreLibraryOrganization | None:
         return (
-            await db.execute(
+            db.execute(
                 select(ScoreLibraryOrganization).where(
                     ScoreLibraryOrganization.user_id == user_id,
                     ScoreLibraryOrganization.score_id == score_id,
@@ -51,11 +51,9 @@ class LibraryRepository:
             ScoreLibraryOrganization.user_id == user_id,
         )
 
-    async def counts(
-        self, db: AsyncSession, user_id: int
-    ) -> tuple[int, int, int, int, dict[int, int]]:
+    def counts(self, db: Session, user_id: int) -> tuple[int, int, int, int, dict[int, int]]:
         rows = (
-            await db.execute(
+            db.execute(
                 select(
                     Score.owner_user_id,
                     ScoreLibraryOrganization.folder_id,
@@ -83,9 +81,9 @@ class LibraryRepository:
                 folders[folder_id] = folders.get(folder_id, 0) + count
         return total, favorite, owned, shared, folders
 
-    async def list_scores(
+    def list_scores(
         self,
-        db: AsyncSession,
+        db: Session,
         user_id: int,
         *,
         view: LibraryView,
@@ -113,7 +111,7 @@ class LibraryRepository:
             filters.append(Score.__table__.c.title.ilike(f"%{search}%"))
         total = int(
             (
-                await db.execute(
+                db.execute(
                     select(func.count(Score.id))
                     .select_from(Score)
                     .outerjoin(ScoreLibraryOrganization, self._organization_join(user_id))
@@ -127,7 +125,7 @@ class LibraryRepository:
             LibrarySort.NAME_ASC: Score.__table__.c.title.asc(),
             LibrarySort.NAME_DESC: Score.__table__.c.title.desc(),
         }[sort]
-        rows = await db.execute(
+        rows = db.execute(
             select(
                 Score,
                 ScoreLibraryOrganization,

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.core.exceptions import ResourceNotFoundException
 from app.db.model_utils import require_persisted_id
@@ -31,10 +31,8 @@ class MetadataProjectionService:
         self.storage = storage or object_storage
         self.access_policy = access_policy or ScoreAccessPolicy()
 
-    async def get(
-        self, db: AsyncSession, score_uuid: str, revision_uuid: str, user_id: int
-    ) -> MetadataRead:
-        access = await self.access_policy.authorize(
+    def get(self, db: Session, score_uuid: str, revision_uuid: str, user_id: int) -> MetadataRead:
+        access = self.access_policy.authorize(
             db,
             score_uuid,
             ScoreAction.VIEW,
@@ -42,7 +40,7 @@ class MetadataProjectionService:
             revision_uuid=revision_uuid,
         )
         revision = access.revision
-        projection = await db.get(
+        projection = db.get(
             ScoreRevisionMetadata,
             require_persisted_id(revision.id, entity="score revision"),
         )

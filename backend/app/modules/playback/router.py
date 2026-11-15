@@ -1,7 +1,7 @@
 from fastapi.responses import Response
 from app.api.response_contracts import binary_responses
 from fastapi import APIRouter, Depends, Request
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.api.storage_streaming import stream_storage_object
@@ -36,22 +36,22 @@ def get_playback_delivery_service() -> PlaybackDeliveryService:
     responses=binary_responses("audio/*", byte_ranges=True),
     operation_id="scoreRevisionPlaybackStream",
 )
-async def stream_score_revision_playback(
+def stream_score_revision_playback(
     score_id: str,
     revision_id: str,
     request: Request,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: PlaybackDeliveryService = Depends(get_playback_delivery_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    delivery = await service.score_revision_delivery(db, score_id, revision_id, user_id)
-    return await _stream(delivery, service, request)
+    delivery = service.score_revision_delivery(db, score_id, revision_id, user_id)
+    return _stream(delivery, service, request)
 
 
-async def _stream(delivery, service: PlaybackDeliveryService, request: Request):
-    return await stream_storage_object(
-        storage=service.async_storage,
+def _stream(delivery, service: PlaybackDeliveryService, request: Request):
+    return stream_storage_object(
+        storage=service.storage,
         storage_key=delivery.storage_key,
         filename=delivery.filename,
         media_type=delivery.media_type,

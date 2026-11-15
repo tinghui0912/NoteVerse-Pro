@@ -7,7 +7,7 @@ from app.modules.performance_takes.upload_reservation.cleanup import (
 )
 
 from app.core.logger import logger
-from app.db.sync_session import get_worker_db
+from app.db.session import SessionLocal
 from app.modules.import_jobs.dispatch_service import import_dispatch_service
 from app.modules.mail.outbox_service import mail_outbox_service
 from app.modules.storage_objects.retirement import retirement_delivery
@@ -23,8 +23,9 @@ def execute_import_dispatch_maintenance() -> dict[str, int]:
     """Recover stale import deliveries and dispatch all due jobs."""
 
     def scan() -> dict[str, int]:
-        with get_worker_db() as db:
+        with SessionLocal() as db:
             due = import_dispatch_service.recover_and_list_due(db)
+            db.commit()
 
         from app.worker.dispatch.import_jobs import dispatch_import_dispatch
 
@@ -38,8 +39,9 @@ def execute_render_outbox_maintenance() -> dict[str, int]:
     """Recover stale render deliveries and dispatch all due outbox records."""
 
     def scan() -> dict[str, int]:
-        with get_worker_db() as db:
+        with SessionLocal() as db:
             due = render_outbox_service.recover_and_list_due(db)
+            db.commit()
 
         from app.modules.revisions.dispatch import dispatch_render_outbox
 
@@ -53,8 +55,9 @@ def execute_playback_outbox_maintenance() -> dict[str, int]:
     """Recover stale playback deliveries and dispatch all due outbox records."""
 
     def scan() -> dict[str, int]:
-        with get_worker_db() as db:
+        with SessionLocal() as db:
             due = playback_outbox_service.recover_and_list_due(db)
+            db.commit()
 
         from app.modules.revisions.dispatch import dispatch_playback_outbox
 
@@ -68,8 +71,9 @@ def execute_mail_outbox_maintenance() -> dict[str, int]:
     """Recover, dispatch, and expire durable mail records."""
 
     def scan() -> dict[str, int]:
-        with get_worker_db() as db:
+        with SessionLocal() as db:
             due = mail_outbox_service.recover_and_list_due(db)
+            db.commit()
 
         from app.worker.dispatch.mail import dispatch_mail_outbox
 
@@ -81,16 +85,18 @@ def execute_mail_outbox_maintenance() -> dict[str, int]:
 
 def execute_stored_object_retirement_maintenance() -> dict[str, int]:
     def scan():
-        with get_worker_db() as db:
+        with SessionLocal() as db:
             practice_bundle_retention.recover_stale_creating(db)
             practice_bundle_retention.collect_unowned_ready(db)
             due = retirement_delivery.recover_and_list_due(db)
+            db.commit()
         errors, cleaned = 0, 0
         try:
-            with get_worker_db() as db:
+            with SessionLocal() as db:
                 cleaned = upload_reservation_cleanup_service.cleanup_expired_reservations(
                     db, object_storage, storage_usage_service
                 )
+                db.commit()
         except Exception:
             errors = 1
             logger.exception("upload_reservation.cleanup_failed")
@@ -112,8 +118,9 @@ def execute_object_write_cleanup_maintenance() -> dict[str, int]:
     from app.worker.dispatch.object_write_cleanup import dispatch_object_write_cleanup
 
     def scan():
-        with get_worker_db() as db:
+        with SessionLocal() as db:
             due = write_cleanup_delivery.recover_and_list_due(db)
+            db.commit()
         return {
             "due": len(due),
             "dispatched": sum(1 for uuid in due if dispatch_object_write_cleanup(uuid)),
@@ -127,8 +134,9 @@ def execute_score_deletion_maintenance() -> dict[str, int]:
     from app.worker.dispatch.score_deletion import dispatch_score_deletion
 
     def scan():
-        with get_worker_db() as db:
+        with SessionLocal() as db:
             due = score_deletion_delivery.recover_and_list_due(db)
+            db.commit()
         return {
             "due": len(due),
             "dispatched": sum(1 for uuid in due if dispatch_score_deletion(uuid)),

@@ -4,7 +4,7 @@ from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 from app.modules.storage_objects.persistence import object_from_bytes
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import Mock, patch
 import xml.etree.ElementTree as ET
 
 import pytest
@@ -69,14 +69,13 @@ def test_content_identity_is_deterministic_and_binds_both_exact_representations(
     assert changed.bundle_id != first.bundle_id
 
 
-@pytest.mark.asyncio
-async def test_bound_revision_reads_without_compiler_canonical_lookup_or_materialization():
+def test_bound_revision_reads_without_compiler_canonical_lookup_or_materialization():
     bundle = PracticeBundleCompiler().compile(canonical_musicxml=FIXTURE.read_bytes())
     ref = PracticeBundleRef(1, bundle.bundle_id, bundle.artifact.artifact_id)
-    repository = Mock(read_bound=AsyncMock(return_value=(ref, bundle)))
+    repository = Mock(read_bound=Mock(return_value=(ref, bundle)))
     compiler = Mock()
     storage = Mock()
-    assets = Mock(canonical_source=AsyncMock())
+    assets = Mock(canonical_source=Mock())
     access = SimpleNamespace(
         score=SimpleNamespace(id=10, score_uuid="score-A", title="Title"),
         revision=SimpleNamespace(id=20, revision_uuid="rev-A"),
@@ -86,29 +85,29 @@ async def test_bound_revision_reads_without_compiler_canonical_lookup_or_materia
         compiler=compiler,
         storage=storage,
         asset_repository=assets,
-        access_policy=Mock(authorize=AsyncMock(return_value=access)),
+        access_policy=Mock(authorize=Mock(return_value=access)),
     )
-    db = AsyncMock()
+    db = Mock()
     with patch(
         "app.modules.practice.bundle.service.lock_live_practice_mutation_access",
-        AsyncMock(side_effect=AssertionError("Ordinary read must not acquire mutation admission")),
+        Mock(side_effect=AssertionError("Ordinary read must not acquire mutation admission")),
     ):
-        read = await service.read_bundle(db, "score-A", 1, "rev-A", include_notation=True)
+        read = service.read_bundle(db, "score-A", 1, "rev-A", include_notation=True)
     assert read.binding.model_dump() == {
         "score_id": "score-A",
         "revision_id": "rev-A",
         "bundle_id": bundle.bundle_id,
     }
-    service.access_policy.authorize.assert_awaited_once_with(
+    service.access_policy.authorize.assert_called_once_with(
         db, "score-A", ScoreAction.PRACTICE, user_id=1, revision_uuid="rev-A"
     )
-    repository.read_bound.assert_awaited_once_with(db, 20)
+    repository.read_bound.assert_called_once_with(db, 20)
     repository.read_bound_for_update.assert_not_called()
-    db.commit.assert_not_awaited()
-    db.rollback.assert_not_awaited()
+    db.commit.assert_not_called()
+    db.rollback.assert_not_called()
     assert read.artifact.artifactId == bundle.artifact.artifact_id
     compiler.compile.assert_not_called()
-    assets.canonical_source.assert_not_awaited()
+    assets.canonical_source.assert_not_called()
     storage.read_bytes.assert_not_called()
     storage.materialize_to_local.assert_not_called()
 
@@ -118,13 +117,13 @@ async def test_unbound_revision_compiles_once_then_reads_existing_binding():
     bundle = PracticeBundleCompiler().compile(canonical_musicxml=FIXTURE.read_bytes())
     ref = PracticeBundleRef(1, bundle.bundle_id, bundle.artifact.artifact_id)
     repository = Mock(
-        read_bound=AsyncMock(side_effect=[None, (ref, bundle)]),
-        get_or_create=AsyncMock(return_value=(ref, bundle)),
+        read_bound=Mock(side_effect=[None, (ref, bundle)]),
+        get_or_create=Mock(return_value=(ref, bundle)),
     )
     compiler = Mock(compile=Mock(return_value=bundle))
     storage = Mock(read_bytes=Mock(return_value=FIXTURE.read_bytes()))
     assets = Mock(
-        canonical_source=AsyncMock(
+        canonical_source=Mock(
             return_value=SimpleNamespace(
                 stored_object=object_from_bytes(
                     object_key="canonical.xml", content=b"xml", content_type="application/xml"
@@ -141,33 +140,32 @@ async def test_unbound_revision_compiles_once_then_reads_existing_binding():
         compiler=compiler,
         storage=storage,
         asset_repository=assets,
-        access_policy=Mock(authorize=AsyncMock(return_value=access)),
+        access_policy=Mock(authorize=Mock(return_value=access)),
     )
     with patch(
         "app.modules.practice.bundle.service.lock_live_practice_mutation_access",
-        AsyncMock(return_value=access),
+        Mock(return_value=access),
     ) as mutation:
 
-        async def bind(db, candidate, *, revision_id, reauthorize):
+        def bind(db, candidate, *, revision_id, reauthorize):
             assert candidate is bundle and revision_id == 20
-            mutation.assert_awaited_once()
+            mutation.assert_called_once()
             compiler.compile.assert_called_once()
             # A durable creation-lease commit requires a fresh mutation admission.
-            await reauthorize()
+            reauthorize()
             return ref, bundle
 
         repository.get_or_create.side_effect = bind
-        await service.read_bundle(AsyncMock(), "score-A", 1, "rev-A")
-        await service.read_bundle(AsyncMock(), "score-A", 1, "rev-A")
-    assert mutation.await_count == 2
-    assert service.access_policy.authorize.await_count == 2
+        service.read_bundle(Mock(), "score-A", 1, "rev-A")
+        service.read_bundle(Mock(), "score-A", 1, "rev-A")
+    assert mutation.call_count == 2
+    assert service.access_policy.authorize.call_count == 2
     compiler.compile.assert_called_once_with(canonical_musicxml=FIXTURE.read_bytes())
-    assets.canonical_source.assert_awaited_once()
+    assets.canonical_source.assert_called_once()
     storage.read_bytes.assert_called_once_with("canonical.xml")
 
 
-@pytest.mark.asyncio
-async def test_unbound_revision_reauthorization_failure_prevents_binding_mutation():
+def test_unbound_revision_reauthorization_failure_prevents_binding_mutation():
     from app.core.exceptions import UnauthorizedException
     from app.shared.constants import ErrorCode
 
@@ -176,16 +174,16 @@ async def test_unbound_revision_reauthorization_failure_prevents_binding_mutatio
         score=SimpleNamespace(id=10, score_uuid="score-A", title="Title"),
         revision=SimpleNamespace(id=20, revision_uuid="rev-A"),
     )
-    repository = Mock(read_bound=AsyncMock(return_value=None), get_or_create=AsyncMock())
+    repository = Mock(read_bound=Mock(return_value=None), get_or_create=Mock())
     compiler = Mock(compile=Mock(return_value=bundle))
-    policy = Mock(authorize=AsyncMock(return_value=access))
+    policy = Mock(authorize=Mock(return_value=access))
     service = PracticeBundleService(
         repository=repository,
         compiler=compiler,
         access_policy=policy,
         storage=Mock(read_bytes=Mock(return_value=FIXTURE.read_bytes())),
         asset_repository=Mock(
-            canonical_source=AsyncMock(
+            canonical_source=Mock(
                 return_value=SimpleNamespace(
                     stored_object=object_from_bytes(
                         object_key="canonical.xml", content=b"xml", content_type="application/xml"
@@ -196,9 +194,9 @@ async def test_unbound_revision_reauthorization_failure_prevents_binding_mutatio
     )
     with patch(
         "app.modules.practice.bundle.service.lock_live_practice_mutation_access",
-        AsyncMock(side_effect=UnauthorizedException(ErrorCode.NO_PRACTICE_ACCESS)),
+        Mock(side_effect=UnauthorizedException(ErrorCode.NO_PRACTICE_ACCESS)),
     ):
         with pytest.raises(UnauthorizedException):
-            await service.read_bundle(AsyncMock(), "score-A", 1, "rev-A")
+            service.read_bundle(Mock(), "score-A", 1, "rev-A")
     compiler.compile.assert_called_once()
-    repository.get_or_create.assert_not_awaited()
+    repository.get_or_create.assert_not_called()

@@ -8,7 +8,7 @@ from copy import deepcopy
 from http.cookies import SimpleCookie
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import Mock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -190,13 +190,13 @@ def test_openapi_native_route_metadata_reaches_the_real_customer_handler(
         "asset": get_score_asset_service,
     }
     if owner:
-        setattr(service, method, AsyncMock(return_value=delivery))
+        setattr(service, method, Mock(return_value=delivery))
         app.dependency_overrides[dependencies[owner]] = lambda: service
 
-    async def database():
+    def database():
         yield object()
 
-    async def events(*args):
+    def events(*args):
         yield ": connected\n\n"
 
     monkeypatch.setattr("app.modules.realtime.router._event_stream", events)
@@ -211,7 +211,7 @@ def test_openapi_native_route_metadata_reaches_the_real_customer_handler(
     assert response.headers["content-type"].split(";")[0] == mime
     assert response.content == (b": connected\n\n" if owner is None else b"native bytes")
     if owner:
-        getattr(service, method).assert_awaited_once()
+        getattr(service, method).assert_called_once()
 
 
 def test_login_refresh_logout_use_canonical_customer_cookie_identity():
@@ -220,13 +220,13 @@ def test_login_refresh_logout_use_canonical_customer_cookie_identity():
     from app.modules.auth.dependencies import get_auth_service, get_session_service
 
     app = create_app()
-    auth = SimpleNamespace(login=AsyncMock(return_value=("access-one", "refresh-one")))
+    auth = SimpleNamespace(login=Mock(return_value=("access-one", "refresh-one")))
     sessions = SimpleNamespace(
-        refresh_session=AsyncMock(return_value=("access-two", "refresh-two")),
-        revoke_refresh_token=AsyncMock(),
+        refresh_session=Mock(return_value=("access-two", "refresh-two")),
+        revoke_refresh_token=Mock(),
     )
 
-    async def database():
+    def database():
         yield object()
 
     app.dependency_overrides[get_db] = database
@@ -259,7 +259,7 @@ def test_login_refresh_logout_use_canonical_customer_cookie_identity():
         assert client.cookies[protocol.AUTH_COOKIE_NAME] == "access-two"
         assert client.cookies[protocol.REFRESH_COOKIE_NAME] == "refresh-two"
         assert client.cookies[protocol.CSRF_COOKIE_NAME] != csrf_before
-        assert sessions.refresh_session.await_args.args[1] == "refresh-one"
+        assert sessions.refresh_session.call_args.args[1] == "refresh-one"
         rejected = client.post(f"{protocol.CUSTOMER_API_PREFIX}/auth/logout")
         assert rejected.status_code == 403
         logout = client.post(
@@ -271,4 +271,4 @@ def test_login_refresh_logout_use_canonical_customer_cookie_identity():
         assert set(cookies(logout)) == expected
         assert all(cookies(logout)[name]["max-age"] == "0" for name in expected)
         assert all(client.cookies.get(name) is None for name in expected)
-        assert sessions.revoke_refresh_token.await_args.args[1] == "refresh-two"
+        assert sessions.revoke_refresh_token.call_args.args[1] == "refresh-two"

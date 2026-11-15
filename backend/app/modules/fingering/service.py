@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import NoReturn, Protocol, TypedDict
 
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.exceptions import ExternalServiceException, ValidationException
@@ -46,14 +46,10 @@ class FingeringService:
         self._engine = engine or PianoplayerFingeringEngine()
         self._execution = execution or fingering_execution_service
 
-    async def generate(
-        self,
-        db: AsyncSession,
-        score_uuid: str,
-        user_id: int,
-        request: FingeringRequest,
-    ) -> FingeringResultRead:
-        await self._access_policy.authorize(db, score_uuid, ScoreAction.EDIT, user_id=user_id)
+    def authorize_generation(self, db: Session, score_uuid: str, user_id: int) -> None:
+        self._access_policy.authorize(db, score_uuid, ScoreAction.EDIT, user_id=user_id)
+
+    async def generate(self, score_uuid: str, request: FingeringRequest) -> FingeringResultRead:
         content = request.content.encode("utf-8")
         if len(content) > settings.FINGERING_MAX_CONTENT_BYTES:
             raise ValidationException(ErrorCode.REVISION_CONTENT_INVALID, field="content")

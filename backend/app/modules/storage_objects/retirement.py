@@ -5,7 +5,6 @@ from uuid import uuid4
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.db.models.stored_object import StoredObject
@@ -89,12 +88,7 @@ def retire_if_unreferenced(db: Session, object_id: int) -> StoredObjectRetiremen
     return operation
 
 
-async def retire_after_release(db: AsyncSession, *object_ids: int) -> list[str]:
-    await db.flush()
-    return await db.run_sync(lambda sync: retire_released_objects(sync, *object_ids))
-
-
-def retire_released_objects(db: Session, *object_ids: int) -> list[str]:
+def retire_after_release(db: Session, *object_ids: int) -> list[str]:
     db.flush()
     operations = [retire_if_unreferenced(db, object_id) for object_id in sorted(set(object_ids))]
     return [operation.retirement_uuid for operation in operations if operation is not None]

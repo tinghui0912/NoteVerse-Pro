@@ -1,5 +1,5 @@
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import Mock, patch
 
 from tests.practice_bundle_fixtures import bundle_service_for_notation, authorize_test_revision
 import pytest
@@ -46,7 +46,6 @@ def test_entire_revision_is_invalid_even_if_an_earlier_section_is_playable(keys)
         make_timeline(keys)
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "error, exception, code, status",
     [
@@ -64,14 +63,14 @@ def test_entire_revision_is_invalid_even_if_an_earlier_section_is_playable(keys)
         ),
     ],
 )
-async def test_score_invalidity_is_distinct_from_infrastructure(error, exception, code, status):
+def test_score_invalidity_is_distinct_from_infrastructure(error, exception, code, status):
     service = bundle_service_for_notation(b"xml")
     with (
         patch.object(Path, "read_bytes", return_value=b"xml"),
         patch.object(service.compiler, "compile", side_effect=error),
     ):
         with pytest.raises(exception) as caught:
-            await service.read_bundle(AsyncMock(), "s", 1, "r")
+            service.read_bundle(Mock(), "s", 1, "r")
     assert caught.value.code == code
     assert caught.value.status_code == status
 

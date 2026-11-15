@@ -4,7 +4,7 @@ import pytest
 import sqlalchemy as sa
 from alembic import command
 from pydantic import ValidationError
-from sqlmodel import Session
+from sqlalchemy.orm import Session
 
 from app.db.models import ImportArtifact, ImportJob, Score, Upload, User
 from app.db.models.import_job import ImportJobState
@@ -22,7 +22,6 @@ from app.modules.scores.service import ScoreService
 from app.modules.storage_objects.persistence import object_from_bytes
 from tests.support.postgres_schema import postgres_schema_database
 from tests.test_score_revision_services import (
-    AsyncSessionAdapter,
     MUSICXML_1,
     add_active_score_with_head_revision,
     score_service_session as score_service_session,
@@ -88,8 +87,7 @@ def test_request_boundaries_reject_unrecognized_fields():
             schema.model_validate(values)
 
 
-@pytest.mark.asyncio
-async def test_score_genres_replace_clear_and_preserve_with_version_checks(genre_session):
+def test_score_genres_replace_clear_and_preserve_with_version_checks(genre_session):
     session, storage = genre_session
     score = add_active_score_with_head_revision(
         session,
@@ -99,7 +97,7 @@ async def test_score_genres_replace_clear_and_preserve_with_version_checks(genre
         revision_uuid="genre-head",
         title="Genres",
     )
-    db = AsyncSessionAdapter(session)
+    db = session
     service = ScoreService(storage=storage)
     for patch, expected in [
         ({"genres": list(reversed(ScoreGenre))}, list(ScoreGenre)),
@@ -108,7 +106,7 @@ async def test_score_genres_replace_clear_and_preserve_with_version_checks(genre
         ({"genres": []}, []),
     ]:
         current_version = score.version
-        read = await service.update(
+        read = service.update(
             db, score.score_uuid, 1, ScoreUpdateRequest(expected_version=current_version, **patch)
         )
         session.refresh(score)
@@ -120,12 +118,11 @@ async def test_score_genres_replace_clear_and_preserve_with_version_checks(genre
     from app.core.exceptions import ConflictException
 
     with pytest.raises(ConflictException):
-        await service.update(
+        service.update(
             db, score.score_uuid, 1, ScoreUpdateRequest(expected_version=1, genres=["jazz"])
         )
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("requested", "override", "expected"),
     [
@@ -135,14 +132,10 @@ async def test_score_genres_replace_clear_and_preserve_with_version_checks(genre
         (["classical"], [], []),
     ],
 )
-async def test_import_review_score_and_library_share_score_genres(
+def test_import_review_score_and_library_share_score_genres(
     genre_session, monkeypatch, requested, override, expected
 ):
     session, storage = genre_session
-    monkeypatch.setattr(
-        "app.db.sync_session.get_db_session",
-        lambda: pytest.fail("HTTP path requires only AsyncSession"),
-    )
     original = object_from_bytes(
         object_key="uploads/genre.png", content=b"image", content_type="image/png"
     )
@@ -151,8 +144,8 @@ async def test_import_review_score_and_library_share_score_genres(
     upload = Upload(stored_object_id=original.id, uploader_user_id=1, original_filename="page.png")
     session.add(upload)
     session.commit()
-    result = await ImportJobSubmissionService().submit(
-        AsyncSessionAdapter(session),
+    result = ImportJobSubmissionService().submit(
+        session,
         session.get(User, 1),
         ImportJobSubmitRequest(
             upload_ids=[upload.upload_uuid], options={"title": "Genres", "genres": requested}
@@ -177,23 +170,21 @@ async def test_import_review_score_and_library_share_score_genres(
         )
     )
     session.commit()
-    db = AsyncSessionAdapter(session)
+    db = session
     review = ImportReviewService(storage=storage)
-    assert (await review.detail(db, job.job_uuid, 1)).genres == ordered_unique_genres(requested)
-    assert (await ImportJobService().detail(db, job.job_uuid, 1)).genres == ordered_unique_genres(
+    assert (review.detail(db, job.job_uuid, 1)).genres == ordered_unique_genres(requested)
+    assert (ImportJobService().detail(db, job.job_uuid, 1)).genres == ordered_unique_genres(
         requested
     )
     values = {"content": MUSICXML_1.decode()}
     if override is not None:
         values["genres"] = override
-    confirmed = await review.confirm(
-        db, job.job_uuid, 1, ReviewConfirmRequest.model_validate(values)
-    )
+    confirmed = review.confirm(db, job.job_uuid, 1, ReviewConfirmRequest.model_validate(values))
     score = session.scalar(sa.select(Score).where(Score.score_uuid == confirmed.score_id))
     assert score.genres == expected
     assert all(type(code) is str for code in score.genres)
-    assert (await ScoreService(storage=storage).get(db, score.score_uuid, 1)).genres == expected
-    entries, total = await LibraryService().list_scores(
+    assert (ScoreService(storage=storage).get(db, score.score_uuid, 1)).genres == expected
+    entries, total = LibraryService().list_scores(
         db,
         1,
         view=LibraryView.ALL,
@@ -204,10 +195,10 @@ async def test_import_review_score_and_library_share_score_genres(
         page_size=20,
     )
     assert total == 1 and entries[0].genres == expected
-    assert (await review.detail(db, job.job_uuid, 1)).genres == expected
+    assert (review.detail(db, job.job_uuid, 1)).genres == expected
     score.genres = ["pop"]
     session.commit()
-    assert (await review.detail(db, job.job_uuid, 1)).genres == ["pop"]
+    assert (review.detail(db, job.job_uuid, 1)).genres == ["pop"]
 
 
 def test_score_schema_stores_genres_as_jsonb(monkeypatch):

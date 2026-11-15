@@ -4,13 +4,15 @@ from collections.abc import Iterator
 from datetime import timedelta
 import hashlib
 from typing import Any, TypeVar
-from unittest.mock import AsyncMock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 from app.modules.score_invites.lifecycle import InviteStatus
 from app.db.models.score_access import InviteTerminalOutcome
 from sqlalchemy import event, func, select
-from sqlmodel import Session, SQLModel, create_engine
+from sqlalchemy.pool import StaticPool
+from sqlalchemy.orm import Session
+from sqlmodel import SQLModel, create_engine
 
 from app.core.exceptions import (
     ConflictException,
@@ -77,7 +79,7 @@ from app.modules.import_jobs.review.schemas import ReviewConfirmRequest, ReviewU
 from app.modules.import_jobs.review.service import ImportReviewService
 from app.modules.import_jobs.review.thumbnail_service import ImportReviewThumbnailService
 from app.modules.scores.service import ScoreService
-from app.modules.import_jobs.worker_service import SyncImportJobService
+from app.modules.import_jobs.worker_service import ImportJobExecutionService
 from app.modules.import_jobs.service import ImportJobService
 from app.modules.import_jobs.dispatch_service import ImportDispatchService
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
@@ -149,44 +151,6 @@ def count_rows(session: Session, model: type[T], **filters: Any) -> int:
     return int(session.execute(statement).scalar_one())
 
 
-class AsyncSessionAdapter:
-    def __init__(self, session: Session) -> None:
-        self.session = session
-
-    async def run_sync(self, function, *args, **kwargs):
-        return function(self.session, *args, **kwargs)
-
-    async def execute(self, statement, params=None, *args, **kwargs):
-        return self.session.execute(statement, params=params, *args, **kwargs)
-
-    async def commit(self) -> None:
-        self.session.commit()
-
-    async def rollback(self) -> None:
-        self.session.rollback()
-
-    async def flush(self) -> None:
-        self.session.flush()
-
-    async def refresh(self, instance) -> None:
-        self.session.refresh(instance)
-
-    async def scalars(self, statement):
-        return self.session.scalars(statement)
-
-    async def scalar(self, statement):
-        return self.session.scalar(statement)
-
-    async def get(self, model, identity):
-        return self.session.get(model, identity)
-
-    async def delete(self, instance) -> None:
-        self.session.delete(instance)
-
-    def add(self, instance) -> None:
-        self.session.add(instance)
-
-
 def add_active_score_with_head_revision(
     session: Session,
     *,
@@ -221,7 +185,9 @@ def add_active_score_with_head_revision(
 
 @pytest.fixture
 def score_service_session(tmp_path) -> Iterator[tuple[Session, InMemoryObjectStorage]]:
-    engine = create_engine("sqlite:///:memory:")
+    engine = create_engine(
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
 
     @event.listens_for(engine, "connect")
     def enable_foreign_keys(dbapi_connection, _connection_record) -> None:
@@ -259,8 +225,7 @@ def score_service_session(tmp_path) -> Iterator[tuple[Session, InMemoryObjectSto
     engine.dispose()
 
 
-@pytest.mark.asyncio
-async def test_revision_read_model_projects_actor_restore_and_note(
+def test_revision_read_model_projects_actor_restore_and_note(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
@@ -305,8 +270,8 @@ async def test_revision_read_model_projects_actor_restore_and_note(
     )
     session.commit()
 
-    read = await RevisionReadModel().revision_read(
-        AsyncSessionAdapter(session),  # type: ignore[arg-type]
+    read = RevisionReadModel().revision_read(
+        session,  # type: ignore[arg-type]
         restored,
     )
 
@@ -325,8 +290,7 @@ async def test_revision_read_model_projects_actor_restore_and_note(
     assert read.note.author.email == "other@example.com"
 
 
-@pytest.mark.asyncio
-async def test_collaborator_revision_source_usage_counts_against_score_owner(
+def test_collaborator_revision_source_usage_counts_against_score_owner(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
@@ -349,8 +313,8 @@ async def test_collaborator_revision_source_usage_counts_against_score_owner(
     session.commit()
     service = RevisionService(storage=storage)
 
-    result = await service.create(
-        AsyncSessionAdapter(session),  # type: ignore[arg-type]
+    result = service.create(
+        session,  # type: ignore[arg-type]
         "collab-score",
         2,
         RevisionCreateRequest(
@@ -407,7 +371,7 @@ def test_completed_job_notifies_owner_when_ready_for_review(
         )
     )
     session.commit()
-    job_service = SyncImportJobService()
+    job_service = ImportJobExecutionService()
 
     job_service.finalize_success(session, processing_lease(session, session.get(ImportJob, 11)))
     job_service.finalize_success(session, processing_lease(session, session.get(ImportJob, 11)))
@@ -443,7 +407,7 @@ def test_failed_job_notifies_owner_once(
         )
     )
     session.commit()
-    job_service = SyncImportJobService()
+    job_service = ImportJobExecutionService()
 
     job_service.finalize_failure(
         session,
@@ -474,8 +438,7 @@ def test_failed_job_notifies_owner_once(
     assert "error_type" not in notification.data
 
 
-@pytest.mark.asyncio
-async def test_review_detail_reads_pending_job_artifacts(
+def test_review_detail_reads_pending_job_artifacts(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
@@ -537,8 +500,8 @@ async def test_review_detail_reads_pending_job_artifacts(
     session.commit()
     service = ImportReviewService(storage=storage)
 
-    detail = await service.detail(
-        AsyncSessionAdapter(session),  # type: ignore[arg-type]
+    detail = service.detail(
+        session,  # type: ignore[arg-type]
         "job-review",
         1,
     )
@@ -555,8 +518,7 @@ async def test_review_detail_reads_pending_job_artifacts(
     assert "sha256" not in dumped["original_images"][0]
 
 
-@pytest.mark.asyncio
-async def test_job_detail_uses_review_preview_image_only(
+def test_job_detail_uses_review_preview_image_only(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _ = score_service_session
@@ -588,16 +550,13 @@ async def test_job_detail_uses_review_preview_image_only(
     )
     session.commit()
 
-    detail = (
-        await ImportJobService().detail(AsyncSessionAdapter(session), "job-thumbnail", 1)
-    ).model_dump(exclude_unset=True)
+    detail = (ImportJobService().detail(session, "job-thumbnail", 1)).model_dump(exclude_unset=True)
 
     assert detail["thumbnail"] is not None
     assert detail["thumbnail"]["artifact_id"] == "result-thumbnail-artifact"
 
 
-@pytest.mark.asyncio
-async def test_import_job_detail_hides_artifact_storage_details(
+def test_import_job_detail_hides_artifact_storage_details(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _ = score_service_session
@@ -628,9 +587,9 @@ async def test_import_job_detail_hides_artifact_storage_details(
     )
     session.commit()
 
-    detail = (
-        await ImportJobService().detail(AsyncSessionAdapter(session), "job-public-artifact", 1)
-    ).model_dump(exclude_unset=True)
+    detail = (ImportJobService().detail(session, "job-public-artifact", 1)).model_dump(
+        exclude_unset=True
+    )
     artifact = detail["thumbnail"]
 
     assert artifact == {
@@ -648,8 +607,7 @@ async def test_import_job_detail_hides_artifact_storage_details(
     assert detail["original_images"] == []
 
 
-@pytest.mark.asyncio
-async def test_import_job_detail_exposes_public_failure_fields_only(
+def test_import_job_detail_exposes_public_failure_fields_only(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _ = score_service_session
@@ -688,14 +646,14 @@ async def test_import_job_detail_exposes_public_failure_fields_only(
     )
     session.commit()
 
-    detail = (
-        await ImportJobService().detail(AsyncSessionAdapter(session), "job-public-failure", 1)
-    ).model_dump(exclude_unset=True)
-    raw_detail = (
-        await ImportJobService().detail(AsyncSessionAdapter(session), "job-raw-failure", 1)
-    ).model_dump(exclude_unset=True)
+    detail = (ImportJobService().detail(session, "job-public-failure", 1)).model_dump(
+        exclude_unset=True
+    )
+    raw_detail = (ImportJobService().detail(session, "job-raw-failure", 1)).model_dump(
+        exclude_unset=True
+    )
     unsafe_code_detail = (
-        await ImportJobService().detail(AsyncSessionAdapter(session), "job-unsafe-code-failure", 1)
+        ImportJobService().detail(session, "job-unsafe-code-failure", 1)
     ).model_dump(exclude_unset=True)
 
     assert detail["public_code"] == ErrorCode.SCORE_RECOGNITION_FAILED
@@ -796,8 +754,7 @@ def test_review_thumbnail_records_temp_import_usage(
     assert counter.used_bytes == len(b"<svg />")
 
 
-@pytest.mark.asyncio
-async def test_review_update_replaces_pending_review_musicxml(
+def test_review_update_replaces_pending_review_musicxml(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
@@ -832,8 +789,8 @@ async def test_review_update_replaces_pending_review_musicxml(
     session.commit()
     service = ImportReviewService(storage=storage)
 
-    detail = await service.update(
-        AsyncSessionAdapter(session),  # type: ignore[arg-type]
+    detail = service.update(
+        session,  # type: ignore[arg-type]
         "job-review-update",
         1,
         ReviewUpdateRequest(content=MUSICXML_2),
@@ -852,8 +809,7 @@ async def test_review_update_replaces_pending_review_musicxml(
     assert render_outbox.status == RenderOutboxStatus.PENDING
 
 
-@pytest.mark.asyncio
-async def test_review_confirm_creates_active_score_once(
+def test_review_confirm_creates_active_score_once(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
@@ -901,15 +857,15 @@ async def test_review_confirm_creates_active_score_once(
     )
     session.commit()
     service = ImportReviewService(storage=storage)
-    db = AsyncSessionAdapter(session)
+    db = session
 
-    first = await service.confirm(
+    first = service.confirm(
         db,  # type: ignore[arg-type]
         "job-confirm-review",
         1,
         ReviewConfirmRequest(content=MUSICXML_1.decode("utf-8")),
     )
-    second = await service.confirm(
+    second = service.confirm(
         db,  # type: ignore[arg-type]
         "job-confirm-review",
         1,
@@ -931,7 +887,7 @@ async def test_review_confirm_creates_active_score_once(
     assert notification.score_id == score.score_uuid
     assert notification.data["score_id"] == score.score_uuid
     assert notification.data["score_title"] == "Confirmed Score"
-    detail_after_confirm = await service.detail(
+    detail_after_confirm = service.detail(
         db,  # type: ignore[arg-type]
         "job-confirm-review",
         1,
@@ -960,8 +916,7 @@ async def test_review_confirm_creates_active_score_once(
     assert render_outbox.status == RenderOutboxStatus.PENDING
 
 
-@pytest.mark.asyncio
-async def test_score_detail_describes_only_head_presentation(
+def test_score_detail_describes_only_head_presentation(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
@@ -1027,8 +982,8 @@ async def test_score_detail_describes_only_head_presentation(
     )
     session.commit()
 
-    detail = await ScoreService(storage=storage).get(
-        AsyncSessionAdapter(session),  # type: ignore[arg-type]
+    detail = ScoreService(storage=storage).get(
+        session,  # type: ignore[arg-type]
         "score-fallback",
         1,
     )
@@ -1039,8 +994,7 @@ async def test_score_detail_describes_only_head_presentation(
     assert detail.derived_assets.audio.status == "pending"
 
 
-@pytest.mark.asyncio
-async def test_revision_snapshots_preserve_noop_replay_and_expected_head_conflict(
+def test_revision_snapshots_preserve_noop_replay_and_expected_head_conflict(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
@@ -1086,11 +1040,10 @@ async def test_revision_snapshots_preserve_noop_replay_and_expected_head_conflic
         )
     )
     session.commit()
-    async_db = AsyncSessionAdapter(session)
     service = RevisionService(storage=storage)
 
-    created = await service.create(
-        async_db,  # type: ignore[arg-type]
+    created = service.create(
+        session,  # type: ignore[arg-type]
         "score-1",
         1,
         RevisionCreateRequest(
@@ -1109,8 +1062,8 @@ async def test_revision_snapshots_preserve_noop_replay_and_expected_head_conflic
         count_rows(session, model)
         for model in (ScoreRevision, ScoreRevisionSource, RenderOutbox, PlaybackOutbox)
     )
-    duplicate = await service.create(
-        async_db,  # type: ignore[arg-type]
+    duplicate = service.create(
+        session,  # type: ignore[arg-type]
         "score-1",
         1,
         RevisionCreateRequest(content=MUSICXML_2, expected_head_revision_id=created.revision_id),
@@ -1128,8 +1081,8 @@ async def test_revision_snapshots_preserve_noop_replay_and_expected_head_conflic
         )
         == counts
     )
-    reverted = await service.create(
-        async_db,  # type: ignore[arg-type]
+    reverted = service.create(
+        session,  # type: ignore[arg-type]
         "score-1",
         1,
         RevisionCreateRequest(
@@ -1144,8 +1097,8 @@ async def test_revision_snapshots_preserve_noop_replay_and_expected_head_conflic
     assert count_rows(session, RenderOutbox) == 2
 
     with pytest.raises(ConflictException) as conflict:
-        await service.create(
-            async_db,  # type: ignore[arg-type]
+        service.create(
+            session,  # type: ignore[arg-type]
             "score-1",
             1,
             RevisionCreateRequest(
@@ -1159,8 +1112,8 @@ async def test_revision_snapshots_preserve_noop_replay_and_expected_head_conflic
         "expected_head_revision_id": "revision-1",
         "current_head_revision_id": reverted.revision_id,
     }
-    replay = await service.create(
-        async_db,
+    replay = service.create(
+        session,
         "score-1",
         1,
         RevisionCreateRequest(
@@ -1186,8 +1139,7 @@ async def test_revision_snapshots_preserve_noop_replay_and_expected_head_conflic
     assert count_rows(session, RenderOutbox) == count_rows(session, PlaybackOutbox) == 2
 
 
-@pytest.mark.asyncio
-async def test_revision_restore_creates_new_head_from_target_revision(
+def test_revision_restore_creates_new_head_from_target_revision(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
@@ -1266,11 +1218,10 @@ async def test_revision_restore_creates_new_head_from_target_revision(
         ]
     )
     session.commit()
-    async_db = AsyncSessionAdapter(session)
     service = RevisionService(storage=storage)
 
-    third = await service.create(
-        async_db,
+    third = service.create(
+        session,
         "score-restore",
         1,
         RevisionCreateRequest(
@@ -1278,8 +1229,8 @@ async def test_revision_restore_creates_new_head_from_target_revision(
             expected_head_revision_id="revision-2",
         ),
     )
-    fourth = await service.create(
-        async_db,
+    fourth = service.create(
+        session,
         "score-restore",
         1,
         RevisionCreateRequest(
@@ -1287,8 +1238,8 @@ async def test_revision_restore_creates_new_head_from_target_revision(
             expected_head_revision_id=third.revision_id,
         ),
     )
-    restored = await service.restore(  # type: ignore[arg-type]
-        async_db,
+    restored = service.restore(  # type: ignore[arg-type]
+        session,
         "score-restore",
         "revision-2",
         1,
@@ -1329,8 +1280,7 @@ async def test_revision_restore_creates_new_head_from_target_revision(
     assert storage.read_bytes(second.object_key) == MUSICXML_2.encode()
 
 
-@pytest.mark.asyncio
-async def test_revision_note_can_be_added_updated_and_cleared(
+def test_revision_note_can_be_added_updated_and_cleared(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
@@ -1342,25 +1292,24 @@ async def test_revision_note_can_be_added_updated_and_cleared(
         revision_uuid="revision-note",
         title="Revision Note Score",
     )
-    async_db = AsyncSessionAdapter(session)
     service = RevisionService(storage=storage)
 
-    created = await service.update_note(  # type: ignore[arg-type]
-        async_db,
+    created = service.update_note(  # type: ignore[arg-type]
+        session,
         "score-revision-note",
         "revision-note",
         1,
         RevisionNoteUpdateRequest(note="Fixed page 3 rhythm"),
     )
-    updated = await service.update_note(  # type: ignore[arg-type]
-        async_db,
+    updated = service.update_note(  # type: ignore[arg-type]
+        session,
         "score-revision-note",
         "revision-note",
         1,
         RevisionNoteUpdateRequest(note="Fixed page 3 rhythm and fingering"),
     )
-    cleared = await service.update_note(  # type: ignore[arg-type]
-        async_db,
+    cleared = service.update_note(  # type: ignore[arg-type]
+        session,
         "score-revision-note",
         "revision-note",
         1,
@@ -1377,8 +1326,7 @@ async def test_revision_note_can_be_added_updated_and_cleared(
     assert count_rows(session, ScoreRevisionNote) == 0
 
 
-@pytest.mark.asyncio
-async def test_derived_asset_retention_protects_current_head_only(
+def test_derived_asset_retention_protects_current_head_only(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
@@ -1477,8 +1425,8 @@ async def test_derived_asset_retention_protects_current_head_only(
     session.commit()
     service = DerivedAssetRetentionService()
 
-    result = await service.cleanup_for_score(  # type: ignore[arg-type]
-        AsyncSessionAdapter(session),
+    result = service.cleanup_for_score(  # type: ignore[arg-type]
+        session,
         score_id=34,
     )
 
@@ -1502,8 +1450,7 @@ async def test_derived_asset_retention_protects_current_head_only(
         assert storage.exists(stored_keys[f"xml-{number}"])
 
 
-@pytest.mark.asyncio
-async def test_revision_list_uses_cursor_pagination(
+def test_revision_list_uses_cursor_pagination(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
@@ -1531,17 +1478,16 @@ async def test_revision_list_uses_cursor_pagination(
     score.head_revision_id = revisions[-1].id
     session.add(score)
     session.commit()
-    async_db = AsyncSessionAdapter(session)
     service = RevisionService(storage=storage)
 
-    first_page = await service.list(  # type: ignore[arg-type]
-        async_db,
+    first_page = service.list(  # type: ignore[arg-type]
+        session,
         "score-revision-list",
         1,
         limit=2,
     )
-    second_page = await service.list(  # type: ignore[arg-type]
-        async_db,
+    second_page = service.list(  # type: ignore[arg-type]
+        session,
         "score-revision-list",
         1,
         limit=2,
@@ -1904,8 +1850,7 @@ def test_import_dispatch_publish_release_preserves_domain_and_attempt(
     assert dispatch.last_error == "broker unavailable"
 
 
-@pytest.mark.asyncio
-async def test_collaborator_revision_save_notifies_score_owner(
+def test_collaborator_revision_save_notifies_score_owner(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
@@ -1926,10 +1871,10 @@ async def test_collaborator_revision_save_notifies_score_owner(
         )
     )
     session.commit()
-    db = AsyncSessionAdapter(session)
+    db = session
     service = RevisionService(storage=storage)
 
-    created = await service.create(
+    created = service.create(
         db,  # type: ignore[arg-type]
         score.score_uuid,
         2,
@@ -1967,8 +1912,7 @@ async def test_collaborator_revision_save_notifies_score_owner(
     )
 
 
-@pytest.mark.asyncio
-async def test_score_access_policy_is_deny_by_default_and_context_aware(
+def test_score_access_policy_is_deny_by_default_and_context_aware(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
@@ -2010,20 +1954,20 @@ async def test_score_access_policy_is_deny_by_default_and_context_aware(
         ]
     )
     session.commit()
-    db = AsyncSessionAdapter(session)
+    db = session
     policy = ScoreAccessPolicy()
 
-    owner = await policy.resolve(db, "policy-score", user_id=1)  # type: ignore[arg-type]
+    owner = policy.resolve(db, "policy-score", user_id=1)  # type: ignore[arg-type]
     assert owner.capabilities.can_edit is True
 
-    member = await policy.resolve(db, "policy-score", user_id=2)  # type: ignore[arg-type]
+    member = policy.resolve(db, "policy-score", user_id=2)  # type: ignore[arg-type]
     assert member.capabilities.can_view is True
     assert member.capabilities.can_edit is False
     assert member.capabilities.can_practice is False
     assert member.capabilities.can_download is False
     assert member.capabilities.can_manage_guest_previews is False
     with pytest.raises(UnauthorizedException):
-        await policy.authorize(
+        policy.authorize(
             db,
             "policy-score",
             ScoreAction.EDIT,
@@ -2031,11 +1975,10 @@ async def test_score_access_policy_is_deny_by_default_and_context_aware(
         )
 
     with pytest.raises(UnauthorizedException):
-        await policy.resolve(db, "policy-score")  # type: ignore[arg-type]
+        policy.resolve(db, "policy-score")  # type: ignore[arg-type]
 
 
-@pytest.mark.asyncio
-async def test_invite_acceptance_creates_editable_membership(
+def test_invite_acceptance_creates_editable_membership(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
@@ -2058,9 +2001,9 @@ async def test_invite_acceptance_creates_editable_membership(
     score.head_revision_id = 88
     session.commit()
 
-    db = AsyncSessionAdapter(session)
+    db = session
     service = ScoreInviteService()
-    created = await service.create_invite(
+    created = service.create_invite(
         db,  # type: ignore[arg-type]
         "invite-score",
         1,
@@ -2078,15 +2021,15 @@ async def test_invite_acceptance_creates_editable_membership(
     assert "<html" in (queued_mail.html_body or "")
     assert f"/invite/{created.token}" in (queued_mail.html_body or "")
 
-    listed = await service.list_invites(db, "invite-score", 1)  # type: ignore[arg-type]
+    listed = service.list_invites(db, "invite-score", 1)  # type: ignore[arg-type]
     assert listed.items[0].invite_id == created.invite_id
     assert not hasattr(listed.items[0], "token")
 
-    anonymous = await service.inspect_invite(db, created.token, None)  # type: ignore[arg-type]
+    anonymous = service.inspect_invite(db, created.token, None)  # type: ignore[arg-type]
     assert anonymous.requires_login is True
     assert anonymous.can_accept is False
 
-    accepted = await service.accept_invite(db, created.token, 2)  # type: ignore[arg-type]
+    accepted = service.accept_invite(db, created.token, 2)  # type: ignore[arg-type]
     assert accepted.score_id == "invite-score"
     assert accepted.role == MembershipRole.EDITOR
     assert accepted.membership_id is not None
@@ -2113,15 +2056,14 @@ async def test_invite_acceptance_creates_editable_membership(
     assert notification.read_at is None
 
     policy = ScoreAccessPolicy()
-    member_access = await policy.resolve(db, "invite-score", user_id=2)  # type: ignore[arg-type]
+    member_access = policy.resolve(db, "invite-score", user_id=2)  # type: ignore[arg-type]
     assert member_access.capabilities.can_edit is True
     with pytest.raises(ValidationException) as accepted_again:
-        await service.accept_invite(db, created.token, 2)  # type: ignore[arg-type]
+        service.accept_invite(db, created.token, 2)  # type: ignore[arg-type]
     assert accepted_again.value.code == ErrorCode.INVITE_ALREADY_ACCEPTED
 
 
-@pytest.mark.asyncio
-async def test_invite_email_target_is_enforced(
+def test_invite_email_target_is_enforced(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
@@ -2134,28 +2076,27 @@ async def test_invite_email_target_is_enforced(
         title="Targeted Invite",
     )
     assert score.score_uuid == "targeted-invite-score"
-    db = AsyncSessionAdapter(session)
+    db = session
     service = ScoreInviteService()
 
-    created = await service.create_invite(
+    created = service.create_invite(
         db,  # type: ignore[arg-type]
         "targeted-invite-score",
         1,
         InviteCreateRequest(email="someone-else@example.com", role=MembershipRole.EDITOR),
     )
 
-    inspected = await service.inspect_invite(db, created.token, 2)  # type: ignore[arg-type]
+    inspected = service.inspect_invite(db, created.token, 2)  # type: ignore[arg-type]
     assert inspected.requires_login is False
     assert inspected.can_accept is False
     assert count_rows(session, MailOutbox) == 1
     with pytest.raises(ValidationException) as mismatch:
-        await service.accept_invite(db, created.token, 2)  # type: ignore[arg-type]
+        service.accept_invite(db, created.token, 2)  # type: ignore[arg-type]
     assert mismatch.value.code == ErrorCode.INVITE_EMAIL_MISMATCH
     assert maybe_one_row(session, ScoreMembership, score_id=89, user_id=2) is None
 
 
-@pytest.mark.asyncio
-async def test_user_pending_invites_can_be_accepted_without_token(
+def test_user_pending_invites_can_be_accepted_without_token(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
@@ -2167,22 +2108,22 @@ async def test_user_pending_invites_can_be_accepted_without_token(
         revision_uuid="pending-invite-revision",
         title="Pending Invite",
     )
-    db = AsyncSessionAdapter(session)
+    db = session
     service = ScoreInviteService()
 
-    created = await service.create_invite(
+    created = service.create_invite(
         db,  # type: ignore[arg-type]
         "pending-invite-score",
         1,
         InviteCreateRequest(email="other@example.com", role=MembershipRole.EDITOR),
     )
-    pending = await service.list_my_pending_invites(db, 2)  # type: ignore[arg-type]
+    pending = service.list_my_pending_invites(db, 2)  # type: ignore[arg-type]
 
     assert [invite.invite_id for invite in pending.items] == [created.invite_id]
     assert pending.items[0].score_id == "pending-invite-score"
     assert pending.items[0].score_title == "Pending Invite"
 
-    accepted = await service.accept_pending_invite(
+    accepted = service.accept_pending_invite(
         db,  # type: ignore[arg-type]
         created.invite_id,
         2,
@@ -2191,11 +2132,10 @@ async def test_user_pending_invites_can_be_accepted_without_token(
     assert accepted.score_id == "pending-invite-score"
     assert accepted.role == MembershipRole.EDITOR
     assert maybe_one_row(session, ScoreMembership, score_id=91, user_id=2)
-    assert (await service.list_my_pending_invites(db, 2)).items == []  # type: ignore[arg-type]
+    assert (service.list_my_pending_invites(db, 2)).items == []  # type: ignore[arg-type]
 
 
-@pytest.mark.asyncio
-async def test_user_pending_invites_can_be_declined(
+def test_user_pending_invites_can_be_declined(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
@@ -2207,16 +2147,16 @@ async def test_user_pending_invites_can_be_declined(
         revision_uuid="decline-invite-revision",
         title="Decline Invite",
     )
-    db = AsyncSessionAdapter(session)
+    db = session
     service = ScoreInviteService()
 
-    created = await service.create_invite(
+    created = service.create_invite(
         db,  # type: ignore[arg-type]
         "decline-invite-score",
         1,
         InviteCreateRequest(email="other@example.com", role=MembershipRole.VIEWER),
     )
-    declined = await service.decline_pending_invite(
+    declined = service.decline_pending_invite(
         db,  # type: ignore[arg-type]
         created.invite_id,
         2,
@@ -2238,9 +2178,9 @@ async def test_user_pending_invites_can_be_declined(
     )
     assert notification.score_id == "decline-invite-score"
     assert notification.data == {"score_title": "Decline Invite"}
-    assert (await service.list_my_pending_invites(db, 2)).items == []  # type: ignore[arg-type]
+    assert (service.list_my_pending_invites(db, 2)).items == []  # type: ignore[arg-type]
     with pytest.raises(ValidationException) as declined_again:
-        await service.accept_pending_invite(
+        service.accept_pending_invite(
             db,  # type: ignore[arg-type]
             created.invite_id,
             2,
@@ -2248,15 +2188,14 @@ async def test_user_pending_invites_can_be_declined(
     assert declined_again.value.code == ErrorCode.INVITE_DECLINED
 
 
-@pytest.mark.asyncio
-async def test_notifications_are_scoped_and_can_be_marked_read(
+def test_notifications_are_scoped_and_can_be_marked_read(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
-    db = AsyncSessionAdapter(session)
+    db = session
     service = NotificationService()
 
-    created = await service.create_event(
+    created = service.create_event(
         db,  # type: ignore[arg-type]
         recipient_user_id=1,
         actor_user_id=2,
@@ -2270,33 +2209,32 @@ async def test_notifications_are_scoped_and_can_be_marked_read(
     )
     assert created is not None
 
-    owner_notifications = await service.list_for_user(db, 1)  # type: ignore[arg-type]
-    other_notifications = await service.list_for_user(db, 2)  # type: ignore[arg-type]
+    owner_notifications = service.list_for_user(db, 1)  # type: ignore[arg-type]
+    other_notifications = service.list_for_user(db, 2)  # type: ignore[arg-type]
     assert [item.notification_id for item in owner_notifications] == [created.notification_id]
     public_notification = owner_notifications[0].model_dump()
     assert "resource_type" not in public_notification
     assert "resource_id" not in public_notification
     assert other_notifications == []
-    assert (await service.unread_count(db, 1)).count == 1  # type: ignore[arg-type]
-    assert (await service.unread_count(db, 2)).count == 0  # type: ignore[arg-type]
+    assert (service.unread_count(db, 1)).count == 1  # type: ignore[arg-type]
+    assert (service.unread_count(db, 2)).count == 0  # type: ignore[arg-type]
 
     with pytest.raises(ResourceNotFoundException):
-        await service.mark_read(db, created.notification_id, 2)  # type: ignore[arg-type]
+        service.mark_read(db, created.notification_id, 2)  # type: ignore[arg-type]
 
-    marked = await service.mark_read(db, created.notification_id, 1)  # type: ignore[arg-type]
+    marked = service.mark_read(db, created.notification_id, 1)  # type: ignore[arg-type]
     assert marked.read_at is not None
-    assert (await service.unread_count(db, 1)).count == 0  # type: ignore[arg-type]
+    assert (service.unread_count(db, 1)).count == 0  # type: ignore[arg-type]
 
 
-@pytest.mark.asyncio
-async def test_notification_dedupe_key_returns_existing_event(
+def test_notification_dedupe_key_returns_existing_event(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
-    db = AsyncSessionAdapter(session)
+    db = session
     service = NotificationService()
 
-    first = await service.create_event(
+    first = service.create_event(
         db,  # type: ignore[arg-type]
         recipient_user_id=1,
         actor_user_id=2,
@@ -2308,7 +2246,7 @@ async def test_notification_dedupe_key_returns_existing_event(
         body="First notification.",
         dedupe_key="system:test:score-1:owner",
     )
-    second = await service.create_event(
+    second = service.create_event(
         db,  # type: ignore[arg-type]
         recipient_user_id=1,
         actor_user_id=2,
@@ -2327,12 +2265,11 @@ async def test_notification_dedupe_key_returns_existing_event(
     assert count_rows(session, NotificationEvent, dedupe_key="system:test:score-1:owner") == 1
 
 
-@pytest.mark.asyncio
-async def test_notification_cleanup_removes_events_older_than_retention(
+def test_notification_cleanup_removes_events_older_than_retention(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
-    db = AsyncSessionAdapter(session)
+    db = session
     service = NotificationService()
     now = utc_now_naive()
 
@@ -2358,7 +2295,7 @@ async def test_notification_cleanup_removes_events_older_than_retention(
     session.add(fresh_event)
     session.commit()
 
-    deleted = await service.cleanup_expired_events(
+    deleted = service.cleanup_expired_events(
         db,  # type: ignore[arg-type]
         retention_days=90,
     )
@@ -2454,9 +2391,8 @@ def test_realtime_maintenance_rejects_non_positive_retention(
         service.cleanup_expired_events(session, retention_days=0)
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("expected", ["missing-revision", "other-score-revision"])
-async def test_expected_head_must_resolve_within_the_score(score_service_session, expected):
+def test_expected_head_must_resolve_within_the_score(score_service_session, expected):
     session, storage = score_service_session
     add_active_score_with_head_revision(
         session,
@@ -2475,8 +2411,8 @@ async def test_expected_head_must_resolve_within_the_score(score_service_session
         title="Other",
     )
     with pytest.raises(ResourceNotFoundException) as rejected:
-        await RevisionService(storage=storage).create(
-            AsyncSessionAdapter(session),
+        RevisionService(storage=storage).create(
+            session,
             "expected-score",
             1,
             RevisionCreateRequest(content=MUSICXML_2, expected_head_revision_id=expected),
@@ -2487,8 +2423,7 @@ async def test_expected_head_must_resolve_within_the_score(score_service_session
     assert count_rows(session, RenderOutbox) == count_rows(session, PlaybackOutbox) == 0
 
 
-@pytest.mark.asyncio
-async def test_two_editors_cannot_branch_the_same_expected_head(score_service_session):
+def test_two_editors_cannot_branch_the_same_expected_head(score_service_session):
     session, storage = score_service_session
     score = add_active_score_with_head_revision(
         session,
@@ -2514,8 +2449,8 @@ async def test_two_editors_cannot_branch_the_same_expected_head(score_service_se
     )
     session.commit()
     service = RevisionService(storage=storage)
-    db = AsyncSessionAdapter(session)
-    created = await service.create(
+    db = session
+    created = service.create(
         db,
         "linear-score",
         2,
@@ -2523,7 +2458,7 @@ async def test_two_editors_cannot_branch_the_same_expected_head(score_service_se
     )
     assert created.revision_number == 11
     with pytest.raises(ConflictException) as rejected:
-        await service.create(
+        service.create(
             db,
             "linear-score",
             3,
@@ -2554,8 +2489,7 @@ MATERIALIZING_XML = MUSICXML_2.replace(
 )
 
 
-@pytest.mark.asyncio
-async def test_revision_semantic_admission_precedes_reservation_and_durable_put(
+def test_revision_semantic_admission_precedes_reservation_and_durable_put(
     score_service_session,
 ):
     session, storage = score_service_session
@@ -2571,12 +2505,12 @@ async def test_revision_semantic_admission_precedes_reservation_and_durable_put(
     with (
         patch.object(storage, "put_bytes", wraps=storage.put_bytes) as put,
         patch(
-            "app.modules.revisions.service.storage_usage_service.reserve", new_callable=AsyncMock
+            "app.modules.revisions.service.storage_usage_service.reserve", new_callable=Mock
         ) as reserve,
     ):
         with pytest.raises(ValidationException) as caught:
-            await service.create(
-                AsyncSessionAdapter(session),
+            service.create(
+                session,
                 score.score_uuid,
                 1,
                 RevisionCreateRequest(
@@ -2584,16 +2518,15 @@ async def test_revision_semantic_admission_precedes_reservation_and_durable_put(
                 ),
             )
         put.assert_not_called()
-        reserve.assert_not_awaited()
+        reserve.assert_not_called()
     assert caught.value.code == ErrorCode.REVISION_CONTENT_INVALID
     assert score.head_revision_id == 401
     assert count_rows(session, ScoreRevision) == 1
     assert count_rows(session, ScoreRevisionSource) == 0
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("operation", ["confirm", "update"])
-async def test_review_semantic_admission_precedes_storage(score_service_session, operation):
+def test_review_semantic_admission_precedes_storage(score_service_session, operation):
     session, storage = score_service_session
     original = storage.put_bytes(
         key="jobs/admission-review/review.musicxml",
@@ -2627,35 +2560,34 @@ async def test_review_semantic_admission_precedes_storage(score_service_session,
         patch.object(storage, "put_bytes", wraps=storage.put_bytes) as put,
         patch(
             "app.modules.import_jobs.review.service.storage_usage_service.reserve",
-            new_callable=AsyncMock,
+            new_callable=Mock,
         ) as reserve,
     ):
         with pytest.raises(ValidationException) as caught:
             if operation == "confirm":
-                await service.confirm(
-                    AsyncSessionAdapter(session),
+                service.confirm(
+                    session,
                     "admission-review",
                     1,
                     ReviewConfirmRequest(content=INVALID_WRITTEN_XML),
                 )
             else:
-                await service.update(
-                    AsyncSessionAdapter(session),
+                service.update(
+                    session,
                     "admission-review",
                     1,
                     ReviewUpdateRequest(content=INVALID_WRITTEN_XML),
                 )
         put.assert_not_called()
-        reserve.assert_not_awaited()
+        reserve.assert_not_called()
     assert caught.value.code == ErrorCode.REVISION_CONTENT_INVALID
     assert artifact.stored_object.object_key == original.object_key
     assert storage.read_bytes(original.object_key) == MUSICXML_1
     assert count_rows(session, Score) == count_rows(session, ScoreRevisionSource) == 0
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("operation", ["revision", "review-confirm"])
-async def test_service_hash_and_storage_use_exact_admitted_bytes(score_service_session, operation):
+def test_service_hash_and_storage_use_exact_admitted_bytes(score_service_session, operation):
     from app.processing.musicxml.admission import admit_musicxml_document
 
     session, storage = score_service_session
@@ -2683,8 +2615,8 @@ async def test_service_hash_and_storage_use_exact_admitted_bytes(score_service_s
         session.commit()
     with patch.object(storage, "put_bytes", wraps=storage.put_bytes) as put:
         if operation == "revision":
-            result = await RevisionService(storage=storage).create(
-                AsyncSessionAdapter(session),
+            result = RevisionService(storage=storage).create(
+                session,
                 "admission-score",
                 1,
                 RevisionCreateRequest(
@@ -2693,8 +2625,8 @@ async def test_service_hash_and_storage_use_exact_admitted_bytes(score_service_s
             )
             revision = one_row(session, ScoreRevision, revision_uuid=result.revision_id)
         else:
-            result = await ImportReviewService(storage=storage).confirm(
-                AsyncSessionAdapter(session),
+            result = ImportReviewService(storage=storage).confirm(
+                session,
                 "admission-review",
                 1,
                 ReviewConfirmRequest(content=MATERIALIZING_XML),
@@ -2709,8 +2641,7 @@ async def test_service_hash_and_storage_use_exact_admitted_bytes(score_service_s
     assert storage.read_bytes(source.stored_object.object_key) == admitted
 
 
-@pytest.mark.asyncio
-async def test_admitted_revision_survives_unsupported_metadata_projection(score_service_session):
+def test_admitted_revision_survives_unsupported_metadata_projection(score_service_session):
     from app.processing.musicxml.admission import admit_musicxml_document
     from app.score_semantics.musicxml_score import parse_score_semantics
 
@@ -2728,8 +2659,8 @@ async def test_admitted_revision_survives_unsupported_metadata_projection(score_
     )
     admitted = admit_musicxml_document(content.encode())
     assert parse_score_semantics(admitted).keys[0].fifths is None
-    result = await ImportReviewService(storage=storage).confirm(
-        AsyncSessionAdapter(session), "admission-review", 1, ReviewConfirmRequest(content=content)
+    result = ImportReviewService(storage=storage).confirm(
+        session, "admission-review", 1, ReviewConfirmRequest(content=content)
     )
     score = one_row(session, Score, score_uuid=result.score_id)
     revision = session.get(ScoreRevision, score.head_revision_id)

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from sqlmodel import select
-from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.core import security
 from app.core.exceptions import AuthenticationException
@@ -19,9 +19,9 @@ class AuthService:
     def __init__(self, session_service: SessionService | None = None) -> None:
         self.session_service = session_service or SessionService()
 
-    async def login(
+    def login(
         self,
-        db: AsyncSession,
+        db: Session,
         email: str,
         password: str,
         *,
@@ -30,8 +30,8 @@ class AuthService:
         device_id: str | None = None,
     ) -> tuple[str, str]:
         normalized_email = email.strip().lower()
-        result = await db.exec(select(User).where(User.email == normalized_email))
-        user = result.one_or_none()
+        result = db.execute(select(User).where(User.email == normalized_email))
+        user = result.scalars().one_or_none()
 
         if not user or not security.verify_password(password, user.password_hash):
             raise AuthenticationException(
@@ -43,12 +43,12 @@ class AuthService:
                 code=ErrorCode.ACCOUNT_INACTIVE,
                 details={"email": user.email},
             )
-        access_token, refresh_token, _ = await self.session_service.create_token_pair(
+        access_token, refresh_token, _ = self.session_service.create_token_pair(
             db,
             require_persisted_id(user.id, entity="user"),
             user_agent=user_agent,
             ip_address=ip_address,
             device_id=device_id,
         )
-        await db.commit()
+        db.commit()
         return access_token, refresh_token

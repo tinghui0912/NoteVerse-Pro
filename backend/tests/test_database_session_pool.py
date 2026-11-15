@@ -1,7 +1,7 @@
 from app.db.session import engine
 
 
-def test_async_engine_uses_stale_connection_protection() -> None:
+def test_application_engine_uses_stale_connection_protection() -> None:
     pool = engine.pool
 
     assert getattr(pool, "_pre_ping", False) is True

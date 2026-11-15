@@ -1,34 +1,24 @@
-from collections.abc import AsyncGenerator
+from collections.abc import Generator
 
-from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlmodel import SQLModel
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import settings
 
-# Central async database entry point for API and async services.
-engine = create_async_engine(
+engine = create_engine(
     settings.DATABASE_URL,
-    echo=False,
-    future=True,
     pool_pre_ping=True,
     pool_recycle=3600,
     pool_size=5,
     max_overflow=10,
 )
-
-AsyncSessionLocal = async_sessionmaker(
-    engine,
-    expire_on_commit=False,
-    class_=AsyncSession,
-)
+SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
 
-async def init_db():
-    async with engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.create_all)
-
-
-async def get_session() -> AsyncGenerator[AsyncSession, None]:
-    async with AsyncSessionLocal() as session:
-        yield session
+def get_session() -> Generator[Session, None, None]:
+    with SessionLocal() as session:
+        try:
+            yield session
+        except BaseException:
+            session.rollback()
+            raise

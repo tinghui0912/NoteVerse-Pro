@@ -30,8 +30,8 @@ SCORE_IMPORT_IMAGES = (
 )
 
 
-async def read_score_import_upload(file: UploadFile) -> bytes:
-    content = await file.read(MAX_SCORE_IMPORT_UPLOAD_BYTES + 1)
+def read_score_import_upload(file: UploadFile) -> bytes:
+    content = file.file.read(MAX_SCORE_IMPORT_UPLOAD_BYTES + 1)
     if not content or len(content) > MAX_SCORE_IMPORT_UPLOAD_BYTES:
         raise ValidationException(
             code=ErrorCode.VALIDATION_ERROR,

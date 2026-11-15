@@ -15,7 +15,7 @@ from app.modules.import_jobs.artifact_records import ImportJobStoredArtifactItem
 from app.modules.import_jobs.dispatch_service import ImportExecutionLease, require_current_attempt
 from app.storage import object_storage
 from app.modules.storage_objects.writes import write_object
-from app.db.sync_session import get_worker_db
+from app.db.session import SessionLocal
 
 
 def _kind_value(kind: object) -> str:
@@ -64,18 +64,20 @@ def replace_files(
         Files are uploaded to the configured storage adapter and recorded as
         object keys under `jobs/{job_id}/{kind}/`.
     """
-    from app.db.sync_session import get_worker_db
-    from app.modules.import_jobs.worker_service import sync_import_job_service
+    from app.db.session import SessionLocal
+    from app.modules.import_jobs.worker_service import import_job_execution_service
 
-    with get_worker_db() as db:
+    with SessionLocal() as db:
         require_current_attempt(db, lease)
+        db.commit()
     normalized_kind = _kind_value(kind)
     items: List[ImportJobStoredArtifactItem] = [
         _build_file_item(lease.job_uuid, normalized_kind, p, i + 1) for i, p in enumerate(abs_paths)
     ]
 
-    with get_worker_db() as db:
-        sync_import_job_service.replace_artifacts(db, lease, normalized_kind, items)
+    with SessionLocal() as db:
+        import_job_execution_service.replace_artifacts(db, lease, normalized_kind, items)
+        db.commit()
 
 
 def _build_file_item(
@@ -91,10 +93,11 @@ def _build_file_item(
     sha256 = hashlib.sha256(content).hexdigest()
     filename = f"{page:03d}-{os.path.basename(abs_path)}"
     storage_key = f"jobs/{job_id}/{normalized_kind}/{sha256}/{filename}"
-    with get_worker_db() as db:
+    with SessionLocal() as db:
         written = write_object(
             db, object_storage, key=storage_key, content=content, content_type=mime_type
         )
+        db.commit()
     return {
         "write_intent_uuid": written.intent_uuid,
         "write_token": written.write_token,

@@ -5,7 +5,7 @@ from datetime import timedelta
 import pytest
 import sqlalchemy as sa
 from alembic import command
-from sqlmodel import Session
+from sqlalchemy.orm import Session
 
 from app.db.models import (
     ImportDispatch,
@@ -22,7 +22,7 @@ from app.modules.import_jobs.dispatch_service import (
     require_current_attempt,
     StaleImportDispatchAttempt,
 )
-from app.modules.import_jobs.worker_service import SyncImportJobService
+from app.modules.import_jobs.worker_service import ImportJobExecutionService
 from app.utils.timezone import utc_now_naive
 from tests.support.postgres_schema import postgres_schema_database
 
@@ -181,9 +181,9 @@ def test_mutation_lock_excludes_recovery_and_reclaimed_attempt_fences_cached_wor
             assert second.attempt == first.attempt + 1 and second.token != first.token
             # populate_existing defeats an identity-map copy of the first attempt.
             with pytest.raises(StaleImportDispatchAttempt):
-                SyncImportJobService().update_progress(worker, first, "RUNNING", 99)
+                ImportJobExecutionService().update_progress(worker, first, "RUNNING", 99)
             worker.rollback()
-            SyncImportJobService().update_progress(recovery, second, "RUNNING", 21)
+            ImportJobExecutionService().update_progress(recovery, second, "RUNNING", 21)
             worker.expire_all()
             assert worker.scalar(sa.select(ImportJob)).progress == 21
 
@@ -198,14 +198,13 @@ def test_mutation_lock_excludes_recovery_and_reclaimed_attempt_fences_cached_wor
     ],
 )
 def test_deletion_contends_on_dispatch_before_job_and_rechecks_state(monkeypatch, locked_state):
-    import asyncio
     from queue import Queue
     from threading import Thread, Event
     from time import monotonic
     from app.core.exceptions import ValidationException
     from app.modules.import_jobs.deletion_service import ImportJobDeletionService
     from app.shared.constants import ErrorCode
-    from tests.test_score_revision_services import AsyncSessionAdapter
+    from tests.test_score_revision_services import Session
 
     with postgres_schema_database(monkeypatch) as (engine, config):
         command.upgrade(config, "head")
@@ -227,11 +226,7 @@ def test_deletion_contends_on_dispatch_before_job_and_rechecks_state(monkeypatch
                     pid = deleting.scalar(sa.text("SELECT pg_backend_pid()"))
                     ready.put(pid)
                     assert start.wait(10)
-                    asyncio.run(
-                        ImportJobDeletionService().delete_job(
-                            AsyncSessionAdapter(deleting), stale_job, 1
-                        )
-                    )
+                    ImportJobDeletionService().delete_job(deleting, stale_job, 1)
                     deleting.commit()  # The public use case owns the release transaction.
                 result.put(None)
             except BaseException as exc:

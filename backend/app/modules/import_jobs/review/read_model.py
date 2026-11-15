@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from sqlmodel import col
 
 from app.core.exceptions import (
@@ -21,29 +21,28 @@ from app.modules.import_jobs.review.schemas import (
     ReviewMusicXmlRead,
 )
 from app.shared.constants import ErrorCode
-from app.storage import ObjectStorage, AsyncObjectStorage
+from app.storage import ObjectStorage
 
 
 class ImportReviewReadModel:
     def __init__(self, storage: ObjectStorage) -> None:
         self.storage = storage
-        self.async_storage = AsyncObjectStorage(storage)
 
-    async def detail(
+    def detail(
         self,
-        db: AsyncSession,
+        db: Session,
         job_uuid: str,
         user_id: int,
     ) -> ImportJobReviewRead:
         job = (
-            await db.execute(select(ImportJob).where(ImportJob.job_uuid == job_uuid))
+            db.execute(select(ImportJob).where(ImportJob.job_uuid == job_uuid))
         ).scalar_one_or_none()
         if not job:
             raise ResourceNotFoundException("job", job_uuid, ErrorCode.JOB_NOT_FOUND)
         if job.user_id != user_id:
             raise UnauthorizedException(ErrorCode.NO_ACCESS, {"job_id": job_uuid})
         if job.state == ImportJobState.CONFIRMED and job.score_id is not None:
-            score = await db.get(Score, job.score_id)
+            score = db.get(Score, job.score_id)
             if score:
                 return ImportJobReviewRead(
                     job_id=job.job_uuid,
@@ -65,7 +64,7 @@ class ImportReviewReadModel:
 
         job_id = require_persisted_id(job.id, entity="import job")
         artifacts = list(
-            (await db.execute(select(ImportArtifact).where(ImportArtifact.job_id == job_id)))
+            (db.execute(select(ImportArtifact).where(ImportArtifact.job_id == job_id)))
             .scalars()
             .all()
         )
@@ -79,19 +78,19 @@ class ImportReviewReadModel:
         )
         if musicxml_artifact is None:
             raise ResourceNotFoundException("import_artifact", job_uuid, ErrorCode.XML_NOT_FOUND)
-        if not (await self.async_storage.exists(musicxml_artifact.stored_object.object_key)):
+        if not (self.storage.exists(musicxml_artifact.stored_object.object_key)):
             raise FileException(
                 ErrorCode.FILE_NOT_FOUND, musicxml_artifact.stored_object.object_key
             )
 
-        content = (
-            await self.async_storage.read_bytes(musicxml_artifact.stored_object.object_key)
-        ).decode("utf-8")
+        content = (self.storage.read_bytes(musicxml_artifact.stored_object.object_key)).decode(
+            "utf-8"
+        )
         options = processing_options_adapter.validate_python(
             job.requested_options if job.requested_options is not None else {}
         )
         title = options.get("title")
-        original_images = await self.upload_reads(db, job_id)
+        original_images = self.upload_reads(db, job_id)
         return ImportJobReviewRead(
             job_id=job.job_uuid,
             state=job.state,
@@ -107,9 +106,9 @@ class ImportReviewReadModel:
             updated_at=job.updated_at,
         )
 
-    async def upload_reads(self, db: AsyncSession, job_id: int) -> list[ReviewArtifactRead]:
+    def upload_reads(self, db: Session, job_id: int) -> list[ReviewArtifactRead]:
         rows = (
-            await db.execute(
+            db.execute(
                 select(Upload, StoredObject)
                 .join(ImportJobUpload, ImportJobUpload.upload_id == Upload.id)
                 .join(StoredObject, Upload.stored_object_id == StoredObject.id)

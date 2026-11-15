@@ -3,7 +3,7 @@ from app.modules.scores.schemas import ScoreBatchDeleteRead
 from fastapi.responses import Response
 from app.api.response_contracts import binary_responses
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.api.storage_streaming import stream_storage_object
@@ -37,38 +37,38 @@ router = APIRouter()
 
 
 @router.post("/batch-delete", operation_id="scoresBatchDelete", response_model=ScoreBatchDeleteRead)
-async def batch_delete_scores(
+def batch_delete_scores(
     request: ScoreBatchDeleteRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: ScoreService = Depends(get_score_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    removed = await service.batch_delete(db, request.score_ids, user_id)
+    removed = service.batch_delete(db, request.score_ids, user_id)
     return ScoreBatchDeleteRead(removed=removed)
 
 
 @router.get("/{score_id}", operation_id="scoresGet", response_model=ScoreRead)
-async def get_score(
+def get_score(
     score_id: str,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: ScoreService = Depends(get_score_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    return await service.get(db, score_id, user_id)
+    return service.get(db, score_id, user_id)
 
 
 @router.patch("/{score_id}", operation_id="scoresUpdate", response_model=ScoreRead)
-async def update_score(
+def update_score(
     score_id: str,
     request: ScoreUpdateRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: ScoreService = Depends(get_score_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    result = await service.update(db, score_id, user_id, request)
+    result = service.update(db, score_id, user_id, request)
     return result
 
 
@@ -78,17 +78,17 @@ async def update_score(
     responses=binary_responses("*/*"),
     operation_id="scoreInputAssetDownload",
 )
-async def download_score_input_asset(
+def download_score_input_asset(
     score_id: str,
     asset_id: str,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: ScoreService = Depends(get_score_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    delivery = await service.input_asset_delivery(db, score_id, asset_id, user_id)
-    return await stream_storage_object(
-        storage=service.async_storage,
+    delivery = service.input_asset_delivery(db, score_id, asset_id, user_id)
+    return stream_storage_object(
+        storage=service.storage,
         storage_key=delivery.storage_key,
         filename=delivery.filename,
         media_type=delivery.media_type,
@@ -101,15 +101,15 @@ async def download_score_input_asset(
     operation_id="scoreRevisionsCreate",
     response_model=RevisionRead,
 )
-async def create_revision(
+def create_revision(
     score_id: str,
     request: RevisionCreateRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: RevisionService = Depends(get_revision_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    result = await service.create(db, score_id, user_id, request)
+    result = service.create(db, score_id, user_id, request)
     return result
 
 
@@ -118,16 +118,16 @@ async def create_revision(
     operation_id="scoreRevisionsList",
     response_model=RevisionListRead,
 )
-async def list_revisions(
+def list_revisions(
     score_id: str,
     limit: int = Query(default=20, ge=1, le=50),
     cursor: int | None = Query(default=None, ge=1),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: RevisionService = Depends(get_revision_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    result = await service.list(db, score_id, user_id, limit=limit, cursor=cursor)
+    result = service.list(db, score_id, user_id, limit=limit, cursor=cursor)
     return result
 
 
@@ -136,16 +136,16 @@ async def list_revisions(
     operation_id="scoreRevisionRestore",
     response_model=RevisionRead,
 )
-async def restore_revision(
+def restore_revision(
     score_id: str,
     revision_id: str,
     request: RevisionRestoreRequest | None = None,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: RevisionService = Depends(get_revision_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    result = await service.restore(db, score_id, revision_id, user_id, request)
+    result = service.restore(db, score_id, revision_id, user_id, request)
     return result
 
 
@@ -154,16 +154,16 @@ async def restore_revision(
     operation_id="scoreRevisionNoteUpdate",
     response_model=RevisionRead,
 )
-async def update_revision_note(
+def update_revision_note(
     score_id: str,
     revision_id: str,
     request: RevisionNoteUpdateRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: RevisionService = Depends(get_revision_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    result = await service.update_note(db, score_id, revision_id, user_id, request)
+    result = service.update_note(db, score_id, revision_id, user_id, request)
     return result
 
 
@@ -172,30 +172,36 @@ async def update_revision_note(
     operation_id="scoreRevisionContentGet",
     response_model=RevisionContentRead,
 )
-async def get_revision_content(
+def get_revision_content(
     score_id: str,
     revision_id: str,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: RevisionService = Depends(get_revision_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    result = await service.content(db, score_id, revision_id, user_id)
+    result = service.content(db, score_id, revision_id, user_id)
     return result
+
+
+def authorize_fingering_generation(
+    score_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db, scope="function"),
+    service: FingeringService = Depends(get_fingering_service),
+) -> None:
+    service.authorize_generation(db, score_id, require_persisted_id(current_user.id, entity="user"))
 
 
 @router.post(
     "/{score_id}/fingering",
     operation_id="scoreFingeringGenerate",
     response_model=FingeringResultRead,
+    dependencies=[Depends(authorize_fingering_generation)],
 )
 async def generate_score_fingering(
     score_id: str,
     request: FingeringRequest,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
     service: FingeringService = Depends(get_fingering_service),
 ):
-    user_id = require_persisted_id(current_user.id, entity="user")
-    result = await service.generate(db, score_id, user_id, request)
-    return result
+    return await service.generate(score_id, request)

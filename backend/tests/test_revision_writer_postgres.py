@@ -8,7 +8,6 @@ from hashlib import sha256
 from threading import Event, Barrier
 from time import monotonic
 from uuid import uuid4
-import asyncio
 import pytest
 import sqlalchemy as sa
 from sqlalchemy.orm import Session
@@ -65,7 +64,7 @@ from app.utils.timezone import utc_now_naive
 from tests.support.postgres_schema import postgres_schema_database
 from tests.support.object_storage import InMemoryObjectStorage
 from tests.support.write_cleanup import drain_write_cleanup
-from tests.test_score_revision_services import MUSICXML_1, MUSICXML_2, AsyncSessionAdapter
+from tests.test_score_revision_services import MUSICXML_1, MUSICXML_2
 
 
 @pytest.fixture
@@ -101,7 +100,7 @@ def prepare(engine, storage, content=MUSICXML_1):
     content = admit_musicxml_document(content.encode() if isinstance(content, str) else content)
     uuid = str(uuid4())
     with Session(engine) as db:
-        reservation = storage_usage_service.reserve_sync(
+        reservation = storage_usage_service.reserve(
             db,
             user_id=1,
             category=StorageUsageCategory.SOURCE,
@@ -215,7 +214,7 @@ def test_concurrent_head_writes_serialize_and_idempotency_resolves_in_writer(dat
             and db.get(ScoreRevision, score.head_revision_id).revision_number == 2
         )
         if not same_key:
-            storage_usage_service.release_reservation_sync(db, second.reservation_id)
+            storage_usage_service.release_reservation(db, second.reservation_id)
             db.commit()
         assert all(item["status"] == "cleaned" for item in drain_write_cleanup(db, storage))
 
@@ -231,7 +230,7 @@ def test_writer_outer_rollback_keeps_prewrite_cleanup_owned_and_reservation_rele
         (writer_module, "adopt_written_object")
         if failure == "adopt"
         else (
-            (storage_usage_service, "commit_reservation_sync")
+            (storage_usage_service, "commit_reservation")
             if failure == "reservation"
             else (writer_module, "append_fact")
         )
@@ -257,7 +256,7 @@ def test_writer_outer_rollback_keeps_prewrite_cleanup_owned_and_reservation_rele
             )
         )
         assert reservation.status.value == "RESERVED"
-        storage_usage_service.release_reservation_sync(db, source.reservation_id)
+        storage_usage_service.release_reservation(db, source.reservation_id)
         db.commit()
         assert (
             db.get(
@@ -389,7 +388,7 @@ def test_metadata_mid_compute_takeover_and_atomic_completion(database, monkeypat
                 db.rollback()
                 raise
 
-    monkeypatch.setattr(worker, "get_worker_db", transaction)
+    monkeypatch.setattr(worker, "SessionLocal", transaction)
     monkeypatch.setattr(worker, "object_storage", storage)
     computed, release = Event(), Event()
     original = worker.compute_metadata
@@ -448,26 +447,26 @@ def test_review_confirm_concurrency_uses_one_initial_revision(database, monkeypa
     from app.modules.import_jobs.review.schemas import ReviewConfirmRequest
 
     barrier = Barrier(2)
-    write = review_module.write_object_async
+    write = review_module.write_object
 
-    async def paused(*args, **kwargs):
-        receipt = await write(*args, **kwargs)
+    def paused(*args, **kwargs):
+        receipt = write(*args, **kwargs)
         barrier.wait(15)
         return receipt
 
-    async def latency_only(*args):
+    def latency_only(*args):
         pass
 
-    monkeypatch.setattr(review_module, "write_object_async", paused)
+    monkeypatch.setattr(review_module, "write_object", paused)
     monkeypatch.setattr(review_module, "revision_fast_path", latency_only)
 
     def confirm():
         with Session(engine) as db:
-            return asyncio.run(
-                review_module.ImportReviewService(storage=storage).confirm(
-                    AsyncSessionAdapter(db), "job", 1, ReviewConfirmRequest(content=MUSICXML_2)
-                )
-            ).score_id
+            return (
+                review_module.ImportReviewService(storage=storage)
+                .confirm(db, "job", 1, ReviewConfirmRequest(content=MUSICXML_2))
+                .score_id
+            )
 
     with ThreadPoolExecutor(max_workers=2) as pool:
         results = list(pool.map(lambda _: confirm(), range(2)))
@@ -499,9 +498,9 @@ def test_metadata_relay_releases_broker_failure_without_consuming_attempt_and_be
                 db.rollback()
                 raise
 
-    monkeypatch.setattr(metadata_dispatch, "get_worker_db", transaction)
-    monkeypatch.setattr(worker, "get_worker_db", transaction)
-    monkeypatch.setattr(task_runtime, "get_worker_db", transaction)
+    monkeypatch.setattr(metadata_dispatch, "SessionLocal", transaction)
+    monkeypatch.setattr(worker, "SessionLocal", transaction)
+    monkeypatch.setattr(task_runtime, "SessionLocal", transaction)
     with Session(engine) as db:
         uuid = db.scalar(sa.select(RevisionMetadataOutbox.outbox_uuid))
 
@@ -601,7 +600,7 @@ def test_metadata_worker_retries_source_failures_without_metadata_or_realtime_mu
             raise OSError("source temporarily unavailable")
         return b"unexpected physical content"
 
-    monkeypatch.setattr(worker, "get_worker_db", transaction)
+    monkeypatch.setattr(worker, "SessionLocal", transaction)
     monkeypatch.setattr(worker, "object_storage", storage)
     monkeypatch.setattr(storage, "read_bytes", read)
     with Session(engine) as db:

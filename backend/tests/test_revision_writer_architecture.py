@@ -18,8 +18,8 @@ def test_revision_model_creation_and_head_advancement_have_one_semantic_owner():
                 if node.func.id in constructors:
                     owners[node.func.id].add(relative)
                 if node.func.id in {
-                    "create_revision_render_outbox_sync",
-                    "create_playback_outbox_sync",
+                    "create_revision_render_outbox",
+                    "create_playback_outbox",
                 }:
                     derivative_admission.add(relative)
             if (
@@ -47,11 +47,11 @@ def test_revision_writer_is_a_transaction_participant_admitting_all_durable_work
         "RevisionMetadataOutbox",
         "ScoreRevisionCreated",
         "append_fact",
-        "create_revision_render_outbox_sync",
-        "create_playback_outbox_sync",
+        "create_revision_render_outbox",
+        "create_playback_outbox",
     }
     assert any(
-        isinstance(call, ast.Attribute) and call.attr == "commit_reservation_sync" for call in calls
+        isinstance(call, ast.Attribute) and call.attr == "commit_reservation" for call in calls
     )
 
 

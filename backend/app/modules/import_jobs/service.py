@@ -1,10 +1,10 @@
 from __future__ import annotations
-from app.storage import AsyncObjectStorage
+from app.storage import ObjectStorage
 
 from dataclasses import dataclass
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from sqlmodel import col
 
 from app.core.exceptions import (
@@ -29,7 +29,7 @@ from app.modules.import_jobs.schemas import (
 )
 from app.modules.import_jobs.submission_service import ImportJobSubmissionService
 from app.modules.import_jobs.read_model import ImportJobReadModel
-from app.storage import ObjectStorage, object_storage
+from app.storage import object_storage
 from app.shared.constants import ErrorCode
 
 
@@ -60,26 +60,25 @@ class ImportJobService:
         self.read_model = read_model or ImportJobReadModel(self.repository)
         self.submission_service = submission_service or ImportJobSubmissionService(self.repository)
         self.storage = storage or object_storage
-        self.async_storage = AsyncObjectStorage(self.storage)
         self.deletion_service = deletion_service or ImportJobDeletionService()
 
-    async def submit(
-        self, db: AsyncSession, current_user: User, request: ImportJobSubmitRequestLike
+    def submit(
+        self, db: Session, current_user: User, request: ImportJobSubmitRequestLike
     ) -> ImportJobSubmitResult:
-        return await self.submission_service.submit(db, current_user, request)
+        return self.submission_service.submit(db, current_user, request)
 
-    async def retry(
+    def retry(
         self,
-        db: AsyncSession,
+        db: Session,
         job_uuid: str,
         current_user: User,
         user_id: int,
     ) -> ImportJobSubmitResult:
-        job = await self.get_owned_job(db, job_uuid, user_id)
+        job = self.get_owned_job(db, job_uuid, user_id)
         if job.state != ImportJobState.FAILURE:
             raise ValidationException(code=ErrorCode.VALIDATION_ERROR, field="state")
         job_id = require_persisted_id(job.id, entity="import job")
-        rows = await db.execute(
+        rows = db.execute(
             select(Upload.upload_uuid)
             .join(ImportJobUpload, ImportJobUpload.upload_id == Upload.id)
             .where(ImportJobUpload.job_id == job_id)
@@ -93,7 +92,7 @@ class ImportJobService:
             if job.requested_options is not None
             else None
         )
-        return await self.submission_service.submit(
+        return self.submission_service.submit(
             db,
             current_user,
             RetryJobRequest(
@@ -102,26 +101,24 @@ class ImportJobService:
             ),
         )
 
-    async def list_jobs(
+    def list_jobs(
         self,
-        db: AsyncSession,
+        db: Session,
         user_id: int,
         *,
         page: int,
         page_size: int,
     ) -> tuple[list[ImportJobRead], int]:
-        rows, total = await self.repository.list_for_user(
-            db, user_id, page=page, page_size=page_size
-        )
-        return await self.read_model.details_for_jobs(db, rows), total
+        rows, total = self.repository.list_for_user(db, user_id, page=page, page_size=page_size)
+        return self.read_model.details_for_jobs(db, rows), total
 
-    async def get_owned_job(
+    def get_owned_job(
         self,
-        db: AsyncSession,
+        db: Session,
         job_uuid: str,
         user_id: int,
     ) -> ImportJob:
-        job = await self.repository.get_by_uuid(db, job_uuid)
+        job = self.repository.get_by_uuid(db, job_uuid)
         if not job:
             raise ResourceNotFoundException(
                 resource_type="job", resource_id=job_uuid, code=ErrorCode.JOB_NOT_FOUND
@@ -130,17 +127,17 @@ class ImportJobService:
             raise UnauthorizedException(code=ErrorCode.NO_ACCESS, details={"job_id": job_uuid})
         return job
 
-    async def detail(self, db: AsyncSession, job_uuid: str, user_id: int) -> ImportJobRead:
-        job = await self.get_owned_job(db, job_uuid, user_id)
-        return await self.read_model.detail(db, job)
+    def detail(self, db: Session, job_uuid: str, user_id: int) -> ImportJobRead:
+        job = self.get_owned_job(db, job_uuid, user_id)
+        return self.read_model.detail(db, job)
 
-    async def batch_status(
+    def batch_status(
         self,
-        db: AsyncSession,
+        db: Session,
         job_uuids: list[str],
         user_id: int,
     ) -> dict[str, ImportJobStatusEntry]:
-        jobs = await self.repository.batch_status(db, job_uuids, user_id)
+        jobs = self.repository.batch_status(db, job_uuids, user_id)
         return {
             job.job_uuid: {
                 "state": job.state,
@@ -153,27 +150,27 @@ class ImportJobService:
             for public_code, public_message in [public_import_job_error(job)]
         }
 
-    async def delete(self, db: AsyncSession, job_uuid: str, user_id: int) -> None:
-        job = await self.get_owned_job(db, job_uuid, user_id)
-        await self.deletion_service.delete_job(db, job, user_id)
-        await db.commit()
+    def delete(self, db: Session, job_uuid: str, user_id: int) -> None:
+        job = self.get_owned_job(db, job_uuid, user_id)
+        self.deletion_service.delete_job(db, job, user_id)
+        db.commit()
 
-    async def artifact_delivery(
+    def artifact_delivery(
         self,
-        db: AsyncSession,
+        db: Session,
         job_uuid: str,
         artifact_uuid: str,
         user_id: int,
     ) -> ImportArtifactDelivery:
-        job = await self.get_owned_job(db, job_uuid, user_id)
+        job = self.get_owned_job(db, job_uuid, user_id)
         if artifact_uuid.startswith("upload:"):
-            return await self._upload_delivery(db, job, artifact_uuid)
-        artifact = await self.repository.artifact_by_uuid(db, artifact_uuid)
+            return self._upload_delivery(db, job, artifact_uuid)
+        artifact = self.repository.artifact_by_uuid(db, artifact_uuid)
         if not artifact or artifact.job_id != job.id:
             raise ResourceNotFoundException(
                 "import_artifact", artifact_uuid, ErrorCode.FILE_NOT_FOUND
             )
-        if not (await self.async_storage.exists(artifact.stored_object.object_key)):
+        if not (self.storage.exists(artifact.stored_object.object_key)):
             raise FileException(ErrorCode.FILE_NOT_FOUND, artifact.stored_object.object_key)
         media_type = artifact.stored_object.content_type or "application/octet-stream"
         return ImportArtifactDelivery(
@@ -182,9 +179,9 @@ class ImportJobService:
             storage_key=artifact.stored_object.object_key,
         )
 
-    async def _upload_delivery(
+    def _upload_delivery(
         self,
-        db: AsyncSession,
+        db: Session,
         job: ImportJob,
         artifact_uuid: str,
     ) -> ImportArtifactDelivery:
@@ -196,7 +193,7 @@ class ImportJobService:
         upload_id = int(raw_upload_id)
         job_id = require_persisted_id(job.id, entity="import job")
         row = (
-            await db.execute(
+            db.execute(
                 select(ImportJobUpload, Upload, StoredObject)
                 .join(Upload, ImportJobUpload.upload_id == Upload.id)
                 .join(StoredObject, Upload.stored_object_id == StoredObject.id)
@@ -211,7 +208,7 @@ class ImportJobService:
                 "import_upload", artifact_uuid, ErrorCode.FILE_NOT_FOUND
             )
         _, upload, blob = row
-        if not (await self.async_storage.exists(blob.object_key)):
+        if not (self.storage.exists(blob.object_key)):
             raise FileException(ErrorCode.FILE_NOT_FOUND, blob.object_key)
         media_type = blob.content_type or "application/octet-stream"
         filename = upload.original_filename

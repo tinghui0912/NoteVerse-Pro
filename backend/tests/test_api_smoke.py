@@ -11,7 +11,7 @@ import pytest
 
 from collections.abc import Iterator
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import Mock
 
 from fastapi.testclient import TestClient
 
@@ -33,15 +33,15 @@ from app.modules.uploads.service import UploadService
 )
 def test_upload_delete_projects_resource_and_persistence_errors(upload_exists, status, code):
     application = create_app()
-    repository = AsyncMock(spec=UploadRepository)
+    repository = Mock(spec=UploadRepository)
     repository.get_upload_by_uuid.return_value = (
         SimpleNamespace(id=11, uploader_user_id=1, stored_object_id=7) if upload_exists else None
     )
     repository.upload_reference_count.return_value = 0
-    db = AsyncMock()
+    db = Mock()
     db.get.return_value = None
 
-    async def database():
+    def database():
         yield db
 
     application.dependency_overrides[get_db] = database
@@ -55,8 +55,8 @@ def test_upload_delete_projects_resource_and_persistence_errors(upload_exists, s
     assert response.status_code == status
     assert response.json()["code"] == code
     assert response.json()["request_id"]
-    repository.delete_upload_by_id.assert_not_awaited()
-    db.commit.assert_not_awaited()
+    repository.delete_upload_by_id.assert_not_called()
+    db.commit.assert_not_called()
 
 
 def _request(
@@ -148,9 +148,7 @@ def test_external_playback_routes_stream_audio(client: TestClient, tmp_path) -> 
         storage = FakePlaybackStorage()
         async_storage = AsyncObjectStorage(storage)
 
-        async def score_revision_delivery(
-            self, db, score_uuid: str, revision_uuid: str, user_id: int
-        ):
+        def score_revision_delivery(self, db, score_uuid: str, revision_uuid: str, user_id: int):
             token = "score-audio"
             return PlaybackDelivery(
                 filename=f"{token}.wav",
@@ -158,7 +156,7 @@ def test_external_playback_routes_stream_audio(client: TestClient, tmp_path) -> 
                 storage_key=f"playback/{token}.wav",
             )
 
-    async def fake_get_db():
+    def fake_get_db():
         yield object()
 
     app.dependency_overrides[get_db] = fake_get_db
@@ -188,9 +186,7 @@ def test_main_api_serves_one_practice_bundle(client: TestClient, include_notatio
     calls = []
 
     class FakePracticeBundleService:
-        async def read_bundle(
-            self, db, score_uuid, user_id, revision_uuid, *, include_notation=False
-        ):
+        def read_bundle(self, db, score_uuid, user_id, revision_uuid, *, include_notation=False):
             import json
             import os
             from pathlib import Path
@@ -218,7 +214,7 @@ def test_main_api_serves_one_practice_bundle(client: TestClient, include_notatio
                 else None,
             }
 
-    async def fake_get_db():
+    def fake_get_db():
         yield object()
 
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1, is_active=True)

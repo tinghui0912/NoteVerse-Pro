@@ -33,7 +33,7 @@ async def test_self_leave_http_revokes_each_member_role_idempotently(collaborati
     member_for(session, role.value)
     membership = session.scalar(select(ScoreMembership))
 
-    async def database():
+    def database():
         yield db
 
     app.dependency_overrides[get_db] = database
@@ -52,7 +52,7 @@ async def test_self_leave_http_revokes_each_member_role_idempotently(collaborati
                 ScoreAction.LEAVE,
             ):
                 with pytest.raises(UnauthorizedException):
-                    await ScoreAccessPolicy().authorize(db, score.score_uuid, action, user_id=2)
+                    ScoreAccessPolicy().authorize(db, score.score_uuid, action, user_id=2)
             again = await client.delete(f"/api/v1/me/scores/{score.score_uuid}/membership")
             assert again.status_code == 204 and again.content == b""
             session.refresh(membership)
@@ -69,7 +69,7 @@ async def test_self_leave_http_revokes_each_member_role_idempotently(collaborati
 async def test_owner_and_never_member_cannot_leave_http(collaboration, user_id):
     session, _, score, db = collaboration
 
-    async def database():
+    def database():
         yield db
 
     app.dependency_overrides[get_db] = database
@@ -92,27 +92,27 @@ async def test_leave_hides_organization_until_explicit_reinvite_acceptance(colla
     membership = session.scalar(select(ScoreMembership))
     membership_id = membership.id
     library, collaboration_service = LibraryService(), ScoreInviteService()
-    folder = await library.create_folder(db, 2, LibraryFolderCreateRequest(name="Studies"))
-    await library.batch_move(
+    folder = library.create_folder(db, 2, LibraryFolderCreateRequest(name="Studies"))
+    library.batch_move(
         db,
         2,
         LibraryScoreBatchMoveRequest(
             score_ids=[score.score_uuid], target_folder_id=folder.folder_id
         ),
     )
-    await library.batch_set_favorite(
+    library.batch_set_favorite(
         db, 2, LibraryScoreBatchFavoriteRequest(score_ids=[score.score_uuid], is_favorite=True)
     )
     organization_id = session.scalar(select(ScoreLibraryOrganization)).id
 
-    async def assert_workspace(expected):
+    def assert_workspace(expected):
         for view, selected_folder in [
             (LibraryView.ALL, None),
             (LibraryView.SHARED_WITH_ME, None),
             (LibraryView.FAVORITES, None),
             (LibraryView.ALL, folder.folder_id),
         ]:
-            rows, count = await library.list_scores(
+            rows, count = library.list_scores(
                 db,
                 2,
                 view=view,
@@ -123,7 +123,7 @@ async def test_leave_hides_organization_until_explicit_reinvite_acceptance(colla
                 page_size=20,
             )
             assert count == expected and len(rows) == expected
-        overview = await library.folder_overview(db, 2)
+        overview = library.folder_overview(db, 2)
         assert (
             overview.all_count
             == overview.shared_with_me_count
@@ -132,14 +132,14 @@ async def test_leave_hides_organization_until_explicit_reinvite_acceptance(colla
         )
         assert overview.folders[0].score_count == expected
 
-    await assert_workspace(1)
-    await collaboration_service.leave_score(db, score.score_uuid, 2)
-    await assert_workspace(0)
+    assert_workspace(1)
+    collaboration_service.leave_score(db, score.score_uuid, 2)
+    assert_workspace(0)
     assert session.get(ScoreLibraryOrganization, organization_id).is_favorite
     assert session.get(Score, score.id) is not None
 
     # Owner role PATCH cannot restore access, including a direct HTTP call.
-    async def database():
+    def database():
         yield db
 
     app.dependency_overrides[get_db] = database
@@ -155,15 +155,15 @@ async def test_leave_hides_organization_until_explicit_reinvite_acceptance(colla
         app.dependency_overrides.clear()
     session.refresh(membership)
     assert membership.revoked_at is not None and membership.role == MembershipRole.EDITOR
-    await assert_workspace(0)
-    invite = await collaboration_service.create_invite(
+    assert_workspace(0)
+    invite = collaboration_service.create_invite(
         db,
         score.score_uuid,
         1,
         InviteCreateRequest(email="other@example.com", role=MembershipRole.VIEWER),
     )
-    accepted = await collaboration_service.accept_invite(db, invite.token, 2)
+    accepted = collaboration_service.accept_invite(db, invite.token, 2)
     assert accepted.membership_id == membership_id and accepted.role == MembershipRole.EDITOR
     assert session.scalar(select(func.count()).select_from(ScoreMembership)) == 1
     assert session.get(ScoreLibraryOrganization, organization_id) is not None
-    await assert_workspace(1)
+    assert_workspace(1)

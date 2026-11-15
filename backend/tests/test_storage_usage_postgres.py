@@ -2,11 +2,10 @@
 
 import hashlib
 import io
-import asyncio
-import contextlib
+from concurrent.futures import ThreadPoolExecutor
+from threading import Event
 
 import pytest
-import pytest_asyncio
 from fastapi import UploadFile
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
@@ -43,17 +42,17 @@ OPERATIONS = [
 ]
 
 
-@pytest_asyncio.fixture
-async def accounting(retirement_postgres):
-    _, sync, _, _ = retirement_postgres
-    with Session(sync) as db:
+@pytest.fixture
+def accounting(retirement_postgres):
+    engine, _, _ = retirement_postgres
+    with Session(engine) as db:
         db.add(StorageQuotaPolicy(plan_code="FREE", quota_limit_bytes=10000))
         db.commit()
     return retirement_postgres
 
 
-def ledger(sync):
-    with Session(sync) as db:
+def ledger(engine):
+    with Session(engine) as db:
         return (
             db.execute(
                 select(StorageUsageAccount.used_bytes, StorageUsageAccount.reserved_bytes)
@@ -80,12 +79,12 @@ def ledger(sync):
         )
 
 
-def seed_ledger(sync):
-    with Session(sync) as db:
-        usage.record_allocation_sync(
+def seed_ledger(engine):
+    with Session(engine) as db:
+        usage.record_allocation(
             db, user_id=1, category=StorageUsageCategory.UPLOAD, bytes_count=8, reason="fixture"
         )
-        handle = usage.reserve_sync(
+        handle = usage.reserve(
             db, user_id=1, category=StorageUsageCategory.UPLOAD, bytes_count=4, reason="fixture"
         )
         db.commit()
@@ -117,111 +116,111 @@ def add_owner(db):
     )
 
 
-@pytest.mark.asyncio
-async def test_concurrent_quota_holds_read_current_accounting_under_the_row_lock(accounting):
-    engine, sync, sessions, _ = accounting
-    with Session(sync) as db:
-        usage.reserve_sync(
+def test_concurrent_quota_holds_read_current_accounting_under_the_row_lock(accounting):
+    engine, sessions, _ = accounting
+    with sessions() as db:
+        usage.reserve(
             db, user_id=1, category=StorageUsageCategory.UPLOAD, bytes_count=4, reason="first"
         )
         db.get(StorageUsageAccount, 1).quota_limit_bytes = 10
         db.commit()
-    async with sessions() as first, sessions() as second:
-        account = await second.get(StorageUsageAccount, 1)
-        counter = await second.scalar(select(StorageUsageCounter))
-        assert account.reserved_bytes == counter.reserved_bytes == 4
-        pid = await second.scalar(text("SELECT pg_backend_pid()"))
-        await usage.reserve(
-            first, user_id=1, category=StorageUsageCategory.UPLOAD, bytes_count=4, reason="second"
-        )
-        pending = asyncio.create_task(
-            usage.reserve(
-                second,
-                user_id=1,
-                category=StorageUsageCategory.UPLOAD,
-                bytes_count=4,
-                reason="third",
-            )
-        )
-        try:
-            await assert_blocked(engine, pid)
-            await first.commit()
+    ready = Event()
+    pid = []
+
+    def reserve():
+        with sessions() as db:
+            account = db.get(StorageUsageAccount, 1)
+            counter = db.scalar(select(StorageUsageCounter))
+            assert account.reserved_bytes == counter.reserved_bytes == 4
+            pid.append(db.scalar(text("SELECT pg_backend_pid()")))
+            ready.set()
             with pytest.raises(ValidationException) as error:
-                await pending
+                usage.reserve(
+                    db,
+                    user_id=1,
+                    category=StorageUsageCategory.UPLOAD,
+                    bytes_count=4,
+                    reason="third",
+                )
             assert error.value.code == "storage_quota_exceeded"
             assert account.reserved_bytes == counter.reserved_bytes == 8
+            db.rollback()
+
+    with ThreadPoolExecutor(max_workers=1) as pool, sessions() as first:
+        usage.reserve(
+            first, user_id=1, category=StorageUsageCategory.UPLOAD, bytes_count=4, reason="second"
+        )
+        pending = pool.submit(reserve)
+        try:
+            assert ready.wait(10)
+            assert_blocked(engine, pid[0])
+            assert not pending.done()
         finally:
-            if not pending.done():
-                pending.cancel()
-                with contextlib.suppress(asyncio.CancelledError):
-                    await pending
-            await second.rollback()
-    with Session(sync) as observer:
+            first.commit()
+        pending.result(10)
+    with sessions() as observer:
         assert observer.get(StorageUsageAccount, 1).reserved_bytes == 8
         assert observer.scalar(select(func.count()).select_from(StorageUsageReservation)) == 2
 
 
-@pytest.mark.asyncio
-async def test_sync_release_observes_a_reservation_completed_by_another_transaction(accounting):
-    _, sync, _, _ = accounting
-    reservation_id = seed_ledger(sync)
-    with Session(sync) as stale:
+def test_release_observes_a_reservation_completed_by_another_transaction(accounting):
+    engine, _, _ = accounting
+    reservation_id = seed_ledger(engine)
+    with Session(engine) as stale:
         reservation = stale.scalar(
             select(StorageUsageReservation).where(
                 StorageUsageReservation.reservation_uuid == reservation_id
             )
         )
         assert reservation.status.value == "RESERVED"
-        with Session(sync) as winner:
-            usage.commit_reservation_sync(winner, reservation_id)
+        with Session(engine) as winner:
+            usage.commit_reservation(winner, reservation_id)
             winner.commit()
-        committed = ledger(sync)
-        usage.release_reservation_sync(stale, reservation_id)
+        committed = ledger(engine)
+        usage.release_reservation(stale, reservation_id)
         assert reservation.status.value == "COMMITTED"
         stale.commit()
-    assert ledger(sync) == committed
+    assert ledger(engine) == committed
 
 
-@pytest.mark.asyncio
-async def test_async_release_observes_a_reservation_completed_by_another_transaction(accounting):
-    _, sync, sessions, _ = accounting
-    reservation_id = seed_ledger(sync)
-    async with sessions() as stale:
-        reservation = await stale.scalar(
+def test_async_release_observes_a_reservation_completed_by_another_transaction(accounting):
+    engine, sessions, _ = accounting
+    reservation_id = seed_ledger(engine)
+    with sessions() as stale:
+        reservation = stale.scalar(
             select(StorageUsageReservation).where(
                 StorageUsageReservation.reservation_uuid == reservation_id
             )
         )
         assert reservation.status.value == "RESERVED"
-        with Session(sync) as winner:
-            usage.commit_reservation_sync(winner, reservation_id)
+        with Session(engine) as winner:
+            usage.commit_reservation(winner, reservation_id)
             winner.commit()
-        committed = ledger(sync)
-        await usage.release_reservation(stale, reservation_id)
+        committed = ledger(engine)
+        usage.release_reservation(stale, reservation_id)
         assert reservation.status.value == "COMMITTED"
-        await stale.commit()
-    assert ledger(sync) == committed
+        stale.commit()
+    assert ledger(engine) == committed
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("operation", OPERATIONS)
-async def test_sync_accounting_and_owner_mutations_follow_caller_commit(accounting, operation):
-    _, sync, _, _ = accounting
-    reservation_id = seed_ledger(sync)
-    before = ledger(sync)
-    with Session(sync) as db:
+def test_accounting_and_owner_mutations_follow_caller_commit(accounting, operation):
+    engine, _, _ = accounting
+    reservation_id = seed_ledger(engine)
+    before = ledger(engine)
+    with Session(engine) as db:
         if operation == "commit_reservation":
             add_owner(db)
-        getattr(usage, operation + "_sync")(db, **arguments(operation, reservation_id))
-        assert ledger(sync) == before
+        getattr(usage, operation)(db, **arguments(operation, reservation_id))
+        assert ledger(engine) == before
         db.rollback()
-    assert ledger(sync) == before
-    with Session(sync) as db:
+    assert ledger(engine) == before
+    with Session(engine) as db:
         if operation == "commit_reservation":
             add_owner(db)
-        getattr(usage, operation + "_sync")(db, **arguments(operation, reservation_id))
+        getattr(usage, operation)(db, **arguments(operation, reservation_id))
         db.commit()
-    after = ledger(sync)
+    after = ledger(engine)
     assert after != before
     expected = {
         "reserve": (8, 7),
@@ -232,41 +231,7 @@ async def test_sync_accounting_and_owner_mutations_follow_caller_commit(accounti
     }
     assert after[0] == [expected[operation]]
     if operation == "commit_reservation":
-        with Session(sync) as db:
-            assert db.scalar(select(Upload).where(Upload.upload_uuid == "transaction-owner"))
-            assert db.get(StorageUsageAccount, 1).used_bytes == 12
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("operation", OPERATIONS)
-async def test_async_accounting_and_owner_mutations_follow_caller_commit(accounting, operation):
-    _, sync, sessions, _ = accounting
-    reservation_id = seed_ledger(sync)
-    before = ledger(sync)
-    async with sessions() as db:
-        if operation == "commit_reservation":
-            add_owner(db)
-        await getattr(usage, operation)(db, **arguments(operation, reservation_id))
-        assert ledger(sync) == before
-        await db.rollback()
-    assert ledger(sync) == before
-    async with sessions() as db:
-        if operation == "commit_reservation":
-            add_owner(db)
-        await getattr(usage, operation)(db, **arguments(operation, reservation_id))
-        await db.commit()
-    after = ledger(sync)
-    assert after != before
-    expected = {
-        "reserve": (8, 7),
-        "commit_reservation": (12, 0),
-        "release_reservation": (8, 0),
-        "record_allocation": (11, 4),
-        "record_release": (5, 4),
-    }
-    assert after[0] == [expected[operation]]
-    if operation == "commit_reservation":
-        with Session(sync) as db:
+        with Session(engine) as db:
             assert db.scalar(select(Upload).where(Upload.upload_uuid == "transaction-owner"))
             assert db.get(StorageUsageAccount, 1).used_bytes == 12
 
@@ -276,14 +241,14 @@ async def test_async_accounting_and_owner_mutations_follow_caller_commit(account
 async def test_upload_persists_its_hold_before_io_and_adopts_accounting_atomically(
     accounting, monkeypatch, outcome
 ):
-    _, sync, sessions, storage = accounting
+    engine, sessions, storage = accounting
     content = image_bytes()
     key = blob_object_key(hashlib.sha256(content).hexdigest(), ".png")
     put = storage.put_bytes
     observations = []
 
     def physical_put(**kwargs):
-        with Session(sync) as observer:
+        with Session(engine) as observer:
             account = observer.scalar(
                 select(StorageUsageAccount)
                 .where(StorageUsageAccount.user_id == 1)
@@ -301,24 +266,27 @@ async def test_upload_persists_its_hold_before_io_and_adopts_accounting_atomical
     monkeypatch.setattr(storage, "put_bytes", physical_put)
     complete = usage.commit_reservation
 
-    async def reject_adoption(*args, **kwargs):
-        await complete(*args, **kwargs)
+    def reject_adoption(*args, **kwargs):
+        complete(*args, **kwargs)
         raise RuntimeError("semantic admission unavailable")
 
     if outcome == "adoption_failure":
         monkeypatch.setattr(usage, "commit_reservation", reject_adoption)
-    async with sessions() as db:
-        user = await db.get(User, 1)
-        operation = UploadService(storage=storage).create_upload(
-            db, user, UploadFile(file=io.BytesIO(content), filename="score.png")
-        )
+    with sessions() as db:
+        user = db.get(User, 1)
+
+        def operation():
+            return UploadService(storage=storage).create_upload(
+                db, user, UploadFile(file=io.BytesIO(content), filename="score.png")
+            )
+
         if outcome == "success":
-            result = await operation
+            result = operation()
         else:
             with pytest.raises(FileException):
-                await operation
+                operation()
     assert len(observations) == 1
-    with Session(sync) as observer:
+    with Session(engine) as observer:
         account = observer.get(StorageUsageAccount, 1)
         hold = observer.scalar(select(StorageUsageReservation))
         intent = observer.scalar(
@@ -340,6 +308,6 @@ async def test_upload_persists_its_hold_before_io_and_adopts_accounting_atomical
     if outcome != "success":
         assert storage.exists(key)
         setup_worker(accounting, monkeypatch)
-        with Session(sync) as db:
+        with Session(engine) as db:
             assert all(row["status"] == "cleaned" for row in drain_write_cleanup(db, storage))
         assert not storage.exists(key)

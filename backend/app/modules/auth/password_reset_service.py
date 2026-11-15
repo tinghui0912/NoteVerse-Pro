@@ -8,7 +8,7 @@ from datetime import timedelta
 from urllib.parse import urlencode
 
 from sqlmodel import select
-from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.core import security
 from app.core.config import settings
@@ -45,9 +45,9 @@ class PasswordResetService:
         base_url = settings.FRONTEND_BASE_URL.rstrip("/")
         return f"{base_url}{path}?{urlencode({'token': token})}"
 
-    async def _create_token(
+    def _create_token(
         self,
-        db: AsyncSession,
+        db: Session,
         user_id: int,
         *,
         ttl_seconds: int,
@@ -56,14 +56,14 @@ class PasswordResetService:
     ) -> str:
         now = utc_now_naive()
         used_at_column = AuthToken.__table__.c.used_at
-        result = await db.exec(
+        result = db.execute(
             select(AuthToken).where(
                 AuthToken.user_id == user_id,
                 AuthToken.purpose == AUTH_TOKEN_PASSWORD_RESET,
                 used_at_column.is_(None),
             )
         )
-        for existing in result.all():
+        for existing in result.scalars().all():
             existing.used_at = now
 
         token = self._new_token()
@@ -77,43 +77,43 @@ class PasswordResetService:
                 expires_at=now + timedelta(seconds=ttl_seconds),
             )
         )
-        await db.flush()
+        db.flush()
         return token
 
-    async def _consume_token(self, db: AsyncSession, token: str) -> AuthToken:
-        result = await db.exec(
+    def _consume_token(self, db: Session, token: str) -> AuthToken:
+        result = db.execute(
             select(AuthToken).where(
                 AuthToken.token_hash == self._hash_token(token),
                 AuthToken.purpose == AUTH_TOKEN_PASSWORD_RESET,
             )
         )
-        record = result.one_or_none()
+        record = result.scalars().one_or_none()
         now = utc_now_naive()
 
         if not record or record.used_at is not None or record.expires_at <= now:
             raise ValidationException(code=ErrorCode.RESET_TOKEN_INVALID, field="token")
 
         record.used_at = now
-        await db.flush()
+        db.flush()
         return record
 
-    async def request_password_reset(
+    def request_password_reset(
         self,
-        db: AsyncSession,
+        db: Session,
         request: ForgotPasswordRequest,
         *,
         user_agent: str | None = None,
         ip_address: str | None = None,
     ) -> None:
         email = str(request.email).strip().lower()
-        result = await db.exec(select(User).where(User.email == email))
-        user = result.one_or_none()
+        result = db.execute(select(User).where(User.email == email))
+        user = result.scalars().one_or_none()
         if not user or not user.is_active:
             return
 
         user_id = require_persisted_id(user.id, entity="user")
         ttl_seconds = settings.EMAIL_PASSWORD_RESET_TOKEN_TTL_SECONDS
-        token = await self._create_token(
+        token = self._create_token(
             db,
             user_id,
             ttl_seconds=ttl_seconds,
@@ -126,7 +126,7 @@ class PasswordResetService:
             reset_url=self._frontend_url("/auth/reset-password", token),
             ttl_seconds=ttl_seconds,
         )
-        await queue_mail(
+        queue_mail(
             db,
             category="password.reset.requested",
             dedupe_key=f"password.reset:{user_id}:{self._hash_token(token)}",
@@ -136,16 +136,16 @@ class PasswordResetService:
             html_body=email_content.html_body,
             expires_at=utc_now_naive() + timedelta(seconds=ttl_seconds),
         )
-        await db.commit()
+        db.commit()
 
-    async def reset_password(
+    def reset_password(
         self,
-        db: AsyncSession,
+        db: Session,
         request: ResetPasswordRequest,
     ) -> None:
-        token_record = await self._consume_token(db, request.token)
-        result = await db.exec(select(User).where(User.id == token_record.user_id))
-        user = result.one_or_none()
+        token_record = self._consume_token(db, request.token)
+        result = db.execute(select(User).where(User.id == token_record.user_id))
+        user = result.scalars().one_or_none()
         if not user:
             raise ValidationException(code=ErrorCode.RESET_TOKEN_INVALID, field="token")
 
@@ -153,7 +153,7 @@ class PasswordResetService:
         changed_at = utc_now_naive()
         user.password_changed_at = changed_at
         user_id = require_persisted_id(user.id, entity="user")
-        await self.session_service.revoke_user_refresh_tokens(
+        self.session_service.revoke_user_refresh_tokens(
             db,
             user_id,
             revoked_at=changed_at,
@@ -164,7 +164,7 @@ class PasswordResetService:
             locale=request.locale,
             project_name=settings.PROJECT_NAME,
         )
-        await queue_mail(
+        queue_mail(
             db,
             category="password.reset.completed",
             dedupe_key=f"password.reset.completed:{user_id}:{changed_at.isoformat()}",
@@ -173,4 +173,4 @@ class PasswordResetService:
             text_body=email_content.text_body,
             html_body=email_content.html_body,
         )
-        await db.commit()
+        db.commit()

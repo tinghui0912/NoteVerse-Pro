@@ -2,7 +2,7 @@ from fastapi.responses import Response
 from app.api.response_contracts import binary_responses
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.api.storage_streaming import stream_storage_object
@@ -28,15 +28,15 @@ score_router = APIRouter()
     responses=binary_responses("*/*"),
     operation_id="scoreRevisionSourceDownload",
 )
-async def download_revision_source(
+def download_revision_source(
     source_id: str,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: ScoreAssetService = Depends(get_score_asset_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    delivery = await service.source_delivery(db, source_id, user_id)
-    return await _stream_asset(delivery, service, attachment=True)
+    delivery = service.source_delivery(db, source_id, user_id)
+    return _stream_asset(delivery, service, attachment=True)
 
 
 @source_router.get(
@@ -44,14 +44,14 @@ async def download_revision_source(
     operation_id="scoreRevisionSourceAccessUrlGet",
     response_model=AssetAccessRead,
 )
-async def get_revision_source_access_url(
+def get_revision_source_access_url(
     source_id: str,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: ScoreAssetService = Depends(get_score_asset_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    result = await service.source_access_url(db, source_id, user_id)
+    result = service.source_access_url(db, source_id, user_id)
     return result
 
 
@@ -61,15 +61,15 @@ async def get_revision_source_access_url(
     responses=binary_responses("image/*"),
     operation_id="scoreRenderAssetDownload",
 )
-async def download_render_asset(
+def download_render_asset(
     render_asset_id: str,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: ScoreAssetService = Depends(get_score_asset_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    delivery = await service.render_asset_delivery(db, render_asset_id, user_id)
-    return await _stream_asset(delivery, service, attachment=True)
+    delivery = service.render_asset_delivery(db, render_asset_id, user_id)
+    return _stream_asset(delivery, service, attachment=True)
 
 
 @render_asset_router.get(
@@ -78,15 +78,15 @@ async def download_render_asset(
     responses=binary_responses("image/*"),
     operation_id="scoreRenderAssetView",
 )
-async def view_render_asset(
+def view_render_asset(
     render_asset_id: str,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: ScoreAssetService = Depends(get_score_asset_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    delivery = await service.render_asset_delivery(db, render_asset_id, user_id, download=False)
-    return await _stream_asset(delivery, service, attachment=False)
+    delivery = service.render_asset_delivery(db, render_asset_id, user_id, download=False)
+    return _stream_asset(delivery, service, attachment=False)
 
 
 @render_asset_router.get(
@@ -94,14 +94,14 @@ async def view_render_asset(
     operation_id="scoreRenderAssetAccessUrlGet",
     response_model=AssetAccessRead,
 )
-async def get_render_asset_access_url(
+def get_render_asset_access_url(
     render_asset_id: str,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: ScoreAssetService = Depends(get_score_asset_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    result = await service.render_asset_access_url(db, render_asset_id, user_id)
+    result = service.render_asset_access_url(db, render_asset_id, user_id)
     return result
 
 
@@ -110,15 +110,15 @@ async def get_render_asset_access_url(
     operation_id="scoreRevisionAssetsList",
     response_model=ScoreRevisionAssetsRead,
 )
-async def list_score_revision_assets(
+def list_score_revision_assets(
     score_id: str,
     revision_id: str | None = Query(default=None),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: ScoreAssetService = Depends(get_score_asset_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    result = await service.list_revision_assets(db, score_id, user_id, revision_uuid=revision_id)
+    result = service.list_revision_assets(db, score_id, user_id, revision_uuid=revision_id)
     return result
 
 
@@ -128,16 +128,16 @@ async def list_score_revision_assets(
     responses=binary_responses("application/zip"),
     operation_id="scoreRenderAssetsArchive",
 )
-async def archive_score_render_assets(
+def archive_score_render_assets(
     score_id: str,
     kind: RenderAssetKind = Query(...),
     revision_id: str | None = Query(default=None),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: ScoreAssetService = Depends(get_score_asset_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    archive, filename = await service.render_asset_archive(
+    archive, filename = service.render_asset_archive(
         db,
         score_id,
         user_id,
@@ -151,9 +151,9 @@ async def archive_score_render_assets(
     )
 
 
-async def _stream_asset(delivery, service: ScoreAssetService, *, attachment: bool):
-    return await stream_storage_object(
-        storage=service.async_storage,
+def _stream_asset(delivery, service: ScoreAssetService, *, attachment: bool):
+    return stream_storage_object(
+        storage=service.storage,
         storage_key=delivery.storage_key,
         filename=delivery.filename,
         media_type=delivery.media_type,

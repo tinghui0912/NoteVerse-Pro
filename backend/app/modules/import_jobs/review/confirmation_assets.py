@@ -1,7 +1,7 @@
 from __future__ import annotations
 from app.modules.storage_objects.writes import (
     ObjectWriteReceipt,
-    write_object_async,
+    write_object,
     adopt_written_object,
 )
 
@@ -9,7 +9,7 @@ import uuid
 from dataclasses import dataclass
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from sqlmodel import col
 
 from app.db.model_utils import require_persisted_id
@@ -23,7 +23,7 @@ from app.db.models import (
 )
 from app.db.models.score import RenderAssetKind, ScoreInputAssetPurpose
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
-from app.storage import AsyncObjectStorage
+from app.storage import ObjectStorage
 
 
 @dataclass(frozen=True)
@@ -40,16 +40,16 @@ class ReviewThumbnailWrite:
     artifact_uuid: str
 
 
-async def prewrite_review_thumbnail(
-    db: AsyncSession,
+def prewrite_review_thumbnail(
+    db: Session,
     *,
-    storage: AsyncObjectStorage,
+    storage: ObjectStorage,
     job_id: int,
     score_uuid: str,
     revision_uuid: str,
 ) -> ReviewThumbnailWrite | None:
     thumbnail = (
-        await db.execute(
+        db.execute(
             select(ImportArtifact)
             .where(
                 ImportArtifact.job_id == job_id,
@@ -61,10 +61,10 @@ async def prewrite_review_thumbnail(
     ).scalar_one_or_none()
     if thumbnail is None:
         return None
-    content = await storage.read_bytes(thumbnail.stored_object.object_key)
+    content = storage.read_bytes(thumbnail.stored_object.object_key)
     artifact_uuid = str(uuid.uuid4())
     extension = "." + thumbnail.filename.rsplit(".", 1)[-1] if "." in thumbnail.filename else ".svg"
-    written = await write_object_async(
+    written = write_object(
         db,
         storage,
         key=f"scores/{score_uuid}/revisions/{revision_uuid}/renders/default/001-{artifact_uuid}{extension}",
@@ -74,12 +74,12 @@ async def prewrite_review_thumbnail(
     return ReviewThumbnailWrite(written, artifact_uuid)
 
 
-async def adopt_review_thumbnail(
-    db: AsyncSession, prepared: ReviewThumbnailWrite | None, *, revision_id: int
+def adopt_review_thumbnail(
+    db: Session, prepared: ReviewThumbnailWrite | None, *, revision_id: int
 ) -> None:
     if prepared is None:
         return
-    physical = await db.run_sync(lambda sync: adopt_written_object(sync, prepared.written))
+    physical = adopt_written_object(db, prepared.written)
     db.add(
         ScoreRenderAsset(
             asset_uuid=prepared.artifact_uuid,
@@ -95,14 +95,14 @@ async def adopt_review_thumbnail(
     )
 
 
-async def promote_uploads_to_score_inputs(
-    db: AsyncSession,
+def promote_uploads_to_score_inputs(
+    db: Session,
     *,
     job_id: int,
     score_id: int,
 ) -> list[PromotedScoreInputUsage]:
     rows = (
-        await db.execute(
+        db.execute(
             select(ImportJobUpload, Upload, StoredObject)
             .join(Upload, ImportJobUpload.upload_id == Upload.id)
             .join(StoredObject, Upload.stored_object_id == StoredObject.id)

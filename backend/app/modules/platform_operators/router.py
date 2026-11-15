@@ -1,7 +1,7 @@
 """Authentication routes owned exclusively by the control-plane runtime."""
 
 from fastapi import APIRouter, Cookie, Depends, Request, Response
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.core.client_address import client_address
@@ -35,15 +35,15 @@ def _operator_read(principal: OperatorPrincipal) -> OperatorRead:
 
 
 @router.post("/login", response_model=SuccessResponsePayload)
-async def login_operator(
+def login_operator(
     command: OperatorLoginCommand,
     request: Request,
     response: Response,
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: OperatorAuthenticationService = Depends(get_operator_authentication_service),
 ) -> SuccessResponsePayload:
     security = require_control_plane_settings()
-    _, _, token = await service.authenticate_local_password(
+    _, _, token = service.authenticate_local_password(
         db,
         username=command.username,
         password=command.password,
@@ -56,9 +56,9 @@ async def login_operator(
 
 
 @router.post("/logout", response_model=SuccessResponsePayload)
-async def logout_operator(
+def logout_operator(
     response: Response,
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     session_cookie: str | None = Cookie(
         default=None,
         alias=require_control_plane_settings().auth_cookie_name,
@@ -66,13 +66,13 @@ async def logout_operator(
     service: OperatorAuthenticationService = Depends(get_operator_authentication_service),
 ) -> SuccessResponsePayload:
     security = require_control_plane_settings()
-    await service.revoke_session(db, token=session_cookie)
+    service.revoke_session(db, token=session_cookie)
     clear_control_plane_session_cookies(response, security=security)
     return success_response(message="logout_success")
 
 
 @router.get("/me", response_model=OperatorRead)
-async def current_operator(
+def current_operator(
     principal: OperatorPrincipal = Depends(get_current_operator),
 ) -> OperatorRead:
     return _operator_read(principal)

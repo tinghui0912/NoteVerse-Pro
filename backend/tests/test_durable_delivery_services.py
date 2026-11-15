@@ -4,7 +4,8 @@ from datetime import datetime, timedelta
 import importlib
 
 import pytest
-from sqlmodel import SQLModel, Session, create_engine
+from sqlalchemy.orm import Session
+from sqlmodel import SQLModel, create_engine
 
 from app.core.config import settings
 from app.db.models import (

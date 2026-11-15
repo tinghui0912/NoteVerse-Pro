@@ -36,6 +36,8 @@ def test_beat_leader_parses_the_child_command() -> None:
         "celery",
         "beat",
     ]
+
+
 def test_beat_leader_uses_a_dedicated_postgresql_session() -> None:
     """The lifetime lock must not be held through the worker SQLAlchemy pool."""
 
@@ -88,13 +90,13 @@ def test_scheduler_scan_skips_callback_when_lock_is_not_acquired(
 
     @contextmanager
     def fake_db() -> Iterator[object]:
-        yield object()
+        yield __import__("unittest.mock", fromlist=["Mock"]).Mock()
 
     def callback() -> dict[str, int]:
         raise AssertionError("callback should not run when scheduler lock is not acquired")
 
     monkeypatch.setattr(task_runtime.scheduler_lock_service, "try_acquire", fake_lock)
-    monkeypatch.setattr(task_runtime, "get_worker_db", fake_db)
+    monkeypatch.setattr(task_runtime, "SessionLocal", fake_db)
     monkeypatch.setattr(
         task_runtime,
         "scheduler_observability_service",
@@ -136,7 +138,7 @@ def test_scheduler_scan_runs_callback_when_lock_is_acquired(
 
     @contextmanager
     def fake_db() -> Iterator[object]:
-        yield object()
+        yield __import__("unittest.mock", fromlist=["Mock"]).Mock()
 
     @contextmanager
     def fake_root_span(**kwargs: object) -> Iterator[None]:
@@ -144,7 +146,7 @@ def test_scheduler_scan_runs_callback_when_lock_is_acquired(
         yield
 
     monkeypatch.setattr(task_runtime.scheduler_lock_service, "try_acquire", fake_lock)
-    monkeypatch.setattr(task_runtime, "get_worker_db", fake_db)
+    monkeypatch.setattr(task_runtime, "SessionLocal", fake_db)
     monkeypatch.setattr(
         task_runtime,
         "scheduler_observability_service",

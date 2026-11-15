@@ -40,7 +40,7 @@ from app.modules.playback.outbox_service import playback_outbox_service
 from app.modules.score_assets.derived_assets import derived_asset_status
 from app.task_queue import producer
 from tests.test_score_revision_services import score_service_session as score_service_session
-from tests.test_score_revision_services import AsyncSessionAdapter, MUSICXML_2
+from tests.test_score_revision_services import MUSICXML_2
 
 
 @pytest.fixture
@@ -129,12 +129,12 @@ def test_historical_revisions_are_not_generation_demand_and_never_runs_generator
         yield db
         db.commit()
 
-    monkeypatch.setattr(render_outbox, "get_worker_db", database)
-    monkeypatch.setattr(playback_outbox, "get_worker_db", database)
+    monkeypatch.setattr(render_outbox, "SessionLocal", database)
+    monkeypatch.setattr(playback_outbox, "SessionLocal", database)
     render = Mock(side_effect=AssertionError("Unexpected historical render"))
     audio = Mock(side_effect=AssertionError("Unexpected historical audio"))
     monkeypatch.setattr(render_outbox, "_render_target", render)
-    monkeypatch.setattr(playback_outbox.PlaybackGenerationService, "render_sync", audio)
+    monkeypatch.setattr(playback_outbox.PlaybackGenerationService, "render_for_worker", audio)
     for number in (1, 2):
         for work in work_rows(db, number):
             work.attempt_count = 2
@@ -196,8 +196,7 @@ def test_processing_is_not_cancelled_and_missing_source_is_not_superseded(revisi
 
 @pytest.mark.parametrize("operation", ["save", "restore", "confirm"])
 @pytest.mark.parametrize("broker_fails", [False, True])
-@pytest.mark.asyncio
-async def test_business_commit_precedes_immediate_dispatch_and_broker_failure_is_recoverable(
+def test_business_commit_precedes_immediate_dispatch_and_broker_failure_is_recoverable(
     revisions, monkeypatch, operation, broker_fails, tmp_path
 ):
     db, storage, score, rows = revisions
@@ -209,7 +208,7 @@ async def test_business_commit_precedes_immediate_dispatch_and_broker_failure_is
         yield db
         db.commit()
 
-    monkeypatch.setattr(dispatch, "get_worker_db", database)
+    monkeypatch.setattr(dispatch, "SessionLocal", database)
 
     def broker(task_name, *, kwargs, task_id):
         model = RenderOutbox if "render" in task_name else PlaybackOutbox
@@ -248,14 +247,13 @@ async def test_business_commit_precedes_immediate_dispatch_and_broker_failure_is
         observed.append(work)
         dispatch.dispatch_revision_derivatives_best_effort(work)
 
-    async def after_commit(work):
+    def after_commit(work):
         relay_after_commit(work)
 
     monkeypatch.setattr(revision_derivative_service, "dispatch_after_commit", after_commit)
-    async_db = AsyncSessionAdapter(db)
     if operation == "save":
-        await RevisionService(storage=storage).create(
-            async_db,
+        RevisionService(storage=storage).create(
+            db,
             score.score_uuid,
             1,
             RevisionCreateRequest(
@@ -264,9 +262,7 @@ async def test_business_commit_precedes_immediate_dispatch_and_broker_failure_is
             ),
         )
     elif operation == "restore":
-        await RevisionService(storage=storage).restore(
-            async_db, score.score_uuid, rows[0].revision_uuid, 1
-        )
+        RevisionService(storage=storage).restore(db, score.score_uuid, rows[0].revision_uuid, 1)
     elif operation == "confirm":
         db.add(
             ImportJob(
@@ -280,8 +276,8 @@ async def test_business_commit_precedes_immediate_dispatch_and_broker_failure_is
         db.commit()
         db.add(ImportDispatch(job_id=850, status=ImportDispatchStatus.COMPLETED))
         db.commit()
-        await ImportReviewService(storage=storage).confirm(
-            async_db, "confirm-demand", 1, ReviewConfirmRequest(content=MUSICXML_2)
+        ImportReviewService(storage=storage).confirm(
+            db, "confirm-demand", 1, ReviewConfirmRequest(content=MUSICXML_2)
         )
     assert len(observed) == 1 and len(calls) == 2
     work = observed[0]
@@ -297,7 +293,7 @@ async def test_business_commit_precedes_immediate_dispatch_and_broker_failure_is
     if broker_fails:
         from app.worker.execution import maintenance_dispatch
 
-        monkeypatch.setattr(maintenance_dispatch, "get_worker_db", database)
+        monkeypatch.setattr(maintenance_dispatch, "SessionLocal", database)
         monkeypatch.setattr(maintenance_dispatch, "run_scheduler_scan", lambda _name, scan: scan())
         monkeypatch.setattr(producer.celery_app, "send_task", lambda *_a, **_k: None)
         assert maintenance_dispatch.execute_render_outbox_maintenance()["dispatched"] >= 1
@@ -307,8 +303,7 @@ async def test_business_commit_precedes_immediate_dispatch_and_broker_failure_is
         assert render.status.value == audio.status.value == "DISPATCHED"
 
 
-@pytest.mark.asyncio
-async def test_dispatcher_crash_does_not_escape_post_commit_boundary(monkeypatch):
+def test_dispatcher_crash_does_not_escape_post_commit_boundary(monkeypatch):
     from app.modules.revisions.derivatives import RevisionDerivativeOutboxes
 
     monkeypatch.setattr(
@@ -316,7 +311,7 @@ async def test_dispatcher_crash_does_not_escape_post_commit_boundary(monkeypatch
         "dispatch_revision_derivatives_best_effort",
         Mock(side_effect=RuntimeError("dispatcher crashed")),
     )
-    await RevisionDerivativeService().dispatch_after_commit(
+    RevisionDerivativeService().dispatch_after_commit(
         RevisionDerivativeOutboxes(1, 2, "render", "audio")
     )
 
@@ -327,9 +322,8 @@ def test_internal_superseded_state_has_safe_presentation_status(status):
     assert derived_asset_status(has_current_asset=True, outbox_status=status) == "ready"
 
 
-@pytest.mark.asyncio
-async def test_preview_toggle_only_changes_access_state(revisions, monkeypatch):
-    from unittest.mock import AsyncMock
+def test_preview_toggle_only_changes_access_state(revisions, monkeypatch):
+    from unittest.mock import Mock
 
     db, storage, score, rows = revisions
     assert render_outbox_service.claim(db, "render-1") is None
@@ -340,16 +334,14 @@ async def test_preview_toggle_only_changes_access_state(revisions, monkeypatch):
         for n in (1, 2, 3)
         for work in work_rows(db, n)
     ]
-    relay = AsyncMock(side_effect=AssertionError("Toggle must not dispatch work"))
+    relay = Mock(side_effect=AssertionError("Toggle must not dispatch work"))
     monkeypatch.setattr(revision_derivative_service, "dispatch_after_commit", relay)
     service = GuestPreviewService(storage=storage)
     for enabled in [True, False]:
-        await service.update_settings(
-            AsyncSessionAdapter(db), score.score_uuid, 1, GuestPreviewUpdateRequest(enabled=enabled)
-        )
+        service.update_settings(db, score.score_uuid, 1, GuestPreviewUpdateRequest(enabled=enabled))
         assert db.scalar(select(func.count()).select_from(RenderOutbox)) == 3
         assert db.scalar(select(func.count()).select_from(PlaybackOutbox)) == 3
         for model, identity, status, attempt in snapshot:
             work = db.scalar(select(model).where(model.outbox_uuid == identity))
             assert work.status == status and work.attempt_count == attempt
-    relay.assert_not_awaited()
+    relay.assert_not_called()

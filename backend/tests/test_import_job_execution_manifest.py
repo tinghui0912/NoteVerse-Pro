@@ -1,4 +1,5 @@
-from sqlmodel import SQLModel, Session, create_engine, select
+from sqlalchemy.orm import Session
+from sqlmodel import SQLModel, create_engine, select
 
 from tests.support.import_execution import processing_lease
 
@@ -6,8 +7,6 @@ from app.db.execution_manifests import manifest_sha256
 from app.db.models import ExecutionManifest, ImportJob, ImportJobState
 from app.modules.import_jobs import execution_manifest
 from app.modules.import_jobs.service import ImportJobService
-from tests.test_score_revision_services import AsyncSessionAdapter
-import pytest
 
 
 def _job(job_uuid: str) -> ImportJob:
@@ -49,7 +48,7 @@ def test_import_jobs_reuse_one_execution_manifest_and_preserve_first_binding(mon
             session, processing_lease(session, second_job)
         )
 
-        manifests = list(session.exec(select(ExecutionManifest)))
+        manifests = list(session.scalars(select(ExecutionManifest)))
         session.refresh(first_job)
         session.refresh(second_job)
         assert len(manifests) == 1
@@ -65,11 +64,10 @@ def test_import_jobs_reuse_one_execution_manifest_and_preserve_first_binding(mon
         )
         session.refresh(first_job)
         assert first_job.execution_manifest_id == manifests[0].id
-        assert len(list(session.exec(select(ExecutionManifest)))) == 1
+        assert len(list(session.scalars(select(ExecutionManifest)))) == 1
 
 
-@pytest.mark.asyncio
-async def test_import_job_detail_exposes_manifest_digest_without_manifest_contents(
+def test_import_job_detail_exposes_manifest_digest_without_manifest_contents(
     monkeypatch,
 ) -> None:
     engine = create_engine("sqlite:///:memory:")
@@ -84,8 +82,6 @@ async def test_import_job_detail_exposes_manifest_digest_without_manifest_conten
             session, processing_lease(session, job)
         )
 
-        detail = (
-            await ImportJobService().detail(AsyncSessionAdapter(session), job.job_uuid, 1)
-        ).model_dump()
+        detail = (ImportJobService().detail(session, job.job_uuid, 1)).model_dump()
         assert detail["execution_manifest_sha256"] == manifest_sha256(_manifest())
         assert "execution_manifest" not in detail

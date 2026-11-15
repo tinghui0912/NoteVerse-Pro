@@ -3,7 +3,7 @@ from __future__ import annotations
 from uuid import uuid4
 
 from app.core.logger import logger
-from app.db.sync_session import get_worker_db
+from app.db.session import SessionLocal
 from app.modules.import_jobs.dispatch_service import import_dispatch_service
 from app.task_queue.producer import send_durable_task
 from app.task_queue.tracing import import_dispatch_trace_context
@@ -12,10 +12,12 @@ from app.task_queue.tracing import import_dispatch_trace_context
 def dispatch_import_dispatch(dispatch_uuid: str) -> bool:
     task_id = uuid4().hex
     try:
-        with get_worker_db() as db:
+        with SessionLocal() as db:
             if not import_dispatch_service.mark_dispatched(db, dispatch_uuid):
+                db.commit()
                 return False
             trace_context = import_dispatch_trace_context(db, dispatch_uuid)
+            db.commit()
         return send_durable_task(
             task_name="app.worker.tasks.import_dispatch_task",
             task_kwargs={"dispatch_uuid": dispatch_uuid},
@@ -42,5 +44,6 @@ def dispatch_import_dispatch(dispatch_uuid: str) -> bool:
 
 
 def _release_dispatch(dispatch_uuid: str, error: str) -> None:
-    with get_worker_db() as db:
+    with SessionLocal() as db:
         import_dispatch_service.release_dispatch(db, dispatch_uuid, error)
+        db.commit()

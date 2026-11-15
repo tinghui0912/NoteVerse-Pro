@@ -1,6 +1,5 @@
 """Unadopted bytes retain durable ownership across write and adoption crash windows."""
 
-from contextlib import contextmanager
 from dataclasses import replace
 from datetime import timedelta
 from unittest.mock import Mock
@@ -27,7 +26,7 @@ from tests.test_stored_object_retirement import retirement_db as retirement_db
 
 def wire(fixture, monkeypatch):
     engine, storage, transaction = fixture
-    monkeypatch.setattr(worker, "get_worker_db", transaction)
+    monkeypatch.setattr(worker, "SessionLocal", transaction)
     monkeypatch.setattr(worker, "object_storage", storage)
     return engine, storage, transaction
 
@@ -161,24 +160,21 @@ def test_delete_failure_and_uncertain_completion_retry_idempotently(retirement_d
     monkeypatch.setattr(storage, "delete", delete)
     commits = 0
 
-    @contextmanager
-    def uncertain():
-        nonlocal commits
-        with Session(engine) as db:
-            try:
-                yield db
-                commits += 1
-                if commits == 2:
-                    raise OSError("DB commit outcome uncertain")
-                db.commit()
-            except Exception:
-                db.rollback()
-                raise
+    class UncertainSession(Session):
+        def commit(self):
+            nonlocal commits
+            commits += 1
+            if commits == 2:
+                raise OSError("DB commit outcome uncertain")
+            super().commit()
 
-    monkeypatch.setattr(worker, "get_worker_db", uncertain)
+    def uncertain():
+        return UncertainSession(engine)
+
+    monkeypatch.setattr(worker, "SessionLocal", uncertain)
     assert worker.execute_object_write_cleanup_task(None, receipt.intent_uuid)["status"] == "failed"
     assert not storage.exists(receipt.object_key)
-    monkeypatch.setattr(worker, "get_worker_db", transaction)
+    monkeypatch.setattr(worker, "SessionLocal", transaction)
     with transaction() as db:
         lock_intent(db, receipt.intent_uuid).next_attempt_at = utc_now_naive()
     assert (
@@ -189,7 +185,7 @@ def test_delete_failure_and_uncertain_completion_retry_idempotently(retirement_d
 def test_existing_object_is_not_rewritten_and_adoption_rollback_does_not_cancel_retirement(
     retirement_db, monkeypatch
 ):
-    from app.modules.storage_objects.retirement import retire_released_objects, retirement_delivery
+    from app.modules.storage_objects.retirement import retire_after_release, retirement_delivery
 
     engine, storage, transaction = wire(retirement_db, monkeypatch)
     with transaction() as db:
@@ -198,7 +194,7 @@ def test_existing_object_is_not_rewritten_and_adoption_rollback_does_not_cancel_
         )
         db.add(obj)
         db.flush()
-        uuid = retire_released_objects(db, obj.id)[0]
+        uuid = retire_after_release(db, obj.id)[0]
     put = Mock(wraps=storage.put_bytes)
     monkeypatch.setattr(storage, "put_bytes", put)
     with Session(engine) as db:
@@ -273,7 +269,7 @@ def test_cleanup_generation_takeover_rejects_stale_failure(retirement_db, monkey
 def test_retired_existing_authority_cannot_be_recreated_by_an_unwritten_receipt(
     retirement_db, monkeypatch
 ):
-    from app.modules.storage_objects.retirement import retire_released_objects
+    from app.modules.storage_objects.retirement import retire_after_release
     from app.worker.execution import stored_object_retirement
 
     engine, storage, transaction = wire(retirement_db, monkeypatch)
@@ -283,7 +279,7 @@ def test_retired_existing_authority_cannot_be_recreated_by_an_unwritten_receipt(
         )
         db.add(obj)
         db.flush()
-        uuid = retire_released_objects(db, obj.id)[0]
+        uuid = retire_after_release(db, obj.id)[0]
     storage.put_bytes(key=facts().object_key, content=b"bytes")
     with Session(engine) as db:
         receipt = write_object(db, storage, key=facts().object_key, content=b"bytes")
@@ -317,7 +313,7 @@ def test_cleanup_dispatch_rejection_preserves_attempt_and_durable_work(
     with Session(engine) as db:
         receipt = write_object(db, storage, key=facts().object_key, content=b"bytes")
     expire(transaction, receipt.intent_uuid)
-    monkeypatch.setattr(dispatch, "get_worker_db", transaction)
+    monkeypatch.setattr(dispatch, "SessionLocal", transaction)
 
     def send(name, *, kwargs, task_id):
         assert name == "app.worker.tasks.object_write_cleanup_task"

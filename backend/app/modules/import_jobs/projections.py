@@ -10,7 +10,7 @@ from app.modules.domain_events.definitions import DomainFact
 from app.modules.domain_events.projections import ProjectionDefinition, run_projections
 from app.modules.import_jobs.events import ImportJobCompleted, ImportJobFailed, ImportJobConfirmed
 from app.modules.notifications.service import NotificationTypes
-from app.modules.realtime.publisher import RealtimeEventTypes, publish_event_sync
+from app.modules.realtime.publisher import RealtimeEventTypes, publish_event
 
 
 def project_import_notification(db: Session, event: DomainEvent, fact: DomainFact) -> None:
@@ -65,7 +65,7 @@ def project_import_notification(db: Session, event: DomainEvent, fact: DomainFac
     )
     db.add(notification)
     db.flush()
-    publish_event_sync(
+    publish_event(
         db,
         recipient_user_id=fact.recipient_user_id,
         type=RealtimeEventTypes.NOTIFICATION_CREATED,
@@ -79,7 +79,7 @@ def project_import_notification(db: Session, event: DomainEvent, fact: DomainFac
 def project_import_realtime(db: Session, event: DomainEvent, fact: DomainFact) -> None:
     if not isinstance(fact, (ImportJobCompleted, ImportJobFailed)):
         raise TypeError("Import realtime requires an Import fact")
-    publish_event_sync(
+    publish_event(
         db,
         recipient_user_id=fact.recipient_user_id,
         type=RealtimeEventTypes.IMPORT_JOB_COMPLETED

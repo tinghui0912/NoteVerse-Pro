@@ -1,7 +1,7 @@
 from fastapi.responses import Response
 from app.api.response_contracts import binary_responses
 from fastapi import APIRouter, Depends, Request
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.api.storage_streaming import stream_storage_object
@@ -25,15 +25,13 @@ preview_router = APIRouter()
     operation_id="scoreGuestPreviewSettingsGet",
     response_model=GuestPreviewSettingsRead,
 )
-async def read_guest_preview_settings(
+def read_guest_preview_settings(
     score_id: str,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: GuestPreviewService = Depends(get_guest_preview_service),
 ):
-    return await service.settings(
-        db, score_id, require_persisted_id(current_user.id, entity="user")
-    )
+    return service.settings(db, score_id, require_persisted_id(current_user.id, entity="user"))
 
 
 @score_router.patch(
@@ -41,25 +39,25 @@ async def read_guest_preview_settings(
     operation_id="scoreGuestPreviewSettingsUpdate",
     response_model=GuestPreviewSettingsRead,
 )
-async def update_guest_preview_settings(
+def update_guest_preview_settings(
     score_id: str,
     request: GuestPreviewUpdateRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: GuestPreviewService = Depends(get_guest_preview_service),
 ):
-    return await service.update_settings(
+    return service.update_settings(
         db, score_id, require_persisted_id(current_user.id, entity="user"), request
     )
 
 
 @preview_router.get("/{token}", operation_id="guestPreviewGet", response_model=GuestPreviewRead)
-async def read_guest_preview(
+def read_guest_preview(
     token: str,
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: GuestPreviewService = Depends(get_guest_preview_service),
 ):
-    return await service.read(db, token)
+    return service.read(db, token)
 
 
 @preview_router.get(
@@ -68,15 +66,15 @@ async def read_guest_preview(
     responses=binary_responses("image/*"),
     operation_id="guestPreviewPageView",
 )
-async def view_guest_preview_page(
+def view_guest_preview_page(
     token: str,
     asset_id: str,
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: GuestPreviewService = Depends(get_guest_preview_service),
 ):
-    delivery = await service.image(db, token, asset_id)
-    response = await stream_storage_object(
-        storage=service.async_storage,
+    delivery = service.image(db, token, asset_id)
+    response = stream_storage_object(
+        storage=service.storage,
         storage_key=delivery.storage_key,
         filename=delivery.filename,
         media_type=delivery.media_type,
@@ -91,15 +89,15 @@ async def view_guest_preview_page(
     responses=binary_responses("audio/*", byte_ranges=True),
     operation_id="guestPreviewPlaybackStream",
 )
-async def listen_guest_preview(
+def listen_guest_preview(
     token: str,
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: GuestPreviewService = Depends(get_guest_preview_service),
 ):
-    delivery = await service.audio(db, token)
-    response = await stream_storage_object(
-        storage=service.async_storage,
+    delivery = service.audio(db, token)
+    response = stream_storage_object(
+        storage=service.storage,
         storage_key=delivery.storage_key,
         filename=delivery.filename,
         media_type=delivery.media_type,

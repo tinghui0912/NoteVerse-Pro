@@ -1,7 +1,7 @@
 """Routes for authenticated password management."""
 
 from fastapi import APIRouter, Depends, Request, Response
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.api import deps
 from app.core.client_address import client_address
@@ -22,15 +22,15 @@ router = APIRouter()
     response_model=None,
     response_class=Response,
 )
-async def change_my_password(
+def change_my_password(
     request_context: Request,
     response: Response,
     request: ChangePasswordRequest,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
     password_service: PasswordService = Depends(get_password_service),
 ) -> Response:
-    access_token, refresh_token = await password_service.change_current_user_password(
+    access_token, refresh_token = password_service.change_current_user_password(
         db,
         current_user,
         request,

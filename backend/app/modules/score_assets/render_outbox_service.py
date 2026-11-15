@@ -4,7 +4,6 @@ import uuid
 from dataclasses import asdict
 
 from sqlalchemy import or_, select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from sqlmodel import col
 
@@ -59,7 +58,7 @@ def _delivery_lifecycle() -> DurableDeliveryLifecycle[RenderOutboxStatus]:
     )
 
 
-def create_revision_render_outbox_sync(
+def create_revision_render_outbox(
     db: Session,
     *,
     score_id: int,
@@ -116,35 +115,7 @@ def _new_revision_render_outbox(
     )
 
 
-async def create_review_thumbnail_render_outbox(
-    db: AsyncSession,
-    *,
-    import_job_id: int,
-    source_fingerprint: str,
-    render_profile: str = "review-thumbnail",
-) -> RenderOutbox:
-    existing = (
-        await db.execute(
-            select(RenderOutbox).where(
-                RenderOutbox.import_job_id == import_job_id,
-                RenderOutbox.render_profile == render_profile,
-                RenderOutbox.source_fingerprint == source_fingerprint,
-            )
-        )
-    ).scalar_one_or_none()
-    if existing is not None:
-        return existing
-    outbox = _new_review_thumbnail_outbox(
-        import_job_id=import_job_id,
-        source_fingerprint=source_fingerprint,
-        render_profile=render_profile,
-    )
-    db.add(outbox)
-    await db.flush()
-    return outbox
-
-
-def create_review_thumbnail_render_outbox_sync(
+def create_review_thumbnail_render_outbox(
     db: Session,
     *,
     import_job_id: int,

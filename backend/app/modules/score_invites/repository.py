@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from sqlalchemy import select, and_, or_
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.db.models import Score, ScoreInvite, ScoreMembership, User
 from app.modules.score_access.queries import active_score_predicate
@@ -12,29 +12,29 @@ from .pagination import decode_cursor, encode_cursor
 
 
 class ScoreInviteRepository:
-    async def invite_by_token_hash(
-        self, db: AsyncSession, token_hash: str, *, lock: bool = False
+    def invite_by_token_hash(
+        self, db: Session, token_hash: str, *, lock: bool = False
     ) -> ScoreInvite | None:
         query = select(ScoreInvite).where(ScoreInvite.token_hash == token_hash)
         if lock:
             query = query.with_for_update().execution_options(
                 populate_existing=True, autoflush=False
             )
-        return (await db.execute(query)).scalar_one_or_none()
+        return (db.execute(query)).scalar_one_or_none()
 
-    async def invite_by_uuid(
-        self, db: AsyncSession, invite_uuid: str, *, lock: bool = False
+    def invite_by_uuid(
+        self, db: Session, invite_uuid: str, *, lock: bool = False
     ) -> ScoreInvite | None:
         query = select(ScoreInvite).where(ScoreInvite.invite_uuid == invite_uuid)
         if lock:
             query = query.with_for_update().execution_options(
                 populate_existing=True, autoflush=False
             )
-        return (await db.execute(query)).scalar_one_or_none()
+        return (db.execute(query)).scalar_one_or_none()
 
-    async def invites(
+    def invites(
         self,
-        db: AsyncSession,
+        db: Session,
         score_id: int,
         *,
         limit: int,
@@ -53,7 +53,7 @@ class ScoreInviteRepository:
             )
         rows = list(
             (
-                await db.execute(
+                db.execute(
                     query.order_by(columns.created_at.desc(), columns.id.desc()).limit(limit + 1)
                 )
             )
@@ -72,9 +72,9 @@ class ScoreInviteRepository:
             )
         return items, next_cursor
 
-    async def pending_invites_for_email(
+    def pending_invites_for_email(
         self,
-        db: AsyncSession,
+        db: Session,
         email: str,
         *,
         user_id: int,
@@ -99,7 +99,7 @@ class ScoreInviteRepository:
             )
         rows = list(
             (
-                await db.execute(
+                db.execute(
                     query.order_by(columns.created_at.desc(), columns.id.desc()).limit(limit + 1)
                 )
             )
@@ -118,11 +118,11 @@ class ScoreInviteRepository:
             )
         return items, next_cursor
 
-    async def membership_by_id_for_update(
-        self, db: AsyncSession, membership_id: int
+    def membership_by_id_for_update(
+        self, db: Session, membership_id: int
     ) -> ScoreMembership | None:
         return (
-            await db.execute(
+            db.execute(
                 select(ScoreMembership)
                 .where(ScoreMembership.id == membership_id)
                 .with_for_update()
@@ -130,11 +130,11 @@ class ScoreInviteRepository:
             )
         ).scalar_one_or_none()
 
-    async def membership_for_update(
-        self, db: AsyncSession, score_id: int, user_id: int
+    def membership_for_update(
+        self, db: Session, score_id: int, user_id: int
     ) -> ScoreMembership | None:
         return (
-            await db.execute(
+            db.execute(
                 select(ScoreMembership)
                 .where(
                     ScoreMembership.score_id == score_id,
@@ -145,11 +145,11 @@ class ScoreInviteRepository:
             )
         ).scalar_one_or_none()
 
-    async def self_membership_for_update(
-        self, db: AsyncSession, score_uuid: str, user_id: int
+    def self_membership_for_update(
+        self, db: Session, score_uuid: str, user_id: int
     ) -> ScoreMembership | None:
         return (
-            await db.execute(
+            db.execute(
                 select(ScoreMembership)
                 .join(Score, Score.id == ScoreMembership.score_id)
                 .where(
@@ -163,9 +163,9 @@ class ScoreInviteRepository:
             )
         ).scalar_one_or_none()
 
-    async def memberships(
+    def memberships(
         self,
-        db: AsyncSession,
+        db: Session,
         score_id: int,
         *,
         limit: int,
@@ -184,7 +184,7 @@ class ScoreInviteRepository:
             )
         rows = list(
             (
-                await db.execute(
+                db.execute(
                     query.order_by(columns.created_at.asc(), columns.id.asc()).limit(limit + 1)
                 )
             )
@@ -203,5 +203,5 @@ class ScoreInviteRepository:
             )
         return items, next_cursor
 
-    async def user_by_email(self, db: AsyncSession, email: str) -> User | None:
-        return (await db.execute(select(User).where(User.email == email))).scalar_one_or_none()
+    def user_by_email(self, db: Session, email: str) -> User | None:
+        return (db.execute(select(User).where(User.email == email))).scalar_one_or_none()

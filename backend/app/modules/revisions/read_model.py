@@ -2,7 +2,7 @@ from __future__ import annotations
 from app.modules.account.avatar_presentation import avatar_url_for_user
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from sqlmodel import col
 
 from app.db.model_utils import require_persisted_id
@@ -16,12 +16,10 @@ from app.modules.revisions.schemas import (
 
 
 class RevisionReadModel:
-    async def revision_read(self, db: AsyncSession, revision: ScoreRevision) -> RevisionRead:
-        actor = (
-            await db.get(User, revision.created_by_user_id) if revision.created_by_user_id else None
-        )
-        restore = await self.restore_read(db, revision)
-        note = await self.note_read(db, revision)
+    def revision_read(self, db: Session, revision: ScoreRevision) -> RevisionRead:
+        actor = db.get(User, revision.created_by_user_id) if revision.created_by_user_id else None
+        restore = self.restore_read(db, revision)
+        note = self.note_read(db, revision)
         return RevisionRead(
             revision_id=revision.revision_uuid,
             revision_number=revision.revision_number,
@@ -32,12 +30,10 @@ class RevisionReadModel:
             note=note,
         )
 
-    async def restore_read(
-        self, db: AsyncSession, revision: ScoreRevision
-    ) -> RevisionRestoreRead | None:
+    def restore_read(self, db: Session, revision: ScoreRevision) -> RevisionRestoreRead | None:
         revision_id = require_persisted_id(revision.id, entity="score revision")
         event = (
-            await db.execute(
+            db.execute(
                 select(ScoreRevisionEvent)
                 .where(
                     ScoreRevisionEvent.revision_id == revision_id,
@@ -50,11 +46,9 @@ class RevisionReadModel:
         if event is None:
             return None
         target = (
-            await db.get(ScoreRevision, event.target_revision_id)
-            if event.target_revision_id
-            else None
+            db.get(ScoreRevision, event.target_revision_id) if event.target_revision_id else None
         )
-        actor = await db.get(User, event.actor_user_id) if event.actor_user_id else None
+        actor = db.get(User, event.actor_user_id) if event.actor_user_id else None
         return RevisionRestoreRead(
             restored_from_revision_id=target.revision_uuid if target else None,
             restored_from_revision_number=target.revision_number if target else None,
@@ -63,16 +57,16 @@ class RevisionReadModel:
             created_at=event.created_at,
         )
 
-    async def note_read(self, db: AsyncSession, revision: ScoreRevision) -> RevisionNoteRead | None:
+    def note_read(self, db: Session, revision: ScoreRevision) -> RevisionNoteRead | None:
         revision_id = require_persisted_id(revision.id, entity="score revision")
         note = (
-            await db.execute(
+            db.execute(
                 select(ScoreRevisionNote).where(ScoreRevisionNote.revision_id == revision_id)
             )
         ).scalar_one_or_none()
         if note is None:
             return None
-        author = await db.get(User, note.author_user_id) if note.author_user_id else None
+        author = db.get(User, note.author_user_id) if note.author_user_id else None
         return RevisionNoteRead(
             note=note.note,
             author=actor_read(author),

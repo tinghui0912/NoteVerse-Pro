@@ -7,7 +7,7 @@ from sqlalchemy import select
 
 from app.core.logger import logger
 from app.db.models import PlaybackOutbox, RenderOutbox
-from app.db.sync_session import get_worker_db
+from app.db.session import SessionLocal
 from app.modules.playback.outbox_service import playback_outbox_service
 from app.modules.score_assets.render_outbox_service import render_outbox_service
 from app.task_queue.producer import send_durable_task
@@ -19,8 +19,9 @@ if TYPE_CHECKING:
 
 def dispatch_render_outbox(outbox_uuid: str) -> bool:
     task_id = uuid4().hex
-    with get_worker_db() as db:
+    with SessionLocal() as db:
         if not render_outbox_service.mark_dispatched(db, outbox_uuid):
+            db.commit()
             return False
         trace_context = render_trace_context(db, outbox_uuid)
         owner = db.execute(
@@ -28,6 +29,7 @@ def dispatch_render_outbox(outbox_uuid: str) -> bool:
                 RenderOutbox.outbox_uuid == outbox_uuid
             )
         ).one()
+        db.commit()
 
     return send_durable_task(
         task_name="app.worker.tasks.render_outbox_task",
@@ -49,14 +51,16 @@ def dispatch_render_outbox(outbox_uuid: str) -> bool:
 
 
 def _release_render_dispatch(outbox_uuid: str, error: str) -> None:
-    with get_worker_db() as db:
+    with SessionLocal() as db:
         render_outbox_service.release_dispatch(db, outbox_uuid, error)
+        db.commit()
 
 
 def dispatch_playback_outbox(outbox_uuid: str) -> bool:
     task_id = uuid4().hex
-    with get_worker_db() as db:
+    with SessionLocal() as db:
         if not playback_outbox_service.mark_dispatched(db, outbox_uuid):
+            db.commit()
             return False
         trace_context = playback_trace_context(db, outbox_uuid)
         owner = db.execute(
@@ -64,6 +68,7 @@ def dispatch_playback_outbox(outbox_uuid: str) -> bool:
                 PlaybackOutbox.outbox_uuid == outbox_uuid
             )
         ).one()
+        db.commit()
 
     return send_durable_task(
         task_name="app.worker.tasks.playback_outbox_task",
@@ -85,8 +90,9 @@ def dispatch_playback_outbox(outbox_uuid: str) -> bool:
 
 
 def _release_playback_dispatch(outbox_uuid: str, error: str) -> None:
-    with get_worker_db() as db:
+    with SessionLocal() as db:
         playback_outbox_service.release_dispatch(db, outbox_uuid, error)
+        db.commit()
 
 
 def dispatch_revision_derivatives_best_effort(work: RevisionDerivativeOutboxes) -> None:

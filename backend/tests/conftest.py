@@ -37,10 +37,10 @@ def isolated_revision_derivative_relay(monkeypatch):
 
     Relay protocol tests install their controlled producer explicitly.
     """
-    from unittest.mock import AsyncMock
+    from unittest.mock import Mock
     from app.modules.revisions.derivatives import revision_derivative_service
 
-    monkeypatch.setattr(revision_derivative_service, "dispatch_after_commit", AsyncMock())
+    monkeypatch.setattr(revision_derivative_service, "dispatch_after_commit", Mock())
 
 
 @pytest.fixture(autouse=True)

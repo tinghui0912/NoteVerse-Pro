@@ -4,14 +4,14 @@ This file is canonical only for authentication and database access.
 Feature-specific dependency logic belongs in `app.modules.<feature>.dependencies`.
 """
 
-from collections.abc import AsyncGenerator
+from collections.abc import Generator
 from datetime import datetime, timezone
 
 import jwt
 from fastapi import Cookie, Depends
 from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from sqlmodel import select
 
 from app.core.generated.customer_browser_protocol import AUTH_COOKIE_NAME
@@ -28,13 +28,12 @@ from app.db.models.user import User
 from app.modules.auth.schemas import TokenPayload
 
 
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    async for session in get_session():
-        yield session
+def get_db() -> Generator[Session, None]:
+    yield from get_session()
 
 
-async def get_current_user(
-    session: AsyncSession = Depends(get_db),
+def get_current_user(
+    session: Session = Depends(get_db, scope="function"),
     session_cookie: str | None = Cookie(
         default=None,
         alias=AUTH_COOKIE_NAME,
@@ -81,7 +80,7 @@ async def get_current_user(
         )
 
     try:
-        result = await session.execute(select(User).where(User.id == user_id))
+        result = session.execute(select(User).where(User.id == user_id))
     except (ConnectionRefusedError, SQLAlchemyError) as exc:
         raise ExternalServiceException(
             service="database",
@@ -114,8 +113,8 @@ async def get_current_user(
     return user
 
 
-async def get_optional_current_user(
-    session: AsyncSession = Depends(get_db),
+def get_optional_current_user(
+    session: Session = Depends(get_db, scope="function"),
     session_cookie: str | None = Cookie(
         default=None,
         alias=AUTH_COOKIE_NAME,
@@ -125,6 +124,6 @@ async def get_optional_current_user(
     if not session_cookie:
         return None
     try:
-        return await get_current_user(session, session_cookie)
+        return get_current_user(session, session_cookie)
     except AuthenticationException:
         return None

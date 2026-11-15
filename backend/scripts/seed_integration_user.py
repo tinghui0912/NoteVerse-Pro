@@ -7,7 +7,6 @@ validated only; they are never silently repaired or overwritten.
 
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import os
 
@@ -21,12 +20,12 @@ from app.modules.revisions.writer import (
     InitialRevisionWrite,
     PreparedRevisionSource,
 )
-from app.modules.storage_objects.writes import write_object_async
+from app.modules.storage_objects.writes import write_object
 from app.modules.storage_usage.service import storage_usage_service
 from app.db.models import StorageUsageCategory
 from app.processing.musicxml.admission import admit_musicxml_document
-from app.db.session import AsyncSessionLocal
-from app.storage import object_storage, async_object_storage
+from app.db.session import SessionLocal
+from app.storage import object_storage
 
 
 INTEGRATION_EMAIL = "integration@example.com"
@@ -40,10 +39,10 @@ INTEGRATION_MUSICXML = b"""<?xml version="1.0" encoding="UTF-8"?>
 </score-partwise>"""
 
 
-async def seed_user() -> None:
-    async with AsyncSessionLocal() as session:
-        result = await session.exec(select(User).where(User.email == INTEGRATION_EMAIL))
-        user = result.one_or_none()
+def seed_user() -> None:
+    with SessionLocal() as session:
+        result = session.execute(select(User).where(User.email == INTEGRATION_EMAIL))
+        user = result.scalar_one_or_none()
         created_user = False
         if user is None:
             password = os.environ.get(INTEGRATION_PASSWORD_ENV)
@@ -66,13 +65,11 @@ async def seed_user() -> None:
                     f"Preconfigured integration user {INTEGRATION_EMAIL} is inactive; "
                     "refusing to modify an existing development account."
                 )
-        await session.flush()
+        session.flush()
 
         score = (
-            await session.exec(
-                select(Score).where(Score.score_uuid == INTEGRATION_PRACTICE_SCORE_ID)
-            )
-        ).one_or_none()
+            session.execute(select(Score).where(Score.score_uuid == INTEGRATION_PRACTICE_SCORE_ID))
+        ).scalar_one_or_none()
         if score is None:
             if not created_user:
                 raise RuntimeError(
@@ -86,7 +83,7 @@ async def seed_user() -> None:
                 raise RuntimeError(
                     "Integration canonical object already exists; refusing overwrite"
                 )
-            reservation = await storage_usage_service.reserve(
+            reservation = storage_usage_service.reserve(
                 session,
                 user_id=user.id,
                 category=StorageUsageCategory.SOURCE,
@@ -95,10 +92,10 @@ async def seed_user() -> None:
                 object_type="score_revision_source",
             )
             try:
-                await session.commit()
-                stored = await write_object_async(
+                session.commit()
+                stored = write_object(
                     session,
-                    async_object_storage,
+                    object_storage,
                     key=storage_key,
                     content=content,
                     content_type="application/vnd.recordare.musicxml+xml",
@@ -109,7 +106,7 @@ async def seed_user() -> None:
                     title="Integration practice score",
                 )
                 session.add(score)
-                await session.flush()
+                session.flush()
                 prepared = PreparedRevisionSource(
                     INTEGRATION_PRACTICE_REVISION_ID,
                     stored,
@@ -118,24 +115,22 @@ async def seed_user() -> None:
                     "1",
                     reservation.reservation_id,
                 )
-                await session.run_sync(
-                    lambda sync: revision_writer.write(
-                        sync,
-                        InitialRevisionWrite(
-                            INTEGRATION_PRACTICE_SCORE_ID,
-                            user.id,
-                            prepared,
-                            None,
-                            "integration-initial",
-                            RevisionOrigin.IMPORT,
-                        ),
-                    )
+                revision_writer.write(
+                    session,
+                    InitialRevisionWrite(
+                        INTEGRATION_PRACTICE_SCORE_ID,
+                        user.id,
+                        prepared,
+                        None,
+                        "integration-initial",
+                        RevisionOrigin.IMPORT,
+                    ),
                 )
-                await session.commit()
+                session.commit()
             except Exception:
-                await session.rollback()
-                await storage_usage_service.release_reservation(session, reservation.reservation_id)
-                await session.commit()
+                session.rollback()
+                storage_usage_service.release_reservation(session, reservation.reservation_id)
+                session.commit()
                 raise
         else:
             if score.owner_user_id != user.id:
@@ -144,33 +139,33 @@ async def seed_user() -> None:
                     f"{INTEGRATION_EMAIL}; refusing to modify existing development data."
                 )
             revision = (
-                await session.exec(
+                session.execute(
                     select(ScoreRevision).where(
                         ScoreRevision.revision_uuid == INTEGRATION_PRACTICE_REVISION_ID,
                         ScoreRevision.score_id == score.id,
                     )
                 )
-            ).one_or_none()
+            ).scalar_one_or_none()
             if revision is None:
                 raise RuntimeError(
                     f"Integration revision {INTEGRATION_PRACTICE_REVISION_ID} is missing; "
                     "refusing to repair existing development data."
                 )
             source = (
-                await session.exec(
+                session.execute(
                     select(ScoreRevisionSource).where(
                         ScoreRevisionSource.revision_id == revision.id,
                         ScoreRevisionSource.format == RevisionSourceFormat.MUSICXML,
                     )
                 )
-            ).one_or_none()
+            ).scalar_one_or_none()
             if source is None:
                 raise RuntimeError(
                     "Integration MusicXML source is missing; refusing to overwrite or "
                     "recreate existing score resources."
                 )
-        await session.commit()
+        session.commit()
 
 
 if __name__ == "__main__":
-    asyncio.run(seed_user())
+    seed_user()

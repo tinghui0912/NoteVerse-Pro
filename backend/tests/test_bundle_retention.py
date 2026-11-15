@@ -14,15 +14,13 @@ from app.db.models import (
     Upload,
 )
 from app.modules.practice.bundle.retention import practice_bundle_retention
-from app.modules.storage_objects.retirement import retire_released_objects
+from app.modules.storage_objects.retirement import retire_after_release
 from app.utils.timezone import utc_now_naive
 from tests.test_performance_takes import (
     test_env as test_env,
     _create_default_bundle,
     _create_default_take,
     _canonical_bundle,
-    _run_async,
-    AsyncSessionAdapter,
 )
 from tests.support.retirement import drain_retirements
 
@@ -49,7 +47,7 @@ def test_bundle_gc_protects_each_representation_shared_elsewhere(test_env):
     assert drain_retirements(db, storage)[0]["status"] == "completed"
     assert storage.exists(prepared_key) and not storage.exists(artifact_key)
     db.delete(upload)
-    assert len(retire_released_objects(db, prepared_id)) == 1
+    assert len(retire_after_release(db, prepared_id)) == 1
     db.commit()
     assert drain_retirements(db, storage)[0]["status"] == "completed"
     assert db.get(StoredObject, prepared_id) is None
@@ -126,9 +124,7 @@ def test_creation_write_failure_queues_both_representations_without_binding(test
 
     with patch.object(storage, "put_bytes", side_effect=fail_artifact):
         with pytest.raises(ValidationException) as error:
-            _run_async(
-                repository.get_or_create(AsyncSessionAdapter(db), candidate, revision_id=100)
-            )
+            repository.get_or_create(db, candidate, revision_id=100)
     assert error.value.details["reason"] == "practice_bundle_storage_write_failed"
     assert db.scalar(select(PracticeBundleRecord)) is None
     assert db.get(ScoreRevisionPracticeBinding, 100) is None

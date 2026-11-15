@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 
 from sqlalchemy import case, func, literal, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.models import (
@@ -34,14 +34,14 @@ from app.modules.ops.schemas import (
 
 
 class AsyncOperationSummaryQuery:
-    async def summary(
+    def summary(
         self,
-        db: AsyncSession,
+        db: Session,
         *,
         kinds: tuple[AsyncOperationKind, ...],
         filters: AsyncOperationFilters,
     ) -> AsyncOperationsSummaryRead:
-        rows = await self.summary_rows(db, kinds=kinds, filters=filters)
+        rows = self.summary_rows(db, kinds=kinds, filters=filters)
         total_statuses: Counter[AsyncOperationStatus] = Counter()
         kind_statuses: dict[AsyncOperationKind, Counter[AsyncOperationStatus]] = defaultdict(
             Counter
@@ -64,39 +64,39 @@ class AsyncOperationSummaryQuery:
             ],
         )
 
-    async def summary_rows(
+    def summary_rows(
         self,
-        db: AsyncSession,
+        db: Session,
         *,
         kinds: tuple[AsyncOperationKind, ...],
         filters: AsyncOperationFilters,
     ) -> list[tuple[AsyncOperationKind, AsyncOperationStatus, int]]:
         rows: list[tuple[AsyncOperationKind, AsyncOperationStatus, int]] = []
         for source_kind in kinds:
-            rows.extend(await self.summary_rows_for_kind(db, source_kind, filters))
+            rows.extend(self.summary_rows_for_kind(db, source_kind, filters))
         return rows
 
-    async def summary_rows_for_kind(
+    def summary_rows_for_kind(
         self,
-        db: AsyncSession,
+        db: Session,
         kind: AsyncOperationKind,
         filters: AsyncOperationFilters,
     ) -> list[tuple[AsyncOperationKind, AsyncOperationStatus, int]]:
         if kind == AsyncOperationKind.IMPORT:
-            return await self._import_summary_rows(db, filters)
+            return self._import_summary_rows(db, filters)
         if kind == AsyncOperationKind.RENDER:
-            return await self._render_summary_rows(db, filters)
+            return self._render_summary_rows(db, filters)
         if kind == AsyncOperationKind.PLAYBACK:
-            return await self._playback_summary_rows(db, filters)
+            return self._playback_summary_rows(db, filters)
         if kind == AsyncOperationKind.MAIL:
-            return await self._mail_summary_rows(db, filters)
+            return self._mail_summary_rows(db, filters)
         if kind == AsyncOperationKind.SCORE_DELETION:
-            return await self._score_deletion_summary_rows(db, filters)
+            return self._score_deletion_summary_rows(db, filters)
         raise AssertionError(f"unsupported async operation kind: {kind}")
 
     @staticmethod
-    async def _import_summary_rows(
-        db: AsyncSession,
+    def _import_summary_rows(
+        db: Session,
         filters: AsyncOperationFilters,
     ) -> list[tuple[AsyncOperationKind, AsyncOperationStatus, int]]:
         status_expr = import_operation_status_sql()
@@ -108,7 +108,7 @@ class AsyncOperationSummaryQuery:
             created_at_expr=ImportDispatch.created_at,
             updated_at_expr=import_operation_updated_at_sql(),
         )
-        result = await db.execute(
+        result = db.execute(
             select(status_expr.label("status"), func.count())
             .select_from(ImportJob)
             .join(ImportDispatch, ImportDispatch.job_id == ImportJob.id)
@@ -118,8 +118,8 @@ class AsyncOperationSummaryQuery:
         return summary_result_rows(AsyncOperationKind.IMPORT, result.all())
 
     @staticmethod
-    async def _render_summary_rows(
-        db: AsyncSession,
+    def _render_summary_rows(
+        db: Session,
         filters: AsyncOperationFilters,
     ) -> list[tuple[AsyncOperationKind, AsyncOperationStatus, int]]:
         status_expr = outbox_operation_status_sql(
@@ -136,7 +136,7 @@ class AsyncOperationSummaryQuery:
             created_at_expr=RenderOutbox.created_at,
             updated_at_expr=RenderOutbox.updated_at,
         )
-        result = await db.execute(
+        result = db.execute(
             select(status_expr.label("status"), func.count())
             .select_from(RenderOutbox)
             .where(*predicates)
@@ -145,8 +145,8 @@ class AsyncOperationSummaryQuery:
         return summary_result_rows(AsyncOperationKind.RENDER, result.all())
 
     @staticmethod
-    async def _playback_summary_rows(
-        db: AsyncSession,
+    def _playback_summary_rows(
+        db: Session,
         filters: AsyncOperationFilters,
     ) -> list[tuple[AsyncOperationKind, AsyncOperationStatus, int]]:
         status_expr = outbox_operation_status_sql(
@@ -163,7 +163,7 @@ class AsyncOperationSummaryQuery:
             created_at_expr=PlaybackOutbox.created_at,
             updated_at_expr=PlaybackOutbox.updated_at,
         )
-        result = await db.execute(
+        result = db.execute(
             select(status_expr.label("status"), func.count())
             .select_from(PlaybackOutbox)
             .where(*predicates)
@@ -172,8 +172,8 @@ class AsyncOperationSummaryQuery:
         return summary_result_rows(AsyncOperationKind.PLAYBACK, result.all())
 
     @staticmethod
-    async def _mail_summary_rows(
-        db: AsyncSession,
+    def _mail_summary_rows(
+        db: Session,
         filters: AsyncOperationFilters,
     ) -> list[tuple[AsyncOperationKind, AsyncOperationStatus, int]]:
         status_expr = case(
@@ -207,7 +207,7 @@ class AsyncOperationSummaryQuery:
             created_at_expr=MailOutbox.created_at,
             updated_at_expr=MailOutbox.updated_at,
         )
-        result = await db.execute(
+        result = db.execute(
             select(status_expr.label("status"), func.count())
             .select_from(MailOutbox)
             .where(*predicates)
@@ -216,8 +216,8 @@ class AsyncOperationSummaryQuery:
         return summary_result_rows(AsyncOperationKind.MAIL, result.all())
 
     @staticmethod
-    async def _score_deletion_summary_rows(
-        db: AsyncSession,
+    def _score_deletion_summary_rows(
+        db: Session,
         filters: AsyncOperationFilters,
     ) -> list[tuple[AsyncOperationKind, AsyncOperationStatus, int]]:
         status_expr = outbox_operation_status_sql(
@@ -234,7 +234,7 @@ class AsyncOperationSummaryQuery:
             created_at_expr=ScoreDeletionOperation.created_at,
             updated_at_expr=ScoreDeletionOperation.updated_at,
         )
-        result = await db.execute(
+        result = db.execute(
             select(status_expr.label("status"), func.count())
             .select_from(ScoreDeletionOperation)
             .where(*predicates)

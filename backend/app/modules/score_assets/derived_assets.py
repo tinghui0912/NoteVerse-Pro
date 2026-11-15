@@ -32,22 +32,22 @@ def derived_asset_status(
     return "pending"
 
 
-async def score_derived_assets(
+def score_derived_assets(
     db,
     repository: ScoreAssetRepository,
     *,
     revision: ScoreRevision,
 ) -> ScoreDerivedAssetsRead:
     revision_id = require_persisted_id(revision.id, entity="score revision")
-    thumbnail = await repository.first_rendered_page_asset(db, revision_id)
-    render_outbox = await repository.latest_render_outbox(db, revision_id)
+    thumbnail = repository.first_rendered_page_asset(db, revision_id)
+    render_outbox = repository.latest_render_outbox(db, revision_id)
     preview_status = derived_asset_status(
         has_current_asset=thumbnail is not None,
         outbox_status=render_outbox.status if render_outbox else None,
     )
 
-    audio_asset = await repository.playback_asset(db, revision_id)
-    playback_outbox = await repository.latest_playback_outbox(db, revision_id)
+    audio_asset = repository.playback_asset(db, revision_id)
+    playback_outbox = repository.latest_playback_outbox(db, revision_id)
     audio_status = derived_asset_status(
         has_current_asset=audio_asset is not None,
         outbox_status=playback_outbox.status if playback_outbox else None,

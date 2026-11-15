@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from sqlmodel import col
 
 from app.db.models import (
@@ -56,9 +56,9 @@ class OpsAsyncOperationQueryService:
     def __init__(self, summary_query: AsyncOperationSummaryQuery | None = None) -> None:
         self.summary_query = summary_query or AsyncOperationSummaryQuery()
 
-    async def list_operations(
+    def list_operations(
         self,
-        db: AsyncSession,
+        db: Session,
         *,
         limit: int,
         offset: int = 0,
@@ -79,7 +79,7 @@ class OpsAsyncOperationQueryService:
         source_limit = 5000 if filters.has_filters else offset + limit + 1
         operations: list[AsyncOperationRead] = []
         for source_kind in selected_query_operation_kinds(kind):
-            operations.extend(await self._operations_for_kind(db, source_kind, limit=source_limit))
+            operations.extend(self._operations_for_kind(db, source_kind, limit=source_limit))
         operations = [
             operation for operation in operations if matches_operation_filters(operation, filters)
         ]
@@ -96,9 +96,9 @@ class OpsAsyncOperationQueryService:
             has_more=len(sorted_operations) > offset + limit,
         )
 
-    async def summary(
+    def summary(
         self,
-        db: AsyncSession,
+        db: Session,
         *,
         kind: AsyncOperationKind | None = None,
         status: AsyncOperationStatus | None = None,
@@ -114,20 +114,20 @@ class OpsAsyncOperationQueryService:
             created_after=created_after,
             updated_before=updated_before,
         )
-        return await self.summary_query.summary(
+        return self.summary_query.summary(
             db,
             kinds=selected_query_operation_kinds(kind),
             filters=filters,
         )
 
-    async def _import_operations(
+    def _import_operations(
         self,
-        db: AsyncSession,
+        db: Session,
         *,
         limit: int,
     ) -> list[AsyncOperationRead]:
         rows = (
-            await db.execute(
+            db.execute(
                 select(ImportJob, ImportDispatch)
                 .join(ImportDispatch, ImportDispatch.job_id == ImportJob.id)
                 .order_by(import_operation_updated_at_sql().desc())
@@ -136,72 +136,70 @@ class OpsAsyncOperationQueryService:
         ).all()
         return [read_import_operation(job, dispatch) for job, dispatch in rows]
 
-    async def _operations_for_kind(
+    def _operations_for_kind(
         self,
-        db: AsyncSession,
+        db: Session,
         kind: AsyncOperationKind,
         *,
         limit: int,
     ) -> list[AsyncOperationRead]:
         if kind == AsyncOperationKind.IMPORT:
-            return await self._import_operations(db, limit=limit)
+            return self._import_operations(db, limit=limit)
         if kind == AsyncOperationKind.RENDER:
-            return await self._render_operations(db, limit=limit)
+            return self._render_operations(db, limit=limit)
         if kind == AsyncOperationKind.PLAYBACK:
-            return await self._playback_operations(db, limit=limit)
+            return self._playback_operations(db, limit=limit)
         if kind == AsyncOperationKind.MAIL:
-            return await self._mail_operations(db, limit=limit)
+            return self._mail_operations(db, limit=limit)
         if kind == AsyncOperationKind.SCORE_DELETION:
-            return await self._score_deletion_operations(db, limit=limit)
+            return self._score_deletion_operations(db, limit=limit)
         raise AssertionError(f"unsupported async operation kind: {kind}")
 
-    async def _render_operations(
+    def _render_operations(
         self,
-        db: AsyncSession,
+        db: Session,
         *,
         limit: int,
     ) -> list[AsyncOperationRead]:
         rows = (
-            await db.execute(
+            db.execute(
                 select(RenderOutbox).order_by(col(RenderOutbox.updated_at).desc()).limit(limit)
             )
         ).scalars()
         return [read_render_operation(outbox) for outbox in rows]
 
-    async def _playback_operations(
+    def _playback_operations(
         self,
-        db: AsyncSession,
+        db: Session,
         *,
         limit: int,
     ) -> list[AsyncOperationRead]:
         rows = (
-            await db.execute(
+            db.execute(
                 select(PlaybackOutbox).order_by(col(PlaybackOutbox.updated_at).desc()).limit(limit)
             )
         ).scalars()
         return [read_playback_operation(outbox) for outbox in rows]
 
-    async def _mail_operations(
+    def _mail_operations(
         self,
-        db: AsyncSession,
+        db: Session,
         *,
         limit: int,
     ) -> list[AsyncOperationRead]:
         rows = (
-            await db.execute(
-                select(MailOutbox).order_by(col(MailOutbox.updated_at).desc()).limit(limit)
-            )
+            db.execute(select(MailOutbox).order_by(col(MailOutbox.updated_at).desc()).limit(limit))
         ).scalars()
         return [read_mail_operation(outbox) for outbox in rows]
 
-    async def _score_deletion_operations(
+    def _score_deletion_operations(
         self,
-        db: AsyncSession,
+        db: Session,
         *,
         limit: int,
     ) -> list[AsyncOperationRead]:
         rows = (
-            await db.execute(
+            db.execute(
                 select(ScoreDeletionOperation)
                 .order_by(col(ScoreDeletionOperation.updated_at).desc())
                 .limit(limit)

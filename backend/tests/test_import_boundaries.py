@@ -3,7 +3,7 @@
 import ast
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import Mock
 
 from app.api.deps import get_current_user, get_db
 from app.modules.import_jobs.review.dependencies import get_import_review_service
@@ -68,9 +68,9 @@ def test_review_http_subresources_delegate_to_import_owned_use_cases(client):
         updated_at=utc_now_naive(),
     )
     service = SimpleNamespace(
-        detail=AsyncMock(return_value=representation),
-        update=AsyncMock(return_value=representation),
-        confirm=AsyncMock(return_value={"score_id": "score"}),
+        detail=Mock(return_value=representation),
+        update=Mock(return_value=representation),
+        confirm=Mock(return_value={"score_id": "score"}),
     )
     overrides = app.dependency_overrides.copy()
     app.dependency_overrides[get_import_review_service] = lambda: service
@@ -85,7 +85,7 @@ def test_review_http_subresources_delegate_to_import_owned_use_cases(client):
         response = client.post("/api/v1/import-jobs/job/review/confirm", json={"content": "xml"})
         assert response.status_code == 200 and response.json() == {"score_id": "score"}
         for operation in (service.detail, service.update, service.confirm):
-            operation.assert_awaited_once()
+            operation.assert_called_once()
     finally:
         app.dependency_overrides.clear()
         app.dependency_overrides.update(overrides)
@@ -103,7 +103,7 @@ def test_confirmation_owns_fact_and_uses_caller_transaction_temporary_release():
     confirm = next(
         node
         for node in ast.walk(tree)
-        if isinstance(node, ast.AsyncFunctionDef) and node.name == "confirm"
+        if isinstance(node, ast.FunctionDef) and node.name == "confirm"
     )
     calls = [node for node in ast.walk(confirm) if isinstance(node, ast.Call)]
     cleanup = next(

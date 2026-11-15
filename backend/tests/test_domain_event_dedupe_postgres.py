@@ -16,7 +16,6 @@ from app.db.models import (
     RealtimeEvent,
     RenderOutbox,
 )
-from app.db.sync_session import get_worker_db
 from app.modules.domain_events.journal import DomainEventDedupeConflict, append_fact
 from app.modules.import_jobs.events import ImportJobCompleted, ImportJobFailed
 from app.shared.error_codes import ErrorCode
@@ -74,9 +73,8 @@ def test_conflicting_import_fact_rolls_back_state_diagnostics_and_thumbnail_admi
     monkeypatch.setattr(
         "app.modules.import_jobs.worker_service.catch_up_import_projections_best_effort", fast_path
     )
-    monkeypatch.setattr("app.db.sync_session.SessionLocal", lambda: Session(database))
     with pytest.raises(DomainEventDedupeConflict):
-        with get_worker_db() as db:
+        with Session(database) as db:
             finalize(db, lease, outcome)
     fast_path.assert_not_called()
     with Session(database) as check:

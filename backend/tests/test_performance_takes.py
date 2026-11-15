@@ -18,7 +18,6 @@ from app.modules.performance_takes.upload_reservation.persistence import (
     encode_orphan_candidates,
 )
 
-import asyncio
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 import hashlib
@@ -30,7 +29,7 @@ from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import event, select, text
+from sqlalchemy import event, select, text, inspect as inspect_row
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
@@ -348,12 +347,8 @@ def test_bundle_materialization_stores_and_reuses_exact_content(test_env):
     session, storage, _, _ = test_env
     value = _canonical_bundle("score-uuid-10", DEFAULT_TAKE_REVISION_ID, DEFAULT_TAKE_ARTIFACT_ID)
     repository = PracticeBundleRepository(storage)
-    first, verified = _run_async(
-        repository.get_or_create(AsyncSessionAdapter(session), value, revision_id=100)
-    )
-    second, reused = _run_async(
-        repository.get_or_create(AsyncSessionAdapter(session), value, revision_id=100)
-    )
+    first, verified = repository.get_or_create(session, value, revision_id=100)
+    second, reused = repository.get_or_create(session, value, revision_id=100)
     assert first == second and verified == reused == value
     row = session.get(PracticeBundleRecord, first.id)
     assert (
@@ -369,11 +364,7 @@ def test_practice_bundle_checksum_corruption_is_rejected(test_env, representatio
     key = getattr(row, f"{representation}_object").object_key
     storage.put_bytes(key=key, content=b"corrupt", content_type="application/octet-stream")
     with pytest.raises(ValidationException) as caught:
-        _run_async(
-            PracticeBundleRepository(storage).read_by_bundle_id(
-                AsyncSessionAdapter(session), row.bundle_id
-            )
-        )
+        PracticeBundleRepository(storage).read_by_bundle_id(session, row.bundle_id)
     assert caught.value.details["reason"] == f"{representation}_checksum_mismatch"
 
 
@@ -396,11 +387,7 @@ def test_practice_bundle_artifact_identity_corruption_is_rejected(test_env):
     row.artifact_object.byte_size = changed.byte_size
     session.commit()
     with pytest.raises(ValidationException) as caught:
-        _run_async(
-            PracticeBundleRepository(storage).read_by_bundle_id(
-                AsyncSessionAdapter(session), row.bundle_id
-            )
-        )
+        PracticeBundleRepository(storage).read_by_bundle_id(session, row.bundle_id)
     assert caught.value.details["reason"] == "artifact_identity_mismatch"
 
 
@@ -427,56 +414,6 @@ def test_performance_take_schema_accepts_score_tempo_selection() -> None:
     )
 
     assert request.tempo_selection.mode == "SCORE"
-
-
-class AsyncSessionAdapter:
-    def __init__(self, session: Session) -> None:
-        self.session = session
-
-    async def execute(self, statement, params=None, *args, **kwargs):  # type: ignore[no-untyped-def]
-        return self.session.execute(statement, params=params, *args, **kwargs)
-
-    async def run_sync(self, function):
-        return function(self.session)
-
-    async def commit(self) -> None:
-        self.session.commit()
-
-    async def rollback(self) -> None:
-        self.session.rollback()
-
-    async def flush(self) -> None:
-        self.session.flush()
-
-    async def refresh(self, instance) -> None:  # type: ignore[no-untyped-def]
-        self.session.refresh(instance)
-
-    async def get(self, model, identity):  # type: ignore[no-untyped-def]
-        return self.session.get(model, identity)
-
-    async def invalidate(self) -> None:
-        # The production AsyncSession invalidates the stale connection here.
-        # SQLite's synchronous test adapter has no pooled async connection to invalidate.
-        return None
-
-    async def delete(self, instance) -> None:  # type: ignore[no-untyped-def]
-        self.session.delete(instance)
-
-    def add(self, instance) -> None:  # type: ignore[no-untyped-def]
-        self.session.add(instance)
-
-    def begin_nested(self):  # type: ignore[no-untyped-def]
-        transaction = self.session.begin_nested()
-
-        class _NestedTransaction:
-            async def __aenter__(self):  # type: ignore[no-untyped-def]
-                transaction.__enter__()
-                return transaction
-
-            async def __aexit__(self, exc_type, exc, tb):  # type: ignore[no-untyped-def]
-                return transaction.__exit__(exc_type, exc, tb)
-
-        return _NestedTransaction()
 
 
 def _reservation_request_payload(payload):
@@ -513,10 +450,6 @@ def _staging_key(session, reservation_id):
     ).scalar_one()
 
 
-def _run_async(awaitable):  # type: ignore[no-untyped-def]
-    return asyncio.run(awaitable)
-
-
 @contextmanager
 def _mock_worker_db(session: Session) -> Iterator[Session]:
     yield session
@@ -540,7 +473,7 @@ def _run_retirement(monkeypatch, session, storage, uuid):
             session.rollback()
             raise
 
-    monkeypatch.setattr(stored_object_retirement, "get_worker_db", transaction)
+    monkeypatch.setattr(stored_object_retirement, "SessionLocal", transaction)
     monkeypatch.setattr(stored_object_retirement, "object_storage", storage)
     return stored_object_retirement.execute_stored_object_retirement_task(None, uuid)
 
@@ -680,11 +613,11 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         storage_usage_service=storage_usage_svc,
     )
 
-    async def override_db():
-        yield AsyncSessionAdapter(session)
+    def override_db():
+        yield session
 
     app.dependency_overrides[get_db] = override_db
-    app.dependency_overrides[get_current_user] = lambda: user_1
+    app.dependency_overrides[get_current_user] = lambda: session.get(User, 1)
     app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
@@ -858,14 +791,12 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         )
         assert res_conflict.status_code == 422
         with pytest.raises(Exception) as conflict_exc:
-            _run_async(
-                take_svc.reserve_upload(
-                    AsyncSessionAdapter(session),
-                    user_1.id,
-                    PerformanceTakeUploadReservationRequest.model_validate(
-                        _reservation_request_payload(conflicting_auth_req)
-                    ),
-                )
+            take_svc.reserve_upload(
+                session,
+                user_1.id,
+                PerformanceTakeUploadReservationRequest.model_validate(
+                    _reservation_request_payload(conflicting_auth_req)
+                ),
             )
         assert (
             getattr(conflict_exc.value, "details", {}).get("reason")
@@ -908,11 +839,11 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         assert res_media_range.status_code == 206
         assert res_media_range.content == media_content[:4]
 
-        app.dependency_overrides[get_current_user] = lambda: user_2
+        app.dependency_overrides[get_current_user] = lambda: session.get(User, 2)
         res_media_other_user = client.get(f"/api/v1/performance-takes/{take_id}/media")
         assert res_media_other_user.status_code == 404
         assert media_content not in res_media_other_user.content
-        app.dependency_overrides[get_current_user] = lambda: user_1
+        app.dependency_overrides[get_current_user] = lambda: session.get(User, 1)
 
         # Delete releases semantic ownership and queues physical retirement.
         res_del = client.delete(f"/api/v1/performance-takes/{take_id}")
@@ -962,11 +893,11 @@ def test_score_access_and_validation(test_env):
         storage_usage_service=storage_usage_svc,
     )
 
-    async def override_db():
-        yield AsyncSessionAdapter(session)
+    def override_db():
+        yield session
 
     app.dependency_overrides[get_db] = override_db
-    app.dependency_overrides[get_current_user] = lambda: user_1
+    app.dependency_overrides[get_current_user] = lambda: session.get(User, 1)
     app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
@@ -1037,28 +968,26 @@ def test_unowned_bundle_cannot_start_a_new_reservation(test_env):
     session.delete(session.get(ScoreRevisionPracticeBinding, 100))
     session.commit()
     with pytest.raises(ResourceNotFoundException):
-        _run_async(
-            service.reserve_upload(
-                AsyncSessionAdapter(session),
-                user.id,
-                PerformanceTakeUploadReservationRequest.model_validate(
-                    _reservation_request_payload(
-                        {
-                            "practice_binding": {
-                                "score_id": "score-uuid-10",
-                                "revision_id": "revision-uuid-100",
-                                "bundle_id": source.bundle_id,
-                            },
-                            "client_request_id": "unowned-source",
-                            "media": {
-                                "byte_size": 1024,
-                                "mime_type": "audio/webm",
-                            },
-                            "scope": {"kind": "FULL"},
-                        }
-                    )
-                ),
-            )
+        service.reserve_upload(
+            session,
+            user.id,
+            PerformanceTakeUploadReservationRequest.model_validate(
+                _reservation_request_payload(
+                    {
+                        "practice_binding": {
+                            "score_id": "score-uuid-10",
+                            "revision_id": "revision-uuid-100",
+                            "bundle_id": source.bundle_id,
+                        },
+                        "client_request_id": "unowned-source",
+                        "media": {
+                            "byte_size": 1024,
+                            "mime_type": "audio/webm",
+                        },
+                        "scope": {"kind": "FULL"},
+                    }
+                )
+            ),
         )
 
 
@@ -1071,8 +1000,8 @@ def test_cross_user_score_permission(test_env):
         storage_usage_service=storage_usage_svc,
     )
 
-    async def override_db():
-        yield AsyncSessionAdapter(session)
+    def override_db():
+        yield session
 
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_object_storage] = lambda: storage
@@ -1116,7 +1045,7 @@ def test_cross_user_score_permission(test_env):
             revision_id=300,
         )
         # User 1 cannot reserve upload on User 2's private source
-        app.dependency_overrides[get_current_user] = lambda: user_1
+        app.dependency_overrides[get_current_user] = lambda: session.get(User, 1)
         req_unauth = {
             "practice_binding": {
                 "score_id": "score-uuid-user2",
@@ -1142,11 +1071,11 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         storage_usage_service=storage_usage_svc,
     )
 
-    async def override_db():
-        yield AsyncSessionAdapter(session)
+    def override_db():
+        yield session
 
     app.dependency_overrides[get_db] = override_db
-    app.dependency_overrides[get_current_user] = lambda: user_1
+    app.dependency_overrides[get_current_user] = lambda: session.get(User, 1)
     app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
@@ -1321,11 +1250,11 @@ def test_quota_rejection(test_env):
         storage_usage_service=storage_usage_svc,
     )
 
-    async def override_db():
-        yield AsyncSessionAdapter(session)
+    def override_db():
+        yield session
 
     app.dependency_overrides[get_db] = override_db
-    app.dependency_overrides[get_current_user] = lambda: user_1
+    app.dependency_overrides[get_current_user] = lambda: session.get(User, 1)
     app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
@@ -1365,11 +1294,11 @@ def test_cancel_upload_reservation(test_env, monkeypatch: pytest.MonkeyPatch):
         storage_usage_service=storage_usage_svc,
     )
 
-    async def override_db():
-        yield AsyncSessionAdapter(session)
+    def override_db():
+        yield session
 
     app.dependency_overrides[get_db] = override_db
-    app.dependency_overrides[get_current_user] = lambda: user_1
+    app.dependency_overrides[get_current_user] = lambda: session.get(User, 1)
     app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
@@ -1472,11 +1401,11 @@ def test_pagination(test_env):
         storage_usage_service=storage_usage_svc,
     )
 
-    async def override_db():
-        yield AsyncSessionAdapter(session)
+    def override_db():
+        yield session
 
     app.dependency_overrides[get_db] = override_db
-    app.dependency_overrides[get_current_user] = lambda: user_1
+    app.dependency_overrides[get_current_user] = lambda: session.get(User, 1)
     app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
@@ -1547,11 +1476,11 @@ def test_audio_container_magic_bytes_validation(test_env):
         storage_usage_service=storage_usage_svc,
     )
 
-    async def override_db():
-        yield AsyncSessionAdapter(session)
+    def override_db():
+        yield session
 
     app.dependency_overrides[get_db] = override_db
-    app.dependency_overrides[get_current_user] = lambda: user_1
+    app.dependency_overrides[get_current_user] = lambda: session.get(User, 1)
     app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
@@ -1659,11 +1588,11 @@ def test_finalize_safe_retry_idempotency(test_env):
         storage_usage_service=storage_usage_svc,
     )
 
-    async def override_db():
-        yield AsyncSessionAdapter(session)
+    def override_db():
+        yield session
 
     app.dependency_overrides[get_db] = override_db
-    app.dependency_overrides[get_current_user] = lambda: user_1
+    app.dependency_overrides[get_current_user] = lambda: session.get(User, 1)
     app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
@@ -1745,8 +1674,8 @@ def test_finalize_recovers_first_post_storage_db_disconnect(test_env):
         storage_usage_service=storage_usage_svc,
     )
 
-    async def override_db():
-        yield AsyncSessionAdapter(session)
+    def override_db():
+        yield session
 
     original_lock = take_svc.repository.get_reservation_by_take_uuid
     first_post_copy_read = {"pending": True}
@@ -1758,7 +1687,7 @@ def test_finalize_recovers_first_post_storage_db_disconnect(test_env):
         copied["done"] = True
         return result
 
-    async def disconnect_once(*args, **kwargs):
+    def disconnect_once(*args, **kwargs):
         if copied["done"] and first_post_copy_read["pending"]:
             first_post_copy_read["pending"] = False
             raise DBAPIError.instance(
@@ -1768,10 +1697,10 @@ def test_finalize_recovers_first_post_storage_db_disconnect(test_env):
                 Exception,
                 connection_invalidated=True,
             )
-        return await original_lock(*args, **kwargs)
+        return original_lock(*args, **kwargs)
 
     app.dependency_overrides[get_db] = override_db
-    app.dependency_overrides[get_current_user] = lambda: user_1
+    app.dependency_overrides[get_current_user] = lambda: session.get(User, 1)
     app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
@@ -1830,7 +1759,7 @@ def test_finalize_recovers_first_post_storage_db_disconnect(test_env):
             .scalars()
             .one()
         )
-        account = session.get(StorageUsageAccount, user_1.id)
+        account = session.get(StorageUsageAccount, 1)
         session.refresh(account)
         assert account.used_bytes == len(content)
         assert account.reserved_bytes == 0
@@ -1847,11 +1776,11 @@ def test_finalize_range_video_preserves_scope_identity_and_recording_timebase(te
         storage_usage_service=storage_usage_svc,
     )
 
-    async def override_db():
-        yield AsyncSessionAdapter(session)
+    def override_db():
+        yield session
 
     app.dependency_overrides[get_db] = override_db
-    app.dependency_overrides[get_current_user] = lambda: user_1
+    app.dependency_overrides[get_current_user] = lambda: session.get(User, 1)
     app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
@@ -1958,11 +1887,11 @@ def test_finalize_rejects_candidate_when_staging_changes_after_validation(test_e
         storage_usage_service=storage_usage_svc,
     )
 
-    async def override_db():
-        yield AsyncSessionAdapter(session)
+    def override_db():
+        yield session
 
     app.dependency_overrides[get_db] = override_db
-    app.dependency_overrides[get_current_user] = lambda: user_1
+    app.dependency_overrides[get_current_user] = lambda: session.get(User, 1)
     app.dependency_overrides[get_object_storage] = lambda: mutating_storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
@@ -2025,11 +1954,11 @@ def test_video_take_finalize_uses_video_media_kind_and_candidate(test_env):
         storage_usage_service=storage_usage_svc,
     )
 
-    async def override_db():
-        yield AsyncSessionAdapter(session)
+    def override_db():
+        yield session
 
     app.dependency_overrides[get_db] = override_db
-    app.dependency_overrides[get_current_user] = lambda: user_1
+    app.dependency_overrides[get_current_user] = lambda: session.get(User, 1)
     app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
@@ -2123,28 +2052,26 @@ def test_reserve_finalizing_snapshot_retries_without_new_put(test_env):
     session.commit()
 
     take_svc = _performance_take_service(session=session, storage=_storage)
-    response = _run_async(
-        take_svc.reserve_upload(
-            AsyncSessionAdapter(session),
-            user_1.id,
-            PerformanceTakeUploadReservationRequest.model_validate(
-                _reservation_request_payload(
-                    {
-                        "practice_binding": {
-                            "score_id": "score-uuid-10",
-                            "revision_id": DEFAULT_TAKE_REVISION_ID,
-                            "bundle_id": _bundle_id(),
-                        },
-                        "client_request_id": "req-finalizing-reserve",
-                        "media": {
-                            "byte_size": len(VALID_WEBM_BYTES),
-                            "mime_type": "audio/webm",
-                        },
-                        "scope": {"kind": "FULL"},
-                    }
-                )
-            ),
-        )
+    response = take_svc.reserve_upload(
+        session,
+        user_1.id,
+        PerformanceTakeUploadReservationRequest.model_validate(
+            _reservation_request_payload(
+                {
+                    "practice_binding": {
+                        "score_id": "score-uuid-10",
+                        "revision_id": DEFAULT_TAKE_REVISION_ID,
+                        "bundle_id": _bundle_id(),
+                    },
+                    "client_request_id": "req-finalizing-reserve",
+                    "media": {
+                        "byte_size": len(VALID_WEBM_BYTES),
+                        "mime_type": "audio/webm",
+                    },
+                    "scope": {"kind": "FULL"},
+                }
+            )
+        ),
     )
     assert response.status == "FINALIZING"
     assert response.upload_target is None
@@ -2161,11 +2088,11 @@ def test_crash_abandoned_after_reservation(test_env, monkeypatch: pytest.MonkeyP
         storage_usage_service=storage_usage_svc,
     )
 
-    async def override_db():
-        yield AsyncSessionAdapter(session)
+    def override_db():
+        yield session
 
     app.dependency_overrides[get_db] = override_db
-    app.dependency_overrides[get_current_user] = lambda: user_1
+    app.dependency_overrides[get_current_user] = lambda: session.get(User, 1)
     app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
@@ -2256,11 +2183,11 @@ def test_expired_reservation_staging_delete_failure_is_retryable(test_env, monke
         storage_usage_service=storage_usage_svc,
     )
 
-    async def override_db():
-        yield AsyncSessionAdapter(session)
+    def override_db():
+        yield session
 
     app.dependency_overrides[get_db] = override_db
-    app.dependency_overrides[get_current_user] = lambda: user_1
+    app.dependency_overrides[get_current_user] = lambda: session.get(User, 1)
     app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
@@ -2346,11 +2273,11 @@ def test_completed_reservation_late_staging_put_is_cleaned_after_expiry(test_env
         storage_usage_service=storage_usage_svc,
     )
 
-    async def override_db():
-        yield AsyncSessionAdapter(session)
+    def override_db():
+        yield session
 
     app.dependency_overrides[get_db] = override_db
-    app.dependency_overrides[get_current_user] = lambda: user_1
+    app.dependency_overrides[get_current_user] = lambda: session.get(User, 1)
     app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
@@ -2446,11 +2373,11 @@ def test_score_deleted_between_reserve_and_finalize_preserves_provenance(test_en
         storage_usage_service=storage_usage_svc,
     )
 
-    async def override_db():
-        yield AsyncSessionAdapter(session)
+    def override_db():
+        yield session
 
     app.dependency_overrides[get_db] = override_db
-    app.dependency_overrides[get_current_user] = lambda: user_1
+    app.dependency_overrides[get_current_user] = lambda: session.get(User, 1)
     app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
@@ -2540,11 +2467,11 @@ def test_expired_reservation_cleanup_releases_db_lock_before_storage_delete(test
         storage_usage_service=storage_usage_svc,
     )
 
-    async def override_db():
-        yield AsyncSessionAdapter(session)
+    def override_db():
+        yield session
 
     app.dependency_overrides[get_db] = override_db
-    app.dependency_overrides[get_current_user] = lambda: user_1
+    app.dependency_overrides[get_current_user] = lambda: session.get(User, 1)
     app.dependency_overrides[get_object_storage] = lambda: storage
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc.takes
@@ -2782,9 +2709,7 @@ def test_finalize_in_progress_rejects_competing_executor_before_storage_copy(tes
     session.commit()
 
     with pytest.raises(Exception) as exc_info:
-        _run_async(
-            take_svc.finalize_take(AsyncSessionAdapter(session), user_1.id, auth.reservation_uuid)
-        )
+        take_svc.finalize_take(session, user_1.id, auth.reservation_uuid)
 
     assert getattr(exc_info.value, "details", {}).get("reason") == "finalize_in_progress"
 
@@ -3108,11 +3033,13 @@ def test_expired_finalizing_lease_records_candidate_before_retry(test_env):
 def _reservation_client(session, storage, user):
     service = _performance_take_service(session=session, storage=storage)
 
-    async def db():
-        yield AsyncSessionAdapter(session)
+    def db():
+        yield session
 
     app.dependency_overrides[get_db] = db
-    app.dependency_overrides[get_current_user] = lambda: user
+    app.dependency_overrides[get_current_user] = lambda: session.get(
+        User, inspect_row(user).identity[0]
+    )
     app.dependency_overrides[get_performance_take_service] = lambda: service.takes
     app.dependency_overrides[get_performance_take_reservation_service] = lambda: service
     app.dependency_overrides[get_performance_take_finalization_service] = lambda: service
@@ -3179,7 +3106,9 @@ def test_reservation_identity_metadata_replay_and_structural_take_lineage(test_e
                 ).status_code
                 == 404
             )
-            app.dependency_overrides[get_current_user] = lambda: user
+            app.dependency_overrides[get_current_user] = lambda: session.get(
+                User, inspect_row(user).identity[0]
+            )
         url = f"/api/v1/performance-takes/upload-reservations/{first['reservation_id']}/finalize"
         assert client.post(url, json={"media": request["media"]}).status_code == 422
         storage.put_bytes(
@@ -3248,12 +3177,10 @@ def test_reservation_client_request_metadata_conflicts_only_at_reserve(
         response = client.post("/api/v1/performance-takes/upload-reservations", json=request)
         assert response.status_code == 422
         with pytest.raises(ValidationException) as failure:
-            _run_async(
-                service.reserve_upload(
-                    AsyncSessionAdapter(session),
-                    user.id,
-                    PerformanceTakeUploadReservationRequest.model_validate(request),
-                )
+            service.reserve_upload(
+                session,
+                user.id,
+                PerformanceTakeUploadReservationRequest.model_validate(request),
             )
         assert failure.value.details["reason"] == "client_request_id_reuse_conflict"
 
@@ -3262,7 +3189,6 @@ def test_reservation_client_request_metadata_conflicts_only_at_reserve(
 def test_finalize_unknown_commit_outcome_recovers_via_reservation_lineage(
     test_env, monkeypatch, committed
 ):
-    from contextlib import asynccontextmanager
     import app.modules.performance_takes.upload_reservation.recovery as service_module
 
     session, storage, user, _ = test_env
@@ -3276,10 +3202,10 @@ def test_finalize_unknown_commit_outcome_recovers_via_reservation_lineage(
             content=VALID_WEBM_BYTES,
             content_type="video/webm",
         )
-        original_commit = AsyncSessionAdapter.commit
+        original_commit = Session.commit
         pending = True
 
-        async def disconnect_once(adapter):
+        def disconnect_once(adapter):
             nonlocal pending
             completing = any(
                 isinstance(row, PerformanceTakeUploadReservation) and row.status == "COMPLETED"
@@ -3288,7 +3214,7 @@ def test_finalize_unknown_commit_outcome_recovers_via_reservation_lineage(
             if pending and completing:
                 pending = False
                 if committed:
-                    await original_commit(adapter)
+                    original_commit(adapter)
                 raise DBAPIError.instance(
                     "COMMIT",
                     {},
@@ -3296,14 +3222,15 @@ def test_finalize_unknown_commit_outcome_recovers_via_reservation_lineage(
                     Exception,
                     connection_invalidated=True,
                 )
-            await original_commit(adapter)
+            original_commit(adapter)
 
-        @asynccontextmanager
-        async def recovery_session():
-            yield AsyncSessionAdapter(session)
+        @contextmanager
+        def recovery_session():
+            with Session(session.get_bind(), expire_on_commit=False) as fresh:
+                yield fresh
 
-        monkeypatch.setattr(AsyncSessionAdapter, "commit", disconnect_once)
-        monkeypatch.setattr(service_module, "AsyncSessionLocal", recovery_session)
+        monkeypatch.setattr(Session, "commit", disconnect_once)
+        monkeypatch.setattr(service_module, "SessionLocal", recovery_session)
         url = f"/api/v1/performance-takes/upload-reservations/{reservation['reservation_id']}/finalize"
         response = client.post(url)
         assert response.status_code == 503, response.text
@@ -3319,7 +3246,7 @@ def test_finalize_unknown_commit_outcome_recovers_via_reservation_lineage(
         retry = client.post(url)
         assert retry.status_code == 200, retry.text
         assert retry.json()["take_id"] == reservation["take_id"]
-        account = session.get(StorageUsageAccount, user.id)
+        account = session.get(StorageUsageAccount, inspect_row(user).identity[0])
         session.refresh(account)
         assert account.reserved_bytes == 0 and account.used_bytes == len(VALID_WEBM_BYTES)
         assert len(session.execute(select(PerformanceTake)).scalars().all()) == 1
@@ -3329,7 +3256,7 @@ def test_finalize_unknown_commit_outcome_recovers_via_reservation_lineage(
 def test_bound_bundle_authorization_preserves_admitted_representation_identity(test_env):
     from dataclasses import replace
     from types import SimpleNamespace
-    from unittest.mock import AsyncMock, Mock
+    from unittest.mock import Mock
     from app.modules.practice.bundle.router import get_practice_bundle_service
 
     session, storage, user, other_user = test_env
@@ -3338,7 +3265,7 @@ def test_bound_bundle_authorization_preserves_admitted_representation_identity(t
     ).read_bytes()
     storage.put_bytes(key="canonical.xml", content=canonical, content_type="application/xml")
     assets = Mock(
-        canonical_source=AsyncMock(
+        canonical_source=Mock(
             return_value=SimpleNamespace(
                 stored_object=StoredObject(
                     object_key="canonical.xml",
@@ -3352,8 +3279,8 @@ def test_bound_bundle_authorization_preserves_admitted_representation_identity(t
     bundles = PracticeBundleService(storage=storage, asset_repository=assets)
     uploads = TakeLifecycleServices(storage=storage, practice_bundle_service=bundles)
 
-    async def override_db():
-        yield AsyncSessionAdapter(session)
+    def override_db():
+        yield session
 
     app.dependency_overrides.update(
         {
@@ -3372,20 +3299,14 @@ def test_bound_bundle_authorization_preserves_admitted_representation_identity(t
         assert admitted.status_code == 200, admitted.text
         payload = admitted.json()
         row = session.execute(select(PracticeBundleRecord)).scalar_one()
-        candidate = _run_async(
-            bundles.repository.read_by_bundle_id(AsyncSessionAdapter(session), row.bundle_id)
-        )
+        candidate = bundles.repository.read_by_bundle_id(session, row.bundle_id)
         different = replace(
             candidate,
             prepared_musicxml=replace(
                 candidate.prepared_musicxml, data=candidate.prepared_musicxml.data + b"\n"
             ),
         )
-        ref, _ = _run_async(
-            bundles.repository.get_or_create(
-                AsyncSessionAdapter(session), different, revision_id=100
-            )
-        )
+        ref, _ = bundles.repository.get_or_create(session, different, revision_id=100)
         assert ref.bundle_id == row.bundle_id
         with (
             patch.object(
@@ -3433,7 +3354,9 @@ def test_bound_bundle_authorization_preserves_admitted_representation_identity(t
             assert take["manifest"]["practice_binding"]["bundle_id"] == row.bundle_id
         app.dependency_overrides[get_current_user] = lambda: other_user
         assert client.get(url).status_code == 403
-        app.dependency_overrides[get_current_user] = lambda: user
+        app.dependency_overrides[get_current_user] = lambda: session.get(
+            User, inspect_row(user).identity[0]
+        )
         score = session.get(Score, 10)
         score.head_revision_id = None
         session.flush()
@@ -3479,11 +3402,7 @@ def test_reservation_derives_and_transfers_exact_bundle_plan(test_env, scope_kin
     elif tempo_case == "DELAYED_TEMPO":
         xml = xml.replace(b'<direction><sound tempo="120"/></direction>', b"")
     source = PracticeBundleCompiler().compile(canonical_musicxml=xml)
-    ref, _ = _run_async(
-        PracticeBundleRepository(storage).get_or_create(
-            AsyncSessionAdapter(session), source, revision_id=100
-        )
-    )
+    ref, _ = PracticeBundleRepository(storage).get_or_create(session, source, revision_id=100)
     artifact = source.artifact.value
     with _reservation_client(session, storage, user) as (client, service):
         scope = (
@@ -3761,9 +3680,7 @@ def test_cleanup_rejects_active_reservation_with_take_as_invariant_violation(tes
         {key: value for key, value in _upload_intent().items() if key != "client_request_id"}
     )
     with pytest.raises(ReservationInvariantError, match="atomic"):
-        _run_async(
-            service.reservations._replay_reservation(AsyncSessionAdapter(session), row, metadata)
-        )
+        service.reservations._replay_reservation(session, row, metadata)
 
 
 def test_recording_microseconds_survive_reservation_finalize_and_take_reads(test_env):
@@ -3836,14 +3753,12 @@ def test_reservation_capacity_uses_exact_available_quota(test_env, available_del
     )
     account.used_bytes = counter.used_bytes = 9 * 1024 * 1024
     held_bytes = 5 * 1024 * 1024
-    _run_async(
-        StorageUsageService().reserve(
-            AsyncSessionAdapter(session),
-            user_id=user.id,
-            category=StorageUsageCategory.UPLOAD,
-            bytes_count=held_bytes,
-            reason="another_upload",
-        )
+    StorageUsageService().reserve(
+        session,
+        user_id=user.id,
+        category=StorageUsageCategory.UPLOAD,
+        bytes_count=held_bytes,
+        reason="another_upload",
     )
     account.quota_limit_bytes = account.used_bytes + held_bytes + requested_bytes + available_delta
     session.commit()
@@ -4065,15 +3980,15 @@ def test_failed_reserve_rolls_back_manifest_reservation_and_quota(test_env):
     service = _performance_take_service(session=session, storage=storage)
 
     class FailureAfterManifest(PerformanceTakeRepository):
-        async def create_reservation(self, db, reservation):
+        def create_reservation(self, db, reservation):
             assert reservation.manifest_id is not None
-            await super().create_reservation(db, reservation)
+            super().create_reservation(db, reservation)
             raise RuntimeError("reservation transaction failed")
 
     service.repository = FailureAfterManifest()
     request = PerformanceTakeUploadReservationRequest.model_validate(_upload_intent())
     with pytest.raises(RuntimeError, match="transaction failed"):
-        _run_async(service.reserve_upload(AsyncSessionAdapter(session), user.id, request))
+        service.reserve_upload(session, user.id, request)
     assert session.scalar(select(PerformanceTakeManifest)) is None
     assert session.scalar(select(PerformanceTakeUploadReservation)) is None
     assert session.scalar(select(StorageUsageReservation)) is None
@@ -4140,8 +4055,8 @@ def test_final_blob_sha_is_the_complete_candidate_and_actual_object_digest(test_
     hashes = {}
     original = module._sha256_storage_object
 
-    async def record(storage, key):
-        result = await original(storage, key)
+    def record(storage, key):
+        result = original(storage, key)
         hashes[key] = result
         return result
 
@@ -4201,11 +4116,7 @@ def test_same_size_candidate_corruption_has_no_blob_or_take(test_env):
             patch.object(storage, "copy", side_effect=corrupt),
             pytest.raises(ValidationException) as error,
         ):
-            _run_async(
-                service.finalize_take(
-                    AsyncSessionAdapter(session), user.id, accepted["reservation_id"]
-                )
-            )
+            service.finalize_take(session, user.id, accepted["reservation_id"])
         assert error.value.details["field"] == "media_checksum"
         assert error.value.details["reason"] == "candidate_content_mismatch"
         assert (

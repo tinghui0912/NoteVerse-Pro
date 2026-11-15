@@ -141,7 +141,7 @@ completed Take wins; otherwise only the matching lease may recover to RESERVED w
 thirty-minute unknown-outcome candidate grace, or EXPIRED with quota release. A new
 lease and its quota ownership remain untouched. COMPLETED deletion lineage never
 recreates a Take. Unexpected active-reservation/Take combinations are invariant violations.
-Cancellation waits for shielded fresh-lineage reconciliation and then propagates;
+A cancellation raised by COMMIT propagates after synchronous fresh-lineage reconciliation;
 other unacknowledged COMMIT failures return a retryable infrastructure error, followed
 by idempotent replay on the same reservation.
 

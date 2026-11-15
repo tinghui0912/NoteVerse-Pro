@@ -1,11 +1,9 @@
 from __future__ import annotations
-import asyncio
-from app.storage import AsyncObjectStorage
-from app.modules.storage_objects.retirement import retire_after_release, retire_released_objects
+from app.storage import ObjectStorage
+from app.modules.storage_objects.retirement import retire_after_release
 
 from app.modules.storage_objects.writes import (
     write_object,
-    write_object_async,
     adopt_written_object,
 )
 
@@ -14,13 +12,11 @@ import tempfile
 import uuid
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.execution_manifests import (
     get_or_create_execution_manifest,
-    get_or_create_execution_manifest_async,
 )
 from app.core.exceptions import (
     ResourceNotFoundException,
@@ -55,7 +51,7 @@ from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.storage_usage.service import storage_usage_service
 from app.processing.engines.render import create_score_render_engine
 from app.shared.constants import ErrorCode
-from app.storage import ObjectStorage, object_storage
+from app.storage import object_storage
 
 
 class RevisionRenderService:
@@ -71,7 +67,6 @@ class RevisionRenderService:
         self.repository = repository or ScoreAssetRepository()
         self.score_repository = score_repository or ScoreRepository()
         self.storage = storage or object_storage
-        self.async_storage = AsyncObjectStorage(self.storage)
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.asset_service = ScoreAssetService(
             self.repository,
@@ -80,16 +75,16 @@ class RevisionRenderService:
             self.access_policy,
         )
 
-    async def render(
+    def render(
         self,
-        db: AsyncSession,
+        db: Session,
         score_uuid: str,
         revision_uuid: str,
         user_id: int,
         *,
         profile: str = "default",
     ) -> list[RenderAssetRead]:
-        access = await self.access_policy.authorize(
+        access = self.access_policy.authorize(
             db,
             score_uuid,
             ScoreAction.EDIT,
@@ -98,61 +93,57 @@ class RevisionRenderService:
         )
         revision = access.revision
         revision_id = require_persisted_id(revision.id, entity="score revision")
-        source = await self.repository.canonical_source(db, revision_id)
+        source = self.repository.canonical_source(db, revision_id)
         if not source:
             raise ResourceNotFoundException("source", revision_uuid, ErrorCode.FILE_NOT_FOUND)
 
         uploaded_keys: list[str] = []
         try:
             source_key = source.stored_object.object_key
-            content = await self.async_storage.read_bytes(source_key)
-            outputs = await asyncio.to_thread(self._render_outputs, content, revision_uuid)
+            content = self.storage.read_bytes(source_key)
+            outputs = self._render_outputs(content, revision_uuid)
             pages = []
             for output in outputs:
                 item, key, media_type, content = self._render_descriptor(
                     output, score_uuid, revision_uuid, revision_id, profile
                 )
-                written = await write_object_async(
-                    db, self.async_storage, key=key, content=content, content_type=media_type
+                written = write_object(
+                    db, self.storage, key=key, content=content, content_type=media_type
                 )
                 uploaded_keys.append(written.object_key)
                 pages.append(dict(written=written, **item))
-            access = await self.access_policy.authorize(
+            access = self.access_policy.authorize(
                 db, score_uuid, ScoreAction.EDIT, user_id=user_id, revision_uuid=revision_uuid
             )
-            manifest = await get_or_create_execution_manifest_async(
-                db, build_render_execution_manifest()
-            )
+            manifest = get_or_create_execution_manifest(db, build_render_execution_manifest())
             execution_manifest_id = require_persisted_id(manifest.id, entity="execution manifest")
             new_records = []
             for item in pages:
-                physical = await db.run_sync(
-                    lambda sync: adopt_written_object(sync, item.pop("written"))
-                )
+                physical = adopt_written_object(db, item.pop("written"))
                 new_records.append(
                     build_render_asset_record(
                         stored_object=physical, execution_manifest_id=execution_manifest_id, **item
                     )
                 )
         except Exception:
-            await db.rollback()
+            db.rollback()
             raise
 
         previous = [
             item
-            for item in await self.repository.list_render_assets(db, revision_id)
+            for item in self.repository.list_render_assets(db, revision_id)
             if isinstance(item, ScoreRenderAsset) and item.render_profile == profile
         ]
         previous_usage = render_asset_usage(previous)
         try:
             for item in previous:
-                await db.delete(item)
-                await retire_after_release(db, item.stored_object_id)
-            await db.flush()
+                db.delete(item)
+                retire_after_release(db, item.stored_object_id)
+            db.flush()
             for item in new_records:
                 db.add(item)
             for item in new_records:
-                await storage_usage_service.record_allocation(
+                storage_usage_service.record_allocation(
                     db,
                     user_id=access.score.owner_user_id,
                     category=StorageUsageCategory.DERIVED_RENDER,
@@ -163,7 +154,7 @@ class RevisionRenderService:
                     storage_key=item.stored_object.object_key,
                 )
             for usage in previous_usage:
-                await storage_usage_service.record_release(
+                storage_usage_service.record_release(
                     db,
                     user_id=access.score.owner_user_id,
                     category=StorageUsageCategory.DERIVED_RENDER,
@@ -173,11 +164,11 @@ class RevisionRenderService:
                     object_id=usage.asset_uuid,
                     storage_key=usage.storage_key,
                 )
-            await db.commit()
+            db.commit()
         except Exception:
-            await db.rollback()
+            db.rollback()
             raise
-        return [await self.asset_service.render_asset_read(item, revision) for item in new_records]
+        return [self.asset_service.render_asset_read(item, revision) for item in new_records]
 
     def render_for_worker(
         self,
@@ -267,12 +258,12 @@ class RevisionRenderService:
             previous_usage = render_asset_usage(previous)
             for item in previous:
                 db.delete(item)
-                retire_released_objects(db, item.stored_object_id)
+                retire_after_release(db, item.stored_object_id)
             db.flush()
             for item in new_records:
                 db.add(item)
             for item in new_records:
-                storage_usage_service.record_allocation_sync(
+                storage_usage_service.record_allocation(
                     db,
                     user_id=score.owner_user_id,
                     category=StorageUsageCategory.DERIVED_RENDER,
@@ -283,7 +274,7 @@ class RevisionRenderService:
                     storage_key=item.stored_object.object_key,
                 )
             for usage in previous_usage:
-                storage_usage_service.record_release_sync(
+                storage_usage_service.record_release(
                     db,
                     user_id=score.owner_user_id,
                     category=StorageUsageCategory.DERIVED_RENDER,

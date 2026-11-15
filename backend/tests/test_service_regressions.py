@@ -6,7 +6,7 @@ import io
 import tempfile
 from datetime import timedelta
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, Mock, patch, call
+from unittest.mock import MagicMock, Mock, patch, call
 
 import pytest
 from PIL import Image
@@ -22,7 +22,6 @@ import hashlib
 from app.modules.account.avatar_service import AvatarService
 from app.modules.account.avatar_presentation import avatar_url_for_user
 from app.modules.storage_objects.persistence import object_from_bytes
-from tests.test_score_revision_services import AsyncSessionAdapter
 from tests.test_score_revision_services import score_service_session as score_service_session
 from app.modules.account.profile_service import ProfileService
 from app.modules.import_jobs.execution_service import ImportJobExecutionService
@@ -122,7 +121,7 @@ def test_artifact_recorder_persists_intent_before_upload(
         yield db
         db.commit()
 
-    monkeypatch.setattr("app.modules.import_jobs.pipeline.artifact_recorder.get_worker_db", session)
+    monkeypatch.setattr("app.modules.import_jobs.pipeline.artifact_recorder.SessionLocal", session)
     monkeypatch.setattr(
         "app.modules.import_jobs.pipeline.artifact_recorder.object_storage", storage
     )
@@ -141,8 +140,7 @@ def test_artifact_recorder_persists_intent_before_upload(
 
 
 @pytest.mark.parametrize("mode", ("RGB", "RGBA", "L"))
-@pytest.mark.asyncio
-async def test_avatar_service_stores_processed_image_through_storage(mode: str) -> None:
+def test_avatar_service_stores_processed_image_through_storage(mode: str) -> None:
     with tempfile.TemporaryDirectory():
         storage = InMemoryObjectStorage()
         service = AvatarService(storage=storage)
@@ -172,20 +170,19 @@ async def test_avatar_service_stores_processed_image_through_storage(mode: str) 
         assert not storage.exists(avatar_key)
         storage.put_bytes(key=avatar_key, content=avatar_bytes, content_type="image/jpeg")
         with patch.object(storage, "exists", wraps=storage.exists) as exists:
-            assert await service.avatar_exists(filename)
+            assert service.avatar_exists(filename)
             exists.assert_called_once_with(f"avatars/{filename}")
         with patch.object(storage, "delete", wraps=storage.delete) as delete:
             assert storage.delete(f"avatars/{filename}") is True
             delete.assert_called_once_with(f"avatars/{filename}")
 
 
-@pytest.mark.asyncio
-async def test_avatar_service_detects_missing_local_avatar() -> None:
+def test_avatar_service_detects_missing_local_avatar() -> None:
     with tempfile.TemporaryDirectory():
         storage = InMemoryObjectStorage()
         service = AvatarService(storage=storage)
 
-        assert await service.avatar_exists("missing.jpg") is False
+        assert service.avatar_exists("missing.jpg") is False
 
 
 def test_profile_payload_does_not_repair_missing_avatar_reference() -> None:
@@ -205,8 +202,7 @@ def test_profile_payload_does_not_repair_missing_avatar_reference() -> None:
     assert user.avatar_object.object_key == "avatars/profile.jpg"
 
 
-@pytest.mark.asyncio
-async def test_avatar_service_replaces_user_avatar_and_queues_old_object(
+def test_avatar_service_replaces_user_avatar_and_queues_old_object(
     score_service_session,
 ) -> None:
     with tempfile.TemporaryDirectory():
@@ -224,12 +220,12 @@ async def test_avatar_service_replaces_user_avatar_and_queues_old_object(
         )
         session.add(user)
         session.commit()
-        db = AsyncSessionAdapter(session)
+        db = session
         image = Image.new("RGB", (20, 20), (255, 0, 0))
         image_bytes = io.BytesIO()
         image.save(image_bytes, format="PNG")
 
-        filename, avatar_url = await service.replace_user_avatar(
+        filename, avatar_url = service.replace_user_avatar(
             db,
             user,
             file_bytes=image_bytes.getvalue(),
@@ -294,10 +290,10 @@ def test_import_job_maintenance_releases_orphan_upload_and_queues_retirement() -
             86400,
         ),
         patch(
-            "app.modules.import_jobs.maintenance_service.storage_usage_service.record_release_sync"
+            "app.modules.import_jobs.maintenance_service.storage_usage_service.record_release"
         ) as release_usage,
         patch(
-            "app.modules.import_jobs.maintenance_service.retire_released_objects",
+            "app.modules.import_jobs.maintenance_service.retire_after_release",
             return_value=["retirement"],
         ) as retire,
     ):
@@ -315,10 +311,9 @@ def test_import_job_maintenance_releases_orphan_upload_and_queues_retirement() -
     db.commit.assert_called_once()
 
 
-@pytest.mark.asyncio
-async def test_import_job_submission_persists_without_contacting_celery() -> None:
+def test_import_job_submission_persists_without_contacting_celery() -> None:
     repository = Mock()
-    repository.submission_uploads = AsyncMock(
+    repository.submission_uploads = Mock(
         return_value=[
             {"id": 3, "upload_uuid": "abc", "uploader_user_id": 5},
         ]
@@ -326,36 +321,33 @@ async def test_import_job_submission_persists_without_contacting_celery() -> Non
     service = ImportJobSubmissionService(repository=repository)
     request = SimpleNamespace(upload_ids=["abc"], options={}, idempotency_key=None)
     current_user = SimpleNamespace(id=5)
-    db = Mock(commit=AsyncMock(), rollback=AsyncMock())
+    db = Mock(commit=Mock(), rollback=Mock())
 
-    async def flush():
+    def flush():
         db.add.call_args_list[0].args[0].id = 10
 
-    db.flush = AsyncMock(side_effect=flush)
-    result = await service.submit(db, current_user, request)
+    db.flush = Mock(side_effect=flush)
+    result = service.submit(db, current_user, request)
     assert result["count"] == 1
     assert result["state"] == ImportJobState.PENDING
     assert result["job_id"] == db.add.call_args_list[0].args[0].job_uuid
     assert len(db.add.call_args_list) == 3
-    db.commit.assert_awaited_once()
+    db.commit.assert_called_once()
 
 
-@pytest.mark.asyncio
-async def test_import_job_submission_reuses_existing_idempotency_key() -> None:
+def test_import_job_submission_reuses_existing_idempotency_key() -> None:
     repository = Mock()
-    repository.get_by_idempotency_key = AsyncMock(
-        return_value=SimpleNamespace(job_uuid="existing-job")
-    )
-    repository.submission_uploads = AsyncMock()
+    repository.get_by_idempotency_key = Mock(return_value=SimpleNamespace(job_uuid="existing-job"))
+    repository.submission_uploads = Mock()
     service = ImportJobSubmissionService(repository=repository)
     request = SimpleNamespace(upload_ids=["abc"], options={}, idempotency_key="submission-key-1")
     current_user = SimpleNamespace(id=5)
-    db = Mock(commit=AsyncMock())
-    result = await service.submit(db, current_user, request)
+    db = Mock(commit=Mock())
+    result = service.submit(db, current_user, request)
     assert result == {"job_id": "existing-job", "count": 1, "state": ImportJobState.PENDING}
-    repository.get_by_idempotency_key.assert_awaited_once_with(db, 5, "submission-key-1")
-    repository.submission_uploads.assert_not_awaited()
-    db.commit.assert_not_awaited()
+    repository.get_by_idempotency_key.assert_called_once_with(db, 5, "submission-key-1")
+    repository.submission_uploads.assert_not_called()
+    db.commit.assert_not_called()
 
 
 def test_import_job_submission_serializes_genres_for_json_storage() -> None:
@@ -386,30 +378,28 @@ def test_import_job_execution_resolves_upload_ids_inside_worker() -> None:
     )
 
 
-@pytest.mark.asyncio
-async def test_import_job_submission_rejects_upload_owned_by_another_user() -> None:
+def test_import_job_submission_rejects_upload_owned_by_another_user() -> None:
     repository = Mock(
-        submission_uploads=AsyncMock(
+        submission_uploads=Mock(
             return_value=[
                 {"id": 3, "upload_uuid": "abc", "uploader_user_id": 99},
             ]
         )
     )
     service = ImportJobSubmissionService(repository=repository)
-    db = Mock(rollback=AsyncMock(), commit=AsyncMock())
+    db = Mock(rollback=Mock(), commit=Mock())
     with pytest.raises(ResourceNotFoundException) as context:
-        await service.submit(
+        service.submit(
             db,
             SimpleNamespace(id=5),
             SimpleNamespace(upload_ids=["abc"], options=None, idempotency_key=None),
         )
     assert context.value.code == ErrorCode.FILE_NOT_FOUND
-    db.rollback.assert_awaited_once()
-    db.commit.assert_not_awaited()
+    db.rollback.assert_called_once()
+    db.commit.assert_not_called()
 
 
-@pytest.mark.asyncio
-async def test_upload_reuses_committed_exact_object_without_rewriting(score_service_session):
+def test_upload_reuses_committed_exact_object_without_rewriting(score_service_session):
     from fastapi import UploadFile
     from sqlalchemy import select
     from app.db.models import Upload
@@ -417,14 +407,14 @@ async def test_upload_reuses_committed_exact_object_without_rewriting(score_serv
     session, storage = score_service_session
     service = UploadService(storage=storage)
     user = session.get(User, 1)
-    await service.create_upload(
-        AsyncSessionAdapter(session),
+    service.create_upload(
+        session,
         user,
         UploadFile(filename="first.png", file=io.BytesIO(image_bytes())),
     )
     storage.put_bytes = Mock(wraps=storage.put_bytes)
-    second = await service.create_upload(
-        AsyncSessionAdapter(session),
+    second = service.create_upload(
+        session,
         user,
         UploadFile(filename="second.png", file=io.BytesIO(image_bytes())),
     )
@@ -432,37 +422,35 @@ async def test_upload_reuses_committed_exact_object_without_rewriting(score_serv
     assert len({row.stored_object_id for row in session.scalars(select(Upload))}) == 1
 
 
-@pytest.mark.asyncio
-async def test_delete_upload_rejects_non_owner() -> None:
+def test_delete_upload_rejects_non_owner() -> None:
     repository = Mock()
-    repository.get_upload_by_uuid = AsyncMock(
+    repository.get_upload_by_uuid = Mock(
         return_value=SimpleNamespace(
             id=1, upload_uuid="upload-1", stored_object_id=5, uploader_user_id=99
         )
     )
     service = UploadService(repository=repository)
-    db = AsyncMock()
+    db = Mock()
     current_user = SimpleNamespace(id=1)
 
     with pytest.raises(UnauthorizedException) as context:
-        await service.delete_upload(db, current_user, "upload-1")
+        service.delete_upload(db, current_user, "upload-1")
 
     assert context.value.code == ErrorCode.NO_DELETE_ACCESS
     db.commit.assert_not_called()
 
 
-@pytest.mark.asyncio
-async def test_delete_upload_removes_owned_upload_and_reference() -> None:
+def test_delete_upload_removes_owned_upload_and_reference() -> None:
     repository = Mock()
-    repository.get_upload_by_uuid = AsyncMock(
+    repository.get_upload_by_uuid = Mock(
         return_value=SimpleNamespace(
             id=7, upload_uuid="upload-owned", uploader_user_id=1, stored_object_id=5
         )
     )
-    repository.upload_reference_count = AsyncMock(return_value=0)
-    repository.delete_upload_by_id = AsyncMock()
+    repository.upload_reference_count = Mock(return_value=0)
+    repository.delete_upload_by_id = Mock()
     service = UploadService(repository=repository)
-    db = AsyncMock()
+    db = Mock()
     db.get.return_value = SimpleNamespace(
         id=5,
         byte_size=3,
@@ -487,14 +475,14 @@ async def test_delete_upload_removes_owned_upload_and_reference() -> None:
                 "app.modules.uploads.service.retire_after_release", return_value=["retirement"]
             ) as retire,
         ):
-            result = await service.delete_upload(db, current_user, "upload-owned")
+            result = service.delete_upload(db, current_user, "upload-owned")
 
     assert result is None
-    repository.delete_upload_by_id.assert_awaited_once_with(db, 7)
-    retire.assert_awaited_once_with(db, 5)
-    release_usage.assert_awaited_once()
+    repository.delete_upload_by_id.assert_called_once_with(db, 7)
+    retire.assert_called_once_with(db, 5)
+    release_usage.assert_called_once()
     assert release_usage.call_args.kwargs["object_id"] == "upload-owned"
-    db.commit.assert_awaited_once()
+    db.commit.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -508,19 +496,19 @@ async def test_avatar_response_url_routes_to_current_customer_resolver(
     from app.modules.account.dependencies import get_avatar_service
 
     session, storage = score_service_session
-    db = AsyncSessionAdapter(session)
+    db = session
     user = session.get(User, 1)
     service = AvatarService(storage=storage)
     image = io.BytesIO()
     Image.new("RGB", (2, 2), "red").save(image, format="PNG")
     # Establish a real current avatar object, using the same service as HTTP upload.
-    await service.replace_user_avatar(db, user, file_bytes=image.getvalue(), filename="avatar.png")
+    service.replace_user_avatar(db, user, file_bytes=image.getvalue(), filename="avatar.png")
     app = create_app()
 
-    async def avatar_db():
+    def avatar_db():
         yield db
 
-    async def current_user():
+    def current_user():
         return user
 
     app.dependency_overrides[get_db] = avatar_db
@@ -548,10 +536,7 @@ async def test_avatar_response_url_routes_to_current_customer_resolver(
             assert redirect.status_code == 307
             assert redirect.content == b""
             assert redirect.headers["location"] == capability
-        assert (
-            storage.download_url.call_args_list
-            == [call(key, filename=None, content_type="image/jpeg", expires_seconds=None)] * 2
-        )
+        assert storage.download_url.call_args_list == [call(key, content_type="image/jpeg")] * 2
         assert storage.object_metadata(key).content_type == "image/jpeg"
         storage.delete(key)
         assert (await client.get(url)).status_code == 404

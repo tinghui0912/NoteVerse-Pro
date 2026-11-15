@@ -1,5 +1,5 @@
 from __future__ import annotations
-from app.modules.storage_objects.retirement import retire_released_objects
+from app.modules.storage_objects.retirement import retire_after_release
 
 from dataclasses import dataclass
 from sqlalchemy import func, select
@@ -203,12 +203,12 @@ class ScoreDeletionExecutor:
             db.delete(upload)
             db.flush()
             released_ids.append(stored_object_id)
-        import_cleanup, import_object_ids = self._delete_originating_import_job_sync(
+        import_cleanup, import_object_ids = self._delete_originating_import_job(
             db,
             originating_job,
         )
         for release in usage_releases:
-            storage_usage_service.record_release_sync(
+            storage_usage_service.record_release(
                 db,
                 user_id=owner_user_id,
                 category=release.category,
@@ -219,7 +219,7 @@ class ScoreDeletionExecutor:
                 storage_key=release.storage_key,
             )
         for release in import_cleanup:
-            storage_usage_service.record_release_sync(
+            storage_usage_service.record_release(
                 db,
                 user_id=owner_user_id,
                 category=release.category,
@@ -229,7 +229,7 @@ class ScoreDeletionExecutor:
                 object_id=release.object_id,
                 storage_key=release.storage_key,
             )
-        operations = retire_released_objects(db, *(released_ids + import_object_ids))
+        operations = retire_after_release(db, *(released_ids + import_object_ids))
         if not self.delivery.complete(db, lease):
             raise StaleScoreDeletionAttempt("Deletion attempt lost completion authority")
         return ScoreDeletionResult(
@@ -237,7 +237,7 @@ class ScoreDeletionExecutor:
             object_retirements_queued=len(operations),
         )
 
-    def _delete_originating_import_job_sync(
+    def _delete_originating_import_job(
         self,
         db: Session,
         job: ImportJob | None,

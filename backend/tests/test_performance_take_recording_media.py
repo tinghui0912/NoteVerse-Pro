@@ -26,11 +26,9 @@ from app.modules.storage_usage.dependencies import get_storage_usage_service
 from app.storage.factory import get_object_storage
 from app.storage.base import ObjectMetadata
 from tests.test_performance_takes import (
-    AsyncSessionAdapter,
     PerformanceTakeTestClient,
     _performance_take_service,
     _bundle_id,
-    _run_async,
     _staging_key,
     test_env as test_env,
 )
@@ -47,8 +45,8 @@ def recording_client(test_env):
         session=session, storage=storage, storage_usage_service=usage
     )
 
-    async def db():
-        yield AsyncSessionAdapter(session)
+    def db():
+        yield session
 
     app.dependency_overrides.update(
         {
@@ -193,9 +191,7 @@ def test_video_finalize_rejects_wrong_container_or_storage_content_type(
             assert response.json()["code"] == "validation_error"
         else:
             with pytest.raises(ValidationException) as caught:
-                _run_async(
-                    service.finalize_take(AsyncSessionAdapter(session), 1, data["reservation_id"])
-                )
+                service.finalize_take(session, 1, data["reservation_id"])
             assert caught.value.details["field"] == "media_mime_type"
     assert session.execute(select(PerformanceTake)).scalars().all() == []
 

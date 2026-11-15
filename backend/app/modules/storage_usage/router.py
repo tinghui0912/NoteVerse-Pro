@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.db.model_utils import require_persisted_id
@@ -17,10 +17,10 @@ router = APIRouter()
     operation_id="accountStorageUsageGet",
     response_model=StorageUsageRead,
 )
-async def get_storage_usage(
+def get_storage_usage(
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: StorageUsageService = Depends(get_storage_usage_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    return await service.get_usage(db, user_id)
+    return service.get_usage(db, user_id)

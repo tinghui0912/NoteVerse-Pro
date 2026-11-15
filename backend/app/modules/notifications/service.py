@@ -5,7 +5,7 @@ from datetime import timedelta
 from typing import Any
 
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.exceptions import ResourceNotFoundException, UnauthorizedException
@@ -51,9 +51,9 @@ class NotificationService:
     def __init__(self, repository: NotificationRepository | None = None) -> None:
         self.repository = repository or NotificationRepository()
 
-    async def create_event(
+    def create_event(
         self,
-        db: AsyncSession,
+        db: Session,
         *,
         recipient_user_id: int,
         actor_user_id: int | None,
@@ -69,9 +69,9 @@ class NotificationService:
         if actor_user_id == recipient_user_id:
             return None
         if dedupe_key:
-            existing = await self.repository.by_dedupe_key(db, dedupe_key)
+            existing = self.repository.by_dedupe_key(db, dedupe_key)
             if existing:
-                return await self._event_read(db, existing)
+                return self._event_read(db, existing)
         event = NotificationEvent(
             recipient_user_id=recipient_user_id,
             actor_user_id=actor_user_id,
@@ -87,17 +87,17 @@ class NotificationService:
         )
         db.add(event)
         try:
-            await db.commit()
+            db.commit()
         except IntegrityError:
-            await db.rollback()
+            db.rollback()
             if dedupe_key:
-                existing = await self.repository.by_dedupe_key(db, dedupe_key)
+                existing = self.repository.by_dedupe_key(db, dedupe_key)
                 if existing:
-                    return await self._event_read(db, existing)
+                    return self._event_read(db, existing)
             raise
-        await db.refresh(event)
-        event_read = await self._event_read(db, event)
-        await publish_event_best_effort(
+        db.refresh(event)
+        event_read = self._event_read(db, event)
+        publish_event_best_effort(
             db,
             recipient_user_id=recipient_user_id,
             type=RealtimeEventTypes.NOTIFICATION_CREATED,
@@ -108,15 +108,15 @@ class NotificationService:
         )
         return event_read
 
-    async def create_event_best_effort(
+    def create_event_best_effort(
         self,
-        db: AsyncSession,
+        db: Session,
         **kwargs,
     ) -> NotificationEventRead | None:
         try:
-            return await self.create_event(db, **kwargs)
+            return self.create_event(db, **kwargs)
         except Exception:
-            await db.rollback()
+            db.rollback()
             logger.bind(
                 event="notification.event.create_failed",
                 notification_type=kwargs.get("type"),
@@ -127,25 +127,23 @@ class NotificationService:
             ).opt(exception=True).warning("Notification event creation failed")
             return None
 
-    async def list_for_user(
-        self, db: AsyncSession, user_id: int, *, limit: int = 50
+    def list_for_user(
+        self, db: Session, user_id: int, *, limit: int = 50
     ) -> list[NotificationEventRead]:
-        user = await db.get(User, user_id)
+        user = db.get(User, user_id)
         if user is None:
             raise UnauthorizedException(ErrorCode.NO_ACCESS)
-        events = await self.repository.list_for_user(db, user_id, limit=limit)
-        return [await self._event_read(db, event) for event in events]
+        events = self.repository.list_for_user(db, user_id, limit=limit)
+        return [self._event_read(db, event) for event in events]
 
-    async def unread_count(self, db: AsyncSession, user_id: int) -> NotificationUnreadCountRead:
-        user = await db.get(User, user_id)
+    def unread_count(self, db: Session, user_id: int) -> NotificationUnreadCountRead:
+        user = db.get(User, user_id)
         if user is None:
             raise UnauthorizedException(ErrorCode.NO_ACCESS)
-        return NotificationUnreadCountRead(count=await self.repository.unread_count(db, user_id))
+        return NotificationUnreadCountRead(count=self.repository.unread_count(db, user_id))
 
-    async def mark_read(
-        self, db: AsyncSession, notification_uuid: str, user_id: int
-    ) -> NotificationEventRead:
-        event = await self.repository.by_uuid(db, notification_uuid)
+    def mark_read(self, db: Session, notification_uuid: str, user_id: int) -> NotificationEventRead:
+        event = self.repository.by_uuid(db, notification_uuid)
         if not event:
             raise ResourceNotFoundException(
                 "notification", notification_uuid, ErrorCode.NOTIFICATION_NOT_FOUND
@@ -156,49 +154,45 @@ class NotificationService:
             )
         if event.read_at is None:
             event.read_at = utc_now_naive()
-            await db.commit()
-            await db.refresh(event)
-        return await self._event_read(db, event)
+            db.commit()
+            db.refresh(event)
+        return self._event_read(db, event)
 
-    async def mark_all_read(self, db: AsyncSession, user_id: int) -> NotificationUnreadCountRead:
+    def mark_all_read(self, db: Session, user_id: int) -> NotificationUnreadCountRead:
         now = utc_now_naive()
-        await self.repository.mark_all_read_for_user(db, user_id, read_at=now)
-        await db.commit()
-        return NotificationUnreadCountRead(count=await self.repository.unread_count(db, user_id))
+        self.repository.mark_all_read_for_user(db, user_id, read_at=now)
+        db.commit()
+        return NotificationUnreadCountRead(count=self.repository.unread_count(db, user_id))
 
-    async def cleanup_expired_events(
-        self, db: AsyncSession, *, retention_days: int | None = None
-    ) -> int:
+    def cleanup_expired_events(self, db: Session, *, retention_days: int | None = None) -> int:
         days = (
             retention_days if retention_days is not None else settings.NOTIFICATION_RETENTION_DAYS
         )
         if days <= 0:
             raise ValueError("notification retention days must be positive")
         cutoff = utc_now_naive() - timedelta(days=days)
-        deleted = await self.repository.delete_older_than(db, cutoff)
+        deleted = self.repository.delete_older_than(db, cutoff)
         if deleted:
-            await db.commit()
+            db.commit()
         return deleted
 
-    async def _event_read(
-        self, db: AsyncSession, event: NotificationEvent
-    ) -> NotificationEventRead:
+    def _event_read(self, db: Session, event: NotificationEvent) -> NotificationEventRead:
         return NotificationEventRead(
             notification_id=event.notification_uuid,
             type=event.type,
             title=event.title,
             body=event.body,
             score_id=event.score_id,
-            actor=await self._actor(db, event.actor_user_id),
+            actor=self._actor(db, event.actor_user_id),
             data=public_notification_data(event.data),
             read_at=event.read_at,
             created_at=event.created_at,
         )
 
-    async def _actor(self, db: AsyncSession, user_id: int | None) -> NotificationActorRead | None:
+    def _actor(self, db: Session, user_id: int | None) -> NotificationActorRead | None:
         if user_id is None:
             return None
-        user = await db.get(User, user_id)
+        user = db.get(User, user_id)
         if user is None:
             return None
         return NotificationActorRead(

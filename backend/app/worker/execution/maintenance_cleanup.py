@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.db.sync_session import get_worker_db
+from app.db.session import SessionLocal
 from app.modules.import_jobs.maintenance_service import job_maintenance_service
 from app.modules.mail.outbox_service import mail_outbox_service
 from app.modules.notifications.maintenance_service import notification_maintenance_service
@@ -17,8 +17,9 @@ def execute_job_maintenance() -> dict[str, int]:
     """Run periodic import-job/upload maintenance."""
 
     def scan() -> dict[str, int]:
-        with get_worker_db() as db:
+        with SessionLocal() as db:
             result = job_maintenance_service.run(db)
+            db.commit()
 
         return {
             "orphan_uploads_deleted": result.orphan_uploads_deleted,
@@ -31,8 +32,9 @@ def execute_notification_maintenance() -> dict[str, int]:
     """Run periodic user-notification cleanup."""
 
     def scan() -> dict[str, int]:
-        with get_worker_db() as db:
+        with SessionLocal() as db:
             result = notification_maintenance_service.run(db)
+            db.commit()
 
         return {
             "expired_notifications_deleted": result.expired_notifications_deleted,
@@ -45,8 +47,9 @@ def execute_realtime_maintenance() -> dict[str, int]:
     """Run periodic realtime-event cleanup."""
 
     def scan() -> dict[str, int]:
-        with get_worker_db() as db:
+        with SessionLocal() as db:
             result = realtime_maintenance_service.run(db)
+            db.commit()
 
         return {
             "expired_events_deleted": result.expired_events_deleted,
@@ -59,8 +62,9 @@ def execute_derived_asset_cleanup() -> dict[str, int]:
     """Remove derived preview/audio assets outside the retention window."""
 
     def scan() -> dict[str, int]:
-        with get_worker_db() as db:
+        with SessionLocal() as db:
             result = derived_asset_retention_service.cleanup_due_scores(db)
+            db.commit()
 
         return {
             "rendered_pages_deleted": result.rendered_pages_deleted,
@@ -75,8 +79,9 @@ def execute_mail_outbox_cleanup() -> dict[str, int]:
     """Delete terminal mail records after their retention window."""
 
     def scan() -> dict[str, int]:
-        with get_worker_db() as db:
+        with SessionLocal() as db:
             deleted = mail_outbox_service.cleanup(db)
+            db.commit()
         return {"deleted": deleted}
 
     return run_scheduler_scan("mail_outbox_cleanup", scan)

@@ -1,8 +1,8 @@
 """Invitation commands contend on the current row and preserve the winning terminal state."""
 
-import asyncio
 from datetime import timedelta
 from queue import Queue
+from unittest.mock import patch
 from threading import Thread
 from time import monotonic
 
@@ -20,7 +20,6 @@ from app.shared.constants import ErrorCode
 from app.utils.timezone import utc_now_naive
 from tests.support.postgres_schema import postgres_schema_database
 from tests.test_score_revision_services import add_active_score_with_head_revision
-from tests.test_performance_takes import AsyncSessionAdapter
 
 
 @pytest.mark.parametrize(
@@ -90,21 +89,18 @@ def test_invite_terminal_commands_serialize_on_postgres_row(
             invite_id = invite.id
         service = ScoreInviteService()
 
-        async def actor_command(db, action):
+        def actor_command(db, action):
             if action == "accept":
-                await service.accept_invite(db, "token", 2)
+                service.accept_invite(db, "token", 2)
             elif action == "decline":
-                await service.decline_pending_invite(db, "invitation", 2)
+                service.decline_pending_invite(db, "invitation", 2)
             else:
-                await service.revoke_invite(db, "shared", "invitation", 1)
-
-        class HeldCommit(AsyncSessionAdapter):
-            async def commit(self):
-                self.session.flush()
+                service.revoke_invite(db, "shared", "invitation", 1)
 
         ready, result = Queue(), Queue()
         with Session(engine, expire_on_commit=False) as winning:
-            asyncio.run(actor_command(HeldCommit(winning), first))
+            with patch.object(winning, "commit", side_effect=winning.flush):
+                actor_command(winning, first)
             winning_pid = winning.scalar(text("SELECT pg_backend_pid()"))
 
             def second_command():
@@ -114,7 +110,7 @@ def test_invite_terminal_commands_serialize_on_postgres_row(
                         cached = db.get(ScoreInvite, invite_id)
                         assert cached.terminal_outcome is None
                         ready.put(db.scalar(text("SELECT pg_backend_pid()")))
-                        asyncio.run(actor_command(AsyncSessionAdapter(db), second))
+                        actor_command(db, second)
                     result.put(None)
                 except BaseException as exc:
                     result.put(exc)

@@ -10,7 +10,8 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.pool import StaticPool
-from sqlmodel import SQLModel, Session, create_engine, select
+from sqlalchemy.orm import Session
+from sqlmodel import SQLModel, create_engine, select
 
 from app.core.config import settings
 from app.api.deps import get_db
@@ -111,32 +112,6 @@ def _api_utc_datetime(value: datetime) -> str:
     return f"{value.isoformat()}Z"
 
 
-class AsyncSessionAdapter:
-    def __init__(self, session: Session) -> None:
-        self.session = session
-
-    async def run_sync(self, function, *args, **kwargs):
-        return function(self.session, *args, **kwargs)
-
-    def add(self, instance) -> None:
-        self.session.add(instance)
-
-    async def execute(self, statement, params=None, *args, **kwargs):
-        return self.session.execute(statement, params=params, *args, **kwargs)
-
-    async def commit(self) -> None:
-        self.session.commit()
-
-    async def flush(self) -> None:
-        self.session.flush()
-
-    async def get(self, entity, identifier):
-        return self.session.get(entity, identifier)
-
-    async def refresh(self, instance) -> None:
-        self.session.refresh(instance)
-
-
 @pytest.fixture
 def ops_session() -> Session:
     engine = create_engine(
@@ -150,8 +125,8 @@ def ops_session() -> Session:
 
 
 def _override_ops_dependencies(session: Session, *, authorized: bool) -> None:
-    async def override_get_db():
-        yield AsyncSessionAdapter(session)
+    def override_get_db():
+        yield session
 
     app.dependency_overrides[get_db] = override_get_db
     operator = Operator(
@@ -182,19 +157,18 @@ def _override_ops_dependencies(session: Session, *, authorized: bool) -> None:
     )
 
 
-@pytest.mark.asyncio
-async def test_local_operator_identity_creates_and_resolves_opaque_session(
+def test_local_operator_identity_creates_and_resolves_opaque_session(
     ops_session: Session,
 ) -> None:
     service = OperatorAuthenticationService()
-    db = AsyncSessionAdapter(ops_session)
-    operator = await service.create_local_operator(
+    db = ops_session
+    operator = service.create_local_operator(
         db,
         username="operator@example.test",
         password="a-long-operator-password",
         display_name="Platform Operator",
     )
-    authenticated_operator, identity, token = await service.authenticate_local_password(
+    authenticated_operator, identity, token = service.authenticate_local_password(
         db,
         username="operator@example.test",
         password="a-long-operator-password",
@@ -202,7 +176,7 @@ async def test_local_operator_identity_creates_and_resolves_opaque_session(
         ip_address="198.51.100.10",
         security_settings=require_control_plane_settings(),
     )
-    resolved_operator, resolved_identity, resolved_session = await service.resolve_session(
+    resolved_operator, resolved_identity, resolved_session = service.resolve_session(
         db, token=token
     )
 
@@ -227,21 +201,20 @@ def test_operator_enums_bind_the_postgresql_values_declared_by_the_migration() -
     )
 
 
-@pytest.mark.asyncio
-async def test_control_plane_login_uses_an_independent_operator_session_cookie(
+def test_control_plane_login_uses_an_independent_operator_session_cookie(
     client: TestClient,
     ops_session: Session,
 ) -> None:
-    db = AsyncSessionAdapter(ops_session)
+    db = ops_session
     service = OperatorAuthenticationService()
-    await service.create_local_operator(
+    service.create_local_operator(
         db,
         username="operator@example.test",
         password="a-long-operator-password",
         display_name="Platform Operator",
     )
 
-    async def override_get_db():
+    def override_get_db():
         yield db
 
     app.dependency_overrides[get_db] = override_get_db
@@ -262,21 +235,20 @@ async def test_control_plane_login_uses_an_independent_operator_session_cookie(
         _clear_ops_dependency_overrides()
 
 
-@pytest.mark.asyncio
-async def test_control_plane_logout_requires_its_own_csrf_header(
+def test_control_plane_logout_requires_its_own_csrf_header(
     client: TestClient,
     ops_session: Session,
 ) -> None:
-    db = AsyncSessionAdapter(ops_session)
+    db = ops_session
     service = OperatorAuthenticationService()
-    await service.create_local_operator(
+    service.create_local_operator(
         db,
         username="operator@example.test",
         password="a-long-operator-password",
         display_name="Platform Operator",
     )
 
-    async def override_get_db():
+    def override_get_db():
         yield db
 
     app.dependency_overrides[get_db] = override_get_db
@@ -413,8 +385,7 @@ def test_ops_filters_match_status_error_class_resource_and_time_window() -> None
     )
 
 
-@pytest.mark.asyncio
-async def test_ops_summary_uses_aggregated_status_counts(ops_session: Session) -> None:
+def test_ops_summary_uses_aggregated_status_counts(ops_session: Session) -> None:
     now = utc_now_naive()
     ops_session.add_all(
         [
@@ -441,8 +412,8 @@ async def test_ops_summary_uses_aggregated_status_counts(ops_session: Session) -
     ops_session.commit()
 
     service = OpsAsyncOperationQueryService()
-    summary = await service.summary(
-        AsyncSessionAdapter(ops_session),
+    summary = service.summary(
+        ops_session,
         kind=AsyncOperationKind.MAIL,
         error_class=AsyncOperationErrorClass.TRANSIENT,
     )
@@ -721,7 +692,7 @@ def test_ops_api_admin_can_retry_failed_mail_operation(
     assert outbox.internal_error_stage is None
     assert outbox.internal_error_class is None
     assert outbox.internal_error_retryable is None
-    audit_event = ops_session.exec(select(OpsAuditEvent)).one()
+    audit_event = ops_session.scalars(select(OpsAuditEvent)).one()
     assert audit_event.actor_operator_id == 1
     assert audit_event.action == "retry_async_operation"
     assert audit_event.operation_kind == "mail"
@@ -858,7 +829,7 @@ def test_ops_api_retry_rejects_completed_mail_and_records_audit(
     assert "internal_details" not in payload
     ops_session.refresh(outbox)
     assert outbox.status == MailOutboxStatus.SENT
-    audit_event = ops_session.exec(select(OpsAuditEvent)).one()
+    audit_event = ops_session.scalars(select(OpsAuditEvent)).one()
     assert audit_event.action == "retry_async_operation"
     assert audit_event.operation_kind == "mail"
     assert audit_event.operation_id == operation_id
@@ -878,7 +849,7 @@ def test_ops_api_retry_requires_a_bounded_reason(
 
     assert response.status_code == 422
     assert response.json()["public_code"] == "validation_error"
-    assert ops_session.exec(select(OpsAuditEvent)).all() == []
+    assert ops_session.scalars(select(OpsAuditEvent)).all() == []
 
 
 def test_ops_api_retry_unknown_operation_records_audit(
@@ -900,7 +871,7 @@ def test_ops_api_retry_unknown_operation_records_audit(
     payload = response.json()
     assert payload["public_code"] == "resource_not_found"
     assert "internal_details" not in payload
-    audit_event = ops_session.exec(select(OpsAuditEvent)).one()
+    audit_event = ops_session.scalars(select(OpsAuditEvent)).one()
     assert audit_event.action == "retry_async_operation"
     assert audit_event.operation_kind == "mail"
     assert audit_event.operation_id == operation_id
@@ -937,7 +908,7 @@ def test_ops_api_retry_rejects_confirmed_import_job_and_records_audit(
     assert "internal_details" not in payload
     ops_session.refresh(job)
     assert job.state == ImportJobState.CONFIRMED
-    audit_event = ops_session.exec(select(OpsAuditEvent)).one()
+    audit_event = ops_session.scalars(select(OpsAuditEvent)).one()
     assert audit_event.operation_kind == "import"
     assert audit_event.operation_id == dispatch.dispatch_uuid
     assert audit_event.outcome == "failed"
@@ -982,7 +953,7 @@ def test_ops_api_retry_rejects_completed_render_outbox_and_records_audit(
     assert "internal_details" not in payload
     ops_session.refresh(outbox)
     assert outbox.status == RenderOutboxStatus.COMPLETED
-    audit_event = ops_session.exec(select(OpsAuditEvent)).one()
+    audit_event = ops_session.scalars(select(OpsAuditEvent)).one()
     assert audit_event.operation_kind == "render"
     assert audit_event.operation_id == outbox.outbox_uuid
     assert audit_event.outcome == "failed"
@@ -1015,7 +986,7 @@ def test_ops_api_retry_requires_deletion_operation_identity(
     assert "internal_details" not in payload
     ops_session.refresh(score)
     assert score.deleted_at is None
-    audit_event = ops_session.exec(select(OpsAuditEvent)).one()
+    audit_event = ops_session.scalars(select(OpsAuditEvent)).one()
     assert audit_event.operation_kind == "score_deletion"
     assert audit_event.operation_id == score.score_uuid
     assert audit_event.outcome == "failed"
@@ -1086,7 +1057,7 @@ def test_ops_api_admin_can_retry_failed_import_job(
     assert job.error_type is None
     assert job.started_at is None
     assert job.finished_at is None
-    audit_event = ops_session.exec(select(OpsAuditEvent)).one()
+    audit_event = ops_session.scalars(select(OpsAuditEvent)).one()
     assert audit_event.operation_kind == "import"
     assert audit_event.operation_id == dispatch.dispatch_uuid
     assert audit_event.outcome == "succeeded"
@@ -1151,7 +1122,7 @@ def test_ops_api_admin_can_retry_failed_render_outbox(
     assert outbox.internal_error_stage is None
     assert outbox.internal_error_class is None
     assert outbox.internal_error_retryable is None
-    audit_event = ops_session.exec(select(OpsAuditEvent)).one()
+    audit_event = ops_session.scalars(select(OpsAuditEvent)).one()
     assert audit_event.operation_kind == "render"
     assert audit_event.operation_id == outbox.outbox_uuid
     assert audit_event.outcome == "succeeded"
@@ -1214,7 +1185,7 @@ def test_ops_api_admin_can_retry_failed_playback_outbox(
     assert outbox.internal_error_stage is None
     assert outbox.internal_error_class is None
     assert outbox.internal_error_retryable is None
-    audit_event = ops_session.exec(select(OpsAuditEvent)).one()
+    audit_event = ops_session.scalars(select(OpsAuditEvent)).one()
     assert audit_event.operation_kind == "playback"
     assert audit_event.operation_id == outbox.outbox_uuid
     assert audit_event.outcome == "succeeded"
@@ -1271,7 +1242,7 @@ def test_ops_api_admin_can_rearm_score_deletion_operation(
     assert operation.internal_error_stage is None
     assert operation.internal_error_class is None
     assert operation.internal_error_retryable is None
-    audit_event = ops_session.exec(select(OpsAuditEvent)).one()
+    audit_event = ops_session.scalars(select(OpsAuditEvent)).one()
     assert audit_event.operation_kind == "score_deletion"
     assert audit_event.operation_id == operation.operation_uuid
     assert audit_event.outcome == "succeeded"

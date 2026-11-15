@@ -8,7 +8,7 @@ from app.modules.domain_events.definitions import DomainFact
 from app.modules.domain_events.projections import ProjectionDefinition, run_projections
 from app.modules.revisions.events import ScoreRevisionCreated
 from app.modules.notifications.service import NotificationTypes
-from app.modules.realtime.publisher import publish_event_sync, RealtimeEventTypes
+from app.modules.realtime.publisher import publish_event, RealtimeEventTypes
 
 
 def project_revision_notification(db: Session, event: DomainEvent, fact: DomainFact) -> None:
@@ -40,7 +40,7 @@ def project_revision_notification(db: Session, event: DomainEvent, fact: DomainF
         )
         db.add(row)
         db.flush()
-        publish_event_sync(
+        publish_event(
             db,
             recipient_user_id=recipient,
             type=RealtimeEventTypes.NOTIFICATION_CREATED,
@@ -56,7 +56,7 @@ def project_revision_realtime(db: Session, event: DomainEvent, fact: DomainFact)
         raise TypeError("Revision projection requires a revision fact")
     if not fact.is_initial:
         for recipient in fact.audience_user_ids:
-            publish_event_sync(
+            publish_event(
                 db,
                 recipient_user_id=recipient,
                 type=RealtimeEventTypes.SCORE_REVISION_CREATED,

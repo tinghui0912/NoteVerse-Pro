@@ -1,8 +1,8 @@
 """Recovery consumes persisted lineage without repeating admission or physical promotion."""
 
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from sqlalchemy.exc import DBAPIError, InterfaceError
-from app.db.session import AsyncSessionLocal
+from app.db.session import SessionLocal
 from app.modules.performance_takes.repository import PerformanceTakeRepository
 from app.modules.storage_usage.service import StorageUsageService
 from app.utils.timezone import utc_now_naive
@@ -26,27 +26,27 @@ class PerformanceTakeFinalizationRecovery:
         self.repository = repository
         self.storage_usage_service = storage_usage_service
 
-    async def recover(
+    def recover(
         self,
-        db: AsyncSession,
+        db: Session,
         *,
         user_id: int,
         take_uuid: str,
         lease: FinalizeLease,
         unknown_outcome: bool,
     ) -> None:
-        row = await self.repository.get_reservation_by_take_uuid(db, user_id, take_uuid, lock=True)
+        row = self.repository.get_reservation_by_take_uuid(db, user_id, take_uuid, lock=True)
         if row is None:
             return
         state = lifecycle_from_row(row)
-        take = await self.repository.get_by_reservation(db, user_id, row.id)
+        take = self.repository.get_by_reservation(db, user_id, row.id)
         # COMPLETED without a Take is valid deletion lineage and cannot resurrect it.
         state.assert_take_presence(take is not None, allow_deleted_take=True)
         now = utc_now_naive()
         if take is not None:
             if take.recording_object.object_key != lease.object_key:
                 # Refresh orphan evidence after late IO, even if an earlier cleanup saw absence.
-                await apply_reservation_transition(
+                apply_reservation_transition(
                     self.storage_usage_service,
                     db,
                     row,
@@ -82,22 +82,18 @@ class PerformanceTakeFinalizationRecovery:
                 return
             # A late physical result may leave evidence, but never changes the winner's lease.
             transition = state.remember_uncertain_candidate(key=lease.object_key, now=now)
-        await apply_reservation_transition(self.storage_usage_service, db, row, transition, now=now)
+        apply_reservation_transition(self.storage_usage_service, db, row, transition, now=now)
 
-    async def recover_known_failure(
-        self, db: AsyncSession, *, user_id: int, take_uuid: str, lease: FinalizeLease
+    def recover_known_failure(
+        self, db: Session, *, user_id: int, take_uuid: str, lease: FinalizeLease
     ) -> None:
         """Participate only after a known pre-commit rollback, with immediate orphan eligibility."""
-        await self.recover(
-            db, user_id=user_id, take_uuid=take_uuid, lease=lease, unknown_outcome=False
-        )
+        self.recover(db, user_id=user_id, take_uuid=take_uuid, lease=lease, unknown_outcome=False)
 
-    async def recover_unknown_commit(
-        self, *, user_id: int, take_uuid: str, lease: FinalizeLease
-    ) -> None:
+    def recover_unknown_commit(self, *, user_id: int, take_uuid: str, lease: FinalizeLease) -> None:
         """Resolve every unacknowledged semantic COMMIT from independent persisted lineage."""
-        async with AsyncSessionLocal() as db:
-            await self.recover(
+        with SessionLocal() as db:
+            self.recover(
                 db, user_id=user_id, take_uuid=take_uuid, lease=lease, unknown_outcome=True
             )
-            await db.commit()
+            db.commit()

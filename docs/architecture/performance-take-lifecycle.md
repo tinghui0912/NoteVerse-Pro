@@ -59,8 +59,9 @@ preserving quota hold unless the reservation expires. Expiry releases that hold.
 A different lease remains untouched; late physical results refresh orphan evidence.
 Unknown commit acknowledgement never permits guessing or direct candidate deletion.
 
-Reconciliation runs in a shielded task and settles before cancellation propagates,
-including repeated request cancellation. A non-cancellation COMMIT exception returns a
+The synchronous finalization command reconciles fresh persisted lineage before
+propagating a cancellation raised by COMMIT. Request cancellation does not interrupt
+the worker thread's in-flight synchronous commit or reconciliation. A non-cancellation COMMIT exception returns a
 retryable database infrastructure error even when fresh lineage finds a committed Take.
 The caller retries the same reservation to obtain that Take through COMPLETED replay.
 If fresh reconciliation is unavailable, persisted lease/orphan evidence remains the

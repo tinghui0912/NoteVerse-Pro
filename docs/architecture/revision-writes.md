@@ -2,7 +2,7 @@
 
 `app/modules/revisions/writer.py` owns immutable revision admission. RevisionService
 owns authenticated edit/restore requests; ImportReviewService owns Import confirmation and
-Score creation. Both enter one sync RevisionWriter through AsyncSession.run_sync.
+Score creation. Both call the canonical RevisionWriter with the same synchronous Session.
 Writer participates in the caller's transaction and never commits or rolls back.
 
 PreparedRevisionSource carries revision UUID, durable ObjectWriteReceipt, canonical
@@ -51,7 +51,7 @@ run outside final locks. Final admission locks Score then refreshed metadata out
 validates exact lease/source, and atomically writes metadata, completes delivery and
 adds score.metadata.updated realtime. Stale workers change none of these facts.
 
-`publish_score_event_sync` is strict transactional persistence: recipient resolution,
+`publish_score_event` is strict transactional persistence: recipient resolution,
 RealtimeEvent inserts/flush and PostgreSQL NOTIFY share the caller transaction.
 It never commits, rolls back or catches publication failures. A partial-recipient
 or NOTIFY failure rolls back metadata result and delivery completion together; the

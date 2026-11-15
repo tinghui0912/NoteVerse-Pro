@@ -1,16 +1,18 @@
-"""Real AsyncSession Import HTTP admission, bulk projection and idempotency."""
+"""Real Session Import HTTP admission, bulk projection and idempotency."""
 
 import asyncio
+from threading import Barrier, Event
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 import pytest
-import pytest_asyncio
 from alembic import command
 from httpx import ASGITransport, AsyncClient
 from pydantic import ValidationError
 from sqlalchemy import event, func, select, text
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import Session
+from sqlalchemy import create_engine
 
 from app.api.deps import get_current_user, get_db
 from app.core.exceptions import ResourceNotFoundException
@@ -48,15 +50,12 @@ def postgres_url(monkeypatch):
         yield engine.url.render_as_string(hide_password=False)
 
 
-@pytest_asyncio.fixture
-async def application_db(postgres_url, monkeypatch):
-    def sync_factory_forbidden(*args, **kwargs):
-        pytest.fail("HTTP application requires only the injected AsyncSession")
+@pytest.fixture
+def application_db(postgres_url, monkeypatch):
 
-    monkeypatch.setattr("app.db.sync_session.get_db_session", sync_factory_forbidden)
-    engine = create_async_engine(postgres_url)
+    engine = create_engine(postgres_url)
     try:
-        async with AsyncSession(engine, expire_on_commit=False) as db:
+        with Session(engine, expire_on_commit=False) as db:
             db.add_all(
                 [
                     User(id=1, email="owner@example.com", password_hash="hash"),
@@ -77,7 +76,7 @@ async def application_db(postgres_url, monkeypatch):
                     ),
                 ]
             )
-            await db.flush()
+            db.flush()
             db.add_all(
                 [
                     Upload(
@@ -105,13 +104,13 @@ async def application_db(postgres_url, monkeypatch):
                     ExecutionManifest(id=1, sha256=manifest_sha256(MANIFEST), manifest=MANIFEST),
                 ]
             )
-            await db.commit()
+            db.commit()
             yield db
     finally:
-        await engine.dispose()
+        engine.dispose()
 
 
-async def complete_jobs(db, count=1):
+def complete_jobs(db, count=1):
     jobs = [
         ImportJob(
             job_uuid=f"complete-{index}",
@@ -131,7 +130,7 @@ async def complete_jobs(db, count=1):
         for index in range(count)
     ]
     db.add_all(jobs)
-    await db.flush()
+    db.flush()
     for job in jobs:
         db.add_all(
             [
@@ -151,7 +150,7 @@ async def complete_jobs(db, count=1):
                 ),
             ]
         )
-    await db.flush()
+    db.flush()
     for job in jobs:
         db.add_all(
             [
@@ -180,17 +179,16 @@ async def complete_jobs(db, count=1):
                 ImportJobUpload(job_id=job.id, upload_id=1, sort_order=7, page_number=1),
             ]
         )
-    await db.commit()
+    db.commit()
     return jobs
 
 
-@pytest.mark.asyncio
-async def test_list_and_detail_share_the_complete_current_projection(application_db):
+def test_list_and_detail_share_the_complete_current_projection(application_db):
     db = application_db
-    await complete_jobs(db)
+    complete_jobs(db)
     service = ImportJobService()
-    detail = await service.detail(db, "complete-0", 1)
-    rows, total = await service.list_jobs(db, 1, page=1, page_size=20)
+    detail = service.detail(db, "complete-0", 1)
+    rows, total = service.list_jobs(db, 1, page=1, page_size=20)
     assert total == 1
     assert detail == rows[0]
     value = detail.model_dump(mode="json")
@@ -228,45 +226,42 @@ async def test_list_and_detail_share_the_complete_current_projection(application
     assert "execution_manifest" not in value
 
 
-@pytest.mark.asyncio
-async def test_list_projection_query_count_is_bounded_for_one_and_fifty_jobs(application_db):
+def test_list_projection_query_count_is_bounded_for_one_and_fifty_jobs(application_db):
     db = application_db
-    await complete_jobs(db, 50)
+    complete_jobs(db, 50)
     calls = []
 
     def count_query(*args):
         calls.append(1)
 
-    event.listen(db.bind.sync_engine, "before_cursor_execute", count_query)
+    event.listen(db.bind.engine, "before_cursor_execute", count_query)
     try:
         service = ImportJobService()
-        one, total = await service.list_jobs(db, 1, page=1, page_size=1)
+        one, total = service.list_jobs(db, 1, page=1, page_size=1)
         first_count = len(calls)
         calls.clear()
-        fifty, total = await service.list_jobs(db, 1, page=1, page_size=50)
+        fifty, total = service.list_jobs(db, 1, page=1, page_size=50)
         assert len(one) == 1 and len(fifty) == total == 50
         assert len(calls) == first_count
         assert len(calls) <= 6
         assert all(row.thumbnail and len(row.original_images) == 2 for row in fifty)
     finally:
-        event.remove(db.bind.sync_engine, "before_cursor_execute", count_query)
+        event.remove(db.bind.engine, "before_cursor_execute", count_query)
 
 
-@pytest.mark.asyncio
-async def test_read_model_validates_persisted_processing_options(application_db):
+def test_read_model_validates_persisted_processing_options(application_db):
     db = application_db
-    job = (await complete_jobs(db))[0]
+    job = (complete_jobs(db))[0]
     job.requested_options = {"genres": ["unsupported"]}
-    await db.commit()
+    db.commit()
     with pytest.raises(ValidationError):
-        await ImportJobService().detail(db, job.job_uuid, 1)
+        ImportJobService().detail(db, job.job_uuid, 1)
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("failure", ["missing", "foreign", "links"])
-async def test_submission_rolls_back_the_whole_admission_unit(application_db, failure):
+def test_submission_rolls_back_the_whole_admission_unit(application_db, failure):
     db = application_db
-    user = await db.get(User, 1)
+    user = db.get(User, 1)
     upload_ids = {
         "missing": ["upload-a", "absent"],
         "foreign": ["upload-other"],
@@ -275,30 +270,28 @@ async def test_submission_rolls_back_the_whole_admission_unit(application_db, fa
     request = ImportJobSubmitRequest(upload_ids=upload_ids)
     error = IntegrityError if failure == "links" else ResourceNotFoundException
     with pytest.raises(error) as caught:
-        await ImportJobSubmissionService().submit(db, user, request)
+        ImportJobSubmissionService().submit(db, user, request)
     if failure != "links":
         assert caught.value.code == ErrorCode.FILE_NOT_FOUND
-    async with AsyncSession(db.bind) as observer:
+    with Session(db.bind) as observer:
         for model in [ImportJob, ImportDispatch, ImportJobUpload]:
-            assert await observer.scalar(select(func.count()).select_from(model)) == 0
+            assert observer.scalar(select(func.count()).select_from(model)) == 0
 
 
 @pytest.mark.asyncio
 async def test_concurrent_idempotency_admits_one_job_dispatch_and_ordered_link_set(application_db):
     db = application_db
-    both_looked_up = asyncio.Event()
+    both_looked_up = Barrier(2)
     arrivals = 0
 
     class ConcurrentRepository(ImportJobRepository):
-        async def get_by_idempotency_key(self, session, user_id, key):
+        def get_by_idempotency_key(self, session, user_id, key):
             nonlocal arrivals
-            existing = await super().get_by_idempotency_key(session, user_id, key)
+            existing = super().get_by_idempotency_key(session, user_id, key)
             if not existing and not session.info.get("initial_lookup_done"):
                 session.info["initial_lookup_done"] = True
                 arrivals += 1
-                if arrivals == 2:
-                    both_looked_up.set()
-                await asyncio.wait_for(both_looked_up.wait(), 10)
+                both_looked_up.wait(10)
             return existing
 
     service = ImportJobSubmissionService(repository=ConcurrentRepository())
@@ -306,18 +299,20 @@ async def test_concurrent_idempotency_admits_one_job_dispatch_and_ordered_link_s
         upload_ids=["upload-b", "upload-a"], idempotency_key="parallel-admission"
     )
 
-    async def submit():
-        async with AsyncSession(db.bind, expire_on_commit=False) as contender:
-            user = await contender.get(User, 1)
-            return await service.submit(contender, user, request)
+    def submit():
+        with Session(db.bind, expire_on_commit=False) as contender:
+            user = contender.get(User, 1)
+            return service.submit(contender, user, request)
 
-    first, second = await asyncio.wait_for(asyncio.gather(submit(), submit()), 20)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        a, b = pool.submit(submit), pool.submit(submit)
+        first, second = a.result(20), b.result(20)
     assert first == second
     assert arrivals == 2
-    assert await db.scalar(select(func.count()).select_from(ImportJob)) == 1
-    assert await db.scalar(select(func.count()).select_from(ImportDispatch)) == 1
+    assert db.scalar(select(func.count()).select_from(ImportJob)) == 1
+    assert db.scalar(select(func.count()).select_from(ImportDispatch)) == 1
     links = list(
-        (await db.execute(select(ImportJobUpload).order_by(ImportJobUpload.sort_order))).scalars()
+        (db.execute(select(ImportJobUpload).order_by(ImportJobUpload.sort_order))).scalars()
     )
     assert [(link.upload_id, link.page_number, link.sort_order) for link in links] == [
         (2, 1, 1),
@@ -326,15 +321,15 @@ async def test_concurrent_idempotency_admits_one_job_dispatch_and_ordered_link_s
 
 
 @pytest.mark.asyncio
-async def test_http_list_detail_submit_retry_use_only_injected_async_session(application_db):
+async def test_http_list_detail_submit_retry_use_only_injected_session(application_db):
     db = application_db
-    await complete_jobs(db)
+    complete_jobs(db)
 
-    async def database():
+    def database():
         yield db
 
-    async def user():
-        return await db.get(User, 1)
+    def user():
+        return db.get(User, 1)
 
     app.dependency_overrides[get_db] = database
     app.dependency_overrides[get_current_user] = user
@@ -374,15 +369,15 @@ async def test_http_owned_job_authorization_precedes_projection_and_mutation(app
     db = application_db
     other = ImportJob(job_uuid="other-job", user_id=2, state=ImportJobState.FAILURE)
     db.add(other)
-    await db.flush()
+    db.flush()
     db.add(ImportDispatch(job_id=other.id, status=ImportDispatchStatus.COMPLETED, completed_at=NOW))
-    await db.commit()
+    db.commit()
 
-    async def database():
+    def database():
         yield db
 
-    async def user():
-        return await db.get(User, 1)
+    def user():
+        return db.get(User, 1)
 
     app.dependency_overrides[get_db] = database
     app.dependency_overrides[get_current_user] = user
@@ -416,10 +411,10 @@ async def test_review_confirmation_wins_over_stale_customer_delete_and_retains_p
 
     db = application_db
     # This fixture assigns explicit IDs; confirmation creates new rows from sequences.
-    await db.execute(
+    db.execute(
         text("SELECT setval(pg_get_serial_sequence('scores', 'id'), (SELECT max(id) FROM scores))")
     )
-    await db.execute(
+    db.execute(
         text(
             "SELECT setval(pg_get_serial_sequence('stored_objects', 'id'), "
             "(SELECT max(id) FROM stored_objects))"
@@ -427,7 +422,7 @@ async def test_review_confirmation_wins_over_stale_customer_delete_and_retains_p
     )
     job = ImportJob(job_uuid="review-delete-race", user_id=1, state=ImportJobState.PENDING_REVIEW)
     db.add(job)
-    await db.flush()
+    db.flush()
     db.add(ImportDispatch(job_id=job.id, status=ImportDispatchStatus.COMPLETED))
     # Confirmation promotes the input and cleans the temporary artifact and upload link.
     db.add(ImportJobUpload(job_id=job.id, upload_id=1, page_number=1, sort_order=1))
@@ -440,30 +435,36 @@ async def test_review_confirmation_wins_over_stale_customer_delete_and_retains_p
             page_number=1,
         )
     )
-    await db.commit()
+    db.commit()
     job_id = job.id
-    observed, confirm_committed = asyncio.Event(), asyncio.Event()
+    observed, confirm_committed = Event(), Event()
 
     class WaitingDeletion(ImportJobDeletionService):
-        async def delete_job(self, session, caller, user_id):
+        def delete_job(self, session, caller, user_id):
             assert caller.state == ImportJobState.PENDING_REVIEW
             observed.set()
-            await asyncio.wait_for(confirm_committed.wait(), 20)
-            return await super().delete_job(session, caller, user_id)
+            assert confirm_committed.wait(20)
+            return super().delete_job(session, caller, user_id)
 
     storage = InMemoryObjectStorage()
     storage.put_bytes(key="jobs/preview", content=b"<svg />", content_type="image/svg+xml")
-    async with (
-        AsyncSession(db.bind, expire_on_commit=False) as deleting,
-        AsyncSession(db.bind, expire_on_commit=False) as confirming,
+    with (
+        Session(db.bind, expire_on_commit=False) as deleting,
+        Session(db.bind, expire_on_commit=False) as confirming,
     ):
-        request = asyncio.create_task(
-            ImportJobService(deletion_service=WaitingDeletion()).delete(deleting, job.job_uuid, 1)
-        )
-        await asyncio.wait_for(observed.wait(), 10)
+        job_uuid = job.job_uuid
+
+        def delete():
+            with Session(db.bind, expire_on_commit=False) as request_db:
+                return ImportJobService(deletion_service=WaitingDeletion()).delete(
+                    request_db, job_uuid, 1
+                )
+
+        request = asyncio.create_task(asyncio.to_thread(delete))
+        assert await asyncio.to_thread(observed.wait, 10)
         try:
             review = ImportReviewService(storage=storage)
-            confirmed = await review.confirm(
+            confirmed = review.confirm(
                 confirming, job.job_uuid, 1, ReviewConfirmRequest(content=MUSICXML_1.decode())
             )
         finally:
@@ -472,25 +473,25 @@ async def test_review_confirmation_wins_over_stale_customer_delete_and_retains_p
             await asyncio.wait_for(request, 20)
         assert error.value.code == ErrorCode.VALIDATION_ERROR
         assert error.value.details == {"field": "state"}
-        await deleting.rollback()
+        deleting.rollback()
         # Idempotent confirmation returns the same fully committed Score.
-        replay = await review.confirm(
+        replay = review.confirm(
             confirming, job.job_uuid, 1, ReviewConfirmRequest(content=MUSICXML_1.decode())
         )
         assert replay.score_id == confirmed.score_id
-    async with AsyncSession(db.bind) as check:
-        persisted = await check.get(ImportJob, job_id)
+    with Session(db.bind) as check:
+        persisted = check.get(ImportJob, job_id)
         score = (
-            await check.execute(select(Score).where(Score.score_uuid == confirmed.score_id))
+            check.execute(select(Score).where(Score.score_uuid == confirmed.score_id))
         ).scalar_one()
         assert persisted.state == ImportJobState.CONFIRMED and persisted.score_id == score.id
         assert score.originating_job_id == job_id
         revision = (
-            await check.execute(select(ScoreRevision).where(ScoreRevision.score_id == score.id))
+            check.execute(select(ScoreRevision).where(ScoreRevision.score_id == score.id))
         ).scalar_one()
         assert revision.created_by_job_id == job_id
         assert (
-            await check.scalar(
+            check.scalar(
                 select(func.count())
                 .select_from(ImportDispatch)
                 .where(ImportDispatch.job_id == job_id)
@@ -498,7 +499,7 @@ async def test_review_confirmation_wins_over_stale_customer_delete_and_retains_p
             == 1
         )
         assert (
-            await check.scalar(
+            check.scalar(
                 select(func.count())
                 .select_from(ImportArtifact)
                 .where(ImportArtifact.job_id == job_id)
@@ -506,7 +507,7 @@ async def test_review_confirmation_wins_over_stale_customer_delete_and_retains_p
             == 0
         )
         assert (
-            await check.scalar(
+            check.scalar(
                 select(func.count())
                 .select_from(ImportJobUpload)
                 .where(ImportJobUpload.job_id == job_id)
@@ -514,7 +515,7 @@ async def test_review_confirmation_wins_over_stale_customer_delete_and_retains_p
             == 0
         )
         assert (
-            await check.scalar(
+            check.scalar(
                 select(func.count())
                 .select_from(ScoreInputAsset)
                 .where(ScoreInputAsset.score_id == score.id)

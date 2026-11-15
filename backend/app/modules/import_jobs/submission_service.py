@@ -3,7 +3,7 @@
 import uuid
 
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.core.async_trace_context import get_async_trace_context
 from app.core.exceptions import ResourceNotFoundException
@@ -26,20 +26,20 @@ class ImportJobSubmissionService:
     def __init__(self, repository: ImportJobRepository | None = None) -> None:
         self.repository = repository or ImportJobRepository()
 
-    async def submit(
-        self, db: AsyncSession, current_user: User, request: ImportJobSubmitRequestLike
+    def submit(
+        self, db: Session, current_user: User, request: ImportJobSubmitRequestLike
     ) -> ImportJobSubmitResult:
         user_id = require_persisted_id(current_user.id, entity="user")
         key = self._normalize_key(request.idempotency_key)
         if key:
-            existing = await self.repository.get_by_idempotency_key(db, user_id, key)
+            existing = self.repository.get_by_idempotency_key(db, user_id, key)
             if existing:
                 return self._result(existing.job_uuid, request)
 
         try:
             uploads = {
                 row["upload_uuid"]: row
-                for row in await self.repository.submission_uploads(db, request.upload_ids)
+                for row in self.repository.submission_uploads(db, request.upload_ids)
             }
             for upload_id in request.upload_ids:
                 upload = uploads.get(upload_id)
@@ -60,7 +60,7 @@ class ImportJobSubmissionService:
                 updated_at=now,
             )
             db.add(job)
-            await db.flush()
+            db.flush()
             job_id = require_persisted_id(job.id, entity="import job")
             db.add(
                 ImportDispatch(
@@ -79,16 +79,16 @@ class ImportJobSubmissionService:
                         sort_order=index,
                     )
                 )
-            await db.commit()
+            db.commit()
         except IntegrityError:
-            await db.rollback()
+            db.rollback()
             if key:
-                existing = await self.repository.get_by_idempotency_key(db, user_id, key)
+                existing = self.repository.get_by_idempotency_key(db, user_id, key)
                 if existing:
                     return self._result(existing.job_uuid, request)
             raise
         except Exception:
-            await db.rollback()
+            db.rollback()
             raise
         return self._result(job_uuid, request)
 

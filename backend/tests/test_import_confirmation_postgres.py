@@ -1,6 +1,5 @@
 """Import confirmation commits provenance, revision admission, facts and release together."""
 
-import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from queue import Queue
@@ -53,7 +52,7 @@ from app.utils.timezone import utc_now_naive
 from tests.support.postgres_schema import postgres_schema_database
 from tests.support.object_storage import InMemoryObjectStorage
 from tests.support.write_cleanup import drain_write_cleanup
-from tests.test_score_revision_services import AsyncSessionAdapter, MUSICXML_1
+from tests.test_score_revision_services import MUSICXML_1
 
 
 @pytest.fixture
@@ -96,7 +95,7 @@ def confirmation(monkeypatch):
                         filename=kind + ".svg",
                     )
                 )
-                storage_usage_service.record_allocation_sync(
+                storage_usage_service.record_allocation(
                     db,
                     user_id=1,
                     category=StorageUsageCategory.TEMP_IMPORT,
@@ -115,7 +114,7 @@ def confirmation(monkeypatch):
             db.add(upload)
             db.flush()
             db.add(ImportJobUpload(job_id=job.id, upload_id=upload.id, page_number=1, sort_order=1))
-            storage_usage_service.record_allocation_sync(
+            storage_usage_service.record_allocation(
                 db,
                 user_id=1,
                 category=StorageUsageCategory.UPLOAD,
@@ -130,7 +129,7 @@ def confirmation(monkeypatch):
             )
             db.commit()
 
-        async def latency_only(*args):
+        def latency_only(*args):
             pass
 
         monkeypatch.setattr(review, "revision_fast_path", latency_only)
@@ -139,11 +138,11 @@ def confirmation(monkeypatch):
 
 def confirm(engine, storage):
     with Session(engine, expire_on_commit=False) as db:
-        return asyncio.run(
-            review.ImportReviewService(storage=storage).confirm(
-                AsyncSessionAdapter(db), "job", 1, ReviewConfirmRequest(content=MUSICXML_1.decode())
-            )
-        ).score_id
+        return (
+            review.ImportReviewService(storage=storage)
+            .confirm(db, "job", 1, ReviewConfirmRequest(content=MUSICXML_1.decode()))
+            .score_id
+        )
 
 
 def snapshot(db):
@@ -197,10 +196,10 @@ def test_confirmation_semantic_transaction_rolls_back_at_every_boundary(
     if stage in {"confirmed", "release"}:
         original = review.ImportJobDeletionService.cleanup_binary_artifacts
 
-        async def release(self, db, job, user_id):
+        def release(self, db, job, user_id):
             assert job.state == ImportJobState.CONFIRMED
             if stage == "release":
-                await original(self, db, job, user_id)
+                original(self, db, job, user_id)
             interrupted()
 
         monkeypatch.setattr(review.ImportJobDeletionService, "cleanup_binary_artifacts", release)
@@ -214,11 +213,11 @@ def test_confirmation_semantic_transaction_rolls_back_at_every_boundary(
         monkeypatch.setattr(review, "append_fact", append)
 
     with Session(engine, expire_on_commit=False) as db:
-        adapter = AsyncSessionAdapter(db)
+        adapter = db
         if stage == "commit":
             original = adapter.commit
 
-            async def commit():
+            def commit():
                 if db.scalar(sa.select(ImportJob)).state == ImportJobState.CONFIRMED:
                     assert db.scalar(
                         sa.select(DomainEvent).where(
@@ -226,14 +225,12 @@ def test_confirmation_semantic_transaction_rolls_back_at_every_boundary(
                         )
                     )
                     interrupted()
-                await original()
+                original()
 
             monkeypatch.setattr(adapter, "commit", commit)
         with pytest.raises(RuntimeError, match="confirmation interrupted"):
-            asyncio.run(
-                review.ImportReviewService(storage=storage).confirm(
-                    adapter, "job", 1, ReviewConfirmRequest(content=MUSICXML_1.decode())
-                )
+            review.ImportReviewService(storage=storage).confirm(
+                adapter, "job", 1, ReviewConfirmRequest(content=MUSICXML_1.decode())
             )
         db.rollback()
         assert snapshot(db) == before
@@ -319,14 +316,14 @@ def test_confirmation_projection_requires_completed_evidence(confirmation):
 def test_concurrent_confirmation_admits_one_complete_import_transaction(confirmation, monkeypatch):
     engine, storage = confirmation
     barrier = Barrier(2)
-    original = review.write_object_async
+    original = review.write_object
 
-    async def paused(*args, **kwargs):
-        result = await original(*args, **kwargs)
+    def paused(*args, **kwargs):
+        result = original(*args, **kwargs)
         barrier.wait(15)
         return result
 
-    monkeypatch.setattr(review, "write_object_async", paused)
+    monkeypatch.setattr(review, "write_object", paused)
     with ThreadPoolExecutor(max_workers=2) as pool:
         results = list(pool.map(lambda _: confirm(engine, storage), range(2)))
     assert results[0] == results[1]
@@ -375,14 +372,14 @@ def test_confirmation_and_deletion_serialize_on_dispatch_before_job(
     original = review.ImportJobDeletionService._release
     owner_pid = Queue()
 
-    async def paused(self, db, job, user_id, *, delete_job):
+    def paused(self, db, job, user_id, *, delete_job):
         if delete_job == (winner == "delete"):
-            await db.execute(sa.select(ImportDispatch).with_for_update())
-            await db.execute(sa.select(ImportJob).with_for_update())
-            owner_pid.put(await db.scalar(sa.text("SELECT pg_backend_pid()")))
+            db.execute(sa.select(ImportDispatch).with_for_update())
+            db.execute(sa.select(ImportJob).with_for_update())
+            owner_pid.put(db.scalar(sa.text("SELECT pg_backend_pid()")))
             entered.set()
             assert release.wait(15)
-        return await original(self, db, job, user_id, delete_job=delete_job)
+        return original(self, db, job, user_id, delete_job=delete_job)
 
     monkeypatch.setattr(review.ImportJobDeletionService, "_release", paused)
 
@@ -392,15 +389,13 @@ def test_confirmation_and_deletion_serialize_on_dispatch_before_job(
                 waiting_pid.put(db.scalar(sa.text("SELECT pg_backend_pid()")))
             try:
                 if kind == "confirm":
-                    return asyncio.run(
-                        review.ImportReviewService(storage=storage).confirm(
-                            AsyncSessionAdapter(db),
-                            "job",
-                            1,
-                            ReviewConfirmRequest(content=MUSICXML_1.decode()),
-                        )
+                    return review.ImportReviewService(storage=storage).confirm(
+                        db,
+                        "job",
+                        1,
+                        ReviewConfirmRequest(content=MUSICXML_1.decode()),
                     )
-                asyncio.run(ImportJobService().delete(AsyncSessionAdapter(db), "job", 1))
+                ImportJobService().delete(db, "job", 1)
             except (ResourceNotFoundException, ValidationException) as exc:
                 db.rollback()
                 return exc
@@ -436,14 +431,12 @@ def test_import_commands_wait_on_dispatch_without_holding_job(confirmation, comm
     def execute():
         with Session(engine, expire_on_commit=False) as db:
             pid.put(db.scalar(sa.text("SELECT pg_backend_pid()")))
-            adapter = AsyncSessionAdapter(db)
+            adapter = db
             if command_kind == "confirm":
-                return asyncio.run(
-                    review.ImportReviewService(storage=storage).confirm(
-                        adapter, "job", 1, ReviewConfirmRequest(content=MUSICXML_1.decode())
-                    )
+                return review.ImportReviewService(storage=storage).confirm(
+                    adapter, "job", 1, ReviewConfirmRequest(content=MUSICXML_1.decode())
                 )
-            return asyncio.run(ImportJobService().delete(adapter, "job", 1))
+            return ImportJobService().delete(adapter, "job", 1)
 
     with ThreadPoolExecutor(max_workers=1) as pool, Session(engine) as holder:
         holder.scalar(sa.select(ImportDispatch).with_for_update())

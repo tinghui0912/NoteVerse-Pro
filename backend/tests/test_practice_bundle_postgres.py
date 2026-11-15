@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from threading import Event
+from time import monotonic, sleep
 import os
 from pathlib import Path
 from uuid import uuid4
 
 import pytest
-import pytest_asyncio
 from sqlalchemy import MetaData, select, text, update
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy import create_engine
 from sqlalchemy.engine import make_url
 from sqlmodel import SQLModel
 
@@ -23,8 +26,8 @@ from app.modules.practice.bundle.repository import PracticeBundleRepository
 from tests.support.object_storage import InMemoryObjectStorage
 
 
-@pytest_asyncio.fixture
-async def postgres_bundle(tmp_path, request):
+@pytest.fixture
+def postgres_bundle(tmp_path, request):
     url = os.environ.get("NOTEVERSE_TEST_PRACTICE_BUNDLE_POSTGRES_URL")
     if not url:
         pytest.skip(
@@ -34,36 +37,35 @@ async def postgres_bundle(tmp_path, request):
     assert parsed.drivername == "postgresql+psycopg"
     assert (parsed.database or "").startswith("noteverse_test_"), "Use a dedicated test database"
     schema = "practice_bundle_" + uuid4().hex
-    admin = create_async_engine(url)
-    async with admin.begin() as connection:
-        await connection.execute(text(f'CREATE SCHEMA "{schema}"'))
-    engine = create_async_engine(url, connect_args={"options": f"-csearch_path={schema}"})
+    admin = create_engine(url)
+    with admin.begin() as connection:
+        connection.execute(text(f'CREATE SCHEMA "{schema}"'))
+    engine = create_engine(url, connect_args={"options": f"-csearch_path={schema}"})
     try:
         # DDL compilation owns a private metadata graph, independently of other test dialects.
         metadata = MetaData()
         for table in SQLModel.metadata.tables.values():
             table.to_metadata(metadata)
-        async with engine.begin() as connection:
-            await connection.run_sync(metadata.create_all)
-        source = await asyncio.to_thread(
-            PracticeBundleCompiler().compile,
+        with engine.begin() as connection:
+            metadata.create_all(connection)
+        source = PracticeBundleCompiler().compile(
             canonical_musicxml=(
                 Path(__file__).parent
                 / "fixtures/musicxml"
                 / getattr(request, "param", "bundle-multi-part.musicxml")
             ).read_bytes(),
         )
-        async with AsyncSession(engine) as seed:
+        with Session(engine) as seed:
             user = User(
                 email="source@example.com",
                 display_name="Source",
                 password_hash="9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
             )
             seed.add(user)
-            await seed.flush()
+            seed.flush()
             score = Score(score_uuid="score-content-owner", owner_user_id=user.id, title="Source")
             seed.add(score)
-            await seed.flush()
+            seed.flush()
             revision = ScoreRevision(
                 revision_uuid="revision-content-owner",
                 score_id=score.id,
@@ -73,10 +75,10 @@ async def postgres_bundle(tmp_path, request):
                 created_by_user_id=user.id,
             )
             seed.add(revision)
-            await seed.flush()
+            seed.flush()
             revision_id = revision.id
             score.head_revision_id = revision_id
-            await seed.commit()
+            seed.commit()
         storage = InMemoryObjectStorage()
         repository = PracticeBundleRepository(storage)
         repository.test_revision_id = revision_id
@@ -84,10 +86,10 @@ async def postgres_bundle(tmp_path, request):
         repository.test_revision_uuid = "revision-content-owner"
         yield engine, repository, source, storage
     finally:
-        await engine.dispose()
-        async with admin.begin() as connection:
-            await connection.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
-        await admin.dispose()
+        engine.dispose()
+        with admin.begin() as connection:
+            connection.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
+        admin.dispose()
 
 
 @pytest.mark.asyncio
@@ -96,19 +98,19 @@ async def test_same_revision_concurrent_candidates_have_one_bundle_one_binding(p
     from app.db.models import ScoreRevisionPracticeBinding
 
     engine, repository, bundle, _ = postgres_bundle
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    sessions = sessionmaker(engine, expire_on_commit=False)
 
-    async def resolve():
-        async with sessions() as db:
-            return await repository.get_or_create(
-                db, bundle, revision_id=repository.test_revision_id
-            )
+    def resolve():
+        with sessions() as db:
+            return repository.get_or_create(db, bundle, revision_id=repository.test_revision_id)
 
-    first, second = await asyncio.gather(resolve(), resolve())
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        a, b = pool.submit(resolve), pool.submit(resolve)
+        first, second = a.result(15), b.result(15)
     assert first == second
-    async with sessions() as db:
-        assert await db.scalar(select(func.count()).select_from(PracticeBundleRecord)) == 1
-        assert await db.scalar(select(func.count()).select_from(ScoreRevisionPracticeBinding)) == 1
+    with sessions() as db:
+        assert db.scalar(select(func.count()).select_from(PracticeBundleRecord)) == 1
+        assert db.scalar(select(func.count()).select_from(ScoreRevisionPracticeBinding)) == 1
 
 
 @pytest.mark.asyncio
@@ -117,11 +119,11 @@ async def test_identical_content_across_scores_shares_one_bundle_two_bindings(po
     from app.db.models import ScoreRevisionPracticeBinding
 
     engine, repository, bundle, _ = postgres_bundle
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
-    async with sessions() as db:
+    sessions = sessionmaker(engine, expire_on_commit=False)
+    with sessions() as db:
         score = Score(score_uuid="another-score", owner_user_id=1, title="Another")
         db.add(score)
-        await db.flush()
+        db.flush()
         revision = ScoreRevision(
             revision_uuid="another-revision",
             score_id=score.id,
@@ -131,31 +133,32 @@ async def test_identical_content_across_scores_shares_one_bundle_two_bindings(po
             created_by_user_id=1,
         )
         db.add(revision)
-        await db.flush()
+        db.flush()
         revision_id = revision.id
-        await db.commit()
+        db.commit()
 
-    async def resolve(revision_id):
-        async with sessions() as db:
-            return await repository.get_or_create(db, bundle, revision_id=revision_id)
+    def resolve(revision_id):
+        with sessions() as db:
+            return repository.get_or_create(db, bundle, revision_id=revision_id)
 
-    first, second = await asyncio.gather(resolve(repository.test_revision_id), resolve(revision_id))
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        a, b = pool.submit(resolve, repository.test_revision_id), pool.submit(resolve, revision_id)
+        first, second = a.result(15), b.result(15)
     assert first == second
     assert first[1].artifact.representation.data == second[1].artifact.representation.data
-    async with sessions() as db:
-        assert await db.scalar(select(func.count()).select_from(PracticeBundleRecord)) == 1
-        assert await db.scalar(select(func.count()).select_from(ScoreRevisionPracticeBinding)) == 2
+    with sessions() as db:
+        assert db.scalar(select(func.count()).select_from(PracticeBundleRecord)) == 1
+        assert db.scalar(select(func.count()).select_from(ScoreRevisionPracticeBinding)) == 2
 
 
-@pytest.mark.asyncio
-async def test_binding_cascade_retains_shared_bundle_until_last_revision_deleted(postgres_bundle):
+def test_binding_cascade_retains_shared_bundle_until_last_revision_deleted(postgres_bundle):
     from sqlalchemy import delete
     from app.db.models import ScoreRevisionPracticeBinding
     from app.modules.practice.bundle.retention import practice_bundle_retention
 
     engine, repository, bundle, storage = postgres_bundle
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
-    async with sessions() as db:
+    sessions = sessionmaker(engine, expire_on_commit=False)
+    with sessions() as db:
         revision = ScoreRevision(
             revision_uuid="another-revision",
             score_id=1,
@@ -165,188 +168,153 @@ async def test_binding_cascade_retains_shared_bundle_until_last_revision_deleted
             created_by_user_id=1,
         )
         db.add(revision)
-        await db.flush()
+        db.flush()
         second_id = revision.id
-        await db.commit()
-        ref, _ = await repository.get_or_create(db, bundle, revision_id=repository.test_revision_id)
-        await repository.get_or_create(db, bundle, revision_id=second_id)
-        await db.execute(update(Score).values(head_revision_id=None))
-        await db.execute(
-            delete(ScoreRevision).where(ScoreRevision.id == repository.test_revision_id)
-        )
-        await db.commit()
-        assert await db.get(ScoreRevisionPracticeBinding, repository.test_revision_id) is None
-        assert (
-            await db.run_sync(
-                lambda sync: practice_bundle_retention.collect_unowned_ready(
-                    sync,
-                )
-            )
-            == []
-        )
-        await db.commit()
-        await db.execute(delete(ScoreRevision).where(ScoreRevision.id == second_id))
-        await db.commit()
-        due = await db.run_sync(
-            lambda sync: practice_bundle_retention.collect_unowned_ready(
-                sync,
-            )
-        )
-        await db.commit()
+        db.commit()
+        ref, _ = repository.get_or_create(db, bundle, revision_id=repository.test_revision_id)
+        repository.get_or_create(db, bundle, revision_id=second_id)
+        db.execute(update(Score).values(head_revision_id=None))
+        db.execute(delete(ScoreRevision).where(ScoreRevision.id == repository.test_revision_id))
+        db.commit()
+        assert db.get(ScoreRevisionPracticeBinding, repository.test_revision_id) is None
+        assert practice_bundle_retention.collect_unowned_ready(db) == []
+        db.commit()
+        db.execute(delete(ScoreRevision).where(ScoreRevision.id == second_id))
+        db.commit()
+        due = practice_bundle_retention.collect_unowned_ready(db)
+        db.commit()
         assert len(due) == 2
-        assert await db.get(PracticeBundleRecord, ref.id) is None
+        assert db.get(PracticeBundleRecord, ref.id) is None
 
 
-@pytest.mark.asyncio
-async def test_collected_bundle_rebinds_only_through_fenced_object_adoption(postgres_bundle):
+def test_collected_bundle_rebinds_only_through_fenced_object_adoption(postgres_bundle):
     from sqlalchemy import delete
     from app.db.models import ScoreRevisionPracticeBinding, StoredObjectRetirement
     from app.modules.practice.bundle.retention import practice_bundle_retention
 
     engine, repository, bundle, storage = postgres_bundle
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
-    async with sessions() as db:
-        ref, _ = await repository.get_or_create(db, bundle, revision_id=repository.test_revision_id)
-        await db.execute(delete(ScoreRevisionPracticeBinding))
-        due = await db.run_sync(lambda sync: practice_bundle_retention.retire_unowned(sync, ref.id))
-        await db.commit()
+    sessions = sessionmaker(engine, expire_on_commit=False)
+    with sessions() as db:
+        ref, _ = repository.get_or_create(db, bundle, revision_id=repository.test_revision_id)
+        db.execute(delete(ScoreRevisionPracticeBinding))
+        due = practice_bundle_retention.retire_unowned(db, ref.id)
+        db.commit()
         assert len(due) == 2
-        rebound, verified = await repository.get_or_create(
+        rebound, verified = repository.get_or_create(
             db, bundle, revision_id=repository.test_revision_id
         )
         assert verified.bundle_id == bundle.bundle_id
-        assert (await repository.read_bound(db, repository.test_revision_id))[0] == rebound
+        assert (repository.read_bound(db, repository.test_revision_id))[0] == rebound
         assert all(
-            op.status == "CANCELLED"
-            for op in (await db.scalars(select(StoredObjectRetirement))).all()
+            op.status == "CANCELLED" for op in (db.scalars(select(StoredObjectRetirement))).all()
         )
 
 
-@pytest.mark.asyncio
-async def test_binding_committed_before_gc_protects_the_bundle(postgres_bundle):
+def test_binding_committed_before_gc_protects_the_bundle(postgres_bundle):
     from app.modules.practice.bundle.retention import practice_bundle_retention
 
     engine, repository, bundle, storage = postgres_bundle
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
-    async with sessions() as a, sessions() as b:
-        ref, _ = await repository.get_or_create(a, bundle, revision_id=repository.test_revision_id)
-        assert (
-            await b.run_sync(
-                lambda sync: practice_bundle_retention.retire_unowned(
-                    sync,
-                    ref.id,
-                )
-            )
-            == []
-        )
-        await b.commit()
-        assert (await repository.read_bound(a, repository.test_revision_id))[0] == ref
+    sessions = sessionmaker(engine, expire_on_commit=False)
+    with sessions() as a, sessions() as b:
+        ref, _ = repository.get_or_create(a, bundle, revision_id=repository.test_revision_id)
+        assert practice_bundle_retention.retire_unowned(b, ref.id) == []
+        b.commit()
+        assert (repository.read_bound(a, repository.test_revision_id))[0] == ref
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("representation", ["artifact", "prepared_musicxml"])
-async def test_durable_representation_corruption_fails_closed(postgres_bundle, representation):
+def test_durable_representation_corruption_fails_closed(postgres_bundle, representation):
     engine, repository, bundle, storage = postgres_bundle
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
-    async with sessions() as db:
-        ref, _ = await repository.get_or_create(db, bundle, revision_id=repository.test_revision_id)
-        row = await db.get(PracticeBundleRecord, ref.id)
+    sessions = sessionmaker(engine, expire_on_commit=False)
+    with sessions() as db:
+        ref, _ = repository.get_or_create(db, bundle, revision_id=repository.test_revision_id)
+        row = db.get(PracticeBundleRecord, ref.id)
         storage.put_bytes(
             key=getattr(row, representation + "_object").object_key,
             content=b"corrupt",
             content_type="application/octet-stream",
         )
         with pytest.raises(ValidationException):
-            await repository.read_bound(db, repository.test_revision_id)
+            repository.read_bound(db, repository.test_revision_id)
 
 
-@pytest.mark.asyncio
-@pytest.mark.parametrize("winner", ["BINDING", "GC"])
-async def test_binding_and_gc_serialize_on_bundle_row(postgres_bundle, winner):
+@pytest.mark.parametrize("winner", ["GC", "BINDING"])
+def test_binding_and_gc_serialize_on_bundle_row(postgres_bundle, winner):
     from sqlalchemy import delete
     from app.db.models import ScoreRevisionPracticeBinding
     from app.modules.practice.bundle.retention import practice_bundle_retention
+    from tests.test_stored_object_retirement_postgres import assert_blocked
 
-    engine, repository, bundle, storage = postgres_bundle
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
-    async with sessions() as db:
-        ref, _ = await repository.get_or_create(db, bundle, revision_id=repository.test_revision_id)
-        await db.execute(delete(ScoreRevisionPracticeBinding))
-        await db.commit()
+    engine, repository, bundle, _ = postgres_bundle
+    sessions = sessionmaker(engine, expire_on_commit=False)
+    with sessions() as db:
+        ref, _ = repository.get_or_create(db, bundle, revision_id=repository.test_revision_id)
+        db.execute(delete(ScoreRevisionPracticeBinding))
+        db.commit()
+    ready, release = Event(), Event()
+    pid = []
 
-    async def blocked(observer, pid):
-        async with asyncio.timeout(10):
-            while not await observer.scalar(
-                text("SELECT cardinality(pg_blocking_pids(:pid)) > 0"), {"pid": pid}
-            ):
-                await observer.commit()
-
-    if winner == "GC":
-        async with sessions() as gc, sessions() as bind, sessions() as observer:
-            await gc.execute(
-                select(PracticeBundleRecord)
-                .where(PracticeBundleRecord.id == ref.id)
-                .with_for_update()
-            )
-            pid = await bind.scalar(text("SELECT pg_backend_pid()"))
-            binding = asyncio.create_task(
-                repository.get_or_create(bind, bundle, revision_id=repository.test_revision_id)
-            )
-            try:
-                await blocked(observer, pid)
-                assert not binding.done()
-                outbox = await gc.run_sync(
-                    lambda sync: practice_bundle_retention.retire_unowned(
-                        sync,
-                        ref.id,
-                    )
-                )
-                assert outbox is not None
-            finally:
-                await gc.commit()
-            rebound, verified = await asyncio.wait_for(binding, 10)
-            assert verified.bundle_id == bundle.bundle_id
-            assert (await repository.read_bound(bind, repository.test_revision_id))[0] == rebound
-    else:
-        ready, release = asyncio.Event(), asyncio.Event()
-
-        class BindingTransaction(AsyncSession):
-            async def commit(self):
+    class BindingSession(Session):
+        def commit(self):
+            if winner == "BINDING":
                 ready.set()
-                await release.wait()
-                await super().commit()
+                assert release.wait(10)
+            super().commit()
 
-        async with (
-            BindingTransaction(engine, expire_on_commit=False) as bind,
-            sessions() as gc,
-            sessions() as observer,
-        ):
-            binding = asyncio.create_task(
-                repository.get_or_create(bind, bundle, revision_id=repository.test_revision_id)
-            )
-            await asyncio.wait_for(ready.wait(), 10)
-            pid = await gc.scalar(text("SELECT pg_backend_pid()"))
-            collecting = asyncio.create_task(
-                gc.run_sync(
-                    lambda sync: practice_bundle_retention.retire_unowned(
-                        sync,
-                        ref.id,
-                    )
+    def bind():
+        with BindingSession(engine, expire_on_commit=False) as db:
+            pid.append(db.scalar(text("SELECT pg_backend_pid()")))
+            return repository.get_or_create(db, bundle, revision_id=repository.test_revision_id)
+
+    def collect():
+        with sessions() as db:
+            pid.append(db.scalar(text("SELECT pg_backend_pid()")))
+            outcome = practice_bundle_retention.retire_unowned(db, ref.id)
+            db.commit()
+            return outcome
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        if winner == "GC":
+            with sessions() as gc:
+                gc.execute(
+                    select(PracticeBundleRecord)
+                    .where(PracticeBundleRecord.id == ref.id)
+                    .with_for_update()
                 )
-            )
+                pending = pool.submit(bind)
+                try:
+                    deadline = monotonic() + 10
+                    while not pid:
+                        assert monotonic() < deadline
+                        sleep(0.01)
+                    assert_blocked(engine, pid[0])
+                    assert not pending.done()
+                    assert practice_bundle_retention.retire_unowned(gc, ref.id) is not None
+                finally:
+                    gc.commit()
+                rebound, verified = pending.result(10)
+                assert verified.bundle_id == bundle.bundle_id
+        else:
+            binding = pool.submit(bind)
             try:
-                await blocked(observer, pid)
+                assert ready.wait(10)
+                collecting = pool.submit(collect)
+                deadline = monotonic() + 10
+                while len(pid) < 2:
+                    assert monotonic() < deadline
+                    sleep(0.01)
+                assert_blocked(engine, pid[1])
                 assert not collecting.done()
             finally:
                 release.set()
-            assert (await asyncio.wait_for(binding, 10))[0] == ref
-            assert await asyncio.wait_for(collecting, 10) == []
-            await gc.commit()
-            assert (await repository.read_bound(gc, repository.test_revision_id))[0] == ref
+            assert binding.result(10)[0] == ref
+            assert collecting.result(10) == []
+            rebound = ref
+    with sessions() as db:
+        assert repository.read_bound(db, repository.test_revision_id)[0] == rebound
 
 
-@pytest.mark.asyncio
-async def test_interrupted_creation_has_durable_lease_for_orphan_cleanup(postgres_bundle):
+def test_interrupted_creation_has_durable_lease_for_orphan_cleanup(postgres_bundle):
     from datetime import timedelta
     from unittest.mock import patch
     from app.db.models import ScoreRevisionPracticeBinding
@@ -354,7 +322,7 @@ async def test_interrupted_creation_has_durable_lease_for_orphan_cleanup(postgre
     from app.utils.timezone import utc_now_naive
 
     engine, repository, bundle, storage = postgres_bundle
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    sessions = sessionmaker(engine, expire_on_commit=False)
 
     class Interrupted(BaseException):
         pass
@@ -366,30 +334,26 @@ async def test_interrupted_creation_has_durable_lease_for_orphan_cleanup(postgre
         raise Interrupted()
 
     with patch.object(storage, "put_bytes", side_effect=interrupted):
-        async with sessions() as db:
+        with sessions() as db:
             with pytest.raises(Interrupted):
-                await repository.get_or_create(db, bundle, revision_id=repository.test_revision_id)
-            await db.rollback()
-    async with sessions() as db:
-        row = await db.scalar(select(PracticeBundleRecord))
+                repository.get_or_create(db, bundle, revision_id=repository.test_revision_id)
+            db.rollback()
+    with sessions() as db:
+        row = db.scalar(select(PracticeBundleRecord))
         assert row.status == "CREATING" and row.creation_expires_at is not None
         from app.db.models import ObjectWriteIntent, StoredObject
 
         assert row.prepared_musicxml_object_id is None and row.artifact_object_id is None
-        intent = await db.scalar(select(ObjectWriteIntent))
+        intent = db.scalar(select(ObjectWriteIntent))
         assert intent.status == "PREPARED" and storage.exists(intent.object_key)
-        assert await db.scalar(select(StoredObject)) is None
-        assert await db.scalar(select(ScoreRevisionPracticeBinding)) is None
+        assert db.scalar(select(StoredObject)) is None
+        assert db.scalar(select(ScoreRevisionPracticeBinding)) is None
         row.creation_expires_at = utc_now_naive() - timedelta(seconds=1)
-        await db.commit()
-        due = await db.run_sync(
-            lambda sync: practice_bundle_retention.recover_stale_creating(
-                sync,
-            )
-        )
-        await db.commit()
-        assert due == [] and await db.scalar(select(PracticeBundleRecord)) is None
-        assert await db.scalar(select(StoredObject)) is None
+        db.commit()
+        due = practice_bundle_retention.recover_stale_creating(db)
+        db.commit()
+        assert due == [] and db.scalar(select(PracticeBundleRecord)) is None
+        assert db.scalar(select(StoredObject)) is None
         assert storage.exists(intent.object_key)
 
 
@@ -406,12 +370,10 @@ async def test_bound_readers_share_locks_and_fence_gc_during_verification(
     from app.modules.practice.bundle.retention import practice_bundle_retention
 
     engine, repository, bundle, storage = postgres_bundle
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    sessions = sessionmaker(engine, expire_on_commit=False)
     user_id = 1
-    async with sessions() as seed:
-        ref, _ = await repository.get_or_create(
-            seed, bundle, revision_id=repository.test_revision_id
-        )
+    with sessions() as seed:
+        ref, _ = repository.get_or_create(seed, bundle, revision_id=repository.test_revision_id)
         if reader_role == "PRACTITIONER":
             user = User(
                 email="reader@example.com",
@@ -419,7 +381,7 @@ async def test_bound_readers_share_locks_and_fence_gc_during_verification(
                 password_hash="9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
             )
             seed.add(user)
-            await seed.flush()
+            seed.flush()
             user_id = user.id
             seed.add(
                 ScoreMembership(
@@ -429,29 +391,29 @@ async def test_bound_readers_share_locks_and_fence_gc_during_verification(
                     created_by_user_id=1,
                 )
             )
-            await seed.commit()
+            seed.commit()
 
     service = PracticeBundleService(repository=repository, storage=storage)
-    entered, release = asyncio.Event(), asyncio.Event()
+    entered, release = Event(), Event()
     verified_read = repository._read_verified_bundle
     first = True
 
-    async def verification(row):
+    def verification(row):
         nonlocal first
         if first:
             first = False
             entered.set()
-            await release.wait()
-        return await verified_read(row)
+            assert release.wait(10)
+        return verified_read(row)
 
     statements = []
 
     def observe_sql(connection, cursor, statement, parameters, context, executemany):
         statements.append(statement)
 
-    async def request():
-        async with sessions() as db:
-            return await service.read_bundle(
+    def request():
+        with sessions() as db:
+            return service.read_bundle(
                 db,
                 repository.test_score_uuid,
                 user_id,
@@ -459,7 +421,7 @@ async def test_bound_readers_share_locks_and_fence_gc_during_verification(
                 include_notation=True,
             )
 
-    event.listen(engine.sync_engine, "before_cursor_execute", observe_sql)
+    event.listen(engine, "before_cursor_execute", observe_sql)
     try:
         with (
             patch.object(repository, "_read_verified_bundle", side_effect=verification),
@@ -480,11 +442,11 @@ async def test_bound_readers_share_locks_and_fence_gc_during_verification(
                 side_effect=AssertionError("Bound GET must not read canonical notation"),
             ),
         ):
-            first_read = asyncio.create_task(request())
+            first_read = asyncio.create_task(asyncio.to_thread(request))
             try:
-                await asyncio.wait_for(entered.wait(), 10)
+                assert await asyncio.to_thread(entered.wait, 10)
                 # A second ordinary request completes while the first verified read is pending.
-                second = await asyncio.wait_for(request(), 10)
+                second = await asyncio.wait_for(asyncio.to_thread(request), 10)
                 assert (
                     second.binding.bundle_id == ref.bundle_id
                     and second.notation.musicxml == bundle.prepared_musicxml.content
@@ -497,24 +459,27 @@ async def test_bound_readers_share_locks_and_fence_gc_during_verification(
                     "SCORE_MEMBERSHIPS" not in statement and "FROM SCORES " not in statement
                     for statement in locking
                 )
-                async with sessions() as gc, sessions() as observer:
-                    pid = await gc.scalar(text("SELECT pg_backend_pid()"))
-                    collecting = asyncio.create_task(
-                        gc.run_sync(
-                            lambda sync: practice_bundle_retention.retire_unowned(
-                                sync,
-                                ref.id,
-                            )
-                        )
-                    )
+                with sessions() as gc, sessions() as observer:
+                    gc.scalar(text("SELECT pg_backend_pid()"))
+
+                    def collect():
+                        with sessions() as db:
+                            collection_pid.append(db.scalar(text("SELECT pg_backend_pid()")))
+                            outcome = practice_bundle_retention.retire_unowned(db, ref.id)
+                            db.commit()
+                            return outcome
+
+                    collection_pid = []
+                    collecting = asyncio.create_task(asyncio.to_thread(collect))
                     try:
+                        from tests.test_stored_object_retirement_postgres import assert_blocked
+
                         async with asyncio.timeout(10):
-                            while not await observer.scalar(
-                                text("SELECT cardinality(pg_blocking_pids(:pid)) > 0"), {"pid": pid}
-                            ):
-                                await observer.commit()
+                            while not collection_pid:
+                                await asyncio.sleep(0.01)
+                        await asyncio.to_thread(assert_blocked, engine, collection_pid[0])
                         assert not collecting.done()
-                        row = await observer.get(PracticeBundleRecord, ref.id)
+                        row = observer.get(PracticeBundleRecord, ref.id)
                         assert storage.exists(
                             row.prepared_musicxml_object.object_key
                         ) and storage.exists(row.artifact_object.object_key)
@@ -524,16 +489,15 @@ async def test_bound_readers_share_locks_and_fence_gc_during_verification(
                         await asyncio.wait_for(first_read, 10)
                     ).binding.bundle_id == ref.bundle_id
                     assert await asyncio.wait_for(collecting, 10) == []
-                    await gc.commit()
+                    gc.commit()
             finally:
                 release.set()
                 await first_read
     finally:
-        event.remove(engine.sync_engine, "before_cursor_execute", observe_sql)
+        event.remove(engine, "before_cursor_execute", observe_sql)
 
 
-@pytest.mark.asyncio
-async def test_durable_bundle_rejects_graph_corruption_with_consistent_content_hashes(
+def test_durable_bundle_rejects_graph_corruption_with_consistent_content_hashes(
     postgres_bundle,
 ):
     import hashlib
@@ -544,10 +508,10 @@ async def test_durable_bundle_rejects_graph_corruption_with_consistent_content_h
     from app.modules.practice.bundle.domain import calculate_bundle_id
 
     engine, repository, bundle, storage = postgres_bundle
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
-    async with sessions() as db:
-        ref, _ = await repository.get_or_create(db, bundle, revision_id=repository.test_revision_id)
-        row = await db.get(PracticeBundleRecord, ref.id)
+    sessions = sessionmaker(engine, expire_on_commit=False)
+    with sessions() as db:
+        ref, _ = repository.get_or_create(db, bundle, revision_id=repository.test_revision_id)
+        row = db.get(PracticeBundleRecord, ref.id)
         value = bundle.artifact.value
         value["notes"][0]["eventId"] = "missing"
         value["artifactId"] = practice_artifact_id(value)
@@ -563,6 +527,6 @@ async def test_durable_bundle_rejects_graph_corruption_with_consistent_content_h
             row.prepared_musicxml_object.sha256,
             row.artifact_object.sha256,
         )
-        await db.commit()
+        db.commit()
         with pytest.raises(ValueError, match="dangling"):
-            await repository.read_bound(db, repository.test_revision_id)
+            repository.read_bound(db, repository.test_revision_id)

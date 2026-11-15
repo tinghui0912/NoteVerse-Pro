@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import enum
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.core.exceptions import ResourceNotFoundException, UnauthorizedException
 from app.db.models import (
@@ -42,16 +42,16 @@ class ScoreAccessContext:
 
 
 class ScoreAccessPolicy:
-    async def resolve(
+    def resolve(
         self,
-        db: AsyncSession,
+        db: Session,
         score_uuid: str,
         *,
         user_id: int | None = None,
         revision_uuid: str | None = None,
     ) -> ScoreAccessContext:
         score = (
-            await db.execute(
+            db.execute(
                 select(Score).where(
                     Score.score_uuid == score_uuid,
                     active_score_predicate(),
@@ -61,7 +61,7 @@ class ScoreAccessPolicy:
         if not score:
             raise ResourceNotFoundException("score", score_uuid, ErrorCode.SCORE_NOT_FOUND)
 
-        requested_revision = await self._revision(db, score, revision_uuid)
+        requested_revision = self._revision(db, score, revision_uuid)
         if user_id == score.owner_user_id:
             return ScoreAccessContext(
                 score=score,
@@ -81,7 +81,7 @@ class ScoreAccessPolicy:
 
         if user_id is not None:
             membership = (
-                await db.execute(
+                db.execute(
                     select(ScoreMembership).where(
                         ScoreMembership.score_id == score.id,
                         active_membership_predicate(user_id),
@@ -110,14 +110,14 @@ class ScoreAccessPolicy:
 
         raise UnauthorizedException(ErrorCode.NO_ACCESS, {"score_id": score_uuid})
 
-    async def authorize(
+    def authorize(
         self,
-        db: AsyncSession,
+        db: Session,
         score_uuid: str,
         action: ScoreAction,
         **context: object,
     ) -> ScoreAccessContext:
-        access = await self.resolve(
+        access = self.resolve(
             db,
             score_uuid,
             user_id=_optional_int(context.get("user_id")),
@@ -140,12 +140,10 @@ class ScoreAccessPolicy:
             )
         return access
 
-    async def _revision(
-        self, db: AsyncSession, score: Score, revision_uuid: str | None
-    ) -> ScoreRevision:
+    def _revision(self, db: Session, score: Score, revision_uuid: str | None) -> ScoreRevision:
         if revision_uuid:
             revision = (
-                await db.execute(
+                db.execute(
                     select(ScoreRevision).where(
                         ScoreRevision.revision_uuid == revision_uuid,
                         ScoreRevision.score_id == score.id,
@@ -153,7 +151,7 @@ class ScoreAccessPolicy:
                 )
             ).scalar_one_or_none()
         else:
-            revision = await db.get(ScoreRevision, score.head_revision_id)
+            revision = db.get(ScoreRevision, score.head_revision_id)
         if not revision:
             raise ResourceNotFoundException(
                 "revision", revision_uuid or "head", ErrorCode.REVISION_NOT_FOUND

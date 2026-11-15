@@ -5,7 +5,6 @@ from uuid import uuid4
 from datetime import datetime, timedelta
 
 from sqlalchemy import delete, or_, select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from sqlmodel import col
 
@@ -62,8 +61,8 @@ class MailOutboxPayload:
     tracestate: str | None = None
 
 
-async def queue_mail(
-    db: AsyncSession,
+def queue_mail(
+    db: Session,
     *,
     category: str,
     dedupe_key: str,
@@ -74,7 +73,7 @@ async def queue_mail(
     expires_at: datetime | None = None,
 ) -> MailOutbox:
     existing = (
-        await db.execute(select(MailOutbox).where(MailOutbox.dedupe_key == dedupe_key))
+        db.execute(select(MailOutbox).where(MailOutbox.dedupe_key == dedupe_key))
     ).scalar_one_or_none()
     if existing is not None:
         return existing
@@ -92,7 +91,7 @@ async def queue_mail(
         expires_at=expires_at,
     )
     db.add(outbox)
-    await db.flush()
+    db.flush()
     return outbox
 
 

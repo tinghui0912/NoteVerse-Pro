@@ -1,16 +1,18 @@
 from collections.abc import Iterable
 from uuid import uuid4
 from app.core.logger import logger
-from app.db.sync_session import get_worker_db
+from app.db.session import SessionLocal
 from app.modules.storage_objects.retirement import retirement_delivery
 from app.task_queue.producer import send_durable_task
 from app.task_queue.tracing import DurableTraceContext
 
 
 def dispatch_stored_object_retirement(retirement_uuid: str) -> bool:
-    with get_worker_db() as db:
+    with SessionLocal() as db:
         if not retirement_delivery.mark_dispatched(db, retirement_uuid):
+            db.commit()
             return False
+        db.commit()
     return send_durable_task(
         task_name="app.worker.tasks.stored_object_retirement_task",
         task_kwargs={"retirement_uuid": retirement_uuid},
@@ -27,8 +29,9 @@ def dispatch_stored_object_retirement(retirement_uuid: str) -> bool:
 
 
 def _release(uuid: str, error: str) -> None:
-    with get_worker_db() as db:
+    with SessionLocal() as db:
         retirement_delivery.release_dispatch(db, uuid, error)
+        db.commit()
 
 
 def dispatch_retirements_best_effort(uuids: Iterable[str]) -> None:

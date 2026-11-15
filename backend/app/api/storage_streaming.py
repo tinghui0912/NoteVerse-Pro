@@ -7,7 +7,7 @@ from urllib.parse import quote
 from fastapi import Request, status
 from fastapi.responses import Response, StreamingResponse
 
-from app.storage import AsyncObjectStorage
+from app.storage import ObjectStorage, AsyncObjectStorage
 
 DEFAULT_STREAM_CHUNK_SIZE = 1024 * 1024
 
@@ -18,9 +18,9 @@ class ByteRange:
     end: int
 
 
-async def stream_storage_object(
+def stream_storage_object(
     *,
-    storage: AsyncObjectStorage,
+    storage: ObjectStorage,
     storage_key: str,
     filename: str,
     media_type: str,
@@ -29,7 +29,7 @@ async def stream_storage_object(
     enable_range: bool = False,
     chunk_size: int = DEFAULT_STREAM_CHUNK_SIZE,
 ) -> Response:
-    size = await storage.size_bytes(storage_key)
+    size = storage.size_bytes(storage_key)
     headers = {
         "Content-Disposition": _content_disposition(filename, attachment=attachment),
         "Content-Length": str(size),
@@ -39,7 +39,7 @@ async def stream_storage_object(
 
     if not enable_range or request is None:
         return StreamingResponse(
-            storage.iter_bytes(storage_key, chunk_size=chunk_size),
+            AsyncObjectStorage(storage).iter_bytes(storage_key, chunk_size=chunk_size),
             media_type=media_type,
             headers=headers,
         )
@@ -47,7 +47,7 @@ async def stream_storage_object(
     parsed_range = _parse_byte_range(request.headers.get("range"), size)
     if parsed_range is None:
         return StreamingResponse(
-            storage.iter_bytes(storage_key, chunk_size=chunk_size),
+            AsyncObjectStorage(storage).iter_bytes(storage_key, chunk_size=chunk_size),
             media_type=media_type,
             headers=headers,
         )
@@ -64,7 +64,7 @@ async def stream_storage_object(
         "Content-Range": f"bytes {parsed_range.start}-{parsed_range.end}/{size}",
     }
     return StreamingResponse(
-        storage.iter_bytes(
+        AsyncObjectStorage(storage).iter_bytes(
             storage_key,
             chunk_size=chunk_size,
             start=parsed_range.start,

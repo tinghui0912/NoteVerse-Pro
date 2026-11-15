@@ -10,7 +10,7 @@ typed projection; group names do not imply a separate deployment or database.
 | Responsibility             | Typed settings and consumers                                                                                                                                               |
 | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | HTTP identity and security | Service identity, browser CORS, trusted proxies, customer session security and token signing; API/shared HTTP adapters                                                     |
-| Data and queues            | Async/sync database, queue and Beat scheduler settings; API, Worker and Beat according to role                                                                             |
+| Data and queues            | Application database, queue and Beat scheduler settings; API, Worker and Beat according to role                                                                             |
 | Storage and delivery       | Storage, upload admission, model/render/playback delivery; storage and asset adapters                                                                                      |
 | Async policy               | Import dispatch, mail delivery, task reliability, notification/realtime retention, score deletion, Bundle GC and StoredObject retirement; domain services and Worker scans |
 | Worker execution           | Worker runtime/model engine and playback settings; Worker startup and engines                                                                                              |
@@ -49,8 +49,9 @@ proxy allowlist. S3 configuration does not fall back to local storage when
 credentials are missing.
 
 Production runtime uses PostgreSQL. Explicit isolated SQLAlchemy test engines
-may use SQLite; that does not establish SQLite runtime support. Async database,
-sync Worker database and scheduler-lock connections have different responsibilities.
+may use SQLite; that does not establish SQLite runtime support. Application persistence
+uses one synchronous Session model. The Beat scheduler-lock connection has a separate
+direct PostgreSQL or session-pooling responsibility.
 Compose and Kubernetes must supply the role's required values without changing
 domain policy or introducing permissive defaults.
 

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from dataclasses import dataclass
 
 
@@ -16,11 +15,11 @@ class RevisionDerivativeOutboxes:
 
 
 class RevisionDerivativeService:
-    async def dispatch_after_commit(self, work: RevisionDerivativeOutboxes) -> None:
+    def dispatch_after_commit(self, work: RevisionDerivativeOutboxes) -> None:
         try:
             from app.modules.revisions.dispatch import dispatch_revision_derivatives_best_effort
 
-            await asyncio.to_thread(dispatch_revision_derivatives_best_effort, work)
+            dispatch_revision_derivatives_best_effort(work)
         except Exception as exc:
             _log_fast_dispatch_failure(work, exc)
 

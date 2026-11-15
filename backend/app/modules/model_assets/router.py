@@ -16,9 +16,9 @@ router = APIRouter()
     operation_id="practiceAcousticModelAccessGet",
     response_model=PracticeAcousticAccessRead,
 )
-async def get_practice_acoustic_access(
+def get_practice_acoustic_access(
     current_user: User = Depends(get_current_user),
     service: ModelAssetService = Depends(get_model_asset_service),
 ) -> PracticeAcousticAccessRead:
     """Asset delivery only; no server Practice execution."""
-    return await service.get_practice_acoustic_access()
+    return service.get_practice_acoustic_access()

@@ -26,9 +26,7 @@ class AllowEditAccessPolicy:
     def __init__(self) -> None:
         self.calls: list[tuple[str, object, int]] = []
 
-    async def authorize(
-        self, _db: object, score_id: str, action: object, **context: object
-    ) -> object:
+    def authorize(self, _db: object, score_id: str, action: object, **context: object) -> object:
         self.calls.append((score_id, action, int(context["user_id"])))
         return object()
 
@@ -62,10 +60,9 @@ async def test_generation_authorizes_and_returns_an_unsaved_xml_suggestion() -> 
         execution=InlineExecution(),  # type: ignore[arg-type]
     )
 
+    service.authorize_generation(object(), "score-1", 9)
     result = await service.generate(
-        object(),  # type: ignore[arg-type]
         "score-1",
-        9,
         FingeringRequest(content=MUSICXML, hand_size="L"),
     )
 
@@ -85,10 +82,10 @@ async def test_generation_rejects_invalid_input_and_invalid_engine_output() -> N
     )
 
     with pytest.raises(ValidationException):
-        await service.generate(object(), "score-1", 9, FingeringRequest(content="<invalid />"))  # type: ignore[arg-type]
+        await service.generate("score-1", FingeringRequest(content="<invalid />"))  # type: ignore[arg-type]
 
     with pytest.raises(ExternalServiceException):
-        await service.generate(object(), "score-1", 9, FingeringRequest(content=MUSICXML))  # type: ignore[arg-type]
+        await service.generate("score-1", FingeringRequest(content=MUSICXML))  # type: ignore[arg-type]
 
 
 def test_pianoplayer_engine_uses_a_unique_cleaned_temporary_directory(
@@ -141,7 +138,7 @@ async def test_semantically_invalid_input_is_rejected_before_fingering_execution
     )
     invalid = MUSICXML.replace("<note>", "<backup><duration>1</duration></backup><note>", 1)
     with pytest.raises(ValidationException) as caught:
-        await service.generate(object(), "score-1", 9, FingeringRequest(content=invalid))
+        await service.generate("score-1", FingeringRequest(content=invalid))
     assert caught.value.code == ErrorCode.REVISION_CONTENT_INVALID
     assert engine.calls == []
 
@@ -156,6 +153,6 @@ async def test_semantically_invalid_generated_output_is_fingering_failure():
         access_policy=AllowEditAccessPolicy(), engine=engine, execution=InlineExecution()
     )
     with pytest.raises(ExternalServiceException) as caught:
-        await service.generate(object(), "score-1", 9, FingeringRequest(content=MUSICXML))
+        await service.generate("score-1", FingeringRequest(content=MUSICXML))
     assert caught.value.code == ErrorCode.SCORE_FINGERING_FAILED
     assert len(engine.calls) == 1

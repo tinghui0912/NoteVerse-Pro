@@ -6,7 +6,7 @@ from fastapi import Response, APIRouter, Depends, File, UploadFile
 import re
 from fastapi.responses import RedirectResponse
 from app.core.exceptions import ResourceNotFoundException
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.core.exceptions import FileException, ValidationException
@@ -27,7 +27,7 @@ router = APIRouter()
 
 
 @router.get("/profile", operation_id="accountProfileGet", response_model=ProfileRead)
-async def get_user_profile(
+def get_user_profile(
     current_user: User = Depends(get_current_user),
     profile_service: ProfileService = Depends(get_profile_service),
 ):
@@ -41,30 +41,30 @@ async def get_user_profile(
     response_model=None,
     response_class=Response,
 )
-async def update_user_profile(
+def update_user_profile(
     request: UpdateProfileRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     profile_service: ProfileService = Depends(get_profile_service),
 ):
-    await profile_service.update_profile(db, current_user, request)
+    profile_service.update_profile(db, current_user, request)
     return Response(status_code=204)
 
 
 @router.post("/avatar", operation_id="accountAvatarUpload", response_model=AvatarRead)
-async def upload_avatar(
+def upload_avatar(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     avatar_service: AvatarService = Depends(get_avatar_service),
 ):
     try:
-        file_bytes = await file.read()
+        file_bytes = file.file.read()
     except Exception:
         raise FileException(code=ErrorCode.FILE_READ_FAILED, filename=file.filename)
 
     try:
-        saved_filename, avatar_url = await avatar_service.replace_user_avatar(
+        saved_filename, avatar_url = avatar_service.replace_user_avatar(
             db,
             current_user,
             file_bytes=file_bytes,
@@ -91,12 +91,12 @@ async def upload_avatar(
     response_model=None,
     response_class=Response,
 )
-async def delete_avatar(
+def delete_avatar(
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     avatar_service: AvatarService = Depends(get_avatar_service),
 ):
-    await avatar_service.clear_user_avatar(db, current_user)
+    avatar_service.clear_user_avatar(db, current_user)
     return Response(status_code=204)
 
 
@@ -112,23 +112,21 @@ async def delete_avatar(
         }
     },
 )
-async def read_avatar(
+def read_avatar(
     filename: str,
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     avatar_service: AvatarService = Depends(get_avatar_service),
 ):
     """Issue a fresh object capability for a public profile image."""
     if not re.fullmatch(r"[0-9]+_[0-9a-f]{64}_[0-9a-f]{32}\.jpg", filename):
         raise ResourceNotFoundException("avatar", filename)
-    current = await db.scalar(
+    current = db.scalar(
         select(StoredObject)
         .join(User, User.avatar_object_id == StoredObject.id)
         .where(StoredObject.object_key == avatar_object_key(filename))
     )
-    if current is None or not await avatar_service.avatar_exists(filename):
+    if current is None or not avatar_service.avatar_exists(filename):
         raise ResourceNotFoundException("avatar", filename)
     return RedirectResponse(
-        await avatar_service.async_storage.download_url(
-            current.object_key, content_type=current.content_type
-        )
+        avatar_service.storage.download_url(current.object_key, content_type=current.content_type)
     )

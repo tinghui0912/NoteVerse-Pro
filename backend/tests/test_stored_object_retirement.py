@@ -14,7 +14,7 @@ from app.db.models import StoredObject, StoredObjectRetirement, Upload, User
 from app.modules.storage_objects.persistence import object_from_bytes
 from app.modules.storage_objects.references import SEMANTIC_REFERENCES
 from app.modules.storage_objects.retirement import (
-    retire_released_objects,
+    retire_after_release,
     retain_for_reference,
     retirement_delivery,
     delivery_lifecycle,
@@ -52,7 +52,7 @@ def retirement_db(monkeypatch):
                 db.rollback()
                 raise
 
-    monkeypatch.setattr(worker, "get_worker_db", transaction)
+    monkeypatch.setattr(worker, "SessionLocal", transaction)
     monkeypatch.setattr(worker, "object_storage", storage)
     yield engine, storage, transaction
     engine.dispose()
@@ -70,7 +70,7 @@ def unowned(fixture):
         db.add(obj)
         db.flush()
         identity = obj.id
-        uuid = retire_released_objects(db, identity)[0]
+        uuid = retire_after_release(db, identity)[0]
     return identity, uuid
 
 
@@ -89,12 +89,12 @@ def test_two_different_semantic_owners_release_independently(retirement_db):
         user.avatar_object_id = identity
         db.flush()
         db.delete(upload)
-        assert retire_released_objects(db, identity) == []
+        assert retire_after_release(db, identity) == []
         assert db.get(StoredObject, identity) is obj
         assert db.scalar(select(StoredObjectRetirement)) is None
         user.avatar_object_id = None
-        uuid = retire_released_objects(db, identity)[0]
-        assert retire_released_objects(db, identity) == [uuid]
+        uuid = retire_after_release(db, identity)[0]
+        assert retire_after_release(db, identity) == [uuid]
         assert len(db.scalars(select(StoredObjectRetirement)).all()) == 1
 
 
@@ -140,7 +140,7 @@ def test_reacquisition_cancels_and_last_release_rearms(retirement_db):
         assert retirement_delivery.get(db, uuid).status == "CANCELLED"
         upload = db.scalar(select(Upload))
         db.delete(upload)
-        assert retire_released_objects(db, identity) == [uuid]
+        assert retire_after_release(db, identity) == [uuid]
         operation = retirement_delivery.get(db, uuid)
         assert operation.status == "PENDING" and operation.attempt_count == 0
 
@@ -200,7 +200,7 @@ def test_cancel_rearm_does_not_allow_stale_attempt_aba(retirement_db, monkeypatc
         old = retirement_delivery.claim(db, uuid)
     with transaction() as db:
         retain_for_reference(db, identity)
-        retire_released_objects(db, identity)
+        retire_after_release(db, identity)
         current = retirement_delivery.claim(db, uuid)
         assert current.attempt == old.attempt and current.token != old.token
         assert not retirement_delivery.fail(db, old, "stale")
@@ -284,7 +284,7 @@ def test_dispatch_commits_before_publish_and_rejection_releases_without_attempt(
 
     engine, storage, transaction = retirement_db
     identity, uuid = unowned(retirement_db)
-    monkeypatch.setattr(dispatch, "get_worker_db", transaction)
+    monkeypatch.setattr(dispatch, "SessionLocal", transaction)
 
     def publish(name, *, kwargs, task_id):
         assert name == "app.worker.tasks.stored_object_retirement_task"

@@ -3,7 +3,7 @@
 from datetime import datetime
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from sqlmodel import col
 
 from app.db.models import OpsAuditEvent
@@ -12,9 +12,9 @@ from app.shared.pagination import OffsetPage
 
 
 class OpsAuditService:
-    async def list_events(
+    def list_events(
         self,
-        db: AsyncSession,
+        db: Session,
         *,
         limit: int,
         offset: int = 0,
@@ -41,7 +41,7 @@ class OpsAuditService:
             statement = statement.where(OpsAuditEvent.created_at >= created_after)
         if created_before is not None:
             statement = statement.where(OpsAuditEvent.created_at <= created_before)
-        result = await db.execute(
+        result = db.execute(
             statement.order_by(col(OpsAuditEvent.created_at).desc()).offset(offset).limit(limit + 1)
         )
         events = [self._read(event) for event in result.scalars().all()]
@@ -49,10 +49,10 @@ class OpsAuditService:
             items=events[:limit], limit=limit, offset=offset, has_more=len(events) > limit
         )
 
-    async def record_event(self, db: AsyncSession, **values) -> None:
+    def record_event(self, db: Session, **values) -> None:
         values["operation_kind"] = values["operation_kind"].value
         db.add(OpsAuditEvent(**values))
-        await db.commit()
+        db.commit()
 
     @staticmethod
     def _read(event: OpsAuditEvent) -> OpsAuditEventRead:

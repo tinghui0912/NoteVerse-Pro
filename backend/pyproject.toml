@@ -15,7 +15,6 @@ db = [
   { include-group = "core" },
   "sqlmodel==0.0.48",
   "psycopg[binary]==3.3.6",
-  "greenlet==3.5.6",
 ]
 cache = [
   { include-group = "core" },
@@ -165,7 +164,6 @@ files = [
   "app/core",
   "app/db/__init__.py",
   "app/db/session.py",
-  "app/db/sync_session.py",
   "app/main.py",
   "app/modules",
   "app/processing",

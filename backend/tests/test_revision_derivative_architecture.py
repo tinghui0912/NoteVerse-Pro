@@ -54,7 +54,7 @@ def test_demand_and_retention_are_independent_policy_owners():
 def test_worker_generation_admission_and_completion_share_the_callers_transaction():
     cases = [
         ("modules/score_assets/render_service.py", "render_for_worker", "require_revision_attempt"),
-        ("modules/playback/service.py", "_render_asset_sync", "require_attempt"),
+        ("modules/playback/service.py", "_render_worker_asset", "require_attempt"),
         ("modules/import_jobs/review/thumbnail_service.py", "render", "require_thumbnail_attempt"),
     ]
     for relative, method, admission in cases:

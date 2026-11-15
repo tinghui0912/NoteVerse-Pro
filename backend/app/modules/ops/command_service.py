@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.core.exceptions import ResourceNotFoundException, ValidationException
 from app.db.models import (
@@ -48,28 +48,28 @@ class RetryOperationResult:
 
 
 class OpsAsyncOperationCommandService:
-    async def retry_operation(
+    def retry_operation(
         self,
-        db: AsyncSession,
+        db: Session,
         *,
         kind: AsyncOperationKind,
         operation_id: str,
     ) -> RetryOperationResult:
         if kind == AsyncOperationKind.IMPORT:
-            return await self._retry_import(db, operation_id)
+            return self._retry_import(db, operation_id)
         if kind == AsyncOperationKind.RENDER:
-            return await self._retry_render(db, operation_id)
+            return self._retry_render(db, operation_id)
         if kind == AsyncOperationKind.PLAYBACK:
-            return await self._retry_playback(db, operation_id)
+            return self._retry_playback(db, operation_id)
         if kind == AsyncOperationKind.MAIL:
-            return await self._retry_mail(db, operation_id)
+            return self._retry_mail(db, operation_id)
         if kind == AsyncOperationKind.SCORE_DELETION:
-            return await self._retry_score_deletion(db, operation_id)
+            return self._retry_score_deletion(db, operation_id)
         raise ValidationException(code=ErrorCode.VALIDATION_ERROR, field="kind")
 
-    async def _retry_import(self, db: AsyncSession, operation_id: str) -> RetryOperationResult:
+    def _retry_import(self, db: Session, operation_id: str) -> RetryOperationResult:
         dispatch = (
-            await db.execute(
+            db.execute(
                 select(ImportDispatch)
                 .where(ImportDispatch.dispatch_uuid == operation_id)
                 .with_for_update()
@@ -79,7 +79,7 @@ class OpsAsyncOperationCommandService:
         if dispatch is None:
             raise ResourceNotFoundException("async_operation", operation_id)
         job = (
-            await db.execute(
+            db.execute(
                 select(ImportJob)
                 .where(ImportJob.id == dispatch.job_id)
                 .with_for_update()
@@ -102,21 +102,19 @@ class OpsAsyncOperationCommandService:
         now = utc_now_naive()
         from app.modules.import_jobs.dispatch_service import import_dispatch_service
 
-        await db.run_sync(
-            lambda sync_db: import_dispatch_service.reset_execution(sync_db, job, now)
-        )
+        import_dispatch_service.reset_execution(db, job, now)
         import_dispatch_service.lifecycle().rearm(dispatch, now=now)
         clear_async_diagnostic(dispatch)
-        await db.commit()
-        await db.refresh(job)
-        await db.refresh(dispatch)
+        db.commit()
+        db.refresh(job)
+        db.refresh(dispatch)
         return RetryOperationResult(
             operation=read_import_operation(job, dispatch), previous_state=previous_state
         )
 
-    async def _retry_render(self, db: AsyncSession, operation_id: str) -> RetryOperationResult:
+    def _retry_render(self, db: Session, operation_id: str) -> RetryOperationResult:
         outbox = (
-            await db.execute(
+            db.execute(
                 select(RenderOutbox)
                 .where(RenderOutbox.outbox_uuid == operation_id)
                 .with_for_update()
@@ -145,15 +143,15 @@ class OpsAsyncOperationCommandService:
         outbox.last_error = None
         clear_async_diagnostic(outbox)
         outbox.updated_at = now
-        await db.commit()
-        await db.refresh(outbox)
+        db.commit()
+        db.refresh(outbox)
         return RetryOperationResult(
             operation=read_render_operation(outbox), previous_state=previous_state
         )
 
-    async def _retry_playback(self, db: AsyncSession, operation_id: str) -> RetryOperationResult:
+    def _retry_playback(self, db: Session, operation_id: str) -> RetryOperationResult:
         outbox = (
-            await db.execute(
+            db.execute(
                 select(PlaybackOutbox)
                 .where(PlaybackOutbox.outbox_uuid == operation_id)
                 .with_for_update()
@@ -182,15 +180,15 @@ class OpsAsyncOperationCommandService:
         outbox.last_error = None
         clear_async_diagnostic(outbox)
         outbox.updated_at = now
-        await db.commit()
-        await db.refresh(outbox)
+        db.commit()
+        db.refresh(outbox)
         return RetryOperationResult(
             operation=read_playback_operation(outbox), previous_state=previous_state
         )
 
-    async def _retry_mail(self, db: AsyncSession, operation_id: str) -> RetryOperationResult:
+    def _retry_mail(self, db: Session, operation_id: str) -> RetryOperationResult:
         outbox = (
-            await db.execute(
+            db.execute(
                 select(MailOutbox).where(MailOutbox.outbox_uuid == operation_id).with_for_update()
             )
         ).scalar_one_or_none()
@@ -225,20 +223,18 @@ class OpsAsyncOperationCommandService:
         outbox.last_error = None
         clear_async_diagnostic(outbox)
         outbox.updated_at = now
-        await db.commit()
-        await db.refresh(outbox)
+        db.commit()
+        db.refresh(outbox)
         return RetryOperationResult(
             operation=read_mail_operation(outbox), previous_state=previous_state
         )
 
-    async def _retry_score_deletion(
-        self, db: AsyncSession, operation_id: str
-    ) -> RetryOperationResult:
+    def _retry_score_deletion(self, db: Session, operation_id: str) -> RetryOperationResult:
         from app.modules.scores.deletion_delivery import score_deletion_delivery
 
-        operation, previous = await score_deletion_delivery.rearm_async(db, operation_id)
-        await db.commit()
-        await db.refresh(operation)
+        operation, previous = score_deletion_delivery.rearm(db, operation_id)
+        db.commit()
+        db.refresh(operation)
         return RetryOperationResult(
             operation=read_score_deletion_operation(operation), previous_state=previous
         )

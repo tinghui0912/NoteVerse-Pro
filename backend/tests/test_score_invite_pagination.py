@@ -1,6 +1,5 @@
 """Score collaboration keyset continuation, HTTP admission and current schema."""
 
-import asyncio
 import base64
 import json
 from datetime import datetime, timedelta
@@ -19,7 +18,6 @@ from app.main import app
 from app.modules.score_invites.pagination import encode_cursor, decode_cursor
 from app.modules.score_invites.repository import ScoreInviteRepository
 from tests.support.postgres_schema import postgres_schema_database
-from tests.test_performance_takes import AsyncSessionAdapter
 from tests.test_trusted_collaboration import collaboration as collaboration
 from tests.test_score_revision_services import score_service_session as score_service_session
 
@@ -80,14 +78,14 @@ def test_postgres_collection_continuation_reaches_every_row_with_equal_timestamp
             session.add_all(rows)
             session.commit()
             expected = sorted([row.id for row in rows], reverse=kind != "members")
-            db = AsyncSessionAdapter(session)
+            db = session
             repo = ScoreInviteRepository()
 
-            async def page(cursor=None):
+            def page(cursor=None):
                 if kind == "members":
-                    return await repo.memberships(db, 10, limit=100, cursor=cursor)
+                    return repo.memberships(db, 10, limit=100, cursor=cursor)
                 if kind == "pending_invites":
-                    return await repo.pending_invites_for_email(
+                    return repo.pending_invites_for_email(
                         db,
                         "other@example.com",
                         user_id=2,
@@ -95,13 +93,13 @@ def test_postgres_collection_continuation_reaches_every_row_with_equal_timestamp
                         limit=100,
                         cursor=cursor,
                     )
-                return await repo.invites(db, 10, limit=100, cursor=cursor)
+                return repo.invites(db, 10, limit=100, cursor=cursor)
 
-            found, cursor = asyncio.run(page())
+            found, cursor = page()
             sizes = [len(found)]
             ids = [row.id for row in found]
             while cursor is not None:
-                found, cursor = asyncio.run(page(cursor))
+                found, cursor = page(cursor)
                 sizes.append(len(found))
                 ids.extend(row.id for row in found)
             assert sizes == [100, 100, 5]
@@ -109,8 +107,7 @@ def test_postgres_collection_continuation_reaches_every_row_with_equal_timestamp
             assert len(set(ids)) == 205
 
 
-@pytest.mark.asyncio
-async def test_invite_continuation_uses_immutable_position_across_mutation_and_insert(
+def test_invite_continuation_uses_immutable_position_across_mutation_and_insert(
     collaboration,
 ):
     session, _, _, db = collaboration
@@ -118,7 +115,7 @@ async def test_invite_continuation_uses_immutable_position_across_mutation_and_i
     session.add_all(rows)
     session.commit()
     repo = ScoreInviteRepository()
-    first, cursor = await repo.invites(db, 4000, limit=3)
+    first, cursor = repo.invites(db, 4000, limit=3)
     assert [row.id for row in first] == [row.id for row in reversed(rows[-3:])]
     expected = [row.id for row in reversed(rows[:-3])]
     # The anchor need not exist, and mutable delivery/access state is not an ordering key.
@@ -128,16 +125,15 @@ async def test_invite_continuation_uses_immutable_position_across_mutation_and_i
     first[0].terminal_actor_user_id = 1
     session.add(invite(4000, 999, created_at=NOW + timedelta(days=1)))
     session.commit()
-    remaining, next_cursor = await repo.invites(db, 4000, limit=100, cursor=cursor)
+    remaining, next_cursor = repo.invites(db, 4000, limit=100, cursor=cursor)
     assert [row.id for row in remaining] == expected
     assert next_cursor is None
-    fresh, _ = await repo.invites(db, 4000, limit=3)
+    fresh, _ = repo.invites(db, 4000, limit=3)
     assert fresh[0].invite_uuid == "invite-999"
     assert not set(expected) & {row.id for row in first}
 
 
-@pytest.mark.asyncio
-async def test_pending_page_filters_expiry_before_limiting_without_writes(collaboration):
+def test_pending_page_filters_expiry_before_limiting_without_writes(collaboration):
     session, _, _, db = collaboration
     rows = [invite(4000, i, expires_at=NOW - timedelta(seconds=1)) for i in range(205)]
     rows += [
@@ -159,7 +155,7 @@ async def test_pending_page_filters_expiry_before_limiting_without_writes(collab
     session.add_all(rows)
     session.commit()
     original = [(row.terminal_outcome, row.terminal_at, row.terminal_actor_user_id) for row in rows]
-    page, cursor = await ScoreInviteRepository().pending_invites_for_email(
+    page, cursor = ScoreInviteRepository().pending_invites_for_email(
         db,
         "other@example.com",
         user_id=2,
@@ -232,10 +228,10 @@ async def test_http_collection_page_and_cursor_validation(collaboration, path):
     )
     session.commit()
 
-    async def current_user():
+    def current_user():
         return session.get(User, 2 if path == "/me/invites" else 1)
 
-    async def database():
+    def database():
         yield db
 
     app.dependency_overrides[get_current_user] = current_user
@@ -312,9 +308,8 @@ def test_customer_openapi_collaboration_pages():
         }
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("kind", ["invites", "members", "pending_invites"])
-async def test_collection_chronology_precedes_row_id(collaboration, kind):
+def test_collection_chronology_precedes_row_id(collaboration, kind):
     session, _, _, db = collaboration
     repo = ScoreInviteRepository()
     if kind == "members":
@@ -335,25 +330,25 @@ async def test_collection_chronology_precedes_row_id(collaboration, kind):
     session.add_all(rows)
     session.commit()
     if kind == "members":
-        first, cursor = await repo.memberships(db, 4000, limit=1)
+        first, cursor = repo.memberships(db, 4000, limit=1)
         rows[1].role = MembershipRole.EDITOR
         rows[1].revoked_at = NOW
         session.commit()
-        rest, end = await repo.memberships(db, 4000, limit=1, cursor=cursor)
+        rest, end = repo.memberships(db, 4000, limit=1, cursor=cursor)
         assert first == [rows[1]] and rest == [rows[0]]
     elif kind == "invites":
-        first, cursor = await repo.invites(db, 4000, limit=1)
-        rest, end = await repo.invites(db, 4000, limit=1, cursor=cursor)
+        first, cursor = repo.invites(db, 4000, limit=1)
+        rest, end = repo.invites(db, 4000, limit=1, cursor=cursor)
         assert first == [rows[0]] and rest == [rows[1]]
     else:
-        first, cursor = await repo.pending_invites_for_email(
+        first, cursor = repo.pending_invites_for_email(
             db,
             "other@example.com",
             user_id=2,
             now=NOW,
             limit=1,
         )
-        rest, end = await repo.pending_invites_for_email(
+        rest, end = repo.pending_invites_for_email(
             db,
             "other@example.com",
             user_id=2,

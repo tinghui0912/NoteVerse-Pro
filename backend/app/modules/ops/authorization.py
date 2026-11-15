@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import enum
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable
 
 from fastapi import Depends
 
@@ -26,10 +26,10 @@ _ACTION_ROLES: dict[PlatformOperationAction, frozenset[OperatorRole]] = {
 
 def require_platform_operation(
     action: PlatformOperationAction,
-) -> Callable[..., Awaitable[OperatorPrincipal]]:
+) -> Callable[..., OperatorPrincipal]:
     """Return a dependency enforcing one platform operator action."""
 
-    async def dependency(
+    def dependency(
         current_operator: OperatorPrincipal = Depends(get_current_operator),
     ) -> OperatorPrincipal:
         if current_operator.role not in _ACTION_ROLES[action]:

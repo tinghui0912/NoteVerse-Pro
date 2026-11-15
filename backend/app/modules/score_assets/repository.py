@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TypeAlias
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from sqlmodel import col
 
 from app.db.models import (
@@ -21,23 +21,21 @@ ScoreAssetRecord: TypeAlias = ScoreRevisionSource | ScoreRenderAsset
 
 
 class ScoreAssetRepository:
-    async def get_source(self, db: AsyncSession, source_uuid: str) -> ScoreRevisionSource | None:
+    def get_source(self, db: Session, source_uuid: str) -> ScoreRevisionSource | None:
         return (
-            await db.execute(
+            db.execute(
                 select(ScoreRevisionSource).where(ScoreRevisionSource.source_uuid == source_uuid)
             )
         ).scalar_one_or_none()
 
-    async def get_render_asset(self, db: AsyncSession, asset_uuid: str) -> ScoreRenderAsset | None:
+    def get_render_asset(self, db: Session, asset_uuid: str) -> ScoreRenderAsset | None:
         return (
-            await db.execute(
-                select(ScoreRenderAsset).where(ScoreRenderAsset.asset_uuid == asset_uuid)
-            )
+            db.execute(select(ScoreRenderAsset).where(ScoreRenderAsset.asset_uuid == asset_uuid))
         ).scalar_one_or_none()
 
-    async def list_sources(
+    def list_sources(
         self,
-        db: AsyncSession,
+        db: Session,
         revision_id: int,
         source_format: RevisionSourceFormat | None = None,
     ) -> list[ScoreRevisionSource]:
@@ -46,13 +44,11 @@ class ScoreAssetRepository:
         )
         if source_format is not None:
             statement = statement.where(ScoreRevisionSource.format == source_format)
-        return list((await db.execute(statement)).scalars().all())
+        return list((db.execute(statement)).scalars().all())
 
-    async def canonical_source(
-        self, db: AsyncSession, revision_id: int
-    ) -> ScoreRevisionSource | None:
+    def canonical_source(self, db: Session, revision_id: int) -> ScoreRevisionSource | None:
         return (
-            await db.execute(
+            db.execute(
                 select(ScoreRevisionSource).where(
                     ScoreRevisionSource.revision_id == revision_id,
                     ScoreRevisionSource.format == RevisionSourceFormat.MUSICXML,
@@ -60,9 +56,9 @@ class ScoreAssetRepository:
             )
         ).scalar_one_or_none()
 
-    async def list_render_assets(
+    def list_render_assets(
         self,
-        db: AsyncSession,
+        db: Session,
         revision_id: int,
         kind: RenderAssetKind | None = None,
     ) -> list[ScoreRenderAsset]:
@@ -73,13 +69,11 @@ class ScoreAssetRepository:
         )
         if kind is not None:
             statement = statement.where(ScoreRenderAsset.kind == kind)
-        return list((await db.execute(statement)).scalars().all())
+        return list((db.execute(statement)).scalars().all())
 
-    async def first_rendered_page_asset(
-        self, db: AsyncSession, revision_id: int
-    ) -> ScoreRenderAsset | None:
+    def first_rendered_page_asset(self, db: Session, revision_id: int) -> ScoreRenderAsset | None:
         return (
-            await db.execute(
+            db.execute(
                 select(ScoreRenderAsset)
                 .where(
                     ScoreRenderAsset.revision_id == revision_id,
@@ -93,11 +87,11 @@ class ScoreAssetRepository:
             )
         ).scalar_one_or_none()
 
-    async def latest_render_outbox(
-        self, db: AsyncSession, revision_id: int, *, render_profile: str = "default"
+    def latest_render_outbox(
+        self, db: Session, revision_id: int, *, render_profile: str = "default"
     ) -> RenderOutbox | None:
         return (
-            await db.execute(
+            db.execute(
                 select(RenderOutbox)
                 .where(
                     RenderOutbox.revision_id == revision_id,
@@ -108,15 +102,15 @@ class ScoreAssetRepository:
             )
         ).scalar_one_or_none()
 
-    async def playback_asset(
+    def playback_asset(
         self,
-        db: AsyncSession,
+        db: Session,
         revision_id: int,
         *,
         kind: PlaybackAssetKind = PlaybackAssetKind.AUDIO,
     ) -> ScorePlaybackAsset | None:
         return (
-            await db.execute(
+            db.execute(
                 select(ScorePlaybackAsset)
                 .where(
                     ScorePlaybackAsset.revision_id == revision_id,
@@ -126,15 +120,15 @@ class ScoreAssetRepository:
             )
         ).scalar_one_or_none()
 
-    async def latest_playback_outbox(
+    def latest_playback_outbox(
         self,
-        db: AsyncSession,
+        db: Session,
         revision_id: int,
         *,
         kind: PlaybackAssetKind = PlaybackAssetKind.AUDIO,
     ) -> PlaybackOutbox | None:
         return (
-            await db.execute(
+            db.execute(
                 select(PlaybackOutbox)
                 .where(
                     PlaybackOutbox.revision_id == revision_id,
@@ -145,7 +139,5 @@ class ScoreAssetRepository:
             )
         ).scalar_one_or_none()
 
-    async def revision_for_asset(
-        self, db: AsyncSession, asset: ScoreAssetRecord
-    ) -> ScoreRevision | None:
-        return await db.get(ScoreRevision, asset.revision_id)
+    def revision_for_asset(self, db: Session, asset: ScoreAssetRecord) -> ScoreRevision | None:
+        return db.get(ScoreRevision, asset.revision_id)

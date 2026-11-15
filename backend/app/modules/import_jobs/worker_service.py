@@ -25,7 +25,7 @@ from app.modules.async_operations.diagnostics import (
     clear_async_diagnostic,
 )
 from app.modules.import_jobs.dispatch_service import ImportExecutionLease, require_current_attempt
-from app.modules.import_jobs.repository import SyncImportJobRepository
+from app.modules.import_jobs.repository import ImportJobRepository
 from app.modules.import_jobs.artifact_records import ImportJobStoredArtifactItem
 from app.modules.domain_events.journal import append_fact
 from app.modules.import_jobs.events import ImportJobCompleted, ImportJobFailed
@@ -34,17 +34,17 @@ from app.modules.import_jobs.public_errors import public_import_job_error
 from app.modules.storage_usage.service import storage_usage_service
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from app.modules.score_assets.render_outbox_service import (
-    create_review_thumbnail_render_outbox_sync,
+    create_review_thumbnail_render_outbox,
 )
 from app.utils.timezone import utc_now_naive
 
 
-class SyncImportJobService:
+class ImportJobExecutionService:
     def __init__(
         self,
-        repository: SyncImportJobRepository | None = None,
+        repository: ImportJobRepository | None = None,
     ) -> None:
-        self.repository = repository or SyncImportJobRepository()
+        self.repository = repository or ImportJobRepository()
 
     def update_progress(
         self,
@@ -93,7 +93,7 @@ class SyncImportJobService:
             )
         ).scalar_one_or_none()
         if review_xml is not None and review_xml.stored_object.sha256:
-            create_review_thumbnail_render_outbox_sync(
+            create_review_thumbnail_render_outbox(
                 db,
                 import_job_id=require_persisted_id(job.id, entity="import job"),
                 source_fingerprint=review_xml.stored_object.sha256,
@@ -226,7 +226,7 @@ class SyncImportJobService:
             db.add(artifact)
             created.append(artifact)
         for artifact_uuid, storage_key, size_bytes in previous:
-            storage_usage_service.record_release_sync(
+            storage_usage_service.record_release(
                 db,
                 user_id=job.user_id,
                 category=StorageUsageCategory.TEMP_IMPORT,
@@ -237,7 +237,7 @@ class SyncImportJobService:
                 storage_key=storage_key,
             )
         for artifact in created:
-            storage_usage_service.record_allocation_sync(
+            storage_usage_service.record_allocation(
                 db,
                 user_id=job.user_id,
                 category=StorageUsageCategory.TEMP_IMPORT,
@@ -250,4 +250,4 @@ class SyncImportJobService:
         db.commit()
 
 
-sync_import_job_service = SyncImportJobService()
+import_job_execution_service = ImportJobExecutionService()

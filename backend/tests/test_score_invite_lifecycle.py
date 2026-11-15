@@ -85,7 +85,7 @@ async def test_owner_revoke_http_admits_effective_status_without_writing_rejecti
     session.commit()
     original = facts(invite)
 
-    async def database():
+    def database():
         yield db
 
     app.dependency_overrides[get_db] = database
@@ -172,7 +172,7 @@ async def test_expired_recipient_command_has_no_write_or_commit(collaboration, p
     session.add(invite)
     session.commit()
 
-    async def database():
+    def database():
         yield db
 
     app.dependency_overrides[get_db] = database
@@ -192,11 +192,8 @@ async def test_expired_recipient_command_has_no_write_or_commit(collaboration, p
     assert session.scalar(select(func.count()).select_from(ScoreMembership)) == 0
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("existing", [False, True])
-async def test_accept_rechecks_expiry_after_membership_contention(
-    collaboration, monkeypatch, existing
-):
+def test_accept_rechecks_expiry_after_membership_contention(collaboration, monkeypatch, existing):
     session, _, score, db = collaboration
     now = utc_now_naive()
     clock = [now]
@@ -224,14 +221,14 @@ async def test_accept_rechecks_expiry_after_membership_contention(
     session.commit()
 
     class MembershipWait(ScoreInviteRepository):
-        async def membership_for_update(self, db, score_id, user_id):
-            membership = await super().membership_for_update(db, score_id, user_id)
+        def membership_for_update(self, db, score_id, user_id):
+            membership = super().membership_for_update(db, score_id, user_id)
             clock[0] = now + timedelta(seconds=2)
             return membership
 
     with observe_writes(session) as (writes, commits):
         with pytest.raises(ValidationException) as error:
-            await ScoreInviteService(repository=MembershipWait()).accept_invite(db, "expiring", 2)
+            ScoreInviteService(repository=MembershipWait()).accept_invite(db, "expiring", 2)
         assert error.value.code == ErrorCode.INVITE_EXPIRED
         assert writes == commits == []
     session.refresh(invite)
@@ -243,15 +240,14 @@ async def test_accept_rechecks_expiry_after_membership_contention(
         assert membership is None
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("command", ["leave", "remove"])
-async def test_accepted_actor_facts_survive_membership_revocation(collaboration, command):
+def test_accepted_actor_facts_survive_membership_revocation(collaboration, command):
     session, _, score, db = collaboration
     service = ScoreInviteService()
-    created = await service.create_invite(
+    created = service.create_invite(
         db, score.score_uuid, 1, InviteCreateRequest(email="other@example.com")
     )
-    accepted = await service.accept_invite(db, created.token, 2)
+    accepted = service.accept_invite(db, created.token, 2)
     invite = session.scalar(select(ScoreInvite))
     terminal = facts(invite)
     assert (
@@ -260,9 +256,9 @@ async def test_accepted_actor_facts_survive_membership_revocation(collaboration,
         and terminal[2] == 2
     )
     if command == "leave":
-        await service.leave_score(db, score.score_uuid, 2)
+        service.leave_score(db, score.score_uuid, 2)
     else:
-        await service.remove_member(db, score.score_uuid, accepted.membership_id, 1)
+        service.remove_member(db, score.score_uuid, accepted.membership_id, 1)
     session.refresh(invite)
     assert facts(invite) == terminal
     assert session.get(ScoreMembership, accepted.membership_id).revoked_at is not None

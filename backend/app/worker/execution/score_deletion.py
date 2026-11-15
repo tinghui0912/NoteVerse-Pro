@@ -1,6 +1,6 @@
 """Attempt-fenced, transactional Score graph deletion."""
 
-from app.db.sync_session import get_worker_db
+from app.db.session import SessionLocal
 from app.modules.scores.deletion_delivery import score_deletion_delivery, StaleScoreDeletionAttempt
 from app.modules.scores.deletion_executor import ScoreDeletionExecutor
 from app.worker.task_runtime import (
@@ -14,8 +14,9 @@ from app.worker.task_runtime import (
 def execute_score_deletion_task(task, operation_uuid: str) -> dict[str, object]:
     bind_task_context(task)
     try:
-        with get_worker_db() as db:
+        with SessionLocal() as db:
             lease = score_deletion_delivery.claim(db, operation_uuid)
+            db.commit()
         if lease is None:
             return {"status": "ignored", "operation_uuid": operation_uuid}
         try:
@@ -27,8 +28,9 @@ def execute_score_deletion_task(task, operation_uuid: str) -> dict[str, object]:
                 traceparent=lease.traceparent,
                 tracestate=lease.tracestate,
             ):
-                with get_worker_db() as db:
+                with SessionLocal() as db:
                     result = ScoreDeletionExecutor().execute(db, lease)
+                    db.commit()
             return {
                 "status": "completed",
                 "operation_uuid": operation_uuid,
@@ -44,8 +46,9 @@ def execute_score_deletion_task(task, operation_uuid: str) -> dict[str, object]:
                 resource_id=lease.score_uuid,
                 attempt=lease.attempt,
             ).opt(exception=True).error("score_deletion.failed")
-            with get_worker_db() as db:
+            with SessionLocal() as db:
                 score_deletion_delivery.fail(db, lease, str(error))
+                db.commit()
             return {"status": "failed", "operation_uuid": operation_uuid}
     finally:
         clear_task_context()

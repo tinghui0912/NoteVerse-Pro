@@ -117,7 +117,7 @@ def test_projection_semantics_are_database_only_and_commit_belongs_to_runner():
             "db.add",
             "db.flush",
             "NotificationEvent",
-            "publish_event_sync",
+            "publish_event",
         }
     for path in [
         *(APP / "modules/domain_events").glob("*.py"),

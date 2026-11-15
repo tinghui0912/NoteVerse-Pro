@@ -23,12 +23,12 @@ from app.db.models.score import RevisionOrigin, RevisionSourceFormat, MetadataSt
 from app.db.models.revision_metadata_outbox import RevisionMetadataOutbox
 from app.modules.storage_objects.writes import ObjectWriteReceipt, adopt_written_object
 from app.modules.storage_usage.service import storage_usage_service
-from app.modules.score_assets.render_outbox_service import create_revision_render_outbox_sync
-from app.modules.playback.outbox_service import create_playback_outbox_sync
+from app.modules.score_assets.render_outbox_service import create_revision_render_outbox
+from app.modules.playback.outbox_service import create_playback_outbox
 from app.modules.revisions.derivatives import RevisionDerivativeOutboxes
 from app.modules.revisions.events import ScoreRevisionCreated
 from app.modules.domain_events.journal import append_fact
-from app.modules.realtime.publisher import score_recipients_sync
+from app.modules.realtime.publisher import score_recipients
 from app.shared.constants import ErrorCode
 from app.utils.timezone import utc_now_naive
 
@@ -188,14 +188,14 @@ class RevisionWriter:
                 revision_id=revision_id, status=MetadataStatus.PENDING, extractor_version="pending"
             )
         )
-        render = create_revision_render_outbox_sync(
+        render = create_revision_render_outbox(
             db,
             score_id=score_id,
             revision_id=revision_id,
             requested_by_user_id=command.actor_user_id,
             source_fingerprint=prepared.content_hash,
         )
-        playback = create_playback_outbox_sync(
+        playback = create_playback_outbox(
             db,
             score_id=score_id,
             revision_id=revision_id,
@@ -228,7 +228,7 @@ class RevisionWriter:
                     created_at=now,
                 )
             )
-        storage_usage_service.commit_reservation_sync(
+        storage_usage_service.commit_reservation(
             db,
             prepared.reservation_id,
             object_type="score_revision_source",
@@ -250,7 +250,7 @@ class RevisionWriter:
                 origin=origin,
                 is_initial=initial,
                 restored_from_revision_id=target.revision_uuid if target else None,
-                audience_user_ids=tuple(sorted(score_recipients_sync(db, score.score_uuid))),
+                audience_user_ids=tuple(sorted(score_recipients(db, score.score_uuid))),
             ),
             occurred_at=now,
         )
@@ -322,7 +322,7 @@ class RevisionWriter:
     def _unused(
         db: Session, source: PreparedRevisionSource, revision: ScoreRevision
     ) -> RevisionWriteResult:
-        storage_usage_service.release_reservation_sync(db, source.reservation_id)
+        storage_usage_service.release_reservation(db, source.reservation_id)
         return RevisionWriteResult(revision, False)
 
 

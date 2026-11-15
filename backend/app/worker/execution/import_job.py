@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sys
 
-from app.db.sync_session import get_worker_db
+from app.db.session import SessionLocal
 from app.modules.domain_events.journal import DomainEventDedupeConflict
 from app.modules.import_jobs.dispatch_service import (
     import_dispatch_service,
@@ -31,8 +31,9 @@ def execute_import_dispatch_task(
     bind_task_context(task)
     trace_scope = None
     try:
-        with get_worker_db() as db:
+        with SessionLocal() as db:
             payload = import_dispatch_service.claim(db, dispatch_uuid)
+            db.commit()
         if payload is None:
             operation_logger(
                 "import.ignored",
@@ -80,14 +81,16 @@ def execute_import_dispatch_task(
                 **context,
                 exception_type=type(exc).__name__,
             ).opt(exception=True).error("import.failed")
-            with get_worker_db() as db:
+            with SessionLocal() as db:
                 job = require_current_attempt(db, payload.lease)
                 if job.state in TERMINAL_IMPORT_STATES:
                     import_dispatch_service.complete(db, payload.lease)
+                db.commit()
             raise
 
-        with get_worker_db() as db:
+        with SessionLocal() as db:
             import_dispatch_service.complete(db, payload.lease)
+            db.commit()
         operation_logger(
             "import.completed",
             **context,

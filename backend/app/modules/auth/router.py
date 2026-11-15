@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Cookie, Depends, Request, Response
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.core.generated.customer_browser_protocol import REFRESH_COOKIE_NAME
 from app.api import deps
@@ -39,14 +39,14 @@ router = APIRouter()
     response_model=None,
     response_class=Response,
 )
-async def login_access_token(
+def login_access_token(
     request: Request,
     response: Response,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Session = Depends(deps.get_db),
     form_data: OAuth2PasswordRequestForm = Depends(),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> Response:
-    access_token, refresh_token = await auth_service.login(
+    access_token, refresh_token = auth_service.login(
         db,
         form_data.username,
         form_data.password,
@@ -65,13 +65,13 @@ async def login_access_token(
     response_model=None,
     response_class=Response,
 )
-async def logout(
+def logout(
     response: Response,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Session = Depends(deps.get_db),
     refresh_cookie: str | None = Cookie(default=None, alias=REFRESH_COOKIE_NAME),
     session_service: SessionService = Depends(get_session_service),
 ) -> Response:
-    await session_service.revoke_refresh_token(db, refresh_cookie)
+    session_service.revoke_refresh_token(db, refresh_cookie)
     clear_session_cookies(response)
     response.status_code = 204
     return response
@@ -84,10 +84,10 @@ async def logout(
     response_model=None,
     response_class=Response,
 )
-async def refresh_access_token(
+def refresh_access_token(
     request: Request,
     response: Response,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Session = Depends(deps.get_db),
     refresh_cookie: str | None = Cookie(default=None, alias=REFRESH_COOKIE_NAME),
     session_service: SessionService = Depends(get_session_service),
 ) -> Response:
@@ -99,7 +99,7 @@ async def refresh_access_token(
             details={"reason": "missing_refresh_token"},
         )
 
-    access_token, refresh_token = await session_service.refresh_session(
+    access_token, refresh_token = session_service.refresh_session(
         db,
         refresh_cookie,
         user_agent=request.headers.get("user-agent"),
@@ -117,14 +117,14 @@ async def refresh_access_token(
     response_model=None,
     response_class=Response,
 )
-async def register_user(
+def register_user(
     request_context: Request,
     *,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Session = Depends(deps.get_db),
     request: RegisterRequest,
     email_verification_service: EmailVerificationService = Depends(get_email_verification_service),
 ) -> Response:
-    await email_verification_service.register(
+    email_verification_service.register(
         db,
         request,
         user_agent=request_context.headers.get("user-agent"),
@@ -134,12 +134,12 @@ async def register_user(
 
 
 @router.post("/email/verify", operation_id="authEmailVerify", response_model=UserSchema)
-async def verify_email(
+def verify_email(
     request: VerifyEmailRequest,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Session = Depends(deps.get_db),
     email_verification_service: EmailVerificationService = Depends(get_email_verification_service),
 ) -> UserSchema:
-    return await email_verification_service.verify_email(db, request)
+    return email_verification_service.verify_email(db, request)
 
 
 @router.post(
@@ -149,13 +149,13 @@ async def verify_email(
     response_model=None,
     response_class=Response,
 )
-async def forgot_password(
+def forgot_password(
     request_context: Request,
     request: ForgotPasswordRequest,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Session = Depends(deps.get_db),
     password_reset_service: PasswordResetService = Depends(get_password_reset_service),
 ) -> Response:
-    await password_reset_service.request_password_reset(
+    password_reset_service.request_password_reset(
         db,
         request,
         user_agent=request_context.headers.get("user-agent"),
@@ -171,12 +171,12 @@ async def forgot_password(
     response_model=None,
     response_class=Response,
 )
-async def reset_password(
+def reset_password(
     request: ResetPasswordRequest,
-    db: AsyncSession = Depends(deps.get_db),
+    db: Session = Depends(deps.get_db),
     password_reset_service: PasswordResetService = Depends(get_password_reset_service),
 ) -> Response:
-    await password_reset_service.reset_password(db, request)
+    password_reset_service.reset_password(db, request)
     return Response(status_code=204)
 
 

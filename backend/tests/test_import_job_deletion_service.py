@@ -22,12 +22,10 @@ from app.modules.import_jobs.deletion_service import ImportJobDeletionService
 from app.modules.storage_usage.service import storage_usage_service
 from tests.test_score_revision_services import (
     score_service_session as score_service_session,
-    AsyncSessionAdapter,
 )
 from tests.support.retirement import drain_retirements
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("shared", [False, True])
 @pytest.mark.parametrize(
     "keep_job,state",
@@ -37,7 +35,7 @@ from tests.support.retirement import drain_retirements
         (True, ImportJobState.CONFIRMED),
     ],
 )
-async def test_import_release_accounts_atomically_and_protects_other_owners(
+def test_import_release_accounts_atomically_and_protects_other_owners(
     score_service_session, shared, keep_job, state
 ):
     db, storage = score_service_session
@@ -80,7 +78,7 @@ async def test_import_release_accounts_atomically_and_protects_other_owners(
         job.score_id = score.id
         db.commit()
         score_id, revision_id = score.id, revision.id
-    storage_usage_service.record_allocation_sync(
+    storage_usage_service.record_allocation(
         db,
         user_id=1,
         category=StorageUsageCategory.TEMP_IMPORT,
@@ -91,7 +89,7 @@ async def test_import_release_accounts_atomically_and_protects_other_owners(
     db.commit()
     service = ImportJobDeletionService()
     release = service.cleanup_binary_artifacts if keep_job else service.delete_job
-    await release(AsyncSessionAdapter(db), job, 1)
+    release(db, job, 1)
     assert (db.get(ImportJob, job_id) is not None) is keep_job
     assert db.scalar(select(ImportArtifact)) is None
     if keep_job:
@@ -99,7 +97,7 @@ async def test_import_release_accounts_atomically_and_protects_other_owners(
         assert db.get(ImportJob, job_id).score_id == score_id
         assert db.get(Score, score_id).originating_job_id == job_id
         assert db.get(ScoreRevision, revision_id).created_by_job_id == job_id
-        await service.cleanup_binary_artifacts(AsyncSessionAdapter(db), job, 1)
+        service.cleanup_binary_artifacts(db, job, 1)
         assert db.get(ImportJob, job_id) is not None
     assert storage.exists(obj.object_key)
     counter = db.scalar(
@@ -119,11 +117,10 @@ async def test_import_release_accounts_atomically_and_protects_other_owners(
         assert not storage.exists("jobs/committed")
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "state", [ImportJobState.PENDING, ImportJobState.RUNNING, ImportJobState.CONFIRMED]
 )
-async def test_import_release_rechecks_locked_job_state(score_service_session, state):
+def test_import_release_rechecks_locked_job_state(score_service_session, state):
     from sqlalchemy import update
     from sqlalchemy.orm.attributes import set_committed_value
     from app.core.exceptions import ValidationException
@@ -146,7 +143,7 @@ async def test_import_release_rechecks_locked_job_state(score_service_session, s
     db.refresh(job)
     set_committed_value(job, "state", ImportJobState.PENDING_REVIEW)
     with pytest.raises(ValidationException) as error:
-        await ImportJobDeletionService().delete_job(AsyncSessionAdapter(db), job, 1)
+        ImportJobDeletionService().delete_job(db, job, 1)
     assert error.value.code == (
         ErrorCode.JOB_RUNNING if state == ImportJobState.RUNNING else ErrorCode.VALIDATION_ERROR
     )
@@ -155,8 +152,7 @@ async def test_import_release_rechecks_locked_job_state(score_service_session, s
     assert db.scalar(select(ImportDispatch)) is not None
 
 
-@pytest.mark.asyncio
-async def test_internal_binary_cleanup_rechecks_locked_running_state(score_service_session):
+def test_internal_binary_cleanup_rechecks_locked_running_state(score_service_session):
     from types import SimpleNamespace
     from app.core.exceptions import ValidationException
     from app.shared.constants import ErrorCode
@@ -168,16 +164,15 @@ async def test_internal_binary_cleanup_rechecks_locked_running_state(score_servi
     db.add(ImportDispatch(job_id=job.id))
     db.commit()
     with pytest.raises(ValidationException) as error:
-        await ImportJobDeletionService().cleanup_binary_artifacts(
-            AsyncSessionAdapter(db), SimpleNamespace(id=job.id, state=ImportJobState.CONFIRMED), 1
+        ImportJobDeletionService().cleanup_binary_artifacts(
+            db, SimpleNamespace(id=job.id, state=ImportJobState.CONFIRMED), 1
         )
     assert error.value.code == ErrorCode.JOB_RUNNING
     assert db.get(ImportJob, job.id) is not None
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("keep_job", [False, True])
-async def test_import_release_requires_delivery_ownership(score_service_session, keep_job):
+def test_import_release_requires_delivery_ownership(score_service_session, keep_job):
     db, _ = score_service_session
     job = ImportJob(job_uuid="missing-delivery", user_id=1, state=ImportJobState.FAILURE)
     db.add(job)
@@ -186,7 +181,7 @@ async def test_import_release_requires_delivery_ownership(score_service_session,
     service = ImportJobDeletionService()
     release = service.cleanup_binary_artifacts if keep_job else service.delete_job
     with pytest.raises(RuntimeError, match="requires a durable dispatch"):
-        await release(AsyncSessionAdapter(db), job, 1)
+        release(db, job, 1)
     assert db.get(ImportJob, identity) is not None
 
 
@@ -236,7 +231,7 @@ async def test_customer_delete_http_state_matrix_preserves_owned_data(score_serv
             content=b"artifact" if category == StorageUsageCategory.TEMP_IMPORT else b"original",
             content_type=obj.content_type,
         )
-        storage_usage_service.record_allocation_sync(
+        storage_usage_service.record_allocation(
             db,
             user_id=1,
             category=category,
@@ -255,10 +250,10 @@ async def test_customer_delete_http_state_matrix_preserves_owned_data(score_serv
         score_id = score.id
     db.commit()
 
-    async def database():
-        yield AsyncSessionAdapter(db)
+    def database():
+        yield db
 
-    async def user():
+    def user():
         return db.get(User, 1)
 
     app.dependency_overrides[get_db] = database

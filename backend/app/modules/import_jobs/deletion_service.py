@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from sqlalchemy import delete as sa_delete
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.db.models import (
     ImportArtifact,
@@ -35,23 +35,21 @@ CUSTOMER_DELETABLE_IMPORT_JOB_STATES = frozenset(
 class ImportJobDeletionService:
     """Delete import-job rows and their owned temporary storage artifacts."""
 
-    async def delete_job(self, db: AsyncSession, job: ImportJob, user_id: int) -> None:
+    def delete_job(self, db: Session, job: ImportJob, user_id: int) -> None:
         """Admit customer deletion of a stopped, unconfirmed job under its locks."""
-        await self._release(db, job, user_id, delete_job=True)
+        self._release(db, job, user_id, delete_job=True)
 
-    async def cleanup_binary_artifacts(
-        self, db: AsyncSession, job: ImportJob, user_id: int
-    ) -> None:
+    def cleanup_binary_artifacts(self, db: Session, job: ImportJob, user_id: int) -> None:
         """Release temporary binaries while retaining the job and its provenance."""
-        await self._release(db, job, user_id, delete_job=False)
+        self._release(db, job, user_id, delete_job=False)
 
-    async def _release(self, db, job, user_id, *, delete_job):
+    def _release(self, db, job, user_id, *, delete_job):
         # Caller-owned confirmation writes must survive the locked refresh below.
-        await db.flush()
+        db.flush()
         job_id = require_persisted_id(job.id, entity="import job")
         # Match worker/recovery lock order before any destructive domain mutation.
         dispatch = (
-            await db.execute(
+            db.execute(
                 select(ImportDispatch)
                 .where(ImportDispatch.job_id == job_id)
                 .with_for_update()
@@ -61,7 +59,7 @@ class ImportJobDeletionService:
         if dispatch is None:
             raise RuntimeError("Import job requires a durable dispatch")
         job = (
-            await db.execute(
+            db.execute(
                 select(ImportJob)
                 .where(ImportJob.id == dispatch.job_id)
                 .with_for_update()
@@ -82,11 +80,9 @@ class ImportJobDeletionService:
                 )
         elif job.state == ImportJobState.RUNNING:
             raise ValidationException(code=ErrorCode.JOB_RUNNING, field="state")
-        uploads = await self._orphan_uploads_after_job_delete(db, job_id)
+        uploads = self._orphan_uploads_after_job_delete(db, job_id)
         artifacts = list(
-            (
-                await db.execute(select(ImportArtifact).where(ImportArtifact.job_id == job_id))
-            ).scalars()
+            (db.execute(select(ImportArtifact).where(ImportArtifact.job_id == job_id))).scalars()
         )
         ids = [item.stored_object_id for item in artifacts] + [
             upload.stored_object_id for upload, _ in uploads
@@ -112,16 +108,16 @@ class ImportJobDeletionService:
             for upload, obj in uploads
         ]
         if delete_job:
-            await db.delete(job)
+            db.delete(job)
         else:
-            await db.execute(sa_delete(ImportArtifact).where(ImportArtifact.job_id == job_id))
-            await db.execute(sa_delete(ImportJobUpload).where(ImportJobUpload.job_id == job_id))
-        await db.flush()
+            db.execute(sa_delete(ImportArtifact).where(ImportArtifact.job_id == job_id))
+            db.execute(sa_delete(ImportJobUpload).where(ImportJobUpload.job_id == job_id))
+        db.flush()
         for upload, _ in uploads:
-            await db.delete(upload)
-        await retire_after_release(db, *ids)
+            db.delete(upload)
+        retire_after_release(db, *ids)
         for category, kind, identity, key, size in releases:
-            await storage_usage_service.record_release(
+            storage_usage_service.record_release(
                 db,
                 user_id=user_id,
                 category=category,
@@ -132,14 +128,14 @@ class ImportJobDeletionService:
                 storage_key=key,
             )
 
-    async def _orphan_uploads_after_job_delete(
+    def _orphan_uploads_after_job_delete(
         self,
-        db: AsyncSession,
+        db: Session,
         job_id: int,
     ) -> list[tuple[Upload, StoredObject]]:
         uploads = list(
             (
-                await db.execute(
+                db.execute(
                     select(Upload, StoredObject)
                     .join(ImportJobUpload, ImportJobUpload.upload_id == Upload.id)
                     .join(StoredObject, Upload.stored_object_id == StoredObject.id)
@@ -151,7 +147,7 @@ class ImportJobDeletionService:
         for upload, _blob in uploads:
             upload_id = require_persisted_id(upload.id, entity="upload")
             ref_count = (
-                await db.execute(
+                db.execute(
                     select(func.count(ImportJobUpload.id)).where(
                         ImportJobUpload.upload_id == upload_id,
                         ImportJobUpload.job_id != job_id,
@@ -159,7 +155,7 @@ class ImportJobDeletionService:
                 )
             ).scalar_one()
             input_ref_count = (
-                await db.execute(
+                db.execute(
                     select(func.count(ScoreInputAsset.id)).where(
                         ScoreInputAsset.upload_id == upload_id,
                     )

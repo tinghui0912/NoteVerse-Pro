@@ -42,7 +42,7 @@ from tests.test_score_revision_services import (
     add_active_score_with_head_revision,
     MUSICXML_2,
 )
-from tests.test_performance_takes import AsyncSessionAdapter, DEFAULT_TAKE_RECORDING_TIMEBASE
+from tests.test_performance_takes import DEFAULT_TAKE_RECORDING_TIMEBASE
 from tests.test_guest_previews import add_page, add_audio
 
 
@@ -127,7 +127,7 @@ def collaboration(score_service_session):
     session.commit()
     add_page(session, storage, 4001, "trusted-page")
     add_audio(session, storage, 4001)
-    return session, storage, score, AsyncSessionAdapter(session)
+    return session, storage, score, session
 
 
 def member_for(session, role):
@@ -140,20 +140,19 @@ def member_for(session, role):
     return 2
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("role", ROLES)
-async def test_every_action_is_authorized_by_the_canonical_matrix(collaboration, role):
+def test_every_action_is_authorized_by_the_canonical_matrix(collaboration, role):
     session, _, score, db = collaboration
     user_id = member_for(session, role)
     policy = ScoreAccessPolicy()
-    access = await policy.resolve(db, score.score_uuid, user_id=user_id)
+    access = policy.resolve(db, score.score_uuid, user_id=user_id)
     assert access.origin == (AccessOrigin.OWNER if role == "OWNER" else AccessOrigin.MEMBERSHIP)
     for action in ScoreAction:
         if action in ALLOWED[role]:
-            await policy.authorize(db, score.score_uuid, action, user_id=user_id)
+            policy.authorize(db, score.score_uuid, action, user_id=user_id)
         else:
             with pytest.raises(UnauthorizedException):
-                await policy.authorize(db, score.score_uuid, action, user_id=user_id)
+                policy.authorize(db, score.score_uuid, action, user_id=user_id)
 
 
 @pytest.mark.asyncio
@@ -162,7 +161,7 @@ async def test_http_source_disclosure_and_editing_boundaries(collaboration, role
     session, storage, score, db = collaboration
     user_id = member_for(session, role)
     source = PracticeBundleService(storage=storage)
-    admitted = await source.resolve_bundle(db, score.score_uuid, 1, "trusted-revision")
+    admitted = source.resolve_bundle(db, score.score_uuid, 1, "trusted-revision")
     bundle_id = admitted.bundle.bundle_id
     from app.modules.performance_takes.dependencies import (
         get_performance_take_reservation_service,
@@ -186,7 +185,7 @@ async def test_http_source_disclosure_and_editing_boundaries(collaboration, role
         get_performance_take_reservation_service
     ]
 
-    async def database():
+    def database():
         yield db
 
     app.dependency_overrides[get_db] = database
@@ -279,13 +278,13 @@ async def test_http_source_disclosure_and_editing_boundaries(collaboration, role
             )
             assert reservation.status_code == (200 if can_practice else 403), reservation.text[:200]
             if can_practice:
-                saved = await source.authorize_bundle_for_save(
+                saved = source.authorize_bundle_for_save(
                     db, user_id, "trusted-score", "trusted-revision", bundle_id
                 )
                 assert saved.bundle.bundle_id == bundle_id
             else:
                 with pytest.raises(UnauthorizedException):
-                    await source.authorize_bundle_for_save(
+                    source.authorize_bundle_for_save(
                         db, user_id, "trusted-score", "trusted-revision", bundle_id
                     )
     finally:
@@ -293,7 +292,6 @@ async def test_http_source_disclosure_and_editing_boundaries(collaboration, role
             app.dependency_overrides.pop(dependency, None)
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "existing,invited,expected",
     [
@@ -308,9 +306,7 @@ async def test_http_source_disclosure_and_editing_boundaries(collaboration, role
     ],
 )
 @pytest.mark.parametrize("revoked", [False, True])
-async def test_invite_acceptance_preserves_role_rank(
-    collaboration, existing, invited, expected, revoked
-):
+def test_invite_acceptance_preserves_role_rank(collaboration, existing, invited, expected, revoked):
     session, _, score, db = collaboration
     if existing is not None:
         member_for(session, existing)
@@ -320,13 +316,13 @@ async def test_invite_acceptance_preserves_role_rank(
             session.add(member)
             session.commit()
     service = ScoreInviteService()
-    created = await service.create_invite(
+    created = service.create_invite(
         db,
         score.score_uuid,
         1,
         InviteCreateRequest(email="other@example.com", role=MembershipRole(invited)),
     )
-    result = await service.accept_invite(db, created.token, 2)
+    result = service.accept_invite(db, created.token, 2)
     assert result.role == MembershipRole(expected)
     membership = session.execute(select(ScoreMembership)).scalar_one()
     assert membership.role == MembershipRole(expected) and membership.revoked_at is None
@@ -336,24 +332,23 @@ async def test_invite_acceptance_preserves_role_rank(
     )
 
 
-@pytest.mark.asyncio
-async def test_explicit_member_changes_and_revocation_apply_immediately(collaboration):
+def test_explicit_member_changes_and_revocation_apply_immediately(collaboration):
     session, _, score, db = collaboration
     member_for(session, "VIEWER")
     member = session.execute(select(ScoreMembership)).scalar_one()
     service = ScoreInviteService()
     policy = ScoreAccessPolicy()
     for role in ["PRACTITIONER", "EDITOR", "VIEWER"]:
-        await service.update_member(
+        service.update_member(
             db, score.score_uuid, member.id, 1, MemberUpdateRequest(role=MembershipRole(role))
         )
-        access = await policy.resolve(db, score.score_uuid, user_id=2)
+        access = policy.resolve(db, score.score_uuid, user_id=2)
         assert access.capabilities.can_practice == (role != "VIEWER")
         assert access.capabilities.can_edit == (role == "EDITOR")
-    await service.remove_member(db, score.score_uuid, member.id, 1)
+    service.remove_member(db, score.score_uuid, member.id, 1)
     for action in [ScoreAction.VIEW, ScoreAction.PRACTICE, ScoreAction.EDIT]:
         with pytest.raises(UnauthorizedException):
-            await policy.authorize(db, score.score_uuid, action, user_id=2)
+            policy.authorize(db, score.score_uuid, action, user_id=2)
 
 
 def test_least_privilege_default_and_exact_role_hierarchy():

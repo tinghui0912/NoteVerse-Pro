@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 
 from app.core.background_tracing import record_current_attempt_failure
-from app.db.sync_session import get_worker_db
+from app.db.session import SessionLocal
 from app.modules.mail.outbox_service import mail_outbox_service
 from app.task_queue.protocols import CeleryTaskLike
 from app.utils.email import MailPermanentError, MailTransientError, send_email
@@ -23,8 +23,9 @@ def execute_mail_outbox_task(task: CeleryTaskLike, outbox_uuid: str) -> dict[str
     bind_task_context(task)
     trace_scope = None
     try:
-        with get_worker_db() as db:
+        with SessionLocal() as db:
             payload = mail_outbox_service.claim(db, outbox_uuid)
+            db.commit()
         if payload is None:
             operation_logger(
                 "mail.ignored",
@@ -62,10 +63,11 @@ def execute_mail_outbox_task(task: CeleryTaskLike, outbox_uuid: str) -> dict[str
             )
         except MailPermanentError as exc:
             record_current_attempt_failure(exc)
-            with get_worker_db() as db:
+            with SessionLocal() as db:
                 accepted = mail_outbox_service.permanent_failure(
                     db, outbox_uuid, str(exc), lease=payload.lease
                 )
+                db.commit()
             if not accepted:
                 return {"status": "stale", "outbox_uuid": outbox_uuid}
             operation_logger(
@@ -77,10 +79,11 @@ def execute_mail_outbox_task(task: CeleryTaskLike, outbox_uuid: str) -> dict[str
             return {"status": "permanent_failure", "outbox_uuid": outbox_uuid}
         except MailTransientError as exc:
             record_current_attempt_failure(exc)
-            with get_worker_db() as db:
+            with SessionLocal() as db:
                 accepted = mail_outbox_service.transient_failure(
                     db, outbox_uuid, str(exc), lease=payload.lease
                 )
+                db.commit()
             if not accepted:
                 return {"status": "stale", "outbox_uuid": outbox_uuid}
             operation_logger(
@@ -91,10 +94,11 @@ def execute_mail_outbox_task(task: CeleryTaskLike, outbox_uuid: str) -> dict[str
             ).warning("mail.failed")
             return {"status": "failed", "outbox_uuid": outbox_uuid}
 
-        with get_worker_db() as db:
+        with SessionLocal() as db:
             accepted = mail_outbox_service.sent(
                 db, outbox_uuid, provider_message_id, lease=payload.lease
             )
+            db.commit()
         if not accepted:
             return {"status": "stale", "outbox_uuid": outbox_uuid}
         operation_logger(

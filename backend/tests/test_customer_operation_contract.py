@@ -6,7 +6,7 @@ import io
 import re
 import zipfile
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import Mock
 from pydantic import TypeAdapter
 
 import pytest
@@ -211,10 +211,10 @@ def test_storage_route_success_matches_its_declared_binary_content(
     service = SimpleNamespace(
         storage=storage,
         async_storage=AsyncObjectStorage(storage),
-        **{method: AsyncMock(return_value=result)},
+        **{method: Mock(return_value=result)},
     )
 
-    async def database():
+    def database():
         yield object()
 
     app.dependency_overrides[get_db] = database
@@ -246,10 +246,10 @@ def test_render_archive_success_is_zip_not_json(client):
         zipped.writestr("page.svg", "<svg/>")
     content = archive.getvalue()
     service = SimpleNamespace(
-        render_asset_archive=AsyncMock(return_value=(io.BytesIO(content), "pages.zip"))
+        render_asset_archive=Mock(return_value=(io.BytesIO(content), "pages.zip"))
     )
 
-    async def database():
+    def database():
         yield object()
 
     app.dependency_overrides[get_db] = database
@@ -267,7 +267,7 @@ def test_render_archive_success_is_zip_not_json(client):
 
 
 def test_realtime_success_is_an_event_stream(client, monkeypatch):
-    async def events(*args):
+    def events(*args):
         yield ": connected\n\n"
         yield "id: 1\nevent: notification.created\ndata: {}\n\n"
 
@@ -287,9 +287,9 @@ def test_realtime_success_is_an_event_stream(client, monkeypatch):
 
 
 def test_password_reset_completes_without_a_representation(client):
-    service = SimpleNamespace(reset_password=AsyncMock())
+    service = SimpleNamespace(reset_password=Mock())
 
-    async def database():
+    def database():
         yield object()
 
     app.dependency_overrides[get_db] = database
@@ -311,13 +311,13 @@ def test_avatar_resolution_is_a_bodyless_redirect_with_location(client):
     filename = "1_" + "a" * 64 + "_" + "b" * 32 + ".jpg"
     target = "https://objects.example/avatar.jpg?signature=capability"
     service = SimpleNamespace(
-        avatar_exists=AsyncMock(return_value=True),
-        async_storage=SimpleNamespace(download_url=AsyncMock(return_value=target)),
+        avatar_exists=Mock(return_value=True),
+        storage=SimpleNamespace(download_url=Mock(return_value=target)),
     )
 
-    async def database():
+    def database():
         yield SimpleNamespace(
-            scalar=AsyncMock(
+            scalar=Mock(
                 return_value=SimpleNamespace(object_key="avatar", content_type="image/jpeg")
             )
         )

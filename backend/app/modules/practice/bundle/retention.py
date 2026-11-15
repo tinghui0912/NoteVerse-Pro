@@ -3,7 +3,7 @@
 from sqlalchemy import select
 from app.core.config import settings
 from app.db.models import PracticeBundleRecord, ScoreRevisionPracticeBinding
-from app.modules.storage_objects.retirement import retire_released_objects
+from app.modules.storage_objects.retirement import retire_after_release
 from app.utils.timezone import utc_now_naive
 
 
@@ -24,7 +24,7 @@ class PracticeBundleRetention:
             return []
         ids = (bundle.prepared_musicxml_object_id, bundle.artifact_object_id)
         db.delete(bundle)
-        return retire_released_objects(db, *(identity for identity in ids if identity is not None))
+        return retire_after_release(db, *(identity for identity in ids if identity is not None))
 
     def retire_unowned(self, db, bundle_id):
         row = db.execute(

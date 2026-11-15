@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.db.model_utils import require_persisted_id
@@ -17,14 +17,14 @@ router = APIRouter()
     operation_id="notificationsList",
     response_model=list[NotificationEventRead],
 )
-async def list_my_notifications(
+def list_my_notifications(
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: NotificationService = Depends(get_notification_service),
     limit: int = Query(default=50, ge=1, le=100),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    result = await service.list_for_user(db, user_id, limit=limit)
+    result = service.list_for_user(db, user_id, limit=limit)
     return result
 
 
@@ -33,13 +33,13 @@ async def list_my_notifications(
     operation_id="notificationsUnreadCountGet",
     response_model=NotificationUnreadCountRead,
 )
-async def my_notification_unread_count(
+def my_notification_unread_count(
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: NotificationService = Depends(get_notification_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    result = await service.unread_count(db, user_id)
+    result = service.unread_count(db, user_id)
     return result
 
 
@@ -48,14 +48,14 @@ async def my_notification_unread_count(
     operation_id="notificationMarkRead",
     response_model=NotificationEventRead,
 )
-async def mark_my_notification_read(
+def mark_my_notification_read(
     notification_id: str,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: NotificationService = Depends(get_notification_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    result = await service.mark_read(db, notification_id, user_id)
+    result = service.mark_read(db, notification_id, user_id)
     return result
 
 
@@ -64,11 +64,11 @@ async def mark_my_notification_read(
     operation_id="notificationsMarkAllRead",
     response_model=NotificationUnreadCountRead,
 )
-async def mark_all_my_notifications_read(
+def mark_all_my_notifications_read(
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: NotificationService = Depends(get_notification_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    result = await service.mark_all_read(db, user_id)
+    result = service.mark_all_read(db, user_id)
     return result

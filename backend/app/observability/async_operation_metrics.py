@@ -7,7 +7,7 @@ from collections.abc import Iterable
 from datetime import timedelta
 
 from sqlalchemy import Select, func, or_, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.models import (
@@ -30,13 +30,13 @@ from app.modules.scheduler_observability.service import scheduler_observability_
 from app.utils.timezone import utc_now_naive
 
 
-async def async_operation_metrics_text(db: AsyncSession) -> str:
+def async_operation_metrics_text(db: Session) -> str:
     """Return current async operation state metrics in Prometheus text format."""
 
     lines = [
         "# HELP noteverse_import_jobs_by_state Import jobs grouped by current business state.",
         "# TYPE noteverse_import_jobs_by_state gauge",
-        *await _enum_count_lines(
+        *_enum_count_lines(
             db,
             statement=select(ImportJob.state, func.count()).group_by(ImportJob.state),
             metric_name="noteverse_import_jobs_by_state",
@@ -44,21 +44,21 @@ async def async_operation_metrics_text(db: AsyncSession) -> str:
         ),
         "# HELP noteverse_outbox_records_by_status Outbox records grouped by kind and status.",
         "# TYPE noteverse_outbox_records_by_status gauge",
-        *await _enum_count_lines(
+        *_enum_count_lines(
             db,
             statement=select(RenderOutbox.status, func.count()).group_by(RenderOutbox.status),
             metric_name="noteverse_outbox_records_by_status",
             label_names=("kind", "status"),
             fixed_labels=("render",),
         ),
-        *await _enum_count_lines(
+        *_enum_count_lines(
             db,
             statement=select(PlaybackOutbox.status, func.count()).group_by(PlaybackOutbox.status),
             metric_name="noteverse_outbox_records_by_status",
             label_names=("kind", "status"),
             fixed_labels=("playback",),
         ),
-        *await _enum_count_lines(
+        *_enum_count_lines(
             db,
             statement=select(MailOutbox.status, func.count()).group_by(MailOutbox.status),
             metric_name="noteverse_outbox_records_by_status",
@@ -67,7 +67,7 @@ async def async_operation_metrics_text(db: AsyncSession) -> str:
         ),
         "# HELP noteverse_score_deletions_by_status Score deletion cleanup records grouped by status.",
         "# TYPE noteverse_score_deletions_by_status gauge",
-        *await _enum_count_lines(
+        *_enum_count_lines(
             db,
             statement=select(ScoreDeletionOperation.status, func.count()).group_by(
                 ScoreDeletionOperation.status
@@ -77,13 +77,13 @@ async def async_operation_metrics_text(db: AsyncSession) -> str:
         ),
         "# HELP noteverse_async_operation_oldest_open_age_seconds Oldest non-terminal async operation age in seconds.",
         "# TYPE noteverse_async_operation_oldest_open_age_seconds gauge",
-        *await _oldest_open_age_lines(db),
+        *_oldest_open_age_lines(db),
         "# HELP noteverse_async_operation_oldest_processing_age_seconds Oldest currently processing async operation age in seconds.",
         "# TYPE noteverse_async_operation_oldest_processing_age_seconds gauge",
-        *await _oldest_processing_age_lines(db),
+        *_oldest_processing_age_lines(db),
         "# HELP noteverse_async_operation_completed_duration_average_seconds Average completed async operation duration in seconds over the last 24 hours.",
         "# TYPE noteverse_async_operation_completed_duration_average_seconds gauge",
-        *await _completed_duration_average_lines(db),
+        *_completed_duration_average_lines(db),
         "# HELP noteverse_scheduler_last_success_timestamp_seconds Unix timestamp of the last successful scheduler scan.",
         "# TYPE noteverse_scheduler_last_success_timestamp_seconds gauge",
         "# HELP noteverse_scheduler_last_failure_timestamp_seconds Unix timestamp of the last failed scheduler scan.",
@@ -110,7 +110,7 @@ async def async_operation_metrics_text(db: AsyncSession) -> str:
         "# TYPE noteverse_scheduler_lock_skipped_total counter",
         "# HELP noteverse_scheduler_last_lock_skipped_timestamp_seconds Unix timestamp of the last scheduler lock skip.",
         "# TYPE noteverse_scheduler_last_lock_skipped_timestamp_seconds gauge",
-        *await _scheduler_heartbeat_lines(db),
+        *_scheduler_heartbeat_lines(db),
         "# HELP noteverse_scheduler_leader_last_heartbeat_timestamp_seconds Unix timestamp of the active Beat leader heartbeat.",
         "# TYPE noteverse_scheduler_leader_last_heartbeat_timestamp_seconds gauge",
         "# HELP noteverse_scheduler_leader_active Whether a Beat leader heartbeat is current.",
@@ -121,23 +121,23 @@ async def async_operation_metrics_text(db: AsyncSession) -> str:
         "# TYPE noteverse_scheduler_leader_standby_total counter",
         "# HELP noteverse_scheduler_leader_child_exits_total Total unexpected Celery Beat child exits.",
         "# TYPE noteverse_scheduler_leader_child_exits_total counter",
-        *await _scheduler_leader_lines(db),
+        *_scheduler_leader_lines(db),
         "# HELP noteverse_scheduler_lag_seconds Oldest due record delay before scheduler dispatch by async operation kind.",
         "# TYPE noteverse_scheduler_lag_seconds gauge",
-        *await _scheduler_lag_lines(db),
+        *_scheduler_lag_lines(db),
     ]
     return "\n".join(lines) + "\n"
 
 
-async def _enum_count_lines(
-    db: AsyncSession,
+def _enum_count_lines(
+    db: Session,
     *,
     statement: Select[tuple[object, int]],
     metric_name: str,
     label_names: tuple[str, ...],
     fixed_labels: tuple[str, ...] = (),
 ) -> list[str]:
-    result = await db.exec(statement)
+    result = db.execute(statement)
     lines: list[str] = []
     for value, count in result.all():
         label_values = (*fixed_labels, _metric_label_value(value))
@@ -177,12 +177,12 @@ def _escape_label_value(value: str) -> str:
     return value.replace("\\", "\\\\").replace("\n", "\\n").replace('"', '\\"')
 
 
-async def _oldest_open_age_lines(db: AsyncSession) -> list[str]:
+def _oldest_open_age_lines(db: Session) -> list[str]:
     now = utc_now_naive()
     rows = [
         (
             "import",
-            await _oldest_age_seconds(
+            _oldest_age_seconds(
                 db,
                 select(func.min(ImportDispatch.created_at)).where(
                     ImportDispatch.status != ImportDispatchStatus.COMPLETED
@@ -192,7 +192,7 @@ async def _oldest_open_age_lines(db: AsyncSession) -> list[str]:
         ),
         (
             "render",
-            await _oldest_age_seconds(
+            _oldest_age_seconds(
                 db,
                 select(func.min(RenderOutbox.created_at)).where(
                     RenderOutbox.status != RenderOutboxStatus.COMPLETED
@@ -202,7 +202,7 @@ async def _oldest_open_age_lines(db: AsyncSession) -> list[str]:
         ),
         (
             "playback",
-            await _oldest_age_seconds(
+            _oldest_age_seconds(
                 db,
                 select(func.min(PlaybackOutbox.created_at)).where(
                     PlaybackOutbox.status != PlaybackOutboxStatus.COMPLETED
@@ -212,7 +212,7 @@ async def _oldest_open_age_lines(db: AsyncSession) -> list[str]:
         ),
         (
             "mail",
-            await _oldest_age_seconds(
+            _oldest_age_seconds(
                 db,
                 select(func.min(MailOutbox.created_at)).where(
                     MailOutbox.status.notin_(
@@ -238,12 +238,12 @@ async def _oldest_open_age_lines(db: AsyncSession) -> list[str]:
     ]
 
 
-async def _oldest_processing_age_lines(db: AsyncSession) -> list[str]:
+def _oldest_processing_age_lines(db: Session) -> list[str]:
     now = utc_now_naive()
     rows = [
         (
             "import",
-            await _oldest_age_seconds(
+            _oldest_age_seconds(
                 db,
                 select(func.min(ImportDispatch.started_at)).where(
                     ImportDispatch.status == ImportDispatchStatus.PROCESSING
@@ -253,7 +253,7 @@ async def _oldest_processing_age_lines(db: AsyncSession) -> list[str]:
         ),
         (
             "render",
-            await _oldest_age_seconds(
+            _oldest_age_seconds(
                 db,
                 select(func.min(RenderOutbox.started_at)).where(
                     RenderOutbox.status == RenderOutboxStatus.PROCESSING
@@ -263,7 +263,7 @@ async def _oldest_processing_age_lines(db: AsyncSession) -> list[str]:
         ),
         (
             "playback",
-            await _oldest_age_seconds(
+            _oldest_age_seconds(
                 db,
                 select(func.min(PlaybackOutbox.started_at)).where(
                     PlaybackOutbox.status == PlaybackOutboxStatus.PROCESSING
@@ -273,7 +273,7 @@ async def _oldest_processing_age_lines(db: AsyncSession) -> list[str]:
         ),
         (
             "mail",
-            await _oldest_age_seconds(
+            _oldest_age_seconds(
                 db,
                 select(func.min(MailOutbox.started_at)).where(
                     MailOutbox.status == MailOutboxStatus.PROCESSING
@@ -293,12 +293,12 @@ async def _oldest_processing_age_lines(db: AsyncSession) -> list[str]:
     ]
 
 
-async def _completed_duration_average_lines(db: AsyncSession) -> list[str]:
+def _completed_duration_average_lines(db: Session) -> list[str]:
     cutoff = utc_now_naive() - timedelta(hours=24)
     rows = [
         (
             "import",
-            await _average_duration_seconds(
+            _average_duration_seconds(
                 db,
                 select(
                     func.avg(
@@ -317,7 +317,7 @@ async def _completed_duration_average_lines(db: AsyncSession) -> list[str]:
         ),
         (
             "render",
-            await _average_duration_seconds(
+            _average_duration_seconds(
                 db,
                 select(
                     func.avg(_duration_seconds(RenderOutbox.started_at, RenderOutbox.completed_at))
@@ -331,7 +331,7 @@ async def _completed_duration_average_lines(db: AsyncSession) -> list[str]:
         ),
         (
             "playback",
-            await _average_duration_seconds(
+            _average_duration_seconds(
                 db,
                 select(
                     func.avg(
@@ -347,7 +347,7 @@ async def _completed_duration_average_lines(db: AsyncSession) -> list[str]:
         ),
         (
             "mail",
-            await _average_duration_seconds(
+            _average_duration_seconds(
                 db,
                 select(
                     func.avg(_duration_seconds(MailOutbox.started_at, MailOutbox.completed_at))
@@ -371,8 +371,8 @@ async def _completed_duration_average_lines(db: AsyncSession) -> list[str]:
     ]
 
 
-async def _scheduler_heartbeat_lines(db: AsyncSession) -> list[str]:
-    result = await db.exec(select(SchedulerHeartbeat).order_by(SchedulerHeartbeat.job_key))
+def _scheduler_heartbeat_lines(db: Session) -> list[str]:
+    result = db.execute(select(SchedulerHeartbeat).order_by(SchedulerHeartbeat.job_key))
     lines: list[str] = []
     for heartbeat in result.scalars().all():
         # Prometheus reserves `job` for the scrape target. Keep the scheduler
@@ -495,8 +495,8 @@ async def _scheduler_heartbeat_lines(db: AsyncSession) -> list[str]:
     return lines
 
 
-async def _scheduler_leader_lines(db: AsyncSession) -> list[str]:
-    status = await db.get(SchedulerLeaderStatus, BEAT_LEADER_SCHEDULER_NAME)
+def _scheduler_leader_lines(db: Session) -> list[str]:
+    status = db.get(SchedulerLeaderStatus, BEAT_LEADER_SCHEDULER_NAME)
     if status is None:
         return [
             _metric_line("noteverse_scheduler_leader_last_heartbeat_timestamp_seconds", (), (), 0),
@@ -532,12 +532,12 @@ async def _scheduler_leader_lines(db: AsyncSession) -> list[str]:
     ]
 
 
-async def _scheduler_lag_lines(db: AsyncSession) -> list[str]:
+def _scheduler_lag_lines(db: Session) -> list[str]:
     now = utc_now_naive()
     rows = [
         (
             "import",
-            await _oldest_age_seconds(
+            _oldest_age_seconds(
                 db,
                 select(func.min(ImportDispatch.next_attempt_at))
                 .join(ImportJob, ImportJob.id == ImportDispatch.job_id)
@@ -554,7 +554,7 @@ async def _scheduler_lag_lines(db: AsyncSession) -> list[str]:
         ),
         (
             "render",
-            await _oldest_age_seconds(
+            _oldest_age_seconds(
                 db,
                 select(func.min(RenderOutbox.next_attempt_at)).where(
                     RenderOutbox.status.in_(
@@ -568,7 +568,7 @@ async def _scheduler_lag_lines(db: AsyncSession) -> list[str]:
         ),
         (
             "playback",
-            await _oldest_age_seconds(
+            _oldest_age_seconds(
                 db,
                 select(func.min(PlaybackOutbox.next_attempt_at)).where(
                     PlaybackOutbox.status.in_(
@@ -582,7 +582,7 @@ async def _scheduler_lag_lines(db: AsyncSession) -> list[str]:
         ),
         (
             "mail",
-            await _oldest_age_seconds(
+            _oldest_age_seconds(
                 db,
                 select(func.min(MailOutbox.next_attempt_at)).where(
                     MailOutbox.status.in_((MailOutboxStatus.PENDING, MailOutboxStatus.FAILED)),
@@ -605,13 +605,13 @@ async def _scheduler_lag_lines(db: AsyncSession) -> list[str]:
     ]
 
 
-async def _oldest_age_seconds(
-    db: AsyncSession,
+def _oldest_age_seconds(
+    db: Session,
     statement: Select[tuple[object]],
     *,
     now,
 ) -> int:
-    result = await db.exec(statement)
+    result = db.execute(statement)
     row = result.one_or_none()
     oldest = row[0] if row is not None else None
     if oldest is None:
@@ -619,11 +619,11 @@ async def _oldest_age_seconds(
     return max(0, int((now - oldest).total_seconds()))
 
 
-async def _average_duration_seconds(
-    db: AsyncSession,
+def _average_duration_seconds(
+    db: Session,
     statement: Select[tuple[object]],
 ) -> int:
-    result = await db.exec(statement)
+    result = db.execute(statement)
     row = result.one_or_none()
     average = row[0] if row is not None else None
     if average is None:
