@@ -75,9 +75,7 @@ def view_guest_preview_page(
     delivery = service.image(db, token, asset_id)
     response = stream_storage_object(
         storage=service.storage,
-        storage_key=delivery.storage_key,
-        filename=delivery.filename,
-        media_type=delivery.media_type,
+        target=delivery,
         attachment=False,
     )
     return response
@@ -98,9 +96,7 @@ def listen_guest_preview(
     delivery = service.audio(db, token)
     response = stream_storage_object(
         storage=service.storage,
-        storage_key=delivery.storage_key,
-        filename=delivery.filename,
-        media_type=delivery.media_type,
+        target=delivery,
         attachment=False,
         request=request,
         enable_range=True,

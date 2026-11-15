@@ -1,3 +1,4 @@
+from app.modules.storage_objects.reads import StoredObjectReadTarget
 from contextlib import contextmanager
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
@@ -28,7 +29,7 @@ def test_pipeline_timeout_has_transient_terminal_facts() -> None:
 
 def test_pipeline_failure_is_persisted_and_reraised() -> None:
     service = ImportJobExecutionService(storage=Mock())
-    service.storage.materialize_to_local.return_value = "/work/score.png"
+    service.storage.iter_bytes.return_value = iter([b"input"])
     task = SimpleNamespace(
         request=SimpleNamespace(id="job-123"),
         update_state=Mock(),
@@ -70,7 +71,7 @@ def test_pipeline_failure_is_persisted_and_reraised() -> None:
         ) as finalize_failure,
         pytest.raises(TimeoutException),
     ):
-        service.run_pipeline(task, lease, ["upload-id"])
+        service.run_pipeline(task, lease, [StoredObjectReadTarget(1, "upload-id", 5, "image/png")])
 
     mapper.assert_called_once_with(pipeline.run.side_effect)
     finalize_failure.assert_called_once_with(

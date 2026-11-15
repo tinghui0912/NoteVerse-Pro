@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.modules.storage_objects.reads import StoredObjectReadTarget, materialize_admitted_object
 
 from celery.exceptions import SoftTimeLimitExceeded
 
@@ -50,20 +51,17 @@ class ImportJobExecutionService:
             "import_pipeline_failed", "pipeline", DurableFailureClass.SYSTEM_ERROR, False
         )
 
-    def _resolve_input_paths(self, storage_keys: list[str]) -> list[str]:
+    def _resolve_input_paths(self, inputs: list[StoredObjectReadTarget]) -> list[str]:
         return [
-            self.storage.materialize_to_local(
-                storage_key,
-                object_work_path(storage_key),
-            )
-            for storage_key in storage_keys
+            materialize_admitted_object(self.storage, target, object_work_path(target.storage_key))
+            for target in inputs
         ]
 
     def run_pipeline(
         self,
         celery_task: CeleryTaskLike,
         lease: ImportExecutionLease,
-        storage_keys: list[str],
+        inputs: list[StoredObjectReadTarget],
         options: ImportJobProcessingOptions | None = None,
     ) -> PipelineExecutionSuccessResult:
         job_id = lease.job_uuid
@@ -71,7 +69,7 @@ class ImportJobExecutionService:
             with SessionLocal() as db:
                 require_current_attempt(db, lease)
                 db.commit()
-            image_paths = self._resolve_input_paths(storage_keys)
+            image_paths = self._resolve_input_paths(inputs)
             with SessionLocal() as db:
                 bind_import_job_execution_manifest(db, lease)
                 context = JobContext(

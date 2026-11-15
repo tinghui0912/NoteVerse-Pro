@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.modules.storage_objects.reads import StoredObjectReadTarget, read_admitted_bytes
 from app.storage import ObjectStorage
 from app.modules.storage_objects.retirement import retire_after_release
 
@@ -99,8 +100,9 @@ class RevisionRenderService:
 
         uploaded_keys: list[str] = []
         try:
-            source_key = source.stored_object.object_key
-            content = self.storage.read_bytes(source_key)
+            content = read_admitted_bytes(
+                self.storage, StoredObjectReadTarget.from_object(source.stored_object)
+            )
             outputs = self._render_outputs(content, revision_uuid)
             pages = []
             for output in outputs:
@@ -220,7 +222,7 @@ class RevisionRenderService:
                 score_uuid=score_uuid,
                 revision_uuid=revision_uuid,
                 revision_id=revision_id,
-                canonical_storage_key=source.stored_object.object_key,
+                canonical_source=StoredObjectReadTarget.from_object(source.stored_object),
                 profile=profile,
                 uploaded_keys=uploaded_keys,
             )
@@ -300,12 +302,12 @@ class RevisionRenderService:
         score_uuid: str,
         revision_uuid: str,
         revision_id: int,
-        canonical_storage_key: str,
+        canonical_source: StoredObjectReadTarget,
         profile: str,
         uploaded_keys: list[str],
     ) -> list[dict]:
         outputs = self._render_outputs(
-            self.storage.read_bytes(canonical_storage_key), revision_uuid
+            read_admitted_bytes(self.storage, canonical_source), revision_uuid
         )
         records = []
         for output in outputs:

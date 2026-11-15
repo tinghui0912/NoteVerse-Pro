@@ -434,7 +434,7 @@ def test_metadata_mid_compute_takeover_and_atomic_completion(database, monkeypat
             release.set()
         assert future.result(15)["status"] == "stale"
     result = (
-        compute_metadata(storage.read_bytes(second.source_key))
+        compute_metadata(storage.read_bytes(second.source.storage_key))
         if outcome == "ready"
         else MetadataResult(None, "unsupported_metadata")
     )
@@ -562,7 +562,7 @@ def test_metadata_database_token_coherence_and_source_failure_are_delivery_seman
         assert db.scalar(sa.select(RevisionMetadataOutbox)).status == "FAILED"
         with pytest.raises(StaleDeliveryAttempt):
             metadata_delivery.adopt(
-                db, payload, compute_metadata(storage.read_bytes(payload.source_key))
+                db, payload, compute_metadata(storage.read_bytes(payload.source.storage_key))
             )
         db.rollback()
         assert db.scalar(sa.select(RealtimeChange)) is None

@@ -1,7 +1,6 @@
 from unittest.mock import Mock
 
 from app.modules.import_jobs.execution_service import ImportJobExecutionService
-from app.storage.paths import object_work_path
 from app.task_queue.config import celery_app
 from app.worker.tasks import import_dispatch_task
 
@@ -14,15 +13,20 @@ def test_import_job_keeps_celery_delivery_guarantees() -> None:
     assert celery_app.conf.worker_prefetch_multiplier == 1
 
 
-def test_worker_materializes_durable_storage_keys() -> None:
+def test_worker_materializes_admitted_inputs_without_metadata_probes(tmp_path, monkeypatch) -> None:
+    from app.modules.storage_objects.reads import StoredObjectReadTarget
+
     storage = Mock()
-    storage.materialize_to_local.return_value = "/worker/materialized/input.png"
-    service = ImportJobExecutionService(storage=storage)
-
-    paths = service._resolve_input_paths(["blobs/ab/abc123.png"])
-
-    assert paths == ["/worker/materialized/input.png"]
-    storage.materialize_to_local.assert_called_once_with(
-        "blobs/ab/abc123.png",
-        object_work_path("blobs/ab/abc123.png"),
+    storage.iter_bytes.return_value = iter([b"input"])
+    for method in (storage.exists, storage.object_metadata, storage.size_bytes):
+        method.side_effect = AssertionError("Physical metadata is not read authority")
+    destination = tmp_path / "input.png"
+    monkeypatch.setattr(
+        "app.modules.import_jobs.execution_service.object_work_path", lambda _: str(destination)
     )
+    service = ImportJobExecutionService(storage=storage)
+    paths = service._resolve_input_paths(
+        [StoredObjectReadTarget(1, "blobs/input.png", 5, "image/png")]
+    )
+    assert paths == [str(destination)] and destination.read_bytes() == b"input"
+    storage.iter_bytes.assert_called_once_with("blobs/input.png")

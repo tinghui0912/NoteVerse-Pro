@@ -46,9 +46,6 @@ class AsyncObjectStorage:
     async def read_bytes(self, key: str) -> bytes:
         return await self._run(lambda: self._storage.read_bytes(key))
 
-    async def size_bytes(self, key: str) -> int:
-        return await self._run(lambda: self._storage.size_bytes(key))
-
     async def object_metadata(self, key: str) -> ObjectMetadata:
         return await self._run(lambda: self._storage.object_metadata(key))
 

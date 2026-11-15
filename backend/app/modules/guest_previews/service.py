@@ -13,10 +13,10 @@ from app.modules.guest_previews.schemas import (
     GuestPreviewPageRead,
     GuestPreviewRead,
 )
-from app.modules.playback.delivery import PlaybackDelivery, PlaybackDeliveryReadModel
+from app.modules.playback.delivery import PlaybackDeliveryReadModel
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.score_assets.repository import ScoreAssetRepository
-from app.modules.score_assets.service import ScoreAssetDelivery
+from app.modules.storage_objects.reads import StoredObjectDelivery
 from app.shared.constants import ErrorCode
 from app.storage import object_storage
 
@@ -33,9 +33,7 @@ class GuestPreviewService:
         self.storage = storage or object_storage
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.assets = ScoreAssetRepository()
-        self.playback = PlaybackDeliveryReadModel(
-            storage=self.storage, access_policy=self.access_policy
-        )
+        self.playback = PlaybackDeliveryReadModel(access_policy=self.access_policy)
 
     def settings(self, db: Session, score_uuid: str, user_id: int) -> GuestPreviewSettingsRead:
         access = self.access_policy.authorize(
@@ -87,29 +85,23 @@ class GuestPreviewService:
             render_assets=[
                 GuestPreviewPageRead(asset_id=a.asset_uuid, page_number=a.page_number)
                 for a in pages
-                if a.page_number is not None and (self.storage.exists(a.stored_object.object_key))
+                if a.page_number is not None
             ],
-            audio_available=audio is not None
-            and (self.storage.exists(audio.stored_object.object_key)),
+            audio_available=audio is not None,
         )
 
-    def image(self, db: Session, token: str, asset_uuid: str) -> ScoreAssetDelivery:
+    def image(self, db: Session, token: str, asset_uuid: str) -> StoredObjectDelivery:
         _, revision = self._authorize(db, token)
         asset = self.assets.get_render_asset(db, asset_uuid)
         if (
             asset is None
             or asset.revision_id != revision.id
             or asset.kind != RenderAssetKind.RENDERED_PAGE
-            or not (self.storage.exists(asset.stored_object.object_key))
         ):
             raise ResourceNotFoundException("render_asset", code=ErrorCode.FILE_NOT_FOUND)
-        return ScoreAssetDelivery(
-            filename=asset.filename,
-            media_type=asset.stored_object.content_type,
-            storage_key=asset.stored_object.object_key,
-        )
+        return StoredObjectDelivery.for_object(asset.stored_object, asset.filename)
 
-    def audio(self, db: Session, token: str) -> PlaybackDelivery:
+    def audio(self, db: Session, token: str) -> StoredObjectDelivery:
         _, revision = self._authorize(db, token)
         return self.playback.delivery_for_revision(
             db, require_persisted_id(revision.id, entity="revision")

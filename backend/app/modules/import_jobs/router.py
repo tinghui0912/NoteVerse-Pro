@@ -130,8 +130,6 @@ def download_job_artifact(
     delivery = service.artifact_delivery(db, job_id, artifact_id, user_id)
     return stream_storage_object(
         storage=service.storage,
-        storage_key=delivery.storage_key,
-        filename=delivery.filename,
-        media_type=delivery.media_type,
+        target=delivery,
         attachment=False,
     )

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.modules.storage_objects.reads import StoredObjectDelivery
 from app.storage import ObjectStorage
 
 from dataclasses import dataclass
@@ -8,7 +9,6 @@ from sqlalchemy.orm import Session
 from sqlmodel import col
 
 from app.core.exceptions import (
-    FileException,
     ResourceNotFoundException,
     UnauthorizedException,
     ValidationException,
@@ -31,13 +31,6 @@ from app.modules.import_jobs.submission_service import ImportJobSubmissionServic
 from app.modules.import_jobs.read_model import ImportJobReadModel
 from app.storage import object_storage
 from app.shared.constants import ErrorCode
-
-
-@dataclass(frozen=True)
-class ImportArtifactDelivery:
-    filename: str
-    media_type: str
-    storage_key: str
 
 
 @dataclass(frozen=True)
@@ -159,7 +152,7 @@ class ImportJobService:
         job_uuid: str,
         artifact_uuid: str,
         user_id: int,
-    ) -> ImportArtifactDelivery:
+    ) -> StoredObjectDelivery:
         job = self.get_owned_job(db, job_uuid, user_id)
         if artifact_uuid.startswith("upload:"):
             return self._upload_delivery(db, job, artifact_uuid)
@@ -168,21 +161,14 @@ class ImportJobService:
             raise ResourceNotFoundException(
                 "import_artifact", artifact_uuid, ErrorCode.FILE_NOT_FOUND
             )
-        if not (self.storage.exists(artifact.stored_object.object_key)):
-            raise FileException(ErrorCode.FILE_NOT_FOUND, artifact.stored_object.object_key)
-        media_type = artifact.stored_object.content_type or "application/octet-stream"
-        return ImportArtifactDelivery(
-            filename=artifact.filename,
-            media_type=media_type,
-            storage_key=artifact.stored_object.object_key,
-        )
+        return StoredObjectDelivery.for_object(artifact.stored_object, artifact.filename)
 
     def _upload_delivery(
         self,
         db: Session,
         job: ImportJob,
         artifact_uuid: str,
-    ) -> ImportArtifactDelivery:
+    ) -> StoredObjectDelivery:
         raw_upload_id = artifact_uuid.removeprefix("upload:")
         if not raw_upload_id.isdigit():
             raise ResourceNotFoundException(
@@ -206,15 +192,8 @@ class ImportJobService:
                 "import_upload", artifact_uuid, ErrorCode.FILE_NOT_FOUND
             )
         _, upload, blob = row
-        if not (self.storage.exists(blob.object_key)):
-            raise FileException(ErrorCode.FILE_NOT_FOUND, blob.object_key)
-        media_type = blob.content_type or "application/octet-stream"
         filename = upload.original_filename
-        return ImportArtifactDelivery(
-            filename=filename,
-            media_type=media_type,
-            storage_key=blob.object_key,
-        )
+        return StoredObjectDelivery.for_object(blob, filename)
 
 
 job_service = ImportJobService()

@@ -63,13 +63,13 @@ def execute_import_dispatch_task(
         operation_logger(
             "import.started",
             **context,
-            upload_count=len(payload.storage_keys),
+            upload_count=len(payload.inputs),
         ).info("import.started")
         try:
             result = job_execution_service.run_pipeline(
                 task,
                 payload.lease,
-                payload.storage_keys,
+                payload.inputs,
                 payload.options,
             )
         except StaleImportDispatchAttempt:

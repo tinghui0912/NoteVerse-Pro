@@ -1765,7 +1765,7 @@ def test_import_dispatch_claim_reconstructs_persisted_request(
 
     assert payload is not None
     assert payload.job_uuid == job.job_uuid
-    assert payload.storage_keys == ["blobs/qu/queued-upload-sha.png"]
+    assert [item.storage_key for item in payload.inputs] == ["blobs/qu/queued-upload-sha.png"]
     assert payload.options == {"display_title": "Queued score"}
     assert dispatch.status == ImportDispatchStatus.PROCESSING
     assert dispatch.attempt_count == 1

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.modules.storage_objects.reads import StoredObjectReadTarget, read_admitted_bytes
 from app.storage import ObjectStorage
 
 from sqlalchemy.orm import Session
@@ -54,8 +55,10 @@ class PracticeBundleService:
             source = self.asset_repository.canonical_source(db, revision_id)
             if source is None:
                 raise ResourceNotFoundException("source", revision_uuid, ErrorCode.FILE_NOT_FOUND)
+            canonical = read_admitted_bytes(
+                self.storage, StoredObjectReadTarget.from_object(source.stored_object)
+            )
             try:
-                canonical = self.storage.read_bytes(source.stored_object.object_key)
                 candidate = self.compiler.compile(canonical_musicxml=canonical)
             except PracticeScoreInvalidError as error:
                 raise ValidationException(code=ErrorCode.PRACTICE_SCORE_INVALID) from error

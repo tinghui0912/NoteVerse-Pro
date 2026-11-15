@@ -1,7 +1,7 @@
 from __future__ import annotations
+from app.modules.storage_objects.reads import StoredObjectDelivery
 from app.storage import ObjectStorage
 
-from dataclasses import dataclass
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -9,7 +9,6 @@ from sqlmodel import col
 
 from app.core.exceptions import (
     ConflictException,
-    FileException,
     ResourceNotFoundException,
     UnauthorizedException,
 )
@@ -39,13 +38,6 @@ from app.modules.score_assets.render_service import RevisionRenderService
 from app.shared.constants import ErrorCode
 from app.storage import object_storage
 from app.shared.time import utc_now
-
-
-@dataclass(frozen=True)
-class ScoreInputAssetDelivery:
-    filename: str
-    media_type: str
-    storage_key: str
 
 
 class ScoreService:
@@ -119,7 +111,7 @@ class ScoreService:
         score_uuid: str,
         asset_uuid: str,
         user_id: int,
-    ) -> ScoreInputAssetDelivery:
+    ) -> StoredObjectDelivery:
         access = self.access_policy.authorize(db, score_uuid, ScoreAction.EDIT, user_id=user_id)
         score_id = require_persisted_id(access.score.id, entity="score")
         row = (
@@ -138,14 +130,8 @@ class ScoreService:
                 "score_input_asset", asset_uuid, ErrorCode.FILE_NOT_FOUND
             )
         _asset, upload, blob = row
-        if not (self.storage.exists(blob.object_key)):
-            raise FileException(ErrorCode.FILE_NOT_FOUND, blob.object_key)
         filename = upload.original_filename
-        return ScoreInputAssetDelivery(
-            filename=filename,
-            media_type=blob.content_type,
-            storage_key=blob.object_key,
-        )
+        return StoredObjectDelivery.for_object(blob, filename)
 
     def _read(
         self,

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.modules.storage_objects.reads import StoredObjectDelivery
 from app.storage import ObjectStorage
 
 
@@ -184,7 +185,7 @@ class PerformanceTakeService:
         db: Session,
         user_id: int,
         take_id: str,
-    ) -> tuple[str, str, str]:
+    ) -> StoredObjectDelivery:
         """Return an authorized, server-streamed media target without exposing its object key."""
         take = self.repository.get_by_uuid(db, user_id, take_id)
         if take is None:
@@ -194,10 +195,8 @@ class PerformanceTakeService:
         facts = performance_take_facts_from_row(take)
         manifest, recording = facts.manifest, facts.recording_object
         extension = recording_extension(manifest.snapshot.capture.kind, recording.content_type)
-        return (
-            recording.object_key,
-            f"performance-{manifest.take_uuid}.{extension}",
-            recording.content_type,
+        return StoredObjectDelivery.for_object(
+            take.recording_object, f"performance-{manifest.take_uuid}.{extension}"
         )
 
     def delete_take(

@@ -157,12 +157,10 @@ def stream_take_media(
     service: PerformanceTakeService = Depends(get_performance_take_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    storage_key, filename, media_type = service.get_media_delivery(db, user_id, take_id)
+    delivery = service.get_media_delivery(db, user_id, take_id)
     return stream_storage_object(
         storage=service.storage,
-        storage_key=storage_key,
-        filename=filename,
-        media_type=media_type,
+        target=delivery,
         attachment=False,
         request=request,
         enable_range=True,

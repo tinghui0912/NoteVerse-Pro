@@ -1,5 +1,7 @@
 """Fenced revision metadata delivery; source reads and computation occur outside locks."""
 
+from app.modules.storage_objects.reads import StoredObjectReadTarget
+
 from dataclasses import dataclass
 from uuid import uuid4
 from sqlalchemy import select
@@ -46,7 +48,7 @@ class MetadataPayload:
     lease: DeliveryAttemptLease
     revision_id: int
     source_fingerprint: str
-    source_key: str
+    source: StoredObjectReadTarget
     score_uuid: str
     revision_uuid: str
     originating_request_id: str | None
@@ -102,7 +104,7 @@ class RevisionMetadataDelivery:
             lease,
             row.revision_id,
             row.source_fingerprint,
-            source.object_key,
+            StoredObjectReadTarget.from_object(source[0]),
             source.score_uuid,
             source.revision_uuid,
             row.originating_request_id,
@@ -113,7 +115,7 @@ class RevisionMetadataDelivery:
     @staticmethod
     def _source(db: Session, row: RevisionMetadataOutbox):
         source = db.execute(
-            select(StoredObject.object_key, Score.score_uuid, ScoreRevision.revision_uuid)
+            select(StoredObject, Score.score_uuid, ScoreRevision.revision_uuid)
             .select_from(ScoreRevisionSource)
             .join(StoredObject, ScoreRevisionSource.stored_object_id == StoredObject.id)
             .join(ScoreRevision, ScoreRevisionSource.revision_id == ScoreRevision.id)

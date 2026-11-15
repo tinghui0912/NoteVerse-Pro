@@ -3565,10 +3565,6 @@
       },
       "RenderAssetRead": {
         "properties": {
-          "available": {
-            "title": "Available",
-            "type": "boolean"
-          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -3624,8 +3620,7 @@
           "mime_type",
           "size_bytes",
           "page_number",
-          "created_at",
-          "available"
+          "created_at"
         ],
         "title": "RenderAssetRead",
         "type": "object"
@@ -4225,10 +4220,6 @@
       },
       "RevisionSourceRead": {
         "properties": {
-          "available": {
-            "title": "Available",
-            "type": "boolean"
-          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -4272,8 +4263,7 @@
           "filename",
           "mime_type",
           "size_bytes",
-          "created_at",
-          "available"
+          "created_at"
         ],
         "title": "RevisionSourceRead",
         "type": "object"

@@ -33,11 +33,8 @@ class InMemoryObjectStorage:
         except KeyError as exc:
             raise FileNotFoundError(key) from exc
 
-    def size_bytes(self, key: str) -> int:
-        return len(self.read_bytes(key))
-
     def object_metadata(self, key: str) -> ObjectMetadata:
-        return ObjectMetadata(self.size_bytes(key), self.objects[self._key(key)][1])
+        return ObjectMetadata(len(self.read_bytes(key)), self.objects[self._key(key)][1])
 
     def iter_bytes(
         self,

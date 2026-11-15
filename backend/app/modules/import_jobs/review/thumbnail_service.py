@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.modules.storage_objects.reads import StoredObjectReadTarget, read_admitted_bytes
 from app.modules.storage_objects.retirement import retire_after_release
 from app.modules.storage_objects.writes import write_object, adopt_written_object
 
@@ -61,7 +62,11 @@ class ImportReviewThumbnailService:
         with tempfile.TemporaryDirectory(dir=settings.WORK_ROOT) as work_dir:
             xml_path = os.path.join(work_dir, "score.musicxml")
             with open(xml_path, "wb") as target:
-                target.write(self.storage.read_bytes(review_xml.stored_object.object_key))
+                target.write(
+                    read_admitted_bytes(
+                        self.storage, StoredObjectReadTarget.from_object(review_xml.stored_object)
+                    )
+                )
             engine = create_score_render_engine(output_folder=work_dir)
             result = engine.render_score(xml_path=xml_path, output_name="thumbnail")
             if not result["success"] or not result.get("files"):

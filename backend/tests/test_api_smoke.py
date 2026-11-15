@@ -20,7 +20,7 @@ from app.core.config import settings
 from app.main import app, create_app
 from app.core.middleware import normalize_origin
 from app.modules.playback.router import get_playback_delivery_service
-from app.modules.playback.delivery import PlaybackDelivery
+from app.modules.storage_objects.reads import StoredObjectDelivery
 from app.modules.practice.bundle.router import get_practice_bundle_service
 from app.modules.uploads.dependencies import get_upload_service
 from app.modules.uploads.repository import UploadRepository
@@ -126,8 +126,7 @@ def test_external_playback_routes_stream_audio(client: TestClient, tmp_path) -> 
             return audio_bytes
 
         def size_bytes(self, key: str) -> int:
-            assert key in {"playback/score-audio.wav"}
-            return len(audio_bytes)
+            raise AssertionError("Streaming uses admitted byte size")
 
         def iter_bytes(
             self,
@@ -150,7 +149,9 @@ def test_external_playback_routes_stream_audio(client: TestClient, tmp_path) -> 
 
         def score_revision_delivery(self, db, score_uuid: str, revision_uuid: str, user_id: int):
             token = "score-audio"
-            return PlaybackDelivery(
+            return StoredObjectDelivery(
+                stored_object_id=1,
+                byte_size=len(audio_bytes),
                 filename=f"{token}.wav",
                 media_type="audio/wav",
                 storage_key=f"playback/{token}.wav",

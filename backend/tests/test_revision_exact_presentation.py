@@ -66,7 +66,7 @@ def test_head_projection_and_playback_do_not_read_other_revision(revisions):
         "preview": {"status": "processing", "asset_id": None},
         "audio": {"status": "processing", "asset_id": None},
     }
-    delivery = PlaybackDeliveryReadModel(storage=storage, access_policy=ScoreAccessPolicy())
+    delivery = PlaybackDeliveryReadModel(access_policy=ScoreAccessPolicy())
     with pytest.raises(ResourceNotFoundException) as missing:
         delivery.delivery_for_revision(db, rows[2].id)
     assert missing.value.code == ErrorCode.FILE_NOT_FOUND

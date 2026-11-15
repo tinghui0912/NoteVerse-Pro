@@ -1971,10 +1971,6 @@ export type RenderAssetKind = 'RENDERED_PAGE';
  */
 export type RenderAssetRead = {
     /**
-     * Available
-     */
-    available: boolean;
-    /**
      * Created At
      */
     created_at: string;
@@ -2306,10 +2302,6 @@ export type RevisionSourceFormat = 'MUSICXML';
  * RevisionSourceRead
  */
 export type RevisionSourceRead = {
-    /**
-     * Available
-     */
-    available: boolean;
     /**
      * Created At
      */

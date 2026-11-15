@@ -1,5 +1,8 @@
 """Customer browser identity and HTTP route projections have explicit source owners."""
 
+from app.modules.storage_objects.reads import StoredObjectDelivery
+
+
 import importlib.util
 import json
 import os
@@ -180,7 +183,7 @@ def test_openapi_native_route_metadata_reaches_the_real_customer_handler(
     app = create_app()
     storage = InMemoryObjectStorage()
     storage.put_bytes(key="native", content=b"native bytes", content_type=mime)
-    delivery = SimpleNamespace(storage_key="native", filename="native", media_type=mime)
+    delivery = StoredObjectDelivery(1, "native", len(b"native bytes"), mime, "native")
     from app.storage import AsyncObjectStorage
 
     service = SimpleNamespace(storage=storage, async_storage=AsyncObjectStorage(storage))

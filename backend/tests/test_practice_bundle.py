@@ -131,6 +131,7 @@ async def test_unbound_revision_compiles_once_then_reads_existing_binding():
             )
         )
     )
+    assets.canonical_source.return_value.stored_object.id = 1
     access = SimpleNamespace(
         score=SimpleNamespace(id=10, score_uuid="score-A", display_title="Title"),
         revision=SimpleNamespace(id=20, revision_uuid="rev-A"),
@@ -192,6 +193,7 @@ def test_unbound_revision_reauthorization_failure_prevents_binding_mutation():
             )
         ),
     )
+    service.asset_repository.canonical_source.return_value.stored_object.id = 1
     with patch(
         "app.modules.practice.bundle.service.lock_live_practice_mutation_access",
         Mock(side_effect=UnauthorizedException(ErrorCode.NO_PRACTICE_ACCESS)),

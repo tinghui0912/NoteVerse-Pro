@@ -7,7 +7,8 @@ from urllib.parse import quote
 from fastapi import Request, status
 from fastapi.responses import Response, StreamingResponse
 
-from app.storage import ObjectStorage, AsyncObjectStorage
+from app.storage import ObjectStorage
+from app.modules.storage_objects.reads import StoredObjectDelivery, iterate_admitted_bytes
 
 DEFAULT_STREAM_CHUNK_SIZE = 1024 * 1024
 
@@ -21,17 +22,15 @@ class ByteRange:
 def stream_storage_object(
     *,
     storage: ObjectStorage,
-    storage_key: str,
-    filename: str,
-    media_type: str,
+    target: StoredObjectDelivery,
     attachment: bool,
     request: Request | None = None,
     enable_range: bool = False,
     chunk_size: int = DEFAULT_STREAM_CHUNK_SIZE,
 ) -> Response:
-    size = storage.size_bytes(storage_key)
+    size = target.byte_size
     headers = {
-        "Content-Disposition": _content_disposition(filename, attachment=attachment),
+        "Content-Disposition": _content_disposition(target.filename, attachment=attachment),
         "Content-Length": str(size),
     }
     if enable_range:
@@ -39,16 +38,16 @@ def stream_storage_object(
 
     if not enable_range or request is None:
         return StreamingResponse(
-            AsyncObjectStorage(storage).iter_bytes(storage_key, chunk_size=chunk_size),
-            media_type=media_type,
+            iterate_admitted_bytes(storage, target, chunk_size=chunk_size),
+            media_type=target.media_type,
             headers=headers,
         )
 
     parsed_range = _parse_byte_range(request.headers.get("range"), size)
     if parsed_range is None:
         return StreamingResponse(
-            AsyncObjectStorage(storage).iter_bytes(storage_key, chunk_size=chunk_size),
-            media_type=media_type,
+            iterate_admitted_bytes(storage, target, chunk_size=chunk_size),
+            media_type=target.media_type,
             headers=headers,
         )
     if parsed_range == "invalid":
@@ -64,14 +63,15 @@ def stream_storage_object(
         "Content-Range": f"bytes {parsed_range.start}-{parsed_range.end}/{size}",
     }
     return StreamingResponse(
-        AsyncObjectStorage(storage).iter_bytes(
-            storage_key,
+        iterate_admitted_bytes(
+            storage,
+            target,
             chunk_size=chunk_size,
             start=parsed_range.start,
             end=parsed_range.end,
         ),
         status_code=status.HTTP_206_PARTIAL_CONTENT,
-        media_type=media_type,
+        media_type=target.media_type,
         headers=range_headers,
     )
 

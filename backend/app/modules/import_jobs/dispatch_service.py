@@ -4,6 +4,7 @@ Every path locking both records locks ImportDispatch before ImportJob.
 """
 
 from __future__ import annotations
+from app.modules.storage_objects.reads import StoredObjectReadTarget
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -101,7 +102,7 @@ def require_current_attempt(db: Session, lease: ImportExecutionLease) -> ImportJ
 class ImportDispatchPayload:
     lease: ImportExecutionLease
     job_uuid: str
-    storage_keys: list[str]
+    inputs: list[StoredObjectReadTarget]
     options: ImportJobProcessingOptions | None
     attempt: int
     max_attempts: int
@@ -168,7 +169,7 @@ class ImportDispatchService:
         if job.state != ImportJobState.PENDING:
             return None
         keys = db.scalars(
-            select(StoredObject.object_key)
+            select(StoredObject)
             .select_from(ImportJobUpload)
             .join(Upload, ImportJobUpload.upload_id == Upload.id)
             .join(StoredObject, Upload.stored_object_id == StoredObject.id)
@@ -199,7 +200,7 @@ class ImportDispatchService:
         return ImportDispatchPayload(
             lease,
             job.job_uuid,
-            list(keys),
+            [StoredObjectReadTarget.from_object(row) for row in keys],
             cast(ImportJobProcessingOptions, job.requested_options)
             if isinstance(job.requested_options, dict)
             else None,

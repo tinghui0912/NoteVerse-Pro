@@ -89,9 +89,7 @@ def download_score_input_asset(
     delivery = service.input_asset_delivery(db, score_id, asset_id, user_id)
     return stream_storage_object(
         storage=service.storage,
-        storage_key=delivery.storage_key,
-        filename=delivery.filename,
-        media_type=delivery.media_type,
+        target=delivery,
         attachment=True,
     )
 

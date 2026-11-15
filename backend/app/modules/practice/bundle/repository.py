@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.modules.storage_objects.reads import StoredObjectReadTarget, read_admitted_bytes
 
 import json
 from datetime import timedelta
@@ -284,11 +285,15 @@ class PracticeBundleRepository:
                 details={"reason": "representation_type_mismatch"},
             )
         xml = PracticeBundleRepresentation(
-            self.storage.read_bytes(row.prepared_musicxml_object.object_key),
+            read_admitted_bytes(
+                self.storage, StoredObjectReadTarget.from_object(row.prepared_musicxml_object)
+            ),
             "application/vnd.recordare.musicxml+xml",
         )
         data = PracticeBundleRepresentation(
-            self.storage.read_bytes(row.artifact_object.object_key),
+            read_admitted_bytes(
+                self.storage, StoredObjectReadTarget.from_object(row.artifact_object)
+            ),
             "application/json",
         )
         for representation, expected_sha, expected_size, reason in [

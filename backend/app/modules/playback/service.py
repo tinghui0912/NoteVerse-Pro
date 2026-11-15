@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.modules.storage_objects.reads import StoredObjectReadTarget, read_admitted_bytes
 from app.storage import ObjectStorage
 from app.modules.storage_objects.retirement import retire_after_release
 
@@ -95,7 +96,9 @@ class PlaybackGenerationService:
         if source is None:
             raise ResourceNotFoundException("source", revision_uuid, ErrorCode.FILE_NOT_FOUND)
 
-        source_content = self.storage.read_bytes(source.stored_object.object_key)
+        source_content = read_admitted_bytes(
+            self.storage, StoredObjectReadTarget.from_object(source.stored_object)
+        )
         audio = self.renderer.render(source_content)
         asset_uuid = str(uuid.uuid4())
         stored = write_object(
@@ -225,7 +228,9 @@ class PlaybackGenerationService:
             revision_id=revision_id,
             source_fingerprint=source_fingerprint,
             asset_kind=asset_kind,
-            source=self.storage.read_bytes(source.stored_object.object_key),
+            source=read_admitted_bytes(
+                self.storage, StoredObjectReadTarget.from_object(source.stored_object)
+            ),
             outbox_uuid=outbox_uuid,
             lease=lease,
         )

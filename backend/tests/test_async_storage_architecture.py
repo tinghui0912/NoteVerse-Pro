@@ -11,7 +11,6 @@ PROVIDER_IO = {
     "put_bytes",
     "exists",
     "read_bytes",
-    "size_bytes",
     "object_metadata",
     "copy",
     "delete",

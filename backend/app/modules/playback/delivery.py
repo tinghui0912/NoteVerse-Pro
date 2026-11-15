@@ -1,7 +1,7 @@
 from __future__ import annotations
+from app.modules.storage_objects.reads import StoredObjectDelivery
 from app.storage import ObjectStorage
 
-from dataclasses import dataclass
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -17,21 +17,12 @@ from app.shared.constants import ErrorCode
 from app.storage import object_storage
 
 
-@dataclass(frozen=True)
-class PlaybackDelivery:
-    filename: str
-    media_type: str
-    storage_key: str
-
-
 class PlaybackDeliveryReadModel:
     def __init__(
         self,
         *,
-        storage: ObjectStorage,
         access_policy: ScoreAccessPolicy,
     ) -> None:
-        self.storage = storage
         self.access_policy = access_policy
 
     def score_revision_delivery(
@@ -40,7 +31,7 @@ class PlaybackDeliveryReadModel:
         score_uuid: str,
         revision_uuid: str,
         user_id: int,
-    ) -> PlaybackDelivery:
+    ) -> StoredObjectDelivery:
         access = self.access_policy.authorize(
             db,
             score_uuid,
@@ -56,7 +47,7 @@ class PlaybackDeliveryReadModel:
         self,
         db: Session,
         revision_id: int,
-    ) -> PlaybackDelivery:
+    ) -> StoredObjectDelivery:
         asset = (
             db.execute(
                 select(ScorePlaybackAsset).where(
@@ -65,13 +56,9 @@ class PlaybackDeliveryReadModel:
                 )
             )
         ).scalar_one_or_none()
-        if asset is None or not (self.storage.exists(asset.stored_object.object_key)):
+        if asset is None:
             raise ResourceNotFoundException("playback_asset", code=ErrorCode.FILE_NOT_FOUND)
-        return PlaybackDelivery(
-            filename=asset.filename,
-            media_type=asset.stored_object.content_type,
-            storage_key=asset.stored_object.object_key,
-        )
+        return StoredObjectDelivery.for_object(asset.stored_object, asset.filename)
 
 
 class PlaybackDeliveryService:
@@ -86,7 +73,6 @@ class PlaybackDeliveryService:
         self.storage = storage or object_storage
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.delivery_read_model = delivery_read_model or PlaybackDeliveryReadModel(
-            storage=self.storage,
             access_policy=self.access_policy,
         )
 
@@ -96,7 +82,7 @@ class PlaybackDeliveryService:
         score_uuid: str,
         revision_uuid: str,
         user_id: int,
-    ) -> PlaybackDelivery:
+    ) -> StoredObjectDelivery:
         return self.delivery_read_model.score_revision_delivery(
             db,
             score_uuid,

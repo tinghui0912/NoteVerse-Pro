@@ -124,22 +124,5 @@ class AvatarService:
         db.commit()
         return True
 
-    def clear_missing_avatar_reference(self, db: Session, user: User) -> bool:
-        current = user.avatar_object
-        if current is None or (self.avatar_exists(current.object_key.rsplit("/", 1)[-1])):
-            return False
-        self.clear_user_avatar(db, user)
-        return True
-
-    def avatar_exists(self, filename: str) -> bool:
-        try:
-            return self.storage.exists(avatar_object_key(filename))
-        except Exception as exc:
-            logger.bind(
-                event="account.avatar.exists_check_failed",
-                filename=filename,
-            ).opt(exception=exc).warning("Avatar existence check failed")
-            return True
-
 
 avatar_service = AvatarService()

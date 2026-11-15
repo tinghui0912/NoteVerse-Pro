@@ -76,7 +76,7 @@ def test_metadata_partial_publication_rolls_back_and_retry_is_authoritative(
     result = (
         MetadataResult(None, "unsupported_nontraditional_key")
         if semantic_failure
-        else compute_metadata(storage.read_bytes(first.source_key))
+        else compute_metadata(storage.read_bytes(first.source.storage_key))
     )
     original, recipients = interrupt_second_notify(monkeypatch)
     with Session(engine) as db:

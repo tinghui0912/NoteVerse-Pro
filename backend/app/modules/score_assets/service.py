@@ -1,14 +1,18 @@
 from __future__ import annotations
+from app.modules.storage_objects.reads import (
+    StoredObjectDelivery,
+    StoredObjectReadTarget,
+    read_admitted_bytes,
+)
 from app.storage import ObjectStorage
 
-from dataclasses import dataclass
 import io
 import zipfile
 
 from sqlalchemy.orm import Session
 
 from app.core.generated.customer_browser_protocol import CUSTOMER_API_PREFIX
-from app.core.exceptions import FileException, ResourceNotFoundException
+from app.core.exceptions import ResourceNotFoundException
 from app.db.model_utils import require_persisted_id
 from app.db.models import Score, ScoreRenderAsset, ScoreRevision, ScoreRevisionSource
 from app.db.models.score import RenderAssetKind
@@ -23,13 +27,6 @@ from app.modules.score_assets.schemas import (
 from app.modules.scores.repository import ScoreRepository
 from app.shared.constants import ErrorCode
 from app.storage import object_storage
-
-
-@dataclass(frozen=True)
-class ScoreAssetDelivery:
-    filename: str
-    media_type: str
-    storage_key: str
 
 
 class ScoreAssetService:
@@ -81,7 +78,7 @@ class ScoreAssetService:
         db: Session,
         source_uuid: str,
         user_id: int | None,
-    ) -> ScoreAssetDelivery:
+    ) -> StoredObjectDelivery:
         source, _revision = self._authorized_source(
             db,
             source_uuid,
@@ -97,7 +94,7 @@ class ScoreAssetService:
         user_id: int | None,
         *,
         download: bool = True,
-    ) -> ScoreAssetDelivery:
+    ) -> StoredObjectDelivery:
         render_asset, _revision = self._authorized_render_asset(
             db,
             render_asset_uuid,
@@ -160,10 +157,11 @@ class ScoreAssetService:
         archive = io.BytesIO()
         with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as bundle:
             for render_asset in render_assets:
-                (self._require_object(render_asset))
                 bundle.writestr(
                     render_asset.filename,
-                    (self.storage.read_bytes(render_asset.stored_object.object_key)),
+                    read_admitted_bytes(
+                        self.storage, StoredObjectReadTarget.from_object(render_asset.stored_object)
+                    ),
                 )
         archive.seek(0)
         return archive, f"score-{score_uuid}-{kind.value.lower()}.zip"
@@ -236,18 +234,12 @@ class ScoreAssetService:
             revision_uuid=revision.revision_uuid,
         )
 
-    def _delivery(self, asset: ScoreAssetRecord) -> ScoreAssetDelivery:
-        (self._require_object(asset))
-        return ScoreAssetDelivery(
-            filename=asset.filename,
-            media_type=asset.stored_object.content_type,
-            storage_key=asset.stored_object.object_key,
-        )
+    def _delivery(self, asset: ScoreAssetRecord) -> StoredObjectDelivery:
+        return StoredObjectDelivery.for_object(asset.stored_object, asset.filename)
 
     def _access_read(
         self, asset: ScoreAssetRecord, asset_uuid: str, route_prefix: str
     ) -> AssetAccessRead:
-        (self._require_object(asset))
         return AssetAccessRead(
             asset_id=asset_uuid,
             url=f"{CUSTOMER_API_PREFIX}/{route_prefix}/{asset_uuid}/download",
@@ -255,10 +247,6 @@ class ScoreAssetService:
             mime_type=asset.stored_object.content_type,
             expires_in=None,
         )
-
-    def _require_object(self, asset: ScoreAssetRecord) -> None:
-        if not (self.storage.exists(asset.stored_object.object_key)):
-            raise FileException(ErrorCode.FILE_NOT_FOUND, asset.stored_object.object_key)
 
     def source_read(
         self, source: ScoreRevisionSource, revision: ScoreRevision
@@ -281,7 +269,6 @@ class ScoreAssetService:
             mime_type=source.stored_object.content_type,
             size_bytes=source.stored_object.byte_size,
             created_at=source.created_at,
-            available=(self.storage.exists(source.stored_object.object_key)),
         )
 
     def _render_asset_read(
@@ -296,5 +283,4 @@ class ScoreAssetService:
             size_bytes=render_asset.stored_object.byte_size,
             page_number=render_asset.page_number,
             created_at=render_asset.created_at,
-            available=(self.storage.exists(render_asset.stored_object.object_key)),
         )

@@ -18,7 +18,6 @@ class RevisionSourceRead(BaseModel):
     mime_type: str
     size_bytes: int | None
     created_at: Instant
-    available: bool
 
 
 class RenderAssetRead(BaseModel):
@@ -30,7 +29,6 @@ class RenderAssetRead(BaseModel):
     size_bytes: int | None
     page_number: int | None
     created_at: Instant
-    available: bool
 
 
 class ScoreRevisionAssetsRead(ApiModel):

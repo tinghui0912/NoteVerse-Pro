@@ -1,11 +1,11 @@
 from __future__ import annotations
+from app.modules.storage_objects.reads import StoredObjectReadTarget, read_admitted_bytes
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlmodel import col
 
 from app.core.exceptions import (
-    FileException,
     ResourceNotFoundException,
     UnauthorizedException,
     ValidationException,
@@ -78,14 +78,11 @@ class ImportReviewReadModel:
         )
         if musicxml_artifact is None:
             raise ResourceNotFoundException("import_artifact", job_uuid, ErrorCode.XML_NOT_FOUND)
-        if not (self.storage.exists(musicxml_artifact.stored_object.object_key)):
-            raise FileException(
-                ErrorCode.FILE_NOT_FOUND, musicxml_artifact.stored_object.object_key
+        content = (
+            read_admitted_bytes(
+                self.storage, StoredObjectReadTarget.from_object(musicxml_artifact.stored_object)
             )
-
-        content = (self.storage.read_bytes(musicxml_artifact.stored_object.object_key)).decode(
-            "utf-8"
-        )
+        ).decode("utf-8")
         options = processing_options_adapter.validate_python(
             job.requested_options if job.requested_options is not None else {}
         )

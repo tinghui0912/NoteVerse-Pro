@@ -154,8 +154,6 @@ def archive_score_render_assets(
 def _stream_asset(delivery, service: ScoreAssetService, *, attachment: bool):
     return stream_storage_object(
         storage=service.storage,
-        storage_key=delivery.storage_key,
-        filename=delivery.filename,
-        media_type=delivery.media_type,
+        target=delivery,
         attachment=attachment,
     )

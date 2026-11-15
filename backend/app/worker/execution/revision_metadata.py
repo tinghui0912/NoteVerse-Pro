@@ -1,5 +1,7 @@
 """Compute outside delivery locks; metadata/result/completion/realtime commit together."""
 
+from app.modules.storage_objects.reads import read_admitted_bytes
+
 import sys
 from hashlib import sha256
 from app.core.background_tracing import record_current_attempt_failure
@@ -40,7 +42,7 @@ def execute_revision_metadata_task(task: CeleryTaskLike, outbox_uuid: str) -> di
         )
         trace.__enter__()
         try:
-            content = object_storage.read_bytes(payload.source_key)
+            content = read_admitted_bytes(object_storage, payload.source)
             if sha256(content).hexdigest() != payload.source_fingerprint:
                 raise ValueError("canonical_source_fingerprint_mismatch")
             result = compute_metadata(content)

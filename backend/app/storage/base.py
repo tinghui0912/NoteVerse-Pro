@@ -7,6 +7,10 @@ from collections.abc import Iterator
 from typing import Protocol
 
 
+class ObjectStorageUnavailableError(RuntimeError):
+    """The physical provider cannot currently complete a read."""
+
+
 @dataclass(frozen=True)
 class ObjectWriteResult:
     """Observed identity and byte size of an object write."""
@@ -47,8 +51,6 @@ class ObjectStorage(Protocol):
     def exists(self, key: str) -> bool: ...
 
     def read_bytes(self, key: str) -> bytes: ...
-
-    def size_bytes(self, key: str) -> int: ...
 
     def object_metadata(self, key: str) -> ObjectMetadata: ...
 

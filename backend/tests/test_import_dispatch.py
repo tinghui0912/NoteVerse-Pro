@@ -120,7 +120,7 @@ def test_delivery_lifecycle_preserves_command_and_domain_identities(setup_delive
     assert payload.traceparent == row.traceparent
     assert service.claim(db, row.dispatch_uuid) is None
     assert payload.options == job.requested_options
-    assert payload.storage_keys == ["upload/original.png"]
+    assert [item.storage_key for item in payload.inputs] == ["upload/original.png"]
     assert row.attempt_token == payload.lease.token
     job.state = ImportJobState.PENDING_REVIEW
     db.add(job)

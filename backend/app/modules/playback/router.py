@@ -52,9 +52,7 @@ def stream_score_revision_playback(
 def _stream(delivery, service: PlaybackDeliveryService, request: Request):
     return stream_storage_object(
         storage=service.storage,
-        storage_key=delivery.storage_key,
-        filename=delivery.filename,
-        media_type=delivery.media_type,
+        target=delivery,
         attachment=False,
         request=request,
         enable_range=True,

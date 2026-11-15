@@ -215,7 +215,8 @@ def test_snapshot_replay_finalize_and_take_reads_survive_bundle_gc(postgres_bund
             listed = service.takes.list_takes(db, 1)
             assert listed.items == [take]
             assert service.takes.get_take(db, 1, take.take_id) == take
-            key, filename, mime = service.takes.get_media_delivery(db, 1, take.take_id)
+            delivery = service.takes.get_media_delivery(db, 1, take.take_id)
+            key, filename, mime = delivery.storage_key, delivery.filename, delivery.media_type
             assert (
                 storage.read_bytes(key) == MEDIA
                 and filename.endswith("webm")
@@ -288,7 +289,7 @@ def test_revision_only_retention_with_existing_reservation_or_take(postgres_bund
                 retained.manifest.practice_binding.bundle_id == request.practice_binding.bundle_id
             )
             assert (service.takes.list_takes(db, 1)).items == [retained]
-            key, _, _ = service.takes.get_media_delivery(db, 1, take.manifest.take_uuid)
+            key = service.takes.get_media_delivery(db, 1, take.manifest.take_uuid).storage_key
             assert storage.read_bytes(key) == MEDIA
 
 

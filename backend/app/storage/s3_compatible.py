@@ -5,10 +5,16 @@ from __future__ import annotations
 import os
 import boto3
 from botocore.config import Config
+from botocore.exceptions import BotoCoreError, ClientError
 from collections.abc import Iterator
 
 from app.core.config import settings
-from app.storage.base import DirectUploadTarget, ObjectWriteResult, ObjectMetadata
+from app.storage.base import (
+    DirectUploadTarget,
+    ObjectWriteResult,
+    ObjectMetadata,
+    ObjectStorageUnavailableError,
+)
 
 
 class S3CompatibleObjectStorage:
@@ -100,16 +106,8 @@ class S3CompatibleObjectStorage:
         except Exception as exc:
             if self._is_not_found_error(exc):
                 raise FileNotFoundError(normalized_key) from exc
-            raise
-
-    def size_bytes(self, key: str) -> int:
-        normalized_key = self._normalize_key(key)
-        try:
-            response = self.client.head_object(Bucket=self.bucket, Key=normalized_key)
-            return int(response["ContentLength"])
-        except Exception as exc:
-            if self._is_not_found_error(exc):
-                raise FileNotFoundError(normalized_key) from exc
+            if isinstance(exc, (BotoCoreError, ClientError, OSError)):
+                raise ObjectStorageUnavailableError("Object storage read unavailable") from exc
             raise
 
     def object_metadata(self, key: str) -> ObjectMetadata:
@@ -181,6 +179,8 @@ class S3CompatibleObjectStorage:
         except Exception as exc:
             if self._is_not_found_error(exc):
                 raise FileNotFoundError(normalized_key) from exc
+            if isinstance(exc, (BotoCoreError, ClientError, OSError)):
+                raise ObjectStorageUnavailableError("Object storage read unavailable") from exc
             raise
 
     def delete(self, key: str) -> bool:

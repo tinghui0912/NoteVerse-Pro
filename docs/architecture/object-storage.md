@@ -32,6 +32,32 @@ does not grant request services permission to delete adopted objects: semantic
 release still records accounting and retirement; durable cleanup/retirement owns
 physical deletion.
 
+## Admitted reads
+
+A committed semantic reference to `StoredObject` admits the object's existence and
+immutable facts. `modules/storage_objects/reads.py` carries those persisted facts in
+immutable read targets and deliveries. Normal list, readiness, authorization and
+delivery paths use database facts without provider HEAD probes. Revision sources
+and render assets expose their admitted facts. Derived-asset status follows asset rows
+and durable delivery state; Guest Preview pages and audio follow current-revision
+asset rows.
+
+Actual reads use the admitted-read boundary. A physical not-found is a
+`StoredObjectIntegrityError`, projected as `500/internal_error` before response start.
+Provider unavailability uses `503/storage_backend_unavailable`. Internal diagnostics
+include object identity, locator hash, operation and classification; customer errors expose
+none of those details. Reads do not delete references, rearm work or repair objects.
+Workers retain their owning retry and fencing protocols.
+
+HTTP streams derive Content-Length and range headers from persisted byte size.
+GET and iteration run without a preliminary HEAD. An error after response start is
+logged and terminates the stream. Signed downloads authorize an admitted locator
+without observing provider existence.
+
+`exists` remains a physical observation for staging admission and deletion/cleanup.
+`object_metadata` verifies direct-upload candidates; it does not determine business
+readiness. The storage port has no standalone size-observation operation.
+
 ## Semantic references
 
 Upload, ImportArtifact, ScoreRevisionSource, ScoreRenderAsset and ScorePlaybackAsset reference `stored_object`. PerformanceTake references `recording_object` alongside its independent TakeManifest. PracticeBundle references `prepared_musicxml_object` and `artifact_object`. User references its current `avatar_object`. Their foreign keys restrict physical-row removal while any semantic reference remains.

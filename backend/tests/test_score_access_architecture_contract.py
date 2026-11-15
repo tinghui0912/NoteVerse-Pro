@@ -59,7 +59,14 @@ def test_score_authorization_services_depend_on_the_central_policy() -> None:
 def test_guest_preview_dependencies_own_presentation_authorization_and_demand_provisioning() -> (
     None
 ):
-    allowed_contexts = {"guest_previews", "score_access", "score_assets", "playback", "revisions"}
+    allowed_contexts = {
+        "guest_previews",
+        "score_access",
+        "score_assets",
+        "playback",
+        "revisions",
+        "storage_objects",
+    }
     for path in (BACKEND_ROOT / "app/modules/guest_previews").glob("*.py"):
         tree = ast.parse(path.read_text(encoding="utf-8"))
         contexts = {
@@ -77,4 +84,7 @@ def test_guest_preview_dependencies_own_presentation_authorization_and_demand_pr
             and node.module
             and node.module.startswith("app.modules.revisions.")
         }
-        assert revision_dependencies <= {"app.modules.revisions.derivatives", "app.modules.revisions.derived_asset_retention_service"}
+        assert revision_dependencies <= {
+            "app.modules.revisions.derivatives",
+            "app.modules.revisions.derived_asset_retention_service",
+        }

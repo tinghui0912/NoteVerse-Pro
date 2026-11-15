@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.modules.storage_objects.reads import StoredObjectReadTarget, read_admitted_bytes
 from app.modules.storage_objects.writes import (
     ObjectWriteReceipt,
     write_object,
@@ -61,7 +62,9 @@ def prewrite_review_thumbnail(
     ).scalar_one_or_none()
     if thumbnail is None:
         return None
-    content = storage.read_bytes(thumbnail.stored_object.object_key)
+    content = read_admitted_bytes(
+        storage, StoredObjectReadTarget.from_object(thumbnail.stored_object)
+    )
     artifact_uuid = str(uuid.uuid4())
     extension = "." + thumbnail.filename.rsplit(".", 1)[-1] if "." in thumbnail.filename else ".svg"
     written = write_object(

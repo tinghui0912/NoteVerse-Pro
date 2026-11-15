@@ -818,7 +818,24 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
 
         # Saved recording materialization uses the authenticated same-origin
         # stream instead of relying on cross-origin signed-URL fetch/CORS.
-        res_media = client.get(f"/api/v1/performance-takes/{take_id}/media")
+        with (
+            patch.object(
+                storage, "exists", side_effect=AssertionError("Admitted media needs no HEAD")
+            ),
+            patch.object(
+                storage,
+                "object_metadata",
+                side_effect=AssertionError("Admitted media needs no HEAD"),
+            ),
+            patch.object(
+                storage,
+                "size_bytes",
+                create=True,
+                side_effect=AssertionError("Admitted media needs no HEAD"),
+            ),
+        ):
+            res_media = client.get(f"/api/v1/performance-takes/{take_id}/media")
+        assert res_media.headers["content-length"] == str(len(media_content))
         assert res_media.status_code == 200
         assert res_media.content == media_content
         assert res_media.headers["content-type"].startswith("audio/webm")
@@ -3271,6 +3288,8 @@ def test_bound_bundle_authorization_preserves_admitted_representation_identity(t
             )
         )
     )
+    session.add(assets.canonical_source.return_value.stored_object)
+    session.commit()
     bundles = PracticeBundleService(storage=storage, asset_repository=assets)
     uploads = TakeLifecycleServices(storage=storage, practice_bundle_service=bundles)
 

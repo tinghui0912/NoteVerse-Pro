@@ -32,7 +32,6 @@ from app.shared.constants import ErrorCode
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from tests.support.object_storage import InMemoryObjectStorage
 from app.storage.s3_compatible import S3CompatibleObjectStorage
-from app.storage.paths import object_work_path
 from app.shared.time import utc_now
 
 
@@ -169,20 +168,10 @@ def test_avatar_service_stores_processed_image_through_storage(mode: str) -> Non
             assert avatar.getpixel((100, 100)) != (255, 255, 255)
         assert not storage.exists(avatar_key)
         storage.put_bytes(key=avatar_key, content=avatar_bytes, content_type="image/jpeg")
-        with patch.object(storage, "exists", wraps=storage.exists) as exists:
-            assert service.avatar_exists(filename)
-            exists.assert_called_once_with(f"avatars/{filename}")
+        assert storage.read_bytes(avatar_key) == avatar_bytes
         with patch.object(storage, "delete", wraps=storage.delete) as delete:
             assert storage.delete(f"avatars/{filename}") is True
             delete.assert_called_once_with(f"avatars/{filename}")
-
-
-def test_avatar_service_detects_missing_local_avatar() -> None:
-    with tempfile.TemporaryDirectory():
-        storage = InMemoryObjectStorage()
-        service = AvatarService(storage=storage)
-
-        assert service.avatar_exists("missing.jpg") is False
 
 
 def test_profile_payload_does_not_repair_missing_avatar_reference() -> None:
@@ -366,16 +355,19 @@ def test_import_job_submission_serializes_genres_for_json_storage() -> None:
     }
 
 
-def test_import_job_execution_resolves_upload_ids_inside_worker() -> None:
-    storage = Mock()
-    storage.materialize_to_local.return_value = "C:/worker/cache/score.png"
-    service = ImportJobExecutionService(storage=storage)
+def test_import_worker_materializes_admitted_input_bytes(tmp_path, monkeypatch) -> None:
+    from app.modules.storage_objects.reads import StoredObjectReadTarget
 
-    assert service._resolve_input_paths(["blobs/ab/abc123.png"]) == ["C:/worker/cache/score.png"]
-    storage.materialize_to_local.assert_called_once_with(
-        "blobs/ab/abc123.png",
-        object_work_path("blobs/ab/abc123.png"),
+    target = StoredObjectReadTarget(1, "blobs/input.png", 5, "image/png")
+    destination = tmp_path / "input.png"
+    storage = Mock(iter_bytes=Mock(return_value=iter([b"input"])))
+    monkeypatch.setattr(
+        "app.modules.import_jobs.execution_service.object_work_path", lambda _: str(destination)
     )
+    service = ImportJobExecutionService(storage=storage)
+    assert service._resolve_input_paths([target]) == [str(destination)]
+    assert destination.read_bytes() == b"input"
+    storage.iter_bytes.assert_called_once_with(target.storage_key)
 
 
 def test_import_job_submission_rejects_upload_owned_by_another_user() -> None:
@@ -515,7 +507,7 @@ async def test_avatar_response_url_routes_to_current_customer_resolver(
     app.dependency_overrides[get_current_user] = current_user
     app.dependency_overrides[get_avatar_service] = lambda: service
     capabilities = ["https://objects.example/lease-one", "https://objects.example/lease-two"]
-    storage.download_url = Mock(side_effect=capabilities)
+    storage.download_url = Mock(side_effect=[*capabilities, "https://objects.example/after-loss"])
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://testserver", follow_redirects=False
     ) as client:
@@ -537,6 +529,12 @@ async def test_avatar_response_url_routes_to_current_customer_resolver(
             assert redirect.content == b""
             assert redirect.headers["location"] == capability
         assert storage.download_url.call_args_list == [call(key, content_type="image/jpeg")] * 2
-        assert storage.object_metadata(key).content_type == "image/jpeg"
         storage.delete(key)
-        assert (await client.get(url)).status_code == 404
+        storage.exists = Mock(
+            side_effect=AssertionError("Admitted avatar resolution needs no HEAD")
+        )
+        storage.object_metadata = Mock(
+            side_effect=AssertionError("Admitted avatar resolution needs no HEAD")
+        )
+        assert (await client.get(url)).status_code == 307
+        assert user.avatar_object.object_key == key

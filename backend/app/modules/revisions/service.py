@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.modules.storage_objects.reads import StoredObjectReadTarget, read_admitted_bytes
 from app.storage import ObjectStorage
 from app.modules.storage_objects.writes import write_object
 
@@ -187,7 +188,11 @@ class RevisionService:
         if source is None:
             raise ResourceNotFoundException("source", revision_uuid, ErrorCode.FILE_NOT_FOUND)
         content = admit_musicxml_document(
-            (self.storage.read_bytes(source.stored_object.object_key))
+            (
+                read_admitted_bytes(
+                    self.storage, StoredObjectReadTarget.from_object(source.stored_object)
+                )
+            )
         )
         return self._append(
             db,
@@ -267,7 +272,11 @@ class RevisionService:
         )
         if not source:
             raise ResourceNotFoundException("source", revision_uuid, ErrorCode.FILE_NOT_FOUND)
-        content = (self.storage.read_bytes(source.stored_object.object_key)).decode("utf-8")
+        content = (
+            read_admitted_bytes(
+                self.storage, StoredObjectReadTarget.from_object(source.stored_object)
+            )
+        ).decode("utf-8")
         base = self._read(db, revision)
         return RevisionContentRead(
             **base.model_dump(), content=content, mime_type=source.stored_object.content_type

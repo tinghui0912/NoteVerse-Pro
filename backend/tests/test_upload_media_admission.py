@@ -191,12 +191,13 @@ def test_http_upload_and_delivery_schedule_provider_io_off_event_loop(score_serv
     from app.api.deps import get_db, get_current_user
     from app.modules.uploads.dependencies import get_upload_service
     from app.api.storage_streaming import stream_storage_object
+    from app.modules.storage_objects.reads import StoredObjectDelivery
 
     db, storage = score_service_session
     bind = db.get_bind()
     caller_thread = threading.get_ident()
     called = []
-    for name in ("put_bytes", "read_bytes", "size_bytes", "download_url", "iter_bytes"):
+    for name in ("put_bytes", "read_bytes", "download_url", "iter_bytes"):
         original = getattr(storage, name)
 
         def observe(*args, _method=original, _name=name, **kwargs):
@@ -222,9 +223,7 @@ def test_http_upload_and_delivery_schedule_provider_io_off_event_loop(score_serv
         assert storage.download_url(key[0])
         return stream_storage_object(
             storage=storage,
-            storage_key=key[0],
-            filename="score.png",
-            media_type="image/png",
+            target=StoredObjectDelivery.for_object(db.scalar(select(StoredObject)), "score.png"),
             attachment=False,
         )
 
@@ -239,7 +238,6 @@ def test_http_upload_and_delivery_schedule_provider_io_off_event_loop(score_serv
     assert {name for name, _ in called} == {
         "put_bytes",
         "read_bytes",
-        "size_bytes",
         "download_url",
         "iter_bytes",
     }

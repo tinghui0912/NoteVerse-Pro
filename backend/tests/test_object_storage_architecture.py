@@ -61,7 +61,6 @@ def test_capability_surface_and_write_observation():
         "put_bytes",
         "exists",
         "read_bytes",
-        "size_bytes",
         "object_metadata",
         "upload_url",
         "iter_bytes",

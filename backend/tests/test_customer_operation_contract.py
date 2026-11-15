@@ -1,5 +1,7 @@
 """Consumer operations have explicit semantic identities and truthful success bodies."""
 
+from app.modules.storage_objects.reads import StoredObjectDelivery
+
 from app.storage import AsyncObjectStorage
 import fnmatch
 import io
@@ -206,8 +208,8 @@ def test_storage_route_success_matches_its_declared_binary_content(
     storage = InMemoryObjectStorage()
     content = b"actual stored resource bytes"
     storage.put_bytes(key="object", content=content, content_type=mime)
-    delivery = SimpleNamespace(storage_key="object", filename="resource", media_type=mime)
-    result = ("object", "resource", mime) if method == "get_media_delivery" else delivery
+    delivery = StoredObjectDelivery(1, "object", len(content), mime, "resource")
+    result = delivery
     service = SimpleNamespace(
         storage=storage,
         async_storage=AsyncObjectStorage(storage),
