@@ -1,13 +1,15 @@
 """Canonical Customer application error representation."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
+
+from app.shared.request_id import RequestId
 
 
 class ApiErrorResponse(BaseModel):
     """Machine-readable application failure; presentation remains client-owned."""
 
     code: str
-    request_id: str = Field(min_length=1)
+    request_id: RequestId
 
     model_config = {"extra": "forbid"}
 

@@ -5,6 +5,7 @@ export default defineConfig({
   output: 'generated/api',
   plugins: [
     '@hey-api/typescript',
+    '@hey-api/schemas',
     '@hey-api/client-fetch',
     { name: '@hey-api/sdk', client: false, operations: 'flat', paramsStructure: 'grouped' },
   ],

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ControlPlaneRequestError } from "../../lib/control-plane-browser-transport";
+import { ControlPlaneApplicationError, ControlPlaneHttpError } from "../../lib/control-plane-browser-transport";
 import type { AsyncOperationRead } from "../../generated/api/types.gen";
 import {
   currentOperator,
@@ -33,7 +33,7 @@ export default function OperationsPage() {
         setOperatorName(operator.display_name);
       })
       .catch((requestError: unknown) => {
-        if (requestError instanceof ControlPlaneRequestError && requestError.status === 401) {
+        if ((requestError instanceof ControlPlaneApplicationError || requestError instanceof ControlPlaneHttpError) && requestError.status === 401) {
           router.replace("/login");
           return;
         }

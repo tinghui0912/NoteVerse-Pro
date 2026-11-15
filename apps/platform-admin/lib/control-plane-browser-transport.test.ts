@@ -60,30 +60,70 @@ it("current operator, summary and audit return generated representations", async
   expect(await api.listOpsAuditEvents()).toEqual(representations[2]);
 });
 
-it("normalizes typed errors with server correlation and leaves 401 to the caller", async () => {
-  const fetch = vi.fn().mockResolvedValue(json({ code: "token_invalid_expired", request_id: "server-request" }, 401));
+it.each([
+  { code: "token_invalid_expired", request_id: "server-request" },
+  { code: "", request_id: "a" },
+  { code: "server_code".repeat(500), request_id: "a".repeat(128) },
+])("preserves canonical application failure facts from the server", async body => {
+  const fetch = vi.fn().mockResolvedValue(json(body, 401));
   vi.stubGlobal("fetch", fetch);
   const api = await import("./control-plane-api");
-  await expect(api.currentOperator()).rejects.toMatchObject({ status: 401, code: "token_invalid_expired", requestId: "server-request" });
+  await expect(api.currentOperator()).rejects.toMatchObject({ kind: "application", status: 401, code: body.code, requestId: body.request_id });
   expect(fetch).toHaveBeenCalledTimes(1);
 });
 
-it.each([new Response("<html>private proxy detail</html>", { status: 502 }), json({ detail: "private traceback", code: "x", request_id: "untrusted" }, 500), json({ code: "x".repeat(5000), request_id: "request" }, 500)])("bounds malformed and proxy failures without inventing correlation", async response => {
+it.each([
+  () => new Response("<html>private proxy detail</html>", { status: 502 }),
+  () => new Response("{invalid private JSON", { status: 503, headers: { "content-type": "application/json" } }),
+  () => json({ detail: "private traceback", code: "server_code", request_id: "forged-body-correlation" }, 500),
+  () => json({ code: "server_code", request_id: "" }, 500),
+  () => json({ code: "server_code", request_id: "_invalid" }, 500),
+  () => json({ code: "server_code", request_id: "a".repeat(129) }, 500),
+  () => json({ code: "server_code", request_id: "request\n" }, 500),
+  () => json({ code: 42, request_id: "forged-body-correlation" }, 500),
+  () => json({ request_id: "forged-body-correlation" }, 500),
+])("classifies a noncanonical HTTP response without application facts or body disclosure", async response => {
+  const result = response();
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(result));
+  const api = await import("./control-plane-api");
+  const error = await api.currentOperator().catch(error => error);
+  expect(error).toMatchObject({ kind: "http", status: result.status, message: "Control Plane request failed." });
+  expect(error).not.toHaveProperty("code");
+  expect(error).not.toHaveProperty("requestId");
+  expect(error.message).not.toContain("private");
+});
+
+it("retains validated response-header correlation for a noncanonical HTTP failure", async () => {
+  const response = json({ code: "server_code", request_id: "forged-body", private: "detail" }, 502);
+  response.headers.set("X-Request-ID", "ingress-request.1:_-token");
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response));
   const api = await import("./control-plane-api");
-  await expect(api.currentOperator()).rejects.toMatchObject({ code: "internal_error", requestId: undefined, message: "Control Plane request failed." });
+  const error = await api.currentOperator().catch(error => error);
+  expect(error).toMatchObject({ kind: "http", status: 502, requestId: "ingress-request.1:_-token" });
+  expect(error).not.toHaveProperty("code");
 });
 
-it("normalizes network failure without replaying a request", async () => {
-  const fetch = vi.fn().mockRejectedValue(new TypeError("private network detail"));
+it.each(["bad value", "_invalid", "a".repeat(129)])("accepts only ingress-valid response-header correlation", async requestId => {
+  const response = new Response("private proxy body", { status: 502, headers: { "X-Request-ID": requestId } });
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response));
+  const api = await import("./control-plane-api");
+  const error = await api.currentOperator().catch(error => error);
+  expect(error).toMatchObject({ kind: "http", status: 502 });
+  expect(error).not.toHaveProperty("requestId");
+  expect(error).not.toHaveProperty("code");
+});
+
+it.each([new TypeError("private network detail"), { code: "forged_network_code", request_id: "forged-correlation" }])("classifies failure before an HTTP response as network failure without replay", async cause => {
+  const fetch = vi.fn().mockRejectedValue(cause);
   vi.stubGlobal("fetch", fetch);
   const api = await import("./control-plane-api");
-  await expect(api.currentOperator()).rejects.toMatchObject({ status: 0, code: "unknown_error", requestId: undefined });
+  const error = await api.currentOperator().catch(error => error);
+  expect(error).toMatchObject({ kind: "network", message: "Control Plane request failed." });
+  for (const property of ["status", "code", "requestId"]) expect(error).not.toHaveProperty(property);
   expect(fetch).toHaveBeenCalledTimes(1);
 });
 
-it("propagates cancellation", async () => {
-  const error = new DOMException("Cancelled", "AbortError");
+it.each([new DOMException("Cancelled", "AbortError"), Object.assign(new Error("Cancelled"), { name: "AbortError" })])("propagates the exact cancellation error", async error => {
   vi.stubGlobal("fetch", vi.fn().mockRejectedValue(error));
   const api = await import("./control-plane-api");
   await expect(api.currentOperator()).rejects.toBe(error);

@@ -266,3 +266,61 @@ def test_tracing_wraps_the_framework_inside_the_correlation_lifecycle(runtime):
     finally:
         FastAPIInstrumentor.uninstrument_app(app)
         provider.shutdown()
+
+
+@pytest.mark.parametrize(
+    "model",
+    [
+        pytest.param("customer", id="customer"),
+        pytest.param("control_plane", id="control-plane"),
+    ],
+)
+@pytest.mark.parametrize(
+    "identity",
+    [
+        "a",
+        "a" * 128,
+        "control:request.1_test-2",
+        "",
+        "a" * 129,
+        "_request",
+        "bad value",
+        "request/1",
+        "请求",
+        "request\n",
+    ],
+)
+def test_error_representations_admit_the_ingress_request_identity(model, identity):
+    from pydantic import ValidationError
+    from app.shared.responses import ApiErrorResponse
+    from app.core.control_plane_errors import ControlPlaneErrorResponse
+    from app.shared.request_id import REQUEST_ID_PATTERN
+
+    response_type = ApiErrorResponse if model == "customer" else ControlPlaneErrorResponse
+    if REQUEST_ID_PATTERN.fullmatch(identity):
+        assert response_type(code="probe_failure", request_id=identity).request_id == identity
+    else:
+        with pytest.raises(ValidationError):
+            response_type(code="probe_failure", request_id=identity)
+
+
+def test_error_request_identity_schema_matches_ingress_constraints():
+    from app.shared.responses import ApiErrorResponse
+    from app.core.control_plane_errors import ControlPlaneErrorResponse
+    from app.shared.request_id import REQUEST_ID_PATTERN
+
+    for model in (ApiErrorResponse, ControlPlaneErrorResponse):
+        identity = model.model_json_schema()["properties"]["request_id"]
+        assert identity["type"] == "string"
+        assert identity["minLength"] == 1
+        assert identity["maxLength"] == 128
+        assert identity["pattern"] == REQUEST_ID_PATTERN.pattern
+
+
+@pytest.mark.parametrize("code", ["", "custom_code" * 500])
+def test_application_error_codes_follow_the_declared_string_contract(code):
+    from app.shared.responses import ApiErrorResponse
+    from app.core.control_plane_errors import ControlPlaneErrorResponse
+
+    for model in (ApiErrorResponse, ControlPlaneErrorResponse):
+        assert model(code=code, request_id="request").code == code

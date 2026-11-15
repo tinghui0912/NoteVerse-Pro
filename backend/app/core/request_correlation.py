@@ -1,6 +1,5 @@
 """Request-scoped HTTP correlation, established once before application dispatch."""
 
-import re
 from contextvars import ContextVar
 from dataclasses import dataclass
 from uuid import uuid4
@@ -10,7 +9,7 @@ from starlette.requests import Request
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 
-REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
+from app.shared.request_id import REQUEST_ID_PATTERN
 
 
 @dataclass

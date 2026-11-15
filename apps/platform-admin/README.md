@@ -70,3 +70,9 @@ bounded error normalization. `lib/control-plane-api.ts` composes generated opera
 without defining HTTP paths or DTOs. Login/logout acknowledge with empty 204 bodies;
 other operations return their direct typed representation. Errors contain only
 machine-readable code and request correlation; UI owns presentation.
+
+Browser failures distinguish canonical application errors (HTTP status, server code
+and body request ID), noncanonical HTTP/proxy failures (HTTP status and optionally
+validated response-header correlation), and network failures (no application facts).
+Only canonical application errors carry an application code. Runtime validation
+consumes the SDK-generated Control Plane error schema; cancellation propagates intact.

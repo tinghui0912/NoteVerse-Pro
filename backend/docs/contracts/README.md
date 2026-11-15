@@ -144,3 +144,9 @@ error normalization. Operator sessions have no refresh/replay protocol.
 The independently versioned browser protocols under `contracts/http/` own each
 API prefix and cookie/header identities. Generated Backend and browser constants
 consume those protocols; deployment configures policy and service topology.
+
+Request IDs use the shared `app.shared.request_id.RequestId` representation.
+Ingress and both application-error schemas consume its one token-pattern authority;
+the schemas declare a length of 1–128. The Control Plane SDK generator also projects
+runtime schemas for browser validation. These HTTP representation constraints are
+independent of the browser identity protocols.

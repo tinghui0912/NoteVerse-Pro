@@ -1,20 +1,58 @@
 import { createClient } from "../generated/api/client";
 import type { ControlPlaneErrorResponse } from "../generated/api/types.gen";
+import { ControlPlaneErrorResponseSchema } from "../generated/api/schemas.gen";
 import { OPERATOR_CSRF_COOKIE_NAME, OPERATOR_CSRF_HEADER_NAME } from "../generated/browser-protocol";
 
-export class ControlPlaneRequestError extends Error {
-  constructor(public readonly status: number, public readonly code: string, public readonly requestId?: string) {
-    super("Control Plane request failed.");
-    this.name = "ControlPlaneRequestError";
+const requestFailureMessage = "Control Plane request failed.";
+
+export class ControlPlaneApplicationError extends Error {
+  readonly kind = "application";
+
+  constructor(
+    public readonly status: number,
+    public readonly code: ControlPlaneErrorResponse["code"],
+    public readonly requestId: ControlPlaneErrorResponse["request_id"],
+  ) {
+    super(requestFailureMessage);
+    this.name = "ControlPlaneApplicationError";
   }
 }
 
+export class ControlPlaneHttpError extends Error {
+  readonly kind = "http";
+  declare readonly requestId?: string;
+
+  constructor(public readonly status: number, requestId?: string) {
+    super(requestFailureMessage);
+    this.name = "ControlPlaneHttpError";
+    if (requestId !== undefined) this.requestId = requestId;
+  }
+}
+
+export class ControlPlaneNetworkError extends Error {
+  readonly kind = "network";
+
+  constructor() {
+    super(requestFailureMessage);
+    this.name = "ControlPlaneNetworkError";
+  }
+}
+
+const requestIdSchema = ControlPlaneErrorResponseSchema.properties.request_id;
+const requestIdPattern = new RegExp(requestIdSchema.pattern);
+
+function isRequestId(value: unknown): value is ControlPlaneErrorResponse["request_id"] {
+  return typeof value === "string" &&
+    value.length >= requestIdSchema.minLength && value.length <= requestIdSchema.maxLength &&
+    requestIdPattern.exec(value)?.[0] === value;
+}
+
 function isControlPlaneError(value: unknown): value is ControlPlaneErrorResponse {
-  if (!value || typeof value !== "object") return false;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const record = value as Record<string, unknown>;
-  return Object.keys(record).length === 2 &&
-    typeof record.code === "string" && record.code.length > 0 && record.code.length <= 128 &&
-    typeof record.request_id === "string" && record.request_id.length > 0 && record.request_id.length <= 128;
+  return ControlPlaneErrorResponseSchema.required.every(key => Object.hasOwn(record, key)) &&
+    Object.keys(record).every(key => Object.hasOwn(ControlPlaneErrorResponseSchema.properties, key)) &&
+    typeof record.code === "string" && isRequestId(record.request_id);
 }
 
 function csrfToken(): string | undefined {
@@ -39,11 +77,13 @@ export function createControlPlaneBrowserClient() {
     return request;
   });
   client.interceptors.error.use((error, response) => {
-    if (error instanceof DOMException && error.name === "AbortError") return error;
-    const status = response?.status ?? 0;
-    return isControlPlaneError(error)
-      ? new ControlPlaneRequestError(status, error.code, error.request_id)
-      : new ControlPlaneRequestError(status, status ? "internal_error" : "unknown_error");
+    if (error instanceof Error && error.name === "AbortError") return error;
+    if (!response) return new ControlPlaneNetworkError();
+    if (!response.ok && isControlPlaneError(error)) {
+      return new ControlPlaneApplicationError(response.status, error.code, error.request_id);
+    }
+    const correlation = response.headers.get("X-Request-ID");
+    return new ControlPlaneHttpError(response.status, isRequestId(correlation) ? correlation : undefined);
   });
   return client;
 }
