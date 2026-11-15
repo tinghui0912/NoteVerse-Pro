@@ -43,6 +43,27 @@ BODYLESS_COMMANDS = {
 }
 
 
+def test_upload_operations_describe_resource_facts_and_import_admission():
+    spec = create_app().openapi()
+    creation = spec["paths"]["/api/v1/uploads"]["post"]
+    assert creation["operationId"] == "uploadsCreate"
+    assert creation["responses"]["200"]["content"]["application/json"]["schema"] == {
+        "$ref": "#/components/schemas/UploadRead"
+    }
+    deletion = spec["paths"]["/api/v1/uploads/{upload_id}"]["delete"]
+    assert deletion["operationId"] == "uploadDelete"
+    assert deletion["parameters"][0]["name"] == "upload_id"
+    schemas = spec["components"]["schemas"]
+    assert set(schemas["UploadRead"]["properties"]) == {
+        "upload_id",
+        "original_filename",
+        "byte_size",
+    }
+    upload_ids = schemas["ImportJobSubmitRequest"]["properties"]["upload_ids"]
+    assert upload_ids["type"] == "array" and upload_ids["items"]["type"] == "string"
+    assert "upload_ids" in schemas["ImportJobSubmitRequest"]["required"]
+
+
 def test_customer_operations_publish_typed_success_and_bodyless_command_contracts():
     app = create_app()
     spec = app.openapi()

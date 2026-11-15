@@ -11,16 +11,52 @@ import pytest
 
 from collections.abc import Iterator
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 from fastapi.testclient import TestClient
 
 from app.api.deps import get_current_user, get_db
 from app.core.config import settings
-from app.main import app
+from app.main import app, create_app
 from app.core.middleware import normalize_origin
 from app.modules.playback.router import get_playback_delivery_service
 from app.modules.playback.delivery import PlaybackDelivery
 from app.modules.practice.bundle.router import get_practice_bundle_service
+from app.modules.uploads.dependencies import get_upload_service
+from app.modules.uploads.repository import UploadRepository
+from app.modules.uploads.service import UploadService
+
+
+@pytest.mark.parametrize(
+    "upload_exists,status,code",
+    [(False, 404, "resource_not_found"), (True, 500, "internal_error")],
+)
+def test_upload_delete_projects_resource_and_persistence_errors(upload_exists, status, code):
+    application = create_app()
+    repository = AsyncMock(spec=UploadRepository)
+    repository.get_upload_by_uuid.return_value = (
+        SimpleNamespace(id=11, uploader_user_id=1, stored_object_id=7) if upload_exists else None
+    )
+    repository.upload_reference_count.return_value = 0
+    db = AsyncMock()
+    db.get.return_value = None
+
+    async def database():
+        yield db
+
+    application.dependency_overrides[get_db] = database
+    application.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
+    application.dependency_overrides[get_upload_service] = lambda: UploadService(
+        repository=repository
+    )
+    with TestClient(application, raise_server_exceptions=False) as client:
+        response = client.delete("/api/v1/uploads/upload-requested")
+
+    assert response.status_code == status
+    assert response.json()["code"] == code
+    assert response.json()["request_id"]
+    repository.delete_upload_by_id.assert_not_awaited()
+    db.commit.assert_not_awaited()
 
 
 def _request(

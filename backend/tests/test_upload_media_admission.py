@@ -3,16 +3,18 @@
 import asyncio
 import io
 import threading
-from unittest.mock import Mock
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from fastapi import UploadFile
 from sqlalchemy import select
 from starlette.datastructures import Headers
 
-from app.core.exceptions import ValidationException
+from app.core.exceptions import ResourceNotFoundException, ValidationException
 from app.db.models import ObjectWriteIntent, StoredObject, StorageUsageReservation, Upload, User
 from app.modules.uploads.service import UploadService
+from app.modules.uploads.repository import UploadRepository
 from app.modules.uploads.upload_admission import (
     MAX_SCORE_IMPORT_UPLOAD_BYTES,
     admit_score_import_image,
@@ -23,6 +25,46 @@ from tests.support.images import image_bytes
 from tests.support.object_storage import InMemoryObjectStorage
 from tests.test_score_revision_services import AsyncSessionAdapter
 from tests.test_score_revision_services import score_service_session as score_service_session
+
+
+@pytest.mark.asyncio
+async def test_upload_delete_identifies_the_missing_resource():
+    repository = AsyncMock(spec=UploadRepository)
+    repository.get_upload_by_uuid.return_value = None
+    db = AsyncMock()
+
+    with pytest.raises(ResourceNotFoundException) as failure:
+        await UploadService(repository=repository).delete_upload(
+            db, SimpleNamespace(id=1), "upload-missing"
+        )
+
+    assert failure.value.code == "resource_not_found"
+    assert failure.value.details == {
+        "resource_type": "upload",
+        "resource_id": "upload-missing",
+    }
+    repository.delete_upload_by_id.assert_not_awaited()
+    db.commit.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_upload_delete_requires_its_persisted_stored_object():
+    repository = AsyncMock(spec=UploadRepository)
+    repository.get_upload_by_uuid.return_value = SimpleNamespace(
+        id=11, uploader_user_id=1, stored_object_id=7
+    )
+    repository.upload_reference_count.return_value = 0
+    db = AsyncMock()
+    db.get.return_value = None
+
+    with pytest.raises(RuntimeError, match="Upload is missing its required stored object"):
+        await UploadService(repository=repository).delete_upload(
+            db, SimpleNamespace(id=1), "upload-present"
+        )
+
+    db.get.assert_awaited_once_with(StoredObject, 7)
+    repository.delete_upload_by_id.assert_not_awaited()
+    db.commit.assert_not_awaited()
 
 
 @pytest.mark.asyncio

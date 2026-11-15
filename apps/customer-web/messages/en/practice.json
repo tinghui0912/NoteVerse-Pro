@@ -382,5 +382,5 @@
   "compositeVideoPreviewSeek": "Composite preview position",
   "compositeVideoScoreOnlyDesc": "Clean score video with your original audio.",
   "deletePerformanceTakeSuccessTitle": "Performance Deleted",
-  "deletePerformanceTakeSuccessDesc": "The PerformanceTake is deleted and its storage quota is released."
+  "deletePerformanceTakeSuccessDesc": "The performance was deleted and its storage quota was released."
 }

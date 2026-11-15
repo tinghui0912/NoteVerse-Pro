@@ -72,7 +72,7 @@ function tempoMatchesExecution(
   );
 }
 
-export function takeManifestAgreesWithRecordedPerformance(
+export function performanceTakeManifestAgreesWithRecordedPerformance(
   manifest: PerformanceTakeManifestRead | undefined,
   performance: RecordedPerformance,
 ): boolean {
@@ -141,7 +141,7 @@ export function performanceTakeAgreesWithRecordedPerformance(
   performance: RecordedPerformance,
 ): boolean {
   return (
-    takeManifestAgreesWithRecordedPerformance(take.manifest, performance) &&
+    performanceTakeManifestAgreesWithRecordedPerformance(take.manifest, performance) &&
     take.recording_media?.mime_type === take.manifest.capture.mime_type &&
     take.recording_media.byte_size === take.manifest.capture.byte_size
   );

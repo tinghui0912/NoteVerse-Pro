@@ -8,7 +8,7 @@ import { admitPerformanceTakeRecordedPerformance } from './admission';
 import {
   performanceTakeAgreesWithRecordedPerformance,
   performanceTakeUploadRequest,
-  takeManifestAgreesWithRecordedPerformance,
+  performanceTakeManifestAgreesWithRecordedPerformance,
 } from './save';
 
 const admitted = admitPerformanceTakeRecordedPerformance(
@@ -40,7 +40,7 @@ it('projects a reservation solely from the recorded execution and request identi
     recording_timebase: take.manifest.recording_timebase,
   });
   expect(
-    takeManifestAgreesWithRecordedPerformance(take.manifest, performance),
+    performanceTakeManifestAgreesWithRecordedPerformance(take.manifest, performance),
   ).toBe(true);
   expect(performanceTakeAgreesWithRecordedPerformance(take, performance)).toBe(true);
 });
@@ -143,7 +143,7 @@ it.each(corruptions)(
     const value = structuredClone(take);
     corrupt(value);
     expect(
-      takeManifestAgreesWithRecordedPerformance(value.manifest, performance),
+      performanceTakeManifestAgreesWithRecordedPerformance(value.manifest, performance),
     ).toBe(false);
     expect(performanceTakeAgreesWithRecordedPerformance(value, performance)).toBe(
       false,
@@ -188,11 +188,11 @@ it('checks both RANGE group identities independently', () => {
       end_group_id: 'group-2',
     };
     expect(
-      takeManifestAgreesWithRecordedPerformance(value.manifest, ranged),
+      performanceTakeManifestAgreesWithRecordedPerformance(value.manifest, ranged),
     ).toBe(true);
     value.manifest.scope[field] = 'different';
     expect(
-      takeManifestAgreesWithRecordedPerformance(value.manifest, ranged),
+      performanceTakeManifestAgreesWithRecordedPerformance(value.manifest, ranged),
     ).toBe(false);
   }
 });

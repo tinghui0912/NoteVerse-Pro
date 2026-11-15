@@ -95,7 +95,7 @@ class UploadService:
     async def delete_upload(self, db: AsyncSession, current_user: User, upload_id: str) -> None:
         upload = await self.repository.get_upload_by_uuid(db, upload_id)
         if not upload:
-            raise ResourceNotFoundException("upload", upload_id, ErrorCode.FILE_NOT_FOUND)
+            raise ResourceNotFoundException("upload", upload_id)
         if upload.uploader_user_id != current_user.id:
             raise UnauthorizedException(ErrorCode.NO_DELETE_ACCESS, {"upload_id": upload_id})
         upload_pk = require_persisted_id(upload.id, entity="upload")
@@ -103,9 +103,7 @@ class UploadService:
             raise ConflictException(ErrorCode.VALIDATION_ERROR, {"upload_id": upload.upload_uuid})
         blob = await db.get(StoredObject, upload.stored_object_id)
         if blob is None:
-            raise ResourceNotFoundException(
-                "stored_object", str(upload.stored_object_id), ErrorCode.FILE_NOT_FOUND
-            )
+            raise RuntimeError("Upload is missing its required stored object")
         size_bytes = blob.byte_size
         storage_key = blob.object_key
         upload_uuid = upload.upload_uuid

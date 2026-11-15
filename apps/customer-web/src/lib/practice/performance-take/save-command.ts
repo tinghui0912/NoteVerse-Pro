@@ -4,7 +4,7 @@ import type { performanceTakesApi } from '@/lib/api/performance-takes';
 import {
   performanceTakeUploadRequest,
   performanceTakeAgreesWithRecordedPerformance,
-  takeManifestAgreesWithRecordedPerformance,
+  performanceTakeManifestAgreesWithRecordedPerformance,
   type SavePerformanceTakeInput,
 } from './save';
 
@@ -49,7 +49,7 @@ export class PerformanceTakeSaveCommand {
     const reservation = response;
     if (!reservation) throw new Error('Upload reservation is unavailable');
     if (
-      !takeManifestAgreesWithRecordedPerformance(
+      !performanceTakeManifestAgreesWithRecordedPerformance(
         reservation.manifest,
         this.input.recordedPerformance,
       )
@@ -69,7 +69,7 @@ export class PerformanceTakeSaveCommand {
       if (!reservation.take)
         throw new Error('Completed reservation has no PerformanceTake');
       if (
-        !takeManifestAgreesWithRecordedPerformance(
+        !performanceTakeManifestAgreesWithRecordedPerformance(
           reservation.take.manifest,
           this.input.recordedPerformance,
         ) ||
@@ -108,7 +108,7 @@ export class PerformanceTakeSaveCommand {
     );
     if (
       !finalized ||
-      !takeManifestAgreesWithRecordedPerformance(
+      !performanceTakeManifestAgreesWithRecordedPerformance(
         finalized.manifest,
         this.input.recordedPerformance,
       ) ||

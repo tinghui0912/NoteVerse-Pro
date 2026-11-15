@@ -5,9 +5,10 @@ import { importJobsApi } from './import-jobs';
 
 afterEach(async () => { const {vi} = await import('vitest'); vi.unstubAllGlobals(); });
 it('creates an Upload through the generated multipart collection operation', async () => {
-  const send = customerFetch();
+  const upload = { upload_id: 'upload-uuid', original_filename: 'original.png', byte_size: 5 };
+  const send = customerFetch(upload);
   const file = new File(['image'], 'original.png', {type: 'image/png'});
-  await uploadsApi.createUpload(file);
+  expect(await uploadsApi.createUpload(file)).toEqual(upload);
   const request = send.mock.calls[0][0] as Request;
   expect(new URL(request.url).pathname).toBe('/api/v1/uploads');
   expect(request.method).toBe('POST');
