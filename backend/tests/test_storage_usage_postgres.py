@@ -183,26 +183,6 @@ def test_release_observes_a_reservation_completed_by_another_transaction(account
     assert ledger(engine) == committed
 
 
-def test_async_release_observes_a_reservation_completed_by_another_transaction(accounting):
-    engine, sessions, _ = accounting
-    reservation_id = seed_ledger(engine)
-    with sessions() as stale:
-        reservation = stale.scalar(
-            select(StorageUsageReservation).where(
-                StorageUsageReservation.reservation_uuid == reservation_id
-            )
-        )
-        assert reservation.status.value == "RESERVED"
-        with Session(engine) as winner:
-            usage.commit_reservation(winner, reservation_id)
-            winner.commit()
-        committed = ledger(engine)
-        usage.release_reservation(stale, reservation_id)
-        assert reservation.status.value == "COMMITTED"
-        stale.commit()
-    assert ledger(engine) == committed
-
-
 @pytest.mark.parametrize("operation", OPERATIONS)
 def test_accounting_and_owner_mutations_follow_caller_commit(accounting, operation):
     engine, _, _ = accounting

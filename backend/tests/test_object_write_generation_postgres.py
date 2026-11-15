@@ -118,7 +118,7 @@ def test_failed_put_retains_prepared_cleanup_evidence(retirement_postgres, monke
     monkeypatch.setattr(storage, "put_bytes", fail)
     with sessions() as db:
         with pytest.raises(OSError):
-            write_object(db, storage, key="async/failure", content=b"bytes")
+            write_object(db, storage, key="generation/failure", content=b"bytes")
     with sessions() as db:
         row = db.scalar(select(ObjectWriteIntent))
         assert row.status == "PREPARED" and row.written_at is None
@@ -129,7 +129,7 @@ def test_existing_exact_object_reuses_without_provider_put(retirement_postgres, 
     _, sessions, storage = retirement_postgres
     adapter = storage
     with sessions() as db:
-        receipt = write_object(db, adapter, key="async/exact", content=b"bytes")
+        receipt = write_object(db, adapter, key="generation/exact", content=b"bytes")
         obj = adopt_written_object(db, receipt)
         db.add(Upload(stored_object_id=obj.id, original_filename="owner", uploader_user_id=1))
         db.commit()
@@ -139,5 +139,5 @@ def test_existing_exact_object_reuses_without_provider_put(retirement_postgres, 
 
     monkeypatch.setattr(storage, "put_bytes", unexpected)
     with sessions() as db:
-        duplicate = write_object(db, adapter, key="async/exact", content=b"bytes")
+        duplicate = write_object(db, adapter, key="generation/exact", content=b"bytes")
         assert duplicate == receipt
