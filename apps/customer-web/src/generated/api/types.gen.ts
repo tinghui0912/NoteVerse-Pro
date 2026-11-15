@@ -418,7 +418,7 @@ export type ImportJobRead = {
     /**
      * Created At
      */
-    created_at?: string | null;
+    created_at: string;
     /**
      * Execution Manifest Sha256
      */
@@ -468,7 +468,7 @@ export type ImportJobRead = {
     /**
      * Updated At
      */
-    updated_at?: string | null;
+    updated_at: string;
 };
 
 /**

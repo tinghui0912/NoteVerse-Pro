@@ -200,10 +200,9 @@ def test_list_and_detail_share_the_complete_current_projection(application_db):
     assert value["state"] == "FAILURE" and value["progress"] == 70
     assert value["execution_manifest_sha256"] == manifest_sha256(MANIFEST)
     assert value["public_code"] == value["public_message"] == ErrorCode.SCORE_RECOGNITION_FAILED
-    assert all(
-        value[name] == NOW.isoformat()
-        for name in ["created_at", "updated_at", "started_at", "finished_at"]
-    )
+    for name in ["created_at", "updated_at", "started_at", "finished_at"]:
+        instant = datetime.fromisoformat(value[name])
+        assert instant == NOW and instant.utcoffset().total_seconds() == 0
     assert value["thumbnail"] == dict(
         artifact_id="preview-complete-0",
         filename="preview.svg",

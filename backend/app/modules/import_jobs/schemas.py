@@ -52,10 +52,10 @@ class ImportJobRead(ApiModel):
     title: str | None = None
     genres: Genres = []
     thumbnail: ImportArtifactRead | None = None
-    created_at: str | None = None
-    updated_at: str | None = None
-    started_at: str | None = None
-    finished_at: str | None = None
+    created_at: Instant
+    updated_at: Instant
+    started_at: Instant | None = None
+    finished_at: Instant | None = None
     public_code: str | None = None
     public_message: str | None = None
     execution_manifest_sha256: str | None = None

@@ -4,6 +4,7 @@ from typing import Self
 from pydantic import ConfigDict, Field, model_validator
 from app.modules.model_assets.generated.practice_acoustic_model_asset import MODEL_ASSET_DESCRIPTOR
 from app.shared.api_model import ApiModel
+from app.shared.time import Instant
 
 
 class PracticeAcousticAccessRead(ApiModel):
@@ -16,7 +17,7 @@ class PracticeAcousticAccessRead(ApiModel):
     sha256: str
     mediaType: str
     downloadUrl: str
-    downloadUrlExpiresAt: str
+    downloadUrlExpiresAt: Instant
 
     @model_validator(mode="after")
     def validate_deployment(self) -> Self:

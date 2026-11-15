@@ -30,9 +30,7 @@ class ModelAssetService:
                         MODEL_ASSET.storage_key, expires_seconds=self.ttl_seconds
                     )
                 ),
-                "downloadUrlExpiresAt": (utc_now() + timedelta(seconds=self.ttl_seconds))
-                .isoformat()
-                .replace("+00:00", "Z"),
+                "downloadUrlExpiresAt": utc_now() + timedelta(seconds=self.ttl_seconds),
             }
         )
 

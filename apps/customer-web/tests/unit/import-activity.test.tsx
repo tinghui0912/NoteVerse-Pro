@@ -36,6 +36,8 @@ const job = (state: ImportJobRead['state']): ImportJobRead => ({
   state,
   title: `${state} import`,
   progress: 37,
+  created_at: '2026-11-15T10:00:00Z',
+  updated_at: '2026-11-15T10:00:00Z',
   score_id: state === 'CONFIRMED' ? 'formal-score' : null,
   public_code: state === 'FAILURE' ? 'recognition_failed' : null,
   public_message: state === 'FAILURE' ? 'No readable notes' : null,
