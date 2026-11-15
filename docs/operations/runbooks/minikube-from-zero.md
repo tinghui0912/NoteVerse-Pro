@@ -326,7 +326,7 @@ $env:GHCR_TOKEN = "<github-token-with-read-packages>"
 ```
 
 The backend secret env file must stay outside the repository and contain the
-full required key set: `DATABASE_URL`, `SYNC_DATABASE_URL`,
+full required key set: `DATABASE_URL`,
 `SCHEDULER_LOCK_DATABASE_URL`, Redis URLs, S3 keys, cookie secrets, mail API
 key, and optional Hugging Face token. `SCHEDULER_LOCK_DATABASE_URL` must point
 to direct PostgreSQL (or a PgBouncer session-pooling endpoint), never a

@@ -31,13 +31,13 @@ async def postgres_bundle(tmp_path, request):
             "Set NOTEVERSE_TEST_PRACTICE_BUNDLE_POSTGRES_URL to run real PostgreSQL Bundle races"
         )
     parsed = make_url(url)
-    assert parsed.drivername == "postgresql+asyncpg"
+    assert parsed.drivername == "postgresql+psycopg"
     assert (parsed.database or "").startswith("noteverse_test_"), "Use a dedicated test database"
     schema = "practice_bundle_" + uuid4().hex
     admin = create_async_engine(url)
     async with admin.begin() as connection:
         await connection.execute(text(f'CREATE SCHEMA "{schema}"'))
-    engine = create_async_engine(url, connect_args={"server_settings": {"search_path": schema}})
+    engine = create_async_engine(url, connect_args={"options": f"-csearch_path={schema}"})
     try:
         # DDL compilation owns a private metadata graph, independently of other test dialects.
         metadata = MetaData()

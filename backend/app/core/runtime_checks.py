@@ -176,7 +176,7 @@ def check_control_plane_settings(_: bool = False) -> CheckResult:
     return _result("control_plane_settings", True, "independent control-plane configuration loaded")
 
 
-async def check_api_database(_: bool = False) -> CheckResult:
+async def check_api_database_execution(_: bool = False) -> CheckResult:
     from sqlalchemy import text
 
     from app.db.session import engine
@@ -184,14 +184,16 @@ async def check_api_database(_: bool = False) -> CheckResult:
     try:
         async with engine.connect() as connection:
             await connection.execute(text("select 1"))
-        return _result("database", True, "async database reachable")
+        return _result("api_database_execution", True, "API database execution path reachable")
     except Exception as exc:
         return _result(
-            "database", False, f"async database unreachable: {type(exc).__name__}: {exc}"
+            "api_database_execution",
+            False,
+            f"API database execution path unreachable: {type(exc).__name__}: {exc}",
         )
 
 
-def check_sync_database(_: bool = False) -> CheckResult:
+def check_worker_database_execution(_: bool = False) -> CheckResult:
     from sqlalchemy import text
 
     from app.db.sync_session import sync_engine
@@ -199,12 +201,14 @@ def check_sync_database(_: bool = False) -> CheckResult:
     try:
         with sync_engine.connect() as connection:
             connection.execute(text("select 1"))
-        return _result("sync_database", True, "sync database reachable")
+        return _result(
+            "worker_database_execution", True, "Worker database execution path reachable"
+        )
     except Exception as exc:
         return _result(
-            "sync_database",
+            "worker_database_execution",
             False,
-            f"sync database unreachable: {type(exc).__name__}: {exc}",
+            f"Worker database execution path unreachable: {type(exc).__name__}: {exc}",
         )
 
 
@@ -498,7 +502,7 @@ def check_playback_renderer(_: bool = False) -> CheckResult:
 ROLE_CHECK_NAMES: dict[RuntimeRole, tuple[str, ...]] = {
     RuntimeRole.API: (
         "settings",
-        "database",
+        "api_database_execution",
         "storage_quota_policy",
         "redis",
         "storage",
@@ -506,15 +510,15 @@ ROLE_CHECK_NAMES: dict[RuntimeRole, tuple[str, ...]] = {
     RuntimeRole.CONTROL_PLANE: (
         "settings",
         "control_plane_settings",
-        "database",
+        "api_database_execution",
         "storage_quota_policy",
         "redis",
     ),
-    RuntimeRole.OBSERVABILITY_EXPORTER: ("settings", "database"),
+    RuntimeRole.OBSERVABILITY_EXPORTER: ("settings", "api_database_execution"),
     RuntimeRole.WORKER: (
         "settings",
         "worker_settings",
-        "sync_database",
+        "worker_database_execution",
         "storage_quota_policy",
         "redis",
         "work_root",
@@ -546,8 +550,10 @@ CHECKS: dict[str, CheckSpec] = {
     "settings": CheckSpec("settings", check_settings),
     "worker_settings": CheckSpec("worker_settings", check_worker_settings),
     "control_plane_settings": CheckSpec("control_plane_settings", check_control_plane_settings),
-    "database": CheckSpec("database", check_api_database),
-    "sync_database": CheckSpec("sync_database", check_sync_database),
+    "api_database_execution": CheckSpec("api_database_execution", check_api_database_execution),
+    "worker_database_execution": CheckSpec(
+        "worker_database_execution", check_worker_database_execution
+    ),
     "storage_quota_policy": CheckSpec("storage_quota_policy", check_storage_quota_policy),
     "redis": CheckSpec("redis", check_redis),
     "storage": CheckSpec("storage", check_api_storage),
@@ -577,7 +583,7 @@ async def run_runtime_checks(
 
 async def check_database_readiness(timeout_seconds: float = 2.0) -> bool:
     try:
-        result = await asyncio.wait_for(check_api_database(), timeout=timeout_seconds)
+        result = await asyncio.wait_for(check_api_database_execution(), timeout=timeout_seconds)
         return result.ok
     except TimeoutError:
         return False

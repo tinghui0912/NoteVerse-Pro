@@ -8,7 +8,7 @@ from app.core.config import settings
 
 # Central sync database entry point for sync API helpers, worker tasks, and pipeline helpers.
 sync_engine = create_engine(
-    settings.SYNC_DATABASE_URL,
+    settings.DATABASE_URL,
     pool_pre_ping=True,
     pool_recycle=3600,
     pool_size=5,

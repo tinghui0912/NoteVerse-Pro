@@ -37,7 +37,9 @@ class Finding:
 ALWAYS_FORBIDDEN_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     (
         "local-dev-endpoint",
-        re.compile(r"\b(localhost|127\.0\.0\.1|192\.168\.|host\.docker\.internal)\b", re.IGNORECASE),
+        re.compile(
+            r"\b(localhost|127\.0\.0\.1|192\.168\.|host\.docker\.internal)\b", re.IGNORECASE
+        ),
     ),
     (
         "obvious-secret-value",
@@ -45,7 +47,6 @@ ALWAYS_FORBIDDEN_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
             r"(your-secret|LTAI[0-9A-Za-z]|re_[0-9A-Za-z]{10,}|"
             r"S3_SECRET_ACCESS_KEY\s*=\s*\S+|"
             r"DATABASE_URL\s*=\s*(postgres|mysql|sqlite)|"
-            r"SYNC_DATABASE_URL\s*=\s*(postgres|mysql|sqlite)|"
             r"REDIS_URL\s*=\s*redis|"
             r"CELERY_BROKER_URL\s*=\s*redis|"
             r"CELERY_RESULT_BACKEND\s*=\s*redis)",
@@ -104,7 +105,9 @@ def render_kustomize(target: Path) -> str:
     return completed.stdout
 
 
-def scan_text(path: str, text: str, patterns: tuple[tuple[str, re.Pattern[str]], ...]) -> list[Finding]:
+def scan_text(
+    path: str, text: str, patterns: tuple[tuple[str, re.Pattern[str]], ...]
+) -> list[Finding]:
     findings: list[Finding] = []
     for line_no, line in enumerate(text.splitlines(), start=1):
         for rule, pattern in patterns:

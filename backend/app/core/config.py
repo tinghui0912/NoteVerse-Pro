@@ -5,7 +5,7 @@ from app.core.settings.object_writes import ObjectWriteSettings
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.core.settings.observability import ObservabilitySettings
-from app.core.settings.async_database import AsyncDatabaseSettings
+from app.core.settings.database import DatabaseSettings
 from app.core.settings.account_email_link import AccountEmailLinkSettings
 from app.core.settings.beat_scheduler import BeatSchedulerSettings
 from app.core.settings.browser_cors import BrowserCorsSettings
@@ -28,7 +28,6 @@ from app.core.settings.storage import StorageSettings
 from app.core.settings.token_signing import TokenSigningSettings
 from app.core.settings.transactional_mail_provider import TransactionalMailProviderSettings
 from app.core.settings.trusted_proxy import TrustedProxySettings
-from app.core.settings.sync_database import SyncDatabaseSettings
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -37,7 +36,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 class Settings(
     ObjectWriteSettings,
     AccountEmailLinkSettings,
-    AsyncDatabaseSettings,
+    DatabaseSettings,
     BeatSchedulerSettings,
     BrowserCorsSettings,
     CustomerSessionSecuritySettings,
@@ -60,7 +59,6 @@ class Settings(
     TokenSigningSettings,
     TransactionalMailProviderSettings,
     TrustedProxySettings,
-    SyncDatabaseSettings,
     BaseSettings,
 ):
     model_config = SettingsConfigDict(

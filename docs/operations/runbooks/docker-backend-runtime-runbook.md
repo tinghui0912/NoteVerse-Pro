@@ -67,8 +67,7 @@ Update database and Redis URLs if your Windows host does not expose them through
 `host.docker.internal`:
 
 ```dotenv
-DATABASE_URL=postgresql+asyncpg://postgres:password@host.docker.internal:5432/noteverse_pro
-SYNC_DATABASE_URL=postgresql+psycopg://postgres:password@host.docker.internal:5432/noteverse_pro
+DATABASE_URL=postgresql+psycopg://postgres:password@host.docker.internal:5432/noteverse_pro
 SCHEDULER_LOCK_DATABASE_URL=postgresql+psycopg://postgres:password@host.docker.internal:5432/noteverse_pro
 REDIS_URL=redis://host.docker.internal:6379/0
 CELERY_BROKER_URL=redis://host.docker.internal:6379/0
@@ -80,7 +79,7 @@ LAN IP:
 
 ```dotenv
 REDIS_URL=redis://192.168.31.59:6379/0
-DATABASE_URL=postgresql+asyncpg://postgres:password@192.168.31.59:5432/noteverse_pro
+DATABASE_URL=postgresql+psycopg://postgres:password@192.168.31.59:5432/noteverse_pro
 ```
 
 Do not commit `backend/.env.docker`.

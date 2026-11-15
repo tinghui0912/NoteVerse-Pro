@@ -6,7 +6,8 @@ import json
 from datetime import datetime
 from typing import Any, AsyncIterator
 
-import asyncpg
+import psycopg
+from psycopg import sql
 from fastapi import APIRouter, Depends, Header, Request
 from sqlalchemy import select
 from sqlalchemy.sql import Select
@@ -17,7 +18,7 @@ from app.api.deps import get_current_user
 from app.core.config import settings
 from app.core.metrics import realtime_connection_closed, realtime_connection_opened
 from app.db.model_utils import require_persisted_id
-from app.db.session import AsyncSessionLocal
+from app.db.session import AsyncSessionLocal, engine
 from app.db.models import RealtimeEvent, User
 from app.modules.realtime.publisher import REALTIME_NOTIFY_CHANNEL
 from app.modules.realtime.schemas import RealtimeEventRead
@@ -64,10 +65,6 @@ def _parse_last_event_id(value: str | None) -> int:
         return max(0, int(value))
     except ValueError:
         return 0
-
-
-def _asyncpg_dsn() -> str:
-    return settings.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://", 1)
 
 
 def _pending_events_statement(user_id: int, last_sequence: int) -> Select[tuple[RealtimeEvent]]:
@@ -126,19 +123,20 @@ async def _event_stream(
     queue: asyncio.Queue[None] = asyncio.Queue()
     realtime_connection_opened(channel="app_sse")
 
-    def notify_listener(
-        _connection: Any,
-        _pid: int,
-        _channel: str,
-        payload: str,
-    ) -> None:
-        if _payload_matches_user(payload, user_id):
-            queue.put_nowait(None)
+    async def listen(connection: psycopg.AsyncConnection) -> None:
+        async for notification in connection.notifies():
+            if _payload_matches_user(notification.payload, user_id):
+                queue.put_nowait(None)
 
-    connection: asyncpg.Connection | None = None
+    connection: psycopg.AsyncConnection | None = None
+    notification_task: asyncio.Task[None] | None = None
     try:
-        connection = await asyncpg.connect(dsn=_asyncpg_dsn())
-        await connection.add_listener(REALTIME_NOTIFY_CHANNEL, notify_listener)
+        args, kwargs = engine.dialect.create_connect_args(engine.url)
+        connection = await psycopg.AsyncConnection.connect(*args, **kwargs, autocommit=True)
+        await connection.execute(
+            sql.SQL("LISTEN {}").format(sql.Identifier(REALTIME_NOTIFY_CHANNEL))
+        )
+        notification_task = asyncio.create_task(listen(connection))
         seconds_since_heartbeat = 0
         yield ": connected\n\n"
 
@@ -162,9 +160,11 @@ async def _event_stream(
             for message in messages:
                 yield message
     finally:
+        if notification_task is not None:
+            notification_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await notification_task
         if connection is not None:
-            with contextlib.suppress(Exception):
-                await connection.remove_listener(REALTIME_NOTIFY_CHANNEL, notify_listener)
             await connection.close()
         realtime_connection_closed(channel="app_sse")
 

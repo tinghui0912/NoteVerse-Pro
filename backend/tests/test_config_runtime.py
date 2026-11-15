@@ -20,7 +20,6 @@ def test_settings_do_not_implicitly_load_an_env_file() -> None:
 
     assert loaded_settings.SECRET_KEY
     assert loaded_settings.DATABASE_URL
-    assert loaded_settings.SYNC_DATABASE_URL
     assert loaded_settings.model_config.get("env_file") is None
 
 

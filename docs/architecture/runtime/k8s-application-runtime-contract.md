@@ -164,11 +164,17 @@ into the browser bundle.
 
 ### Kubernetes Secrets
 
+Backend application database access is configured by one PostgreSQL psycopg
+`DATABASE_URL` (`postgresql+psycopg://...`). API and worker execution adapters,
+including Alembic, consume the same database identity. Runtime checks report the
+API database execution path and worker database execution path independently.
+`SCHEDULER_LOCK_DATABASE_URL` configures the Beat advisory-lock session and retains
+its direct PostgreSQL or session-pooling policy.
+
 Store these as Secrets:
 
 - `SECRET_KEY`;
 - `DATABASE_URL`;
-- `SYNC_DATABASE_URL`;
 - `SCHEDULER_LOCK_DATABASE_URL` (direct PostgreSQL or PgBouncer session-pooling endpoint only);
 - `REDIS_URL`;
 - `CELERY_BROKER_URL`;

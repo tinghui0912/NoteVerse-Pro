@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+import asyncio
 from collections.abc import Iterator
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 from sqlalchemy import event
@@ -16,6 +19,67 @@ from app.modules.realtime.router import (
 )
 from app.modules.realtime.schemas import REALTIME_EVENT_SCHEMA_VERSION
 from app.utils.timezone import utc_now_naive
+
+
+@pytest.mark.asyncio
+async def test_postgresql_listener_wakes_the_stream_and_closes_its_connection(monkeypatch):
+    import psycopg
+    from sqlalchemy import text
+    from app.db.session import engine
+    from app.modules.realtime import router as stream_router
+
+    if not (engine.url.database or "").startswith("noteverse_test_"):
+        pytest.skip("A dedicated application PostgreSQL test database is required")
+    connections = []
+    connect = psycopg.AsyncConnection.connect
+
+    async def open_connection(*args, **kwargs):
+        connection = await connect(*args, **kwargs)
+        connections.append(connection)
+        return connection
+
+    monkeypatch.setattr(
+        stream_router,
+        "psycopg",
+        SimpleNamespace(AsyncConnection=SimpleNamespace(connect=open_connection)),
+    )
+    ready = asyncio.Event()
+    deliveries = 0
+
+    async def pending(user_id, sequence):
+        nonlocal deliveries
+        assert user_id == 7
+        deliveries += 1
+        ready.set()
+        return (sequence, []) if deliveries == 1 else (42, ["event: accepted\n\n"])
+
+    monkeypatch.setattr(stream_router, "_emit_pending_events", pending)
+    request = SimpleNamespace(is_disconnected=AsyncMock(return_value=False))
+    stream = stream_router._event_stream(request, 7, 0)
+    message = None
+    try:
+        assert await anext(stream) == ": connected\n\n"
+        message = asyncio.create_task(anext(stream))
+        await asyncio.wait_for(ready.wait(), 5)
+        async with engine.begin() as connection:
+            await connection.execute(
+                text("SELECT pg_notify(:channel, :payload)"),
+                {
+                    "channel": stream_router.REALTIME_NOTIFY_CHANNEL,
+                    "payload": '{"recipient_user_id":7}',
+                },
+            )
+        assert await asyncio.wait_for(message, 5) == "event: accepted\n\n"
+    finally:
+        if message is not None and not message.done():
+            message.cancel()
+            try:
+                await message
+            except asyncio.CancelledError:
+                pass
+        await stream.aclose()
+        await engine.dispose()
+    assert len(connections) == 1 and connections[0].closed
 
 
 @pytest.fixture
@@ -158,9 +222,11 @@ def test_pending_events_statement_is_user_scoped_and_sequence_scoped(
     )
     realtime_session.commit()
 
-    events = realtime_session.execute(
-        _pending_events_statement(user_id=7, last_sequence=10)
-    ).scalars().all()
+    events = (
+        realtime_session.execute(_pending_events_statement(user_id=7, last_sequence=10))
+        .scalars()
+        .all()
+    )
 
     assert [event.id for event in events] == [12, 13]
     assert [event.recipient_user_id for event in events] == [7, 7]

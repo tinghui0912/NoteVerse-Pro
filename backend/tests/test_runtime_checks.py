@@ -15,7 +15,7 @@ from app.core.runtime_checks import (
 def test_api_runtime_checks_cover_api_owned_dependencies() -> None:
     assert ROLE_CHECK_NAMES[RuntimeRole.API] == (
         "settings",
-        "database",
+        "api_database_execution",
         "storage_quota_policy",
         "redis",
         "storage",
@@ -26,20 +26,23 @@ def test_control_plane_runtime_checks_require_independent_identity_configuration
     assert ROLE_CHECK_NAMES[RuntimeRole.CONTROL_PLANE] == (
         "settings",
         "control_plane_settings",
-        "database",
+        "api_database_execution",
         "storage_quota_policy",
         "redis",
     )
 
 
 def test_observability_exporter_checks_only_its_database_dependency() -> None:
-    assert ROLE_CHECK_NAMES[RuntimeRole.OBSERVABILITY_EXPORTER] == ("settings", "database")
+    assert ROLE_CHECK_NAMES[RuntimeRole.OBSERVABILITY_EXPORTER] == (
+        "settings",
+        "api_database_execution",
+    )
 
 
 def test_worker_runtime_checks_cover_worker_owned_dependencies() -> None:
     checks = ROLE_CHECK_NAMES[RuntimeRole.WORKER]
 
-    assert "sync_database" in checks
+    assert "worker_database_execution" in checks
     assert "worker_settings" in checks
     assert "storage_quota_policy" in checks
     assert "celery_tasks" in checks
@@ -49,7 +52,7 @@ def test_worker_runtime_checks_cover_worker_owned_dependencies() -> None:
     assert "playback_renderer" in checks
     assert "paddleocr_models" in checks
     assert "huggingface_models" in checks
-    assert "database" not in checks
+    assert "api_database_execution" not in checks
     assert "practice_alignment" not in checks
 
 

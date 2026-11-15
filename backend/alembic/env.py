@@ -27,16 +27,7 @@ target_metadata = SQLModel.metadata
 # ... etc.
 
 
-def _alembic_database_url(url: str) -> str:
-    if url.startswith("postgresql://"):
-        return url.replace("postgresql://", "postgresql+psycopg://", 1)
-    return url
-
-
-db_url = config.get_main_option("sqlalchemy.url")
-if not db_url or db_url.startswith("driver://"):
-    db_url = settings.DATABASE_URL
-config.set_main_option("sqlalchemy.url", _alembic_database_url(db_url))
+config.set_main_option("sqlalchemy.url", settings.DATABASE_URL.replace("%", "%%"))
 
 POSTGRESQL_ALEMBIC_VERSION_LENGTH = 128
 
