@@ -159,7 +159,6 @@ class PlaybackGenerationService:
                 object_type="score_playback_asset",
                 object_id=asset.asset_uuid,
                 storage_key=asset.stored_object.object_key,
-                auto_commit=False,
             )
             if previous_usage is not None:
                 await storage_usage_service.record_release(
@@ -171,7 +170,6 @@ class PlaybackGenerationService:
                     object_type="score_playback_asset",
                     object_id=previous_usage.asset_uuid,
                     storage_key=previous_usage.storage_key,
-                    auto_commit=False,
                 )
             await db.commit()
         except Exception:
@@ -315,7 +313,6 @@ class PlaybackGenerationService:
                 object_type="score_playback_asset",
                 object_id=asset.asset_uuid,
                 storage_key=asset.stored_object.object_key,
-                auto_commit=False,
             )
             if previous_usage is not None:
                 storage_usage_service.record_release_sync(
@@ -327,7 +324,6 @@ class PlaybackGenerationService:
                     object_type="score_playback_asset",
                     object_id=previous_usage.asset_uuid,
                     storage_key=previous_usage.storage_key,
-                    auto_commit=False,
                 )
             if not playback_outbox_service.complete(db, outbox_uuid, lease=lease):
                 raise StaleDeliveryAttempt("Playback completion lost execution ownership")

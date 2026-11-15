@@ -19,7 +19,7 @@ class StorageUsageRepository:
     ) -> StorageUsageAccount | None:
         statement = select(StorageUsageAccount).where(StorageUsageAccount.user_id == user_id)
         if lock:
-            statement = statement.with_for_update()
+            statement = statement.with_for_update().execution_options(populate_existing=True)
         return (await db.execute(statement)).scalar_one_or_none()
 
     def account_sync(
@@ -27,7 +27,7 @@ class StorageUsageRepository:
     ) -> StorageUsageAccount | None:
         statement = select(StorageUsageAccount).where(StorageUsageAccount.user_id == user_id)
         if lock:
-            statement = statement.with_for_update()
+            statement = statement.with_for_update().execution_options(populate_existing=True)
         return db.execute(statement).scalar_one_or_none()
 
     async def policy(self, db: AsyncSession, plan_code: str) -> StorageQuotaPolicy | None:
@@ -55,7 +55,7 @@ class StorageUsageRepository:
             StorageUsageCounter.category == category,
         )
         if lock:
-            statement = statement.with_for_update()
+            statement = statement.with_for_update().execution_options(populate_existing=True)
         return (await db.execute(statement)).scalar_one_or_none()
 
     def counter_sync(
@@ -71,7 +71,7 @@ class StorageUsageRepository:
             StorageUsageCounter.category == category,
         )
         if lock:
-            statement = statement.with_for_update()
+            statement = statement.with_for_update().execution_options(populate_existing=True)
         return db.execute(statement).scalar_one_or_none()
 
     async def reservation(
@@ -81,7 +81,7 @@ class StorageUsageRepository:
             StorageUsageReservation.reservation_uuid == reservation_uuid
         )
         if lock:
-            statement = statement.with_for_update()
+            statement = statement.with_for_update().execution_options(populate_existing=True)
         return (await db.execute(statement)).scalar_one_or_none()
 
     def reservation_sync(
@@ -91,7 +91,7 @@ class StorageUsageRepository:
             StorageUsageReservation.reservation_uuid == reservation_uuid
         )
         if lock:
-            statement = statement.with_for_update()
+            statement = statement.with_for_update().execution_options(populate_existing=True)
         return db.execute(statement).scalar_one_or_none()
 
     async def counters(self, db: AsyncSession, user_id: int) -> list[StorageUsageCounter]:
@@ -100,5 +100,7 @@ class StorageUsageRepository:
                 await db.execute(
                     select(StorageUsageCounter).where(StorageUsageCounter.user_id == user_id)
                 )
-            ).scalars().all()
+            )
+            .scalars()
+            .all()
         )

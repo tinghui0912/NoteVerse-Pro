@@ -52,7 +52,6 @@ class ImportJobMaintenanceService:
                             object_type="upload",
                             object_id=upload.upload_uuid,
                             storage_key=blob.object_key,
-                            auto_commit=False,
                         )
                     db.delete(upload)
                     retire_released_objects(db, blob.id)

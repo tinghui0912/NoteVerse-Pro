@@ -217,7 +217,6 @@ class ScoreDeletionExecutor:
                 object_type=release.object_type,
                 object_id=release.object_id,
                 storage_key=release.storage_key,
-                auto_commit=False,
             )
         for release in import_cleanup:
             storage_usage_service.record_release_sync(
@@ -229,7 +228,6 @@ class ScoreDeletionExecutor:
                 object_type=release.object_type,
                 object_id=release.object_id,
                 storage_key=release.storage_key,
-                auto_commit=False,
             )
         operations = retire_released_objects(db, *(released_ids + import_object_ids))
         if not self.delivery.complete(db, lease):

@@ -6,6 +6,83 @@ import pytest
 from app.db.models import Score, ScoreRevision, ScoreRevisionSource, User
 from app.db.models.score import RevisionOrigin, RevisionSourceFormat
 from scripts import seed_integration_user
+from tests.test_stored_object_retirement_postgres import retirement_postgres as retirement_postgres
+
+pytest_plugins = ["tests.test_practice_bundle_postgres"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("outcome", ["success", "put_failure", "writer_failure"])
+async def test_seed_source_reservation_and_revision_have_explicit_durable_boundaries(
+    retirement_postgres, monkeypatch, outcome
+):
+    from sqlalchemy import select
+    from sqlalchemy.orm import Session
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+    from sqlmodel.ext.asyncio.session import AsyncSession
+    from app.db.models import StorageQuotaPolicy, StorageUsageAccount, StorageUsageReservation
+    from app.storage import AsyncObjectStorage
+
+    engine, sync, _, storage = retirement_postgres
+    with Session(sync) as db:
+        db.add(StorageQuotaPolicy(plan_code="FREE", quota_limit_bytes=10000))
+        db.commit()
+    monkeypatch.setattr(
+        seed_integration_user,
+        "AsyncSessionLocal",
+        async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False),
+    )
+    monkeypatch.setattr(seed_integration_user, "object_storage", storage)
+    monkeypatch.setattr(seed_integration_user, "async_object_storage", AsyncObjectStorage(storage))
+    monkeypatch.setenv(
+        seed_integration_user.INTEGRATION_PASSWORD_ENV, "explicit-integration-password"
+    )
+    size = len(
+        seed_integration_user.admit_musicxml_document(seed_integration_user.INTEGRATION_MUSICXML)
+    )
+    put = storage.put_bytes
+    observations = []
+
+    def physical_put(**kwargs):
+        with Session(sync) as observer:
+            account = observer.scalar(select(StorageUsageAccount).with_for_update(nowait=True))
+            assert account.reserved_bytes == size and account.used_bytes == 0
+            observations.append(account.user_id)
+        result = put(**kwargs)
+        if outcome == "put_failure":
+            raise RuntimeError("seed provider acknowledgement unavailable")
+        return result
+
+    monkeypatch.setattr(storage, "put_bytes", physical_put)
+    write = seed_integration_user.revision_writer.write
+
+    def reject_admission(*args, **kwargs):
+        write(*args, **kwargs)
+        raise RuntimeError("seed admission unavailable")
+
+    if outcome == "writer_failure":
+        monkeypatch.setattr(seed_integration_user.revision_writer, "write", reject_admission)
+    if outcome == "success":
+        await seed_integration_user.seed_user()
+    else:
+        with pytest.raises(RuntimeError, match="seed"):
+            await seed_integration_user.seed_user()
+    assert len(observations) == 1
+    with Session(sync) as observer:
+        account = observer.scalar(select(StorageUsageAccount))
+        hold = observer.scalar(select(StorageUsageReservation))
+        score = observer.scalar(
+            select(Score).where(
+                Score.score_uuid == seed_integration_user.INTEGRATION_PRACTICE_SCORE_ID
+            )
+        )
+        assert account.reserved_bytes == 0
+        assert account.used_bytes == (size if outcome == "success" else 0)
+        assert hold.status.value == ("COMMITTED" if outcome == "success" else "RELEASED")
+        assert (score is not None) == (outcome == "success")
+        if score is not None:
+            revision = observer.get(ScoreRevision, score.head_revision_id)
+            assert revision.revision_uuid == seed_integration_user.INTEGRATION_PRACTICE_REVISION_ID
 
 
 class _Result:

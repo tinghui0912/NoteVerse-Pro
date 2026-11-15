@@ -492,8 +492,8 @@ async def test_delete_upload_removes_owned_upload_and_reference() -> None:
     assert result is None
     repository.delete_upload_by_id.assert_awaited_once_with(db, 7)
     retire.assert_awaited_once_with(db, 5)
-    assert release_usage.call_args.kwargs["auto_commit"] is False
     release_usage.assert_awaited_once()
+    assert release_usage.call_args.kwargs["object_id"] == "upload-owned"
     db.commit.assert_awaited_once()
 
 

@@ -229,7 +229,6 @@ class PerformanceTakeService:
             object_type="performance_take",
             object_id=take_id,
             storage_key=facts.recording_object.object_key,
-            auto_commit=False,
         )
         await db.commit()
         from app.worker.dispatch.stored_object_retirement import dispatch_retirements_best_effort

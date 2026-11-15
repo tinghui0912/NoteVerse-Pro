@@ -491,6 +491,7 @@ def test_orphan_scan_retirement_failure_rolls_back_only_that_owner(
         storage_usage_service.record_allocation_sync(
             db, user_id=1, category=StorageUsageCategory.UPLOAD, bytes_count=3, reason="test_orphan"
         )
+    db.commit()
     from app.modules.import_jobs import maintenance_service as maintenance
 
     retire = maintenance.retire_released_objects

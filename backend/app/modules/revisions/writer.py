@@ -234,7 +234,6 @@ class RevisionWriter:
             object_type="score_revision_source",
             object_id=source_uuid,
             storage_key=prepared.receipt.object_key,
-            auto_commit=False,
         )
         actor = db.get(User, command.actor_user_id)
         if actor is None:
@@ -323,7 +322,7 @@ class RevisionWriter:
     def _unused(
         db: Session, source: PreparedRevisionSource, revision: ScoreRevision
     ) -> RevisionWriteResult:
-        storage_usage_service.release_reservation_sync(db, source.reservation_id, auto_commit=False)
+        storage_usage_service.release_reservation_sync(db, source.reservation_id)
         return RevisionWriteResult(revision, False)
 
 

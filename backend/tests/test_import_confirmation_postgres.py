@@ -103,7 +103,6 @@ def confirmation(monkeypatch):
                     bytes_count=len(content),
                     reason="fixture",
                     object_type="import_artifact",
-                    auto_commit=False,
                 )
             obj = object_from_bytes(
                 object_key="uploads/page", content=b"original", content_type="image/png"
@@ -123,7 +122,6 @@ def confirmation(monkeypatch):
                 bytes_count=8,
                 reason="fixture",
                 object_type="upload",
-                auto_commit=False,
             )
             append_fact(
                 db,

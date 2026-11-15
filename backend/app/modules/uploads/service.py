@@ -57,9 +57,10 @@ class UploadService:
             object_type="upload",
             object_id=file_hash,
         )
-        blob = await self.repository.get_upload_object_by_sha256(db, file_hash)
-        key = blob.object_key if blob is not None else blob_object_key(file_hash, extension)
         try:
+            await db.commit()
+            blob = await self.repository.get_upload_object_by_sha256(db, file_hash)
+            key = blob.object_key if blob is not None else blob_object_key(file_hash, extension)
             written = await write_object_async(
                 db, self.async_storage, key=key, content=content, content_type=content_type
             )
@@ -77,9 +78,11 @@ class UploadService:
                 object_id=upload.upload_uuid,
                 storage_key=persisted_blob.object_key,
             )
+            await db.commit()
         except Exception as exc:
             await db.rollback()
             await storage_usage_service.release_reservation(db, reservation.reservation_id)
+            await db.commit()
             if isinstance(exc, FileException):
                 raise
             raise FileException(
@@ -120,7 +123,6 @@ class UploadService:
             object_type="upload",
             object_id=upload_uuid,
             storage_key=storage_key,
-            auto_commit=False,
         )
         await db.commit()
         return None

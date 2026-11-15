@@ -114,10 +114,32 @@ def test_confirmation_owns_fact_and_uses_caller_transaction_temporary_release():
     append = next(
         node for node in calls if isinstance(node.func, ast.Name) and node.func.id == "append_fact"
     )
+    semantic_transaction = next(
+        node
+        for node in ast.walk(confirm)
+        if isinstance(node, ast.Try)
+        and any(cleanup in ast.walk(statement) for statement in node.body)
+    )
+    semantic_calls = [
+        node
+        for statement in semantic_transaction.body
+        for node in ast.walk(statement)
+        if isinstance(node, ast.Call)
+    ]
+    owner_admission = min(
+        node.lineno
+        for node in semantic_calls
+        if isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "db"
+        and node.func.attr == "add"
+    )
     commits = [
         node
-        for node in calls
-        if isinstance(node.func, ast.Attribute) and node.func.attr == "commit"
+        for node in semantic_calls
+        if node.lineno >= owner_admission
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "commit"
     ]
     assert len(commits) == 1 and cleanup.lineno < append.lineno < commits[0].lineno
     release = ast.parse((ROOT / "modules/import_jobs/deletion_service.py").read_text())

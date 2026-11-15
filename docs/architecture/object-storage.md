@@ -56,6 +56,16 @@ Adoption locks the WRITTEN intent, checks generation/facts/lease, and creates or
 
 Prewrite transactions precede semantic mutation and require a clean semantic session. Domain application code reestablishes its parent admission after prewrite commits. Domain parent locks (Score/Revision, Bundle, User or ImportJob) precede intent locks during semantic adoption. The shared physical lock order is ObjectWriteIntent → StoredObject → StoredObjectRetirement. Retirement itself never needs a write-intent lock. Multiple representation writes finish before their one semantic replacement transaction begins.
 
+StorageUsage mutates and flushes accounting state inside the caller-owned transaction;
+its service and repository do not commit. Upload creation commits its quota reservation
+before physical IO, releases quota row locks, then uses the ObjectWriteIntent protocol's
+explicit PREPARED/WRITTEN transactions. Its final transaction commits StoredObject adoption,
+the Upload and reservation completion together. A failed admission rolls back semantic
+writes and commits release of the active reservation in a clean transaction. Revision
+source preparation follows the same durable hold boundary; RevisionWriter participates
+in the caller's revision transaction. PerformanceTake application services own reservation,
+finalization, recovery and deletion commits, with accounting in each semantic transaction.
+
 Expired PREPARED/WRITTEN generations become CLEANUP_PENDING. Cleanup dispatch/claim/retry/lease recovery delegates to DurableDeliveryLifecycle using CLEANUP_DISPATCHED, CLEANUP_PROCESSING, CLEANUP_FAILED and CLEANED. The worker commits its claim, then locks the intent and checks generation plus attempt token. A matching StoredObject means ADOPTED with no delete. Conflicting facts fail closed. Without a StoredObject it deletes under the intent lock and commits CLEANED. A storage failure rolls back and records CLEANUP_FAILED in a fresh transaction. Missing keys and uncertain completion retries are idempotent. Stale writers/adopters cannot revive cleaned or reprepared generations.
 
 Account Avatar, Files, Review confirmation/source replacement/thumbnail, Revision create/restore, worker Score creation, Render pages, Playback audio and Import artifact recording consume this protocol. Review confirmation prewrites canonical MusicXML and its optional thumbnail before constructing semantic rows. Import handoff carries intent UUID/generation and filename/page metadata rather than a second physical-facts dictionary. PracticeBundle CREATING has null representation FKs; READY acquires both written representations and a binding in its semantic transaction.

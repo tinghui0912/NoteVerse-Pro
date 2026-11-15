@@ -114,6 +114,7 @@ class RevisionService:
         )
         committed = False
         try:
+            await db.commit()
             receipt = await write_object_async(
                 db,
                 self.async_storage,
@@ -152,6 +153,7 @@ class RevisionService:
             await db.rollback()
             if not committed:
                 await storage_usage_service.release_reservation(db, reservation.reservation_id)
+                await db.commit()
             raise
 
     async def list(

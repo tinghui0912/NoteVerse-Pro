@@ -81,7 +81,6 @@ class StorageUsageService:
         object_type: str | None = None,
         object_id: str | None = None,
         storage_key: str | None = None,
-        auto_commit: bool = True,
     ) -> StorageReservationHandle:
         if bytes_count <= 0:
             raise ValidationException(
@@ -109,8 +108,7 @@ class StorageUsageService:
             storage_key=storage_key,
         )
         db.add(reservation)
-        if auto_commit:
-            await db.commit()
+        await db.flush()
         return StorageReservationHandle(
             reservation_id=reservation.reservation_uuid,
             bytes_reserved=bytes_count,
@@ -124,7 +122,6 @@ class StorageUsageService:
         object_type: str | None = None,
         object_id: str | None = None,
         storage_key: str | None = None,
-        auto_commit: bool = True,
     ) -> None:
         reservation = await self.repository.reservation(db, reservation_id, lock=True)
         if reservation is None:
@@ -155,15 +152,12 @@ class StorageUsageService:
                 storage_key=reservation.storage_key,
             )
         )
-        if auto_commit:
-            await db.commit()
+        await db.flush()
 
     async def release_reservation(
         self,
         db: AsyncSession,
         reservation_id: str,
-        *,
-        auto_commit: bool = True,
     ) -> None:
         reservation = await self.repository.reservation(db, reservation_id, lock=True)
         if reservation is None or reservation.status != StorageUsageReservationStatus.RESERVED:
@@ -173,8 +167,7 @@ class StorageUsageService:
             db, reservation.user_id, reservation.category, lock=True
         )
         release_reserved_usage(account=account, counter=counter, reservation=reservation)
-        if auto_commit:
-            await db.commit()
+        await db.flush()
 
     async def record_allocation(
         self,
@@ -187,7 +180,6 @@ class StorageUsageService:
         object_type: str | None = None,
         object_id: str | None = None,
         storage_key: str | None = None,
-        auto_commit: bool = True,
     ) -> None:
         if bytes_count <= 0:
             return
@@ -200,16 +192,13 @@ class StorageUsageService:
             object_type=object_type,
             object_id=object_id,
             storage_key=storage_key,
-            auto_commit=auto_commit,
         )
-        await db.flush()
         await self.commit_reservation(
             db,
             handle.reservation_id,
             object_type=object_type,
             object_id=object_id,
             storage_key=storage_key,
-            auto_commit=auto_commit,
         )
 
     async def record_release(
@@ -223,7 +212,6 @@ class StorageUsageService:
         object_type: str | None = None,
         object_id: str | None = None,
         storage_key: str | None = None,
-        auto_commit: bool = True,
     ) -> None:
         if bytes_count <= 0:
             return
@@ -248,8 +236,7 @@ class StorageUsageService:
                 storage_key=storage_key,
             )
         )
-        if auto_commit:
-            await db.commit()
+        await db.flush()
 
     def reserve_sync(
         self,
@@ -262,7 +249,6 @@ class StorageUsageService:
         object_type: str | None = None,
         object_id: str | None = None,
         storage_key: str | None = None,
-        auto_commit: bool = True,
     ) -> StorageReservationHandle:
         if bytes_count <= 0:
             raise ValidationException(
@@ -290,8 +276,7 @@ class StorageUsageService:
             storage_key=storage_key,
         )
         db.add(reservation)
-        if auto_commit:
-            db.commit()
+        db.flush()
         return StorageReservationHandle(reservation.reservation_uuid, bytes_count)
 
     def commit_reservation_sync(
@@ -302,7 +287,6 @@ class StorageUsageService:
         object_type: str | None = None,
         object_id: str | None = None,
         storage_key: str | None = None,
-        auto_commit: bool = True,
     ) -> None:
         reservation = self.repository.reservation_sync(db, reservation_id, lock=True)
         if reservation is None:
@@ -333,15 +317,12 @@ class StorageUsageService:
                 storage_key=reservation.storage_key,
             )
         )
-        if auto_commit:
-            db.commit()
+        db.flush()
 
     def release_reservation_sync(
         self,
         db: Session,
         reservation_id: str,
-        *,
-        auto_commit: bool = True,
     ) -> None:
         reservation = self.repository.reservation_sync(db, reservation_id, lock=True)
         if reservation is None or reservation.status != StorageUsageReservationStatus.RESERVED:
@@ -351,8 +332,7 @@ class StorageUsageService:
             db, reservation.user_id, reservation.category, lock=True
         )
         release_reserved_usage(account=account, counter=counter, reservation=reservation)
-        if auto_commit:
-            db.commit()
+        db.flush()
 
     def record_allocation_sync(
         self,
@@ -365,7 +345,6 @@ class StorageUsageService:
         object_type: str | None = None,
         object_id: str | None = None,
         storage_key: str | None = None,
-        auto_commit: bool = True,
     ) -> None:
         if bytes_count <= 0:
             return
@@ -378,16 +357,13 @@ class StorageUsageService:
             object_type=object_type,
             object_id=object_id,
             storage_key=storage_key,
-            auto_commit=auto_commit,
         )
-        db.flush()
         self.commit_reservation_sync(
             db,
             handle.reservation_id,
             object_type=object_type,
             object_id=object_id,
             storage_key=storage_key,
-            auto_commit=auto_commit,
         )
 
     def record_release_sync(
@@ -401,7 +377,6 @@ class StorageUsageService:
         object_type: str | None = None,
         object_id: str | None = None,
         storage_key: str | None = None,
-        auto_commit: bool = True,
     ) -> None:
         if bytes_count <= 0:
             return
@@ -426,8 +401,7 @@ class StorageUsageService:
                 storage_key=storage_key,
             )
         )
-        if auto_commit:
-            db.commit()
+        db.flush()
 
     async def _ensure_account(
         self, db: AsyncSession, user_id: int, *, lock: bool

@@ -146,7 +146,6 @@ class ImportReviewThumbnailService:
                     object_type="import_artifact",
                     object_id=artifact_uuid,
                     storage_key=storage_key,
-                    auto_commit=False,
                 )
             storage_usage_service.record_allocation_sync(
                 db,
@@ -157,7 +156,6 @@ class ImportReviewThumbnailService:
                 object_type="import_artifact",
                 object_id=thumbnail.artifact_uuid,
                 storage_key=thumbnail.stored_object.object_key,
-                auto_commit=False,
             )
             if not render_outbox_service.complete(db, outbox_uuid, lease=lease):
                 raise StaleDeliveryAttempt("Thumbnail completion lost execution ownership")

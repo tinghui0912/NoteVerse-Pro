@@ -305,6 +305,7 @@ def test_storage_usage_api_returns_quota_and_breakdown(
         object_id="render-api",
         storage_key="scores/api/render.svg",
     )
+    session.commit()
     user = session.get(User, 1)
     assert user is not None
 
@@ -551,6 +552,7 @@ async def test_score_delete_releases_source_usage_and_storage_object(
         object_id=source.source_uuid,
         storage_key=source_storage_key,
     )
+    session.commit()
     assert storage.exists(source_storage_key)
 
     service = ScoreService(storage=storage)
@@ -717,6 +719,7 @@ async def test_score_delete_cleans_single_origin_import_job_storage(
         object_id="origin-review-source",
         storage_key=review_source.object_key,
     )
+    session.commit()
     source_storage_key = source.stored_object.object_key
     upload_storage_key = upload.object_key
     review_source_storage_key = review_source.object_key
@@ -843,6 +846,7 @@ async def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
         object_type="import_artifact",
         object_id=job_uuid,
     )
+    session.commit()
 
     await ImportJobService(storage=storage).delete(AsyncSessionAdapter(session), job_uuid, 1)
 
@@ -930,6 +934,7 @@ async def test_import_job_delete_keeps_shared_upload_usage_and_storage(
         object_id="e14d13d88ed945fc5a843770a4f2433ab825ce077d86770120166426391033a9",
         storage_key=upload.object_key,
     )
+    session.commit()
 
     await ImportJobService(storage=storage).delete(
         AsyncSessionAdapter(session),

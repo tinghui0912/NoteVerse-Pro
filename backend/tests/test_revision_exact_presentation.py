@@ -53,6 +53,7 @@ def seed_assets(db, storage, rows):
                 object_id=asset.asset_uuid,
                 storage_key=asset.stored_object.object_key,
             )
+    db.commit()
     return keys
 
 

@@ -160,6 +160,7 @@ with SessionLocal() as db:
     reservation = storage_usage_service.reserve_sync(db, user_id=user_id, category=StorageUsageCategory.SOURCE,
         bytes_count=len(musicxml), reason="k8s_smoke_revision_source", object_type="score_revision_source")
     try:
+        db.commit()
         stored = write_object(db, object_storage,
             key=f"scores/{{score_uuid}}/revisions/{{revision_uuid}}/score.musicxml", content=musicxml,
             content_type="application/vnd.recordare.musicxml+xml")
@@ -173,6 +174,7 @@ with SessionLocal() as db:
     except Exception:
         db.rollback()
         storage_usage_service.release_reservation_sync(db, reservation.reservation_id)
+        db.commit()
         raise
     work = result.derivatives
     assert work is not None

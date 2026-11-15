@@ -109,6 +109,7 @@ def prepare(engine, storage, content=MUSICXML_1):
             reason="revision_write",
             object_type="score_revision_source",
         )
+        db.commit()
         receipt = write_object(
             db,
             storage,
@@ -215,6 +216,7 @@ def test_concurrent_head_writes_serialize_and_idempotency_resolves_in_writer(dat
         )
         if not same_key:
             storage_usage_service.release_reservation_sync(db, second.reservation_id)
+            db.commit()
         assert all(item["status"] == "cleaned" for item in drain_write_cleanup(db, storage))
 
 
@@ -256,6 +258,7 @@ def test_writer_outer_rollback_keeps_prewrite_cleanup_owned_and_reservation_rele
         )
         assert reservation.status.value == "RESERVED"
         storage_usage_service.release_reservation_sync(db, source.reservation_id)
+        db.commit()
         assert (
             db.get(
                 ObjectWriteIntent,

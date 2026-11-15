@@ -161,7 +161,6 @@ class RevisionRenderService:
                     object_type="score_render_asset",
                     object_id=item.asset_uuid,
                     storage_key=item.stored_object.object_key,
-                    auto_commit=False,
                 )
             for usage in previous_usage:
                 await storage_usage_service.record_release(
@@ -173,7 +172,6 @@ class RevisionRenderService:
                     object_type="score_render_asset",
                     object_id=usage.asset_uuid,
                     storage_key=usage.storage_key,
-                    auto_commit=False,
                 )
             await db.commit()
         except Exception:
@@ -283,7 +281,6 @@ class RevisionRenderService:
                     object_type="score_render_asset",
                     object_id=item.asset_uuid,
                     storage_key=item.stored_object.object_key,
-                    auto_commit=False,
                 )
             for usage in previous_usage:
                 storage_usage_service.record_release_sync(
@@ -295,7 +292,6 @@ class RevisionRenderService:
                     object_type="score_render_asset",
                     object_id=usage.asset_uuid,
                     storage_key=usage.storage_key,
-                    auto_commit=False,
                 )
             if not render_outbox_service.complete(db, outbox_uuid, lease=lease):
                 raise StaleDeliveryAttempt("Render completion lost execution ownership")

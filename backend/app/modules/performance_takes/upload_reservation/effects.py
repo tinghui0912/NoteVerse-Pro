@@ -19,9 +19,7 @@ async def apply_reservation_transition(
     apply_transition(reservation, transition, now=now)
     effects = transition.effects
     if effects.release_storage_reservation:
-        await storage_usage_service.release_reservation(
-            db, reservation.storage_reservation_id, auto_commit=False
-        )
+        await storage_usage_service.release_reservation(db, reservation.storage_reservation_id)
     if effects.commit_storage_object_key is not None:
         await storage_usage_service.commit_reservation(
             db,
@@ -29,5 +27,4 @@ async def apply_reservation_transition(
             object_type="performance_take",
             object_id=reservation.manifest.take_uuid,
             storage_key=effects.commit_storage_object_key,
-            auto_commit=False,
         )

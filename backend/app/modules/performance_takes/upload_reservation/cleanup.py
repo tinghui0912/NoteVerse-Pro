@@ -79,9 +79,7 @@ class UploadReservationCleanupService:
                 apply_transition(row, transition, now=now)
                 effects = transition.effects
                 if effects.release_storage_reservation:
-                    storage_usage_service.release_reservation_sync(
-                        db, row.storage_reservation_id, auto_commit=False
-                    )
+                    storage_usage_service.release_reservation_sync(db, row.storage_reservation_id)
                 state = transition.after
                 staging_key = row.staging_object_key if state.can_cleanup_staging(now=now) else None
                 orphan_keys = tuple(

@@ -266,7 +266,6 @@ class PerformanceTakeReservationService:
             object_type="performance_take",
             object_id=take_uuid,
             storage_key=staging_key,
-            auto_commit=False,
         )
         now = utc_now_naive()
         put_expiry = self._put_url_expires_at(now)

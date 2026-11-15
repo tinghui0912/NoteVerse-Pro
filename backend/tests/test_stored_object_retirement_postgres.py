@@ -318,7 +318,6 @@ async def test_shared_take_release_keeps_lineage_and_accounts_before_physical_re
             category=StorageUsageCategory.UPLOAD,
             bytes_count=len(MEDIA),
             reason="test_shared_upload",
-            auto_commit=False,
         )
         await db.commit()
         await service.takes.delete_take(db, 1, saved.take_id)

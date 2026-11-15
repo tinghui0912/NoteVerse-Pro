@@ -88,6 +88,7 @@ async def test_import_release_accounts_atomically_and_protects_other_owners(
         reason="test",
         object_type="import_artifact",
     )
+    db.commit()
     service = ImportJobDeletionService()
     release = service.cleanup_binary_artifacts if keep_job else service.delete_job
     await release(AsyncSessionAdapter(db), job, 1)
@@ -252,6 +253,7 @@ async def test_customer_delete_http_state_matrix_preserves_owned_data(score_serv
         job.score_id = score.id
         db.commit()
         score_id = score.id
+    db.commit()
 
     async def database():
         yield AsyncSessionAdapter(db)

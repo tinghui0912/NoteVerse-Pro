@@ -26,7 +26,7 @@ from app.modules.storage_usage.service import storage_usage_service
 from app.db.models import StorageUsageCategory
 from app.processing.musicxml.admission import admit_musicxml_document
 from app.db.session import AsyncSessionLocal
-from app.storage import object_storage
+from app.storage import object_storage, async_object_storage
 
 
 INTEGRATION_EMAIL = "integration@example.com"
@@ -95,9 +95,10 @@ async def seed_user() -> None:
                 object_type="score_revision_source",
             )
             try:
+                await session.commit()
                 stored = await write_object_async(
                     session,
-                    object_storage,
+                    async_object_storage,
                     key=storage_key,
                     content=content,
                     content_type="application/vnd.recordare.musicxml+xml",
@@ -134,6 +135,7 @@ async def seed_user() -> None:
             except Exception:
                 await session.rollback()
                 await storage_usage_service.release_reservation(session, reservation.reservation_id)
+                await session.commit()
                 raise
         else:
             if score.owner_user_id != user.id:

@@ -235,7 +235,6 @@ class SyncImportJobService:
                 object_type="import_artifact",
                 object_id=artifact_uuid,
                 storage_key=storage_key,
-                auto_commit=False,
             )
         for artifact in created:
             storage_usage_service.record_allocation_sync(
@@ -247,7 +246,6 @@ class SyncImportJobService:
                 object_type="import_artifact",
                 object_id=artifact.artifact_uuid,
                 storage_key=artifact.stored_object.object_key,
-                auto_commit=False,
             )
         db.commit()
 

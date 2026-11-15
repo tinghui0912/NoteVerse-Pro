@@ -139,6 +139,7 @@ class ImportReviewService:
         )
         business_committed = False
         try:
+            await db.commit()
             stored = await write_object_async(
                 db,
                 self.async_storage,
@@ -154,7 +155,9 @@ class ImportReviewService:
                 revision_uuid=revision_uuid,
             )
         except Exception:
+            await db.rollback()
             await storage_usage_service.release_reservation(db, reservation.reservation_id)
+            await db.commit()
             raise
 
         try:
@@ -178,6 +181,7 @@ class ImportReviewService:
                 existing = await db.get(Score, job.score_id)
                 if existing is not None:
                     await storage_usage_service.release_reservation(db, reservation.reservation_id)
+                    await db.commit()
                     return ReviewConfirmRead(score_id=existing.score_uuid)
             if job.user_id != user_id or job.state != ImportJobState.PENDING_REVIEW:
                 raise ConflictException(ErrorCode.VALIDATION_ERROR, {"job_id": job_uuid})
@@ -233,7 +237,6 @@ class ImportReviewService:
                     object_type="upload",
                     object_id=promoted.upload_uuid,
                     storage_key=promoted.storage_key,
-                    auto_commit=False,
                 )
                 await storage_usage_service.record_allocation(
                     db,
@@ -244,7 +247,6 @@ class ImportReviewService:
                     object_type="score_input_asset",
                     object_id=promoted.asset_uuid,
                     storage_key=promoted.storage_key,
-                    auto_commit=False,
                 )
             await ImportJobDeletionService().cleanup_binary_artifacts(db, job, user_id)
             await db.run_sync(
@@ -266,6 +268,7 @@ class ImportReviewService:
             await db.rollback()
             if not business_committed:
                 await storage_usage_service.release_reservation(db, reservation.reservation_id)
+                await db.commit()
             raise
 
         await db.run_sync(catch_up_import_projections_best_effort)
@@ -364,7 +367,6 @@ class ImportReviewService:
                 object_type="import_artifact",
                 object_id=old_artifact_uuid,
                 storage_key=old_storage_key,
-                auto_commit=False,
             )
             await storage_usage_service.record_allocation(
                 db,
@@ -375,7 +377,6 @@ class ImportReviewService:
                 object_type="import_artifact",
                 object_id=artifact.artifact_uuid,
                 storage_key=stored.object_key,
-                auto_commit=False,
             )
             await db.commit()
         except Exception:

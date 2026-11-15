@@ -81,7 +81,6 @@ class DerivedAssetRetentionService:
                     object_type="score_render_asset",
                     object_id=asset_uuid,
                     storage_key=storage_key,
-                    auto_commit=False,
                 )
             for asset_uuid, storage_key, size_bytes in audio_usage:
                 await storage_usage_service.record_release(
@@ -93,7 +92,6 @@ class DerivedAssetRetentionService:
                     object_type="score_playback_asset",
                     object_id=asset_uuid,
                     storage_key=storage_key,
-                    auto_commit=False,
                 )
         operations = await retire_after_release(
             db, *(asset.stored_object_id for asset in rendered_pages + playback_assets)
@@ -170,7 +168,6 @@ class DerivedAssetRetentionService:
                     object_type="score_render_asset",
                     object_id=asset_uuid,
                     storage_key=storage_key,
-                    auto_commit=False,
                 )
             for asset_uuid, storage_key, size_bytes in audio_usage:
                 storage_usage_service.record_release_sync(
@@ -182,7 +179,6 @@ class DerivedAssetRetentionService:
                     object_type="score_playback_asset",
                     object_id=asset_uuid,
                     storage_key=storage_key,
-                    auto_commit=False,
                 )
         operations = retire_released_objects(
             db, *(asset.stored_object_id for asset in rendered_pages + playback_assets)

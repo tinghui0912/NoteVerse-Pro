@@ -130,7 +130,6 @@ class ImportJobDeletionService:
                 object_type=kind,
                 object_id=identity,
                 storage_key=key,
-                auto_commit=False,
             )
 
     async def _orphan_uploads_after_job_delete(
