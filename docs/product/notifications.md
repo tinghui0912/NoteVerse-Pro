@@ -19,6 +19,9 @@ and unread notifications without turning an invite into a second notification
 record merely to display it.
 
 Scheduled retention removes expired notification history under configured
-lifecycle settings. Notification failure must not change the business outcome.
+lifecycle settings. Revision, Import and invite outcomes admit notification history
+and corresponding realtime rows/wake-ups in their owning business transaction. These
+deterministic database consequences commit or roll back together. External delivery
+and post-commit latency hints do not change the committed business outcome.
 Authorization and deduplication are required at every producer/read boundary.
 See [Score Invite Collaboration](score-invite-collaboration.md).

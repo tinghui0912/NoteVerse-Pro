@@ -174,3 +174,93 @@ def test_invite_terminal_commands_serialize_on_postgres_row(
                 assert membership.revoked_at == revoked_at
             else:
                 assert membership is None
+
+
+@pytest.mark.parametrize("action", ["accept", "decline"])
+@pytest.mark.parametrize("boundary", ["success", "notification", "realtime", "notify", "commit"])
+def test_invite_outcome_and_notification_share_one_transaction(monkeypatch, action, boundary):
+    from app.db.models import NotificationEvent, RealtimeEvent
+    from app.modules.notifications import service as notification_module
+    from app.modules.realtime import publisher
+
+    with postgres_schema_database(monkeypatch) as (engine, config):
+        command.upgrade(config, "head")
+        with Session(engine) as db:
+            db.add_all(
+                [
+                    User(id=1, email="owner@example.com", password_hash="hash"),
+                    User(id=2, email="member@example.com", password_hash="hash"),
+                ]
+            )
+            db.flush()
+            add_active_score_with_head_revision(
+                db,
+                score_id=10,
+                revision_id=11,
+                score_uuid="shared",
+                revision_uuid="head",
+                title="Shared",
+            )
+            db.add(
+                ScoreInvite(
+                    invite_uuid="invitation",
+                    score_id=10,
+                    email="member@example.com",
+                    role=MembershipRole.EDITOR,
+                    token_hash=hash_invite_token("token"),
+                    created_by_user_id=1,
+                )
+            )
+            db.commit()
+        with Session(engine) as db:
+            service = ScoreInviteService()
+            if boundary != "success":
+                if boundary == "commit":
+                    target, name, original = db, "commit", db.flush
+                else:
+                    target, name = {
+                        "notification": (service.notification_service, "admit_event"),
+                        "realtime": (notification_module, "publish_event"),
+                        "notify": (publisher, "_notify_event"),
+                    }[boundary]
+                    original = getattr(target, name)
+
+                def fail(*args, **kwargs):
+                    original(*args, **kwargs)
+                    raise RuntimeError("invite admission interrupted")
+
+                monkeypatch.setattr(target, name, fail)
+
+            def execute():
+                if action == "accept":
+                    service.accept_invite(db, "token", 2)
+                else:
+                    service.decline_pending_invite(db, "invitation", 2)
+
+            if boundary == "success":
+                execute()
+            else:
+                with pytest.raises(RuntimeError, match="invite admission interrupted"):
+                    execute()
+                db.rollback()
+        with Session(engine) as db:
+            invite = db.scalar(select(ScoreInvite))
+            notice = db.scalar(select(NotificationEvent))
+            realtime = db.scalar(select(RealtimeEvent))
+            membership = db.scalar(select(ScoreMembership))
+            if boundary == "success":
+                assert invite.terminal_outcome == (
+                    InviteTerminalOutcome.ACCEPTED
+                    if action == "accept"
+                    else InviteTerminalOutcome.DECLINED
+                )
+                assert (membership is not None) == (action == "accept")
+                assert notice.type == (
+                    "score_invite.accepted" if action == "accept" else "score_invite.declined"
+                )
+                assert notice.recipient_user_id == 1 and notice.actor_user_id == 2
+                assert realtime.type == "notification.created"
+                assert realtime.resource_id == notice.notification_uuid
+            else:
+                assert invite.terminal_outcome is None and membership is None
+                assert notice is None and realtime is None

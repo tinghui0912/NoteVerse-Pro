@@ -1,6 +1,5 @@
 """Celery task entrypoints for NoteVerse background work."""
 
-from app.worker.execution.domain_projections import execute_domain_projection_maintenance
 from app.worker.execution.revision_metadata import (
     execute_revision_metadata_task,
     execute_revision_metadata_maintenance,
@@ -169,9 +168,3 @@ def object_write_cleanup_task(self: CeleryTaskLike, intent_uuid: str) -> dict[st
 @celery_app.task(name="app.worker.tasks.run_object_write_cleanup_maintenance")
 def run_object_write_cleanup_maintenance() -> dict[str, int]:
     return execute_object_write_cleanup_maintenance()
-
-
-@celery_app.task(name="app.worker.tasks.run_domain_projection_maintenance")
-def run_domain_projection_maintenance() -> dict[str, int]:
-    """Catch up named durable database projections from the business fact journal."""
-    return execute_domain_projection_maintenance()

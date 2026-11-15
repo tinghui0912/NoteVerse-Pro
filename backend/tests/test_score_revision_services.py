@@ -827,16 +827,10 @@ def test_review_confirm_creates_active_score_once(
             requested_options={"title": "Confirmed Score"},
         )
     )
-    from app.modules.domain_events.journal import append_fact
-    from app.modules.import_jobs.events import ImportJobCompleted
 
-    append_fact(
-        session,
-        ImportJobCompleted(
-            job_id="job-confirm-review", recipient_user_id=1, requested_title="Confirmed Score"
-        ),
-        occurred_at=utc_now_naive(),
-    )
+    from app.modules.import_jobs.notifications import admit_import_outcome
+
+    admit_import_outcome(session, session.get(ImportJob, 14), created_at=utc_now_naive())
     session.flush()
     session.add(ImportDispatch(job_id=14, status=ImportDispatchStatus.COMPLETED))
     session.commit()
@@ -1881,9 +1875,6 @@ def test_collaborator_revision_save_notifies_score_owner(
         RevisionCreateRequest(content=MUSICXML_2, expected_head_revision_id="collab-base-revision"),
     )
 
-    from app.modules.revisions.projections import catch_up_revision_projections
-
-    catch_up_revision_projections(session)
     notification = one_row(
         session,
         NotificationEvent,
@@ -1899,7 +1890,6 @@ def test_collaborator_revision_save_notifies_score_owner(
     assert one_row(session, ScoreRevision, revision_uuid=created.revision_id) is not None
     actor = session.get(User, 2)
     assert actor is not None
-    catch_up_revision_projections(session)
     assert (
         count_rows(
             session,
@@ -2041,9 +2031,7 @@ def test_invite_acceptance_creates_editable_membership(
     )
     assert stored_membership.role == MembershipRole.EDITOR
     assert stored_invite.terminal_outcome == InviteTerminalOutcome.ACCEPTED
-    from app.modules.revisions.projections import catch_up_revision_projections
 
-    catch_up_revision_projections(session)
     notification = one_row(
         session,
         NotificationEvent,
@@ -2166,9 +2154,7 @@ def test_user_pending_invites_can_be_declined(
     assert declined.status == InviteStatus.DECLINED
     assert stored_invite.terminal_outcome == InviteTerminalOutcome.DECLINED
     assert stored_invite.terminal_at is not None
-    from app.modules.revisions.projections import catch_up_revision_projections
 
-    catch_up_revision_projections(session)
     notification = one_row(
         session,
         NotificationEvent,

@@ -45,8 +45,8 @@ def test_revision_writer_is_a_transaction_participant_admitting_all_durable_work
         "ScoreRevisionSource",
         "ScoreRevisionMetadata",
         "RevisionMetadataOutbox",
-        "ScoreRevisionCreated",
-        "append_fact",
+        "publish_event",
+        "score_recipients",
         "create_revision_render_outbox",
         "create_playback_outbox",
     }
@@ -69,21 +69,6 @@ def test_use_cases_delegate_revision_admission_and_only_hint_after_commit():
                     "app.modules.revisions.derived_asset_retention_service",
                 }
             )
-
-
-def test_revision_projection_handlers_are_database_only():
-    from app.modules.revisions.projections import REVISION_PROJECTIONS
-
-    assert {p.name for p in REVISION_PROJECTIONS} == {
-        "revision_notifications_v1",
-        "revision_realtime_v1",
-    }
-    tree = ast.parse((ROOT / "modules/revisions/projections.py").read_text())
-    assert not any(
-        isinstance(node, ast.Attribute)
-        and node.attr in {"commit", "read_bytes", "send_task", "send_email"}
-        for node in ast.walk(tree)
-    )
 
 
 def test_executable_seed_and_smoke_paths_delegate_to_the_canonical_writer():

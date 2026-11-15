@@ -21,9 +21,9 @@ RESTORE ScoreRevisionEvent with the new revision. Notes remain separate commands
 
 A created revision transaction includes source adoption, initial PENDING metadata,
 render/playback/metadata outboxes, head/version, SOURCE reservation accounting,
-restore audit when applicable and ScoreRevisionCreated. Outer rollback discards all
-semantic writes; callers release the rolled-back reservation. ScoreRevisionEvent is
-revision product/audit history; DomainEvent is a cross-module committed fact.
+restore audit when applicable and notification/realtime consequences for non-initial
+revisions. Outer rollback discards all semantic writes; callers release the rolled-back
+reservation. ScoreRevisionEvent retains revision product/audit history.
 
 Review confirmation retains ImportDispatch → ImportJob → new Score lock order.
 Writer participates with Score creation, thumbnail/input promotion, input accounting,
@@ -32,17 +32,16 @@ temporary binary cleanup stay in the Review/Import use case.
 
 ## Durable downstream work
 
-ScoreRevisionCreated has type `score.revision.created`, version 1, aggregate `score`
-and dedupe key `score.revision.created:{revision_uuid}`. Its typed facts include
-external Score/revision IDs, number, actor identity/name, origin, initial/restore
-lineage, Score title and fact-time participant IDs. It stores no presentation copy.
-Initial revisions record facts without version-saved notification/realtime output.
+For each new non-initial revision, Writer resolves the current owner and active-member
+audience inside the revision transaction. Non-actor participants receive version-saved
+NotificationEvent rows and notification.created realtime wake-ups; all participants,
+including the actor, receive score.revision.created realtime rows. Initial revisions
+produce neither version-saved notifications nor revision-created realtime.
 
-`revision_notifications_v1` creates version-saved notifications for non-actor
-participants and notification.created wake-ups. `revision_realtime_v1` creates
-score.revision.created for the captured audience. Each commits DB writes with an
-independent checkpoint; five-second Domain Event maintenance recovers failures
-without recreating a revision. Projection handlers never read ObjectStorage.
+Notification admission and transactional pg_notify are strict transaction participants.
+A failure rolls back the revision, source adoption, accounting, outboxes and all partial
+notification/realtime writes together. Idempotent or same-content admissions do not
+repeat these consequences. Membership changes after commit do not alter stored recipients.
 
 One RevisionMetadataOutbox per new revision owns execution, separately from the read
 row. It stores source fingerprint, request/trace correlation and shared durable
@@ -58,9 +57,6 @@ or NOTIFY failure rolls back metadata result and delivery completion together; t
 worker may then fail the same processing lease in a new transaction for retry.
 This includes semantic FAILED metadata results as well as READY results.
 
-Explicit best-effort notification wake-ups use their separate outer policy API;
-that policy is not an authoritative metadata transaction participant.
-
 MetadataExtractionError is a semantic FAILED result with stable error code, completing
 delivery successfully. Storage/read/infrastructure exceptions retry delivery, leaving
 metadata PENDING until a result exists. Missing/mismatched canonical source is also
@@ -73,10 +69,9 @@ computes inline or creates a parallel metadata/source admission path. In-flight
 DISPATCHED/PROCESSING work cannot be rearmed by that command. Integration seed and
 derived-asset smoke setup also use Writer with prepared canonical sources.
 
-Post-commit render/playback/metadata relay and projection catch-up are latency hints.
+Post-commit render/playback/metadata relays are latency hints.
 Durable evidence already exists. Retention is background reconciliation under current
 head demand, not request-path cleanup. There is no universal revision/background runner.
 
-See [Domain Events](domain-events-and-projections.md),
-[durable delivery](durable-asynchronous-delivery.md) and
+See [durable delivery](durable-asynchronous-delivery.md) and
 [revision derivatives](revision-derivatives.md).

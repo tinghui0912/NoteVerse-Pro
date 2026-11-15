@@ -24,9 +24,7 @@ from app.db.models import (
 )
 from app.db.models.import_job import ImportJobState
 from app.modules.import_jobs.deletion_service import ImportJobDeletionService
-from app.modules.import_jobs.events import ImportJobConfirmed
-from app.modules.domain_events.journal import append_fact
-from app.modules.import_jobs.projections import catch_up_import_projections_best_effort
+from app.modules.import_jobs.notifications import enrich_completed_import_notification
 from app.modules.score_assets.render_outbox_service import (
     create_review_thumbnail_render_outbox,
 )
@@ -246,15 +244,8 @@ class ImportReviewService:
                     storage_key=promoted.storage_key,
                 )
             ImportJobDeletionService().cleanup_binary_artifacts(db, job, user_id)
-            append_fact(
-                db,
-                ImportJobConfirmed(
-                    job_id=job_uuid,
-                    recipient_user_id=user_id,
-                    score_id=score_uuid,
-                    score_title=title,
-                ),
-                occurred_at=now,
+            enrich_completed_import_notification(
+                db, job_id=job_uuid, user_id=user_id, score_id=score_uuid, score_title=title
             )
             db.commit()
             business_committed = True
@@ -266,7 +257,6 @@ class ImportReviewService:
                 db.commit()
             raise
 
-        catch_up_import_projections_best_effort(db)
         return ReviewConfirmRead(score_id=score_uuid)
 
     def update(

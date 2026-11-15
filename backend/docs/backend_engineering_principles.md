@@ -156,9 +156,9 @@ Owns the pre-Score human review boundary:
 - returning original images, preview images, and review MusicXML by `job_id`;
 - updating the temporary review MusicXML artifact through `PATCH /import-jobs/{job_id}/review`;
 - confirming review and creating the first active Score;
-- atomically linking the Score to ImportJob and recording ImportJobConfirmed;
+- atomically linking the Score to ImportJob and enriching its retained completed notification;
 - releasing temporary Import ownership within confirmation;
-- projecting confirmation into import notification navigation fields.
+- updating retained import notification navigation fields inside confirmation.
 
 Do not expose review as a Score route. Do not create Score revisions when editing review
 artifacts. Do not allow Guest Preview, invites or practice to target unconfirmed

@@ -186,8 +186,6 @@ class ScoreInviteService:
         invite.terminal_outcome = InviteTerminalOutcome.DECLINED
         invite.terminal_at = now
         invite.terminal_actor_user_id = user_id
-        db.commit()
-        db.refresh(invite)
         score = db.get(Score, invite.score_id)
         if score:
             self._notify_invite_response(
@@ -199,6 +197,8 @@ class ScoreInviteService:
                 title="Invite declined",
                 action="declined",
             )
+        db.commit()
+        db.refresh(invite)
         return self._pending_invite_read(db, invite)
 
     def _accept_invite_record(
@@ -214,8 +214,6 @@ class ScoreInviteService:
             invite.terminal_outcome = InviteTerminalOutcome.ACCEPTED
             invite.terminal_actor_user_id = user_id
             invite.terminal_at = now
-            db.commit()
-            db.refresh(invite)
             self._notify_invite_response(
                 db,
                 invite=invite,
@@ -225,6 +223,8 @@ class ScoreInviteService:
                 title="Invite accepted",
                 action="accepted",
             )
+            db.commit()
+            db.refresh(invite)
             return InviteAcceptRead(
                 score_id=score.score_uuid,
                 role=MembershipRole.EDITOR,
@@ -254,9 +254,6 @@ class ScoreInviteService:
         invite.terminal_outcome = InviteTerminalOutcome.ACCEPTED
         invite.terminal_actor_user_id = user_id
         invite.terminal_at = now
-        db.commit()
-        db.refresh(membership)
-        db.refresh(invite)
         self._notify_invite_response(
             db,
             invite=invite,
@@ -266,6 +263,9 @@ class ScoreInviteService:
             title="Invite accepted",
             action="accepted",
         )
+        db.commit()
+        db.refresh(membership)
+        db.refresh(invite)
         return InviteAcceptRead(
             score_id=score.score_uuid,
             role=membership.role,
@@ -406,7 +406,7 @@ class ScoreInviteService:
         action: str,
     ) -> None:
         actor_name = actor.display_name or actor.email
-        self.notification_service.create_event_best_effort(
+        self.notification_service.admit_event(
             db,
             recipient_user_id=invite.created_by_user_id,
             actor_user_id=require_persisted_id(actor.id, entity="user"),

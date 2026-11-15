@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import Any
 
 from app.core.config import Settings
-from app.modules.domain_events.policy import PROJECTION_SCAN_INTERVAL_SECONDS
 from app.modules.revisions.metadata_policy import METADATA_SCAN_INTERVAL_SECONDS
 
 
@@ -25,10 +24,6 @@ def build_beat_schedule(settings: Settings) -> BeatSchedule:
         "revision-metadata-maintenance": {
             "task": "app.worker.tasks.run_revision_metadata_maintenance",
             "schedule": METADATA_SCAN_INTERVAL_SECONDS,
-        },
-        "domain-projection-maintenance": {
-            "task": "app.worker.tasks.run_domain_projection_maintenance",
-            "schedule": PROJECTION_SCAN_INTERVAL_SECONDS,
         },
         "job-maintenance-every-five-minutes": {
             "task": "app.worker.tasks.run_job_maintenance",

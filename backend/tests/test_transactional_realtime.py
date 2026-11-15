@@ -39,16 +39,30 @@ def test_strict_event_persistence_propagates_notify_failure_after_flush(monkeypa
     db.rollback.assert_not_called()
 
 
-def test_explicit_notification_best_effort_policy_delegates_and_rolls_back(monkeypatch):
-    db = Mock(commit=Mock(), rollback=Mock())
-    persist = Mock(side_effect=RuntimeError("notification hint unavailable"))
-    monkeypatch.setattr(publisher, "publish_event", persist)
-    publisher.publish_event_best_effort(
-        db, recipient_user_id=7, type="notification.created", payload={}
-    )
+def test_notification_admission_propagates_publication_failure_without_owning_transaction(
+    monkeypatch,
+):
+    from app.modules.notifications import service as notifications
+
+    db = Mock()
+    failure = RuntimeError("notification publication unavailable")
+    persist = Mock(side_effect=failure)
+    monkeypatch.setattr(notifications, "publish_event", persist)
+    with pytest.raises(RuntimeError) as raised:
+        notifications.NotificationService().admit_event(
+            db,
+            recipient_user_id=7,
+            actor_user_id=None,
+            type="system",
+            resource_type="score",
+            title="Notice",
+        )
+    assert raised.value is failure
+    db.add.assert_called_once()
+    db.flush.assert_called_once()
     persist.assert_called_once()
-    db.rollback.assert_called_once()
     db.commit.assert_not_called()
+    db.rollback.assert_not_called()
 
 
 def test_authoritative_durable_outcomes_select_strict_realtime_persistence():

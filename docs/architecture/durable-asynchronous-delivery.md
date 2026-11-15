@@ -17,11 +17,9 @@ lease/source validation. Semantic extraction failure completes delivery with a F
 metadata result; infrastructure failure retries. Five-second metadata maintenance
 relays missed work and recovers leases. See [revision writes](revision-writes.md).
 
-[Domain Event projectors](domain-events-and-projections.md) create durable database
-representations or outboxes from committed business facts. Their named checkpoints
-commit with projection writes and have no delivery status, attempt or lease.
-DurableDeliveryLifecycle governs external execution of domain-owned outboxes; it is
-independent of journal/checkpoint processing.
+Owning business transactions admit their deterministic same-database consequences,
+including notification history and realtime wake-ups. DurableDeliveryLifecycle governs
+external execution of domain-owned outboxes.
 
 `backend/app/modules/async_operations/durable_delivery.py` owns the shared lifecycle.
 `DeliveryRecord` is a narrow structural protocol, not an ORM base. `DeliveryStatuses`
@@ -92,7 +90,7 @@ Domain responsibilities remain explicit:
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Render / Playback       | Revision presentation demand, SUPERSEDED, resource admission, asset short circuits, payloads, revision/score locks and diagnostic classification          |
 | Mail                    | Expiry, EXPIRED/PERMANENT_FAILURE decisions, body availability and scrubbing, recipients, provider message identity and mail diagnostics; success is SENT |
-| Import                  | Job admission/exhaustion, upload availability, Dispatch-before-Job lock order, execution payload and terminal DomainEvents |
+| Import                  | Job admission/exhaustion, upload availability, Dispatch-before-Job lock order, execution payload and transactional terminal notification/realtime consequences |
 | Score deletion          | Score graph cleanup, resource/operation identity and lock order |
 | StoredObject retirement | Repo-wide reference checks, exact physical snapshots, CANCELLED when ownership exists, attempt-token fencing and physical deletion; success is COMPLETED  |
 

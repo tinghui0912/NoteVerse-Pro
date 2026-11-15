@@ -1,7 +1,7 @@
 from __future__ import annotations
 from app.modules.account.avatar_presentation import avatar_url_for_user
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 from sqlalchemy.exc import IntegrityError
@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.exceptions import ResourceNotFoundException, UnauthorizedException
-from app.core.logger import logger
 from app.db.models import NotificationEvent, User
 from app.modules.notifications.repository import NotificationRepository
 from app.modules.notifications.schemas import (
@@ -18,7 +17,7 @@ from app.modules.notifications.schemas import (
     NotificationUnreadCountRead,
 )
 from app.shared.constants import ErrorCode
-from app.modules.realtime.publisher import RealtimeEventTypes, publish_event_best_effort
+from app.modules.realtime.publisher import RealtimeEventTypes, publish_event
 from app.utils.timezone import utc_now_naive
 
 PUBLIC_NOTIFICATION_DATA_KEYS = frozenset(
@@ -51,6 +50,55 @@ class NotificationService:
     def __init__(self, repository: NotificationRepository | None = None) -> None:
         self.repository = repository or NotificationRepository()
 
+    def admit_event(
+        self,
+        db: Session,
+        *,
+        recipient_user_id: int,
+        actor_user_id: int | None,
+        type: str,
+        resource_type: str,
+        title: str,
+        body: str | None = None,
+        resource_id: str | None = None,
+        score_id: str | None = None,
+        data: dict[str, Any] | None = None,
+        dedupe_key: str | None = None,
+        created_at: datetime | None = None,
+    ) -> NotificationEvent | None:
+        """Admit notification history and its wake-up in the caller's transaction."""
+        if actor_user_id == recipient_user_id:
+            return None
+        if dedupe_key:
+            existing = self.repository.by_dedupe_key(db, dedupe_key)
+            if existing is not None:
+                return existing
+        event = NotificationEvent(
+            recipient_user_id=recipient_user_id,
+            actor_user_id=actor_user_id,
+            type=type,
+            dedupe_key=dedupe_key,
+            resource_type=resource_type,
+            resource_id=resource_id,
+            score_id=score_id,
+            title=title,
+            body=body,
+            data=data or {},
+            created_at=created_at if created_at is not None else utc_now_naive(),
+        )
+        db.add(event)
+        db.flush()
+        publish_event(
+            db,
+            recipient_user_id=recipient_user_id,
+            type=RealtimeEventTypes.NOTIFICATION_CREATED,
+            resource_type="notification",
+            resource_id=event.notification_uuid,
+            score_id=score_id,
+            payload={},
+        )
+        return event
+
     def create_event(
         self,
         db: Session,
@@ -66,66 +114,32 @@ class NotificationService:
         data: dict[str, Any] | None = None,
         dedupe_key: str | None = None,
     ) -> NotificationEventRead | None:
-        if actor_user_id == recipient_user_id:
-            return None
-        if dedupe_key:
-            existing = self.repository.by_dedupe_key(db, dedupe_key)
-            if existing:
-                return self._event_read(db, existing)
-        event = NotificationEvent(
-            recipient_user_id=recipient_user_id,
-            actor_user_id=actor_user_id,
-            type=type,
-            dedupe_key=dedupe_key,
-            resource_type=resource_type,
-            resource_id=resource_id,
-            score_id=score_id,
-            title=title,
-            body=body,
-            data=data or {},
-            created_at=utc_now_naive(),
-        )
-        db.add(event)
+        """Own a standalone notification admission transaction."""
         try:
+            event = self.admit_event(
+                db,
+                recipient_user_id=recipient_user_id,
+                actor_user_id=actor_user_id,
+                type=type,
+                resource_type=resource_type,
+                title=title,
+                body=body,
+                resource_id=resource_id,
+                score_id=score_id,
+                data=data,
+                dedupe_key=dedupe_key,
+            )
+            if event is None:
+                return None
             db.commit()
         except IntegrityError:
             db.rollback()
             if dedupe_key:
                 existing = self.repository.by_dedupe_key(db, dedupe_key)
-                if existing:
+                if existing is not None:
                     return self._event_read(db, existing)
             raise
-        db.refresh(event)
-        event_read = self._event_read(db, event)
-        publish_event_best_effort(
-            db,
-            recipient_user_id=recipient_user_id,
-            type=RealtimeEventTypes.NOTIFICATION_CREATED,
-            resource_type="notification",
-            resource_id=event.notification_uuid,
-            score_id=score_id,
-            payload={},
-        )
-        return event_read
-
-    def create_event_best_effort(
-        self,
-        db: Session,
-        **kwargs,
-    ) -> NotificationEventRead | None:
-        try:
-            return self.create_event(db, **kwargs)
-        except Exception:
-            db.rollback()
-            logger.bind(
-                event="notification.event.create_failed",
-                notification_type=kwargs.get("type"),
-                recipient_user_id=kwargs.get("recipient_user_id"),
-                resource_type=kwargs.get("resource_type"),
-                resource_id=kwargs.get("resource_id"),
-                score_id=kwargs.get("score_id"),
-            ).opt(exception=True).warning("Notification event creation failed")
-            return None
+        return self._event_read(db, event)
 
     def list_for_user(
         self, db: Session, user_id: int, *, limit: int = 50
@@ -200,3 +214,6 @@ class NotificationService:
             email=user.email,
             avatar_url=avatar_url_for_user(user),
         )
+
+
+notification_service = NotificationService()

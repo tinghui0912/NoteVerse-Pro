@@ -26,9 +26,8 @@ from app.modules.storage_usage.service import storage_usage_service
 from app.modules.score_assets.render_outbox_service import create_revision_render_outbox
 from app.modules.playback.outbox_service import create_playback_outbox
 from app.modules.revisions.derivatives import RevisionDerivativeOutboxes
-from app.modules.revisions.events import ScoreRevisionCreated
-from app.modules.domain_events.journal import append_fact
-from app.modules.realtime.publisher import score_recipients
+from app.modules.realtime.publisher import score_recipients, publish_event, RealtimeEventTypes
+from app.modules.notifications.service import notification_service, NotificationTypes
 from app.shared.constants import ErrorCode
 from app.utils.timezone import utc_now_naive
 
@@ -238,22 +237,32 @@ class RevisionWriter:
         actor = db.get(User, command.actor_user_id)
         if actor is None:
             raise ValueError("Revision actor must exist")
-        append_fact(
-            db,
-            ScoreRevisionCreated(
-                score_id=score.score_uuid,
-                revision_id=revision.revision_uuid,
-                revision_number=number,
-                actor_user_id=command.actor_user_id,
-                actor_name=actor.display_name or actor.email,
-                score_title=score.title,
-                origin=origin,
-                is_initial=initial,
-                restored_from_revision_id=target.revision_uuid if target else None,
-                audience_user_ids=tuple(sorted(score_recipients(db, score.score_uuid))),
-            ),
-            occurred_at=now,
-        )
+        if not initial:
+            for recipient in score_recipients(db, score.score_uuid):
+                notification_service.admit_event(
+                    db,
+                    recipient_user_id=recipient,
+                    actor_user_id=command.actor_user_id,
+                    type=NotificationTypes.SCORE_VERSION_CREATED,
+                    resource_type="score",
+                    resource_id=score.score_uuid,
+                    score_id=score.score_uuid,
+                    title="Score version saved",
+                    body=f"{actor.display_name or actor.email} saved a new version of {score.title}.",
+                    data={"score_title": score.title},
+                    dedupe_key=f"{NotificationTypes.SCORE_VERSION_CREATED}:{revision.revision_uuid}:{recipient}",
+                    created_at=now,
+                )
+                publish_event(
+                    db,
+                    recipient_user_id=recipient,
+                    type=RealtimeEventTypes.SCORE_REVISION_CREATED,
+                    resource_type="score",
+                    resource_id=score.score_uuid,
+                    score_id=score.score_uuid,
+                    revision_id=revision.revision_uuid,
+                    payload={},
+                )
         db.flush()
         return RevisionWriteResult(
             revision,

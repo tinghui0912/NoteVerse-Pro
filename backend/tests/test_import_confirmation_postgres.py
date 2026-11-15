@@ -1,7 +1,6 @@
-"""Import confirmation commits provenance, revision admission, facts and release together."""
+"""Import confirmation commits provenance, revision admission, notification enrichment and release together."""
 
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import replace
 from queue import Queue
 from threading import Event, Barrier
 from time import monotonic
@@ -37,14 +36,10 @@ from app.db.models import (
     RealtimeEvent,
 )
 from app.db.models.import_job import ImportJobState
-from app.db.models.domain_event import DomainEvent, DomainProjectionCheckpoint
 from app.modules.import_jobs.review import service as review
 from app.modules.import_jobs.review.schemas import ReviewConfirmRequest
 from app.modules.import_jobs.service import ImportJobService
-from app.modules.import_jobs.events import ImportJobCompleted, ImportJobConfirmed
-from app.modules.import_jobs.projections import IMPORT_PROJECTIONS, project_import_notification
-from app.modules.domain_events.journal import append_fact
-from app.modules.domain_events.projections import run_projection_batch, run_projections
+from app.modules.import_jobs.notifications import admit_import_outcome
 from app.modules.storage_objects.persistence import object_from_bytes
 from app.modules.storage_usage.service import storage_usage_service
 from app.core.exceptions import ResourceNotFoundException, ValidationException
@@ -122,11 +117,7 @@ def confirmation(monkeypatch):
                 reason="fixture",
                 object_type="upload",
             )
-            append_fact(
-                db,
-                ImportJobCompleted(job_id="job", recipient_user_id=1, requested_title="Etudes"),
-                occurred_at=utc_now_naive(),
-            )
+            admit_import_outcome(db, job, created_at=utc_now_naive())
             db.commit()
 
         def latency_only(*args):
@@ -161,7 +152,8 @@ def snapshot(db):
         PlaybackOutbox,
         RevisionMetadataOutbox,
         ScoreInputAsset,
-        DomainEvent,
+        NotificationEvent,
+        RealtimeEvent,
     )
     return {
         model.__tablename__: list(
@@ -173,7 +165,7 @@ def snapshot(db):
     }
 
 
-@pytest.mark.parametrize("stage", ["writer", "confirmed", "release", "fact", "commit"])
+@pytest.mark.parametrize("stage", ["writer", "confirmed", "release", "enrichment", "commit"])
 def test_confirmation_semantic_transaction_rolls_back_at_every_boundary(
     confirmation, monkeypatch, stage
 ):
@@ -203,14 +195,14 @@ def test_confirmation_semantic_transaction_rolls_back_at_every_boundary(
             interrupted()
 
         monkeypatch.setattr(review.ImportJobDeletionService, "cleanup_binary_artifacts", release)
-    if stage == "fact":
-        original = review.append_fact
+    if stage == "enrichment":
+        original = review.enrich_completed_import_notification
 
         def append(*args, **kwargs):
             original(*args, **kwargs)
             interrupted()
 
-        monkeypatch.setattr(review, "append_fact", append)
+        monkeypatch.setattr(review, "enrich_completed_import_notification", append)
 
     with Session(engine, expire_on_commit=False) as db:
         adapter = db
@@ -219,11 +211,7 @@ def test_confirmation_semantic_transaction_rolls_back_at_every_boundary(
 
             def commit():
                 if db.scalar(sa.select(ImportJob)).state == ImportJobState.CONFIRMED:
-                    assert db.scalar(
-                        sa.select(DomainEvent).where(
-                            DomainEvent.event_type == ImportJobConfirmed.event_type
-                        )
-                    )
+                    assert db.scalar(sa.select(NotificationEvent)).score_id is not None
                     interrupted()
                 original()
 
@@ -245,38 +233,11 @@ def test_confirmation_semantic_transaction_rolls_back_at_every_boundary(
         assert all(not storage.exists(row.object_key) for row in intents)
 
 
-def test_confirmation_projection_replays_and_recovers_independently(confirmation):
+def test_confirmation_enriches_retained_notification_in_its_transaction(confirmation):
     engine, storage = confirmation
     score_id = confirm(engine, storage)
     assert confirm(engine, storage) == score_id
     with Session(engine) as db:
-        # Rebuild only the notification representation/checkpoint from journal truth.
-        db.execute(sa.delete(NotificationEvent))
-        db.execute(sa.delete(RealtimeEvent))
-        db.execute(sa.delete(DomainProjectionCheckpoint))
-        db.commit()
-        assert run_projection_batch(db, IMPORT_PROJECTIONS[0], batch_size=1) == 1
-        checkpoint = db.get(DomainProjectionCheckpoint, "import_notifications_v1").last_event_id
-
-        def interrupted(db, event, fact):
-            project_import_notification(db, event, fact)
-            if isinstance(fact, ImportJobConfirmed):
-                db.flush()
-                raise RuntimeError("enrichment interrupted")
-
-        with pytest.raises(ExceptionGroup):
-            run_projections(
-                db, (replace(IMPORT_PROJECTIONS[0], handle=interrupted), IMPORT_PROJECTIONS[1])
-            )
-        assert (
-            db.get(DomainProjectionCheckpoint, "import_notifications_v1").last_event_id
-            == checkpoint
-        )
-        assert db.scalar(sa.select(NotificationEvent)).score_id is None
-        assert db.get(DomainProjectionCheckpoint, "import_realtime_v1").last_event_id > checkpoint
-        assert db.scalar(sa.select(ImportJob)).state == ImportJobState.CONFIRMED
-        run_projections(db, IMPORT_PROJECTIONS)
-        run_projections(db, IMPORT_PROJECTIONS)
         notifications = list(db.scalars(sa.select(NotificationEvent)))
         assert len(notifications) == 1
         assert notifications[0].score_id == score_id
@@ -286,31 +247,23 @@ def test_confirmation_projection_replays_and_recovers_independently(confirmation
             "score_id": score_id,
             "score_title": "Etudes",
         }
-        assert (
-            db.scalar(
-                sa.select(sa.func.count())
-                .select_from(DomainEvent)
-                .where(DomainEvent.event_type == ImportJobConfirmed.event_type)
-            )
-            == 1
-        )
-        assert {row.type for row in db.scalars(sa.select(RealtimeEvent))} == {
-            "notification.created",
+        assert sorted(row.type for row in db.scalars(sa.select(RealtimeEvent))) == [
             "import_job.completed",
-        }
+            "notification.created",
+        ]
 
 
-def test_confirmation_projection_requires_completed_evidence(confirmation):
+def test_confirmation_succeeds_without_expired_notification_history(confirmation):
     engine, storage = confirmation
-    confirm(engine, storage)
     with Session(engine) as db:
-        event = db.scalar(
-            sa.select(DomainEvent).where(DomainEvent.event_type == ImportJobConfirmed.event_type)
-        )
         db.execute(sa.delete(NotificationEvent))
         db.commit()
-        with pytest.raises(RuntimeError, match="requires its completed"):
-            project_import_notification(db, event, ImportJobConfirmed.model_validate(event.payload))
+    score_id = confirm(engine, storage)
+    with Session(engine) as db:
+        assert db.scalar(sa.select(ImportJob)).state == ImportJobState.CONFIRMED
+        assert db.scalar(sa.select(Score)).score_uuid == score_id
+        assert db.scalar(sa.select(NotificationEvent)) is None
+        assert db.scalar(sa.select(sa.func.count()).select_from(RealtimeEvent)) == 2
 
 
 def test_concurrent_confirmation_admits_one_complete_import_transaction(confirmation, monkeypatch):
@@ -338,7 +291,9 @@ def test_concurrent_confirmation_admits_one_complete_import_transaction(confirma
             RevisionMetadataOutbox,
         ):
             assert db.scalar(sa.select(sa.func.count()).select_from(model)) == 1
-        assert db.scalar(sa.select(sa.func.count()).select_from(DomainEvent)) == 3
+        assert db.scalar(sa.select(sa.func.count()).select_from(NotificationEvent)) == 1
+        assert db.scalar(sa.select(NotificationEvent)).score_id == results[0]
+        assert db.scalar(sa.select(sa.func.count()).select_from(RealtimeEvent)) == 2
         assert db.scalar(sa.select(ImportArtifact)) is None
         assert db.scalar(sa.select(ImportJobUpload)) is None
         assert {r.category: r.used_bytes for r in db.scalars(sa.select(StorageUsageCounter))} == {

@@ -7,7 +7,6 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 from sqlmodel import col
 
-from app.core.logger import logger
 from app.db.models import RealtimeEvent, Score, ScoreMembership
 
 REALTIME_NOTIFY_CHANNEL = "realtime_events"
@@ -61,26 +60,6 @@ def score_recipients(db: Session, score_uuid: str) -> list[int]:
         )
     )
     return _unique_user_ids([score.owner_user_id, *member_rows.scalars().all()])
-
-
-def publish_event_best_effort(
-    db: Session,
-    **kwargs: Any,
-) -> None:
-    try:
-        publish_event(db, **kwargs)
-        db.commit()
-    except Exception:
-        db.rollback()
-        logger.bind(
-            event="realtime.event.publish_failed",
-            event_type=kwargs.get("type"),
-            recipient_user_id=kwargs.get("recipient_user_id"),
-            resource_type=kwargs.get("resource_type"),
-            resource_id=kwargs.get("resource_id"),
-            score_id=kwargs.get("score_id"),
-            revision_id=kwargs.get("revision_id"),
-        ).opt(exception=True).warning("Realtime event publish failed")
 
 
 def publish_event(

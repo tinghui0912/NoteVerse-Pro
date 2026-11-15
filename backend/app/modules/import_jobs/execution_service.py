@@ -10,7 +10,6 @@ from app.modules.import_jobs.dispatch_service import (
     require_current_attempt,
 )
 from app.db.session import SessionLocal
-from app.modules.domain_events.journal import DomainEventDedupeConflict
 from app.modules.import_jobs.schemas import (
     ImportJobProcessingOptions,
     PipelineExecutionSuccessResult,
@@ -88,7 +87,7 @@ class ImportJobExecutionService:
                 context.complete()
                 db.commit()
                 return {"success": True, "job_id": job_id}
-        except (StaleImportDispatchAttempt, DomainEventDedupeConflict):
+        except StaleImportDispatchAttempt:
             raise
         except Exception as exc:
             code = self.get_error_code(exc)
@@ -108,7 +107,7 @@ class ImportJobExecutionService:
                         code=code,
                     )
                     db.commit()
-            except (StaleImportDispatchAttempt, DomainEventDedupeConflict):
+            except StaleImportDispatchAttempt:
                 raise
             except Exception:
                 pass

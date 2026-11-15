@@ -37,9 +37,7 @@ from app.modules.async_operations.diagnostics import (
     clear_async_diagnostic,
 )
 from app.modules.import_jobs.schemas import ImportJobProcessingOptions
-from app.modules.domain_events.journal import append_fact
-from app.modules.import_jobs.events import ImportJobFailed
-from app.modules.import_jobs.public_errors import public_import_job_error
+from app.modules.import_jobs.notifications import admit_import_outcome
 from app.shared.constants import ErrorCode
 from app.utils.timezone import utc_now_naive
 
@@ -307,16 +305,7 @@ class ImportDispatchService:
                 attempts=row.attempt_count,
                 max_attempts=None,
             )
-            public_code, _ = public_import_job_error(job)
-            append_fact(
-                db,
-                ImportJobFailed(
-                    job_id=job.job_uuid,
-                    recipient_user_id=job.user_id,
-                    public_failure_code=public_code,
-                ),
-                occurred_at=now,
-            )
+            admit_import_outcome(db, job, created_at=now)
 
     @staticmethod
     def _diagnose(row: ImportDispatch, status: AsyncOperationStatusValue) -> None:

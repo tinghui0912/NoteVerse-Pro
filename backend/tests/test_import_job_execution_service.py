@@ -6,7 +6,6 @@ import pytest
 from celery.exceptions import SoftTimeLimitExceeded
 
 from app.core.exceptions import TimeoutException
-from app.modules.domain_events.journal import DomainEventDedupeConflict
 from app.modules.import_jobs.dispatch_service import (
     ImportExecutionLease,
     StaleImportDispatchAttempt,
@@ -99,77 +98,3 @@ def test_stale_execution_aborts_before_materialization_without_domain_failure():
         service.run_pipeline(Mock(), lease, ["original.png"])
     failure.assert_not_called()
     service.storage.materialize_to_local.assert_not_called()
-
-
-@pytest.mark.parametrize("stage", ["completion", "failure_recording"])
-def test_journal_invariant_conflict_propagates_without_becoming_a_pipeline_outcome(stage):
-    service = ImportJobExecutionService(storage=Mock())
-    service.storage.materialize_to_local.return_value = "/work/score.png"
-    lease = ImportExecutionLease(dispatch_uuid="dispatch", job_uuid="job", attempt=1, token="token")
-    conflict = DomainEventDedupeConflict("Immutable fact conflicts")
-    pipeline, context = Mock(), Mock()
-    failure = Mock()
-    if stage == "completion":
-        context.complete.side_effect = conflict
-    else:
-        pipeline.run.side_effect = TimeoutException()
-        failure.side_effect = conflict
-
-    @contextmanager
-    def database_scope():
-        yield Mock()
-
-    with (
-        patch("app.modules.import_jobs.execution_service.SessionLocal", database_scope),
-        patch("app.modules.import_jobs.execution_service.require_current_attempt"),
-        patch("app.modules.import_jobs.execution_service.bind_import_job_execution_manifest"),
-        patch("app.modules.import_jobs.execution_service.JobContext", return_value=context),
-        patch(
-            "app.modules.import_jobs.execution_service.PipelineBuilder.build", return_value=pipeline
-        ),
-        patch(
-            "app.modules.import_jobs.execution_service.import_job_execution_service.finalize_failure",
-            failure,
-        ),
-        pytest.raises(DomainEventDedupeConflict) as raised,
-    ):
-        service.run_pipeline(Mock(), lease, ["upload"])
-    assert raised.value is conflict
-    assert failure.call_count == (1 if stage == "failure_recording" else 0)
-
-
-def test_worker_preserves_journal_conflict_without_completing_delivery():
-    from contextlib import nullcontext
-    from app.worker.execution import import_job as worker
-
-    lease = ImportExecutionLease(dispatch_uuid="dispatch", job_uuid="job", attempt=1, token="token")
-    payload = SimpleNamespace(
-        lease=lease,
-        job_uuid="job",
-        attempt=1,
-        max_attempts=3,
-        traceparent=None,
-        tracestate=None,
-        originating_request_id=None,
-        storage_keys=["upload"],
-        options=None,
-    )
-    conflict = DomainEventDedupeConflict("Immutable fact conflicts")
-
-    @contextmanager
-    def database_scope():
-        yield Mock()
-
-    with (
-        patch.object(worker, "SessionLocal", database_scope),
-        patch.object(worker, "start_attempt_trace", return_value=nullcontext()),
-        patch.object(worker.import_dispatch_service, "claim", return_value=payload),
-        patch.object(worker.job_execution_service, "run_pipeline", side_effect=conflict),
-        patch.object(worker, "require_current_attempt") as current_attempt,
-        patch.object(worker.import_dispatch_service, "complete") as complete,
-        pytest.raises(DomainEventDedupeConflict) as raised,
-    ):
-        worker.execute_import_dispatch_task(Mock(), "dispatch")
-    assert raised.value is conflict
-    current_attempt.assert_not_called()
-    complete.assert_not_called()

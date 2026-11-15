@@ -24,13 +24,14 @@ from app.modules.async_operations.diagnostics import (
     apply_async_diagnostic,
     clear_async_diagnostic,
 )
-from app.modules.import_jobs.dispatch_service import ImportExecutionLease, require_current_attempt
+from app.modules.import_jobs.dispatch_service import (
+    ImportExecutionLease,
+    require_current_attempt,
+    TERMINAL_IMPORT_STATES,
+)
 from app.modules.import_jobs.repository import ImportJobRepository
 from app.modules.import_jobs.artifact_records import ImportJobStoredArtifactItem
-from app.modules.domain_events.journal import append_fact
-from app.modules.import_jobs.events import ImportJobCompleted, ImportJobFailed
-from app.modules.import_jobs.projections import catch_up_import_projections_best_effort
-from app.modules.import_jobs.public_errors import public_import_job_error
+from app.modules.import_jobs.notifications import admit_import_outcome
 from app.modules.storage_usage.service import storage_usage_service
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from app.modules.score_assets.render_outbox_service import (
@@ -79,6 +80,9 @@ class ImportJobExecutionService:
         total_time_seconds: Optional[int] = None,
     ) -> None:
         job = require_current_attempt(db, lease)
+        if job.state in TERMINAL_IMPORT_STATES:
+            db.commit()
+            return
         now = utc_now_naive()
         job.state = ImportJobState.PENDING_REVIEW
         job.progress = 100
@@ -98,19 +102,8 @@ class ImportJobExecutionService:
                 import_job_id=require_persisted_id(job.id, entity="import job"),
                 source_fingerprint=review_xml.stored_object.sha256,
             )
-        requested_options = job.requested_options if isinstance(job.requested_options, dict) else {}
-        requested_title = requested_options.get("title")
-        append_fact(
-            db,
-            ImportJobCompleted(
-                job_id=job.job_uuid,
-                recipient_user_id=job.user_id,
-                requested_title=requested_title if isinstance(requested_title, str) else None,
-            ),
-            occurred_at=now,
-        )
+        admit_import_outcome(db, job, created_at=now)
         db.commit()
-        catch_up_import_projections_best_effort(db)
 
     def finalize_failure(
         self,
@@ -121,6 +114,9 @@ class ImportJobExecutionService:
         code: Optional[str] = None,
     ) -> None:
         job = require_current_attempt(db, lease)
+        if job.state in TERMINAL_IMPORT_STATES:
+            db.commit()
+            return
         now = utc_now_naive()
         job.state = ImportJobState.FAILURE
         job.progress = 0
@@ -139,18 +135,8 @@ class ImportJobExecutionService:
         job.last_heartbeat_at = now
         job.finished_at = now
         job.updated_at = now
-        public_code, _ = public_import_job_error(job)
-        append_fact(
-            db,
-            ImportJobFailed(
-                job_id=job.job_uuid,
-                recipient_user_id=job.user_id,
-                public_failure_code=public_code,
-            ),
-            occurred_at=now,
-        )
+        admit_import_outcome(db, job, created_at=now)
         db.commit()
-        catch_up_import_projections_best_effort(db)
 
     def upsert_step(
         self,

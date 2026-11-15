@@ -1,4 +1,4 @@
-"""Canonical admission, recovery projections and metadata fencing on real PostgreSQL."""
+"""Canonical admission, transactional consequences and metadata fencing on real PostgreSQL."""
 
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
@@ -39,7 +39,6 @@ from app.db.models import (
 )
 from app.db.models.import_job import ImportJobState
 from app.db.models.score import RevisionOrigin, MetadataStatus
-from app.db.models.domain_event import DomainEvent, DomainProjectionCheckpoint
 from app.modules.revisions import writer as writer_module
 from app.modules.revisions.writer import (
     revision_writer,
@@ -48,13 +47,11 @@ from app.modules.revisions.writer import (
     AppendRevisionWrite,
     RestoreLineage,
 )
-from app.modules.revisions.projections import REVISION_PROJECTIONS
 from app.modules.revisions.metadata_delivery import (
     metadata_delivery,
     compute_metadata,
     MetadataResult,
 )
-from app.modules.domain_events.projections import run_projection_batch, run_projections
 from app.modules.storage_usage.service import storage_usage_service
 from app.modules.storage_objects.writes import write_object
 from app.core.exceptions import ConflictException
@@ -140,7 +137,8 @@ def snapshot(db):
         RenderOutbox,
         PlaybackOutbox,
         RevisionMetadataOutbox,
-        DomainEvent,
+        NotificationEvent,
+        RealtimeEvent,
         StoredObject,
         StorageUsageEvent,
         StorageUsageAccount,
@@ -205,9 +203,10 @@ def test_concurrent_head_writes_serialize_and_idempotency_resolves_in_writer(dat
             RenderOutbox,
             PlaybackOutbox,
             RevisionMetadataOutbox,
-            DomainEvent,
         ):
             assert db.scalar(sa.select(sa.func.count()).select_from(model)) == 2
+        assert db.scalar(sa.select(NotificationEvent)) is None
+        assert db.scalar(sa.select(sa.func.count()).select_from(RealtimeEvent)) == 1
         score = db.scalar(sa.select(Score))
         assert (
             score.version == 2
@@ -219,26 +218,40 @@ def test_concurrent_head_writes_serialize_and_idempotency_resolves_in_writer(dat
         assert all(item["status"] == "cleaned" for item in drain_write_cleanup(db, storage))
 
 
-@pytest.mark.parametrize("failure", ["adopt", "reservation", "event"])
+@pytest.mark.parametrize("failure", ["adopt", "reservation", "notification", "realtime", "notify"])
 def test_writer_outer_rollback_keeps_prewrite_cleanup_owned_and_reservation_releasable(
     database, monkeypatch, failure
 ):
     engine, storage = database
     head = initial(database)
     source = prepare(engine, storage, MUSICXML_2)
-    target, method = (
-        (writer_module, "adopt_written_object")
-        if failure == "adopt"
-        else (
-            (storage_usage_service, "commit_reservation")
-            if failure == "reservation"
-            else (writer_module, "append_fact")
+    from app.modules.realtime import publisher
+
+    with Session(engine) as db:
+        score = db.scalar(sa.select(Score))
+        db.add(
+            ScoreMembership(
+                score_id=score.id, user_id=2, role=MembershipRole.EDITOR, created_by_user_id=1
+            )
         )
-    )
+        db.commit()
+    target, method = {
+        "adopt": (writer_module, "adopt_written_object"),
+        "reservation": (storage_usage_service, "commit_reservation"),
+        "notification": (writer_module.notification_service, "admit_event"),
+        "realtime": (writer_module, "publish_event"),
+        "notify": (publisher, "_notify_event"),
+    }[failure]
     original = getattr(target, method)
 
     def abort(*args, **kwargs):
-        original(*args, **kwargs)
+        result = original(*args, **kwargs)
+        if failure == "notification" and result is None:
+            return result
+        if failure == "realtime" and kwargs["recipient_user_id"] == 1:
+            return result
+        if failure == "notify" and args[1].recipient_user_id == 1:
+            return result
         raise RuntimeError("abort semantic transaction")
 
     monkeypatch.setattr(target, method, abort)
@@ -311,17 +324,14 @@ def test_initial_append_restore_noop_and_history_are_one_boundary(database):
             ),
         )
         db.commit()
-        fact = db.scalar(
-            sa.select(DomainEvent).where(
-                DomainEvent.dedupe_key == f"score.revision.created:{result.revision.revision_uuid}"
-            )
+        assert db.scalar(sa.select(ScoreRevisionEvent)).target_revision_id == db.scalar(
+            sa.select(ScoreRevision.id).where(ScoreRevision.revision_uuid == head)
         )
-        assert fact.payload["restored_from_revision_id"] == head
         assert db.scalar(sa.select(ScoreRevisionEvent)).note == "restored"
         assert result.revision.revision_number == 3
 
 
-def test_revision_projectors_keep_fact_time_audience_and_recover_independently(database):
+def test_revision_consequences_keep_the_transaction_audience(database):
     engine, storage = database
     head = initial(database)
     with Session(engine) as db:
@@ -334,10 +344,29 @@ def test_revision_projectors_keep_fact_time_audience_and_recover_independently(d
         db.commit()
     source = prepare(engine, storage, MUSICXML_2)
     with Session(engine) as db:
-        revision_writer.write(
+        result = revision_writer.write(
             db, AppendRevisionWrite("score", 1, source, head, RevisionOrigin.EDIT)
         )
+        with Session(engine) as observer:
+            assert observer.scalar(sa.select(sa.func.count()).select_from(ScoreRevision)) == 1
+            assert observer.scalar(sa.select(NotificationEvent)) is None
+            assert observer.scalar(sa.select(RealtimeEvent)) is None
         db.commit()
+        for model in (
+            ScoreRevision,
+            ScoreRevisionSource,
+            ScoreRevisionMetadata,
+            RenderOutbox,
+            PlaybackOutbox,
+            RevisionMetadataOutbox,
+        ):
+            assert db.scalar(sa.select(sa.func.count()).select_from(model)) == 2
+        notice = db.scalar(sa.select(NotificationEvent))
+        assert notice.created_at == result.revision.created_at
+        assert notice.title == "Score version saved"
+        assert notice.body == "User 1 saved a new version of Etudes."
+        assert notice.data == {"score_title": "Etudes"}
+        assert db.scalar(sa.select(StorageUsageAccount)).reserved_bytes == 0
         member = db.scalar(sa.select(ScoreMembership))
         member.revoked_at = utc_now_naive()
         db.add(
@@ -350,19 +379,6 @@ def test_revision_projectors_keep_fact_time_audience_and_recover_independently(d
         )
         db.commit()
 
-        def abort(db, event, fact):
-            REVISION_PROJECTIONS[0].handle(db, event, fact)
-            raise RuntimeError("projection retry")
-
-        with pytest.raises(ExceptionGroup):
-            run_projections(
-                db, (replace(REVISION_PROJECTIONS[0], handle=abort), REVISION_PROJECTIONS[1])
-            )
-        assert db.scalar(sa.select(NotificationEvent)) is None
-        assert db.get(DomainProjectionCheckpoint, "revision_notifications_v1") is None
-        assert db.get(DomainProjectionCheckpoint, "revision_realtime_v1").last_event_id > 0
-        run_projection_batch(db, REVISION_PROJECTIONS[0])
-        run_projection_batch(db, REVISION_PROJECTIONS[0])
         notifications = list(db.scalars(sa.select(NotificationEvent)))
         assert len(notifications) == 1 and notifications[0].recipient_user_id == 2
         realtime = list(db.scalars(sa.select(RealtimeEvent)))
@@ -473,7 +489,8 @@ def test_review_confirm_concurrency_uses_one_initial_revision(database, monkeypa
     assert results[0] == results[1]
     with Session(engine) as db:
         assert db.scalar(sa.select(sa.func.count()).select_from(ScoreRevision)) == 1
-        assert db.scalar(sa.select(sa.func.count()).select_from(DomainEvent)) == 2
+        assert db.scalar(sa.select(NotificationEvent)) is None
+        assert db.scalar(sa.select(RealtimeEvent)) is None
         for model in (RenderOutbox, PlaybackOutbox, RevisionMetadataOutbox):
             assert db.scalar(sa.select(sa.func.count()).select_from(model)) == 1
 

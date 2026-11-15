@@ -30,10 +30,10 @@ dispatch through the shared revision producer. Beat relays missed deliveries and
 expired dispatch/processing leases; it is not the normal-path scheduling delay.
 
 RevisionWriter is the sole revision/source/head write boundary and a transaction
-participant. It admits PENDING metadata, render/playback/metadata work and a typed
-ScoreRevisionCreated fact atomically with source accounting. Revision notification
-and revision realtime projectors have independent checkpoints and fact-time audiences.
-Initial facts have no version-saved presentation. Retention is Beat reconciliation.
+participant. It admits PENDING metadata, render/playback/metadata work and non-initial
+notification/realtime consequences atomically with source accounting. Writer resolves
+the current owner/member audience in that transaction. Initial revisions have no
+version-saved presentation. Retention is Beat reconciliation.
 
 `revision_metadata_task` delegates to domain-specific metadata execution. Claim uses
 DeliveryAttemptLease; read/extraction runs outside locks. Final admission locks Score
@@ -76,7 +76,7 @@ exceptions or owning commit/rollback. Partial fan-out/NOTIFY failure rolls back 
 whole authoritative transaction. Failed metadata/ready publication can then enter
 fenced retry in a new transaction. If failed derivative publication also fails,
 its FAILED transition rolls back and the worker raises; lease recovery remains
-authoritative. Explicit best-effort notification hints use a separate outer API.
+authoritative. Notification admission also uses strict transactional publication.
 
 Fencing protects durable state ownership rather than exactly-once external execution.
 Mail provider calls can be delivered more than once after uncertain network outcomes
@@ -84,15 +84,13 @@ or worker loss; stale sent/failure results cannot overwrite a new attempt or its
 provider message ID. Each domain keeps its own maintenance scan and worker rather
 than sharing a universal job table or runner.
 
-Import finalization commits Job state and a typed DomainEvent atomically, then attempts
-the Import notification and realtime database projectors immediately. Each projector
-commits its database representations with its own locked checkpoint. Notification rows
-and their `notification.created` wake-ups belong to one projection transaction.
-`run_domain_projection_maintenance` delegates to `execution/domain_projections.py` and
-catches up registered projectors every five seconds through `run_scheduler_scan`.
-Projection handlers perform database-only work; external delivery retains domain-owned
-outboxes and DurableDeliveryLifecycle. See
-[Domain Events and Database Projections](../../../docs/architecture/domain-events-and-projections.md).
+Import finalization commits Job state, diagnostics, completed/failed notifications,
+notification.created and import_job.completed/import_job.failed realtime in one
+transaction. Review-thumbnail work shares the success transaction. Publication failure
+rolls back the accepted domain outcome. Current-attempt locks and terminal-state checks
+prevent repeated terminal calls from duplicating realtime rows. Delivery exhaustion
+admits failure consequences only when unfinished work actually transitions to FAILURE.
+External work retains domain-owned outboxes and DurableDeliveryLifecycle.
 
 ## Directional dependency rules
 
@@ -150,7 +148,7 @@ Import pipeline composition, artifacts, deadlines and progress live under
 `app.modules.import_jobs.pipeline`; OMR/MusicXML/text engines remain shared processing
 capabilities. Workers use the neutral `app.task_queue.protocols.CeleryTaskLike`.
 Render REVIEW_THUMBNAIL calls `import_jobs.review` and retains exact lease fencing.
-Import Review APIs are ImportJob sub-resources. Confirmation records ImportJobConfirmed
-with Score/RevisionWriter admission, input promotion and temporary release in one
-transaction. Import notification projection enriches the completed notification in
-journal order; realtime projection keeps its existing completed/failed wire signals.
+Import Review APIs are ImportJob sub-resources. Confirmation commits Score/RevisionWriter
+admission, input promotion, temporary release and retained completed-notification navigation
+enrichment in one transaction. A notification removed by retention does not block
+confirmation and is not recreated. Browser realtime retains its completed/failed signals.

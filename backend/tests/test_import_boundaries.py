@@ -91,7 +91,7 @@ def test_review_http_subresources_delegate_to_import_owned_use_cases(client):
         app.dependency_overrides.update(overrides)
 
 
-def test_confirmation_owns_fact_and_uses_caller_transaction_temporary_release():
+def test_confirmation_owns_notification_enrichment_and_temporary_release():
     tree = ast.parse((ROOT / "modules/import_jobs/review/service.py").read_text())
     imports = {
         alias.name
@@ -99,7 +99,7 @@ def test_confirmation_owns_fact_and_uses_caller_transaction_temporary_release():
         if isinstance(node, ast.ImportFrom)
         for alias in node.names
     }
-    assert "ImportJobConfirmed" in imports and "NotificationEvent" not in imports
+    assert "enrich_completed_import_notification" in imports and "NotificationEvent" not in imports
     confirm = next(
         node
         for node in ast.walk(tree)
@@ -112,7 +112,10 @@ def test_confirmation_owns_fact_and_uses_caller_transaction_temporary_release():
         if isinstance(node.func, ast.Attribute) and node.func.attr == "cleanup_binary_artifacts"
     )
     append = next(
-        node for node in calls if isinstance(node.func, ast.Name) and node.func.id == "append_fact"
+        node
+        for node in calls
+        if isinstance(node.func, ast.Name)
+        and node.func.id == "enrich_completed_import_notification"
     )
     semantic_transaction = next(
         node

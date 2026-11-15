@@ -35,7 +35,7 @@ MusicXML download does not wait for derived presentation.
 ## Durable production
 
 RevisionWriter admits render/playback and metadata outboxes with source/head/accounting
-and ScoreRevisionCreated in the canonical business transaction. Its result carries
+and non-initial notification/realtime consequences in the canonical business transaction. Its result carries
 durable work identities. After COMMIT, the API attempts best-effort relay and projection
 catch-up. Metadata extraction is independently fenced durable execution. Guest Preview
 settings only change bearer access and do not enqueue or reactivate derivative work.

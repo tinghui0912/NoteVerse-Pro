@@ -90,15 +90,3 @@ def test_score_deletion_maintenance_is_scheduled() -> None:
 
     assert schedule["task"] == "app.worker.tasks.run_score_deletion_maintenance"
     assert schedule["schedule"] == float(settings.SCORE_DELETION_INTERVAL_SECONDS)
-
-
-def test_database_projection_maintenance_has_source_owned_schedule_and_task():
-    from app.modules.domain_events.policy import PROJECTION_SCAN_INTERVAL_SECONDS
-    from app.worker.tasks import run_domain_projection_maintenance
-
-    schedule = celery_app.conf.beat_schedule["domain-projection-maintenance"]
-    assert schedule == {
-        "task": run_domain_projection_maintenance.name,
-        "schedule": PROJECTION_SCAN_INTERVAL_SECONDS,
-    }
-    assert PROJECTION_SCAN_INTERVAL_SECONDS == 5.0

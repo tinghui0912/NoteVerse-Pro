@@ -14,12 +14,12 @@ filenames remain file facts and are independent of Upload resource identity.
 Worker execution uses a synchronous `Session` through `ImportJobExecutionService` for
 progress/step mutations, artifact production and finalization.
 
-Finalization commits Job state and its typed completion/failure DomainEvent together.
-Review-thumbnail admission shares the success transaction. Independent durable database
-projectors create notifications and realtime signals; finalization attempts them
-immediately after commit and Beat catches up missed work. Projection failure cannot
-roll back the committed fact. See
-[Domain Events and Database Projections](../domain-events-and-projections.md).
+Finalization commits Job state, diagnostics, its completed/failed notification,
+notification.created realtime and import_job.completed/import_job.failed realtime in
+one transaction. Review-thumbnail admission shares the success transaction. Admission
+failures roll back all these database consequences. Exact-attempt locks and current
+terminal state ensure redelivery does not repeat notification or realtime rows.
+Delivery exhaustion admits failure consequences only when it transitions unfinished work.
 
 Each Job has one `ImportDispatch`, created atomically with the Job and its upload
 links. The dispatch owns broker/worker delivery status, attempt count, lease,
@@ -94,12 +94,9 @@ artifacts/upload links through ImportJobDeletionService. That release primitive 
 commits and is shared with the customer deletion use case, which owns its commit.
 StoredObject retirement owns physical convergence; confirmation does no storage delete.
 
-ImportJobConfirmed v1 records job/recipient/score identity and score title with semantic
-key `import.job.confirmed:{job_id}` in that same transaction. `import_notifications_v1`
-replays completed, failed and confirmed facts in journal order. Confirmation enriches
-the existing completed notification; missing completed evidence blocks the projection.
-Projection failure rolls back enrichment/checkpoint, while committed confirmation and
-the independently checkpointed realtime projector remain valid. No confirmed browser
+Confirmation enriches the retained completed notification with Score identity and
+Score title in the same business transaction. If retention has removed the notification,
+confirmation succeeds without recreating notification history. No confirmed browser
 realtime type is introduced. Repeated confirmation returns the existing Score without
-repeating writes, accounting or cleanup. Revision and Import projection fast paths
-are recoverable latency hints after commit; Beat owns recovery.
+repeating writes, accounting, cleanup or notification/realtime consequences. External
+work remains in the specific durable outboxes; post-commit relays are latency hints.
