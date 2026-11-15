@@ -13,7 +13,7 @@ from app.db.models import (
     StoredObject,
 )
 from app.db.models.score import RevisionSourceFormat
-from app.modules.async_operations.durable_delivery import (
+from app.modules.durable_work.delivery import (
     DurableDeliveryLifecycle,
     DeliveryStatuses,
     DeliveryLifecyclePolicy,

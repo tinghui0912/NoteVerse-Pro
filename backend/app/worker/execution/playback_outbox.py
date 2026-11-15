@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sys
-from app.modules.async_operations.durable_delivery import StaleDeliveryAttempt
+from app.modules.durable_work.delivery import StaleDeliveryAttempt
 from app.modules.revisions.presentation_demand import RevisionPresentationSuperseded
 from typing import Any
 

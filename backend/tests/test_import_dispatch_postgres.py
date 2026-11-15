@@ -45,6 +45,7 @@ def test_fresh_import_schema_ownership_token_constraints_and_cascade(monkeypatch
             "internal_error_stage",
             "internal_error_class",
             "internal_error_retryable",
+            "internal_error_detail",
             "code",
             "error",
             "error_type",

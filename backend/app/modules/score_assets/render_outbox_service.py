@@ -17,13 +17,13 @@ from app.db.models import (
     RenderOutboxStatus,
     RenderTargetType,
 )
-from app.modules.async_operations.diagnostics import (
-    AsyncOperationKindValue,
-    AsyncOperationStatusValue,
-    apply_async_diagnostic,
-    clear_async_diagnostic,
+from app.modules.durable_work.failure import (
+    DurableFailure,
+    DurableFailureClass,
+    set_failure_metadata,
+    clear_failure_metadata,
 )
-from app.modules.async_operations.durable_delivery import (
+from app.modules.durable_work.delivery import (
     ClaimAdmission,
     DeliveryLifecyclePolicy,
     DeliveryStatuses,
@@ -266,7 +266,7 @@ class RenderOutboxService:
                 reset_attempts=False,
                 now=utc_now_naive(),
             )
-            clear_async_diagnostic(outbox)
+            clear_failure_metadata(outbox)
             logger.bind(
                 event="revision_derivative.superseded",
                 score_id=outbox.score_id,
@@ -276,7 +276,19 @@ class RenderOutboxService:
             ).info("revision_derivative.superseded")
             return None
         lifecycle = _delivery_lifecycle()
-        if lifecycle.claim_admission(outbox, now=utc_now_naive()) is not ClaimAdmission.READY:
+        admission = lifecycle.claim_admission(outbox, now=utc_now_naive())
+        if admission is ClaimAdmission.EXHAUSTED:
+            lifecycle.exhaust(
+                outbox, error="Render delivery attempts exhausted", now=utc_now_naive()
+            )
+            self._record_failure(
+                outbox,
+                code="render_attempts_exhausted",
+                stage="render",
+                classification=DurableFailureClass.TRANSIENT,
+            )
+            return None
+        if admission is not ClaimAdmission.READY:
             return None
         payload = self._build_payload(db, outbox)
         if payload is None:
@@ -284,6 +296,7 @@ class RenderOutboxService:
         lease = lifecycle.claim(outbox, token=str(uuid.uuid4()), now=utc_now_naive())
         if lease is None:
             return None
+        clear_failure_metadata(outbox)
         return render_payloads.RenderOutboxPayload(
             **asdict(payload), lease=lease, max_attempts=lifecycle.policy.max_attempts
         )
@@ -299,7 +312,7 @@ class RenderOutboxService:
             _delivery_lifecycle().finish(
                 outbox, status=RenderOutboxStatus.COMPLETED, error=None, now=utc_now_naive()
             )
-            clear_async_diagnostic(outbox)
+            clear_failure_metadata(outbox)
             return None
 
         if outbox.status == RenderOutboxStatus.COMPLETED:
@@ -312,14 +325,11 @@ class RenderOutboxService:
         _delivery_lifecycle().exhaust(
             outbox, error="Render outbox references unavailable resources", now=utc_now_naive()
         )
-        apply_async_diagnostic(
+        set_failure_metadata(
             outbox,
-            kind=AsyncOperationKindValue.RENDER,
-            status=AsyncOperationStatusValue.EXHAUSTED,
-            raw_status=outbox.status.value,
-            last_error=outbox.last_error,
-            attempts=outbox.attempt_count,
-            max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
+            DurableFailure(
+                "render_resources_unavailable", "render", DurableFailureClass.PERMANENT, False
+            ),
         )
 
     def supersede(self, db: Session, outbox_uuid: str, *, lease: DeliveryAttemptLease) -> bool:
@@ -329,7 +339,7 @@ class RenderOutboxService:
         _delivery_lifecycle().reset(
             outbox, status=RenderOutboxStatus.SUPERSEDED, reset_attempts=False, now=utc_now_naive()
         )
-        clear_async_diagnostic(outbox)
+        clear_failure_metadata(outbox)
         return True
 
     def complete(self, db: Session, outbox_uuid: str, *, lease: DeliveryAttemptLease) -> bool:
@@ -338,7 +348,7 @@ class RenderOutboxService:
             outbox, lease=lease, now=utc_now_naive()
         ):
             return False
-        clear_async_diagnostic(outbox)
+        clear_failure_metadata(outbox)
         return True
 
     def fail(
@@ -349,18 +359,11 @@ class RenderOutboxService:
             outbox, lease=lease, error=error, now=utc_now_naive()
         ):
             return False
-        apply_async_diagnostic(
+        self._record_failure(
             outbox,
-            kind=AsyncOperationKindValue.RENDER,
-            status=(
-                AsyncOperationStatusValue.EXHAUSTED
-                if outbox.attempt_count >= settings.RENDER_OUTBOX_MAX_ATTEMPTS
-                else AsyncOperationStatusValue.RETRYING
-            ),
-            raw_status=outbox.status.value,
-            last_error=outbox.last_error,
-            attempts=outbox.attempt_count,
-            max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
+            code="render_execution_failed",
+            stage="render",
+            classification=DurableFailureClass.SYSTEM_ERROR,
         )
         return True
 
@@ -373,7 +376,7 @@ class RenderOutboxService:
         outbox = self._get(db, outbox_uuid)
         if outbox is None or not _delivery_lifecycle().dispatch(outbox, now=utc_now_naive()):
             return False
-        clear_async_diagnostic(outbox)
+        clear_failure_metadata(outbox)
         return True
 
     def release_dispatch(self, db: Session, outbox_uuid: str, error: str) -> None:
@@ -382,14 +385,11 @@ class RenderOutboxService:
             outbox, error=error, now=utc_now_naive()
         ):
             return
-        apply_async_diagnostic(
+        self._record_failure(
             outbox,
-            kind=AsyncOperationKindValue.RENDER,
-            status=AsyncOperationStatusValue.QUEUED,
-            raw_status=outbox.status.value,
-            last_error=outbox.last_error,
-            attempts=outbox.attempt_count,
-            max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
+            code="render_dispatch_failed",
+            stage="dispatch",
+            classification=DurableFailureClass.TRANSIENT,
         )
 
     def recover_and_list_due(self, db: Session) -> list[str]:
@@ -413,14 +413,11 @@ class RenderOutboxService:
             if _delivery_lifecycle().recover_lease(
                 outbox, error="Render delivery lease expired", now=now
             ):
-                apply_async_diagnostic(
+                self._record_failure(
                     outbox,
-                    kind=AsyncOperationKindValue.RENDER,
-                    status=AsyncOperationStatusValue.FAILED,
-                    raw_status=outbox.status.value,
-                    last_error=outbox.last_error,
-                    attempts=outbox.attempt_count,
-                    max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
+                    code="render_delivery_lease_expired",
+                    stage="render",
+                    classification=DurableFailureClass.TRANSIENT,
                 )
 
         due = (
@@ -443,6 +440,37 @@ class RenderOutboxService:
         return list(due)
 
     @staticmethod
+    def _record_failure(
+        outbox: RenderOutbox, *, code: str, stage: str, classification: DurableFailureClass
+    ) -> None:
+        retryable = outbox.attempt_count < settings.RENDER_OUTBOX_MAX_ATTEMPTS
+        set_failure_metadata(
+            outbox,
+            DurableFailure(
+                code if retryable else "render_attempts_exhausted",
+                stage,
+                classification,
+                retryable,
+            ),
+        )
+
+    def rearm_for_operator(self, db: Session, operation_id: str) -> str:
+        from app.core.exceptions import ResourceNotFoundException, ValidationException
+
+        outbox = self._get(db, operation_id)
+        if outbox is None:
+            raise ResourceNotFoundException("async_operation", operation_id)
+        if (
+            outbox.status not in (RenderOutboxStatus.PENDING, RenderOutboxStatus.FAILED)
+            or outbox.internal_error_code is None
+        ):
+            raise ValidationException(field="status", details={"status": outbox.status.value})
+        previous = outbox.status.value
+        _delivery_lifecycle().rearm(outbox, now=utc_now_naive())
+        clear_failure_metadata(outbox)
+        return previous
+
+    @staticmethod
     def _get(db: Session, outbox_uuid: str) -> RenderOutbox | None:
         return db.execute(
             select(RenderOutbox)
@@ -457,7 +485,7 @@ render_outbox_service = RenderOutboxService()
 
 def rearm_revision_outbox(outbox: RenderOutbox) -> None:
     _delivery_lifecycle().rearm(outbox, now=utc_now_naive())
-    clear_async_diagnostic(outbox)
+    clear_failure_metadata(outbox)
     logger.bind(
         event="revision_derivative.reactivated",
         score_id=outbox.score_id,

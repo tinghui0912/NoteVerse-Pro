@@ -25,6 +25,8 @@ from app.db.models import (
     SchedulerLeaderStatus,
     ScoreDeletionOperation,
 )
+from app.modules.ops.operation_projection import operation_projection
+from app.modules.ops.schemas import AsyncOperationKind
 from app.modules.scheduler_lock.constants import BEAT_LEADER_SCHEDULER_NAME
 from app.modules.scheduler_observability.service import scheduler_observability_service
 from app.utils.timezone import utc_now_naive
@@ -178,196 +180,68 @@ def _escape_label_value(value: str) -> str:
 
 
 def _oldest_open_age_lines(db: Session) -> list[str]:
-    now = utc_now_naive()
-    rows = [
-        (
-            "import",
-            _oldest_age_seconds(
-                db,
-                select(func.min(ImportDispatch.created_at)).where(
-                    ImportDispatch.status != ImportDispatchStatus.COMPLETED
-                ),
-                now=now,
-            ),
-        ),
-        (
-            "render",
-            _oldest_age_seconds(
-                db,
-                select(func.min(RenderOutbox.created_at)).where(
-                    RenderOutbox.status != RenderOutboxStatus.COMPLETED
-                ),
-                now=now,
-            ),
-        ),
-        (
-            "playback",
-            _oldest_age_seconds(
-                db,
-                select(func.min(PlaybackOutbox.created_at)).where(
-                    PlaybackOutbox.status != PlaybackOutboxStatus.COMPLETED
-                ),
-                now=now,
-            ),
-        ),
-        (
-            "mail",
-            _oldest_age_seconds(
-                db,
-                select(func.min(MailOutbox.created_at)).where(
-                    MailOutbox.status.notin_(
-                        (
-                            MailOutboxStatus.SENT,
-                            MailOutboxStatus.PERMANENT_FAILURE,
-                            MailOutboxStatus.EXPIRED,
-                        )
-                    )
-                ),
-                now=now,
-            ),
-        ),
-    ]
-    return [
-        _metric_line(
-            "noteverse_async_operation_oldest_open_age_seconds",
-            ("kind",),
-            (kind,),
-            seconds,
-        )
-        for kind, seconds in rows
-    ]
+    return _projected_age_lines(
+        db,
+        statuses=("queued", "dispatched", "processing", "retrying"),
+        column="created_at",
+        metric="noteverse_async_operation_oldest_open_age_seconds",
+    )
 
 
 def _oldest_processing_age_lines(db: Session) -> list[str]:
+    return _projected_age_lines(
+        db,
+        statuses=("processing",),
+        column="started_at",
+        metric="noteverse_async_operation_oldest_processing_age_seconds",
+    )
+
+
+def _projected_age_lines(
+    db: Session, *, statuses: tuple[str, ...], column: str, metric: str
+) -> list[str]:
+    c = operation_projection().c
+    rows = dict(
+        db.execute(
+            select(c.kind, func.min(c[column])).where(c.status.in_(statuses)).group_by(c.kind)
+        ).all()
+    )
     now = utc_now_naive()
-    rows = [
-        (
-            "import",
-            _oldest_age_seconds(
-                db,
-                select(func.min(ImportDispatch.started_at)).where(
-                    ImportDispatch.status == ImportDispatchStatus.PROCESSING
-                ),
-                now=now,
-            ),
-        ),
-        (
-            "render",
-            _oldest_age_seconds(
-                db,
-                select(func.min(RenderOutbox.started_at)).where(
-                    RenderOutbox.status == RenderOutboxStatus.PROCESSING
-                ),
-                now=now,
-            ),
-        ),
-        (
-            "playback",
-            _oldest_age_seconds(
-                db,
-                select(func.min(PlaybackOutbox.started_at)).where(
-                    PlaybackOutbox.status == PlaybackOutboxStatus.PROCESSING
-                ),
-                now=now,
-            ),
-        ),
-        (
-            "mail",
-            _oldest_age_seconds(
-                db,
-                select(func.min(MailOutbox.started_at)).where(
-                    MailOutbox.status == MailOutboxStatus.PROCESSING
-                ),
-                now=now,
-            ),
-        ),
-    ]
     return [
         _metric_line(
-            "noteverse_async_operation_oldest_processing_age_seconds",
+            metric,
             ("kind",),
-            (kind,),
-            seconds,
+            (kind.value,),
+            max(0, int((now - rows[kind.value]).total_seconds()))
+            if rows.get(kind.value) is not None
+            else 0,
         )
-        for kind, seconds in rows
+        for kind in AsyncOperationKind
     ]
 
 
 def _completed_duration_average_lines(db: Session) -> list[str]:
-    cutoff = utc_now_naive() - timedelta(hours=24)
-    rows = [
-        (
-            "import",
-            _average_duration_seconds(
-                db,
-                select(
-                    func.avg(
-                        _duration_seconds(
-                            ImportDispatch.started_at,
-                            ImportDispatch.completed_at,
-                        )
-                    )
-                ).where(
-                    ImportDispatch.status == ImportDispatchStatus.COMPLETED,
-                    ImportDispatch.started_at.is_not(None),
-                    ImportDispatch.completed_at.is_not(None),
-                    ImportDispatch.completed_at >= cutoff,
-                ),
-            ),
-        ),
-        (
-            "render",
-            _average_duration_seconds(
-                db,
-                select(
-                    func.avg(_duration_seconds(RenderOutbox.started_at, RenderOutbox.completed_at))
-                ).where(
-                    RenderOutbox.status == RenderOutboxStatus.COMPLETED,
-                    RenderOutbox.started_at.is_not(None),
-                    RenderOutbox.completed_at.is_not(None),
-                    RenderOutbox.completed_at >= cutoff,
-                ),
-            ),
-        ),
-        (
-            "playback",
-            _average_duration_seconds(
-                db,
-                select(
-                    func.avg(
-                        _duration_seconds(PlaybackOutbox.started_at, PlaybackOutbox.completed_at)
-                    )
-                ).where(
-                    PlaybackOutbox.status == PlaybackOutboxStatus.COMPLETED,
-                    PlaybackOutbox.started_at.is_not(None),
-                    PlaybackOutbox.completed_at.is_not(None),
-                    PlaybackOutbox.completed_at >= cutoff,
-                ),
-            ),
-        ),
-        (
-            "mail",
-            _average_duration_seconds(
-                db,
-                select(
-                    func.avg(_duration_seconds(MailOutbox.started_at, MailOutbox.completed_at))
-                ).where(
-                    MailOutbox.status == MailOutboxStatus.SENT,
-                    MailOutbox.started_at.is_not(None),
-                    MailOutbox.completed_at.is_not(None),
-                    MailOutbox.completed_at >= cutoff,
-                ),
-            ),
-        ),
-    ]
+    c = operation_projection().c
+    rows = dict(
+        db.execute(
+            select(c.kind, func.avg(_duration_seconds(c.started_at, c.completed_at)))
+            .where(
+                c.status == "succeeded",
+                c.started_at.is_not(None),
+                c.completed_at.is_not(None),
+                c.completed_at >= utc_now_naive() - timedelta(hours=24),
+            )
+            .group_by(c.kind)
+        ).all()
+    )
     return [
         _metric_line(
             "noteverse_async_operation_completed_duration_average_seconds",
             ("kind",),
-            (kind,),
-            seconds,
+            (kind.value,),
+            max(0, int(float(rows.get(kind.value) or 0))),
         )
-        for kind, seconds in rows
+        for kind in AsyncOperationKind
     ]
 
 
@@ -617,18 +491,6 @@ def _oldest_age_seconds(
     if oldest is None:
         return 0
     return max(0, int((now - oldest).total_seconds()))
-
-
-def _average_duration_seconds(
-    db: Session,
-    statement: Select[tuple[object]],
-) -> int:
-    result = db.execute(statement)
-    row = result.one_or_none()
-    average = row[0] if row is not None else None
-    if average is None:
-        return 0
-    return max(0, int(float(average)))
 
 
 def _duration_seconds(start_column, end_column):

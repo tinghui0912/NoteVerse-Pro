@@ -12,6 +12,7 @@ from app.modules.import_jobs.dispatch_service import (
 )
 from app.modules.import_jobs.execution_service import ImportJobExecutionService
 from app.shared.constants import ErrorCode
+from app.modules.durable_work.failure import DurableFailure, DurableFailureClass
 
 
 def test_soft_time_limit_maps_to_task_timeout() -> None:
@@ -73,6 +74,10 @@ def test_pipeline_failure_is_persisted_and_reraised() -> None:
         error=ErrorCode.TASK_TIMEOUT,
         error_type="TimeoutException",
         code=ErrorCode.TASK_TIMEOUT,
+        failure=DurableFailure(
+            "import_pipeline_timeout", "pipeline", DurableFailureClass.TRANSIENT, False
+        ),
+        detail=str(TimeoutException()),
     )
 
 

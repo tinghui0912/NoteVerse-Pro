@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from app.modules.async_operations.durable_delivery import DeliveryAttemptLease
+from app.modules.durable_work.delivery import DeliveryAttemptLease
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session

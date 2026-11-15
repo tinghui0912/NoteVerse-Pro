@@ -139,7 +139,10 @@ def test_historical_revisions_are_not_generation_demand_and_never_runs_generator
         for work in work_rows(db, number):
             work.attempt_count = 2
             work.last_error = "an earlier retry"
-            work.internal_error_code = "earlier diagnostic"
+            work.internal_error_code = "render_execution_failed"
+            work.internal_error_stage = "render"
+            work.internal_error_class = "system_error"
+            work.internal_error_retryable = True
         db.commit()
         assert (
             render_outbox.execute_render_outbox_task(None, f"render-{number}")["status"]

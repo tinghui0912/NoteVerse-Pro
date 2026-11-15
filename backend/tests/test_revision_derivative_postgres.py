@@ -29,7 +29,7 @@ from app.db.models import (
 )
 from app.db.models.score import RevisionOrigin, RevisionSourceFormat
 from app.modules.score_assets import render_service
-from app.modules.async_operations.durable_delivery import DeliveryAttemptLease
+from app.modules.durable_work.delivery import DeliveryAttemptLease
 from app.modules.playback import service as playback_service
 from app.processing.engines.playback.renderer import RenderedAudio
 from app.worker.execution import render_outbox, playback_outbox

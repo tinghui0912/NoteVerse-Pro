@@ -237,9 +237,16 @@
         "title": "APIResponse[OffsetPage[OpsAuditEventRead]]",
         "type": "object"
       },
-      "AsyncOperationDiagnostic": {
+      "AsyncOperationFailure": {
         "properties": {
+          "classification": {
+            "$ref": "#/components/schemas/DurableFailureClass"
+          },
           "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "detail": {
             "anyOf": [
               {
                 "type": "string"
@@ -248,42 +255,26 @@
                 "type": "null"
               }
             ],
-            "title": "Code"
+            "title": "Detail"
           },
           "retryable": {
             "title": "Retryable",
             "type": "boolean"
           },
           "stage": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Stage"
+            "title": "Stage",
+            "type": "string"
           }
         },
         "required": [
           "code",
           "stage",
-          "retryable"
+          "classification",
+          "retryable",
+          "detail"
         ],
-        "title": "AsyncOperationDiagnostic",
+        "title": "AsyncOperationFailure",
         "type": "object"
-      },
-      "AsyncOperationErrorClass": {
-        "enum": [
-          "transient",
-          "permanent",
-          "user_error",
-          "system_error",
-          "unknown"
-        ],
-        "title": "AsyncOperationErrorClass",
-        "type": "string"
       },
       "AsyncOperationKind": {
         "enum": [
@@ -339,20 +330,10 @@
             ],
             "title": "Created At"
           },
-          "diagnostic": {
+          "failure": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/AsyncOperationDiagnostic"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "error_class": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AsyncOperationErrorClass"
+                "$ref": "#/components/schemas/AsyncOperationFailure"
               },
               {
                 "type": "null"
@@ -400,10 +381,6 @@
             ],
             "title": "Originating Request Id"
           },
-          "raw_status": {
-            "title": "Raw Status",
-            "type": "string"
-          },
           "resource_id": {
             "title": "Resource Id",
             "type": "string"
@@ -434,11 +411,9 @@
           "resource_type",
           "resource_id",
           "status",
-          "raw_status",
           "attempts",
           "max_attempts",
           "next_attempt_at",
-          "error_class",
           "created_at",
           "updated_at"
         ],
@@ -453,10 +428,7 @@
           "retrying",
           "succeeded",
           "failed",
-          "permanent_failed",
-          "expired",
-          "exhausted",
-          "blocked"
+          "superseded"
         ],
         "title": "AsyncOperationStatus",
         "type": "string"
@@ -506,6 +478,16 @@
         ],
         "title": "AsyncOperationsSummaryRead",
         "type": "object"
+      },
+      "DurableFailureClass": {
+        "enum": [
+          "transient",
+          "permanent",
+          "user_error",
+          "system_error"
+        ],
+        "title": "DurableFailureClass",
+        "type": "string"
       },
       "HTTPValidationError": {
         "properties": {
@@ -1061,18 +1043,18 @@
           },
           {
             "in": "query",
-            "name": "error_class",
+            "name": "failure_class",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "$ref": "#/components/schemas/AsyncOperationErrorClass"
+                  "$ref": "#/components/schemas/DurableFailureClass"
                 },
                 {
                   "type": "null"
                 }
               ],
-              "title": "Error Class"
+              "title": "Failure Class"
             }
           },
           {
@@ -1210,18 +1192,18 @@
           },
           {
             "in": "query",
-            "name": "error_class",
+            "name": "failure_class",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "$ref": "#/components/schemas/AsyncOperationErrorClass"
+                  "$ref": "#/components/schemas/DurableFailureClass"
                 },
                 {
                   "type": "null"
                 }
               ],
-              "title": "Error Class"
+              "title": "Failure Class"
             }
           },
           {

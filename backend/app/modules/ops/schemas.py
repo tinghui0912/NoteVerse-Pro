@@ -4,6 +4,7 @@ import enum
 from datetime import datetime
 
 from pydantic import BaseModel, Field
+from app.modules.durable_work.failure import DurableFailureClass
 
 
 class AsyncOperationKind(str, enum.Enum):
@@ -21,24 +22,15 @@ class AsyncOperationStatus(str, enum.Enum):
     RETRYING = "retrying"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
-    PERMANENT_FAILED = "permanent_failed"
-    EXPIRED = "expired"
-    EXHAUSTED = "exhausted"
-    BLOCKED = "blocked"
+    SUPERSEDED = "superseded"
 
 
-class AsyncOperationErrorClass(str, enum.Enum):
-    TRANSIENT = "transient"
-    PERMANENT = "permanent"
-    USER_ERROR = "user_error"
-    SYSTEM_ERROR = "system_error"
-    UNKNOWN = "unknown"
-
-
-class AsyncOperationDiagnostic(BaseModel):
-    code: str | None
-    stage: str | None
+class AsyncOperationFailure(BaseModel):
+    code: str
+    stage: str
+    classification: DurableFailureClass
     retryable: bool
+    detail: str | None
 
 
 class RetryAsyncOperationCommand(BaseModel):
@@ -52,12 +44,10 @@ class AsyncOperationRead(BaseModel):
     resource_id: str
     originating_request_id: str | None = None
     status: AsyncOperationStatus
-    raw_status: str
     attempts: int
     max_attempts: int | None
     next_attempt_at: datetime | None
-    error_class: AsyncOperationErrorClass | None
-    diagnostic: AsyncOperationDiagnostic | None = None
+    failure: AsyncOperationFailure | None = None
     created_at: datetime | None
     updated_at: datetime | None
 

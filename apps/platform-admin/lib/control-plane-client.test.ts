@@ -53,6 +53,23 @@ describe("Control Plane client", () => {
     );
   });
 
+  it("filters explicit failure facts and returns the projected operation", async () => {
+    const operation = {
+      operation_id: "render-1", kind: "render", resource_type: "score_revision",
+      status: "retrying", attempts: 1, max_attempts: 3, updated_at: null,
+      failure: { code: "render_execution_failed", stage: "render", classification: "system_error", retryable: true, detail: "provider refused" },
+    };
+    const page = { items: [operation], limit: 50, offset: 0, has_more: false };
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true, data: page }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { listAsyncOperations } = await loadClient();
+    await expect(listAsyncOperations(0, { status: "retrying", failure_class: "system_error" })).resolves.toEqual(page);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/ops/async-operations?limit=50&offset=0&status=retrying&failure_class=system_error",
+      expect.objectContaining({ credentials: "same-origin" }),
+    );
+  });
+
   it("adds the operator CSRF token to sign-out requests", async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true, data: null }));
     vi.stubGlobal("fetch", fetchMock);

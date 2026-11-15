@@ -1,5 +1,8 @@
 """Import terminal state, notification history and wake-ups share one commit."""
 
+from app.modules.durable_work.failure import DurableFailure, DurableFailureClass
+
+
 from datetime import timedelta
 import pytest
 import sqlalchemy as sa
@@ -66,7 +69,15 @@ def finish(db, lease, result):
     if result == "success":
         service.finalize_success(db, lease)
     elif result == "failure":
-        service.finalize_failure(db, lease, "private provider exception", "ProviderError")
+        service.finalize_failure(
+            db,
+            lease,
+            "private provider exception",
+            "ProviderError",
+            failure=DurableFailure(
+                "import_pipeline_failed", "pipeline", DurableFailureClass.SYSTEM_ERROR, False
+            ),
+        )
     else:
         dispatch_service.ImportDispatchService().recover_and_list_due(db)
 

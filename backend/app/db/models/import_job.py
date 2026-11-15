@@ -9,6 +9,7 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     Column,
+    CheckConstraint,
     DateTime,
     Enum as SAEnum,
     ForeignKey,
@@ -48,6 +49,10 @@ class ImportJobStepStatus(str, enum.Enum):
 class ImportJob(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "import_jobs"
     __table_args__ = (
+        CheckConstraint(
+            "((internal_error_code IS NULL AND internal_error_stage IS NULL AND internal_error_class IS NULL AND internal_error_retryable IS NULL) OR (internal_error_code IS NOT NULL AND internal_error_stage IS NOT NULL AND internal_error_class IS NOT NULL AND internal_error_retryable IS NOT NULL AND internal_error_class IN ('transient', 'permanent', 'user_error', 'system_error')))",
+            name="ck_import_jobs_failure_metadata",
+        ),
         UniqueConstraint(
             "user_id",
             "idempotency_key",
@@ -84,6 +89,7 @@ class ImportJob(SQLModel, table=True):  # type: ignore[call-arg]
     internal_error_stage: Optional[str] = Field(default=None, sa_column=Column(String(64)))
     internal_error_class: Optional[str] = Field(default=None, sa_column=Column(String(32)))
     internal_error_retryable: Optional[bool] = Field(default=None, sa_column=Column(Boolean))
+    internal_error_detail: Optional[str] = Field(default=None, sa_column=Column(Text))
     code: Optional[str] = Field(default=None, sa_column=Column(String(64)))
     error: Optional[str] = Field(default=None, sa_column=Column(Text))
     error_type: Optional[str] = Field(default=None, sa_column=Column(String(64)))

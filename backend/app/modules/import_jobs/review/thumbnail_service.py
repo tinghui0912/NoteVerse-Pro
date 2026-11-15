@@ -17,7 +17,7 @@ from app.modules.storage_usage.service import storage_usage_service
 from app.processing.engines.render import create_score_render_engine
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from app.db.models.import_job import ImportJobState
-from app.modules.async_operations.durable_delivery import DeliveryAttemptLease, StaleDeliveryAttempt
+from app.modules.durable_work.delivery import DeliveryAttemptLease, StaleDeliveryAttempt
 from app.modules.score_assets.render_outbox_service import render_outbox_service
 from app.modules.revisions.presentation_demand import RevisionPresentationSuperseded
 from app.storage import ObjectStorage, object_storage

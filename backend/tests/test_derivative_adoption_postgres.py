@@ -374,7 +374,7 @@ def test_final_admission_locks_aggregate_before_delivery_and_subordinates(genera
 
 def test_execution_target_identity_is_checked_before_adoption(generation):
     kind, engine, storage, service, model, module, lifecycle, execute, generate = generation
-    from app.modules.async_operations.durable_delivery import StaleDeliveryAttempt
+    from app.modules.durable_work.delivery import StaleDeliveryAttempt
 
     with Session(engine) as db:
         payload = service.claim(db, "delivery")

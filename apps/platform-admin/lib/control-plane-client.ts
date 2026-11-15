@@ -2,11 +2,11 @@ export type AsyncOperation = {
   operation_id: string;
   kind: string;
   resource_type: string;
-  status: string;
+  status: "queued" | "dispatched" | "processing" | "retrying" | "succeeded" | "failed" | "superseded";
   attempts: number;
   max_attempts: number | null;
   updated_at: string | null;
-  diagnostic?: { code: string | null } | null;
+  failure: { code: string; stage: string; classification: "transient" | "permanent" | "user_error" | "system_error"; retryable: boolean; detail: string | null } | null;
 };
 
 type SuccessResponse<T> = { success: true; data: T };
@@ -77,8 +77,21 @@ async function requestPayload<T>(path: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export function listAsyncOperations(offset = 0): Promise<OperationsPage> {
-  return request<OperationsPage>(`/ops/async-operations?limit=50&offset=${offset}`);
+export type OperationFilters = {
+  kind?: string;
+  status?: AsyncOperation["status"];
+  failure_class?: NonNullable<AsyncOperation["failure"]>["classification"];
+  resource_type?: string;
+  created_after?: string;
+  updated_before?: string;
+};
+
+export function listAsyncOperations(offset = 0, filters: OperationFilters = {}): Promise<OperationsPage> {
+  const query = new URLSearchParams({ limit: "50", offset: String(offset) });
+  for (const [key, value] of Object.entries(filters)) {
+    if (value !== undefined) query.set(key, value);
+  }
+  return request<OperationsPage>(`/ops/async-operations?${query}`);
 }
 
 export function getCurrentOperator(): Promise<CurrentOperator> {

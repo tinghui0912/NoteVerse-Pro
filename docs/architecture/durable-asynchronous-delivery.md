@@ -21,7 +21,7 @@ Owning business transactions admit their deterministic same-database consequence
 including notification history and realtime wake-ups. DurableDeliveryLifecycle governs
 external execution of domain-owned outboxes.
 
-`backend/app/modules/async_operations/durable_delivery.py` owns the shared lifecycle.
+`backend/app/modules/durable_work/delivery.py` owns the shared lifecycle.
 `DeliveryRecord` is a narrow structural protocol, not an ORM base. `DeliveryStatuses`
 maps the domain's persisted statuses, and `DeliveryLifecyclePolicy` carries explicit
 attempt, retry and lease settings. Callers supply `now`. The core depends only on
@@ -88,15 +88,22 @@ Domain responsibilities remain explicit:
 
 | Domain                  | Domain-owned semantics                                                                                                                                    |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Render / Playback       | Revision presentation demand, SUPERSEDED, resource admission, asset short circuits, payloads, revision/score locks and diagnostic classification          |
-| Mail                    | Expiry, EXPIRED/PERMANENT_FAILURE decisions, body availability and scrubbing, recipients, provider message identity and mail diagnostics; success is SENT |
+| Render / Playback       | Revision presentation demand, SUPERSEDED, resource admission, asset short circuits, payloads, revision/score locks and explicit failure facts          |
+| Mail                    | Expiry, EXPIRED/PERMANENT_FAILURE decisions, body availability and scrubbing, recipients, provider message identity and explicit mail failure facts; success is SENT |
 | Import                  | Job admission/exhaustion, upload availability, Dispatch-before-Job lock order, execution payload and transactional terminal notification/realtime consequences |
 | Score deletion          | Score graph cleanup, resource/operation identity and lock order |
 | StoredObject retirement | Repo-wide reference checks, exact physical snapshots, CANCELLED when ownership exists, attempt-token fencing and physical deletion; success is COMPLETED  |
 
 Services own SQL predicates, row locks, maintenance ordering/batches and transactions.
-They project `apply_async_diagnostic()` / `clear_async_diagnostic()` after shared
-transitions. Render and Playback retain their exhaustion behavior; Mail selects
+They supply immutable `DurableFailure(code, stage, classification, retryable)` facts
+and use `set_failure_metadata()` / `clear_failure_metadata()` after shared transitions.
+`durable_work/failure.py` only copies or clears these facts; classification comes from
+typed domain outcomes, never from exception text. The four metadata fields are all
+null or all populated, with one of transient, permanent, user_error or system_error.
+`retryable` means automatic durable retry remains; manual operator rearm is a separate
+domain eligibility decision. Exhaustion records a domain attempts-exhausted code and
+retryable=false. Generic execution exceptions are system_error. Successful completion,
+claim, rearm and supersession clear failure facts. Render and Playback retain their exhaustion behavior; Mail selects
 permanent failure at its attempt limit. StoredObject retirement combines shared attempt fencing with a fresh claim token, so cancellation/rearm cannot revive an earlier worker. Semantic Take deletion and Bundle GC release references and logical accounting in their own transactions; retirement owns physical IO independently. Tables, columns and terminal meaning remain domain-owned.
 
 ObjectWriteIntent owns PREPARED, WRITTEN and ADOPTED physical-write admission meaning. Its cleanup phase maps CLEANUP_PENDING, CLEANUP_DISPATCHED, CLEANUP_PROCESSING, CLEANUP_FAILED and CLEANED to the shared delivery lifecycle. Write generation and per-claim attempt tokens fence stale cleanup and adoption. The cleanup worker holds the intent lock across storage deletion and checks exact StoredObject authority before IO. Write/semantic policy remains outside the delivery core.
@@ -110,3 +117,24 @@ the external delivery guarantee remains at-least-once.
 Domain-specific workers and recovery scans retain their workflows and SQL admission.
 There is no universal delivery ORM or job runner. Broker publication uses the single
 `app.task_queue.producer.send_durable_task` mechanical authority.
+
+Ops reads five kinds: import, render, playback, mail and score_deletion. Its canonical
+query-time UNION ALL projection normalizes queued, dispatched, processing, retrying,
+succeeded, failed and superseded. Automatic retry facts determine retrying regardless
+of due time. Terminal ImportJob failure supplies pipeline facts; active delivery uses
+ImportDispatch facts. ImportJob.internal_error_detail holds bounded operator-only
+exception evidence; customer code/error/error_type remain the public failure contract.
+
+List filtering, stable ordering and pagination happen in SQL after this projection.
+Summary groups the same projection, and generic open/processing/completed-duration
+metrics use its status policy. Open work is queued/dispatched/processing/retrying;
+superseded is terminal and contributes neither backlog nor successful duration.
+The operator response exposes failure={code,stage,classification,retryable,detail}
+or null, and accepts failure_class as its classification filter.
+
+Ops delegates manual rearm to each domain owner, commits, and reads that same projection.
+Healthy queued, dispatched, processing, succeeded and superseded work reject rearm.
+Failed Render, Playback and Score deletion can be manually rearmed after exhaustion;
+permanent/expired Mail cannot. Import rearm takes Dispatch then Job locks and resets
+execution steps under those locks. Audit remains owned by the Ops route. Domain-owned
+records remain the only durable lifecycle authority.

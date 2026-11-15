@@ -162,6 +162,10 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("updated_at", sa.DateTime(), nullable=False),
         sa.CheckConstraint("attempt_count >= 0", name="ck_mail_outbox_attempt_count"),
+        sa.CheckConstraint(
+            "((internal_error_code IS NULL AND internal_error_stage IS NULL AND internal_error_class IS NULL AND internal_error_retryable IS NULL) OR (internal_error_code IS NOT NULL AND internal_error_stage IS NOT NULL AND internal_error_class IS NOT NULL AND internal_error_retryable IS NOT NULL AND internal_error_class IN ('transient', 'permanent', 'user_error', 'system_error')))",
+            name="ck_mail_outbox_failure_metadata",
+        ),
         sa.PrimaryKeyConstraint("id", name="pk_mail_outbox"),
         sa.UniqueConstraint("dedupe_key", name="uq_mail_outbox_dedupe_key"),
         sa.UniqueConstraint("outbox_uuid", name="uq_mail_outbox_outbox_uuid"),
@@ -691,6 +695,7 @@ def upgrade() -> None:
         sa.Column("internal_error_stage", sa.String(length=64), nullable=True),
         sa.Column("internal_error_class", sa.String(length=32), nullable=True),
         sa.Column("internal_error_retryable", sa.Boolean(), nullable=True),
+        sa.Column("internal_error_detail", sa.Text(), nullable=True),
         sa.Column("code", sa.String(length=64), nullable=True),
         sa.Column("error", sa.Text(), nullable=True),
         sa.Column("error_type", sa.String(length=64), nullable=True),
@@ -707,6 +712,10 @@ def upgrade() -> None:
             name="fk_import_jobs_execution_manifest_id_execution_manifests",
         ),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], name="fk_import_jobs_user_id_users"),
+        sa.CheckConstraint(
+            "((internal_error_code IS NULL AND internal_error_stage IS NULL AND internal_error_class IS NULL AND internal_error_retryable IS NULL) OR (internal_error_code IS NOT NULL AND internal_error_stage IS NOT NULL AND internal_error_class IS NOT NULL AND internal_error_retryable IS NOT NULL AND internal_error_class IN ('transient', 'permanent', 'user_error', 'system_error')))",
+            name="ck_import_jobs_failure_metadata",
+        ),
         sa.PrimaryKeyConstraint("id", name="pk_import_jobs"),
         sa.UniqueConstraint("job_uuid", name="uq_import_jobs_job_uuid"),
         sa.UniqueConstraint(
@@ -762,6 +771,10 @@ def upgrade() -> None:
             ["import_jobs.id"],
             name="fk_import_dispatches_job_id_import_jobs",
             ondelete="CASCADE",
+        ),
+        sa.CheckConstraint(
+            "((internal_error_code IS NULL AND internal_error_stage IS NULL AND internal_error_class IS NULL AND internal_error_retryable IS NULL) OR (internal_error_code IS NOT NULL AND internal_error_stage IS NOT NULL AND internal_error_class IS NOT NULL AND internal_error_retryable IS NOT NULL AND internal_error_class IN ('transient', 'permanent', 'user_error', 'system_error')))",
+            name="ck_import_dispatches_failure_metadata",
         ),
         sa.PrimaryKeyConstraint("id", name="pk_import_dispatches"),
         sa.UniqueConstraint("dispatch_uuid", name="uq_import_dispatches_dispatch_uuid"),
@@ -1563,6 +1576,10 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(
             ["owner_user_id"], ["users.id"], name="fk_score_deletion_operations_owner_user_id_users"
         ),
+        sa.CheckConstraint(
+            "((internal_error_code IS NULL AND internal_error_stage IS NULL AND internal_error_class IS NULL AND internal_error_retryable IS NULL) OR (internal_error_code IS NOT NULL AND internal_error_stage IS NOT NULL AND internal_error_class IS NOT NULL AND internal_error_retryable IS NOT NULL AND internal_error_class IN ('transient', 'permanent', 'user_error', 'system_error')))",
+            name="ck_score_deletion_operations_failure_metadata",
+        ),
         sa.PrimaryKeyConstraint("id", name="pk_score_deletion_operations"),
         sa.UniqueConstraint("operation_uuid", name="uq_score_deletion_operations_operation_uuid"),
         sa.UniqueConstraint("score_uuid", name="uq_score_deletion_operations_score_uuid"),
@@ -1953,6 +1970,10 @@ def upgrade() -> None:
             name="fk_playback_outbox_score_id_scores",
             ondelete="CASCADE",
         ),
+        sa.CheckConstraint(
+            "((internal_error_code IS NULL AND internal_error_stage IS NULL AND internal_error_class IS NULL AND internal_error_retryable IS NULL) OR (internal_error_code IS NOT NULL AND internal_error_stage IS NOT NULL AND internal_error_class IS NOT NULL AND internal_error_retryable IS NOT NULL AND internal_error_class IN ('transient', 'permanent', 'user_error', 'system_error')))",
+            name="ck_playback_outbox_failure_metadata",
+        ),
         sa.PrimaryKeyConstraint("id", name="pk_playback_outbox"),
         sa.UniqueConstraint("outbox_uuid", name="uq_playback_outbox_outbox_uuid"),
         sa.UniqueConstraint("revision_id", "asset_kind", name="uq_playback_outbox_revision_kind"),
@@ -2056,6 +2077,10 @@ def upgrade() -> None:
         ),
         sa.ForeignKeyConstraint(
             ["score_id"], ["scores.id"], name="fk_render_outbox_score_id_scores", ondelete="CASCADE"
+        ),
+        sa.CheckConstraint(
+            "((internal_error_code IS NULL AND internal_error_stage IS NULL AND internal_error_class IS NULL AND internal_error_retryable IS NULL) OR (internal_error_code IS NOT NULL AND internal_error_stage IS NOT NULL AND internal_error_class IS NOT NULL AND internal_error_retryable IS NOT NULL AND internal_error_class IN ('transient', 'permanent', 'user_error', 'system_error')))",
+            name="ck_render_outbox_failure_metadata",
         ),
         sa.PrimaryKeyConstraint("id", name="pk_render_outbox"),
         sa.UniqueConstraint(

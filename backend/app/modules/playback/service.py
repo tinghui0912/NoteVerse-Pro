@@ -33,7 +33,7 @@ from app.modules.playback.asset_records import (
 )
 from app.modules.playback.execution_manifest import build_playback_execution_manifest
 from app.modules.playback.outbox_service import playback_outbox_service
-from app.modules.async_operations.durable_delivery import DeliveryAttemptLease, StaleDeliveryAttempt
+from app.modules.durable_work.delivery import DeliveryAttemptLease, StaleDeliveryAttempt
 from app.processing.engines.playback import FluidSynthAudioRenderer
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.storage_usage.service import storage_usage_service

@@ -22,7 +22,7 @@ from app.modules.revisions.metadata_delivery import (
     compute_metadata,
     MetadataResult,
 )
-from app.modules.async_operations.durable_delivery import StaleDeliveryAttempt
+from app.modules.durable_work.delivery import StaleDeliveryAttempt
 from app.utils.timezone import utc_now_naive
 from tests.test_revision_writer_postgres import database as database, initial
 from tests.test_derivative_adoption_postgres import generation as generation, semantic_snapshot

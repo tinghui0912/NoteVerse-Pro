@@ -35,7 +35,12 @@ from app.modules.scores.deletion_delivery import (
 )
 from app.modules.scores.deletion_executor import ScoreDeletionExecutor
 from app.modules.storage_usage.service import storage_usage_service
-from app.modules.ops.operation_projection import read_score_deletion_operation
+from app.modules.ops.query_service import OpsAsyncOperationQueryService
+from app.modules.durable_work.failure import (
+    DurableFailure,
+    DurableFailureClass,
+    set_failure_metadata,
+)
 from app.modules.ops.operation_summary import AsyncOperationSummaryQuery
 from app.modules.ops.schemas import AsyncOperationKind
 from app.modules.ops.operation_filters import AsyncOperationFilters
@@ -238,8 +243,15 @@ def test_failed_attempts_exhaust_and_operator_rearm_uses_lifecycle(score_db, mon
     assert service.recover_and_list_due(db) == []
     assert service.mark_dispatched(db, operation.operation_uuid) is False
     assert service.claim(db, operation.operation_uuid) is None
-    assert read_score_deletion_operation(operation).status.value == "exhausted"
-    service.rearm(db, operation.operation_uuid)
+    assert (
+        OpsAsyncOperationQueryService()
+        .get_operation(
+            db, kind=AsyncOperationKind.SCORE_DELETION, operation_id=operation.operation_uuid
+        )
+        .status.value
+        == "failed"
+    )
+    service.rearm_for_operator(db, operation.operation_uuid)
     db.commit()
     assert operation.status == Status.PENDING and operation.attempt_count == 0
     assert operation.started_at is operation.dispatched_at is operation.completed_at is None
@@ -267,7 +279,9 @@ def test_cleanup_and_completion_commit_together_and_operation_survives(score_db)
     assert service.fail(db, lease, "late failure") is False
     assert service.complete(db, lease) is False
     assert operation.status == Status.COMPLETED and operation.completed_at == timestamp
-    read = read_score_deletion_operation(operation)
+    read = OpsAsyncOperationQueryService().get_operation(
+        db, kind=AsyncOperationKind.SCORE_DELETION, operation_id=operation.operation_uuid
+    )
     assert read.operation_id == operation.operation_uuid and read.resource_id == "deletion-score"
     assert read.status.value == "succeeded"
 
@@ -455,23 +469,35 @@ async def test_postgres_concurrent_admission_creates_one_operation(postgres_scor
         (Status.PROCESSING, 1, False, "processing"),
         (Status.FAILED, 1, True, "retrying"),
         (Status.FAILED, 1, False, "failed"),
-        (Status.FAILED, settings.SCORE_DELETION_MAX_ATTEMPTS, False, "exhausted"),
+        (Status.FAILED, settings.SCORE_DELETION_MAX_ATTEMPTS, False, "failed"),
         (Status.COMPLETED, 1, False, "succeeded"),
     ],
 )
-def test_score_operation_python_and_sql_summary_agree(score_db, status, attempts, future, expected):
+def test_score_operation_list_and_summary_share_domain_failure_facts(
+    score_db, status, attempts, future, expected
+):
     db, score = score_db
     operation = admitted(db, score)
     operation.status, operation.attempt_count = status, attempts
     operation.attempt_token = "current" if status == Status.PROCESSING else None
     operation.next_attempt_at = utc_now_naive() + timedelta(hours=1 if future else -1)
+    if status == Status.FAILED:
+        set_failure_metadata(
+            operation,
+            DurableFailure(
+                "score_deletion_execution_failed",
+                "cleanup",
+                DurableFailureClass.SYSTEM_ERROR,
+                future,
+            ),
+        )
     db.commit()
-    read = read_score_deletion_operation(operation)
-    rows = AsyncOperationSummaryQuery._score_deletion_summary_rows(
-        db,
-        AsyncOperationFilters(),
+    read = OpsAsyncOperationQueryService().get_operation(
+        db, kind=AsyncOperationKind.SCORE_DELETION, operation_id=operation.operation_uuid
+    )
+    summary = AsyncOperationSummaryQuery().summary(
+        db, kinds=(AsyncOperationKind.SCORE_DELETION,), filters=AsyncOperationFilters()
     )
     assert read.status.value == expected
-    assert [(kind.value, state.value, count) for kind, state, count in rows] == [
-        (AsyncOperationKind.SCORE_DELETION.value, expected, 1),
-    ]
+    assert summary.total == 1
+    assert [(item.status.value, item.count) for item in summary.statuses] == [(expected, 1)]

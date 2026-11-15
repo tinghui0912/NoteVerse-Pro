@@ -12,13 +12,13 @@ from app.core.async_trace_context import get_async_trace_context
 from app.core.config import settings
 from app.core.request_correlation import get_request_id
 from app.db.models import MailOutbox, MailOutboxStatus
-from app.modules.async_operations.diagnostics import (
-    AsyncOperationKindValue,
-    AsyncOperationStatusValue,
-    apply_async_diagnostic,
-    clear_async_diagnostic,
+from app.modules.durable_work.failure import (
+    DurableFailure,
+    DurableFailureClass,
+    set_failure_metadata,
+    clear_failure_metadata,
 )
-from app.modules.async_operations.durable_delivery import (
+from app.modules.durable_work.delivery import (
     ClaimAdmission,
     DeliveryLifecyclePolicy,
     DeliveryStatuses,
@@ -113,14 +113,9 @@ class MailOutboxService:
         now = utc_now_naive()
         if outbox.expires_at is not None and outbox.expires_at <= now:
             self._finish(outbox, MailOutboxStatus.EXPIRED, now=now, error=outbox.last_error)
-            apply_async_diagnostic(
+            set_failure_metadata(
                 outbox,
-                kind=AsyncOperationKindValue.MAIL,
-                status=AsyncOperationStatusValue.EXPIRED,
-                raw_status=outbox.status.value,
-                last_error=outbox.last_error,
-                attempts=outbox.attempt_count,
-                max_attempts=settings.MAIL_OUTBOX_MAX_ATTEMPTS,
+                DurableFailure("mail_expired", "delivery", DurableFailureClass.PERMANENT, False),
             )
             return None
         lifecycle = _delivery_lifecycle()
@@ -131,14 +126,11 @@ class MailOutboxService:
             self._finish(
                 outbox, MailOutboxStatus.PERMANENT_FAILURE, now=now, error=outbox.last_error
             )
-            apply_async_diagnostic(
+            set_failure_metadata(
                 outbox,
-                kind=AsyncOperationKindValue.MAIL,
-                status=AsyncOperationStatusValue.EXHAUSTED,
-                raw_status=outbox.status.value,
-                last_error=outbox.last_error,
-                attempts=outbox.attempt_count,
-                max_attempts=settings.MAIL_OUTBOX_MAX_ATTEMPTS,
+                DurableFailure(
+                    "mail_attempts_exhausted", "delivery", DurableFailureClass.TRANSIENT, False
+                ),
             )
             return None
         if not outbox.text_body:
@@ -148,21 +140,18 @@ class MailOutboxService:
                 now=now,
                 error="Mail outbox body is unavailable",
             )
-            apply_async_diagnostic(
+            set_failure_metadata(
                 outbox,
-                kind=AsyncOperationKindValue.MAIL,
-                status=AsyncOperationStatusValue.PERMANENT_FAILED,
-                raw_status=outbox.status.value,
-                last_error=outbox.last_error,
-                attempts=outbox.attempt_count,
-                max_attempts=settings.MAIL_OUTBOX_MAX_ATTEMPTS,
+                DurableFailure(
+                    "mail_body_unavailable", "delivery", DurableFailureClass.PERMANENT, False
+                ),
             )
             return None
 
         lease = lifecycle.claim(outbox, token=str(uuid4()), now=now)
         if lease is None:
             return None
-        clear_async_diagnostic(outbox)
+        clear_failure_metadata(outbox)
         return MailOutboxPayload(
             outbox_uuid=outbox.outbox_uuid,
             recipient=outbox.recipient,
@@ -192,7 +181,7 @@ class MailOutboxService:
             return False
         outbox.text_body = outbox.html_body = None
         outbox.provider_message_id = provider_message_id
-        clear_async_diagnostic(outbox)
+        clear_failure_metadata(outbox)
         return True
 
     def transient_failure(
@@ -203,9 +192,15 @@ class MailOutboxService:
         if outbox is None or not lifecycle.attempt_matches(outbox, lease):
             return False
         if outbox.attempt_count >= lifecycle.policy.max_attempts:
-            return self.permanent_failure(db, outbox_uuid, error, lease=lease)
-        lifecycle.fail_attempt(outbox, lease=lease, error=error, now=now)
-        self._failure_diagnostic(outbox)
+            lifecycle.finish_attempt(
+                outbox, lease=lease, status=MailOutboxStatus.PERMANENT_FAILURE, error=error, now=now
+            )
+            outbox.text_body = outbox.html_body = None
+        else:
+            lifecycle.fail_attempt(outbox, lease=lease, error=error, now=now)
+        self._record_failure(
+            outbox, code="mail_provider_transient", classification=DurableFailureClass.TRANSIENT
+        )
         return True
 
     def permanent_failure(
@@ -221,22 +216,62 @@ class MailOutboxService:
         ):
             return False
         outbox.text_body = outbox.html_body = None
-        self._failure_diagnostic(outbox)
+        set_failure_metadata(
+            outbox,
+            DurableFailure(
+                "mail_provider_permanent", "delivery", DurableFailureClass.PERMANENT, False
+            ),
+        )
         return True
 
     @staticmethod
-    def _failure_diagnostic(outbox: MailOutbox) -> None:
-        apply_async_diagnostic(
+    def _record_failure(
+        outbox: MailOutbox,
+        *,
+        code: str,
+        classification: DurableFailureClass,
+        stage: str = "delivery",
+    ) -> None:
+        retryable = outbox.attempt_count < settings.MAIL_OUTBOX_MAX_ATTEMPTS
+        set_failure_metadata(
             outbox,
-            kind=AsyncOperationKindValue.MAIL,
-            status=AsyncOperationStatusValue.PERMANENT_FAILED
-            if outbox.status == MailOutboxStatus.PERMANENT_FAILURE
-            else AsyncOperationStatusValue.RETRYING,
-            raw_status=outbox.status.value,
-            last_error=outbox.last_error,
-            attempts=outbox.attempt_count,
-            max_attempts=settings.MAIL_OUTBOX_MAX_ATTEMPTS,
+            DurableFailure(
+                code if retryable else "mail_attempts_exhausted", stage, classification, retryable
+            ),
         )
+
+    def execution_failure(
+        self, db: Session, outbox_uuid: str, error: str, *, lease: DeliveryAttemptLease
+    ) -> bool:
+        outbox = self._get(db, outbox_uuid)
+        if outbox is None or not _delivery_lifecycle().fail_attempt(
+            outbox, lease=lease, error=error, now=utc_now_naive()
+        ):
+            return False
+        self._record_failure(
+            outbox, code="mail_execution_failed", classification=DurableFailureClass.SYSTEM_ERROR
+        )
+        return True
+
+    def rearm_for_operator(self, db: Session, operation_id: str) -> str:
+        from app.core.exceptions import ResourceNotFoundException, ValidationException
+
+        outbox = self._get(db, operation_id)
+        if outbox is None:
+            raise ResourceNotFoundException("async_operation", operation_id)
+        now = utc_now_naive()
+        if (
+            outbox.status not in (MailOutboxStatus.PENDING, MailOutboxStatus.FAILED)
+            or outbox.internal_error_code is None
+            or (outbox.expires_at is not None and outbox.expires_at <= now)
+        ):
+            raise ValidationException(field="status", details={"status": outbox.status.value})
+        if not outbox.text_body:
+            raise ValidationException(field="body", details={"reason": "mail_body_unavailable"})
+        previous = outbox.status.value
+        _delivery_lifecycle().rearm(outbox, now=now)
+        clear_failure_metadata(outbox)
+        return previous
 
     def mark_dispatched(self, db: Session, outbox_uuid: str) -> bool:
         outbox = self._get(db, outbox_uuid)
@@ -245,7 +280,7 @@ class MailOutboxService:
             return False
         if not _delivery_lifecycle().dispatch(outbox, now=now):
             return False
-        clear_async_diagnostic(outbox)
+        clear_failure_metadata(outbox)
         return True
 
     def release_dispatch(self, db: Session, outbox_uuid: str, error: str) -> None:
@@ -254,14 +289,11 @@ class MailOutboxService:
             outbox, error=error, now=utc_now_naive()
         ):
             return
-        apply_async_diagnostic(
+        self._record_failure(
             outbox,
-            kind=AsyncOperationKindValue.MAIL,
-            status=AsyncOperationStatusValue.QUEUED,
-            raw_status=outbox.status.value,
-            last_error=outbox.last_error,
-            attempts=outbox.attempt_count,
-            max_attempts=settings.MAIL_OUTBOX_MAX_ATTEMPTS,
+            code="mail_dispatch_failed",
+            classification=DurableFailureClass.TRANSIENT,
+            stage="dispatch",
         )
 
     def recover_and_list_due(self, db: Session) -> list[str]:
@@ -285,14 +317,10 @@ class MailOutboxService:
             if _delivery_lifecycle().recover_lease(
                 outbox, error="Mail delivery lease expired", now=now
             ):
-                apply_async_diagnostic(
+                self._record_failure(
                     outbox,
-                    kind=AsyncOperationKindValue.MAIL,
-                    status=AsyncOperationStatusValue.FAILED,
-                    raw_status=outbox.status.value,
-                    last_error=outbox.last_error,
-                    attempts=outbox.attempt_count,
-                    max_attempts=settings.MAIL_OUTBOX_MAX_ATTEMPTS,
+                    code="mail_delivery_lease_expired",
+                    classification=DurableFailureClass.TRANSIENT,
                 )
 
         expirable = (
@@ -317,14 +345,9 @@ class MailOutboxService:
         )
         for outbox in expirable:
             self._finish(outbox, MailOutboxStatus.EXPIRED, now=now, error=outbox.last_error)
-            apply_async_diagnostic(
+            set_failure_metadata(
                 outbox,
-                kind=AsyncOperationKindValue.MAIL,
-                status=AsyncOperationStatusValue.EXPIRED,
-                raw_status=outbox.status.value,
-                last_error=outbox.last_error,
-                attempts=outbox.attempt_count,
-                max_attempts=settings.MAIL_OUTBOX_MAX_ATTEMPTS,
+                DurableFailure("mail_expired", "delivery", DurableFailureClass.PERMANENT, False),
             )
 
         due = (

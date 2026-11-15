@@ -8,7 +8,7 @@ Severity: `warning`
 
 At least one async operation kind has had an open non-terminal record for longer
 than the configured alert threshold. This can indicate that import, render,
-playback, or mail dispatch is not draining.
+playback, mail, or score-deletion dispatch is not draining.
 
 ## User Impact
 
@@ -29,8 +29,10 @@ Open the `NoteVerse Application Overview` dashboard and inspect:
 
 1. Identify the affected `kind` label.
 2. Check whether the relevant worker or scheduler is running.
-3. Check whether records are stuck in `pending`, `dispatched`, `processing`, or
-   retryable `failed` state.
+3. Check the shared Ops projection for `queued`, `dispatched`, `processing` or
+   `retrying` work. These are the open states used by the backlog metric.
+   `succeeded`, `failed` and `superseded` are terminal. Inspect explicit failure
+   code, stage, classification and automatic retryability before choosing manual rearm.
 4. Check recent deployment and migration history.
 5. Review structured logs for operation IDs in the same time window.
 

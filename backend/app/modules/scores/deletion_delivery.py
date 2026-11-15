@@ -8,18 +8,18 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.exceptions import ResourceNotFoundException, ValidationException
 from app.db.models import ScoreDeletionOperation, ScoreDeletionOperationStatus as Status
-from app.modules.async_operations.durable_delivery import (
+from app.modules.durable_work.delivery import (
     DurableDeliveryLifecycle,
     DeliveryAttemptLease,
     DeliveryStatuses,
     DeliveryLifecyclePolicy,
     ClaimAdmission,
 )
-from app.modules.async_operations.diagnostics import (
-    apply_async_diagnostic,
-    clear_async_diagnostic,
-    AsyncOperationKindValue,
-    AsyncOperationStatusValue,
+from app.modules.durable_work.failure import (
+    DurableFailure,
+    DurableFailureClass,
+    set_failure_metadata,
+    clear_failure_metadata,
 )
 from app.utils.timezone import utc_now_naive
 
@@ -81,7 +81,7 @@ class ScoreDeletionDeliveryService:
         row = lock_operation(db, operation_uuid)
         if row is None or not self.lifecycle().dispatch(row, now=utc_now_naive()):
             return False
-        clear_async_diagnostic(row)
+        clear_failure_metadata(row)
         return True
 
     def release_dispatch(self, db: Session, operation_uuid: str, error: str) -> bool:
@@ -90,7 +90,12 @@ class ScoreDeletionDeliveryService:
             row, error=error, now=utc_now_naive()
         ):
             return False
-        self._diagnose(row)
+        self._record_failure(
+            row,
+            code="score_deletion_dispatch_failed",
+            stage="dispatch",
+            classification=DurableFailureClass.TRANSIENT,
+        )
         return True
 
     def claim(self, db: Session, operation_uuid: str) -> ScoreDeletionLease | None:
@@ -101,12 +106,17 @@ class ScoreDeletionDeliveryService:
         admission = lifecycle.claim_admission(row, now=now)
         if admission is ClaimAdmission.EXHAUSTED:
             lifecycle.exhaust(row, error="Score deletion attempts exhausted", now=now)
-            self._diagnose(row)
+            self._record_failure(
+                row,
+                code="score_deletion_attempts_exhausted",
+                stage="cleanup",
+                classification=DurableFailureClass.TRANSIENT,
+            )
             return None
         claimed = lifecycle.claim(row, token=str(uuid4()), now=now)
         if claimed is None:
             return None
-        clear_async_diagnostic(row)
+        clear_failure_metadata(row)
         return ScoreDeletionLease(
             operation_uuid=row.operation_uuid,
             score_uuid=row.score_uuid,
@@ -123,7 +133,7 @@ class ScoreDeletionDeliveryService:
             return False
         if not self.lifecycle().complete_attempt(row, lease=lease, now=utc_now_naive()):
             return False
-        clear_async_diagnostic(row)
+        clear_failure_metadata(row)
         return True
 
     def fail(self, db: Session, lease: ScoreDeletionLease, error: str) -> bool:
@@ -133,7 +143,12 @@ class ScoreDeletionDeliveryService:
             return False
         if not self.lifecycle().fail_attempt(row, lease=lease, error=error, now=utc_now_naive()):
             return False
-        self._diagnose(row)
+        self._record_failure(
+            row,
+            code="score_deletion_execution_failed",
+            stage="cleanup",
+            classification=DurableFailureClass.SYSTEM_ERROR,
+        )
         return True
 
     def recover_and_list_due(self, db: Session) -> list[str]:
@@ -172,40 +187,43 @@ class ScoreDeletionDeliveryService:
             if self.lifecycle().recover_lease(
                 row, error="Score deletion delivery lease expired", now=now
             ):
-                self._diagnose(row)
+                self._record_failure(
+                    row,
+                    code="score_deletion_lease_expired",
+                    stage="cleanup",
+                    classification=DurableFailureClass.TRANSIENT,
+                )
             if self.lifecycle().is_dispatchable(row, now=now):
                 due.append(row.operation_uuid)
         return due
 
-    def rearm(self, db: Session, operation_uuid: str) -> tuple[ScoreDeletionOperation, str]:
+    def rearm_for_operator(self, db: Session, operation_uuid: str) -> str:
         row = lock_operation(db, operation_uuid)
         if row is None:
             raise ResourceNotFoundException("async_operation", operation_uuid)
         previous = row.status.value
         self._rearm(row)
-        return row, previous
+        return previous
 
     def _rearm(self, row: ScoreDeletionOperation) -> None:
-        if row.status not in (Status.PENDING, Status.FAILED):
+        if row.status not in (Status.PENDING, Status.FAILED) or row.internal_error_code is None:
             raise ValidationException(field="status", details={"status": row.status.value})
         self.lifecycle().rearm(row, now=utc_now_naive())
-        clear_async_diagnostic(row)
+        clear_failure_metadata(row)
 
     @staticmethod
-    def _diagnose(row: ScoreDeletionOperation) -> None:
-        status = AsyncOperationStatusValue.FAILED
-        if row.attempt_count >= settings.SCORE_DELETION_MAX_ATTEMPTS:
-            status = AsyncOperationStatusValue.EXHAUSTED
-        elif row.next_attempt_at > utc_now_naive():
-            status = AsyncOperationStatusValue.RETRYING
-        apply_async_diagnostic(
+    def _record_failure(
+        row: ScoreDeletionOperation, *, code: str, stage: str, classification: DurableFailureClass
+    ) -> None:
+        retryable = row.attempt_count < settings.SCORE_DELETION_MAX_ATTEMPTS
+        set_failure_metadata(
             row,
-            kind=AsyncOperationKindValue.SCORE_DELETION,
-            status=status,
-            raw_status=row.status.value,
-            last_error=row.last_error,
-            attempts=row.attempt_count,
-            max_attempts=settings.SCORE_DELETION_MAX_ATTEMPTS,
+            DurableFailure(
+                code if retryable else "score_deletion_attempts_exhausted",
+                stage,
+                classification,
+                retryable,
+            ),
         )
 
 

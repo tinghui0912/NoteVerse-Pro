@@ -1,5 +1,8 @@
 """Import delivery, domain outcomes and current-attempt mutation authority."""
 
+from app.modules.durable_work.failure import DurableFailure, DurableFailureClass
+
+
 from contextlib import contextmanager
 from dataclasses import replace
 from datetime import timedelta
@@ -133,6 +136,9 @@ def test_delivery_lifecycle_preserves_command_and_domain_identities(setup_delive
 def test_publish_release_changes_delivery_only(setup_delivery):
     db, _, job, row = setup_delivery
     job.internal_error_code = "domain-diagnostic"
+    job.internal_error_stage = "pipeline"
+    job.internal_error_class = "system_error"
+    job.internal_error_retryable = False
     db.add(job)
     db.commit()
     service = ImportDispatchService()
@@ -175,12 +181,17 @@ def test_expired_processing_resets_execution_and_preserves_inputs_and_binding(se
     job.started_at = job.last_heartbeat_at = utc_now_naive()
     job.code = job.error = job.error_type = "attempt-local"
     job.internal_error_code = "attempt-local"
+    job.internal_error_stage = "pipeline"
+    job.internal_error_class = "system_error"
+    job.internal_error_retryable = False
     db.add(ImportJobStep(job_id=job.id, step_order=1, name="ocr", status="RUNNING"))
     db.add(job)
     db.commit()
     expire(db, row)
     assert ImportDispatchService().recover_and_list_due(db) == [row.dispatch_uuid]
     assert row.status == ImportDispatchStatus.FAILED and row.attempt_count == lease.attempt
+    assert row.internal_error_code == "import_dispatch_lease_expired"
+    assert row.internal_error_class == "transient" and row.internal_error_retryable is True
     assert row.attempt_token is None and row.next_attempt_at <= utc_now_naive()
     assert job.state == ImportJobState.PENDING and job.progress == 0
     assert job.current_step is job.started_at is job.last_heartbeat_at is job.finished_at is None
@@ -202,6 +213,9 @@ def test_terminal_domain_outcome_reconciles_expired_delivery_without_execution(
     job.state, job.progress = state, 100
     job.error = "durable-domain-result"
     job.internal_error_code = "domain-result"
+    job.internal_error_stage = "pipeline"
+    job.internal_error_class = "system_error"
+    job.internal_error_retryable = False
     db.add(ImportJobStep(job_id=job.id, step_order=1, name="ocr", status="COMPLETED"))
     db.add(job)
     db.commit()
@@ -224,7 +238,10 @@ def test_exhausted_processing_has_distinct_delivery_and_domain_outcomes(setup_de
     expire(db, row)
     assert ImportDispatchService().recover_and_list_due(db) == []
     assert row.status == ImportDispatchStatus.FAILED and row.attempt_token is None
-    assert row.internal_error_code and job.internal_error_code
+    assert (
+        row.internal_error_code == job.internal_error_code == "import_dispatch_attempts_exhausted"
+    )
+    assert row.internal_error_retryable is job.internal_error_retryable is False
     assert job.state == ImportJobState.FAILURE and job.finished_at
     assert job.error_type == "ImportDispatchFailure"
     assert db.scalar(select(Notification.kind)) == "import.failed"
@@ -232,11 +249,14 @@ def test_exhausted_processing_has_distinct_delivery_and_domain_outcomes(setup_de
         "import_jobs.changed",
         "notifications.changed",
     ]
-    from app.modules.ops.operation_projection import read_import_operation
+    from app.modules.ops.query_service import OpsAsyncOperationQueryService
+    from app.modules.ops.schemas import AsyncOperationKind
 
-    projected = read_import_operation(job, row)
-    assert projected.status.value == "exhausted"
-    assert projected.diagnostic.code == row.internal_error_code
+    projected = OpsAsyncOperationQueryService().get_operation(
+        db, kind=AsyncOperationKind.IMPORT, operation_id=row.dispatch_uuid
+    )
+    assert projected.status.value == "failed"
+    assert projected.failure.code == row.internal_error_code
     before = (row.status, row.attempt_count, row.completed_at, row.updated_at)
     assert ImportDispatchService().claim(db, row.dispatch_uuid) is None
     assert not ImportDispatchService().mark_dispatched(db, row.dispatch_uuid)
@@ -260,7 +280,15 @@ def test_only_current_execution_lease_can_mutate_job(setup_delivery, mutation):
         "step": lambda: worker.upsert_step(db, first, "ocr", "RUNNING"),
         "artifacts": lambda: worker.replace_artifacts(db, first, "review_musicxml", []),
         "success": lambda: worker.finalize_success(db, first),
-        "failure": lambda: worker.finalize_failure(db, first, "stale", "Stale"),
+        "failure": lambda: worker.finalize_failure(
+            db,
+            first,
+            "stale",
+            "Stale",
+            failure=DurableFailure(
+                "import_pipeline_failed", "pipeline", DurableFailureClass.SYSTEM_ERROR, False
+            ),
+        ),
         "complete": lambda: ImportDispatchService().complete(db, first),
     }
     with pytest.raises(StaleImportDispatchAttempt):
@@ -365,7 +393,15 @@ def test_domain_pipeline_failure_completes_current_delivery(setup_delivery):
     db, _, job, row = setup_delivery
     lease = claim(db, row)
     worker = ImportJobExecutionService()
-    worker.finalize_failure(db, lease, error="OMR failed", error_type="PipelineError")
+    worker.finalize_failure(
+        db,
+        lease,
+        error="OMR failed",
+        error_type="PipelineError",
+        failure=DurableFailure(
+            "import_pipeline_failed", "pipeline", DurableFailureClass.SYSTEM_ERROR, False
+        ),
+    )
     ImportDispatchService().complete(db, lease)
     db.commit()
     assert job.state == ImportJobState.FAILURE and job.internal_error_code
@@ -477,7 +513,15 @@ def test_worker_completes_delivery_after_durable_domain_outcome(
     def run(task, lease, keys, options):
         assert lease.dispatch_uuid == row.dispatch_uuid and lease.job_uuid == job.job_uuid
         if outcome == "failure":
-            worker.finalize_failure(db, lease, "pipeline rejected input", "PipelineError")
+            worker.finalize_failure(
+                db,
+                lease,
+                "pipeline rejected input",
+                "PipelineError",
+                failure=DurableFailure(
+                    "import_pipeline_failed", "pipeline", DurableFailureClass.SYSTEM_ERROR, False
+                ),
+            )
             raise RuntimeError("pipeline rejected input")
         worker.finalize_success(db, lease)
         return {"success": True, "job_id": job.job_uuid}
@@ -502,7 +546,8 @@ def test_worker_completes_delivery_after_durable_domain_outcome(
 def test_final_attempt_domain_failure_completes_delivery_and_preserves_terminal_timestamps(
     setup_delivery,
 ):
-    from app.modules.ops.operation_projection import read_import_operation
+    from app.modules.ops.query_service import OpsAsyncOperationQueryService
+    from app.modules.ops.schemas import AsyncOperationKind
 
     db, _, job, row = setup_delivery
     row.attempt_count = dispatch_module.settings.IMPORT_DISPATCH_MAX_ATTEMPTS - 1
@@ -510,13 +555,28 @@ def test_final_attempt_domain_failure_completes_delivery_and_preserves_terminal_
     db.commit()
     lease = claim(db, row)
     assert lease.attempt == dispatch_module.settings.IMPORT_DISPATCH_MAX_ATTEMPTS
-    ImportJobExecutionService().finalize_failure(db, lease, "OMR failed", "PipelineError")
-    assert read_import_operation(job, row).status.value == "failed"
+    ImportJobExecutionService().finalize_failure(
+        db,
+        lease,
+        "OMR failed",
+        "PipelineError",
+        failure=DurableFailure(
+            "import_pipeline_failed", "pipeline", DurableFailureClass.SYSTEM_ERROR, False
+        ),
+    )
+    assert (
+        OpsAsyncOperationQueryService()
+        .get_operation(db, kind=AsyncOperationKind.IMPORT, operation_id=row.dispatch_uuid)
+        .status.value
+        == "failed"
+    )
     ImportDispatchService().complete(db, lease)
     db.commit()
-    projected = read_import_operation(job, row)
+    projected = OpsAsyncOperationQueryService().get_operation(
+        db, kind=AsyncOperationKind.IMPORT, operation_id=row.dispatch_uuid
+    )
     assert projected.status.value == "failed"
-    assert projected.diagnostic.code == job.internal_error_code
+    assert projected.failure.code == job.internal_error_code
     assert row.status == ImportDispatchStatus.COMPLETED and row.completed_at is not None
     before = (row.status, row.attempt_count, row.completed_at, row.updated_at)
     assert not ImportDispatchService().mark_dispatched(db, row.dispatch_uuid)

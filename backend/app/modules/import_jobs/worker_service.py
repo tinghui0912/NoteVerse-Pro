@@ -18,11 +18,10 @@ from app.db.models import (
     StorageUsageCategory,
 )
 from app.db.models.import_job import ImportJobState, ImportJobStepStatus
-from app.modules.async_operations.diagnostics import (
-    AsyncOperationKindValue,
-    AsyncOperationStatusValue,
-    apply_async_diagnostic,
-    clear_async_diagnostic,
+from app.modules.durable_work.failure import (
+    DurableFailure,
+    set_failure_metadata,
+    clear_failure_metadata,
 )
 from app.modules.import_jobs.dispatch_service import (
     ImportExecutionLease,
@@ -88,7 +87,8 @@ class ImportJobExecutionService:
         job.progress = 100
         job.last_heartbeat_at = now
         job.finished_at = now
-        clear_async_diagnostic(job)
+        clear_failure_metadata(job)
+        job.internal_error_detail = None
         job.updated_at = now
         review_xml = db.execute(
             select(ImportArtifact).where(
@@ -112,6 +112,9 @@ class ImportJobExecutionService:
         error: str,
         error_type: str,
         code: Optional[str] = None,
+        *,
+        failure: DurableFailure,
+        detail: str | None = None,
     ) -> None:
         job = require_current_attempt(db, lease)
         if job.state in TERMINAL_IMPORT_STATES:
@@ -123,15 +126,8 @@ class ImportJobExecutionService:
         job.error = error
         job.error_type = error_type
         job.code = code or job.code
-        apply_async_diagnostic(
-            job,
-            kind=AsyncOperationKindValue.IMPORT,
-            status=AsyncOperationStatusValue.FAILED,
-            raw_status=job.state.value,
-            last_error=job.error,
-            attempts=lease.attempt,
-            max_attempts=None,
-        )
+        set_failure_metadata(job, failure)
+        job.internal_error_detail = detail[:4000] if detail else None
         job.last_heartbeat_at = now
         job.finished_at = now
         job.updated_at = now

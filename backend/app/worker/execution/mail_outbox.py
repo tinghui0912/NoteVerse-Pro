@@ -94,6 +94,15 @@ def execute_mail_outbox_task(task: CeleryTaskLike, outbox_uuid: str) -> dict[str
             ).warning("mail.failed")
             return {"status": "failed", "outbox_uuid": outbox_uuid}
 
+        except Exception as exc:
+            record_current_attempt_failure(exc)
+            with SessionLocal() as db:
+                accepted = mail_outbox_service.execution_failure(
+                    db, outbox_uuid, str(exc), lease=payload.lease
+                )
+                db.commit()
+            return {"status": "failed" if accepted else "stale", "outbox_uuid": outbox_uuid}
+
         with SessionLocal() as db:
             accepted = mail_outbox_service.sent(
                 db, outbox_uuid, provider_message_id, lease=payload.lease

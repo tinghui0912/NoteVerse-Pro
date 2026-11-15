@@ -8,7 +8,7 @@ import sys
 
 import pytest
 
-from app.modules.async_operations.durable_delivery import (
+from app.modules.durable_work.delivery import (
     ClaimAdmission,
     DeliveryLifecyclePolicy,
     DeliveryStatuses,
@@ -269,7 +269,7 @@ def test_domain_terminal_and_exhaustion_decisions_use_common_field_mechanics() -
 
 
 def test_lifecycle_dependencies_are_standard_library_only() -> None:
-    path = Path(__file__).parents[1] / "app/modules/async_operations/durable_delivery.py"
+    path = Path(__file__).parents[1] / "app/modules/durable_work/delivery.py"
     for node in ast.walk(ast.parse(path.read_text())):
         if isinstance(node, ast.ImportFrom):
             assert (node.module or "").split(".")[0] in sys.stdlib_module_names
@@ -305,7 +305,7 @@ def test_generic_token_mutation_belongs_to_delivery_lifecycle():
             if isinstance(node, ast.Attribute) and isinstance(node.ctx, ast.Store):
                 if node.attr == "attempt_token":
                     owners.add(path.relative_to(root).as_posix())
-    assert owners == {"modules/async_operations/durable_delivery.py"}
+    assert owners == {"modules/durable_work/delivery.py"}
 
 
 def test_domain_execution_leases_share_the_common_attempt_identity():

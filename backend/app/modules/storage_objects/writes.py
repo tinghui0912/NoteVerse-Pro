@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.models.object_write_intent import ObjectWriteIntent
 from app.db.models.stored_object import StoredObject
-from app.modules.async_operations.durable_delivery import (
+from app.modules.durable_work.delivery import (
     DurableDeliveryLifecycle,
     DeliveryAttemptLease,
     DeliveryLifecyclePolicy,

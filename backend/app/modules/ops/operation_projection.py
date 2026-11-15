@@ -1,367 +1,153 @@
-from __future__ import annotations
+"""Query-time projection of domain-owned durable work; no persisted Ops entity."""
 
-from collections import Counter
-from datetime import datetime
-
-from sqlalchemy import case
-from sqlmodel import col
-
+from sqlalchemy import String, cast, case, func, literal, select, union_all
 from app.core.config import settings
 from app.db.models import (
-    ImportDispatchStatus,
     ImportJob,
     ImportDispatch,
-    ImportJobState,
-    MailOutbox,
-    MailOutboxStatus,
-    PlaybackOutbox,
-    PlaybackOutboxStatus,
     RenderOutbox,
-    RenderOutboxStatus,
+    PlaybackOutbox,
+    MailOutbox,
     ScoreDeletionOperation,
-    ScoreDeletionOperationStatus,
 )
-from app.modules.import_jobs.dispatch_service import import_delivery_exhausted
 from app.modules.ops.operation_filters import AsyncOperationFilters
-from app.modules.ops.schemas import (
-    AsyncOperationDiagnostic,
-    AsyncOperationErrorClass,
-    AsyncOperationKind,
-    AsyncOperationRead,
-    AsyncOperationStatus,
-    AsyncOperationStatusCount,
-)
-from app.utils.timezone import utc_now_naive
+from app.modules.ops.schemas import AsyncOperationKind
 
 
-def read_import_operation(job: ImportJob, dispatch: ImportDispatch) -> AsyncOperationRead:
-    diagnostic_owner = (
-        dispatch
-        if import_delivery_exhausted(dispatch) or job.state != ImportJobState.FAILURE
-        else job
-    )
-    return AsyncOperationRead(
-        operation_id=dispatch.dispatch_uuid,
-        kind=AsyncOperationKind.IMPORT,
-        resource_type="import_job",
-        resource_id=job.job_uuid,
-        originating_request_id=dispatch.originating_request_id,
-        status=import_operation_status(job, dispatch),
-        raw_status=f"{job.state.value}/{dispatch.status.value}",
-        attempts=dispatch.attempt_count,
-        max_attempts=settings.IMPORT_DISPATCH_MAX_ATTEMPTS,
-        next_attempt_at=dispatch.next_attempt_at,
-        error_class=stored_error_class(diagnostic_owner),
-        diagnostic=stored_diagnostic(diagnostic_owner),
-        created_at=dispatch.created_at,
-        updated_at=max(job.updated_at, dispatch.updated_at),
+def _delivery_status(c, *, succeeded="COMPLETED"):
+    status = cast(c.status, String)
+    return case(
+        (status == succeeded, "succeeded"),
+        (status == "SUPERSEDED", "superseded"),
+        (status == "PROCESSING", "processing"),
+        (status == "DISPATCHED", "dispatched"),
+        (c.internal_error_retryable.is_(True), "retrying"),
+        (status.in_(["FAILED", "PERMANENT_FAILURE", "EXPIRED"]), "failed"),
+        else_="queued",
     )
 
 
-def read_render_operation(outbox: RenderOutbox) -> AsyncOperationRead:
-    status = outbox_operation_status(
-        outbox.status,
-        attempts=outbox.attempt_count,
-        max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
-        next_attempt_at=outbox.next_attempt_at,
-    )
-    return AsyncOperationRead(
-        operation_id=outbox.outbox_uuid,
-        kind=AsyncOperationKind.RENDER,
-        resource_type=outbox.target_type.value.lower(),
-        resource_id=outbox.outbox_uuid,
-        originating_request_id=outbox.originating_request_id,
-        status=status,
-        raw_status=outbox.status.value,
-        attempts=outbox.attempt_count,
-        max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
-        next_attempt_at=outbox.next_attempt_at,
-        error_class=stored_error_class(outbox),
-        diagnostic=stored_diagnostic(outbox),
-        created_at=outbox.created_at,
-        updated_at=outbox.updated_at,
-    )
-
-
-def read_playback_operation(outbox: PlaybackOutbox) -> AsyncOperationRead:
-    status = outbox_operation_status(
-        outbox.status,
-        attempts=outbox.attempt_count,
-        max_attempts=settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
-        next_attempt_at=outbox.next_attempt_at,
-    )
-    return AsyncOperationRead(
-        operation_id=outbox.outbox_uuid,
-        kind=AsyncOperationKind.PLAYBACK,
-        resource_type=outbox.asset_kind.value.lower(),
-        resource_id=outbox.outbox_uuid,
-        originating_request_id=outbox.originating_request_id,
-        status=status,
-        raw_status=outbox.status.value,
-        attempts=outbox.attempt_count,
-        max_attempts=settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
-        next_attempt_at=outbox.next_attempt_at,
-        error_class=stored_error_class(outbox),
-        diagnostic=stored_diagnostic(outbox),
-        created_at=outbox.created_at,
-        updated_at=outbox.updated_at,
-    )
-
-
-def read_mail_operation(outbox: MailOutbox) -> AsyncOperationRead:
-    status = mail_operation_status(outbox)
-    return AsyncOperationRead(
-        operation_id=outbox.outbox_uuid,
-        kind=AsyncOperationKind.MAIL,
-        resource_type=outbox.category,
-        resource_id=outbox.outbox_uuid,
-        originating_request_id=outbox.originating_request_id,
-        status=status,
-        raw_status=outbox.status.value,
-        attempts=outbox.attempt_count,
-        max_attempts=settings.MAIL_OUTBOX_MAX_ATTEMPTS,
-        next_attempt_at=outbox.next_attempt_at,
-        error_class=stored_error_class(outbox),
-        diagnostic=stored_diagnostic(outbox),
-        created_at=outbox.created_at,
-        updated_at=outbox.updated_at,
-    )
-
-
-def read_score_deletion_operation(operation: ScoreDeletionOperation) -> AsyncOperationRead:
-    return AsyncOperationRead(
-        operation_id=operation.operation_uuid,
-        kind=AsyncOperationKind.SCORE_DELETION,
-        resource_type="score",
-        resource_id=operation.score_uuid,
-        originating_request_id=operation.originating_request_id,
-        status=score_deletion_operation_status(operation),
-        raw_status=operation.status.value,
-        attempts=operation.attempt_count,
-        max_attempts=settings.SCORE_DELETION_MAX_ATTEMPTS,
-        next_attempt_at=operation.next_attempt_at,
-        error_class=stored_error_class(operation),
-        diagnostic=stored_diagnostic(operation),
-        created_at=operation.created_at,
-        updated_at=operation.updated_at,
-    )
-
-
-def outbox_operation_status_sql(
-    status_column,
-    attempt_count_column,
-    max_attempts: int,
-    next_attempt_at_column,
+def _delivery_projection(
+    model, *, kind, identity, resource_type, resource_id, max_attempts, succeeded="COMPLETED"
 ):
-    return case(
-        (status_column == "COMPLETED", AsyncOperationStatus.SUCCEEDED.value),
-        (status_column == "PROCESSING", AsyncOperationStatus.PROCESSING.value),
-        (status_column == "DISPATCHED", AsyncOperationStatus.DISPATCHED.value),
-        (
-            (status_column == "FAILED") & (attempt_count_column >= max_attempts),
-            AsyncOperationStatus.EXHAUSTED.value,
-        ),
-        (
-            (status_column == "FAILED") & (next_attempt_at_column > utc_now_naive()),
-            AsyncOperationStatus.RETRYING.value,
-        ),
-        (status_column == "FAILED", AsyncOperationStatus.FAILED.value),
-        else_=AsyncOperationStatus.QUEUED.value,
+    c = model.__table__.c
+    return select(
+        identity.label("operation_id"),
+        literal(kind.value).label("kind"),
+        resource_type.label("resource_type"),
+        resource_id.label("resource_id"),
+        c.originating_request_id,
+        _delivery_status(c, succeeded=succeeded).label("status"),
+        c.attempt_count.label("attempts"),
+        literal(max_attempts).label("max_attempts"),
+        c.next_attempt_at,
+        c.internal_error_code.label("failure_code"),
+        c.internal_error_stage.label("failure_stage"),
+        c.internal_error_class.label("failure_class"),
+        c.internal_error_retryable.label("failure_retryable"),
+        c.last_error.label("failure_detail"),
+        c.created_at,
+        c.updated_at,
+        c.started_at,
+        c.completed_at,
     )
 
 
-def summary_predicates(
-    filters: AsyncOperationFilters,
-    *,
-    status_expr,
-    error_class_expr,
-    resource_type_expr,
-    created_at_expr,
-    updated_at_expr,
-) -> list[object]:
-    predicates: list[object] = []
-    if filters.status is not None:
-        predicates.append(status_expr == filters.status.value)
-    if filters.error_class is not None:
-        predicates.append(error_class_expr == filters.error_class.value)
-    if filters.resource_type is not None:
-        predicates.append(resource_type_expr == filters.resource_type)
+def _import_projection():
+    j, d = ImportJob.__table__.c, ImportDispatch.__table__.c
+    terminal_failure = j.state == "FAILURE"
+    status = case(
+        (j.state.in_(["PENDING_REVIEW", "CONFIRMED"]), "succeeded"),
+        (terminal_failure, "failed"),
+        else_=_delivery_status(d),
+    )
+
+    def failure(name):
+        return case(
+            (terminal_failure, j["internal_error_" + name]), else_=d["internal_error_" + name]
+        )
+
+    return select(
+        d.dispatch_uuid.label("operation_id"),
+        literal("import").label("kind"),
+        literal("import_job").label("resource_type"),
+        j.job_uuid.label("resource_id"),
+        d.originating_request_id,
+        status.label("status"),
+        d.attempt_count.label("attempts"),
+        literal(settings.IMPORT_DISPATCH_MAX_ATTEMPTS).label("max_attempts"),
+        d.next_attempt_at,
+        failure("code").label("failure_code"),
+        failure("stage").label("failure_stage"),
+        failure("class").label("failure_class"),
+        failure("retryable").label("failure_retryable"),
+        case((terminal_failure, j.internal_error_detail), else_=d.last_error).label(
+            "failure_detail"
+        ),
+        d.created_at,
+        case((j.updated_at > d.updated_at, j.updated_at), else_=d.updated_at).label("updated_at"),
+        func.coalesce(j.started_at, d.started_at).label("started_at"),
+        func.coalesce(j.finished_at, d.completed_at).label("completed_at"),
+    ).select_from(ImportJob.__table__.join(ImportDispatch.__table__, d.job_id == j.id))
+
+
+def operation_projection():
+    """One aligned SQL definition per kind, shared by list, summary and metrics."""
+    r, p, m, s = (
+        model.__table__.c
+        for model in (RenderOutbox, PlaybackOutbox, MailOutbox, ScoreDeletionOperation)
+    )
+    return union_all(
+        _import_projection(),
+        _delivery_projection(
+            RenderOutbox,
+            kind=AsyncOperationKind.RENDER,
+            identity=r.outbox_uuid,
+            resource_type=func.lower(cast(r.target_type, String)),
+            resource_id=r.outbox_uuid,
+            max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
+        ),
+        _delivery_projection(
+            PlaybackOutbox,
+            kind=AsyncOperationKind.PLAYBACK,
+            identity=p.outbox_uuid,
+            resource_type=func.lower(cast(p.asset_kind, String)),
+            resource_id=p.outbox_uuid,
+            max_attempts=settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
+        ),
+        _delivery_projection(
+            MailOutbox,
+            kind=AsyncOperationKind.MAIL,
+            identity=m.outbox_uuid,
+            resource_type=m.category,
+            resource_id=m.outbox_uuid,
+            max_attempts=settings.MAIL_OUTBOX_MAX_ATTEMPTS,
+            succeeded="SENT",
+        ),
+        _delivery_projection(
+            ScoreDeletionOperation,
+            kind=AsyncOperationKind.SCORE_DELETION,
+            identity=s.operation_uuid,
+            resource_type=literal("score_deletion"),
+            resource_id=s.score_uuid,
+            max_attempts=settings.SCORE_DELETION_MAX_ATTEMPTS,
+        ),
+    ).subquery("durable_work")
+
+
+def projection_predicates(
+    c, filters: AsyncOperationFilters, *, kinds: tuple[AsyncOperationKind, ...]
+):
+    predicates = [c.kind.in_([kind.value for kind in kinds])]
+    for column, value in (
+        (c.status, filters.status),
+        (c.failure_class, filters.failure_class),
+        (c.resource_type, filters.resource_type),
+    ):
+        if value is not None:
+            predicates.append(column == value)
     if filters.created_after is not None:
-        predicates.append(created_at_expr >= filters.created_after)
+        predicates.append(c.created_at >= filters.created_after)
     if filters.updated_before is not None:
-        predicates.append(updated_at_expr <= filters.updated_before)
+        predicates.append(c.updated_at <= filters.updated_before)
     return predicates
-
-
-def summary_result_rows(
-    kind: AsyncOperationKind,
-    rows: list[tuple[object, int]],
-) -> list[tuple[AsyncOperationKind, AsyncOperationStatus, int]]:
-    return [(kind, AsyncOperationStatus(str(status)), int(count)) for status, count in rows]
-
-
-def import_operation_updated_at_sql():
-    return case(
-        (ImportJob.updated_at >= ImportDispatch.updated_at, ImportJob.updated_at),
-        else_=ImportDispatch.updated_at,
-    )
-
-
-def import_delivery_exhausted_sql():
-    return (ImportDispatch.status == ImportDispatchStatus.FAILED) & (
-        ImportDispatch.attempt_count >= settings.IMPORT_DISPATCH_MAX_ATTEMPTS
-    )
-
-
-def import_operation_status_sql():
-    return case(
-        (
-            col(ImportJob.state).in_([ImportJobState.PENDING_REVIEW, ImportJobState.CONFIRMED]),
-            AsyncOperationStatus.SUCCEEDED.value,
-        ),
-        (import_delivery_exhausted_sql(), AsyncOperationStatus.EXHAUSTED.value),
-        (ImportJob.state == ImportJobState.FAILURE, AsyncOperationStatus.FAILED.value),
-        else_=outbox_operation_status_sql(
-            ImportDispatch.status,
-            ImportDispatch.attempt_count,
-            settings.IMPORT_DISPATCH_MAX_ATTEMPTS,
-            ImportDispatch.next_attempt_at,
-        ),
-    )
-
-
-def import_operation_error_class_sql():
-    return case(
-        (import_delivery_exhausted_sql(), ImportDispatch.internal_error_class),
-        (ImportJob.state == ImportJobState.FAILURE, ImportJob.internal_error_class),
-        else_=ImportDispatch.internal_error_class,
-    )
-
-
-def import_operation_status(job: ImportJob, dispatch: ImportDispatch) -> AsyncOperationStatus:
-    if job.state in {ImportJobState.PENDING_REVIEW, ImportJobState.CONFIRMED}:
-        return AsyncOperationStatus.SUCCEEDED
-    if import_delivery_exhausted(dispatch):
-        return AsyncOperationStatus.EXHAUSTED
-    if job.state == ImportJobState.FAILURE:
-        return AsyncOperationStatus.FAILED
-    return outbox_operation_status(
-        dispatch.status,
-        attempts=dispatch.attempt_count,
-        max_attempts=settings.IMPORT_DISPATCH_MAX_ATTEMPTS,
-        next_attempt_at=dispatch.next_attempt_at,
-    )
-
-
-def outbox_operation_status(
-    status: RenderOutboxStatus
-    | PlaybackOutboxStatus
-    | ImportDispatchStatus
-    | ScoreDeletionOperationStatus,
-    *,
-    attempts: int,
-    max_attempts: int,
-    next_attempt_at: datetime,
-) -> AsyncOperationStatus:
-    if status.value == "COMPLETED":
-        return AsyncOperationStatus.SUCCEEDED
-    if status.value == "PROCESSING":
-        return AsyncOperationStatus.PROCESSING
-    if status.value == "DISPATCHED":
-        return AsyncOperationStatus.DISPATCHED
-    if status.value == "FAILED":
-        if attempts >= max_attempts:
-            return AsyncOperationStatus.EXHAUSTED
-        if next_attempt_at > utc_now_naive():
-            return AsyncOperationStatus.RETRYING
-        return AsyncOperationStatus.FAILED
-    return AsyncOperationStatus.QUEUED
-
-
-def mail_operation_status(outbox: MailOutbox) -> AsyncOperationStatus:
-    if outbox.status == MailOutboxStatus.SENT:
-        return AsyncOperationStatus.SUCCEEDED
-    if outbox.status == MailOutboxStatus.PROCESSING:
-        return AsyncOperationStatus.PROCESSING
-    if outbox.status == MailOutboxStatus.DISPATCHED:
-        return AsyncOperationStatus.DISPATCHED
-    if outbox.status == MailOutboxStatus.PERMANENT_FAILURE:
-        return AsyncOperationStatus.PERMANENT_FAILED
-    if outbox.status == MailOutboxStatus.EXPIRED:
-        return AsyncOperationStatus.EXPIRED
-    if outbox.status == MailOutboxStatus.FAILED:
-        if outbox.attempt_count >= settings.MAIL_OUTBOX_MAX_ATTEMPTS:
-            return AsyncOperationStatus.EXHAUSTED
-        return AsyncOperationStatus.RETRYING
-    return AsyncOperationStatus.QUEUED
-
-
-def score_deletion_operation_status(operation: ScoreDeletionOperation) -> AsyncOperationStatus:
-    return outbox_operation_status(
-        operation.status,
-        attempts=operation.attempt_count,
-        max_attempts=settings.SCORE_DELETION_MAX_ATTEMPTS,
-        next_attempt_at=operation.next_attempt_at,
-    )
-
-
-def matches_operation_filters(
-    operation: AsyncOperationRead,
-    filters: AsyncOperationFilters,
-) -> bool:
-    if filters.status is not None and operation.status != filters.status:
-        return False
-    if filters.error_class is not None and operation.error_class != filters.error_class:
-        return False
-    if filters.resource_type is not None and operation.resource_type != filters.resource_type:
-        return False
-    if (
-        filters.created_after is not None
-        and operation.created_at is not None
-        and operation.created_at < filters.created_after
-    ):
-        return False
-    if filters.created_after is not None and operation.created_at is None:
-        return False
-    if (
-        filters.updated_before is not None
-        and operation.updated_at is not None
-        and operation.updated_at > filters.updated_before
-    ):
-        return False
-    if filters.updated_before is not None and operation.updated_at is None:
-        return False
-    return True
-
-
-def stored_error_class(record: object) -> AsyncOperationErrorClass | None:
-    error_class = getattr(record, "internal_error_class", None)
-    if error_class is None:
-        return None
-    return AsyncOperationErrorClass(str(error_class))
-
-
-def stored_diagnostic(record: object) -> AsyncOperationDiagnostic | None:
-    internal_code = getattr(record, "internal_error_code", None)
-    internal_stage = getattr(record, "internal_error_stage", None)
-    internal_error_class = getattr(record, "internal_error_class", None)
-    retryable = getattr(record, "internal_error_retryable", None)
-    if (
-        internal_code is None
-        and internal_stage is None
-        and internal_error_class is None
-        and retryable is None
-    ):
-        return None
-    return AsyncOperationDiagnostic(
-        code=internal_code,
-        stage=internal_stage,
-        retryable=bool(retryable),
-    )
-
-
-def status_counts(counter: Counter[AsyncOperationStatus]) -> list[AsyncOperationStatusCount]:
-    return [
-        AsyncOperationStatusCount(status=status, count=count)
-        for status, count in sorted(counter.items(), key=lambda item: item[0].value)
-    ]

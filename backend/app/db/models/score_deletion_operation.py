@@ -34,6 +34,10 @@ class ScoreDeletionOperationStatus(str, enum.Enum):
 class ScoreDeletionOperation(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "score_deletion_operations"
     __table_args__ = (
+        CheckConstraint(
+            "((internal_error_code IS NULL AND internal_error_stage IS NULL AND internal_error_class IS NULL AND internal_error_retryable IS NULL) OR (internal_error_code IS NOT NULL AND internal_error_stage IS NOT NULL AND internal_error_class IS NOT NULL AND internal_error_retryable IS NOT NULL AND internal_error_class IN ('transient', 'permanent', 'user_error', 'system_error')))",
+            name="ck_score_deletion_operations_failure_metadata",
+        ),
         CheckConstraint("attempt_count >= 0", name="ck_score_deletion_attempt_count"),
         CheckConstraint(
             "(status = 'PROCESSING' AND attempt_token IS NOT NULL) OR (status <> 'PROCESSING' AND attempt_token IS NULL)",

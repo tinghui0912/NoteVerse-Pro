@@ -6,11 +6,11 @@ from fastapi import APIRouter, Body, Depends, Query, Request
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
+from app.modules.durable_work.failure import DurableFailureClass
 from app.core.client_address import client_address, peer_address
 from app.core.exceptions import AppException
 from app.modules.platform_operators.dependencies import OperatorPrincipal
 from app.modules.ops.schemas import (
-    AsyncOperationErrorClass,
     AsyncOperationKind,
     AsyncOperationRead,
     AsyncOperationsSummaryRead,
@@ -90,7 +90,7 @@ def list_async_operations(
     offset: int = Query(default=0, ge=0, le=10000),
     kind: AsyncOperationKind | None = Query(default=None),
     status: AsyncOperationStatus | None = Query(default=None),
-    error_class: AsyncOperationErrorClass | None = Query(default=None),
+    failure_class: DurableFailureClass | None = Query(default=None),
     resource_type: str | None = Query(default=None, min_length=1, max_length=64),
     created_after: datetime | None = Query(default=None),
     updated_before: datetime | None = Query(default=None),
@@ -101,7 +101,7 @@ def list_async_operations(
         offset=offset,
         kind=kind,
         status=status,
-        error_class=error_class,
+        failure_class=failure_class,
         resource_type=resource_type,
         created_after=created_after,
         updated_before=updated_before,
@@ -118,7 +118,7 @@ def async_operations_summary(
     service: OpsAsyncOperationQueryService = Depends(get_ops_async_operation_query_service),
     kind: AsyncOperationKind | None = Query(default=None),
     status: AsyncOperationStatus | None = Query(default=None),
-    error_class: AsyncOperationErrorClass | None = Query(default=None),
+    failure_class: DurableFailureClass | None = Query(default=None),
     resource_type: str | None = Query(default=None, min_length=1, max_length=64),
     created_after: datetime | None = Query(default=None),
     updated_before: datetime | None = Query(default=None),
@@ -127,7 +127,7 @@ def async_operations_summary(
         db,
         kind=kind,
         status=status,
-        error_class=error_class,
+        failure_class=failure_class,
         resource_type=resource_type,
         created_after=created_after,
         updated_before=updated_before,
@@ -186,6 +186,6 @@ def retry_async_operation(
         peer_address=peer_address(request),
         client_address=client_address(request),
         previous_state=result.previous_state,
-        new_state=result.operation.raw_status,
+        new_state=result.operation.status.value,
     )
     return success_response(data=result.operation)

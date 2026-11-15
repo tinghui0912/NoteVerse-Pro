@@ -4,6 +4,7 @@ from celery.exceptions import SoftTimeLimitExceeded
 
 from app.core.exceptions import PipelineException
 from app.core.logger import logger
+from app.modules.durable_work.failure import DurableFailure, DurableFailureClass
 from app.modules.import_jobs.dispatch_service import (
     ImportExecutionLease,
     StaleImportDispatchAttempt,
@@ -35,6 +36,27 @@ class ImportJobExecutionService:
         if isinstance(exception, PipelineException):
             return exception.code
         return ErrorCode.UNKNOWN_ERROR
+
+    @staticmethod
+    def failure_for_exception(exception: Exception) -> DurableFailure:
+        if isinstance(exception, SoftTimeLimitExceeded) or (
+            isinstance(exception, PipelineException) and exception.code == ErrorCode.TASK_TIMEOUT
+        ):
+            return DurableFailure(
+                "import_pipeline_timeout", "pipeline", DurableFailureClass.TRANSIENT, False
+            )
+        if isinstance(exception, PipelineException):
+            if exception.code in (ErrorCode.INPUT_FILE_MISSING,):
+                return DurableFailure(
+                    "import_inputs_unavailable", "pipeline", DurableFailureClass.PERMANENT, False
+                )
+            if exception.code in (ErrorCode.SCORE_RECOGNITION_FAILED,):
+                return DurableFailure(
+                    "import_pipeline_rejected", "pipeline", DurableFailureClass.USER_ERROR, False
+                )
+        return DurableFailure(
+            "import_pipeline_failed", "pipeline", DurableFailureClass.SYSTEM_ERROR, False
+        )
 
     def _resolve_input_paths(self, storage_keys: list[str]) -> list[str]:
         return [
@@ -105,6 +127,8 @@ class ImportJobExecutionService:
                         error=code,
                         error_type=type(exc).__name__,
                         code=code,
+                        failure=self.failure_for_exception(exc),
+                        detail=str(exc),
                     )
                     db.commit()
             except StaleImportDispatchAttempt:

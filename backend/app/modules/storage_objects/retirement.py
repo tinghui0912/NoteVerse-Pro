@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.models.stored_object import StoredObject
 from app.db.models.stored_object_retirement import StoredObjectRetirement
-from app.modules.async_operations.durable_delivery import (
+from app.modules.durable_work.delivery import (
     DeliveryLifecyclePolicy,
     DeliveryStatuses,
     DurableDeliveryLifecycle,

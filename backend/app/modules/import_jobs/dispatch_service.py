@@ -23,18 +23,18 @@ from app.db.models import (
     Upload,
 )
 from app.db.models.import_job import ImportJobState
-from app.modules.async_operations.durable_delivery import (
+from app.modules.durable_work.delivery import (
     DurableDeliveryLifecycle,
     DeliveryAttemptLease,
     DeliveryStatuses,
     DeliveryLifecyclePolicy,
     ClaimAdmission,
 )
-from app.modules.async_operations.diagnostics import (
-    AsyncOperationKindValue,
-    AsyncOperationStatusValue,
-    apply_async_diagnostic,
-    clear_async_diagnostic,
+from app.modules.durable_work.failure import (
+    DurableFailure,
+    DurableFailureClass,
+    set_failure_metadata,
+    clear_failure_metadata,
 )
 from app.modules.import_jobs.schemas import ImportJobProcessingOptions
 from app.modules.import_jobs.notifications import admit_import_outcome
@@ -146,7 +146,7 @@ class ImportDispatchService:
             row, now=utc_now_naive()
         ):
             return False
-        clear_async_diagnostic(row)
+        clear_failure_metadata(row)
         return True
 
     def claim(self, db: Session, dispatch_uuid: str) -> ImportDispatchPayload | None:
@@ -179,11 +179,20 @@ class ImportDispatchService:
             .order_by(col(ImportJobUpload.sort_order).asc(), col(ImportJobUpload.id).asc())
         ).all()
         if not keys:
-            self._exhaust(db, row, job, "Import job has no persisted uploads", now)
+            self._exhaust(
+                db,
+                row,
+                job,
+                "Import job has no persisted uploads",
+                now,
+                failure=DurableFailure(
+                    "import_inputs_unavailable", "dispatch", DurableFailureClass.PERMANENT, False
+                ),
+            )
             return None
         claimed = lifecycle.claim(row, token=str(uuid4()), now=now)
         assert claimed
-        clear_async_diagnostic(row)
+        clear_failure_metadata(row)
         lease = ImportExecutionLease(
             dispatch_uuid=row.dispatch_uuid,
             job_uuid=job.job_uuid,
@@ -208,7 +217,7 @@ class ImportDispatchService:
         # Only an in-flight command can be reconciled with its durable domain outcome.
         if row.status in (ImportDispatchStatus.DISPATCHED, ImportDispatchStatus.PROCESSING):
             self.lifecycle().finish(row, status=ImportDispatchStatus.COMPLETED, error=None, now=now)
-            clear_async_diagnostic(row)
+            clear_failure_metadata(row)
 
     def complete(self, db: Session, lease: ImportExecutionLease) -> None:
         job = require_current_attempt(db, lease)
@@ -220,14 +229,14 @@ class ImportDispatchService:
         assert row is not None
         completed = self.lifecycle().complete_attempt(row, lease=lease, now=utc_now_naive())
         assert completed
-        clear_async_diagnostic(row)
+        clear_failure_metadata(row)
 
     def release_dispatch(self, db: Session, dispatch_uuid: str, error: str) -> None:
         row = lock_dispatch(db, dispatch_uuid)
         if row is not None and self.lifecycle().release_dispatch(
             row, error=error, now=utc_now_naive()
         ):
-            self._diagnose(row, AsyncOperationStatusValue.QUEUED)
+            self._record_failure(row, code="import_dispatch_failed")
 
     def recover_and_list_due(self, db: Session) -> list[str]:
         lifecycle, now = self.lifecycle(), utc_now_naive()
@@ -249,13 +258,13 @@ class ImportDispatchService:
                 continue
             if job.state in TERMINAL_IMPORT_STATES:
                 lifecycle.finish(row, status=ImportDispatchStatus.COMPLETED, error=None, now=now)
-                clear_async_diagnostic(row)
+                clear_failure_metadata(row)
             elif row.attempt_count >= lifecycle.policy.max_attempts:
                 self._exhaust(db, row, job, "Import worker delivery attempts exhausted", now)
             else:
                 if was_processing:
                     self.reset_execution(db, job, now)
-                self._diagnose(row, AsyncOperationStatusValue.RETRYING)
+                self._record_failure(row, code="import_dispatch_lease_expired")
         # Admission is per delivery, not a batch mutation performed by this scan.
         due = db.scalars(
             select(ImportDispatch.dispatch_uuid)
@@ -282,42 +291,70 @@ class ImportDispatchService:
         job.current_step = None
         job.started_at = job.last_heartbeat_at = job.finished_at = None
         job.code = job.error = job.error_type = None
-        clear_async_diagnostic(job)
+        clear_failure_metadata(job)
+        job.internal_error_detail = None
         job.updated_at = now
         db.execute(delete(ImportJobStep).where(ImportJobStep.job_id == job.id))
 
     def _exhaust(
-        self, db: Session, row: ImportDispatch, job: ImportJob, error: str, now: datetime
+        self,
+        db: Session,
+        row: ImportDispatch,
+        job: ImportJob,
+        error: str,
+        now: datetime,
+        *,
+        failure: DurableFailure = DurableFailure(
+            "import_dispatch_attempts_exhausted", "dispatch", DurableFailureClass.TRANSIENT, False
+        ),
     ) -> None:
         self.lifecycle().exhaust(row, error=error, now=now)
-        self._diagnose(row, AsyncOperationStatusValue.EXHAUSTED)
+        set_failure_metadata(row, failure)
         if job.state not in TERMINAL_IMPORT_STATES:
             job.state = ImportJobState.FAILURE
             job.code = job.error = ErrorCode.FEATURE_TEMPORARILY_UNAVAILABLE
             job.error_type = "ImportDispatchFailure"
             job.finished_at = job.updated_at = now
-            apply_async_diagnostic(
-                job,
-                kind=AsyncOperationKindValue.IMPORT,
-                status=AsyncOperationStatusValue.FAILED,
-                raw_status=job.state.value,
-                last_error=job.error,
-                attempts=row.attempt_count,
-                max_attempts=None,
-            )
+            set_failure_metadata(job, failure)
+            job.internal_error_detail = error[:4000]
             admit_import_outcome(db, job, created_at=now)
 
     @staticmethod
-    def _diagnose(row: ImportDispatch, status: AsyncOperationStatusValue) -> None:
-        apply_async_diagnostic(
+    def _record_failure(row: ImportDispatch, *, code: str) -> None:
+        retryable = row.attempt_count < settings.IMPORT_DISPATCH_MAX_ATTEMPTS
+        set_failure_metadata(
             row,
-            kind=AsyncOperationKindValue.IMPORT,
-            status=status,
-            raw_status=row.status.value,
-            last_error=row.last_error,
-            attempts=row.attempt_count,
-            max_attempts=settings.IMPORT_DISPATCH_MAX_ATTEMPTS,
+            DurableFailure(
+                code if retryable else "import_dispatch_attempts_exhausted",
+                "dispatch",
+                DurableFailureClass.TRANSIENT,
+                retryable,
+            ),
         )
+
+    def rearm_for_operator(self, db: Session, operation_id: str) -> str:
+        from app.core.exceptions import ResourceNotFoundException, ValidationException
+
+        dispatch = lock_dispatch(db, operation_id)
+        if dispatch is None:
+            raise ResourceNotFoundException("async_operation", operation_id)
+        job = lock_dispatch_job(db, dispatch)
+        if (
+            job.state not in (ImportJobState.PENDING, ImportJobState.FAILURE)
+            or dispatch.status
+            not in (
+                ImportDispatchStatus.PENDING,
+                ImportDispatchStatus.FAILED,
+                ImportDispatchStatus.COMPLETED,
+            )
+            or (job.state != ImportJobState.FAILURE and dispatch.internal_error_code is None)
+        ):
+            raise ValidationException(field="status", details={"status": job.state.value})
+        previous = f"{job.state.value}/{dispatch.status.value}"
+        self.reset_execution(db, job, utc_now_naive())
+        self.lifecycle().rearm(dispatch, now=utc_now_naive())
+        clear_failure_metadata(dispatch)
+        return previous
 
 
 import_dispatch_service = ImportDispatchService()

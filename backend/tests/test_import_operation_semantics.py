@@ -1,23 +1,21 @@
 """Import async operation projection and SQL summary share delivery/resource truth."""
 
 from datetime import timedelta
+from app.modules.durable_work.failure import DurableFailureClass
 
 import pytest
-from sqlalchemy import select
 
 from app.core.config import settings
 from app.core.exceptions import ResourceNotFoundException
 from app.db.models import ImportJob, ImportJobState, ImportDispatch, ImportDispatchStatus
 from app.modules.import_jobs.dispatch_service import ImportDispatchService
 from app.modules.ops.command_service import OpsAsyncOperationCommandService
-from app.modules.ops.operation_projection import read_import_operation, import_operation_status_sql
 from app.modules.ops.query_service import OpsAsyncOperationQueryService
 from app.modules.ops.operation_summary import AsyncOperationSummaryQuery
 from app.modules.ops.operation_filters import AsyncOperationFilters
 from app.modules.ops.schemas import (
     AsyncOperationKind,
     AsyncOperationStatus,
-    AsyncOperationErrorClass,
 )
 from app.utils.timezone import utc_now_naive
 from tests.test_score_revision_services import (
@@ -26,21 +24,21 @@ from tests.test_score_revision_services import (
 
 
 CASES = [
-    ("PENDING", "PENDING", 0, False, "queued", "dispatch"),
-    ("RUNNING", "PENDING", 1, False, "queued", "dispatch"),
+    ("PENDING", "PENDING", 0, False, "retrying", "dispatch"),
+    ("RUNNING", "PENDING", 1, False, "retrying", "dispatch"),
     ("PENDING", "DISPATCHED", 0, False, "dispatched", "dispatch"),
     ("RUNNING", "PROCESSING", 1, False, "processing", "dispatch"),
     ("PENDING", "FAILED", 1, True, "retrying", "dispatch"),
     ("FAILURE", "FAILED", 1, True, "failed", "job"),
-    ("RUNNING", "FAILED", 1, False, "failed", "dispatch"),
+    ("RUNNING", "FAILED", 1, False, "retrying", "dispatch"),
     ("PENDING_REVIEW", "PROCESSING", 1, False, "succeeded", "dispatch"),
     ("CONFIRMED", "PROCESSING", 1, False, "succeeded", "dispatch"),
     ("FAILURE", "PROCESSING", 1, False, "failed", "job"),
     ("FAILURE", "PROCESSING", settings.IMPORT_DISPATCH_MAX_ATTEMPTS, False, "failed", "job"),
     ("FAILURE", "COMPLETED", 1, False, "failed", "job"),
     ("FAILURE", "COMPLETED", settings.IMPORT_DISPATCH_MAX_ATTEMPTS, False, "failed", "job"),
-    ("FAILURE", "FAILED", settings.IMPORT_DISPATCH_MAX_ATTEMPTS, False, "exhausted", "dispatch"),
-    ("RUNNING", "FAILED", settings.IMPORT_DISPATCH_MAX_ATTEMPTS, False, "exhausted", "dispatch"),
+    ("FAILURE", "FAILED", settings.IMPORT_DISPATCH_MAX_ATTEMPTS, False, "failed", "job"),
+    ("RUNNING", "FAILED", settings.IMPORT_DISPATCH_MAX_ATTEMPTS, False, "failed", "dispatch"),
 ]
 
 
@@ -70,33 +68,35 @@ def test_import_projection_and_summary_agree(
         internal_error_code="delivery-error",
         internal_error_class="transient",
         internal_error_stage="dispatch",
-        internal_error_retryable=True,
+        internal_error_retryable=attempt < settings.IMPORT_DISPATCH_MAX_ATTEMPTS,
     )
     db.add(dispatch)
     db.commit()
-    operation = read_import_operation(job, dispatch)
+    operation = OpsAsyncOperationQueryService().get_operation(
+        db, kind=AsyncOperationKind.IMPORT, operation_id=dispatch.dispatch_uuid
+    )
     assert operation.operation_id == dispatch.dispatch_uuid
     assert operation.resource_type == "import_job" and operation.resource_id == job.job_uuid
     assert operation.status == AsyncOperationStatus(expected)
-    assert operation.diagnostic.code == ("domain-error" if owner == "job" else "delivery-error")
-    assert operation.error_class.value == ("permanent" if owner == "job" else "transient")
-    sql_status = db.scalar(
-        select(import_operation_status_sql()).select_from(ImportJob).join(ImportDispatch)
+    assert operation.failure.code == ("domain-error" if owner == "job" else "delivery-error")
+    assert operation.failure.classification.value == (
+        "permanent" if owner == "job" else "transient"
     )
-    assert sql_status == expected
     summary = AsyncOperationSummaryQuery().summary(
         db,
         kinds=(AsyncOperationKind.IMPORT,),
-        filters=AsyncOperationFilters(status=operation.status, error_class=operation.error_class),
+        filters=AsyncOperationFilters(
+            status=operation.status, failure_class=operation.failure.classification
+        ),
     )
     assert summary.total == 1 and summary.statuses[0].status == operation.status
     excluded = AsyncOperationSummaryQuery().summary(
         db,
         kinds=(AsyncOperationKind.IMPORT,),
         filters=AsyncOperationFilters(
-            error_class=AsyncOperationErrorClass.TRANSIENT
+            failure_class=DurableFailureClass.TRANSIENT
             if owner == "job"
-            else AsyncOperationErrorClass.PERMANENT
+            else DurableFailureClass.PERMANENT
         ),
     )
     assert excluded.total == 0
@@ -130,17 +130,33 @@ def test_delivery_updates_drive_operation_order_and_timestamp_filters(score_serv
     db.add_all([d1, d2])
     db.commit()
     service, adapter = OpsAsyncOperationQueryService(), db
-    before = service._import_operations(adapter, limit=1)
+    before = service.list_operations(adapter, limit=1, kind=AsyncOperationKind.IMPORT).items
     assert before[0].operation_id == d2.dispatch_uuid
     job_updated_at = first.updated_at
     assert ImportDispatchService().mark_dispatched(db, d1.dispatch_uuid)
     db.commit()
     assert first.updated_at == job_updated_at
-    assert read_import_operation(first, d1).created_at == d1.created_at
-    assert read_import_operation(first, d1).updated_at == d1.updated_at > job_updated_at
-    assert read_import_operation(second, d2).updated_at == second.updated_at
+    assert (
+        service.get_operation(
+            db, kind=AsyncOperationKind.IMPORT, operation_id=d1.dispatch_uuid
+        ).created_at
+        == d1.created_at
+    )
+    assert (
+        service.get_operation(
+            db, kind=AsyncOperationKind.IMPORT, operation_id=d1.dispatch_uuid
+        ).updated_at
+        == d1.updated_at
+        > job_updated_at
+    )
+    assert (
+        service.get_operation(
+            db, kind=AsyncOperationKind.IMPORT, operation_id=d2.dispatch_uuid
+        ).updated_at
+        == second.updated_at
+    )
     # Limit inside the source query must use the same combined timestamp as projection.
-    ordered = service._import_operations(adapter, limit=1)
+    ordered = service.list_operations(adapter, limit=1, kind=AsyncOperationKind.IMPORT).items
     assert [o.operation_id for o in ordered] == [d1.dispatch_uuid]
     listed = service.list_operations(adapter, limit=2, kind=AsyncOperationKind.IMPORT)
     assert [o.operation_id for o in listed.items] == [d1.dispatch_uuid, d2.dispatch_uuid]

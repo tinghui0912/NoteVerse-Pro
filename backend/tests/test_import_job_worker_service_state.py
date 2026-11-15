@@ -1,3 +1,4 @@
+from app.modules.durable_work.failure import DurableFailure, DurableFailureClass
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -126,7 +127,7 @@ def test_finalize_success_marks_job_ready_and_admits_terminal_consequences() -> 
     database.commit.assert_called_once()
 
 
-def test_finalize_failure_records_diagnostic_and_admits_terminal_consequences() -> None:
+def test_finalize_failure_records_bounded_internal_evidence_and_terminal_consequences() -> None:
     job = _job()
     service, _repository, admission = _service_with_job(job)
     database = _database()
@@ -137,6 +138,10 @@ def test_finalize_failure_records_diagnostic_and_admits_terminal_consequences() 
         error="worker timeout while processing image",
         error_type="TimeoutError",
         code=ErrorCode.TASK_TIMEOUT,
+        failure=DurableFailure(
+            "import_pipeline_failed", "pipeline", DurableFailureClass.SYSTEM_ERROR, False
+        ),
+        detail="private provider evidence " * 300,
     )
 
     assert job.state == ImportJobState.FAILURE
@@ -144,8 +149,9 @@ def test_finalize_failure_records_diagnostic_and_admits_terminal_consequences() 
     assert job.error == "worker timeout while processing image"
     assert job.error_type == "TimeoutError"
     assert job.code == ErrorCode.TASK_TIMEOUT
-    assert job.internal_error_class == "transient"
-    assert job.internal_error_retryable is True
+    assert job.internal_error_detail == ("private provider evidence " * 300)[:4000]
+    assert job.internal_error_class == "system_error"
+    assert job.internal_error_retryable is False
     admission.assert_called_once_with(database, job, created_at=job.finished_at)
     database.commit.assert_called_once()
 
@@ -156,7 +162,15 @@ def test_terminal_updates_reject_stale_execution() -> None:
     with pytest.raises(StaleImportDispatchAttempt):
         service.finalize_success(database, LEASE)
     with pytest.raises(StaleImportDispatchAttempt):
-        service.finalize_failure(database, LEASE, error="timeout", error_type="TimeoutError")
+        service.finalize_failure(
+            database,
+            LEASE,
+            error="timeout",
+            error_type="TimeoutError",
+            failure=DurableFailure(
+                "import_pipeline_failed", "pipeline", DurableFailureClass.SYSTEM_ERROR, False
+            ),
+        )
     database.commit.assert_not_called()
     admission.assert_not_called()
 

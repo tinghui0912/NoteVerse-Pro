@@ -58,7 +58,7 @@ export default function OperationsPage() {
       {!loading && !error ? (
         <section className="table-wrap" aria-label="Asynchronous operations">
           <table><thead><tr><th>Type</th><th>Resource</th><th>Status</th><th>Attempts</th><th>Updated</th><th>Code</th></tr></thead>
-            <tbody>{operations.map((operation) => <tr key={`${operation.kind}:${operation.operation_id}`}><td>{operation.kind}</td><td>{operation.resource_type}</td><td>{operation.status}</td><td>{operation.attempts}/{operation.max_attempts ?? "-"}</td><td>{operation.updated_at ? new Date(operation.updated_at).toLocaleString() : "-"}</td><td>{operation.diagnostic?.code ?? "-"}</td></tr>)}</tbody>
+            <tbody>{operations.map((operation) => <tr key={`${operation.kind}:${operation.operation_id}`}><td>{operation.kind}</td><td>{operation.resource_type}</td><td>{operation.status}</td><td>{operation.attempts}/{operation.max_attempts ?? "-"}</td><td>{operation.updated_at ? new Date(operation.updated_at).toLocaleString() : "-"}</td><td>{operation.failure?.code ?? "-"}</td></tr>)}</tbody>
           </table>
           {operations.length === 0 ? <p className="status">No operations match the current query.</p> : null}
           <footer className="pagination">

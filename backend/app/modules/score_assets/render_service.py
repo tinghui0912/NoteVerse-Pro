@@ -39,7 +39,7 @@ from app.modules.score_assets.render_asset_records import (
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.score_assets.render_execution_manifest import build_render_execution_manifest
 from app.modules.score_assets.render_outbox_service import render_outbox_service
-from app.modules.async_operations.durable_delivery import DeliveryAttemptLease, StaleDeliveryAttempt
+from app.modules.durable_work.delivery import DeliveryAttemptLease, StaleDeliveryAttempt
 from app.modules.score_assets.schemas import RenderAssetRead
 from app.modules.score_assets.service import ScoreAssetService
 from app.modules.scores.repository import ScoreRepository

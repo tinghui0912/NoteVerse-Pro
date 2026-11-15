@@ -55,7 +55,7 @@ from app.modules.revisions.metadata_delivery import (
 from app.modules.storage_usage.service import storage_usage_service
 from app.modules.storage_objects.writes import write_object
 from app.core.exceptions import ConflictException
-from app.modules.async_operations.durable_delivery import StaleDeliveryAttempt
+from app.modules.durable_work.delivery import StaleDeliveryAttempt
 from app.processing.musicxml.admission import admit_musicxml_document
 from app.utils.timezone import utc_now_naive
 from tests.support.postgres_schema import postgres_schema_database

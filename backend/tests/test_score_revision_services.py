@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.modules.durable_work.failure import DurableFailure, DurableFailureClass
+
 from collections.abc import Iterator
 from datetime import timedelta
 import hashlib
@@ -415,6 +417,9 @@ def test_failed_job_notifies_owner_once(
         error="OCR failed",
         error_type="PipelineError",
         code=ErrorCode.UNKNOWN_ERROR,
+        failure=DurableFailure(
+            "import_pipeline_failed", "pipeline", DurableFailureClass.SYSTEM_ERROR, False
+        ),
     )
     job_service.finalize_failure(
         session,
@@ -422,6 +427,9 @@ def test_failed_job_notifies_owner_once(
         error="OCR failed again",
         error_type="PipelineError",
         code=ErrorCode.UNKNOWN_ERROR,
+        failure=DurableFailure(
+            "import_pipeline_failed", "pipeline", DurableFailureClass.SYSTEM_ERROR, False
+        ),
     )
 
     notification = one_row(

@@ -32,7 +32,7 @@ Current feature modules:
 app/modules/
 |-- account
 |-- auth
-|-- async_operations
+|-- durable_work
 |-- billing
 |-- files
 |-- import_jobs

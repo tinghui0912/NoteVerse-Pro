@@ -31,7 +31,9 @@ For production, replace the namespace.
 1. Identify the affected `kind` label.
 2. Compare processing age to the expected worker timeout and retry grace window.
 3. Check whether lease-expiry repair tasks are running.
-4. Check worker logs for terminal diagnostics.
+4. Check the Ops failure code, stage, classification, retryable flag and bounded
+   detail, then correlate worker logs by operation identity. Processing age uses
+   the same canonical SQL status projection as Ops; superseded work is terminal.
 5. Confirm database connectivity and object storage availability.
 
 ## Mitigation
