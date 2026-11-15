@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 
 export const preview = {
-  title: 'Guest Score',
+  display_title: 'Guest Score',
   shared_by: 'Owner',
   render_assets: [{ asset_id: 'page-a', page_number: 1 }],
   audio_available: true,

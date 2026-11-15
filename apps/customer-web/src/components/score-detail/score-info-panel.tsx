@@ -30,27 +30,27 @@ import {
 import type { MetadataRead, ScoreGenre } from '@/generated/api';
 
 interface ScoreInfoPanelProps {
-  canEditTitle?: boolean;
+  canEditDisplayTitle?: boolean;
   createdAt?: string | null;
   imageCount: number;
   imageCountStatus?: 'pending' | 'processing' | 'ready' | 'unavailable';
   metadata?: MetadataRead | null;
   scoreId?: string;
   genres: ScoreGenre[];
-  title: string;
+  displayTitle: string;
   updatedAt?: string | null;
   version?: number;
 }
 
 export function ScoreInfoPanel({
-  canEditTitle = false,
+  canEditDisplayTitle = false,
   createdAt,
   imageCount,
   imageCountStatus = 'ready',
   metadata,
   scoreId,
   genres,
-  title: currentTitle,
+  displayTitle: currentDisplayTitle,
   updatedAt,
   version = 1,
 }: ScoreInfoPanelProps) {
@@ -64,7 +64,7 @@ export function ScoreInfoPanel({
   const { capabilities } = useScoreCapabilities();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const canEditStyles = Boolean(scoreId && capabilities.can_edit);
-  const [title, setTitle] = useState(currentTitle);
+  const [displayTitle, setDisplayTitle] = useState(currentDisplayTitle);
   const [editing, setEditing] = useState(false);
 
   const serverGenres = knownGenres(genres);
@@ -95,25 +95,25 @@ export function ScoreInfoPanel({
     }
   }, [editing]);
 
-  const saveTitle = () => {
+  const saveDisplayTitle = () => {
     if (!scoreId || !editing) return;
-    const nextTitle = title.trim();
-    if (nextTitle === currentTitle) {
+    const nextDisplayTitle = displayTitle.trim();
+    if (nextDisplayTitle === currentDisplayTitle) {
       setEditing(false);
       return;
     }
-    if (!nextTitle) {
+    if (!nextDisplayTitle) {
       toast({
         variant: 'destructive',
         title: t('nameEmptyTitle'),
         description: t('nameEmptyDesc'),
       });
-      setTitle(currentTitle);
+      setDisplayTitle(currentDisplayTitle);
       setEditing(false);
       return;
     }
     mutation.mutate(
-      { scoreId, title: nextTitle, expected_version: version },
+      { scoreId, display_title: nextDisplayTitle, expected_version: version },
       {
         onSuccess: () => {
           toast({ title: t('saveSuccess'), description: t('scoreInfoUpdated') });
@@ -170,20 +170,20 @@ export function ScoreInfoPanel({
       <CardContent className="space-y-5">
         <div className="grid gap-4 text-sm sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="score-title" className="text-muted-foreground">
+            <Label htmlFor="score-display-title" className="text-muted-foreground">
               {t('scoreName')}
             </Label>
             {editing ? (
               <Input
                 ref={inputRef}
-                id="score-title"
-                value={title}
-                onBlur={saveTitle}
-                onChange={(event) => setTitle(event.target.value)}
+                id="score-display-title"
+                value={displayTitle}
+                onBlur={saveDisplayTitle}
+                onChange={(event) => setDisplayTitle(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter') event.currentTarget.blur();
                   if (event.key === 'Escape') {
-                    setTitle(currentTitle);
+                    setDisplayTitle(currentDisplayTitle);
                     setEditing(false);
                   }
                 }}
@@ -192,15 +192,15 @@ export function ScoreInfoPanel({
               />
             ) : (
               <div className="flex min-h-10 items-center justify-between gap-2 rounded-md border bg-muted/30 px-3">
-                <span className="truncate font-medium">{currentTitle}</span>
-                {canEditTitle && scoreId ? (
+                <span className="truncate font-medium">{currentDisplayTitle}</span>
+                {canEditDisplayTitle && scoreId ? (
                   <Button
                     aria-label={common('edit')}
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 shrink-0 text-muted-foreground"
                     onClick={() => {
-                      setTitle(currentTitle);
+                      setDisplayTitle(currentDisplayTitle);
                       setEditing(true);
                     }}
                     disabled={mutation.isPending}

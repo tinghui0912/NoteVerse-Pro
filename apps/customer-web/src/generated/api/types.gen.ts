@@ -246,6 +246,10 @@ export type GuestPreviewRead = {
      */
     audio_available: boolean;
     /**
+     * Display Title
+     */
+    display_title: string;
+    /**
      * Render Assets
      */
     render_assets: Array<GuestPreviewPageRead>;
@@ -253,10 +257,6 @@ export type GuestPreviewRead = {
      * Shared By
      */
     shared_by: string;
-    /**
-     * Title
-     */
-    title: string;
 };
 
 /**
@@ -326,13 +326,13 @@ export type ImportCompletedNotificationRead = {
      */
     created_at: string;
     /**
+     * Import Display Title
+     */
+    import_display_title: string | null;
+    /**
      * Job Id
      */
     job_id: string;
-    /**
-     * Job Title
-     */
-    job_title: string | null;
     /**
      * Kind
      */
@@ -346,13 +346,13 @@ export type ImportCompletedNotificationRead = {
      */
     read_at: string | null;
     /**
+     * Score Display Title
+     */
+    score_display_title: string | null;
+    /**
      * Score Id
      */
     score_id: string | null;
-    /**
-     * Score Title
-     */
-    score_title: string | null;
 };
 
 /**
@@ -364,13 +364,13 @@ export type ImportFailedNotificationRead = {
      */
     created_at: string;
     /**
+     * Import Display Title
+     */
+    import_display_title: string | null;
+    /**
      * Job Id
      */
     job_id: string;
-    /**
-     * Job Title
-     */
-    job_title: string | null;
     /**
      * Kind
      */
@@ -402,13 +402,13 @@ export type ImportJobBatchStatusRead = {
  */
 export type ImportJobProcessingOptions = {
     /**
+     * Display Title
+     */
+    display_title?: string;
+    /**
      * Genres
      */
     genres?: Array<ScoreGenre>;
-    /**
-     * Title
-     */
-    title?: string;
 };
 
 /**
@@ -419,6 +419,10 @@ export type ImportJobRead = {
      * Created At
      */
     created_at: string;
+    /**
+     * Display Title
+     */
+    display_title?: string | null;
     /**
      * Execution Manifest Sha256
      */
@@ -458,10 +462,6 @@ export type ImportJobRead = {
     state: ImportJobState;
     thumbnail?: ImportArtifactRead | null;
     /**
-     * Title
-     */
-    title?: string | null;
-    /**
      * Updated At
      */
     updated_at: string;
@@ -475,6 +475,10 @@ export type ImportJobReviewRead = {
      * Created At
      */
     created_at: string;
+    /**
+     * Display Title
+     */
+    display_title?: string | null;
     /**
      * Genres
      */
@@ -493,10 +497,6 @@ export type ImportJobReviewRead = {
      */
     score_id?: string | null;
     state: ImportJobState;
-    /**
-     * Title
-     */
-    title?: string | null;
     /**
      * Updated At
      */
@@ -599,13 +599,13 @@ export type InviteAccessRead = {
     requires_login: boolean;
     role: MembershipRole;
     /**
+     * Score Display Title
+     */
+    score_display_title: string;
+    /**
      * Score Id
      */
     score_id: string;
-    /**
-     * Score Title
-     */
-    score_title: string;
     status: InviteStatus;
 };
 
@@ -868,6 +868,10 @@ export type LibraryScoreRead = {
     created_at: string;
     derived_assets: ScoreDerivedAssetsRead;
     /**
+     * Display Title
+     */
+    display_title: string;
+    /**
      * Folder Id
      */
     folder_id: string | null;
@@ -884,10 +888,6 @@ export type LibraryScoreRead = {
      * Score Id
      */
     score_id: string;
-    /**
-     * Title
-     */
-    title: string;
     /**
      * Updated At
      */
@@ -989,6 +989,10 @@ export type MetadataRead = {
      * Measure Count
      */
     measure_count: number | null;
+    /**
+     * Notation Title
+     */
+    notation_title: string | null;
     /**
      * Part Count
      */
@@ -1158,13 +1162,13 @@ export type PendingInviteRead = {
     inviter: InviteActorRead | null;
     role: MembershipRole;
     /**
+     * Score Display Title
+     */
+    score_display_title: string;
+    /**
      * Score Id
      */
     score_id: string;
-    /**
-     * Score Title
-     */
-    score_title: string;
     status: InviteStatus;
 };
 
@@ -1275,11 +1279,11 @@ export type PerformanceTakeManifestRead = {
     } & PerformanceTakeResolvedFullScope) | ({
         kind: 'RANGE';
     } & PerformanceTakeResolvedRangeScope);
-    score_timebase: PerformanceTakeScoreTimebase;
     /**
-     * Score Title Snapshot
+     * Score Display Title Snapshot
      */
-    score_title_snapshot: string;
+    score_display_title_snapshot: string;
+    score_timebase: PerformanceTakeScoreTimebase;
     tempo_plan: PerformanceTakeTempoPlan;
 };
 
@@ -2090,13 +2094,13 @@ export type ReviewConfirmRequest = {
      */
     content: string;
     /**
+     * Display Title
+     */
+    display_title?: string | null;
+    /**
      * Genres
      */
     genres?: Array<ScoreGenre> | null;
-    /**
-     * Title
-     */
-    title?: string | null;
 };
 
 /**
@@ -2492,13 +2496,13 @@ export type ScoreInviteAcceptedNotificationRead = {
      */
     read_at: string | null;
     /**
+     * Score Display Title
+     */
+    score_display_title: string;
+    /**
      * Score Id
      */
     score_id: string;
-    /**
-     * Score Title
-     */
-    score_title: string;
 };
 
 /**
@@ -2527,13 +2531,13 @@ export type ScoreInviteDeclinedNotificationRead = {
      */
     read_at: string | null;
     /**
+     * Score Display Title
+     */
+    score_display_title: string;
+    /**
      * Score Id
      */
     score_id: string;
-    /**
-     * Score Title
-     */
-    score_title: string;
 };
 
 /**
@@ -2546,6 +2550,10 @@ export type ScoreRead = {
      */
     created_at: string;
     derived_assets: ScoreDerivedAssetsRead;
+    /**
+     * Display Title
+     */
+    display_title: string;
     /**
      * Genres
      */
@@ -2563,10 +2571,6 @@ export type ScoreRead = {
      * Score Id
      */
     score_id: string;
-    /**
-     * Title
-     */
-    title: string;
     /**
      * Updated At
      */
@@ -2624,6 +2628,10 @@ export type ScoreTempoPlanSelection = {
  */
 export type ScoreUpdateRequest = {
     /**
+     * Display Title
+     */
+    display_title?: string | null;
+    /**
      * Expected Version
      */
     expected_version: number;
@@ -2631,10 +2639,6 @@ export type ScoreUpdateRequest = {
      * Genres
      */
     genres?: Array<ScoreGenre> | null;
-    /**
-     * Title
-     */
-    title?: string | null;
 };
 
 /**
@@ -2663,13 +2667,13 @@ export type ScoreVersionCreatedNotificationRead = {
      */
     revision_id: string;
     /**
+     * Score Display Title
+     */
+    score_display_title: string;
+    /**
      * Score Id
      */
     score_id: string;
-    /**
-     * Score Title
-     */
-    score_title: string;
 };
 
 /**

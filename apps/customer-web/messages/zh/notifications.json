@@ -25,7 +25,7 @@
   "processingCompleted": "乐谱处理完成",
   "processingFailed": "乐谱处理失败",
   "unknownActor": "有人",
-  "scoreTitleFallback": "未命名乐谱",
+  "scoreDisplayTitleFallback": "未命名乐谱",
   "accepted": "邀请已接受",
   "acceptedDescription": "你现在可以访问这份乐谱。",
   "acceptFailed": "无法接受邀请",

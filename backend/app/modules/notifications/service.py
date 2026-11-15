@@ -48,7 +48,7 @@ class NotificationService:
         accepted: bool,
         invite_id: str,
         score_id: str,
-        score_title: str,
+        score_display_title: str,
         created_at: datetime,
     ) -> Notification | None:
         if actor_user_id == recipient_user_id:
@@ -66,7 +66,7 @@ class NotificationService:
                 kind=kind,
                 invite_id=invite_id,
                 score_id=score_id,
-                score_title_snapshot=score_title,
+                score_display_title_snapshot=score_display_title,
                 created_at=created_at,
                 dedupe_key=f"{kind}:{invite_id}:{recipient_user_id}",
             ),
@@ -80,7 +80,7 @@ class NotificationService:
         actor_user_id: int,
         score_id: str,
         revision_id: str,
-        score_title: str,
+        score_display_title: str,
         created_at: datetime,
     ) -> Notification | None:
         if actor_user_id == recipient_user_id:
@@ -93,7 +93,7 @@ class NotificationService:
                 kind=NotificationKind.SCORE_VERSION_CREATED,
                 score_id=score_id,
                 revision_id=revision_id,
-                score_title_snapshot=score_title,
+                score_display_title_snapshot=score_display_title,
                 created_at=created_at,
                 dedupe_key=f"score.version.created:{revision_id}:{recipient_user_id}",
             ),
@@ -105,7 +105,7 @@ class NotificationService:
         *,
         recipient_user_id: int,
         import_job_id: str,
-        job_title: str | None,
+        import_display_title: str | None,
         created_at: datetime,
     ) -> Notification:
         return self._admit(
@@ -114,7 +114,7 @@ class NotificationService:
                 recipient_user_id=recipient_user_id,
                 kind=NotificationKind.IMPORT_COMPLETED,
                 import_job_id=import_job_id,
-                job_title_snapshot=job_title,
+                import_display_title_snapshot=import_display_title,
                 created_at=created_at,
                 dedupe_key=f"import.completed:{import_job_id}:{recipient_user_id}",
             ),
@@ -126,7 +126,7 @@ class NotificationService:
         *,
         recipient_user_id: int,
         import_job_id: str,
-        job_title: str | None,
+        import_display_title: str | None,
         created_at: datetime,
     ) -> Notification:
         return self._admit(
@@ -135,7 +135,7 @@ class NotificationService:
                 recipient_user_id=recipient_user_id,
                 kind=NotificationKind.IMPORT_FAILED,
                 import_job_id=import_job_id,
-                job_title_snapshot=job_title,
+                import_display_title_snapshot=import_display_title,
                 created_at=created_at,
                 dedupe_key=f"import.failed:{import_job_id}:{recipient_user_id}",
             ),
@@ -220,16 +220,20 @@ class NotificationService:
             fields.update(
                 actor=self._actor(db, row.actor_user_id),
                 score_id=row.score_id,
-                score_title=row.score_title_snapshot,
+                score_display_title=row.score_display_title_snapshot,
             )
             if row.kind == NotificationKind.SCORE_VERSION_CREATED:
                 fields["revision_id"] = row.revision_id
             else:
                 fields["invite_id"] = row.invite_id
         else:
-            fields.update(job_id=row.import_job_id, job_title=row.job_title_snapshot)
+            fields.update(
+                job_id=row.import_job_id, import_display_title=row.import_display_title_snapshot
+            )
             if row.kind == NotificationKind.IMPORT_COMPLETED:
-                fields.update(score_id=row.score_id, score_title=row.score_title_snapshot)
+                fields.update(
+                    score_id=row.score_id, score_display_title=row.score_display_title_snapshot
+                )
         return notification_read_adapter.validate_python(fields)
 
     def _actor(self, db: Session, user_id: int | None) -> NotificationActorRead | None:

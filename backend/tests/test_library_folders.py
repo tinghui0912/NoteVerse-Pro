@@ -76,6 +76,59 @@ def listed(service, db, view=LibraryView.ALL, folder=None, sort=LibrarySort.NAME
     )
 
 
+def test_library_search_and_name_sort_use_resource_display_titles(workspace):
+    from app.db.models import ScoreRevisionMetadata
+
+    db, _, scores, _ = workspace
+    scores[0].display_title = "Zebra resource"
+    scores[1].display_title = "Apple resource"
+    db.add(
+        ScoreRevisionMetadata(
+            revision_id=scores[0].head_revision_id,
+            notation_title="Apple notation",
+            extractor_version="test",
+        )
+    )
+    db.add(
+        ScoreRevisionMetadata(
+            revision_id=scores[1].head_revision_id,
+            notation_title="Zebra notation",
+            extractor_version="test",
+        )
+    )
+    db.commit()
+    service = LibraryService()
+    assert [r.display_title for r in listed(service, db)[0]] == ["Apple resource", "Zebra resource"]
+    assert [r.display_title for r in listed(service, db, sort=LibrarySort.NAME_DESC)[0]] == [
+        "Zebra resource",
+        "Apple resource",
+    ]
+    rows, total = service.list_scores(
+        db,
+        1,
+        view=LibraryView.ALL,
+        folder_id=None,
+        search="Apple",
+        sort=LibrarySort.NAME_ASC,
+        page=1,
+        page_size=100,
+    )
+    assert total == 1 and rows[0].score_id == scores[1].score_uuid
+    assert (
+        service.list_scores(
+            db,
+            1,
+            view=LibraryView.ALL,
+            folder_id=None,
+            search="notation",
+            sort=LibrarySort.NAME_ASC,
+            page=1,
+            page_size=100,
+        )[1]
+        == 0
+    )
+
+
 def test_owned_and_shared_scores_need_no_organization_row(workspace):
     sync, db, scores, member = workspace
     service = LibraryService()
@@ -231,7 +284,9 @@ def test_folder_name_uniqueness_rename_position_and_ownership(workspace):
 def test_repository_access_query_count_is_independent_of_page_size(workspace):
     sync, db, _, _ = workspace
     for i in range(50):
-        sync.add(Score(id=1000 + i, score_uuid=f"extra-{i}", owner_user_id=1, title=f"Extra {i}"))
+        sync.add(
+            Score(id=1000 + i, score_uuid=f"extra-{i}", owner_user_id=1, display_title=f"Extra {i}")
+        )
     sync.commit()
     count = 0
 
@@ -267,7 +322,7 @@ def test_workspace_request_and_response_contract():
         "score_id",
         "access_origin",
         "folder_id",
-        "title",
+        "display_title",
         "genres",
         "derived_assets",
         "metadata",

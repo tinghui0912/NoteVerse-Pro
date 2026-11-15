@@ -275,7 +275,7 @@ describe('Verovio listen surfaces', () => {
     expect(inspector).toContain('ScoreInspectorPanel');
     expect(scoreInspector).toContain('function ScoreInspectorPanel');
     expect(scoreInspector).toContain('useMetadataEditor');
-    expect(scoreInspector).toContain('updateScoreMainTitle');
+    expect(scoreInspector).toContain('updateNotationTitle');
     expect(scoreInspector).toContain('updateScoreSubtitle');
     expect(scoreInspector).toContain('updateScoreComposer');
     expect(scoreInspector).toContain('updateScoreLyricist');
@@ -283,7 +283,7 @@ describe('Verovio listen surfaces', () => {
     expect(scoreInspector).toContain('updateKeySignature');
     expect(scoreInspector).toContain('updateTimeSignature');
     expect(scoreInspector).toContain('updateTempo');
-    expect(scoreInspector).toContain('mainTitleLabel');
+    expect(scoreInspector).toContain('notationTitleLabel');
     expect(scoreInspector).toContain('timeSignatureLabel');
     expect(previewPanel).toContain('mountScoreMetadataPlaceholders');
     expect(previewPlaceholders).toContain('score-metadata-placeholder-title');

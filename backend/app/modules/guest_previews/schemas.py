@@ -18,7 +18,7 @@ class GuestPreviewPageRead(BaseModel):
 
 
 class GuestPreviewRead(ApiModel):
-    title: str
+    display_title: str
     shared_by: str
     render_assets: list[GuestPreviewPageRead]
     audio_available: bool

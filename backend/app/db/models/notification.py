@@ -34,17 +34,17 @@ class Notification(SQLModel, table=True):  # type: ignore[call-arg]
         CheckConstraint(
             """
           (kind IN ('score_invite.accepted', 'score_invite.declined') AND invite_id IS NOT NULL
-           AND score_id IS NOT NULL AND actor_user_id IS NOT NULL AND score_title_snapshot IS NOT NULL
-           AND revision_id IS NULL AND import_job_id IS NULL AND job_title_snapshot IS NULL)
+           AND score_id IS NOT NULL AND actor_user_id IS NOT NULL AND score_display_title_snapshot IS NOT NULL
+           AND revision_id IS NULL AND import_job_id IS NULL AND import_display_title_snapshot IS NULL)
           OR (kind = 'score.version.created' AND score_id IS NOT NULL AND revision_id IS NOT NULL
-           AND actor_user_id IS NOT NULL AND score_title_snapshot IS NOT NULL AND invite_id IS NULL
-           AND import_job_id IS NULL AND job_title_snapshot IS NULL)
+           AND actor_user_id IS NOT NULL AND score_display_title_snapshot IS NOT NULL AND invite_id IS NULL
+           AND import_job_id IS NULL AND import_display_title_snapshot IS NULL)
           OR (kind = 'import.completed' AND import_job_id IS NOT NULL AND actor_user_id IS NULL
            AND invite_id IS NULL AND revision_id IS NULL
-           AND ((score_id IS NULL AND score_title_snapshot IS NULL)
-             OR (score_id IS NOT NULL AND score_title_snapshot IS NOT NULL)))
+           AND ((score_id IS NULL AND score_display_title_snapshot IS NULL)
+             OR (score_id IS NOT NULL AND score_display_title_snapshot IS NOT NULL)))
           OR (kind = 'import.failed' AND import_job_id IS NOT NULL AND actor_user_id IS NULL
-           AND invite_id IS NULL AND revision_id IS NULL AND score_id IS NULL AND score_title_snapshot IS NULL)
+           AND invite_id IS NULL AND revision_id IS NULL AND score_id IS NULL AND score_display_title_snapshot IS NULL)
         """,
             name="ck_notifications_semantic_identity",
         ),
@@ -82,8 +82,8 @@ class Notification(SQLModel, table=True):  # type: ignore[call-arg]
     score_id: str | None = Field(default=None, sa_column=Column(String(36)))
     revision_id: str | None = Field(default=None, sa_column=Column(String(36)))
     import_job_id: str | None = Field(default=None, sa_column=Column(String(36)))
-    score_title_snapshot: str | None = Field(default=None, sa_column=Column(String(255)))
-    job_title_snapshot: str | None = Field(default=None, sa_column=Column(String(255)))
+    score_display_title_snapshot: str | None = Field(default=None, sa_column=Column(String(255)))
+    import_display_title_snapshot: str | None = Field(default=None, sa_column=Column(String(255)))
     read_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     created_at: datetime = Field(
         default_factory=utc_now,

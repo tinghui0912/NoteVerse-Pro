@@ -267,3 +267,25 @@ combines multiple parts, divisions changes, voices/backup, forward, an empty mea
 meter/key changes, late offset tempo and a simple repeat. Its shared starts are
 `0, 4, 8, 11`; Practice has four written measures, while metadata's playback order
 is `0, 1, 0, 1, 2, 3` and its duration is 15000 ms.
+
+## Resource display names and document titles
+
+`Score.display_title` is the user-managed resource name. Score updates, Library
+search and name sorting use this field without rewriting canonical MusicXML.
+Each revision derives `ScoreRevisionMetadata.notation_title` solely from its
+canonical `<work><work-title>` through `app.processing.musicxml.notation_title`.
+Missing or blank work titles yield null; surrounding whitespace is trimmed and
+Unicode content is preserved. Visible credits are document presentation, not a
+resource-name authority. The Editor updates the work title and its visible title
+credit through `updateNotationTitle`.
+
+Import confirmation initializes a Score display title once, using the explicit
+confirm display title, submitted display title, final confirmed notation title,
+then `Untitled score`, in that order. Later document revisions and resource-name
+edits have independent lifecycles. Metadata delivery derives notation title with
+its other revision facts and clears it on extraction failure.
+
+Invites and mail present the resource display title. Notification and
+PerformanceTake admission freeze display-title snapshots; changing the live Score
+does not rewrite those facts. Import notification snapshots retain the submitted
+display-title proposal and receive the resulting Score display title at confirmation.

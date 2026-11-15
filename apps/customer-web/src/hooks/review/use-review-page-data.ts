@@ -108,7 +108,7 @@ export function useReviewPageData(jobId: string) {
     confirm.mutate({
       jobId,
       content: xmlContent,
-      title: review?.title ?? undefined,
+      displayTitle: review?.display_title ?? undefined,
     }, {
     onSuccess: (response) => {
       if (response.score_id) {

@@ -162,7 +162,7 @@ export function NotificationCenterDialog({ open, onOpenChange }: NotificationCen
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <div className="truncate text-base font-semibold">
-                              {invite.score_title}
+                              {invite.score_display_title}
                             </div>
                             <div className="mt-1 text-sm text-muted-foreground">
                               {collaborationT('personalInviteFrom', {

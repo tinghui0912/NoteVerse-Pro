@@ -4,7 +4,7 @@ import { mockAnonymousSession } from './support/api-mocks';
 const inviteAccess = {
   invite_id: 'invite-1',
   score_id: 'score-1',
-  score_title: 'Collab Score',
+  score_display_title: 'Collab Score',
   inviter: { display_name: 'Owner', email: 'owner@example.com', avatar_url: null },
   email: 'member@example.com',
   role: 'EDITOR',

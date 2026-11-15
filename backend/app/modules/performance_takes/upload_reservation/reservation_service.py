@@ -276,7 +276,7 @@ class PerformanceTakeReservationService:
                         "revision_id": authorized_bundle.revision_uuid,
                     },
                     "artifact_id": bundle_ref.artifact_id,
-                    "score_title_snapshot": authorized_bundle.score_title,
+                    "score_display_title_snapshot": authorized_bundle.score_display_title,
                     "capture": media,
                     "score_timebase": {"ticks_per_quarter": score.ticks_per_quarter},
                     "scope": {

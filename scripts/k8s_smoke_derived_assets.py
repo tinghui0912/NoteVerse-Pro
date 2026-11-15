@@ -164,7 +164,7 @@ with SessionLocal() as db:
         stored = write_object(db, object_storage,
             key=f"scores/{{score_uuid}}/revisions/{{revision_uuid}}/score.musicxml", content=musicxml,
             content_type="application/vnd.recordare.musicxml+xml")
-        db.add(Score(score_uuid=score_uuid, owner_user_id=user_id, title="K8s Smoke Derived Asset"))
+        db.add(Score(score_uuid=score_uuid, owner_user_id=user_id, display_title="K8s Smoke Derived Asset"))
         db.flush()
         prepared = PreparedRevisionSource(revision_uuid, stored, hashlib.sha256(musicxml).hexdigest(),
             "k8s-smoke", "1", reservation.reservation_id)

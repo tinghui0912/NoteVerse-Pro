@@ -261,7 +261,7 @@ def test_deletion_contends_on_dispatch_before_job_and_rechecks_state(monkeypatch
 
                     score = Score(
                         score_uuid="confirmed-under-lock",
-                        title="Confirmed",
+                        display_title="Confirmed",
                         owner_user_id=1,
                         originating_job_id=job_id,
                     )

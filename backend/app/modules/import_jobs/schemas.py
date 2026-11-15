@@ -13,7 +13,7 @@ from app.shared.api_model import ApiModel
 
 @with_config(ConfigDict(extra="forbid"))
 class ImportJobProcessingOptions(TypedDict, total=False):
-    title: str
+    display_title: str
     genres: Genres
 
 
@@ -49,7 +49,7 @@ class ImportJobRead(ApiModel):
     state: ImportJobState
     progress: int
     score_id: str | None = None
-    title: str | None = None
+    display_title: str | None = None
     genres: Genres = []
     thumbnail: ImportArtifactRead | None = None
     created_at: Instant

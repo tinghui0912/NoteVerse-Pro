@@ -37,10 +37,10 @@ function isEmailLike(value: string) {
 }
 
 export function ScoreCollaborationPanel({
-  scoreTitle,
+  scoreDisplayTitle,
   scoreId,
 }: {
-  scoreTitle: string;
+  scoreDisplayTitle: string;
   scoreId: string;
 }) {
   const t = useTranslations('scoreCollaboration');
@@ -134,7 +134,7 @@ export function ScoreCollaborationPanel({
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-semibold">{t('title')}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{t('scoreName', { name: scoreTitle })}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{t('scoreName', { name: scoreDisplayTitle })}</p>
       </div>
 
           <section className="space-y-3">

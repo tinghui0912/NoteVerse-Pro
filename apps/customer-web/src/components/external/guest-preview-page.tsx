@@ -17,7 +17,7 @@ export function GuestPreviewPage({ token }: { token: string }) {
   }
   return (
     <main className="mx-auto max-w-5xl space-y-6 px-4 py-8" data-testid="guest-preview">
-      <h1 className="text-2xl font-semibold">{preview.title}</h1>
+      <h1 className="text-2xl font-semibold">{preview.display_title}</h1>
       <p>{t('by', { name: preview.shared_by })}</p>
       <p className="text-muted-foreground">{t('description')}</p>
       {preview.audio_available ? (

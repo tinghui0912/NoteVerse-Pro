@@ -37,7 +37,7 @@ def _job(*, state: ImportJobState = ImportJobState.RUNNING) -> SimpleNamespace:
         last_heartbeat_at=None,
         finished_at=None,
         updated_at=None,
-        requested_options={"title": "Imported score"},
+        requested_options={"display_title": "Imported score"},
         failure_code="import_pipeline_failed" if state == ImportJobState.FAILURE else None,
         failure_stage="pipeline" if state == ImportJobState.FAILURE else None,
         failure_classification="system_error" if state == ImportJobState.FAILURE else None,

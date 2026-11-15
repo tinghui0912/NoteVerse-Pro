@@ -136,7 +136,7 @@ async def test_seed_existing_integration_user_is_read_only(monkeypatch: pytest.M
         id=201,
         score_uuid=seed_integration_user.INTEGRATION_PRACTICE_SCORE_ID,
         owner_user_id=user.id,
-        title="Existing Integration Score",
+        display_title="Existing Integration Score",
     )
     revision = ScoreRevision(
         id=301,

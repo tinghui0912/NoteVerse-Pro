@@ -88,7 +88,10 @@ def test_retry_requires_original_uploads_and_preserves_processing_options() -> N
         job_uuid="job-1",
         state=ImportJobState.FAILURE,
         user_id=7,
-        requested_options={"title": "Recovered score", "genres": ["jazz", "classical", "jazz"]},
+        requested_options={
+            "display_title": "Recovered score",
+            "genres": ["jazz", "classical", "jazz"],
+        },
     )
     service, _repository = _service_with_job(job)
     database = Mock()
@@ -120,7 +123,10 @@ def test_retry_requires_original_uploads_and_preserves_processing_options() -> N
     assert submitted_db is database
     assert submitted_user is user
     assert retry_request.upload_ids == ["upload-1", "upload-2"]
-    assert retry_request.options == {"title": "Recovered score", "genres": ["classical", "jazz"]}
+    assert retry_request.options == {
+        "display_title": "Recovered score",
+        "genres": ["classical", "jazz"],
+    }
     assert retry_request.idempotency_key is None
 
 

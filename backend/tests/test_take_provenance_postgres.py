@@ -83,7 +83,7 @@ def test_save_admission_commits_before_waiting_score_deletion(postgres_bundle):
         assert snapshot.practice_binding.score_id == postgres_bundle[1].test_score_uuid
         assert snapshot.practice_binding.revision_id == postgres_bundle[1].test_revision_uuid
         assert snapshot.artifact_id == postgres_bundle[2].artifact.artifact_id
-        assert snapshot.score_title_snapshot == "Source"
+        assert snapshot.score_display_title_snapshot == "Source"
         assert db.scalar(select(Score)).deleted_at is not None
 
 
@@ -147,7 +147,7 @@ def test_snapshot_replay_finalize_and_take_reads_survive_bundle_gc(postgres_bund
         ) == Fraction(113, 60)
         storage.put_bytes(key=row.staging_object_key, content=MEDIA, content_type="audio/webm")
         score = db.scalar(select(Score))
-        score.title = "Title after admission"
+        score.display_title = "Title after admission"
         db.commit()
         ScoreLifecycleService().delete_score(db, score.score_uuid, 1)
         score.head_revision_id = None
@@ -207,7 +207,10 @@ def test_snapshot_replay_finalize_and_take_reads_survive_bundle_gc(postgres_bund
                 take.manifest.practice_binding.bundle_id
                 == snapshot.snapshot.practice_binding.bundle_id
             )
-            assert take.manifest.score_title_snapshot == snapshot.snapshot.score_title_snapshot
+            assert (
+                take.manifest.score_display_title_snapshot
+                == snapshot.snapshot.score_display_title_snapshot
+            )
             assert take.linked_score_id is None and not take.can_open_score
             listed = service.takes.list_takes(db, 1)
             assert listed.items == [take]

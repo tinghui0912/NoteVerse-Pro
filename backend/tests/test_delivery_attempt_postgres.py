@@ -54,7 +54,7 @@ def database(monkeypatch):
             user = User(email="lease@example.test", password_hash="hash")
             db.add(user)
             db.flush()
-            score = Score(score_uuid="score", owner_user_id=user.id, title="Score")
+            score = Score(score_uuid="score", owner_user_id=user.id, display_title="Score")
             db.add(score)
             db.flush()
             revision = ScoreRevision(

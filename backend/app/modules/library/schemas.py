@@ -98,7 +98,7 @@ class LibraryScoreRead(ApiModel):
     score_id: str
     access_origin: AccessOrigin
     folder_id: str | None
-    title: str
+    display_title: str
     derived_assets: ScoreDerivedAssetsRead
     genres: Genres
     metadata: MetadataRead | None

@@ -341,7 +341,7 @@ export function useUploadWorkflow() {
         uploadIds: uploadIds,
         idempotencyKey: submissionKeyRef.current,
         options: {
-          title: scoreName || undefined,
+          display_title: scoreName || undefined,
           genres: knownGenres(genres),
         },
       });

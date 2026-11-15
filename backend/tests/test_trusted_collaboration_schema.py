@@ -46,7 +46,7 @@ def test_fresh_membership_role_enum_and_both_consumers(monkeypatch):
             )
             db.add(owner)
             db.flush()
-            score = Score(score_uuid="role-score", title="Roles", owner_user_id=owner.id)
+            score = Score(score_uuid="role-score", display_title="Roles", owner_user_id=owner.id)
             db.add(score)
             db.flush()
             for index, role in enumerate(MembershipRole):
@@ -109,7 +109,7 @@ def test_postgres_invitation_terminal_facts_and_unresolved_index(monkeypatch):
                 ]
             )
             db.flush()
-            db.add(Score(id=10, score_uuid="schema-score", owner_user_id=1, title="Schema"))
+            db.add(Score(id=10, score_uuid="schema-score", owner_user_id=1, display_title="Schema"))
             db.commit()
             for number, (outcome, at, actor) in enumerate(
                 product(

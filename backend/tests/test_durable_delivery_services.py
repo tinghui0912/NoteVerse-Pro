@@ -110,7 +110,7 @@ def delivery(postgres_engine, request, monkeypatch):
         db.add_all(
             [
                 ImportJob(id=1, job_uuid="job", user_id=1, state=ImportJobState.PENDING_REVIEW),
-                Score(id=1, score_uuid="score", owner_user_id=1, title="Score"),
+                Score(id=1, score_uuid="score", owner_user_id=1, display_title="Score"),
             ]
         )
         db.flush()

@@ -282,7 +282,7 @@ def test_jobs_feature_routes_require_authentication(client: TestClient) -> None:
 def test_scores_feature_routes_require_authentication(client: TestClient) -> None:
     protected_requests = [
         ("get", "/api/v1/scores/test-score", None),
-        ("patch", "/api/v1/scores/test-score", {"title": "Updated", "expected_version": 1}),
+        ("patch", "/api/v1/scores/test-score", {"display_title": "Updated", "expected_version": 1}),
         (
             "post",
             "/api/v1/scores/test-score/revisions",

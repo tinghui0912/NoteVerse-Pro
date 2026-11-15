@@ -14,8 +14,8 @@ export function useConfirmImportJobReview() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ jobId, content, title }: { jobId: string; content: string; title?: string }) =>
-      reviewApi.confirm(jobId, { content, title }),
+    mutationFn: ({ jobId, content, displayTitle }: { jobId: string; content: string; displayTitle?: string }) =>
+      reviewApi.confirm(jobId, { content, display_title: displayTitle }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.storageUsage.current() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.library.scores() });

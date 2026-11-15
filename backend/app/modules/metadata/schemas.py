@@ -10,6 +10,7 @@ from app.db.models.score import MetadataStatus
 class MetadataRead(BaseModel):
     revision_id: str
     status: MetadataStatus
+    notation_title: str | None
     measure_count: int | None
     playback_duration_ms: int | None
     part_count: int | None

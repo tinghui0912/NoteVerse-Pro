@@ -87,7 +87,7 @@ class PracticeBundleService:
             reference,
             score_id,
             revision_id,
-            access.score.title,
+            access.score.display_title,
             access.score.score_uuid,
             access.revision.revision_uuid,
         )
@@ -115,7 +115,7 @@ class PracticeBundleService:
             reference,
             require_persisted_id(access.score.id, entity="score"),
             require_persisted_id(access.revision.id, entity="revision"),
-            access.score.title,
+            access.score.display_title,
             access.score.score_uuid,
             access.revision.revision_uuid,
         )

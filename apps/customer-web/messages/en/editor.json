@@ -18,7 +18,7 @@
   "generateFingering": "Generate Fingering",
   "fingeringHandSizeLabel": "Hand Size",
   "fingeringHandSizeDescription": "Choose the player's hand size. Fingering will be generated from the score currently open in the editor.",
-  "mainTitleLabel": "Main Title",
+  "notationTitleLabel": "Main Title",
   "subtitleLabel": "Subtitle",
   "composerLabel": "Composer",
   "lyricistLabel": "Lyricist",

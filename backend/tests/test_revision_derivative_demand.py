@@ -46,7 +46,7 @@ from tests.test_score_revision_services import MUSICXML_2
 @pytest.fixture
 def revisions(score_service_session):
     db, storage = score_service_session
-    score = Score(id=800, score_uuid="demand-score", title="Demand", owner_user_id=1)
+    score = Score(id=800, score_uuid="demand-score", display_title="Demand", owner_user_id=1)
     db.add(score)
     db.commit()
     rows = []
@@ -273,7 +273,7 @@ def test_business_commit_precedes_immediate_dispatch_and_broker_failure_is_recov
                 job_uuid="confirm-demand",
                 user_id=1,
                 state=ImportJobState.PENDING_REVIEW,
-                requested_options={"title": "Confirmed"},
+                requested_options={"display_title": "Confirmed"},
             )
         )
         db.commit()

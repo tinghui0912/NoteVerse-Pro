@@ -259,7 +259,7 @@ def _manifest_row(source: PracticeBundleRecord, *, user_id: int, take_uuid: str,
                         "revision_id": DEFAULT_TAKE_REVISION_ID,
                     },
                     "artifact_id": source.artifact_id,
-                    "score_title_snapshot": title,
+                    "score_display_title_snapshot": title,
                     "capture": {
                         "kind": "AUDIO",
                         "mime_type": "audio/webm",
@@ -548,7 +548,7 @@ def test_env(
             id=10,
             score_uuid="score-uuid-10",
             owner_user_id=1,
-            title="Moonlight Sonata",
+            display_title="Moonlight Sonata",
         )
         session.add(score)
         session.flush()
@@ -693,7 +693,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         assert take_data["manifest"]["practice_binding"]["bundle_id"] == _bundle_id()
         assert take_data["manifest"]["practice_binding"]["score_id"] == "score-uuid-10"
         assert take_data["manifest"]["practice_binding"]["revision_id"] == "revision-uuid-100"
-        assert take_data["manifest"]["score_title_snapshot"] == "Moonlight Sonata"
+        assert take_data["manifest"]["score_display_title_snapshot"] == "Moonlight Sonata"
         assert take_data["manifest"]["scope"]["kind"] == "FULL"
         assert take_data["manifest"]["capture"]["byte_size"] == media_size
 
@@ -801,7 +801,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         assert len(items) == 1
         assert items[0]["take_id"] == take_id
         assert items[0]["manifest"]["practice_binding"]["score_id"] == "score-uuid-10"
-        assert items[0]["manifest"]["score_title_snapshot"] == "Moonlight Sonata"
+        assert items[0]["manifest"]["score_display_title_snapshot"] == "Moonlight Sonata"
 
         # 8. Get take detail
         res_detail = client.get(f"/api/v1/performance-takes/{take_id}")
@@ -1009,7 +1009,7 @@ def test_cross_user_score_permission(test_env):
             id=30,
             score_uuid="score-uuid-user2",
             owner_user_id=2,
-            title="User 2 Private Sonata",
+            display_title="User 2 Private Sonata",
         )
         session.add(score_user2)
         session.flush()
@@ -1094,6 +1094,9 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         auth_data = res_auth.json()
         take_id = auth_data["take_id"]
         res_id = auth_data["reservation_id"]
+        source_score = session.get(Score, 10)
+        source_score.display_title = "My practice copy"
+        session.commit()
         staging_key = _staging_key(session, auth_data["reservation_id"])
         storage.put_bytes(key=staging_key, content=content, content_type="audio/webm")
 
@@ -1102,7 +1105,7 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
             "/api/v1/performance-takes/upload-reservations/" + reserved_upload_id + "/finalize"
         )
         assert res_fin.status_code == 200
-        assert res_fin.json()["manifest"]["score_title_snapshot"] == "Moonlight Sonata"
+        assert res_fin.json()["manifest"]["score_display_title_snapshot"] == "Moonlight Sonata"
 
         take_row = session.execute(
             select(PerformanceTake)
@@ -1140,7 +1143,7 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         assert item_soft["manifest"]["practice_binding"]["score_id"] == "score-uuid-10"
         assert item_soft["manifest"]["practice_binding"]["revision_id"] == "revision-uuid-100"
         assert item_soft["manifest"]["artifact_id"] == DEFAULT_TAKE_ARTIFACT_ID
-        assert item_soft["manifest"]["score_title_snapshot"] == "Moonlight Sonata"
+        assert item_soft["manifest"]["score_display_title_snapshot"] == "Moonlight Sonata"
 
         # Playback still works during soft delete
         res_play_soft = client.get(f"/api/v1/performance-takes/{take_id}/playback-url")
@@ -1169,7 +1172,7 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         assert take_in_db is not None
         assert take_in_db.linked_score_id is None
         assert (
-            manifest_from_row(take_in_db.manifest).snapshot.score_title_snapshot
+            manifest_from_row(take_in_db.manifest).snapshot.score_display_title_snapshot
             == "Moonlight Sonata"
         )
         source = session.execute(
@@ -1199,7 +1202,7 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         assert item_hard["manifest"]["practice_binding"]["score_id"] == "score-uuid-10"
         assert item_hard["manifest"]["practice_binding"]["revision_id"] == "revision-uuid-100"
         assert item_hard["manifest"]["artifact_id"] == DEFAULT_TAKE_ARTIFACT_ID
-        assert item_hard["manifest"]["score_title_snapshot"] == "Moonlight Sonata"
+        assert item_hard["manifest"]["score_display_title_snapshot"] == "Moonlight Sonata"
         assert item_hard["linked_score_id"] is None
         assert item_hard["can_open_score"] is False
 

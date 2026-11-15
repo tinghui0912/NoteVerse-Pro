@@ -195,7 +195,7 @@ describe('Library folder organization', () => {
     mocks.scores = ['owned-score', 'shared-score'].map((id, i) => ({
       score_id: id,
       access_origin: i ? 'MEMBERSHIP' : 'OWNER',
-      title: id,
+      display_title: id,
       folder_id: null,
       genres: [],
       metadata: null,
@@ -235,7 +235,7 @@ describe('Library folder organization', () => {
     mocks.scores = ['owner', ...(mixed ? ['member'] : [])].map((id) => ({
       score_id: id,
       access_origin: id === 'owner' ? 'OWNER' : 'MEMBERSHIP',
-      title: id,
+      display_title: id,
       folder_id: null,
       genres: [],
       metadata: null,

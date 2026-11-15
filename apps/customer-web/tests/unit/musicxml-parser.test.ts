@@ -11,6 +11,20 @@ const readFixture = (name: string) =>
   readFileSync(resolve('tests', 'fixtures', 'musicxml', name), 'utf8');
 
 describe('MusicXML package surface', () => {
+  it('reads notation title from work metadata independently of the visible credit', () => {
+    const content = readFixture('single-page.musicxml');
+    const document = new DOMParser().parseFromString(content, 'text/xml');
+    document.querySelector('work')?.remove();
+    const credit = document.createElement('credit');
+    credit.innerHTML = '<credit-type>title</credit-type><credit-words>Presentation</credit-words>';
+    document.documentElement.appendChild(credit);
+    const xml = () => new XMLSerializer().serializeToString(document);
+    expect(new MusicXMLParser(xml()).parse().notationTitle).toBe('');
+    const work = document.createElement('work');
+    work.innerHTML = '<work-title> Notation </work-title>';
+    document.documentElement.prepend(work);
+    expect(new MusicXMLParser(xml()).parse().notationTitle).toBe('Notation');
+  });
   it('parses a minimal score through the public package entry point', () => {
     const xml = readFixture('single-page.musicxml');
     const score = new MusicXMLParser(xml).parse();

@@ -26,7 +26,7 @@ export const take: PerformanceTakeRead = {
   created_at: "2026-09-26T00:00:00.000Z",
   manifest: {
     artifact_id: "practice-score-artifact:7cfc80643d19fef4",
-    score_title_snapshot: "Etude",
+    score_display_title_snapshot: "Etude",
     score_timebase: { ticks_per_quarter: 1 },
     tempo_plan: tempoPlan,
     recording_timebase: recordingTimebase,

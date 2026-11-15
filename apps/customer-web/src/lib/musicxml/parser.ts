@@ -93,9 +93,8 @@ export class MusicXMLParser {
     // Parse tie, slur, and beam connection metadata.
     const connections = this.parseConnections(measures);
 
-    const mainTitle =
-      this.getElementText('work-title') ||
-      this.getCreditTextByType('title');
+    const notationTitle =
+      this.getElementText('work-title');
     const subtitle =
       this.getCreditTextByType('subtitle');
     const copyright =
@@ -147,7 +146,7 @@ export class MusicXMLParser {
 
     return {
       measures,
-      mainTitle,
+      notationTitle,
       subtitle,
       composer,
       lyricist,

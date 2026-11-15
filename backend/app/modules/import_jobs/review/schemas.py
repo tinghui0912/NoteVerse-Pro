@@ -28,7 +28,7 @@ class ImportJobReviewRead(ApiModel):
     job_id: str
     state: ImportJobState
     score_id: str | None = None
-    title: str | None = None
+    display_title: str | None = None
     genres: Genres
     musicxml: ReviewMusicXmlRead | None = None
     original_images: list[ReviewArtifactRead]
@@ -40,7 +40,7 @@ class ReviewConfirmRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     content: str = Field(min_length=1)
-    title: str | None = Field(default=None, min_length=1, max_length=255)
+    display_title: str | None = Field(default=None, min_length=1, max_length=255)
     genres: Genres | None = None
 
 

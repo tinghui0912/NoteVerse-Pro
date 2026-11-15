@@ -58,13 +58,13 @@ def score_session(
                     id=10,
                     score_uuid="score-10",
                     owner_user_id=1,
-                    title="First score",
+                    display_title="First score",
                 ),
                 Score(
                     id=11,
                     score_uuid="score-11",
                     owner_user_id=1,
-                    title="Second score",
+                    display_title="Second score",
                 ),
             ]
         )

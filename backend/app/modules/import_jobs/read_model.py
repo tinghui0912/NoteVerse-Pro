@@ -66,7 +66,7 @@ class ImportJobReadModel:
                     score_id=score_uuids.get(job.score_id) if job.score_id is not None else None,
                     state=job.state,
                     progress=job.progress,
-                    title=options.get("title"),
+                    display_title=options.get("display_title"),
                     genres=options.get("genres", []),
                     thumbnail=thumbnails.get(job_id),
                     created_at=job.created_at,

@@ -18,7 +18,7 @@
   "generateFingering": "生成指法",
   "fingeringHandSizeLabel": "手型大小",
   "fingeringHandSizeDescription": "选择演奏者的手型大小，系统会基于当前编辑中的乐谱生成指法。",
-  "mainTitleLabel": "主标题",
+  "notationTitleLabel": "主标题",
   "subtitleLabel": "副标题",
   "composerLabel": "作曲",
   "lyricistLabel": "作词",

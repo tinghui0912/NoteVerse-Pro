@@ -85,7 +85,7 @@ def database(monkeypatch):
             db.flush()
             db.add_all(
                 [
-                    Score(score_uuid="score", owner_user_id=1, title="Etudes"),
+                    Score(score_uuid="score", owner_user_id=1, display_title="Etudes"),
                     ImportDispatch(job_id=1, status=ImportDispatchStatus.COMPLETED),
                 ]
             )
@@ -364,7 +364,7 @@ def test_revision_consequences_keep_the_transaction_audience(database):
         notice = db.scalar(sa.select(Notification))
         assert notice.created_at == result.revision.created_at
         assert notice.revision_id == result.revision.revision_uuid
-        assert notice.score_title_snapshot == "Etudes"
+        assert notice.score_display_title_snapshot == "Etudes"
         assert db.scalar(sa.select(StorageUsageAccount)).reserved_bytes == 0
         member = db.scalar(sa.select(ScoreMembership))
         member.revoked_at = utc_now()

@@ -547,7 +547,7 @@ export default function LibraryPage({
       </div>
       <ScoreDeleteDialog
         open={deletionTargets.length > 0}
-        titles={deletionTargets.map((score) => score.title)}
+        titles={deletionTargets.map((score) => score.display_title)}
         pending={deleteScores.isPending}
         error={deleteScores.error}
         onOpenChange={(open) => {
@@ -568,7 +568,7 @@ export default function LibraryPage({
       />
       <ScoreLeaveDialog
         open={leaveTarget !== null}
-        title={leaveTarget?.title ?? ''}
+        title={leaveTarget?.display_title ?? ''}
         pending={leaveScore.isPending}
         error={leaveScore.error}
         onOpenChange={(open) => {

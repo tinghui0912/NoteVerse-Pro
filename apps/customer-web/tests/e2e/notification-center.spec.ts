@@ -5,7 +5,7 @@ const pendingInvites = [
   {
     invite_id: 'invite-1',
     score_id: 'score-pending',
-    score_title: 'Pending Collaboration',
+    score_display_title: 'Pending Collaboration',
     inviter: {
       display_name: 'Collaborator',
       email: 'collab@example.com',
@@ -25,7 +25,7 @@ const notifications = [
     kind: 'score_invite.accepted',
     invite_id: 'invite-2',
     score_id: 'score-accepted',
-    score_title: 'Accepted Collaboration',
+    score_display_title: 'Accepted Collaboration',
     actor: {
       display_name: 'Member',
       email: 'member@example.com',
@@ -39,7 +39,7 @@ const notifications = [
     kind: 'score_invite.declined',
     invite_id: 'invite-3',
     score_id: 'score-declined',
-    score_title: 'Declined Collaboration',
+    score_display_title: 'Declined Collaboration',
     actor: {
       display_name: 'Reader',
       email: 'reader@example.com',
@@ -53,7 +53,7 @@ const failedProcessingNotification = {
   notification_id: 'notification-processing-failed',
   kind: 'import.failed',
   job_id: 'failed-job-1',
-  job_title: null,
+  import_display_title: null,
   read_at: null,
   created_at: '2026-07-01T09:20:00Z',
 };
@@ -61,9 +61,9 @@ const completedProcessingNotification = {
   notification_id: 'notification-processing-completed',
   kind: 'import.completed',
   job_id: 'ready-job-1',
-  job_title: 'Ready Score',
+  import_display_title: 'Ready Score',
   score_id: null,
-  score_title: null,
+  score_display_title: null,
   read_at: '2026-07-01T09:35:00Z',
   created_at: '2026-07-01T09:30:00Z',
 };
@@ -71,7 +71,7 @@ const confirmedProcessingNotification = {
   ...completedProcessingNotification,
   notification_id: 'notification-processing-confirmed',
   score_id: 'ready-score-1',
-  score_title: 'Ready Score',
+  score_display_title: 'Ready Score',
 };
 
 test('notification center combines pending invites and update notifications', async ({ page }) => {
@@ -187,7 +187,7 @@ test('failed processing notification opens Import Activity', async ({ page }) =>
             job_id: 'failed-job-1',
             state: 'FAILURE',
             progress: 0,
-            title: 'Failed upload',
+            display_title: 'Failed upload',
           },
         ],
         ...{ page: 1, page_size: 20, total: 1, total_pages: 1 },

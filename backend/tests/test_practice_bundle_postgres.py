@@ -63,7 +63,9 @@ def postgres_bundle(tmp_path, request):
             )
             seed.add(user)
             seed.flush()
-            score = Score(score_uuid="score-content-owner", owner_user_id=user.id, title="Source")
+            score = Score(
+                score_uuid="score-content-owner", owner_user_id=user.id, display_title="Source"
+            )
             seed.add(score)
             seed.flush()
             revision = ScoreRevision(
@@ -121,7 +123,7 @@ async def test_identical_content_across_scores_shares_one_bundle_two_bindings(po
     engine, repository, bundle, _ = postgres_bundle
     sessions = sessionmaker(engine, expire_on_commit=False)
     with sessions() as db:
-        score = Score(score_uuid="another-score", owner_user_id=1, title="Another")
+        score = Score(score_uuid="another-score", owner_user_id=1, display_title="Another")
         db.add(score)
         db.flush()
         revision = ScoreRevision(

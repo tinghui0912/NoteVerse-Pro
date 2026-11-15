@@ -60,7 +60,7 @@ def test_final_admission_serializes_with_current_score(monkeypatch, tmp_path, ki
             user_id = user.id
             score = Score(
                 score_uuid="race-score",
-                title="Race",
+                display_title="Race",
                 owner_user_id=user_id,
                 guest_preview_enabled=True,
             )

@@ -278,7 +278,7 @@ def _create_score_revision(
     score = Score(
         score_uuid=score_uuid,
         owner_user_id=1,
-        title="Ops retry score",
+        display_title="Ops retry score",
     )
     session.add(score)
     session.commit()
@@ -861,7 +861,7 @@ def test_ops_api_retry_requires_deletion_operation_identity(
     score = Score(
         score_uuid="00000000-0000-0000-0000-000000000303",
         owner_user_id=1,
-        title="Active score",
+        display_title="Active score",
     )
     ops_session.add(score)
     ops_session.commit()
@@ -1090,7 +1090,7 @@ def test_ops_api_admin_can_rearm_score_deletion_operation(
     score = Score(
         score_uuid="00000000-0000-0000-0000-000000000304",
         owner_user_id=1,
-        title="Deleting score",
+        display_title="Deleting score",
         deleted_at=utc_now(),
     )
     ops_session.add(score)

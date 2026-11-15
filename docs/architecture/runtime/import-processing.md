@@ -111,7 +111,7 @@ commits and is shared with the customer deletion use case, which owns its commit
 StoredObject retirement owns physical convergence; confirmation does no storage delete.
 
 Confirmation enriches the retained completed notification with Score identity and
-Score title in the same business transaction. If retention has removed the notification,
+Score display title in the same business transaction. If retention has removed the notification,
 confirmation succeeds without recreating notification history. No confirmed browser
 realtime type is introduced. Repeated confirmation returns the existing Score without
 repeating writes, accounting, cleanup or notification/realtime consequences. External

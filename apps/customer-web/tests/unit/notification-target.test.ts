@@ -22,7 +22,7 @@ const variants: NotificationRead[] = [
     actor,
     invite_id: 'invite',
     score_id: 'score',
-    score_title: 'Etudes',
+    score_display_title: 'Etudes',
   },
   {
     ...common,
@@ -30,7 +30,7 @@ const variants: NotificationRead[] = [
     actor,
     invite_id: 'invite',
     score_id: 'score',
-    score_title: 'Etudes',
+    score_display_title: 'Etudes',
   },
   {
     ...common,
@@ -38,17 +38,17 @@ const variants: NotificationRead[] = [
     actor,
     score_id: 'score',
     revision_id: 'revision',
-    score_title: 'Etudes',
+    score_display_title: 'Etudes',
   },
   {
     ...common,
     kind: 'import.completed',
     job_id: 'job',
-    job_title: 'Etudes',
+    import_display_title: 'Etudes',
     score_id: null,
-    score_title: null,
+    score_display_title: null,
   },
-  { ...common, kind: 'import.failed', job_id: 'job', job_title: null },
+  { ...common, kind: 'import.failed', job_id: 'job', import_display_title: null },
 ];
 
 describe('typed notification presentation and navigation', () => {
@@ -73,9 +73,9 @@ describe('typed notification presentation and navigation', () => {
         ...common,
         kind: 'import.completed',
         job_id: 'job',
-        job_title: null,
+        import_display_title: null,
         score_id: 'score',
-        score_title: 'Etudes',
+        score_display_title: 'Etudes',
       })
     ).toBe('/score/score');
     expect(notificationHref(variants[4])).toBe('/upload#import-activity');

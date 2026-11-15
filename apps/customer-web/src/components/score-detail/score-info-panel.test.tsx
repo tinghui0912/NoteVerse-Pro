@@ -27,7 +27,7 @@ beforeEach(() => {
 it('edits genres using code identity and the Score version', async () => {
   render(
     <ScoreInfoPanel
-      title="Score"
+      displayTitle="Score"
       scoreId="score"
       genres={['jazz', 'classical']}
       imageCount={1}

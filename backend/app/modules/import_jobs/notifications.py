@@ -14,14 +14,14 @@ def admit_import_outcome(db: Session, job: ImportJob, *, created_at: datetime) -
         raise ValueError("Import consequences require an accepted terminal outcome")
     completed = job.state == ImportJobState.PENDING_REVIEW
     options = job.requested_options if isinstance(job.requested_options, dict) else {}
-    title = options.get("title")
-    title = title if isinstance(title, str) else None
+    display_title = options.get("display_title")
+    display_title = display_title if isinstance(display_title, str) else None
     if completed:
         notification_service.admit_import_completed(
             db,
             recipient_user_id=job.user_id,
             import_job_id=job.job_uuid,
-            job_title=title,
+            import_display_title=display_title,
             created_at=created_at,
         )
     else:
@@ -29,7 +29,7 @@ def admit_import_outcome(db: Session, job: ImportJob, *, created_at: datetime) -
             db,
             recipient_user_id=job.user_id,
             import_job_id=job.job_uuid,
-            job_title=title,
+            import_display_title=display_title,
             created_at=created_at,
         )
     publish_change(
@@ -41,7 +41,7 @@ def admit_import_outcome(db: Session, job: ImportJob, *, created_at: datetime) -
 
 
 def enrich_completed_import_notification(
-    db: Session, *, job_id: str, user_id: int, score_id: str, score_title: str
+    db: Session, *, job_id: str, user_id: int, score_id: str, score_display_title: str
 ) -> None:
     notification = db.scalar(
         select(Notification)
@@ -56,4 +56,4 @@ def enrich_completed_import_notification(
     )
     if notification is not None:
         notification.score_id = score_id
-        notification.score_title_snapshot = score_title
+        notification.score_display_title_snapshot = score_display_title

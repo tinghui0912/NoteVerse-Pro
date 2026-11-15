@@ -289,7 +289,7 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
       contentType: 'application/json',
       body: representationBody({
         score_id: scoreId,
-        title: 'Continuous Review Score',
+        display_title: 'Continuous Review Score',
         head_revision_id: revisionId,
         version: 1,
         created_at: '2026-08-24T00:00:00Z',
@@ -324,7 +324,7 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
       contentType: 'application/json',
       body: representationBody({
         score_id: 0,
-        title: 'Continuous Review Score',
+        display_title: 'Continuous Review Score',
         head_revision_id: revisionId,
         version: 1,
         created_at: '2026-08-24T00:00:00Z',
@@ -389,7 +389,7 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
     return route.fulfill({ status: 200, contentType: 'application/json', body: representationBody({
       reservation_id: 'upload-res-e2e-1', take_id: 'take-e2e-1', status: 'RESERVED',
       manifest: { practice_binding, capture: media, artifact_id: testArtifact.artifactId,
-        score_title_snapshot: 'Continuous Review Score', recording_timebase,
+        score_display_title_snapshot: 'Continuous Review Score', recording_timebase,
         score_timebase: accepted.score_timebase, scope: accepted.resolved_scope,
         tempo_plan: accepted.resolved_tempo_plan },
       upload_target: { url: new URL('/api/v1/performance-takes/mock-upload/take-e2e-1', route.request().url()).href, method: 'PUT',
@@ -407,7 +407,7 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
       take_id: 'take-e2e-1', recording_media: { mime_type: media.mime_type, byte_size: media.byte_size }, created_at: '2026-09-20T12:00:00Z',
       manifest: {
         practice_binding, artifact_id: testArtifact.artifactId,
-        score_title_snapshot: 'Continuous Review Score', capture: media,
+        score_display_title_snapshot: 'Continuous Review Score', capture: media,
         score_timebase: { ticks_per_quarter: testArtifact.ticksPerQuarter },
         scope: resolved_scope as PerformanceTakeRead['manifest']['scope'],
         tempo_plan: { selection: resolved_tempo_plan.selection, segments: resolved_tempo_plan.segments.map((segment) => ({ ...segment })) },

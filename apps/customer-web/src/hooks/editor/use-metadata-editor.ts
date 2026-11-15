@@ -230,7 +230,7 @@ export function useMetadataEditor() {
         }, t('updateTempo'));
     }, [updateMusicXML, t]);
 
-    const updateScoreMainTitle = useCallback((title: string) => {
+    const updateNotationTitle = useCallback((notationTitle: string) => {
         updateMusicXML(xmlDoc => {
             const root = xmlDoc.querySelector('score-partwise') || xmlDoc.documentElement;
 
@@ -240,15 +240,15 @@ export function useMetadataEditor() {
                 work = xmlDoc.createElement('work');
                 root.insertBefore(work, root.firstChild);
             }
-            let workTitle = work.querySelector('work-title');
-            if (!workTitle) {
-                workTitle = xmlDoc.createElement('work-title');
-                work.appendChild(workTitle);
+            let notationTitleElement = work.querySelector('work-title');
+            if (!notationTitleElement) {
+                notationTitleElement = xmlDoc.createElement('work-title');
+                work.appendChild(notationTitleElement);
             }
-            workTitle.textContent = title;
+            notationTitleElement.textContent = notationTitle;
 
             // 2. Sync the visible title <credit>.
-            upsertCredit(xmlDoc, root, CREDIT_CONFIG.TITLE.creditType, title, {
+            upsertCredit(xmlDoc, root, CREDIT_CONFIG.TITLE.creditType, notationTitle, {
                 defaultX: CREDIT_CONFIG.TITLE_CENTER_X,
                 defaultY: CREDIT_CONFIG.TITLE.defaultY,
                 justify: CREDIT_CONFIG.TITLE.justify,
@@ -359,7 +359,7 @@ export function useMetadataEditor() {
         updateKeySignature,
         updateTimeSignature,
         updateTempo,
-        updateScoreMainTitle,
+        updateNotationTitle,
         updateScoreSubtitle,
         updateScoreCopyright,
         updateScoreComposer,

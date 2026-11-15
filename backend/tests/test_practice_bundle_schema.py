@@ -36,7 +36,7 @@ def test_fresh_foundation_schema_matches_models_and_revision_ownership(monkeypat
             user = User(email="schema@example.com", display_name="Schema", password_hash="test")
             db.add(user)
             db.flush()
-            score = Score(score_uuid="score", title="Score", owner_user_id=user.id)
+            score = Score(score_uuid="score", display_title="Score", owner_user_id=user.id)
             db.add(score)
             db.flush()
             revision = ScoreRevision(

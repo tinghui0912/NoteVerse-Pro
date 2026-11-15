@@ -22,7 +22,7 @@ class ScoreInviteAcceptedNotificationRead(NotificationBaseRead):
     invite_id: str
     actor: NotificationActorRead
     score_id: str
-    score_title: str
+    score_display_title: str
 
 
 class ScoreInviteDeclinedNotificationRead(NotificationBaseRead):
@@ -30,29 +30,29 @@ class ScoreInviteDeclinedNotificationRead(NotificationBaseRead):
     invite_id: str
     actor: NotificationActorRead
     score_id: str
-    score_title: str
+    score_display_title: str
 
 
 class ScoreVersionCreatedNotificationRead(NotificationBaseRead):
     kind: Literal["score.version.created"]
     actor: NotificationActorRead
     score_id: str
-    score_title: str
+    score_display_title: str
     revision_id: str
 
 
 class ImportCompletedNotificationRead(NotificationBaseRead):
     kind: Literal["import.completed"]
     job_id: str
-    job_title: str | None
+    import_display_title: str | None
     score_id: str | None
-    score_title: str | None
+    score_display_title: str | None
 
 
 class ImportFailedNotificationRead(NotificationBaseRead):
     kind: Literal["import.failed"]
     job_id: str
-    job_title: str | None
+    import_display_title: str | None
 
 
 type NotificationRead = Annotated[

@@ -11,7 +11,7 @@ import {
 import type { ScoreData } from '@/types/score-types';
 
 const labels = {
-  mainTitle: 'Title',
+  notationTitle: 'Title',
   subtitle: 'Subtitle',
   lyricist: 'Lyricist',
   composer: 'Composer',
@@ -36,7 +36,7 @@ function createContainer() {
 
 describe('editor preview metadata placeholders', () => {
   it('projects missing score metadata fields to placeholder descriptors', () => {
-    expect(getMissingScoreMetadataPlaceholders(createScoreData({ mainTitle: 'Sonata' }), labels)).toEqual([
+    expect(getMissingScoreMetadataPlaceholders(createScoreData({ notationTitle: 'Sonata' }), labels)).toEqual([
       { className: 'score-metadata-placeholder-subtitle', label: 'Subtitle' },
       { className: 'score-metadata-placeholder-lyricist', label: 'Lyricist' },
       { className: 'score-metadata-placeholder-composer', label: 'Composer' },
@@ -56,7 +56,7 @@ describe('editor preview metadata placeholders', () => {
 
     mountScoreMetadataPlaceholders({
       container,
-      scoreData: createScoreData({ mainTitle: 'Sonata', composer: 'Composer Name' }),
+      scoreData: createScoreData({ notationTitle: 'Sonata', composer: 'Composer Name' }),
       labels,
     });
 
@@ -75,7 +75,7 @@ describe('editor preview metadata placeholders', () => {
     mountScoreMetadataPlaceholders({
       container,
       scoreData: createScoreData({
-        mainTitle: 'Sonata',
+        notationTitle: 'Sonata',
         subtitle: 'Op. 1',
         lyricist: 'Poet',
         composer: 'Composer',

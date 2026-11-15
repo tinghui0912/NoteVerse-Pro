@@ -26,7 +26,7 @@ def value():
                     "bundle_id": "bundle",
                 },
                 "artifact_id": "artifact",
-                "score_title_snapshot": "Admission title",
+                "score_display_title_snapshot": "Admission title",
                 "capture": {"kind": "AUDIO", "mime_type": "audio/webm", "byte_size": 42},
                 "score_timebase": {"ticks_per_quarter": 60},
                 "scope": {
@@ -87,7 +87,7 @@ def test_equivalent_semantic_values_have_identical_document_bytes_and_digest():
         "utf-8"
     ) == original.canonical_document_json.encode("utf-8")
     assert equivalent.document_sha256 == original.document_sha256
-    snapshot["score_title_snapshot"] = "演奏 Café"
+    snapshot["score_display_title_snapshot"] = "演奏 Café"
     changed = TakeManifest("take", 1, PerformanceTakeManifestRead.model_validate(snapshot))
     assert "演奏 Café" in changed.canonical_document_json
     assert changed.document_sha256 != original.document_sha256
@@ -101,7 +101,7 @@ def test_equivalent_semantic_values_have_identical_document_bytes_and_digest():
         (("practice_binding", "score_id"), ""),
         (("practice_binding", "revision_id"), ""),
         (("artifact_id",), ""),
-        (("score_title_snapshot",), ""),
+        (("score_display_title_snapshot",), ""),
         (("capture", "kind"), "TEXT"),
         (("capture", "mime_type"), "audio/webm;codecs=opus"),
         (("capture", "mime_type"), "video/mp4"),
@@ -255,7 +255,7 @@ def test_replay_compares_selection_against_exact_manifest_without_resolving_agai
 def test_replay_projection_contains_request_semantics_independently_of_resolved_facts():
     manifest = value()
     snapshot = manifest.snapshot.model_dump(mode="json")
-    snapshot.update(artifact_id="another-artifact", score_title_snapshot="Another title")
+    snapshot.update(artifact_id="another-artifact", score_display_title_snapshot="Another title")
     snapshot["score_timebase"]["ticks_per_quarter"] = 120
     snapshot["scope"].update(start_tick=31, terminal_tick=114)
     snapshot["tempo_plan"]["segments"] = [{"startTick": 0, "bpm": 80, "source": "MUSICXML"}]

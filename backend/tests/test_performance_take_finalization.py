@@ -25,7 +25,7 @@ def manifest():
         PerformanceTakeManifestRead.model_validate(
             {
                 "artifact_id": "artifact",
-                "score_title_snapshot": "Score",
+                "score_display_title_snapshot": "Score",
                 "practice_binding": {
                     "score_id": "score",
                     "revision_id": "revision",

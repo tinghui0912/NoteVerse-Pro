@@ -52,8 +52,8 @@ function ScorePageContent({ id }: { id: string }) {
         common('loadFailedDescription'),
       )
     : null;
-  const scoreTitle =
-    resources.score?.title || t('scoreFallbackTitle', { id: id.slice(0, 8) });
+  const scoreDisplayTitle =
+    resources.score?.display_title || t('scoreFallbackTitle', { id: id.slice(0, 8) });
   const capabilities = resources.score?.capabilities ?? null;
 
   if (resources.scoreLoading) {
@@ -103,14 +103,14 @@ function ScorePageContent({ id }: { id: string }) {
       label: t('scoreInfo'),
       content: (
         <ScoreInfoPanel
-          canEditTitle={score.capabilities.can_edit}
+          canEditDisplayTitle={score.capabilities.can_edit}
           createdAt={score.created_at}
           imageCount={resources.imageCount}
           imageCountStatus={previewAsset.status}
           metadata={score.metadata}
           scoreId={score.score_id}
           genres={score.genres}
-          title={scoreTitle}
+          displayTitle={scoreDisplayTitle}
           updatedAt={score.updated_at}
           version={score.version}
         />
@@ -148,7 +148,7 @@ function ScorePageContent({ id }: { id: string }) {
             <div className="rounded-2xl border bg-white p-5 shadow-sm sm:p-6">
               <ScoreCollaborationPanel
                 scoreId={score.score_id}
-                scoreTitle={scoreTitle}
+                scoreDisplayTitle={scoreDisplayTitle}
               />
             </div>
           ),
@@ -173,9 +173,9 @@ function ScorePageContent({ id }: { id: string }) {
     >
       <ScoreSurface>
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-          <ScoreBreadcrumbs scoreTitle={scoreTitle} />
+          <ScoreBreadcrumbs scoreDisplayTitle={scoreDisplayTitle} />
           <ScoreDetailHero
-            title={scoreTitle}
+            title={scoreDisplayTitle}
             thumbnailUrl={
               previewAsset.status === 'ready'
                 ? scoreThumbnailUrl(previewAsset.asset_id)
@@ -229,7 +229,7 @@ function ScorePageContent({ id }: { id: string }) {
           />
           <ScoreDeleteDialog
             open={deleteOpen}
-            titles={[scoreTitle]}
+            titles={[scoreDisplayTitle]}
             pending={deleteScores.isPending}
             error={deleteScores.error}
             onOpenChange={setDeleteOpen}
@@ -242,7 +242,7 @@ function ScorePageContent({ id }: { id: string }) {
           />
           <ScoreLeaveDialog
             open={leaveOpen}
-            title={scoreTitle}
+            title={scoreDisplayTitle}
             pending={leaveScore.isPending}
             error={leaveScore.error}
             onOpenChange={setLeaveOpen}

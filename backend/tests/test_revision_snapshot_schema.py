@@ -46,8 +46,8 @@ def test_fresh_snapshot_schema_and_same_score_references(monkeypatch):
             )
             db.add(user)
             db.flush()
-            a = Score(score_uuid="snapshot-a", title="A", owner_user_id=user.id)
-            b = Score(score_uuid="snapshot-b", title="B", owner_user_id=user.id)
+            a = Score(score_uuid="snapshot-a", display_title="A", owner_user_id=user.id)
+            b = Score(score_uuid="snapshot-b", display_title="B", owner_user_id=user.id)
             db.add_all([a, b])
             db.flush()
             revisions = [

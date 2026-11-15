@@ -31,7 +31,7 @@ def test_notification_admission_obeys_caller_commit_rollback_and_dedupe(notifica
             actor_user_id=2,
             score_id="score",
             revision_id="revision",
-            score_title="Etudes",
+            score_display_title="Etudes",
             created_at=utc_now(),
         )
         service.admit_score_version_created(db, **fields)
@@ -65,7 +65,7 @@ def test_each_notification_kind_hydrates_a_typed_variant_and_read_preserves_sema
                 accepted=accepted,
                 invite_id="invite",
                 score_id="score",
-                score_title="Etudes",
+                score_display_title="Etudes",
                 created_at=now,
             )
         service.admit_score_version_created(
@@ -74,14 +74,22 @@ def test_each_notification_kind_hydrates_a_typed_variant_and_read_preserves_sema
             actor_user_id=2,
             score_id="score",
             revision_id="revision",
-            score_title="Etudes",
+            score_display_title="Etudes",
             created_at=now,
         )
         service.admit_import_completed(
-            db, recipient_user_id=1, import_job_id="job", job_title="Imported", created_at=now
+            db,
+            recipient_user_id=1,
+            import_job_id="job",
+            import_display_title="Imported",
+            created_at=now,
         )
         service.admit_import_failed(
-            db, recipient_user_id=1, import_job_id="failed", job_title=None, created_at=now
+            db,
+            recipient_user_id=1,
+            import_job_id="failed",
+            import_display_title=None,
+            created_at=now,
         )
         db.commit()
         rows = service.list_for_user(db, 1)
@@ -124,7 +132,7 @@ def test_mark_all_read_emits_one_collection_change_only_for_an_actual_transition
                 db,
                 recipient_user_id=1,
                 import_job_id=job,
-                job_title=job,
+                import_display_title=job,
                 created_at=utc_now(),
             )
         db.commit()
@@ -147,7 +155,7 @@ def test_read_transition_and_change_admission_roll_back_together(
             db,
             recipient_user_id=1,
             import_job_id="job",
-            job_title="Etudes",
+            import_display_title="Etudes",
             created_at=utc_now(),
         )
         notification_id = notice.notification_uuid

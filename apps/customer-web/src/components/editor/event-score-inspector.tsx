@@ -321,7 +321,7 @@ export function ScoreInspectorPanel({ onClose }: { onClose: () => void }) {
     updateKeySignature,
     updateTimeSignature,
     updateTempo,
-    updateScoreMainTitle,
+    updateNotationTitle,
     updateScoreSubtitle,
     updateScoreCopyright,
     updateScoreComposer,
@@ -346,12 +346,12 @@ export function ScoreInspectorPanel({ onClose }: { onClose: () => void }) {
           <div className="space-y-5 p-4">
             <section className="space-y-3">
               <div className="space-y-2">
-                <Label htmlFor="score-main-title">{t('mainTitleLabel')}</Label>
+                <Label htmlFor="notation-title">{t('notationTitleLabel')}</Label>
                 <Input
-                  key={`score-main-title-${scoreData?.mainTitle || ''}`}
-                  id="score-main-title"
-                  defaultValue={scoreData?.mainTitle || ''}
-                  onBlur={(event) => updateScoreMainTitle(event.currentTarget.value)}
+                  key={`notation-title-${scoreData?.notationTitle || ''}`}
+                  id="notation-title"
+                  defaultValue={scoreData?.notationTitle || ''}
+                  onBlur={(event) => updateNotationTitle(event.currentTarget.value)}
                 />
               </div>
 

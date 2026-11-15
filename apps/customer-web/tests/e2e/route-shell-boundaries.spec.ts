@@ -31,7 +31,7 @@ test('invite routes use InviteShell instead of public marketing navigation', asy
       body: JSON.stringify({
           invite_id: 'invite-1',
           score_id: scoreId,
-          score_title: 'Invite Shell Score',
+          score_display_title: 'Invite Shell Score',
           inviter: { display_name: 'Owner', email: 'owner@example.com', avatar_url: null },
           email: 'member@example.com',
           role: 'EDITOR',

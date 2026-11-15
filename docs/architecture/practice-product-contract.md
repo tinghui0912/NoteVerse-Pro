@@ -1033,7 +1033,7 @@ completed local recording -> admitted Manifest + upload reservation -> direct bi
 `POST /performance-takes/upload-reservations` captures client_request_id, practice_binding,
 media, scope selection, tempo selection and recording timebase once. Practice binding contains
 score_id, revision_id and bundle_id; media contains kind, canonical MIME and byte size. The
-Manifest captures exact Bundle provenance and score title under live save authorization.
+Manifest captures exact Bundle provenance and Score display title under live save authorization.
 Custom Fixed BPM is finite and strictly positive; its exact value is retained in the
 resolved CUSTOM segment. Runtime timing validates representability for the particular
 score and tempo. The numeric editor has no product maximum and retains invalid drafts
@@ -1042,7 +1042,7 @@ locally without changing the selection.
 Clients submit FULL or RANGE group IDs and SCORE or CUSTOM_FIXED_BPM selection;
 the server derives durable scope ticks, tempo segments and their shared score timebase
 from that exact bound Bundle. Reservation and Take responses expose one `manifest` containing
-binding, artifact identity, title, source `capture`, resolved scope, score timebase, tempo plan and recording timebase.
+binding, artifact identity, display-title snapshot, source `capture`, resolved scope, score timebase, tempo plan and recording timebase.
 Before upload and before saved success, the browser verifies agreement with its
 RecordedPerformance and its executed artifact's `ticksPerQuarter`. Plan mismatch fails closed;
 a new RESERVED mismatch is cancelled best-effort without media upload.

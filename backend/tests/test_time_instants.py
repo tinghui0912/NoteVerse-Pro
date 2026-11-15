@@ -80,7 +80,7 @@ def test_fresh_postgresql_instants_use_timestamptz_and_round_trip(monkeypatch):
             job = ImportJob(
                 job_uuid="instant-job", user_id=1, state=ImportJobState.PENDING, started_at=source
             )
-            score = Score(score_uuid="instant-score", owner_user_id=1, title="Instant")
+            score = Score(score_uuid="instant-score", owner_user_id=1, display_title="Instant")
             db.add_all([job, score])
             db.flush()
             dispatch = ImportDispatch(job_id=job.id, next_attempt_at=source)

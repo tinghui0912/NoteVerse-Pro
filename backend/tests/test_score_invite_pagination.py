@@ -55,7 +55,12 @@ def test_postgres_collection_continuation_reaches_every_row_with_equal_timestamp
             )
             session.flush()
             session.add(
-                Score(id=10, score_uuid="pagination-score", owner_user_id=1, title="Pagination")
+                Score(
+                    id=10,
+                    score_uuid="pagination-score",
+                    owner_user_id=1,
+                    display_title="Pagination",
+                )
             )
             session.flush()
             if kind == "members":

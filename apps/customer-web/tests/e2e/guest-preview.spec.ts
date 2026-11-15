@@ -20,7 +20,7 @@ for (const loggedIn of [false, true]) {
       if (request.url().includes('/api/v1/')) requests.push(`${request.method()} ${request.url()}`);
     });
     await page.goto('/en/preview/stable-score');
-    await expect(page.getByRole('heading', { name: preview.title })).toBeVisible();
+    await expect(page.getByRole('heading', { name: preview.display_title })).toBeVisible();
     await expect(page.getByRole('img', { name: 'Score page 1' })).toBeVisible();
     await expect
       .poll(() =>
@@ -63,7 +63,7 @@ test('owner toggles a stable preview link and an anonymous browser opens it', as
   await mockRealtimeEvents(page);
   const score = {
     score_id: 'preview-owner-score',
-    title: 'Owner Score',
+    display_title: 'Owner Score',
     genres: [],
     version: 1,
     head_revision_id: 'revision-a',

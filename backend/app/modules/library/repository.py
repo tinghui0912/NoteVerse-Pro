@@ -108,7 +108,7 @@ class LibraryRepository:
         if folder_id is not None:
             filters.append(ScoreLibraryOrganization.folder_id == folder_id)
         if search:
-            filters.append(Score.__table__.c.title.ilike(f"%{search}%"))
+            filters.append(Score.__table__.c.display_title.ilike(f"%{search}%"))
         total = int(
             (
                 db.execute(
@@ -122,8 +122,8 @@ class LibraryRepository:
         order = {
             LibrarySort.UPDATED_ASC: Score.__table__.c.updated_at.asc(),
             LibrarySort.UPDATED_DESC: Score.__table__.c.updated_at.desc(),
-            LibrarySort.NAME_ASC: Score.__table__.c.title.asc(),
-            LibrarySort.NAME_DESC: Score.__table__.c.title.desc(),
+            LibrarySort.NAME_ASC: Score.__table__.c.display_title.asc(),
+            LibrarySort.NAME_DESC: Score.__table__.c.display_title.desc(),
         }[sort]
         rows = db.execute(
             select(

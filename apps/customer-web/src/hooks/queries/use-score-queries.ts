@@ -65,7 +65,7 @@ export function useUpdateScore() {
       ...input
     }: {
       scoreId: string;
-      title?: string;
+      display_title?: string;
       genres?: ScoreGenre[];
       expected_version: number;
     }) => scoresApi.update(scoreId, input),

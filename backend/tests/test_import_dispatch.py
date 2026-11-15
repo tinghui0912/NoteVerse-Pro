@@ -55,7 +55,7 @@ def setup_delivery(score_service_session):
         job_uuid="import-domain",
         user_id=1,
         state=ImportJobState.PENDING,
-        requested_options={"title": "Current import"},
+        requested_options={"display_title": "Current import"},
     )
     physical = StoredObject(
         object_key="upload/original.png", byte_size=3, sha256="a" * 64, content_type="image/png"
@@ -196,7 +196,7 @@ def test_expired_processing_resets_execution_and_preserves_inputs_and_binding(se
         is None
     )
     assert job.execution_manifest_id == manifest.id
-    assert job.requested_options == {"title": "Current import"}
+    assert job.requested_options == {"display_title": "Current import"}
     assert db.scalar(select(ImportJobUpload)).job_id == job.id
     assert db.scalar(select(ImportJobStep)) is None
 
@@ -421,7 +421,9 @@ def test_submission_atomically_creates_one_delivery_and_upload_links(setup_deliv
         lambda: ("00-0123456789abcdef0123456789abcdef-0123456789abcdef-01", "vendor=import"),
     )
     request = SimpleNamespace(
-        upload_ids=["original-upload"], idempotency_key="submission", options={"title": "New"}
+        upload_ids=["original-upload"],
+        idempotency_key="submission",
+        options={"display_title": "New"},
     )
     user = db.get(User, 1)
     first = service.submit(db, user, request)

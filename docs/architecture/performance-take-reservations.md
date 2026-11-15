@@ -87,7 +87,7 @@ Revision, selected access fact, Binding and Bundle locks. The lock order and del
 belong to [Practice Bundle](practice-bundle.md#save-and-browser-admission).
 
 `PerformanceTakeManifest` owns one immutable admitted saved-performance snapshot: public Take
-UUID, user identity, detached Bundle/Score/Revision/artifact provenance strings, title at admission,
+UUID, user identity, detached Bundle/Score/Revision/artifact provenance strings, display title at admission,
 `capture` kind/MIME/byte size admitted from the browser, resolved scope, score timebase, tempo plan and RecordingTimebase.
 `manifest.py` owns the frozen `TakeManifest` value and its versioned canonical document:
 `{"schemaVersion":1,"manifest":...}`. It owns encoding, decoding and SHA-256 of the exact

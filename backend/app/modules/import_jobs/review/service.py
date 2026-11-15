@@ -55,6 +55,7 @@ from app.shared.constants import ErrorCode
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from app.storage import object_storage
 from app.shared.time import utc_now
+from app.processing.musicxml.notation_title import extract_notation_title
 
 
 class ImportReviewService:
@@ -123,7 +124,7 @@ class ImportReviewService:
         score_uuid = str(uuid.uuid4())
         revision_uuid = str(uuid.uuid4())
         now = utc_now()
-        title = self._confirmed_title(job, request)
+        display_title = self._confirmed_display_title(job, request, content)
         genres = self._confirmed_genres(job, request)
         key = f"scores/{score_uuid}/revisions/{revision_uuid}/score.musicxml"
         reservation = storage_usage_service.reserve(
@@ -185,7 +186,7 @@ class ImportReviewService:
             score = Score(
                 score_uuid=score_uuid,
                 owner_user_id=user_id,
-                title=title,
+                display_title=display_title,
                 genres=[genre.value for genre in genres],
                 originating_job_id=require_persisted_id(job.id, entity="import job"),
                 created_at=now,
@@ -245,7 +246,11 @@ class ImportReviewService:
                 )
             ImportJobDeletionService().cleanup_binary_artifacts(db, job, user_id)
             enrich_completed_import_notification(
-                db, job_id=job_uuid, user_id=user_id, score_id=score_uuid, score_title=title
+                db,
+                job_id=job_uuid,
+                user_id=user_id,
+                score_id=score_uuid,
+                score_display_title=display_title,
             )
             db.commit()
             business_committed = True
@@ -367,18 +372,19 @@ class ImportReviewService:
         return self.detail(db, job_uuid, user_id)
 
     @staticmethod
-    def _confirmed_title(
+    def _confirmed_display_title(
         job: ImportJob,
         request: ReviewConfirmRequest,
+        content: bytes,
     ) -> str:
-        if request.title is not None:
-            return request.title.strip()
+        if request.display_title is not None:
+            return request.display_title.strip()
         options = job.requested_options if isinstance(job.requested_options, dict) else {}
-        requested_title = options.get("title")
+        requested_display_title = options.get("display_title")
         return (
-            requested_title.strip()
-            if isinstance(requested_title, str) and requested_title.strip()
-            else "Untitled score"
+            requested_display_title.strip()
+            if isinstance(requested_display_title, str) and requested_display_title.strip()
+            else extract_notation_title(content) or "Untitled score"
         )
 
     @staticmethod

@@ -118,7 +118,7 @@ class PerformanceTakeUploadTarget(StrictPerformanceTakeModel):
 class PerformanceTakeManifestRead(StrictPerformanceTakeModel):
     practice_binding: PerformanceTakePracticeBinding
     artifact_id: str = Field(min_length=1)
-    score_title_snapshot: str = Field(min_length=1)
+    score_display_title_snapshot: str = Field(min_length=1)
     capture: PerformanceTakeMediaMetadata
     score_timebase: PerformanceTakeScoreTimebase
     scope: PerformanceTakeResolvedFullScope | PerformanceTakeResolvedRangeScope = Field(

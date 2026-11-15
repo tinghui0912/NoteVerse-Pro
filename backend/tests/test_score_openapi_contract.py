@@ -51,7 +51,7 @@ def test_score_openapi_keeps_read_model_fields_required(client: TestClient) -> N
         },
         "ScoreRead": {
             "score_id",
-            "title",
+            "display_title",
             "genres",
             "version",
             "head_revision_id",
@@ -131,7 +131,7 @@ def test_guest_preview_contract_is_presentation_only(client: TestClient) -> None
     }
     components = schema["components"]["schemas"]
     assert set(components["GuestPreviewRead"]["properties"]) == {
-        "title",
+        "display_title",
         "shared_by",
         "render_assets",
         "audio_available",

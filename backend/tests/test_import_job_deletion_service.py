@@ -67,7 +67,7 @@ def test_import_release_accounts_atomically_and_protects_other_owners(
     if keep_job:
         score = Score(
             score_uuid="confirmed-score",
-            title="Confirmed",
+            display_title="Confirmed",
             owner_user_id=1,
             originating_job_id=job_id,
         )
@@ -278,7 +278,10 @@ async def test_customer_delete_http_state_matrix_preserves_owned_data(score_serv
         )
     if state == ImportJobState.CONFIRMED:
         score = Score(
-            score_uuid="formal-score", title="Formal", owner_user_id=1, originating_job_id=job_id
+            score_uuid="formal-score",
+            display_title="Formal",
+            owner_user_id=1,
+            originating_job_id=job_id,
         )
         db.add(score)
         db.flush()

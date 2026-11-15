@@ -103,7 +103,7 @@ def seed_user() -> None:
                 score = Score(
                     score_uuid=INTEGRATION_PRACTICE_SCORE_ID,
                     owner_user_id=user.id,
-                    title="Integration practice score",
+                    display_title="Integration practice score",
                 )
                 session.add(score)
                 session.flush()

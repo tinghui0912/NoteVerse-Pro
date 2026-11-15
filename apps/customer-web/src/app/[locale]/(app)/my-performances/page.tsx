@@ -135,17 +135,17 @@ function PerformanceTakeCard({
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
-  const scoreTitle = take.manifest.score_title_snapshot;
-  const scoreTitleNode =
+  const scoreDisplayTitle = take.manifest.score_display_title_snapshot;
+  const scoreDisplayTitleNode =
     take.can_open_score && take.linked_score_id ? (
       <Link
         href={`/score/${take.linked_score_id}`}
         className="truncate font-semibold text-gray-900 transition-colors hover:text-primary hover:underline"
       >
-        {scoreTitle}
+        {scoreDisplayTitle}
       </Link>
     ) : (
-      <span className="truncate font-semibold text-gray-900">{scoreTitle}</span>
+      <span className="truncate font-semibold text-gray-900">{scoreDisplayTitle}</span>
     );
 
   // Playback URL query - only active when playing this card and not being deleted.
@@ -206,7 +206,7 @@ function PerformanceTakeCard({
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <Music className="h-5 w-5 flex-shrink-0 text-primary" />
-                {scoreTitleNode}
+                {scoreDisplayTitleNode}
               </div>
 
               <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">

@@ -166,7 +166,7 @@ def add_active_score_with_head_revision(
         id=score_id,
         score_uuid=score_uuid,
         owner_user_id=1,
-        title=title,
+        display_title=title,
     )
     revision = ScoreRevision(
         id=revision_id,
@@ -343,7 +343,7 @@ def test_completed_job_notifies_owner_when_ready_for_review(
             job_uuid="job-complete-notification",
             user_id=1,
             state=ImportJobState.RUNNING,
-            requested_options={"title": "Ready Score"},
+            requested_options={"display_title": "Ready Score"},
         )
     )
     session.commit()
@@ -381,8 +381,8 @@ def test_completed_job_notifies_owner_when_ready_for_review(
     assert notification.import_job_id == "job-complete-notification"
     assert notification.score_id is None
     assert notification.import_job_id == "job-complete-notification"
-    assert notification.job_title_snapshot == "Ready Score"
-    assert maybe_one_row(session, Score, title="Ready Score") is None
+    assert notification.import_display_title_snapshot == "Ready Score"
+    assert maybe_one_row(session, Score, display_title="Ready Score") is None
     render_outbox = one_row(session, RenderOutbox)
     assert render_outbox.target_type == RenderTargetType.REVIEW_THUMBNAIL
     assert render_outbox.import_job_id == 11
@@ -452,7 +452,7 @@ def test_review_detail_reads_pending_job_artifacts(
             user_id=1,
             state=ImportJobState.PENDING_REVIEW,
             requested_options={
-                "title": "Review Score",
+                "display_title": "Review Score",
                 "genres": ["jazz"],
             },
         )
@@ -500,7 +500,7 @@ def test_review_detail_reads_pending_job_artifacts(
     )
 
     assert detail.job_id == "job-review"
-    assert detail.title == "Review Score"
+    assert detail.display_title == "Review Score"
     assert detail.genres == ["jazz"]
     assert detail.musicxml.artifact_id == "review-musicxml-artifact"
     assert detail.musicxml.content == MUSICXML_1.decode("utf-8")
@@ -818,7 +818,7 @@ def test_review_confirm_creates_active_score_once(
             job_uuid="job-confirm-review",
             user_id=1,
             state=ImportJobState.PENDING_REVIEW,
-            requested_options={"title": "Confirmed Score"},
+            requested_options={"display_title": "Confirmed Score"},
         )
     )
 
@@ -867,14 +867,14 @@ def test_review_confirm_creates_active_score_once(
     job = one_row(session, ImportJob, job_uuid="job-confirm-review")
     assert count_rows(session, ScoreLibraryOrganization) == 0
     assert score.score_uuid == first.score_id
-    assert score.title == "Confirmed Score"
+    assert score.display_title == "Confirmed Score"
     assert score.head_revision_id == revision.id
     assert job.state == ImportJobState.CONFIRMED
     assert job.score_id == score.id
     notification = one_row(session, Notification, import_job_id="job-confirm-review")
     assert notification.score_id == score.score_uuid
     assert notification.score_id == score.score_uuid
-    assert notification.score_title_snapshot == "Confirmed Score"
+    assert notification.score_display_title_snapshot == "Confirmed Score"
     detail_after_confirm = service.detail(
         db,  # type: ignore[arg-type]
         "job-confirm-review",
@@ -917,7 +917,7 @@ def test_score_detail_describes_only_head_presentation(
         id=20,
         score_uuid="score-fallback",
         owner_user_id=1,
-        title="Fallback Score",
+        display_title="Fallback Score",
     )
     old_revision = ScoreRevision(
         id=21,
@@ -995,7 +995,7 @@ def test_revision_snapshots_preserve_noop_replay_and_expected_head_conflict(
         id=30,
         score_uuid="score-1",
         owner_user_id=1,
-        title="Score",
+        display_title="Score",
     )
     session.add(score)
     session.commit()
@@ -1145,7 +1145,7 @@ def test_revision_restore_creates_new_head_from_target_revision(
         id=31,
         score_uuid="score-restore",
         owner_user_id=1,
-        title="Restore Score",
+        display_title="Restore Score",
         version=2,
     )
     revision_1 = ScoreRevision(
@@ -1322,7 +1322,7 @@ def test_derived_asset_retention_protects_current_head_only(
         id=34,
         score_uuid="retention-score",
         owner_user_id=1,
-        title="Retention Score",
+        display_title="Retention Score",
         version=5,
     )
     revisions = [
@@ -1446,7 +1446,7 @@ def test_revision_list_uses_cursor_pagination(
         id=32,
         score_uuid="score-revision-list",
         owner_user_id=1,
-        title="Revision List Score",
+        display_title="Revision List Score",
         version=5,
     )
     revisions = [
@@ -1736,7 +1736,7 @@ def test_import_dispatch_claim_reconstructs_persisted_request(
         job_uuid="import-dispatch-job",
         user_id=1,
         state=ImportJobState.PENDING,
-        requested_options={"title": "Queued score"},
+        requested_options={"display_title": "Queued score"},
     )
     upload = Upload(
         id=502,
@@ -1766,7 +1766,7 @@ def test_import_dispatch_claim_reconstructs_persisted_request(
     assert payload is not None
     assert payload.job_uuid == job.job_uuid
     assert payload.storage_keys == ["blobs/qu/queued-upload-sha.png"]
-    assert payload.options == {"title": "Queued score"}
+    assert payload.options == {"display_title": "Queued score"}
     assert dispatch.status == ImportDispatchStatus.PROCESSING
     assert dispatch.attempt_count == 1
 
@@ -1877,7 +1877,7 @@ def test_collaborator_revision_save_notifies_score_owner(
     )
     assert notification.score_id == "collab-revision-score"
     assert notification.revision_id == created.revision_id
-    assert notification.score_title_snapshot == "Collaborative Score"
+    assert notification.score_display_title_snapshot == "Collaborative Score"
     assert count_rows(session, Notification, recipient_user_id=2) == 0
 
     assert one_row(session, ScoreRevision, revision_uuid=created.revision_id) is not None
@@ -1903,7 +1903,7 @@ def test_score_access_policy_is_deny_by_default_and_context_aware(
         id=70,
         score_uuid="policy-score",
         owner_user_id=1,
-        title="Policy score",
+        display_title="Policy score",
     )
     session.add(score)
     session.commit()
@@ -1969,7 +1969,7 @@ def test_invite_acceptance_creates_editable_membership(
         id=87,
         score_uuid="invite-score",
         owner_user_id=1,
-        title="Invite score",
+        display_title="Invite score",
     )
     revision = ScoreRevision(
         id=88,
@@ -2102,7 +2102,7 @@ def test_user_pending_invites_can_be_accepted_without_token(
 
     assert [invite.invite_id for invite in pending.items] == [created.invite_id]
     assert pending.items[0].score_id == "pending-invite-score"
-    assert pending.items[0].score_title == "Pending Invite"
+    assert pending.items[0].score_display_title == "Pending Invite"
 
     accepted = service.accept_pending_invite(
         db,  # type: ignore[arg-type]
@@ -2156,7 +2156,7 @@ def test_user_pending_invites_can_be_declined(
         kind=NotificationKind.SCORE_INVITE_DECLINED,
     )
     assert notification.score_id == "decline-invite-score"
-    assert notification.score_title_snapshot == "Decline Invite"
+    assert notification.score_display_title_snapshot == "Decline Invite"
     assert (service.list_my_pending_invites(db, 2)).items == []  # type: ignore[arg-type]
     with pytest.raises(ValidationException) as declined_again:
         service.accept_pending_invite(
@@ -2178,7 +2178,7 @@ def test_notifications_are_scoped_and_can_be_marked_read(
         db,
         recipient_user_id=1,
         import_job_id="score-1",
-        job_title="Etudes",
+        import_display_title="Etudes",
         created_at=utc_now(),
     )
     assert created is not None
@@ -2212,14 +2212,14 @@ def test_notification_dedupe_key_returns_existing_event(
         db,
         recipient_user_id=1,
         import_job_id="score-1",
-        job_title="Etudes",
+        import_display_title="Etudes",
         created_at=utc_now(),
     )
     second = service.admit_import_completed(
         db,
         recipient_user_id=1,
         import_job_id="score-1",
-        job_title="Etudes",
+        import_display_title="Etudes",
         created_at=utc_now(),
     )
 

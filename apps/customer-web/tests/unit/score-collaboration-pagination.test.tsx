@@ -66,7 +66,7 @@ const member = (id: number): MemberRead => ({
 const pending = (id: string): PendingInviteRead => ({
   invite_id: id,
   score_id: `score-${id}`,
-  score_title: `Score ${id}`,
+  score_display_title: `Score ${id}`,
   inviter: null,
   email: 'me@example.com',
   role: 'VIEWER',
@@ -145,7 +145,7 @@ it('appends members and invites with explicit continuation and retains loaded co
   api.listMembers
     .mockResolvedValueOnce(page([member(1)], 'opaque-members'))
     .mockResolvedValueOnce(page([member(2)]));
-  render(<ScoreCollaborationPanel scoreId="score" scoreTitle="Score" />, { wrapper: wrapper() });
+  render(<ScoreCollaborationPanel scoreId="score" scoreDisplayTitle="Score" />, { wrapper: wrapper() });
   await screen.findByText('first@example.com');
   const invites = within(screen.getByRole('heading', { name: 'Invitations' }).closest('section')!);
   const members = within(screen.getByRole('heading', { name: 'members' }).closest('section')!);
@@ -171,7 +171,7 @@ it('refreshes the invite collection after revoke', async () => {
     .mockResolvedValueOnce(page([invite('first')]))
     .mockResolvedValue(page([{ ...invite('first'), status: 'REVOKED' }]));
   api.revokeInvite.mockResolvedValue({ ...invite('first'), status: 'REVOKED' });
-  render(<ScoreCollaborationPanel scoreId="score" scoreTitle="Score" />, { wrapper: wrapper() });
+  render(<ScoreCollaborationPanel scoreId="score" scoreDisplayTitle="Score" />, { wrapper: wrapper() });
   await screen.findByText('first@example.com');
   await userEvent.click(screen.getByRole('button', { name: 'revoke' }));
   await waitFor(() => expect(api.listInvites).toHaveBeenCalledTimes(2));
@@ -213,7 +213,7 @@ it.each(['ACCEPTED', 'DECLINED', 'REVOKED', 'EXPIRED'] as const)(
     });
     api.createInvite.mockResolvedValue({ ...invite('local'), token: 'local-raw-token' });
     api.listInvites.mockResolvedValue(page([invite('local')]));
-    render(<ScoreCollaborationPanel scoreId="score" scoreTitle="Score" />, {
+    render(<ScoreCollaborationPanel scoreId="score" scoreDisplayTitle="Score" />, {
       wrapper: wrapper(client),
     });
     await screen.findByText('local@example.com');
@@ -246,7 +246,7 @@ it('refreshes the members collection after removal', async () => {
     .mockResolvedValueOnce(page([member(1)]))
     .mockResolvedValue(page([{ ...member(1), revoked_at: timestamp }]));
   api.removeMember.mockResolvedValue({ ...member(1), revoked_at: timestamp });
-  render(<ScoreCollaborationPanel scoreId="score" scoreTitle="Score" />, { wrapper: wrapper() });
+  render(<ScoreCollaborationPanel scoreId="score" scoreDisplayTitle="Score" />, { wrapper: wrapper() });
   await screen.findByText('member-1@example.com');
   await userEvent.click(screen.getByRole('button', { name: 'remove' }));
   await waitFor(() => expect(api.listMembers).toHaveBeenCalledTimes(2));

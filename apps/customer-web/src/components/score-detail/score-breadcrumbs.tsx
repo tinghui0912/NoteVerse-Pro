@@ -2,7 +2,7 @@ import { ChevronRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 
-export function ScoreBreadcrumbs({ scoreTitle }: { scoreTitle: string }) {
+export function ScoreBreadcrumbs({ scoreDisplayTitle }: { scoreDisplayTitle: string }) {
   const scoreText = useTranslations('score');
 
   return (
@@ -26,7 +26,7 @@ export function ScoreBreadcrumbs({ scoreTitle }: { scoreTitle: string }) {
           aria-current="page"
           className="min-w-0 truncate font-medium text-foreground"
         >
-          {scoreTitle}
+          {scoreDisplayTitle}
         </li>
       </ol>
     </nav>

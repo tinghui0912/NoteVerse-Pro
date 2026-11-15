@@ -76,7 +76,7 @@ beforeEach(() => {
   mocks.leave.mockResolvedValue({ data: null });
   mocks.score = {
     score_id: 'score',
-    title: 'Owned score',
+    display_title: 'Owned score',
     genres: [],
     version: 1,
     head_revision_id: 'revision',

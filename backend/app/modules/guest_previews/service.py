@@ -82,7 +82,7 @@ class GuestPreviewService:
         audio = self.assets.playback_asset(db, require_persisted_id(revision.id, entity="revision"))
         owner = db.get(User, score.owner_user_id)
         return GuestPreviewRead(
-            title=score.title,
+            display_title=score.display_title,
             shared_by=(owner.display_name or "") if owner else "",
             render_assets=[
                 GuestPreviewPageRead(asset_id=a.asset_uuid, page_number=a.page_number)

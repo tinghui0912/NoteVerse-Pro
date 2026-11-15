@@ -27,7 +27,7 @@ export function ImportJobCard({
   return (
     <Card>
       <CardContent className="space-y-3 p-5">
-        <h3 className="font-semibold">{job.title || t('untitled')}</h3>
+        <h3 className="font-semibold">{job.display_title || t('untitled')}</h3>
         <p>{t(`state.${job.state}`)}</p>
         {job.created_at ? (
           <p className="text-xs text-muted-foreground">

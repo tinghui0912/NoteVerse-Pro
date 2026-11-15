@@ -15,7 +15,7 @@ from app.shared.api_model import ApiModel
 class ScoreUpdateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    title: str | None = Field(default=None, min_length=1, max_length=255)
+    display_title: str | None = Field(default=None, min_length=1, max_length=255)
     genres: Genres | None = None
     expected_version: int = Field(ge=1)
 
@@ -34,7 +34,7 @@ class ScoreInputAssetRead(BaseModel):
 
 class ScoreRead(ApiModel):
     score_id: str
-    title: str
+    display_title: str
     genres: Genres
     version: int
     head_revision_id: str | None

@@ -18,6 +18,7 @@ from sqlalchemy import (
     Integer,
     JSON,
     String,
+    Text,
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -76,7 +77,7 @@ class Score(SQLModel, table=True):  # type: ignore[call-arg]
     )
     score_uuid: str = Field(sa_column=Column(String(36), unique=True, nullable=False))
     owner_user_id: int = Field(sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=False))
-    title: str = Field(sa_column=Column(String(255), nullable=False))
+    display_title: str = Field(sa_column=Column(String(255), nullable=False))
     guest_preview_token: str = Field(
         default_factory=lambda: secrets.token_urlsafe(32),
         repr=False,
@@ -351,6 +352,7 @@ class ScoreRevisionMetadata(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=False,
         ),
     )
+    notation_title: Optional[str] = Field(default=None, sa_column=Column(Text, nullable=True))
     measure_count: Optional[int] = Field(default=None, sa_column=Column(Integer))
     playback_duration_ms: Optional[int] = Field(default=None, sa_column=Column(BigInteger))
     part_count: Optional[int] = Field(default=None, sa_column=Column(Integer))

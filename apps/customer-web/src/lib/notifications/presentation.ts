@@ -7,7 +7,7 @@ type MessageKey =
   | 'processingCompleted'
   | 'processingFailed'
   | 'unknownActor'
-  | 'scoreTitleFallback'
+  | 'scoreDisplayTitleFallback'
   | 'processingFailedSubtitle';
 type Translate = (key: MessageKey, values?: { name: string }) => string;
 
@@ -18,31 +18,31 @@ export function notificationPresentation(notification: NotificationRead, t: Tran
         title: t('acceptedInvite', {
           name: notification.actor.display_name || notification.actor.email || t('unknownActor'),
         }),
-        subtitle: notification.score_title,
+        subtitle: notification.score_display_title,
       };
     case 'score_invite.declined':
       return {
         title: t('declinedInvite', {
           name: notification.actor.display_name || notification.actor.email || t('unknownActor'),
         }),
-        subtitle: notification.score_title,
+        subtitle: notification.score_display_title,
       };
     case 'score.version.created':
       return {
         title: t('scoreVersionCreated', {
           name: notification.actor.display_name || notification.actor.email || t('unknownActor'),
         }),
-        subtitle: notification.score_title,
+        subtitle: notification.score_display_title,
       };
     case 'import.completed':
       return {
         title: t('processingCompleted'),
-        subtitle: notification.score_title || notification.job_title || t('scoreTitleFallback'),
+        subtitle: notification.score_display_title || notification.import_display_title || t('scoreDisplayTitleFallback'),
       };
     case 'import.failed':
       return {
         title: t('processingFailed'),
-        subtitle: notification.job_title || t('processingFailedSubtitle'),
+        subtitle: notification.import_display_title || t('processingFailedSubtitle'),
       };
     default: {
       const exhaustive: never = notification;

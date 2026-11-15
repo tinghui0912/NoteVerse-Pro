@@ -86,7 +86,7 @@ def test_postgres_workspace_access_and_organization_lifetimes(postgres_workspace
         )
         db.commit()
         scores = [
-            Score(score_uuid=code, owner_user_id=1 if code == "A" else 2, title=code)
+            Score(score_uuid=code, owner_user_id=1 if code == "A" else 2, display_title=code)
             for code in ["A", "B", "C"]
         ]
         db.add_all(scores)

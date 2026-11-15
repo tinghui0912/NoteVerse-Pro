@@ -19,7 +19,7 @@ const capabilities = (role: Role) => ({
 async function mockScore(page: Page, role: Role) {
   await mockAuthenticatedSession(page); await mockRealtimeEvents(page);
   const caps = capabilities(role);
-  const score = { score_id: scoreId, title: 'Trusted Score', genres: [], version: 1, head_revision_id: revisionId,
+  const score = { score_id: scoreId, display_title: 'Trusted Score', genres: [], version: 1, head_revision_id: revisionId,
     metadata: null, input_assets: [], created_at: '2026-06-20T00:00:00Z', updated_at: '2026-06-20T00:00:00Z', capabilities: caps,
     derived_assets: { preview: { status: 'ready', asset_id: 'page-a' }, audio: { status: 'pending', asset_id: null } } };
   const revision: RevisionRead = { revision_id: revisionId, revision_number: 1, origin: 'IMPORT', created_at: score.created_at, created_by: null, restore: null, note: null };
@@ -161,7 +161,7 @@ test('Owner invites with default Viewer and can choose Practitioner or Editor an
 test('Practitioner invitation renders and accepts the same role', async ({ page }) => {
   await mockAuthenticatedSession(page); await mockRealtimeEvents(page);
   let accepted = false;
-  await page.route('**/api/v1/invites/practitioner-token', route => route.fulfill({ json: { invite_id: 'invite-p', score_id: scoreId, score_title: 'Practice invitation', inviter: { display_name: 'Owner', email: 'owner@example.com', avatar_url: null }, email: 'owner@example.com', role: 'PRACTITIONER', status: 'PENDING', expires_at: null, requires_login: false, can_accept: true } }));
+  await page.route('**/api/v1/invites/practitioner-token', route => route.fulfill({ json: { invite_id: 'invite-p', score_id: scoreId, score_display_title: 'Practice invitation', inviter: { display_name: 'Owner', email: 'owner@example.com', avatar_url: null }, email: 'owner@example.com', role: 'PRACTITIONER', status: 'PENDING', expires_at: null, requires_login: false, can_accept: true } }));
   await page.route('**/api/v1/invites/practitioner-token/accept', route => { accepted = true; return route.fulfill({ json: { score_id: scoreId, role: 'PRACTITIONER', membership_id: 10 } }); });
   await mockScore(page, 'PRACTITIONER');
   await page.goto('/en/invite/practitioner-token');

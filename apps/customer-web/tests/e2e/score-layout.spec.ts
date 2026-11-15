@@ -12,7 +12,7 @@ test('score detail uses lightweight hero layout and lazy playback', async ({ pag
   await mockRealtimeEvents(page);
   const score = {
     score_id: scoreId,
-    title: 'Layout Score',
+    display_title: 'Layout Score',
     genres: ['classical'],
     version: 1,
     head_revision_id: revisionId,
@@ -107,7 +107,7 @@ test('Score head presentation progresses neutrally to exact READY assets through
   });
   const score: ScoreRead = {
     score_id: 'exact-score',
-    title: 'Exact head score',
+    display_title: 'Exact head score',
     head_revision_id: 'r2',
     version: 2,
     genres: [],
@@ -165,7 +165,7 @@ test('Score head presentation progresses neutrally to exact READY assets through
     return route.fulfill({ contentType: 'audio/wav', body: wav });
   });
   await page.goto('/en/score/exact-score');
-  await expect(page.getByRole('heading', { name: score.title })).toBeVisible();
+  await expect(page.getByRole('heading', { name: score.display_title })).toBeVisible();
   await expect
     .poll(() =>
       page.evaluate(() =>
@@ -175,7 +175,7 @@ test('Score head presentation progresses neutrally to exact READY assets through
     .toBeGreaterThan(0);
   const hero = page
     .locator('section')
-    .filter({ has: page.getByRole('heading', { name: score.title }) });
+    .filter({ has: page.getByRole('heading', { name: score.display_title }) });
   const refresh = async () =>
     page.evaluate(
       (data) =>

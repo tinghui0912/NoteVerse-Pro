@@ -68,7 +68,7 @@ def test_persisted_failure_facts_are_complete_and_shared_by_ops_queries(monkeypa
             db.add(User(id=1, email="failure@example.test", password_hash="hash"))
             db.flush()
             job = ImportJob(job_uuid="job", user_id=1, state=ImportJobState.PENDING)
-            score = Score(score_uuid="score", owner_user_id=1, title="Score")
+            score = Score(score_uuid="score", owner_user_id=1, display_title="Score")
             db.add_all([job, score])
             db.flush()
             revision = ScoreRevision(

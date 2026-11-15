@@ -10,7 +10,7 @@ const baseNotification: NotificationRead = {
   notification_id: 'notification-1',
   kind: 'score_invite.accepted',
   invite_id: 'invite-1',
-  score_title: 'Etudes',
+  score_display_title: 'Etudes',
   score_id: 'score-1',
   actor: {
     display_name: 'Member',

@@ -52,6 +52,7 @@ class MetadataProjectionService:
     def _apply_result(projection: ScoreRevisionMetadata, result: MusicXMLMetadata) -> None:
         projection.status = MetadataStatus.READY
         projection.error_code = None
+        projection.notation_title = result.notation_title
         projection.measure_count = result.measure_count
         projection.playback_duration_ms = result.playback_duration_ms
         projection.part_count = result.part_count
@@ -66,6 +67,7 @@ class MetadataProjectionService:
     def _mark_failed(projection: ScoreRevisionMetadata, error_code: str) -> None:
         projection.status = MetadataStatus.FAILED
         projection.error_code = error_code
+        projection.notation_title = None
         projection.computed_at = utc_now()
         projection.measure_count = None
         projection.playback_duration_ms = None
@@ -81,6 +83,7 @@ class MetadataProjectionService:
         return MetadataRead(
             revision_id=revision.revision_uuid,
             status=projection.status,
+            notation_title=projection.notation_title,
             measure_count=projection.measure_count,
             playback_duration_ms=projection.playback_duration_ms,
             part_count=projection.part_count,

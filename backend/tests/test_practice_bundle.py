@@ -77,7 +77,7 @@ def test_bound_revision_reads_without_compiler_canonical_lookup_or_materializati
     storage = Mock()
     assets = Mock(canonical_source=Mock())
     access = SimpleNamespace(
-        score=SimpleNamespace(id=10, score_uuid="score-A", title="Title"),
+        score=SimpleNamespace(id=10, score_uuid="score-A", display_title="Title"),
         revision=SimpleNamespace(id=20, revision_uuid="rev-A"),
     )
     service = PracticeBundleService(
@@ -132,7 +132,7 @@ async def test_unbound_revision_compiles_once_then_reads_existing_binding():
         )
     )
     access = SimpleNamespace(
-        score=SimpleNamespace(id=10, score_uuid="score-A", title="Title"),
+        score=SimpleNamespace(id=10, score_uuid="score-A", display_title="Title"),
         revision=SimpleNamespace(id=20, revision_uuid="rev-A"),
     )
     service = PracticeBundleService(
@@ -171,7 +171,7 @@ def test_unbound_revision_reauthorization_failure_prevents_binding_mutation():
 
     bundle = PracticeBundleCompiler().compile(canonical_musicxml=FIXTURE.read_bytes())
     access = SimpleNamespace(
-        score=SimpleNamespace(id=10, score_uuid="score-A", title="Title"),
+        score=SimpleNamespace(id=10, score_uuid="score-A", display_title="Title"),
         revision=SimpleNamespace(id=20, revision_uuid="rev-A"),
     )
     repository = Mock(read_bound=Mock(return_value=None), get_or_create=Mock())

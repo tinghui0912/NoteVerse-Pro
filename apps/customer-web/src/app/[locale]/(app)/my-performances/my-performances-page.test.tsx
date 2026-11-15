@@ -170,7 +170,7 @@ const fixture121Takes: PerformanceTakeRead[] = Array.from(
     created_at: new Date(1700000000000 - i * 60000).toISOString(),
     manifest: {
       artifact_id: `artifact-${i + 1}`,
-      score_title_snapshot: `Score Title ${i + 1}`,
+      score_display_title_snapshot: `Score Title ${i + 1}`,
       score_timebase: { ticks_per_quarter: 1 },
       tempo_plan: tempoPlan,
       recording_timebase: recordingTimebase,
@@ -374,7 +374,7 @@ describe('MyPerformancesPage', () => {
               created_at: new Date().toISOString(),
               manifest: {
                 artifact_id: 'artifact-1',
-                score_title_snapshot: 'Sonata Allegro Op. 57',
+                score_display_title_snapshot: 'Sonata Allegro Op. 57',
                 score_timebase: { ticks_per_quarter: 1 },
                 tempo_plan: tempoPlan,
                 recording_timebase: recordingTimebase,
@@ -424,7 +424,7 @@ describe('MyPerformancesPage', () => {
               created_at: new Date().toISOString(),
               manifest: {
                 artifact_id: 'artifact-1',
-                score_title_snapshot: 'Sonata Allegro Op. 57',
+                score_display_title_snapshot: 'Sonata Allegro Op. 57',
                 score_timebase: { ticks_per_quarter: 1 },
                 tempo_plan: tempoPlan,
                 recording_timebase: recordingTimebase,
@@ -472,7 +472,7 @@ describe('MyPerformancesPage', () => {
               created_at: new Date().toISOString(),
               manifest: {
                 artifact_id: 'artifact-1',
-                score_title_snapshot: 'Score Title 1',
+                score_display_title_snapshot: 'Score Title 1',
                 score_timebase: { ticks_per_quarter: 1 },
                 tempo_plan: tempoPlan,
                 recording_timebase: recordingTimebase,
@@ -531,7 +531,7 @@ describe('MyPerformancesPage', () => {
                 created_at: new Date().toISOString(),
                 manifest: {
                   artifact_id: 'artifact-1',
-                  score_title_snapshot: 'Score Title 1',
+                  score_display_title_snapshot: 'Score Title 1',
                   score_timebase: { ticks_per_quarter: 1 },
                   tempo_plan: tempoPlan,
                   recording_timebase: recordingTimebase,
@@ -604,7 +604,7 @@ describe('MyPerformancesPage', () => {
               created_at: new Date().toISOString(),
               manifest: {
                 artifact_id: 'artifact-1',
-                score_title_snapshot: 'Score Title 1',
+                score_display_title_snapshot: 'Score Title 1',
                 score_timebase: { ticks_per_quarter: 1 },
                 tempo_plan: tempoPlan,
                 recording_timebase: recordingTimebase,
@@ -671,7 +671,7 @@ describe('MyPerformancesPage', () => {
               created_at: new Date().toISOString(),
               manifest: {
                 artifact_id: 'artifact-1',
-                score_title_snapshot: 'Score Title 1',
+                score_display_title_snapshot: 'Score Title 1',
                 score_timebase: { ticks_per_quarter: 1 },
                 tempo_plan: tempoPlan,
                 recording_timebase: recordingTimebase,

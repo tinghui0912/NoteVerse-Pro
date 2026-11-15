@@ -62,7 +62,7 @@ def confirmation(monkeypatch):
                 job_uuid="job",
                 user_id=1,
                 state=ImportJobState.PENDING_REVIEW,
-                requested_options={"title": "Etudes"},
+                requested_options={"display_title": "Etudes"},
             )
             db.add(job)
             db.flush()
@@ -134,6 +134,161 @@ def confirm(engine, storage):
             .confirm(db, "job", 1, ReviewConfirmRequest(content=MUSICXML_1.decode()))
             .score_id
         )
+
+
+@pytest.mark.parametrize(
+    "explicit,submitted,notation,expected",
+    [
+        ("Review name", "Submitted name", "Notation", "Review name"),
+        (None, "Submitted name", "Notation", "Submitted name"),
+        (None, None, "  Moonlight Sonata  ", "Moonlight Sonata"),
+        (None, None, None, "Untitled score"),
+    ],
+)
+def test_confirmation_initializes_display_title_from_explicit_precedence(
+    confirmation,
+    explicit,
+    submitted,
+    notation,
+    expected,
+):
+    from tests.support.revision_metadata import drain_revision_metadata
+
+    engine, storage = confirmation
+    content = MUSICXML_1.decode()
+    if notation is not None:
+        content = content.replace(
+            "<part-list>", f"<work><work-title>{notation}</work-title></work><part-list>"
+        )
+    with Session(engine) as db:
+        job = db.scalar(sa.select(ImportJob))
+        job.requested_options = {"display_title": submitted} if submitted is not None else {}
+        db.commit()
+        result = review.ImportReviewService(storage=storage).confirm(
+            db,
+            "job",
+            1,
+            ReviewConfirmRequest(content=content, display_title=explicit),
+        )
+        drain_revision_metadata(db, storage)
+        score = db.scalar(sa.select(Score).where(Score.score_uuid == result.score_id))
+        assert score.display_title == expected
+        metadata = db.get(ScoreRevisionMetadata, score.head_revision_id)
+        assert metadata.notation_title == (notation.strip() if notation else None)
+
+
+def test_display_title_and_revision_notation_title_have_independent_lifecycles(confirmation):
+    from app.modules.revisions.service import RevisionService
+    from app.modules.revisions.schemas import RevisionCreateRequest
+    from app.modules.scores.service import ScoreService
+    from app.modules.scores.schemas import ScoreUpdateRequest
+    from tests.support.revision_metadata import drain_revision_metadata
+
+    engine, storage = confirmation
+    content = MUSICXML_1.decode().replace(
+        "<part-list>", "<work><work-title>Moonlight Sonata</work-title></work><part-list>"
+    )
+    with Session(engine) as db:
+        job = db.scalar(sa.select(ImportJob))
+        job.requested_options = {}
+        db.commit()
+        score_id = (
+            review.ImportReviewService(storage=storage)
+            .confirm(
+                db,
+                "job",
+                1,
+                ReviewConfirmRequest(content=content),
+            )
+            .score_id
+        )
+        drain_revision_metadata(db, storage)
+        score = db.scalar(sa.select(Score))
+        initial = db.get(ScoreRevision, score.head_revision_id)
+        assert score.display_title == "Moonlight Sonata"
+        assert db.get(ScoreRevisionMetadata, initial.id).notation_title == "Moonlight Sonata"
+        from app.db.models import ScoreMembership
+        from app.db.models.score_access import MembershipRole
+
+        db.add(User(id=2, email="reader@example.test", password_hash="hash"))
+        db.flush()
+        db.add(
+            ScoreMembership(
+                score_id=score.id, user_id=2, role=MembershipRole.VIEWER, created_by_user_id=1
+            )
+        )
+        db.commit()
+
+        edited = content.replace("Moonlight Sonata", "Moonlight Sonata — edited notation")
+        RevisionService(storage=storage).create(
+            db,
+            score_id,
+            1,
+            RevisionCreateRequest(
+                content=edited,
+                expected_head_revision_id=initial.revision_uuid,
+            ),
+        )
+        drain_revision_metadata(db, storage)
+        db.refresh(score)
+        assert score.display_title == "Moonlight Sonata"
+        assert (
+            db.get(ScoreRevisionMetadata, score.head_revision_id).notation_title
+            == "Moonlight Sonata — edited notation"
+        )
+        snapshots = list(
+            db.scalars(sa.select(Notification).where(Notification.kind == "score.version.created"))
+        )
+        assert snapshots and all(
+            n.score_display_title_snapshot == "Moonlight Sonata" for n in snapshots
+        )
+        from app.db.models import MailOutbox
+        from app.modules.score_invites.service import ScoreInviteService
+        from app.modules.score_invites.schemas import InviteCreateRequest
+
+        invite = ScoreInviteService().create_invite(
+            db, score_id, 1, InviteCreateRequest(email="invite@example.com", locale="en")
+        )
+        assert (
+            ScoreInviteService().inspect_invite(db, invite.token, None).score_display_title
+            == "Moonlight Sonata"
+        )
+        mail = db.scalar(sa.select(MailOutbox).where(MailOutbox.recipient == "invite@example.com"))
+        assert "Moonlight Sonata" in mail.subject and "edited notation" not in mail.text_body
+        mail_snapshot = mail.text_body
+        sources = list(db.scalars(sa.select(ScoreRevisionSource)))
+        before = {
+            source.id: storage.read_bytes(source.stored_object.object_key) for source in sources
+        }
+        titles = {
+            m.revision_id: m.notation_title for m in db.scalars(sa.select(ScoreRevisionMetadata))
+        }
+
+        ScoreService(storage=storage).update(
+            db,
+            score_id,
+            1,
+            ScoreUpdateRequest(
+                display_title="My practice copy",
+                expected_version=score.version,
+            ),
+        )
+        db.expire_all()
+        assert db.get(Score, score.id).display_title == "My practice copy"
+        assert {
+            m.revision_id: m.notation_title for m in db.scalars(sa.select(ScoreRevisionMetadata))
+        } == titles
+        assert {
+            source.id: storage.read_bytes(source.stored_object.object_key)
+            for source in db.scalars(sa.select(ScoreRevisionSource))
+        } == before
+        assert all(
+            n.score_display_title_snapshot == "Moonlight Sonata"
+            for n in db.scalars(
+                sa.select(Notification).where(Notification.kind == "score.version.created")
+            )
+        )
+        assert db.get(MailOutbox, mail.id).text_body == mail_snapshot
 
 
 def snapshot(db):
@@ -242,8 +397,8 @@ def test_confirmation_enriches_retained_notification_in_its_transaction(confirma
         assert len(notifications) == 1
         assert notifications[0].score_id == score_id
         assert notifications[0].import_job_id == "job"
-        assert notifications[0].job_title_snapshot == "Etudes"
-        assert notifications[0].score_title_snapshot == "Etudes"
+        assert notifications[0].import_display_title_snapshot == "Etudes"
+        assert notifications[0].score_display_title_snapshot == "Etudes"
         assert sorted(row.kind for row in db.scalars(sa.select(RealtimeChange))) == [
             "import_jobs.changed",
             "notifications.changed",

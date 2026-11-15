@@ -147,7 +147,7 @@ class LibraryService:
                     if score.owner_user_id == user_id
                     else AccessOrigin.MEMBERSHIP,
                     folder_id=folder_uuid,
-                    title=score.title,
+                    display_title=score.display_title,
                     genres=score.genres,
                     derived_assets=assets,
                     metadata=MetadataProjectionService.to_read(head, projection)

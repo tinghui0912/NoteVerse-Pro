@@ -354,14 +354,14 @@ def test_import_job_submission_serializes_genres_for_json_storage() -> None:
     service = ImportJobSubmissionService()
 
     options = {
-        "title": "Once Again",
+        "display_title": "Once Again",
         "genres": [
             "soundtrack",
         ],
     }
 
     assert service._storage_options(options) == {
-        "title": "Once Again",
+        "display_title": "Once Again",
         "genres": ["soundtrack"],
     }
 

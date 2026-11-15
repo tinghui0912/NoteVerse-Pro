@@ -101,7 +101,7 @@ def test_score_genres_replace_clear_and_preserve_with_version_checks(genre_sessi
     service = ScoreService(storage=storage)
     for patch, expected in [
         ({"genres": list(reversed(ScoreGenre))}, list(ScoreGenre)),
-        ({"title": "Renamed"}, list(ScoreGenre)),
+        ({"display_title": "Renamed"}, list(ScoreGenre)),
         ({"genres": None}, list(ScoreGenre)),
         ({"genres": []}, []),
     ]:
@@ -148,12 +148,16 @@ def test_import_review_score_and_library_share_score_genres(
         session,
         session.get(User, 1),
         ImportJobSubmitRequest(
-            upload_ids=[upload.upload_uuid], options={"title": "Genres", "genres": requested}
+            upload_ids=[upload.upload_uuid],
+            options={"display_title": "Genres", "genres": requested},
         ),
     )
     job = session.scalar(sa.select(ImportJob).where(ImportJob.job_uuid == result["job_id"]))
     assert all(type(code) is str for code in job.requested_options["genres"])
-    assert job.requested_options == {"title": "Genres", "genres": ordered_unique_genres(requested)}
+    assert job.requested_options == {
+        "display_title": "Genres",
+        "genres": ordered_unique_genres(requested),
+    }
     job.state = ImportJobState.PENDING_REVIEW
     xml = object_from_bytes(
         object_key="jobs/genres/score.musicxml",
@@ -217,7 +221,7 @@ def test_score_schema_stores_genres_as_jsonb(monkeypatch):
             score = Score(
                 score_uuid=str(uuid4()),
                 owner_user_id=1,
-                title="Genres",
+                display_title="Genres",
                 genres=[genre.value for genre in ScoreGenre],
             )
             session.add(score)

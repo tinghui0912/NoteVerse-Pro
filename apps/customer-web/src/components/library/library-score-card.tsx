@@ -65,16 +65,16 @@ export function LibraryScoreCard({
               checked={selected}
               onClick={(event) => event.stopPropagation()}
               onCheckedChange={(checked) => onToggleSelection(checked === true)}
-              aria-label={t('selectScore', { title: score.title })}
+              aria-label={t('selectScore', { title: score.display_title })}
             />
           </div>
         ) : null}
         <ScoreThumbnail
-          title={score.title}
+          title={score.display_title}
           thumbnailRenderAssetId={score.derived_assets.preview.asset_id}
           className="mb-4"
         />
-        <h3 className="truncate font-semibold">{score.title}</h3>
+        <h3 className="truncate font-semibold">{score.display_title}</h3>
         <p className="mt-1 text-xs text-muted-foreground">
           {formatApiDateTime(score.updated_at)}
         </p>

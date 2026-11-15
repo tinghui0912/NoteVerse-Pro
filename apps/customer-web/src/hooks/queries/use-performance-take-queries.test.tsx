@@ -32,7 +32,7 @@ const performanceTake: PerformanceTakeRead = {
   created_at: '2026-09-21T00:00:00Z',
   manifest: {
     artifact_id: videoArtifact.artifactId,
-    score_title_snapshot: 'Etude',
+    score_display_title_snapshot: 'Etude',
     score_timebase: { ticks_per_quarter: 1 },
     tempo_plan: tempoPlan,
     recording_timebase: recordingTimebase,

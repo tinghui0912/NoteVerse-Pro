@@ -102,7 +102,7 @@ def generation(request, monkeypatch, tmp_path):
                     ]
                 )
             else:
-                score = Score(score_uuid="score", title="Score", owner_user_id=user.id)
+                score = Score(score_uuid="score", display_title="Score", owner_user_id=user.id)
                 db.add(score)
                 db.flush()
                 revision = ScoreRevision(

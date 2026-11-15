@@ -81,7 +81,7 @@ class ScoreInviteService:
         )
         db.add(invite)
         db.flush()
-        self._queue_invite_email(db, invite, access.score.title, token, request.locale)
+        self._queue_invite_email(db, invite, access.score.display_title, token, request.locale)
         db.commit()
         db.refresh(invite)
         read = self._invite_read(db, invite)
@@ -131,7 +131,7 @@ class ScoreInviteService:
         return InviteAccessRead(
             invite_id=invite.invite_uuid,
             score_id=score.score_uuid,
-            score_title=score.title,
+            score_display_title=score.display_title,
             inviter=self._actor(db, invite.created_by_user_id),
             email=invite.email,
             role=invite.role,
@@ -406,7 +406,7 @@ class ScoreInviteService:
             accepted=accepted,
             invite_id=invite.invite_uuid,
             score_id=score.score_uuid,
-            score_title=score.title,
+            score_display_title=score.display_title,
             created_at=invite.terminal_at,
         )
 
@@ -430,7 +430,7 @@ class ScoreInviteService:
         return PendingInviteRead(
             invite_id=invite.invite_uuid,
             score_id=score.score_uuid,
-            score_title=score.title,
+            score_display_title=score.display_title,
             inviter=self._actor(db, invite.created_by_user_id),
             email=invite.email,
             role=invite.role,
@@ -471,7 +471,7 @@ class ScoreInviteService:
         self,
         db: Session,
         invite: ScoreInvite,
-        score_title: str,
+        score_display_title: str,
         token: str,
         locale: str,
     ) -> None:
@@ -492,7 +492,7 @@ class ScoreInviteService:
             locale=locale,
             project_name=settings.PROJECT_NAME,
             inviter_name=inviter_name,
-            score_title=score_title,
+            score_display_title=score_display_title,
             role_label=role_label,
             invite_url=invite_url,
         )

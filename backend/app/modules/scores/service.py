@@ -100,8 +100,8 @@ class ScoreService:
                 ErrorCode.REVISION_CONFLICT,
                 {"expected_version": request.expected_version, "actual_version": score.version},
             )
-        if request.title is not None:
-            score.title = request.title.strip()
+        if request.display_title is not None:
+            score.display_title = request.display_title.strip()
         if request.genres is not None:
             score.genres = [genre.value for genre in request.genres]
         score.version += 1
@@ -183,7 +183,7 @@ class ScoreService:
         )
         return ScoreRead(
             score_id=score.score_uuid,
-            title=score.title,
+            display_title=score.display_title,
             genres=score.genres,
             version=score.version,
             head_revision_id=head.revision_uuid if head else None,

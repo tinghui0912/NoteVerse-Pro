@@ -97,7 +97,7 @@ it('reloads, toggles and copies the same stable link', async () => {
 it('refreshes current-head pages without changing the bearer token', async () => {
   let page = 'head-a';
   api.read.mockImplementation(async () => ({
-      title: 'Score',
+      display_title: 'Score',
       shared_by: 'Owner',
       audio_available: true,
       render_assets: [{ asset_id: page, page_number: 1 }],

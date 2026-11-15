@@ -137,7 +137,9 @@ def test_owner_settings_token_stability_and_generic_disclosure(preview_context):
         db,
         score.score_uuid,
         1,
-        ScoreUpdateRequest(expected_version=score.version, title="Updated", genres=["jazz"]),
+        ScoreUpdateRequest(
+            expected_version=score.version, display_title="Updated", genres=["jazz"]
+        ),
     )
     add_head_b(session, score)
     assert (service.settings(db, score.score_uuid, 1)).token == token
@@ -146,7 +148,7 @@ def test_owner_settings_token_stability_and_generic_disclosure(preview_context):
     assert "guest_preview_token" not in dict(score)
     read = ScoreService().get(db, score.score_uuid, 1)
     assert token not in read.model_dump_json()
-    other = Score(score_uuid="distinct", owner_user_id=1, title="Other")
+    other = Score(score_uuid="distinct", owner_user_id=1, display_title="Other")
     session.add(other)
     session.commit()
     assert other.guest_preview_token != token and len(other.guest_preview_token) >= 43
@@ -190,7 +192,12 @@ def test_bearer_follows_head_and_never_falls_back(preview_context):
     assert [p.asset_id for p in latest.render_assets] == ["page-b"] and latest.audio_available
     assert (service.image(db, enabled.token, "page-b")).storage_key.endswith("page-b.svg")
     assert (service.audio(db, enabled.token)).storage_key.endswith("902.wav")
-    assert set(latest.model_dump()) == {"title", "shared_by", "render_assets", "audio_available"}
+    assert set(latest.model_dump()) == {
+        "display_title",
+        "shared_by",
+        "render_assets",
+        "audio_available",
+    }
     assert latest.shared_by == "owner"
 
 
@@ -201,7 +208,7 @@ def test_disabled_missing_and_deleted_are_unavailable(preview_context):
         service.update_settings(db, score.score_uuid, 1, GuestPreviewUpdateRequest(enabled=enabled))
         for action in [service.read, service.audio]:
             if enabled and action == service.read:
-                assert (action(db, token)).title == score.title
+                assert (action(db, token)).display_title == score.display_title
             elif not enabled:
                 with pytest.raises(ResourceNotFoundException) as error:
                     action(db, token)
@@ -271,7 +278,7 @@ async def test_bearer_routes_are_anonymous_inline_private_and_disclosure_safe(pr
             assert response.status_code == 200
             assert response.headers["cache-control"] == "private, no-store"
             assert set(response.json()) == {
-                "title",
+                "display_title",
                 "shared_by",
                 "render_assets",
                 "audio_available",

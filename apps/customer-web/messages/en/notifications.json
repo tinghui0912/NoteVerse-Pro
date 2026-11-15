@@ -25,7 +25,7 @@
   "processingCompleted": "Score processing completed",
   "processingFailed": "Score processing failed",
   "unknownActor": "Someone",
-  "scoreTitleFallback": "Untitled score",
+  "scoreDisplayTitleFallback": "Untitled score",
   "accepted": "Invite accepted",
   "acceptedDescription": "You can now access this score.",
   "acceptFailed": "Unable to accept invite",

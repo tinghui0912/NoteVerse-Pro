@@ -248,7 +248,7 @@ def test_writer_participates_without_commit_and_rejects_stale_evidence(postgres_
         changed = replace(
             manifest,
             snapshot=manifest.snapshot.model_copy(
-                update={"score_title_snapshot": "different snapshot"}
+                update={"score_display_title_snapshot": "different snapshot"}
             ),
         )
         with pytest.raises(ValidationException):

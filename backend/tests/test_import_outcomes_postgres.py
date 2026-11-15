@@ -38,7 +38,7 @@ def outcome(monkeypatch):
                 job_uuid="job",
                 user_id=1,
                 state=ImportJobState.RUNNING,
-                requested_options={"title": "Etudes"},
+                requested_options={"display_title": "Etudes"},
             )
             db.add(job)
             db.flush()
@@ -103,7 +103,7 @@ def test_import_terminal_consequences_commit_once(outcome, result):
         assert notice.kind == ("import.completed" if result == "success" else "import.failed")
         assert notice.recipient_user_id == 1 and notice.actor_user_id is None
         assert notice.created_at == job.finished_at
-        assert notice.import_job_id == "job" and notice.job_title_snapshot == "Etudes"
+        assert notice.import_job_id == "job" and notice.import_display_title_snapshot == "Etudes"
         assert sorted(db.scalars(sa.select(RealtimeChange.kind))) == [
             "import_jobs.changed" if result == "success" else "import_jobs.changed",
             "notifications.changed",

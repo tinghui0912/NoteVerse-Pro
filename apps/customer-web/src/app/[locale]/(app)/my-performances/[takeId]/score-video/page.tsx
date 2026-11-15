@@ -319,7 +319,7 @@ export default function PerformanceTakeCompositeVideoPage() {
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
       <PageHeader
         title={t("performanceTakeCompositeVideoTitle")}
-        description={take.manifest.score_title_snapshot}
+        description={take.manifest.score_display_title_snapshot}
         actions={
           <Button
             variant="outline"

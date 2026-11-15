@@ -130,7 +130,7 @@ export type ConnectionData = {
 
 export type ScoreData = {
   measures: Measure[];
-  mainTitle?: string;
+  notationTitle?: string;
   subtitle?: string;
   composer?: string;
   lyricist?: string;

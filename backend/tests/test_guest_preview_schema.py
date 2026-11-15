@@ -24,7 +24,7 @@ def test_fresh_postgres_preview_settings_constraints(monkeypatch):
             user = User(email="schema-preview@example.com", password_hash="hash")
             db.add(user)
             db.flush()
-            score = Score(score_uuid="preview", title="Preview", owner_user_id=user.id)
+            score = Score(score_uuid="preview", display_title="Preview", owner_user_id=user.id)
             db.add(score)
             db.commit()
             assert len(score.guest_preview_token) >= 43 and not score.guest_preview_enabled
@@ -35,7 +35,7 @@ def test_fresh_postgres_preview_settings_constraints(monkeypatch):
                 db.rollback()
             duplicate = Score(
                 score_uuid="duplicate",
-                title="Duplicate",
+                display_title="Duplicate",
                 owner_user_id=user.id,
                 guest_preview_token=score.guest_preview_token,
             )

@@ -365,6 +365,10 @@
             "title": "Audio Available",
             "type": "boolean"
           },
+          "display_title": {
+            "title": "Display Title",
+            "type": "string"
+          },
           "render_assets": {
             "items": {
               "$ref": "#/components/schemas/GuestPreviewPageRead"
@@ -375,14 +379,10 @@
           "shared_by": {
             "title": "Shared By",
             "type": "string"
-          },
-          "title": {
-            "title": "Title",
-            "type": "string"
           }
         },
         "required": [
-          "title",
+          "display_title",
           "shared_by",
           "render_assets",
           "audio_available"
@@ -502,11 +502,7 @@
             "title": "Created At",
             "type": "string"
           },
-          "job_id": {
-            "title": "Job Id",
-            "type": "string"
-          },
-          "job_title": {
+          "import_display_title": {
             "anyOf": [
               {
                 "type": "string"
@@ -515,7 +511,11 @@
                 "type": "null"
               }
             ],
-            "title": "Job Title"
+            "title": "Import Display Title"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
           },
           "kind": {
             "const": "import.completed",
@@ -538,6 +538,17 @@
             ],
             "title": "Read At"
           },
+          "score_display_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Display Title"
+          },
           "score_id": {
             "anyOf": [
               {
@@ -548,17 +559,6 @@
               }
             ],
             "title": "Score Id"
-          },
-          "score_title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Score Title"
           }
         },
         "required": [
@@ -567,9 +567,9 @@
           "created_at",
           "kind",
           "job_id",
-          "job_title",
+          "import_display_title",
           "score_id",
-          "score_title"
+          "score_display_title"
         ],
         "title": "ImportCompletedNotificationRead",
         "type": "object"
@@ -581,11 +581,7 @@
             "title": "Created At",
             "type": "string"
           },
-          "job_id": {
-            "title": "Job Id",
-            "type": "string"
-          },
-          "job_title": {
+          "import_display_title": {
             "anyOf": [
               {
                 "type": "string"
@@ -594,7 +590,11 @@
                 "type": "null"
               }
             ],
-            "title": "Job Title"
+            "title": "Import Display Title"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
           },
           "kind": {
             "const": "import.failed",
@@ -624,7 +624,7 @@
           "created_at",
           "kind",
           "job_id",
-          "job_title"
+          "import_display_title"
         ],
         "title": "ImportFailedNotificationRead",
         "type": "object"
@@ -648,16 +648,16 @@
       "ImportJobProcessingOptions": {
         "additionalProperties": false,
         "properties": {
+          "display_title": {
+            "title": "Display Title",
+            "type": "string"
+          },
           "genres": {
             "items": {
               "$ref": "#/components/schemas/ScoreGenre"
             },
             "title": "Genres",
             "type": "array"
-          },
-          "title": {
-            "title": "Title",
-            "type": "string"
           }
         },
         "title": "ImportJobProcessingOptions",
@@ -669,6 +669,17 @@
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "display_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Title"
           },
           "execution_manifest_sha256": {
             "anyOf": [
@@ -764,17 +775,6 @@
               }
             ]
           },
-          "title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Title"
-          },
           "updated_at": {
             "format": "date-time",
             "title": "Updated At",
@@ -797,6 +797,17 @@
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "display_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Title"
           },
           "genres": {
             "items": {
@@ -839,17 +850,6 @@
           },
           "state": {
             "$ref": "#/components/schemas/ImportJobState"
-          },
-          "title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Title"
           },
           "updated_at": {
             "format": "date-time",
@@ -1060,12 +1060,12 @@
           "role": {
             "$ref": "#/components/schemas/MembershipRole"
           },
-          "score_id": {
-            "title": "Score Id",
+          "score_display_title": {
+            "title": "Score Display Title",
             "type": "string"
           },
-          "score_title": {
-            "title": "Score Title",
+          "score_id": {
+            "title": "Score Id",
             "type": "string"
           },
           "status": {
@@ -1075,7 +1075,7 @@
         "required": [
           "invite_id",
           "score_id",
-          "score_title",
+          "score_display_title",
           "inviter",
           "email",
           "role",
@@ -1598,6 +1598,10 @@
           "derived_assets": {
             "$ref": "#/components/schemas/ScoreDerivedAssetsRead"
           },
+          "display_title": {
+            "title": "Display Title",
+            "type": "string"
+          },
           "folder_id": {
             "anyOf": [
               {
@@ -1634,10 +1638,6 @@
             "title": "Score Id",
             "type": "string"
           },
-          "title": {
-            "title": "Title",
-            "type": "string"
-          },
           "updated_at": {
             "format": "date-time",
             "title": "Updated At",
@@ -1648,7 +1648,7 @@
           "score_id",
           "access_origin",
           "folder_id",
-          "title",
+          "display_title",
           "derived_assets",
           "genres",
           "metadata",
@@ -1841,6 +1841,17 @@
             ],
             "title": "Measure Count"
           },
+          "notation_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notation Title"
+          },
           "part_count": {
             "anyOf": [
               {
@@ -1912,6 +1923,7 @@
         "required": [
           "revision_id",
           "status",
+          "notation_title",
           "measure_count",
           "playback_duration_ms",
           "part_count",
@@ -2162,12 +2174,12 @@
           "role": {
             "$ref": "#/components/schemas/MembershipRole"
           },
-          "score_id": {
-            "title": "Score Id",
+          "score_display_title": {
+            "title": "Score Display Title",
             "type": "string"
           },
-          "score_title": {
-            "title": "Score Title",
+          "score_id": {
+            "title": "Score Id",
             "type": "string"
           },
           "status": {
@@ -2177,7 +2189,7 @@
         "required": [
           "invite_id",
           "score_id",
-          "score_title",
+          "score_display_title",
           "inviter",
           "email",
           "role",
@@ -2365,13 +2377,13 @@
             ],
             "title": "Scope"
           },
+          "score_display_title_snapshot": {
+            "minLength": 1,
+            "title": "Score Display Title Snapshot",
+            "type": "string"
+          },
           "score_timebase": {
             "$ref": "#/components/schemas/PerformanceTakeScoreTimebase"
-          },
-          "score_title_snapshot": {
-            "minLength": 1,
-            "title": "Score Title Snapshot",
-            "type": "string"
           },
           "tempo_plan": {
             "$ref": "#/components/schemas/PerformanceTakeTempoPlan"
@@ -2380,7 +2392,7 @@
         "required": [
           "practice_binding",
           "artifact_id",
-          "score_title_snapshot",
+          "score_display_title_snapshot",
           "capture",
           "score_timebase",
           "scope",
@@ -3753,6 +3765,19 @@
             "title": "Content",
             "type": "string"
           },
+          "display_title": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Title"
+          },
           "genres": {
             "anyOf": [
               {
@@ -3766,19 +3791,6 @@
               }
             ],
             "title": "Genres"
-          },
-          "title": {
-            "anyOf": [
-              {
-                "maxLength": 255,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Title"
           }
         },
         "required": [
@@ -4514,12 +4526,12 @@
             ],
             "title": "Read At"
           },
-          "score_id": {
-            "title": "Score Id",
+          "score_display_title": {
+            "title": "Score Display Title",
             "type": "string"
           },
-          "score_title": {
-            "title": "Score Title",
+          "score_id": {
+            "title": "Score Id",
             "type": "string"
           }
         },
@@ -4531,7 +4543,7 @@
           "invite_id",
           "actor",
           "score_id",
-          "score_title"
+          "score_display_title"
         ],
         "title": "ScoreInviteAcceptedNotificationRead",
         "type": "object"
@@ -4571,12 +4583,12 @@
             ],
             "title": "Read At"
           },
-          "score_id": {
-            "title": "Score Id",
+          "score_display_title": {
+            "title": "Score Display Title",
             "type": "string"
           },
-          "score_title": {
-            "title": "Score Title",
+          "score_id": {
+            "title": "Score Id",
             "type": "string"
           }
         },
@@ -4588,7 +4600,7 @@
           "invite_id",
           "actor",
           "score_id",
-          "score_title"
+          "score_display_title"
         ],
         "title": "ScoreInviteDeclinedNotificationRead",
         "type": "object"
@@ -4605,6 +4617,10 @@
           },
           "derived_assets": {
             "$ref": "#/components/schemas/ScoreDerivedAssetsRead"
+          },
+          "display_title": {
+            "title": "Display Title",
+            "type": "string"
           },
           "genres": {
             "items": {
@@ -4645,10 +4661,6 @@
             "title": "Score Id",
             "type": "string"
           },
-          "title": {
-            "title": "Title",
-            "type": "string"
-          },
           "updated_at": {
             "format": "date-time",
             "title": "Updated At",
@@ -4661,7 +4673,7 @@
         },
         "required": [
           "score_id",
-          "title",
+          "display_title",
           "genres",
           "version",
           "head_revision_id",
@@ -4741,6 +4753,19 @@
       "ScoreUpdateRequest": {
         "additionalProperties": false,
         "properties": {
+          "display_title": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Title"
+          },
           "expected_version": {
             "minimum": 1.0,
             "title": "Expected Version",
@@ -4759,19 +4784,6 @@
               }
             ],
             "title": "Genres"
-          },
-          "title": {
-            "anyOf": [
-              {
-                "maxLength": 255,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Title"
           }
         },
         "required": [
@@ -4815,12 +4827,12 @@
             "title": "Revision Id",
             "type": "string"
           },
-          "score_id": {
-            "title": "Score Id",
+          "score_display_title": {
+            "title": "Score Display Title",
             "type": "string"
           },
-          "score_title": {
-            "title": "Score Title",
+          "score_id": {
+            "title": "Score Id",
             "type": "string"
           }
         },
@@ -4831,7 +4843,7 @@
           "kind",
           "actor",
           "score_id",
-          "score_title",
+          "score_display_title",
           "revision_id"
         ],
         "title": "ScoreVersionCreatedNotificationRead",

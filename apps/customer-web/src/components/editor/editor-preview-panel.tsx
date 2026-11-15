@@ -594,7 +594,7 @@ export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }:
       container,
       scoreData,
       labels: {
-        mainTitle: t('mainTitleLabel'),
+        notationTitle: t('notationTitleLabel'),
         subtitle: t('subtitleLabel'),
         lyricist: t('lyricistLabel'),
         composer: t('composerLabel'),
@@ -606,7 +606,7 @@ export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }:
     scoreData,
     scoreData?.composer,
     scoreData?.lyricist,
-    scoreData?.mainTitle,
+    scoreData?.notationTitle,
     scoreData?.subtitle,
     t,
   ]);

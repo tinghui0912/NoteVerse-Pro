@@ -8,7 +8,7 @@ import messages from '../../messages/en/library.json';
 import type { LibraryScoreRead } from '@/generated/api';
 const score: LibraryScoreRead = {
   score_id: 'score',
-  title: 'Accessible score',
+  display_title: 'Accessible score',
   access_origin: 'MEMBERSHIP',
   genres: [],
   folder_id: null,

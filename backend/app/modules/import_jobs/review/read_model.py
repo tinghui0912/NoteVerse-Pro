@@ -48,7 +48,7 @@ class ImportReviewReadModel:
                     job_id=job.job_uuid,
                     state=job.state,
                     score_id=score.score_uuid,
-                    title=score.title,
+                    display_title=score.display_title,
                     genres=score.genres,
                     musicxml=None,
                     original_images=[],
@@ -89,12 +89,12 @@ class ImportReviewReadModel:
         options = processing_options_adapter.validate_python(
             job.requested_options if job.requested_options is not None else {}
         )
-        title = options.get("title")
+        display_title = options.get("display_title")
         original_images = self.upload_reads(db, job_id)
         return ImportJobReviewRead(
             job_id=job.job_uuid,
             state=job.state,
-            title=title if isinstance(title, str) else None,
+            display_title=display_title if isinstance(display_title, str) else None,
             genres=options.get("genres", []),
             musicxml=ReviewMusicXmlRead(
                 artifact_id=musicxml_artifact.artifact_uuid,

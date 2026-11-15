@@ -35,7 +35,7 @@ vi.mock('@/i18n/routing', () => ({
 const job = (state: ImportJobRead['state']): ImportJobRead => ({
   job_id: state,
   state,
-  title: `${state} import`,
+  display_title: `${state} import`,
   progress: 37,
   created_at: '2026-11-15T10:00:00Z',
   updated_at: '2026-11-15T10:00:00Z',
@@ -73,7 +73,7 @@ beforeEach(() => {
           : [
               {
                 ...job('CONFIRMED'),
-                title: 'Second page import',
+                display_title: 'Second page import',
                 job_id: 'second',
               },
             ], ...{ page, page_size: 20, total: 21, total_pages: 2 } }),

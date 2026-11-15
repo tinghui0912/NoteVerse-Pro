@@ -52,7 +52,7 @@ class InviteCreatedRead(InviteRead):
 class PendingInviteRead(ApiModel):
     invite_id: str
     score_id: str
-    score_title: str
+    score_display_title: str
     inviter: InviteActorRead | None
     email: str | None
     role: MembershipRole
@@ -64,7 +64,7 @@ class PendingInviteRead(ApiModel):
 class InviteAccessRead(ApiModel):
     invite_id: str
     score_id: str
-    score_title: str
+    score_display_title: str
     inviter: InviteActorRead | None
     email: str | None
     role: MembershipRole

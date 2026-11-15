@@ -830,12 +830,12 @@ def upgrade() -> None:
         sa.Column("score_id", sa.String(length=36), nullable=True),
         sa.Column("revision_id", sa.String(length=36), nullable=True),
         sa.Column("import_job_id", sa.String(length=36), nullable=True),
-        sa.Column("score_title_snapshot", sa.String(length=255), nullable=True),
-        sa.Column("job_title_snapshot", sa.String(length=255), nullable=True),
+        sa.Column("score_display_title_snapshot", sa.String(length=255), nullable=True),
+        sa.Column("import_display_title_snapshot", sa.String(length=255), nullable=True),
         sa.Column("read_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.CheckConstraint(
-            "\n          (kind IN ('score_invite.accepted', 'score_invite.declined') AND invite_id IS NOT NULL\n           AND score_id IS NOT NULL AND actor_user_id IS NOT NULL AND score_title_snapshot IS NOT NULL\n           AND revision_id IS NULL AND import_job_id IS NULL AND job_title_snapshot IS NULL)\n          OR (kind = 'score.version.created' AND score_id IS NOT NULL AND revision_id IS NOT NULL\n           AND actor_user_id IS NOT NULL AND score_title_snapshot IS NOT NULL AND invite_id IS NULL\n           AND import_job_id IS NULL AND job_title_snapshot IS NULL)\n          OR (kind = 'import.completed' AND import_job_id IS NOT NULL AND actor_user_id IS NULL\n           AND invite_id IS NULL AND revision_id IS NULL\n           AND ((score_id IS NULL AND score_title_snapshot IS NULL)\n             OR (score_id IS NOT NULL AND score_title_snapshot IS NOT NULL)))\n          OR (kind = 'import.failed' AND import_job_id IS NOT NULL AND actor_user_id IS NULL\n           AND invite_id IS NULL AND revision_id IS NULL AND score_id IS NULL AND score_title_snapshot IS NULL)\n        ",
+            "\n          (kind IN ('score_invite.accepted', 'score_invite.declined') AND invite_id IS NOT NULL\n           AND score_id IS NOT NULL AND actor_user_id IS NOT NULL AND score_display_title_snapshot IS NOT NULL\n           AND revision_id IS NULL AND import_job_id IS NULL AND import_display_title_snapshot IS NULL)\n          OR (kind = 'score.version.created' AND score_id IS NOT NULL AND revision_id IS NOT NULL\n           AND actor_user_id IS NOT NULL AND score_display_title_snapshot IS NOT NULL AND invite_id IS NULL\n           AND import_job_id IS NULL AND import_display_title_snapshot IS NULL)\n          OR (kind = 'import.completed' AND import_job_id IS NOT NULL AND actor_user_id IS NULL\n           AND invite_id IS NULL AND revision_id IS NULL\n           AND ((score_id IS NULL AND score_display_title_snapshot IS NULL)\n             OR (score_id IS NOT NULL AND score_display_title_snapshot IS NOT NULL)))\n          OR (kind = 'import.failed' AND import_job_id IS NOT NULL AND actor_user_id IS NULL\n           AND invite_id IS NULL AND revision_id IS NULL AND score_id IS NULL AND score_display_title_snapshot IS NULL)\n        ",
             name="ck_notifications_semantic_identity",
         ),
         sa.ForeignKeyConstraint(
@@ -1484,7 +1484,7 @@ def upgrade() -> None:
         ),
         sa.Column("score_uuid", sa.String(length=36), nullable=False),
         sa.Column("owner_user_id", sa.BigInteger(), nullable=False),
-        sa.Column("title", sa.String(length=255), nullable=False),
+        sa.Column("display_title", sa.String(length=255), nullable=False),
         sa.Column("guest_preview_token", sa.String(length=64), nullable=False),
         sa.Column("guest_preview_enabled", sa.Boolean(), nullable=False),
         sa.Column(
@@ -2310,6 +2310,7 @@ def upgrade() -> None:
             postgresql.ENUM("PENDING", "READY", "FAILED", name="metadatastatus", create_type=False),
             nullable=False,
         ),
+        sa.Column("notation_title", sa.Text(), nullable=True),
         sa.Column("measure_count", sa.Integer(), nullable=True),
         sa.Column("playback_duration_ms", sa.BigInteger(), nullable=True),
         sa.Column("part_count", sa.Integer(), nullable=True),

@@ -4,7 +4,7 @@ export const SCORE_METADATA_PLACEHOLDER_SELECTOR = '[data-score-metadata-placeho
 export const SCORE_METADATA_PLACEHOLDER_CLASS = 'score-metadata-placeholder';
 
 export type ScoreMetadataPlaceholderLabels = {
-  mainTitle: string;
+  notationTitle: string;
   subtitle: string;
   lyricist: string;
   composer: string;
@@ -26,7 +26,7 @@ export function getMissingScoreMetadataPlaceholders(
   labels: ScoreMetadataPlaceholderLabels
 ): ScoreMetadataPlaceholder[] {
   return [
-    !scoreData.mainTitle ? { className: 'score-metadata-placeholder-title', label: labels.mainTitle } : null,
+    !scoreData.notationTitle ? { className: 'score-metadata-placeholder-title', label: labels.notationTitle } : null,
     !scoreData.subtitle ? { className: 'score-metadata-placeholder-subtitle', label: labels.subtitle } : null,
     !scoreData.lyricist ? { className: 'score-metadata-placeholder-lyricist', label: labels.lyricist } : null,
     !scoreData.composer ? { className: 'score-metadata-placeholder-composer', label: labels.composer } : null,

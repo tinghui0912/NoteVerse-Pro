@@ -132,7 +132,7 @@ def _seed_score_with_source(
     score = Score(
         score_uuid="score-storage-test",
         owner_user_id=owner_user_id,
-        title="Storage Test",
+        display_title="Storage Test",
         version=1,
         created_at=utc_now(),
         updated_at=utc_now(),

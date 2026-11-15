@@ -149,7 +149,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
           <p className="mb-2 text-sm font-medium uppercase tracking-wide text-muted-foreground">
             {t('invitePageTitle')}
           </p>
-          <h1 className="text-3xl font-bold">{invite.score_title}</h1>
+          <h1 className="text-3xl font-bold">{invite.score_display_title}</h1>
           <p className="mt-3 text-muted-foreground">
             {t('invitedBy', { name: inviterName })}
           </p>

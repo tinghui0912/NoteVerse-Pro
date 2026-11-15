@@ -15,6 +15,7 @@ from app.score_semantics.performance_navigation import (
     PerformanceNavigationError,
 )
 from app.score_semantics.performance_plan import CanonicalPerformancePlan, build_performance_plan
+from app.processing.musicxml.notation_title import extract_notation_title
 
 EXTRACTOR_VERSION = "musicxml-metadata-v1"
 
@@ -34,6 +35,7 @@ class MusicXMLMetadata:
     time_signature_events: list[dict[str, object]]
     tempo_events: list[dict[str, object]]
     extractor_version: str = EXTRACTOR_VERSION
+    notation_title: str | None = None
 
 
 def extract_musicxml_metadata(content: bytes | str) -> MusicXMLMetadata:
@@ -41,10 +43,12 @@ def extract_musicxml_metadata(content: bytes | str) -> MusicXMLMetadata:
         model = parse_score_semantics(content)
     except MusicXMLSemanticError as error:
         raise MetadataExtractionError(str(error)) from error
-    return project_score_metadata(model)
+    return project_score_metadata(model, notation_title=extract_notation_title(content))
 
 
-def project_score_metadata(model: CanonicalScoreSemanticModel) -> MusicXMLMetadata:
+def project_score_metadata(
+    model: CanonicalScoreSemanticModel, *, notation_title: str | None = None
+) -> MusicXMLMetadata:
     # Public event lists retain part/written-source order and their existing DTO.
     key_events: list[dict[str, object]] = []
     for key in sorted(model.keys, key=lambda k: (k.part_index, k.measure_index)):
@@ -101,6 +105,7 @@ def project_score_metadata(model: CanonicalScoreSemanticModel) -> MusicXMLMetada
         key_events,
         time_events,
         tempo_events,
+        notation_title=notation_title,
     )
 
 

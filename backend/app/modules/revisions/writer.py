@@ -246,7 +246,7 @@ class RevisionWriter:
                     actor_user_id=command.actor_user_id,
                     score_id=score.score_uuid,
                     revision_id=revision.revision_uuid,
-                    score_title=score.title,
+                    score_display_title=score.display_title,
                     created_at=now,
                 )
                 publish_change(

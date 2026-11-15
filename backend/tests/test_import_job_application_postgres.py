@@ -103,7 +103,12 @@ def application_db(postgres_url, monkeypatch):
                         original_filename="other.png",
                         uploader_user_id=2,
                     ),
-                    Score(id=1, score_uuid="current-score", owner_user_id=1, title="Current score"),
+                    Score(
+                        id=1,
+                        score_uuid="current-score",
+                        owner_user_id=1,
+                        display_title="Current score",
+                    ),
                     ExecutionManifest(id=1, sha256=manifest_sha256(MANIFEST), manifest=MANIFEST),
                 ]
             )
@@ -122,7 +127,10 @@ def complete_jobs(db, count=1):
             progress=70,
             score_id=1,
             execution_manifest_id=1,
-            requested_options={"title": "Submitted title", "genres": ["jazz", "classical", "jazz"]},
+            requested_options={
+                "display_title": "Submitted title",
+                "genres": ["jazz", "classical", "jazz"],
+            },
             created_at=NOW,
             updated_at=NOW,
             started_at=NOW,
@@ -199,7 +207,7 @@ def test_list_and_detail_share_the_complete_current_projection(application_db):
     assert detail == rows[0]
     value = detail.model_dump(mode="json")
     assert value["job_id"] == "complete-0" and value["score_id"] == "current-score"
-    assert value["title"] == "Submitted title" and value["genres"] == ["classical", "jazz"]
+    assert value["display_title"] == "Submitted title" and value["genres"] == ["classical", "jazz"]
     assert value["state"] == "FAILURE" and value["progress"] == 70
     assert value["execution_manifest_sha256"] == manifest_sha256(MANIFEST)
     assert value["public_code"] == ErrorCode.SCORE_RECOGNITION_FAILED
@@ -348,7 +356,7 @@ async def test_http_list_detail_submit_retry_use_only_injected_session(applicati
             request = dict(
                 upload_ids=["upload-b", "upload-a"],
                 idempotency_key="http-admission",
-                options={"title": "New", "genres": ["jazz"]},
+                options={"display_title": "New", "genres": ["jazz"]},
             )
             created = await client.post("/api/v1/import-jobs", json=request)
             assert created.status_code == 202, created.text
@@ -359,7 +367,10 @@ async def test_http_list_detail_submit_retry_use_only_injected_session(applicati
             assert retry.json()["job_id"] != "complete-0"
             retried = await client.get("/api/v1/import-jobs/" + retry.json()["job_id"])
             value = retried.json()
-            assert value["title"] == "Submitted title" and value["genres"] == ["classical", "jazz"]
+            assert value["display_title"] == "Submitted title" and value["genres"] == [
+                "classical",
+                "jazz",
+            ]
             assert [image["upload_id"] for image in value["original_images"]] == [
                 "upload-b",
                 "upload-a",

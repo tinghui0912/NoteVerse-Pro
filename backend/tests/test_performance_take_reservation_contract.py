@@ -94,7 +94,7 @@ def test_manifest_is_the_common_api_snapshot():
     assert set(PerformanceTakeManifestRead.model_fields) == {
         "practice_binding",
         "artifact_id",
-        "score_title_snapshot",
+        "score_display_title_snapshot",
         "capture",
         "scope",
         "score_timebase",

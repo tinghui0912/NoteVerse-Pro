@@ -75,6 +75,6 @@ class AuthorizedPracticeBundle:
     bundle_ref: PracticeBundleRef
     score_db_id: int
     revision_db_id: int
-    score_title: str
+    score_display_title: str
     score_uuid: str
     revision_uuid: str
