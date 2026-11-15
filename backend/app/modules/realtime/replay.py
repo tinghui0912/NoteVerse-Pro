@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from typing import Literal
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.db.models import RealtimeChange
 from app.modules.realtime.schemas import RealtimeChangeRead, change_read_adapter
@@ -30,18 +30,19 @@ def parse_cursor(value: str | None) -> Cursor:
 
 
 def read_page(db: Session, user_id: int, cursor: Cursor, *, limit: int) -> ReplayPage:
-    state = lock_stream_state(db, read=True)
-    high = max(
-        state.replay_floor_sequence, db.scalar(select(func.max(RealtimeChange.sequence))) or 0
-    )
+    state = lock_stream_state(db, user_id, read=True)
+    high = state.high_watermark_sequence if state is not None else 0
+    floor = state.replay_floor_sequence if state is not None else 0
     if cursor is None:
         return ReplayPage(high)
     if cursor == "invalid":
         return ReplayPage(high, reason="invalid_cursor")
-    if cursor < state.replay_floor_sequence:
+    if cursor < floor:
         return ReplayPage(high, reason="retention_gap")
     if cursor > high:
         return ReplayPage(high, reason="cursor_out_of_range")
+    if state is None:
+        return ReplayPage(0)
     rows = db.scalars(
         select(RealtimeChange)
         .where(RealtimeChange.recipient_user_id == user_id, RealtimeChange.sequence > cursor)
@@ -64,8 +65,7 @@ def read_page(db: Session, user_id: int, cursor: Cursor, *, limit: int) -> Repla
         else:
             fields.update(scoreId=row.score_id, revisionId=row.revision_id)
         changes.append(change_read_adapter.validate_python(fields))
-    # Advancing an empty/partial recipient page to the locked global watermark
-    # avoids confusing another recipient's sequence gap with missing history.
+    # A completed page advances only to this recipient's locked watermark.
     last = rows[-1].sequence if len(rows) == limit else high
     assert last is not None
     return ReplayPage(last, tuple(changes), has_more=len(rows) == limit)

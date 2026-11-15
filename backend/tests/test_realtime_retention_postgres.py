@@ -17,22 +17,33 @@ from tests.support.postgres_schema import postgres_schema_database
 
 
 @pytest.fixture
-def stream(monkeypatch):
+def database(monkeypatch):
     with postgres_schema_database(monkeypatch) as (engine, config):
         command.upgrade(config, "head")
         with Session(engine) as db:
-            db.add(User(id=1, email="stream@example.test", password_hash="hash"))
-            db.commit()
-            for job in ("a", "b"):
-                row = publish_change(
-                    db,
-                    recipient_user_id=1,
-                    kind=RealtimeChangeKind.IMPORT_JOBS_CHANGED,
-                    import_job_id=job,
-                )
-                row.created_at = utc_now_naive() - timedelta(days=30)
+            db.add_all(
+                [User(id=i, email=f"stream{i}@example.test", password_hash="hash") for i in (1, 2)]
+            )
             db.commit()
         yield engine
+
+
+def publish(db, recipient, job="job"):
+    return publish_change(
+        db,
+        recipient_user_id=recipient,
+        kind=RealtimeChangeKind.IMPORT_JOBS_CHANGED,
+        import_job_id=job,
+    )
+
+
+@pytest.fixture
+def stream(database):
+    with Session(database) as db:
+        for job in ("a", "b"):
+            publish(db, 1, job).created_at = utc_now_naive() - timedelta(days=30)
+        db.commit()
+    return database
 
 
 def wait_until_blocked(engine, owner, waiting):
@@ -69,7 +80,8 @@ def test_retention_waits_for_replay_page_and_next_page_reports_the_gap(stream):
         assert pending.result(10) == 2
     with Session(engine) as db:
         assert db.scalar(sa.select(RealtimeChange)) is None
-        assert db.get(RealtimeStreamState, 1).replay_floor_sequence == 2
+        state = db.get(RealtimeStreamState, 1)
+        assert (state.high_watermark_sequence, state.replay_floor_sequence) == (2, 2)
         gap = read_page(db, 1, page.cursor, limit=1)
         assert gap.reason == "retention_gap" and gap.cursor == 2 and gap.changes == ()
         db.commit()
@@ -108,39 +120,224 @@ def test_retention_without_expired_rows_keeps_the_floor(stream):
         assert db.get(RealtimeStreamState, 1).replay_floor_sequence == 0
 
 
-def test_change_sequence_admission_is_ordered_with_committed_watermarks(stream):
+@pytest.mark.parametrize("first_publication", [True, False])
+def test_same_recipient_changes_follow_commit_order(database, first_publication):
+    baseline = 0
+    if not first_publication:
+        with Session(database) as db:
+            baseline = publish(db, 1, "seed").sequence
+            db.commit()
     ready = Event()
     pid = []
 
     def second():
-        with Session(stream) as db:
+        with Session(database) as db:
             pid.append(db.scalar(sa.text("SELECT pg_backend_pid()")))
             ready.set()
-            row = publish_change(
-                db,
-                recipient_user_id=1,
-                kind=RealtimeChangeKind.IMPORT_JOBS_CHANGED,
-                import_job_id="second",
-            )
-            sequence = row.sequence
+            sequence = publish(db, 1, "second").sequence
             db.commit()
             return sequence
 
     with ThreadPoolExecutor(max_workers=1) as pool:
-        with Session(stream) as db:
-            first = publish_change(
-                db,
-                recipient_user_id=1,
-                kind=RealtimeChangeKind.IMPORT_JOBS_CHANGED,
-                import_job_id="first",
-            )
-            sequence = first.sequence
+        with Session(database) as db:
+            first = publish(db, 1, "first")
+            assert first.sequence == baseline + 1
             owner = db.scalar(sa.text("SELECT pg_backend_pid()"))
             future = pool.submit(second)
+            try:
+                assert ready.wait(10)
+                wait_until_blocked(database, owner, pid[0])
+                assert not future.done()
+                db.commit()
+            finally:
+                db.rollback()
+        assert future.result(10) == baseline + 2
+    with Session(database) as db:
+        page = read_page(db, 1, baseline, limit=10)
+        assert [row.sequence for row in page.changes] == [baseline + 1, baseline + 2]
+        assert [row.importJobId for row in page.changes] == ["first", "second"]
+        assert db.get(RealtimeStreamState, 1).high_watermark_sequence == baseline + 2
+
+
+def publish_independently(engine, recipient):
+    with Session(engine) as db:
+        db.execute(sa.text("SET LOCAL lock_timeout = '5s'"))
+        sequence = publish(db, recipient).sequence
+        db.commit()
+        return sequence
+
+
+def test_independent_recipients_publish_without_cross_stream_blocking(database):
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        with Session(database) as first:
+            assert publish(first, 1).sequence == 1
+            future = pool.submit(publish_independently, database, 2)
+            try:
+                assert future.result(10) == 1
+                with Session(database) as observer:
+                    assert observer.get(RealtimeStreamState, 1) is None
+                    assert observer.get(RealtimeStreamState, 2).high_watermark_sequence == 1
+                first.commit()
+            finally:
+                first.rollback()
+    with Session(database) as db:
+        assert [row.sequence for row in read_page(db, 1, 0, limit=10).changes] == [1]
+        assert [row.sequence for row in read_page(db, 2, 0, limit=10).changes] == [1]
+
+
+def test_recipient_replay_allows_another_recipient_to_publish(stream):
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        with Session(stream) as reader:
+            assert read_page(reader, 1, 0, limit=1).has_more
+            future = pool.submit(publish_independently, stream, 2)
+            try:
+                assert future.result(10) == 1
+            finally:
+                reader.rollback()
+
+
+def test_recipient_retention_allows_another_recipient_to_publish(stream):
+    ready, release = Event(), Event()
+
+    class RetentionSession(Session):
+        def commit(self):
+            assert self.get(RealtimeStreamState, 1).replay_floor_sequence == 2
+            assert (
+                self.scalar(
+                    sa.select(sa.func.count())
+                    .select_from(RealtimeChange)
+                    .where(RealtimeChange.recipient_user_id == 1)
+                )
+                == 0
+            )
+            ready.set()
+            assert release.wait(15)
+            super().commit()
+
+    def cleanup():
+        with RetentionSession(stream) as db:
+            return RealtimeMaintenanceService().cleanup_expired_changes(db)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        cleaning = pool.submit(cleanup)
+        try:
             assert ready.wait(10)
-            wait_until_blocked(stream, owner, pid[0])
+            assert pool.submit(publish_independently, stream, 2).result(10) == 1
+            with Session(stream) as observer:
+                assert observer.get(RealtimeStreamState, 1).replay_floor_sequence == 0
+                assert observer.get(RealtimeStreamState, 2).high_watermark_sequence == 1
+        finally:
+            release.set()
+        assert cleaning.result(10) == 2
+
+
+def test_replay_uses_recipient_local_watermark(database):
+    with Session(database) as db:
+        for recipient, count in ((1, 3), (2, 100)):
+            for _ in range(count):
+                publish(db, recipient)
+        db.commit()
+        first = read_page(db, 1, None, limit=10)
+        second = read_page(db, 2, None, limit=10)
+        assert first.cursor == 3 and first.changes == ()
+        assert second.cursor == 100 and second.changes == ()
+        assert read_page(db, 1, 4, limit=10).reason == "cursor_out_of_range"
+        assert read_page(db, 2, 4, limit=100).reason is None
+
+
+def test_retention_advances_only_the_recipient_floor(database):
+    with Session(database) as db:
+        for _ in range(20):
+            publish(db, 1).created_at = utc_now_naive() - timedelta(days=30)
+        for _ in range(2):
+            publish(db, 2)
+        db.commit()
+        assert RealtimeMaintenanceService().cleanup_expired_changes(db) == 20
+        first = db.get(RealtimeStreamState, 1)
+        second = db.get(RealtimeStreamState, 2)
+        assert (first.high_watermark_sequence, first.replay_floor_sequence) == (20, 20)
+        assert (second.high_watermark_sequence, second.replay_floor_sequence) == (2, 0)
+        assert read_page(db, 1, 0, limit=10).reason == "retention_gap"
+        page = read_page(db, 2, 0, limit=10)
+        assert page.reason is None and [row.sequence for row in page.changes] == [1, 2]
+
+
+@pytest.mark.parametrize("existing_stream", [True, False])
+def test_publication_failure_rolls_back_sequence_allocation(database, monkeypatch, existing_stream):
+    from app.modules.realtime import publisher
+
+    baseline = 0
+    with Session(database) as db:
+        if existing_stream:
+            baseline = publish(db, 1).sequence
             db.commit()
-        assert future.result(10) > sequence
+        original = publisher._notify_change
+
+        def interrupted(db, change):
+            original(db, change)
+            raise RuntimeError("publication interrupted")
+
+        with monkeypatch.context() as patch:
+            patch.setattr(publisher, "_notify_change", interrupted)
+            with pytest.raises(RuntimeError, match="publication interrupted"):
+                publish(db, 1)
+        db.rollback()
+        state = db.get(RealtimeStreamState, 1)
+        assert (state.high_watermark_sequence if state else 0) == baseline
+        assert db.scalar(sa.select(sa.func.count()).select_from(RealtimeChange)) == baseline
+        assert publish(db, 1).sequence == baseline + 1
+        db.commit()
+
+
+def test_retention_commits_each_recipient_independently(stream, monkeypatch):
     with Session(stream) as db:
-        page = read_page(db, 1, sequence, limit=10)
-        assert [row.importJobId for row in page.changes] == ["second"]
+        publish(db, 2).created_at = utc_now_naive() - timedelta(days=30)
+        db.commit()
+        original = db.commit
+        calls = 0
+
+        def interrupted_second_commit():
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                db.flush()
+                raise RuntimeError("second recipient interrupted")
+            original()
+
+        monkeypatch.setattr(db, "commit", interrupted_second_commit)
+        with pytest.raises(RuntimeError, match="second recipient interrupted"):
+            RealtimeMaintenanceService().cleanup_expired_changes(db)
+        db.rollback()
+    with Session(stream) as observer:
+        assert observer.get(RealtimeStreamState, 1).replay_floor_sequence == 2
+        assert observer.get(RealtimeStreamState, 2).replay_floor_sequence == 0
+        assert (
+            observer.scalar(
+                sa.select(sa.func.count())
+                .select_from(RealtimeChange)
+                .where(RealtimeChange.recipient_user_id == 1)
+            )
+            == 0
+        )
+        assert (
+            observer.scalar(
+                sa.select(sa.func.count())
+                .select_from(RealtimeChange)
+                .where(RealtimeChange.recipient_user_id == 2)
+            )
+            == 1
+        )
+
+
+def test_retention_processes_a_bounded_recipient_batch(stream, monkeypatch):
+    from app.modules.realtime import maintenance_service
+
+    monkeypatch.setattr(maintenance_service, "RETENTION_RECIPIENT_BATCH_SIZE", 1)
+    with Session(stream) as db:
+        publish(db, 2).created_at = utc_now_naive() - timedelta(days=30)
+        db.commit()
+        assert RealtimeMaintenanceService().cleanup_expired_changes(db) == 2
+        assert db.get(RealtimeStreamState, 1).replay_floor_sequence == 2
+        assert db.get(RealtimeStreamState, 2).replay_floor_sequence == 0
+        assert RealtimeMaintenanceService().cleanup_expired_changes(db) == 1
+        assert db.get(RealtimeStreamState, 2).replay_floor_sequence == 1

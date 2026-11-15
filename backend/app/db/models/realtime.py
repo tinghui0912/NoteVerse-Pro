@@ -13,6 +13,7 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    UniqueConstraint,
 )
 from sqlmodel import Field, SQLModel
 from app.utils.timezone import utc_now_naive
@@ -29,7 +30,9 @@ class RealtimeChangeKind(StrEnum):
 class RealtimeChange(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "realtime_changes"
     __table_args__ = (
-        Index("idx_realtime_changes_recipient_sequence", "recipient_user_id", "sequence"),
+        UniqueConstraint(
+            "recipient_user_id", "sequence", name="uq_realtime_changes_recipient_sequence"
+        ),
         Index("idx_realtime_changes_created", "created_at"),
         CheckConstraint(
             """
@@ -42,12 +45,13 @@ class RealtimeChange(SQLModel, table=True):  # type: ignore[call-arg]
             name="ck_realtime_changes_identity",
         ),
     )
-    sequence: int | None = Field(
+    id: int | None = Field(
         default=None,
         sa_column=Column(
             BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True
         ),
     )
+    sequence: int = Field(sa_column=Column(BigInteger, nullable=False))
     change_uuid: str = Field(
         default_factory=lambda: str(uuid.uuid4()),
         sa_column=Column(String(36), unique=True, nullable=False),
@@ -80,10 +84,17 @@ class RealtimeChange(SQLModel, table=True):  # type: ignore[call-arg]
 class RealtimeStreamState(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "realtime_stream_state"
     __table_args__ = (
-        CheckConstraint("id = 1", name="ck_realtime_stream_singleton"),
+        CheckConstraint("high_watermark_sequence >= 0", name="ck_realtime_stream_high_watermark"),
         CheckConstraint("replay_floor_sequence >= 0", name="ck_realtime_stream_floor"),
+        CheckConstraint(
+            "replay_floor_sequence <= high_watermark_sequence",
+            name="ck_realtime_stream_replay_range",
+        ),
     )
-    id: int = Field(default=1, primary_key=True)
+    recipient_user_id: int = Field(
+        sa_column=Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    )
+    high_watermark_sequence: int = Field(default=0, sa_column=Column(BigInteger, nullable=False))
     replay_floor_sequence: int = Field(default=0, sa_column=Column(BigInteger, nullable=False))
     updated_at: datetime = Field(
         default_factory=utc_now_naive, sa_column=Column(DateTime, nullable=False)

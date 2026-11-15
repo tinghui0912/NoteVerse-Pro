@@ -9,7 +9,7 @@ from app.modules.realtime import publisher
 
 def test_strict_score_publication_uses_current_audience_and_propagates_partial_failure(monkeypatch):
     db = Mock()
-    monkeypatch.setattr(publisher, "score_recipients", Mock(return_value=[7, 8]))
+    monkeypatch.setattr(publisher, "score_recipients", Mock(return_value=[8, 7, 8]))
     error = RuntimeError("publication interrupted")
     persist = Mock(side_effect=[None, error])
     monkeypatch.setattr(publisher, "publish_change", persist)
@@ -32,6 +32,9 @@ def test_strict_event_persistence_propagates_notify_failure_after_flush(monkeypa
     failure = RuntimeError("notify interrupted")
     notify = Mock(side_effect=failure)
     monkeypatch.setattr(publisher, "_notify_change", notify)
+    monkeypatch.setattr(
+        publisher, "admit_stream_state", Mock(return_value=Mock(high_watermark_sequence=0))
+    )
     with pytest.raises(RuntimeError) as raised:
         publisher.publish_change(
             db, recipient_user_id=7, kind=publisher.RealtimeChangeKind.NOTIFICATIONS_CHANGED

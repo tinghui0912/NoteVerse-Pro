@@ -177,12 +177,9 @@ def assert_bootstrap(engine):
         assert connection.execute(
             sa.text("SELECT plan_code, quota_limit_bytes FROM storage_quota_policies")
         ).all() == [("FREE", 104857600)]
-        assert connection.execute(
-            sa.text("SELECT id, replay_floor_sequence FROM realtime_stream_state")
-        ).all() == [(1, 0)]
         # Bootstrap includes reference data only, not users or operational history.
         for table in SQLModel.metadata.tables:
-            if table not in {"storage_quota_policies", "realtime_stream_state"}:
+            if table not in {"storage_quota_policies"}:
                 assert connection.scalar(sa.text(f'SELECT count(*) FROM "{table}"')) == 0
 
 

@@ -27,33 +27,51 @@ outcomes emit their corresponding data-domain changes in the same semantic trans
 `GET /api/v1/realtime/events` uses asynchronous psycopg LISTEN, heartbeat and connection
 cleanup. Authentication releases its Session before streaming. Each replay page opens
 its own short synchronous Session off the event loop and returns detached typed data.
-SSE delivery uses `event: change`, `id: <sequence>` and camelCase JSON:
+Each authenticated recipient owns one logical change stream. Sequence is monotonically
+increasing within that authenticated recipient stream. `RealtimeChange.id` is an internal
+row identity; only the recipient-local sequence enters SSE. Delivery uses `event: change`,
+`id: <sequence>` and camelCase JSON:
 
 ```json
 {"schemaVersion":1,"sequence":42,"changeId":"change-uuid","kind":"score.metadata.changed","scoreId":"score-uuid","revisionId":"revision-uuid","createdAt":"2026-11-15T00:00:00Z"}
 ```
 
 A fresh connection has no Last-Event-ID header. It installs LISTEN before reading the
-current high watermark, adopts that baseline and emits no retained history. An explicit
+current recipient high watermark, adopts that baseline and emits no retained history. An explicit
 Last-Event-ID of zero is a replay request and is valid only while the replay floor is zero.
+A recipient without stream activity has high/floor zero and needs no state row for SSE.
 A valid reconnect reads only current-recipient changes after the cursor, in ascending
 sequence order and bounded pages, then continues live catch-up.
 
-`RealtimeStreamState` holds one durable replay floor: the greatest deleted sequence
-whose preceding history is no longer guaranteed replayable. The high watermark is
-`max(replay_floor_sequence, max(realtime_changes.sequence))`, including when no rows remain.
-Change admission takes the stream-state update lock through the caller's commit, keeping
-sequence admission ordered with visibility. Replay validation and each page fetch share
-a read lock. Retention takes the update lock, advances the floor to the greatest expired
-sequence it deletes, deletes rows and commits once. No expired rows means no floor advance.
+`RealtimeStreamState` is keyed by recipient User ID and stores that recipient's
+`high_watermark_sequence`, `replay_floor_sequence` and update timestamp. The floor is
+the greatest deleted sequence whose preceding history is no longer guaranteed replayable.
+High/floor remain durable when retention empties the recipient's change rows. State enforces
+`0 <= floor <= high`. There is no global stream lock, watermark or public sequence domain.
+
+Publication atomically ensures the recipient state with INSERT ON CONFLICT DO NOTHING,
+locks only that row for update, assigns `high + 1`, updates high and inserts the change.
+The state update, change and pg_notify share the owning transaction: rollback also undoes
+sequence allocation. Only same-recipient publication serializes through commit; different
+recipients progress independently. Score fan-out acquires recipient locks in ascending,
+unique recipient order, including when notification and Score changes revisit the same row.
+
+Replay validation and a bounded page fetch hold a shared lock only on that recipient's
+state. Replay never creates a state row and never derives high from retained change rows.
+Retention selects at most 100 recipients with expired changes in deterministic order.
+Each recipient gets a separate short transaction: lock its state for update, advance its
+floor to the greatest expired sequence being deleted, delete its expired rows and commit.
+No expired rows means no floor advance. A later recipient failure does not undo an earlier
+recipient's completed cleanup. One recipient's floor never makes another recipient stale.
 Locks never span an SSE connection. If retention passes a cursor between pages, the next
-page requests resync instead of silently omitting a gap.
+page requests resync instead of silently omitting a gap. Another recipient's replay or
+retention lock does not prevent publication to an independent stream.
 
 ## Resynchronization
 
-A cursor below the floor produces `retention_gap`; one above the high watermark produces
+A cursor below the floor produces `retention_gap`; one above the recipient high watermark produces
 `cursor_out_of_range`. Malformed, negative or oversized cursors produce `invalid_cursor`.
-The server emits one control message and moves its cursor to the current high watermark:
+The server emits one control message and moves its cursor to the current recipient high watermark:
 
 ```text
 id: 42
@@ -66,5 +84,6 @@ reconnects; no second browser cursor is persisted. Customer Web listens only to 
 and `resync-required`. Known changes invalidate their data-domain queries. Resync controls
 and malformed/unknown changes trigger broad query invalidation so active queries converge.
 Import changes invalidate Import lists; notification changes separately invalidate
-notification list/count and pending-invite queries. Score changes invalidate the relevant
+notification list/count. Pending-invite invalidation belongs to local accept/decline
+mutations; notification changes do not represent collaboration changes. Score changes invalidate the relevant
 Score, revision/assets and library queries.

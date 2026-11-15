@@ -2307,24 +2307,18 @@ def test_realtime_maintenance_removes_events_older_than_retention(
     service = RealtimeMaintenanceService()
     now = utc_now_naive()
 
-    session.add(
-        RealtimeChange(
+    from app.modules.realtime.publisher import publish_change
+    from app.db.models import RealtimeChangeKind
+
+    for score_id, age in (("old-score", 8), ("fresh-score", 2)):
+        change = publish_change(
+            session,
             recipient_user_id=1,
-            score_id="old-score",
-            created_at=now - timedelta(days=8),
-            kind="score.derived_assets.changed",
+            kind=RealtimeChangeKind.SCORE_DERIVED_ASSETS_CHANGED,
+            score_id=score_id,
             revision_id="revision",
         )
-    )
-    session.add(
-        RealtimeChange(
-            recipient_user_id=1,
-            score_id="fresh-score",
-            created_at=now - timedelta(days=2),
-            kind="score.derived_assets.changed",
-            revision_id="revision",
-        )
-    )
+        change.created_at = now - timedelta(days=age)
     session.commit()
 
     result = service.run(session)

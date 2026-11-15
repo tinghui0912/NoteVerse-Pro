@@ -46,9 +46,6 @@ function handleRealtimeChange(
     void queryClient.invalidateQueries({
       queryKey: queryKeys.notifications.unreadCount(),
     });
-    void queryClient.invalidateQueries({
-      queryKey: queryKeys.scores.myInvites(),
-    });
     return;
   }
 

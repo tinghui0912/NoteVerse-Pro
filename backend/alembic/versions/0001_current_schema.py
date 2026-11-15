@@ -851,11 +851,12 @@ def upgrade() -> None:
     op.create_table(
         "realtime_changes",
         sa.Column(
-            "sequence",
+            "id",
             sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
             autoincrement=True,
             nullable=False,
         ),
+        sa.Column("sequence", sa.BigInteger(), nullable=False),
         sa.Column("change_uuid", sa.String(length=36), nullable=False),
         sa.Column("recipient_user_id", sa.BigInteger(), nullable=False),
         sa.Column(
@@ -882,29 +883,31 @@ def upgrade() -> None:
             name="ck_realtime_changes_identity",
         ),
         sa.ForeignKeyConstraint(["recipient_user_id"], ["users.id"], ondelete="CASCADE"),
-        sa.PrimaryKeyConstraint("sequence"),
+        sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("change_uuid"),
+        sa.UniqueConstraint(
+            "recipient_user_id", "sequence", name="uq_realtime_changes_recipient_sequence"
+        ),
     )
     op.create_index(
         "idx_realtime_changes_created", "realtime_changes", ["created_at"], unique=False
     )
-    op.create_index(
-        "idx_realtime_changes_recipient_sequence",
-        "realtime_changes",
-        ["recipient_user_id", "sequence"],
-        unique=False,
-    )
     op.create_table(
         "realtime_stream_state",
-        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("recipient_user_id", sa.BigInteger(), nullable=False),
+        sa.Column("high_watermark_sequence", sa.BigInteger(), nullable=False),
         sa.Column("replay_floor_sequence", sa.BigInteger(), nullable=False),
         sa.Column("updated_at", sa.DateTime(), nullable=False),
-        sa.CheckConstraint("id = 1", name="ck_realtime_stream_singleton"),
+        sa.CheckConstraint(
+            "high_watermark_sequence >= 0", name="ck_realtime_stream_high_watermark"
+        ),
         sa.CheckConstraint("replay_floor_sequence >= 0", name="ck_realtime_stream_floor"),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.execute(
-        "INSERT INTO realtime_stream_state (id, replay_floor_sequence, updated_at) VALUES (1, 0, CURRENT_TIMESTAMP)"
+        sa.CheckConstraint(
+            "replay_floor_sequence <= high_watermark_sequence",
+            name="ck_realtime_stream_replay_range",
+        ),
+        sa.ForeignKeyConstraint(["recipient_user_id"], ["users.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("recipient_user_id"),
     )
     op.create_table(
         "operator_password_credentials",

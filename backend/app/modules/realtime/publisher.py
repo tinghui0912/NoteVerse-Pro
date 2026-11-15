@@ -8,7 +8,8 @@ from sqlalchemy.orm import Session
 from sqlmodel import col
 
 from app.db.models import RealtimeChange, RealtimeChangeKind, Score, ScoreMembership
-from app.modules.realtime.stream_state import lock_stream_state
+from app.modules.realtime.stream_state import admit_stream_state
+from app.utils.timezone import utc_now_naive
 
 REALTIME_NOTIFY_CHANNEL = "realtime_changes"
 
@@ -58,11 +59,12 @@ def publish_change(
     import_job_id: str | None = None,
 ) -> RealtimeChange:
     """Admit a change and transactional wake-up; the caller owns commit/rollback."""
-    # Serialize sequence admission with commits so a visible watermark cannot skip
-    # a lower sequence still being written by another transaction.
-    lock_stream_state(db)
+    state = admit_stream_state(db, recipient_user_id)
+    state.high_watermark_sequence += 1
+    state.updated_at = utc_now_naive()
     change = RealtimeChange(
         recipient_user_id=recipient_user_id,
+        sequence=state.high_watermark_sequence,
         kind=kind,
         notification_id=notification_id,
         score_id=score_id,
@@ -78,7 +80,8 @@ def publish_change(
 def publish_score_change(
     db: Session, *, score_id: str, revision_id: str, kind: RealtimeChangeKind
 ) -> None:
-    for recipient_user_id in score_recipients(db, score_id):
+    # Every fan-out acquires recipient state locks in ascending order.
+    for recipient_user_id in sorted(set(score_recipients(db, score_id))):
         publish_change(
             db,
             recipient_user_id=recipient_user_id,

@@ -11,7 +11,7 @@ from sqlalchemy import event
 from sqlalchemy.pool import StaticPool
 from sqlalchemy.orm import Session
 from sqlmodel import SQLModel, create_engine
-from app.db.models import RealtimeChange, User, RealtimeStreamState
+from app.db.models import User, RealtimeStreamState
 from app.modules.realtime.router import _format_sse, _payload_matches_user
 from app.modules.realtime.replay import parse_cursor, read_page
 from app.modules.realtime.schemas import change_read_adapter
@@ -134,15 +134,16 @@ def realtime_session() -> Iterator[Session]:
     engine.dispose()
 
 
-def change(sequence, recipient=7):
-    return RealtimeChange(
-        sequence=sequence,
-        change_uuid=f"change-{sequence}",
+def change(db, recipient=7):
+    from app.modules.realtime.publisher import publish_change
+    from app.db.models import RealtimeChangeKind
+
+    return publish_change(
+        db,
         recipient_user_id=recipient,
-        kind="score.metadata.changed",
+        kind=RealtimeChangeKind.SCORE_METADATA_CHANGED,
         score_id="score",
         revision_id="revision",
-        created_at=utc_now_naive(),
     )
 
 
@@ -195,17 +196,20 @@ def test_wake_up_routing_matches_recipient():
 
 def test_fresh_baseline_and_recipient_gap_replay(realtime_session):
     db = realtime_session
-    db.add_all([change(1), change(2, 8), change(3), change(4)])
+    change(db)
+    change(db, 8)
+    change(db)
+    change(db)
     db.commit()
     fresh = read_page(db, 7, None, limit=2)
-    assert fresh.cursor == 4 and fresh.changes == () and fresh.reason is None
+    assert fresh.cursor == 3 and fresh.changes == () and fresh.reason is None
     first = read_page(db, 7, 0, limit=2)
-    assert [row.sequence for row in first.changes] == [1, 3] and first.has_more
+    assert [row.sequence for row in first.changes] == [1, 2] and first.has_more
     second = read_page(db, 7, first.cursor, limit=2)
-    assert [row.sequence for row in second.changes] == [4] and second.cursor == 4
-    db.add(change(5))
+    assert [row.sequence for row in second.changes] == [3] and second.cursor == 3
+    change(db)
     db.commit()
-    assert [row.sequence for row in read_page(db, 7, fresh.cursor, limit=2).changes] == [5]
+    assert [row.sequence for row in read_page(db, 7, fresh.cursor, limit=2).changes] == [4]
 
 
 @pytest.mark.parametrize(
@@ -214,8 +218,9 @@ def test_fresh_baseline_and_recipient_gap_replay(realtime_session):
 )
 def test_unreplayable_cursor_resets_once_to_the_high_watermark(realtime_session, cursor, reason):
     db = realtime_session
-    db.add(RealtimeStreamState(replay_floor_sequence=3))
-    db.add(change(4))
+    for _ in range(4):
+        change(db)
+    db.get(RealtimeStreamState, 7).replay_floor_sequence = 3
     db.commit()
     page = read_page(db, 7, cursor, limit=2)
     assert page.cursor == 4 and page.reason == reason and page.changes == ()
@@ -226,7 +231,8 @@ def test_unreplayable_cursor_resets_once_to_the_high_watermark(realtime_session,
 async def test_replay_reads_bounded_pages_in_short_off_loop_sessions(realtime_session, monkeypatch):
     from app.modules.realtime import router
 
-    realtime_session.add_all([change(i, 8 if i == 2 else 7) for i in range(1, 7)])
+    for recipient in (7, 8, 7, 7, 7, 7):
+        change(realtime_session, recipient)
     realtime_session.commit()
     bind = realtime_session.get_bind()
     opened, closed, threads = [], [], []
@@ -246,11 +252,11 @@ async def test_replay_reads_bounded_pages_in_short_off_loop_sessions(realtime_se
     monkeypatch.setattr(router, "CHANGE_BATCH_SIZE", 2)
     monkeypatch.setattr(router, "SessionLocal", lambda: CatchupSession(bind))
     pages = [page async for page in router._replay_pages(7, 1)]
-    assert pages[-1].cursor == 6
-    assert [[change.sequence for change in page.changes] for page in pages] == [[3, 4], [5, 6], []]
+    assert pages[-1].cursor == 5
+    assert [[change.sequence for change in page.changes] for page in pages] == [[2, 3], [4, 5], []]
     assert len(opened) == 3 and closed == opened
     assert all(thread != threading.get_ident() for thread in threads)
-    idle = [page async for page in router._replay_pages(7, 6)]
+    idle = [page async for page in router._replay_pages(7, 5)]
     assert len(idle) == 1 and idle[0].changes == ()
 
 
@@ -398,3 +404,21 @@ async def test_resync_control_advances_cursor_then_keeps_the_same_stream_live(mo
         assert calls == [0, 42]
     finally:
         await stream.aclose()
+
+
+def test_recipient_without_activity_has_an_empty_stream_without_creating_state(realtime_session):
+    from sqlalchemy import select
+
+    db = realtime_session
+    assert read_page(db, 7, None, limit=10).cursor == 0
+    assert read_page(db, 7, 0, limit=10).changes == ()
+    assert read_page(db, 7, 1, limit=10).reason == "cursor_out_of_range"
+    assert db.scalar(select(RealtimeStreamState)) is None
+    change(db, 8)
+    db.commit()
+    assert read_page(db, 7, None, limit=10).cursor == 0
+    assert db.get(RealtimeStreamState, 7) is None
+    db.commit()
+    change(db, 7)
+    db.commit()
+    assert [row.sequence for row in read_page(db, 7, 0, limit=10).changes] == [1]

@@ -44,12 +44,10 @@ describe('realtime cache convergence', () => {
       kind: 'notifications.changed',
       notificationId: 'notice',
     });
-    expect(invalidate).toHaveBeenCalledWith({
-      queryKey: queryKeys.notifications.list(),
-    });
-    expect(invalidate).toHaveBeenCalledWith({
-      queryKey: queryKeys.notifications.unreadCount(),
-    });
+    expect(invalidate.mock.calls).toEqual([
+      [{ queryKey: queryKeys.notifications.list() }],
+      [{ queryKey: queryKeys.notifications.unreadCount() }],
+    ]);
     view.unmount();
     expect(source.close).toHaveBeenCalledOnce();
   });
