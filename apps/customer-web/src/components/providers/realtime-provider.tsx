@@ -6,7 +6,12 @@ import { useQueryClient, type Query } from '@tanstack/react-query';
 
 import { useAuth } from '@/contexts/auth-context';
 import { createRealtimeEventSource } from '@/lib/realtime/event-source';
-import { parseRealtimeChange, type RealtimeChange } from '@/lib/realtime/changes';
+import {
+  parseRealtimeChange,
+  parseRealtimeCheckpoint,
+  parseRealtimeResyncRequired,
+  type RealtimeChange,
+} from '@/lib/realtime/generated/events';
 import { queryKeys } from '@/lib/query-client';
 
 function isScoreRevisionAssetsQuery(query: Query, scoreId: string, revisionId?: string | null) {
@@ -110,8 +115,12 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
       if (change) handleRealtimeChange(change, queryClient);
       else void queryClient.invalidateQueries();
     };
+    source.addEventListener('checkpoint', (message: MessageEvent<string>) => {
+      if (!parseRealtimeCheckpoint(message.data)) void queryClient.invalidateQueries();
+    });
     source.addEventListener('change', listener);
-    source.addEventListener('resync-required', () => {
+    source.addEventListener('resync-required', (message: MessageEvent<string>) => {
+      parseRealtimeResyncRequired(message.data);
       void queryClient.invalidateQueries();
     });
 

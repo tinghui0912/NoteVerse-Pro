@@ -24,8 +24,14 @@ outcomes emit their corresponding data-domain changes in the same semantic trans
 
 ## Stream and cursors
 
-`GET /api/v1/realtime/events` uses asynchronous psycopg LISTEN, heartbeat and connection
-cleanup. Authentication releases its Session before streaming. Each replay page opens
+The API lifespan owns one `RealtimeWakeupHub` and one asynchronous psycopg LISTEN
+connection per API process. The hub routes recipient-only wake hints to every local
+subscriber for that recipient through coalescing signals. It reconnects after listener
+failures and closes its task and connection on shutdown. Worker and scheduler runtimes
+do not start a hub. Each `GET /api/v1/realtime/events` subscribes locally; it does not
+open a PostgreSQL listener. Periodic database catch-up continues without notifications,
+so listener outages affect latency rather than delivery correctness. Authentication
+releases its Session before streaming. Each replay page opens
 its own short synchronous Session off the event loop and returns detached typed data.
 Each authenticated recipient owns one logical change stream. Sequence is monotonically
 increasing within that authenticated recipient stream. `RealtimeChange.id` is an internal
@@ -36,12 +42,27 @@ row identity; only the recipient-local sequence enters SSE. Delivery uses `event
 {"schemaVersion":1,"sequence":42,"changeId":"change-uuid","kind":"score.metadata.changed","scoreId":"score-uuid","revisionId":"revision-uuid","createdAt":"2026-11-15T00:00:00Z"}
 ```
 
-A fresh connection has no Last-Event-ID header. It installs LISTEN before reading the
-current recipient high watermark, adopts that baseline and emits no retained history. An explicit
+A connection subscribes to local wakeups before its initial database baseline/replay.
+A fresh connection has no Last-Event-ID header. It reads the current recipient high
+watermark, adopts that baseline and emits no retained history. An explicit
 Last-Event-ID of zero is a replay request and is valid only while the replay floor is zero.
 A recipient without stream activity has high/floor zero and needs no state row for SSE.
 A valid reconnect reads only current-recipient changes after the cursor, in ascending
-sequence order and bounded pages, then continues live catch-up.
+sequence order and bounded pages. After initial replay or resynchronization, every
+established stream emits an id-bearing checkpoint and then continues live catch-up:
+
+```text
+id: 0
+event: checkpoint
+data: {"schemaVersion":1,"sequence":0}
+```
+
+The checkpoint records synchronization through that recipient-local sequence, including
+zero for an empty stream. It is a control event and causes no cache invalidation. A
+fresh stream disconnected before its first change reconnects using the checkpoint ID.
+Live catch-up observes and clears a wake signal before reading the database, preserving
+a signal arriving during replay for the next read. Signals carry no change bodies;
+durable replay is the delivery authority.
 
 `RealtimeStreamState` is keyed by recipient User ID and stores that recipient's
 `high_watermark_sequence`, `replay_floor_sequence` and update timestamp. The floor is
@@ -80,10 +101,22 @@ data: {"schemaVersion":1,"sequence":42,"reason":"retention_gap"}
 ```
 
 The same connection continues live delivery. Native EventSource owns Last-Event-ID across
-reconnects; no second browser cursor is persisted. Customer Web listens only to `change`
-and `resync-required`. Known changes invalidate their data-domain queries. Resync controls
+reconnects; no second browser cursor is persisted. Customer Web validates `checkpoint`, `change`
+and `resync-required` through generated decoders. Known changes invalidate their data-domain queries. Resync controls
 and malformed/unknown changes trigger broad query invalidation so active queries converge.
 Import changes invalidate Import lists; notification changes separately invalidate
 notification list/count. Pending-invite invalidation belongs to local accept/decline
 mutations; notification changes do not represent collaboration changes. Score changes invalidate the relevant
 Score, revision/assets and library queries.
+
+## Machine contract
+
+`contracts/realtime/events.schema.json` owns the Draft 2020-12 exact JSON payloads
+for checkpoints, resync controls and the five change kinds. The offline generator
+`scripts/generate_realtime_contract.py` projects typed Python payloads and the database
+change-kind enum into `backend/app/modules/realtime/generated/transport.py`, and
+TypeScript types and strict decoders into
+`apps/customer-web/src/lib/realtime/generated/events.ts`. Both projections are checked
+for freshness by backend and Customer Web quality gates. SSE formatters accept these
+typed payloads and use the payload sequence as the event ID. Business cache behavior
+remains in the Customer Web provider.

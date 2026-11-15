@@ -22,6 +22,7 @@ switch ($Check) {
     "contracts" {
         Invoke-Quality "browser-protocol" "python /repo/scripts/generate_customer_browser_protocol.py --check"
         Invoke-Quality "control-plane-browser-protocol" "python /repo/scripts/generate_control_plane_browser_protocol.py --check"
+        Invoke-Quality "realtime-contract" "python /repo/scripts/generate_realtime_contract.py --check"
         Invoke-Quality "openapi-customer" "python scripts/export_openapi.py customer-api --check"
         Invoke-Quality "openapi-control-plane" "python scripts/export_openapi.py control-plane-api --check"
     }
@@ -58,6 +59,7 @@ switch ($Check) {
     "all" {
         Invoke-Quality "browser-protocol" "python /repo/scripts/generate_customer_browser_protocol.py --check"
         Invoke-Quality "control-plane-browser-protocol" "python /repo/scripts/generate_control_plane_browser_protocol.py --check"
+        Invoke-Quality "realtime-contract" "python /repo/scripts/generate_realtime_contract.py --check"
         Invoke-Quality "compile" "python -m compileall -q app scripts tests"
         Invoke-Quality "ruff" "python -m ruff check app tests scripts"
         Invoke-Quality "mypy" "python -m mypy --config-file pyproject.toml"

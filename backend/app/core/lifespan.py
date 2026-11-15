@@ -11,11 +11,13 @@ from app.core.runtime_checks import RuntimeRole
 from app.core.startup_checks import ensure_runtime_directories, log_external_tool_status
 
 
-def create_app_lifespan(role: RuntimeRole) -> Callable[[FastAPI], AbstractAsyncContextManager[None]]:
+def create_app_lifespan(
+    role: RuntimeRole,
+) -> Callable[[FastAPI], AbstractAsyncContextManager[dict[str, object]]]:
     """Create role-aware startup and shutdown hooks for FastAPI services."""
 
     @asynccontextmanager
-    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    async def lifespan(app: FastAPI) -> AsyncIterator[dict[str, object]]:
         logger.bind(
             event="app.starting",
             project_name=settings.PROJECT_NAME,
@@ -27,9 +29,19 @@ def create_app_lifespan(role: RuntimeRole) -> Callable[[FastAPI], AbstractAsyncC
         ensure_runtime_directories()
         log_external_tool_status(role)
 
+        state: dict[str, object] = {}
+        hub = None
+        if role is RuntimeRole.API:
+            from app.modules.realtime.wakeup import RealtimeWakeupHub
+
+            hub = RealtimeWakeupHub()
+            await hub.start()
+            state["realtime_wakeup_hub"] = hub
         try:
-            yield
+            yield state
         finally:
+            if hub is not None:
+                await hub.stop()
             logger.bind(
                 event="app.stopping",
                 project_name=settings.PROJECT_NAME,

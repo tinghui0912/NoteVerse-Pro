@@ -1,6 +1,5 @@
 """Versioned changes, explicit cursors and short off-loop replay Sessions."""
 
-import asyncio
 import json
 import threading
 from collections.abc import Iterator
@@ -10,91 +9,10 @@ import pytest
 from sqlalchemy.orm import Session
 from sqlmodel import SQLModel
 from app.db.models import User, RealtimeStreamState
-from app.modules.realtime.router import _format_sse, _payload_matches_user
+from app.modules.realtime.router import _format_sse
 from app.modules.realtime.replay import parse_cursor, read_page
-from app.modules.realtime.schemas import change_read_adapter
+from app.modules.realtime.generated.transport import change_read_adapter
 from app.shared.time import utc_now
-
-
-@pytest.mark.asyncio
-async def test_postgresql_listener_wakes_the_stream_and_closes_its_connection(monkeypatch):
-    import psycopg
-    from sqlalchemy import text
-    from app.db.session import engine
-    from app.modules.realtime import router as stream_router
-
-    if not (engine.url.database or "").startswith("noteverse_test_"):
-        pytest.skip("A dedicated application PostgreSQL test database is required")
-    connections = []
-    connect = psycopg.AsyncConnection.connect
-
-    async def open_connection(*args, **kwargs):
-        connection = await connect(*args, **kwargs)
-        connections.append(connection)
-        return connection
-
-    monkeypatch.setattr(
-        stream_router,
-        "psycopg",
-        SimpleNamespace(AsyncConnection=SimpleNamespace(connect=open_connection)),
-    )
-    ready = asyncio.Event()
-    deliveries = 0
-
-    async def pending(user_id, sequence):
-        from app.modules.realtime.replay import ReplayPage
-        from app.modules.realtime.schemas import change_read_adapter
-
-        nonlocal deliveries
-        assert user_id == 7
-        deliveries += 1
-        ready.set()
-        yield (
-            ReplayPage(sequence)
-            if deliveries == 1
-            else ReplayPage(
-                42,
-                (
-                    change_read_adapter.validate_python(
-                        {
-                            "sequence": 42,
-                            "changeId": "change",
-                            "createdAt": utc_now(),
-                            "kind": "import_jobs.changed",
-                            "importJobId": "job",
-                        }
-                    ),
-                ),
-            )
-        )
-
-    monkeypatch.setattr(stream_router, "_replay_pages", pending)
-    request = SimpleNamespace(is_disconnected=AsyncMock(return_value=False))
-    stream = stream_router._event_stream(request, 7, 0)
-    message = None
-    try:
-        assert await anext(stream) == ": connected\n\n"
-        message = asyncio.create_task(anext(stream))
-        await asyncio.wait_for(ready.wait(), 5)
-        with engine.begin() as connection:
-            connection.execute(
-                text("SELECT pg_notify(:channel, :payload)"),
-                {
-                    "channel": stream_router.REALTIME_NOTIFY_CHANNEL,
-                    "payload": '{"recipient_user_id":7}',
-                },
-            )
-        assert "event: change\n" in await asyncio.wait_for(message, 5)
-    finally:
-        if message is not None and not message.done():
-            message.cancel()
-            try:
-                await message
-            except asyncio.CancelledError:
-                pass
-        await stream.aclose()
-        engine.dispose()
-    assert len(connections) == 1 and connections[0].closed
 
 
 @pytest.fixture
@@ -142,6 +60,7 @@ def change(db, recipient=7):
 def test_change_sse_envelope_has_sequence_and_typed_resource_identity():
     data = change_read_adapter.validate_python(
         dict(
+            schemaVersion=1,
             sequence=42,
             changeId="change-42",
             kind="score.derived_assets.changed",
@@ -178,12 +97,6 @@ def test_change_sse_envelope_has_sequence_and_typed_resource_identity():
 )
 def test_cursor_parsing_distinguishes_fresh_replay_and_invalid(value, expected):
     assert parse_cursor(value) == expected
-
-
-def test_wake_up_routing_matches_recipient():
-    assert _payload_matches_user('{"recipient_user_id":7}', 7)
-    assert not _payload_matches_user('{"recipient_user_id":8}', 7)
-    assert _payload_matches_user("not-json", 7)
 
 
 def test_fresh_baseline_and_recipient_gap_replay(realtime_session):
@@ -252,46 +165,6 @@ async def test_replay_reads_bounded_pages_in_short_off_loop_sessions(realtime_se
     assert len(idle) == 1 and idle[0].changes == ()
 
 
-@pytest.mark.asyncio
-async def test_fresh_stream_installs_listen_before_reading_its_baseline(monkeypatch):
-    from app.modules.realtime import router
-
-    order = []
-
-    class Connection:
-        async def execute(self, _statement):
-            order.append("listen")
-
-        async def close(self):
-            order.append("closed")
-
-        async def notifies(self):
-            await asyncio.Event().wait()
-            yield None
-
-    async def connect(*args, **kwargs):
-        return Connection()
-
-    def fetch(user_id, cursor):
-        from app.modules.realtime.replay import ReplayPage
-
-        assert cursor is None and order == ["listen"]
-        order.append("baseline")
-        return ReplayPage(10)
-
-    monkeypatch.setattr(
-        router, "psycopg", SimpleNamespace(AsyncConnection=SimpleNamespace(connect=connect))
-    )
-    monkeypatch.setattr(router, "_fetch_page", fetch)
-    stream = router._event_stream(
-        SimpleNamespace(is_disconnected=AsyncMock(return_value=True)), 7, None
-    )
-    assert await anext(stream) == ": connected\n\n"
-    with pytest.raises(StopAsyncIteration):
-        await anext(stream)
-    assert order == ["listen", "baseline", "closed"]
-
-
 def test_sse_authentication_releases_its_session_before_streaming(realtime_session, monkeypatch):
     from fastapi.testclient import TestClient
     from app.main import create_app
@@ -338,22 +211,9 @@ def test_sse_authentication_releases_its_session_before_streaming(realtime_sessi
 async def test_resync_control_advances_cursor_then_keeps_the_same_stream_live(monkeypatch, reason):
     from app.modules.realtime import router
     from app.modules.realtime.replay import ReplayPage
+    from app.modules.realtime.wakeup import RealtimeWakeupHub
 
     calls = []
-
-    class Connection:
-        async def execute(self, statement):
-            pass
-
-        async def close(self):
-            pass
-
-        async def notifies(self):
-            await asyncio.Event().wait()
-            yield None
-
-    async def connect(*args, **kwargs):
-        return Connection()
 
     def fetch(user_id, cursor):
         calls.append(cursor)
@@ -361,6 +221,7 @@ async def test_resync_control_advances_cursor_then_keeps_the_same_stream_live(mo
             return ReplayPage(42, reason=reason)
         change = change_read_adapter.validate_python(
             dict(
+                schemaVersion=1,
                 sequence=43,
                 changeId="live",
                 kind="import_jobs.changed",
@@ -374,16 +235,17 @@ async def test_resync_control_advances_cursor_then_keeps_the_same_stream_live(mo
         awaitable.close()
         return None
 
-    monkeypatch.setattr(
-        router, "psycopg", SimpleNamespace(AsyncConnection=SimpleNamespace(connect=connect))
-    )
     monkeypatch.setattr(router, "_fetch_page", fetch)
     monkeypatch.setattr(router.asyncio, "wait_for", wake)
     stream = router._event_stream(
-        SimpleNamespace(is_disconnected=AsyncMock(return_value=False)), 7, 0
+        SimpleNamespace(
+            is_disconnected=AsyncMock(return_value=False),
+            state=SimpleNamespace(realtime_wakeup_hub=RealtimeWakeupHub(enabled=False)),
+        ),
+        7,
+        0,
     )
     try:
-        assert await anext(stream) == ": connected\n\n"
         control = (await anext(stream)).strip().splitlines()
         assert control[:2] == ["id: 42", "event: resync-required"]
         assert json.loads(control[2].removeprefix("data: ")) == {
@@ -391,6 +253,7 @@ async def test_resync_control_advances_cursor_then_keeps_the_same_stream_live(mo
             "sequence": 42,
             "reason": reason,
         }
+        assert (await anext(stream)).startswith("id: 42\nevent: checkpoint\n")
         live = await anext(stream)
         assert live.startswith("id: 43\nevent: change\n")
         assert calls == [0, 42]

@@ -16,7 +16,7 @@
     "generate:browser-protocol": "python ../../scripts/generate_customer_browser_protocol.py",
     "check:browser-protocol": "python ../../scripts/generate_customer_browser_protocol.py --check",
     "check:api": "node scripts/check-api.mjs",
-    "typecheck": "npm run check:browser-protocol && npm run check:tempo-policy && npm run check:acoustic-runtime && npm run check:acoustic-implementation && npm run check:score-contract && npm run check:recording-media-admission && npm run check:recording-timebase && tsc --noEmit",
+    "typecheck": "npm run check:browser-protocol && npm run check:realtime && npm run check:tempo-policy && npm run check:acoustic-runtime && npm run check:acoustic-implementation && npm run check:score-contract && npm run check:recording-media-admission && npm run check:recording-timebase && tsc --noEmit",
     "check:recording-timebase": "python ../../scripts/generate_practice_recording_timebase.py --check",
     "check:recording-media-admission": "python ../../scripts/generate_practice_recording_media_admission.py --check",
     "check:score-contract": "python ../../scripts/generate_practice_score_contract.py --check",
@@ -29,7 +29,9 @@
     "test:e2e:integration": "node ./node_modules/@playwright/test/cli.js test -c playwright.integration.config.ts",
     "test:e2e:ui": "node ./node_modules/@playwright/test/cli.js test --ui",
     "check:acoustic-runtime": "python ../../scripts/generate_practice_acoustic_runtime.py --check",
-    "check:acoustic-implementation": "python ../../scripts/verify_practice_acoustic_implementation.py"
+    "check:acoustic-implementation": "python ../../scripts/verify_practice_acoustic_implementation.py",
+    "generate:realtime": "python ../../scripts/generate_realtime_contract.py",
+    "check:realtime": "python ../../scripts/generate_realtime_contract.py --check"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.3.1",

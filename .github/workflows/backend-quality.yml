@@ -7,6 +7,8 @@ on:
       - "contracts/http/customer-browser-protocol.json"
       - "contracts/http/control-plane-browser-protocol.json"
       - "scripts/generate_customer_browser_protocol.py"
+      - "contracts/realtime/events.schema.json"
+      - "scripts/generate_realtime_contract.py"
       - "scripts/generate_control_plane_browser_protocol.py"
       - "contracts/practice/acoustic/runtime-contract.json"
       - "scripts/generate_practice_acoustic_runtime.py"
@@ -38,6 +40,8 @@ on:
       - "contracts/http/customer-browser-protocol.json"
       - "contracts/http/control-plane-browser-protocol.json"
       - "scripts/generate_customer_browser_protocol.py"
+      - "contracts/realtime/events.schema.json"
+      - "scripts/generate_realtime_contract.py"
       - "scripts/generate_control_plane_browser_protocol.py"
       - "contracts/practice/acoustic/runtime-contract.json"
       - "scripts/generate_practice_acoustic_runtime.py"
@@ -174,6 +178,7 @@ jobs:
           -v "$GITHUB_WORKSPACE:/repo:ro"
           "$QUALITY_IMAGE" bash -c
           "cd /repo &&
+          python scripts/generate_realtime_contract.py --check &&
           python scripts/generate_customer_browser_protocol.py --check &&
           python scripts/generate_control_plane_browser_protocol.py --check &&
           python scripts/generate_practice_acoustic_runtime.py --check &&

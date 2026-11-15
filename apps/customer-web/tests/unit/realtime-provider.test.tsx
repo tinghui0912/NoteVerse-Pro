@@ -37,6 +37,20 @@ const base = {
   createdAt: '2026-07-01T00:00:00Z',
 };
 describe('realtime cache convergence', () => {
+  it('accepts checkpoints without invalidating queries', () => {
+    const { send, invalidate, view } = setup();
+    send('checkpoint', { schemaVersion: 1, sequence: 0 });
+    send('checkpoint', { schemaVersion: 1, sequence: 42 });
+    expect(invalidate).not.toHaveBeenCalled();
+    view.unmount();
+  });
+  it('broadly invalidates malformed control payloads', () => {
+    const { send, invalidate, view } = setup();
+    send('checkpoint', { schemaVersion: 1, sequence: -1 });
+    send('resync-required', { schemaVersion: 1, sequence: 0, reason: 'unknown' });
+    expect(invalidate.mock.calls).toEqual([[], []]);
+    view.unmount();
+  });
   it('invalidates notification list/count for notifications.changed', () => {
     const { send, invalidate, view } = setup();
     send('change', {
@@ -96,6 +110,7 @@ describe('realtime cache convergence', () => {
     expect(invalidate.mock.calls).toEqual([[], []]);
     expect(source.close).not.toHaveBeenCalled();
     expect(source.addEventListener.mock.calls.map(([name]) => name)).toEqual([
+      'checkpoint',
       'change',
       'resync-required',
     ]);

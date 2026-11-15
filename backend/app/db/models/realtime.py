@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from enum import StrEnum
 from sqlalchemy import (
     BigInteger,
     CheckConstraint,
@@ -17,14 +16,7 @@ from sqlalchemy import (
 )
 from sqlmodel import Field, SQLModel
 from app.shared.time import utc_now
-
-
-class RealtimeChangeKind(StrEnum):
-    NOTIFICATIONS_CHANGED = "notifications.changed"
-    SCORE_REVISIONS_CHANGED = "score.revisions.changed"
-    SCORE_DERIVED_ASSETS_CHANGED = "score.derived_assets.changed"
-    SCORE_METADATA_CHANGED = "score.metadata.changed"
-    IMPORT_JOBS_CHANGED = "import_jobs.changed"
+from app.modules.realtime.generated.transport import RealtimeChangeKind
 
 
 class RealtimeChange(SQLModel, table=True):  # type: ignore[call-arg]

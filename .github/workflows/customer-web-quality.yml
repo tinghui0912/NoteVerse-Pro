@@ -6,6 +6,8 @@ on:
     paths:
       - "contracts/http/customer-browser-protocol.json"
       - "scripts/generate_customer_browser_protocol.py"
+      - "contracts/realtime/events.schema.json"
+      - "scripts/generate_realtime_contract.py"
       - "contracts/practice/acoustic/runtime-contract.json"
       - "scripts/generate_practice_acoustic_runtime.py"
       - "scripts/verify_practice_acoustic_implementation.py"
@@ -32,6 +34,8 @@ on:
     paths:
       - "contracts/http/customer-browser-protocol.json"
       - "scripts/generate_customer_browser_protocol.py"
+      - "contracts/realtime/events.schema.json"
+      - "scripts/generate_realtime_contract.py"
       - "contracts/practice/acoustic/runtime-contract.json"
       - "scripts/generate_practice_acoustic_runtime.py"
       - "scripts/verify_practice_acoustic_implementation.py"
@@ -91,6 +95,10 @@ jobs:
       - name: Verify RecordingTimebase projections
         working-directory: .
         run: python3 scripts/generate_practice_recording_timebase.py --check
+
+      - name: Verify realtime event projections
+        working-directory: .
+        run: python3 scripts/generate_realtime_contract.py --check
 
       - name: Verify Customer browser protocol projections
         working-directory: .

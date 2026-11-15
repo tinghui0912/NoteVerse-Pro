@@ -1,12 +1,8 @@
 from __future__ import annotations
 
 import asyncio
-import contextlib
-import json
 from typing import AsyncIterator
 
-import psycopg
-from psycopg import sql
 from fastapi import APIRouter, Depends, Header, Request
 from starlette.responses import StreamingResponse
 
@@ -14,11 +10,14 @@ from app.api.deps import get_current_user
 from app.core.config import settings
 from app.core.metrics import realtime_connection_closed, realtime_connection_opened
 from app.db.model_utils import require_persisted_id
-from app.db.session import SessionLocal, engine
+from app.db.session import SessionLocal
 from app.db.models import User
-from app.modules.realtime.publisher import REALTIME_NOTIFY_CHANNEL
-from app.modules.realtime.schemas import RealtimeChangeRead, ResyncRequiredRead
-from app.modules.realtime.replay import Cursor, ReplayPage, ResyncReason, parse_cursor, read_page
+from app.modules.realtime.generated.transport import (
+    RealtimeChangeRead,
+    RealtimeCheckpointRead,
+    RealtimeResyncRequiredRead,
+)
+from app.modules.realtime.replay import Cursor, ReplayPage, parse_cursor, read_page
 
 router = APIRouter()
 
@@ -31,9 +30,8 @@ def _format_sse(change: RealtimeChangeRead) -> str:
     return f"id: {change.sequence}\nevent: change\ndata: {change.model_dump_json()}\n\n"
 
 
-def _format_resync(sequence: int, reason: ResyncReason) -> str:
-    control = ResyncRequiredRead(sequence=sequence, reason=reason)
-    return f"id: {sequence}\nevent: resync-required\ndata: {control.model_dump_json()}\n\n"
+def _format_resync(control: RealtimeResyncRequiredRead) -> str:
+    return f"id: {control.sequence}\nevent: resync-required\ndata: {control.model_dump_json()}\n\n"
 
 
 def _fetch_page(user_id: int, cursor: Cursor) -> ReplayPage:
@@ -52,79 +50,51 @@ async def _replay_pages(user_id: int, cursor: Cursor) -> AsyncIterator[ReplayPag
 
 def _page_messages(page: ReplayPage) -> list[str]:
     if page.reason is not None:
-        return [_format_resync(page.cursor, page.reason)]
+        return [
+            _format_resync(
+                RealtimeResyncRequiredRead(
+                    schemaVersion=1, sequence=page.cursor, reason=page.reason
+                )
+            )
+        ]
     return [_format_sse(change) for change in page.changes]
 
 
-def _payload_matches_user(payload: str, user_id: int) -> bool:
-    try:
-        data = json.loads(payload)
-    except json.JSONDecodeError:
-        return True
-    return not isinstance(data, dict) or data.get("recipient_user_id") == user_id
-
-
-def _drain_queue(queue: asyncio.Queue[None]) -> None:
-    while True:
-        try:
-            queue.get_nowait()
-        except asyncio.QueueEmpty:
-            return
+def _format_checkpoint(control: RealtimeCheckpointRead) -> str:
+    return f"id: {control.sequence}\nevent: checkpoint\ndata: {control.model_dump_json()}\n\n"
 
 
 async def _event_stream(
-    request: Request,
-    user_id: int,
-    last_sequence: Cursor,
+    request: Request, user_id: int, last_sequence: Cursor
 ) -> AsyncIterator[str]:
-    queue: asyncio.Queue[None] = asyncio.Queue()
     realtime_connection_opened(channel="app_sse")
-
-    async def listen(connection: psycopg.AsyncConnection) -> None:
-        async for notification in connection.notifies():
-            if _payload_matches_user(notification.payload, user_id):
-                queue.put_nowait(None)
-
-    connection: psycopg.AsyncConnection | None = None
-    notification_task: asyncio.Task[None] | None = None
     try:
-        args, kwargs = engine.dialect.create_connect_args(engine.url)
-        connection = await psycopg.AsyncConnection.connect(*args, **kwargs, autocommit=True)
-        await connection.execute(
-            sql.SQL("LISTEN {}").format(sql.Identifier(REALTIME_NOTIFY_CHANNEL))
-        )
-        notification_task = asyncio.create_task(listen(connection))
-        seconds_since_heartbeat = 0
-        yield ": connected\n\n"
-
-        async for page in _replay_pages(user_id, last_sequence):
-            last_sequence = page.cursor
-            for message in _page_messages(page):
-                yield message
-
-        while not await request.is_disconnected():
-            try:
-                await asyncio.wait_for(queue.get(), timeout=EVENT_CATCHUP_INTERVAL_SECONDS)
-            except asyncio.TimeoutError:
-                seconds_since_heartbeat += EVENT_CATCHUP_INTERVAL_SECONDS
-                if seconds_since_heartbeat >= HEARTBEAT_INTERVAL_SECONDS:
-                    seconds_since_heartbeat = 0
-                    yield ": heartbeat\n\n"
-            else:
-                seconds_since_heartbeat = 0
-
-            _drain_queue(queue)
+        with request.state.realtime_wakeup_hub.subscribe(user_id) as signal:
             async for page in _replay_pages(user_id, last_sequence):
                 last_sequence = page.cursor
                 for message in _page_messages(page):
                     yield message
+            assert isinstance(last_sequence, int)
+            yield _format_checkpoint(
+                RealtimeCheckpointRead(schemaVersion=1, sequence=last_sequence)
+            )
+            seconds_since_heartbeat = 0
+            while not await request.is_disconnected():
+                try:
+                    await asyncio.wait_for(signal.wait(), timeout=EVENT_CATCHUP_INTERVAL_SECONDS)
+                except asyncio.TimeoutError:
+                    seconds_since_heartbeat += EVENT_CATCHUP_INTERVAL_SECONDS
+                    if seconds_since_heartbeat >= HEARTBEAT_INTERVAL_SECONDS:
+                        seconds_since_heartbeat = 0
+                        yield ": heartbeat\n\n"
+                else:
+                    seconds_since_heartbeat = 0
+                signal.clear()
+                async for page in _replay_pages(user_id, last_sequence):
+                    last_sequence = page.cursor
+                    for message in _page_messages(page):
+                        yield message
     finally:
-        if notification_task is not None:
-            notification_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError, Exception):
-                await notification_task
-        if connection is not None:
-            await connection.close()
         realtime_connection_closed(channel="app_sse")
 
 

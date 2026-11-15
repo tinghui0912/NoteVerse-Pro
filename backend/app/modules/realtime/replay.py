@@ -5,11 +5,14 @@ from typing import Literal
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.db.models import RealtimeChange
-from app.modules.realtime.schemas import RealtimeChangeRead, change_read_adapter
+from app.modules.realtime.generated.transport import (
+    RealtimeChangeRead,
+    change_read_adapter,
+    ResyncReason,
+)
 from app.modules.realtime.stream_state import lock_stream_state
 
 Cursor = int | Literal["invalid"] | None
-ResyncReason = Literal["retention_gap", "cursor_out_of_range", "invalid_cursor"]
 
 
 @dataclass(frozen=True)
