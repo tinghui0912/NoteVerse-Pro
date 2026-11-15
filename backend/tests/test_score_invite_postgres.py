@@ -179,7 +179,7 @@ def test_invite_terminal_commands_serialize_on_postgres_row(
 @pytest.mark.parametrize("action", ["accept", "decline"])
 @pytest.mark.parametrize("boundary", ["success", "notification", "realtime", "notify", "commit"])
 def test_invite_outcome_and_notification_share_one_transaction(monkeypatch, action, boundary):
-    from app.db.models import NotificationEvent, RealtimeEvent
+    from app.db.models import Notification, RealtimeChange
     from app.modules.notifications import service as notification_module
     from app.modules.realtime import publisher
 
@@ -219,9 +219,12 @@ def test_invite_outcome_and_notification_share_one_transaction(monkeypatch, acti
                     target, name, original = db, "commit", db.flush
                 else:
                     target, name = {
-                        "notification": (service.notification_service, "admit_event"),
-                        "realtime": (notification_module, "publish_event"),
-                        "notify": (publisher, "_notify_event"),
+                        "notification": (
+                            service.notification_service,
+                            "admit_score_invite_response",
+                        ),
+                        "realtime": (notification_module, "publish_change"),
+                        "notify": (publisher, "_notify_change"),
                     }[boundary]
                     original = getattr(target, name)
 
@@ -245,8 +248,8 @@ def test_invite_outcome_and_notification_share_one_transaction(monkeypatch, acti
                 db.rollback()
         with Session(engine) as db:
             invite = db.scalar(select(ScoreInvite))
-            notice = db.scalar(select(NotificationEvent))
-            realtime = db.scalar(select(RealtimeEvent))
+            notice = db.scalar(select(Notification))
+            realtime = db.scalar(select(RealtimeChange))
             membership = db.scalar(select(ScoreMembership))
             if boundary == "success":
                 assert invite.terminal_outcome == (
@@ -255,12 +258,12 @@ def test_invite_outcome_and_notification_share_one_transaction(monkeypatch, acti
                     else InviteTerminalOutcome.DECLINED
                 )
                 assert (membership is not None) == (action == "accept")
-                assert notice.type == (
+                assert notice.kind == (
                     "score_invite.accepted" if action == "accept" else "score_invite.declined"
                 )
                 assert notice.recipient_user_id == 1 and notice.actor_user_id == 2
-                assert realtime.type == "notification.created"
-                assert realtime.resource_id == notice.notification_uuid
+                assert realtime.kind == "notifications.changed"
+                assert realtime.notification_id == notice.notification_uuid
             else:
                 assert invite.terminal_outcome is None and membership is None
                 assert notice is None and realtime is None

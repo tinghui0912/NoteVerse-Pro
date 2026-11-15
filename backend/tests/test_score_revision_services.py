@@ -30,11 +30,11 @@ from app.db.models import (
     ImportArtifact,
     MailOutbox,
     MailOutboxStatus,
-    NotificationEvent,
+    Notification,
     PlaybackAssetKind,
     PlaybackOutbox,
     PlaybackOutboxStatus,
-    RealtimeEvent,
+    RealtimeChange,
     Score,
     ScorePlaybackAsset,
     ScoreRenderAsset,
@@ -87,7 +87,8 @@ from app.modules.score_invites.schemas import InviteCreateRequest
 from app.modules.score_invites.rules import hash_invite_token
 from app.modules.score_invites.service import ScoreInviteService
 from app.modules.notifications.maintenance_service import NotificationMaintenanceService
-from app.modules.notifications.service import NotificationService, NotificationTypes
+from app.modules.notifications.service import NotificationService
+from app.db.models import NotificationKind
 from app.modules.realtime.maintenance_service import RealtimeMaintenanceService
 from app.shared.constants import ErrorCode
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
@@ -378,15 +379,14 @@ def test_completed_job_notifies_owner_when_ready_for_review(
 
     notification = one_row(
         session,
-        NotificationEvent,
+        Notification,
         recipient_user_id=1,
-        type=NotificationTypes.IMPORT_COMPLETED,
+        kind=NotificationKind.IMPORT_COMPLETED,
     )
-    assert notification.resource_type == "job"
-    assert notification.resource_id == "job-complete-notification"
+    assert notification.import_job_id == "job-complete-notification"
     assert notification.score_id is None
-    assert notification.data["job_id"] == "job-complete-notification"
-    assert notification.data["job_title"] == "Ready Score"
+    assert notification.import_job_id == "job-complete-notification"
+    assert notification.job_title_snapshot == "Ready Score"
     assert maybe_one_row(session, Score, title="Ready Score") is None
     render_outbox = one_row(session, RenderOutbox)
     assert render_outbox.target_type == RenderTargetType.REVIEW_THUMBNAIL
@@ -426,16 +426,14 @@ def test_failed_job_notifies_owner_once(
 
     notification = one_row(
         session,
-        NotificationEvent,
+        Notification,
         recipient_user_id=1,
-        type=NotificationTypes.IMPORT_FAILED,
+        kind=NotificationKind.IMPORT_FAILED,
     )
-    assert notification.resource_type == "job"
-    assert notification.resource_id == "job-failure-notification"
+    assert notification.import_job_id == "job-failure-notification"
     assert notification.score_id is None
-    assert notification.data["job_id"] == "job-failure-notification"
-    assert "code" not in notification.data
-    assert "error_type" not in notification.data
+    assert notification.import_job_id == "job-failure-notification"
+    assert notification.kind == NotificationKind.IMPORT_FAILED
 
 
 def test_review_detail_reads_pending_job_artifacts(
@@ -877,10 +875,10 @@ def test_review_confirm_creates_active_score_once(
     assert score.head_revision_id == revision.id
     assert job.state == ImportJobState.CONFIRMED
     assert job.score_id == score.id
-    notification = one_row(session, NotificationEvent, resource_id="job-confirm-review")
+    notification = one_row(session, Notification, import_job_id="job-confirm-review")
     assert notification.score_id == score.score_uuid
-    assert notification.data["score_id"] == score.score_uuid
-    assert notification.data["score_title"] == "Confirmed Score"
+    assert notification.score_id == score.score_uuid
+    assert notification.score_title_snapshot == "Confirmed Score"
     detail_after_confirm = service.detail(
         db,  # type: ignore[arg-type]
         "job-confirm-review",
@@ -1877,15 +1875,15 @@ def test_collaborator_revision_save_notifies_score_owner(
 
     notification = one_row(
         session,
-        NotificationEvent,
+        Notification,
         recipient_user_id=1,
         actor_user_id=2,
-        type=NotificationTypes.SCORE_VERSION_CREATED,
+        kind=NotificationKind.SCORE_VERSION_CREATED,
     )
     assert notification.score_id == "collab-revision-score"
-    assert notification.resource_id == "collab-revision-score"
-    assert notification.data == {"score_title": "Collaborative Score"}
-    assert count_rows(session, NotificationEvent, recipient_user_id=2) == 0
+    assert notification.revision_id == created.revision_id
+    assert notification.score_title_snapshot == "Collaborative Score"
+    assert count_rows(session, Notification, recipient_user_id=2) == 0
 
     assert one_row(session, ScoreRevision, revision_uuid=created.revision_id) is not None
     actor = session.get(User, 2)
@@ -1893,10 +1891,10 @@ def test_collaborator_revision_save_notifies_score_owner(
     assert (
         count_rows(
             session,
-            NotificationEvent,
+            Notification,
             recipient_user_id=1,
             actor_user_id=2,
-            type=NotificationTypes.SCORE_VERSION_CREATED,
+            kind=NotificationKind.SCORE_VERSION_CREATED,
         )
         == 1
     )
@@ -2034,13 +2032,13 @@ def test_invite_acceptance_creates_editable_membership(
 
     notification = one_row(
         session,
-        NotificationEvent,
+        Notification,
         recipient_user_id=1,
         actor_user_id=2,
-        type=NotificationTypes.SCORE_INVITE_ACCEPTED,
+        kind=NotificationKind.SCORE_INVITE_ACCEPTED,
     )
     assert notification.score_id == "invite-score"
-    assert notification.resource_id == "invite-score"
+    assert notification.invite_id == created.invite_id
     assert notification.read_at is None
 
     policy = ScoreAccessPolicy()
@@ -2157,13 +2155,13 @@ def test_user_pending_invites_can_be_declined(
 
     notification = one_row(
         session,
-        NotificationEvent,
+        Notification,
         recipient_user_id=1,
         actor_user_id=2,
-        type=NotificationTypes.SCORE_INVITE_DECLINED,
+        kind=NotificationKind.SCORE_INVITE_DECLINED,
     )
     assert notification.score_id == "decline-invite-score"
-    assert notification.data == {"score_title": "Decline Invite"}
+    assert notification.score_title_snapshot == "Decline Invite"
     assert (service.list_my_pending_invites(db, 2)).items == []  # type: ignore[arg-type]
     with pytest.raises(ValidationException) as declined_again:
         service.accept_pending_invite(
@@ -2181,23 +2179,18 @@ def test_notifications_are_scoped_and_can_be_marked_read(
     db = session
     service = NotificationService()
 
-    created = service.create_event(
-        db,  # type: ignore[arg-type]
+    created = service.admit_import_completed(
+        db,
         recipient_user_id=1,
-        actor_user_id=2,
-        type=NotificationTypes.SYSTEM,
-        resource_type="score",
-        resource_id="score-1",
-        score_id="score-1",
-        title="System update",
-        body="A score update is ready.",
-        data={"kind": "test"},
+        import_job_id="score-1",
+        job_title="Etudes",
+        created_at=utc_now_naive(),
     )
     assert created is not None
 
     owner_notifications = service.list_for_user(db, 1)  # type: ignore[arg-type]
     other_notifications = service.list_for_user(db, 2)  # type: ignore[arg-type]
-    assert [item.notification_id for item in owner_notifications] == [created.notification_id]
+    assert [item.notification_id for item in owner_notifications] == [created.notification_uuid]
     public_notification = owner_notifications[0].model_dump()
     assert "resource_type" not in public_notification
     assert "resource_id" not in public_notification
@@ -2206,9 +2199,9 @@ def test_notifications_are_scoped_and_can_be_marked_read(
     assert (service.unread_count(db, 2)).count == 0  # type: ignore[arg-type]
 
     with pytest.raises(ResourceNotFoundException):
-        service.mark_read(db, created.notification_id, 2)  # type: ignore[arg-type]
+        service.mark_read(db, created.notification_uuid, 2)  # type: ignore[arg-type]
 
-    marked = service.mark_read(db, created.notification_id, 1)  # type: ignore[arg-type]
+    marked = service.mark_read(db, created.notification_uuid, 1)  # type: ignore[arg-type]
     assert marked.read_at is not None
     assert (service.unread_count(db, 1)).count == 0  # type: ignore[arg-type]
 
@@ -2220,35 +2213,25 @@ def test_notification_dedupe_key_returns_existing_event(
     db = session
     service = NotificationService()
 
-    first = service.create_event(
-        db,  # type: ignore[arg-type]
+    first = service.admit_import_completed(
+        db,
         recipient_user_id=1,
-        actor_user_id=2,
-        type=NotificationTypes.SYSTEM,
-        resource_type="score",
-        resource_id="score-1",
-        score_id="score-1",
-        title="First",
-        body="First notification.",
-        dedupe_key="system:test:score-1:owner",
+        import_job_id="score-1",
+        job_title="Etudes",
+        created_at=utc_now_naive(),
     )
-    second = service.create_event(
-        db,  # type: ignore[arg-type]
+    second = service.admit_import_completed(
+        db,
         recipient_user_id=1,
-        actor_user_id=2,
-        type=NotificationTypes.SYSTEM,
-        resource_type="score",
-        resource_id="score-1",
-        score_id="score-1",
-        title="Second",
-        body="Second notification.",
-        dedupe_key="system:test:score-1:owner",
+        import_job_id="score-1",
+        job_title="Etudes",
+        created_at=utc_now_naive(),
     )
 
     assert first is not None
     assert second is not None
-    assert second.notification_id == first.notification_id
-    assert count_rows(session, NotificationEvent, dedupe_key="system:test:score-1:owner") == 1
+    assert second.notification_uuid == first.notification_uuid
+    assert count_rows(session, Notification, dedupe_key="import.completed:score-1:1") == 1
 
 
 def test_notification_cleanup_removes_events_older_than_retention(
@@ -2259,36 +2242,30 @@ def test_notification_cleanup_removes_events_older_than_retention(
     service = NotificationService()
     now = utc_now_naive()
 
-    old_event = NotificationEvent(
+    old_event = Notification(
         recipient_user_id=1,
-        actor_user_id=2,
-        type=NotificationTypes.SYSTEM,
-        resource_type="score",
-        resource_id="old-score",
-        title="Old notification",
+        kind=NotificationKind.IMPORT_COMPLETED,
+        import_job_id="old-score",
         created_at=now - timedelta(days=91),
     )
-    fresh_event = NotificationEvent(
+    fresh_event = Notification(
         recipient_user_id=1,
-        actor_user_id=2,
-        type=NotificationTypes.SYSTEM,
-        resource_type="score",
-        resource_id="fresh-score",
-        title="Fresh notification",
+        kind=NotificationKind.IMPORT_COMPLETED,
+        import_job_id="fresh-score",
         created_at=now - timedelta(days=2),
     )
     session.add(old_event)
     session.add(fresh_event)
     session.commit()
 
-    deleted = service.cleanup_expired_events(
+    deleted = service.cleanup_expired_notifications(
         db,  # type: ignore[arg-type]
         retention_days=90,
     )
 
     assert deleted == 1
-    remaining = all_rows(session, NotificationEvent)
-    assert [event.resource_id for event in remaining] == ["fresh-score"]
+    remaining = all_rows(session, Notification)
+    assert [event.import_job_id for event in remaining] == ["fresh-score"]
 
 
 def test_notification_maintenance_removes_events_older_than_retention(
@@ -2299,24 +2276,18 @@ def test_notification_maintenance_removes_events_older_than_retention(
     now = utc_now_naive()
 
     session.add(
-        NotificationEvent(
+        Notification(
             recipient_user_id=1,
-            actor_user_id=2,
-            type=NotificationTypes.SYSTEM,
-            resource_type="score",
-            resource_id="old-score",
-            title="Old notification",
+            kind=NotificationKind.IMPORT_COMPLETED,
+            import_job_id="old-score",
             created_at=now - timedelta(days=91),
         )
     )
     session.add(
-        NotificationEvent(
+        Notification(
             recipient_user_id=1,
-            actor_user_id=2,
-            type=NotificationTypes.SYSTEM,
-            resource_type="score",
-            resource_id="fresh-score",
-            title="Fresh notification",
+            kind=NotificationKind.IMPORT_COMPLETED,
+            import_job_id="fresh-score",
             created_at=now - timedelta(days=2),
         )
     )
@@ -2325,8 +2296,8 @@ def test_notification_maintenance_removes_events_older_than_retention(
     result = service.run(session)
 
     assert result.expired_notifications_deleted == 1
-    remaining = all_rows(session, NotificationEvent)
-    assert [event.resource_id for event in remaining] == ["fresh-score"]
+    remaining = all_rows(session, Notification)
+    assert [event.import_job_id for event in remaining] == ["fresh-score"]
 
 
 def test_realtime_maintenance_removes_events_older_than_retention(
@@ -2337,34 +2308,30 @@ def test_realtime_maintenance_removes_events_older_than_retention(
     now = utc_now_naive()
 
     session.add(
-        RealtimeEvent(
+        RealtimeChange(
             recipient_user_id=1,
-            type="score.derived_asset.updated",
-            resource_type="score",
-            resource_id="old-score",
             score_id="old-score",
-            payload={"status": "ready"},
             created_at=now - timedelta(days=8),
+            kind="score.derived_assets.changed",
+            revision_id="revision",
         )
     )
     session.add(
-        RealtimeEvent(
+        RealtimeChange(
             recipient_user_id=1,
-            type="score.derived_asset.updated",
-            resource_type="score",
-            resource_id="fresh-score",
             score_id="fresh-score",
-            payload={"status": "ready"},
             created_at=now - timedelta(days=2),
+            kind="score.derived_assets.changed",
+            revision_id="revision",
         )
     )
     session.commit()
 
     result = service.run(session)
 
-    assert result.expired_events_deleted == 1
-    remaining = all_rows(session, RealtimeEvent)
-    assert [event.resource_id for event in remaining] == ["fresh-score"]
+    assert result.expired_changes_deleted == 1
+    remaining = all_rows(session, RealtimeChange)
+    assert [event.score_id for event in remaining] == ["fresh-score"]
 
 
 def test_realtime_maintenance_rejects_non_positive_retention(
@@ -2373,8 +2340,8 @@ def test_realtime_maintenance_rejects_non_positive_retention(
     session, _storage = score_service_session
     service = RealtimeMaintenanceService()
 
-    with pytest.raises(ValueError, match="realtime event retention days must be positive"):
-        service.cleanup_expired_events(session, retention_days=0)
+    with pytest.raises(ValueError, match="realtime change retention days must be positive"):
+        service.cleanup_expired_changes(session, retention_days=0)
 
 
 @pytest.mark.parametrize("expected", ["missing-revision", "other-score-revision"])

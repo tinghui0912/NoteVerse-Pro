@@ -38,7 +38,7 @@ version-saved presentation. Retention is Beat reconciliation.
 `revision_metadata_task` delegates to domain-specific metadata execution. Claim uses
 DeliveryAttemptLease; read/extraction runs outside locks. Final admission locks Score
 then metadata outbox and atomically writes metadata, completes delivery and creates
-score.metadata.updated. Unsupported extraction is a completed FAILED metadata result;
+score.metadata.changed. Unsupported extraction is a completed FAILED metadata result;
 infrastructure failure uses durable retry. `run_revision_metadata_maintenance` scans
 every five seconds and relays through the shared producer. Post-commit fast paths are
 latency hints backed by durable evidence, never request-path business sagas.
@@ -70,7 +70,7 @@ services do not commit between adoption and completion. StaleDeliveryAttempt ret
 abandoned physical writes and durable cleanup, without direct best-effort deletion.
 
 Metadata completion and Render/Playback accepted ready/failed outcomes use strict
-transactional `publish_score_event`. It resolves current recipients, persists
+transactional `publish_score_change`. It resolves current recipients, persists
 and flushes all realtime rows and issues transactional pg_notify without handling
 exceptions or owning commit/rollback. Partial fan-out/NOTIFY failure rolls back the
 whole authoritative transaction. Failed metadata/ready publication can then enter
@@ -85,7 +85,7 @@ provider message ID. Each domain keeps its own maintenance scan and worker rathe
 than sharing a universal job table or runner.
 
 Import finalization commits Job state, diagnostics, completed/failed notifications,
-notification.created and import_job.completed/import_job.failed realtime in one
+notifications.changed and import_jobs.changed realtime in one
 transaction. Review-thumbnail work shares the success transaction. Publication failure
 rolls back the accepted domain outcome. Current-attempt locks and terminal-state checks
 prevent repeated terminal calls from duplicating realtime rows. Delivery exhaustion

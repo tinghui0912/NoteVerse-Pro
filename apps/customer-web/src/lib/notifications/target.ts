@@ -1,29 +1,20 @@
-import type { NotificationEventRead } from '@/generated/api';
+import type { NotificationRead } from '@/generated/api';
 
-function stringData(value: unknown): string | null {
-  return typeof value === 'string' && value.trim() ? value : null;
-}
-
-export function notificationHref(
-  notification: NotificationEventRead,
-): string | null {
-  if (notification.type === 'import.failed') {
-    const jobId = stringData(notification.data.job_id);
-    return jobId ? '/upload#import-activity' : null;
+export function notificationHref(notification: NotificationRead): string {
+  switch (notification.kind) {
+    case 'import.failed':
+      return '/upload#import-activity';
+    case 'import.completed':
+      return notification.score_id
+        ? `/score/${encodeURIComponent(notification.score_id)}`
+        : `/review/${encodeURIComponent(notification.job_id)}`;
+    case 'score_invite.accepted':
+    case 'score_invite.declined':
+    case 'score.version.created':
+      return `/score/${encodeURIComponent(notification.score_id)}`;
+    default: {
+      const exhaustive: never = notification;
+      return exhaustive;
+    }
   }
-
-  if (notification.type === 'import.completed') {
-    const scoreId =
-      stringData(notification.data.score_id) ?? notification.score_id;
-    if (scoreId) return `/score/${encodeURIComponent(scoreId)}`;
-
-    const jobId = stringData(notification.data.job_id);
-    return jobId ? `/review/${encodeURIComponent(jobId)}` : null;
-  }
-
-  if (notification.score_id) {
-    return `/score/${notification.score_id}`;
-  }
-
-  return null;
 }

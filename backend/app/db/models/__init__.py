@@ -4,7 +4,7 @@ from .performance_take_manifest import PerformanceTakeManifest
 from .user import User
 from .auth import AuthToken, EmailChangeRequest, PendingRegistration, RefreshToken
 from .upload import Upload
-from .notification import NotificationEvent
+from .notification import Notification, NotificationKind
 from .ops_audit import OpsAuditEvent
 from .operator import (
     Operator,
@@ -15,7 +15,7 @@ from .operator import (
     OperatorSession,
     OperatorStatus,
 )
-from .realtime import RealtimeEvent
+from .realtime import RealtimeChange, RealtimeChangeKind, RealtimeStreamState
 from .revision_event import ScoreRevisionEvent
 from .revision_note import ScoreRevisionNote
 from .scheduler import SchedulerHeartbeat, SchedulerLeaderStatus
@@ -92,7 +92,8 @@ __all__ = [
     "StoredObjectRetirement",
     "ObjectWriteIntent",
     "Upload",
-    "NotificationEvent",
+    "Notification",
+    "NotificationKind",
     "OpsAuditEvent",
     "Operator",
     "OperatorIdentity",
@@ -101,7 +102,9 @@ __all__ = [
     "OperatorRole",
     "OperatorSession",
     "OperatorStatus",
-    "RealtimeEvent",
+    "RealtimeChange",
+    "RealtimeChangeKind",
+    "RealtimeStreamState",
     "ScoreRevisionEvent",
     "ScoreRevisionNote",
     "SchedulerHeartbeat",

@@ -3,15 +3,11 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
-from datetime import datetime
-from typing import Any, AsyncIterator
+from typing import AsyncIterator
 
 import psycopg
 from psycopg import sql
 from fastapi import APIRouter, Depends, Header, Request
-from sqlalchemy import select
-from sqlalchemy.sql import Select
-from sqlmodel import col
 from starlette.responses import StreamingResponse
 
 from app.api.deps import get_current_user
@@ -19,84 +15,45 @@ from app.core.config import settings
 from app.core.metrics import realtime_connection_closed, realtime_connection_opened
 from app.db.model_utils import require_persisted_id
 from app.db.session import SessionLocal, engine
-from app.db.models import RealtimeEvent, User
+from app.db.models import User
 from app.modules.realtime.publisher import REALTIME_NOTIFY_CHANNEL
-from app.modules.realtime.schemas import RealtimeEventRead
+from app.modules.realtime.schemas import RealtimeChangeRead, ResyncRequiredRead
+from app.modules.realtime.replay import Cursor, ReplayPage, ResyncReason, parse_cursor, read_page
 
 router = APIRouter()
 
 EVENT_CATCHUP_INTERVAL_SECONDS = settings.REALTIME_EVENT_CATCHUP_INTERVAL_SECONDS
 HEARTBEAT_INTERVAL_SECONDS = settings.REALTIME_EVENT_HEARTBEAT_INTERVAL_SECONDS
-EVENT_BATCH_SIZE = settings.REALTIME_EVENT_BATCH_SIZE
+CHANGE_BATCH_SIZE = settings.REALTIME_EVENT_BATCH_SIZE
 
 
-def _json_default(value: object) -> str:
-    if isinstance(value, datetime):
-        return value.isoformat()
-    raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
+def _format_sse(change: RealtimeChangeRead) -> str:
+    return f"id: {change.sequence}\nevent: change\ndata: {change.model_dump_json()}\n\n"
 
 
-def _public_realtime_payload(event: RealtimeEvent) -> dict[str, Any]:
-    return {}
+def _format_resync(sequence: int, reason: ResyncReason) -> str:
+    control = ResyncRequiredRead(sequence=sequence, reason=reason)
+    return f"id: {sequence}\nevent: resync-required\ndata: {control.model_dump_json()}\n\n"
 
 
-def _format_sse(event: RealtimeEvent) -> str:
-    sequence = event.id or 0
-    data = RealtimeEventRead(
-        event_id=event.event_uuid,
-        sequence=sequence,
-        type=event.type,
-        score_id=event.score_id,
-        revision_id=event.revision_id,
-        payload=_public_realtime_payload(event),
-        created_at=event.created_at,
-    ).model_dump()
-    return (
-        f"id: {sequence}\n"
-        f"event: {event.type}\n"
-        f"data: {json.dumps(data, default=_json_default, separators=(',', ':'))}\n\n"
-    )
-
-
-def _parse_last_event_id(value: str | None) -> int:
-    if not value:
-        return 0
-    try:
-        return max(0, int(value))
-    except ValueError:
-        return 0
-
-
-def _pending_events_statement(user_id: int, last_sequence: int) -> Select[tuple[RealtimeEvent]]:
-    return (
-        select(RealtimeEvent)
-        .where(
-            RealtimeEvent.recipient_user_id == user_id,
-            col(RealtimeEvent.id) > last_sequence,
-        )
-        .order_by(col(RealtimeEvent.id).asc())
-        .limit(EVENT_BATCH_SIZE)
-    )
-
-
-def _fetch_pending_events(user_id: int, last_sequence: int) -> list[RealtimeEvent]:
+def _fetch_page(user_id: int, cursor: Cursor) -> ReplayPage:
     with SessionLocal() as db:
-        return (db.execute(_pending_events_statement(user_id, last_sequence))).scalars().all()
+        return read_page(db, user_id, cursor, limit=CHANGE_BATCH_SIZE)
 
 
-async def _emit_pending_events(user_id: int, last_sequence: int) -> tuple[int, list[str]]:
-    messages: list[str] = []
+async def _replay_pages(user_id: int, cursor: Cursor) -> AsyncIterator[ReplayPage]:
     while True:
-        rows = await asyncio.to_thread(_fetch_pending_events, user_id, last_sequence)
-        if not rows:
-            break
-        for event in rows:
-            if event.id is not None:
-                last_sequence = event.id
-            messages.append(_format_sse(event))
-        if len(rows) < EVENT_BATCH_SIZE:
-            break
-    return last_sequence, messages
+        page = await asyncio.to_thread(_fetch_page, user_id, cursor)
+        yield page
+        cursor = page.cursor
+        if not page.has_more:
+            return
+
+
+def _page_messages(page: ReplayPage) -> list[str]:
+    if page.reason is not None:
+        return [_format_resync(page.cursor, page.reason)]
+    return [_format_sse(change) for change in page.changes]
 
 
 def _payload_matches_user(payload: str, user_id: int) -> bool:
@@ -104,7 +61,7 @@ def _payload_matches_user(payload: str, user_id: int) -> bool:
         data = json.loads(payload)
     except json.JSONDecodeError:
         return True
-    return data.get("recipient_user_id") == user_id
+    return not isinstance(data, dict) or data.get("recipient_user_id") == user_id
 
 
 def _drain_queue(queue: asyncio.Queue[None]) -> None:
@@ -118,7 +75,7 @@ def _drain_queue(queue: asyncio.Queue[None]) -> None:
 async def _event_stream(
     request: Request,
     user_id: int,
-    last_sequence: int,
+    last_sequence: Cursor,
 ) -> AsyncIterator[str]:
     queue: asyncio.Queue[None] = asyncio.Queue()
     realtime_connection_opened(channel="app_sse")
@@ -140,9 +97,10 @@ async def _event_stream(
         seconds_since_heartbeat = 0
         yield ": connected\n\n"
 
-        last_sequence, messages = await _emit_pending_events(user_id, last_sequence)
-        for message in messages:
-            yield message
+        async for page in _replay_pages(user_id, last_sequence):
+            last_sequence = page.cursor
+            for message in _page_messages(page):
+                yield message
 
         while not await request.is_disconnected():
             try:
@@ -156,9 +114,10 @@ async def _event_stream(
                 seconds_since_heartbeat = 0
 
             _drain_queue(queue)
-            last_sequence, messages = await _emit_pending_events(user_id, last_sequence)
-            for message in messages:
-                yield message
+            async for page in _replay_pages(user_id, last_sequence):
+                last_sequence = page.cursor
+                for message in _page_messages(page):
+                    yield message
     finally:
         if notification_task is not None:
             notification_task.cancel()
@@ -175,7 +134,7 @@ async def _event_stream(
     response_class=StreamingResponse,
     responses={
         200: {
-            "description": "Server-sent event stream with event IDs, names, JSON data and heartbeat comments.",
+            "description": "Versioned change delivery and resync-required controls with sequence cursors and heartbeat comments.",
             "content": {"text/event-stream": {"schema": {"type": "string"}}},
         }
     },
@@ -187,7 +146,7 @@ async def realtime_events(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     return StreamingResponse(
-        _event_stream(request, user_id, _parse_last_event_id(last_event_id)),
+        _event_stream(request, user_id, parse_cursor(last_event_id)),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

@@ -21,7 +21,7 @@ from app.modules.async_operations.durable_delivery import (
     StaleDeliveryAttempt,
 )
 from app.modules.metadata.service import MetadataProjectionService
-from app.modules.realtime.publisher import publish_score_event, RealtimeEventTypes
+from app.modules.realtime.publisher import publish_score_change, RealtimeChangeKind
 from app.processing.musicxml import (
     extract_musicxml_metadata,
     MetadataExtractionError,
@@ -158,12 +158,11 @@ class RevisionMetadataDelivery:
                 projection, result.error_code or "metadata_extraction_failed"
             )
         assert metadata_lifecycle().complete_attempt(row, lease=payload.lease, now=utc_now_naive())
-        publish_score_event(
+        publish_score_change(
             db,
             score_id=payload.score_uuid,
             revision_id=payload.revision_uuid,
-            type=RealtimeEventTypes.SCORE_METADATA_UPDATED,
-            payload={},
+            kind=RealtimeChangeKind.SCORE_METADATA_CHANGED,
         )
         db.flush()
 

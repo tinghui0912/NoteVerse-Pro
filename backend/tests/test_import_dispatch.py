@@ -13,8 +13,8 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import ResourceNotFoundException
 from app.db.models import (
     ImportDispatch,
-    NotificationEvent,
-    RealtimeEvent,
+    Notification,
+    RealtimeChange,
     ImportDispatchStatus,
     ImportJob,
     ImportJobState,
@@ -227,10 +227,10 @@ def test_exhausted_processing_has_distinct_delivery_and_domain_outcomes(setup_de
     assert row.internal_error_code and job.internal_error_code
     assert job.state == ImportJobState.FAILURE and job.finished_at
     assert job.error_type == "ImportDispatchFailure"
-    assert db.scalar(select(NotificationEvent.type)) == "import.failed"
-    assert sorted(db.scalars(select(RealtimeEvent.type))) == [
-        "import_job.failed",
-        "notification.created",
+    assert db.scalar(select(Notification.kind)) == "import.failed"
+    assert sorted(db.scalars(select(RealtimeChange.kind))) == [
+        "import_jobs.changed",
+        "notifications.changed",
     ]
     from app.modules.ops.operation_projection import read_import_operation
 
@@ -271,8 +271,8 @@ def test_only_current_execution_lease_can_mutate_job(setup_delivery, mutation):
     assert db.scalar(select(ImportJobStep)) is None
     assert db.scalar(select(ImportArtifact)) is None
     assert job.execution_manifest_id is None
-    assert db.scalar(select(NotificationEvent.id)) is None
-    assert db.scalar(select(RealtimeEvent.id)) is None
+    assert db.scalar(select(Notification.id)) is None
+    assert db.scalar(select(RealtimeChange.sequence)) is None
 
 
 @pytest.mark.parametrize(

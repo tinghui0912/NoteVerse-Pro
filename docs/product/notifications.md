@@ -1,27 +1,35 @@
 # Invitations and Notifications
 
-The notification center separates pending actions from notification history.
-Pending score invites belong to the authenticated user's normalized email,
-including invitations received before account registration. Expired or terminal
-invites are not pending actions. Accept and decline enforce ownership and state
-server-side; accepting creates the intended membership and opens the score.
+The notification center separates pending actions from durable notification history.
+Pending score invites belong to the authenticated user's normalized email, including
+invitations received before registration. Accept and decline enforce ownership and
+current state; accepting creates the intended membership and opens the Score.
 
-Persisted `notification_events` are a deduplicated read projection, not the
-authority for membership or an application event stream. The API exposes list,
-unread count, mark-read and mark-all-read operations. The UI supports All/Unread,
-date grouping, bounded error/retry states and optimistic read updates.
+`Notification` is semantic user-facing history with read/unread state and retention.
+The backend persists one of five typed kinds: invite accepted, invite declined, Score
+version created, Import completed or Import failed. Each kind carries its explicit
+invite/Score/revision/Import identity and applicable title snapshots. Final titles and
+subtitles are localized by Customer Web; persistence contains no presentation copy or
+generic parameter bag. Actor presentation hydrates the current User identity.
 
-Invite outcomes notify the inviter. New revisions notify eligible owners and
-members excluding the actor. Import-completed notifications open job review;
-failed imports open upload with the job identifier. Confirmation can supply a
-score identifier for subsequent navigation. Counts combine pending invitations
-and unread notifications without turning an invite into a second notification
-record merely to display it.
+The API returns a discriminated `kind` union. The UI supports All/Unread, date grouping,
+bounded error/retry states and optimistic read updates. Counts combine pending actions
+and unread notifications without turning pending invitations into notification rows.
 
-Scheduled retention removes expired notification history under configured
-lifecycle settings. Revision, Import and invite outcomes admit notification history
-and corresponding realtime rows/wake-ups in their owning business transaction. These
-deterministic database consequences commit or roll back together. External delivery
-and post-commit latency hints do not change the committed business outcome.
-Authorization and deduplication are required at every producer/read boundary.
-See [Score Invite Collaboration](score-invite-collaboration.md).
+Invite responses notify the inviter. Non-initial revisions notify eligible owners and
+active members excluding the actor. Import failure opens `/upload#import-activity`;
+completed Import opens `/review/:jobId` until confirmation supplies a Score target.
+Confirmation enriches the retained completed notification in its business transaction.
+A notification removed by retention does not block confirmation or recreate history.
+
+Revision, Import and invite consequences admit Notification and RealtimeChange rows
+inside the owning business transaction. All deterministic database consequences commit
+or roll back together. Mark-one-read emits a single-notification change only for an
+unread-to-read transition. Mark-all-read emits one collection change only if rows change,
+so tabs converge through list/count refetch. External delivery and latency hints do not
+change a committed business outcome.
+
+Scheduled retention bounds notification history. RealtimeChange is a separate,
+short-retention convergence hint, not notification history or an audit stream.
+See [realtime changes](../architecture/realtime-changes.md) and
+[Score Invite Collaboration](score-invite-collaboration.md).

@@ -10,7 +10,7 @@ from app.db.models import (
     Score,
     ScoreMembership,
     MembershipRole,
-    RealtimeEvent,
+    RealtimeChange,
     ScoreRevisionMetadata,
     RevisionMetadataOutbox,
     ObjectWriteIntent,
@@ -46,19 +46,19 @@ def add_member(engine):
         db.commit()
 
 
-def interrupt_second_notify(monkeypatch, *, status=None):
-    original = publisher._notify_event
+def interrupt_second_notify(monkeypatch, *, first_outcome_only=False):
+    original = publisher._notify_change
     recipients = []
 
     def notify(db, event):
         original(db, event)  # Real PostgreSQL pg_notify participates in the transaction.
-        if status is None or event.payload.get("status") == status:
+        if not first_outcome_only or len(recipients) < 2:
             recipients.append(event.recipient_user_id)
             if len(recipients) == 2:
-                assert db.scalar(sa.select(sa.func.count()).select_from(RealtimeEvent)) >= 2
+                assert db.scalar(sa.select(sa.func.count()).select_from(RealtimeChange)) >= 2
                 raise RuntimeError("partial realtime fan-out interrupted")
 
-    monkeypatch.setattr(publisher, "_notify_event", notify)
+    monkeypatch.setattr(publisher, "_notify_change", notify)
     return original, recipients
 
 
@@ -88,7 +88,7 @@ def test_metadata_partial_publication_rolls_back_and_retry_is_authoritative(
         row = db.scalar(sa.select(RevisionMetadataOutbox))
         assert row.status == "PROCESSING" and row.attempt_token == first.lease.token
         assert row.attempt_count == first.lease.attempt
-        assert db.scalar(sa.select(RealtimeEvent)) is None
+        assert db.scalar(sa.select(RealtimeChange)) is None
     with Session(engine) as db:
         assert metadata_delivery.fail(db, uuid, first.lease, "realtime publication unavailable")
         db.commit()
@@ -101,16 +101,16 @@ def test_metadata_partial_publication_rolls_back_and_retry_is_authoritative(
         with pytest.raises(StaleDeliveryAttempt):
             metadata_delivery.adopt(db, first, result)
         db.rollback()
-        monkeypatch.setattr(publisher, "_notify_event", original)
+        monkeypatch.setattr(publisher, "_notify_change", original)
         metadata_delivery.adopt(db, second, result)
         db.commit()
         assert db.scalar(sa.select(ScoreRevisionMetadata)).status == (
             MetadataStatus.FAILED if semantic_failure else MetadataStatus.READY
         )
         assert db.scalar(sa.select(RevisionMetadataOutbox)).status == "COMPLETED"
-        events = list(db.scalars(sa.select(RealtimeEvent)))
+        events = list(db.scalars(sa.select(RealtimeChange)))
         assert len(events) == 2 and sorted(event.recipient_user_id for event in events) == [1, 2]
-        assert all(event.type == "score.metadata.updated" for event in events)
+        assert all(event.kind == "score.metadata.changed" for event in events)
 
 
 @pytest.mark.parametrize("generation", ["render", "playback"], indirect=True)
@@ -127,17 +127,19 @@ def test_derivative_ready_publication_failure_rolls_back_adoption_and_fails_exac
             db.commit()
     with Session(engine) as db:
         before = semantic_snapshot(db)
-    _, recipients = interrupt_second_notify(monkeypatch, status="ready")
+    _, recipients = interrupt_second_notify(monkeypatch, first_outcome_only=True)
     assert execute(None, "delivery")["status"] == "failed"
     with Session(engine) as db:
         assert recipients == [1, 2]
         after = semantic_snapshot(db)
-        for name in before.keys() - {"realtime_events"}:
+        for name in before.keys() - {"realtime_changes"}:
             assert after[name] == before[name]
-        old_ids = {event["id"] for event in before["realtime_events"]}
-        new_events = [event for event in after["realtime_events"] if event["id"] not in old_ids]
+        old_ids = {event["sequence"] for event in before["realtime_changes"]}
+        new_events = [
+            event for event in after["realtime_changes"] if event["sequence"] not in old_ids
+        ]
         assert len(new_events) == 2 and all(
-            event["payload"]["status"] == "failed" for event in new_events
+            event["kind"] == "score.derived_assets.changed" for event in new_events
         )
         row = db.scalar(sa.select(model))
         assert (
@@ -167,14 +169,14 @@ def test_failed_outcome_publication_failure_leaves_processing_for_lease_recovery
         monkeypatch.setattr(render_outbox, "_render_target", fail)
     else:
         monkeypatch.setattr(playback_outbox.PlaybackGenerationService(), "render_for_worker", fail)
-    original, recipients = interrupt_second_notify(monkeypatch, status="failed")
+    original, recipients = interrupt_second_notify(monkeypatch, first_outcome_only=True)
     with pytest.raises(RuntimeError, match="fan-out interrupted"):
         execute(None, "delivery")
     with Session(engine) as db:
         row = db.scalar(sa.select(model))
         assert recipients == [1, 2]
         assert row.status.value == "PROCESSING" and row.attempt_token is not None
-        assert row.last_error is None and db.scalar(sa.select(RealtimeEvent)) is None
+        assert row.last_error is None and db.scalar(sa.select(RealtimeChange)) is None
         token = row.attempt_token
         row.started_at = utc_now_naive() - timedelta(days=1)
         db.commit()
@@ -183,18 +185,17 @@ def test_failed_outcome_publication_failure_leaves_processing_for_lease_recovery
         second = service.claim(db, "delivery")
         db.commit()
         assert second.lease.token != token and second.lease.attempt == 2
-        monkeypatch.setattr(publisher, "_notify_event", original)
+        monkeypatch.setattr(publisher, "_notify_change", original)
         assert service.fail(db, "delivery", "current failure", lease=second.lease)
-        publisher.publish_score_event(
+        publisher.publish_score_change(
             db,
             score_id=second.score_uuid,
             revision_id=second.revision_uuid,
-            type="score.derived_asset.updated",
-            payload={"status": "failed"},
+            kind=publisher.RealtimeChangeKind.SCORE_DERIVED_ASSETS_CHANGED,
         )
         db.commit()
         assert db.scalar(sa.select(model)).status.value == "FAILED"
-        assert len(list(db.scalars(sa.select(RealtimeEvent)))) == 2
+        assert len(list(db.scalars(sa.select(RealtimeChange)))) == 2
 
 
 def test_metadata_worker_retries_publication_infrastructure_failure(database, monkeypatch):
@@ -222,7 +223,7 @@ def test_metadata_worker_retries_publication_infrastructure_failure(database, mo
         row = db.scalar(sa.select(RevisionMetadataOutbox))
         assert row.status == "PROCESSING" and row.attempt_token == lease.token
         assert db.scalar(sa.select(ScoreRevisionMetadata)).status == MetadataStatus.PENDING
-        assert db.scalar(sa.select(RealtimeEvent)) is None
+        assert db.scalar(sa.select(RealtimeChange)) is None
         return failure(db, uuid, lease, error)
 
     monkeypatch.setattr(metadata_delivery, "fail", fail_after_rollback)
@@ -234,8 +235,8 @@ def test_metadata_worker_retries_publication_infrastructure_failure(database, mo
         assert row.status == "FAILED" and row.attempt_token is None
         row.next_attempt_at = utc_now_naive() - timedelta(seconds=1)
         db.commit()
-    monkeypatch.setattr(publisher, "_notify_event", original)
+    monkeypatch.setattr(publisher, "_notify_change", original)
     assert worker.execute_revision_metadata_task(None, uuid)["status"] == "completed"
     with Session(engine) as db:
         assert db.scalar(sa.select(RevisionMetadataOutbox)).attempt_count == 2
-        assert len(list(db.scalars(sa.select(RealtimeEvent)))) == 2
+        assert len(list(db.scalars(sa.select(RealtimeChange)))) == 2

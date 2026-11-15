@@ -34,8 +34,8 @@ temporary binary cleanup stay in the Review/Import use case.
 
 For each new non-initial revision, Writer resolves the current owner and active-member
 audience inside the revision transaction. Non-actor participants receive version-saved
-NotificationEvent rows and notification.created realtime wake-ups; all participants,
-including the actor, receive score.revision.created realtime rows. Initial revisions
+Notification rows and notifications.changed realtime wake-ups; all participants,
+including the actor, receive score.revisions.changed realtime rows. Initial revisions
 produce neither version-saved notifications nor revision-created realtime.
 
 Notification admission and transactional pg_notify are strict transaction participants.
@@ -48,10 +48,10 @@ row. It stores source fingerprint, request/trace correlation and shared durable
 delivery fields. Claim creates a DeliveryAttemptLease. Source read and extraction
 run outside final locks. Final admission locks Score then refreshed metadata outbox,
 validates exact lease/source, and atomically writes metadata, completes delivery and
-adds score.metadata.updated realtime. Stale workers change none of these facts.
+adds score.metadata.changed realtime. Stale workers change none of these facts.
 
-`publish_score_event` is strict transactional persistence: recipient resolution,
-RealtimeEvent inserts/flush and PostgreSQL NOTIFY share the caller transaction.
+`publish_score_change` is strict transactional persistence: recipient resolution,
+RealtimeChange inserts/flush and PostgreSQL NOTIFY share the caller transaction.
 It never commits, rolls back or catches publication failures. A partial-recipient
 or NOTIFY failure rolls back metadata result and delivery completion together; the
 worker may then fail the same processing lease in a new transaction for retry.

@@ -787,7 +787,7 @@ def upgrade() -> None:
         unique=False,
     )
     op.create_table(
-        "notification_events",
+        "notifications",
         sa.Column(
             "id",
             sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
@@ -797,45 +797,114 @@ def upgrade() -> None:
         sa.Column("notification_uuid", sa.String(length=36), nullable=False),
         sa.Column("recipient_user_id", sa.BigInteger(), nullable=False),
         sa.Column("actor_user_id", sa.BigInteger(), nullable=True),
-        sa.Column("type", sa.String(length=80), nullable=False),
+        sa.Column(
+            "kind",
+            sa.Enum(
+                "score_invite.accepted",
+                "score_invite.declined",
+                "score.version.created",
+                "import.completed",
+                "import.failed",
+                name="notificationkind",
+                native_enum=False,
+                create_constraint=True,
+            ),
+            nullable=False,
+        ),
         sa.Column("dedupe_key", sa.String(length=160), nullable=True),
-        sa.Column("resource_type", sa.String(length=40), nullable=False),
-        sa.Column("resource_id", sa.String(length=128), nullable=True),
+        sa.Column("invite_id", sa.String(length=36), nullable=True),
         sa.Column("score_id", sa.String(length=36), nullable=True),
-        sa.Column("title", sa.String(length=255), nullable=False),
-        sa.Column("body", sa.String(length=1024), nullable=True),
-        sa.Column("data", sa.JSON(), nullable=False),
+        sa.Column("revision_id", sa.String(length=36), nullable=True),
+        sa.Column("import_job_id", sa.String(length=36), nullable=True),
+        sa.Column("score_title_snapshot", sa.String(length=255), nullable=True),
+        sa.Column("job_title_snapshot", sa.String(length=255), nullable=True),
         sa.Column("read_at", sa.DateTime(), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.CheckConstraint(
+            "\n          (kind IN ('score_invite.accepted', 'score_invite.declined') AND invite_id IS NOT NULL\n           AND score_id IS NOT NULL AND actor_user_id IS NOT NULL AND score_title_snapshot IS NOT NULL\n           AND revision_id IS NULL AND import_job_id IS NULL AND job_title_snapshot IS NULL)\n          OR (kind = 'score.version.created' AND score_id IS NOT NULL AND revision_id IS NOT NULL\n           AND actor_user_id IS NOT NULL AND score_title_snapshot IS NOT NULL AND invite_id IS NULL\n           AND import_job_id IS NULL AND job_title_snapshot IS NULL)\n          OR (kind = 'import.completed' AND import_job_id IS NOT NULL AND actor_user_id IS NULL\n           AND invite_id IS NULL AND revision_id IS NULL\n           AND ((score_id IS NULL AND score_title_snapshot IS NULL)\n             OR (score_id IS NOT NULL AND score_title_snapshot IS NOT NULL)))\n          OR (kind = 'import.failed' AND import_job_id IS NOT NULL AND actor_user_id IS NULL\n           AND invite_id IS NULL AND revision_id IS NULL AND score_id IS NULL AND score_title_snapshot IS NULL)\n        ",
+            name="ck_notifications_semantic_identity",
+        ),
         sa.ForeignKeyConstraint(
-            ["actor_user_id"], ["users.id"], name="fk_notification_events_actor_user_id_users"
+            ["actor_user_id"],
+            ["users.id"],
         ),
         sa.ForeignKeyConstraint(
             ["recipient_user_id"],
             ["users.id"],
-            name="fk_notification_events_recipient_user_id_users",
         ),
-        sa.PrimaryKeyConstraint("id", name="pk_notification_events"),
-        sa.UniqueConstraint("dedupe_key", name="uq_notification_events_dedupe_key"),
-        sa.UniqueConstraint("notification_uuid", name="uq_notification_events_notification_uuid"),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("dedupe_key"),
+        sa.UniqueConstraint("notification_uuid"),
     )
     op.create_index(
-        "idx_notification_events_recipient_created",
-        "notification_events",
+        "idx_notifications_recipient_created",
+        "notifications",
         ["recipient_user_id", "created_at"],
         unique=False,
     )
     op.create_index(
-        "idx_notification_events_recipient_read",
-        "notification_events",
+        "idx_notifications_recipient_read",
+        "notifications",
         ["recipient_user_id", "read_at"],
         unique=False,
     )
+    op.create_table(
+        "realtime_changes",
+        sa.Column(
+            "sequence",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.Column("change_uuid", sa.String(length=36), nullable=False),
+        sa.Column("recipient_user_id", sa.BigInteger(), nullable=False),
+        sa.Column(
+            "kind",
+            sa.Enum(
+                "notifications.changed",
+                "score.revisions.changed",
+                "score.derived_assets.changed",
+                "score.metadata.changed",
+                "import_jobs.changed",
+                name="realtimechangekind",
+                native_enum=False,
+                create_constraint=True,
+            ),
+            nullable=False,
+        ),
+        sa.Column("notification_id", sa.String(length=36), nullable=True),
+        sa.Column("score_id", sa.String(length=36), nullable=True),
+        sa.Column("revision_id", sa.String(length=36), nullable=True),
+        sa.Column("import_job_id", sa.String(length=36), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.CheckConstraint(
+            "\n          (kind = 'notifications.changed' AND score_id IS NULL AND revision_id IS NULL AND import_job_id IS NULL)\n          OR (kind IN ('score.revisions.changed', 'score.derived_assets.changed', 'score.metadata.changed')\n              AND score_id IS NOT NULL AND revision_id IS NOT NULL AND notification_id IS NULL AND import_job_id IS NULL)\n          OR (kind = 'import_jobs.changed' AND import_job_id IS NOT NULL\n              AND notification_id IS NULL AND score_id IS NULL AND revision_id IS NULL)\n        ",
+            name="ck_realtime_changes_identity",
+        ),
+        sa.ForeignKeyConstraint(["recipient_user_id"], ["users.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("sequence"),
+        sa.UniqueConstraint("change_uuid"),
+    )
     op.create_index(
-        "idx_notification_events_resource",
-        "notification_events",
-        ["resource_type", "resource_id"],
+        "idx_realtime_changes_created", "realtime_changes", ["created_at"], unique=False
+    )
+    op.create_index(
+        "idx_realtime_changes_recipient_sequence",
+        "realtime_changes",
+        ["recipient_user_id", "sequence"],
         unique=False,
+    )
+    op.create_table(
+        "realtime_stream_state",
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("replay_floor_sequence", sa.BigInteger(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.CheckConstraint("id = 1", name="ck_realtime_stream_singleton"),
+        sa.CheckConstraint("replay_floor_sequence >= 0", name="ck_realtime_stream_floor"),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.execute(
+        "INSERT INTO realtime_stream_state (id, replay_floor_sequence, updated_at) VALUES (1, 0, CURRENT_TIMESTAMP)"
     )
     op.create_table(
         "operator_password_credentials",
@@ -947,46 +1016,6 @@ def upgrade() -> None:
         ["user_id", "created_at"],
         unique=False,
     )
-    op.create_table(
-        "realtime_events",
-        sa.Column(
-            "id",
-            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
-            autoincrement=True,
-            nullable=False,
-        ),
-        sa.Column("event_uuid", sa.String(length=36), nullable=False),
-        sa.Column("recipient_user_id", sa.BigInteger(), nullable=False),
-        sa.Column("type", sa.String(length=96), nullable=False),
-        sa.Column("resource_type", sa.String(length=40), nullable=True),
-        sa.Column("resource_id", sa.String(length=128), nullable=True),
-        sa.Column("score_id", sa.String(length=36), nullable=True),
-        sa.Column("revision_id", sa.String(length=36), nullable=True),
-        sa.Column("payload", sa.JSON(), nullable=False),
-        sa.Column("created_at", sa.DateTime(), nullable=False),
-        sa.ForeignKeyConstraint(
-            ["recipient_user_id"],
-            ["users.id"],
-            name="fk_realtime_events_recipient_user_id_users",
-            ondelete="CASCADE",
-        ),
-        sa.PrimaryKeyConstraint("id", name="pk_realtime_events"),
-        sa.UniqueConstraint("event_uuid", name="uq_realtime_events_event_uuid"),
-    )
-    op.create_index(
-        "idx_realtime_events_recipient_created",
-        "realtime_events",
-        ["recipient_user_id", "created_at"],
-        unique=False,
-    )
-    op.create_index(
-        "idx_realtime_events_recipient_id",
-        "realtime_events",
-        ["recipient_user_id", "id"],
-        unique=False,
-    )
-    op.create_index("idx_realtime_events_score", "realtime_events", ["score_id"], unique=False)
-    op.create_index("idx_realtime_events_type", "realtime_events", ["type"], unique=False)
     op.create_table(
         "refresh_tokens",
         sa.Column("id", sa.BigInteger(), nullable=False),
@@ -2613,11 +2642,9 @@ def downgrade() -> None:
     op.drop_index("idx_refresh_tokens_revoked", table_name="refresh_tokens")
     op.drop_index("idx_refresh_tokens_expires", table_name="refresh_tokens")
     op.drop_table("refresh_tokens")
-    op.drop_index("idx_realtime_events_type", table_name="realtime_events")
-    op.drop_index("idx_realtime_events_score", table_name="realtime_events")
-    op.drop_index("idx_realtime_events_recipient_id", table_name="realtime_events")
-    op.drop_index("idx_realtime_events_recipient_created", table_name="realtime_events")
-    op.drop_table("realtime_events")
+    op.drop_table("realtime_stream_state")
+    op.drop_table("realtime_changes")
+    op.drop_table("notifications")
     op.drop_index("ix_take_manifest_user_created", table_name="performance_take_manifests")
     op.drop_index(
         op.f("ix_performance_take_manifests_user_id"), table_name="performance_take_manifests"
@@ -2631,10 +2658,6 @@ def downgrade() -> None:
     op.drop_index("idx_operator_sessions_expires", table_name="operator_sessions")
     op.drop_table("operator_sessions")
     op.drop_table("operator_password_credentials")
-    op.drop_index("idx_notification_events_resource", table_name="notification_events")
-    op.drop_index("idx_notification_events_recipient_read", table_name="notification_events")
-    op.drop_index("idx_notification_events_recipient_created", table_name="notification_events")
-    op.drop_table("notification_events")
     op.drop_index(op.f("ix_import_jobs_execution_manifest_id"), table_name="import_jobs")
     op.drop_index("idx_import_jobs_user_created", table_name="import_jobs")
     op.drop_index("idx_import_jobs_state", table_name="import_jobs")

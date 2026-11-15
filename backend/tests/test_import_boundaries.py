@@ -99,7 +99,7 @@ def test_confirmation_owns_notification_enrichment_and_temporary_release():
         if isinstance(node, ast.ImportFrom)
         for alias in node.names
     }
-    assert "enrich_completed_import_notification" in imports and "NotificationEvent" not in imports
+    assert "enrich_completed_import_notification" in imports and "Notification" not in imports
     confirm = next(
         node
         for node in ast.walk(tree)

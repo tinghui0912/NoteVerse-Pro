@@ -15,7 +15,7 @@ Worker execution uses a synchronous `Session` through `ImportJobExecutionService
 progress/step mutations, artifact production and finalization.
 
 Finalization commits Job state, diagnostics, its completed/failed notification,
-notification.created realtime and import_job.completed/import_job.failed realtime in
+notifications.changed realtime and import_jobs.changed realtime in
 one transaction. Review-thumbnail admission shares the success transaction. Admission
 failures roll back all these database consequences. Exact-attempt locks and current
 terminal state ensure redelivery does not repeat notification or realtime rows.

@@ -318,6 +318,74 @@ export type ImportArtifactRead = {
 };
 
 /**
+ * ImportCompletedNotificationRead
+ */
+export type ImportCompletedNotificationRead = {
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Job Id
+     */
+    job_id: string;
+    /**
+     * Job Title
+     */
+    job_title: string | null;
+    /**
+     * Kind
+     */
+    kind: 'import.completed';
+    /**
+     * Notification Id
+     */
+    notification_id: string;
+    /**
+     * Read At
+     */
+    read_at: string | null;
+    /**
+     * Score Id
+     */
+    score_id: string | null;
+    /**
+     * Score Title
+     */
+    score_title: string | null;
+};
+
+/**
+ * ImportFailedNotificationRead
+ */
+export type ImportFailedNotificationRead = {
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Job Id
+     */
+    job_id: string;
+    /**
+     * Job Title
+     */
+    job_title: string | null;
+    /**
+     * Kind
+     */
+    kind: 'import.failed';
+    /**
+     * Notification Id
+     */
+    notification_id: string;
+    /**
+     * Read At
+     */
+    read_at: string | null;
+};
+
+/**
  * ImportJobBatchStatusRead
  */
 export type ImportJobBatchStatusRead = {
@@ -987,46 +1055,17 @@ export type NotificationActorRead = {
     email: string;
 };
 
-/**
- * NotificationEventRead
- */
-export type NotificationEventRead = {
-    actor: NotificationActorRead | null;
-    /**
-     * Body
-     */
-    body: string | null;
-    /**
-     * Created At
-     */
-    created_at: string;
-    /**
-     * Data
-     */
-    data: {
-        [key: string]: unknown;
-    };
-    /**
-     * Notification Id
-     */
-    notification_id: string;
-    /**
-     * Read At
-     */
-    read_at: string | null;
-    /**
-     * Score Id
-     */
-    score_id: string | null;
-    /**
-     * Title
-     */
-    title: string;
-    /**
-     * Type
-     */
-    type: string;
-};
+export type NotificationRead = ({
+    kind: 'score_invite.accepted';
+} & ScoreInviteAcceptedNotificationRead) | ({
+    kind: 'score_invite.declined';
+} & ScoreInviteDeclinedNotificationRead) | ({
+    kind: 'score.version.created';
+} & ScoreVersionCreatedNotificationRead) | ({
+    kind: 'import.completed';
+} & ImportCompletedNotificationRead) | ({
+    kind: 'import.failed';
+} & ImportFailedNotificationRead);
 
 /**
  * NotificationUnreadCountRead
@@ -2436,6 +2475,76 @@ export type ScoreInputAssetRead = {
 };
 
 /**
+ * ScoreInviteAcceptedNotificationRead
+ */
+export type ScoreInviteAcceptedNotificationRead = {
+    actor: NotificationActorRead;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Invite Id
+     */
+    invite_id: string;
+    /**
+     * Kind
+     */
+    kind: 'score_invite.accepted';
+    /**
+     * Notification Id
+     */
+    notification_id: string;
+    /**
+     * Read At
+     */
+    read_at: string | null;
+    /**
+     * Score Id
+     */
+    score_id: string;
+    /**
+     * Score Title
+     */
+    score_title: string;
+};
+
+/**
+ * ScoreInviteDeclinedNotificationRead
+ */
+export type ScoreInviteDeclinedNotificationRead = {
+    actor: NotificationActorRead;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Invite Id
+     */
+    invite_id: string;
+    /**
+     * Kind
+     */
+    kind: 'score_invite.declined';
+    /**
+     * Notification Id
+     */
+    notification_id: string;
+    /**
+     * Read At
+     */
+    read_at: string | null;
+    /**
+     * Score Id
+     */
+    score_id: string;
+    /**
+     * Score Title
+     */
+    score_title: string;
+};
+
+/**
  * ScoreRead
  */
 export type ScoreRead = {
@@ -2534,6 +2643,41 @@ export type ScoreUpdateRequest = {
      * Title
      */
     title?: string | null;
+};
+
+/**
+ * ScoreVersionCreatedNotificationRead
+ */
+export type ScoreVersionCreatedNotificationRead = {
+    actor: NotificationActorRead;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Kind
+     */
+    kind: 'score.version.created';
+    /**
+     * Notification Id
+     */
+    notification_id: string;
+    /**
+     * Read At
+     */
+    read_at: string | null;
+    /**
+     * Revision Id
+     */
+    revision_id: string;
+    /**
+     * Score Id
+     */
+    score_id: string;
+    /**
+     * Score Title
+     */
+    score_title: string;
 };
 
 /**
@@ -4061,7 +4205,7 @@ export type NotificationsListResponses = {
      *
      * Successful Response
      */
-    200: Array<NotificationEventRead>;
+    200: Array<NotificationRead>;
 };
 
 export type NotificationsListResponse = NotificationsListResponses[keyof NotificationsListResponses];
@@ -4153,7 +4297,7 @@ export type NotificationMarkReadResponses = {
     /**
      * Successful Response
      */
-    200: NotificationEventRead;
+    200: NotificationRead;
 };
 
 export type NotificationMarkReadResponse = NotificationMarkReadResponses[keyof NotificationMarkReadResponses];
@@ -4846,7 +4990,7 @@ export type RealtimeEventsStreamError = RealtimeEventsStreamErrors[keyof Realtim
 
 export type RealtimeEventsStreamResponses = {
     /**
-     * Server-sent event stream with event IDs, names, JSON data and heartbeat comments.
+     * Versioned change delivery and resync-required controls with sequence cursors and heartbeat comments.
      */
     200: string;
 };

@@ -493,6 +493,140 @@
         "title": "ImportArtifactRead",
         "type": "object"
       },
+      "ImportCompletedNotificationRead": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "job_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Title"
+          },
+          "kind": {
+            "const": "import.completed",
+            "title": "Kind",
+            "type": "string"
+          },
+          "notification_id": {
+            "title": "Notification Id",
+            "type": "string"
+          },
+          "read_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Read At"
+          },
+          "score_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Id"
+          },
+          "score_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Title"
+          }
+        },
+        "required": [
+          "notification_id",
+          "read_at",
+          "created_at",
+          "kind",
+          "job_id",
+          "job_title",
+          "score_id",
+          "score_title"
+        ],
+        "title": "ImportCompletedNotificationRead",
+        "type": "object"
+      },
+      "ImportFailedNotificationRead": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "job_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Title"
+          },
+          "kind": {
+            "const": "import.failed",
+            "title": "Kind",
+            "type": "string"
+          },
+          "notification_id": {
+            "title": "Notification Id",
+            "type": "string"
+          },
+          "read_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Read At"
+          }
+        },
+        "required": [
+          "notification_id",
+          "read_at",
+          "created_at",
+          "kind",
+          "job_id",
+          "job_title"
+        ],
+        "title": "ImportFailedNotificationRead",
+        "type": "object"
+      },
       "ImportJobBatchStatusRead": {
         "properties": {
           "jobs": {
@@ -1865,88 +1999,34 @@
         "title": "NotificationActorRead",
         "type": "object"
       },
-      "NotificationEventRead": {
-        "properties": {
-          "actor": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/NotificationActorRead"
-              },
-              {
-                "type": "null"
-              }
-            ]
+      "NotificationRead": {
+        "discriminator": {
+          "mapping": {
+            "import.completed": "#/components/schemas/ImportCompletedNotificationRead",
+            "import.failed": "#/components/schemas/ImportFailedNotificationRead",
+            "score.version.created": "#/components/schemas/ScoreVersionCreatedNotificationRead",
+            "score_invite.accepted": "#/components/schemas/ScoreInviteAcceptedNotificationRead",
+            "score_invite.declined": "#/components/schemas/ScoreInviteDeclinedNotificationRead"
           },
-          "body": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Body"
-          },
-          "created_at": {
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "data": {
-            "additionalProperties": true,
-            "title": "Data",
-            "type": "object"
-          },
-          "notification_id": {
-            "title": "Notification Id",
-            "type": "string"
-          },
-          "read_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Read At"
-          },
-          "score_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Score Id"
-          },
-          "title": {
-            "title": "Title",
-            "type": "string"
-          },
-          "type": {
-            "title": "Type",
-            "type": "string"
-          }
+          "propertyName": "kind"
         },
-        "required": [
-          "notification_id",
-          "type",
-          "title",
-          "body",
-          "score_id",
-          "actor",
-          "data",
-          "read_at",
-          "created_at"
-        ],
-        "title": "NotificationEventRead",
-        "type": "object"
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ScoreInviteAcceptedNotificationRead"
+          },
+          {
+            "$ref": "#/components/schemas/ScoreInviteDeclinedNotificationRead"
+          },
+          {
+            "$ref": "#/components/schemas/ScoreVersionCreatedNotificationRead"
+          },
+          {
+            "$ref": "#/components/schemas/ImportCompletedNotificationRead"
+          },
+          {
+            "$ref": "#/components/schemas/ImportFailedNotificationRead"
+          }
+        ]
       },
       "NotificationUnreadCountRead": {
         "properties": {
@@ -4426,6 +4506,120 @@
         "title": "ScoreInputAssetRead",
         "type": "object"
       },
+      "ScoreInviteAcceptedNotificationRead": {
+        "properties": {
+          "actor": {
+            "$ref": "#/components/schemas/NotificationActorRead"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "invite_id": {
+            "title": "Invite Id",
+            "type": "string"
+          },
+          "kind": {
+            "const": "score_invite.accepted",
+            "title": "Kind",
+            "type": "string"
+          },
+          "notification_id": {
+            "title": "Notification Id",
+            "type": "string"
+          },
+          "read_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Read At"
+          },
+          "score_id": {
+            "title": "Score Id",
+            "type": "string"
+          },
+          "score_title": {
+            "title": "Score Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "notification_id",
+          "read_at",
+          "created_at",
+          "kind",
+          "invite_id",
+          "actor",
+          "score_id",
+          "score_title"
+        ],
+        "title": "ScoreInviteAcceptedNotificationRead",
+        "type": "object"
+      },
+      "ScoreInviteDeclinedNotificationRead": {
+        "properties": {
+          "actor": {
+            "$ref": "#/components/schemas/NotificationActorRead"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "invite_id": {
+            "title": "Invite Id",
+            "type": "string"
+          },
+          "kind": {
+            "const": "score_invite.declined",
+            "title": "Kind",
+            "type": "string"
+          },
+          "notification_id": {
+            "title": "Notification Id",
+            "type": "string"
+          },
+          "read_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Read At"
+          },
+          "score_id": {
+            "title": "Score Id",
+            "type": "string"
+          },
+          "score_title": {
+            "title": "Score Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "notification_id",
+          "read_at",
+          "created_at",
+          "kind",
+          "invite_id",
+          "actor",
+          "score_id",
+          "score_title"
+        ],
+        "title": "ScoreInviteDeclinedNotificationRead",
+        "type": "object"
+      },
       "ScoreRead": {
         "properties": {
           "capabilities": {
@@ -4611,6 +4805,63 @@
           "expected_version"
         ],
         "title": "ScoreUpdateRequest",
+        "type": "object"
+      },
+      "ScoreVersionCreatedNotificationRead": {
+        "properties": {
+          "actor": {
+            "$ref": "#/components/schemas/NotificationActorRead"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "kind": {
+            "const": "score.version.created",
+            "title": "Kind",
+            "type": "string"
+          },
+          "notification_id": {
+            "title": "Notification Id",
+            "type": "string"
+          },
+          "read_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Read At"
+          },
+          "revision_id": {
+            "title": "Revision Id",
+            "type": "string"
+          },
+          "score_id": {
+            "title": "Score Id",
+            "type": "string"
+          },
+          "score_title": {
+            "title": "Score Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "notification_id",
+          "read_at",
+          "created_at",
+          "kind",
+          "actor",
+          "score_id",
+          "score_title",
+          "revision_id"
+        ],
+        "title": "ScoreVersionCreatedNotificationRead",
         "type": "object"
       },
       "SecurityOverview": {
@@ -7508,7 +7759,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/NotificationEventRead"
+                    "$ref": "#/components/schemas/NotificationRead"
                   },
                   "title": "Response Notificationslist",
                   "type": "array"
@@ -7697,7 +7948,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotificationEventRead"
+                  "$ref": "#/components/schemas/NotificationRead"
                 }
               }
             },
@@ -9180,7 +9431,7 @@
                 }
               }
             },
-            "description": "Server-sent event stream with event IDs, names, JSON data and heartbeat comments."
+            "description": "Versioned change delivery and resync-required controls with sequence cursors and heartbeat comments."
           },
           "422": {
             "content": {

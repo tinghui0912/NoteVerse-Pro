@@ -1,24 +1,27 @@
 import { describe, expect, it } from 'vitest';
 
-import type { NotificationEventRead, NotificationsListResponse } from '@/generated/api';
+import type { NotificationRead, NotificationsListResponse } from '@/generated/api';
 import {
-markAllNotificationsReadInList,
-markNotificationReadInList,
+  markAllNotificationsReadInList,
+  markNotificationReadInList,
 } from '@/hooks/queries/use-notification-queries';
 
-const baseNotification: NotificationEventRead = {
+const baseNotification: NotificationRead = {
   notification_id: 'notification-1',
-  type: 'score_invite.accepted',
-  title: 'Invite accepted',
-  body: null,
+  kind: 'score_invite.accepted',
+  invite_id: 'invite-1',
+  score_title: 'Etudes',
   score_id: 'score-1',
-  actor: null,
-  data: {},
+  actor: {
+    display_name: 'Member',
+    email: 'member@example.test',
+    avatar_url: null,
+  },
   read_at: null,
   created_at: '2026-07-01T00:00:00Z',
 };
 
-function response(data: NotificationEventRead[]): NotificationsListResponse {
+function response(data: NotificationRead[]): NotificationsListResponse {
   return data;
 }
 
@@ -33,11 +36,7 @@ describe('notification query optimistic helpers', () => {
       },
     ]);
 
-    const next = markNotificationReadInList(
-      current,
-      'notification-1',
-      '2026-07-01T01:00:00Z'
-    );
+    const next = markNotificationReadInList(current, 'notification-1', '2026-07-01T01:00:00Z');
 
     expect(next?.[0].read_at).toBe('2026-07-01T01:00:00Z');
     expect(next?.[1].read_at).toBeNull();

@@ -71,7 +71,7 @@ prewrites remain unadopted ObjectWriteIntents and converge through durable clean
 Expensive rendering and storage writes never retain delivery locks across execution.
 
 Authoritative metadata and Render/Playback outcome transactions use strict sync
-score realtime publication. Recipient resolution, all RealtimeEvent writes/flushes
+score realtime publication. Recipient resolution, all RealtimeChange writes/flushes
 and pg_notify participate in the same transaction without exception swallowing.
 Partial publication failure rolls back the authoritative outcome and every partial
 recipient row. Metadata and ready-adoption failure may fail the exact processing

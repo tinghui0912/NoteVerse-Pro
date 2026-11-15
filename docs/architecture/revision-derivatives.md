@@ -64,21 +64,22 @@ Retention/head writers lock Score before changing presentation or rearming outbo
 
 Asset replacement, StoredObject adoption, usage allocation/release, retirement enqueue
 and exact delivery completion commit in one worker-owned transaction. Generation
-services flush that transaction without committing it. Ready realtime rows follow
+services flush that transaction without committing it. A score.derived_assets.changed row follows
 accepted completion in the same transaction. Physical render/audio computation and
 storage prewrite run outside aggregate/delivery locks.
 
-Ready and accepted failed signals use strict `publish_score_event`. Recipient
-lookup, every RealtimeEvent flush and transactional pg_notify must succeed before
+Ready and accepted failed outcomes publish the same score.derived_assets.changed
+cache hint through strict `publish_score_change`. Recipient
+lookup, every RealtimeChange flush and transactional pg_notify must succeed before
 the caller commits. Ready publication failure rolls back adoption, usage,
 retirements, completion and partial recipient rows. ObjectWriteIntent retains
 the unadopted physical prewrites for cleanup. The worker can fail its exact lease
-in a new transaction and publish failed atomically with that transition.
+in a new transaction and admit the same change kind atomically with that transition.
 
 Failed publication failure also propagates: FAILED and partial signals roll back,
 leaving the processing lease for maintenance recovery. No best-effort fallback
-weakens these accepted-outcome guarantees. Genuine best-effort notification hints
-remain a separate explicit policy and retain their own transaction handling.
+weakens these accepted-outcome guarantees. Notification admission also uses strict
+transactional change publication.
 
 If the revision loses head status, final admission discards its generated receipts without
 creating asset rows or allocating derived usage. ObjectWriteIntent cleanup owns physical

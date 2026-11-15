@@ -157,7 +157,7 @@ def test_final_admission_serializes_with_current_score(monkeypatch, tmp_path, ki
                 "RevisionRenderService",
                 lambda: render_service.RevisionRenderService(storage=storage),
             )
-            monkeypatch.setattr(worker, "_publish_revision_render_status", publish)
+            monkeypatch.setattr(worker, "_publish_revision_render_change", publish)
             execute = worker.execute_render_outbox_task
             model = RenderOutbox
             asset_model = ScoreRenderAsset
@@ -179,7 +179,7 @@ def test_final_admission_serializes_with_current_score(monkeypatch, tmp_path, ki
                     storage=storage, renderer=renderer
                 ),
             )
-            monkeypatch.setattr(worker, "_publish_playback_status", publish)
+            monkeypatch.setattr(worker, "_publish_playback_change", publish)
             execute = worker.execute_playback_outbox_task
             model = PlaybackOutbox
             asset_model = ScorePlaybackAsset
@@ -211,7 +211,12 @@ def test_final_admission_serializes_with_current_score(monkeypatch, tmp_path, ki
         if change == "head":
             publish.assert_not_called()
         else:
-            assert publish.call_args.args[-1] == "failed"
+            publish.assert_called_once()
+            if kind == "render":
+                assert publish.call_args.args[-1].score_uuid == "race-score"
+                assert publish.call_args.args[-1].revision_uuid == "race-r1"
+            else:
+                assert publish.call_args.args[1:] == ("race-score", "race-r1")
         with Session(engine) as check:
             work = check.scalar(sa.select(model))
             assert work.status.value == ("SUPERSEDED" if change == "head" else "FAILED")

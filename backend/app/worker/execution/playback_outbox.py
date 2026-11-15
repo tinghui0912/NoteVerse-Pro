@@ -12,8 +12,8 @@ from app.db.session import SessionLocal
 from app.modules.playback.outbox_service import playback_outbox_service
 from app.modules.playback.service import PlaybackGenerationService
 from app.modules.realtime.publisher import (
-    RealtimeEventTypes,
-    publish_score_event,
+    RealtimeChangeKind,
+    publish_score_change,
 )
 from app.task_queue.protocols import CeleryTaskLike
 from app.worker.task_runtime import (
@@ -75,7 +75,7 @@ def execute_playback_outbox_task(task: CeleryTaskLike, outbox_uuid: str) -> dict
                     outbox_uuid=payload.outbox_uuid,
                     lease=payload.lease,
                 )
-                _publish_playback_status(db, payload.score_uuid, payload.revision_uuid, "ready")
+                _publish_playback_change(db, payload.score_uuid, payload.revision_uuid)
                 db.commit()
         except StaleDeliveryAttempt:
             return {"status": "stale", "outbox_uuid": outbox_uuid}
@@ -96,9 +96,7 @@ def execute_playback_outbox_task(task: CeleryTaskLike, outbox_uuid: str) -> dict
                     db, outbox_uuid, str(exc), lease=payload.lease
                 )
                 if accepted:
-                    _publish_playback_status(
-                        db, payload.score_uuid, payload.revision_uuid, "failed"
-                    )
+                    _publish_playback_change(db, payload.score_uuid, payload.revision_uuid)
                 db.commit()
             if not accepted:
                 return {"status": "stale", "outbox_uuid": outbox_uuid}
@@ -122,16 +120,10 @@ def execute_playback_outbox_task(task: CeleryTaskLike, outbox_uuid: str) -> dict
         clear_task_context()
 
 
-def _publish_playback_status(db: Any, score_uuid: str, revision_uuid: str, status: str) -> None:
-    publish_score_event(
+def _publish_playback_change(db: Any, score_uuid: str, revision_uuid: str) -> None:
+    publish_score_change(
         db,
         score_id=score_uuid,
         revision_id=revision_uuid,
-        type=RealtimeEventTypes.SCORE_DERIVED_ASSET_UPDATED,
-        payload={
-            "score_id": score_uuid,
-            "revision_id": revision_uuid,
-            "asset": "audio",
-            "status": status,
-        },
+        kind=RealtimeChangeKind.SCORE_DERIVED_ASSETS_CHANGED,
     )

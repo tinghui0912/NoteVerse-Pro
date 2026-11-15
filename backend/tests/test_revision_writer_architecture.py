@@ -45,7 +45,7 @@ def test_revision_writer_is_a_transaction_participant_admitting_all_durable_work
         "ScoreRevisionSource",
         "ScoreRevisionMetadata",
         "RevisionMetadataOutbox",
-        "publish_event",
+        "publish_change",
         "score_recipients",
         "create_revision_render_outbox",
         "create_playback_outbox",

@@ -39,7 +39,9 @@ describe('score collaboration invite architecture', () => {
 
   it('keeps preview and invite semantics separate', () => {
     const previewPanel = readSource('src/components/score-detail/score-guest-preview-panel.tsx');
-    const collaborationPanel = readSource('src/components/score-detail/score-collaboration-panel.tsx');
+    const collaborationPanel = readSource(
+      'src/components/score-detail/score-collaboration-panel.tsx'
+    );
     const invitePage = readSource('src/app/[locale]/(invite)/invite/[token]/page.tsx');
 
     expect(previewPanel).not.toContain('MembershipRole');
@@ -50,7 +52,7 @@ describe('score collaboration invite architecture', () => {
     expect(collaborationPanel).toContain('VIEWER');
     expect(invitePage).toContain("searchParams.get('accept') === '1'");
     expect(invitePage).toContain('acceptInvite.mutate');
-    expect(invitePage).toContain("router.push(`/score/${scoreId}`)");
+    expect(invitePage).toContain('router.push(`/score/${scoreId}`)');
   });
 
   it('preserves invite returnUrl through login and registration', () => {
@@ -62,7 +64,7 @@ describe('score collaboration invite architecture', () => {
     expect(registerPage).toContain("withReturnUrl('/auth/login', returnUrl)");
   });
 
-  it('keeps notification center as a projection over pending invites and notification events', () => {
+  it('composes notification center from pending invites and semantic history', () => {
     const navActions = readSource('src/components/navigation/nav-actions.tsx');
     const center = readSource('src/components/notifications/notification-center-dialog.tsx');
     const notificationsApi = readSource('src/lib/api/notifications.ts');
@@ -81,9 +83,7 @@ describe('score collaboration invite architecture', () => {
     expect(center).toContain('notificationsQuery.refetch()');
     expect(center).toContain("useState<'all' | 'unread'>('all')");
     expect(center).toContain("updateFilter === 'unread'");
-    expect(center).toContain("notification.type === 'score_invite.accepted'");
-    expect(center).toContain("notification.type === 'score_invite.declined'");
-    expect(center).toContain("notification.type === 'score.version.created'");
+    expect(center).toContain('notificationPresentation(notification, t)');
     expect(center).toContain('notificationHref(notification)');
     expect(center).toContain('router.push(href)');
 

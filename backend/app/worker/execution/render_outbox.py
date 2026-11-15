@@ -12,8 +12,8 @@ from app.core.background_tracing import record_current_attempt_failure
 from app.db.models import RenderTargetType
 from app.db.session import SessionLocal
 from app.modules.realtime.publisher import (
-    RealtimeEventTypes,
-    publish_score_event,
+    RealtimeChangeKind,
+    publish_score_change,
 )
 from app.modules.import_jobs.review.thumbnail_service import import_review_thumbnail_service
 from app.modules.score_assets.render_outbox_service import render_outbox_service
@@ -66,7 +66,7 @@ def execute_render_outbox_task(
             with SessionLocal() as db:
                 artifact_id = _render_target(db, payload)
                 if _is_score_revision_render(payload):
-                    _publish_revision_render_status(db, payload, "ready")
+                    _publish_revision_render_change(db, payload)
                 db.commit()
         except StaleDeliveryAttempt:
             return {"status": "stale", "outbox_uuid": outbox_uuid}
@@ -87,7 +87,7 @@ def execute_render_outbox_task(
                     db, outbox_uuid, str(exc), lease=payload.lease
                 )
                 if accepted and _is_score_revision_render(payload):
-                    _publish_revision_render_status(db, payload, "failed")
+                    _publish_revision_render_change(db, payload)
                 db.commit()
             if not accepted:
                 return {"status": "stale", "outbox_uuid": outbox_uuid}
@@ -150,24 +150,17 @@ def _render_review_thumbnail(db: Session, payload: RenderOutboxPayload) -> str |
     )
 
 
-def _publish_revision_render_status(
+def _publish_revision_render_change(
     db: Any,
     payload: RenderOutboxPayload,
-    status: str,
 ) -> None:
     if payload.score_uuid is None or payload.revision_uuid is None:
         return
-    publish_score_event(
+    publish_score_change(
         db,
         score_id=payload.score_uuid,
         revision_id=payload.revision_uuid,
-        type=RealtimeEventTypes.SCORE_DERIVED_ASSET_UPDATED,
-        payload={
-            "score_id": payload.score_uuid,
-            "revision_id": payload.revision_uuid,
-            "asset": "preview",
-            "status": status,
-        },
+        kind=RealtimeChangeKind.SCORE_DERIVED_ASSETS_CHANGED,
     )
 
 

@@ -32,8 +32,8 @@ from app.db.models import (
     StorageUsageCounter,
     StorageUsageEvent,
     ObjectWriteIntent,
-    NotificationEvent,
-    RealtimeEvent,
+    Notification,
+    RealtimeChange,
 )
 from app.db.models.import_job import ImportJobState
 from app.modules.import_jobs.review import service as review
@@ -152,8 +152,8 @@ def snapshot(db):
         PlaybackOutbox,
         RevisionMetadataOutbox,
         ScoreInputAsset,
-        NotificationEvent,
-        RealtimeEvent,
+        Notification,
+        RealtimeChange,
     )
     return {
         model.__tablename__: list(
@@ -211,7 +211,7 @@ def test_confirmation_semantic_transaction_rolls_back_at_every_boundary(
 
             def commit():
                 if db.scalar(sa.select(ImportJob)).state == ImportJobState.CONFIRMED:
-                    assert db.scalar(sa.select(NotificationEvent)).score_id is not None
+                    assert db.scalar(sa.select(Notification)).score_id is not None
                     interrupted()
                 original()
 
@@ -238,32 +238,29 @@ def test_confirmation_enriches_retained_notification_in_its_transaction(confirma
     score_id = confirm(engine, storage)
     assert confirm(engine, storage) == score_id
     with Session(engine) as db:
-        notifications = list(db.scalars(sa.select(NotificationEvent)))
+        notifications = list(db.scalars(sa.select(Notification)))
         assert len(notifications) == 1
         assert notifications[0].score_id == score_id
-        assert notifications[0].data == {
-            "job_id": "job",
-            "job_title": "Etudes",
-            "score_id": score_id,
-            "score_title": "Etudes",
-        }
-        assert sorted(row.type for row in db.scalars(sa.select(RealtimeEvent))) == [
-            "import_job.completed",
-            "notification.created",
+        assert notifications[0].import_job_id == "job"
+        assert notifications[0].job_title_snapshot == "Etudes"
+        assert notifications[0].score_title_snapshot == "Etudes"
+        assert sorted(row.kind for row in db.scalars(sa.select(RealtimeChange))) == [
+            "import_jobs.changed",
+            "notifications.changed",
         ]
 
 
 def test_confirmation_succeeds_without_expired_notification_history(confirmation):
     engine, storage = confirmation
     with Session(engine) as db:
-        db.execute(sa.delete(NotificationEvent))
+        db.execute(sa.delete(Notification))
         db.commit()
     score_id = confirm(engine, storage)
     with Session(engine) as db:
         assert db.scalar(sa.select(ImportJob)).state == ImportJobState.CONFIRMED
         assert db.scalar(sa.select(Score)).score_uuid == score_id
-        assert db.scalar(sa.select(NotificationEvent)) is None
-        assert db.scalar(sa.select(sa.func.count()).select_from(RealtimeEvent)) == 2
+        assert db.scalar(sa.select(Notification)) is None
+        assert db.scalar(sa.select(sa.func.count()).select_from(RealtimeChange)) == 2
 
 
 def test_concurrent_confirmation_admits_one_complete_import_transaction(confirmation, monkeypatch):
@@ -291,9 +288,9 @@ def test_concurrent_confirmation_admits_one_complete_import_transaction(confirma
             RevisionMetadataOutbox,
         ):
             assert db.scalar(sa.select(sa.func.count()).select_from(model)) == 1
-        assert db.scalar(sa.select(sa.func.count()).select_from(NotificationEvent)) == 1
-        assert db.scalar(sa.select(NotificationEvent)).score_id == results[0]
-        assert db.scalar(sa.select(sa.func.count()).select_from(RealtimeEvent)) == 2
+        assert db.scalar(sa.select(sa.func.count()).select_from(Notification)) == 1
+        assert db.scalar(sa.select(Notification)).score_id == results[0]
+        assert db.scalar(sa.select(sa.func.count()).select_from(RealtimeChange)) == 2
         assert db.scalar(sa.select(ImportArtifact)) is None
         assert db.scalar(sa.select(ImportJobUpload)) is None
         assert {r.category: r.used_bytes for r in db.scalars(sa.select(StorageUsageCounter))} == {

@@ -1,59 +1,83 @@
 import { describe, expect, it } from 'vitest';
-
+import type { NotificationRead } from '@/generated/api';
 import { notificationHref } from '@/lib/notifications/target';
-import type { NotificationEventRead } from '@/generated/api';
+import { notificationPresentation } from '@/lib/notifications/presentation';
+import en from '../../messages/en/notifications.json';
+import zh from '../../messages/zh/notifications.json';
 
-const baseNotification: NotificationEventRead = {
-  notification_id: 'notification-1',
-  type: 'score_invite.accepted',
-  title: 'Notification',
-  body: null,
-  score_id: null,
-  actor: null,
-  data: {},
+const common = {
+  notification_id: 'notice',
   read_at: null,
   created_at: '2026-07-01T00:00:00Z',
 };
+const actor = {
+  display_name: 'Member',
+  email: 'member@example.test',
+  avatar_url: null,
+};
+const variants: NotificationRead[] = [
+  {
+    ...common,
+    kind: 'score_invite.accepted',
+    actor,
+    invite_id: 'invite',
+    score_id: 'score',
+    score_title: 'Etudes',
+  },
+  {
+    ...common,
+    kind: 'score_invite.declined',
+    actor,
+    invite_id: 'invite',
+    score_id: 'score',
+    score_title: 'Etudes',
+  },
+  {
+    ...common,
+    kind: 'score.version.created',
+    actor,
+    score_id: 'score',
+    revision_id: 'revision',
+    score_title: 'Etudes',
+  },
+  {
+    ...common,
+    kind: 'import.completed',
+    job_id: 'job',
+    job_title: 'Etudes',
+    score_id: null,
+    score_title: null,
+  },
+  { ...common, kind: 'import.failed', job_id: 'job', job_title: null },
+];
 
-describe('notification target resolution', () => {
-  it('opens failed imports in the Import Activity', () => {
+describe('typed notification presentation and navigation', () => {
+  it.each(variants)('localizes $kind from semantic fields', (notification) => {
+    for (const messages of [en, zh]) {
+      const translate = (key: Exclude<keyof typeof en, 'dateGroups'>, values?: { name: string }) =>
+        messages[key].replace('{name}', values?.name ?? '');
+      const presentation = notificationPresentation(notification, translate);
+      expect(presentation.title).toBeTruthy();
+      expect(presentation.subtitle).toBe(
+        notification.kind === 'import.failed' ? messages.processingFailedSubtitle : 'Etudes'
+      );
+    }
+  });
+  it.each(variants.slice(0, 3))('opens score for $kind', (notification) => {
+    expect(notificationHref(notification)).toBe('/score/score');
+  });
+  it('opens review before confirmation and score after confirmation', () => {
+    expect(notificationHref(variants[3])).toBe('/review/job');
     expect(
       notificationHref({
-        ...baseNotification,
-        type: 'import.failed',
-        data: { job_id: 'failed job' },
-      }),
-    ).toBe('/upload#import-activity');
-  });
-
-  it('opens completed imports with only a job id in review', () => {
-    expect(
-      notificationHref({
-        ...baseNotification,
-        type: 'import.completed',
-        data: { job_id: 'ready-job-1' },
-      }),
-    ).toBe('/review/ready-job-1');
-  });
-
-  it('opens completed imports with a score id in the score detail page', () => {
-    expect(
-      notificationHref({
-        ...baseNotification,
-        type: 'import.completed',
-        score_id: null,
-        data: { job_id: 'ready-job-1', score_id: 'score-1' },
-      }),
-    ).toBe('/score/score-1');
-  });
-
-  it('falls back to score_id for score notifications', () => {
-    expect(notificationHref({ ...baseNotification, score_id: 'score-2' })).toBe(
-      '/score/score-2',
-    );
-  });
-
-  it('returns null when a notification has no product target', () => {
-    expect(notificationHref(baseNotification)).toBeNull();
+        ...common,
+        kind: 'import.completed',
+        job_id: 'job',
+        job_title: null,
+        score_id: 'score',
+        score_title: 'Etudes',
+      })
+    ).toBe('/score/score');
+    expect(notificationHref(variants[4])).toBe('/upload#import-activity');
   });
 });

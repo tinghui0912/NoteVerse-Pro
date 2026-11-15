@@ -41,7 +41,7 @@ from app.modules.score_invites.schemas import (
     MemberUpdateRequest,
     PendingInviteRead,
 )
-from app.modules.notifications.service import NotificationService, NotificationTypes
+from app.modules.notifications.service import NotificationService
 from app.shared.constants import ErrorCode
 from app.utils.timezone import to_utc_naive, utc_now_naive
 
@@ -193,9 +193,7 @@ class ScoreInviteService:
                 invite=invite,
                 score=score,
                 actor=user,
-                notification_type=NotificationTypes.SCORE_INVITE_DECLINED,
-                title="Invite declined",
-                action="declined",
+                accepted=False,
             )
         db.commit()
         db.refresh(invite)
@@ -219,9 +217,7 @@ class ScoreInviteService:
                 invite=invite,
                 score=score,
                 actor=user,
-                notification_type=NotificationTypes.SCORE_INVITE_ACCEPTED,
-                title="Invite accepted",
-                action="accepted",
+                accepted=True,
             )
             db.commit()
             db.refresh(invite)
@@ -259,9 +255,7 @@ class ScoreInviteService:
             invite=invite,
             score=score,
             actor=user,
-            notification_type=NotificationTypes.SCORE_INVITE_ACCEPTED,
-            title="Invite accepted",
-            action="accepted",
+            accepted=True,
         )
         db.commit()
         db.refresh(membership)
@@ -401,25 +395,19 @@ class ScoreInviteService:
         invite: ScoreInvite,
         score: Score,
         actor: User,
-        notification_type: str,
-        title: str,
-        action: str,
+        accepted: bool,
     ) -> None:
-        actor_name = actor.display_name or actor.email
-        self.notification_service.admit_event(
+        if invite.terminal_at is None:
+            raise ValueError("Invite response requires a terminal timestamp")
+        self.notification_service.admit_score_invite_response(
             db,
             recipient_user_id=invite.created_by_user_id,
             actor_user_id=require_persisted_id(actor.id, entity="user"),
-            type=notification_type,
-            resource_type="score",
-            resource_id=score.score_uuid,
+            accepted=accepted,
+            invite_id=invite.invite_uuid,
             score_id=score.score_uuid,
-            title=title,
-            body=f"{actor_name} {action} your invite to {score.title}.",
-            dedupe_key=f"{notification_type}:{invite.invite_uuid}:{invite.created_by_user_id}",
-            data={
-                "score_title": score.title,
-            },
+            score_title=score.title,
+            created_at=invite.terminal_at,
         )
 
     def _invite_read(self, db: Session, invite: ScoreInvite) -> InviteRead:

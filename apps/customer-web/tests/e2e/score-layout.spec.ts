@@ -47,14 +47,14 @@ test('score detail uses lightweight hero layout and lazy playback', async ({ pag
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-          revision_id: revisionId,
-          revision_number: 1,
-          content_hash: 'hash',
-          origin: 'OMR',
-          created_at: score.created_at,
-          content: musicXml,
-          mime_type: 'application/xml',
-        }),
+        revision_id: revisionId,
+        revision_number: 1,
+        content_hash: 'hash',
+        origin: 'OMR',
+        created_at: score.created_at,
+        content: musicXml,
+        mime_type: 'application/xml',
+      }),
     })
   );
   await page.route(`**/api/v1/scores/${scoreId}/revision-assets**`, (route) =>
@@ -91,20 +91,18 @@ test('Score head presentation progresses neutrally to exact READY assets through
   await mockAuthenticatedSession(page);
   await page.addInitScript(() => {
     const sources: EventTarget[] = [];
-    class ScoreEvents extends EventTarget {
+    class ScoreChanges extends EventTarget {
       constructor() {
         super();
         sources.push(this);
       }
       close() {}
     }
-    Object.defineProperty(window, 'EventSource', { value: ScoreEvents });
+    Object.defineProperty(window, 'EventSource', { value: ScoreChanges });
     Object.assign(window, {
-      emitScoreEvent: (data: string) =>
-        sources.forEach((source) =>
-          source.dispatchEvent(new MessageEvent('score.derived_asset.updated', { data }))
-        ),
-      scoreEventCount: () => sources.length,
+      emitScoreChange: (data: string) =>
+        sources.forEach((source) => source.dispatchEvent(new MessageEvent('change', { data }))),
+      scoreChangeStreamCount: () => sources.length,
     });
   });
   const score: ScoreRead = {
@@ -132,9 +130,7 @@ test('Score head presentation progresses neutrally to exact READY assets through
       audio: { status: 'pending', asset_id: null },
     },
   };
-  await page.route('**/api/v1/scores/exact-score', (route) =>
-    route.fulfill({ json: score })
-  );
+  await page.route('**/api/v1/scores/exact-score', (route) => route.fulfill({ json: score }));
   const assetReads: string[] = [],
     mediaReads: string[] = [],
     imageReads: string[] = [];
@@ -172,7 +168,9 @@ test('Score head presentation progresses neutrally to exact READY assets through
   await expect(page.getByRole('heading', { name: score.title })).toBeVisible();
   await expect
     .poll(() =>
-      page.evaluate(() => (window as unknown as { scoreEventCount(): number }).scoreEventCount())
+      page.evaluate(() =>
+        (window as unknown as { scoreChangeStreamCount(): number }).scoreChangeStreamCount()
+      )
     )
     .toBeGreaterThan(0);
   const hero = page
@@ -180,16 +178,16 @@ test('Score head presentation progresses neutrally to exact READY assets through
     .filter({ has: page.getByRole('heading', { name: score.title }) });
   const refresh = async () =>
     page.evaluate(
-      (data) => (window as unknown as { emitScoreEvent(data: string): void }).emitScoreEvent(data),
+      (data) =>
+        (window as unknown as { emitScoreChange(data: string): void }).emitScoreChange(data),
       JSON.stringify({
-        schema_version: 1,
-        event_id: crypto.randomUUID(),
+        schemaVersion: 1,
+        changeId: crypto.randomUUID(),
         sequence: 1,
-        type: 'score.derived_asset.updated',
-        score_id: score.score_id,
-        revision_id: 'r2',
-        payload: {},
-        created_at: score.updated_at,
+        kind: 'score.derived_assets.changed',
+        scoreId: score.score_id,
+        revisionId: 'r2',
+        createdAt: score.updated_at,
       })
     );
   for (const status of ['pending', 'processing', 'unavailable'] as const) {

@@ -269,7 +269,7 @@ def test_render_archive_success_is_zip_not_json(client):
 def test_realtime_success_is_an_event_stream(client, monkeypatch):
     def events(*args):
         yield ": connected\n\n"
-        yield "id: 1\nevent: notification.created\ndata: {}\n\n"
+        yield 'id: 1\nevent: change\ndata: {"schemaVersion":1,"sequence":1,"changeId":"change","kind":"notifications.changed","notificationId":null,"createdAt":"2026-11-15T00:00:00Z"}\n\n'
 
     monkeypatch.setattr("app.modules.realtime.router._event_stream", events)
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
@@ -277,7 +277,8 @@ def test_realtime_success_is_an_event_stream(client, monkeypatch):
         response = client.get("/api/v1/realtime/events")
         assert response.status_code == 200
         assert response.headers["content-type"].startswith("text/event-stream")
-        assert "event: notification.created" in response.text
+        assert "event: change" in response.text
+        assert '"kind":"notifications.changed"' in response.text
         contract = operations(client.get("/api/v1/openapi.json").json())["realtimeEventsStream"]
         assert contract["responses"]["200"]["content"] == {
             "text/event-stream": {"schema": {"type": "string"}}

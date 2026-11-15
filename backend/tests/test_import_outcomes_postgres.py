@@ -12,8 +12,8 @@ from app.db.models import (
     ImportArtifact,
     StoredObject,
     RenderOutbox,
-    NotificationEvent,
-    RealtimeEvent,
+    Notification,
+    RealtimeChange,
 )
 from app.db.models.import_job import ImportJobState
 from app.modules.import_jobs import notifications, dispatch_service
@@ -87,35 +87,24 @@ def test_import_terminal_consequences_commit_once(outcome, result):
     with Session(engine) as db:
         finish(db, lease, result)
         job = db.scalar(sa.select(ImportJob))
-        notice = db.scalar(sa.select(NotificationEvent))
+        notice = db.scalar(sa.select(Notification))
         assert job.state == (
             ImportJobState.PENDING_REVIEW if result == "success" else ImportJobState.FAILURE
         )
-        assert notice.type == ("import.completed" if result == "success" else "import.failed")
+        assert notice.kind == ("import.completed" if result == "success" else "import.failed")
         assert notice.recipient_user_id == 1 and notice.actor_user_id is None
         assert notice.created_at == job.finished_at
-        assert notice.title == (
-            "Processing complete" if result == "success" else "Processing failed"
-        )
-        assert notice.body == (
-            "Etudes is ready for review."
-            if result == "success"
-            else "We could not finish processing your score."
-        )
-        assert notice.data == (
-            {"job_id": "job", "job_title": "Etudes"} if result == "success" else {"job_id": "job"}
-        )
-        assert all(row.payload == {} for row in db.scalars(sa.select(RealtimeEvent)))
-        assert sorted(db.scalars(sa.select(RealtimeEvent.type))) == [
-            "import_job.completed" if result == "success" else "import_job.failed",
-            "notification.created",
+        assert notice.import_job_id == "job" and notice.job_title_snapshot == "Etudes"
+        assert sorted(db.scalars(sa.select(RealtimeChange.kind))) == [
+            "import_jobs.changed" if result == "success" else "import_jobs.changed",
+            "notifications.changed",
         ]
         assert db.scalar(sa.select(sa.func.count()).select_from(RenderOutbox)) == (
             1 if result == "success" else 0
         )
         finish(db, lease, result)
-        assert db.scalar(sa.select(sa.func.count()).select_from(NotificationEvent)) == 1
-        assert db.scalar(sa.select(sa.func.count()).select_from(RealtimeEvent)) == 2
+        assert db.scalar(sa.select(sa.func.count()).select_from(Notification)) == 1
+        assert db.scalar(sa.select(sa.func.count()).select_from(RealtimeChange)) == 2
 
 
 @pytest.mark.parametrize("result", ["success", "failure", "exhaustion"])
@@ -133,9 +122,12 @@ def test_import_terminal_consequences_roll_back_together(outcome, monkeypatch, r
             original = db.flush
         else:
             target, name = {
-                "notification": (notifications.notification_service, "admit_event"),
-                "realtime": (notifications, "publish_event"),
-                "notify": (publisher, "_notify_event"),
+                "notification": (
+                    notifications.notification_service,
+                    "admit_import_completed" if result == "success" else "admit_import_failed",
+                ),
+                "realtime": (notifications, "publish_change"),
+                "notify": (publisher, "_notify_change"),
             }[boundary]
             original = getattr(target, name)
 
@@ -152,5 +144,5 @@ def test_import_terminal_consequences_roll_back_together(outcome, monkeypatch, r
             dict(db.execute(sa.select(ImportDispatch.__table__)).mappings().one())
             == delivery_before
         )
-        for model in (NotificationEvent, RealtimeEvent, RenderOutbox):
+        for model in (Notification, RealtimeChange, RenderOutbox):
             assert db.scalar(sa.select(model)) is None

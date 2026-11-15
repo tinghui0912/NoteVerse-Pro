@@ -34,21 +34,15 @@ import {
 import { formatApiDateTime } from '@/lib/date-time';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { notificationHref } from '@/lib/notifications/target';
-import type { NotificationEventRead, PendingInviteRead } from '@/generated/api';
+import { notificationPresentation } from '@/lib/notifications/presentation';
+import type { NotificationRead, PendingInviteRead } from '@/generated/api';
 
 interface NotificationCenterDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-function stringData(value: unknown): string | null {
-  return typeof value === 'string' && value.trim() ? value : null;
-}
-
-export function NotificationCenterDialog({
-  open,
-  onOpenChange,
-}: NotificationCenterDialogProps) {
+export function NotificationCenterDialog({ open, onOpenChange }: NotificationCenterDialogProps) {
   const t = useTranslations('notifications');
   const collaborationT = useTranslations('scoreCollaboration');
   const errors = useTranslations('errors');
@@ -64,8 +58,7 @@ export function NotificationCenterDialog({
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
 
-  const invites =
-    pendingInvitesQuery.data?.pages.flatMap((page) => page?.items ?? []) ?? [];
+  const invites = pendingInvitesQuery.data?.pages.flatMap((page) => page?.items ?? []) ?? [];
   const notifications = notificationsQuery.data ?? [];
   const unreadCount = notifications.filter((item) => !item.read_at).length;
   const visibleNotifications =
@@ -106,7 +99,7 @@ export function NotificationCenterDialog({
     });
   };
 
-  const handleOpenNotification = (notification: NotificationEventRead) => {
+  const handleOpenNotification = (notification: NotificationRead) => {
     const openTarget = () => {
       const href = notificationHref(notification);
       if (href) {
@@ -125,33 +118,6 @@ export function NotificationCenterDialog({
     });
   };
 
-  const renderNotificationTitle = (notification: NotificationEventRead) => {
-    const actorName =
-      notification.actor?.display_name || notification.actor?.email || t('unknownActor');
-    if (notification.type === 'score_invite.accepted') {
-      return t('acceptedInvite', { name: actorName });
-    }
-    if (notification.type === 'score_invite.declined') {
-      return t('declinedInvite', { name: actorName });
-    }
-    if (notification.type === 'score.version.created') {
-      return t('scoreVersionCreated', { name: actorName });
-    }
-    if (notification.type === 'import.completed') {
-      return t('processingCompleted');
-    }
-    if (notification.type === 'import.failed') {
-      return t('processingFailed');
-    }
-    return notification.title || t('system');
-  };
-
-  const renderNotificationSubtitle = (notification: NotificationEventRead) => {
-    const resourceTitle =
-      stringData(notification.data.score_title) ?? stringData(notification.data.job_title);
-    return resourceTitle ?? notification.body ?? t('scoreTitleFallback');
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl p-0">
@@ -166,12 +132,13 @@ export function NotificationCenterDialog({
                 <h3 className="text-sm font-semibold text-muted-foreground">
                   {t('actionRequired')}
                 </h3>
-                {invites.length > 0 ? (
-                  <Badge variant="secondary">{invites.length}</Badge>
-                ) : null}
+                {invites.length > 0 ? <Badge variant="secondary">{invites.length}</Badge> : null}
               </div>
               {pendingInvitesQuery.isLoading ? (
-                <EmptyState title={t('loading')} className="min-h-0 rounded-lg border border-dashed p-5" />
+                <EmptyState
+                  title={t('loading')}
+                  className="min-h-0 rounded-lg border border-dashed p-5"
+                />
               ) : pendingInvitesQuery.isError && !invites.length ? (
                 <SectionErrorState
                   description={t('loadActionsFailed')}
@@ -179,7 +146,10 @@ export function NotificationCenterDialog({
                   onRetry={() => void pendingInvitesQuery.refetch()}
                 />
               ) : invites.length === 0 ? (
-                <EmptyState title={t('emptyActions')} className="min-h-0 rounded-lg border border-dashed p-5" />
+                <EmptyState
+                  title={t('emptyActions')}
+                  className="min-h-0 rounded-lg border border-dashed p-5"
+                />
               ) : (
                 <div className="space-y-3">
                   {invites.map((invite) => {
@@ -195,7 +165,9 @@ export function NotificationCenterDialog({
                               {invite.score_title}
                             </div>
                             <div className="mt-1 text-sm text-muted-foreground">
-                              {collaborationT('personalInviteFrom', { name: inviterName })}
+                              {collaborationT('personalInviteFrom', {
+                                name: inviterName,
+                              })}
                             </div>
                             <div className="mt-3 flex flex-wrap items-center gap-2">
                               <Badge variant="secondary">
@@ -203,7 +175,8 @@ export function NotificationCenterDialog({
                               </Badge>
                               {invite.expires_at ? (
                                 <span className="text-xs text-muted-foreground">
-                                  {collaborationT('expiresAt')}: {formatApiDateTime(invite.expires_at, locale)}
+                                  {collaborationT('expiresAt')}:{' '}
+                                  {formatApiDateTime(invite.expires_at, locale)}
                                 </span>
                               ) : null}
                             </div>
@@ -250,9 +223,7 @@ export function NotificationCenterDialog({
 
             <section className="space-y-3">
               <div className="flex items-center justify-between gap-3">
-                <h3 className="text-sm font-semibold text-muted-foreground">
-                  {t('updates')}
-                </h3>
+                <h3 className="text-sm font-semibold text-muted-foreground">{t('updates')}</h3>
                 <div className="flex items-center gap-2">
                   <div className="flex rounded-full border bg-muted/50 p-0.5">
                     <Button
@@ -288,7 +259,10 @@ export function NotificationCenterDialog({
                 </div>
               </div>
               {notificationsQuery.isLoading ? (
-                <EmptyState title={t('loading')} className="min-h-0 rounded-lg border border-dashed p-5" />
+                <EmptyState
+                  title={t('loading')}
+                  className="min-h-0 rounded-lg border border-dashed p-5"
+                />
               ) : notificationsQuery.isError ? (
                 <SectionErrorState
                   description={t('loadUpdatesFailed')}
@@ -296,7 +270,10 @@ export function NotificationCenterDialog({
                   onRetry={() => void notificationsQuery.refetch()}
                 />
               ) : visibleNotifications.length === 0 ? (
-                <EmptyState title={t('emptyUpdates')} className="min-h-0 rounded-lg border border-dashed p-5" />
+                <EmptyState
+                  title={t('emptyUpdates')}
+                  className="min-h-0 rounded-lg border border-dashed p-5"
+                />
               ) : (
                 <div className="space-y-4">
                   {groupedVisibleNotifications.map((group) => (
@@ -325,10 +302,10 @@ export function NotificationCenterDialog({
                             </span>
                             <span className="min-w-0 flex-1">
                               <span className="block truncate text-sm font-semibold">
-                                {renderNotificationTitle(notification)}
+                                {notificationPresentation(notification, t).title}
                               </span>
                               <span className="mt-1 block truncate text-sm text-muted-foreground">
-                                {renderNotificationSubtitle(notification)}
+                                {notificationPresentation(notification, t).subtitle}
                               </span>
                               <span className="mt-2 block text-xs text-muted-foreground">
                                 {formatApiDateTime(notification.created_at, locale)}

@@ -12,14 +12,17 @@ def test_strict_score_publication_uses_current_audience_and_propagates_partial_f
     monkeypatch.setattr(publisher, "score_recipients", Mock(return_value=[7, 8]))
     error = RuntimeError("publication interrupted")
     persist = Mock(side_effect=[None, error])
-    monkeypatch.setattr(publisher, "publish_event", persist)
+    monkeypatch.setattr(publisher, "publish_change", persist)
     with pytest.raises(RuntimeError) as raised:
-        publisher.publish_score_event(
-            db, score_id="score", revision_id="revision", type="score.metadata.updated", payload={}
+        publisher.publish_score_change(
+            db,
+            score_id="score",
+            revision_id="revision",
+            kind=publisher.RealtimeChangeKind.SCORE_METADATA_CHANGED,
         )
     assert raised.value is error and persist.call_count == 2
     assert [call.kwargs["recipient_user_id"] for call in persist.call_args_list] == [7, 8]
-    assert all(call.kwargs["resource_id"] == "score" for call in persist.call_args_list)
+    assert all(call.kwargs["score_id"] == "score" for call in persist.call_args_list)
     db.commit.assert_not_called()
     db.rollback.assert_not_called()
 
@@ -28,9 +31,11 @@ def test_strict_event_persistence_propagates_notify_failure_after_flush(monkeypa
     db = Mock()
     failure = RuntimeError("notify interrupted")
     notify = Mock(side_effect=failure)
-    monkeypatch.setattr(publisher, "_notify_event", notify)
+    monkeypatch.setattr(publisher, "_notify_change", notify)
     with pytest.raises(RuntimeError) as raised:
-        publisher.publish_event(db, recipient_user_id=7, type="notification.created", payload={})
+        publisher.publish_change(
+            db, recipient_user_id=7, kind=publisher.RealtimeChangeKind.NOTIFICATIONS_CHANGED
+        )
     assert raised.value is failure
     db.add.assert_called_once()
     db.flush.assert_called_once()
@@ -47,15 +52,16 @@ def test_notification_admission_propagates_publication_failure_without_owning_tr
     db = Mock()
     failure = RuntimeError("notification publication unavailable")
     persist = Mock(side_effect=failure)
-    monkeypatch.setattr(notifications, "publish_event", persist)
+    monkeypatch.setattr(notifications, "publish_change", persist)
+    repository = Mock()
+    repository.by_dedupe_key.return_value = None
     with pytest.raises(RuntimeError) as raised:
-        notifications.NotificationService().admit_event(
+        notifications.NotificationService(repository).admit_import_failed(
             db,
             recipient_user_id=7,
-            actor_user_id=None,
-            type="system",
-            resource_type="score",
-            title="Notice",
+            import_job_id="job",
+            job_title=None,
+            created_at=notifications.utc_now_naive(),
         )
     assert raised.value is failure
     db.add.assert_called_once()
@@ -79,10 +85,10 @@ def test_authoritative_durable_outcomes_select_strict_realtime_persistence():
             if isinstance(node, ast.ImportFrom) and node.module == "app.modules.realtime.publisher"
             for alias in node.names
         }
-        assert "publish_score_event" in imports
+        assert "publish_score_change" in imports
         assert all(not name.endswith("best_effort") for name in imports)
     tree = ast.parse((root / "modules/realtime/publisher.py").read_text())
-    for name in ("publish_score_event", "publish_event", "_notify_event"):
+    for name in ("publish_score_change", "publish_change", "_notify_change"):
         function = next(
             node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == name
         )

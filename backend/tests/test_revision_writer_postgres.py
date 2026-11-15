@@ -33,8 +33,8 @@ from app.db.models import (
     PlaybackOutbox,
     ScoreMembership,
     MembershipRole,
-    NotificationEvent,
-    RealtimeEvent,
+    Notification,
+    RealtimeChange,
     RevisionMetadataOutbox,
 )
 from app.db.models.import_job import ImportJobState
@@ -137,8 +137,8 @@ def snapshot(db):
         RenderOutbox,
         PlaybackOutbox,
         RevisionMetadataOutbox,
-        NotificationEvent,
-        RealtimeEvent,
+        Notification,
+        RealtimeChange,
         StoredObject,
         StorageUsageEvent,
         StorageUsageAccount,
@@ -205,8 +205,8 @@ def test_concurrent_head_writes_serialize_and_idempotency_resolves_in_writer(dat
             RevisionMetadataOutbox,
         ):
             assert db.scalar(sa.select(sa.func.count()).select_from(model)) == 2
-        assert db.scalar(sa.select(NotificationEvent)) is None
-        assert db.scalar(sa.select(sa.func.count()).select_from(RealtimeEvent)) == 1
+        assert db.scalar(sa.select(Notification)) is None
+        assert db.scalar(sa.select(sa.func.count()).select_from(RealtimeChange)) == 1
         score = db.scalar(sa.select(Score))
         assert (
             score.version == 2
@@ -238,9 +238,9 @@ def test_writer_outer_rollback_keeps_prewrite_cleanup_owned_and_reservation_rele
     target, method = {
         "adopt": (writer_module, "adopt_written_object"),
         "reservation": (storage_usage_service, "commit_reservation"),
-        "notification": (writer_module.notification_service, "admit_event"),
-        "realtime": (writer_module, "publish_event"),
-        "notify": (publisher, "_notify_event"),
+        "notification": (writer_module.notification_service, "admit_score_version_created"),
+        "realtime": (writer_module, "publish_change"),
+        "notify": (publisher, "_notify_change"),
     }[failure]
     original = getattr(target, method)
 
@@ -349,8 +349,8 @@ def test_revision_consequences_keep_the_transaction_audience(database):
         )
         with Session(engine) as observer:
             assert observer.scalar(sa.select(sa.func.count()).select_from(ScoreRevision)) == 1
-            assert observer.scalar(sa.select(NotificationEvent)) is None
-            assert observer.scalar(sa.select(RealtimeEvent)) is None
+            assert observer.scalar(sa.select(Notification)) is None
+            assert observer.scalar(sa.select(RealtimeChange)) is None
         db.commit()
         for model in (
             ScoreRevision,
@@ -361,11 +361,10 @@ def test_revision_consequences_keep_the_transaction_audience(database):
             RevisionMetadataOutbox,
         ):
             assert db.scalar(sa.select(sa.func.count()).select_from(model)) == 2
-        notice = db.scalar(sa.select(NotificationEvent))
+        notice = db.scalar(sa.select(Notification))
         assert notice.created_at == result.revision.created_at
-        assert notice.title == "Score version saved"
-        assert notice.body == "User 1 saved a new version of Etudes."
-        assert notice.data == {"score_title": "Etudes"}
+        assert notice.revision_id == result.revision.revision_uuid
+        assert notice.score_title_snapshot == "Etudes"
         assert db.scalar(sa.select(StorageUsageAccount)).reserved_bytes == 0
         member = db.scalar(sa.select(ScoreMembership))
         member.revoked_at = utc_now_naive()
@@ -379,13 +378,13 @@ def test_revision_consequences_keep_the_transaction_audience(database):
         )
         db.commit()
 
-        notifications = list(db.scalars(sa.select(NotificationEvent)))
+        notifications = list(db.scalars(sa.select(Notification)))
         assert len(notifications) == 1 and notifications[0].recipient_user_id == 2
-        realtime = list(db.scalars(sa.select(RealtimeEvent)))
+        realtime = list(db.scalars(sa.select(RealtimeChange)))
         assert sorted(
-            r.recipient_user_id for r in realtime if r.type == "score.revision.created"
+            r.recipient_user_id for r in realtime if r.kind == "score.revisions.changed"
         ) == [1, 2]
-        assert len([r for r in realtime if r.type == "notification.created"]) == 1
+        assert len([r for r in realtime if r.kind == "notifications.changed"]) == 1
 
 
 @pytest.mark.parametrize("outcome", ["ready", "semantic_failure"])
@@ -441,20 +440,20 @@ def test_metadata_mid_compute_takeover_and_atomic_completion(database, monkeypat
     )
     with Session(engine) as db:
         assert db.scalar(sa.select(ScoreRevisionMetadata)).status == MetadataStatus.PENDING
-        assert db.scalar(sa.select(RealtimeEvent)) is None
+        assert db.scalar(sa.select(RealtimeChange)) is None
         metadata_delivery.adopt(db, second, result)
         db.flush()
         db.rollback()
         assert db.scalar(sa.select(ScoreRevisionMetadata)).status == MetadataStatus.PENDING
         assert db.scalar(sa.select(RevisionMetadataOutbox)).attempt_token == second.lease.token
-        assert db.scalar(sa.select(RealtimeEvent)) is None
+        assert db.scalar(sa.select(RealtimeChange)) is None
         metadata_delivery.adopt(db, second, result)
         db.commit()
         assert db.scalar(sa.select(RevisionMetadataOutbox)).status == "COMPLETED"
         assert db.scalar(sa.select(ScoreRevisionMetadata)).status == (
             MetadataStatus.READY if outcome == "ready" else MetadataStatus.FAILED
         )
-        assert db.scalar(sa.select(RealtimeEvent)).type == "score.metadata.updated"
+        assert db.scalar(sa.select(RealtimeChange)).kind == "score.metadata.changed"
 
 
 def test_review_confirm_concurrency_uses_one_initial_revision(database, monkeypatch):
@@ -489,8 +488,8 @@ def test_review_confirm_concurrency_uses_one_initial_revision(database, monkeypa
     assert results[0] == results[1]
     with Session(engine) as db:
         assert db.scalar(sa.select(sa.func.count()).select_from(ScoreRevision)) == 1
-        assert db.scalar(sa.select(NotificationEvent)) is None
-        assert db.scalar(sa.select(RealtimeEvent)) is None
+        assert db.scalar(sa.select(Notification)) is None
+        assert db.scalar(sa.select(RealtimeChange)) is None
         for model in (RenderOutbox, PlaybackOutbox, RevisionMetadataOutbox):
             assert db.scalar(sa.select(sa.func.count()).select_from(model)) == 1
 
@@ -566,7 +565,7 @@ def test_metadata_database_token_coherence_and_source_failure_are_delivery_seman
                 db, payload, compute_metadata(storage.read_bytes(payload.source_key))
             )
         db.rollback()
-        assert db.scalar(sa.select(RealtimeEvent)) is None
+        assert db.scalar(sa.select(RealtimeChange)) is None
 
 
 @pytest.mark.parametrize("invalid", ["hash", "mime", "resource", "reservation"])
@@ -628,4 +627,4 @@ def test_metadata_worker_retries_source_failures_without_metadata_or_realtime_mu
         assert row.status == "FAILED" and row.attempt_count == 1 and row.attempt_token is None
         assert row.next_attempt_at > row.started_at
         assert db.scalar(sa.select(ScoreRevisionMetadata)).status == MetadataStatus.PENDING
-        assert db.scalar(sa.select(RealtimeEvent)) is None
+        assert db.scalar(sa.select(RealtimeChange)) is None

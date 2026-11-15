@@ -5,7 +5,7 @@ from app.api.deps import get_current_user, get_db
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
 from app.modules.notifications.dependencies import get_notification_service
-from app.modules.notifications.schemas import NotificationEventRead, NotificationUnreadCountRead
+from app.modules.notifications.schemas import NotificationRead, NotificationUnreadCountRead
 from app.modules.notifications.service import NotificationService
 
 
@@ -15,7 +15,7 @@ router = APIRouter()
 @router.get(
     "/notifications",
     operation_id="notificationsList",
-    response_model=list[NotificationEventRead],
+    response_model=list[NotificationRead],
 )
 def list_my_notifications(
     current_user: User = Depends(get_current_user),
@@ -46,7 +46,7 @@ def my_notification_unread_count(
 @router.post(
     "/notifications/{notification_id}/read",
     operation_id="notificationMarkRead",
-    response_model=NotificationEventRead,
+    response_model=NotificationRead,
 )
 def mark_my_notification_read(
     notification_id: str,

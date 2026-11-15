@@ -1,46 +1,31 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Iterable
+from typing import Iterable
 
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 from sqlmodel import col
 
-from app.db.models import RealtimeEvent, Score, ScoreMembership
+from app.db.models import RealtimeChange, RealtimeChangeKind, Score, ScoreMembership
+from app.modules.realtime.stream_state import lock_stream_state
 
-REALTIME_NOTIFY_CHANNEL = "realtime_events"
-
-
-class RealtimeEventTypes:
-    NOTIFICATION_CREATED = "notification.created"
-    SCORE_REVISION_CREATED = "score.revision.created"
-    SCORE_DERIVED_ASSET_UPDATED = "score.derived_asset.updated"
-    SCORE_METADATA_UPDATED = "score.metadata.updated"
-    IMPORT_JOB_COMPLETED = "import_job.completed"
-    IMPORT_JOB_FAILED = "import_job.failed"
+REALTIME_NOTIFY_CHANNEL = "realtime_changes"
 
 
 def _unique_user_ids(user_ids: Iterable[int | None]) -> list[int]:
     return sorted({int(user_id) for user_id in user_ids if user_id is not None})
 
 
-def _notification_payload(event: RealtimeEvent) -> str:
-    return json.dumps(
-        {
-            "event_id": event.id,
-            "recipient_user_id": event.recipient_user_id,
-        },
-        separators=(",", ":"),
-    )
-
-
-def _notify_event(db: Session, event: RealtimeEvent) -> None:
-    if db.get_bind().dialect.name != "postgresql" or event.id is None:
+def _notify_change(db: Session, change: RealtimeChange) -> None:
+    if db.get_bind().dialect.name != "postgresql":
         return
     db.execute(
         text("SELECT pg_notify(:channel, :payload)"),
-        {"channel": REALTIME_NOTIFY_CHANNEL, "payload": _notification_payload(event)},
+        {
+            "channel": REALTIME_NOTIFY_CHANNEL,
+            "payload": json.dumps({"recipient_user_id": change.recipient_user_id}),
+        },
     )
 
 
@@ -62,54 +47,42 @@ def score_recipients(db: Session, score_uuid: str) -> list[int]:
     return _unique_user_ids([score.owner_user_id, *member_rows.scalars().all()])
 
 
-def publish_event(
+def publish_change(
     db: Session,
     *,
     recipient_user_id: int,
-    type: str,
-    payload: dict[str, Any],
-    resource_type: str | None = None,
-    resource_id: str | None = None,
+    kind: RealtimeChangeKind,
+    notification_id: str | None = None,
     score_id: str | None = None,
     revision_id: str | None = None,
-) -> RealtimeEvent:
-    event = RealtimeEvent(
+    import_job_id: str | None = None,
+) -> RealtimeChange:
+    """Admit a change and transactional wake-up; the caller owns commit/rollback."""
+    # Serialize sequence admission with commits so a visible watermark cannot skip
+    # a lower sequence still being written by another transaction.
+    lock_stream_state(db)
+    change = RealtimeChange(
         recipient_user_id=recipient_user_id,
-        type=type,
-        resource_type=resource_type,
-        resource_id=resource_id,
+        kind=kind,
+        notification_id=notification_id,
         score_id=score_id,
         revision_id=revision_id,
-        payload=payload,
+        import_job_id=import_job_id,
     )
-    db.add(event)
+    db.add(change)
     db.flush()
-    _notify_event(db, event)
-    return event
+    _notify_change(db, change)
+    return change
 
 
-def publish_score_event(
-    db: Session,
-    *,
-    score_id: str,
-    revision_id: str | None,
-    type: str,
-    payload: dict[str, Any],
-    resource_type: str = "score",
-    resource_id: str | None = None,
+def publish_score_change(
+    db: Session, *, score_id: str, revision_id: str, kind: RealtimeChangeKind
 ) -> None:
-    """Persist all recipient rows and transactional wake-ups; caller owns the transaction.
-
-    Publication failures propagate, including partial fan-out and pg_notify failures.
-    """
     for recipient_user_id in score_recipients(db, score_id):
-        publish_event(
+        publish_change(
             db,
             recipient_user_id=recipient_user_id,
-            type=type,
-            resource_type=resource_type,
-            resource_id=resource_id or score_id,
+            kind=kind,
             score_id=score_id,
             revision_id=revision_id,
-            payload=payload,
         )

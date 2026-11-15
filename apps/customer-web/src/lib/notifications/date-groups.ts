@@ -1,10 +1,10 @@
-import type { NotificationEventRead } from '@/generated/api';
+import type { NotificationRead } from '@/generated/api';
 
 export type NotificationDateGroupKey = 'today' | 'yesterday' | 'earlier';
 
 export interface NotificationDateGroup {
   key: NotificationDateGroupKey;
-  items: NotificationEventRead[];
+  items: NotificationRead[];
 }
 
 function startOfLocalDay(date: Date): Date {
@@ -34,10 +34,10 @@ export function getNotificationDateGroupKey(
 }
 
 export function groupNotificationsByDate(
-  notifications: NotificationEventRead[],
+  notifications: NotificationRead[],
   now: Date = new Date()
 ): NotificationDateGroup[] {
-  const groups: Record<NotificationDateGroupKey, NotificationEventRead[]> = {
+  const groups: Record<NotificationDateGroupKey, NotificationRead[]> = {
     today: [],
     yesterday: [],
     earlier: [],

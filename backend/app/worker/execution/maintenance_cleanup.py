@@ -52,7 +52,7 @@ def execute_realtime_maintenance() -> dict[str, int]:
             db.commit()
 
         return {
-            "expired_events_deleted": result.expired_events_deleted,
+            "expired_changes_deleted": result.expired_changes_deleted,
         }
 
     return run_scheduler_scan("realtime_maintenance", scan)

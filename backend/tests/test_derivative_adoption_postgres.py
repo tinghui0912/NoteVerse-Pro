@@ -31,7 +31,7 @@ from app.db.models import (
     RenderTargetType,
     PlaybackOutbox,
     User,
-    RealtimeEvent,
+    RealtimeChange,
 )
 from app.db.models.import_job import ImportJobState
 from app.db.models.score import RevisionOrigin, RevisionSourceFormat
@@ -227,7 +227,10 @@ def generation(request, monkeypatch, tmp_path):
 
 def rows(db, model):
     return [
-        dict(row) for row in db.execute(sa.select(model.__table__).order_by(model.id)).mappings()
+        dict(row)
+        for row in db.execute(
+            sa.select(model.__table__).order_by(*model.__table__.primary_key.columns)
+        ).mappings()
     ]
 
 
@@ -242,7 +245,7 @@ def semantic_snapshot(db):
             StorageUsageCounter,
             StorageUsageEvent,
             StoredObjectRetirement,
-            RealtimeEvent,
+            RealtimeChange,
         )
     }
 
@@ -317,16 +320,15 @@ def test_semantic_adoption_and_completion_roll_back_together(generation, monkeyp
     def fail_after_completion(db, uuid, *, lease):
         assert complete(db, uuid, lease=lease)
         if kind != "thumbnail":
-            from app.modules.realtime.publisher import publish_score_event
+            from app.modules.realtime.publisher import publish_score_change
 
-            publish_score_event(
+            publish_score_change(
                 db,
                 score_id="score",
                 revision_id="revision",
-                type="score.derived_asset.updated",
-                payload={"status": "ready"},
+                kind="score.derived_assets.changed",
             )
-            assert rows(db, RealtimeEvent)
+            assert rows(db, RealtimeChange)
         db.flush()
         assert db.scalars(sa.select(model)).one().status.value == "COMPLETED"
         assert semantic_snapshot(db) != before
@@ -418,6 +420,12 @@ def test_source_change_after_prewrite_is_domain_invalidation(generation, monkeyp
             "import_artifacts",
         ):
             assert after[model_name] == before[model_name]
-        assert all(row["payload"].get("status") != "ready" for row in after["realtime_events"])
+        if kind == "thumbnail":
+            assert after["realtime_changes"] == before["realtime_changes"]
+        else:
+            changes = after["realtime_changes"]
+            assert len(changes) == len(before["realtime_changes"]) + 1
+            assert changes[-1]["kind"] == "score.derived_assets.changed"
+            assert changes[-1]["score_id"] == "score" and changes[-1]["revision_id"] == "revision"
         assert db.scalars(sa.select(model)).one().status.value == expected.upper()
         assert drain_write_cleanup(db, storage)[0]["status"] == "cleaned"

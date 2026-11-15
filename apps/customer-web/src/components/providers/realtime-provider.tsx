@@ -6,7 +6,7 @@ import { useQueryClient, type Query } from '@tanstack/react-query';
 
 import { useAuth } from '@/contexts/auth-context';
 import { createRealtimeEventSource } from '@/lib/realtime/event-source';
-import { parseRealtimeEvent, type RealtimeEventEnvelope } from '@/lib/realtime/events';
+import { parseRealtimeChange, type RealtimeChange } from '@/lib/realtime/changes';
 import { queryKeys } from '@/lib/query-client';
 
 function isScoreRevisionAssetsQuery(query: Query, scoreId: string, revisionId?: string | null) {
@@ -35,45 +35,65 @@ function invalidateScoreRevisionAssets(
   });
 }
 
-function handleRealtimeEvent(
-  event: RealtimeEventEnvelope,
+function handleRealtimeChange(
+  event: RealtimeChange,
   queryClient: ReturnType<typeof useQueryClient>
 ) {
-  if (event.type === 'notification.created') {
-    void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.list() });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.scores.myInvites() });
+  if (event.kind === 'notifications.changed') {
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.notifications.list(),
+    });
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.notifications.unreadCount(),
+    });
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.scores.myInvites(),
+    });
     return;
   }
 
-  if (event.type === 'score.revision.created') {
-    if (!event.score_id) return;
-    void queryClient.invalidateQueries({ queryKey: queryKeys.scores.detail(event.score_id) });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.scores.revisions(event.score_id) });
-    invalidateScoreRevisionAssets(queryClient, event.score_id);
-    void queryClient.invalidateQueries({ queryKey: queryKeys.library.scores() });
+  if (event.kind === 'score.revisions.changed') {
+    if (!event.scoreId) return;
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.scores.detail(event.scoreId),
+    });
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.scores.revisions(event.scoreId),
+    });
+    invalidateScoreRevisionAssets(queryClient, event.scoreId);
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.library.scores(),
+    });
     return;
   }
 
-  if (event.type === 'score.derived_asset.updated') {
-    if (!event.score_id) return;
-    void queryClient.invalidateQueries({ queryKey: queryKeys.scores.detail(event.score_id) });
-    invalidateScoreRevisionAssets(queryClient, event.score_id, event.revision_id);
-    void queryClient.invalidateQueries({ queryKey: queryKeys.library.scores() });
+  if (event.kind === 'score.derived_assets.changed') {
+    if (!event.scoreId) return;
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.scores.detail(event.scoreId),
+    });
+    invalidateScoreRevisionAssets(queryClient, event.scoreId, event.revisionId);
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.library.scores(),
+    });
     return;
   }
 
-  if (event.type === 'score.metadata.updated') {
-    if (!event.score_id) return;
-    void queryClient.invalidateQueries({ queryKey: queryKeys.scores.detail(event.score_id) });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.library.scores() });
+  if (event.kind === 'score.metadata.changed') {
+    if (!event.scoreId) return;
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.scores.detail(event.scoreId),
+    });
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.library.scores(),
+    });
     return;
   }
 
-  if (event.type === 'import_job.completed' || event.type === 'import_job.failed') {
-    void queryClient.invalidateQueries({ queryKey: queryKeys.importJobs.lists() });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.list() });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
+  if (event.kind === 'import_jobs.changed') {
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.importJobs.lists(),
+    });
   }
 }
 
@@ -89,18 +109,14 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
     const source = createRealtimeEventSource();
 
     const listener = (message: MessageEvent<string>) => {
-      const event = parseRealtimeEvent(message.data);
-      if (event) {
-        handleRealtimeEvent(event, queryClient);
-      }
+      const change = parseRealtimeChange(message.data);
+      if (change) handleRealtimeChange(change, queryClient);
+      else void queryClient.invalidateQueries();
     };
-
-    source.addEventListener('notification.created', listener);
-    source.addEventListener('score.revision.created', listener);
-    source.addEventListener('score.derived_asset.updated', listener);
-    source.addEventListener('score.metadata.updated', listener);
-    source.addEventListener('import_job.completed', listener);
-    source.addEventListener('import_job.failed', listener);
+    source.addEventListener('change', listener);
+    source.addEventListener('resync-required', () => {
+      void queryClient.invalidateQueries();
+    });
 
     return () => {
       source.close();
