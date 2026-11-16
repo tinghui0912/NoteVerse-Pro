@@ -37,7 +37,7 @@ from app.modules.import_jobs.dispatch_service import (
     StaleImportDispatchAttempt,
     require_current_attempt,
 )
-from app.modules.import_jobs.worker_service import ImportJobExecutionService
+from app.modules.import_jobs.execution_recorder import ImportExecutionRecorder
 from app.modules.import_jobs.submission_service import ImportJobSubmissionService
 from app.modules.storage_objects.writes import write_object
 from app.modules.import_jobs.pipeline.context import JobContext
@@ -54,7 +54,7 @@ def setup_delivery(score_service_session):
     job = ImportJob(
         job_uuid="import-domain",
         user_id=1,
-        state=ImportJobState.PENDING,
+        state=ImportJobState.QUEUED,
         requested_options={"display_title": "Current import"},
     )
     physical = StoredObject(
@@ -122,7 +122,10 @@ def test_delivery_lifecycle_preserves_command_and_domain_identities(setup_delive
     assert payload.options == job.requested_options
     assert [item.storage_key for item in payload.inputs] == ["upload/original.png"]
     assert row.attempt_token == payload.lease.token
-    job.state = ImportJobState.PENDING_REVIEW
+    from app.modules.import_jobs.lifecycle import begin_processing, mark_ready_for_review
+
+    begin_processing(job, now=utc_now())
+    mark_ready_for_review(job, now=utc_now())
     db.add(job)
     db.commit()
     service.complete(db, payload.lease)
@@ -146,7 +149,7 @@ def test_publish_release_changes_delivery_only(setup_delivery):
     assert row.status == ImportDispatchStatus.PENDING
     assert row.attempt_count == 0 and row.dispatched_at is None
     assert row.failure_detail == "broker unavailable" and row.failure_code
-    assert job.state == ImportJobState.PENDING
+    assert job.state == ImportJobState.QUEUED
     assert job.current_step == "queued" and job.failure_code is None
 
 
@@ -174,8 +177,8 @@ def test_expired_processing_resets_execution_and_preserves_inputs_and_binding(se
     db.add(manifest)
     db.flush()
     job.execution_manifest_id = manifest.id
-    job.state, job.progress, job.current_step = ImportJobState.RUNNING, 73, "ocr"
-    job.started_at = job.last_heartbeat_at = utc_now()
+    job.state, job.progress, job.current_step = ImportJobState.PROCESSING, 73, "ocr"
+    job.processing_started_at = job.processing_last_heartbeat_at = utc_now()
     db.add(ImportJobStep(job_id=job.id, step_order=1, name="ocr", status="RUNNING"))
     db.add(job)
     db.commit()
@@ -185,8 +188,14 @@ def test_expired_processing_resets_execution_and_preserves_inputs_and_binding(se
     assert row.failure_code == "import_dispatch_lease_expired"
     assert row.failure_classification == "transient" and row.failure_retryable is True
     assert row.attempt_token is None and row.next_attempt_at <= utc_now()
-    assert job.state == ImportJobState.PENDING and job.progress == 0
-    assert job.current_step is job.started_at is job.last_heartbeat_at is job.finished_at is None
+    assert job.state == ImportJobState.QUEUED and job.progress == 0
+    assert (
+        job.current_step
+        is job.processing_started_at
+        is job.processing_last_heartbeat_at
+        is job.processing_finished_at
+        is None
+    )
     assert (
         job.failure_code
         is job.failure_stage
@@ -202,18 +211,28 @@ def test_expired_processing_resets_execution_and_preserves_inputs_and_binding(se
 
 
 @pytest.mark.parametrize(
-    "state", [ImportJobState.PENDING_REVIEW, ImportJobState.FAILURE, ImportJobState.CONFIRMED]
+    "state", [ImportJobState.READY_FOR_REVIEW, ImportJobState.FAILED, ImportJobState.CONFIRMED]
 )
-def test_terminal_domain_outcome_reconciles_expired_delivery_without_execution(
+def test_closed_execution_outcome_reconciles_expired_delivery_without_execution(
     setup_delivery, state
 ):
     db, _, job, row = setup_delivery
     claim(db, row)
-    job.state, job.progress = state, 100
-    job.failure_code = "domain-result" if state == ImportJobState.FAILURE else None
-    job.failure_stage = "pipeline" if state == ImportJobState.FAILURE else None
-    job.failure_classification = "system_error" if state == ImportJobState.FAILURE else None
-    job.failure_retryable = False if state == ImportJobState.FAILURE else None
+    job.progress = 100
+    if state == ImportJobState.CONFIRMED:
+        from app.db.models import Score
+
+        score = Score(score_uuid="confirmed-import", owner_user_id=1, display_title="Confirmed")
+        db.add(score)
+        db.flush()
+        job.score_id = score.id
+        job.confirmed_at = utc_now()
+    job.processing_started_at = job.processing_finished_at = utc_now()
+    job.state = state
+    job.failure_code = "domain-result" if state == ImportJobState.FAILED else None
+    job.failure_stage = "pipeline" if state == ImportJobState.FAILED else None
+    job.failure_classification = "system_error" if state == ImportJobState.FAILED else None
+    job.failure_retryable = False if state == ImportJobState.FAILED else None
     db.add(ImportJobStep(job_id=job.id, step_order=1, name="ocr", status="COMPLETED"))
     db.add(job)
     db.commit()
@@ -221,16 +240,22 @@ def test_terminal_domain_outcome_reconciles_expired_delivery_without_execution(
     assert ImportDispatchService().recover_and_list_due(db) == []
     assert row.status == ImportDispatchStatus.COMPLETED and row.attempt_token is None
     assert job.state == state and job.progress == 100
-    assert job.failure_code == ("domain-result" if state == ImportJobState.FAILURE else None)
+    assert job.failure_code == ("domain-result" if state == ImportJobState.FAILED else None)
     assert db.scalar(select(ImportJobStep)).status.value == "COMPLETED"
     assert ImportDispatchService().claim(db, row.dispatch_uuid) is None
 
 
-def test_exhausted_processing_has_distinct_delivery_and_domain_outcomes(setup_delivery):
+@pytest.mark.parametrize("processing_started", [False, True])
+def test_exhausted_delivery_accepts_failure_with_the_observed_processing_start(
+    setup_delivery, processing_started
+):
     db, _, job, row = setup_delivery
     claim(db, row)
     row.attempt_count = dispatch_module.settings.IMPORT_DISPATCH_MAX_ATTEMPTS
-    job.state = ImportJobState.RUNNING
+    if processing_started:
+        from app.modules.import_jobs.lifecycle import begin_processing
+
+        begin_processing(job, now=utc_now())
     db.add_all([row, job])
     db.commit()
     expire(db, row)
@@ -238,7 +263,8 @@ def test_exhausted_processing_has_distinct_delivery_and_domain_outcomes(setup_de
     assert row.status == ImportDispatchStatus.FAILED and row.attempt_token is None
     assert row.failure_code == job.failure_code == "import_dispatch_attempts_exhausted"
     assert row.failure_retryable is job.failure_retryable is False
-    assert job.state == ImportJobState.FAILURE and job.finished_at
+    assert job.state == ImportJobState.FAILED and job.processing_finished_at
+    assert (job.processing_started_at is not None) is processing_started
     assert job.failure_stage == "dispatch" and job.failure_detail
     assert db.scalar(select(Notification.kind)) == "import.failed"
     assert sorted(db.scalars(select(RealtimeChange.kind))) == [
@@ -269,10 +295,10 @@ def test_only_current_execution_lease_can_mutate_job(setup_delivery, mutation):
     first = claim(db, row)
     second = takeover(db, row)
     assert second.attempt == first.attempt + 1 and second.token != first.token
-    worker = ImportJobExecutionService()
+    worker = ImportExecutionRecorder()
     actions = {
         "binding": lambda: execution_manifest.bind_import_job_execution_manifest(db, first),
-        "progress": lambda: worker.update_progress(db, first, "RUNNING", 99),
+        "progress": lambda: worker.record_progress(db, first, 99),
         "step": lambda: worker.upsert_step(db, first, "ocr", "RUNNING"),
         "artifacts": lambda: worker.replace_artifacts(db, first, "review_musicxml", []),
         "success": lambda: worker.finalize_success(db, first),
@@ -288,7 +314,7 @@ def test_only_current_execution_lease_can_mutate_job(setup_delivery, mutation):
     with pytest.raises(StaleImportDispatchAttempt):
         actions[mutation]()
     db.rollback()
-    worker.update_progress(db, second, "RUNNING", 25, current_step="current-ocr")
+    worker.record_progress(db, second, 25, current_step="current-ocr")
     assert job.progress == 25 and row.attempt_token == second.token
     assert db.scalar(select(ImportJobStep)) is None
     assert db.scalar(select(ImportArtifact)) is None
@@ -318,7 +344,7 @@ def test_written_artifact_requires_current_lease_at_transactional_adoption(
 ):
     db, storage, job, row = setup_delivery
     first = claim(db, row)
-    worker = ImportJobExecutionService()
+    worker = ImportExecutionRecorder()
     worker.upsert_step(db, first, "ocr", "RUNNING")
 
     # A write can finish after its execution lease is lost. ObjectWriteIntent owns it.
@@ -377,7 +403,7 @@ def test_written_artifact_requires_current_lease_at_transactional_adoption(
     assert (
         db.scalar(select(StoredObject).where(StoredObject.object_key == intent.object_key)) is None
     )
-    assert row.attempt_token == second.token and job.state == ImportJobState.PENDING
+    assert row.attempt_token == second.token and job.state == ImportJobState.QUEUED
     assert drain_write_cleanup(db, storage)[0]["status"] == "cleaned"
     assert not storage.exists(intent.object_key)
     assert storage.exists("jobs/current-result")
@@ -386,7 +412,7 @@ def test_written_artifact_requires_current_lease_at_transactional_adoption(
 def test_domain_pipeline_failure_completes_current_delivery(setup_delivery):
     db, _, job, row = setup_delivery
     lease = claim(db, row)
-    worker = ImportJobExecutionService()
+    worker = ImportExecutionRecorder()
     worker.finalize_failure(
         db,
         lease,
@@ -396,7 +422,7 @@ def test_domain_pipeline_failure_completes_current_delivery(setup_delivery):
     )
     ImportDispatchService().complete(db, lease)
     db.commit()
-    assert job.state == ImportJobState.FAILURE and job.failure_code
+    assert job.state == ImportJobState.FAILED and job.failure_code
     assert row.status == ImportDispatchStatus.COMPLETED
     assert row.failure_detail is None and row.failure_code is None
     assert ImportDispatchService().recover_and_list_due(db) == []
@@ -430,7 +456,7 @@ def test_submission_atomically_creates_one_delivery_and_upload_links(setup_deliv
     replay = service.submit(db, user, request)
     assert first["job_id"] == replay["job_id"]
     rows = list(db.scalars(select(ImportJob).where(ImportJob.idempotency_key == "submission")))
-    assert len(rows) == 1 and rows[0].state == ImportJobState.PENDING
+    assert len(rows) == 1 and rows[0].state == ImportJobState.QUEUED
     deliveries = list(db.scalars(select(ImportDispatch).where(ImportDispatch.job_id == rows[0].id)))
     assert len(deliveries) == 1 and deliveries[0].status == ImportDispatchStatus.PENDING
     assert deliveries[0].originating_request_id == "submission-request"
@@ -463,12 +489,12 @@ def test_pipeline_telemetry_never_swallows_lease_loss(monkeypatch, path):
     ctx = JobContext(lease=lease, db=Mock(), celery_task=Mock(), image_paths=[])
     stale = Mock(side_effect=StaleImportDispatchAttempt("lost"))
     if path == "progress":
-        monkeypatch.setattr(module.job_service, "update_progress", stale)
+        monkeypatch.setattr(module.import_execution_recorder, "record_progress", stale)
 
         def action():
-            ctx.status("RUNNING", "ocr", 20)
+            ctx.progress("ocr", 20)
     elif path == "step":
-        monkeypatch.setattr(module.job_service, "upsert_step", stale)
+        monkeypatch.setattr(module.import_execution_recorder, "upsert_step", stale)
 
         def action():
             ctx._upsert("ocr", status="running")
@@ -502,7 +528,7 @@ def test_worker_completes_delivery_after_durable_domain_outcome(
             db.rollback()
             raise
 
-    worker = ImportJobExecutionService()
+    worker = ImportExecutionRecorder()
 
     def run(task, lease, keys, options):
         assert lease.dispatch_uuid == row.dispatch_uuid and lease.job_uuid == job.job_uuid
@@ -515,22 +541,32 @@ def test_worker_completes_delivery_after_durable_domain_outcome(
                 ),
             )
             raise RuntimeError("pipeline rejected input")
+        worker.record_progress(db, lease, 0)
+        physical = StoredObject(
+            object_key="review.xml", byte_size=3, content_type="application/xml", sha256="a" * 64
+        )
+        db.add(
+            ImportArtifact(
+                job_id=job.id, kind="review_musicxml", filename="review.xml", stored_object=physical
+            )
+        )
+        db.commit()
         worker.finalize_success(db, lease)
         return {"success": True, "job_id": job.job_uuid}
 
     monkeypatch.setattr(executor, "SessionLocal", worker_db)
-    monkeypatch.setattr(executor.job_execution_service, "run_pipeline", run)
+    monkeypatch.setattr(executor.import_pipeline_runner, "run_pipeline", run)
     task = Mock()
     task.request.id = "celery-task"
     if outcome == "failure":
         with pytest.raises(RuntimeError, match="pipeline rejected input"):
             executor.execute_import_dispatch_task(task, row.dispatch_uuid)
-        assert job.state == ImportJobState.FAILURE
+        assert job.state == ImportJobState.FAILED
     else:
         assert (
             executor.execute_import_dispatch_task(task, row.dispatch_uuid)["job_id"] == job.job_uuid
         )
-        assert job.state == ImportJobState.PENDING_REVIEW
+        assert job.state == ImportJobState.READY_FOR_REVIEW
     assert row.status == ImportDispatchStatus.COMPLETED and row.attempt_token is None
     assert ImportDispatchService().recover_and_list_due(db) == []
 
@@ -547,7 +583,7 @@ def test_final_attempt_domain_failure_completes_delivery_and_preserves_terminal_
     db.commit()
     lease = claim(db, row)
     assert lease.attempt == dispatch_module.settings.IMPORT_DISPATCH_MAX_ATTEMPTS
-    ImportJobExecutionService().finalize_failure(
+    ImportExecutionRecorder().finalize_failure(
         db,
         lease,
         failure=DurableFailure(

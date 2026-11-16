@@ -57,7 +57,7 @@ class Pipeline:
         for step in self.steps:
             try:
                 self._ensure_before_deadline(ctx, step.name)
-                ctx.status("RUNNING", step.name, step.progress_start, current_step=step.name)
+                ctx.progress(step.name, step.progress_start, current_step=step.name)
                 logger.bind(
                     event="import_pipeline.step_started",
                     job_id=ctx.job_id,
@@ -69,7 +69,7 @@ class Pipeline:
                 executed_steps.append(step)
                 self._ensure_before_deadline(ctx, step.name)
 
-                ctx.status("RUNNING", step.name, step.progress_end, current_step=step.name)
+                ctx.progress(step.name, step.progress_end, current_step=step.name)
                 logger.bind(
                     event="import_pipeline.step_completed",
                     job_id=ctx.job_id,

@@ -6,6 +6,7 @@ import pytest
 from celery.exceptions import SoftTimeLimitExceeded
 
 from app.core.config import settings
+from app.modules.import_jobs.pipeline_runner import ImportPipelineRunner
 from app.core.exceptions import (
     FileNotFoundException,
     OmrFailedException,
@@ -29,7 +30,6 @@ from app.modules.durable_work.failure import (
     set_failure_facts,
     clear_failure_facts,
 )
-from app.modules.import_jobs.execution_service import ImportJobExecutionService
 from app.modules.score_assets.render_outbox_service import RenderOutboxService
 from app.modules.playback.outbox_service import PlaybackOutboxService
 from app.modules.mail.outbox_service import MailOutboxService
@@ -64,7 +64,7 @@ def failure_facts(record):
     ],
 )
 def test_import_execution_failure_uses_typed_evidence(error, code, classification):
-    failure = ImportJobExecutionService.failure_for_exception(error)
+    failure = ImportPipelineRunner.failure_for_exception(error)
     assert failure == DurableFailure(code, "pipeline", DurableFailureClass(classification), False)
 
 

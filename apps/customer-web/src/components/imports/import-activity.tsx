@@ -129,7 +129,7 @@ export function ImportActivity() {
                 event.preventDefault();
                 if (
                   !deleteTarget ||
-                  !['FAILURE', 'PENDING_REVIEW'].includes(deleteTarget.state)
+                  !['FAILED', 'READY_FOR_REVIEW'].includes(deleteTarget.state)
                 )
                   return;
                 remove.mutate(deleteTarget.job_id, {

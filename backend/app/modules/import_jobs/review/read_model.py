@@ -55,7 +55,7 @@ class ImportReviewReadModel:
                     created_at=job.created_at,
                     updated_at=job.updated_at,
                 )
-        if job.state != ImportJobState.PENDING_REVIEW:
+        if job.state != ImportJobState.READY_FOR_REVIEW:
             raise ValidationException(
                 code=ErrorCode.VALIDATION_ERROR,
                 field="state",

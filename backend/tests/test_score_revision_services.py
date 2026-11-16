@@ -80,7 +80,7 @@ from app.modules.import_jobs.review.schemas import ReviewConfirmRequest, ReviewU
 from app.modules.import_jobs.review.service import ImportReviewService
 from app.modules.import_jobs.review.thumbnail_service import ImportReviewThumbnailService
 from app.modules.scores.service import ScoreService
-from app.modules.import_jobs.worker_service import ImportJobExecutionService
+from app.modules.import_jobs.execution_recorder import ImportExecutionRecorder
 from app.modules.import_jobs.service import ImportJobService
 from app.modules.import_jobs.dispatch_service import ImportDispatchService
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
@@ -333,16 +333,17 @@ def test_collaborator_revision_source_usage_counts_against_score_owner(
     assert collaborator_counter is None or collaborator_counter.used_bytes == 0
 
 
-def test_completed_job_notifies_owner_when_ready_for_review(
+def test_processing_success_notifies_owner_when_ready_for_review(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
     session.add(
         ImportJob(
+            processing_started_at=utc_now(),
             id=11,
             job_uuid="job-complete-notification",
             user_id=1,
-            state=ImportJobState.RUNNING,
+            state=ImportJobState.PROCESSING,
             requested_options={"display_title": "Ready Score"},
         )
     )
@@ -367,7 +368,7 @@ def test_completed_job_notifies_owner_when_ready_for_review(
         )
     )
     session.commit()
-    job_service = ImportJobExecutionService()
+    job_service = ImportExecutionRecorder()
 
     job_service.finalize_success(session, processing_lease(session, session.get(ImportJob, 11)))
     job_service.finalize_success(session, processing_lease(session, session.get(ImportJob, 11)))
@@ -376,7 +377,7 @@ def test_completed_job_notifies_owner_when_ready_for_review(
         session,
         Notification,
         recipient_user_id=1,
-        kind=NotificationKind.IMPORT_COMPLETED,
+        kind=NotificationKind.IMPORT_READY_FOR_REVIEW,
     )
     assert notification.import_job_id == "job-complete-notification"
     assert notification.score_id is None
@@ -395,14 +396,15 @@ def test_failed_job_notifies_owner_once(
     session, _storage = score_service_session
     session.add(
         ImportJob(
+            processing_started_at=utc_now(),
             id=12,
             job_uuid="job-failure-notification",
             user_id=1,
-            state=ImportJobState.RUNNING,
+            state=ImportJobState.PROCESSING,
         )
     )
     session.commit()
-    job_service = ImportJobExecutionService()
+    job_service = ImportExecutionRecorder()
 
     job_service.finalize_failure(
         session,
@@ -431,7 +433,7 @@ def test_failed_job_notifies_owner_once(
     assert notification.kind == NotificationKind.IMPORT_FAILED
 
 
-def test_review_detail_reads_pending_job_artifacts(
+def test_review_detail_reads_review_ready_artifacts(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
@@ -447,10 +449,12 @@ def test_review_detail_reads_pending_job_artifacts(
     )
     session.add(
         ImportJob(
+            processing_started_at=utc_now(),
+            processing_finished_at=utc_now(),
             id=13,
             job_uuid="job-review",
             user_id=1,
-            state=ImportJobState.PENDING_REVIEW,
+            state=ImportJobState.READY_FOR_REVIEW,
             requested_options={
                 "display_title": "Review Score",
                 "genres": ["jazz"],
@@ -517,10 +521,12 @@ def test_job_detail_uses_review_preview_image_only(
     session, _ = score_service_session
     session.add(
         ImportJob(
+            processing_started_at=utc_now(),
+            processing_finished_at=utc_now(),
             id=16,
             job_uuid="job-thumbnail",
             user_id=1,
-            state=ImportJobState.PENDING_REVIEW,
+            state=ImportJobState.READY_FOR_REVIEW,
         )
     )
     session.commit()
@@ -555,10 +561,12 @@ def test_import_job_detail_hides_artifact_storage_details(
     session, _ = score_service_session
     session.add(
         ImportJob(
+            processing_started_at=utc_now(),
+            processing_finished_at=utc_now(),
             id=181,
             job_uuid="job-public-artifact",
             user_id=1,
-            state=ImportJobState.PENDING_REVIEW,
+            state=ImportJobState.READY_FOR_REVIEW,
             current_step="ocr_internal_step",
         )
     )
@@ -606,10 +614,11 @@ def test_import_job_detail_exposes_public_failure_fields_only(
     session, _ = score_service_session
     session.add(
         ImportJob(
+            processing_finished_at=utc_now(),
             id=18,
             job_uuid="job-public-failure",
             user_id=1,
-            state=ImportJobState.FAILURE,
+            state=ImportJobState.FAILED,
             failure_code="import_pipeline_rejected",
             failure_stage="pipeline",
             failure_classification="user_error",
@@ -619,10 +628,11 @@ def test_import_job_detail_exposes_public_failure_fields_only(
     )
     session.add(
         ImportJob(
+            processing_finished_at=utc_now(),
             id=19,
             job_uuid="job-raw-failure",
             user_id=1,
-            state=ImportJobState.FAILURE,
+            state=ImportJobState.FAILED,
             failure_code="import_pipeline_failed",
             failure_stage="pipeline",
             failure_classification="system_error",
@@ -632,10 +642,11 @@ def test_import_job_detail_exposes_public_failure_fields_only(
     )
     session.add(
         ImportJob(
+            processing_finished_at=utc_now(),
             id=20,
             job_uuid="job-unsafe-code-failure",
             user_id=1,
-            state=ImportJobState.FAILURE,
+            state=ImportJobState.FAILED,
             failure_code="unclassified_dispatch_fault",
             failure_stage="dispatch",
             failure_classification="system_error",
@@ -675,10 +686,12 @@ def test_review_thumbnail_records_temp_import_usage(
     )
     session.add(
         ImportJob(
+            processing_started_at=utc_now(),
+            processing_finished_at=utc_now(),
             id=17,
             job_uuid="job-thumbnail-usage",
             user_id=1,
-            state=ImportJobState.PENDING_REVIEW,
+            state=ImportJobState.READY_FOR_REVIEW,
         )
     )
     session.commit()
@@ -748,7 +761,7 @@ def test_review_thumbnail_records_temp_import_usage(
     assert counter.used_bytes == len(b"<svg />")
 
 
-def test_review_update_replaces_pending_review_musicxml(
+def test_review_update_replaces_review_musicxml(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
@@ -759,10 +772,12 @@ def test_review_update_replaces_pending_review_musicxml(
     )
     session.add(
         ImportJob(
+            processing_started_at=utc_now(),
+            processing_finished_at=utc_now(),
             id=15,
             job_uuid="job-review-update",
             user_id=1,
-            state=ImportJobState.PENDING_REVIEW,
+            state=ImportJobState.READY_FOR_REVIEW,
         )
     )
     session.commit()
@@ -814,17 +829,19 @@ def test_review_confirm_creates_active_score_once(
     )
     session.add(
         ImportJob(
+            processing_started_at=utc_now(),
+            processing_finished_at=utc_now(),
             id=14,
             job_uuid="job-confirm-review",
             user_id=1,
-            state=ImportJobState.PENDING_REVIEW,
+            state=ImportJobState.READY_FOR_REVIEW,
             requested_options={"display_title": "Confirmed Score"},
         )
     )
 
-    from app.modules.import_jobs.notifications import admit_import_outcome
+    from app.modules.import_jobs.notifications import admit_import_processing_outcome
 
-    admit_import_outcome(session, session.get(ImportJob, 14), created_at=utc_now())
+    admit_import_processing_outcome(session, session.get(ImportJob, 14), created_at=utc_now())
     session.flush()
     session.add(ImportDispatch(job_id=14, status=ImportDispatchStatus.COMPLETED))
     session.commit()
@@ -1608,10 +1625,12 @@ def test_review_thumbnail_outbox_claims_only_the_current_musicxml(
 ) -> None:
     session, _storage = score_service_session
     job = ImportJob(
+        processing_started_at=utc_now(),
+        processing_finished_at=utc_now(),
         id=413,
         job_uuid="review-thumbnail-job",
         user_id=1,
-        state=ImportJobState.PENDING_REVIEW,
+        state=ImportJobState.READY_FOR_REVIEW,
     )
     session.add(job)
     session.commit()
@@ -1735,7 +1754,7 @@ def test_import_dispatch_claim_reconstructs_persisted_request(
         id=501,
         job_uuid="import-dispatch-job",
         user_id=1,
-        state=ImportJobState.PENDING,
+        state=ImportJobState.QUEUED,
         requested_options={"display_title": "Queued score"},
     )
     upload = Upload(
@@ -1777,10 +1796,11 @@ def test_import_dispatch_recovers_stale_worker_without_failing_business_job(
     session, _storage = score_service_session
     now = utc_now()
     job = ImportJob(
+        processing_started_at=utc_now(),
         id=503,
         job_uuid="stale-import-dispatch",
         user_id=1,
-        state=ImportJobState.RUNNING,
+        state=ImportJobState.PROCESSING,
         progress=65,
         current_step="ocr",
     )
@@ -1799,7 +1819,7 @@ def test_import_dispatch_recovers_stale_worker_without_failing_business_job(
     due = ImportDispatchService().recover_and_list_due(session)
 
     assert due == [dispatch.dispatch_uuid]
-    assert job.state == ImportJobState.PENDING
+    assert job.state == ImportJobState.QUEUED
     assert dispatch.status == ImportDispatchStatus.FAILED
     assert job.progress == 0
     assert job.current_step is None
@@ -1814,7 +1834,7 @@ def test_import_dispatch_publish_release_preserves_domain_and_attempt(
         id=504,
         job_uuid="broker-backoff-job",
         user_id=1,
-        state=ImportJobState.PENDING,
+        state=ImportJobState.QUEUED,
     )
     session.add(job)
     session.commit()
@@ -1830,7 +1850,7 @@ def test_import_dispatch_publish_release_preserves_domain_and_attempt(
     ImportDispatchService().release_dispatch(session, dispatch.dispatch_uuid, "broker unavailable")
     session.commit()
 
-    assert job.state == ImportJobState.PENDING
+    assert job.state == ImportJobState.QUEUED
     assert dispatch.status == ImportDispatchStatus.PENDING
     assert dispatch.attempt_count == 0
     assert dispatch.next_attempt_at == now
@@ -2174,7 +2194,7 @@ def test_notifications_are_scoped_and_can_be_marked_read(
     db = session
     service = NotificationService()
 
-    created = service.admit_import_completed(
+    created = service.admit_import_ready_for_review(
         db,
         recipient_user_id=1,
         import_job_id="score-1",
@@ -2208,14 +2228,14 @@ def test_notification_dedupe_key_returns_existing_event(
     db = session
     service = NotificationService()
 
-    first = service.admit_import_completed(
+    first = service.admit_import_ready_for_review(
         db,
         recipient_user_id=1,
         import_job_id="score-1",
         import_display_title="Etudes",
         created_at=utc_now(),
     )
-    second = service.admit_import_completed(
+    second = service.admit_import_ready_for_review(
         db,
         recipient_user_id=1,
         import_job_id="score-1",
@@ -2226,7 +2246,7 @@ def test_notification_dedupe_key_returns_existing_event(
     assert first is not None
     assert second is not None
     assert second.notification_uuid == first.notification_uuid
-    assert count_rows(session, Notification, dedupe_key="import.completed:score-1:1") == 1
+    assert count_rows(session, Notification, dedupe_key="import.ready_for_review:score-1:1") == 1
 
 
 def test_notification_cleanup_removes_events_older_than_retention(
@@ -2239,13 +2259,13 @@ def test_notification_cleanup_removes_events_older_than_retention(
 
     old_event = Notification(
         recipient_user_id=1,
-        kind=NotificationKind.IMPORT_COMPLETED,
+        kind=NotificationKind.IMPORT_READY_FOR_REVIEW,
         import_job_id="old-score",
         created_at=now - timedelta(days=91),
     )
     fresh_event = Notification(
         recipient_user_id=1,
-        kind=NotificationKind.IMPORT_COMPLETED,
+        kind=NotificationKind.IMPORT_READY_FOR_REVIEW,
         import_job_id="fresh-score",
         created_at=now - timedelta(days=2),
     )
@@ -2273,7 +2293,7 @@ def test_notification_maintenance_removes_events_older_than_retention(
     session.add(
         Notification(
             recipient_user_id=1,
-            kind=NotificationKind.IMPORT_COMPLETED,
+            kind=NotificationKind.IMPORT_READY_FOR_REVIEW,
             import_job_id="old-score",
             created_at=now - timedelta(days=91),
         )
@@ -2281,7 +2301,7 @@ def test_notification_maintenance_removes_events_older_than_retention(
     session.add(
         Notification(
             recipient_user_id=1,
-            kind=NotificationKind.IMPORT_COMPLETED,
+            kind=NotificationKind.IMPORT_READY_FOR_REVIEW,
             import_job_id="fresh-score",
             created_at=now - timedelta(days=2),
         )
@@ -2477,7 +2497,12 @@ def test_review_semantic_admission_precedes_storage(score_service_session, opera
     )
     session.add(
         ImportJob(
-            id=14, job_uuid="admission-review", user_id=1, state=ImportJobState.PENDING_REVIEW
+            processing_started_at=utc_now(),
+            processing_finished_at=utc_now(),
+            id=14,
+            job_uuid="admission-review",
+            user_id=1,
+            state=ImportJobState.READY_FOR_REVIEW,
         )
     )
     session.flush()
@@ -2549,7 +2574,12 @@ def test_service_hash_and_storage_use_exact_admitted_bytes(score_service_session
     else:
         session.add(
             ImportJob(
-                id=14, job_uuid="admission-review", user_id=1, state=ImportJobState.PENDING_REVIEW
+                processing_started_at=utc_now(),
+                processing_finished_at=utc_now(),
+                id=14,
+                job_uuid="admission-review",
+                user_id=1,
+                state=ImportJobState.READY_FOR_REVIEW,
             )
         )
         session.flush()
@@ -2590,7 +2620,12 @@ def test_admitted_revision_survives_unsupported_metadata_projection(score_servic
     session, storage = score_service_session
     session.add(
         ImportJob(
-            id=14, job_uuid="admission-review", user_id=1, state=ImportJobState.PENDING_REVIEW
+            processing_started_at=utc_now(),
+            processing_finished_at=utc_now(),
+            id=14,
+            job_uuid="admission-review",
+            user_id=1,
+            state=ImportJobState.READY_FOR_REVIEW,
         )
     )
     session.flush()

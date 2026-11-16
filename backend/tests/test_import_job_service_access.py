@@ -19,7 +19,7 @@ def test_retry_rejects_invalid_persisted_genres_before_submission():
         id=17,
         job_uuid="job",
         user_id=7,
-        state=ImportJobState.FAILURE,
+        state=ImportJobState.FAILED,
         requested_options={"genres": ["unknown"]},
     )
     service, _ = _service_with_job(job)
@@ -69,7 +69,7 @@ def test_retry_rejects_jobs_that_are_not_failed() -> None:
     job = SimpleNamespace(
         id=17,
         job_uuid="job-1",
-        state=ImportJobState.RUNNING,
+        state=ImportJobState.PROCESSING,
         user_id=7,
         requested_options=None,
     )
@@ -86,7 +86,7 @@ def test_retry_requires_original_uploads_and_preserves_processing_options() -> N
     job = SimpleNamespace(
         id=17,
         job_uuid="job-1",
-        state=ImportJobState.FAILURE,
+        state=ImportJobState.FAILED,
         user_id=7,
         requested_options={
             "display_title": "Recovered score",
@@ -110,7 +110,7 @@ def test_retry_requires_original_uploads_and_preserves_processing_options() -> N
         return_value={
             "job_id": "retry-job",
             "count": 2,
-            "state": ImportJobState.PENDING,
+            "state": ImportJobState.QUEUED,
         }
     )
     service.submission_service = submission

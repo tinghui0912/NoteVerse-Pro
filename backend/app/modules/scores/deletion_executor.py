@@ -175,6 +175,10 @@ class ScoreDeletionExecutor:
         representations = list(
             db.scalars(select(StoredObject).where(StoredObject.object_key.in_(storage_keys)))
         )
+        import_cleanup, import_object_ids = self._delete_originating_import_job(
+            db,
+            originating_job,
+        )
         score.head_revision_id = None
         db.delete(score)
         db.flush()
@@ -203,10 +207,6 @@ class ScoreDeletionExecutor:
             db.delete(upload)
             db.flush()
             released_ids.append(stored_object_id)
-        import_cleanup, import_object_ids = self._delete_originating_import_job(
-            db,
-            originating_job,
-        )
         for release in usage_releases:
             storage_usage_service.record_release(
                 db,

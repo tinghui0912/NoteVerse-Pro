@@ -84,7 +84,7 @@ async function finishContinuousCountIn(page: Page, remainingMs: number) {
 
 type MockOptions = {
   denyMicrophone?: boolean;
-  camera?: 'READY' | 'DENIED' | 'NO_VIDEO' | 'NO_AUDIO' | 'PENDING';
+  camera?: 'READY' | 'DENIED' | 'NO_VIDEO' | 'NO_AUDIO' | 'QUEUED';
   reservationMismatch?: 'SCOPE' | 'TEMPO' | 'TIMEBASE';
 };
 
@@ -270,7 +270,7 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
       if (!camera || !constraints?.video) { const stream = camera === 'NO_AUDIO' ? new MediaStream() : await audioOnly(constraints); media.audioStreams.push(stream); return stream; }
       if (camera === 'DENIED') throw new DOMException('Camera permission denied', 'NotAllowedError');
       cameraRequests++;
-      if (camera === 'PENDING' && cameraRequests === 1) {
+      if (camera === 'QUEUED' && cameraRequests === 1) {
         return new Promise<MediaStream>((resolve) => {
           media.resolveCamera = () => {
             media.resolveCamera = null;
@@ -804,7 +804,7 @@ test.describe('Continuous VIDEO camera preparation', () => {
   }
 
   test('leaving Setup during pending acquisition fences completion and stops late camera roots', async ({ page }) => {
-    await openCameraSetup(page, 'MIDI', 'PENDING'); await recordingOption(page, 'VIDEO').click();
+    await openCameraSetup(page, 'MIDI', 'QUEUED'); await recordingOption(page, 'VIDEO').click();
     await page.getByRole('button',{name:'开始练习',exact:true}).click();
     await expect.poll(async () => (await mediaState(page)).pending).toBe(true);
     await expect(page.getByRole('button',{name:'麦克风',exact:true})).toBeDisabled();

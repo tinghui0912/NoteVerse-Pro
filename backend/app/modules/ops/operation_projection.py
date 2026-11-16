@@ -55,9 +55,9 @@ def _delivery_projection(
 
 def _import_projection():
     j, d = ImportJob.__table__.c, ImportDispatch.__table__.c
-    terminal_failure = j.state == "FAILURE"
+    terminal_failure = j.state == "FAILED"
     status = case(
-        (j.state.in_(["PENDING_REVIEW", "CONFIRMED"]), "succeeded"),
+        (j.state.in_(["READY_FOR_REVIEW", "CONFIRMED"]), "succeeded"),
         (terminal_failure, "failed"),
         else_=_delivery_status(d),
     )
@@ -82,8 +82,8 @@ def _import_projection():
         case((terminal_failure, j.failure_detail), else_=d.failure_detail).label("failure_detail"),
         d.created_at,
         case((j.updated_at > d.updated_at, j.updated_at), else_=d.updated_at).label("updated_at"),
-        func.coalesce(j.started_at, d.started_at).label("started_at"),
-        func.coalesce(j.finished_at, d.completed_at).label("completed_at"),
+        func.coalesce(j.processing_started_at, d.started_at).label("started_at"),
+        func.coalesce(j.processing_finished_at, d.completed_at).label("completed_at"),
     ).select_from(ImportJob.__table__.join(ImportDispatch.__table__, d.job_id == j.id))
 
 

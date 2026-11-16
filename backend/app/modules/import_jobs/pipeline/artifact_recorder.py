@@ -65,7 +65,7 @@ def replace_files(
         object keys under `jobs/{job_id}/{kind}/`.
     """
     from app.db.session import SessionLocal
-    from app.modules.import_jobs.worker_service import import_job_execution_service
+    from app.modules.import_jobs.execution_recorder import import_execution_recorder
 
     with SessionLocal() as db:
         require_current_attempt(db, lease)
@@ -76,7 +76,7 @@ def replace_files(
     ]
 
     with SessionLocal() as db:
-        import_job_execution_service.replace_artifacts(db, lease, normalized_kind, items)
+        import_execution_recorder.replace_artifacts(db, lease, normalized_kind, items)
         db.commit()
 
 

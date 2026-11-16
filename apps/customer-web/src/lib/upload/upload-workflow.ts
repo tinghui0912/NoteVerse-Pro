@@ -13,5 +13,5 @@ export function getCompletedJobRoute(
   scoreId: string | null | undefined,
   state: string
 ) {
-  return state === 'PENDING_REVIEW' ? `/review/${jobId}` : `/score/${scoreId}`;
+  return state === 'READY_FOR_REVIEW' ? `/review/${jobId}` : `/score/${scoreId}`;
 }

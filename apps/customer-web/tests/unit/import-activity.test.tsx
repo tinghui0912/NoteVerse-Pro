@@ -40,13 +40,13 @@ const job = (state: ImportJobRead['state']): ImportJobRead => ({
   created_at: '2026-11-15T10:00:00Z',
   updated_at: '2026-11-15T10:00:00Z',
   score_id: state === 'CONFIRMED' ? 'formal-score' : null,
-  public_code: state === 'FAILURE' ? 'score_recognition_failed' : null,
+  public_code: state === 'FAILED' ? 'score_recognition_failed' : null,
 });
 const jobs = [
-  'PENDING',
-  'RUNNING',
-  'PENDING_REVIEW',
-  'FAILURE',
+  'QUEUED',
+  'PROCESSING',
+  'READY_FOR_REVIEW',
+  'FAILED',
   'CONFIRMED',
 ].map((state) => job(state as ImportJobRead['state']));
 function harness() {
@@ -84,13 +84,13 @@ beforeEach(() => {
 it('presents each processing state with only its current commands', async () => {
   const { wrapper, client } = harness();
   render(<ImportActivity />, { wrapper });
-  await screen.findByText('PENDING import');
+  await screen.findByText('QUEUED import');
   function card(state: string) {
     return screen.getByText(`${state} import`).parentElement!;
   }
   for (const [state, label] of [
-    ['PENDING', 'Queued'],
-    ['RUNNING', 'Processing'],
+    ['QUEUED', 'Queued'],
+    ['PROCESSING', 'Processing'],
   ]) {
     const scope = within(card(state));
     expect(scope.getByText(label)).toBeInTheDocument();
@@ -99,16 +99,16 @@ it('presents each processing state with only its current commands', async () => 
     expect(scope.queryAllByRole('link')).toHaveLength(0);
   }
   expect(
-    within(card('PENDING_REVIEW')).getByRole('link', { name: 'Review' }),
-  ).toHaveAttribute('href', '/review/PENDING_REVIEW');
+    within(card('READY_FOR_REVIEW')).getByRole('link', { name: 'Review' }),
+  ).toHaveAttribute('href', '/review/READY_FOR_REVIEW');
   expect(
-    within(card('FAILURE')).getByText(errorMessages.score_recognition_failed),
+    within(card('FAILED')).getByText(errorMessages.score_recognition_failed),
   ).toBeInTheDocument();
   expect(
-    within(card('FAILURE')).getByRole('button', { name: 'Retry' }),
+    within(card('FAILED')).getByRole('button', { name: 'Retry' }),
   ).toBeInTheDocument();
   expect(
-    within(card('FAILURE')).getByRole('button', { name: 'Delete import' }),
+    within(card('FAILED')).getByRole('button', { name: 'Delete import' }),
   ).toBeInTheDocument();
   const confirmed = within(card('CONFIRMED'));
   expect(confirmed.getByText('Completed')).toBeInTheDocument();
@@ -123,20 +123,20 @@ it('retries the failed process through the API and invalidates the list without 
   const { wrapper, client } = harness();
   const invalidate = vi.spyOn(client, 'invalidateQueries');
   render(<ImportActivity />, { wrapper });
-  const failed = await screen.findByText('FAILURE import');
+  const failed = await screen.findByText('FAILED import');
   await userEvent.click(
     within(failed.parentElement!).getByRole('button', { name: 'Retry' }),
   );
   await waitFor(() =>
     expect(api.retryImportJob).toHaveBeenCalledWith(
-      'FAILURE',
+      'FAILED',
       expect.anything(),
     ),
   );
   expect(invalidate).toHaveBeenCalledWith({
     queryKey: queryKeys.importJobs.all,
   });
-  expect(screen.getByText('FAILURE import')).toBeInTheDocument();
+  expect(screen.getByText('FAILED import')).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: 'Next' }));
   expect(await screen.findByText('Second page import')).toBeInTheDocument();
   expect(api.listImportJobs).toHaveBeenCalledWith(
@@ -146,10 +146,10 @@ it('retries the failed process through the API and invalidates the list without 
   );
   client.clear();
 });
-it('deletes only a terminal unconfirmed import after confirmation', async () => {
+it('deletes a review-ready import after user confirmation', async () => {
   const { wrapper, client } = harness();
   render(<ImportActivity />, { wrapper });
-  const target = await screen.findByText('PENDING_REVIEW import');
+  const target = await screen.findByText('READY_FOR_REVIEW import');
   await userEvent.click(
     within(target.parentElement!).getByRole('button', {
       name: 'Delete import',
@@ -162,17 +162,17 @@ it('deletes only a terminal unconfirmed import after confirmation', async () => 
   );
   await waitFor(() =>
     expect(api.deleteImportJob).toHaveBeenCalledWith(
-      'PENDING_REVIEW',
+      'READY_FOR_REVIEW',
       expect.anything(),
     ),
   );
   client.clear();
 });
 it.each([
-  'PENDING',
-  'RUNNING',
-  'PENDING_REVIEW',
-  'FAILURE',
+  'QUEUED',
+  'PROCESSING',
+  'READY_FOR_REVIEW',
+  'FAILED',
   'CONFIRMED',
 ] as const)('polls only active processing collections (%s)', async (state) => {
   api.listImportJobs.mockResolvedValue({ items: [job(state)], ...{ page: 1, page_size: 20, total: 1, total_pages: 1 } });
@@ -186,7 +186,7 @@ it.each([
   expect(typeof interval).toBe('function');
   if (typeof interval === 'function')
     expect(interval(query)).toBe(
-      ['PENDING', 'RUNNING'].includes(state) ? 5000 : false,
+      ['QUEUED', 'PROCESSING'].includes(state) ? 5000 : false,
     );
   hook.unmount();
   client.clear();
@@ -194,10 +194,10 @@ it.each([
 
 
 it.each([null, 'private_provider_failure'])('uses product fallback for an unmapped public code %s', async (code) => {
-  api.listImportJobs.mockResolvedValue({ items: [{ ...job('FAILURE'), public_code: code }], page: 1, page_size: 20, total: 1 });
+  api.listImportJobs.mockResolvedValue({ items: [{ ...job('FAILED'), public_code: code }], page: 1, page_size: 20, total: 1 });
   const { wrapper } = harness();
   render(<ImportActivity />, { wrapper });
-  const title = await screen.findByText('FAILURE import');
+  const title = await screen.findByText('FAILED import');
   expect(within(title.parentElement!).getByText(messages.failed)).toBeInTheDocument();
   expect(screen.queryByText('private_provider_failure')).not.toBeInTheDocument();
 });

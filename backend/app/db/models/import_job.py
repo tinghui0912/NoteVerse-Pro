@@ -32,11 +32,11 @@ metadata_json_type = JSON().with_variant(JSONB, "postgresql")
 
 
 class ImportJobState(str, enum.Enum):
-    PENDING = "PENDING"
-    RUNNING = "RUNNING"
-    PENDING_REVIEW = "PENDING_REVIEW"
+    QUEUED = "QUEUED"
+    PROCESSING = "PROCESSING"
+    READY_FOR_REVIEW = "READY_FOR_REVIEW"
     CONFIRMED = "CONFIRMED"
-    FAILURE = "FAILURE"
+    FAILED = "FAILED"
 
 
 class ImportJobStepStatus(str, enum.Enum):
@@ -54,8 +54,17 @@ class ImportJob(SQLModel, table=True):  # type: ignore[call-arg]
             name="ck_import_jobs_failure_facts",
         ),
         CheckConstraint(
-            "(state = 'FAILURE' AND failure_code IS NOT NULL AND failure_stage IS NOT NULL AND failure_classification IS NOT NULL AND failure_retryable IS NOT NULL) OR (state <> 'FAILURE' AND failure_code IS NULL AND failure_stage IS NULL AND failure_classification IS NULL AND failure_retryable IS NULL)",
+            "(state = 'FAILED' AND failure_code IS NOT NULL AND failure_stage IS NOT NULL AND failure_classification IS NOT NULL AND failure_retryable IS NOT NULL) OR (state <> 'FAILED' AND failure_code IS NULL AND failure_stage IS NULL AND failure_classification IS NULL AND failure_retryable IS NULL)",
             name="ck_import_jobs_state_failure",
+        ),
+        CheckConstraint("progress >= 0 AND progress <= 100", name="ck_import_jobs_progress"),
+        CheckConstraint(
+            "(state = 'QUEUED' AND processing_started_at IS NULL AND processing_finished_at IS NULL AND confirmed_at IS NULL AND score_id IS NULL) OR "
+            "(state = 'PROCESSING' AND processing_started_at IS NOT NULL AND processing_finished_at IS NULL AND confirmed_at IS NULL AND score_id IS NULL) OR "
+            "(state = 'READY_FOR_REVIEW' AND processing_started_at IS NOT NULL AND processing_finished_at IS NOT NULL AND confirmed_at IS NULL AND score_id IS NULL) OR "
+            "(state = 'CONFIRMED' AND processing_started_at IS NOT NULL AND processing_finished_at IS NOT NULL AND confirmed_at IS NOT NULL AND score_id IS NOT NULL) OR "
+            "(state = 'FAILED' AND processing_finished_at IS NOT NULL AND confirmed_at IS NULL AND score_id IS NULL)",
+            name="ck_import_jobs_lifecycle",
         ),
         UniqueConstraint(
             "user_id",
@@ -94,14 +103,18 @@ class ImportJob(SQLModel, table=True):  # type: ignore[call-arg]
     failure_classification: Optional[str] = Field(default=None, sa_column=Column(String(32)))
     failure_retryable: Optional[bool] = Field(default=None, sa_column=Column(Boolean))
     failure_detail: Optional[str] = Field(default=None, sa_column=Column(Text))
-    requested_at: Optional[datetime] = Field(
+    processing_started_at: Optional[datetime] = Field(
         default=None, sa_column=Column(DateTime(timezone=True))
     )
-    started_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
-    last_heartbeat_at: Optional[datetime] = Field(
+    processing_last_heartbeat_at: Optional[datetime] = Field(
         default=None, sa_column=Column(DateTime(timezone=True))
     )
-    finished_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    processing_finished_at: Optional[datetime] = Field(
+        default=None, sa_column=Column(DateTime(timezone=True))
+    )
+    confirmed_at: Optional[datetime] = Field(
+        default=None, sa_column=Column(DateTime(timezone=True))
+    )
     score_id: Optional[int] = Field(
         default=None,
         sa_column=Column(

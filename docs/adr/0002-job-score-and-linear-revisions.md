@@ -15,7 +15,7 @@ Import processing and stable user-owned scores have different identities and lif
 2. `Score` is the stable user-owned resource and owns title, genres, and its current
    head revision pointer.
 3. A job may fail without producing a score. Once normalized review MusicXML exists, the
-   job enters `PENDING_REVIEW` and stores that output as a job artifact. It does not create
+   job enters `READY_FOR_REVIEW` and stores that output as a job artifact. It does not create
    a score yet.
 4. `ScoreRevision` is an immutable snapshot with a unique number per score, a content hash,
    and a complete canonical MusicXML source. Revision numbers define history order;
@@ -36,13 +36,13 @@ Import processing and stable user-owned scores have different identities and lif
 ## Lifecycle contract
 
 ```text
-ImportJob: PENDING -> RUNNING -> PENDING_REVIEW -> CONFIRMED
-                         \-> FAILURE
+ImportJob: QUEUED -> PROCESSING -> READY_FOR_REVIEW -> CONFIRMED
+                         \-> FAILED
 
 Score: no lifecycle state column in the current model
 ```
 
-`ImportJob.PENDING_REVIEW` means review artifacts exist and are ready for human
+`ImportJob.READY_FOR_REVIEW` means review artifacts exist and are ready for human
 confirmation. `ImportJob.CONFIRMED` means confirmation created a canonical score and
 recorded `score_id`.
 

@@ -15,7 +15,7 @@ def upgrade() -> None:
         "PENDING", "DISPATCHED", "PROCESSING", "COMPLETED", "FAILED", name="importdispatchstatus"
     ).create(op.get_bind(), checkfirst=False)
     postgresql.ENUM(
-        "PENDING", "RUNNING", "PENDING_REVIEW", "CONFIRMED", "FAILURE", name="importjobstate"
+        "QUEUED", "PROCESSING", "READY_FOR_REVIEW", "CONFIRMED", "FAILED", name="importjobstate"
     ).create(op.get_bind(), checkfirst=False)
     postgresql.ENUM("PENDING", "RUNNING", "COMPLETED", "FAILED", name="importjobstepstatus").create(
         op.get_bind(), checkfirst=False
@@ -672,11 +672,11 @@ def upgrade() -> None:
         sa.Column(
             "state",
             postgresql.ENUM(
-                "PENDING",
-                "RUNNING",
-                "PENDING_REVIEW",
+                "QUEUED",
+                "PROCESSING",
+                "READY_FOR_REVIEW",
                 "CONFIRMED",
-                "FAILURE",
+                "FAILED",
                 name="importjobstate",
                 create_type=False,
             ),
@@ -696,10 +696,10 @@ def upgrade() -> None:
         sa.Column("failure_classification", sa.String(length=32), nullable=True),
         sa.Column("failure_retryable", sa.Boolean(), nullable=True),
         sa.Column("failure_detail", sa.Text(), nullable=True),
-        sa.Column("requested_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("last_heartbeat_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("finished_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("processing_started_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("processing_last_heartbeat_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("processing_finished_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("confirmed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("score_id", sa.BigInteger(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
@@ -714,8 +714,13 @@ def upgrade() -> None:
             name="ck_import_jobs_failure_facts",
         ),
         sa.CheckConstraint(
-            "(state = 'FAILURE' AND failure_code IS NOT NULL AND failure_stage IS NOT NULL AND failure_classification IS NOT NULL AND failure_retryable IS NOT NULL) OR (state <> 'FAILURE' AND failure_code IS NULL AND failure_stage IS NULL AND failure_classification IS NULL AND failure_retryable IS NULL)",
+            "(state = 'FAILED' AND failure_code IS NOT NULL AND failure_stage IS NOT NULL AND failure_classification IS NOT NULL AND failure_retryable IS NOT NULL) OR (state <> 'FAILED' AND failure_code IS NULL AND failure_stage IS NULL AND failure_classification IS NULL AND failure_retryable IS NULL)",
             name="ck_import_jobs_state_failure",
+        ),
+        sa.CheckConstraint("progress >= 0 AND progress <= 100", name="ck_import_jobs_progress"),
+        sa.CheckConstraint(
+            "(state = 'QUEUED' AND processing_started_at IS NULL AND processing_finished_at IS NULL AND confirmed_at IS NULL AND score_id IS NULL) OR (state = 'PROCESSING' AND processing_started_at IS NOT NULL AND processing_finished_at IS NULL AND confirmed_at IS NULL AND score_id IS NULL) OR (state = 'READY_FOR_REVIEW' AND processing_started_at IS NOT NULL AND processing_finished_at IS NOT NULL AND confirmed_at IS NULL AND score_id IS NULL) OR (state = 'CONFIRMED' AND processing_started_at IS NOT NULL AND processing_finished_at IS NOT NULL AND confirmed_at IS NOT NULL AND score_id IS NOT NULL) OR (state = 'FAILED' AND processing_finished_at IS NOT NULL AND confirmed_at IS NULL AND score_id IS NULL)",
+            name="ck_import_jobs_lifecycle",
         ),
         sa.PrimaryKeyConstraint("id", name="pk_import_jobs"),
         sa.UniqueConstraint("job_uuid", name="uq_import_jobs_job_uuid"),
@@ -817,7 +822,7 @@ def upgrade() -> None:
                 "score_invite.accepted",
                 "score_invite.declined",
                 "score.version.created",
-                "import.completed",
+                "import.ready_for_review",
                 "import.failed",
                 name="notificationkind",
                 native_enum=False,
@@ -835,7 +840,7 @@ def upgrade() -> None:
         sa.Column("read_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.CheckConstraint(
-            "\n          (kind IN ('score_invite.accepted', 'score_invite.declined') AND invite_id IS NOT NULL\n           AND score_id IS NOT NULL AND actor_user_id IS NOT NULL AND score_display_title_snapshot IS NOT NULL\n           AND revision_id IS NULL AND import_job_id IS NULL AND import_display_title_snapshot IS NULL)\n          OR (kind = 'score.version.created' AND score_id IS NOT NULL AND revision_id IS NOT NULL\n           AND actor_user_id IS NOT NULL AND score_display_title_snapshot IS NOT NULL AND invite_id IS NULL\n           AND import_job_id IS NULL AND import_display_title_snapshot IS NULL)\n          OR (kind = 'import.completed' AND import_job_id IS NOT NULL AND actor_user_id IS NULL\n           AND invite_id IS NULL AND revision_id IS NULL\n           AND ((score_id IS NULL AND score_display_title_snapshot IS NULL)\n             OR (score_id IS NOT NULL AND score_display_title_snapshot IS NOT NULL)))\n          OR (kind = 'import.failed' AND import_job_id IS NOT NULL AND actor_user_id IS NULL\n           AND invite_id IS NULL AND revision_id IS NULL AND score_id IS NULL AND score_display_title_snapshot IS NULL)\n        ",
+            "\n          (kind IN ('score_invite.accepted', 'score_invite.declined') AND invite_id IS NOT NULL\n           AND score_id IS NOT NULL AND actor_user_id IS NOT NULL AND score_display_title_snapshot IS NOT NULL\n           AND revision_id IS NULL AND import_job_id IS NULL AND import_display_title_snapshot IS NULL)\n          OR (kind = 'score.version.created' AND score_id IS NOT NULL AND revision_id IS NOT NULL\n           AND actor_user_id IS NOT NULL AND score_display_title_snapshot IS NOT NULL AND invite_id IS NULL\n           AND import_job_id IS NULL AND import_display_title_snapshot IS NULL)\n          OR (kind = 'import.ready_for_review' AND import_job_id IS NOT NULL AND actor_user_id IS NULL\n           AND invite_id IS NULL AND revision_id IS NULL\n           AND ((score_id IS NULL AND score_display_title_snapshot IS NULL)\n             OR (score_id IS NOT NULL AND score_display_title_snapshot IS NOT NULL)))\n          OR (kind = 'import.failed' AND import_job_id IS NOT NULL AND actor_user_id IS NULL\n           AND invite_id IS NULL AND revision_id IS NULL AND score_id IS NULL AND score_display_title_snapshot IS NULL)\n        ",
             name="ck_notifications_semantic_identity",
         ),
         sa.ForeignKeyConstraint(

@@ -416,7 +416,7 @@ def _scheduler_lag_lines(db: Session) -> list[str]:
                 select(func.min(ImportDispatch.next_attempt_at))
                 .join(ImportJob, ImportJob.id == ImportDispatch.job_id)
                 .where(
-                    ImportJob.state == ImportJobState.PENDING,
+                    ImportJob.state == ImportJobState.QUEUED,
                     ImportDispatch.status.in_(
                         (ImportDispatchStatus.PENDING, ImportDispatchStatus.FAILED)
                     ),

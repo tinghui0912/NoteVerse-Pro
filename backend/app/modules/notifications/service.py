@@ -99,7 +99,7 @@ class NotificationService:
             ),
         )
 
-    def admit_import_completed(
+    def admit_import_ready_for_review(
         self,
         db: Session,
         *,
@@ -112,11 +112,11 @@ class NotificationService:
             db,
             Notification(
                 recipient_user_id=recipient_user_id,
-                kind=NotificationKind.IMPORT_COMPLETED,
+                kind=NotificationKind.IMPORT_READY_FOR_REVIEW,
                 import_job_id=import_job_id,
                 import_display_title_snapshot=import_display_title,
                 created_at=created_at,
-                dedupe_key=f"import.completed:{import_job_id}:{recipient_user_id}",
+                dedupe_key=f"import.ready_for_review:{import_job_id}:{recipient_user_id}",
             ),
         )
 
@@ -230,7 +230,7 @@ class NotificationService:
             fields.update(
                 job_id=row.import_job_id, import_display_title=row.import_display_title_snapshot
             )
-            if row.kind == NotificationKind.IMPORT_COMPLETED:
+            if row.kind == NotificationKind.IMPORT_READY_FOR_REVIEW:
                 fields.update(
                     score_id=row.score_id, score_display_title=row.score_display_title_snapshot
                 )

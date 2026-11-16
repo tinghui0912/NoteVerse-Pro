@@ -77,7 +77,7 @@ def test_each_notification_kind_hydrates_a_typed_variant_and_read_preserves_sema
             score_display_title="Etudes",
             created_at=now,
         )
-        service.admit_import_completed(
+        service.admit_import_ready_for_review(
             db,
             recipient_user_id=1,
             import_job_id="job",
@@ -97,7 +97,7 @@ def test_each_notification_kind_hydrates_a_typed_variant_and_read_preserves_sema
             "score_invite.accepted",
             "score_invite.declined",
             "score.version.created",
-            "import.completed",
+            "import.ready_for_review",
             "import.failed",
         }
         from fastapi.testclient import TestClient
@@ -151,7 +151,7 @@ def test_read_transition_and_change_admission_roll_back_together(
 
     with Session(notifications) as db:
         service = NotificationService()
-        notice = service.admit_import_completed(
+        notice = service.admit_import_ready_for_review(
             db,
             recipient_user_id=1,
             import_job_id="job",

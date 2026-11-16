@@ -5,13 +5,13 @@ from __future__ import annotations
 import sys
 
 from app.db.session import SessionLocal
+from app.modules.import_jobs.lifecycle import IMPORT_EXECUTION_CLOSED_STATES
 from app.modules.import_jobs.dispatch_service import (
     import_dispatch_service,
     require_current_attempt,
     StaleImportDispatchAttempt,
-    TERMINAL_IMPORT_STATES,
 )
-from app.modules.import_jobs.execution_service import job_execution_service
+from app.modules.import_jobs.pipeline_runner import import_pipeline_runner
 from app.task_queue.protocols import CeleryTaskLike
 from app.worker.task_runtime import (
     bind_task_context,
@@ -66,7 +66,7 @@ def execute_import_dispatch_task(
             upload_count=len(payload.inputs),
         ).info("import.started")
         try:
-            result = job_execution_service.run_pipeline(
+            result = import_pipeline_runner.run_pipeline(
                 task,
                 payload.lease,
                 payload.inputs,
@@ -82,7 +82,7 @@ def execute_import_dispatch_task(
             ).opt(exception=True).error("import.failed")
             with SessionLocal() as db:
                 job = require_current_attempt(db, payload.lease)
-                if job.state in TERMINAL_IMPORT_STATES:
+                if job.state in IMPORT_EXECUTION_CLOSED_STATES:
                     import_dispatch_service.complete(db, payload.lease)
                 db.commit()
             raise
@@ -91,10 +91,10 @@ def execute_import_dispatch_task(
             import_dispatch_service.complete(db, payload.lease)
             db.commit()
         operation_logger(
-            "import.completed",
+            "import.ready_for_review",
             **context,
             status="completed",
-        ).info("import.completed")
+        ).info("import.ready_for_review")
         return dict(result)
     finally:
         if trace_scope is not None:

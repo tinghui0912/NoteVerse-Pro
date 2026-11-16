@@ -13,7 +13,7 @@ const pendingInvites = [
     },
     email: 'owner@example.com',
     role: 'PRACTITIONER',
-    status: 'PENDING',
+    status: 'QUEUED',
     expires_at: null,
     created_at: '2026-07-01T08:00:00Z',
   },
@@ -59,7 +59,7 @@ const failedProcessingNotification = {
 };
 const completedProcessingNotification = {
   notification_id: 'notification-processing-completed',
-  kind: 'import.completed',
+  kind: 'import.ready_for_review',
   job_id: 'ready-job-1',
   import_display_title: 'Ready Score',
   score_id: null,
@@ -185,7 +185,7 @@ test('failed processing notification opens Import Activity', async ({ page }) =>
         items: [
           {
             job_id: 'failed-job-1',
-            state: 'FAILURE',
+            state: 'FAILED',
             progress: 0,
             display_title: 'Failed upload',
           },

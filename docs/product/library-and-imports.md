@@ -52,7 +52,7 @@ Upload is the global creation action. The Upload page contains the upload form
 and paginated Import Activity. Import Jobs are processing records, not Library
 Scores. Queued and running jobs show progress without cancellation actions.
 Pending review jobs open Review. Failed jobs offer backend Retry.
-Delete import is allowed only for PENDING_REVIEW and FAILURE, with state admission
+Delete import is allowed only for READY_FOR_REVIEW and FAILED, with state admission
 checked under the Dispatch then Job locks. Queued/running imports cannot be deleted
 because cancellation is not implemented. Confirmed import history is retained and
 links to its formal Score. Confirmation atomically promotes Score inputs and releases temporary Import ownership,
@@ -66,5 +66,5 @@ storage-quota responsibility. Guest Preview remains explicit link sharing.
 
 Import Review is an ImportJob API sub-resource. The `/review/:jobId` workspace and
 its editor remain product navigation routes. Confirmation commits Score/revision
-admission, temporary cleanup and navigation enrichment of the retained import-completed
+admission, temporary cleanup and navigation enrichment of the retained import-ready-for-review
 notification together. Notification retention does not block confirmation or recreate history.

@@ -78,7 +78,10 @@ def test_fresh_postgresql_instants_use_timestamptz_and_round_trip(monkeypatch):
             db.add(User(id=1, email="instant@example.test", password_hash="hash"))
             db.flush()
             job = ImportJob(
-                job_uuid="instant-job", user_id=1, state=ImportJobState.PENDING, started_at=source
+                job_uuid="instant-job",
+                user_id=1,
+                state=ImportJobState.PROCESSING,
+                processing_started_at=source,
             )
             score = Score(score_uuid="instant-score", owner_user_id=1, display_title="Instant")
             db.add_all([job, score])
@@ -100,7 +103,7 @@ def test_fresh_postgresql_instants_use_timestamptz_and_round_trip(monkeypatch):
             for value in (
                 auth.expires_at,
                 dispatch.next_attempt_at,
-                job.started_at,
+                job.processing_started_at,
                 invite.expires_at,
             ):
                 assert (
@@ -108,7 +111,7 @@ def test_fresh_postgresql_instants_use_timestamptz_and_round_trip(monkeypatch):
                     and value.utcoffset() == timedelta(0)
                     and value == source
                 )
-            job.finished_at = datetime(2026, 11, 15, 10)
+            job.processing_finished_at = datetime(2026, 11, 15, 10)
             with pytest.raises(ValueError):
                 db.flush()
             db.rollback()

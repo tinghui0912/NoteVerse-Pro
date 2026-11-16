@@ -64,7 +64,7 @@ def database(monkeypatch):
                 content_hash="f" * 64,
                 origin=RevisionOrigin.EDIT,
             )
-            job = ImportJob(job_uuid="job", user_id=user.id, state=ImportJobState.PENDING)
+            job = ImportJob(job_uuid="job", user_id=user.id, state=ImportJobState.QUEUED)
             db.add_all([revision, job])
             db.flush()
             score.head_revision_id = revision.id

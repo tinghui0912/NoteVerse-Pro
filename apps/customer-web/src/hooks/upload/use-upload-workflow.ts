@@ -233,7 +233,7 @@ export function useUploadWorkflow() {
 
     dispatchTask({ type: 'progress', progress: job.progress || 0 });
     const state = String(job.state).toUpperCase();
-    if (state === 'PENDING_REVIEW' || state === 'CONFIRMED') {
+    if (state === 'READY_FOR_REVIEW' || state === 'CONFIRMED') {
       const completedScoreId = job.score_id;
       if (state === 'CONFIRMED' && !completedScoreId) {
         dispatchTask({ type: 'failed', message: t('taskProcessingFailed') });
@@ -242,7 +242,7 @@ export function useUploadWorkflow() {
       dispatchTask({ type: 'completed' });
       clearFiles();
       router.push(getCompletedJobRoute(job.job_id, completedScoreId, state));
-    } else if (state === 'FAILURE') {
+    } else if (state === 'FAILED') {
       dispatchTask({
         type: 'failed',
         message: translateTaskError(job.public_code, t('taskProcessingFailed')),

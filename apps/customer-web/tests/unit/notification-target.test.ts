@@ -42,7 +42,7 @@ const variants: NotificationRead[] = [
   },
   {
     ...common,
-    kind: 'import.completed',
+    kind: 'import.ready_for_review',
     job_id: 'job',
     import_display_title: 'Etudes',
     score_id: null,
@@ -71,7 +71,7 @@ describe('typed notification presentation and navigation', () => {
     expect(
       notificationHref({
         ...common,
-        kind: 'import.completed',
+        kind: 'import.ready_for_review',
         job_id: 'job',
         import_display_title: null,
         score_id: 'score',

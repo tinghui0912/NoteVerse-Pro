@@ -17,53 +17,54 @@ from app.db.models import (
     ImportJobStep,
     StorageUsageCategory,
 )
-from app.db.models.import_job import ImportJobState, ImportJobStepStatus
+from app.db.models.import_job import ImportJobStepStatus
 from app.modules.durable_work.failure import (
     DurableFailure,
-    set_failure_facts,
-    clear_failure_facts,
 )
 from app.modules.import_jobs.dispatch_service import (
     ImportExecutionLease,
     require_current_attempt,
-    TERMINAL_IMPORT_STATES,
 )
 from app.modules.import_jobs.repository import ImportJobRepository
 from app.modules.import_jobs.artifact_records import ImportJobStoredArtifactItem
-from app.modules.import_jobs.notifications import admit_import_outcome
+from app.modules.import_jobs.notifications import admit_import_processing_outcome
 from app.modules.storage_usage.service import storage_usage_service
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from app.modules.score_assets.render_outbox_service import (
     create_review_thumbnail_render_outbox,
 )
 from app.shared.time import utc_now
+from app.modules.import_jobs.lifecycle import (
+    IMPORT_EXECUTION_CLOSED_STATES,
+    begin_processing,
+    record_processing_heartbeat,
+    mark_ready_for_review,
+    mark_failed,
+)
 
 
-class ImportJobExecutionService:
+class ImportExecutionRecorder:
     def __init__(
         self,
         repository: ImportJobRepository | None = None,
     ) -> None:
         self.repository = repository or ImportJobRepository()
 
-    def update_progress(
+    def record_progress(
         self,
         db: Session,
         lease: ImportExecutionLease,
-        state: ImportJobState | str,
         progress: int,
         current_step: Optional[str] = None,
-        started_at: Optional[datetime] = None,
     ) -> None:
+        if not 0 <= progress <= 100:
+            raise ValueError("Import progress must be between zero and 100")
         job = require_current_attempt(db, lease)
-        job.state = state if isinstance(state, ImportJobState) else ImportJobState(state)
+        now = utc_now()
+        begin_processing(job, now=now)
+        record_processing_heartbeat(job, now=now)
         job.progress = progress
         job.current_step = current_step or job.current_step
-        if started_at is not None and job.started_at is None:
-            job.started_at = started_at
-        now = utc_now()
-        job.last_heartbeat_at = now
-        job.updated_at = now
         db.commit()
 
     def finalize_success(
@@ -73,29 +74,26 @@ class ImportJobExecutionService:
         total_time_seconds: Optional[int] = None,
     ) -> None:
         job = require_current_attempt(db, lease)
-        if job.state in TERMINAL_IMPORT_STATES:
+        if job.state in IMPORT_EXECUTION_CLOSED_STATES:
             db.commit()
             return
         now = utc_now()
-        job.state = ImportJobState.PENDING_REVIEW
-        job.progress = 100
-        job.last_heartbeat_at = now
-        job.finished_at = now
-        clear_failure_facts(job)
-        job.updated_at = now
         review_xml = db.execute(
             select(ImportArtifact).where(
                 ImportArtifact.job_id == job.id,
                 ImportArtifact.kind == ImportArtifactKind.REVIEW_MUSICXML.value,
             )
         ).scalar_one_or_none()
-        if review_xml is not None and review_xml.stored_object.sha256:
+        if review_xml is None:
+            raise ValueError("Review admission requires canonical review MusicXML")
+        mark_ready_for_review(job, now=now)
+        if review_xml.stored_object.sha256:
             create_review_thumbnail_render_outbox(
                 db,
                 import_job_id=require_persisted_id(job.id, entity="import job"),
                 source_fingerprint=review_xml.stored_object.sha256,
             )
-        admit_import_outcome(db, job, created_at=now)
+        admit_import_processing_outcome(db, job, created_at=now)
         db.commit()
 
     def finalize_failure(
@@ -107,17 +105,12 @@ class ImportJobExecutionService:
         detail: str | None = None,
     ) -> None:
         job = require_current_attempt(db, lease)
-        if job.state in TERMINAL_IMPORT_STATES:
+        if job.state in IMPORT_EXECUTION_CLOSED_STATES:
             db.commit()
             return
         now = utc_now()
-        job.state = ImportJobState.FAILURE
-        job.progress = 0
-        set_failure_facts(job, failure, detail=detail)
-        job.last_heartbeat_at = now
-        job.finished_at = now
-        job.updated_at = now
-        admit_import_outcome(db, job, created_at=now)
+        mark_failed(job, failure=failure, detail=detail, now=now)
+        admit_import_processing_outcome(db, job, created_at=now)
         db.commit()
 
     def upsert_step(
@@ -218,4 +211,4 @@ class ImportJobExecutionService:
         db.commit()
 
 
-import_job_execution_service = ImportJobExecutionService()
+import_execution_recorder = ImportExecutionRecorder()

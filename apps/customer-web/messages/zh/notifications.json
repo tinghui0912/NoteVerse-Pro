@@ -22,7 +22,7 @@
   "acceptedInvite": "{name} 接受了你的邀请",
   "declinedInvite": "{name} 拒绝了你的邀请",
   "scoreVersionCreated": "{name} 保存了新版本",
-  "processingCompleted": "乐谱处理完成",
+  "importReadyForReview": "处理完成，待审核",
   "processingFailed": "乐谱处理失败",
   "unknownActor": "有人",
   "scoreDisplayTitleFallback": "未命名乐谱",

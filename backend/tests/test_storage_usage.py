@@ -593,6 +593,9 @@ def test_score_delete_cleans_single_origin_import_job_storage(
         content_type="application/vnd.recordare.musicxml+xml",
     )
     job = ImportJob(
+        processing_started_at=utc_now(),
+        processing_finished_at=utc_now(),
+        confirmed_at=utc_now(),
         id=1201,
         job_uuid=job_uuid,
         user_id=1,
@@ -719,10 +722,12 @@ def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
         content_type="image/png",
     )
     job = ImportJob(
+        processing_started_at=utc_now(),
+        processing_finished_at=utc_now(),
         id=1001,
         job_uuid=job_uuid,
         user_id=1,
-        state=ImportJobState.PENDING_REVIEW,
+        state=ImportJobState.READY_FOR_REVIEW,
         progress=100,
     )
     session.add_all(
@@ -833,17 +838,21 @@ def test_import_job_delete_keeps_shared_upload_usage_and_storage(
     session.add_all(
         [
             ImportJob(
+                processing_started_at=utc_now(),
+                processing_finished_at=utc_now(),
                 id=1101,
                 job_uuid="job-delete-shared-a",
                 user_id=1,
-                state=ImportJobState.PENDING_REVIEW,
+                state=ImportJobState.READY_FOR_REVIEW,
                 progress=100,
             ),
             ImportJob(
+                processing_started_at=utc_now(),
+                processing_finished_at=utc_now(),
                 id=1102,
                 job_uuid="job-delete-shared-b",
                 user_id=1,
-                state=ImportJobState.PENDING_REVIEW,
+                state=ImportJobState.READY_FOR_REVIEW,
                 progress=100,
             ),
             StoredObject(

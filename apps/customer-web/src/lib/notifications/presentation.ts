@@ -4,7 +4,7 @@ type MessageKey =
   | 'acceptedInvite'
   | 'declinedInvite'
   | 'scoreVersionCreated'
-  | 'processingCompleted'
+  | 'importReadyForReview'
   | 'processingFailed'
   | 'unknownActor'
   | 'scoreDisplayTitleFallback'
@@ -34,9 +34,9 @@ export function notificationPresentation(notification: NotificationRead, t: Tran
         }),
         subtitle: notification.score_display_title,
       };
-    case 'import.completed':
+    case 'import.ready_for_review':
       return {
-        title: t('processingCompleted'),
+        title: t('importReadyForReview'),
         subtitle: notification.score_display_title || notification.import_display_title || t('scoreDisplayTitleFallback'),
       };
     case 'import.failed':

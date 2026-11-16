@@ -95,7 +95,7 @@ class RenderPayloadBuilder:
         ).scalar_one_or_none()
         if job is None or review_source is None:
             return RenderPayloadBuildResult(None)
-        if job.state != ImportJobState.PENDING_REVIEW:
+        if job.state != ImportJobState.READY_FOR_REVIEW:
             return RenderPayloadBuildResult(None, terminal_completed=True)
         if review_source.stored_object.sha256 != outbox.source_fingerprint:
             return RenderPayloadBuildResult(None, terminal_completed=True)

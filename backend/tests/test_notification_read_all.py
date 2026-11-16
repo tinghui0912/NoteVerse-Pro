@@ -15,7 +15,7 @@ from tests.test_score_revision_services import (
 def notification(user_id: int, *, read_at: datetime | None = None) -> Notification:
     return Notification(
         recipient_user_id=user_id,
-        kind="import.completed",
+        kind="import.ready_for_review",
         import_job_id="job",
         read_at=read_at,
     )

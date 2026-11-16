@@ -16,17 +16,16 @@ from app.modules.import_jobs.schemas import (
     ImportJobProcessingOptions,
     PipelineExecutionSuccessResult,
 )
-from app.modules.import_jobs.worker_service import import_job_execution_service
+from app.modules.import_jobs.execution_recorder import import_execution_recorder
 from app.modules.import_jobs.execution_manifest import bind_import_job_execution_manifest
 from app.modules.import_jobs.pipeline import JobContext, PipelineBuilder
 from app.task_queue.protocols import CeleryTaskLike
 from app.shared.constants import ErrorCode
 from app.storage import ObjectStorage, object_storage
 from app.storage.paths import object_work_path
-from app.shared.time import utc_now
 
 
-class ImportJobExecutionService:
+class ImportPipelineRunner:
     def __init__(self, storage: ObjectStorage | None = None) -> None:
         self.storage = storage or object_storage
 
@@ -79,12 +78,10 @@ class ImportJobExecutionService:
                     image_paths=image_paths,
                     options=options or {},
                 )
-                context.status(
-                    "RUNNING",
+                context.progress(
                     "initialization",
                     0,
                     current_step="initialization",
-                    started_at=utc_now(),
                 )
                 context.update_celery_state("initialization", 0, "initialization")
                 pipeline = PipelineBuilder.build(image_paths, options)
@@ -95,7 +92,7 @@ class ImportJobExecutionService:
                     pipeline=repr(pipeline),
                 ).info("Import job pipeline started")
                 pipeline.run(context)
-                context.status("RUNNING", "completed", 100, current_step="ocr_completed")
+                context.progress("completed", 100, current_step="ocr_completed")
                 context.complete()
                 db.commit()
                 return {"success": True, "job_id": job_id}
@@ -112,7 +109,7 @@ class ImportJobExecutionService:
             ).opt(exception=exc).error("Import job pipeline failed")
             try:
                 with SessionLocal() as db:
-                    import_job_execution_service.finalize_failure(
+                    import_execution_recorder.finalize_failure(
                         db,
                         lease,
                         failure=failure,
@@ -126,4 +123,4 @@ class ImportJobExecutionService:
             raise
 
 
-job_execution_service = ImportJobExecutionService()
+import_pipeline_runner = ImportPipelineRunner()

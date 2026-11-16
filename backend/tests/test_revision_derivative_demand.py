@@ -269,10 +269,12 @@ def test_business_commit_precedes_immediate_dispatch_and_broker_failure_is_recov
     elif operation == "confirm":
         db.add(
             ImportJob(
+                processing_started_at=utc_now(),
+                processing_finished_at=utc_now(),
                 id=850,
                 job_uuid="confirm-demand",
                 user_id=1,
-                state=ImportJobState.PENDING_REVIEW,
+                state=ImportJobState.READY_FOR_REVIEW,
                 requested_options={"display_title": "Confirmed"},
             )
         )

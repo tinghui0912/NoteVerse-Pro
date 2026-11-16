@@ -81,7 +81,16 @@ def database(monkeypatch):
                 ]
             )
             db.flush()
-            db.add(ImportJob(id=1, job_uuid="job", user_id=1, state=ImportJobState.PENDING_REVIEW))
+            db.add(
+                ImportJob(
+                    processing_started_at=utc_now(),
+                    processing_finished_at=utc_now(),
+                    id=1,
+                    job_uuid="job",
+                    user_id=1,
+                    state=ImportJobState.READY_FOR_REVIEW,
+                )
+            )
             db.flush()
             db.add_all(
                 [

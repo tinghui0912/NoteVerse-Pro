@@ -1,3 +1,4 @@
+from app.shared.time import utc_now
 from tests.support.images import image_bytes
 from tests.support.import_execution import processing_lease
 from tests.support.derivative_execution import revision_attempt
@@ -162,14 +163,20 @@ def test_import_artifact_replacement_uses_complete_immutable_object_facts(
 ):
     from app.db.models import ImportJob, ImportArtifact
     from app.db.models.import_job import ImportJobState
-    from app.modules.import_jobs.worker_service import ImportJobExecutionService
+    from app.modules.import_jobs.execution_recorder import ImportExecutionRecorder
     from app.modules.import_jobs.service import ImportJobService
 
     db, storage = score_service_session
-    job = ImportJob(job_uuid="physical-import", user_id=1, state=ImportJobState.PENDING_REVIEW)
+    job = ImportJob(
+        processing_started_at=utc_now(),
+        processing_finished_at=utc_now(),
+        job_uuid="physical-import",
+        user_id=1,
+        state=ImportJobState.READY_FOR_REVIEW,
+    )
     db.add(job)
     db.commit()
-    worker = ImportJobExecutionService()
+    worker = ImportExecutionRecorder()
 
     def item(key, content):
         written = write_object(

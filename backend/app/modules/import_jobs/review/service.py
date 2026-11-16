@@ -23,8 +23,11 @@ from app.db.models import (
     StorageUsageCategory,
 )
 from app.db.models.import_job import ImportJobState
+from app.modules.import_jobs.lifecycle import mark_confirmed
 from app.modules.import_jobs.deletion_service import ImportJobDeletionService
-from app.modules.import_jobs.notifications import enrich_completed_import_notification
+from app.modules.import_jobs.notifications import (
+    attach_confirmed_score_to_ready_for_review_notification,
+)
 from app.modules.score_assets.render_outbox_service import (
     create_review_thumbnail_render_outbox,
 )
@@ -112,7 +115,7 @@ class ImportReviewService:
             score = db.get(Score, job.score_id)
             if score:
                 return ReviewConfirmRead(score_id=score.score_uuid)
-        if job.state != ImportJobState.PENDING_REVIEW:
+        if job.state != ImportJobState.READY_FOR_REVIEW:
             raise ConflictException(
                 ErrorCode.VALIDATION_ERROR,
                 {"job_id": job_uuid, "state": job.state.value},
@@ -181,7 +184,7 @@ class ImportReviewService:
                     storage_usage_service.release_reservation(db, reservation.reservation_id)
                     db.commit()
                     return ReviewConfirmRead(score_id=existing.score_uuid)
-            if job.user_id != user_id or job.state != ImportJobState.PENDING_REVIEW:
+            if job.user_id != user_id or job.state != ImportJobState.READY_FOR_REVIEW:
                 raise ConflictException(ErrorCode.VALIDATION_ERROR, {"job_id": job_uuid})
             score = Score(
                 score_uuid=score_uuid,
@@ -220,9 +223,7 @@ class ImportReviewService:
                 job_id=require_persisted_id(job.id, entity="import job"),
                 score_id=score_id,
             )
-            job.score_id = score_id
-            job.state = ImportJobState.CONFIRMED
-            job.updated_at = now
+            mark_confirmed(job, score_id=score_id, now=utc_now())
             for promoted in promoted_inputs:
                 storage_usage_service.record_release(
                     db,
@@ -245,7 +246,7 @@ class ImportReviewService:
                     storage_key=promoted.storage_key,
                 )
             ImportJobDeletionService().cleanup_binary_artifacts(db, job, user_id)
-            enrich_completed_import_notification(
+            attach_confirmed_score_to_ready_for_review_notification(
                 db,
                 job_id=job_uuid,
                 user_id=user_id,
@@ -278,7 +279,7 @@ class ImportReviewService:
             raise ResourceNotFoundException("job", job_uuid, ErrorCode.JOB_NOT_FOUND)
         if job.user_id != user_id:
             raise UnauthorizedException(ErrorCode.NO_ACCESS, {"job_id": job_uuid})
-        if job.state != ImportJobState.PENDING_REVIEW:
+        if job.state != ImportJobState.READY_FOR_REVIEW:
             raise ConflictException(
                 ErrorCode.VALIDATION_ERROR,
                 {"job_id": job_uuid, "state": job.state.value},
@@ -316,7 +317,7 @@ class ImportReviewService:
                 .execution_options(populate_existing=True)
             )
         ).scalar_one()
-        if job.user_id != user_id or job.state != ImportJobState.PENDING_REVIEW:
+        if job.user_id != user_id or job.state != ImportJobState.READY_FOR_REVIEW:
             raise ConflictException(ErrorCode.VALIDATION_ERROR, {"job_id": job_uuid})
         artifact = (
             db.execute(

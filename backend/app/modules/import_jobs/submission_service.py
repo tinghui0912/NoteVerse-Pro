@@ -1,4 +1,4 @@
-"""Async durable admission of an Import job, dispatch and ordered upload links."""
+"""Durable admission of an Import job, dispatch and ordered upload links."""
 
 import uuid
 
@@ -20,6 +20,7 @@ from app.modules.import_jobs.schemas import (
 )
 from app.shared.constants import ErrorCode
 from app.shared.time import utc_now
+from app.modules.import_jobs.lifecycle import queue_import
 
 
 class ImportJobSubmissionService:
@@ -51,14 +52,10 @@ class ImportJobSubmissionService:
             job = ImportJob(
                 job_uuid=job_uuid,
                 user_id=user_id,
-                state=ImportJobState.PENDING,
-                progress=0,
                 idempotency_key=key,
                 requested_options=self._storage_options(request.options),
-                requested_at=now,
-                created_at=now,
-                updated_at=now,
             )
+            queue_import(job, now=now)
             db.add(job)
             db.flush()
             job_id = require_persisted_id(job.id, entity="import job")
@@ -97,7 +94,7 @@ class ImportJobSubmissionService:
         return {
             "job_id": job_uuid,
             "count": len(request.upload_ids),
-            "state": ImportJobState.PENDING,
+            "state": ImportJobState.QUEUED,
         }
 
     @staticmethod

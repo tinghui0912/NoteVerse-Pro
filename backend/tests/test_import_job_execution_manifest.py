@@ -10,7 +10,7 @@ from app.modules.import_jobs.service import ImportJobService
 
 
 def _job(job_uuid: str) -> ImportJob:
-    return ImportJob(job_uuid=job_uuid, user_id=1, state=ImportJobState.PENDING)
+    return ImportJob(job_uuid=job_uuid, user_id=1, state=ImportJobState.QUEUED)
 
 
 def _manifest(commit: str = "abc123") -> dict[str, object]:

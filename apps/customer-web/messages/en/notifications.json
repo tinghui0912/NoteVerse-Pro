@@ -22,7 +22,7 @@
   "acceptedInvite": "{name} accepted your invitation",
   "declinedInvite": "{name} declined your invitation",
   "scoreVersionCreated": "{name} saved a new version",
-  "processingCompleted": "Score processing completed",
+  "importReadyForReview": "Processing complete — ready for review",
   "processingFailed": "Score processing failed",
   "unknownActor": "Someone",
   "scoreDisplayTitleFallback": "Untitled score",

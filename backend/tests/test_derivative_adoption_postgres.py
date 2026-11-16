@@ -79,7 +79,11 @@ def generation(request, monkeypatch, tmp_path):
             db.flush()
             if kind == "thumbnail":
                 job = ImportJob(
-                    job_uuid="job", user_id=user.id, state=ImportJobState.PENDING_REVIEW
+                    processing_started_at=utc_now(),
+                    processing_finished_at=utc_now(),
+                    job_uuid="job",
+                    user_id=user.id,
+                    state=ImportJobState.READY_FOR_REVIEW,
                 )
                 db.add(job)
                 db.flush()

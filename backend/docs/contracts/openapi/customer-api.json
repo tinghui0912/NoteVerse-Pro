@@ -495,85 +495,6 @@
         "title": "ImportArtifactRead",
         "type": "object"
       },
-      "ImportCompletedNotificationRead": {
-        "properties": {
-          "created_at": {
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "import_display_title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Import Display Title"
-          },
-          "job_id": {
-            "title": "Job Id",
-            "type": "string"
-          },
-          "kind": {
-            "const": "import.completed",
-            "title": "Kind",
-            "type": "string"
-          },
-          "notification_id": {
-            "title": "Notification Id",
-            "type": "string"
-          },
-          "read_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Read At"
-          },
-          "score_display_title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Score Display Title"
-          },
-          "score_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Score Id"
-          }
-        },
-        "required": [
-          "notification_id",
-          "read_at",
-          "created_at",
-          "kind",
-          "job_id",
-          "import_display_title",
-          "score_id",
-          "score_display_title"
-        ],
-        "title": "ImportCompletedNotificationRead",
-        "type": "object"
-      },
       "ImportFailedNotificationRead": {
         "properties": {
           "created_at": {
@@ -665,6 +586,18 @@
       },
       "ImportJobRead": {
         "properties": {
+          "confirmed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmed At"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -692,18 +625,6 @@
             ],
             "title": "Execution Manifest Sha256"
           },
-          "finished_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Finished At"
-          },
           "genres": {
             "default": [],
             "items": {
@@ -723,6 +644,30 @@
             },
             "title": "Original Images",
             "type": "array"
+          },
+          "processing_finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Processing Finished At"
+          },
+          "processing_started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Processing Started At"
           },
           "progress": {
             "title": "Progress",
@@ -749,18 +694,6 @@
               }
             ],
             "title": "Score Id"
-          },
-          "started_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Started At"
           },
           "state": {
             "$ref": "#/components/schemas/ImportJobState"
@@ -870,11 +803,11 @@
       },
       "ImportJobState": {
         "enum": [
-          "PENDING",
-          "RUNNING",
-          "PENDING_REVIEW",
+          "QUEUED",
+          "PROCESSING",
+          "READY_FOR_REVIEW",
           "CONFIRMED",
-          "FAILURE"
+          "FAILED"
         ],
         "title": "ImportJobState",
         "type": "string"
@@ -979,6 +912,85 @@
           "upload_ids"
         ],
         "title": "ImportJobSubmitRequest",
+        "type": "object"
+      },
+      "ImportReadyForReviewNotificationRead": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "import_display_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Import Display Title"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "kind": {
+            "const": "import.ready_for_review",
+            "title": "Kind",
+            "type": "string"
+          },
+          "notification_id": {
+            "title": "Notification Id",
+            "type": "string"
+          },
+          "read_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Read At"
+          },
+          "score_display_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Display Title"
+          },
+          "score_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Id"
+          }
+        },
+        "required": [
+          "notification_id",
+          "read_at",
+          "created_at",
+          "kind",
+          "job_id",
+          "import_display_title",
+          "score_id",
+          "score_display_title"
+        ],
+        "title": "ImportReadyForReviewNotificationRead",
         "type": "object"
       },
       "InviteAcceptRead": {
@@ -1986,8 +1998,8 @@
       "NotificationRead": {
         "discriminator": {
           "mapping": {
-            "import.completed": "#/components/schemas/ImportCompletedNotificationRead",
             "import.failed": "#/components/schemas/ImportFailedNotificationRead",
+            "import.ready_for_review": "#/components/schemas/ImportReadyForReviewNotificationRead",
             "score.version.created": "#/components/schemas/ScoreVersionCreatedNotificationRead",
             "score_invite.accepted": "#/components/schemas/ScoreInviteAcceptedNotificationRead",
             "score_invite.declined": "#/components/schemas/ScoreInviteDeclinedNotificationRead"
@@ -2005,7 +2017,7 @@
             "$ref": "#/components/schemas/ScoreVersionCreatedNotificationRead"
           },
           {
-            "$ref": "#/components/schemas/ImportCompletedNotificationRead"
+            "$ref": "#/components/schemas/ImportReadyForReviewNotificationRead"
           },
           {
             "$ref": "#/components/schemas/ImportFailedNotificationRead"

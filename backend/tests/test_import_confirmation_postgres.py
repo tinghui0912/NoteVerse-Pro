@@ -39,7 +39,7 @@ from app.db.models.import_job import ImportJobState
 from app.modules.import_jobs.review import service as review
 from app.modules.import_jobs.review.schemas import ReviewConfirmRequest
 from app.modules.import_jobs.service import ImportJobService
-from app.modules.import_jobs.notifications import admit_import_outcome
+from app.modules.import_jobs.notifications import admit_import_processing_outcome
 from app.modules.storage_objects.persistence import object_from_bytes
 from app.modules.storage_usage.service import storage_usage_service
 from app.core.exceptions import ResourceNotFoundException, ValidationException
@@ -59,9 +59,11 @@ def confirmation(monkeypatch):
             db.add(User(id=1, email="confirm@example.test", password_hash="hash"))
             db.flush()
             job = ImportJob(
+                processing_started_at=utc_now(),
+                processing_finished_at=utc_now(),
                 job_uuid="job",
                 user_id=1,
-                state=ImportJobState.PENDING_REVIEW,
+                state=ImportJobState.READY_FOR_REVIEW,
                 requested_options={"display_title": "Etudes"},
             )
             db.add(job)
@@ -117,7 +119,7 @@ def confirmation(monkeypatch):
                 reason="fixture",
                 object_type="upload",
             )
-            admit_import_outcome(db, job, created_at=utc_now())
+            admit_import_processing_outcome(db, job, created_at=utc_now())
             db.commit()
 
         def latency_only(*args):
@@ -164,12 +166,22 @@ def test_confirmation_initializes_display_title_from_explicit_precedence(
         job = db.scalar(sa.select(ImportJob))
         job.requested_options = {"display_title": submitted} if submitted is not None else {}
         db.commit()
+        processing_finished_at = job.processing_finished_at
+        processing_started_at = job.processing_started_at
         result = review.ImportReviewService(storage=storage).confirm(
             db,
             "job",
             1,
             ReviewConfirmRequest(content=content, display_title=explicit),
         )
+        confirmed_at = job.confirmed_at
+        assert confirmed_at is not None
+        assert job.processing_started_at == processing_started_at
+        assert job.processing_finished_at == processing_finished_at
+        repeated = review.ImportReviewService(storage=storage).confirm(
+            db, "job", 1, ReviewConfirmRequest(content=content, display_title=explicit)
+        )
+        assert repeated.score_id == result.score_id and job.confirmed_at == confirmed_at
         drain_revision_metadata(db, storage)
         score = db.scalar(sa.select(Score).where(Score.score_uuid == result.score_id))
         assert score.display_title == expected
@@ -351,13 +363,15 @@ def test_confirmation_semantic_transaction_rolls_back_at_every_boundary(
 
         monkeypatch.setattr(review.ImportJobDeletionService, "cleanup_binary_artifacts", release)
     if stage == "enrichment":
-        original = review.enrich_completed_import_notification
+        original = review.attach_confirmed_score_to_ready_for_review_notification
 
         def append(*args, **kwargs):
             original(*args, **kwargs)
             interrupted()
 
-        monkeypatch.setattr(review, "enrich_completed_import_notification", append)
+        monkeypatch.setattr(
+            review, "attach_confirmed_score_to_ready_for_review_notification", append
+        )
 
     with Session(engine, expire_on_commit=False) as db:
         adapter = db
@@ -378,7 +392,7 @@ def test_confirmation_semantic_transaction_rolls_back_at_every_boundary(
         db.rollback()
         assert snapshot(db) == before
         job = db.scalar(sa.select(ImportJob))
-        assert job.state == ImportJobState.PENDING_REVIEW and job.score_id is None
+        assert job.state == ImportJobState.READY_FOR_REVIEW and job.score_id is None
         for counter in db.scalars(sa.select(StorageUsageCounter)):
             assert counter.used_bytes == counters.get(counter.category, 0)
             assert counter.reserved_bytes == 0

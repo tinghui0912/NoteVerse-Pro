@@ -1,6 +1,6 @@
 from unittest.mock import Mock
 
-from app.modules.import_jobs.execution_service import ImportJobExecutionService
+from app.modules.import_jobs.pipeline_runner import ImportPipelineRunner
 from app.task_queue.config import celery_app
 from app.worker.tasks import import_dispatch_task
 
@@ -22,9 +22,9 @@ def test_worker_materializes_admitted_inputs_without_metadata_probes(tmp_path, m
         method.side_effect = AssertionError("Physical metadata is not read authority")
     destination = tmp_path / "input.png"
     monkeypatch.setattr(
-        "app.modules.import_jobs.execution_service.object_work_path", lambda _: str(destination)
+        "app.modules.import_jobs.pipeline_runner.object_work_path", lambda _: str(destination)
     )
-    service = ImportJobExecutionService(storage=storage)
+    service = ImportPipelineRunner(storage=storage)
     paths = service._resolve_input_paths(
         [StoredObjectReadTarget(1, "blobs/input.png", 5, "image/png")]
     )

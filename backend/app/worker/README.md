@@ -84,12 +84,12 @@ or worker loss; stale sent/failure results cannot overwrite a new attempt or its
 provider message ID. Each domain keeps its own maintenance scan and worker rather
 than sharing a universal job table or runner.
 
-Import finalization commits Job state, diagnostics, completed/failed notifications,
+Import finalization commits Job state, diagnostics, ready-for-review/failed notifications,
 notifications.changed and import_jobs.changed realtime in one
 transaction. Review-thumbnail work shares the success transaction. Publication failure
 rolls back the accepted domain outcome. Current-attempt locks and terminal-state checks
 prevent repeated terminal calls from duplicating realtime rows. Delivery exhaustion
-admits failure consequences only when unfinished work actually transitions to FAILURE.
+admits failure consequences only when unfinished work actually transitions to FAILED.
 External work retains domain-owned outboxes and DurableDeliveryLifecycle.
 
 ## Directional dependency rules

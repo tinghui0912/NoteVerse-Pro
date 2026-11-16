@@ -112,7 +112,7 @@ class ImportReviewThumbnailService:
                 StoredObject.sha256 == expected_source_fingerprint,
             )
         ).scalar_one_or_none()
-        if job.state != ImportJobState.PENDING_REVIEW or current_xml is None:
+        if job.state != ImportJobState.READY_FOR_REVIEW or current_xml is None:
             raise RevisionPresentationSuperseded()
         thumbnail = ImportArtifact(
             artifact_uuid=artifact_uuid,

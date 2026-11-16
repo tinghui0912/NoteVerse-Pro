@@ -72,7 +72,7 @@ def test_job_context_complete_records_review_musicxml_without_creating_score() -
 
         with patch("app.modules.import_jobs.pipeline.context.replace_files") as replace_files_mock:
             with patch(
-                "app.modules.import_jobs.pipeline.context.job_service.finalize_success"
+                "app.modules.import_jobs.pipeline.context.import_execution_recorder.finalize_success"
             ) as finalize_success_mock:
                 ctx.complete()
 

@@ -1,5 +1,7 @@
 """Committed object facts govern semantic reads independently of physical observations."""
 
+from app.shared.time import utc_now
+
 from unittest.mock import Mock
 from hashlib import sha256
 
@@ -67,7 +69,16 @@ def admitted(preview_context, monkeypatch):
     db.commit()
     page = add_page(db, storage, 901, "page-a")
     add_audio(db, storage, 901)
-    db.add(ImportJob(id=80, job_uuid="review", user_id=1, state=ImportJobState.PENDING_REVIEW))
+    db.add(
+        ImportJob(
+            processing_started_at=utc_now(),
+            processing_finished_at=utc_now(),
+            id=80,
+            job_uuid="review",
+            user_id=1,
+            state=ImportJobState.READY_FOR_REVIEW,
+        )
+    )
     xml = object_from_bytes(
         object_key="review.xml", content=content, content_type="application/xml"
     )

@@ -1,5 +1,7 @@
 """Import semantic release succeeds independently of another physical owner."""
 
+from app.shared.time import utc_now
+
 import pytest
 from sqlalchemy import select
 from app.db.models import (
@@ -31,8 +33,8 @@ from tests.support.retirement import drain_retirements
 @pytest.mark.parametrize(
     "keep_job,state",
     [
-        (False, ImportJobState.PENDING_REVIEW),
-        (False, ImportJobState.FAILURE),
+        (False, ImportJobState.READY_FOR_REVIEW),
+        (False, ImportJobState.FAILED),
         (True, ImportJobState.CONFIRMED),
     ],
 )
@@ -40,8 +42,14 @@ def test_import_release_accounts_atomically_and_protects_other_owners(
     score_service_session, shared, keep_job, state
 ):
     db, storage = score_service_session
-    job = ImportJob(job_uuid="release-job", user_id=1, state=state)
-    if job.state == ImportJobState.FAILURE:
+    job = ImportJob(
+        job_uuid="release-job",
+        user_id=1,
+        state=ImportJobState.READY_FOR_REVIEW if keep_job else state,
+        processing_started_at=utc_now(),
+        processing_finished_at=utc_now(),
+    )
+    if job.state == ImportJobState.FAILED:
         set_failure_facts(
             job,
             DurableFailure(
@@ -83,7 +91,9 @@ def test_import_release_accounts_atomically_and_protects_other_owners(
         )
         db.add(revision)
         db.flush()
-        job.score_id = score.id
+        from app.modules.import_jobs.lifecycle import mark_confirmed
+
+        mark_confirmed(job, score_id=score.id, now=utc_now())
         db.commit()
         score_id, revision_id = score.id, revision.id
     storage_usage_service.record_allocation(
@@ -126,7 +136,7 @@ def test_import_release_accounts_atomically_and_protects_other_owners(
 
 
 @pytest.mark.parametrize(
-    "state", [ImportJobState.PENDING, ImportJobState.RUNNING, ImportJobState.CONFIRMED]
+    "state", [ImportJobState.QUEUED, ImportJobState.PROCESSING, ImportJobState.CONFIRMED]
 )
 def test_import_release_rechecks_locked_job_state(score_service_session, state):
     from sqlalchemy import update
@@ -135,8 +145,14 @@ def test_import_release_rechecks_locked_job_state(score_service_session, state):
     from app.shared.constants import ErrorCode
 
     db, _ = score_service_session
-    job = ImportJob(job_uuid="state-changed-job", user_id=1, state=ImportJobState.PENDING_REVIEW)
-    if job.state == ImportJobState.FAILURE:
+    job = ImportJob(
+        processing_started_at=utc_now(),
+        processing_finished_at=utc_now(),
+        job_uuid="state-changed-job",
+        user_id=1,
+        state=ImportJobState.READY_FOR_REVIEW,
+    )
+    if job.state == ImportJobState.FAILED:
         set_failure_facts(
             job,
             DurableFailure(
@@ -148,19 +164,29 @@ def test_import_release_rechecks_locked_job_state(score_service_session, state):
     db.add(ImportDispatch(job_id=job.id))
     db.commit()
     # Leave the actual caller identity-map value stale, not just a detached fake.
+    values = {"state": state}
+    if state == ImportJobState.QUEUED:
+        values.update(processing_started_at=None, processing_finished_at=None)
+    elif state == ImportJobState.PROCESSING:
+        values.update(processing_finished_at=None)
+    else:
+        score = Score(score_uuid="locked-score", display_title="Score", owner_user_id=1)
+        db.add(score)
+        db.flush()
+        values.update(score_id=score.id, confirmed_at=utc_now())
     db.execute(
         update(ImportJob)
         .where(ImportJob.id == job.id)
-        .values(state=state)
+        .values(**values)
         .execution_options(synchronize_session=False)
     )
     db.commit()
     db.refresh(job)
-    set_committed_value(job, "state", ImportJobState.PENDING_REVIEW)
+    set_committed_value(job, "state", ImportJobState.READY_FOR_REVIEW)
     with pytest.raises(ValidationException) as error:
         ImportJobDeletionService().delete_job(db, job, 1)
     assert error.value.code == (
-        ErrorCode.JOB_RUNNING if state == ImportJobState.RUNNING else ErrorCode.VALIDATION_ERROR
+        ErrorCode.JOB_RUNNING if state == ImportJobState.PROCESSING else ErrorCode.VALIDATION_ERROR
     )
     assert error.value.details == {"field": "state"}
     assert db.get(ImportJob, job.id).state == state
@@ -173,8 +199,13 @@ def test_internal_binary_cleanup_rechecks_locked_running_state(score_service_ses
     from app.shared.constants import ErrorCode
 
     db, _ = score_service_session
-    job = ImportJob(job_uuid="running-cleanup", user_id=1, state=ImportJobState.RUNNING)
-    if job.state == ImportJobState.FAILURE:
+    job = ImportJob(
+        processing_started_at=utc_now(),
+        job_uuid="running-cleanup",
+        user_id=1,
+        state=ImportJobState.PROCESSING,
+    )
+    if job.state == ImportJobState.FAILED:
         set_failure_facts(
             job,
             DurableFailure(
@@ -197,9 +228,10 @@ def test_internal_binary_cleanup_rechecks_locked_running_state(score_service_ses
 def test_import_release_requires_delivery_ownership(score_service_session, keep_job):
     db, _ = score_service_session
     job = ImportJob(
+        processing_finished_at=utc_now(),
         job_uuid="missing-delivery",
         user_id=1,
-        state=ImportJobState.FAILURE,
+        state=ImportJobState.FAILED,
         failure_code="import_pipeline_failed",
         failure_stage="pipeline",
         failure_classification="system_error",
@@ -224,8 +256,17 @@ async def test_customer_delete_http_state_matrix_preserves_owned_data(score_serv
     from app.shared.constants import ErrorCode
 
     db, storage = score_service_session
-    job = ImportJob(job_uuid="http-delete", user_id=1, state=state)
-    if job.state == ImportJobState.FAILURE:
+    job = ImportJob(
+        job_uuid="http-delete",
+        user_id=1,
+        state=ImportJobState.READY_FOR_REVIEW if state == ImportJobState.CONFIRMED else state,
+        processing_started_at=utc_now() if state != ImportJobState.QUEUED else None,
+        processing_finished_at=utc_now()
+        if state
+        in {ImportJobState.READY_FOR_REVIEW, ImportJobState.CONFIRMED, ImportJobState.FAILED}
+        else None,
+    )
+    if job.state == ImportJobState.FAILED:
         set_failure_facts(
             job,
             DurableFailure(
@@ -285,7 +326,9 @@ async def test_customer_delete_http_state_matrix_preserves_owned_data(score_serv
         )
         db.add(score)
         db.flush()
-        job.score_id = score.id
+        from app.modules.import_jobs.lifecycle import mark_confirmed
+
+        mark_confirmed(job, score_id=score.id, now=utc_now())
         db.commit()
         score_id = score.id
     db.commit()
@@ -304,11 +347,13 @@ async def test_customer_delete_http_state_matrix_preserves_owned_data(score_serv
     finally:
         app.dependency_overrides.pop(get_db, None)
         app.dependency_overrides.pop(get_current_user, None)
-    allowed = state in {ImportJobState.PENDING_REVIEW, ImportJobState.FAILURE}
+    allowed = state in {ImportJobState.READY_FOR_REVIEW, ImportJobState.FAILED}
     assert response.status_code == (204 if allowed else 422), response.text
     if not allowed:
         assert response.json()["code"] == (
-            ErrorCode.JOB_RUNNING if state == ImportJobState.RUNNING else ErrorCode.VALIDATION_ERROR
+            ErrorCode.JOB_RUNNING
+            if state == ImportJobState.PROCESSING
+            else ErrorCode.VALIDATION_ERROR
         )
     assert (db.get(ImportJob, job_id) is None) == allowed
     assert (db.scalar(select(ImportDispatch)) is None) == allowed

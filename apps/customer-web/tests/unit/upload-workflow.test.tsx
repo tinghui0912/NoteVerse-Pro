@@ -84,7 +84,7 @@ beforeEach(() => {
 
 describe('upload score navigation', () => {
   it('routes review jobs and completed scores to their product pages', () => {
-    expect(getCompletedJobRoute('review-job', null, 'PENDING_REVIEW')).toBe(
+    expect(getCompletedJobRoute('review-job', null, 'READY_FOR_REVIEW')).toBe(
       '/review/review-job',
     );
     expect(

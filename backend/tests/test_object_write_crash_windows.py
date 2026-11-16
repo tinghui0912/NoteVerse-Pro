@@ -1,5 +1,7 @@
 """Feature failures leave committed intent evidence, not best-effort orphan cleanup."""
 
+from app.shared.time import utc_now
+
 import hashlib
 from tests.support.derivative_execution import revision_attempt
 from contextlib import contextmanager
@@ -38,7 +40,13 @@ def test_review_confirm_source_and_thumbnail_survive_failed_semantic_adoption_as
     score_service_session, monkeypatch
 ):
     db, storage = score_service_session
-    job = ImportJob(job_uuid="dual-write", user_id=1, state=ImportJobState.PENDING_REVIEW)
+    job = ImportJob(
+        processing_started_at=utc_now(),
+        processing_finished_at=utc_now(),
+        job_uuid="dual-write",
+        user_id=1,
+        state=ImportJobState.READY_FOR_REVIEW,
+    )
     db.add(job)
     db.flush()
     db.add(ImportDispatch(job_id=job.id, status=ImportDispatchStatus.COMPLETED))
@@ -152,13 +160,13 @@ def test_import_artifact_handoff_failure_leaves_intent_until_cleanup(
     score_service_session, monkeypatch, tmp_path
 ):
     from app.modules.import_jobs.pipeline import artifact_recorder
-    from app.modules.import_jobs.worker_service import import_job_execution_service
+    from app.modules.import_jobs.execution_recorder import import_execution_recorder
 
     db, storage = score_service_session
     from app.db.models import ImportJob
     from tests.support.import_execution import processing_lease
 
-    job = ImportJob(job_uuid="artifact-handoff", user_id=1, state="PENDING")
+    job = ImportJob(job_uuid="artifact-handoff", user_id=1, state="QUEUED")
     db.add(job)
     db.commit()
     lease = processing_lease(db, job)
@@ -176,7 +184,7 @@ def test_import_artifact_handoff_failure_leaves_intent_until_cleanup(
     monkeypatch.setattr("app.db.session.SessionLocal", session)
     monkeypatch.setattr(artifact_recorder, "object_storage", storage)
     monkeypatch.setattr(
-        import_job_execution_service,
+        import_execution_recorder,
         "replace_artifacts",
         Mock(side_effect=RuntimeError("artifact adoption failed")),
     )

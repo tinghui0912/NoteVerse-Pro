@@ -152,7 +152,7 @@ lifecycle belongs in `modules/import_jobs`, `modules/import_jobs/review`, `modul
 
 Owns the pre-Score human review boundary:
 
-- reading `PENDING_REVIEW` job artifacts;
+- reading `READY_FOR_REVIEW` job artifacts;
 - returning original images, preview images, and review MusicXML by `job_id`;
 - updating the temporary review MusicXML artifact through `PATCH /import-jobs/{job_id}/review`;
 - confirming review and creating the first active Score;

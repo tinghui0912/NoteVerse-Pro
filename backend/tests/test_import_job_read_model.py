@@ -13,7 +13,13 @@ from app.modules.import_jobs.repository import ImportJobRepository
 from app.modules.import_jobs.schemas import ImportJobRead
 
 
-TIME_FIELDS = ("created_at", "updated_at", "started_at", "finished_at")
+TIME_FIELDS = (
+    "created_at",
+    "updated_at",
+    "processing_started_at",
+    "processing_finished_at",
+    "confirmed_at",
+)
 
 
 def test_read_model_preserves_lifecycle_instants_and_emits_utc():
@@ -22,15 +28,12 @@ def test_read_model_preserves_lifecycle_instants_and_emits_utc():
         id=1,
         job_uuid="job",
         user_id=1,
-        state=ImportJobState.FAILURE,
+        state=ImportJobState.CONFIRMED,
+        score_id=1,
         **dict.fromkeys(TIME_FIELDS, source),
-        failure_code="import_pipeline_failed",
-        failure_stage="pipeline",
-        failure_classification="system_error",
-        failure_retryable=False,
     )
     repository = Mock(spec=ImportJobRepository)
-    repository.score_uuids.return_value = {}
+    repository.score_uuids.return_value = {1: "score"}
     repository.execution_manifest_digests.return_value = {}
     repository.preview_artifacts_for_jobs.return_value = []
     repository.uploads_for_jobs.return_value = []
@@ -50,11 +53,11 @@ def test_lifecycle_representation_requires_aware_instants(field):
     values = dict.fromkeys(TIME_FIELDS, datetime(2026, 11, 15, 10, tzinfo=UTC))
     values[field] = datetime(2026, 11, 15, 10)
     with pytest.raises(ValidationError):
-        ImportJobRead(job_id="job", state=ImportJobState.RUNNING, progress=0, **values)
+        ImportJobRead(job_id="job", state=ImportJobState.PROCESSING, progress=0, **values)
 
 
 def test_creation_instants_are_required_and_execution_instants_are_nullable():
-    values = dict(job_id="job", state=ImportJobState.PENDING, progress=0)
+    values = dict(job_id="job", state=ImportJobState.QUEUED, progress=0)
     with pytest.raises(ValidationError):
         ImportJobRead(**values)
     representation = ImportJobRead(
@@ -62,7 +65,10 @@ def test_creation_instants_are_required_and_execution_instants_are_nullable():
         created_at=datetime(2026, 11, 15, tzinfo=UTC),
         updated_at=datetime(2026, 11, 15, tzinfo=UTC),
     )
-    assert representation.started_at is None and representation.finished_at is None
+    assert (
+        representation.processing_started_at is None
+        and representation.processing_finished_at is None
+    )
 
 
 def test_import_lifecycle_openapi_fields_are_date_time_instants():

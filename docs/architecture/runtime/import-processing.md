@@ -11,14 +11,33 @@ commits the Job, Dispatch and ordered upload links as one admission transaction.
 `POST /api/v1/import-jobs` accepts `upload_ids`, public UUIDs from the Upload resource
 at `/api/v1/uploads`. Retry reuses the same ordered Upload identities. Artifact
 filenames remain file facts and are independent of Upload resource identity.
-Worker execution uses a synchronous `Session` through `ImportJobExecutionService` for
-progress/step mutations, artifact production and finalization.
+`ImportPipelineRunner` in `pipeline_runner.py` materializes admitted inputs, builds and
+runs the pipeline, maps exceptions once and invokes `ImportExecutionRecorder` in
+`execution_recorder.py`. The recorder persists progress, steps, adopted artifacts
+and accepted processing outcomes using a synchronous `Session`. The Import-specific
+`lifecycle.py` owns state, timestamp and failure-fact transition effects without commit.
 
-Finalization commits Job state, diagnostics, its completed/failed notification,
+The aggregate states are `QUEUED → PROCESSING → READY_FOR_REVIEW → CONFIRMED`, with
+processing failure accepted as `FAILED`. `READY_FOR_REVIEW` closes processing while
+leaving the user workflow open. The execution-closed set also includes `FAILED` and
+`CONFIRMED`; only the latter two are aggregate terminal outcomes. Recovery resets
+PROCESSING to QUEUED; operator rearm resets FAILED to QUEUED. Customer retry admits
+a new job with the original ordered Upload identities.
+
+`created_at` is the sole submission/admission instant. `processing_started_at` marks
+the current execution's first progress, `processing_last_heartbeat_at` records pipeline
+progress observation and `processing_finished_at` records an accepted ready/failed
+processing outcome. Dispatch exhaustion can finish processing without a start instant.
+`confirmed_at` records Score admission in the confirmation transaction; it never
+replaces processing finish. Repeated confirmation preserves it. `updated_at` records
+mutation time. All instants are aware UTC. Database checks enforce state/score/time
+consistency, complete-or-absent failure taxonomy and progress between zero and 100.
+
+Finalization commits Job state, diagnostics, its ready-for-review/failed notification,
 notifications.changed realtime and import_jobs.changed realtime in
 one transaction. Review-thumbnail admission shares the success transaction. Admission
 failures roll back all these database consequences. Exact-attempt locks and current
-terminal state ensure redelivery does not repeat notification or realtime rows.
+execution-closed state ensure redelivery does not repeat notification or realtime rows.
 Delivery exhaustion admits failure consequences only when it transitions unfinished work.
 
 Each Job has one `ImportDispatch`, created atomically with the Job and its upload
@@ -46,15 +65,15 @@ owned by ObjectWriteIntent cleanup.
 Expired DISPATCHED work leaves Job progress untouched. Expired PROCESSING work
 with an unfinished Job resets attempt-local execution state and steps when
 attempts remain, preserving uploads, options and execution-manifest binding.
-Exhaustion records a domain failure for unfinished work. A durable PENDING_REVIEW,
-FAILURE or CONFIRMED outcome reconciles an in-flight command as COMPLETED and is
-never reset or re-executed. An Import FAILURE can coexist with ImportDispatch COMPLETED when
+Exhaustion records a domain failure for unfinished work. A durable READY_FOR_REVIEW,
+FAILED or CONFIRMED outcome reconciles an in-flight command as COMPLETED and is
+never reset or re-executed. An Import FAILED can coexist with ImportDispatch COMPLETED when
 the command finishes with a domain failure, including on its final allowed
 attempt. Ops reports FAILED with Job diagnostics for that outcome. Delivery
 FAILED with exhausted attempts reports EXHAUSTED with Dispatch diagnostics.
 Completed and exhausted deliveries retain their terminal state under duplicate
 claim/dispatch calls. Deletion and owned binary cleanup lock Dispatch before
-reloading and locking Job, then reject a Job that is currently RUNNING.
+reloading and locking Job, then reject a Job that is currently PROCESSING.
 
 Orphan-storage maintenance uses configured retention bounds. Operational
 remediation uses the isolated control-plane API and audited policy; public errors
@@ -79,7 +98,7 @@ independent of downstream Practice and metadata projection support.
 
 ImportJob terminal failures own `failure_code`, `failure_stage`,
 `failure_classification`, `failure_retryable` and optional `failure_detail`.
-The four taxonomy facts are complete in FAILURE and absent in every other state.
+The four taxonomy facts are complete in FAILED and absent in every other state.
 ImportDispatch independently owns delivery failures and retry/lease decisions.
 The execution owner maps each pipeline exception once to DurableFailure;
 finalization records those facts with at most 4000 diagnostic characters.
@@ -105,12 +124,12 @@ Celery structural task protocols belong to `app.task_queue.protocols`.
 Confirmation locks ImportDispatch before ImportJob, prepares physical source/thumbnail
 writes, then reacquires those locks and revalidates admission. Its single business
 transaction creates Score, calls RevisionWriter, promotes required thumbnail/inputs,
-updates Job CONFIRMED/score link, transfers accounting and releases temporary Import
+updates Job CONFIRMED/score link/confirmed_at, transfers accounting and releases temporary Import
 artifacts/upload links through ImportJobDeletionService. That release primitive never
 commits and is shared with the customer deletion use case, which owns its commit.
 StoredObject retirement owns physical convergence; confirmation does no storage delete.
 
-Confirmation enriches the retained completed notification with Score identity and
+Confirmation enriches the retained `import.ready_for_review` notification with Score identity and
 Score display title in the same business transaction. If retention has removed the notification,
 confirmation succeeds without recreating notification history. No confirmed browser
 realtime type is introduced. Repeated confirmation returns the existing Score without

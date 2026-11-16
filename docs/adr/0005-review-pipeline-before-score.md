@@ -14,7 +14,7 @@ OCR output requires human confirmation before it becomes a stable score. Job-sco
 2. No `Score` exists until the user confirms review.
 3. OCR/import output ready for review is stored as `ImportArtifact(kind=review_musicxml)`
    and related job artifacts.
-4. `ImportJob.PENDING_REVIEW` means the job has review artifacts and is waiting for human
+4. `ImportJob.READY_FOR_REVIEW` means the job has review artifacts and is waiting for human
    confirmation.
 5. `ImportJob.CONFIRMED` means review confirmation created the canonical Score and recorded
    `ImportJob.score_id`.

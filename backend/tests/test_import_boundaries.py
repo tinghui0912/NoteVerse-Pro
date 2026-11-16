@@ -61,7 +61,7 @@ def test_review_http_resources_are_import_job_subresources_with_semantic_identit
 def test_review_http_subresources_delegate_to_import_owned_use_cases(client):
     representation = dict(
         job_id="job",
-        state="PENDING_REVIEW",
+        state="READY_FOR_REVIEW",
         genres=[],
         original_images=[],
         created_at=utc_now(),
@@ -99,7 +99,10 @@ def test_confirmation_owns_notification_enrichment_and_temporary_release():
         if isinstance(node, ast.ImportFrom)
         for alias in node.names
     }
-    assert "enrich_completed_import_notification" in imports and "Notification" not in imports
+    assert (
+        "attach_confirmed_score_to_ready_for_review_notification" in imports
+        and "Notification" not in imports
+    )
     confirm = next(
         node
         for node in ast.walk(tree)
@@ -115,7 +118,7 @@ def test_confirmation_owns_notification_enrichment_and_temporary_release():
         node
         for node in calls
         if isinstance(node.func, ast.Name)
-        and node.func.id == "enrich_completed_import_notification"
+        and node.func.id == "attach_confirmed_score_to_ready_for_review_notification"
     )
     semantic_transaction = next(
         node

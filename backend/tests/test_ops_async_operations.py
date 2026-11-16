@@ -777,7 +777,16 @@ def test_ops_api_retry_rejects_confirmed_import_job_and_records_audit(
     client: TestClient,
     ops_session: Session,
 ) -> None:
+    from app.db.models import Score
+
+    score = Score(score_uuid="confirmed-retry", display_title="Score", owner_user_id=1)
+    ops_session.add(score)
+    ops_session.flush()
     job = ImportJob(
+        score_id=score.id,
+        processing_started_at=utc_now(),
+        processing_finished_at=utc_now(),
+        confirmed_at=utc_now(),
         job_uuid="00000000-0000-0000-0000-000000000101",
         user_id=1,
         state=ImportJobState.CONFIRMED,
@@ -814,9 +823,11 @@ def test_ops_api_retry_rejects_completed_render_outbox_and_records_audit(
     ops_session: Session,
 ) -> None:
     job = ImportJob(
+        processing_started_at=utc_now(),
+        processing_finished_at=utc_now(),
         job_uuid="00000000-0000-0000-0000-000000000102",
         user_id=1,
-        state=ImportJobState.PENDING_REVIEW,
+        state=ImportJobState.READY_FOR_REVIEW,
     )
     ops_session.add(job)
     ops_session.flush()
@@ -895,15 +906,15 @@ def test_ops_api_admin_can_retry_failed_import_job(
     job = ImportJob(
         job_uuid="00000000-0000-0000-0000-000000000111",
         user_id=1,
-        state=ImportJobState.FAILURE,
+        state=ImportJobState.FAILED,
         progress=80,
         current_step="render",
         failure_code="import_transient_failure",
         failure_stage="dispatch",
         failure_classification=DurableFailureClass.TRANSIENT.value,
         failure_retryable=True,
-        started_at=utc_now() - timedelta(minutes=10),
-        finished_at=utc_now(),
+        processing_started_at=utc_now() - timedelta(minutes=10),
+        processing_finished_at=utc_now(),
         failure_detail="job failed",
     )
     ops_session.add(job)
@@ -935,7 +946,7 @@ def test_ops_api_admin_can_retry_failed_import_job(
     assert data["resource_id"] == job.job_uuid
     assert data["status"] == "queued"
     ops_session.refresh(job)
-    assert job.state == ImportJobState.PENDING
+    assert job.state == ImportJobState.QUEUED
     ops_session.refresh(dispatch)
     assert dispatch.status == ImportDispatchStatus.PENDING
     assert job.progress == 0
@@ -947,8 +958,8 @@ def test_ops_api_admin_can_retry_failed_import_job(
     assert job.failure_classification is None
     assert job.failure_retryable is None
     assert job.failure_detail is None
-    assert job.started_at is None
-    assert job.finished_at is None
+    assert job.processing_started_at is None
+    assert job.processing_finished_at is None
     audit_event = ops_session.scalars(select(OpsAuditEvent)).one()
     assert audit_event.operation_kind == "import"
     assert audit_event.operation_id == dispatch.dispatch_uuid
@@ -960,9 +971,11 @@ def test_ops_api_admin_can_retry_failed_render_outbox(
     ops_session: Session,
 ) -> None:
     job = ImportJob(
+        processing_started_at=utc_now(),
+        processing_finished_at=utc_now(),
         job_uuid="00000000-0000-0000-0000-000000000112",
         user_id=1,
-        state=ImportJobState.PENDING_REVIEW,
+        state=ImportJobState.READY_FOR_REVIEW,
     )
     ops_session.add(job)
     ops_session.flush()

@@ -7,7 +7,6 @@ from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.db.models import ImportArtifact, ImportJob, Score, Upload, User
-from app.db.models.import_job import ImportJobState
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from app.modules.import_jobs.schemas import ImportJobSubmitRequest
 from app.modules.import_jobs.submission_service import ImportJobSubmissionService
@@ -20,6 +19,7 @@ from app.modules.scores.genres import ScoreGenre, ordered_unique_genres
 from app.modules.scores.schemas import ScoreUpdateRequest
 from app.modules.scores.service import ScoreService
 from app.modules.storage_objects.persistence import object_from_bytes
+from app.shared.time import utc_now
 from tests.support.postgres_schema import postgres_schema_database
 from tests.test_score_revision_services import (
     MUSICXML_1,
@@ -158,7 +158,10 @@ def test_import_review_score_and_library_share_score_genres(
         "display_title": "Genres",
         "genres": ordered_unique_genres(requested),
     }
-    job.state = ImportJobState.PENDING_REVIEW
+    from app.modules.import_jobs.lifecycle import begin_processing, mark_ready_for_review
+
+    begin_processing(job, now=utc_now())
+    mark_ready_for_review(job, now=utc_now())
     xml = object_from_bytes(
         object_key="jobs/genres/score.musicxml",
         content=MUSICXML_1,

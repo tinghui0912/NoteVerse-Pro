@@ -7,8 +7,8 @@ import type {
 } from '@/generated/api';
 
 const ACTIVE_JOB_STATES = new Set<ImportJobRead['state']>([
-  'PENDING',
-  'RUNNING',
+  'QUEUED',
+  'PROCESSING',
 ]);
 
 function hasActiveJobs(jobs: ImportJobRead[] | undefined) {

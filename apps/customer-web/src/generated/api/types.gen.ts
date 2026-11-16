@@ -318,44 +318,6 @@ export type ImportArtifactRead = {
 };
 
 /**
- * ImportCompletedNotificationRead
- */
-export type ImportCompletedNotificationRead = {
-    /**
-     * Created At
-     */
-    created_at: string;
-    /**
-     * Import Display Title
-     */
-    import_display_title: string | null;
-    /**
-     * Job Id
-     */
-    job_id: string;
-    /**
-     * Kind
-     */
-    kind: 'import.completed';
-    /**
-     * Notification Id
-     */
-    notification_id: string;
-    /**
-     * Read At
-     */
-    read_at: string | null;
-    /**
-     * Score Display Title
-     */
-    score_display_title: string | null;
-    /**
-     * Score Id
-     */
-    score_id: string | null;
-};
-
-/**
  * ImportFailedNotificationRead
  */
 export type ImportFailedNotificationRead = {
@@ -416,6 +378,10 @@ export type ImportJobProcessingOptions = {
  */
 export type ImportJobRead = {
     /**
+     * Confirmed At
+     */
+    confirmed_at?: string | null;
+    /**
      * Created At
      */
     created_at: string;
@@ -427,10 +393,6 @@ export type ImportJobRead = {
      * Execution Manifest Sha256
      */
     execution_manifest_sha256?: string | null;
-    /**
-     * Finished At
-     */
-    finished_at?: string | null;
     /**
      * Genres
      */
@@ -444,6 +406,14 @@ export type ImportJobRead = {
      */
     original_images?: Array<ImportArtifactRead>;
     /**
+     * Processing Finished At
+     */
+    processing_finished_at?: string | null;
+    /**
+     * Processing Started At
+     */
+    processing_started_at?: string | null;
+    /**
      * Progress
      */
     progress: number;
@@ -455,10 +425,6 @@ export type ImportJobRead = {
      * Score Id
      */
     score_id?: string | null;
-    /**
-     * Started At
-     */
-    started_at?: string | null;
     state: ImportJobState;
     thumbnail?: ImportArtifactRead | null;
     /**
@@ -506,7 +472,7 @@ export type ImportJobReviewRead = {
 /**
  * ImportJobState
  */
-export type ImportJobState = 'PENDING' | 'RUNNING' | 'PENDING_REVIEW' | 'CONFIRMED' | 'FAILURE';
+export type ImportJobState = 'QUEUED' | 'PROCESSING' | 'READY_FOR_REVIEW' | 'CONFIRMED' | 'FAILED';
 
 /**
  * ImportJobStatusRead
@@ -555,6 +521,44 @@ export type ImportJobSubmitRequest = {
      * Upload Ids
      */
     upload_ids: Array<string>;
+};
+
+/**
+ * ImportReadyForReviewNotificationRead
+ */
+export type ImportReadyForReviewNotificationRead = {
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Import Display Title
+     */
+    import_display_title: string | null;
+    /**
+     * Job Id
+     */
+    job_id: string;
+    /**
+     * Kind
+     */
+    kind: 'import.ready_for_review';
+    /**
+     * Notification Id
+     */
+    notification_id: string;
+    /**
+     * Read At
+     */
+    read_at: string | null;
+    /**
+     * Score Display Title
+     */
+    score_display_title: string | null;
+    /**
+     * Score Id
+     */
+    score_id: string | null;
 };
 
 /**
@@ -1058,8 +1062,8 @@ export type NotificationRead = ({
 } & ScoreInviteDeclinedNotificationRead) | ({
     kind: 'score.version.created';
 } & ScoreVersionCreatedNotificationRead) | ({
-    kind: 'import.completed';
-} & ImportCompletedNotificationRead) | ({
+    kind: 'import.ready_for_review';
+} & ImportReadyForReviewNotificationRead) | ({
     kind: 'import.failed';
 } & ImportFailedNotificationRead);
 

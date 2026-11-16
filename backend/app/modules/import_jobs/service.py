@@ -68,7 +68,7 @@ class ImportJobService:
         user_id: int,
     ) -> ImportJobSubmitResult:
         job = self.get_owned_job(db, job_uuid, user_id)
-        if job.state != ImportJobState.FAILURE:
+        if job.state != ImportJobState.FAILED:
             raise ValidationException(code=ErrorCode.VALIDATION_ERROR, field="state")
         job_id = require_persisted_id(job.id, entity="import job")
         rows = db.execute(
@@ -131,12 +131,24 @@ class ImportJobService:
         user_id: int,
     ) -> dict[str, ImportJobStatusEntry]:
         jobs = self.repository.batch_status(db, job_uuids, user_id)
+        score_uuids = self.repository.score_uuids(
+            db,
+            {
+                job.score_id
+                for job in jobs
+                if job.state == ImportJobState.CONFIRMED and job.score_id is not None
+            },
+        )
         return {
             job.job_uuid: {
                 "state": job.state,
                 "progress": job.progress,
-                "public_code": public_import_job_error_code(job),
-                "score_id": None,
+                "public_code": public_import_job_error_code(job)
+                if job.state == ImportJobState.FAILED
+                else None,
+                "score_id": score_uuids.get(job.score_id)
+                if job.state == ImportJobState.CONFIRMED
+                else None,
             }
             for job in jobs
         }

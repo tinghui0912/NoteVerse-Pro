@@ -2,7 +2,6 @@
 
 import os
 import time
-from datetime import datetime
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, List, Optional
 from app.task_queue.protocols import CeleryTaskLike
@@ -18,7 +17,7 @@ from app.modules.import_jobs.dispatch_service import (
     StaleImportDispatchAttempt,
 )
 from app.processing.engines.omr import OmrSuccessResult
-from app.modules.import_jobs.worker_service import import_job_execution_service as job_service
+from app.modules.import_jobs.execution_recorder import import_execution_recorder
 from app.modules.import_jobs.pipeline.artifact_recorder import replace_files
 from app.modules.import_jobs.pipeline.step_tracker import StepTracker
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
@@ -78,7 +77,7 @@ class JobContext:
     def _upsert(self, name: str, **kwargs) -> None:
         """Persist step-tracking state."""
         try:
-            job_service.upsert_step(self.db, self.lease, name=name, **kwargs)
+            import_execution_recorder.upsert_step(self.db, self.lease, name=name, **kwargs)
         except StaleImportDispatchAttempt:
             raise
         except Exception as exc:
@@ -94,24 +93,20 @@ class JobContext:
         """Return remaining task time in seconds."""
         return max(0, int(self._deadline - time.time()))
 
-    def status(
+    def progress(
         self,
-        state: str,
         msg: str,
         prog: int,
         *,
         current_step: str | None = None,
-        started_at: datetime | None = None,
     ) -> None:
         """Persist and log task progress updates."""
         try:
-            job_service.update_progress(
+            import_execution_recorder.record_progress(
                 self.db,
                 self.lease,
-                state,
                 prog,
                 current_step=current_step,
-                started_at=started_at,
             )
         except StaleImportDispatchAttempt:
             raise
@@ -119,7 +114,6 @@ class JobContext:
             logger.bind(
                 event="import_pipeline.progress_update_failed",
                 job_id=self.job_id,
-                state=state,
                 progress=prog,
                 current_step=current_step,
                 exception_type=type(exc).__name__,
@@ -143,7 +137,6 @@ class JobContext:
         logger.bind(
             event="import_pipeline.progress_updated",
             job_id=self.job_id,
-            state=state,
             status=msg,
             progress=prog,
             current_step=current_step,
@@ -174,7 +167,9 @@ class JobContext:
             raise FileNotFoundError("Canonical MusicXML was not produced")
         replace_files(self.lease, ImportArtifactKind.REVIEW_MUSICXML, [self.main_xml])
         total_time = int(time.time() - self._start_ts)
-        job_service.finalize_success(self.db, self.lease, total_time_seconds=total_time)
+        import_execution_recorder.finalize_success(
+            self.db, self.lease, total_time_seconds=total_time
+        )
         logger.bind(
             event="import_pipeline.job_completed",
             job_id=self.job_id,

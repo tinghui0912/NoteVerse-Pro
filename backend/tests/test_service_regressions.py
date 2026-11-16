@@ -24,7 +24,7 @@ from app.modules.account.avatar_presentation import avatar_url_for_user
 from app.modules.storage_objects.persistence import object_from_bytes
 from tests.test_score_revision_services import score_service_session as score_service_session
 from app.modules.account.profile_service import ProfileService
-from app.modules.import_jobs.execution_service import ImportJobExecutionService
+from app.modules.import_jobs.pipeline_runner import ImportPipelineRunner
 from app.modules.import_jobs.maintenance_service import ImportJobMaintenanceService
 from app.modules.import_jobs.submission_service import ImportJobSubmissionService
 from app.modules.import_jobs.pipeline.artifact_recorder import _build_file_item
@@ -318,7 +318,7 @@ def test_import_job_submission_persists_without_contacting_celery() -> None:
     db.flush = Mock(side_effect=flush)
     result = service.submit(db, current_user, request)
     assert result["count"] == 1
-    assert result["state"] == ImportJobState.PENDING
+    assert result["state"] == ImportJobState.QUEUED
     assert result["job_id"] == db.add.call_args_list[0].args[0].job_uuid
     assert len(db.add.call_args_list) == 3
     db.commit.assert_called_once()
@@ -333,7 +333,7 @@ def test_import_job_submission_reuses_existing_idempotency_key() -> None:
     current_user = SimpleNamespace(id=5)
     db = Mock(commit=Mock())
     result = service.submit(db, current_user, request)
-    assert result == {"job_id": "existing-job", "count": 1, "state": ImportJobState.PENDING}
+    assert result == {"job_id": "existing-job", "count": 1, "state": ImportJobState.QUEUED}
     repository.get_by_idempotency_key.assert_called_once_with(db, 5, "submission-key-1")
     repository.submission_uploads.assert_not_called()
     db.commit.assert_not_called()
@@ -362,9 +362,9 @@ def test_import_worker_materializes_admitted_input_bytes(tmp_path, monkeypatch) 
     destination = tmp_path / "input.png"
     storage = Mock(iter_bytes=Mock(return_value=iter([b"input"])))
     monkeypatch.setattr(
-        "app.modules.import_jobs.execution_service.object_work_path", lambda _: str(destination)
+        "app.modules.import_jobs.pipeline_runner.object_work_path", lambda _: str(destination)
     )
-    service = ImportJobExecutionService(storage=storage)
+    service = ImportPipelineRunner(storage=storage)
     assert service._resolve_input_paths([target]) == [str(destination)]
     assert destination.read_bytes() == b"input"
     storage.iter_bytes.assert_called_once_with(target.storage_key)

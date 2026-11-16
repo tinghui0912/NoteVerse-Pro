@@ -54,8 +54,9 @@ class ImportJobRead(ApiModel):
     thumbnail: ImportArtifactRead | None = None
     created_at: Instant
     updated_at: Instant
-    started_at: Instant | None = None
-    finished_at: Instant | None = None
+    processing_started_at: Instant | None = None
+    processing_finished_at: Instant | None = None
+    confirmed_at: Instant | None = None
     public_code: str | None = None
     execution_manifest_sha256: str | None = None
     original_images: list[ImportArtifactRead] = []
@@ -107,11 +108,6 @@ class ImportJobSubmitRequest(BaseModel):
 
 class BatchImportJobStatusRequest(BaseModel):
     job_ids: List[str] = Field(..., min_length=1)
-
-
-class ImportJobStatusUpdate(TypedDict, total=False):
-    current_step: Optional[str]
-    started_at: Optional[Instant]
 
 
 processing_options_adapter = TypeAdapter(ImportJobProcessingOptions)

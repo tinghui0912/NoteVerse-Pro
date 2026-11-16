@@ -18,10 +18,10 @@
   "previousPage": "Previous",
   "nextPage": "Next",
   "state": {
-    "PENDING": "Queued",
-    "RUNNING": "Processing",
-    "PENDING_REVIEW": "Needs review",
-    "FAILURE": "Failed",
+    "QUEUED": "Queued",
+    "PROCESSING": "Processing",
+    "READY_FOR_REVIEW": "Needs review",
+    "FAILED": "Failed",
     "CONFIRMED": "Completed"
   }
 }

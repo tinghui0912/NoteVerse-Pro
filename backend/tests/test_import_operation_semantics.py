@@ -24,21 +24,21 @@ from tests.test_score_revision_services import (
 
 
 CASES = [
-    ("PENDING", "PENDING", 0, False, "retrying", "dispatch"),
-    ("RUNNING", "PENDING", 1, False, "retrying", "dispatch"),
-    ("PENDING", "DISPATCHED", 0, False, "dispatched", "dispatch"),
-    ("RUNNING", "PROCESSING", 1, False, "processing", "dispatch"),
-    ("PENDING", "FAILED", 1, True, "retrying", "dispatch"),
-    ("FAILURE", "FAILED", 1, True, "failed", "job"),
-    ("RUNNING", "FAILED", 1, False, "retrying", "dispatch"),
-    ("PENDING_REVIEW", "PROCESSING", 1, False, "succeeded", "dispatch"),
+    ("QUEUED", "PENDING", 0, False, "retrying", "dispatch"),
+    ("PROCESSING", "PENDING", 1, False, "retrying", "dispatch"),
+    ("QUEUED", "DISPATCHED", 0, False, "dispatched", "dispatch"),
+    ("PROCESSING", "PROCESSING", 1, False, "processing", "dispatch"),
+    ("QUEUED", "FAILED", 1, True, "retrying", "dispatch"),
+    ("FAILED", "FAILED", 1, True, "failed", "job"),
+    ("PROCESSING", "FAILED", 1, False, "retrying", "dispatch"),
+    ("READY_FOR_REVIEW", "PROCESSING", 1, False, "succeeded", "dispatch"),
     ("CONFIRMED", "PROCESSING", 1, False, "succeeded", "dispatch"),
-    ("FAILURE", "PROCESSING", 1, False, "failed", "job"),
-    ("FAILURE", "PROCESSING", settings.IMPORT_DISPATCH_MAX_ATTEMPTS, False, "failed", "job"),
-    ("FAILURE", "COMPLETED", 1, False, "failed", "job"),
-    ("FAILURE", "COMPLETED", settings.IMPORT_DISPATCH_MAX_ATTEMPTS, False, "failed", "job"),
-    ("FAILURE", "FAILED", settings.IMPORT_DISPATCH_MAX_ATTEMPTS, False, "failed", "job"),
-    ("RUNNING", "FAILED", settings.IMPORT_DISPATCH_MAX_ATTEMPTS, False, "failed", "dispatch"),
+    ("FAILED", "PROCESSING", 1, False, "failed", "job"),
+    ("FAILED", "PROCESSING", settings.IMPORT_DISPATCH_MAX_ATTEMPTS, False, "failed", "job"),
+    ("FAILED", "COMPLETED", 1, False, "failed", "job"),
+    ("FAILED", "COMPLETED", settings.IMPORT_DISPATCH_MAX_ATTEMPTS, False, "failed", "job"),
+    ("FAILED", "FAILED", settings.IMPORT_DISPATCH_MAX_ATTEMPTS, False, "failed", "job"),
+    ("PROCESSING", "FAILED", settings.IMPORT_DISPATCH_MAX_ATTEMPTS, False, "failed", "dispatch"),
 ]
 
 
@@ -48,14 +48,27 @@ def test_import_projection_and_summary_agree(
 ):
     db, _ = score_service_session
     now = utc_now()
+    if job_state == "CONFIRMED":
+        from app.db.models import Score
+
+        db.add(Score(id=701, score_uuid="confirmed", owner_user_id=1, display_title="Confirmed"))
+        db.flush()
     job = ImportJob(
         job_uuid="resource",
         user_id=1,
         state=ImportJobState(job_state),
-        failure_code="domain-error" if job_state == "FAILURE" else None,
-        failure_classification="permanent" if job_state == "FAILURE" else None,
-        failure_stage="processing" if job_state == "FAILURE" else None,
-        failure_retryable=False if job_state == "FAILURE" else None,
+        processing_started_at=now
+        if job_state in {"PROCESSING", "READY_FOR_REVIEW", "CONFIRMED"}
+        else None,
+        processing_finished_at=now
+        if job_state in {"READY_FOR_REVIEW", "CONFIRMED", "FAILED"}
+        else None,
+        confirmed_at=now if job_state == "CONFIRMED" else None,
+        score_id=701 if job_state == "CONFIRMED" else None,
+        failure_code="domain-error" if job_state == "FAILED" else None,
+        failure_classification="permanent" if job_state == "FAILED" else None,
+        failure_stage="processing" if job_state == "FAILED" else None,
+        failure_retryable=False if job_state == "FAILED" else None,
     )
     db.add(job)
     db.flush()
@@ -108,14 +121,14 @@ def test_delivery_updates_drive_operation_order_and_timestamp_filters(score_serv
     first = ImportJob(
         job_uuid="recent-delivery",
         user_id=1,
-        state=ImportJobState.PENDING,
+        state=ImportJobState.QUEUED,
         created_at=now - timedelta(days=3),
         updated_at=now - timedelta(days=2),
     )
     second = ImportJob(
         job_uuid="recent-job",
         user_id=1,
-        state=ImportJobState.PENDING,
+        state=ImportJobState.QUEUED,
         created_at=now - timedelta(days=3),
         updated_at=now - timedelta(hours=1),
     )
@@ -180,9 +193,10 @@ def test_delivery_updates_drive_operation_order_and_timestamp_filters(score_serv
 def test_ops_retry_uses_dispatch_identity_only(score_service_session):
     db, _ = score_service_session
     job = ImportJob(
+        processing_finished_at=utc_now(),
         job_uuid="domain-resource",
         user_id=1,
-        state=ImportJobState.FAILURE,
+        state=ImportJobState.FAILED,
         failure_code="import_pipeline_failed",
         failure_stage="pipeline",
         failure_classification="system_error",

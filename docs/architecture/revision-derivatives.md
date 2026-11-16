@@ -94,7 +94,7 @@ becomes SUPERSEDED after final admission; completion cannot overwrite this outco
 Neither path publishes a ready event. Duplicate superseded tasks are ignored. Operational
 outbox history remains distinct from replaceable derived assets.
 
-REVIEW_THUMBNAIL is outside revision demand. It continues to follow PENDING_REVIEW and
+REVIEW_THUMBNAIL is outside revision demand. It continues to follow READY_FOR_REVIEW and
 its current source fingerprint. Current-head public status remains presentation-oriented;
 an internal SUPERSEDED record maps safely to pending when no ready asset exists.
 

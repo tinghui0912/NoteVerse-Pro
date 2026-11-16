@@ -41,8 +41,8 @@ class ScoreVersionCreatedNotificationRead(NotificationBaseRead):
     revision_id: str
 
 
-class ImportCompletedNotificationRead(NotificationBaseRead):
-    kind: Literal["import.completed"]
+class ImportReadyForReviewNotificationRead(NotificationBaseRead):
+    kind: Literal["import.ready_for_review"]
     job_id: str
     import_display_title: str | None
     score_id: str | None
@@ -59,7 +59,7 @@ type NotificationRead = Annotated[
     ScoreInviteAcceptedNotificationRead
     | ScoreInviteDeclinedNotificationRead
     | ScoreVersionCreatedNotificationRead
-    | ImportCompletedNotificationRead
+    | ImportReadyForReviewNotificationRead
     | ImportFailedNotificationRead,
     Field(discriminator="kind"),
 ]

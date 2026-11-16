@@ -25,20 +25,47 @@ from app.modules.durable_work.failure import (
     set_failure_facts,
     clear_failure_facts,
 )
+from app.shared.time import utc_now
 from app.modules.ops.query_service import OpsAsyncOperationQueryService
 from app.modules.ops.schemas import AsyncOperationKind
 from tests.support.postgres_schema import postgres_schema_database
 
 
-def test_import_terminal_state_requires_complete_failure_facts(monkeypatch):
+def test_import_state_requires_complete_failure_facts(monkeypatch):
     with postgres_schema_database(monkeypatch) as (engine, config):
         command.upgrade(config, "head")
         with Session(engine) as db:
             db.add(User(id=1, email="state@example.test", password_hash="hash"))
             db.commit()
+            score = Score(score_uuid="confirmed", display_title="Score", owner_user_id=1)
+            db.add(score)
+            db.commit()
+            score_id = score.id
             for state in ImportJobState:
                 for failed in (False, True):
-                    job = ImportJob(job_uuid=f"{state.value}-{failed}", user_id=1, state=state)
+                    job = ImportJob(
+                        job_uuid=f"{state.value}-{failed}",
+                        user_id=1,
+                        state=state,
+                        processing_started_at=utc_now()
+                        if state
+                        in {
+                            ImportJobState.PROCESSING,
+                            ImportJobState.READY_FOR_REVIEW,
+                            ImportJobState.CONFIRMED,
+                        }
+                        else None,
+                        processing_finished_at=utc_now()
+                        if state
+                        in {
+                            ImportJobState.READY_FOR_REVIEW,
+                            ImportJobState.CONFIRMED,
+                            ImportJobState.FAILED,
+                        }
+                        else None,
+                        confirmed_at=utc_now() if state == ImportJobState.CONFIRMED else None,
+                        score_id=score_id if state == ImportJobState.CONFIRMED else None,
+                    )
                     if failed:
                         set_failure_facts(
                             job,
@@ -50,7 +77,7 @@ def test_import_terminal_state_requires_complete_failure_facts(monkeypatch):
                             ),
                         )
                     db.add(job)
-                    if failed == (state == ImportJobState.FAILURE):
+                    if failed == (state == ImportJobState.FAILED):
                         db.commit()
                         db.expire_all()
                         assert job.state == state and job.failure_detail is None
@@ -67,7 +94,7 @@ def test_persisted_failure_facts_are_complete_and_shared_by_ops_queries(monkeypa
         with Session(engine) as db:
             db.add(User(id=1, email="failure@example.test", password_hash="hash"))
             db.flush()
-            job = ImportJob(job_uuid="job", user_id=1, state=ImportJobState.PENDING)
+            job = ImportJob(job_uuid="job", user_id=1, state=ImportJobState.QUEUED)
             score = Score(score_uuid="score", owner_user_id=1, display_title="Score")
             db.add_all([job, score])
             db.flush()
@@ -141,7 +168,8 @@ def test_persisted_failure_facts_are_complete_and_shared_by_ops_queries(monkeypa
             assert len(page.items) == summary.total == 5
             assert {item.status.value for item in page.items} == {"retrying"}
             assert {item.kind for item in page.items} == set(AsyncOperationKind)
-            job.state = ImportJobState.FAILURE
+            job.state = ImportJobState.FAILED
+            job.processing_finished_at = utc_now()
             set_failure_facts(
                 job,
                 DurableFailure(
@@ -159,6 +187,7 @@ def test_persisted_failure_facts_are_complete_and_shared_by_ops_queries(monkeypa
             assert operation.failure.retryable is False
             for row in rows:
                 clear_failure_facts(row)
-            job.state = ImportJobState.PENDING
+            job.state = ImportJobState.QUEUED
+            job.processing_finished_at = None
             db.commit()
             assert query.summary(db, failure_class=DurableFailureClass.SYSTEM_ERROR).total == 0

@@ -20,7 +20,7 @@ from app.db.models import (
 )
 from app.db.models.import_job import ImportJobState
 from app.modules.import_jobs import notifications, dispatch_service
-from app.modules.import_jobs.worker_service import ImportJobExecutionService
+from app.modules.import_jobs.execution_recorder import ImportExecutionRecorder
 from app.modules.realtime import publisher
 from app.shared.time import utc_now
 from tests.support.postgres_schema import postgres_schema_database
@@ -35,9 +35,10 @@ def outcome(monkeypatch):
             db.add(User(id=1, email="import@example.test", password_hash="hash"))
             db.flush()
             job = ImportJob(
+                processing_started_at=utc_now(),
                 job_uuid="job",
                 user_id=1,
-                state=ImportJobState.RUNNING,
+                state=ImportJobState.PROCESSING,
                 requested_options={"display_title": "Etudes"},
             )
             db.add(job)
@@ -65,7 +66,7 @@ def outcome(monkeypatch):
 
 
 def finish(db, lease, result):
-    service = ImportJobExecutionService()
+    service = ImportExecutionRecorder()
     if result == "success":
         service.finalize_success(db, lease)
     elif result == "failure":
@@ -89,7 +90,7 @@ def exhaust(engine):
 
 
 @pytest.mark.parametrize("result", ["success", "failure", "exhaustion"])
-def test_import_terminal_consequences_commit_once(outcome, result):
+def test_import_processing_consequences_commit_once(outcome, result):
     engine, lease = outcome
     if result == "exhaustion":
         exhaust(engine)
@@ -98,11 +99,13 @@ def test_import_terminal_consequences_commit_once(outcome, result):
         job = db.scalar(sa.select(ImportJob))
         notice = db.scalar(sa.select(Notification))
         assert job.state == (
-            ImportJobState.PENDING_REVIEW if result == "success" else ImportJobState.FAILURE
+            ImportJobState.READY_FOR_REVIEW if result == "success" else ImportJobState.FAILED
         )
-        assert notice.kind == ("import.completed" if result == "success" else "import.failed")
+        assert notice.kind == (
+            "import.ready_for_review" if result == "success" else "import.failed"
+        )
         assert notice.recipient_user_id == 1 and notice.actor_user_id is None
-        assert notice.created_at == job.finished_at
+        assert notice.created_at == job.processing_finished_at
         assert notice.import_job_id == "job" and notice.import_display_title_snapshot == "Etudes"
         assert sorted(db.scalars(sa.select(RealtimeChange.kind))) == [
             "import_jobs.changed" if result == "success" else "import_jobs.changed",
@@ -118,7 +121,7 @@ def test_import_terminal_consequences_commit_once(outcome, result):
 
 @pytest.mark.parametrize("result", ["success", "failure", "exhaustion"])
 @pytest.mark.parametrize("boundary", ["notification", "realtime", "notify", "commit"])
-def test_import_terminal_consequences_roll_back_together(outcome, monkeypatch, result, boundary):
+def test_import_processing_consequences_roll_back_together(outcome, monkeypatch, result, boundary):
     engine, lease = outcome
     if result == "exhaustion":
         exhaust(engine)
@@ -133,7 +136,9 @@ def test_import_terminal_consequences_roll_back_together(outcome, monkeypatch, r
             target, name = {
                 "notification": (
                     notifications.notification_service,
-                    "admit_import_completed" if result == "success" else "admit_import_failed",
+                    "admit_import_ready_for_review"
+                    if result == "success"
+                    else "admit_import_failed",
                 ),
                 "realtime": (notifications, "publish_change"),
                 "notify": (publisher, "_notify_change"),

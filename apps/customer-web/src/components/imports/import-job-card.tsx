@@ -23,7 +23,7 @@ export function ImportJobCard({
 }) {
   const t = useTranslations('imports');
   const errors = useTranslations('errors');
-  const active = job.state === 'PENDING' || job.state === 'RUNNING';
+  const active = job.state === 'QUEUED' || job.state === 'PROCESSING';
   return (
     <Card>
       <CardContent className="space-y-3 p-5">
@@ -43,7 +43,7 @@ export function ImportJobCard({
             <p>{t('progress', { progress: job.progress })}</p>
           </div>
         ) : null}
-        {job.state === 'FAILURE' ? (
+        {job.state === 'FAILED' ? (
           <p className="text-sm text-destructive">
             {translateErrorCode(
               errors,
@@ -53,17 +53,17 @@ export function ImportJobCard({
           </p>
         ) : null}
         <div className="flex flex-wrap gap-2">
-          {job.state === 'PENDING_REVIEW' ? (
+          {job.state === 'READY_FOR_REVIEW' ? (
             <Button asChild>
               <Link href={`/review/${job.job_id}`}>{t('review')}</Link>
             </Button>
           ) : null}
-          {job.state === 'FAILURE' ? (
+          {job.state === 'FAILED' ? (
             <Button disabled={retryPending} onClick={onRetry}>
               {t('retry')}
             </Button>
           ) : null}
-          {job.state === 'FAILURE' || job.state === 'PENDING_REVIEW' ? (
+          {job.state === 'FAILED' || job.state === 'READY_FOR_REVIEW' ? (
             <Button
               variant="outline"
               disabled={deletePending}

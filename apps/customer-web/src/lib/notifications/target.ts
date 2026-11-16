@@ -4,7 +4,7 @@ export function notificationHref(notification: NotificationRead): string {
   switch (notification.kind) {
     case 'import.failed':
       return '/upload#import-activity';
-    case 'import.completed':
+    case 'import.ready_for_review':
       return notification.score_id
         ? `/score/${encodeURIComponent(notification.score_id)}`
         : `/review/${encodeURIComponent(notification.job_id)}`;

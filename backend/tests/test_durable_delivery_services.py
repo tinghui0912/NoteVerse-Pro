@@ -1,5 +1,7 @@
 """Persisted service witnesses; resource admission has its own domain suites."""
 
+from app.shared.time import utc_now
+
 from datetime import UTC
 
 
@@ -109,7 +111,14 @@ def delivery(postgres_engine, request, monkeypatch):
         db.flush()
         db.add_all(
             [
-                ImportJob(id=1, job_uuid="job", user_id=1, state=ImportJobState.PENDING_REVIEW),
+                ImportJob(
+                    processing_started_at=utc_now(),
+                    processing_finished_at=utc_now(),
+                    id=1,
+                    job_uuid="job",
+                    user_id=1,
+                    state=ImportJobState.READY_FOR_REVIEW,
+                ),
                 Score(id=1, score_uuid="score", owner_user_id=1, display_title="Score"),
             ]
         )

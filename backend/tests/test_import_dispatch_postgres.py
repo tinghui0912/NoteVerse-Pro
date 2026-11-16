@@ -22,7 +22,7 @@ from app.modules.import_jobs.dispatch_service import (
     require_current_attempt,
     StaleImportDispatchAttempt,
 )
-from app.modules.import_jobs.worker_service import ImportJobExecutionService
+from app.modules.import_jobs.execution_recorder import ImportExecutionRecorder
 from app.shared.time import utc_now
 from tests.support.postgres_schema import postgres_schema_database
 
@@ -46,10 +46,10 @@ def test_fresh_import_schema_ownership_token_constraints_and_cascade(monkeypatch
             "failure_classification",
             "failure_retryable",
             "failure_detail",
-            "requested_at",
-            "started_at",
-            "last_heartbeat_at",
-            "finished_at",
+            "processing_started_at",
+            "processing_last_heartbeat_at",
+            "processing_finished_at",
+            "confirmed_at",
             "score_id",
             "created_at",
             "updated_at",
@@ -87,7 +87,7 @@ def test_fresh_import_schema_ownership_token_constraints_and_cascade(monkeypatch
         with Session(engine) as db:
             db.add(User(id=1, email="import@example.com", password_hash="test"))
             db.flush()
-            job = ImportJob(job_uuid="import-pg", user_id=1, state=ImportJobState.PENDING)
+            job = ImportJob(job_uuid="import-pg", user_id=1, state=ImportJobState.QUEUED)
             db.add(job)
             db.flush()
             row = ImportDispatch(job_id=job.id)
@@ -116,7 +116,7 @@ def test_fresh_import_schema_ownership_token_constraints_and_cascade(monkeypatch
                         db.add(duplicate)
                         db.flush()
             # Exercise dispatch UUID uniqueness independently of unique job ownership.
-            other = ImportJob(job_uuid="other-pg", user_id=1, state=ImportJobState.PENDING)
+            other = ImportJob(job_uuid="other-pg", user_id=1, state=ImportJobState.QUEUED)
             db.add(other)
             db.flush()
             with pytest.raises(sa.exc.IntegrityError):
@@ -139,7 +139,7 @@ def test_mutation_lock_excludes_recovery_and_reclaimed_attempt_fences_cached_wor
         with Session(engine) as setup:
             setup.add(User(id=1, email="lease@example.com", password_hash="test"))
             setup.flush()
-            job = ImportJob(job_uuid="lease-pg", user_id=1, state=ImportJobState.PENDING)
+            job = ImportJob(job_uuid="lease-pg", user_id=1, state=ImportJobState.QUEUED)
             physical = StoredObject(
                 object_key="input.png", sha256="a" * 64, byte_size=3, content_type="image/png"
             )
@@ -179,9 +179,9 @@ def test_mutation_lock_excludes_recovery_and_reclaimed_attempt_fences_cached_wor
             assert second.attempt == first.attempt + 1 and second.token != first.token
             # populate_existing defeats an identity-map copy of the first attempt.
             with pytest.raises(StaleImportDispatchAttempt):
-                ImportJobExecutionService().update_progress(worker, first, "RUNNING", 99)
+                ImportExecutionRecorder().record_progress(worker, first, 99)
             worker.rollback()
-            ImportJobExecutionService().update_progress(recovery, second, "RUNNING", 21)
+            ImportExecutionRecorder().record_progress(recovery, second, 21)
             worker.expire_all()
             assert worker.scalar(sa.select(ImportJob)).progress == 21
 
@@ -189,9 +189,9 @@ def test_mutation_lock_excludes_recovery_and_reclaimed_attempt_fences_cached_wor
 @pytest.mark.parametrize(
     "locked_state",
     [
-        ImportJobState.PENDING_REVIEW,
-        ImportJobState.RUNNING,
-        ImportJobState.PENDING,
+        ImportJobState.READY_FOR_REVIEW,
+        ImportJobState.PROCESSING,
+        ImportJobState.QUEUED,
         ImportJobState.CONFIRMED,
     ],
 )
@@ -209,7 +209,13 @@ def test_deletion_contends_on_dispatch_before_job_and_rechecks_state(monkeypatch
         with Session(engine) as setup:
             setup.add(User(id=1, email="delete@example.com", password_hash="test"))
             setup.flush()
-            job = ImportJob(job_uuid="delete-job", user_id=1, state=ImportJobState.PENDING_REVIEW)
+            job = ImportJob(
+                processing_started_at=utc_now(),
+                processing_finished_at=utc_now(),
+                job_uuid="delete-job",
+                user_id=1,
+                state=ImportJobState.READY_FOR_REVIEW,
+            )
             setup.add(job)
             setup.flush()
             setup.add(ImportDispatch(job_id=job.id))
@@ -278,6 +284,12 @@ def test_deletion_contends_on_dispatch_before_job_and_rechecks_state(monkeypatch
                     worker.add(revision)
                     current.score_id = score.id
                 current.state = locked_state
+                if locked_state == ImportJobState.QUEUED:
+                    current.processing_started_at = current.processing_finished_at = None
+                elif locked_state == ImportJobState.PROCESSING:
+                    current.processing_finished_at = None
+                elif locked_state == ImportJobState.CONFIRMED:
+                    current.confirmed_at = utc_now()
                 worker.add(current)
                 worker.commit()
             finally:
@@ -287,11 +299,11 @@ def test_deletion_contends_on_dispatch_before_job_and_rechecks_state(monkeypatch
             assert not thread.is_alive(), "Deletion must finish after Dispatch lock release"
             error = result.get(timeout=1)
             with Session(engine) as check:
-                if locked_state != ImportJobState.PENDING_REVIEW:
+                if locked_state != ImportJobState.READY_FOR_REVIEW:
                     assert isinstance(error, ValidationException)
                     assert error.code == (
                         ErrorCode.JOB_RUNNING
-                        if locked_state == ImportJobState.RUNNING
+                        if locked_state == ImportJobState.PROCESSING
                         else ErrorCode.VALIDATION_ERROR
                     )
                     assert error.details == {"field": "state"}

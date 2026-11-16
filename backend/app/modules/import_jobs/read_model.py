@@ -1,4 +1,4 @@
-"""Async, bulk-hydrated Customer ImportJob presentation."""
+"""Bulk-hydrated Customer ImportJob presentation."""
 
 from collections import defaultdict
 from collections.abc import Sequence
@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.db.model_utils import require_persisted_id
 from app.db.models import ImportJob
+from app.db.models.import_job import ImportJobState
 from .public_errors import public_import_job_error_code
 from .repository import ImportJobRepository
 from .schemas import ImportArtifactRead, ImportJobRead, processing_options_adapter
@@ -71,9 +72,12 @@ class ImportJobReadModel:
                     thumbnail=thumbnails.get(job_id),
                     created_at=job.created_at,
                     updated_at=job.updated_at,
-                    started_at=job.started_at,
-                    finished_at=job.finished_at,
-                    public_code=public_import_job_error_code(job),
+                    processing_started_at=job.processing_started_at,
+                    processing_finished_at=job.processing_finished_at,
+                    confirmed_at=job.confirmed_at,
+                    public_code=public_import_job_error_code(job)
+                    if job.state == ImportJobState.FAILED
+                    else None,
                     execution_manifest_sha256=digests.get(job.execution_manifest_id)
                     if job.execution_manifest_id is not None
                     else None,

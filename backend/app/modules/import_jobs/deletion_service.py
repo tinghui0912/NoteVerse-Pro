@@ -28,7 +28,7 @@ from app.modules.storage_objects.retirement import retire_after_release
 
 
 CUSTOMER_DELETABLE_IMPORT_JOB_STATES = frozenset(
-    {ImportJobState.PENDING_REVIEW, ImportJobState.FAILURE}
+    {ImportJobState.READY_FOR_REVIEW, ImportJobState.FAILED}
 )
 
 
@@ -74,11 +74,11 @@ class ImportJobDeletionService:
             if job.state not in CUSTOMER_DELETABLE_IMPORT_JOB_STATES:
                 raise ValidationException(
                     code=ErrorCode.JOB_RUNNING
-                    if job.state == ImportJobState.RUNNING
+                    if job.state == ImportJobState.PROCESSING
                     else ErrorCode.VALIDATION_ERROR,
                     field="state",
                 )
-        elif job.state == ImportJobState.RUNNING:
+        elif job.state == ImportJobState.PROCESSING:
             raise ValidationException(code=ErrorCode.JOB_RUNNING, field="state")
         uploads = self._orphan_uploads_after_job_delete(db, job_id)
         artifacts = list(

@@ -122,7 +122,7 @@ def test_real_customer_routes_return_direct_nested_representations_pages_and_emp
     folder = LibraryFolderRead(
         folder_id="folder", name="Etudes", position=0, score_count=0, created_at=now, updated_at=now
     )
-    admission = ImportJobSubmitRead(job_id="job", count=1, state="PENDING")
+    admission = ImportJobSubmitRead(job_id="job", count=1, state="QUEUED")
     library = SimpleNamespace(
         create_folder=Mock(return_value=folder),
         update_folder=Mock(return_value=folder),

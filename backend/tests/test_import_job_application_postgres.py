@@ -1,5 +1,7 @@
 """Real Session Import HTTP admission, bulk projection and idempotency."""
 
+from app.shared.time import utc_now
+
 from datetime import UTC
 
 
@@ -123,9 +125,9 @@ def complete_jobs(db, count=1):
         ImportJob(
             job_uuid=f"complete-{index}",
             user_id=1,
-            state=ImportJobState.FAILURE,
+            state=ImportJobState.FAILED,
             progress=70,
-            score_id=1,
+            score_id=None,
             execution_manifest_id=1,
             requested_options={
                 "display_title": "Submitted title",
@@ -133,8 +135,8 @@ def complete_jobs(db, count=1):
             },
             created_at=NOW,
             updated_at=NOW,
-            started_at=NOW,
-            finished_at=NOW,
+            processing_started_at=NOW,
+            processing_finished_at=NOW,
             failure_code="import_pipeline_rejected",
             failure_stage="pipeline",
             failure_classification="user_error",
@@ -206,12 +208,12 @@ def test_list_and_detail_share_the_complete_current_projection(application_db):
     assert total == 1
     assert detail == rows[0]
     value = detail.model_dump(mode="json")
-    assert value["job_id"] == "complete-0" and value["score_id"] == "current-score"
+    assert value["job_id"] == "complete-0" and value["score_id"] is None
     assert value["display_title"] == "Submitted title" and value["genres"] == ["classical", "jazz"]
-    assert value["state"] == "FAILURE" and value["progress"] == 70
+    assert value["state"] == "FAILED" and value["progress"] == 70
     assert value["execution_manifest_sha256"] == manifest_sha256(MANIFEST)
     assert value["public_code"] == ErrorCode.SCORE_RECOGNITION_FAILED
-    for name in ["created_at", "updated_at", "started_at", "finished_at"]:
+    for name in ["created_at", "updated_at", "processing_started_at", "processing_finished_at"]:
         instant = datetime.fromisoformat(value[name])
         assert instant == NOW and instant.utcoffset().total_seconds() == 0
     assert value["thumbnail"] == dict(
@@ -375,7 +377,7 @@ async def test_http_list_detail_submit_retry_use_only_injected_session(applicati
                 "upload-b",
                 "upload-a",
             ]
-            assert value["state"] == "PENDING"
+            assert value["state"] == "QUEUED"
     finally:
         app.dependency_overrides.clear()
 
@@ -384,9 +386,10 @@ async def test_http_list_detail_submit_retry_use_only_injected_session(applicati
 async def test_http_owned_job_authorization_precedes_projection_and_mutation(application_db):
     db = application_db
     other = ImportJob(
+        processing_finished_at=utc_now(),
         job_uuid="other-job",
         user_id=2,
-        state=ImportJobState.FAILURE,
+        state=ImportJobState.FAILED,
         failure_code="import_pipeline_failed",
         failure_stage="pipeline",
         failure_classification="system_error",
@@ -444,7 +447,13 @@ async def test_review_confirmation_wins_over_stale_customer_delete_and_retains_p
             "(SELECT max(id) FROM stored_objects))"
         )
     )
-    job = ImportJob(job_uuid="review-delete-race", user_id=1, state=ImportJobState.PENDING_REVIEW)
+    job = ImportJob(
+        processing_started_at=utc_now(),
+        processing_finished_at=utc_now(),
+        job_uuid="review-delete-race",
+        user_id=1,
+        state=ImportJobState.READY_FOR_REVIEW,
+    )
     db.add(job)
     db.flush()
     db.add(ImportDispatch(job_id=job.id, status=ImportDispatchStatus.COMPLETED))
@@ -465,7 +474,7 @@ async def test_review_confirmation_wins_over_stale_customer_delete_and_retains_p
 
     class WaitingDeletion(ImportJobDeletionService):
         def delete_job(self, session, caller, user_id):
-            assert caller.state == ImportJobState.PENDING_REVIEW
+            assert caller.state == ImportJobState.READY_FOR_REVIEW
             observed.set()
             assert confirm_committed.wait(20)
             return super().delete_job(session, caller, user_id)

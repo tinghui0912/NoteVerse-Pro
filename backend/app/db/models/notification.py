@@ -22,7 +22,7 @@ class NotificationKind(StrEnum):
     SCORE_INVITE_ACCEPTED = "score_invite.accepted"
     SCORE_INVITE_DECLINED = "score_invite.declined"
     SCORE_VERSION_CREATED = "score.version.created"
-    IMPORT_COMPLETED = "import.completed"
+    IMPORT_READY_FOR_REVIEW = "import.ready_for_review"
     IMPORT_FAILED = "import.failed"
 
 
@@ -39,7 +39,7 @@ class Notification(SQLModel, table=True):  # type: ignore[call-arg]
           OR (kind = 'score.version.created' AND score_id IS NOT NULL AND revision_id IS NOT NULL
            AND actor_user_id IS NOT NULL AND score_display_title_snapshot IS NOT NULL AND invite_id IS NULL
            AND import_job_id IS NULL AND import_display_title_snapshot IS NULL)
-          OR (kind = 'import.completed' AND import_job_id IS NOT NULL AND actor_user_id IS NULL
+          OR (kind = 'import.ready_for_review' AND import_job_id IS NOT NULL AND actor_user_id IS NULL
            AND invite_id IS NULL AND revision_id IS NULL
            AND ((score_id IS NULL AND score_display_title_snapshot IS NULL)
              OR (score_id IS NOT NULL AND score_display_title_snapshot IS NOT NULL)))
