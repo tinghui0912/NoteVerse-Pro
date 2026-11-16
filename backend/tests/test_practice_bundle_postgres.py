@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from tests.support.practice_bundle import bind_bundle
+from app.modules.practice.bundle.content import read_verified_bundle
+
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from threading import Event
@@ -82,7 +85,7 @@ def postgres_bundle(tmp_path, request):
             score.head_revision_id = revision_id
             seed.commit()
         storage = InMemoryObjectStorage()
-        repository = PracticeBundleRepository(storage)
+        repository = PracticeBundleRepository()
         repository.test_revision_id = revision_id
         repository.test_score_uuid = "score-content-owner"
         repository.test_revision_uuid = "revision-content-owner"
@@ -99,12 +102,12 @@ async def test_same_revision_concurrent_candidates_have_one_bundle_one_binding(p
     from sqlalchemy import func
     from app.db.models import ScoreRevisionPracticeBinding
 
-    engine, repository, bundle, _ = postgres_bundle
+    engine, repository, bundle, storage = postgres_bundle
     sessions = sessionmaker(engine, expire_on_commit=False)
 
     def resolve():
         with sessions() as db:
-            return repository.get_or_create(db, bundle, revision_id=repository.test_revision_id)
+            return bind_bundle(db, storage, bundle, revision_id=repository.test_revision_id)
 
     with ThreadPoolExecutor(max_workers=2) as pool:
         a, b = pool.submit(resolve), pool.submit(resolve)
@@ -120,7 +123,7 @@ async def test_identical_content_across_scores_shares_one_bundle_two_bindings(po
     from sqlalchemy import func
     from app.db.models import ScoreRevisionPracticeBinding
 
-    engine, repository, bundle, _ = postgres_bundle
+    engine, repository, bundle, storage = postgres_bundle
     sessions = sessionmaker(engine, expire_on_commit=False)
     with sessions() as db:
         score = Score(score_uuid="another-score", owner_user_id=1, display_title="Another")
@@ -141,7 +144,7 @@ async def test_identical_content_across_scores_shares_one_bundle_two_bindings(po
 
     def resolve(revision_id):
         with sessions() as db:
-            return repository.get_or_create(db, bundle, revision_id=revision_id)
+            return bind_bundle(db, storage, bundle, revision_id=revision_id)
 
     with ThreadPoolExecutor(max_workers=2) as pool:
         a, b = pool.submit(resolve, repository.test_revision_id), pool.submit(resolve, revision_id)
@@ -173,8 +176,8 @@ def test_binding_cascade_retains_shared_bundle_until_last_revision_deleted(postg
         db.flush()
         second_id = revision.id
         db.commit()
-        ref, _ = repository.get_or_create(db, bundle, revision_id=repository.test_revision_id)
-        repository.get_or_create(db, bundle, revision_id=second_id)
+        ref, _ = bind_bundle(db, storage, bundle, revision_id=repository.test_revision_id)
+        bind_bundle(db, storage, bundle, revision_id=second_id)
         db.execute(update(Score).values(head_revision_id=None))
         db.execute(delete(ScoreRevision).where(ScoreRevision.id == repository.test_revision_id))
         db.commit()
@@ -197,16 +200,18 @@ def test_collected_bundle_rebinds_only_through_fenced_object_adoption(postgres_b
     engine, repository, bundle, storage = postgres_bundle
     sessions = sessionmaker(engine, expire_on_commit=False)
     with sessions() as db:
-        ref, _ = repository.get_or_create(db, bundle, revision_id=repository.test_revision_id)
+        ref, _ = bind_bundle(db, storage, bundle, revision_id=repository.test_revision_id)
         db.execute(delete(ScoreRevisionPracticeBinding))
         due = practice_bundle_retention.retire_unowned(db, ref.id)
         db.commit()
         assert len(due) == 2
-        rebound, verified = repository.get_or_create(
-            db, bundle, revision_id=repository.test_revision_id
+        rebound, verified = bind_bundle(
+            db, storage, bundle, revision_id=repository.test_revision_id
         )
         assert verified.bundle_id == bundle.bundle_id
-        assert (repository.read_bound(db, repository.test_revision_id))[0] == rebound
+        assert (
+            repository.reference(repository.read_bound(db, repository.test_revision_id)) == rebound
+        )
         assert all(
             op.status == "CANCELLED" for op in (db.scalars(select(StoredObjectRetirement))).all()
         )
@@ -218,10 +223,10 @@ def test_binding_committed_before_gc_protects_the_bundle(postgres_bundle):
     engine, repository, bundle, storage = postgres_bundle
     sessions = sessionmaker(engine, expire_on_commit=False)
     with sessions() as a, sessions() as b:
-        ref, _ = repository.get_or_create(a, bundle, revision_id=repository.test_revision_id)
+        ref, _ = bind_bundle(a, storage, bundle, revision_id=repository.test_revision_id)
         assert practice_bundle_retention.retire_unowned(b, ref.id) == []
         b.commit()
-        assert (repository.read_bound(a, repository.test_revision_id))[0] == ref
+        assert repository.reference(repository.read_bound(a, repository.test_revision_id)) == ref
 
 
 @pytest.mark.parametrize("representation", ["artifact", "prepared_musicxml"])
@@ -229,7 +234,7 @@ def test_durable_representation_corruption_fails_closed(postgres_bundle, represe
     engine, repository, bundle, storage = postgres_bundle
     sessions = sessionmaker(engine, expire_on_commit=False)
     with sessions() as db:
-        ref, _ = repository.get_or_create(db, bundle, revision_id=repository.test_revision_id)
+        ref, _ = bind_bundle(db, storage, bundle, revision_id=repository.test_revision_id)
         row = db.get(PracticeBundleRecord, ref.id)
         storage.put_bytes(
             key=getattr(row, representation + "_object").object_key,
@@ -237,7 +242,7 @@ def test_durable_representation_corruption_fails_closed(postgres_bundle, represe
             content_type="application/octet-stream",
         )
         with pytest.raises(ValidationException):
-            repository.read_bound(db, repository.test_revision_id)
+            read_verified_bundle(storage, repository.read_bound(db, repository.test_revision_id))
 
 
 @pytest.mark.parametrize("winner", ["GC", "BINDING"])
@@ -247,10 +252,10 @@ def test_binding_and_gc_serialize_on_bundle_row(postgres_bundle, winner):
     from app.modules.practice.bundle.retention import practice_bundle_retention
     from tests.test_stored_object_retirement_postgres import assert_blocked
 
-    engine, repository, bundle, _ = postgres_bundle
+    engine, repository, bundle, storage = postgres_bundle
     sessions = sessionmaker(engine, expire_on_commit=False)
     with sessions() as db:
-        ref, _ = repository.get_or_create(db, bundle, revision_id=repository.test_revision_id)
+        ref, _ = bind_bundle(db, storage, bundle, revision_id=repository.test_revision_id)
         db.execute(delete(ScoreRevisionPracticeBinding))
         db.commit()
     ready, release = Event(), Event()
@@ -266,7 +271,7 @@ def test_binding_and_gc_serialize_on_bundle_row(postgres_bundle, winner):
     def bind():
         with BindingSession(engine, expire_on_commit=False) as db:
             pid.append(db.scalar(text("SELECT pg_backend_pid()")))
-            return repository.get_or_create(db, bundle, revision_id=repository.test_revision_id)
+            return bind_bundle(db, storage, bundle, revision_id=repository.test_revision_id)
 
     def collect():
         with sessions() as db:
@@ -313,7 +318,9 @@ def test_binding_and_gc_serialize_on_bundle_row(postgres_bundle, winner):
             assert collecting.result(10) == []
             rebound = ref
     with sessions() as db:
-        assert repository.read_bound(db, repository.test_revision_id)[0] == rebound
+        assert (
+            repository.reference(repository.read_bound(db, repository.test_revision_id)) == rebound
+        )
 
 
 def test_interrupted_creation_has_durable_lease_for_orphan_cleanup(postgres_bundle):
@@ -338,7 +345,7 @@ def test_interrupted_creation_has_durable_lease_for_orphan_cleanup(postgres_bund
     with patch.object(storage, "put_bytes", side_effect=interrupted):
         with sessions() as db:
             with pytest.raises(Interrupted):
-                repository.get_or_create(db, bundle, revision_id=repository.test_revision_id)
+                bind_bundle(db, storage, bundle, revision_id=repository.test_revision_id)
             db.rollback()
     with sessions() as db:
         row = db.scalar(select(PracticeBundleRecord))
@@ -375,7 +382,7 @@ async def test_bound_readers_share_locks_and_fence_gc_during_verification(
     sessions = sessionmaker(engine, expire_on_commit=False)
     user_id = 1
     with sessions() as seed:
-        ref, _ = repository.get_or_create(seed, bundle, revision_id=repository.test_revision_id)
+        ref, _ = bind_bundle(seed, storage, bundle, revision_id=repository.test_revision_id)
         if reader_role == "PRACTITIONER":
             user = User(
                 email="reader@example.com",
@@ -397,16 +404,18 @@ async def test_bound_readers_share_locks_and_fence_gc_during_verification(
 
     service = PracticeBundleService(repository=repository, storage=storage)
     entered, release = Event(), Event()
-    verified_read = repository._read_verified_bundle
+    from app.modules.practice.bundle.content import read_verified_bundle
+
+    verified_read = read_verified_bundle
     first = True
 
-    def verification(row):
+    def verification(storage, row):
         nonlocal first
         if first:
             first = False
             entered.set()
             assert release.wait(10)
-        return verified_read(row)
+        return verified_read(storage, row)
 
     statements = []
 
@@ -426,7 +435,9 @@ async def test_bound_readers_share_locks_and_fence_gc_during_verification(
     event.listen(engine, "before_cursor_execute", observe_sql)
     try:
         with (
-            patch.object(repository, "_read_verified_bundle", side_effect=verification),
+            patch(
+                "app.modules.practice.bundle.service.read_verified_bundle", side_effect=verification
+            ),
             patch(
                 "app.modules.practice.bundle.service.lock_live_practice_mutation_access",
                 side_effect=AssertionError(
@@ -512,7 +523,7 @@ def test_durable_bundle_rejects_graph_corruption_with_consistent_content_hashes(
     engine, repository, bundle, storage = postgres_bundle
     sessions = sessionmaker(engine, expire_on_commit=False)
     with sessions() as db:
-        ref, _ = repository.get_or_create(db, bundle, revision_id=repository.test_revision_id)
+        ref, _ = bind_bundle(db, storage, bundle, revision_id=repository.test_revision_id)
         row = db.get(PracticeBundleRecord, ref.id)
         value = bundle.artifact.value
         value["notes"][0]["eventId"] = "missing"
@@ -531,4 +542,4 @@ def test_durable_bundle_rejects_graph_corruption_with_consistent_content_hashes(
         )
         db.commit()
         with pytest.raises(ValueError, match="dangling"):
-            repository.read_bound(db, repository.test_revision_id)
+            read_verified_bundle(storage, repository.read_bound(db, repository.test_revision_id))

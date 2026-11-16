@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from tests.support.practice_bundle import bind_bundle
+
 from app.db.models import StoragePlanPolicy, UserStorageEntitlement
 
 import asyncio
@@ -182,8 +184,8 @@ def setup_bundle(postgres_bundle):
             )
         )
         db.commit()
-        reference, verified_bundle = repository.get_or_create(
-            db, bundle, revision_id=repository.test_revision_id
+        reference, verified_bundle = bind_bundle(
+            db, storage, bundle, revision_id=repository.test_revision_id
         )
     source = PracticeBundleService(repository=repository, storage=storage)
     request = PerformanceTakeUploadReservationRequest.model_validate(

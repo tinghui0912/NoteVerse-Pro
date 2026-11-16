@@ -83,15 +83,31 @@ def test_bundle_domain_is_independent_of_transport_and_persistence():
     )
 
 
-def test_bundle_service_delegates_durable_ownership_to_repository():
-    dependencies = {node.module for node in imports("modules/practice/bundle/service.py")}
-    assert {"repository", "compiler", "domain", "mutation_access"} <= dependencies
+def test_bundle_owners_have_distinct_persistence_workflow_and_content_dependencies():
+    service = {node.module for node in imports("modules/practice/bundle/service.py")}
+    assert {"repository", "writer", "content", "compiler", "mutation_access"} <= service
     repository = {node.module for node in imports("modules/practice/bundle/repository.py")}
-    assert {"app.storage.base", "app.db.models.practice_bundle", "domain"} <= repository
     assert not any(
-        module and module.startswith(("fastapi", "app.modules.performance_takes"))
+        module and module.startswith(("app.storage", "app.modules.storage_objects"))
         for module in repository
     )
+    imported_models = {
+        alias.name
+        for node in imports("modules/practice/bundle/repository.py")
+        if node.module and node.module.startswith("app.db.models")
+        for alias in node.names
+    }
+    assert imported_models == {
+        "PracticeBundleRecord",
+        "PracticeBundleStatus",
+        "ScoreRevisionPracticeBinding",
+    }
+    content = {node.module for node in imports("modules/practice/bundle/content.py")}
+    assert "app.modules.storage_objects.reads" in content
+    assert not any(module and module.startswith(("sqlalchemy", "fastapi")) for module in content)
+    writer = {node.module for node in imports("modules/practice/bundle/writer.py")}
+    assert {"repository", "content", "retention", "app.modules.storage_objects.writes"} <= writer
+    assert not any(module and module.startswith("app.modules.score_access") for module in writer)
 
 
 def test_durable_planning_depends_only_on_score_domain_and_standard_library():

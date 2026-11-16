@@ -1,5 +1,7 @@
 """Independent PostgreSQL connections prove write/adoption/cleanup fences."""
 
+from tests.support.practice_bundle import bind_bundle
+
 from app.db.models import StoragePlanPolicy, UserStorageEntitlement
 
 import asyncio
@@ -328,7 +330,7 @@ async def test_bundle_creating_gc_during_put_leaves_only_cleanup_owned_bytes(
     def construct():
         with Session(engine, expire_on_commit=False) as db:
             with pytest.raises(ValidationException) as error:
-                repository.get_or_create(db, bundle, revision_id=repository.test_revision_id)
+                bind_bundle(db, storage, bundle, revision_id=repository.test_revision_id)
             assert error.value.details["reason"] == "creation_lease_lost"
             db.rollback()
 

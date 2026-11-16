@@ -17,6 +17,8 @@ from app.storage import object_storage
 from .compiler import PracticeBundleCompiler
 from .domain import AuthorizedPracticeBundle
 from .repository import PracticeBundleRepository
+from .writer import PracticeBundleWriter
+from .content import read_verified_bundle
 from .mutation_access import lock_live_practice_mutation_access
 from app.modules.practice.score.generated.artifact_transport import PracticeScoreArtifactRead
 from .schemas import (
@@ -36,13 +38,15 @@ class PracticeBundleService:
         asset_repository=None,
         storage: ObjectStorage | None = None,
         compiler: PracticeBundleCompiler | None = None,
-        repository=None,
+        repository: PracticeBundleRepository | None = None,
+        writer: PracticeBundleWriter | None = None,
     ):
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.asset_repository = asset_repository or ScoreAssetRepository()
         self.storage = storage or object_storage
         self.compiler = compiler or PracticeBundleCompiler()
-        self.repository = repository or PracticeBundleRepository(self.storage)
+        self.repository = repository or PracticeBundleRepository()
+        self.writer = writer or PracticeBundleWriter(self.storage, repository=self.repository)
 
     def resolve_bundle(self, db: Session, score_uuid: str, user_id: int, revision_uuid: str):
         access = self.access_policy.authorize_revision(
@@ -69,7 +73,7 @@ class PracticeBundleService:
                     service="practice_bundle", code=CustomerErrorCode.PRACTICE_BUNDLE_FAILED
                 ) from error
 
-            def reauthorize_binding_mutation():
+            def reauthorize_binding_mutation() -> None:
                 nonlocal access
                 access = lock_live_practice_mutation_access(
                     db,
@@ -80,13 +84,15 @@ class PracticeBundleService:
                 )
 
             reauthorize_binding_mutation()
-            bound = self.repository.get_or_create(
+            reference, bundle = self.writer.ensure_binding(
                 db,
                 candidate,
                 revision_id=revision_id,
-                reauthorize=reauthorize_binding_mutation,
+                reauthorize_mutation=reauthorize_binding_mutation,
             )
-        reference, bundle = bound
+        else:
+            reference = self.repository.reference(bound)
+            bundle = read_verified_bundle(self.storage, bound)
         return AuthorizedPracticeBundle(
             bundle,
             reference,
@@ -110,11 +116,12 @@ class PracticeBundleService:
         bound = self.repository.read_bound_for_update(
             db, require_persisted_id(access.revision.id, entity="revision")
         )
-        if bound is None or bound[0].bundle_id != bundle_id:
+        if bound is None or bound.bundle_id != bundle_id:
             raise ResourceNotFoundException(
                 "practice_binding", bundle_id, CustomerErrorCode.RESOURCE_NOT_FOUND
             )
-        reference, bundle = bound
+        reference = self.repository.reference(bound)
+        bundle = read_verified_bundle(self.storage, bound)
         return AuthorizedPracticeBundle(
             bundle,
             reference,

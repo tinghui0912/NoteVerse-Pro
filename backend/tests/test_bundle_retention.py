@@ -1,5 +1,7 @@
 """Bindings own Bundle lifetime; each representation retires independently."""
 
+from tests.support.practice_bundle import bind_bundle
+
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -109,12 +111,10 @@ def test_ready_bundle_gc_has_its_own_bounded_batch(test_env, monkeypatch):
 
 
 def test_creation_write_failure_queues_both_representations_without_binding(test_env):
-    from app.modules.practice.bundle.repository import PracticeBundleRepository
     from app.core.exceptions import ValidationException
 
     db, storage, _, _ = test_env
     candidate = _canonical_bundle("score-uuid-10", "revision-uuid-100", "artifact")
-    repository = PracticeBundleRepository(storage)
     put = storage.put_bytes
 
     def fail_artifact(**kwargs):
@@ -124,7 +124,7 @@ def test_creation_write_failure_queues_both_representations_without_binding(test
 
     with patch.object(storage, "put_bytes", side_effect=fail_artifact):
         with pytest.raises(ValidationException) as error:
-            repository.get_or_create(db, candidate, revision_id=100)
+            bind_bundle(db, storage, candidate, revision_id=100)
     assert error.value.details["reason"] == "practice_bundle_storage_write_failed"
     assert db.scalar(select(PracticeBundleRecord)) is None
     assert db.get(ScoreRevisionPracticeBinding, 100) is None

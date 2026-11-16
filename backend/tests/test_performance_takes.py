@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from tests.support.practice_bundle import bind_bundle
+from app.modules.practice.bundle.content import read_verified_bundle
+
 from datetime import UTC
 from uuid import uuid4
 from tests.support.score_deletion import complete_score_deletions
@@ -349,9 +352,8 @@ def test_invalid_stored_scope_reports_validation_error(test_env):
 def test_bundle_materialization_stores_and_reuses_exact_content(test_env):
     session, storage, _, _ = test_env
     value = _canonical_bundle("score-uuid-10", DEFAULT_TAKE_REVISION_ID, DEFAULT_TAKE_ARTIFACT_ID)
-    repository = PracticeBundleRepository(storage)
-    first, verified = repository.get_or_create(session, value, revision_id=100)
-    second, reused = repository.get_or_create(session, value, revision_id=100)
+    first, verified = bind_bundle(session, storage, value, revision_id=100)
+    second, reused = bind_bundle(session, storage, value, revision_id=100)
     assert first == second and verified == reused == value
     row = session.get(PracticeBundleRecord, first.id)
     assert (
@@ -367,7 +369,9 @@ def test_practice_bundle_checksum_corruption_is_rejected(test_env, representatio
     key = getattr(row, f"{representation}_object").object_key
     storage.put_bytes(key=key, content=b"corrupt", content_type="application/octet-stream")
     with pytest.raises(ValidationException) as caught:
-        PracticeBundleRepository(storage).read_by_bundle_id(session, row.bundle_id)
+        read_verified_bundle(
+            storage, PracticeBundleRepository().read_by_bundle_id(session, row.bundle_id)
+        )
     assert caught.value.details["reason"] == f"{representation}_checksum_mismatch"
 
 
@@ -390,7 +394,9 @@ def test_practice_bundle_artifact_identity_corruption_is_rejected(test_env):
     row.artifact_object.byte_size = changed.byte_size
     session.commit()
     with pytest.raises(ValidationException) as caught:
-        PracticeBundleRepository(storage).read_by_bundle_id(session, row.bundle_id)
+        read_verified_bundle(
+            storage, PracticeBundleRepository().read_by_bundle_id(session, row.bundle_id)
+        )
     assert caught.value.details["reason"] == "artifact_identity_mismatch"
 
 
@@ -3312,14 +3318,16 @@ def test_bound_bundle_authorization_preserves_admitted_representation_identity(t
         assert admitted.status_code == 200, admitted.text
         payload = admitted.json()
         row = session.execute(select(PracticeBundleRecord)).scalar_one()
-        candidate = bundles.repository.read_by_bundle_id(session, row.bundle_id)
+        candidate = read_verified_bundle(
+            storage, bundles.repository.read_by_bundle_id(session, row.bundle_id)
+        )
         different = replace(
             candidate,
             prepared_musicxml=replace(
                 candidate.prepared_musicxml, data=candidate.prepared_musicxml.data + b"\n"
             ),
         )
-        ref, _ = bundles.repository.get_or_create(session, different, revision_id=100)
+        ref, _ = bind_bundle(session, storage, different, revision_id=100)
         assert ref.bundle_id == row.bundle_id
         with (
             patch.object(
@@ -3415,7 +3423,7 @@ def test_reservation_derives_and_transfers_exact_bundle_plan(test_env, scope_kin
     elif tempo_case == "DELAYED_TEMPO":
         xml = xml.replace(b'<direction><sound tempo="120"/></direction>', b"")
     source = PracticeBundleCompiler().compile(canonical_musicxml=xml)
-    ref, _ = PracticeBundleRepository(storage).get_or_create(session, source, revision_id=100)
+    ref, _ = bind_bundle(session, storage, source, revision_id=100)
     artifact = source.artifact.value
     with _reservation_client(session, storage, user) as (client, service):
         scope = (

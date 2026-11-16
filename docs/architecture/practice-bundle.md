@@ -61,14 +61,43 @@ materialization, ID preparation or compilation.
 
 An unbound revision is compiled after initial read authorization. Before binding mutation,
 lock_live_practice_mutation_access reauthorizes the live Score/Revision and selected
-access fact under locks, then the repository creates/reuses the content-addressed Bundle
-and binds the revision. The null-FK creation lease commits before both representations are written through durable ObjectWriteIntents. The intent lock covers physical put and WRITTEN persistence. After both writes and exact read-back checks, fresh mutation reauthorization precedes Bundle locking, adoption of both WRITTEN intents, READY and binding creation in one semantic transaction. A partial write creates no StoredObject authority; its intent owns cleanup. Database uniqueness and row locks arbitrate
+access fact under locks, then `PracticeBundleWriter.ensure_binding` creates/reuses the
+content-addressed Bundle and binds the revision. The null-FK creation lease commits before both representations are written through durable ObjectWriteIntents. The intent lock covers physical put and WRITTEN persistence. After both writes and exact read-back checks, fresh mutation reauthorization precedes Bundle locking, adoption of both WRITTEN intents, READY and binding creation in one semantic transaction. A partial write creates no StoredObject authority; its intent owns cleanup. Database uniqueness and row locks arbitrate
 concurrent creation and binding. An existing binding wins over a new compiler candidate.
 
 Bundle ID possession is not authorization. There is no Bundle-ID-only authorization
 route. PerformanceTake score export reauthorizes its saved Score/Revision through this route
 and requires exact saved bundleId and artifactId agreement. Deleted or inaccessible
 revisions make score export unavailable; raw Take playback and download remain independent.
+
+## Persistence and workflow owners
+
+`PracticeBundleService` owns revision authorization, canonical-source lookup,
+compile-on-miss and read orchestration. Bound reads ask the DB-only
+`PracticeBundleRepository` for rows under shared locks, then call
+`content.read_verified_bundle` while those locks remain held. They do not compile,
+acquire mutation authorization or commit. Save admission uses live mutation access
+and exclusive binding/bundle locks before the same content verification.
+
+`PracticeBundleRepository()` queries and locks only bundle rows and revision
+bindings, inserts creation rows, constructs references and inserts bindings. It
+has no storage dependency, Score/Revision authorization, commit or rollback.
+
+`PracticeBundleWriter` owns creation-lease transactions, Practice-owned storage
+keys, ObjectWriteIntent prewrites, exact physical read-back, StoredObject adoption,
+READY admission and the final binding commit. A durable CREATING lease commits
+before physical IO. Prewrites release access locks, so the service-supplied
+`reauthorize_mutation` action reestablishes live Score/Revision/access locks before
+adoption and binding. Missing or expired creation leases fail closed. Physical
+creation failure rolls back current work, discards the semantic creation through
+transaction-neutral retention and commits cleanup; unadopted intents retain cleanup
+ownership. An existing READY bundle is verified and reused without physical rewrite.
+
+`content.read_verified_bundle` is the single durable-content verifier. It reads
+admitted objects, checks type/size/checksum, validates the artifact structure and
+musical graph, verifies canonical artifact bytes and identities, and reconstructs
+the content-addressed bundle. It neither queries database rows nor owns a workflow
+or transaction. Compiler and artifact contracts remain persistence-independent.
 
 ## Durable verification and retention
 
