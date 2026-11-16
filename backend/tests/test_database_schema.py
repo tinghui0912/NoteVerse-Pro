@@ -175,11 +175,11 @@ def assert_schema_parity(engine):
 def assert_bootstrap(engine):
     with engine.connect() as connection:
         assert connection.execute(
-            sa.text("SELECT plan_code, quota_limit_bytes FROM storage_quota_policies")
+            sa.text("SELECT plan_code, default_limit_bytes FROM storage_plan_policies")
         ).all() == [("FREE", 104857600)]
         # Bootstrap includes reference data only, not users or operational history.
         for table in SQLModel.metadata.tables:
-            if table not in {"storage_quota_policies"}:
+            if table not in {"storage_plan_policies"}:
                 assert connection.scalar(sa.text(f'SELECT count(*) FROM "{table}"')) == 0
 
 

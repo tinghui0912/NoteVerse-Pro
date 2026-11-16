@@ -12,7 +12,7 @@ from sqlmodel import SQLModel
 
 from app.api.deps import get_current_user, get_db
 from app.main import app
-from app.core.exceptions import ResourceNotFoundException, ValidationException
+from app.core.exceptions import AppException, ValidationException
 from app.db.models import (
     ImportArtifact,
     ImportJob,
@@ -22,7 +22,7 @@ from app.db.models import (
     ScoreRevision,
     ScoreRevisionSource,
     StoredObject,
-    StorageQuotaPolicy,
+    StoragePlanPolicy,
     StorageUsageAccount,
     StorageUsageCategory,
     StorageUsageCounter,
@@ -42,6 +42,7 @@ from app.modules.scores.deletion_executor import ScoreDeletionExecutor
 from tests.support.score_deletion import complete_score_deletions
 from app.modules.scores.service import ScoreService
 from app.modules.storage_usage.service import storage_usage_service
+from tests.support.storage_state import provision_storage_users
 from app.shared.constants import ErrorCode
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from tests.support.object_storage import InMemoryObjectStorage
@@ -94,29 +95,26 @@ def storage_usage_session(
             )
         )
         session.add(
-            StorageQuotaPolicy(
+            StoragePlanPolicy(
                 plan_code="FREE",
-                quota_limit_bytes=1000,
+                default_limit_bytes=1000,
                 created_at=utc_now(),
                 updated_at=utc_now(),
             )
         )
+        session.flush()
+        provision_storage_users(session)
         session.commit()
         yield session, storage
 
 
 def _set_quota(session: Session, limit_bytes: int) -> None:
     policy = session.execute(
-        select(StorageQuotaPolicy).where(StorageQuotaPolicy.plan_code == "FREE")
+        select(StoragePlanPolicy).where(StoragePlanPolicy.plan_code == "FREE")
     ).scalar_one()
-    policy.quota_limit_bytes = limit_bytes
+    policy.default_limit_bytes = limit_bytes
     policy.updated_at = utc_now()
     session.add(policy)
-    account = session.get(StorageUsageAccount, 1)
-    if account is not None:
-        account.quota_limit_bytes = limit_bytes
-        account.updated_at = utc_now()
-        session.add(account)
     session.commit()
 
 
@@ -205,7 +203,7 @@ def test_storage_usage_reservation_blocks_when_quota_would_be_exceeded(
     assert _count(session, StorageUsageReservation) == 0
 
 
-def test_storage_usage_requires_seeded_default_policy(
+def test_reservation_requires_provisioned_storage_authorities(
     postgres_engine,
 ) -> None:
     engine = postgres_engine
@@ -221,7 +219,7 @@ def test_storage_usage_requires_seeded_default_policy(
         )
         session.commit()
 
-        with pytest.raises(ResourceNotFoundException) as exc_info:
+        with pytest.raises(AppException) as exc_info:
             storage_usage_service.reserve(
                 session,
                 user_id=1,

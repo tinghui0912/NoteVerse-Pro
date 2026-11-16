@@ -61,7 +61,8 @@ from .playback import (
     ScorePlaybackAsset,
 )
 from .storage_usage import (
-    StorageQuotaPolicy,
+    StoragePlanPolicy,
+    UserStorageEntitlement,
     StorageUsageAccount,
     StorageUsageCategory,
     StorageUsageCounter,
@@ -148,7 +149,8 @@ __all__ = [
     "PlaybackOutbox",
     "PlaybackOutboxStatus",
     "ScorePlaybackAsset",
-    "StorageQuotaPolicy",
+    "StoragePlanPolicy",
+    "UserStorageEntitlement",
     "StorageUsageAccount",
     "StorageUsageCategory",
     "StorageUsageCounter",

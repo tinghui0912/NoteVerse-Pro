@@ -1,5 +1,7 @@
 """Real PostgreSQL head-writer / final-admission serialization for both derivatives."""
 
+from tests.support.storage_state import provision_storage_users
+
 from app.shared.time import utc_now
 
 from concurrent.futures import ThreadPoolExecutor
@@ -57,6 +59,7 @@ def test_final_admission_serializes_with_current_score(monkeypatch, tmp_path, ki
             user = User(email="demand-race@example.com", display_name="Owner", password_hash="hash")
             seed.add(user)
             seed.flush()
+            provision_storage_users(seed)
             user_id = user.id
             score = Score(
                 score_uuid="race-score",

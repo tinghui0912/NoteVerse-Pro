@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.core.exceptions import ResourceAlreadyExistsException, ValidationException
 from app.db.models.auth import AuthToken, EmailChangeRequest, PendingRegistration, RefreshToken
 from app.db.models.user import User
+from app.db.models import StoragePlanPolicy, UserStorageEntitlement, StorageUsageAccount
 from app.modules.auth.email_change_service import EmailChangeService
 from app.modules.auth.email_verification_service import EmailVerificationService
 from app.modules.auth.password_reset_service import PasswordResetService
@@ -33,6 +34,9 @@ class FakeResult:
     def scalars(self):
         return self
 
+    def scalar_one_or_none(self):
+        return self.one_or_none()
+
     def __init__(self, rows: list[object]) -> None:
         self.rows = rows
 
@@ -51,6 +55,9 @@ class FakeResult:
 class FakeDb:
     def __init__(self) -> None:
         self.users: list[User] = []
+        self.plan_policies = [StoragePlanPolicy(plan_code="FREE", default_limit_bytes=104857600)]
+        self.entitlements: list[UserStorageEntitlement] = []
+        self.accounts: list[StorageUsageAccount] = []
         self.auth_tokens: list[AuthToken] = []
         self.email_change_requests: list[EmailChangeRequest] = []
         self.pending_registrations: list[PendingRegistration] = []
@@ -60,6 +67,12 @@ class FakeDb:
         self._next_id = 1
 
     def add(self, record) -> None:
+        if isinstance(record, UserStorageEntitlement):
+            self.entitlements.append(record)
+            return
+        if isinstance(record, StorageUsageAccount):
+            self.accounts.append(record)
+            return
         if getattr(record, "id", None) is None:
             record.id = self._next_id
             self._next_id += 1
@@ -94,6 +107,8 @@ class FakeDb:
 
     def execute(self, statement):
         entity = statement.column_descriptions[0].get("entity")
+        if entity is StoragePlanPolicy:
+            return FakeResult(self.plan_policies)
         if entity is User:
             return FakeResult(self.users)
         if entity is AuthToken:

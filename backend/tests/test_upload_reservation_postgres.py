@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from app.db.models import StoragePlanPolicy, UserStorageEntitlement
+
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
@@ -163,11 +165,13 @@ def setup_bundle(postgres_bundle):
     engine, repository, bundle, storage = postgres_bundle
     sessions = sessionmaker(engine, expire_on_commit=False)
     with sessions() as db:
+        if db.get(StoragePlanPolicy, "FREE") is None:
+            db.add(StoragePlanPolicy(plan_code="FREE", default_limit_bytes=1048576))
+            db.flush()
+        db.add(UserStorageEntitlement(user_id=1, plan_code="FREE"))
         db.add(
             StorageUsageAccount(
                 user_id=1,
-                plan_code="FREE",
-                quota_limit_bytes=1048576,
                 used_bytes=0,
                 reserved_bytes=0,
             )

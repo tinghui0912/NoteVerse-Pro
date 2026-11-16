@@ -40,15 +40,46 @@ class StorageUsageReservationStatus(str, enum.Enum):
     RELEASED = "RELEASED"
 
 
-class StorageQuotaPolicy(SQLModel, table=True):  # type: ignore[call-arg]
-    __tablename__ = "storage_quota_policies"
-
-    id: Optional[int] = Field(
-        default=None,
-        sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
+class StoragePlanPolicy(SQLModel, table=True):  # type: ignore[call-arg]
+    __tablename__ = "storage_plan_policies"
+    __table_args__ = (
+        CheckConstraint(
+            "default_limit_bytes >= 0", name="ck_storage_plan_policies_default_limit_non_negative"
+        ),
     )
-    plan_code: str = Field(sa_column=Column(String(64), unique=True, nullable=False))
-    quota_limit_bytes: int = Field(sa_column=Column(BigInteger, nullable=False))
+
+    plan_code: str = Field(sa_column=Column(String(64), primary_key=True))
+    default_limit_bytes: int = Field(sa_column=Column(BigInteger, nullable=False))
+    created_at: datetime = Field(
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
+    )
+    updated_at: datetime = Field(
+        default_factory=utc_now,
+        sa_column=Column(
+            DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
+        ),
+    )
+
+
+class UserStorageEntitlement(SQLModel, table=True):  # type: ignore[call-arg]
+    __tablename__ = "user_storage_entitlements"
+    __table_args__ = (
+        CheckConstraint(
+            "limit_override_bytes IS NULL OR limit_override_bytes >= 0",
+            name="ck_user_storage_entitlements_override_non_negative",
+        ),
+    )
+
+    user_id: int = Field(
+        sa_column=Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    )
+    plan_code: str = Field(
+        sa_column=Column(String(64), ForeignKey("storage_plan_policies.plan_code"), nullable=False)
+    )
+    limit_override_bytes: Optional[int] = Field(
+        default=None, sa_column=Column(BigInteger, nullable=True)
+    )
     created_at: datetime = Field(
         default_factory=utc_now,
         sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
@@ -68,9 +99,6 @@ class StorageUsageAccount(SQLModel, table=True):  # type: ignore[call-arg]
         CheckConstraint(
             "reserved_bytes >= 0", name="ck_storage_usage_accounts_reserved_non_negative"
         ),
-        CheckConstraint(
-            "quota_limit_bytes >= 0", name="ck_storage_usage_accounts_limit_non_negative"
-        ),
     )
 
     user_id: int = Field(
@@ -80,10 +108,8 @@ class StorageUsageAccount(SQLModel, table=True):  # type: ignore[call-arg]
             primary_key=True,
         )
     )
-    plan_code: str = Field(sa_column=Column(String(64), nullable=False))
     used_bytes: int = Field(default=0, sa_column=Column(BigInteger, default=0, nullable=False))
     reserved_bytes: int = Field(default=0, sa_column=Column(BigInteger, default=0, nullable=False))
-    quota_limit_bytes: int = Field(sa_column=Column(BigInteger, nullable=False))
     created_at: datetime = Field(
         default_factory=utc_now,
         sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),

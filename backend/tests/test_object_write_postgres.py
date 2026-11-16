@@ -1,5 +1,7 @@
 """Independent PostgreSQL connections prove write/adoption/cleanup fences."""
 
+from app.db.models import StoragePlanPolicy, UserStorageEntitlement
+
 import asyncio
 from datetime import timedelta
 from threading import Event
@@ -255,11 +257,13 @@ async def test_two_equal_files_uploads_share_key_and_both_commit(retirement_post
     from app.db.models import StorageUsageAccount, StorageUsageCounter, StorageUsageCategory
 
     with Session(engine) as db:
+        if db.get(StoragePlanPolicy, "FREE") is None:
+            db.add(StoragePlanPolicy(plan_code="FREE", default_limit_bytes=1048576))
+            db.flush()
+        db.add(UserStorageEntitlement(user_id=1, plan_code="FREE"))
         db.add(
             StorageUsageAccount(
                 user_id=1,
-                plan_code="FREE",
-                quota_limit_bytes=1048576,
                 used_bytes=0,
                 reserved_bytes=0,
             )
@@ -423,11 +427,13 @@ async def test_revision_rechecks_head_after_prewrite_commit(
     engine, sessions, storage = setup_worker(retirement_postgres, monkeypatch)
     _, repository, _, _ = postgres_bundle
     with Session(engine) as db:
+        if db.get(StoragePlanPolicy, "FREE") is None:
+            db.add(StoragePlanPolicy(plan_code="FREE", default_limit_bytes=1048576))
+            db.flush()
+        db.add(UserStorageEntitlement(user_id=1, plan_code="FREE"))
         db.add(
             StorageUsageAccount(
                 user_id=1,
-                plan_code="FREE",
-                quota_limit_bytes=1048576,
                 used_bytes=0,
                 reserved_bytes=0,
             )

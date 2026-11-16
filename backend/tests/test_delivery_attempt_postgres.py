@@ -1,5 +1,7 @@
 """Real row locks, lease takeover and durable outcomes for domain deliveries."""
 
+from tests.support.storage_state import provision_storage_users
+
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from dataclasses import replace
@@ -54,6 +56,7 @@ def database(monkeypatch):
             user = User(email="lease@example.test", password_hash="hash")
             db.add(user)
             db.flush()
+            provision_storage_users(db)
             score = Score(score_uuid="score", owner_user_id=user.id, display_title="Score")
             db.add(score)
             db.flush()

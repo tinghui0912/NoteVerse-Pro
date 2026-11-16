@@ -197,19 +197,19 @@ def check_storage_quota_policy(_: bool = False) -> CheckResult:
     from sqlalchemy import text
 
     from app.db.session import engine
-    from app.modules.storage_usage.accounting import DEFAULT_PLAN_CODE
+    from app.modules.storage_usage.entitlements import DEFAULT_STORAGE_PLAN_CODE
 
     try:
         with engine.connect() as connection:
             row = connection.execute(
                 text(
                     """
-                    select quota_limit_bytes
-                    from storage_quota_policies
+                    select default_limit_bytes
+                    from storage_plan_policies
                     where plan_code = :plan_code
                     """
                 ),
-                {"plan_code": DEFAULT_PLAN_CODE},
+                {"plan_code": DEFAULT_STORAGE_PLAN_CODE},
             ).first()
     except Exception as exc:
         return _result(
@@ -222,15 +222,17 @@ def check_storage_quota_policy(_: bool = False) -> CheckResult:
         return _result(
             "storage_quota_policy",
             False,
-            f"missing required storage quota policy: {DEFAULT_PLAN_CODE}",
+            f"missing required storage quota policy: {DEFAULT_STORAGE_PLAN_CODE}",
         )
-    if int(row.quota_limit_bytes) <= 0:
+    if int(row.default_limit_bytes) < 0:
         return _result(
             "storage_quota_policy",
             False,
-            f"storage quota policy has invalid limit: {DEFAULT_PLAN_CODE}",
+            f"storage quota policy has invalid limit: {DEFAULT_STORAGE_PLAN_CODE}",
         )
-    return _result("storage_quota_policy", True, f"storage quota policy ready: {DEFAULT_PLAN_CODE}")
+    return _result(
+        "storage_quota_policy", True, f"storage quota policy ready: {DEFAULT_STORAGE_PLAN_CODE}"
+    )
 
 
 def check_redis(_: bool = False) -> CheckResult:

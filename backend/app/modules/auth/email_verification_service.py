@@ -13,6 +13,8 @@ from app.core.config import settings
 from app.core.exceptions import ResourceAlreadyExistsException, ValidationException
 from app.db.models.auth import PendingRegistration
 from app.db.models.user import User
+from app.db.model_utils import require_persisted_id
+from app.modules.storage_usage.entitlements import provision_default_storage_state
 from app.modules.auth.schemas import RegisterRequest, VerifyEmailRequest
 from app.modules.mail.outbox_service import queue_mail
 from app.modules.mail.templates.auth import build_email_verification_email
@@ -125,6 +127,8 @@ class EmailVerificationService:
             email_verified_at=now,
         )
         db.add(user)
+        db.flush()
+        provision_default_storage_state(db, require_persisted_id(user.id, entity="user"))
         db.delete(pending)
         db.commit()
         db.refresh(user)

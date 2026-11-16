@@ -15,7 +15,6 @@ from app.shared.constants import ErrorCode
 from app.shared.time import utc_now
 
 
-DEFAULT_PLAN_CODE = "FREE"
 QUOTA_CATEGORIES = {
     StorageUsageCategory.SOURCE,
     StorageUsageCategory.UPLOAD,
@@ -27,8 +26,10 @@ def counts_toward_quota(category: StorageUsageCategory) -> bool:
     return category in QUOTA_CATEGORIES
 
 
-def assert_quota_available(account: StorageUsageAccount, bytes_count: int) -> None:
-    if account.used_bytes + account.reserved_bytes + bytes_count <= account.quota_limit_bytes:
+def assert_quota_available(
+    account: StorageUsageAccount, bytes_count: int, *, limit_bytes: int
+) -> None:
+    if account.used_bytes + account.reserved_bytes + bytes_count <= limit_bytes:
         return
     raise ValidationException(
         ErrorCode.STORAGE_QUOTA_EXCEEDED,
@@ -37,7 +38,7 @@ def assert_quota_available(account: StorageUsageAccount, bytes_count: int) -> No
             "used_bytes": account.used_bytes,
             "reserved_bytes": account.reserved_bytes,
             "requested_bytes": bytes_count,
-            "limit_bytes": account.quota_limit_bytes,
+            "limit_bytes": limit_bytes,
         },
     )
 
@@ -100,9 +101,10 @@ def apply_reservation_hold(
     counter: StorageUsageCounter,
     bytes_count: int,
     counts_toward_quota: bool,
+    limit_bytes: int,
 ) -> None:
     if counts_toward_quota:
-        assert_quota_available(account, bytes_count)
+        assert_quota_available(account, bytes_count, limit_bytes=limit_bytes)
         account.reserved_bytes += bytes_count
         account.updated_at = utc_now()
     counter.reserved_bytes += bytes_count

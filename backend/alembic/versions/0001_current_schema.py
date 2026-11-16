@@ -343,19 +343,15 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("scheduler_name", name="pk_scheduler_leader_statuses"),
     )
     op.create_table(
-        "storage_quota_policies",
-        sa.Column(
-            "id",
-            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
-            autoincrement=True,
-            nullable=False,
-        ),
+        "storage_plan_policies",
         sa.Column("plan_code", sa.String(length=64), nullable=False),
-        sa.Column("quota_limit_bytes", sa.BigInteger(), nullable=False),
+        sa.Column("default_limit_bytes", sa.BigInteger(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
-        sa.PrimaryKeyConstraint("id", name="pk_storage_quota_policies"),
-        sa.UniqueConstraint("plan_code", name="uq_storage_quota_policies_plan_code"),
+        sa.CheckConstraint(
+            "default_limit_bytes >= 0", name="ck_storage_plan_policies_default_limit_non_negative"
+        ),
+        sa.PrimaryKeyConstraint("plan_code", name="pk_storage_plan_policies"),
     )
     op.create_table(
         "stored_objects",
@@ -1085,17 +1081,36 @@ def upgrade() -> None:
         sa.UniqueConstraint("folder_uuid", name="uq_score_library_folders_folder_uuid"),
     )
     op.create_table(
-        "storage_usage_accounts",
+        "user_storage_entitlements",
         sa.Column("user_id", sa.BigInteger(), nullable=False),
         sa.Column("plan_code", sa.String(length=64), nullable=False),
-        sa.Column("used_bytes", sa.BigInteger(), nullable=False),
-        sa.Column("reserved_bytes", sa.BigInteger(), nullable=False),
-        sa.Column("quota_limit_bytes", sa.BigInteger(), nullable=False),
+        sa.Column("limit_override_bytes", sa.BigInteger(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.CheckConstraint(
-            "quota_limit_bytes >= 0", name="ck_storage_usage_accounts_limit_non_negative"
+            "limit_override_bytes IS NULL OR limit_override_bytes >= 0",
+            name="ck_user_storage_entitlements_override_non_negative",
         ),
+        sa.ForeignKeyConstraint(
+            ["plan_code"],
+            ["storage_plan_policies.plan_code"],
+            name="fk_user_storage_entitlements_plan_code_storage_plan_policies",
+        ),
+        sa.ForeignKeyConstraint(
+            ["user_id"],
+            ["users.id"],
+            name="fk_user_storage_entitlements_user_id_users",
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("user_id", name="pk_user_storage_entitlements"),
+    )
+    op.create_table(
+        "storage_usage_accounts",
+        sa.Column("user_id", sa.BigInteger(), nullable=False),
+        sa.Column("used_bytes", sa.BigInteger(), nullable=False),
+        sa.Column("reserved_bytes", sa.BigInteger(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.CheckConstraint(
             "reserved_bytes >= 0", name="ck_storage_usage_accounts_reserved_non_negative"
         ),
@@ -2509,7 +2524,7 @@ def upgrade() -> None:
     )
     op.execute(
         sa.text(
-            "INSERT INTO storage_quota_policies (plan_code, quota_limit_bytes, created_at, updated_at) VALUES ('FREE', 104857600, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            "INSERT INTO storage_plan_policies (plan_code, default_limit_bytes, created_at, updated_at) VALUES ('FREE', 104857600, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
         )
     )
 
@@ -2674,6 +2689,7 @@ def downgrade() -> None:
     op.drop_index("idx_storage_usage_counters_user", table_name="storage_usage_counters")
     op.drop_table("storage_usage_counters")
     op.drop_table("storage_usage_accounts")
+    op.drop_table("user_storage_entitlements")
     op.drop_table("score_library_folders")
     op.drop_index("idx_refresh_tokens_user_created", table_name="refresh_tokens")
     op.drop_index("idx_refresh_tokens_revoked", table_name="refresh_tokens")
@@ -2728,7 +2744,7 @@ def downgrade() -> None:
     op.drop_table("operator_identities")
     op.drop_index("ix_stored_objects_sha256", table_name="stored_objects")
     op.drop_table("stored_objects")
-    op.drop_table("storage_quota_policies")
+    op.drop_table("storage_plan_policies")
     op.drop_table("scheduler_leader_statuses")
     op.drop_index("idx_scheduler_heartbeats_last_success", table_name="scheduler_heartbeats")
     op.drop_index("idx_scheduler_heartbeats_job_key", table_name="scheduler_heartbeats")

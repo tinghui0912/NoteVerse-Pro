@@ -4,7 +4,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models import (
-    StorageQuotaPolicy,
+    StoragePlanPolicy,
+    UserStorageEntitlement,
     StorageUsageAccount,
     StorageUsageCategory,
     StorageUsageCounter,
@@ -13,6 +14,18 @@ from app.db.models import (
 
 
 class StorageUsageRepository:
+    def entitlement(
+        self, db: Session, user_id: int, *, lock: bool = False
+    ) -> UserStorageEntitlement | None:
+        statement = (
+            select(UserStorageEntitlement)
+            .where(UserStorageEntitlement.user_id == user_id)
+            .execution_options(populate_existing=True)
+        )
+        if lock:
+            statement = statement.with_for_update()
+        return db.execute(statement).scalar_one_or_none()
+
     def account(
         self, db: Session, user_id: int, *, lock: bool = False
     ) -> StorageUsageAccount | None:
@@ -21,9 +34,11 @@ class StorageUsageRepository:
             statement = statement.with_for_update().execution_options(populate_existing=True)
         return db.execute(statement).scalar_one_or_none()
 
-    def policy(self, db: Session, plan_code: str) -> StorageQuotaPolicy | None:
+    def plan_policy(self, db: Session, plan_code: str) -> StoragePlanPolicy | None:
         return db.execute(
-            select(StorageQuotaPolicy).where(StorageQuotaPolicy.plan_code == plan_code)
+            select(StoragePlanPolicy)
+            .where(StoragePlanPolicy.plan_code == plan_code)
+            .execution_options(populate_existing=True)
         ).scalar_one_or_none()
 
     def counter(

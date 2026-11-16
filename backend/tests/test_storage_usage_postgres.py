@@ -11,9 +11,10 @@ from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import FileException, ValidationException
+from tests.support.storage_state import provision_storage_users
 from app.db.models import (
     ObjectWriteIntent,
-    StorageQuotaPolicy,
+    StoragePlanPolicy,
     StorageUsageAccount,
     StorageUsageCategory,
     StorageUsageCounter,
@@ -46,7 +47,9 @@ OPERATIONS = [
 def accounting(retirement_postgres):
     engine, _, _ = retirement_postgres
     with Session(engine) as db:
-        db.add(StorageQuotaPolicy(plan_code="FREE", quota_limit_bytes=10000))
+        db.add(StoragePlanPolicy(plan_code="FREE", default_limit_bytes=10000))
+        db.flush()
+        provision_storage_users(db)
         db.commit()
     return retirement_postgres
 
@@ -122,7 +125,7 @@ def test_concurrent_quota_holds_read_current_accounting_under_the_row_lock(accou
         usage.reserve(
             db, user_id=1, category=StorageUsageCategory.UPLOAD, bytes_count=4, reason="first"
         )
-        db.get(StorageUsageAccount, 1).quota_limit_bytes = 10
+        db.get(StoragePlanPolicy, "FREE").default_limit_bytes = 10
         db.commit()
     ready = Event()
     pid = []

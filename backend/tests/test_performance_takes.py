@@ -49,7 +49,8 @@ from app.db.models import (
     PracticeBundleStatus,
     Score,
     ScoreRevision,
-    StorageQuotaPolicy,
+    StoragePlanPolicy,
+    UserStorageEntitlement,
     StorageUsageAccount,
     StorageUsageCategory,
     StorageUsageCounter,
@@ -506,26 +507,25 @@ def test_env(
         session.add(user_2)
         session.flush()
 
-        policy = StorageQuotaPolicy(
+        policy = StoragePlanPolicy(
             plan_code="FREE",
-            quota_limit_bytes=100 * 1024 * 1024,  # 100MB
+            default_limit_bytes=100 * 1024 * 1024,  # 100MB
         )
         session.add(policy)
 
         account_1 = StorageUsageAccount(
             user_id=1,
-            plan_code="FREE",
-            quota_limit_bytes=100 * 1024 * 1024,
             used_bytes=0,
             reserved_bytes=0,
         )
         account_2 = StorageUsageAccount(
             user_id=2,
-            plan_code="FREE",
-            quota_limit_bytes=100 * 1024 * 1024,
             used_bytes=0,
             reserved_bytes=0,
         )
+        session.flush()
+        session.add(UserStorageEntitlement(user_id=1, plan_code="FREE"))
+        session.add(UserStorageEntitlement(user_id=2, plan_code="FREE"))
         session.add(account_1)
         session.add(account_2)
 
@@ -1275,8 +1275,7 @@ def test_quota_rejection(test_env):
     client = PerformanceTakeTestClient(app)
 
     try:
-        account = session.get(StorageUsageAccount, 1)
-        account.quota_limit_bytes = 1024 * 1024
+        session.get(UserStorageEntitlement, 1).limit_override_bytes = 1024 * 1024
         session.commit()
         excessive_size = 2 * 1024 * 1024
         auth_req = {
@@ -3774,7 +3773,9 @@ def test_reservation_capacity_uses_exact_available_quota(test_env, available_del
         bytes_count=held_bytes,
         reason="another_upload",
     )
-    account.quota_limit_bytes = account.used_bytes + held_bytes + requested_bytes + available_delta
+    session.get(UserStorageEntitlement, 1).limit_override_bytes = (
+        account.used_bytes + held_bytes + requested_bytes + available_delta
+    )
     session.commit()
     request = _upload_intent()
     request["media"]["byte_size"] = requested_bytes

@@ -1,5 +1,7 @@
 """Physical prewrite may race; semantic adoption and completion have one fenced commit."""
 
+from tests.support.storage_state import provision_storage_users
+
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from datetime import timedelta
@@ -69,6 +71,7 @@ def generation(request, monkeypatch, tmp_path):
             user = User(email="adoption@example.test", password_hash="hash")
             db.add(user)
             db.flush()
+            provision_storage_users(db)
             physical = StoredObject(
                 object_key="source",
                 byte_size=len(content),

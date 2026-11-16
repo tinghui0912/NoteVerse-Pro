@@ -45,7 +45,7 @@ from app.db.models import (
     ScoreRevisionNote,
     ScoreRevisionSource,
     StoredObject,
-    StorageQuotaPolicy,
+    StoragePlanPolicy,
     StorageUsageCounter,
     StorageUsageCategory,
     ScoreLibraryOrganization,
@@ -95,6 +95,7 @@ from app.shared.constants import ErrorCode
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from tests.support.object_storage import InMemoryObjectStorage
 from app.shared.time import utc_now
+from tests.support.storage_state import provision_storage_users
 
 MUSICXML_1 = b"""<?xml version='1.0'?><score-partwise version='4.0'>
 <part-list><score-part id='P1'><part-name>Piano</part-name></score-part></part-list>
@@ -208,14 +209,16 @@ def score_service_session(
                     display_name="other",
                     password_hash="hash",
                 ),
-                StorageQuotaPolicy(
+                StoragePlanPolicy(
                     plan_code="FREE",
-                    quota_limit_bytes=100 * 1024 * 1024,
+                    default_limit_bytes=100 * 1024 * 1024,
                     created_at=utc_now(),
                     updated_at=utc_now(),
                 ),
             ]
         )
+        session.flush()
+        provision_storage_users(session)
         session.commit()
         yield session, storage
     engine.dispose()

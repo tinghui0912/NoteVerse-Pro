@@ -1,5 +1,7 @@
 """Real Session Import HTTP admission, bulk projection and idempotency."""
 
+from tests.support.storage_state import provision_storage_users
+
 from app.shared.time import utc_now
 
 from datetime import UTC
@@ -82,6 +84,7 @@ def application_db(postgres_url, monkeypatch):
                 ]
             )
             db.flush()
+            provision_storage_users(db)
             db.add_all(
                 [
                     Upload(

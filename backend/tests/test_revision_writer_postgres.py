@@ -1,5 +1,7 @@
 """Canonical admission, transactional consequences and metadata fencing on real PostgreSQL."""
 
+from tests.support.storage_state import provision_storage_users
+
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from dataclasses import replace
@@ -98,6 +100,8 @@ def database(monkeypatch):
                     ImportDispatch(job_id=1, status=ImportDispatchStatus.COMPLETED),
                 ]
             )
+            db.flush()
+            provision_storage_users(db)
             db.commit()
         yield engine, InMemoryObjectStorage()
 

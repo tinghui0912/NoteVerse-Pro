@@ -1,5 +1,7 @@
 """Real PostgreSQL retirement/reference fences across independent connections."""
 
+from app.db.models import StoragePlanPolicy, UserStorageEntitlement
+
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from time import monotonic, sleep
@@ -74,11 +76,13 @@ def seed(fixture, *, prior_owner=False, queued=True):
         db.add(obj)
         db.flush()
         identity = obj.id
+        if db.get(StoragePlanPolicy, "FREE") is None:
+            db.add(StoragePlanPolicy(plan_code="FREE", default_limit_bytes=1048576))
+            db.flush()
+        db.add(UserStorageEntitlement(user_id=1, plan_code="FREE"))
         db.add(
             StorageUsageAccount(
                 user_id=1,
-                plan_code="FREE",
-                quota_limit_bytes=1048576,
                 used_bytes=len(CONTENT) if prior_owner else 0,
                 reserved_bytes=0,
             )

@@ -6,14 +6,12 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import ResourceNotFoundException, ValidationException
 from app.db.models import (
-    StorageQuotaPolicy,
     StorageUsageAccount,
     StorageUsageCategory,
     StorageUsageCounter,
     StorageUsageReservationStatus,
 )
 from app.modules.storage_usage.accounting import (
-    DEFAULT_PLAN_CODE,
     apply_reservation_hold,
     commit_reserved_usage,
     counts_toward_quota,
@@ -23,6 +21,10 @@ from app.modules.storage_usage.accounting import (
     release_used_usage,
 )
 from app.modules.storage_usage.repository import StorageUsageRepository
+from app.modules.storage_usage.entitlements import (
+    quota_check_unavailable,
+    EffectiveStorageEntitlement,
+)
 from app.modules.storage_usage.schemas import (
     StorageUsageBreakdownRead,
     StorageUsageQuotaRead,
@@ -43,7 +45,8 @@ class StorageUsageService:
         self.repository = repository or StorageUsageRepository()
 
     def get_usage(self, db: Session, user_id: int) -> StorageUsageRead:
-        account = self._ensure_account(db, user_id, lock=False)
+        effective = self._effective_entitlement(db, user_id, lock=False)
+        account = self._require_account(db, user_id, lock=False)
         counters = {counter.category: counter for counter in self.repository.counters(db, user_id)}
         breakdown = [
             StorageUsageBreakdownRead(
@@ -58,9 +61,9 @@ class StorageUsageService:
             quota=StorageUsageQuotaRead(
                 used_bytes=account.used_bytes,
                 reserved_bytes=account.reserved_bytes,
-                limit_bytes=account.quota_limit_bytes,
+                limit_bytes=effective.limit_bytes,
                 available_bytes=max(
-                    account.quota_limit_bytes - account.used_bytes - account.reserved_bytes,
+                    effective.limit_bytes - account.used_bytes - account.reserved_bytes,
                     0,
                 ),
             ),
@@ -85,7 +88,8 @@ class StorageUsageService:
                 field="bytes_count",
                 details={"bytes_count": bytes_count},
             )
-        account = self._ensure_account(db, user_id, lock=True)
+        effective = self._effective_entitlement(db, user_id, lock=True)
+        account = self._require_account(db, user_id, lock=True)
         counter = self._ensure_counter(db, user_id, category, lock=True)
         counts_toward_quota_value = counts_toward_quota(category)
         apply_reservation_hold(
@@ -93,6 +97,7 @@ class StorageUsageService:
             counter=counter,
             bytes_count=bytes_count,
             counts_toward_quota=counts_toward_quota_value,
+            limit_bytes=effective.limit_bytes,
         )
         reservation = new_reservation(
             user_id=user_id,
@@ -122,7 +127,7 @@ class StorageUsageService:
             raise ResourceNotFoundException("storage_usage_reservation", reservation_id)
         if reservation.status != StorageUsageReservationStatus.RESERVED:
             return
-        account = self._ensure_account(db, reservation.user_id, lock=True)
+        account = self._require_account(db, reservation.user_id, lock=True)
         counter = self._ensure_counter(db, reservation.user_id, reservation.category, lock=True)
         commit_reserved_usage(
             account=account,
@@ -154,7 +159,7 @@ class StorageUsageService:
         reservation = self.repository.reservation(db, reservation_id, lock=True)
         if reservation is None or reservation.status != StorageUsageReservationStatus.RESERVED:
             return
-        account = self._ensure_account(db, reservation.user_id, lock=True)
+        account = self._require_account(db, reservation.user_id, lock=True)
         counter = self._ensure_counter(db, reservation.user_id, reservation.category, lock=True)
         release_reserved_usage(account=account, counter=counter, reservation=reservation)
         db.flush()
@@ -205,7 +210,7 @@ class StorageUsageService:
     ) -> None:
         if bytes_count <= 0:
             return
-        account = self._ensure_account(db, user_id, lock=True)
+        account = self._require_account(db, user_id, lock=True)
         counter = self._ensure_counter(db, user_id, category, lock=True)
         counts_toward_quota_value = counts_toward_quota(category)
         released = release_used_usage(
@@ -228,22 +233,25 @@ class StorageUsageService:
         )
         db.flush()
 
-    def _ensure_account(self, db: Session, user_id: int, *, lock: bool) -> StorageUsageAccount:
-        account = self.repository.account(db, user_id, lock=lock)
-        if account is not None:
-            return account
-        policy = self._require_default_policy(db)
-        account = StorageUsageAccount(
-            user_id=user_id,
-            plan_code=policy.plan_code,
-            used_bytes=0,
-            reserved_bytes=0,
-            quota_limit_bytes=policy.quota_limit_bytes,
-            created_at=utc_now(),
-            updated_at=utc_now(),
+    def _effective_entitlement(
+        self, db: Session, user_id: int, *, lock: bool
+    ) -> EffectiveStorageEntitlement:
+        entitlement = self.repository.entitlement(db, user_id, lock=lock)
+        if entitlement is None:
+            raise quota_check_unavailable("user_storage_entitlement")
+        policy = self.repository.plan_policy(db, entitlement.plan_code)
+        if policy is None:
+            raise quota_check_unavailable("storage_plan_policy")
+        limit = entitlement.limit_override_bytes
+        return EffectiveStorageEntitlement(
+            plan_code=entitlement.plan_code,
+            limit_bytes=policy.default_limit_bytes if limit is None else limit,
         )
-        db.add(account)
-        db.flush()
+
+    def _require_account(self, db: Session, user_id: int, *, lock: bool) -> StorageUsageAccount:
+        account = self.repository.account(db, user_id, lock=lock)
+        if account is None:
+            raise quota_check_unavailable("storage_usage_account")
         return account
 
     def _ensure_counter(
@@ -267,16 +275,6 @@ class StorageUsageService:
         db.add(counter)
         db.flush()
         return counter
-
-    def _require_default_policy(self, db: Session) -> StorageQuotaPolicy:
-        policy = self.repository.policy(db, DEFAULT_PLAN_CODE)
-        if policy is not None:
-            return policy
-        raise ResourceNotFoundException(
-            "storage_quota_policy",
-            DEFAULT_PLAN_CODE,
-            ErrorCode.QUOTA_CHECK_UNAVAILABLE,
-        )
 
 
 storage_usage_service = StorageUsageService()

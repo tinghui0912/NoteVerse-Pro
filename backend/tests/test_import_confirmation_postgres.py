@@ -1,5 +1,7 @@
 """Import confirmation commits provenance, revision admission, notification enrichment and release together."""
 
+from tests.support.storage_state import provision_storage_users
+
 from concurrent.futures import ThreadPoolExecutor
 from queue import Queue
 from threading import Event, Barrier
@@ -58,6 +60,8 @@ def confirmation(monkeypatch):
         storage = InMemoryObjectStorage()
         with Session(engine) as db:
             db.add(User(id=1, email="confirm@example.test", password_hash="hash"))
+            db.flush()
+            provision_storage_users(db)
             db.flush()
             job = ImportJob(
                 processing_started_at=utc_now(),

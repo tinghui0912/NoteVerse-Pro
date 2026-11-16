@@ -100,6 +100,14 @@ Account Avatar, Uploads, Review confirmation/source replacement/thumbnail, Revis
 
 ObjectStorage is not part of a database transaction. Safety comes from durable operation state, row locks across physical IO, immutable keys, idempotent operations and retry. There is no distributed atomic commit.
 
+## Entitlement and accounting
+
+[Storage usage](storage-usage.md) owns current plan defaults, user entitlement,
+quota admission and aggregate/category accounting. Effective limits are derived
+from the current entitlement and plan; usage accounts hold byte totals only.
+Semantic allocation/release accounting participates in the domain transaction,
+independently of physical retirement completion.
+
 ## Semantic release and durable retirement
 
 StoredObject may be shared across domains by exact physical identity. The real semantic foreign keys are the ownership authority; `modules/storage_objects/references.py` enumerates every such reference. Physical deletion never follows a local-domain-only reference count.

@@ -3,7 +3,7 @@ from app.db.models import StoredObject
 
 import pytest
 
-from app.db.models import Score, ScoreRevision, ScoreRevisionSource, User
+from app.db.models import Score, ScoreRevision, ScoreRevisionSource, User, StoragePlanPolicy
 from app.db.models.score import RevisionOrigin, RevisionSourceFormat
 from scripts import seed_integration_user
 from tests.test_stored_object_retirement_postgres import retirement_postgres as retirement_postgres
@@ -19,11 +19,11 @@ async def test_seed_source_reservation_and_revision_have_explicit_durable_bounda
     from sqlalchemy import select
     from sqlalchemy.orm import Session
     from sqlalchemy.orm import sessionmaker
-    from app.db.models import StorageQuotaPolicy, StorageUsageAccount, StorageUsageReservation
+    from app.db.models import StoragePlanPolicy, StorageUsageAccount, StorageUsageReservation
 
     engine, _, storage = retirement_postgres
     with Session(engine) as db:
-        db.add(StorageQuotaPolicy(plan_code="FREE", quota_limit_bytes=10000))
+        db.add(StoragePlanPolicy(plan_code="FREE", default_limit_bytes=10000))
         db.commit()
     monkeypatch.setattr(
         seed_integration_user,
@@ -103,9 +103,13 @@ class _FakeSeedSession:
         return None
 
     def execute(self, _statement: object) -> _Result:
+        if _statement.column_descriptions[0].get("entity") is StoragePlanPolicy:
+            return _Result(StoragePlanPolicy(plan_code="FREE", default_limit_bytes=104857600))
         return _Result(self._values.pop(0))
 
     def add(self, value: object) -> None:
+        if isinstance(value, User) and value.id is None:
+            value.id = 101
         self.added.append(value)
 
     def flush(self) -> None:

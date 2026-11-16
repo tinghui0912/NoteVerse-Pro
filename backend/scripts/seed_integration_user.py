@@ -14,6 +14,7 @@ from sqlmodel import select
 
 from app.core.security import get_password_hash
 from app.db.models import Score, ScoreRevision, ScoreRevisionSource, User
+from app.db.model_utils import require_persisted_id
 from app.db.models.score import RevisionOrigin, RevisionSourceFormat
 from app.modules.revisions.writer import (
     revision_writer,
@@ -22,6 +23,7 @@ from app.modules.revisions.writer import (
 )
 from app.modules.storage_objects.writes import write_object
 from app.modules.storage_usage.service import storage_usage_service
+from app.modules.storage_usage.entitlements import provision_default_storage_state
 from app.db.models import StorageUsageCategory
 from app.processing.musicxml.admission import admit_musicxml_document
 from app.db.session import SessionLocal
@@ -66,6 +68,8 @@ def seed_user() -> None:
                     "refusing to modify an existing development account."
                 )
         session.flush()
+        if created_user:
+            provision_default_storage_state(session, require_persisted_id(user.id, entity="user"))
 
         score = (
             session.execute(select(Score).where(Score.score_uuid == INTEGRATION_PRACTICE_SCORE_ID))
