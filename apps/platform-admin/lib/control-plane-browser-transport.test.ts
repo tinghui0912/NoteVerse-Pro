@@ -62,8 +62,6 @@ it("current operator, summary and audit return generated representations", async
 
 it.each([
   { code: "token_invalid_expired", request_id: "server-request" },
-  { code: "", request_id: "a" },
-  { code: "server_code".repeat(500), request_id: "a".repeat(128) },
 ])("preserves canonical application failure facts from the server", async body => {
   const fetch = vi.fn().mockResolvedValue(json(body, 401));
   vi.stubGlobal("fetch", fetch);
@@ -73,6 +71,11 @@ it.each([
 });
 
 it.each([
+  () => json({ code: "", request_id: "a" }, 401),
+  () => json({ code: "server_code", request_id: "a" }, 401),
+  () => json({ code: "server_code".repeat(500), request_id: "a".repeat(128) }, 401),
+  () => json({ code: "validation_error", request_id: "_invalid" }, 422),
+  () => json({ code: "validation_error", request_id: "a", private: "secret" }, 422),
   () => new Response("<html>private proxy detail</html>", { status: 502 }),
   () => new Response("{invalid private JSON", { status: 503, headers: { "content-type": "application/json" } }),
   () => json({ detail: "private traceback", code: "server_code", request_id: "forged-body-correlation" }, 500),

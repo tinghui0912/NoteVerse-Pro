@@ -186,11 +186,11 @@ def test_admission_materialization_preserves_effective_playback_offset(flag, pos
     ],
 )
 def test_admission_rejects_invalid_sound_positions_before_returning_trusted_bytes(notation):
-    from app.shared.constants import ErrorCode
+    from app.shared.error_codes import CustomerErrorCode
 
     with pytest.raises(ValidationException) as caught:
         admit_musicxml_document(score(notation + rest(8)).encode())
-    assert caught.value.code == ErrorCode.REVISION_CONTENT_INVALID
+    assert caught.value.code == CustomerErrorCode.REVISION_CONTENT_INVALID
 
 
 @pytest.mark.parametrize("flag", ["", ' sound="no"'])

@@ -52,7 +52,7 @@ from app.modules.scores.genres import ScoreGenre
 from app.processing.musicxml.admission import admit_musicxml_document
 from app.modules.import_jobs.schemas import processing_options_adapter
 from app.modules.storage_usage.service import storage_usage_service
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from app.storage import object_storage
 from app.shared.time import utc_now
@@ -104,9 +104,9 @@ class ImportReviewService:
             )
         ).scalar_one_or_none()
         if not job:
-            raise ResourceNotFoundException("job", job_uuid, ErrorCode.JOB_NOT_FOUND)
+            raise ResourceNotFoundException("job", job_uuid, CustomerErrorCode.JOB_NOT_FOUND)
         if job.user_id != user_id:
-            raise UnauthorizedException(ErrorCode.NO_ACCESS, {"job_id": job_uuid})
+            raise UnauthorizedException(CustomerErrorCode.NO_ACCESS, {"job_id": job_uuid})
         if dispatch is None:
             raise RuntimeError("Import job requires a durable dispatch")
         if job.score_id is not None:
@@ -115,7 +115,7 @@ class ImportReviewService:
                 return ReviewConfirmRead(score_id=score.score_uuid)
         if job.state != ImportJobState.READY_FOR_REVIEW:
             raise ConflictException(
-                ErrorCode.VALIDATION_ERROR,
+                CustomerErrorCode.VALIDATION_ERROR,
                 {"job_id": job_uuid, "state": job.state.value},
             )
 
@@ -175,7 +175,7 @@ class ImportReviewService:
                 )
             ).scalar_one_or_none()
             if job is None:
-                raise ResourceNotFoundException("job", job_uuid, ErrorCode.JOB_NOT_FOUND)
+                raise ResourceNotFoundException("job", job_uuid, CustomerErrorCode.JOB_NOT_FOUND)
             if job.score_id is not None:
                 existing = db.get(Score, job.score_id)
                 if existing is not None:
@@ -183,7 +183,7 @@ class ImportReviewService:
                     db.commit()
                     return ReviewConfirmRead(score_id=existing.score_uuid)
             if job.user_id != user_id or job.state != ImportJobState.READY_FOR_REVIEW:
-                raise ConflictException(ErrorCode.VALIDATION_ERROR, {"job_id": job_uuid})
+                raise ConflictException(CustomerErrorCode.VALIDATION_ERROR, {"job_id": job_uuid})
             score = Score(
                 score_uuid=score_uuid,
                 owner_user_id=user_id,
@@ -273,12 +273,12 @@ class ImportReviewService:
             db.execute(select(ImportJob).where(ImportJob.job_uuid == job_uuid).with_for_update())
         ).scalar_one_or_none()
         if not job:
-            raise ResourceNotFoundException("job", job_uuid, ErrorCode.JOB_NOT_FOUND)
+            raise ResourceNotFoundException("job", job_uuid, CustomerErrorCode.JOB_NOT_FOUND)
         if job.user_id != user_id:
-            raise UnauthorizedException(ErrorCode.NO_ACCESS, {"job_id": job_uuid})
+            raise UnauthorizedException(CustomerErrorCode.NO_ACCESS, {"job_id": job_uuid})
         if job.state != ImportJobState.READY_FOR_REVIEW:
             raise ConflictException(
-                ErrorCode.VALIDATION_ERROR,
+                CustomerErrorCode.VALIDATION_ERROR,
                 {"job_id": job_uuid, "state": job.state.value},
             )
 
@@ -297,7 +297,9 @@ class ImportReviewService:
             )
         ).scalar_one_or_none()
         if artifact is None:
-            raise ResourceNotFoundException("import_artifact", job_uuid, ErrorCode.XML_NOT_FOUND)
+            raise ResourceNotFoundException(
+                "import_artifact", job_uuid, CustomerErrorCode.XML_NOT_FOUND
+            )
 
         stored = write_object(
             db,
@@ -315,7 +317,7 @@ class ImportReviewService:
             )
         ).scalar_one()
         if job.user_id != user_id or job.state != ImportJobState.READY_FOR_REVIEW:
-            raise ConflictException(ErrorCode.VALIDATION_ERROR, {"job_id": job_uuid})
+            raise ConflictException(CustomerErrorCode.VALIDATION_ERROR, {"job_id": job_uuid})
         artifact = (
             db.execute(
                 select(ImportArtifact)

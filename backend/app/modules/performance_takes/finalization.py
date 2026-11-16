@@ -11,7 +11,7 @@ from app.core.exceptions import (
 )
 from app.core.logger import logger
 from app.modules.storage_usage.service import StorageUsageService
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.storage import ObjectStorage
 from app.storage.factory import object_storage
 from app.shared.time import utc_now
@@ -83,7 +83,7 @@ class PerformanceTakeFinalizationService:
                 )
             db.commit()
             raise ValidationException(
-                ErrorCode.VALIDATION_ERROR,
+                CustomerErrorCode.VALIDATION_ERROR,
                 field="status",
                 details={"status": state.status.value, "reason": error.code},
             ) from error
@@ -138,7 +138,9 @@ class PerformanceTakeFinalizationService:
                 ) from error
             if isinstance(error, ReservationTransitionError):
                 raise ValidationException(
-                    ErrorCode.VALIDATION_ERROR, field="status", details={"reason": error.code}
+                    CustomerErrorCode.VALIDATION_ERROR,
+                    field="status",
+                    details={"reason": error.code},
                 ) from error
             raise
 

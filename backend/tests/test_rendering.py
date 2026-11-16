@@ -131,15 +131,15 @@ def test_review_target_distinguishes_current_obsolete_and_unavailable_sources(co
 def test_score_render_boundary_preserves_its_public_failure_mapping(monkeypatch):
     from app.core.exceptions import ScoreRenderFailedException
     from app.modules.score_assets import score_revision_rendering
-    from app.shared.constants import ErrorCode
+    from app.shared.error_codes import CustomerErrorCode
 
     def fail(*args, **kwargs):
-        raise renderer.RenderExecutionError(ErrorCode.SCORE_PREVIEW_FAILED)
+        raise renderer.RenderExecutionError(CustomerErrorCode.SCORE_PREVIEW_FAILED)
 
     monkeypatch.setattr(score_revision_rendering, "render_musicxml", fail)
     with pytest.raises(ScoreRenderFailedException) as failure:
         score_revision_rendering.ScoreRevisionRenderService._render_pages(b"xml", "revision")
-    assert failure.value.code == ErrorCode.SCORE_PREVIEW_FAILED
+    assert failure.value.code == CustomerErrorCode.SCORE_PREVIEW_FAILED
 
 
 def test_revision_admission_dedupes_and_reactivates_work_in_the_callers_transaction(

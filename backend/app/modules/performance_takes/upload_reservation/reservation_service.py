@@ -61,7 +61,7 @@ from app.modules.practice.score.domain import PracticeTempoSegment
 
 from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.storage_usage.service import StorageUsageService
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.storage.factory import object_storage
 from app.shared.time import utc_now
 
@@ -136,13 +136,13 @@ class PerformanceTakeReservationService:
             UploadReservationStatus.COMPLETED.value,
         }:
             raise ValidationException(
-                ErrorCode.VALIDATION_ERROR,
+                CustomerErrorCode.VALIDATION_ERROR,
                 field="client_request_id",
                 details={"reason": f"client_request_id_{status.lower()}"},
             )
         if manifest_from_row(reservation.manifest).admitted_upload_metadata != metadata:
             raise ValidationException(
-                ErrorCode.VALIDATION_ERROR,
+                CustomerErrorCode.VALIDATION_ERROR,
                 field="client_request_id",
                 details={"reason": "client_request_id_reuse_conflict"},
             )
@@ -152,14 +152,14 @@ class PerformanceTakeReservationService:
             return reservation_read(reservation)
         if status != UploadReservationStatus.RESERVED.value:
             raise ValidationException(
-                ErrorCode.VALIDATION_ERROR,
+                CustomerErrorCode.VALIDATION_ERROR,
                 field="client_request_id",
                 details={"reason": f"client_request_id_{status.lower()}"},
             )
         if reservation.expires_at <= utc_now():
             self._expire_reservation(db, reservation)
             raise ValidationException(
-                ErrorCode.VALIDATION_ERROR,
+                CustomerErrorCode.VALIDATION_ERROR,
                 field="client_request_id",
                 details={"reason": "client_request_id_expired_use_new_id"},
             )
@@ -195,7 +195,7 @@ class PerformanceTakeReservationService:
         media = media.model_copy(update={"mime_type": normalize_recording_mime(media.mime_type)})
         metadata = metadata.model_copy(update={"media": media})
         if not is_admitted_recording_mime(media.kind, media.mime_type):
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
+            raise ValidationException(CustomerErrorCode.VALIDATION_ERROR, field="media_mime_type")
         existing = self.repository.get_reservation_by_client_request_id(
             db,
             user_id,
@@ -238,7 +238,9 @@ class PerformanceTakeReservationService:
         try:
             plan = resolve_practice_score_plan(score, scope_selection, tempo_selection)
         except PracticePlanningError as error:
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field=error.field) from error
+            raise ValidationException(
+                CustomerErrorCode.VALIDATION_ERROR, field=error.field
+            ) from error
         tempo_plan = PerformanceTakeTempoPlan.model_validate(
             {
                 "selection": asdict(plan.tempo_plan.selection),
@@ -344,7 +346,7 @@ class PerformanceTakeReservationService:
             transition = state.cancel(now=now)
         except ReservationTransitionError as error:
             raise ValidationException(
-                ErrorCode.VALIDATION_ERROR, field="status", details={"reason": error.code}
+                CustomerErrorCode.VALIDATION_ERROR, field="status", details={"reason": error.code}
             ) from error
         apply_reservation_transition(
             self.storage_usage_service, db, reservation, transition, now=now

@@ -8,7 +8,10 @@ text on their side.
 from collections.abc import Mapping
 from typing import Optional
 
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
+from app.core.control_plane_errors import ControlPlaneErrorCode
+
+HttpErrorCode = CustomerErrorCode | ControlPlaneErrorCode
 
 ErrorDetails = Mapping[str, object]
 
@@ -32,7 +35,7 @@ class AppException(Exception):
 
     def __init__(
         self,
-        code: str = ErrorCode.UNKNOWN_ERROR,
+        code: HttpErrorCode = CustomerErrorCode.UNKNOWN_ERROR,
         status_code: int = HTTP_400_BAD_REQUEST,
         details: Optional[ErrorDetails] = None,
     ):
@@ -55,7 +58,7 @@ class AuthenticationException(AppException):
 
     def __init__(
         self,
-        code: str = ErrorCode.AUTH_FAILED,
+        code: HttpErrorCode = CustomerErrorCode.AUTH_FAILED,
         details: Optional[ErrorDetails] = None,
     ):
         super().__init__(
@@ -70,7 +73,7 @@ class UnauthorizedException(AppException):
 
     def __init__(
         self,
-        code: str = ErrorCode.UNAUTHORIZED,
+        code: HttpErrorCode = CustomerErrorCode.UNAUTHORIZED,
         details: Optional[ErrorDetails] = None,
     ):
         super().__init__(
@@ -87,7 +90,7 @@ class ResourceNotFoundException(AppException):
         self,
         resource_type: str,
         resource_id: Optional[str] = None,
-        code: str = ErrorCode.RESOURCE_NOT_FOUND,
+        code: HttpErrorCode = CustomerErrorCode.RESOURCE_NOT_FOUND,
     ):
         details: dict[str, object] = {"resource_type": resource_type}
         if resource_id:
@@ -107,7 +110,7 @@ class ResourceAlreadyExistsException(AppException):
         if details:
             _details.update(details)
         super().__init__(
-            code=ErrorCode.RESOURCE_ALREADY_EXISTS,
+            code=CustomerErrorCode.RESOURCE_ALREADY_EXISTS,
             status_code=HTTP_409_CONFLICT,
             details=_details,
         )
@@ -118,7 +121,7 @@ class ValidationException(AppException):
 
     def __init__(
         self,
-        code: str = ErrorCode.VALIDATION_ERROR,
+        code: HttpErrorCode = CustomerErrorCode.VALIDATION_ERROR,
         field: Optional[str] = None,
         details: Optional[ErrorDetails] = None,
     ):
@@ -139,7 +142,7 @@ class TaskException(AppException):
 
     def __init__(
         self,
-        code: str = ErrorCode.TASK_ERROR,
+        code: HttpErrorCode = CustomerErrorCode.TASK_ERROR,
         task_id: Optional[str] = None,
         details: Optional[ErrorDetails] = None,
     ):
@@ -160,7 +163,7 @@ class FileException(AppException):
 
     def __init__(
         self,
-        code: str = ErrorCode.FILE_ERROR,
+        code: HttpErrorCode = CustomerErrorCode.FILE_ERROR,
         filename: Optional[str] = None,
         details: Optional[ErrorDetails] = None,
     ):
@@ -182,7 +185,7 @@ class ExternalServiceException(AppException):
     def __init__(
         self,
         service: str,
-        code: str = ErrorCode.FEATURE_TEMPORARILY_UNAVAILABLE,
+        code: HttpErrorCode = CustomerErrorCode.FEATURE_TEMPORARILY_UNAVAILABLE,
         details: Optional[ErrorDetails] = None,
     ):
         _details: dict[str, object] = {"service": service}
@@ -200,7 +203,7 @@ class BusinessRuleException(AppException):
 
     def __init__(
         self,
-        code: str = ErrorCode.BUSINESS_RULE_VIOLATION,
+        code: HttpErrorCode = CustomerErrorCode.BUSINESS_RULE_VIOLATION,
         rule: Optional[str] = None,
         details: Optional[ErrorDetails] = None,
     ):
@@ -221,7 +224,7 @@ class ConflictException(AppException):
 
     def __init__(
         self,
-        code: str,
+        code: HttpErrorCode,
         details: Optional[ErrorDetails] = None,
     ):
         super().__init__(
@@ -241,7 +244,7 @@ class PipelineException(AppException):
 
     def __init__(
         self,
-        code: str = ErrorCode.UNKNOWN_ERROR,
+        code: HttpErrorCode = CustomerErrorCode.UNKNOWN_ERROR,
         details: Optional[ErrorDetails] = None,
     ):
         super().__init__(
@@ -255,14 +258,14 @@ class TimeoutException(PipelineException):
     """A pipeline step exceeded its allowed runtime."""
 
     def __init__(self, details: Optional[ErrorDetails] = None):
-        super().__init__(code=ErrorCode.TASK_TIMEOUT, details=details)
+        super().__init__(code=CustomerErrorCode.TASK_TIMEOUT, details=details)
 
 
 class FileNotFoundException(PipelineException):
     """A required input or intermediate file is missing."""
 
     def __init__(self, details: Optional[ErrorDetails] = None):
-        super().__init__(code=ErrorCode.INPUT_FILE_MISSING, details=details)
+        super().__init__(code=CustomerErrorCode.INPUT_FILE_MISSING, details=details)
 
 
 class OmrFailedException(PipelineException):
@@ -270,7 +273,7 @@ class OmrFailedException(PipelineException):
 
     def __init__(
         self,
-        code: str = ErrorCode.SCORE_RECOGNITION_FAILED,
+        code: HttpErrorCode = CustomerErrorCode.SCORE_RECOGNITION_FAILED,
         details: Optional[ErrorDetails] = None,
     ):
         super().__init__(code=code, details=details)
@@ -285,7 +288,7 @@ class ScoreRenderFailedException(ScoreRenderException):
 
     def __init__(
         self,
-        code: str = ErrorCode.SCORE_PREVIEW_FAILED,
+        code: HttpErrorCode = CustomerErrorCode.SCORE_PREVIEW_FAILED,
         details: Optional[ErrorDetails] = None,
     ):
         super().__init__(code=code, details=details)

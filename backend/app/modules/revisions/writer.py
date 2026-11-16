@@ -29,7 +29,7 @@ from app.modules.playback.outbox_service import create_playback_outbox
 from app.modules.revisions.derivatives import RevisionDerivativeOutboxes
 from app.modules.realtime.publisher import score_recipients, publish_change
 from app.modules.notifications.service import notification_service
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.shared.time import utc_now
 
 
@@ -89,7 +89,9 @@ class RevisionWriter:
             .execution_options(populate_existing=True)
         )
         if score is None or score.deleted_at is not None:
-            raise ResourceNotFoundException("score", command.score_uuid, ErrorCode.SCORE_NOT_FOUND)
+            raise ResourceNotFoundException(
+                "score", command.score_uuid, CustomerErrorCode.SCORE_NOT_FOUND
+            )
         score_id = require_persisted_id(score.id, entity="score")
         prepared = command.source
         if (
@@ -134,7 +136,7 @@ class RevisionWriter:
                 or db.scalar(select(ScoreRevision.id).where(ScoreRevision.score_id == score_id))
                 is not None
             ):
-                raise ConflictException(ErrorCode.REVISION_CONFLICT)
+                raise ConflictException(CustomerErrorCode.REVISION_CONFLICT)
             number, origin = 1, command.origin
         else:
             head = self._expected_head(db, score, command.expected_head_uuid)
@@ -149,7 +151,7 @@ class RevisionWriter:
                     raise ResourceNotFoundException(
                         "revision",
                         command.restore.target_revision_uuid,
-                        ErrorCode.REVISION_NOT_FOUND,
+                        CustomerErrorCode.REVISION_NOT_FOUND,
                     )
                 if target.content_hash != prepared.content_hash:
                     raise ValueError("Restore source differs from immutable target")
@@ -281,7 +283,7 @@ class RevisionWriter:
             .execution_options(populate_existing=True)
         )
         if score is None or score.deleted_at is not None:
-            raise ResourceNotFoundException("score", score_uuid, ErrorCode.SCORE_NOT_FOUND)
+            raise ResourceNotFoundException("score", score_uuid, CustomerErrorCode.SCORE_NOT_FOUND)
         if idempotency_key:
             existing = db.scalar(
                 select(ScoreRevision).where(
@@ -305,11 +307,11 @@ class RevisionWriter:
         )
         if expected is None:
             raise ResourceNotFoundException(
-                "revision", expected_head_uuid, ErrorCode.REVISION_NOT_FOUND
+                "revision", expected_head_uuid, CustomerErrorCode.REVISION_NOT_FOUND
             )
         if head is None or head.id != expected.id:
             raise ConflictException(
-                ErrorCode.REVISION_CONFLICT,
+                CustomerErrorCode.REVISION_CONFLICT,
                 {
                     "score_id": score.score_uuid,
                     "expected_head_revision_id": expected_head_uuid,

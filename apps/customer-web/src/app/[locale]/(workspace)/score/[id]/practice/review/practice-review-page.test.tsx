@@ -1219,7 +1219,7 @@ describe('PracticeReviewPage', () => {
         });
       else
         saveMutationMock.mutateAsync.mockRejectedValueOnce(
-          new ApiError(409, 'STORAGE_QUOTA_EXCEEDED', 'STORAGE_QUOTA_EXCEEDED'),
+          new ApiError(409, 'storage_quota_exceeded', 'STORAGE_QUOTA_EXCEEDED'),
         );
       const view = render(
         <PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />,
@@ -1238,7 +1238,7 @@ describe('PracticeReviewPage', () => {
       );
       if (outcome === 'accepted') await screen.findByText('已保存');
       else {
-        await screen.findByText('STORAGE_QUOTA_EXCEEDED');
+        await screen.findByText('storage_quota_exceeded');
         expect(screen.queryByText('已保存')).toBeNull();
         expect(
           screen

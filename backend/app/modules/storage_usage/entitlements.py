@@ -8,7 +8,7 @@ from starlette.status import HTTP_503_SERVICE_UNAVAILABLE
 from app.core.exceptions import AppException
 from app.db.models import StorageUsageAccount, UserStorageEntitlement
 from app.modules.storage_usage.repository import StorageUsageRepository
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 
 
 DEFAULT_STORAGE_PLAN_CODE = "FREE"
@@ -22,7 +22,7 @@ class EffectiveStorageEntitlement:
 
 def quota_check_unavailable(authority: str) -> AppException:
     return AppException(
-        code=ErrorCode.QUOTA_CHECK_UNAVAILABLE,
+        code=CustomerErrorCode.QUOTA_CHECK_UNAVAILABLE,
         status_code=HTTP_503_SERVICE_UNAVAILABLE,
         details={"authority": authority},
     )

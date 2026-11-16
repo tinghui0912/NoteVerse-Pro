@@ -13,7 +13,7 @@ from app.modules.notifications.schemas import (
     NotificationRead,
     NotificationUnreadCountRead,
 )
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.modules.realtime.publisher import publish_change
 from app.shared.time import utc_now
 
@@ -146,14 +146,14 @@ class NotificationService:
     ) -> list[NotificationRead]:
         user = db.get(User, user_id)
         if user is None:
-            raise UnauthorizedException(ErrorCode.NO_ACCESS)
+            raise UnauthorizedException(CustomerErrorCode.NO_ACCESS)
         notifications = self.repository.list_for_user(db, user_id, limit=limit)
         return [self._notification_read(db, notification) for notification in notifications]
 
     def unread_count(self, db: Session, user_id: int) -> NotificationUnreadCountRead:
         user = db.get(User, user_id)
         if user is None:
-            raise UnauthorizedException(ErrorCode.NO_ACCESS)
+            raise UnauthorizedException(CustomerErrorCode.NO_ACCESS)
         return NotificationUnreadCountRead(count=self.repository.unread_count(db, user_id))
 
     def mark_read(self, db: Session, notification_uuid: str, user_id: int) -> NotificationRead:
@@ -165,11 +165,11 @@ class NotificationService:
         )
         if not notification:
             raise ResourceNotFoundException(
-                "notification", notification_uuid, ErrorCode.NOTIFICATION_NOT_FOUND
+                "notification", notification_uuid, CustomerErrorCode.NOTIFICATION_NOT_FOUND
             )
         if notification.recipient_user_id != user_id:
             raise ResourceNotFoundException(
-                "notification", notification_uuid, ErrorCode.NOTIFICATION_NOT_FOUND
+                "notification", notification_uuid, CustomerErrorCode.NOTIFICATION_NOT_FOUND
             )
         if notification.read_at is None:
             notification.read_at = utc_now()

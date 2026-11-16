@@ -21,7 +21,7 @@ it("submits the operator command and navigates after acknowledgement", async () 
   expect(login).toHaveBeenCalledWith({ username: "operator", password: "password" });
 });
 it.each([401, 403, 422])("presents credential copy for a canonical %s application failure", async status => {
-  login.mockRejectedValue(new ControlPlaneApplicationError(status, "server_code", "server-request"));
+  login.mockRejectedValue(new ControlPlaneApplicationError(status, "invalid_credentials", "server-request"));
   submit();
   await waitFor(() => expect(screen.getByRole("alert").textContent).toBe("Sign-in failed. Check your operator credentials."));
   expect(router.replace).not.toHaveBeenCalled();

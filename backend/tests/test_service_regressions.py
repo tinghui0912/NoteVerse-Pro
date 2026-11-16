@@ -28,7 +28,7 @@ from app.modules.import_jobs.pipeline_runner import ImportPipelineRunner
 from app.modules.import_jobs.maintenance_service import ImportJobMaintenanceService
 from app.modules.import_jobs.submission_service import ImportJobSubmissionService
 from app.modules.import_jobs.pipeline.artifact_recorder import _build_file_item
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from tests.support.object_storage import InMemoryObjectStorage
 from app.storage.s3_compatible import S3CompatibleObjectStorage
@@ -386,7 +386,7 @@ def test_import_job_submission_rejects_upload_owned_by_another_user() -> None:
             SimpleNamespace(id=5),
             SimpleNamespace(upload_ids=["abc"], options=None, idempotency_key=None),
         )
-    assert context.value.code == ErrorCode.FILE_NOT_FOUND
+    assert context.value.code == CustomerErrorCode.FILE_NOT_FOUND
     db.rollback.assert_called_once()
     db.commit.assert_not_called()
 
@@ -428,7 +428,7 @@ def test_delete_upload_rejects_non_owner() -> None:
     with pytest.raises(UnauthorizedException) as context:
         service.delete_upload(db, current_user, "upload-1")
 
-    assert context.value.code == ErrorCode.NO_DELETE_ACCESS
+    assert context.value.code == CustomerErrorCode.NO_DELETE_ACCESS
     db.commit.assert_not_called()
 
 

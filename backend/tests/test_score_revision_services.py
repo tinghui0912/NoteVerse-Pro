@@ -91,7 +91,7 @@ from app.modules.notifications.maintenance_service import NotificationMaintenanc
 from app.modules.notifications.service import NotificationService
 from app.db.models import NotificationKind
 from app.modules.realtime.maintenance_service import RealtimeMaintenanceService
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from tests.support.object_storage import InMemoryObjectStorage
 from app.shared.time import utc_now
@@ -626,7 +626,7 @@ def test_import_job_detail_exposes_public_failure_fields_only(
             failure_stage="pipeline",
             failure_classification="user_error",
             failure_retryable=False,
-            failure_detail=ErrorCode.SCORE_RECOGNITION_FAILED,
+            failure_detail=CustomerErrorCode.SCORE_RECOGNITION_FAILED,
         )
     )
     session.add(
@@ -669,9 +669,9 @@ def test_import_job_detail_exposes_public_failure_fields_only(
         ImportJobService().detail(session, "job-unsafe-code-failure", 1)
     ).model_dump(exclude_unset=True)
 
-    assert detail["public_code"] == ErrorCode.SCORE_RECOGNITION_FAILED
+    assert detail["public_code"] == CustomerErrorCode.SCORE_RECOGNITION_FAILED
     assert "failure_detail" not in detail
-    assert raw_detail["public_code"] == ErrorCode.TASK_ERROR
+    assert raw_detail["public_code"] == CustomerErrorCode.TASK_ERROR
     assert "paddleocr" not in str(raw_detail)
     assert "/internal/path" not in str(raw_detail)
     assert unsafe_code_detail["public_code"] is None
@@ -1120,7 +1120,7 @@ def test_revision_snapshots_preserve_noop_replay_and_expected_head_conflict(
                 expected_head_revision_id="revision-1",
             ),
         )
-    assert conflict.value.code == ErrorCode.REVISION_CONFLICT
+    assert conflict.value.code == CustomerErrorCode.REVISION_CONFLICT
     assert conflict.value.details == {
         "score_id": "score-1",
         "expected_head_revision_id": "revision-1",
@@ -2072,7 +2072,7 @@ def test_invite_acceptance_creates_editable_membership(
     assert member_access.capabilities.can_edit is True
     with pytest.raises(ValidationException) as accepted_again:
         service.accept_invite(db, created.token, 2)  # type: ignore[arg-type]
-    assert accepted_again.value.code == ErrorCode.INVITE_ALREADY_ACCEPTED
+    assert accepted_again.value.code == CustomerErrorCode.INVITE_ALREADY_ACCEPTED
 
 
 def test_invite_email_target_is_enforced(
@@ -2104,7 +2104,7 @@ def test_invite_email_target_is_enforced(
     assert count_rows(session, MailOutbox) == 1
     with pytest.raises(ValidationException) as mismatch:
         service.accept_invite(db, created.token, 2)  # type: ignore[arg-type]
-    assert mismatch.value.code == ErrorCode.INVITE_EMAIL_MISMATCH
+    assert mismatch.value.code == CustomerErrorCode.INVITE_EMAIL_MISMATCH
     assert maybe_one_row(session, ScoreMembership, score_id=89, user_id=2) is None
 
 
@@ -2195,7 +2195,7 @@ def test_user_pending_invites_can_be_declined(
             created.invite_id,
             2,
         )
-    assert declined_again.value.code == ErrorCode.INVITE_DECLINED
+    assert declined_again.value.code == CustomerErrorCode.INVITE_DECLINED
 
 
 def test_notifications_are_scoped_and_can_be_marked_read(
@@ -2390,7 +2390,7 @@ def test_expected_head_must_resolve_within_the_score(score_service_session, expe
             1,
             RevisionCreateRequest(content=MUSICXML_2, expected_head_revision_id=expected),
         )
-    assert rejected.value.code == ErrorCode.REVISION_NOT_FOUND
+    assert rejected.value.code == CustomerErrorCode.REVISION_NOT_FOUND
     assert count_rows(session, ScoreRevision, score_id=600) == 1
     assert count_rows(session, ScoreRevisionSource) == 0
     assert count_rows(session, RenderOutbox) == count_rows(session, PlaybackOutbox) == 0
@@ -2492,7 +2492,7 @@ def test_revision_semantic_admission_precedes_reservation_and_durable_put(
             )
         put.assert_not_called()
         reserve.assert_not_called()
-    assert caught.value.code == ErrorCode.REVISION_CONTENT_INVALID
+    assert caught.value.code == CustomerErrorCode.REVISION_CONTENT_INVALID
     assert score.head_revision_id == 401
     assert count_rows(session, ScoreRevision) == 1
     assert count_rows(session, ScoreRevisionSource) == 0
@@ -2558,7 +2558,7 @@ def test_review_semantic_admission_precedes_storage(score_service_session, opera
                 )
         put.assert_not_called()
         reserve.assert_not_called()
-    assert caught.value.code == ErrorCode.REVISION_CONTENT_INVALID
+    assert caught.value.code == CustomerErrorCode.REVISION_CONTENT_INVALID
     assert artifact.stored_object.object_key == original.object_key
     assert storage.read_bytes(original.object_key) == MUSICXML_1
     assert count_rows(session, Score) == count_rows(session, ScoreRevisionSource) == 0

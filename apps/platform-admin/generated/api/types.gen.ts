@@ -127,13 +127,15 @@ export type AsyncOperationsSummaryRead = {
 };
 
 /**
+ * ControlPlaneErrorCode
+ */
+export type ControlPlaneErrorCode = 'validation_error' | 'token_invalid_expired' | 'invalid_credentials' | 'no_access' | 'csrf_token_invalid' | 'request_origin_invalid' | 'resource_not_found' | 'auth_failed' | 'unauthorized' | 'unknown_error' | 'internal_error';
+
+/**
  * ControlPlaneErrorResponse
  */
 export type ControlPlaneErrorResponse = {
-    /**
-     * Code
-     */
-    code: string;
+    code: ControlPlaneErrorCode;
     /**
      * Request Id
      */

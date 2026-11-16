@@ -18,7 +18,7 @@ from app.modules.collaboration.invite_lifecycle import (
     hash_invite_token,
 )
 from app.modules.mail.templates.score_invites import invite_role_label
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 
 NOW = datetime(2026, 8, 11, 8, tzinfo=UTC)
 
@@ -61,7 +61,7 @@ def test_unresolved_effective_status_is_a_pure_time_projection(expiry, expected)
     else:
         with pytest.raises(ValidationException) as error:
             require_pending_invite(row, field="invite_id", now=NOW)
-        assert error.value.code == ErrorCode.INVITE_EXPIRED
+        assert error.value.code == CustomerErrorCode.INVITE_EXPIRED
     assert row.terminal_outcome is row.terminal_at is row.terminal_actor_user_id is None
 
 

@@ -1,6 +1,7 @@
 """Internal HTTP composition root for authoritative durable metrics."""
 
 from app.core.http_application import HttpApplication
+from app.core.http_error_policy import HttpRuntimeErrorCodes
 
 from app.api.runtime_endpoints import install_process_endpoints
 from app.core.config import settings
@@ -8,6 +9,9 @@ from app.core.http_runtime import install_http_runtime
 from app.core.lifespan import create_app_lifespan
 from app.core.logging_setup import configure_uvicorn_logging
 from app.core.runtime_checks import RuntimeRole
+
+from app.shared.error_codes import CustomerErrorCode
+from app.shared.responses import error_response
 
 
 configure_uvicorn_logging()
@@ -25,7 +29,20 @@ def create_app() -> HttpApplication:
         openapi_url=None,
         lifespan=create_app_lifespan(RuntimeRole.OBSERVABILITY_EXPORTER),
     )
-    install_http_runtime(app)
+    install_http_runtime(
+        app,
+        error_response_factory=error_response,
+        error_codes=HttpRuntimeErrorCodes(
+            validation_error=CustomerErrorCode.VALIDATION_ERROR,
+            auth_failed=CustomerErrorCode.AUTH_FAILED,
+            unauthorized=CustomerErrorCode.UNAUTHORIZED,
+            resource_not_found=CustomerErrorCode.RESOURCE_NOT_FOUND,
+            internal_error=CustomerErrorCode.INTERNAL_ERROR,
+            unknown_error=CustomerErrorCode.UNKNOWN_ERROR,
+            csrf_token_invalid=CustomerErrorCode.CSRF_TOKEN_INVALID,
+            request_origin_invalid=CustomerErrorCode.REQUEST_ORIGIN_INVALID,
+        ),
+    )
     install_process_endpoints(
         app,
         include_database_metrics=True,

@@ -142,7 +142,7 @@ def test_import_release_rechecks_locked_job_state(score_service_session, state):
     from sqlalchemy import update
     from sqlalchemy.orm.attributes import set_committed_value
     from app.core.exceptions import ValidationException
-    from app.shared.constants import ErrorCode
+    from app.shared.error_codes import CustomerErrorCode
 
     db, _ = score_service_session
     job = ImportJob(
@@ -186,7 +186,9 @@ def test_import_release_rechecks_locked_job_state(score_service_session, state):
     with pytest.raises(ValidationException) as error:
         ImportJobDeletionService().delete_job(db, job, 1)
     assert error.value.code == (
-        ErrorCode.JOB_RUNNING if state == ImportJobState.PROCESSING else ErrorCode.VALIDATION_ERROR
+        CustomerErrorCode.JOB_RUNNING
+        if state == ImportJobState.PROCESSING
+        else CustomerErrorCode.VALIDATION_ERROR
     )
     assert error.value.details == {"field": "state"}
     assert db.get(ImportJob, job.id).state == state
@@ -196,7 +198,7 @@ def test_import_release_rechecks_locked_job_state(score_service_session, state):
 def test_internal_binary_cleanup_rechecks_locked_running_state(score_service_session):
     from types import SimpleNamespace
     from app.core.exceptions import ValidationException
-    from app.shared.constants import ErrorCode
+    from app.shared.error_codes import CustomerErrorCode
 
     db, _ = score_service_session
     job = ImportJob(
@@ -220,7 +222,7 @@ def test_internal_binary_cleanup_rechecks_locked_running_state(score_service_ses
         ImportJobDeletionService().cleanup_binary_artifacts(
             db, SimpleNamespace(id=job.id, state=ImportJobState.CONFIRMED), 1
         )
-    assert error.value.code == ErrorCode.JOB_RUNNING
+    assert error.value.code == CustomerErrorCode.JOB_RUNNING
     assert db.get(ImportJob, job.id) is not None
 
 
@@ -253,7 +255,7 @@ async def test_customer_delete_http_state_matrix_preserves_owned_data(score_serv
     from httpx import ASGITransport, AsyncClient
     from app.api.deps import get_current_user, get_db
     from app.main import app
-    from app.shared.constants import ErrorCode
+    from app.shared.error_codes import CustomerErrorCode
 
     db, storage = score_service_session
     job = ImportJob(
@@ -351,9 +353,9 @@ async def test_customer_delete_http_state_matrix_preserves_owned_data(score_serv
     assert response.status_code == (204 if allowed else 422), response.text
     if not allowed:
         assert response.json()["code"] == (
-            ErrorCode.JOB_RUNNING
+            CustomerErrorCode.JOB_RUNNING
             if state == ImportJobState.PROCESSING
-            else ErrorCode.VALIDATION_ERROR
+            else CustomerErrorCode.VALIDATION_ERROR
         )
     assert (db.get(ImportJob, job_id) is None) == allowed
     assert (db.scalar(select(ImportDispatch)) is None) == allowed

@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from sqlmodel import select
 
 from app.core.generated.customer_browser_protocol import AUTH_COOKIE_NAME
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.core import security
 from app.core.config import settings
 from app.core.exceptions import (
@@ -43,7 +43,7 @@ def get_current_user(
     token = session_cookie
     if not token:
         raise AuthenticationException(
-            code=ErrorCode.TOKEN_INVALID_EXPIRED,
+            code=CustomerErrorCode.TOKEN_INVALID_EXPIRED,
             details={"reason": "missing_token"},
         )
 
@@ -56,18 +56,18 @@ def get_current_user(
         token_data = TokenPayload(**payload)
     except (jwt.InvalidTokenError, ValidationError):
         raise AuthenticationException(
-            code=ErrorCode.TOKEN_INVALID_EXPIRED,
+            code=CustomerErrorCode.TOKEN_INVALID_EXPIRED,
             details={"reason": "invalid_token"},
         )
 
     if token_data.sub is None:
         raise AuthenticationException(
-            code=ErrorCode.TOKEN_INVALID_EXPIRED,
+            code=CustomerErrorCode.TOKEN_INVALID_EXPIRED,
             details={"reason": "missing_subject"},
         )
     if token_data.typ != "access":
         raise AuthenticationException(
-            code=ErrorCode.TOKEN_INVALID_EXPIRED,
+            code=CustomerErrorCode.TOKEN_INVALID_EXPIRED,
             details={"reason": "invalid_token_type"},
         )
 
@@ -75,7 +75,7 @@ def get_current_user(
         user_id = int(token_data.sub)
     except (TypeError, ValueError):
         raise AuthenticationException(
-            code=ErrorCode.TOKEN_INVALID_EXPIRED,
+            code=CustomerErrorCode.TOKEN_INVALID_EXPIRED,
             details={"reason": "invalid_subject"},
         )
 
@@ -96,18 +96,18 @@ def get_current_user(
         raise ResourceNotFoundException(
             resource_type="user",
             resource_id=str(token_data.sub),
-            code=ErrorCode.USER_NOT_FOUND,
+            code=CustomerErrorCode.USER_NOT_FOUND,
         )
     if not user.is_active:
         raise AuthenticationException(
-            code=ErrorCode.ACCOUNT_INACTIVE,
+            code=CustomerErrorCode.ACCOUNT_INACTIVE,
             details={"user_id": user.id},
         )
     if user.password_changed_at and token_data.iat:
         token_issued_at = datetime.fromtimestamp(token_data.iat, timezone.utc)
         if token_issued_at < user.password_changed_at:
             raise AuthenticationException(
-                code=ErrorCode.TOKEN_INVALID_EXPIRED,
+                code=CustomerErrorCode.TOKEN_INVALID_EXPIRED,
                 details={"reason": "password_changed"},
             )
     return user

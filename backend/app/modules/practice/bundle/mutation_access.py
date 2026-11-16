@@ -14,7 +14,7 @@ from app.modules.score_access.policy import (
     ScoreAccessPolicy,
     ScoreAction,
 )
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 
 
 def lock_live_practice_mutation_access(
@@ -42,7 +42,7 @@ def lock_live_practice_mutation_access(
         )
     ).scalar_one_or_none()
     if score is None:
-        raise ResourceNotFoundException("score", score_uuid, ErrorCode.SCORE_NOT_FOUND)
+        raise ResourceNotFoundException("score", score_uuid, CustomerErrorCode.SCORE_NOT_FOUND)
     revision = (
         db.execute(
             select(ScoreRevision)
@@ -55,7 +55,9 @@ def lock_live_practice_mutation_access(
         )
     ).scalar_one_or_none()
     if revision is None:
-        raise ResourceNotFoundException("revision", revision_uuid, ErrorCode.REVISION_NOT_FOUND)
+        raise ResourceNotFoundException(
+            "revision", revision_uuid, CustomerErrorCode.REVISION_NOT_FOUND
+        )
     access = policy.authorize_revision(
         db, score_uuid, ScoreAction.PRACTICE, user_id=user_id, revision_uuid=revision_uuid
     )
@@ -73,7 +75,7 @@ def lock_live_practice_mutation_access(
             )
         ).scalar_one_or_none()
         if membership is None:
-            raise UnauthorizedException(ErrorCode.NO_PRACTICE_ACCESS)
+            raise UnauthorizedException(CustomerErrorCode.NO_PRACTICE_ACCESS)
     current = policy.authorize_revision(
         db, score_uuid, ScoreAction.PRACTICE, user_id=user_id, revision_uuid=revision_uuid
     )
@@ -81,5 +83,5 @@ def lock_live_practice_mutation_access(
         current.origin,
         current.membership.id if current.membership else None,
     ):
-        raise UnauthorizedException(ErrorCode.NO_PRACTICE_ACCESS)
+        raise UnauthorizedException(CustomerErrorCode.NO_PRACTICE_ACCESS)
     return current

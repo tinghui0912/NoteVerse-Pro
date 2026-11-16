@@ -30,7 +30,7 @@ from app.modules.import_jobs.schemas import (
 from app.modules.import_jobs.submission_service import ImportJobSubmissionService
 from app.modules.import_jobs.read_model import ImportJobReadModel
 from app.storage import object_storage
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 
 
 @dataclass(frozen=True)
@@ -69,7 +69,7 @@ class ImportJobService:
     ) -> ImportJobSubmitResult:
         job = self.get_owned_job(db, job_uuid, user_id)
         if job.state != ImportJobState.FAILED:
-            raise ValidationException(code=ErrorCode.VALIDATION_ERROR, field="state")
+            raise ValidationException(code=CustomerErrorCode.VALIDATION_ERROR, field="state")
         job_id = require_persisted_id(job.id, entity="import job")
         rows = db.execute(
             select(Upload.upload_uuid)
@@ -79,7 +79,9 @@ class ImportJobService:
         )
         upload_ids = list(rows.scalars().all())
         if not upload_ids:
-            raise ResourceNotFoundException("job_upload", job_uuid, ErrorCode.FILE_NOT_FOUND)
+            raise ResourceNotFoundException(
+                "job_upload", job_uuid, CustomerErrorCode.FILE_NOT_FOUND
+            )
         options = (
             processing_options_adapter.validate_python(job.requested_options)
             if job.requested_options is not None
@@ -114,10 +116,12 @@ class ImportJobService:
         job = self.repository.get_by_uuid(db, job_uuid)
         if not job:
             raise ResourceNotFoundException(
-                resource_type="job", resource_id=job_uuid, code=ErrorCode.JOB_NOT_FOUND
+                resource_type="job", resource_id=job_uuid, code=CustomerErrorCode.JOB_NOT_FOUND
             )
         if job.user_id != user_id:
-            raise UnauthorizedException(code=ErrorCode.NO_ACCESS, details={"job_id": job_uuid})
+            raise UnauthorizedException(
+                code=CustomerErrorCode.NO_ACCESS, details={"job_id": job_uuid}
+            )
         return job
 
     def detail(self, db: Session, job_uuid: str, user_id: int) -> ImportJobRead:
@@ -171,7 +175,7 @@ class ImportJobService:
         artifact = self.repository.artifact_by_uuid(db, artifact_uuid)
         if not artifact or artifact.job_id != job.id:
             raise ResourceNotFoundException(
-                "import_artifact", artifact_uuid, ErrorCode.FILE_NOT_FOUND
+                "import_artifact", artifact_uuid, CustomerErrorCode.FILE_NOT_FOUND
             )
         return StoredObjectDelivery.for_object(artifact.stored_object, artifact.filename)
 
@@ -184,7 +188,7 @@ class ImportJobService:
         raw_upload_id = artifact_uuid.removeprefix("upload:")
         if not raw_upload_id.isdigit():
             raise ResourceNotFoundException(
-                "import_upload", artifact_uuid, ErrorCode.FILE_NOT_FOUND
+                "import_upload", artifact_uuid, CustomerErrorCode.FILE_NOT_FOUND
             )
         upload_id = int(raw_upload_id)
         job_id = require_persisted_id(job.id, entity="import job")
@@ -201,7 +205,7 @@ class ImportJobService:
         ).first()
         if row is None:
             raise ResourceNotFoundException(
-                "import_upload", artifact_uuid, ErrorCode.FILE_NOT_FOUND
+                "import_upload", artifact_uuid, CustomerErrorCode.FILE_NOT_FOUND
             )
         _, upload, blob = row
         filename = upload.original_filename

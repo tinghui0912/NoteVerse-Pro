@@ -22,7 +22,7 @@ from app.core.exceptions import (
 )
 from app.main import app
 from app.modules.guest_previews.dependencies import get_guest_preview_service
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.shared.responses import ApiErrorResponse
 
 
@@ -38,40 +38,46 @@ def pydantic_failure():
     "exception,status,code",
     [
         (
-            AppException(code="business_rule_violation", details={"secret": "private"}),
+            AppException(
+                code=CustomerErrorCode.BUSINESS_RULE_VIOLATION, details={"secret": "private"}
+            ),
             400,
             "business_rule_violation",
         ),
-        (AuthenticationException(details={"secret": "private"}), 401, ErrorCode.AUTH_FAILED),
-        (UnauthorizedException(details={"secret": "private"}), 403, ErrorCode.UNAUTHORIZED),
+        (
+            AuthenticationException(details={"secret": "private"}),
+            401,
+            CustomerErrorCode.AUTH_FAILED,
+        ),
+        (UnauthorizedException(details={"secret": "private"}), 403, CustomerErrorCode.UNAUTHORIZED),
         (
             ResourceNotFoundException("private-resource", "internal-id"),
             404,
-            ErrorCode.RESOURCE_NOT_FOUND,
+            CustomerErrorCode.RESOURCE_NOT_FOUND,
         ),
         (
-            ConflictException("revision_conflict", details={"secret": "private"}),
+            ConflictException(CustomerErrorCode.REVISION_CONFLICT, details={"secret": "private"}),
             409,
             "revision_conflict",
         ),
         (
             ResourceAlreadyExistsException("private-resource"),
             409,
-            ErrorCode.RESOURCE_ALREADY_EXISTS,
+            CustomerErrorCode.RESOURCE_ALREADY_EXISTS,
         ),
         (
             ValidationException(field="secret", details={"secret": "private"}),
             422,
-            ErrorCode.VALIDATION_ERROR,
+            CustomerErrorCode.VALIDATION_ERROR,
         ),
-        (pydantic_failure(), 422, ErrorCode.VALIDATION_ERROR),
+        (pydantic_failure(), 422, CustomerErrorCode.VALIDATION_ERROR),
         (
             ExternalServiceException("private-service"),
             503,
-            ErrorCode.FEATURE_TEMPORARILY_UNAVAILABLE,
+            CustomerErrorCode.FEATURE_TEMPORARILY_UNAVAILABLE,
         ),
-        (RuntimeError("private exception details"), 500, ErrorCode.INTERNAL_ERROR),
-        (HTTPException(400, detail={"secret": "private"}), 400, ErrorCode.VALIDATION_ERROR),
+        (RuntimeError("private exception details"), 500, CustomerErrorCode.INTERNAL_ERROR),
+        (HTTPException(400, detail={"secret": "private"}), 400, CustomerErrorCode.VALIDATION_ERROR),
     ],
 )
 def test_application_failure_runtime_matches_openapi(exception, status, code):
@@ -106,7 +112,7 @@ def test_request_validation_matches_the_same_wire_model(client):
     response = client.post("/api/v1/auth/login", headers={"X-Request-ID": "request-validation"})
     assert response.status_code == 422
     assert response.json() == ApiErrorResponse(
-        code=ErrorCode.VALIDATION_ERROR, request_id="request-validation"
+        code=CustomerErrorCode.VALIDATION_ERROR, request_id="request-validation"
     ).model_dump(mode="json")
     assert response.headers["X-Request-ID"] == response.json()["request_id"]
 
@@ -126,7 +132,11 @@ def test_customer_application_operations_declare_canonical_errors(client):
     schema = spec["components"]["schemas"]["ApiErrorResponse"]
     assert set(schema["properties"]) == {"code", "request_id"}
     assert set(schema["required"]) == {"code", "request_id"}
-    assert schema["properties"]["code"]["type"] == "string"
+    assert schema["properties"]["code"] == {"$ref": "#/components/schemas/CustomerErrorCode"}
+    assert set(spec["components"]["schemas"]["CustomerErrorCode"]["enum"]) == {
+        code.value for code in CustomerErrorCode
+    }
+    assert ApiErrorResponse.model_fields["code"].annotation is CustomerErrorCode
     assert schema["properties"]["request_id"]["type"] == "string"
     assert schema["properties"]["request_id"]["minLength"] == 1
 
@@ -157,5 +167,25 @@ def test_framework_resource_errors_use_customer_wire_contract(client):
     )
     assert response.status_code == 404
     assert response.json() == ApiErrorResponse(
-        code=ErrorCode.RESOURCE_NOT_FOUND, request_id="framework-error"
+        code=CustomerErrorCode.RESOURCE_NOT_FOUND, request_id="framework-error"
     ).model_dump(mode="json")
+
+
+@pytest.mark.parametrize("unadmitted", ["programmer_private_code", "revision_conflict"])
+def test_unadmitted_customer_code_fails_closed_in_the_http_handler(monkeypatch, unadmitted):
+    failure = AppException(details={"private": "diagnostic"})
+    monkeypatch.setattr(failure, "code", unadmitted)
+    app.dependency_overrides[get_db] = lambda: object()
+    app.dependency_overrides[get_guest_preview_service] = lambda: type(
+        "Service", (), {"audio": Mock(side_effect=failure)}
+    )()
+    try:
+        with TestClient(app, raise_server_exceptions=False) as client:
+            response = client.get(
+                "/api/v1/guest-previews/token/playback", headers={"X-Request-ID": "closed-error"}
+            )
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+        app.dependency_overrides.pop(get_guest_preview_service, None)
+    assert response.status_code == 400
+    assert response.json() == {"code": "internal_error", "request_id": "closed-error"}

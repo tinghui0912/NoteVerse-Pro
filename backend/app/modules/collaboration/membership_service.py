@@ -13,7 +13,7 @@ from app.modules.collaboration.repository import CollaborationRepository
 from app.modules.collaboration.read_model import CollaborationReadModel
 from app.modules.collaboration.pagination import DEFAULT_PAGE_SIZE
 from app.modules.collaboration.schemas import MemberListRead, MemberRead, MemberUpdateRequest
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.shared.time import utc_now
 
 
@@ -64,7 +64,7 @@ class MembershipService:
         )
         membership = self._membership_for_score(db, access.score, membership_id)
         if membership.revoked_at is not None:
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="membership_id")
+            raise ValidationException(CustomerErrorCode.VALIDATION_ERROR, field="membership_id")
         membership.role = request.role
         db.commit()
         db.refresh(membership)
@@ -76,7 +76,7 @@ class MembershipService:
         )
         membership = self._membership_for_score(db, access.score, membership_id)
         if membership.user_id == access.score.owner_user_id:
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="membership_id")
+            raise ValidationException(CustomerErrorCode.VALIDATION_ERROR, field="membership_id")
         if membership.revoked_at is None:
             membership.revoked_at = utc_now()
         db.commit()
@@ -89,7 +89,7 @@ class MembershipService:
             return
         self.access_policy.authorize_score(db, score_uuid, ScoreAction.LEAVE, user_id=user_id)
         if membership is None:
-            raise UnauthorizedException(ErrorCode.NO_ACCESS)
+            raise UnauthorizedException(CustomerErrorCode.NO_ACCESS)
         membership.revoked_at = utc_now()
         db.commit()
 
@@ -101,6 +101,6 @@ class MembershipService:
             raise ResourceNotFoundException(
                 "score_membership",
                 str(membership_id),
-                ErrorCode.MEMBERSHIP_NOT_FOUND,
+                CustomerErrorCode.MEMBERSHIP_NOT_FOUND,
             )
         return membership

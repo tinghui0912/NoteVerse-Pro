@@ -18,7 +18,7 @@ from app.db.models.score_access import (
 from app.modules.score_access.schemas import ScoreCapabilities
 from app.modules.score_access.roles import membership_capabilities, owner_capabilities
 from app.modules.score_access.queries import active_score_predicate, active_membership_predicate
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 
 
 class ScoreAction(str, enum.Enum):
@@ -57,7 +57,7 @@ class ScoreAccessPolicy:
             select(Score).where(Score.score_uuid == score_uuid, active_score_predicate())
         )
         if score is None:
-            raise ResourceNotFoundException("score", score_uuid, ErrorCode.SCORE_NOT_FOUND)
+            raise ResourceNotFoundException("score", score_uuid, CustomerErrorCode.SCORE_NOT_FOUND)
         if user_id == score.owner_user_id:
             return ScoreAccessContext(score, AccessOrigin.OWNER, owner_capabilities())
         if user_id is not None:
@@ -73,7 +73,7 @@ class ScoreAccessPolicy:
                     membership_capabilities(membership.role),
                     membership,
                 )
-        raise UnauthorizedException(ErrorCode.NO_ACCESS, {"score_id": score_uuid})
+        raise UnauthorizedException(CustomerErrorCode.NO_ACCESS, {"score_id": score_uuid})
 
     def authorize_score(
         self, db: Session, score_uuid: str, action: ScoreAction, *, user_id: int | None = None
@@ -144,20 +144,20 @@ class ScoreAccessPolicy:
             revision = db.get(ScoreRevision, score.head_revision_id)
         if not revision or revision.score_id != score.id:
             raise ResourceNotFoundException(
-                "revision", revision_uuid or "head", ErrorCode.REVISION_NOT_FOUND
+                "revision", revision_uuid or "head", CustomerErrorCode.REVISION_NOT_FOUND
             )
         return revision
 
 
-def _denial_code(action: ScoreAction) -> str:
+def _denial_code(action: ScoreAction) -> CustomerErrorCode:
     if action == ScoreAction.EDIT:
-        return ErrorCode.NO_EDIT_ACCESS
+        return CustomerErrorCode.NO_EDIT_ACCESS
     if action == ScoreAction.DELETE:
-        return ErrorCode.NO_DELETE_ACCESS
+        return CustomerErrorCode.NO_DELETE_ACCESS
     if action == ScoreAction.MANAGE_GUEST_PREVIEWS:
-        return ErrorCode.NO_GUEST_PREVIEW_ACCESS
+        return CustomerErrorCode.NO_GUEST_PREVIEW_ACCESS
     if action == ScoreAction.DOWNLOAD:
-        return ErrorCode.NO_DOWNLOAD_ACCESS
+        return CustomerErrorCode.NO_DOWNLOAD_ACCESS
     if action == ScoreAction.PRACTICE:
-        return ErrorCode.NO_PRACTICE_ACCESS
-    return ErrorCode.NO_ACCESS
+        return CustomerErrorCode.NO_PRACTICE_ACCESS
+    return CustomerErrorCode.NO_ACCESS

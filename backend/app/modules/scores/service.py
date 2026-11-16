@@ -35,7 +35,7 @@ from app.modules.metadata.service import MetadataProjectionService
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.score_access.schemas import ScoreCapabilities
 from app.modules.score_assets.score_revision_rendering import ScoreRevisionRenderService
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.storage import object_storage
 from app.shared.time import utc_now
 
@@ -93,7 +93,7 @@ class ScoreService:
         assert score is not None
         if score.metadata_version != request.expected_metadata_version:
             raise ConflictException(
-                ErrorCode.SCORE_METADATA_CONFLICT,
+                CustomerErrorCode.SCORE_METADATA_CONFLICT,
                 {
                     "score_id": score.score_uuid,
                     "expected_metadata_version": request.expected_metadata_version,
@@ -146,7 +146,7 @@ class ScoreService:
         ).first()
         if row is None:
             raise ResourceNotFoundException(
-                "score_input_asset", asset_uuid, ErrorCode.FILE_NOT_FOUND
+                "score_input_asset", asset_uuid, CustomerErrorCode.FILE_NOT_FOUND
             )
         _asset, upload, blob = row
         filename = upload.original_filename

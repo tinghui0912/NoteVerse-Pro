@@ -17,7 +17,7 @@ from app.modules.collaboration.schemas import InviteCreateRequest
 from app.modules.collaboration.invitation_service import InvitationService
 from app.modules.collaboration.membership_service import MembershipService
 from app.modules.collaboration.repository import CollaborationRepository
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.shared.time import utc_now
 from tests.test_score_revision_services import score_service_session as score_service_session
 from tests.test_trusted_collaboration import collaboration as collaboration
@@ -54,9 +54,9 @@ def facts(invite):
     [
         (None, False, None),
         (InviteTerminalOutcome.REVOKED, False, None),
-        (InviteTerminalOutcome.ACCEPTED, False, ErrorCode.INVITE_ALREADY_ACCEPTED),
-        (InviteTerminalOutcome.DECLINED, False, ErrorCode.INVITE_DECLINED),
-        (None, True, ErrorCode.INVITE_EXPIRED),
+        (InviteTerminalOutcome.ACCEPTED, False, CustomerErrorCode.INVITE_ALREADY_ACCEPTED),
+        (InviteTerminalOutcome.DECLINED, False, CustomerErrorCode.INVITE_DECLINED),
+        (None, True, CustomerErrorCode.INVITE_EXPIRED),
     ],
 )
 async def test_owner_revoke_http_admits_effective_status_without_writing_rejections(
@@ -180,7 +180,7 @@ async def test_expired_recipient_command_has_no_write_or_commit(collaboration, p
             with observe_writes(session) as (writes, commits):
                 response = await client.post("/api/v1" + path)
                 assert response.status_code == 422
-                assert response.json()["code"] == ErrorCode.INVITE_EXPIRED
+                assert response.json()["code"] == CustomerErrorCode.INVITE_EXPIRED
                 assert writes == commits == []
     finally:
         app.dependency_overrides.clear()
@@ -227,7 +227,7 @@ def test_accept_rechecks_expiry_after_membership_contention(collaboration, monke
     with observe_writes(session) as (writes, commits):
         with pytest.raises(ValidationException) as error:
             InvitationService(repository=MembershipWait()).accept_invite(db, "expiring", 2)
-        assert error.value.code == ErrorCode.INVITE_EXPIRED
+        assert error.value.code == CustomerErrorCode.INVITE_EXPIRED
         assert writes == commits == []
     session.refresh(invite)
     assert facts(invite) == (None, None, None)

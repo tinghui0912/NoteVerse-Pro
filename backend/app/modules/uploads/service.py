@@ -17,7 +17,7 @@ from app.modules.storage_objects.retirement import retire_after_release
 from app.modules.storage_objects.writes import write_object, adopt_written_object
 from app.modules.uploads.schemas import UploadRead
 from app.modules.storage_usage.service import storage_usage_service
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.storage import object_storage, ObjectStorage
 from app.modules.uploads.upload_admission import read_score_import_upload, admit_score_import_image
 
@@ -37,7 +37,7 @@ class UploadService:
 
     def create_upload(self, db: Session, current_user: User, file: UploadFile) -> UploadRead:
         if not file.filename:
-            raise ValidationException(code=ErrorCode.NO_FILE_SELECTED, field="file")
+            raise ValidationException(code=CustomerErrorCode.NO_FILE_SELECTED, field="file")
         content = read_score_import_upload(file)
         media = admit_score_import_image(content, file.filename)
         file_hash = hashlib.sha256(content).hexdigest()
@@ -82,7 +82,7 @@ class UploadService:
             if isinstance(exc, FileException):
                 raise
             raise FileException(
-                code=ErrorCode.FILE_SAVE_FAILED,
+                code=CustomerErrorCode.FILE_SAVE_FAILED,
                 filename=file.filename,
             ) from exc
         return UploadRead(
@@ -96,10 +96,14 @@ class UploadService:
         if not upload:
             raise ResourceNotFoundException("upload", upload_id)
         if upload.uploader_user_id != current_user.id:
-            raise UnauthorizedException(ErrorCode.NO_DELETE_ACCESS, {"upload_id": upload_id})
+            raise UnauthorizedException(
+                CustomerErrorCode.NO_DELETE_ACCESS, {"upload_id": upload_id}
+            )
         upload_pk = require_persisted_id(upload.id, entity="upload")
         if self.repository.upload_reference_count(db, upload_pk) > 0:
-            raise ConflictException(ErrorCode.VALIDATION_ERROR, {"upload_id": upload.upload_uuid})
+            raise ConflictException(
+                CustomerErrorCode.VALIDATION_ERROR, {"upload_id": upload.upload_uuid}
+            )
         blob = db.get(StoredObject, upload.stored_object_id)
         if blob is None:
             raise RuntimeError("Upload is missing its required stored object")

@@ -23,7 +23,7 @@ from app.modules.mail.templates.auth import (
     build_password_changed_email,
     build_password_reset_email,
 )
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.shared.time import utc_now
 
 AUTH_TOKEN_PASSWORD_RESET = "password_reset"
@@ -91,7 +91,7 @@ class PasswordResetService:
         now = utc_now()
 
         if not record or record.used_at is not None or record.expires_at <= now:
-            raise ValidationException(code=ErrorCode.RESET_TOKEN_INVALID, field="token")
+            raise ValidationException(code=CustomerErrorCode.RESET_TOKEN_INVALID, field="token")
 
         record.used_at = now
         db.flush()
@@ -147,7 +147,7 @@ class PasswordResetService:
         result = db.execute(select(User).where(User.id == token_record.user_id))
         user = result.scalars().one_or_none()
         if not user:
-            raise ValidationException(code=ErrorCode.RESET_TOKEN_INVALID, field="token")
+            raise ValidationException(code=CustomerErrorCode.RESET_TOKEN_INVALID, field="token")
 
         user.password_hash = security.get_password_hash(request.new_password)
         changed_at = utc_now()

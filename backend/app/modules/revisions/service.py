@@ -40,7 +40,7 @@ from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.scores.repository import ScoreRepository
 from app.modules.storage_usage.service import storage_usage_service
 from app.processing.musicxml.admission import admit_musicxml_document
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.storage import object_storage
 from app.shared.time import utc_now
 
@@ -187,7 +187,9 @@ class RevisionService:
             db, require_persisted_id(target.id, entity="revision")
         )
         if source is None:
-            raise ResourceNotFoundException("source", revision_uuid, ErrorCode.FILE_NOT_FOUND)
+            raise ResourceNotFoundException(
+                "source", revision_uuid, CustomerErrorCode.FILE_NOT_FOUND
+            )
         content = admit_musicxml_document(
             (
                 read_admitted_bytes(
@@ -267,7 +269,9 @@ class RevisionService:
             db, require_persisted_id(revision.id, entity="score revision")
         )
         if not source:
-            raise ResourceNotFoundException("source", revision_uuid, ErrorCode.FILE_NOT_FOUND)
+            raise ResourceNotFoundException(
+                "source", revision_uuid, CustomerErrorCode.FILE_NOT_FOUND
+            )
         content = (
             read_admitted_bytes(
                 self.storage, StoredObjectReadTarget.from_object(source.stored_object)

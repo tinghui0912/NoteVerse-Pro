@@ -8,7 +8,7 @@ from enum import Enum
 
 from app.core.exceptions import ValidationException
 from app.db.models.score_access import ScoreInvite
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 
 
 class InviteStatus(str, Enum):
@@ -32,10 +32,10 @@ def require_pending_invite(invite: ScoreInvite, *, field: str, now: datetime) ->
     if status == InviteStatus.PENDING:
         return
     code = {
-        InviteStatus.EXPIRED: ErrorCode.INVITE_EXPIRED,
-        InviteStatus.REVOKED: ErrorCode.INVITE_REVOKED,
-        InviteStatus.ACCEPTED: ErrorCode.INVITE_ALREADY_ACCEPTED,
-        InviteStatus.DECLINED: ErrorCode.INVITE_DECLINED,
+        InviteStatus.EXPIRED: CustomerErrorCode.INVITE_EXPIRED,
+        InviteStatus.REVOKED: CustomerErrorCode.INVITE_REVOKED,
+        InviteStatus.ACCEPTED: CustomerErrorCode.INVITE_ALREADY_ACCEPTED,
+        InviteStatus.DECLINED: CustomerErrorCode.INVITE_DECLINED,
     }[status]
     raise ValidationException(code, field=field)
 

@@ -10,7 +10,7 @@ from fastapi import Depends
 from app.core.exceptions import UnauthorizedException
 from app.db.models import OperatorRole
 from app.modules.platform_operators.dependencies import OperatorPrincipal, get_current_operator
-from app.shared.constants import ErrorCode
+from app.core.control_plane_errors import ControlPlaneErrorCode
 
 
 class PlatformOperationAction(str, enum.Enum):
@@ -33,7 +33,7 @@ def require_platform_operation(
         current_operator: OperatorPrincipal = Depends(get_current_operator),
     ) -> OperatorPrincipal:
         if current_operator.role not in _ACTION_ROLES[action]:
-            raise UnauthorizedException(code=ErrorCode.NO_ACCESS)
+            raise UnauthorizedException(code=ControlPlaneErrorCode.NO_ACCESS)
         return current_operator
 
     return dependency

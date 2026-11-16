@@ -13,7 +13,7 @@ from app.db.models import (
     ScorePlaybackAsset,
 )
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.storage import object_storage
 
 
@@ -57,7 +57,7 @@ class PlaybackDeliveryReadModel:
             )
         ).scalar_one_or_none()
         if asset is None:
-            raise ResourceNotFoundException("playback_asset", code=ErrorCode.FILE_NOT_FOUND)
+            raise ResourceNotFoundException("playback_asset", code=CustomerErrorCode.FILE_NOT_FOUND)
         return StoredObjectDelivery.for_object(asset.stored_object, asset.filename)
 
 

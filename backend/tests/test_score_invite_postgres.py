@@ -16,7 +16,7 @@ from app.db.models import User, ScoreInvite, ScoreMembership
 from app.db.models.score_access import MembershipRole, InviteTerminalOutcome
 from app.modules.collaboration.invite_lifecycle import hash_invite_token
 from app.modules.collaboration.invitation_service import InvitationService
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.shared.time import utc_now
 from tests.support.postgres_schema import postgres_schema_database
 from tests.test_score_revision_services import add_active_score_with_head_revision
@@ -43,9 +43,9 @@ def test_invite_terminal_commands_serialize_on_postgres_row(
         "revoke": InviteTerminalOutcome.REVOKED,
     }[first]
     error_code = {
-        "accept": ErrorCode.INVITE_ALREADY_ACCEPTED,
-        "decline": ErrorCode.INVITE_DECLINED,
-        "revoke": ErrorCode.INVITE_REVOKED,
+        "accept": CustomerErrorCode.INVITE_ALREADY_ACCEPTED,
+        "decline": CustomerErrorCode.INVITE_DECLINED,
+        "revoke": CustomerErrorCode.INVITE_REVOKED,
     }[first]
     with postgres_schema_database(monkeypatch) as (engine, config):
         command.upgrade(config, "head")

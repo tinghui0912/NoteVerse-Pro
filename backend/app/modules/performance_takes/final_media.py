@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import hashlib
 import hmac
 from app.core.exceptions import ResourceNotFoundException, ValidationException
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.storage import ObjectStorage
 from app.modules.storage_objects.facts import StoredObjectFacts
 from .manifest import TakeManifest
@@ -35,7 +35,7 @@ class VerifiedPerformanceTakeCandidate:
             or self.object_facts.content_type != capture.mime_type
             or self.object_facts.byte_size != capture.byte_size
         ):
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="candidate")
+            raise ValidationException(CustomerErrorCode.VALIDATION_ERROR, field="candidate")
 
 
 def _sha256_storage_object(storage: ObjectStorage, key: str) -> str:
@@ -55,18 +55,24 @@ class PerformanceTakeFinalMedia:
         capture = manifest.snapshot.capture
         if not self.storage.exists(staging_key):
             raise ResourceNotFoundException(
-                "performance_take_media_object", manifest.take_uuid, ErrorCode.FILE_NOT_FOUND
+                "performance_take_media_object",
+                manifest.take_uuid,
+                CustomerErrorCode.FILE_NOT_FOUND,
             )
 
         def validate_metadata(key: str) -> None:
             metadata = self.storage.object_metadata(key)
             if metadata.size_bytes != capture.byte_size:
-                raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_byte_size")
+                raise ValidationException(
+                    CustomerErrorCode.VALIDATION_ERROR, field="media_byte_size"
+                )
             if (
                 metadata.content_type is not None
                 and normalize_recording_mime(metadata.content_type) != capture.mime_type
             ):
-                raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
+                raise ValidationException(
+                    CustomerErrorCode.VALIDATION_ERROR, field="media_mime_type"
+                )
 
         validate_metadata(staging_key)
         header = b"".join(
@@ -76,14 +82,14 @@ class PerformanceTakeFinalMedia:
             ]
         )
         if not verify_recording_container_signature(capture.kind, capture.mime_type, header):
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
+            raise ValidationException(CustomerErrorCode.VALIDATION_ERROR, field="media_mime_type")
         staging_sha = _sha256_storage_object(self.storage, staging_key)
         self.storage.copy(staging_key, lease.object_key)
         validate_metadata(lease.object_key)
         candidate_sha = _sha256_storage_object(self.storage, lease.object_key)
         if not hmac.compare_digest(staging_sha, candidate_sha):
             raise ValidationException(
-                ErrorCode.VALIDATION_ERROR,
+                CustomerErrorCode.VALIDATION_ERROR,
                 field="media_checksum",
                 details={"reason": "candidate_content_mismatch"},
             )

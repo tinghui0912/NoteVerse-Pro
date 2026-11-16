@@ -11,7 +11,7 @@ from app.modules.auth.schemas import ChangePasswordRequest
 from app.modules.auth.sessions_service import SessionService
 from app.modules.mail.outbox_service import queue_mail
 from app.modules.mail.templates.auth import build_password_changed_email
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.shared.time import utc_now
 
 
@@ -33,7 +33,7 @@ class PasswordService:
     ) -> tuple[str, str]:
         if not security.verify_password(request.current_password, user.password_hash):
             raise ValidationException(
-                code=ErrorCode.CURRENT_PASSWORD_WRONG,
+                code=CustomerErrorCode.CURRENT_PASSWORD_WRONG,
                 field="current_password",
             )
 

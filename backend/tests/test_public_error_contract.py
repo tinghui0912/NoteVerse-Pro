@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 from app.api.deps import get_db
 from app.main import app
 from app.modules.guest_previews.dependencies import get_guest_preview_service
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.core.generated.control_plane_browser_protocol import (
     OPERATOR_AUTH_COOKIE_NAME,
     OPERATOR_CSRF_COOKIE_NAME,
@@ -28,7 +28,7 @@ def test_ordinary_auth_errors_do_not_expose_internal_details(client: TestClient)
 
     assert response.status_code == 401
     payload = response.json()
-    _assert_public_error_payload(payload, ErrorCode.TOKEN_INVALID_EXPIRED)
+    _assert_public_error_payload(payload, CustomerErrorCode.TOKEN_INVALID_EXPIRED)
     assert payload["request_id"] == "public-auth-contract"
 
 
@@ -40,7 +40,7 @@ def test_ordinary_validation_errors_do_not_expose_validation_details(client: Tes
 
     assert response.status_code == 422
     payload = response.json()
-    _assert_public_error_payload(payload, ErrorCode.VALIDATION_ERROR)
+    _assert_public_error_payload(payload, CustomerErrorCode.VALIDATION_ERROR)
     assert payload["request_id"] == "public-validation-contract"
 
 
@@ -59,7 +59,7 @@ def test_ordinary_csrf_errors_do_not_expose_security_details(client: TestClient)
 
     assert response.status_code == 403
     payload = response.json()
-    _assert_public_error_payload(payload, ErrorCode.CSRF_TOKEN_INVALID)
+    _assert_public_error_payload(payload, CustomerErrorCode.CSRF_TOKEN_INVALID)
     assert payload["request_id"] == "public-csrf-contract"
 
 
@@ -85,7 +85,7 @@ def test_ordinary_unhandled_errors_do_not_expose_exception_details() -> None:
 
     assert response.status_code == 500
     payload = response.json()
-    _assert_public_error_payload(payload, ErrorCode.INTERNAL_ERROR)
+    _assert_public_error_payload(payload, CustomerErrorCode.INTERNAL_ERROR)
     assert payload["request_id"] == "public-500-contract"
     assert "redis" not in str(payload).lower()
     assert "worker" not in str(payload).lower()
@@ -120,6 +120,6 @@ def test_control_plane_errors_do_not_expose_internal_details_before_authorizatio
     assert response.status_code == 403
     payload = response.json()
     assert ControlPlaneErrorResponse.model_validate(payload).model_dump() == payload
-    assert payload["code"] == ErrorCode.CSRF_TOKEN_INVALID
+    assert payload["code"] == CustomerErrorCode.CSRF_TOKEN_INVALID
     assert "internal_details" not in payload
     assert payload["request_id"] == "ops-csrf-contract"

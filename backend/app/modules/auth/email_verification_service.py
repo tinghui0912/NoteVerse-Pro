@@ -18,7 +18,7 @@ from app.modules.storage_usage.entitlements import provision_default_storage_sta
 from app.modules.auth.schemas import RegisterRequest, VerifyEmailRequest
 from app.modules.mail.outbox_service import queue_mail
 from app.modules.mail.templates.auth import build_email_verification_email
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.shared.time import utc_now
 
 
@@ -109,7 +109,7 @@ class EmailVerificationService:
         )
         pending = result.scalars().one_or_none()
         if not pending or pending.consumed_at is not None or pending.expires_at <= now:
-            raise ValidationException(code=ErrorCode.TOKEN_INVALID_EXPIRED, field="token")
+            raise ValidationException(code=CustomerErrorCode.TOKEN_INVALID_EXPIRED, field="token")
 
         existing_result = db.execute(select(User).where(User.email == pending.email))
         if existing_result.scalars().one_or_none():

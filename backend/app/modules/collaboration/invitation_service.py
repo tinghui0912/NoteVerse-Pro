@@ -40,7 +40,7 @@ from app.modules.collaboration.schemas import (
     PendingInviteRead,
 )
 from app.modules.notifications.service import NotificationService
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.shared.time import require_utc, utc_now
 
 
@@ -68,9 +68,9 @@ class InvitationService:
         )
         owner = db.get(User, access.score.owner_user_id)
         if owner is None:
-            raise ResourceNotFoundException("user", code=ErrorCode.USER_NOT_FOUND)
+            raise ResourceNotFoundException("user", code=CustomerErrorCode.USER_NOT_FOUND)
         if request.email == owner.email.lower():
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="email")
+            raise ValidationException(CustomerErrorCode.VALIDATION_ERROR, field="email")
         invite_uuid = str(uuid.uuid4())
         token = generate_invite_token()
         invite = ScoreInvite(
@@ -128,7 +128,7 @@ class InvitationService:
         invite = self._invite_by_token(db, token, allow_inactive=True)
         score = db.get(Score, invite.score_id)
         if not score:
-            raise ResourceNotFoundException("score", code=ErrorCode.SCORE_NOT_FOUND)
+            raise ResourceNotFoundException("score", code=CustomerErrorCode.SCORE_NOT_FOUND)
         user = db.get(User, user_id) if user_id is not None else None
         now = utc_now()
         can_accept = can_user_accept_invite(invite, user, now=now) and (
@@ -161,7 +161,7 @@ class InvitationService:
     ) -> PendingInviteListRead:
         user = db.get(User, user_id)
         if user is None:
-            raise UnauthorizedException(ErrorCode.NO_ACCESS)
+            raise UnauthorizedException(CustomerErrorCode.NO_ACCESS)
         invites, next_cursor = self.repository.pending_invites_for_email(
             db,
             user.email.lower(),
@@ -211,9 +211,9 @@ class InvitationService:
         user = self._ensure_invite_target_user(db, invite, user_id)
         score = db.get(Score, invite.score_id)
         if not score:
-            raise ResourceNotFoundException("score", code=ErrorCode.SCORE_NOT_FOUND)
+            raise ResourceNotFoundException("score", code=CustomerErrorCode.SCORE_NOT_FOUND)
         if score.owner_user_id == user_id:
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="email")
+            raise ValidationException(CustomerErrorCode.VALIDATION_ERROR, field="email")
 
         membership = self.repository.membership_for_update(db, invite.score_id, user_id)
         # Waiting on membership may outlast expiry; do not restore access after it.
@@ -261,7 +261,9 @@ class InvitationService:
         )
         invite = self.repository.invite_by_uuid(db, invite_uuid, lock=True)
         if not invite or invite.score_id != access.score.id:
-            raise ResourceNotFoundException("invite", invite_uuid, ErrorCode.INVITE_NOT_FOUND)
+            raise ResourceNotFoundException(
+                "invite", invite_uuid, CustomerErrorCode.INVITE_NOT_FOUND
+            )
         return invite
 
     def _invite_by_token(
@@ -271,7 +273,7 @@ class InvitationService:
             db, hash_invite_token(token), lock=not allow_inactive
         )
         if not invite:
-            raise ResourceNotFoundException("invite", code=ErrorCode.INVITE_NOT_FOUND)
+            raise ResourceNotFoundException("invite", code=CustomerErrorCode.INVITE_NOT_FOUND)
         if allow_inactive:
             return invite
         require_pending_invite(invite, field="token", now=utc_now())
@@ -280,17 +282,19 @@ class InvitationService:
     def _invite_by_uuid(self, db: Session, invite_uuid: str) -> ScoreInvite:
         invite = self.repository.invite_by_uuid(db, invite_uuid, lock=True)
         if not invite:
-            raise ResourceNotFoundException("invite", invite_uuid, ErrorCode.INVITE_NOT_FOUND)
+            raise ResourceNotFoundException(
+                "invite", invite_uuid, CustomerErrorCode.INVITE_NOT_FOUND
+            )
         require_pending_invite(invite, field="invite_id", now=utc_now())
         return invite
 
     def _ensure_invite_target_user(self, db: Session, invite: ScoreInvite, user_id: int) -> User:
         user = db.get(User, user_id)
         if user is None:
-            raise UnauthorizedException(ErrorCode.NO_ACCESS)
+            raise UnauthorizedException(CustomerErrorCode.NO_ACCESS)
         require_pending_invite(invite, field="invite_id", now=utc_now())
         if invite.email != user.email.lower():
-            raise ValidationException(ErrorCode.INVITE_EMAIL_MISMATCH, field="email")
+            raise ValidationException(CustomerErrorCode.INVITE_EMAIL_MISMATCH, field="email")
         return user
 
     def _notify_invite_response(

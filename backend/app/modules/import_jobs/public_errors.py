@@ -2,7 +2,7 @@
 
 from typing import Protocol
 
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 
 
 class ImportFailureFacts(Protocol):
@@ -11,12 +11,15 @@ class ImportFailureFacts(Protocol):
 
 
 PUBLIC_IMPORT_FAILURE_CODES = {
-    ("import_pipeline_timeout", "pipeline"): ErrorCode.TASK_TIMEOUT,
-    ("import_inputs_unavailable", "pipeline"): ErrorCode.INPUT_FILE_MISSING,
-    ("import_pipeline_rejected", "pipeline"): ErrorCode.SCORE_RECOGNITION_FAILED,
-    ("import_pipeline_failed", "pipeline"): ErrorCode.TASK_ERROR,
-    ("import_dispatch_attempts_exhausted", "dispatch"): ErrorCode.FEATURE_TEMPORARILY_UNAVAILABLE,
-    ("import_inputs_unavailable", "dispatch"): ErrorCode.FEATURE_TEMPORARILY_UNAVAILABLE,
+    ("import_pipeline_timeout", "pipeline"): CustomerErrorCode.TASK_TIMEOUT,
+    ("import_inputs_unavailable", "pipeline"): CustomerErrorCode.INPUT_FILE_MISSING,
+    ("import_pipeline_rejected", "pipeline"): CustomerErrorCode.SCORE_RECOGNITION_FAILED,
+    ("import_pipeline_failed", "pipeline"): CustomerErrorCode.TASK_ERROR,
+    (
+        "import_dispatch_attempts_exhausted",
+        "dispatch",
+    ): CustomerErrorCode.FEATURE_TEMPORARILY_UNAVAILABLE,
+    ("import_inputs_unavailable", "dispatch"): CustomerErrorCode.FEATURE_TEMPORARILY_UNAVAILABLE,
 }
 
 

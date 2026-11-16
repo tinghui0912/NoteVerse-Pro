@@ -202,7 +202,7 @@ def test_deletion_contends_on_dispatch_before_job_and_rechecks_state(monkeypatch
     from time import monotonic
     from app.core.exceptions import ValidationException
     from app.modules.import_jobs.deletion_service import ImportJobDeletionService
-    from app.shared.constants import ErrorCode
+    from app.shared.error_codes import CustomerErrorCode
     from tests.test_score_revision_services import Session
 
     with postgres_schema_database(monkeypatch) as (engine, config):
@@ -303,9 +303,9 @@ def test_deletion_contends_on_dispatch_before_job_and_rechecks_state(monkeypatch
                 if locked_state != ImportJobState.READY_FOR_REVIEW:
                     assert isinstance(error, ValidationException)
                     assert error.code == (
-                        ErrorCode.JOB_RUNNING
+                        CustomerErrorCode.JOB_RUNNING
                         if locked_state == ImportJobState.PROCESSING
-                        else ErrorCode.VALIDATION_ERROR
+                        else CustomerErrorCode.VALIDATION_ERROR
                     )
                     assert error.details == {"field": "state"}
                     assert check.get(ImportJob, job_id).state == locked_state

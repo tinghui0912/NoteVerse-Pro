@@ -21,7 +21,7 @@ from app.core.exceptions import (
     UnauthorizedException,
     ValidationException,
 )
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.db.model_utils import require_persisted_id
 from app.modules.storage_usage.service import storage_usage_service
 from app.modules.storage_objects.retirement import retire_after_release
@@ -67,19 +67,23 @@ class ImportJobDeletionService:
             )
         ).scalar_one_or_none()
         if job is None:
-            raise ResourceNotFoundException("job", str(job_id), code=ErrorCode.JOB_NOT_FOUND)
+            raise ResourceNotFoundException(
+                "job", str(job_id), code=CustomerErrorCode.JOB_NOT_FOUND
+            )
         if job.user_id != user_id:
-            raise UnauthorizedException(code=ErrorCode.NO_ACCESS, details={"job_id": job.job_uuid})
+            raise UnauthorizedException(
+                code=CustomerErrorCode.NO_ACCESS, details={"job_id": job.job_uuid}
+            )
         if delete_job:
             if job.state not in CUSTOMER_DELETABLE_IMPORT_JOB_STATES:
                 raise ValidationException(
-                    code=ErrorCode.JOB_RUNNING
+                    code=CustomerErrorCode.JOB_RUNNING
                     if job.state == ImportJobState.PROCESSING
-                    else ErrorCode.VALIDATION_ERROR,
+                    else CustomerErrorCode.VALIDATION_ERROR,
                     field="state",
                 )
         elif job.state == ImportJobState.PROCESSING:
-            raise ValidationException(code=ErrorCode.JOB_RUNNING, field="state")
+            raise ValidationException(code=CustomerErrorCode.JOB_RUNNING, field="state")
         uploads = self._orphan_uploads_after_job_delete(db, job_id)
         artifacts = list(
             (db.execute(select(ImportArtifact).where(ImportArtifact.job_id == job_id))).scalars()

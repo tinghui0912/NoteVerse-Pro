@@ -20,7 +20,7 @@ from app.modules.account.schemas import (
     ProfileRead,
     UpdateProfileRequest,
 )
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 
 
 router = APIRouter()
@@ -61,7 +61,7 @@ def upload_avatar(
     try:
         file_bytes = file.file.read()
     except Exception:
-        raise FileException(code=ErrorCode.FILE_READ_FAILED, filename=file.filename)
+        raise FileException(code=CustomerErrorCode.FILE_READ_FAILED, filename=file.filename)
 
     try:
         saved_filename, avatar_url = avatar_service.replace_user_avatar(
@@ -72,12 +72,12 @@ def upload_avatar(
         )
     except ValueError as exc:
         raise ValidationException(
-            code=ErrorCode.VALIDATION_ERROR,
+            code=CustomerErrorCode.VALIDATION_ERROR,
             field="file",
         ) from exc
     except Exception:
         raise FileException(
-            code=ErrorCode.AVATAR_PROCESS_FAILED,
+            code=CustomerErrorCode.AVATAR_PROCESS_FAILED,
             filename=file.filename,
         )
 

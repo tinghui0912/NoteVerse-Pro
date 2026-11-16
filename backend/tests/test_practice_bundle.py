@@ -168,7 +168,7 @@ async def test_unbound_revision_compiles_once_then_reads_existing_binding():
 
 def test_unbound_revision_reauthorization_failure_prevents_binding_mutation():
     from app.core.exceptions import UnauthorizedException
-    from app.shared.constants import ErrorCode
+    from app.shared.error_codes import CustomerErrorCode
 
     bundle = PracticeBundleCompiler().compile(canonical_musicxml=FIXTURE.read_bytes())
     access = SimpleNamespace(
@@ -196,7 +196,7 @@ def test_unbound_revision_reauthorization_failure_prevents_binding_mutation():
     service.asset_repository.canonical_source.return_value.stored_object.id = 1
     with patch(
         "app.modules.practice.bundle.service.lock_live_practice_mutation_access",
-        Mock(side_effect=UnauthorizedException(ErrorCode.NO_PRACTICE_ACCESS)),
+        Mock(side_effect=UnauthorizedException(CustomerErrorCode.NO_PRACTICE_ACCESS)),
     ):
         with pytest.raises(UnauthorizedException):
             service.read_bundle(Mock(), "score-A", 1, "rev-A")

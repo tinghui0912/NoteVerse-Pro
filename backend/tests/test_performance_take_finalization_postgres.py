@@ -1,5 +1,7 @@
 """Authoritative Take admission, rollback, and persisted-lineage recovery on PostgreSQL."""
 
+from app.shared.error_codes import CustomerErrorCode
+
 from dataclasses import replace
 from datetime import timedelta
 from unittest.mock import patch
@@ -363,7 +365,7 @@ def test_known_failure_after_reservation_expiry_releases_hold(postgres_bundle):
             # Time advances while physical verification is in flight.
             row.expires_at = utc_now() - timedelta(seconds=1)
             other.commit()
-        raise ValidationException("validation_error", field="media_byte_size")
+        raise ValidationException(CustomerErrorCode.VALIDATION_ERROR, field="media_byte_size")
 
     with sessions() as db:
         with patch.object(service.media, "verify", side_effect=expired_media):
@@ -427,7 +429,7 @@ async def test_independent_retry_can_complete_while_known_failure_returns(postgr
         nonlocal first
         if first:
             first = False
-            raise ValidationException("validation_error", field="media_byte_size")
+            raise ValidationException(CustomerErrorCode.VALIDATION_ERROR, field="media_byte_size")
         return verify(*args, **kwargs)
 
     with RecoveringSession(postgres_bundle[0], expire_on_commit=False), sessions() as b:

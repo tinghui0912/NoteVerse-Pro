@@ -13,7 +13,7 @@ from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.processing.musicxml import (
     MusicXMLMetadata,
 )
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.storage import ObjectStorage, object_storage
 from app.shared.time import utc_now
 
@@ -45,7 +45,9 @@ class MetadataProjectionService:
             require_persisted_id(revision.id, entity="score revision"),
         )
         if not projection:
-            raise ResourceNotFoundException("metadata", revision_uuid, ErrorCode.RESOURCE_NOT_FOUND)
+            raise ResourceNotFoundException(
+                "metadata", revision_uuid, CustomerErrorCode.RESOURCE_NOT_FOUND
+            )
         return self.to_read(revision, projection)
 
     @staticmethod

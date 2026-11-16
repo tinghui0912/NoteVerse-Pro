@@ -22,7 +22,7 @@ from app.modules.mail.templates.auth import (
     build_email_change_confirmation_email,
     build_email_changed_email,
 )
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.shared.time import utc_now
 
 
@@ -51,13 +51,13 @@ class EmailChangeService:
         new_email = str(request.new_email).strip().lower()
         if new_email == user.email.lower():
             raise ValidationException(
-                code=ErrorCode.VALIDATION_ERROR,
+                code=CustomerErrorCode.VALIDATION_ERROR,
                 field="new_email",
                 details={"reason": "email_unchanged"},
             )
         if not security.verify_password(request.current_password, user.password_hash):
             raise ValidationException(
-                code=ErrorCode.CURRENT_PASSWORD_WRONG, field="current_password"
+                code=CustomerErrorCode.CURRENT_PASSWORD_WRONG, field="current_password"
             )
 
         existing_result = db.execute(select(User).where(User.email == new_email))
@@ -134,14 +134,14 @@ class EmailChangeService:
             None,
         )
         if not record or record.consumed_at is not None or record.expires_at <= now:
-            raise ValidationException(code=ErrorCode.TOKEN_INVALID_EXPIRED, field="token")
+            raise ValidationException(code=CustomerErrorCode.TOKEN_INVALID_EXPIRED, field="token")
 
         user_result = db.execute(select(User).where(User.id == record.user_id))
         user = next(
             (item for item in user_result.scalars().all() if item.id == record.user_id), None
         )
         if not user or not user.is_active:
-            raise ValidationException(code=ErrorCode.TOKEN_INVALID_EXPIRED, field="token")
+            raise ValidationException(code=CustomerErrorCode.TOKEN_INVALID_EXPIRED, field="token")
 
         existing_result = db.execute(select(User).where(User.email == record.new_email))
         existing = next(

@@ -12,7 +12,7 @@ from app.db.model_utils import require_persisted_id
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.practice.score.piano_key import PracticeScoreInvalidError
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.storage import object_storage
 from .compiler import PracticeBundleCompiler
 from .domain import AuthorizedPracticeBundle
@@ -54,17 +54,19 @@ class PracticeBundleService:
         if bound is None:
             source = self.asset_repository.canonical_source(db, revision_id)
             if source is None:
-                raise ResourceNotFoundException("source", revision_uuid, ErrorCode.FILE_NOT_FOUND)
+                raise ResourceNotFoundException(
+                    "source", revision_uuid, CustomerErrorCode.FILE_NOT_FOUND
+                )
             canonical = read_admitted_bytes(
                 self.storage, StoredObjectReadTarget.from_object(source.stored_object)
             )
             try:
                 candidate = self.compiler.compile(canonical_musicxml=canonical)
             except PracticeScoreInvalidError as error:
-                raise ValidationException(code=ErrorCode.PRACTICE_SCORE_INVALID) from error
+                raise ValidationException(code=CustomerErrorCode.PRACTICE_SCORE_INVALID) from error
             except Exception as error:
                 raise ExternalServiceException(
-                    service="practice_bundle", code=ErrorCode.PRACTICE_BUNDLE_FAILED
+                    service="practice_bundle", code=CustomerErrorCode.PRACTICE_BUNDLE_FAILED
                 ) from error
 
             def reauthorize_binding_mutation():
@@ -110,7 +112,7 @@ class PracticeBundleService:
         )
         if bound is None or bound[0].bundle_id != bundle_id:
             raise ResourceNotFoundException(
-                "practice_binding", bundle_id, ErrorCode.RESOURCE_NOT_FOUND
+                "practice_binding", bundle_id, CustomerErrorCode.RESOURCE_NOT_FOUND
             )
         reference, bundle = bound
         return AuthorizedPracticeBundle(

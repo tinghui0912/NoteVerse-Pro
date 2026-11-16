@@ -2,7 +2,9 @@
 
 from types import SimpleNamespace
 import pytest
-from app.core.control_plane_errors import ControlPlaneErrorResponse
+from app.core.control_plane_errors import ControlPlaneErrorCode, ControlPlaneErrorResponse
+from app.core.exceptions import AppException
+from app.shared.error_codes import CustomerErrorCode
 from app.core.generated.control_plane_browser_protocol import (
     OPERATOR_CSRF_COOKIE_NAME,
     OPERATOR_CSRF_HEADER_NAME,
@@ -94,3 +96,39 @@ def test_failures_share_the_typed_request_correlated_contract(
         }[case]
     )
     assert payload["request_id"] == response.headers["X-Request-ID"] == "control-error-test"
+
+
+def test_control_plane_openapi_owns_its_error_vocabulary(control_app):
+    schemas = control_app.openapi()["components"]["schemas"]
+    assert all(
+        isinstance(value, ControlPlaneErrorCode)
+        for value in vars(control_app.state.http_error_codes).values()
+    )
+    assert ControlPlaneErrorResponse.model_fields["code"].annotation is ControlPlaneErrorCode
+    assert schemas["ControlPlaneErrorResponse"]["properties"]["code"] == {
+        "$ref": "#/components/schemas/ControlPlaneErrorCode"
+    }
+    assert set(schemas["ControlPlaneErrorCode"]["enum"]) == {
+        code.value for code in ControlPlaneErrorCode
+    }
+    assert "CustomerErrorCode" not in schemas
+
+
+@pytest.mark.parametrize("code", [CustomerErrorCode.REVISION_CONFLICT, "private_internal_code"])
+def test_unadmitted_control_plane_failures_are_canonical_and_private(
+    code, control_app, operator_client, monkeypatch
+):
+    failure = AppException(details={"secret": "private detail"})
+    monkeypatch.setattr(failure, "code", code)
+
+    def fail(*args, **kwargs):
+        raise failure
+
+    control_app.dependency_overrides[get_ops_async_operation_query_service] = lambda: (
+        SimpleNamespace(list_operations=fail)
+    )
+    response = operator_client.get(
+        "/api/v1/ops/async-operations", headers={"X-Request-ID": "closed-control-error"}
+    )
+    assert response.status_code == 400
+    assert response.json() == {"code": "internal_error", "request_id": "closed-control-error"}

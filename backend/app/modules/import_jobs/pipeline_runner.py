@@ -19,7 +19,7 @@ from app.modules.import_jobs.execution_recorder import import_execution_recorder
 from app.modules.import_jobs.execution_manifest import bind_import_job_execution_manifest
 from app.modules.import_jobs.pipeline import JobContext, PipelineBuilder
 from app.task_queue.protocols import CeleryTaskLike
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.storage import ObjectStorage, object_storage
 from app.storage.paths import object_work_path
 
@@ -31,17 +31,18 @@ class ImportPipelineRunner:
     @staticmethod
     def failure_for_exception(exception: Exception) -> DurableFailure:
         if isinstance(exception, SoftTimeLimitExceeded) or (
-            isinstance(exception, PipelineException) and exception.code == ErrorCode.TASK_TIMEOUT
+            isinstance(exception, PipelineException)
+            and exception.code == CustomerErrorCode.TASK_TIMEOUT
         ):
             return DurableFailure(
                 "import_pipeline_timeout", "pipeline", DurableFailureClass.TRANSIENT, False
             )
         if isinstance(exception, PipelineException):
-            if exception.code in (ErrorCode.INPUT_FILE_MISSING,):
+            if exception.code in (CustomerErrorCode.INPUT_FILE_MISSING,):
                 return DurableFailure(
                     "import_inputs_unavailable", "pipeline", DurableFailureClass.PERMANENT, False
                 )
-            if exception.code in (ErrorCode.SCORE_RECOGNITION_FAILED,):
+            if exception.code in (CustomerErrorCode.SCORE_RECOGNITION_FAILED,):
                 return DurableFailure(
                     "import_pipeline_rejected", "pipeline", DurableFailureClass.USER_ERROR, False
                 )

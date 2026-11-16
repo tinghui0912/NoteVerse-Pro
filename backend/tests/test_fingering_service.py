@@ -132,7 +132,7 @@ def test_strip_existing_fingerings_before_generation() -> None:
 
 @pytest.mark.asyncio
 async def test_semantically_invalid_input_is_rejected_before_fingering_execution():
-    from app.shared.constants import ErrorCode
+    from app.shared.error_codes import CustomerErrorCode
 
     engine = FakeEngine()
     service = FingeringService(
@@ -141,13 +141,13 @@ async def test_semantically_invalid_input_is_rejected_before_fingering_execution
     invalid = MUSICXML.replace("<note>", "<backup><duration>1</duration></backup><note>", 1)
     with pytest.raises(ValidationException) as caught:
         await service.generate("score-1", FingeringRequest(content=invalid))
-    assert caught.value.code == ErrorCode.REVISION_CONTENT_INVALID
+    assert caught.value.code == CustomerErrorCode.REVISION_CONTENT_INVALID
     assert engine.calls == []
 
 
 @pytest.mark.asyncio
 async def test_semantically_invalid_generated_output_is_fingering_failure():
-    from app.shared.constants import ErrorCode
+    from app.shared.error_codes import CustomerErrorCode
 
     invalid = MUSICXML.replace("<note>", "<backup><duration>1</duration></backup><note>", 1)
     engine = FakeEngine(content=invalid)
@@ -156,5 +156,5 @@ async def test_semantically_invalid_generated_output_is_fingering_failure():
     )
     with pytest.raises(ExternalServiceException) as caught:
         await service.generate("score-1", FingeringRequest(content=MUSICXML))
-    assert caught.value.code == ErrorCode.SCORE_FINGERING_FAILED
+    assert caught.value.code == CustomerErrorCode.SCORE_FINGERING_FAILED
     assert len(engine.calls) == 1

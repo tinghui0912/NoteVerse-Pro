@@ -18,7 +18,7 @@ from app.db.models.practice_bundle import (
     PracticeBundleRecord,
     PracticeBundleStatus,
 )
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.storage.base import ObjectStorage
 from app.shared.time import utc_now
 from app.modules.practice.score.artifact import (
@@ -100,7 +100,7 @@ class PracticeBundleRepository:
         )
         if revision is None:
             raise ResourceNotFoundException(
-                "revision", str(revision_id), ErrorCode.REVISION_NOT_FOUND
+                "revision", str(revision_id), CustomerErrorCode.REVISION_NOT_FOUND
             )
 
     def get_or_create(
@@ -190,7 +190,7 @@ class PracticeBundleRepository:
                 practice_bundle_retention.discard_creation(db, creation_id)
                 db.commit()
                 raise ValidationException(
-                    ErrorCode.STORAGE_BACKEND_UNAVAILABLE,
+                    CustomerErrorCode.STORAGE_BACKEND_UNAVAILABLE,
                     field="practice_bundle",
                     details={"reason": "practice_bundle_storage_write_failed"},
                 ) from error
@@ -210,7 +210,7 @@ class PracticeBundleRepository:
             ).scalar_one_or_none()
             if row is None:
                 raise ValidationException(
-                    ErrorCode.STORAGE_BACKEND_UNAVAILABLE,
+                    CustomerErrorCode.STORAGE_BACKEND_UNAVAILABLE,
                     field="practice_bundle",
                     details={"reason": "creation_lease_lost"},
                 )
@@ -224,7 +224,7 @@ class PracticeBundleRepository:
                 db.flush()
         if row.status != PracticeBundleStatus.READY.value:
             raise ValidationException(
-                ErrorCode.STORAGE_BACKEND_UNAVAILABLE,
+                CustomerErrorCode.STORAGE_BACKEND_UNAVAILABLE,
                 field="practice_bundle",
                 details={"reason": "practice_bundle_not_ready"},
             )
@@ -248,7 +248,7 @@ class PracticeBundleRepository:
         row = (db.execute(statement)).scalar_one_or_none()
         if row is None:
             raise ResourceNotFoundException(
-                "practice_bundle", str(bundle_id), ErrorCode.RESOURCE_NOT_FOUND
+                "practice_bundle", str(bundle_id), CustomerErrorCode.RESOURCE_NOT_FOUND
             )
         return row
 
@@ -266,7 +266,7 @@ class PracticeBundleRepository:
         ).scalar_one_or_none()
         if row is None:
             raise ResourceNotFoundException(
-                "practice_bundle", bundle_id, ErrorCode.RESOURCE_NOT_FOUND
+                "practice_bundle", bundle_id, CustomerErrorCode.RESOURCE_NOT_FOUND
             )
         return self._read_verified_bundle(row)
 
@@ -280,7 +280,7 @@ class PracticeBundleRepository:
             or artifact_facts.content_type != "application/json"
         ):
             raise ValidationException(
-                ErrorCode.VALIDATION_ERROR,
+                CustomerErrorCode.VALIDATION_ERROR,
                 field="practice_bundle",
                 details={"reason": "representation_type_mismatch"},
             )
@@ -312,7 +312,9 @@ class PracticeBundleRepository:
         ]:
             if representation.sha256 != expected_sha or representation.byte_size != expected_size:
                 raise ValidationException(
-                    ErrorCode.VALIDATION_ERROR, field="practice_bundle", details={"reason": reason}
+                    CustomerErrorCode.VALIDATION_ERROR,
+                    field="practice_bundle",
+                    details={"reason": reason},
                 )
         artifact = PracticeScoreArtifactRead.model_validate_json(data.data)
         validate_practice_score_artifact(artifact.model_dump())
@@ -323,7 +325,7 @@ class PracticeBundleRepository:
             or canonical_practice_artifact_bytes(json.loads(data.data)) != data.data
         ):
             raise ValidationException(
-                ErrorCode.VALIDATION_ERROR,
+                CustomerErrorCode.VALIDATION_ERROR,
                 field="practice_bundle",
                 details={"reason": "artifact_identity_mismatch"},
             )
@@ -333,7 +335,7 @@ class PracticeBundleRepository:
         )
         if bundle.bundle_id != row.bundle_id:
             raise ValidationException(
-                ErrorCode.VALIDATION_ERROR,
+                CustomerErrorCode.VALIDATION_ERROR,
                 field="practice_bundle",
                 details={"reason": "bundle_identity_mismatch"},
             )

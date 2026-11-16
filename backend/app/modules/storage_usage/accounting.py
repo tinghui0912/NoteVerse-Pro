@@ -11,7 +11,7 @@ from app.db.models import (
     StorageUsageReservation,
     StorageUsageReservationStatus,
 )
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.shared.time import utc_now
 
 
@@ -32,7 +32,7 @@ def assert_quota_available(
     if account.used_bytes + account.reserved_bytes + bytes_count <= limit_bytes:
         return
     raise ValidationException(
-        ErrorCode.STORAGE_QUOTA_EXCEEDED,
+        CustomerErrorCode.STORAGE_QUOTA_EXCEEDED,
         field="storage",
         details={
             "used_bytes": account.used_bytes,

@@ -15,7 +15,7 @@ from app.modules.platform_operators.service import (
     OperatorAuthenticationService,
     operator_authentication_service,
 )
-from app.shared.constants import ErrorCode
+from app.core.control_plane_errors import ControlPlaneErrorCode
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,6 +42,6 @@ def get_current_operator(
     service: OperatorAuthenticationService = Depends(get_operator_authentication_service),
 ) -> OperatorPrincipal:
     if not session_cookie:
-        raise AuthenticationException(code=ErrorCode.TOKEN_INVALID_EXPIRED)
+        raise AuthenticationException(code=ControlPlaneErrorCode.TOKEN_INVALID_EXPIRED)
     operator, identity, session = service.resolve_session(db, token=session_cookie)
     return OperatorPrincipal(operator=operator, identity=identity, session=session)

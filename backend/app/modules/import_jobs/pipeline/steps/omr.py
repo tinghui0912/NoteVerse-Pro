@@ -1,6 +1,7 @@
 """OMR pipeline step for ordered score image pages."""
 
 from typing import cast
+from app.shared.error_codes import CustomerErrorCode
 
 from app.core.exceptions import FileNotFoundException, OmrFailedException, TimeoutException
 from app.core.logger import logger
@@ -22,7 +23,7 @@ def _raise_from_result(result: OmrFailureResult) -> None:
         raise TimeoutException(details=details)
     if error_code == "file_not_found":
         raise FileNotFoundException(details=details)
-    raise OmrFailedException(code=error_code, details=details)
+    raise OmrFailedException(code=CustomerErrorCode(error_code), details=details)
 
 
 class OmrStep(Step):

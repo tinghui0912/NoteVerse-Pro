@@ -8,7 +8,7 @@ from app.modules.storage_objects.persistence import object_to_row
 from app.modules.storage_usage.service import StorageUsageService
 from app.shared.time import utc_now
 from app.core.exceptions import ValidationException
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from .final_media import VerifiedPerformanceTakeCandidate
 from .manifest import TakeManifest
 from .manifest_persistence import manifest_from_row
@@ -38,15 +38,15 @@ class PerformanceTakeWriter:
             db, user_id, reservation_id, lock=True
         )
         if reservation is None or user_id != manifest.user_id:
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="reservation_id")
+            raise ValidationException(CustomerErrorCode.VALIDATION_ERROR, field="reservation_id")
         state = lifecycle_from_row(reservation)
         current_lease = state.require_current_lease(
             token=candidate.lease.token, object_key=candidate.lease.object_key, now=utc_now()
         )
         if current_lease != candidate.lease:
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="candidate")
+            raise ValidationException(CustomerErrorCode.VALIDATION_ERROR, field="candidate")
         if manifest_from_row(reservation.manifest) != manifest:
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="manifest")
+            raise ValidationException(CustomerErrorCode.VALIDATION_ERROR, field="manifest")
         candidate.validate(manifest)
         transition = state.complete(
             token=candidate.lease.token, object_key=candidate.lease.object_key, now=utc_now()

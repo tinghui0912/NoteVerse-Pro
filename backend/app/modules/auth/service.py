@@ -10,7 +10,7 @@ from app.core.exceptions import AuthenticationException
 from app.db.model_utils import require_persisted_id
 from app.db.models.user import User
 from app.modules.auth.sessions_service import SessionService
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 
 
 class AuthService:
@@ -35,12 +35,12 @@ class AuthService:
 
         if not user or not security.verify_password(password, user.password_hash):
             raise AuthenticationException(
-                code=ErrorCode.INVALID_CREDENTIALS,
+                code=CustomerErrorCode.INVALID_CREDENTIALS,
                 details={"email": normalized_email},
             )
         if not user.is_active:
             raise AuthenticationException(
-                code=ErrorCode.ACCOUNT_INACTIVE,
+                code=CustomerErrorCode.ACCOUNT_INACTIVE,
                 details={"email": user.email},
             )
         access_token, refresh_token, _ = self.session_service.create_token_pair(

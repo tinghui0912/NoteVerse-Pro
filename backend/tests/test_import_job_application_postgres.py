@@ -43,7 +43,7 @@ from app.modules.import_jobs.repository import ImportJobRepository
 from app.modules.import_jobs.schemas import ImportJobSubmitRequest
 from app.modules.import_jobs.service import ImportJobService
 from app.modules.import_jobs.submission_service import ImportJobSubmissionService
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from tests.support.postgres_schema import postgres_schema_database
 
 NOW = datetime(2026, 11, 13, 1, 2, 3, 456789, tzinfo=UTC)
@@ -215,7 +215,7 @@ def test_list_and_detail_share_the_complete_current_projection(application_db):
     assert value["display_title"] == "Submitted title" and value["genres"] == ["classical", "jazz"]
     assert value["state"] == "FAILED" and value["progress"] == 70
     assert value["execution_manifest_sha256"] == manifest_sha256(MANIFEST)
-    assert value["public_code"] == ErrorCode.SCORE_RECOGNITION_FAILED
+    assert value["public_code"] == CustomerErrorCode.SCORE_RECOGNITION_FAILED
     for name in ["created_at", "updated_at", "processing_started_at", "processing_finished_at"]:
         instant = datetime.fromisoformat(value[name])
         assert instant == NOW and instant.utcoffset().total_seconds() == 0
@@ -290,7 +290,7 @@ def test_submission_rolls_back_the_whole_admission_unit(application_db, failure)
     with pytest.raises(error) as caught:
         ImportJobSubmissionService().submit(db, user, request)
     if failure != "links":
-        assert caught.value.code == ErrorCode.FILE_NOT_FOUND
+        assert caught.value.code == CustomerErrorCode.FILE_NOT_FOUND
     with Session(db.bind) as observer:
         for model in [ImportJob, ImportDispatch, ImportJobUpload]:
             assert observer.scalar(select(func.count()).select_from(model)) == 0
@@ -507,7 +507,7 @@ async def test_review_confirmation_wins_over_stale_customer_delete_and_retains_p
             confirm_committed.set()
         with pytest.raises(ValidationException) as error:
             await asyncio.wait_for(request, 20)
-        assert error.value.code == ErrorCode.VALIDATION_ERROR
+        assert error.value.code == CustomerErrorCode.VALIDATION_ERROR
         assert error.value.details == {"field": "state"}
         deleting.rollback()
         # Idempotent confirmation returns the same fully committed Score.

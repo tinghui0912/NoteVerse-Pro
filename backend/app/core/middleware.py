@@ -2,6 +2,7 @@
 
 import time
 from dataclasses import dataclass
+from enum import StrEnum
 from collections.abc import Callable
 from urllib.parse import urlparse
 
@@ -11,14 +12,12 @@ from starlette.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.routing import Match
 
-from app.core.exception_handlers import ErrorResponseFactory
+from app.core.http_error_policy import ErrorResponseFactory, HttpRuntimeErrorCodes
 from app.core.client_address import client_address, peer_address
 from app.core.logger import logger
 from app.core.request_correlation import request_correlation_id
 from app.core.metrics import record_http_request
 from app.core.tracing import capture_current_trace_context
-from app.shared.constants import ErrorCode
-from app.shared.responses import error_response
 
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS", "TRACE"}
@@ -59,11 +58,13 @@ class CsrfProtectionMiddleware(BaseHTTPMiddleware):
         app,
         *,
         csrf_settings: CookieCsrfSettings,
-        error_response_factory: ErrorResponseFactory = error_response,
+        error_response_factory: ErrorResponseFactory,
+        error_codes: HttpRuntimeErrorCodes,
     ) -> None:
         super().__init__(app)
         self.csrf_settings = csrf_settings
         self.error_response_factory = error_response_factory
+        self.error_codes = error_codes
 
     async def dispatch(self, request: Request, call_next):
         if self._is_cookie_authenticated_write(request) and not self._has_allowed_origin(request):
@@ -71,7 +72,7 @@ class CsrfProtectionMiddleware(BaseHTTPMiddleware):
                 status_code=403,
                 content=self._error_payload(
                     request,
-                    ErrorCode.REQUEST_ORIGIN_INVALID,
+                    self.error_codes.request_origin_invalid,
                 ),
             )
             return response
@@ -84,7 +85,7 @@ class CsrfProtectionMiddleware(BaseHTTPMiddleware):
                     status_code=403,
                     content=self._error_payload(
                         request,
-                        ErrorCode.CSRF_TOKEN_INVALID,
+                        self.error_codes.csrf_token_invalid,
                     ),
                 )
                 return response
@@ -94,7 +95,7 @@ class CsrfProtectionMiddleware(BaseHTTPMiddleware):
     def _error_payload(
         self,
         request: Request,
-        code: str,
+        code: StrEnum,
     ):
         return self.error_response_factory(code, request_correlation_id(request))
 

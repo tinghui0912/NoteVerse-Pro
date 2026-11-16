@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 
 from .base import ScoreRenderOutputFile, ScoreRenderResult
 from .svg_preview_postprocessor import SvgPreviewPostProcessor
@@ -38,7 +38,7 @@ class VerovioRenderEngine:
             return {
                 "success": False,
                 "engine": self.engine_name,
-                "code": ErrorCode.SCORE_PREVIEW_FAILED,
+                "code": CustomerErrorCode.SCORE_PREVIEW_FAILED,
                 "error": "Verovio renderer supports SVG output only",
             }
 
@@ -46,7 +46,7 @@ class VerovioRenderEngine:
             return {
                 "success": False,
                 "engine": self.engine_name,
-                "code": ErrorCode.XML_NOT_FOUND,
+                "code": CustomerErrorCode.XML_NOT_FOUND,
                 "error": f"MusicXML file not found: {xml_path}",
             }
 
@@ -56,7 +56,7 @@ class VerovioRenderEngine:
             return {
                 "success": False,
                 "engine": self.engine_name,
-                "code": ErrorCode.SCORE_PREVIEW_FAILED,
+                "code": CustomerErrorCode.SCORE_PREVIEW_FAILED,
                 "error": str(exc),
             }
 
@@ -69,7 +69,7 @@ class VerovioRenderEngine:
                 return {
                     "success": False,
                     "engine": self.engine_name,
-                    "code": ErrorCode.SCORE_PREVIEW_FAILED,
+                    "code": CustomerErrorCode.SCORE_PREVIEW_FAILED,
                     "error": "Verovio failed to load MusicXML",
                 }
 
@@ -78,7 +78,7 @@ class VerovioRenderEngine:
                 return {
                     "success": False,
                     "engine": self.engine_name,
-                    "code": ErrorCode.SCORE_PREVIEW_FAILED,
+                    "code": CustomerErrorCode.SCORE_PREVIEW_FAILED,
                     "error": "Verovio produced no pages",
                 }
 
@@ -115,7 +115,7 @@ class VerovioRenderEngine:
             return {
                 "success": False,
                 "engine": self.engine_name,
-                "code": ErrorCode.SCORE_PREVIEW_FAILED,
+                "code": CustomerErrorCode.SCORE_PREVIEW_FAILED,
                 "error": str(exc),
             }
 

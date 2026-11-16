@@ -17,7 +17,7 @@ from app.modules.playback.delivery import PlaybackDeliveryReadModel
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.storage_objects.reads import StoredObjectDelivery
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.storage import object_storage
 
 
@@ -60,7 +60,7 @@ class GuestPreviewService:
             )
         ).scalar_one_or_none()
         if score is None:
-            raise ResourceNotFoundException("score", code=ErrorCode.SCORE_NOT_FOUND)
+            raise ResourceNotFoundException("score", code=CustomerErrorCode.SCORE_NOT_FOUND)
         score.guest_preview_enabled = request.enabled
         db.commit()
         db.refresh(score)
@@ -98,7 +98,7 @@ class GuestPreviewService:
             or asset.revision_id != revision.id
             or asset.kind != RenderAssetKind.RENDERED_PAGE
         ):
-            raise ResourceNotFoundException("render_asset", code=ErrorCode.FILE_NOT_FOUND)
+            raise ResourceNotFoundException("render_asset", code=CustomerErrorCode.FILE_NOT_FOUND)
         return StoredObjectDelivery.for_object(asset.stored_object, asset.filename)
 
     def audio(self, db: Session, token: str) -> StoredObjectDelivery:
@@ -125,5 +125,7 @@ class GuestPreviewService:
             else None
         )
         if score is None or revision is None or revision.score_id != score.id:
-            raise ResourceNotFoundException("guest_preview", code=ErrorCode.GUEST_PREVIEW_NOT_FOUND)
+            raise ResourceNotFoundException(
+                "guest_preview", code=CustomerErrorCode.GUEST_PREVIEW_NOT_FOUND
+            )
         return score, revision

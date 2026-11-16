@@ -37,7 +37,9 @@ the existence of a local operator provider does not establish that qualification
 - Operator and customer clients use separate generated OpenAPI contracts. Platform
   Admin consumes the Control Plane SDK; each app has an independently versioned
   browser identity protocol. Success representations are direct and operator errors
-  use the Control Plane-owned machine-readable code/request-ID schema.
+  use the Control Plane-owned `ControlPlaneErrorCode` enum and code/request-ID
+  schema. Shared HTTP mechanics consume composition-root error policy. See
+  [HTTP error contracts](../architecture/http-error-contracts.md).
 - Internal diagnostics never become ordinary customer errors or stdout dumps.
 - Control-plane rollback and availability can be managed separately from customer
   API, Worker and the internal metrics exporter.

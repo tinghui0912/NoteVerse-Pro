@@ -20,7 +20,7 @@ from app.modules.import_jobs.review.schemas import (
     ReviewArtifactRead,
     ReviewMusicXmlRead,
 )
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.storage import ObjectStorage
 
 
@@ -38,9 +38,9 @@ class ImportReviewReadModel:
             db.execute(select(ImportJob).where(ImportJob.job_uuid == job_uuid))
         ).scalar_one_or_none()
         if not job:
-            raise ResourceNotFoundException("job", job_uuid, ErrorCode.JOB_NOT_FOUND)
+            raise ResourceNotFoundException("job", job_uuid, CustomerErrorCode.JOB_NOT_FOUND)
         if job.user_id != user_id:
-            raise UnauthorizedException(ErrorCode.NO_ACCESS, {"job_id": job_uuid})
+            raise UnauthorizedException(CustomerErrorCode.NO_ACCESS, {"job_id": job_uuid})
         if job.state == ImportJobState.CONFIRMED and job.score_id is not None:
             score = db.get(Score, job.score_id)
             if score:
@@ -57,7 +57,7 @@ class ImportReviewReadModel:
                 )
         if job.state != ImportJobState.READY_FOR_REVIEW:
             raise ValidationException(
-                code=ErrorCode.VALIDATION_ERROR,
+                code=CustomerErrorCode.VALIDATION_ERROR,
                 field="state",
                 details={"state": job.state.value},
             )
@@ -77,7 +77,9 @@ class ImportReviewReadModel:
             None,
         )
         if musicxml_artifact is None:
-            raise ResourceNotFoundException("import_artifact", job_uuid, ErrorCode.XML_NOT_FOUND)
+            raise ResourceNotFoundException(
+                "import_artifact", job_uuid, CustomerErrorCode.XML_NOT_FOUND
+            )
         content = (
             read_admitted_bytes(
                 self.storage, StoredObjectReadTarget.from_object(musicxml_artifact.stored_object)

@@ -4,6 +4,7 @@ from datetime import datetime, timezone, timedelta
 import pytest
 from pydantic import ValidationError
 from app.shared.responses import ApiErrorResponse, error_response
+from app.shared.error_codes import CustomerErrorCode
 from app.shared.api_model import ApiModel
 from app.shared.time import Instant
 from app.shared.pagination import PageNumberPage
@@ -51,7 +52,7 @@ def test_page_number_resource_has_explicit_items_and_total_pages():
 
 def test_error_response_contains_required_correlation() -> None:
     response = error_response(
-        code="validation_error",
+        code=CustomerErrorCode.VALIDATION_ERROR,
         request_id="req-123",
     )
 

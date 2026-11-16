@@ -22,7 +22,7 @@ from app.db.models import (
     OperatorSession,
     OperatorStatus,
 )
-from app.shared.constants import ErrorCode
+from app.core.control_plane_errors import ControlPlaneErrorCode
 from app.shared.time import utc_now
 
 
@@ -102,7 +102,7 @@ class OperatorAuthenticationService:
             )
         ).scalar_one_or_none()
         if identity is None:
-            raise AuthenticationException(code=ErrorCode.INVALID_CREDENTIALS)
+            raise AuthenticationException(code=ControlPlaneErrorCode.INVALID_CREDENTIALS)
 
         credential = (
             db.execute(
@@ -118,7 +118,7 @@ class OperatorAuthenticationService:
             or operator.status != OperatorStatus.ACTIVE
             or not security.verify_password(password, credential.password_hash)
         ):
-            raise AuthenticationException(code=ErrorCode.INVALID_CREDENTIALS)
+            raise AuthenticationException(code=ControlPlaneErrorCode.INVALID_CREDENTIALS)
 
         now = utc_now()
         token = secrets.token_urlsafe(48)
@@ -147,12 +147,12 @@ class OperatorAuthenticationService:
             )
         ).scalar_one_or_none()
         if session is None or session.revoked_at is not None or session.expires_at <= now:
-            raise AuthenticationException(code=ErrorCode.TOKEN_INVALID_EXPIRED)
+            raise AuthenticationException(code=ControlPlaneErrorCode.TOKEN_INVALID_EXPIRED)
 
         operator = db.get(Operator, session.operator_id)
         identity = db.get(OperatorIdentity, session.identity_id)
         if operator is None or identity is None or operator.status != OperatorStatus.ACTIVE:
-            raise AuthenticationException(code=ErrorCode.TOKEN_INVALID_EXPIRED)
+            raise AuthenticationException(code=ControlPlaneErrorCode.TOKEN_INVALID_EXPIRED)
         session.last_used_at = now
         db.commit()
         return operator, identity, session

@@ -18,7 +18,7 @@ from app.modules.import_jobs.schemas import (
     ImportJobSubmitRequestLike,
     ImportJobSubmitResult,
 )
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.shared.time import utc_now
 from app.modules.import_jobs.lifecycle import queue_import
 
@@ -45,7 +45,9 @@ class ImportJobSubmissionService:
             for upload_id in request.upload_ids:
                 upload = uploads.get(upload_id)
                 if upload is None or upload["uploader_user_id"] != user_id:
-                    raise ResourceNotFoundException("upload", upload_id, ErrorCode.FILE_NOT_FOUND)
+                    raise ResourceNotFoundException(
+                        "upload", upload_id, CustomerErrorCode.FILE_NOT_FOUND
+                    )
             now = utc_now()
             job_uuid = str(uuid.uuid4())
             traceparent, tracestate = get_async_trace_context()

@@ -18,7 +18,7 @@ from app.modules.fingering.schemas import FingeringRequest, FingeringResultRead
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.processing.engines.fingering import PianoplayerFingeringEngine
 from app.processing.musicxml.admission import admit_musicxml_document
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 
 
 class FingeringGeneration(TypedDict):
@@ -52,7 +52,7 @@ class FingeringService:
     async def generate(self, score_uuid: str, request: FingeringRequest) -> FingeringResultRead:
         content = request.content.encode("utf-8")
         if len(content) > settings.FINGERING_MAX_CONTENT_BYTES:
-            raise ValidationException(ErrorCode.REVISION_CONTENT_INVALID, field="content")
+            raise ValidationException(CustomerErrorCode.REVISION_CONTENT_INVALID, field="content")
         content = admit_musicxml_document(content)
 
         try:
@@ -64,7 +64,7 @@ class FingeringService:
             )
         except FingeringExecutionCapacityExceeded as exc:
             raise ExternalServiceException(
-                service="score_fingering", code=ErrorCode.SCORE_FINGERING_FAILED
+                service="score_fingering", code=CustomerErrorCode.SCORE_FINGERING_FAILED
             ) from exc
 
         generated_content = generated.get("xml_content")
@@ -86,5 +86,5 @@ class FingeringService:
         ).warning("Fingering engine returned an invalid MusicXML document")
         raise ExternalServiceException(
             service="score_fingering",
-            code=ErrorCode.SCORE_FINGERING_FAILED,
+            code=CustomerErrorCode.SCORE_FINGERING_FAILED,
         )

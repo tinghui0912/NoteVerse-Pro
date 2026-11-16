@@ -71,6 +71,6 @@ def admit_generated_revision(
         raise RevisionPresentationSuperseded()
     if demand == RevisionPresentationDemand.UNAVAILABLE:
         from app.core.exceptions import ResourceNotFoundException
-        from app.shared.constants import ErrorCode
+        from app.shared.error_codes import CustomerErrorCode
 
-        raise ResourceNotFoundException("revision_source", code=ErrorCode.FILE_NOT_FOUND)
+        raise ResourceNotFoundException("revision_source", code=CustomerErrorCode.FILE_NOT_FOUND)

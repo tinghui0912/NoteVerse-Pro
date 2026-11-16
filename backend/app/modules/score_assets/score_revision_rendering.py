@@ -48,7 +48,7 @@ from app.modules.revisions.presentation_demand import (
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.storage_usage.service import storage_usage_service
 from app.modules.rendering.renderer import RenderedPage, RenderExecutionError, render_musicxml
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.storage import object_storage
 
 
@@ -93,7 +93,9 @@ class ScoreRevisionRenderService:
         revision_id = require_persisted_id(revision.id, entity="score revision")
         source = self.repository.canonical_source(db, revision_id)
         if not source:
-            raise ResourceNotFoundException("source", revision_uuid, ErrorCode.FILE_NOT_FOUND)
+            raise ResourceNotFoundException(
+                "source", revision_uuid, CustomerErrorCode.FILE_NOT_FOUND
+            )
 
         uploaded_keys: list[str] = []
         try:
@@ -188,7 +190,7 @@ class ScoreRevisionRenderService:
             )
         ).scalar_one_or_none()
         if score is None:
-            raise ResourceNotFoundException("score", score_uuid, ErrorCode.SCORE_NOT_FOUND)
+            raise ResourceNotFoundException("score", score_uuid, CustomerErrorCode.SCORE_NOT_FOUND)
         revision = db.execute(
             select(ScoreRevision).where(
                 ScoreRevision.score_id == score.id,
@@ -196,10 +198,12 @@ class ScoreRevisionRenderService:
             )
         ).scalar_one_or_none()
         if revision is None:
-            raise ResourceNotFoundException("revision", revision_uuid, ErrorCode.REVISION_NOT_FOUND)
+            raise ResourceNotFoundException(
+                "revision", revision_uuid, CustomerErrorCode.REVISION_NOT_FOUND
+            )
         if revision.content_hash != source_fingerprint:
             raise ScoreRenderFailedException(
-                code=ErrorCode.SCORE_PREVIEW_FAILED,
+                code=CustomerErrorCode.SCORE_PREVIEW_FAILED,
                 details={"revision_id": revision_uuid, "reason": "source_fingerprint_mismatch"},
             )
         revision_id = require_persisted_id(revision.id, entity="score revision")
@@ -210,7 +214,9 @@ class ScoreRevisionRenderService:
             )
         ).scalar_one_or_none()
         if source is None:
-            raise ResourceNotFoundException("source", revision_uuid, ErrorCode.FILE_NOT_FOUND)
+            raise ResourceNotFoundException(
+                "source", revision_uuid, CustomerErrorCode.FILE_NOT_FOUND
+            )
 
         uploaded_keys: list[str] = []
         try:
@@ -345,7 +351,15 @@ class ScoreRevisionRenderService:
         try:
             return render_musicxml(content, output_name="page")
         except RenderExecutionError as error:
+            try:
+                code = (
+                    CustomerErrorCode(error.engine_code)
+                    if error.engine_code
+                    else CustomerErrorCode.SCORE_PREVIEW_FAILED
+                )
+            except ValueError:
+                code = CustomerErrorCode.SCORE_PREVIEW_FAILED
             raise ScoreRenderFailedException(
-                code=error.engine_code or ErrorCode.SCORE_PREVIEW_FAILED,
-                details={"revision_id": revision_uuid},
+                code=code,
+                details={"revision_id": revision_uuid, "engine_code": error.engine_code},
             ) from error

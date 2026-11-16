@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from app.core.control_plane_errors import ControlPlaneErrorCode
 from app.core.exceptions import ResourceNotFoundException
 from app.modules.durable_work.failure import DurableFailureClass
 from app.modules.ops.operation_filters import AsyncOperationFilters
@@ -103,7 +104,9 @@ class OpsAsyncOperationQueryService:
             .one_or_none()
         )
         if row is None:
-            raise ResourceNotFoundException("async_operation", operation_id)
+            raise ResourceNotFoundException(
+                "async_operation", operation_id, code=ControlPlaneErrorCode.RESOURCE_NOT_FOUND
+            )
         return read_projected_operation(row)
 
     def summary(

@@ -26,7 +26,7 @@ from app.modules.auth.schemas import (
     VerifyEmailRequest,
 )
 from app.modules.auth.sessions_service import SessionService
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.shared.time import utc_now
 
 
@@ -379,7 +379,7 @@ def test_password_reset_token_is_single_use(
             ResetPasswordRequest(new_password="newer-password", token=token, locale="en"),
         )
 
-    assert exc.value.code == ErrorCode.RESET_TOKEN_INVALID
+    assert exc.value.code == CustomerErrorCode.RESET_TOKEN_INVALID
 
 
 def test_expired_password_reset_token_is_rejected(
@@ -409,7 +409,7 @@ def test_expired_password_reset_token_is_rejected(
             ResetPasswordRequest(new_password="new-password", token=token, locale="en"),
         )
 
-    assert exc.value.code == ErrorCode.RESET_TOKEN_INVALID
+    assert exc.value.code == CustomerErrorCode.RESET_TOKEN_INVALID
 
 
 def test_current_user_password_change_revokes_sessions_and_sends_notice(
@@ -481,7 +481,7 @@ def test_current_user_password_change_rejects_wrong_current_password() -> None:
             ),
         )
 
-    assert exc.value.code == ErrorCode.CURRENT_PASSWORD_WRONG
+    assert exc.value.code == CustomerErrorCode.CURRENT_PASSWORD_WRONG
     assert security.verify_password("old-password", user.password_hash)
     assert db.commits == 0
 

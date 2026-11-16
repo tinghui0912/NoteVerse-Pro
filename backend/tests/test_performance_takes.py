@@ -89,7 +89,7 @@ from app.modules.scores.dependencies import get_score_service
 from app.modules.scores.service import ScoreService
 from app.modules.storage_usage.dependencies import get_storage_usage_service
 from app.modules.storage_usage.service import StorageUsageService
-from app.shared.error_codes import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.storage.factory import get_object_storage
 from tests.support.object_storage import InMemoryObjectStorage
 
@@ -342,7 +342,7 @@ def test_invalid_stored_scope_reports_validation_error(test_env):
     service = PerformanceTakeService(storage=storage)
     with pytest.raises(ValidationException) as raised:
         service._to_read_dto(take)
-    assert raised.value.code == ErrorCode.VALIDATION_ERROR
+    assert raised.value.code == CustomerErrorCode.VALIDATION_ERROR
     assert raised.value.details == {"field": "manifest", "reason": "invalid_manifest"}
 
 

@@ -10,7 +10,7 @@ from app.core.exceptions import ExternalServiceException
 from app.core.logger import logger
 from app.db.model_utils import require_persisted_id
 from app.db.models import StoredObject
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.storage import AsyncObjectStorage, ObjectStorage
 from app.storage.base import ObjectStorageUnavailableError
 
@@ -68,7 +68,7 @@ def _physical_read(target: StoredObjectReadTarget, operation: str) -> Iterator[N
         if missing:
             raise StoredObjectIntegrityError("Admitted object bytes are missing") from error
         raise ExternalServiceException(
-            "object_storage", code=ErrorCode.STORAGE_BACKEND_UNAVAILABLE
+            "object_storage", code=CustomerErrorCode.STORAGE_BACKEND_UNAVAILABLE
         ) from error
 
 

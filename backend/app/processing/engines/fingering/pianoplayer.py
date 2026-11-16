@@ -9,7 +9,7 @@ from typing import TypedDict
 from app.core.config import settings
 from app.core.exceptions import ExternalServiceException
 from app.core.logger import logger
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 
 
 class FingeringResult(TypedDict):
@@ -34,12 +34,17 @@ class PianoplayerFingeringEngine:
                 input_path = Path(work_dir) / "input.musicxml"
                 output_path = Path(work_dir) / "output.musicxml"
                 input_path.write_text(strip_existing_fingerings(xml_content), encoding="utf-8")
-                runner(str(input_path), outputfile=str(output_path), quiet=True, hand_size=hand_size)
-                return {"xml_content": output_path.read_text(encoding="utf-8"), "hand_size": hand_size}
+                runner(
+                    str(input_path), outputfile=str(output_path), quiet=True, hand_size=hand_size
+                )
+                return {
+                    "xml_content": output_path.read_text(encoding="utf-8"),
+                    "hand_size": hand_size,
+                }
         except ImportError as exc:
             raise ExternalServiceException(
                 service="score_fingering",
-                code=ErrorCode.SCORE_FINGERING_FAILED,
+                code=CustomerErrorCode.SCORE_FINGERING_FAILED,
             ) from exc
         except Exception as exc:
             logger.bind(
@@ -50,7 +55,7 @@ class PianoplayerFingeringEngine:
             ).opt(exception=exc).error("Score fingering generation failed")
             raise ExternalServiceException(
                 service="score_fingering",
-                code=ErrorCode.SCORE_FINGERING_FAILED,
+                code=CustomerErrorCode.SCORE_FINGERING_FAILED,
             ) from exc
 
     @staticmethod

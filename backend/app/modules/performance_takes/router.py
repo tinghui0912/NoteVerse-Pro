@@ -30,7 +30,7 @@ from app.modules.performance_takes.schemas import (
 from app.modules.performance_takes.service import PerformanceTakeService
 
 from app.core.exceptions import ValidationException
-from app.shared.error_codes import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 
 router = APIRouter()
 
@@ -71,7 +71,7 @@ def cancel_take_upload_reservation(
 
 async def require_empty_finalize_body(http_request: Request) -> None:
     if await http_request.body():
-        raise ValidationException(ErrorCode.VALIDATION_ERROR, field="body")
+        raise ValidationException(CustomerErrorCode.VALIDATION_ERROR, field="body")
 
 
 @router.post(

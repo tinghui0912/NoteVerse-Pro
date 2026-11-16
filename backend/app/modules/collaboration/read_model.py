@@ -15,7 +15,7 @@ from app.modules.collaboration.schemas import (
     PendingInviteRead,
     MemberRead,
 )
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.shared.time import utc_now
 
 
@@ -74,7 +74,7 @@ class CollaborationReadModel:
         for row in invites:
             score = scores.get(row.score_id)
             if score is None:
-                raise ResourceNotFoundException("score", code=ErrorCode.SCORE_NOT_FOUND)
+                raise ResourceNotFoundException("score", code=CustomerErrorCode.SCORE_NOT_FOUND)
             result.append(
                 PendingInviteRead(
                     invite_id=row.invite_uuid,
@@ -99,7 +99,9 @@ class CollaborationReadModel:
         for row in memberships:
             user = users.get(row.user_id)
             if user is None:
-                raise ResourceNotFoundException("user", str(row.user_id), ErrorCode.USER_NOT_FOUND)
+                raise ResourceNotFoundException(
+                    "user", str(row.user_id), CustomerErrorCode.USER_NOT_FOUND
+                )
             result.append(
                 MemberRead(
                     membership_id=require_persisted_id(row.id, entity="score membership"),

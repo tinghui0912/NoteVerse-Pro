@@ -26,7 +26,7 @@ from app.modules.auth.schemas import (
 from app.modules.auth.session_cookies import clear_session_cookies, set_session_cookies
 from app.modules.auth.sessions_service import SessionService
 from app.modules.auth.service import AuthService
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 
 
 router = APIRouter()
@@ -95,7 +95,7 @@ def refresh_access_token(
         clear_session_cookies(response)
 
         raise AuthenticationException(
-            code=ErrorCode.TOKEN_INVALID_EXPIRED,
+            code=CustomerErrorCode.TOKEN_INVALID_EXPIRED,
             details={"reason": "missing_refresh_token"},
         )
 

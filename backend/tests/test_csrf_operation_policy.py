@@ -1,5 +1,7 @@
 """CSRF admission follows actual matched operations and explicit application policy."""
 
+from tests.support.http_errors import CUSTOMER_HTTP_ERRORS
+
 import ast
 import inspect
 from dataclasses import fields
@@ -152,7 +154,9 @@ def admitted():
 
 def security_app():
     app = HttpApplication()
-    app.add_middleware(CsrfProtectionMiddleware, csrf_settings=_csrf_settings())
+    app.add_middleware(
+        CsrfProtectionMiddleware, csrf_settings=_csrf_settings(), **CUSTOMER_HTTP_ERRORS
+    )
     return app
 
 

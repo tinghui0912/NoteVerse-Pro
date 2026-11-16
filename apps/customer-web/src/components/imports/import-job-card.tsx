@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { formatApiDateTime } from '@/lib/date-time';
+import { isCustomerErrorCode } from '@/lib/i18n/customer-error-codes';
 import { translateErrorCode } from '@/lib/i18n/error-message';
 import type { ImportJobRead } from '@/generated/api';
 
@@ -30,16 +31,11 @@ export function ImportJobCard({
         <h3 className="font-semibold">{job.display_title || t('untitled')}</h3>
         <p>{t(`state.${job.state}`)}</p>
         {job.created_at ? (
-          <p className="text-xs text-muted-foreground">
-            {formatApiDateTime(job.created_at)}
-          </p>
+          <p className="text-xs text-muted-foreground">{formatApiDateTime(job.created_at)}</p>
         ) : null}
         {active ? (
           <div>
-            <Progress
-              value={job.progress}
-              aria-label={t('progress', { progress: job.progress })}
-            />
+            <Progress value={job.progress} aria-label={t('progress', { progress: job.progress })} />
             <p>{t('progress', { progress: job.progress })}</p>
           </div>
         ) : null}
@@ -47,7 +43,7 @@ export function ImportJobCard({
           <p className="text-sm text-destructive">
             {translateErrorCode(
               errors,
-              job.public_code,
+              isCustomerErrorCode(job.public_code) ? job.public_code : null,
               t('failed'),
             )}
           </p>
@@ -64,11 +60,7 @@ export function ImportJobCard({
             </Button>
           ) : null}
           {job.state === 'FAILED' || job.state === 'READY_FOR_REVIEW' ? (
-            <Button
-              variant="outline"
-              disabled={deletePending}
-              onClick={onDelete}
-            >
+            <Button variant="outline" disabled={deletePending} onClick={onDelete}>
               {t('deleteImport')}
             </Button>
           ) : null}

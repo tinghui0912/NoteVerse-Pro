@@ -43,7 +43,7 @@ from tests.support.score_deletion import complete_score_deletions
 from app.modules.scores.service import ScoreService
 from app.modules.storage_usage.service import storage_usage_service
 from tests.support.storage_state import provision_storage_users
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from tests.support.object_storage import InMemoryObjectStorage
 from app.shared.time import utc_now
@@ -198,7 +198,7 @@ def test_storage_usage_reservation_blocks_when_quota_would_be_exceeded(
             reason="test_upload",
         )
 
-    assert exc_info.value.code == ErrorCode.STORAGE_QUOTA_EXCEEDED
+    assert exc_info.value.code == CustomerErrorCode.STORAGE_QUOTA_EXCEEDED
     session.rollback()
     assert _count(session, StorageUsageReservation) == 0
 
@@ -228,7 +228,7 @@ def test_reservation_requires_provisioned_storage_authorities(
                 reason="test_upload",
             )
 
-    assert exc_info.value.code == ErrorCode.QUOTA_CHECK_UNAVAILABLE
+    assert exc_info.value.code == CustomerErrorCode.QUOTA_CHECK_UNAVAILABLE
 
 
 def test_storage_usage_api_returns_quota_and_breakdown(
@@ -368,7 +368,7 @@ def test_upload_quota_exceeded_does_not_store_file(
     with pytest.raises(ValidationException) as exc_info:
         service.create_upload(db, user, upload)  # type: ignore[arg-type]
 
-    assert exc_info.value.code == ErrorCode.STORAGE_QUOTA_EXCEEDED
+    assert exc_info.value.code == CustomerErrorCode.STORAGE_QUOTA_EXCEEDED
     session.rollback()
     assert _count(session, Upload) == 0
     assert not storage.objects
@@ -405,7 +405,7 @@ def test_upload_api_returns_storage_quota_error_without_storing_file(
 
     assert response.status_code == 422
     payload = response.json()
-    assert payload["code"] == ErrorCode.STORAGE_QUOTA_EXCEEDED
+    assert payload["code"] == CustomerErrorCode.STORAGE_QUOTA_EXCEEDED
     assert "internal_details" not in payload
     session.rollback()
     assert _count(session, Upload) == 0
@@ -475,7 +475,7 @@ def test_revision_create_quota_exceeded_does_not_create_revision_or_source(
             ),
         )
 
-    assert exc_info.value.code == ErrorCode.STORAGE_QUOTA_EXCEEDED
+    assert exc_info.value.code == CustomerErrorCode.STORAGE_QUOTA_EXCEEDED
     session.rollback()
     assert _count(session, ScoreRevision) == 1
     assert _count(session, ScoreRevisionSource) == 1

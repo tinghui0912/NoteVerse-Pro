@@ -25,7 +25,7 @@ from app.modules.score_assets.schemas import (
     ScoreRevisionAssetsRead,
 )
 from app.modules.scores.repository import ScoreRepository
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.storage import object_storage
 
 
@@ -153,7 +153,9 @@ class ScoreAssetService:
             kind,
         )
         if not render_assets:
-            raise ResourceNotFoundException("render_asset", score_uuid, ErrorCode.FILE_NOT_FOUND)
+            raise ResourceNotFoundException(
+                "render_asset", score_uuid, CustomerErrorCode.FILE_NOT_FOUND
+            )
         archive = io.BytesIO()
         with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as bundle:
             for render_asset in render_assets:
@@ -176,7 +178,7 @@ class ScoreAssetService:
         source = self.repository.get_source(db, source_uuid)
         if not source:
             raise ResourceNotFoundException(
-                "revision_source", source_uuid, ErrorCode.FILE_NOT_FOUND
+                "revision_source", source_uuid, CustomerErrorCode.FILE_NOT_FOUND
             )
         revision = self._authorize_asset_revision(db, source, source_uuid, user_id, action)
         return source, revision
@@ -191,7 +193,7 @@ class ScoreAssetService:
         render_asset = self.repository.get_render_asset(db, render_asset_uuid)
         if render_asset is None:
             raise ResourceNotFoundException(
-                "render_asset", render_asset_uuid, ErrorCode.FILE_NOT_FOUND
+                "render_asset", render_asset_uuid, CustomerErrorCode.FILE_NOT_FOUND
             )
         revision = self._authorize_asset_revision(
             db, render_asset, render_asset_uuid, user_id, action
@@ -208,7 +210,9 @@ class ScoreAssetService:
     ) -> ScoreRevision:
         identity = self.repository.revision_identity_for_asset(db, asset)
         if identity is None:
-            raise ResourceNotFoundException("revision", asset_uuid, ErrorCode.REVISION_NOT_FOUND)
+            raise ResourceNotFoundException(
+                "revision", asset_uuid, CustomerErrorCode.REVISION_NOT_FOUND
+            )
         score_uuid, revision_uuid = identity
         access = self.access_policy.authorize_revision(
             db,

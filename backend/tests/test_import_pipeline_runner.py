@@ -7,7 +7,7 @@ import pytest
 from celery.exceptions import SoftTimeLimitExceeded
 
 from app.core.exceptions import TimeoutException, PipelineException
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.modules.import_jobs.dispatch_service import (
     ImportExecutionLease,
     StaleImportDispatchAttempt,
@@ -40,9 +40,13 @@ def test_admitted_input_loss_has_system_failure_facts() -> None:
 @pytest.mark.parametrize(
     "code,expected,classification",
     [
-        (ErrorCode.INPUT_FILE_MISSING, "import_inputs_unavailable", DurableFailureClass.PERMANENT),
         (
-            ErrorCode.SCORE_RECOGNITION_FAILED,
+            CustomerErrorCode.INPUT_FILE_MISSING,
+            "import_inputs_unavailable",
+            DurableFailureClass.PERMANENT,
+        ),
+        (
+            CustomerErrorCode.SCORE_RECOGNITION_FAILED,
             "import_pipeline_rejected",
             DurableFailureClass.USER_ERROR,
         ),

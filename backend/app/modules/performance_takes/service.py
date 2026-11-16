@@ -25,7 +25,7 @@ from app.modules.performance_takes.schemas import (
     PerformanceTakeRead,
 )
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.storage.factory import object_storage
 
 
@@ -140,7 +140,7 @@ class PerformanceTakeService:
         take = self.repository.get_by_uuid(db, user_id, take_id)
         if take is None:
             raise ResourceNotFoundException(
-                "performance_take", take_id, ErrorCode.RESOURCE_NOT_FOUND
+                "performance_take", take_id, CustomerErrorCode.RESOURCE_NOT_FOUND
             )
 
         score = db.get(Score, take.linked_score_id) if take.linked_score_id is not None else None
@@ -157,7 +157,7 @@ class PerformanceTakeService:
         take = self.repository.get_by_uuid(db, user_id, take_id)
         if take is None:
             raise ResourceNotFoundException(
-                "performance_take", take_id, ErrorCode.RESOURCE_NOT_FOUND
+                "performance_take", take_id, CustomerErrorCode.RESOURCE_NOT_FOUND
             )
 
         facts = performance_take_facts_from_row(take)
@@ -190,7 +190,7 @@ class PerformanceTakeService:
         take = self.repository.get_by_uuid(db, user_id, take_id)
         if take is None:
             raise ResourceNotFoundException(
-                "performance_take", take_id, ErrorCode.RESOURCE_NOT_FOUND
+                "performance_take", take_id, CustomerErrorCode.RESOURCE_NOT_FOUND
             )
         facts = performance_take_facts_from_row(take)
         manifest, recording = facts.manifest, facts.recording_object
@@ -208,7 +208,7 @@ class PerformanceTakeService:
         take = self.repository.get_by_uuid(db, user_id, take_id, lock=True)
         if take is None:
             raise ResourceNotFoundException(
-                "performance_take", take_id, ErrorCode.RESOURCE_NOT_FOUND
+                "performance_take", take_id, CustomerErrorCode.RESOURCE_NOT_FOUND
             )
 
         facts = performance_take_facts_from_row(take)

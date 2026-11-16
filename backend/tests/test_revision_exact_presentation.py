@@ -25,7 +25,7 @@ from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.guest_previews.service import GuestPreviewService
 from app.modules.guest_previews.schemas import GuestPreviewUpdateRequest
 from app.modules.storage_usage.service import storage_usage_service
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from tests.test_revision_derivative_demand import revisions as revisions
 from tests.test_guest_previews import add_page, add_audio
 from tests.test_score_revision_services import MUSICXML_2
@@ -69,7 +69,7 @@ def test_head_projection_and_playback_do_not_read_other_revision(revisions):
     delivery = PlaybackDeliveryReadModel(access_policy=ScoreAccessPolicy())
     with pytest.raises(ResourceNotFoundException) as missing:
         delivery.delivery_for_revision(db, rows[2].id)
-    assert missing.value.code == ErrorCode.FILE_NOT_FOUND
+    assert missing.value.code == CustomerErrorCode.FILE_NOT_FOUND
 
 
 @pytest.mark.parametrize("enabled", [False, True])

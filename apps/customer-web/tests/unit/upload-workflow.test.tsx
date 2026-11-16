@@ -6,7 +6,7 @@ import { act, renderHook } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/lib/http/customer-browser-transport';
-import { translateErrorCode } from '@/lib/i18n/error-message';
+import { translateErrorCode, userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { queryKeys } from '@/lib/query-client';
 import { getCompletedJobRoute } from '@/lib/upload/upload-workflow';
 import { useUploadWorkflow } from '@/hooks/upload/use-upload-workflow';
@@ -84,33 +84,31 @@ beforeEach(() => {
 
 describe('upload score navigation', () => {
   it('routes review jobs and completed scores to their product pages', () => {
-    expect(getCompletedJobRoute('review-job', null, 'READY_FOR_REVIEW')).toBe(
-      '/review/review-job',
+    expect(getCompletedJobRoute('review-job', null, 'READY_FOR_REVIEW')).toBe('/review/review-job');
+    expect(getCompletedJobRoute('result-job', 'result-score', 'CONFIRMED')).toBe(
+      '/score/result-score',
     );
-    expect(
-      getCompletedJobRoute('result-job', 'result-score', 'CONFIRMED'),
-    ).toBe('/score/result-score');
   });
 });
 
 describe('upload error messages', () => {
   const tErrors = Object.assign(
-    (key: never) => zhErrors[key as keyof typeof zhErrors],
+    (key: keyof typeof zhErrors) => zhErrors[key as keyof typeof zhErrors],
     {
-      has: (key: never) => Object.prototype.hasOwnProperty.call(zhErrors, key),
+      has: (key: keyof typeof zhErrors) => Object.prototype.hasOwnProperty.call(zhErrors, key),
     },
   );
 
   it('maps storage quota errors to a user-facing message', () => {
-    expect(
-      translateErrorCode(tErrors, 'storage_quota_exceeded', '操作失败'),
-    ).toBe('存储空间不足，请删除不需要的内容或升级方案。');
+    expect(translateErrorCode(tErrors, 'storage_quota_exceeded', '操作失败')).toBe(
+      '存储空间不足，请删除不需要的内容或升级方案。',
+    );
   });
 
   it('uses the fallback instead of exposing unknown backend codes', () => {
-    expect(
-      translateErrorCode(tErrors, 'unexpected_backend_code', '操作失败'),
-    ).toBe('操作失败');
+    expect(userFacingErrorMessage(tErrors, { code: 'unexpected_backend_code' }, '操作失败')).toBe(
+      '操作失败',
+    );
   });
 });
 
@@ -149,10 +147,10 @@ describe('upload workflow storage quota handling', () => {
 
   it('refreshes storage usage after a successful file upload', async () => {
     createUploadMock.mockResolvedValue({
-        upload_id: 'uploaded-upload-id',
-        original_filename: 'score.png',
-        byte_size: 3,
-      });
+      upload_id: 'uploaded-upload-id',
+      original_filename: 'score.png',
+      byte_size: 3,
+    });
     submitImportJobMock.mockResolvedValue({ job_id: 'job-1' });
     const queryClient = createQueryClient();
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');

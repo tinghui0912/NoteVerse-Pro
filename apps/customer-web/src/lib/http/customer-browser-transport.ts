@@ -1,28 +1,47 @@
-"use client";
+'use client';
 
-import { authRefresh, type ApiErrorResponse } from '@/generated/api';
+import { authRefresh, type CustomerErrorCode, type ApiErrorResponse } from '@/generated/api';
 import { createClient, type RequestResult } from '@/generated/api/client';
 import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from '@/generated/browser-protocol';
+import { isCustomerErrorCode } from '@/lib/i18n/customer-error-codes';
 import { getCurrentLoginHref } from '@/lib/auth/return-url';
 import { reportClientError } from '@/lib/observability';
 
 export class ApiError extends Error {
-  constructor(public status: number, public code: string, public requestId?: string) {
+  constructor(
+    public status: number,
+    public code: CustomerErrorCode,
+    public requestId?: string,
+  ) {
     super(code);
     this.name = 'ApiError';
   }
 }
 
+function isRequestId(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    value.length >= 1 &&
+    value.length <= 128 &&
+    /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.exec(value)?.[0] === value
+  );
+}
+
 function isApplicationError(value: unknown): value is ApiErrorResponse {
-  if (value === null || typeof value !== 'object') return false;
-  const payload = value as Partial<ApiErrorResponse>;
-  return typeof payload.code === 'string' &&
-    typeof payload.request_id === 'string' && payload.request_id.length > 0;
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+  const payload = value as Record<string, unknown>;
+  return (
+    Object.keys(payload).length === 2 &&
+    Object.hasOwn(payload, 'code') &&
+    Object.hasOwn(payload, 'request_id') &&
+    isCustomerErrorCode(payload.code) &&
+    isRequestId(payload.request_id)
+  );
 }
 
 function cookie(name: string): string | undefined {
   if (typeof document === 'undefined') return undefined;
-  const value = document.cookie.split('; ').find(part => part.startsWith(`${name}=`));
+  const value = document.cookie.split('; ').find((part) => part.startsWith(`${name}=`));
   return value ? decodeURIComponent(value.slice(name.length + 1)) : undefined;
 }
 
@@ -43,32 +62,47 @@ async function abortable<T>(promise: Promise<T>, signal: AbortSignal): Promise<T
     onAbort = () => reject(signal.reason);
     signal.addEventListener('abort', onAbort, { once: true });
   });
-  try { return await Promise.race([promise, aborted]); }
-  finally { signal.removeEventListener('abort', onAbort); }
+  try {
+    return await Promise.race([promise, aborted]);
+  } finally {
+    signal.removeEventListener('abort', onAbort);
+  }
 }
 
 /** Policy profiles contain no Customer operation method, path or encoding. */
-export function createCustomerBrowserTransport(options: {
-  baseUrl?: string;
-  fetch?: typeof fetch;
-  onUnauthorized?: () => void;
-} = {}) {
-  const baseUrl = options.baseUrl ?? (typeof window === 'undefined' ? 'http://localhost' : window.location.origin);
+export function createCustomerBrowserTransport(
+  options: {
+    baseUrl?: string;
+    fetch?: typeof fetch;
+    onUnauthorized?: () => void;
+  } = {},
+) {
+  const baseUrl =
+    options.baseUrl ??
+    (typeof window === 'undefined' ? 'http://localhost' : window.location.origin);
   const send = options.fetch ?? ((...args: Parameters<typeof fetch>) => globalThis.fetch(...args));
   const onUnauthorized = options.onUnauthorized ?? redirectToLogin;
   let refreshSequence = 0;
   let refreshAttempt: { sequence: number; pending: boolean; promise: Promise<boolean> } | undefined;
 
   function refresh(afterSequence?: number): Promise<boolean> {
-    if (refreshAttempt && (refreshAttempt.pending ||
-      (afterSequence !== undefined && refreshAttempt.sequence > afterSequence))) {
+    if (
+      refreshAttempt &&
+      (refreshAttempt.pending ||
+        (afterSequence !== undefined && refreshAttempt.sequence > afterSequence))
+    ) {
       return refreshAttempt.promise;
     }
     const attempt = { sequence: ++refreshSequence, pending: true, promise: Promise.resolve(false) };
     refreshAttempt = attempt;
     attempt.promise = authRefresh({ client: refreshClient, throwOnError: true })
-      .then(() => true, () => false)
-      .finally(() => { attempt.pending = false; });
+      .then(
+        () => true,
+        () => false,
+      )
+      .finally(() => {
+        attempt.pending = false;
+      });
     return attempt.promise;
   }
 
@@ -95,12 +129,16 @@ export function createCustomerBrowserTransport(options: {
         const replay = policy.refresh ? request.clone() : undefined;
         const observedSend = async (outgoing: Request) => {
           signal.throwIfAborted();
-          try { return await send(outgoing); }
-          catch (error) {
-            if (!signal.aborted) reportClientError(error, {
-              area: 'customer_http', action: 'fetch', method: outgoing.method,
-              path: safePath(outgoing.url),
-            });
+          try {
+            return await send(outgoing);
+          } catch (error) {
+            if (!signal.aborted)
+              reportClientError(error, {
+                area: 'customer_http',
+                action: 'fetch',
+                method: outgoing.method,
+                path: safePath(outgoing.url),
+              });
             throw error;
           }
         };
@@ -127,17 +165,27 @@ export function createCustomerBrowserTransport(options: {
       if (isApplicationError(error)) {
         return new ApiError(response.status, error.code, error.request_id);
       }
-      return new ApiError(response.status,
+      return new ApiError(
+        response.status,
         response.status >= 500 ? 'internal_error' : 'unknown_error',
-        response.headers.get('X-Request-ID') || undefined);
+        isRequestId(response.headers.get('X-Request-ID'))
+          ? response.headers.get('X-Request-ID')!
+          : undefined,
+      );
     });
     return client;
   }
 
   const refreshClient = makeClient({ refresh: false, redirect: false });
   return {
-    authenticated: { client: makeClient({ refresh: true, redirect: true }), throwOnError: true } as const,
-    public: { client: makeClient({ refresh: false, redirect: false }), throwOnError: true } as const,
+    authenticated: {
+      client: makeClient({ refresh: true, redirect: true }),
+      throwOnError: true,
+    } as const,
+    public: {
+      client: makeClient({ refresh: false, redirect: false }),
+      throwOnError: true,
+    } as const,
     silent: { client: makeClient({ refresh: true, redirect: false }), throwOnError: true } as const,
   };
 }
@@ -145,7 +193,9 @@ export function createCustomerBrowserTransport(options: {
 export const customerTransport = createCustomerBrowserTransport();
 
 /** Project SDK result metadata away while retaining the generated success payload. */
-export async function responseBody<T>(request: RequestResult<Record<string, T>, unknown, true>): Promise<T> {
+export async function responseBody<T>(
+  request: RequestResult<Record<string, T>, unknown, true>,
+): Promise<T> {
   return (await request).data;
 }
 

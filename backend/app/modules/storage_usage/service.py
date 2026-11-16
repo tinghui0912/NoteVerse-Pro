@@ -30,7 +30,7 @@ from app.modules.storage_usage.schemas import (
     StorageUsageQuotaRead,
     StorageUsageRead,
 )
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.shared.time import utc_now
 
 
@@ -84,7 +84,7 @@ class StorageUsageService:
     ) -> StorageReservationHandle:
         if bytes_count <= 0:
             raise ValidationException(
-                ErrorCode.VALIDATION_ERROR,
+                CustomerErrorCode.VALIDATION_ERROR,
                 field="bytes_count",
                 details={"bytes_count": bytes_count},
             )

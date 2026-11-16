@@ -11,6 +11,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.exceptions import HTTPException
 
 from app.core.exceptions import AppException
+from app.shared.error_codes import CustomerErrorCode
+from app.core.control_plane_errors import ControlPlaneErrorCode
 from app.core.logger import json_format, logger
 from app.core.middleware import LoggingMiddleware
 from app.core.request_correlation import REQUEST_ID_PATTERN, get_request_id, request_correlation_id
@@ -47,7 +49,7 @@ def runtime():
             raise RuntimeError("private failure")
         if kind == "framework":
             raise HTTPException(404, detail="private")
-        raise AppException(code="probe_failure", status_code=int(kind))
+        raise AppException(code=CustomerErrorCode.VALIDATION_ERROR, status_code=int(kind))
 
     @app.get(f"{CUSTOMER_API_PREFIX}/correlation/validate")
     async def validate(count: int):
@@ -185,7 +187,7 @@ async def test_concurrent_requests_keep_state_and_log_context_isolated(runtime):
         await asyncio.wait_for(both_started.wait(), 5)
         after = (request_correlation_id(request), get_request_id())
         seen.append((before, after))
-        raise AppException(code="concurrent_failure")
+        raise AppException(code=CustomerErrorCode.VALIDATION_ERROR)
 
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://testserver"
@@ -297,11 +299,16 @@ def test_error_representations_admit_the_ingress_request_identity(model, identit
     from app.shared.request_id import REQUEST_ID_PATTERN
 
     response_type = ApiErrorResponse if model == "customer" else ControlPlaneErrorResponse
+    code = (
+        CustomerErrorCode.VALIDATION_ERROR
+        if model == "customer"
+        else ControlPlaneErrorCode.VALIDATION_ERROR
+    )
     if REQUEST_ID_PATTERN.fullmatch(identity):
-        assert response_type(code="probe_failure", request_id=identity).request_id == identity
+        assert response_type(code=code, request_id=identity).request_id == identity
     else:
         with pytest.raises(ValidationError):
-            response_type(code="probe_failure", request_id=identity)
+            response_type(code=code, request_id=identity)
 
 
 def test_error_request_identity_schema_matches_ingress_constraints():
@@ -318,9 +325,12 @@ def test_error_request_identity_schema_matches_ingress_constraints():
 
 
 @pytest.mark.parametrize("code", ["", "custom_code" * 500])
-def test_application_error_codes_follow_the_declared_string_contract(code):
+def test_application_error_codes_require_contract_membership(code):
     from app.shared.responses import ApiErrorResponse
     from app.core.control_plane_errors import ControlPlaneErrorResponse
 
+    from pydantic import ValidationError
+
     for model in (ApiErrorResponse, ControlPlaneErrorResponse):
-        assert model(code=code, request_id="request").code == code
+        with pytest.raises(ValidationError):
+            model(code=code, request_id="request")

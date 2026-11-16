@@ -1,3 +1,4 @@
+from tests.support.http_errors import CUSTOMER_HTTP_ERRORS
 from app.core.http_application import HttpApplication
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -22,7 +23,7 @@ def test_install_http_runtime_adds_only_requested_security_middleware(monkeypatc
     monkeypatch.setattr("app.core.http_runtime.configure_api_tracing", traced_apps.append)
     app = HttpApplication()
 
-    install_http_runtime(app)
+    install_http_runtime(app, **CUSTOMER_HTTP_ERRORS)
 
     assert [middleware.cls for middleware in app.user_middleware] == [LoggingMiddleware]
     assert registered_apps == [app]
@@ -36,7 +37,7 @@ def test_install_http_runtime_preserves_explicit_cors_and_csrf_policy(monkeypatc
     monkeypatch.setattr("app.core.http_runtime.configure_api_tracing", lambda _, **kwargs: None)
     app = HttpApplication()
 
-    install_http_runtime(app, cors_origins=["https://app.example"])
+    install_http_runtime(app, **CUSTOMER_HTTP_ERRORS, cors_origins=["https://app.example"])
 
     assert [middleware.cls for middleware in app.user_middleware] == [
         CORSMiddleware,

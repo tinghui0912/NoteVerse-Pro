@@ -1,6 +1,6 @@
 import { createClient } from "../generated/api/client";
 import type { ControlPlaneErrorResponse } from "../generated/api/types.gen";
-import { ControlPlaneErrorResponseSchema } from "../generated/api/schemas.gen";
+import { ControlPlaneErrorCodeSchema, ControlPlaneErrorResponseSchema } from "../generated/api/schemas.gen";
 import { OPERATOR_CSRF_COOKIE_NAME, OPERATOR_CSRF_HEADER_NAME } from "../generated/browser-protocol";
 
 const requestFailureMessage = "Control Plane request failed.";
@@ -52,7 +52,7 @@ function isControlPlaneError(value: unknown): value is ControlPlaneErrorResponse
   const record = value as Record<string, unknown>;
   return ControlPlaneErrorResponseSchema.required.every(key => Object.hasOwn(record, key)) &&
     Object.keys(record).every(key => Object.hasOwn(ControlPlaneErrorResponseSchema.properties, key)) &&
-    typeof record.code === "string" && isRequestId(record.request_id);
+    ControlPlaneErrorCodeSchema.enum.some(code => code === record.code) && isRequestId(record.request_id);
 }
 
 function csrfToken(): string | undefined {

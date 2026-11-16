@@ -1,3 +1,4 @@
+from tests.support.http_errors import CUSTOMER_HTTP_ERRORS
 from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
@@ -302,7 +303,7 @@ def test_unsafe_musicxml_meter_is_invalid_score_over_http(tmp_path, numerator, d
     path.write_bytes(xml(time(numerator, denominator)))
     service = bundle_service_for_notation(path.read_bytes())
     app = HttpApplication()
-    register_exception_handlers(app)
+    register_exception_handlers(app, **CUSTOMER_HTTP_ERRORS)
     app.include_router(router, prefix="/api/v1/practice")
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
     app.dependency_overrides[get_db] = lambda: Mock()

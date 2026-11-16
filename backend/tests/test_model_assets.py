@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from tests.support.http_errors import CUSTOMER_HTTP_ERRORS
+
 import datetime
 from datetime import UTC, timedelta, timezone
 
@@ -21,7 +23,7 @@ from app.modules.model_assets.generated.practice_acoustic_model_asset import MOD
 from app.core.exception_handlers import register_exception_handlers
 
 app = HttpApplication()
-register_exception_handlers(app)
+register_exception_handlers(app, **CUSTOMER_HTTP_ERRORS)
 app.include_router(router, prefix="/api/v1/model-assets")
 
 

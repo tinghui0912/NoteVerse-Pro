@@ -7,7 +7,7 @@ import warnings
 from fastapi import UploadFile
 from PIL import Image, ImageSequence, UnidentifiedImageError
 from app.core.exceptions import ValidationException
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 
 MAX_SCORE_IMPORT_UPLOAD_BYTES = 20 * 1024 * 1024
 
@@ -34,7 +34,7 @@ def read_score_import_upload(file: UploadFile) -> bytes:
     content = file.file.read(MAX_SCORE_IMPORT_UPLOAD_BYTES + 1)
     if not content or len(content) > MAX_SCORE_IMPORT_UPLOAD_BYTES:
         raise ValidationException(
-            code=ErrorCode.VALIDATION_ERROR,
+            code=CustomerErrorCode.VALIDATION_ERROR,
             field="file",
             details={"max_bytes": MAX_SCORE_IMPORT_UPLOAD_BYTES},
         )
@@ -67,4 +67,6 @@ def admit_score_import_image(content: bytes, filename: str) -> ScoreImportImage:
         Image.DecompressionBombWarning,
         Image.DecompressionBombError,
     ) as exc:
-        raise ValidationException(code=ErrorCode.FILE_TYPE_NOT_ALLOWED, field="file") from exc
+        raise ValidationException(
+            code=CustomerErrorCode.FILE_TYPE_NOT_ALLOWED, field="file"
+        ) from exc

@@ -39,7 +39,7 @@ from app.processing.engines.playback import FluidSynthAudioRenderer
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.storage_usage.service import storage_usage_service
 from app.modules.revisions.presentation_demand import admit_generated_revision
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.storage import object_storage
 
 
@@ -66,7 +66,7 @@ class PlaybackGenerationService:
         asset_kind: PlaybackAssetKind = PlaybackAssetKind.AUDIO,
     ) -> ScorePlaybackAsset:
         if asset_kind != PlaybackAssetKind.AUDIO:
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="asset_kind")
+            raise ValidationException(CustomerErrorCode.VALIDATION_ERROR, field="asset_kind")
 
         score = (
             db.execute(
@@ -77,7 +77,7 @@ class PlaybackGenerationService:
             )
         ).scalar_one_or_none()
         if not score:
-            raise ResourceNotFoundException("score", score_uuid, ErrorCode.SCORE_NOT_FOUND)
+            raise ResourceNotFoundException("score", score_uuid, CustomerErrorCode.SCORE_NOT_FOUND)
         revision = (
             db.execute(
                 select(ScoreRevision).where(
@@ -87,14 +87,20 @@ class PlaybackGenerationService:
             )
         ).scalar_one_or_none()
         if not revision:
-            raise ResourceNotFoundException("revision", revision_uuid, ErrorCode.REVISION_NOT_FOUND)
+            raise ResourceNotFoundException(
+                "revision", revision_uuid, CustomerErrorCode.REVISION_NOT_FOUND
+            )
         revision_id = require_persisted_id(revision.id, entity="score revision")
         if revision.content_hash != source_fingerprint:
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="source_fingerprint")
+            raise ValidationException(
+                CustomerErrorCode.VALIDATION_ERROR, field="source_fingerprint"
+            )
 
         source = self.asset_repository.canonical_source(db, revision_id)
         if source is None:
-            raise ResourceNotFoundException("source", revision_uuid, ErrorCode.FILE_NOT_FOUND)
+            raise ResourceNotFoundException(
+                "source", revision_uuid, CustomerErrorCode.FILE_NOT_FOUND
+            )
 
         source_content = read_admitted_bytes(
             self.storage, StoredObjectReadTarget.from_object(source.stored_object)
@@ -190,7 +196,7 @@ class PlaybackGenerationService:
         asset_kind: PlaybackAssetKind = PlaybackAssetKind.AUDIO,
     ) -> ScorePlaybackAsset:
         if asset_kind != PlaybackAssetKind.AUDIO:
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="asset_kind")
+            raise ValidationException(CustomerErrorCode.VALIDATION_ERROR, field="asset_kind")
 
         score = db.execute(
             select(Score).where(
@@ -199,7 +205,7 @@ class PlaybackGenerationService:
             )
         ).scalar_one_or_none()
         if not score:
-            raise ResourceNotFoundException("score", score_uuid, ErrorCode.SCORE_NOT_FOUND)
+            raise ResourceNotFoundException("score", score_uuid, CustomerErrorCode.SCORE_NOT_FOUND)
         revision = db.execute(
             select(ScoreRevision).where(
                 ScoreRevision.score_id == score.id,
@@ -207,10 +213,14 @@ class PlaybackGenerationService:
             )
         ).scalar_one_or_none()
         if not revision:
-            raise ResourceNotFoundException("revision", revision_uuid, ErrorCode.REVISION_NOT_FOUND)
+            raise ResourceNotFoundException(
+                "revision", revision_uuid, CustomerErrorCode.REVISION_NOT_FOUND
+            )
         revision_id = require_persisted_id(revision.id, entity="score revision")
         if revision.content_hash != source_fingerprint:
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="source_fingerprint")
+            raise ValidationException(
+                CustomerErrorCode.VALIDATION_ERROR, field="source_fingerprint"
+            )
 
         source = db.execute(
             select(ScoreRevisionSource).where(
@@ -219,7 +229,9 @@ class PlaybackGenerationService:
             )
         ).scalar_one_or_none()
         if source is None:
-            raise ResourceNotFoundException("source", revision_uuid, ErrorCode.FILE_NOT_FOUND)
+            raise ResourceNotFoundException(
+                "source", revision_uuid, CustomerErrorCode.FILE_NOT_FOUND
+            )
 
         return self._render_worker_asset(
             db,

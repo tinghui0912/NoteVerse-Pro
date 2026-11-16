@@ -13,7 +13,7 @@ def test_admission_depends_only_on_semantic_owners_and_public_error_mapping():
         "app.score_semantics.musicxml_score",
         "app.score_semantics.musicxml_tempo",
         "app.core.exceptions",
-        "app.shared.constants",
+        "app.shared.error_codes",
     }
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom):

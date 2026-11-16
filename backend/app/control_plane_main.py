@@ -1,10 +1,11 @@
 """Isolated FastAPI composition root for platform operator controls."""
 
 from app.core.http_application import HttpApplication
+from app.core.http_error_policy import HttpRuntimeErrorCodes
 
 from app.api.runtime_endpoints import install_process_endpoints
 from app.core.config import settings
-from app.core.control_plane_errors import control_plane_error_response
+from app.core.control_plane_errors import ControlPlaneErrorCode, control_plane_error_response
 from app.core.control_plane_settings import require_control_plane_settings
 from app.core.generated.control_plane_browser_protocol import CONTROL_PLANE_API_PREFIX
 from app.api.control_plane import router as control_plane_router
@@ -34,6 +35,16 @@ def create_app() -> HttpApplication:
     )
     install_http_runtime(
         app,
+        error_codes=HttpRuntimeErrorCodes(
+            validation_error=ControlPlaneErrorCode.VALIDATION_ERROR,
+            auth_failed=ControlPlaneErrorCode.AUTH_FAILED,
+            unauthorized=ControlPlaneErrorCode.UNAUTHORIZED,
+            resource_not_found=ControlPlaneErrorCode.RESOURCE_NOT_FOUND,
+            internal_error=ControlPlaneErrorCode.INTERNAL_ERROR,
+            unknown_error=ControlPlaneErrorCode.UNKNOWN_ERROR,
+            csrf_token_invalid=ControlPlaneErrorCode.CSRF_TOKEN_INVALID,
+            request_origin_invalid=ControlPlaneErrorCode.REQUEST_ORIGIN_INVALID,
+        ),
         csrf_settings=CookieCsrfSettings(
             api_prefix=CONTROL_PLANE_API_PREFIX,
             session_cookie_names=(control_settings.auth_cookie_name,),

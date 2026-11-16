@@ -16,7 +16,7 @@ def manifest_to_row(value: TakeManifest) -> PerformanceTakeManifest:
 
 def manifest_from_row(row: PerformanceTakeManifest) -> TakeManifest:
     from app.core.exceptions import ValidationException
-    from app.shared.constants import ErrorCode
+    from app.shared.error_codes import CustomerErrorCode
 
     try:
         if not isinstance(row.manifest_sha256, str) or not re.fullmatch(
@@ -29,5 +29,7 @@ def manifest_from_row(row: PerformanceTakeManifest) -> TakeManifest:
         return value
     except (ValueError, TypeError, KeyError) as error:
         raise ValidationException(
-            ErrorCode.VALIDATION_ERROR, field="manifest", details={"reason": "invalid_manifest"}
+            CustomerErrorCode.VALIDATION_ERROR,
+            field="manifest",
+            details={"reason": "invalid_manifest"},
         ) from error

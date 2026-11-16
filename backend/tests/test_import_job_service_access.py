@@ -10,7 +10,7 @@ from app.core.exceptions import (
 )
 from app.db.models.import_job import ImportJobState
 from app.modules.import_jobs.service import ImportJobService
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from pydantic import ValidationError
 
 
@@ -48,7 +48,7 @@ def test_get_owned_job_allows_only_its_owner() -> None:
     with pytest.raises(UnauthorizedException) as error:
         service.get_owned_job(Mock(), "job-1", 8)
 
-    assert error.value.code == ErrorCode.NO_ACCESS
+    assert error.value.code == CustomerErrorCode.NO_ACCESS
     assert error.value.details == {"job_id": "job-1"}
 
 
@@ -58,7 +58,7 @@ def test_get_owned_job_hides_missing_jobs_with_the_stable_not_found_code() -> No
     with pytest.raises(ResourceNotFoundException) as error:
         service.get_owned_job(Mock(), "missing-job", 7)
 
-    assert error.value.code == ErrorCode.JOB_NOT_FOUND
+    assert error.value.code == CustomerErrorCode.JOB_NOT_FOUND
     assert error.value.details == {
         "resource_type": "job",
         "resource_id": "missing-job",
@@ -78,7 +78,7 @@ def test_retry_rejects_jobs_that_are_not_failed() -> None:
     with pytest.raises(ValidationException) as error:
         service.retry(Mock(), "job-1", SimpleNamespace(id=7), 7)
 
-    assert error.value.code == ErrorCode.VALIDATION_ERROR
+    assert error.value.code == CustomerErrorCode.VALIDATION_ERROR
     assert error.value.details == {"field": "state"}
 
 
@@ -102,7 +102,7 @@ def test_retry_requires_original_uploads_and_preserves_processing_options() -> N
     with pytest.raises(ResourceNotFoundException) as error:
         service.retry(database, "job-1", SimpleNamespace(id=7), 7)
 
-    assert error.value.code == ErrorCode.FILE_NOT_FOUND
+    assert error.value.code == CustomerErrorCode.FILE_NOT_FOUND
 
     rows.scalars.return_value.all.return_value = ["upload-1", "upload-2"]
     submission = Mock()

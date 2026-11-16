@@ -249,12 +249,29 @@ export const AsyncOperationsSummaryReadSchema = {
     type: 'object'
 } as const;
 
+export const ControlPlaneErrorCodeSchema = {
+    enum: [
+        'validation_error',
+        'token_invalid_expired',
+        'invalid_credentials',
+        'no_access',
+        'csrf_token_invalid',
+        'request_origin_invalid',
+        'resource_not_found',
+        'auth_failed',
+        'unauthorized',
+        'unknown_error',
+        'internal_error'
+    ],
+    title: 'ControlPlaneErrorCode',
+    type: 'string'
+} as const;
+
 export const ControlPlaneErrorResponseSchema = {
     additionalProperties: false,
     properties: {
         code: {
-            title: 'Code',
-            type: 'string'
+            $ref: '#/components/schemas/ControlPlaneErrorCode'
         },
         request_id: {
             maxLength: 128,

@@ -7,7 +7,7 @@ import pytest
 from app.core.exceptions import ValidationException
 from app.processing.musicxml.admission import admit_musicxml_document
 from app.score_semantics.musicxml_score import MusicXMLSemanticError, parse_score_semantics
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 
 ATTRIBUTES = "<attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>"
 NOTE = '<note id="a"><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration></note>'
@@ -47,7 +47,7 @@ def test_timewise_is_not_an_admitted_canonical_representation():
         admit_musicxml_document(
             b'<score-timewise><measure number="1"><part id="P1"/></measure></score-timewise>'
         )
-    assert caught.value.code == ErrorCode.REVISION_CONTENT_INVALID
+    assert caught.value.code == CustomerErrorCode.REVISION_CONTENT_INVALID
 
 
 INVALID_WRITTEN = [
@@ -76,7 +76,7 @@ INVALID_WRITTEN = [
 def test_invalid_written_semantics_are_public_revision_content_errors(content):
     with pytest.raises(ValidationException) as caught:
         admit_musicxml_document(content)
-    assert caught.value.code == ErrorCode.REVISION_CONTENT_INVALID
+    assert caught.value.code == CustomerErrorCode.REVISION_CONTENT_INVALID
     assert caught.value.status_code == 422
     assert isinstance(caught.value.__cause__, MusicXMLSemanticError)
 
@@ -85,7 +85,7 @@ def test_invalid_written_semantics_are_public_revision_content_errors(content):
 def test_malformed_xml_or_root_is_not_admitted(content):
     with pytest.raises(ValidationException) as caught:
         admit_musicxml_document(content)
-    assert caught.value.code == ErrorCode.REVISION_CONTENT_INVALID
+    assert caught.value.code == CustomerErrorCode.REVISION_CONTENT_INVALID
 
 
 def test_admission_accepts_timed_polymeter_that_practice_cannot_project():
@@ -189,5 +189,5 @@ def test_materialized_tempo_does_not_admit_invalid_written_chronology():
     raw = score(METRONOME + "<backup><duration>1</duration></backup>" + NOTE)
     with pytest.raises(ValidationException) as caught:
         admit_musicxml_document(raw)
-    assert caught.value.code == ErrorCode.REVISION_CONTENT_INVALID
+    assert caught.value.code == CustomerErrorCode.REVISION_CONTENT_INVALID
     assert isinstance(caught.value.__cause__, MusicXMLSemanticError)

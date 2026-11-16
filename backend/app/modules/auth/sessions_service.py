@@ -14,7 +14,7 @@ from app.db.model_utils import require_persisted_id
 from app.db.models.auth import RefreshToken
 from app.db.models.user import User
 from app.modules.auth.schemas import SessionSummary
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 from app.shared.time import utc_now
 
 
@@ -72,17 +72,17 @@ class SessionService:
 
         if not current_token:
             raise AuthenticationException(
-                code=ErrorCode.TOKEN_INVALID_EXPIRED,
+                code=CustomerErrorCode.TOKEN_INVALID_EXPIRED,
                 details={"reason": "refresh_not_found"},
             )
         if current_token.revoked_at is not None:
             raise AuthenticationException(
-                code=ErrorCode.TOKEN_INVALID_EXPIRED,
+                code=CustomerErrorCode.TOKEN_INVALID_EXPIRED,
                 details={"reason": "refresh_revoked"},
             )
         if current_token.expires_at <= now:
             raise AuthenticationException(
-                code=ErrorCode.TOKEN_INVALID_EXPIRED,
+                code=CustomerErrorCode.TOKEN_INVALID_EXPIRED,
                 details={"reason": "refresh_expired"},
             )
 
@@ -92,7 +92,7 @@ class SessionService:
             current_token.revoked_at = now
             db.commit()
             raise AuthenticationException(
-                code=ErrorCode.TOKEN_INVALID_EXPIRED,
+                code=CustomerErrorCode.TOKEN_INVALID_EXPIRED,
                 details={"reason": "user_inactive_or_missing"},
             )
 
@@ -100,7 +100,7 @@ class SessionService:
             current_token.revoked_at = now
             db.commit()
             raise AuthenticationException(
-                code=ErrorCode.TOKEN_INVALID_EXPIRED,
+                code=CustomerErrorCode.TOKEN_INVALID_EXPIRED,
                 details={"reason": "password_changed"},
             )
 
@@ -220,7 +220,7 @@ class SessionService:
     ) -> None:
         if not current_refresh_token:
             raise AuthenticationException(
-                code=ErrorCode.TOKEN_INVALID_EXPIRED,
+                code=CustomerErrorCode.TOKEN_INVALID_EXPIRED,
                 details={"reason": "missing_refresh_token"},
             )
 
