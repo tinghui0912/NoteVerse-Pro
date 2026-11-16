@@ -3,17 +3,15 @@
 import type { FingeringRequest, MembershipRole, ScoreGenre } from '@/generated/api';
 import { scoreInvitesApi, scoresApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
+import { scoreLeft, scoreUpdated, scoreRevisionWritten, revisionNoteChanged, scoresDeleted } from '@/lib/cache-effects/scores';
+import { scoreInvitesChanged, scoreMembersChanged, inviteAccepted, pendingInviteDeclined } from '@/lib/cache-effects/collaboration';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 export function useLeaveScore() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (scoreId: string) => scoreInvitesApi.leaveScore(scoreId),
-    onSuccess: async (_response, scoreId) => {
-      // Discard the authorized detail before a back navigation can reuse it.
-      queryClient.removeQueries({ queryKey: queryKeys.scores.detail(scoreId) });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.library.all });
-    },
+    onSuccess: (_response, scoreId) => scoreLeft(queryClient, scoreId),
   });
 }
 
@@ -69,10 +67,7 @@ export function useUpdateScore() {
       genres?: ScoreGenre[];
       expected_version: number;
     }) => scoresApi.update(scoreId, input),
-    onSuccess: (response) => {
-      const score = response;
-      if (score) queryClient.setQueryData(queryKeys.scores.detail(score.score_id), response);
-    },
+    onSuccess: (response) => scoreUpdated(queryClient, response),
   });
 }
 
@@ -88,17 +83,7 @@ export function useCreateRevision() {
       expected_head_revision_id: string;
       idempotency_key?: string;
     }) => scoresApi.createRevision(scoreId, input),
-    onSuccess: (_response, variables) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.detail(variables.scoreId) });
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.scores.revisions(variables.scoreId),
-      });
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.scores.revisionAssets(variables.scoreId),
-      });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.library.scores() });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.storageUsage.current() });
-    },
+    onSuccess: (_response, variables) => scoreRevisionWritten(queryClient, variables.scoreId),
   });
 }
 
@@ -114,17 +99,7 @@ export function useRestoreRevision() {
       revisionId: string;
       note?: string | null;
     }) => scoresApi.restoreRevision(scoreId, revisionId, { note }),
-    onSuccess: (_response, variables) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.detail(variables.scoreId) });
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.scores.revisions(variables.scoreId),
-      });
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.scores.revisionAssets(variables.scoreId),
-      });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.library.scores() });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.storageUsage.current() });
-    },
+    onSuccess: (_response, variables) => scoreRevisionWritten(queryClient, variables.scoreId),
   });
 }
 
@@ -140,11 +115,7 @@ export function useUpdateRevisionNote() {
       revisionId: string;
       note?: string | null;
     }) => scoresApi.updateRevisionNote(scoreId, revisionId, { note }),
-    onSuccess: (_response, variables) => {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.scores.revisions(variables.scoreId),
-      });
-    },
+    onSuccess: (_response, variables) => revisionNoteChanged(queryClient, variables.scoreId),
   });
 }
 
@@ -177,9 +148,7 @@ export function useCreateScoreInvite(scoreId: string) {
   return useMutation({
     mutationFn: (input: Parameters<typeof scoreInvitesApi.createInvite>[1]) =>
       scoreInvitesApi.createInvite(scoreId, input),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.invites(scoreId) });
-    },
+    onSuccess: () => scoreInvitesChanged(queryClient, scoreId),
   });
 }
 
@@ -187,9 +156,7 @@ export function useRevokeScoreInvite(scoreId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (inviteId: string) => scoreInvitesApi.revokeInvite(scoreId, inviteId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.invites(scoreId) });
-    },
+    onSuccess: () => scoreInvitesChanged(queryClient, scoreId),
   });
 }
 
@@ -209,10 +176,7 @@ export function useUpdateScoreMember(scoreId: string) {
   return useMutation({
     mutationFn: ({ membershipId, role }: { membershipId: number; role: MembershipRole }) =>
       scoreInvitesApi.updateMember(scoreId, membershipId, { role }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.members(scoreId) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.detail(scoreId) });
-    },
+    onSuccess: () => scoreMembersChanged(queryClient, scoreId),
   });
 }
 
@@ -220,9 +184,7 @@ export function useRemoveScoreMember(scoreId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (membershipId: number) => scoreInvitesApi.removeMember(scoreId, membershipId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.members(scoreId) });
-    },
+    onSuccess: () => scoreMembersChanged(queryClient, scoreId),
   });
 }
 
@@ -239,15 +201,7 @@ export function useAcceptScoreInvite() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (token: string) => scoreInvitesApi.acceptInvite(token),
-    onSuccess: (response) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.library.all });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.myInvites() });
-      if (response?.score_id) {
-        void queryClient.invalidateQueries({
-          queryKey: queryKeys.scores.detail(response.score_id),
-        });
-      }
-    },
+    onSuccess: (response) => inviteAccepted(queryClient, response.score_id),
   });
 }
 
@@ -266,15 +220,7 @@ export function useAcceptMyPendingScoreInvite() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (inviteId: string) => scoreInvitesApi.acceptMyPendingInvite(inviteId),
-    onSuccess: (response) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.library.all });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.myInvites() });
-      if (response?.score_id) {
-        void queryClient.invalidateQueries({
-          queryKey: queryKeys.scores.detail(response.score_id),
-        });
-      }
-    },
+    onSuccess: (response) => inviteAccepted(queryClient, response.score_id),
   });
 }
 
@@ -282,9 +228,7 @@ export function useDeclineMyPendingScoreInvite() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (inviteId: string) => scoreInvitesApi.declineMyPendingInvite(inviteId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.myInvites() });
-    },
+    onSuccess: () => pendingInviteDeclined(queryClient),
   });
 }
 
@@ -292,15 +236,6 @@ export function useDeleteScores() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (scoreIds: string[]) => scoresApi.batchDelete(scoreIds),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.scores.all });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.library.all });
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.importJobs.all,
-      });
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.storageUsage.current(),
-      });
-    },
+    onSuccess: (_response, scoreIds) => scoresDeleted(queryClient, scoreIds),
   });
 }

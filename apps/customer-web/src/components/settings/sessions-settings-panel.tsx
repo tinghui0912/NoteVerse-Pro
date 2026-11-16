@@ -2,7 +2,8 @@
 
 import { useMemo } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/query-client';
 import { Monitor, ShieldCheck, Smartphone } from 'lucide-react';
 
 import { InlineLoading } from '@/components/loading';
@@ -17,7 +18,7 @@ import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { formatApiDateTime } from '@/lib/date-time';
 import type { SessionSummary } from '@/generated/api';
 
-const sessionsQueryKey = ['account', 'sessions'];
+const sessionsQueryKey = queryKeys.account.sessions();
 
 function deviceLabel(session: SessionSummary, fallback: string): string {
   const agent = session.user_agent ?? '';
@@ -44,7 +45,6 @@ export function SessionsSettingsPanel() {
   const tErrors = useTranslations('errors');
   const locale = useLocale();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   const sessionsQuery = useQuery({
     queryKey: sessionsQueryKey,
@@ -68,10 +68,6 @@ export function SessionsSettingsPanel() {
     });
   };
 
-  const refreshSessions = () => {
-    void queryClient.invalidateQueries({ queryKey: sessionsQueryKey });
-  };
-
   const handleRevoke = (sessionId: number) => {
     revokeSession.mutate(sessionId, {
       onSuccess: () => {
@@ -79,7 +75,6 @@ export function SessionsSettingsPanel() {
           title: t('sessions.revokedTitle'),
           description: t('sessions.revokedDesc'),
         });
-        refreshSessions();
       },
       onError: showErrorToast,
     });
@@ -92,7 +87,6 @@ export function SessionsSettingsPanel() {
           title: t('sessions.revokedOthersTitle'),
           description: t('sessions.revokedOthersDesc'),
         });
-        refreshSessions();
       },
       onError: showErrorToast,
     });

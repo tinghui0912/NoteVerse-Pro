@@ -134,7 +134,7 @@ it('retries the failed process through the API and invalidates the list without 
     ),
   );
   expect(invalidate).toHaveBeenCalledWith({
-    queryKey: queryKeys.importJobs.all,
+    queryKey: queryKeys.importJobs.lists(),
   });
   expect(screen.getByText('FAILED import')).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: 'Next' }));

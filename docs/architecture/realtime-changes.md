@@ -104,7 +104,8 @@ The same connection continues live delivery. Native EventSource owns Last-Event-
 reconnects; no second browser cursor is persisted. Customer Web validates `checkpoint`, `change`
 and `resync-required` through generated decoders. Known changes invalidate their data-domain queries. Resync controls
 and malformed/unknown changes trigger broad query invalidation so active queries converge.
-Import changes invalidate Import lists; notification changes separately invalidate
+Import changes invalidate the Import collection, matching Import detail and matching Review
+projection; notification changes separately invalidate
 notification list/count. Pending-invite invalidation belongs to local accept/decline
 mutations; notification changes do not represent collaboration changes. Score changes invalidate the relevant
 Score, revision/assets and library queries.
@@ -118,5 +119,7 @@ change-kind enum into `backend/app/modules/realtime/generated/transport.py`, and
 TypeScript types and strict decoders into
 `apps/customer-web/src/lib/realtime/generated/events.ts`. Both projections are checked
 for freshness by backend and Customer Web quality gates. SSE formatters accept these
-typed payloads and use the payload sequence as the event ID. Business cache behavior
-remains in the Customer Web provider.
+typed payloads and use the payload sequence as the event ID. RealtimeProvider owns only
+transport and lifecycle. Customer cache-effects own semantic convergence; local mutation
+success and realtime delivery use the same semantic effects when they represent the
+same product fact. Valid checkpoints have no cache effect.

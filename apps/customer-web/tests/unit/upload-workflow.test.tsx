@@ -143,7 +143,7 @@ describe('upload workflow storage quota handling', () => {
     });
     expect(submitImportJobMock).not.toHaveBeenCalled();
     expect(invalidateSpy).not.toHaveBeenCalledWith({
-      queryKey: queryKeys.storageUsage.current(),
+      queryKey: queryKeys.storageUsage.all,
     });
   });
 
@@ -175,7 +175,7 @@ describe('upload workflow storage quota handling', () => {
       'upload-workflow-test-key',
     );
     expect(invalidateSpy).toHaveBeenCalledWith({
-      queryKey: queryKeys.storageUsage.current(),
+      queryKey: queryKeys.storageUsage.all,
     });
     expect(toastMock).toHaveBeenCalledWith({
       title: '识别请求已创建',

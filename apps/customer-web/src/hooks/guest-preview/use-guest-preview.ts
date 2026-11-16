@@ -1,3 +1,4 @@
+import { guestPreviewSettingsUpdated } from '@/lib/cache-effects/scores';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { guestPreviewApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
@@ -26,6 +27,6 @@ export function useUpdateGuestPreviewSettings(scoreId: string) {
     mutationFn: (input: GuestPreviewUpdateRequest) =>
       guestPreviewApi.updateSettings(scoreId, input),
     onSuccess: (settings) =>
-      client.setQueryData(queryKeys.scores.guestPreviewSettings(scoreId), settings),
+      guestPreviewSettingsUpdated(client, scoreId, settings),
   });
 }

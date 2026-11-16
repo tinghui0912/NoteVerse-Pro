@@ -1,3 +1,4 @@
+import { importSubmitted, importDeleted } from '@/lib/cache-effects/imports';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { importJobsApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
@@ -57,7 +58,7 @@ export function useSubmitImportJob() {
       idempotencyKey?: string;
     }) => importJobsApi.submitImportJob(uploadIds, options, idempotencyKey),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: queryKeys.importJobs.all }),
+      importSubmitted(queryClient),
   });
 }
 
@@ -65,8 +66,7 @@ export function useDeleteImportJob() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: importJobsApi.deleteImportJob,
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: queryKeys.importJobs.all }),
+    onSuccess: (_response, jobId) => importDeleted(queryClient, jobId),
   });
 }
 
@@ -75,6 +75,6 @@ export function useRetryImportJob() {
   return useMutation({
     mutationFn: importJobsApi.retryImportJob,
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: queryKeys.importJobs.all }),
+      importSubmitted(queryClient),
   });
 }

@@ -12,7 +12,7 @@ import {
 } from '@/hooks/queries/use-import-job-queries';
 import { useToast } from '@/hooks/use-toast';
 import { uploadsApi } from '@/lib/api';
-import { queryKeys } from '@/lib/query-client';
+import { storageUsageChanged } from '@/lib/cache-effects/storage';
 import { knownGenres } from '@/lib/score/genres';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { reportUnexpectedClientError } from '@/lib/observability';
@@ -301,9 +301,7 @@ export function useUploadWorkflow() {
           const uploadId = response?.upload_id;
           if (!uploadId) throw new Error(tCommon('operationFailed'));
           uploadIds.push(uploadId);
-          void queryClient.invalidateQueries({
-            queryKey: queryKeys.storageUsage.current(),
-          });
+          void storageUsageChanged(queryClient);
           setTrackedFiles((current) =>
             current.map((item, itemIndex) =>
               itemIndex === index

@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useAutoSave } from '@/hooks/editor/use-auto-save';
 import { useEditorOriginalImages } from '@/hooks/editor/use-editor-original-images';
@@ -21,7 +20,6 @@ import { scoresApi } from '@/lib/api';
 import { deleteDraft, loadDraft, type DraftEntry } from '@/lib/editor/draft-storage';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { reportUnexpectedClientError } from '@/lib/observability';
-import { queryKeys } from '@/lib/query-client';
 import type { FingeringRequest } from '@/generated/api';
 import type { EditorWorkspaceDocument } from '@/types/editor-workspace';
 
@@ -30,7 +28,6 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
   const common = useTranslations('common');
   const errors = useTranslations('errors');
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const { applyXml, clearXml, currentXml, normalizeVoices } = useEditorXmlActions();
   const completeSave = useEditorSaveCompletion({ applyXml });
   const showSaveError = useEditorSaveErrorToast();
@@ -127,11 +124,6 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
             beforeNavigate: async () => {
               await clearDraft();
               if (nextRevision) setBaselineRevisionId(nextRevision);
-              await Promise.all([
-                queryClient.invalidateQueries({ queryKey: queryKeys.scores.detail(scoreId) }),
-                queryClient.invalidateQueries({ queryKey: queryKeys.scores.revisionAssets(scoreId) }),
-                queryClient.invalidateQueries({ queryKey: queryKeys.scores.revisions(scoreId) }),
-              ]);
             },
           });
         },

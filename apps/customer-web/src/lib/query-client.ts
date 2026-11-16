@@ -32,6 +32,9 @@ export interface LibraryScoreQueryFilters {
  * used for broad invalidation; leaf factories own complete cache identity.
  */
 export const queryKeys = {
+    account: {
+        sessions: () => ['account', 'sessions'] as const,
+    },
     importJobs: {
         all: ['import-jobs'] as const,
         lists: () => ['import-jobs', 'list'] as const,

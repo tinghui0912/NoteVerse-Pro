@@ -1,7 +1,8 @@
 /**
  * TanStack Query mutation hooks for profile actions.
  */
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { accountSessionsChanged } from '@/lib/cache-effects/account';
 import { profileApi } from '@/lib/api';
 import type { RequestEmailChangeRequest, UpdateProfileRequest } from '@/generated/api';
 
@@ -39,14 +40,18 @@ export function useChangePassword() {
 }
 
 export function useRevokeSession() {
+    const client = useQueryClient();
     return useMutation({
         mutationFn: (sessionId: number) => profileApi.revokeSession(sessionId),
+        onSuccess: () => accountSessionsChanged(client),
     });
 }
 
 export function useRevokeOtherSessions() {
+    const client = useQueryClient();
     return useMutation({
         mutationFn: () => profileApi.revokeOtherSessions(),
+        onSuccess: () => accountSessionsChanged(client),
     });
 }
 

@@ -1,3 +1,4 @@
+import { reviewConfirmed, reviewUpdated } from '@/lib/cache-effects/imports';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { reviewApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
@@ -16,10 +17,7 @@ export function useConfirmImportJobReview() {
   return useMutation({
     mutationFn: ({ jobId, content, displayTitle }: { jobId: string; content: string; displayTitle?: string }) =>
       reviewApi.confirm(jobId, { content, display_title: displayTitle }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.storageUsage.current() });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.library.scores() });
-    },
+    onSuccess: (response, variables) => reviewConfirmed(queryClient, variables.jobId, response.score_id),
   });
 }
 
@@ -29,8 +27,6 @@ export function useUpdateImportJobReview() {
   return useMutation({
     mutationFn: ({ jobId, content }: { jobId: string; content: string }) =>
       reviewApi.update(jobId, { content }),
-    onSuccess: (_response, variables) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.review.detail(variables.jobId) });
-    },
+    onSuccess: (_response, variables) => reviewUpdated(queryClient, variables.jobId),
   });
 }

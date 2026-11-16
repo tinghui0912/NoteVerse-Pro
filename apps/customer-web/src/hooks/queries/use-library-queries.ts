@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { libraryApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
+import { libraryOrganizationChanged } from '@/lib/cache-effects/library';
 import type {
   LibraryScoreBatchMoveRequest,
   LibraryScoreBatchFavoriteRequest,
@@ -50,7 +51,7 @@ export function useCreateLibraryFolder() {
     mutationFn: (input: LibraryFolderCreateRequest) =>
       libraryApi.createFolder(input),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: queryKeys.library.all }),
+      libraryOrganizationChanged(queryClient),
   });
 }
 
@@ -64,7 +65,7 @@ export function useUpdateLibraryFolder() {
       folderId: string;
     } & LibraryFolderUpdateRequest) => libraryApi.updateFolder(folderId, input),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: queryKeys.library.all }),
+      libraryOrganizationChanged(queryClient),
   });
 }
 
@@ -73,7 +74,7 @@ export function useDeleteLibraryFolder() {
   return useMutation({
     mutationFn: (folderId: string) => libraryApi.deleteFolder(folderId),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: queryKeys.library.all }),
+      libraryOrganizationChanged(queryClient),
   });
 }
 
@@ -83,7 +84,7 @@ export function useMoveLibraryScores() {
     mutationFn: (input: LibraryScoreBatchMoveRequest) =>
       libraryApi.batchMove(input),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: queryKeys.library.all }),
+      libraryOrganizationChanged(queryClient),
   });
 }
 
@@ -93,6 +94,6 @@ export function useFavoriteLibraryScores() {
     mutationFn: (input: LibraryScoreBatchFavoriteRequest) =>
       libraryApi.batchFavorite(input),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: queryKeys.library.all }),
+      libraryOrganizationChanged(queryClient),
   });
 }
