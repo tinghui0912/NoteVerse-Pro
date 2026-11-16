@@ -73,9 +73,16 @@ def test_processing_outcome_and_confirmation_have_distinct_durable_instants(scor
         dispatch_uuid=dispatch.dispatch_uuid, job_uuid=job.job_uuid, attempt=1, token="current"
     )
     recorder = ImportExecutionRecorder()
-    recorder.record_progress(db, lease, 10, current_step="recognition")
+    recorder.start_execution(db, lease)
     started_at = job.processing_started_at
     assert job.state == ImportJobState.PROCESSING and started_at >= admitted_at
+    assert job.progress == 0 and job.current_step is None
+    assert job.processing_last_heartbeat_at is job.processing_finished_at is None
+    recorder.start_execution(db, lease)
+    assert job.processing_started_at == started_at
+    assert job.processing_last_heartbeat_at is None
+    recorder.record_progress(db, lease, 10, current_step="recognition")
+    assert job.processing_started_at == started_at
     assert job.processing_last_heartbeat_at is not None and job.processing_finished_at is None
     recorder.record_progress(db, lease, 80)
     assert job.processing_started_at == started_at

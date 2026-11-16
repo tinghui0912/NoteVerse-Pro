@@ -10,7 +10,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, event
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import ResourceNotFoundException
@@ -35,7 +35,6 @@ from app.modules.import_jobs import dispatch_service as dispatch_module, executi
 from app.modules.import_jobs.dispatch_service import (
     ImportDispatchService,
     StaleImportDispatchAttempt,
-    require_current_attempt,
 )
 from app.modules.import_jobs.execution_recorder import ImportExecutionRecorder
 from app.modules.import_jobs.submission_service import ImportJobSubmissionService
@@ -250,12 +249,12 @@ def test_exhausted_delivery_accepts_failure_with_the_observed_processing_start(
     setup_delivery, processing_started
 ):
     db, _, job, row = setup_delivery
-    claim(db, row)
-    row.attempt_count = dispatch_module.settings.IMPORT_DISPATCH_MAX_ATTEMPTS
+    lease = claim(db, row)
     if processing_started:
-        from app.modules.import_jobs.lifecycle import begin_processing
-
-        begin_processing(job, now=utc_now())
+        ImportExecutionRecorder().start_execution(db, lease)
+    observed_start = job.processing_started_at
+    assert job.processing_last_heartbeat_at is None
+    row.attempt_count = dispatch_module.settings.IMPORT_DISPATCH_MAX_ATTEMPTS
     db.add_all([row, job])
     db.commit()
     expire(db, row)
@@ -265,6 +264,8 @@ def test_exhausted_delivery_accepts_failure_with_the_observed_processing_start(
     assert row.failure_retryable is job.failure_retryable is False
     assert job.state == ImportJobState.FAILED and job.processing_finished_at
     assert (job.processing_started_at is not None) is processing_started
+    assert job.processing_started_at == observed_start
+    assert job.processing_last_heartbeat_at is None
     assert job.failure_stage == "dispatch" and job.failure_detail
     assert db.scalar(select(Notification.kind)) == "import.failed"
     assert sorted(db.scalars(select(RealtimeChange.kind))) == [
@@ -288,7 +289,8 @@ def test_exhausted_delivery_accepts_failure_with_the_observed_processing_start(
 
 
 @pytest.mark.parametrize(
-    "mutation", ["binding", "progress", "step", "artifacts", "success", "failure", "complete"]
+    "mutation",
+    ["start", "binding", "progress", "step", "artifacts", "success", "failure", "complete"],
 )
 def test_only_current_execution_lease_can_mutate_job(setup_delivery, mutation):
     db, _, job, row = setup_delivery
@@ -297,6 +299,7 @@ def test_only_current_execution_lease_can_mutate_job(setup_delivery, mutation):
     assert second.attempt == first.attempt + 1 and second.token != first.token
     worker = ImportExecutionRecorder()
     actions = {
+        "start": lambda: worker.start_execution(db, first),
         "binding": lambda: execution_manifest.bind_import_job_execution_manifest(db, first),
         "progress": lambda: worker.record_progress(db, first, 99),
         "step": lambda: worker.upsert_step(db, first, "ocr", "RUNNING"),
@@ -314,6 +317,7 @@ def test_only_current_execution_lease_can_mutate_job(setup_delivery, mutation):
     with pytest.raises(StaleImportDispatchAttempt):
         actions[mutation]()
     db.rollback()
+    worker.start_execution(db, second)
     worker.record_progress(db, second, 25, current_step="current-ocr")
     assert job.progress == 25 and row.attempt_token == second.token
     assert db.scalar(select(ImportJobStep)) is None
@@ -332,11 +336,35 @@ def test_only_current_execution_lease_can_mutate_job(setup_delivery, mutation):
         {"dispatch_uuid": "missing"},
     ],
 )
-def test_execution_lease_requires_exact_delivery_job_attempt_token(setup_delivery, change):
-    db, _, _, row = setup_delivery
+def test_execution_start_requires_exact_delivery_job_attempt_token_without_commit(
+    setup_delivery, change
+):
+    db, _, job, row = setup_delivery
     lease = claim(db, row)
-    with pytest.raises(StaleImportDispatchAttempt):
-        require_current_attempt(db, replace(lease, **change))
+    original = (
+        job.state,
+        job.processing_started_at,
+        job.processing_last_heartbeat_at,
+        job.progress,
+    )
+    commits = []
+
+    def committed(session):
+        commits.append(True)
+
+    event.listen(db, "after_commit", committed)
+    try:
+        with pytest.raises(StaleImportDispatchAttempt):
+            ImportExecutionRecorder().start_execution(db, replace(lease, **change))
+    finally:
+        event.remove(db, "after_commit", committed)
+    assert commits == []
+    assert (
+        job.state,
+        job.processing_started_at,
+        job.processing_last_heartbeat_at,
+        job.progress,
+    ) == original
 
 
 def test_written_artifact_requires_current_lease_at_transactional_adoption(
@@ -532,6 +560,7 @@ def test_worker_completes_delivery_after_durable_domain_outcome(
 
     def run(task, lease, keys, options):
         assert lease.dispatch_uuid == row.dispatch_uuid and lease.job_uuid == job.job_uuid
+        worker.start_execution(db, lease)
         if outcome == "failure":
             worker.finalize_failure(
                 db,
@@ -609,3 +638,69 @@ def test_final_attempt_domain_failure_completes_delivery_and_preserves_terminal_
     assert ImportDispatchService().claim(db, row.dispatch_uuid) is None
     db.commit()
     assert (row.status, row.attempt_count, row.completed_at, row.updated_at) == before
+
+
+def test_started_execution_crash_before_progress_recovers_to_queued(setup_delivery):
+    db, _, job, row = setup_delivery
+    lease = claim(db, row)
+    ImportExecutionRecorder().start_execution(db, lease)
+    db.refresh(job)
+    assert row.status == ImportDispatchStatus.PROCESSING
+    assert job.state == ImportJobState.PROCESSING and job.processing_started_at is not None
+    assert job.processing_last_heartbeat_at is job.current_step is None and job.progress == 0
+    created_at = job.created_at
+    expire(db, row)
+    assert ImportDispatchService().recover_and_list_due(db) == [row.dispatch_uuid]
+    db.commit()
+    db.refresh(job)
+    assert job.state == ImportJobState.QUEUED and job.progress == 0
+    assert (
+        job.processing_started_at
+        is job.processing_last_heartbeat_at
+        is job.processing_finished_at
+        is job.current_step
+        is None
+    )
+    assert job.created_at == created_at
+
+
+def test_materialization_failure_preserves_committed_start_without_a_progress_heartbeat(
+    setup_delivery, monkeypatch, tmp_path
+):
+    from sqlalchemy.orm import sessionmaker
+    from app.modules.import_jobs import pipeline_runner
+    from app.modules.storage_objects.reads import StoredObjectIntegrityError
+
+    db, storage, job, row = setup_delivery
+    payload = ImportDispatchService().claim(db, row.dispatch_uuid)
+    db.commit()
+    engine = db.get_bind()
+    job_uuid = job.job_uuid
+    runner = pipeline_runner.ImportPipelineRunner(storage=storage)
+    resolve_inputs = runner._resolve_input_paths
+    observed_start = []
+
+    def materialize(inputs):
+        # A separate connection must observe the committed boundary before actual GET.
+        with Session(engine) as observer:
+            current = observer.scalar(select(ImportJob).where(ImportJob.job_uuid == job_uuid))
+            assert current.state == ImportJobState.PROCESSING
+            assert current.processing_started_at is not None
+            assert current.processing_last_heartbeat_at is current.current_step is None
+            assert current.progress == 0
+            observed_start.append(current.processing_started_at)
+        return resolve_inputs(inputs)
+
+    monkeypatch.setattr(pipeline_runner, "SessionLocal", sessionmaker(bind=engine))
+    monkeypatch.setattr(pipeline_runner, "object_work_path", lambda _: str(tmp_path / "input.png"))
+    monkeypatch.setattr(runner, "_resolve_input_paths", materialize)
+    with pytest.raises(StoredObjectIntegrityError):
+        runner.run_pipeline(Mock(), payload.lease, payload.inputs, payload.options)
+    db.refresh(job)
+    assert len(observed_start) == 1
+    assert job.state == ImportJobState.FAILED
+    assert job.processing_started_at == observed_start[0]
+    assert job.processing_last_heartbeat_at is None
+    assert job.processing_finished_at >= job.processing_started_at
+    assert job.failure_code == "import_pipeline_failed"
+    assert job.failure_stage == "pipeline" and job.failure_classification == "system_error"

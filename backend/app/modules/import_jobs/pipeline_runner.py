@@ -9,7 +9,6 @@ from app.modules.durable_work.failure import DurableFailure, DurableFailureClass
 from app.modules.import_jobs.dispatch_service import (
     ImportExecutionLease,
     StaleImportDispatchAttempt,
-    require_current_attempt,
 )
 from app.db.session import SessionLocal
 from app.modules.import_jobs.schemas import (
@@ -66,8 +65,7 @@ class ImportPipelineRunner:
         job_id = lease.job_uuid
         try:
             with SessionLocal() as db:
-                require_current_attempt(db, lease)
-                db.commit()
+                import_execution_recorder.start_execution(db, lease)
             image_paths = self._resolve_input_paths(inputs)
             with SessionLocal() as db:
                 bind_import_job_execution_manifest(db, lease)

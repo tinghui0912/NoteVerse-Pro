@@ -48,6 +48,12 @@ class ImportExecutionRecorder:
     ) -> None:
         self.repository = repository or ImportJobRepository()
 
+    def start_execution(self, db: Session, lease: ImportExecutionLease) -> None:
+        """Commit the fenced domain execution start before any physical input work."""
+        job = require_current_attempt(db, lease)
+        begin_processing(job, now=utc_now())
+        db.commit()
+
     def record_progress(
         self,
         db: Session,
@@ -59,7 +65,6 @@ class ImportExecutionRecorder:
             raise ValueError("Import progress must be between zero and 100")
         job = require_current_attempt(db, lease)
         now = utc_now()
-        begin_processing(job, now=now)
         record_processing_heartbeat(job, now=now)
         job.progress = progress
         job.current_step = current_step or job.current_step

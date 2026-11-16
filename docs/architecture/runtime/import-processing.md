@@ -25,9 +25,14 @@ PROCESSING to QUEUED; operator rearm resets FAILED to QUEUED. Customer retry adm
 a new job with the original ordered Upload identities.
 
 `created_at` is the sole submission/admission instant. `processing_started_at` marks
-the current execution's first progress, `processing_last_heartbeat_at` records pipeline
-progress observation and `processing_finished_at` records an accepted ready/failed
-processing outcome. Dispatch exhaustion can finish processing without a start instant.
+the current execution attempt crossing its durable execution-start boundary before
+input materialization. The recorder validates the exact current lease and commits
+QUEUED to PROCESSING before the runner performs physical input work. Repeated start
+for that attempt preserves the original instant and creates no progress or heartbeat.
+`processing_last_heartbeat_at` records subsequent pipeline progress observation;
+progress requires an already PROCESSING Job and cannot start execution.
+`processing_finished_at` records an accepted ready/failed processing outcome.
+Dispatch/pre-execution exhaustion may finish FAILED without `processing_started_at`.
 `confirmed_at` records Score admission in the confirmation transaction; it never
 replaces processing finish. Repeated confirmation preserves it. `updated_at` records
 mutation time. All instants are aware UTC. Database checks enforce state/score/time

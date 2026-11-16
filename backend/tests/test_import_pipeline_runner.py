@@ -58,6 +58,12 @@ def test_successful_pipeline_records_progress_and_accepts_its_review_outcome():
     service = ImportPipelineRunner(storage=Mock())
     task, context, pipeline = Mock(), Mock(), Mock()
     lease = ImportExecutionLease(dispatch_uuid="delivery", job_uuid="job", attempt=1, token="token")
+    order = []
+
+    def resolve_inputs(inputs):
+        assert order == ["start"]
+        order.append("materialize")
+        return ["input.png"]
 
     @contextmanager
     def database_scope():
@@ -65,15 +71,23 @@ def test_successful_pipeline_records_progress_and_accepts_its_review_outcome():
 
     with (
         patch("app.modules.import_jobs.pipeline_runner.SessionLocal", database_scope),
-        patch("app.modules.import_jobs.pipeline_runner.require_current_attempt"),
-        patch("app.modules.import_jobs.pipeline_runner.bind_import_job_execution_manifest"),
-        patch.object(service, "_resolve_input_paths", return_value=["input.png"]),
+        patch(
+            "app.modules.import_jobs.pipeline_runner.import_execution_recorder.start_execution",
+            side_effect=lambda *_: order.append("start"),
+        ) as start,
+        patch(
+            "app.modules.import_jobs.pipeline_runner.bind_import_job_execution_manifest",
+            side_effect=lambda *_: order.append("manifest"),
+        ),
+        patch.object(service, "_resolve_input_paths", side_effect=resolve_inputs),
         patch("app.modules.import_jobs.pipeline_runner.JobContext", return_value=context),
         patch(
             "app.modules.import_jobs.pipeline_runner.PipelineBuilder.build", return_value=pipeline
         ),
     ):
         assert service.run_pipeline(task, lease, []) == {"success": True, "job_id": "job"}
+    assert order == ["start", "materialize", "manifest"]
+    start.assert_called_once()
     pipeline.run.assert_called_once_with(context)
     context.progress.assert_any_call("initialization", 0, current_step="initialization")
     context.progress.assert_any_call("completed", 100, current_step="ocr_completed")
@@ -105,7 +119,7 @@ def test_pipeline_failure_is_persisted_and_reraised() -> None:
         patch.object(
             service, "failure_for_exception", wraps=service.failure_for_exception
         ) as mapper,
-        patch("app.modules.import_jobs.pipeline_runner.require_current_attempt"),
+        patch("app.modules.import_jobs.pipeline_runner.import_execution_recorder.start_execution"),
         patch("app.modules.import_jobs.pipeline_runner.bind_import_job_execution_manifest"),
         patch(
             "app.modules.import_jobs.pipeline_runner.SessionLocal",
@@ -148,14 +162,15 @@ def test_stale_execution_aborts_before_materialization_without_domain_failure():
     with (
         patch("app.modules.import_jobs.pipeline_runner.SessionLocal", database_scope),
         patch(
-            "app.modules.import_jobs.pipeline_runner.require_current_attempt",
+            "app.modules.import_jobs.pipeline_runner.import_execution_recorder.start_execution",
             side_effect=StaleImportDispatchAttempt("lost"),
         ),
         patch(
             "app.modules.import_jobs.pipeline_runner.import_execution_recorder.finalize_failure"
         ) as failure,
+        patch.object(service, "_resolve_input_paths") as materialize,
         pytest.raises(StaleImportDispatchAttempt),
     ):
         service.run_pipeline(Mock(), lease, ["original.png"])
     failure.assert_not_called()
-    service.storage.materialize_to_local.assert_not_called()
+    materialize.assert_not_called()

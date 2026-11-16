@@ -181,6 +181,7 @@ def test_mutation_lock_excludes_recovery_and_reclaimed_attempt_fences_cached_wor
             with pytest.raises(StaleImportDispatchAttempt):
                 ImportExecutionRecorder().record_progress(worker, first, 99)
             worker.rollback()
+            ImportExecutionRecorder().start_execution(recovery, second)
             ImportExecutionRecorder().record_progress(recovery, second, 21)
             worker.expire_all()
             assert worker.scalar(sa.select(ImportJob)).progress == 21

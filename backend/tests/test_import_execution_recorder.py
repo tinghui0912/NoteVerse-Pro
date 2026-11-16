@@ -32,9 +32,11 @@ def _job(*, state: ImportJobState = ImportJobState.PROCESSING) -> SimpleNamespac
         job_uuid="job-1",
         user_id=7,
         state=state,
-        progress=10,
-        current_step="queued",
-        processing_started_at=datetime(2026, 8, 9, tzinfo=timezone.utc),
+        progress=0 if state == ImportJobState.QUEUED else 10,
+        current_step=None if state == ImportJobState.QUEUED else "queued",
+        processing_started_at=None
+        if state == ImportJobState.QUEUED
+        else datetime(2026, 8, 9, tzinfo=timezone.utc),
         processing_last_heartbeat_at=None,
         processing_finished_at=None,
         confirmed_at=None,
@@ -71,6 +73,67 @@ def _database() -> Mock:
         stored_object=SimpleNamespace(sha256="a" * 64)
     )
     return database
+
+
+def test_start_execution_commits_once_per_call_and_preserves_its_first_start(monkeypatch):
+    job = _job(state=ImportJobState.QUEUED)
+    service, _, _ = _service_with_job(job)
+    database = _database()
+    started_at = datetime(2026, 8, 9, tzinfo=timezone.utc)
+    monkeypatch.setattr(
+        execution_recorder,
+        "utc_now",
+        Mock(side_effect=[started_at, datetime(2026, 8, 10, tzinfo=timezone.utc)]),
+    )
+
+    service.start_execution(database, LEASE)
+    assert job.state == ImportJobState.PROCESSING
+    assert job.processing_started_at == started_at
+    assert job.processing_last_heartbeat_at is job.current_step is None
+    assert job.progress == 0
+    database.commit.assert_called_once()
+
+    service.start_execution(database, LEASE)
+    assert job.processing_started_at == started_at and job.updated_at == started_at
+    assert job.processing_last_heartbeat_at is job.current_step is None
+    assert job.progress == 0 and database.commit.call_count == 2
+    assert execution_recorder.require_current_attempt.call_count == 2
+
+
+@pytest.mark.parametrize(
+    "state", [ImportJobState.READY_FOR_REVIEW, ImportJobState.CONFIRMED, ImportJobState.FAILED]
+)
+def test_start_execution_rejects_closed_processing_outcomes(state):
+    job = _job(state=state)
+    service, _, _ = _service_with_job(job)
+    database = _database()
+    original = vars(job).copy()
+    with pytest.raises(ValueError, match="Only a queued Import"):
+        service.start_execution(database, LEASE)
+    assert vars(job) == original
+    database.commit.assert_not_called()
+
+
+def test_stale_start_execution_has_no_mutation_or_commit():
+    job = _job(state=ImportJobState.QUEUED)
+    original = vars(job).copy()
+    service, _, _ = _service_with_job(None)
+    database = _database()
+    with pytest.raises(StaleImportDispatchAttempt):
+        service.start_execution(database, LEASE)
+    assert vars(job) == original
+    database.commit.assert_not_called()
+
+
+def test_progress_requires_an_execution_start():
+    job = _job(state=ImportJobState.QUEUED)
+    service, _, _ = _service_with_job(job)
+    database = _database()
+    original = vars(job).copy()
+    with pytest.raises(ValueError, match="Only active processing"):
+        service.record_progress(database, LEASE, 10, current_step="recognition")
+    assert vars(job) == original
+    database.commit.assert_not_called()
 
 
 def test_record_progress_records_state_and_preserves_existing_started_time() -> None:
