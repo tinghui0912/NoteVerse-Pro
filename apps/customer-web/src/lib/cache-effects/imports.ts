@@ -21,8 +21,8 @@ export async function importDeleted(client: QueryClient, jobId: string) {
   await Promise.all([importSubmitted(client), storageUsageChanged(client)]);
 }
 
-export function reviewUpdated(client: QueryClient, jobId: string) {
-  return client.invalidateQueries({ queryKey: queryKeys.review.detail(jobId), exact: true });
+export async function reviewUpdated(client: QueryClient, jobId: string) {
+  await Promise.all([importJobChanged(client, jobId), storageUsageChanged(client)]);
 }
 
 export async function reviewConfirmed(client: QueryClient, jobId: string, scoreId: string) {

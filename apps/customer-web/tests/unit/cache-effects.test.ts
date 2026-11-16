@@ -2,8 +2,24 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { QueryClient, type QueryKey } from '@tanstack/react-query';
 import type { ScoreRead, PerformanceTakesListResponse } from '@/generated/api';
 import { queryKeys as keys } from '@/lib/query-client';
-import { scoreUpdated, scoreRevisionChanged, scoreRevisionWritten, revisionNoteChanged, scoreDerivedAssetsChanged, scoreMetadataProjectionChanged, scoreLeft, scoresDeleted, guestPreviewSettingsUpdated } from '@/lib/cache-effects/scores';
-import { importJobChanged, importSubmitted, importDeleted, reviewUpdated, reviewConfirmed } from '@/lib/cache-effects/imports';
+import {
+  scoreUpdated,
+  scoreRevisionChanged,
+  scoreRevisionWritten,
+  revisionNoteChanged,
+  scoreDerivedAssetsChanged,
+  scoreMetadataProjectionChanged,
+  scoreLeft,
+  scoresDeleted,
+  guestPreviewSettingsUpdated,
+} from '@/lib/cache-effects/scores';
+import {
+  importJobChanged,
+  importSubmitted,
+  importDeleted,
+  reviewUpdated,
+  reviewConfirmed,
+} from '@/lib/cache-effects/imports';
 import { notificationsChanged } from '@/lib/cache-effects/notifications';
 import { scoreInvitesChanged, scoreMembersChanged, inviteAccepted, pendingInviteDeclined } from '@/lib/cache-effects/collaboration';
 import { libraryOrganizationChanged } from '@/lib/cache-effects/library';
@@ -96,10 +112,29 @@ describe('Import semantic consequences', () => {
     expect(removed.map((key) => client.getQueryState(key))).toEqual([undefined, undefined]);
     expect([other, list, usage].map(stale)).toEqual([false, true, true]);
   });
-  it('combines confirmation projections and isolates Review updates', async () => {
+  it('converges Review updates across the matching Job, Review, collection and storage', async () => {
+    const changed = [
+      seed(keys.importJobs.list(1, 20)),
+      seed(keys.importJobs.list(2, 20)),
+      seed(keys.importJobs.detail('job-a')),
+      seed(keys.review.detail('job-a')),
+      storage(),
+    ];
+    const unchanged = [
+      seed(keys.importJobs.detail('job-b')),
+      seed(keys.review.detail('job-b')),
+      library(),
+      seed(keys.scores.detail('score')),
+    ];
+
+    await reviewUpdated(client, 'job-a');
+
+    expect(changed.map(stale)).toEqual(Array(changed.length).fill(true));
+    expect(unchanged.map(stale)).toEqual(Array(unchanged.length).fill(false));
+  });
+  it('combines confirmation projections without changing other Review details', async () => {
     const changed = [seed(keys.importJobs.list(1, 20)), seed(keys.importJobs.detail('job')), seed(keys.review.detail('job')), library(), seed(keys.scores.detail('score')), storage()];
     const other = seed(keys.review.detail('other'));
-    await reviewUpdated(client, 'job'); expect(changed.map(stale)).toEqual([false, false, true, false, false, false]);
     await reviewConfirmed(client, 'job', 'score'); expect(changed.map(stale)).toEqual(Array(6).fill(true)); expect(stale(other)).toBe(false);
   });
 });

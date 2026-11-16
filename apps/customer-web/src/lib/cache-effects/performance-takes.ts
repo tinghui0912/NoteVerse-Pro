@@ -17,9 +17,7 @@ export async function performanceTakeDeleted(client: QueryClient, takeId: string
       exact: true,
     }),
   ]);
-  const lists = client.getQueriesData<
-    PerformanceTakesListResponse
-  >({
+  const lists = client.getQueriesData<PerformanceTakesListResponse>({
     queryKey: queryKeys.performanceTakes.lists(),
   });
   const take =
@@ -44,25 +42,20 @@ export async function performanceTakeDeleted(client: QueryClient, takeId: string
       !filter.score_id ||
       filter.score_id === take?.linked_score_id ||
       matchingScoreFilters.has(filter.score_id);
-    client.setQueryData<PerformanceTakesListResponse>(
-      key,
-      (previous) => {
-        if (!previous) return previous;
-        const data = previous;
-        const items = data.items.filter((item) => item.take_id !== takeId);
-        const total = Math.max(
-          0,
-          data.total -
-            (belongs || items.length !== data.items.length ? 1 : 0),
-        );
-        return {
-            ...data,
-            items,
-            total,
-            has_more: (data.offset ?? 0) + items.length < total,
-        };
-      },
-    );
+    client.setQueryData<PerformanceTakesListResponse>(key, (previous) => {
+      if (!previous) return previous;
+      const items = previous.items.filter((item) => item.take_id !== takeId);
+      const total = Math.max(
+        0,
+        previous.total - (belongs || items.length !== previous.items.length ? 1 : 0),
+      );
+      return {
+        ...previous,
+        items,
+        total,
+        has_more: (previous.offset ?? 0) + items.length < total,
+      };
+    });
   }
   client.removeQueries({
     queryKey: queryKeys.performanceTakes.detail(takeId),
@@ -72,7 +65,7 @@ export async function performanceTakeDeleted(client: QueryClient, takeId: string
     queryKey: queryKeys.performanceTakes.playbackUrl(takeId),
     exact: true,
   });
-  void Promise.all([
+  await Promise.all([
     client.invalidateQueries({
       queryKey: queryKeys.performanceTakes.lists(),
     }),

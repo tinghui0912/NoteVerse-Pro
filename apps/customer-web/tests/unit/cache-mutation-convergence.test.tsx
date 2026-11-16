@@ -4,13 +4,25 @@ import { act, renderHook } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useUpdateScore } from '@/hooks/queries/use-score-queries';
-import { useConfirmImportJobReview } from '@/hooks/queries/use-review-queries';
+import {
+  useConfirmImportJobReview,
+  useUpdateImportJobReview,
+} from '@/hooks/queries/use-review-queries';
 import { useMarkNotificationRead } from '@/hooks/queries/use-notification-queries';
 import { queryKeys as keys } from '@/lib/query-client';
-import type { ScoreRead, NotificationRead } from '@/generated/api';
+import type { ScoreRead, NotificationRead, ImportJobReviewRead } from '@/generated/api';
 
-const api = vi.hoisted(() => ({ update: vi.fn(), confirm: vi.fn(), markRead: vi.fn() }));
-vi.mock('@/lib/api', () => ({ scoresApi: { update: api.update }, reviewApi: { confirm: api.confirm }, notificationsApi: { markRead: api.markRead } }));
+const api = vi.hoisted(() => ({
+  update: vi.fn(),
+  confirm: vi.fn(),
+  updateReview: vi.fn(),
+  markRead: vi.fn(),
+}));
+vi.mock('@/lib/api', () => ({
+  scoresApi: { update: api.update },
+  reviewApi: { confirm: api.confirm, update: api.updateReview },
+  notificationsApi: { markRead: api.markRead },
+}));
 let client: QueryClient;
 beforeEach(() => { vi.resetAllMocks(); client = new QueryClient({ defaultOptions: { mutations: { retry: false } } }); });
 afterEach(() => client.clear());
@@ -54,5 +66,38 @@ it('restores optimistic notification snapshots on command failure then marks the
   expect(client.getQueryData(keys.notifications.unreadCount())).toEqual({ count: 1 });
   expect(client.getQueryState(keys.notifications.list())?.isInvalidated).toBe(true);
   expect(client.getQueryState(keys.notifications.unreadCount())?.isInvalidated).toBe(true);
+  hook.unmount();
+});
+
+it('converges a successful Review update before mutateAsync resolves', async () => {
+  const changed = [
+    keys.importJobs.list(1, 20),
+    keys.importJobs.detail('job-a'),
+    keys.review.detail('job-a'),
+    keys.storageUsage.current(),
+  ];
+  const unchanged = [keys.importJobs.detail('job-b'), keys.review.detail('job-b')];
+  [...changed, ...unchanged].forEach((key) => client.setQueryData(key, { cached: true }));
+  const review: ImportJobReviewRead = {
+    job_id: 'job-a',
+    state: 'READY_FOR_REVIEW',
+    genres: [],
+    original_images: [],
+    musicxml: { artifact_id: 'xml', content: '<score-partwise/>' },
+    created_at: '2026-07-01T00:00:00Z',
+    updated_at: '2026-07-01T01:00:00Z',
+  };
+  api.updateReview.mockResolvedValue(review);
+  const hook = renderHook(() => useUpdateImportJobReview(), { wrapper });
+
+  await act(async () => {
+    await hook.result.current.mutateAsync({ jobId: 'job-a', content: '<score-partwise/>' });
+  });
+
+  expect(api.updateReview).toHaveBeenCalledWith('job-a', { content: '<score-partwise/>' });
+  expect(changed.map((key) => client.getQueryState(key)?.isInvalidated)).toEqual(
+    Array(changed.length).fill(true),
+  );
+  expect(unchanged.map((key) => client.getQueryState(key)?.isInvalidated)).toEqual([false, false]);
   hook.unmount();
 });

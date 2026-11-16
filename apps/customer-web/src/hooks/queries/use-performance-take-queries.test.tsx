@@ -2,9 +2,13 @@
 import { useDeletePerformanceTake, useSavePerformanceTake } from './use-performance-take-queries';
 import { PerformanceTakeSaveCommand } from '@/lib/practice/performance-take/save-command';
 import { performanceTakesApi } from '@/lib/api/performance-takes';
-import type { PerformanceTakeRead, PerformanceTakeTempoPlan, RecordingTimebase } from '@/lib/api/performance-takes';
+import type {
+  PerformanceTakeRead,
+  PerformanceTakeTempoPlan,
+  RecordingTimebase,
+} from '@/lib/api/performance-takes';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { recordedPerformanceFixture } from '@/lib/practice/__fixtures__/recorded-performance';
@@ -56,7 +60,7 @@ const performanceTake: PerformanceTakeRead = {
 
 beforeEach(() => { vi.restoreAllMocks(); vi.mocked(performanceTakesApi.deleteTake).mockReset(); });
 describe('semantic Take deletion cache admission', () => {
-  it('removes the resource and corrects paginated totals before background list refresh completes', async () => {
+  it('updates lists immediately and waits for list and storage convergence before completing', async () => {
     const { queryKeys } = await import('@/lib/query-client');
     const client = new QueryClient({
       defaultOptions: {
@@ -83,17 +87,25 @@ describe('semantic Take deletion cache admission', () => {
     client.setQueryData(queryKeys.performanceTakes.detail('take-1'), performanceTake);
     client.setQueryData(queryKeys.performanceTakes.playbackUrl('take-1'), { playback_url: 'signed-deleted' });
     client.setQueryData(queryKeys.performanceTakes.playbackUrl('other'), { playback_url: 'signed-other' });
-    const invalidate = vi
-      .spyOn(client, 'invalidateQueries')
-      .mockImplementation(() => new Promise(() => {}));
+    client.setQueryData(queryKeys.storageUsage.current(), { bytes: 12 });
+    const finishInvalidations: Array<() => void> = [];
+    const invalidateQueries = client.invalidateQueries.bind(client);
+    const invalidate = vi.spyOn(client, 'invalidateQueries').mockImplementation(async (filters, options) => {
+      await invalidateQueries(filters, options);
+      await new Promise<void>((resolve) => finishInvalidations.push(() => resolve()));
+    });
     vi.mocked(performanceTakesApi.deleteTake).mockResolvedValue(undefined);
     const wrapper = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={client}>{children}</QueryClientProvider>
     );
     const hook = renderHook(() => useDeletePerformanceTake(), { wrapper });
+    let completion!: Promise<void>;
+    let finished = false;
     await act(async () => {
-      await hook.result.current.mutateAsync('take-1');
+      completion = hook.result.current.mutateAsync('take-1').then(() => { finished = true; });
     });
+    await waitFor(() => expect(finishInvalidations).toHaveLength(2));
+    expect(finished).toBe(false);
     expect(client.getQueryData(first)).toMatchObject({ items: [], total: 1, has_more: true });
     expect(client.getQueryData(second)).toMatchObject({ items: [other], total: 1, has_more: false });
     expect(client.getQueryData(matching)).toMatchObject({ items: [], total: 0 });
@@ -113,6 +125,15 @@ describe('semantic Take deletion cache admission', () => {
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: queryKeys.performanceTakes.lists(),
     });
+    expect(client.getQueryState(first)?.isInvalidated).toBe(true);
+    expect(client.getQueryState(queryKeys.storageUsage.current())?.isInvalidated).toBe(true);
+    await act(async () => { finishInvalidations[0](); });
+    expect(finished).toBe(false);
+    await act(async () => {
+      finishInvalidations[1]();
+      await completion;
+    });
+    expect(finished).toBe(true);
     hook.unmount();
     client.clear();
   });
