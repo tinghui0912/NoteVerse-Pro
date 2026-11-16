@@ -65,7 +65,10 @@ export function ScoreVersionsPanel({
   const errors = useTranslations('errors');
   const { toast } = useToast();
   const [restoreNote, setRestoreNote] = useState('');
-  const [restoreTargetId, setRestoreTargetId] = useState<string | null>(null);
+  const [restoreSelection, setRestoreSelection] = useState<{
+    revisionId: string;
+    expectedHeadRevisionId: string;
+  } | null>(null);
   const [noteDraft, setNoteDraft] = useState('');
   const [noteTargetId, setNoteTargetId] = useState<string | null>(null);
   const [expandedRevisionId, setExpandedRevisionId] = useState<string | null>(null);
@@ -78,38 +81,40 @@ export function ScoreVersionsPanel({
 
   const items = useMemo(
     () => revisions.data?.pages.flatMap((page) => page?.items ?? []) ?? [],
-    [revisions.data]
+    [revisions.data],
   );
-  const restoreTarget = items.find((revision) => revision.revision_id === restoreTargetId) ?? null;
+  const restoreTarget =
+    items.find((revision) => revision.revision_id === restoreSelection?.revisionId) ?? null;
   const noteTarget = items.find((revision) => revision.revision_id === noteTargetId) ?? null;
 
   const handleRestore = () => {
-    if (!restoreTarget) return;
+    if (!restoreTarget || !restoreSelection || !headRevisionId) return;
     const note = restoreNote.trim();
     restoreRevision.mutate(
-      { scoreId, revisionId: restoreTarget.revision_id, note: note || null },
+      {
+        scoreId,
+        revisionId: restoreTarget.revision_id,
+        expected_head_revision_id: restoreSelection.expectedHeadRevisionId,
+        note: note || null,
+      },
       {
         onSuccess: () => {
           setRestoreNote('');
-          setRestoreTargetId(null);
+          setRestoreSelection(null);
           toast({
             title: t('restoreSuccess'),
             description: t('restoreSuccessDesc'),
           });
         },
         onError: (unknownError) => {
-          const description = userFacingErrorMessage(
-            errors,
-            unknownError,
-            t('restoreFailedDesc')
-          );
+          const description = userFacingErrorMessage(errors, unknownError, t('restoreFailedDesc'));
           toast({
             title: t('restoreFailed'),
             description,
             variant: 'destructive',
           });
         },
-      }
+      },
     );
   };
 
@@ -130,7 +135,7 @@ export function ScoreVersionsPanel({
           const description = userFacingErrorMessage(
             errors,
             unknownError,
-            t('versionNoteSaveFailedDesc')
+            t('versionNoteSaveFailedDesc'),
           );
           toast({
             title: t('versionNoteSaveFailed'),
@@ -138,7 +143,7 @@ export function ScoreVersionsPanel({
             variant: 'destructive',
           });
         },
-      }
+      },
     );
   };
 
@@ -178,11 +183,13 @@ export function ScoreVersionsPanel({
             key={revision.revision_id}
             revision={revision}
             isCurrent={revision.revision_id === headRevisionId}
-            canRestore={canRestore && revision.revision_id !== headRevisionId}
+            canRestore={
+              Boolean(headRevisionId) && canRestore && revision.revision_id !== headRevisionId
+            }
             isExpanded={expandedRevisionId === revision.revision_id}
             onToggleDetails={() =>
               setExpandedRevisionId(
-                expandedRevisionId === revision.revision_id ? null : revision.revision_id
+                expandedRevisionId === revision.revision_id ? null : revision.revision_id,
               )
             }
             onEditNote={() => {
@@ -190,7 +197,11 @@ export function ScoreVersionsPanel({
               setNoteDraft(revision.note?.note ?? '');
             }}
             onRestore={() => {
-              setRestoreTargetId(revision.revision_id);
+              headRevisionId &&
+                setRestoreSelection({
+                  revisionId: revision.revision_id,
+                  expectedHeadRevisionId: headRevisionId,
+                });
               setRestoreNote('');
             }}
           />
@@ -213,7 +224,7 @@ export function ScoreVersionsPanel({
         open={Boolean(restoreTarget)}
         onOpenChange={(open) => {
           if (!open) {
-            setRestoreTargetId(null);
+            setRestoreSelection(null);
             setRestoreNote('');
           }
         }}
@@ -235,7 +246,10 @@ export function ScoreVersionsPanel({
           />
           <AlertDialogFooter>
             <AlertDialogCancel>{common('cancel')}</AlertDialogCancel>
-            <AlertDialogAction disabled={restoreRevision.isPending} onClick={handleRestore}>
+            <AlertDialogAction
+              disabled={restoreRevision.isPending || !headRevisionId}
+              onClick={handleRestore}
+            >
               {t('restoreRevision')}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -296,10 +310,9 @@ function VersionRow({
   const t = useTranslations('score');
   const originKey = revision.restore
     ? 'revisionOriginRESTORE'
-    : originLabels[revision.origin] ?? 'revisionOriginEDIT';
-  const authorName = revision.created_by?.display_name
-    || revision.created_by?.email
-    || t('systemActor');
+    : (originLabels[revision.origin] ?? 'revisionOriginEDIT');
+  const authorName =
+    revision.created_by?.display_name || revision.created_by?.email || t('systemActor');
   const restoreSummary = revision.restore?.restored_from_revision_number
     ? t('restoredFromVersion', { version: revision.restore.restored_from_revision_number })
     : revision.restore
@@ -340,9 +353,7 @@ function VersionRow({
 
         <div className="flex shrink-0 items-center justify-end gap-2">
           {isCurrent ? (
-            <Badge className="bg-emerald-50 text-emerald-700">
-              {t('currentVersion')}
-            </Badge>
+            <Badge className="bg-emerald-50 text-emerald-700">{t('currentVersion')}</Badge>
           ) : null}
           <Button variant="ghost" onClick={onToggleDetails}>
             {t('versionDetails')}
@@ -382,8 +393,8 @@ function VersionRow({
                 value={
                   revision.restore.restored_from_revision_number
                     ? t('revisionNumber', {
-                      number: revision.restore.restored_from_revision_number,
-                    })
+                        number: revision.restore.restored_from_revision_number,
+                      })
                     : '-'
                 }
               />

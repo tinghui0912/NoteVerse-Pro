@@ -28,7 +28,7 @@ beforeEach(() => { vi.resetAllMocks(); client = new QueryClient({ defaultOptions
 afterEach(() => client.clear());
 const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 const score: ScoreRead = {
-  score_id: 'score', display_title: 'New title', version: 2, genres: [], metadata: null, input_assets: [], head_revision_id: 'r1',
+  score_id: 'score', display_title: 'New title', metadata_version: 2, head_revision_number: 2, genres: [], metadata: null, input_assets: [], head_revision_id: 'r1',
   created_at: '2026-07-01T00:00:00Z', updated_at: '2026-07-01T00:00:00Z',
   capabilities: { can_view: true, can_edit: true, can_delete: true, can_leave: false, can_download: true, can_practice: true, can_manage_members: true, can_manage_guest_previews: true },
   derived_assets: { preview: { status: 'pending', asset_id: null }, audio: { status: 'pending', asset_id: null } },
@@ -38,10 +38,10 @@ it('converges successful Score PATCH into detail and Library before mutateAsync 
   const list = keys.library.scoreList({ page: 1, pageSize: 20 });
   client.setQueryData(list, { items: [] }); api.update.mockResolvedValue(score);
   const hook = renderHook(() => useUpdateScore(), { wrapper });
-  await act(async () => { await hook.result.current.mutateAsync({ scoreId: 'score', display_title: 'New title', expected_version: 1 }); });
+  await act(async () => { await hook.result.current.mutateAsync({ scoreId: 'score', display_title: 'New title', expected_metadata_version: 1 }); });
   expect(client.getQueryData(keys.scores.detail('score'))).toEqual(score);
   expect(client.getQueryState(list)?.isInvalidated).toBe(true);
-  expect(api.update).toHaveBeenCalledWith('score', { display_title: 'New title', expected_version: 1 });
+  expect(api.update).toHaveBeenCalledWith('score', { display_title: 'New title', expected_metadata_version: 1 });
   hook.unmount();
 });
 

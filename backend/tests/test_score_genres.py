@@ -56,7 +56,7 @@ def test_genres_have_one_ordered_vocabulary_and_accept_every_subset():
 )
 def test_request_boundaries_normalize_genres(genres):
     expected = ordered_unique_genres(genres)
-    assert ScoreUpdateRequest(genres=genres, expected_version=1).genres == expected
+    assert ScoreUpdateRequest(genres=genres, expected_metadata_version=1).genres == expected
     assert ReviewConfirmRequest(content="xml", genres=genres).genres == expected
     request = ImportJobSubmitRequest(upload_ids=["file"], options={"genres": genres})
     assert request.options == {"genres": expected}
@@ -69,7 +69,7 @@ def test_request_boundaries_normalize_genres(genres):
 @pytest.mark.parametrize("genres", [["unknown"], [{"category": "genre", "code": "jazz"}], "jazz"])
 def test_request_boundaries_reject_invalid_genre_values(genres):
     for schema, values in [
-        (ScoreUpdateRequest, {"expected_version": 1, "genres": genres}),
+        (ScoreUpdateRequest, {"expected_metadata_version": 1, "genres": genres}),
         (ReviewConfirmRequest, {"content": "xml", "genres": genres}),
         (ImportJobSubmitRequest, {"upload_ids": ["file"], "options": {"genres": genres}}),
     ]:
@@ -79,7 +79,7 @@ def test_request_boundaries_reject_invalid_genre_values(genres):
 
 def test_request_boundaries_reject_unrecognized_fields():
     for schema, values in [
-        (ScoreUpdateRequest, {"expected_version": 1, "taxonomy_tags": []}),
+        (ScoreUpdateRequest, {"expected_metadata_version": 1, "taxonomy_tags": []}),
         (ReviewConfirmRequest, {"content": "xml", "taxonomy_tags": []}),
         (ImportJobSubmitRequest, {"upload_ids": ["file"], "options": {"taxonomy_tags": []}}),
     ]:
@@ -105,21 +105,30 @@ def test_score_genres_replace_clear_and_preserve_with_version_checks(genre_sessi
         ({"genres": None}, list(ScoreGenre)),
         ({"genres": []}, []),
     ]:
-        current_version = score.version
+        current_version = score.metadata_version
+        previous_metadata = (score.display_title, list(score.genres))
         read = service.update(
-            db, score.score_uuid, 1, ScoreUpdateRequest(expected_version=current_version, **patch)
+            db,
+            score.score_uuid,
+            1,
+            ScoreUpdateRequest(expected_metadata_version=current_version, **patch),
         )
         session.refresh(score)
         assert score.genres == read.genres == expected
         assert all(type(code) is str for code in score.genres)
         assert all(isinstance(genre, ScoreGenre) for genre in read.genres)
         assert read.model_dump(mode="json")["genres"] == [genre.value for genre in read.genres]
-        assert score.version == current_version + 1
+        assert score.metadata_version == current_version + (
+            (score.display_title, score.genres) != previous_metadata
+        )
     from app.core.exceptions import ConflictException
 
     with pytest.raises(ConflictException):
         service.update(
-            db, score.score_uuid, 1, ScoreUpdateRequest(expected_version=1, genres=["jazz"])
+            db,
+            score.score_uuid,
+            1,
+            ScoreUpdateRequest(expected_metadata_version=1, genres=["jazz"]),
         )
 
 

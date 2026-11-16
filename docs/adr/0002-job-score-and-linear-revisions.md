@@ -12,8 +12,8 @@ Import processing and stable user-owned scores have different identities and lif
 
 1. `ImportJob` owns submission, progress, steps, retries, heartbeat, stale recovery,
    idempotency, and processing errors.
-2. `Score` is the stable user-owned resource and owns title, genres, and its current
-   head revision pointer.
+2. `Score` is the stable user-owned resource and owns `display_title`, `genres`,
+   `metadata_version`, and its current `head_revision_id` pointer.
 3. A job may fail without producing a score. Once normalized review MusicXML exists, the
    job enters `READY_FOR_REVIEW` and stores that output as a job artifact. It does not create
    a score yet.
@@ -22,8 +22,8 @@ Import processing and stable user-owned scores have different identities and lif
    snapshots need no traversal or patch replay.
 5. Revisions are linear. Branching and merging are not part of this model.
 6. `Score.head_revision_id` identifies the current editable document.
-7. Saving requires `expected_head_revision_id`. The Score row is locked; a stale expected
-   head returns `revision_conflict` with `expected_head_revision_id` and
+7. Creating or restoring a revision requires `expected_head_revision_id`. The Score
+   row is locked; a stale expected head returns `revision_conflict` with `expected_head_revision_id` and
    `current_head_revision_id` instead of silently overwriting the head. A successful save
    appends a complete snapshot numbered from the current head plus one.
 8. Saving unchanged content against the same current head is a no-op success. Repeated
@@ -32,6 +32,20 @@ Import processing and stable user-owned scores have different identities and lif
 9. Restoring an older snapshot appends the next revision and preserves existing history.
    `ScoreRevisionEvent(type="RESTORE")` owns target, actor, note and time provenance.
 10. Review confirmation creates the first stable score and revision. Score resources have no review-approval lifecycle.
+
+## Concurrency domains
+
+Metadata PATCH locks Score and compares `expected_metadata_version` with
+`metadata_version`. Stale writes return `score_metadata_conflict`. A matching,
+normalized metadata no-op preserves both the token and `updated_at`; an actual
+change increments only `metadata_version`.
+
+Notation writes compare `expected_head_revision_id` with the current head and
+never change metadata or its token. Metadata edits and notation edits are
+independent concurrency domains. `ScoreRead.head_revision_number` projects the
+head's immutable `ScoreRevision.revision_number`; Score stores no revision number.
+`updated_at` records resource recency for metadata changes and revision appends,
+and is not a concurrency token.
 
 ## Lifecycle contract
 

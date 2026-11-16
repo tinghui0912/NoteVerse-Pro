@@ -387,7 +387,7 @@ def test_postgres_operation_constraints_indexes_and_retention(postgres_score):
         "genres",
         "head_revision_id",
         "originating_job_id",
-        "version",
+        "metadata_version",
         "deleted_at",
         "created_at",
         "updated_at",

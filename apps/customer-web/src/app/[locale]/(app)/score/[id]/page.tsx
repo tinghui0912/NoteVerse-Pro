@@ -112,7 +112,7 @@ function ScorePageContent({ id }: { id: string }) {
           genres={score.genres}
           displayTitle={scoreDisplayTitle}
           updatedAt={score.updated_at}
-          version={score.version}
+          metadataVersion={score.metadata_version}
         />
       ),
     },
@@ -223,7 +223,9 @@ function ScorePageContent({ id }: { id: string }) {
                   {t('lastModifiedTime')} {formatApiDateTime(score.updated_at)}
                 </span>
                 <span aria-hidden="true">·</span>
-                <span>{t('versionLabel', { version: score.version })}</span>
+                {score.head_revision_number !== null ? (
+                  <span>{t('versionLabel', { version: score.head_revision_number })}</span>
+                ) : null}
               </>
             }
           />

@@ -4158,7 +4158,12 @@
         "type": "object"
       },
       "RevisionRestoreRequest": {
+        "additionalProperties": false,
         "properties": {
+          "expected_head_revision_id": {
+            "title": "Expected Head Revision Id",
+            "type": "string"
+          },
           "note": {
             "anyOf": [
               {
@@ -4172,6 +4177,9 @@
             "title": "Note"
           }
         },
+        "required": [
+          "expected_head_revision_id"
+        ],
         "title": "RevisionRestoreRequest",
         "type": "object"
       },
@@ -4594,6 +4602,17 @@
             ],
             "title": "Head Revision Id"
           },
+          "head_revision_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Head Revision Number"
+          },
           "input_assets": {
             "items": {
               "$ref": "#/components/schemas/ScoreInputAssetRead"
@@ -4611,6 +4630,10 @@
               }
             ]
           },
+          "metadata_version": {
+            "title": "Metadata Version",
+            "type": "integer"
+          },
           "score_id": {
             "title": "Score Id",
             "type": "string"
@@ -4619,18 +4642,15 @@
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
-          },
-          "version": {
-            "title": "Version",
-            "type": "integer"
           }
         },
         "required": [
           "score_id",
           "display_title",
           "genres",
-          "version",
+          "metadata_version",
           "head_revision_id",
+          "head_revision_number",
           "derived_assets",
           "input_assets",
           "metadata",
@@ -4720,9 +4740,9 @@
             ],
             "title": "Display Title"
           },
-          "expected_version": {
+          "expected_metadata_version": {
             "minimum": 1.0,
-            "title": "Expected Version",
+            "title": "Expected Metadata Version",
             "type": "integer"
           },
           "genres": {
@@ -4741,7 +4761,7 @@
           }
         },
         "required": [
-          "expected_version"
+          "expected_metadata_version"
         ],
         "title": "ScoreUpdateRequest",
         "type": "object"
@@ -11434,18 +11454,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/RevisionRestoreRequest"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Request"
+                "$ref": "#/components/schemas/RevisionRestoreRequest"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {

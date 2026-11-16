@@ -19,7 +19,7 @@ const capabilities = (role: Role) => ({
 async function mockScore(page: Page, role: Role) {
   await mockAuthenticatedSession(page); await mockRealtimeEvents(page);
   const caps = capabilities(role);
-  const score = { score_id: scoreId, display_title: 'Trusted Score', genres: [], version: 1, head_revision_id: revisionId,
+  const score = { score_id: scoreId, display_title: 'Trusted Score', genres: [], metadata_version: 1, head_revision_number: 1, head_revision_id: revisionId,
     metadata: null, input_assets: [], created_at: '2026-06-20T00:00:00Z', updated_at: '2026-06-20T00:00:00Z', capabilities: caps,
     derived_assets: { preview: { status: 'ready', asset_id: 'page-a' }, audio: { status: 'pending', asset_id: null } } };
   const revision: RevisionRead = { revision_id: revisionId, revision_number: 1, origin: 'IMPORT', created_at: score.created_at, created_by: null, restore: null, note: null };
@@ -82,7 +82,7 @@ test('Editor loads MusicXML and saves a revision without download permission', a
     expect(body.content).toContain('<score-partwise');
     saved = true;
     score.head_revision_id = 'new-revision';
-    score.version = 2;
+    score.head_revision_number = 2;
     await route.fulfill({ json: { ...revision, revision_id: 'new-revision', revision_number: 2 } });
   });
   await page.goto(`/en/score/${scoreId}/edit`);
@@ -195,18 +195,19 @@ test('Version History restores a snapshot as a new head with event provenance', 
   const { score, revision } = await mockScore(page, 'EDITOR');
   const older = { ...revision, revision_id: 'revision-2', revision_number: 2 };
   const current = { ...revision, revision_number: 4 };
+  score.head_revision_number = current.revision_number;
   let items: RevisionRead[] = [current, older];
   await page.route(`**/api/v1/scores/${scoreId}/revisions?**`, route => route.fulfill({ json: { items, next_cursor: null } }));
   let restored = false;
   await page.route(`**/api/v1/scores/${scoreId}/revisions/revision-2/restore`, route => {
-    expect(route.request().postDataJSON()).toEqual({ note: 'Return to revision 2' });
+    expect(route.request().postDataJSON()).toEqual({ expected_head_revision_id: revisionId, note: 'Return to revision 2' });
     const next = { ...revision, revision_id: 'revision-5', revision_number: 5, restore: {
       restored_from_revision_id: 'revision-2', restored_from_revision_number: 2,
       note: 'Return to revision 2', actor: null, created_at: revision.created_at,
     } };
     items = [next, current, older];
     score.head_revision_id = next.revision_id;
-    score.version = 5;
+    score.head_revision_number = 5;
     restored = true;
     return route.fulfill({ json: next });
   });

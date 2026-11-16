@@ -2288,6 +2288,10 @@ export type RevisionRestoreRead = {
  */
 export type RevisionRestoreRequest = {
     /**
+     * Expected Head Revision Id
+     */
+    expected_head_revision_id: string;
+    /**
      * Note
      */
     note?: string | null;
@@ -2555,10 +2559,18 @@ export type ScoreRead = {
      */
     head_revision_id: string | null;
     /**
+     * Head Revision Number
+     */
+    head_revision_number: number | null;
+    /**
      * Input Assets
      */
     input_assets: Array<ScoreInputAssetRead>;
     metadata: MetadataRead | null;
+    /**
+     * Metadata Version
+     */
+    metadata_version: number;
     /**
      * Score Id
      */
@@ -2567,10 +2579,6 @@ export type ScoreRead = {
      * Updated At
      */
     updated_at: string;
-    /**
-     * Version
-     */
-    version: number;
 };
 
 /**
@@ -2624,9 +2632,9 @@ export type ScoreUpdateRequest = {
      */
     display_title?: string | null;
     /**
-     * Expected Version
+     * Expected Metadata Version
      */
-    expected_version: number;
+    expected_metadata_version: number;
     /**
      * Genres
      */
@@ -5905,10 +5913,7 @@ export type ScoreRevisionPlaybackStreamResponses = {
 export type ScoreRevisionPlaybackStreamResponse = ScoreRevisionPlaybackStreamResponses[keyof ScoreRevisionPlaybackStreamResponses];
 
 export type ScoreRevisionRestoreData = {
-    /**
-     * Request
-     */
-    body?: RevisionRestoreRequest | null;
+    body: RevisionRestoreRequest;
     path: {
         /**
          * Score Id

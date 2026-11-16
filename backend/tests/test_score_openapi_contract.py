@@ -53,7 +53,8 @@ def test_score_openapi_keeps_read_model_fields_required(client: TestClient) -> N
             "score_id",
             "display_title",
             "genres",
-            "version",
+            "metadata_version",
+            "head_revision_number",
             "head_revision_id",
             "derived_assets",
             "input_assets",
@@ -232,3 +233,32 @@ def test_library_http_contract_is_score_based(client: TestClient) -> None:
     assert components["LibraryScoreRead"]["properties"]["access_origin"] == {
         "$ref": "#/components/schemas/AccessOrigin"
     }
+
+
+def test_score_metadata_and_restore_requests_require_their_own_expectations(
+    client: TestClient,
+) -> None:
+    spec = client.get("/api/v1/openapi.json").json()
+    schemas = spec["components"]["schemas"]
+    metadata = schemas["ScoreUpdateRequest"]
+    assert set(metadata["properties"]) == {"display_title", "genres", "expected_metadata_version"}
+    assert metadata["required"] == ["expected_metadata_version"]
+    assert metadata["additionalProperties"] is False
+    restore = schemas["RevisionRestoreRequest"]
+    assert set(restore["properties"]) == {"expected_head_revision_id", "note"}
+    assert restore["required"] == ["expected_head_revision_id"]
+    assert restore["additionalProperties"] is False
+    operation = spec["paths"]["/api/v1/scores/{score_id}/revisions/{revision_id}/restore"]["post"]
+    assert operation["requestBody"]["required"] is True
+
+
+def test_metadata_requests_validate_their_explicit_expectation() -> None:
+    import pytest
+    from pydantic import ValidationError
+    from app.modules.scores.schemas import ScoreUpdateRequest
+    from app.modules.revisions.schemas import RevisionRestoreRequest
+
+    with pytest.raises(ValidationError):
+        ScoreUpdateRequest.model_validate({"expected_version": 1})
+    with pytest.raises(ValidationError):
+        RevisionRestoreRequest.model_validate({"note": "Restore"})

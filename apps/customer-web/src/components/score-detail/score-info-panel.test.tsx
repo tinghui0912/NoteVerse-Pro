@@ -24,21 +24,21 @@ beforeEach(() => {
   Element.prototype.scrollIntoView = vi.fn();
 });
 
-it('edits genres using code identity and the Score version', async () => {
+it('edits genres using code identity and the metadata version', async () => {
   render(
     <ScoreInfoPanel
       displayTitle="Score"
       scoreId="score"
       genres={['jazz', 'classical']}
       imageCount={1}
-      version={7}
+      metadataVersion={7}
     />
   );
   expect(screen.getByText('classical')).toBeInTheDocument();
   expect(screen.getByText('jazz')).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: 'Remove classical' }));
   expect(mutate).toHaveBeenLastCalledWith(
-    { scoreId: 'score', genres: ['jazz'], expected_version: 7 },
+    { scoreId: 'score', genres: ['jazz'], expected_metadata_version: 7 },
     expect.any(Object)
   );
   screen.getByRole('combobox').focus();
@@ -46,12 +46,12 @@ it('edits genres using code identity and the Score version', async () => {
   screen.getByRole('option', { name: 'rock' }).focus();
   await userEvent.keyboard('{Enter}');
   expect(mutate).toHaveBeenLastCalledWith(
-    { scoreId: 'score', genres: ['jazz', 'rock'], expected_version: 7 },
+    { scoreId: 'score', genres: ['jazz', 'rock'], expected_metadata_version: 7 },
     expect.any(Object)
   );
   await userEvent.click(screen.getByRole('button', { name: 'clearStyleTags' }));
   expect(mutate).toHaveBeenLastCalledWith(
-    { scoreId: 'score', genres: [], expected_version: 7 },
+    { scoreId: 'score', genres: [], expected_metadata_version: 7 },
     expect.any(Object)
   );
 });

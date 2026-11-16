@@ -36,6 +36,7 @@
   "no_upload_ids": "请至少上传一个文件。",
   "score_not_found": "乐谱不存在或已被删除。",
   "revision_not_found": "乐谱版本不存在或已被删除。",
+  "score_metadata_conflict": "乐谱信息已更改，请刷新后重试。",
   "revision_conflict": "这份乐谱已在其他地方更新，请刷新后重试。",
   "revision_content_invalid": "乐谱内容无效，请检查后重试。",
   "storage_quota_exceeded": "存储空间不足，请删除不需要的内容或升级方案。",

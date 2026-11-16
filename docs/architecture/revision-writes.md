@@ -12,15 +12,16 @@ identity and reservation owner/category/size before semantic adoption. Unused ph
 writes remain ObjectWriteIntent cleanup-owned.
 
 InitialRevisionWrite requires an empty Score revision sequence, creates revision 1
-and preserves the initial Score version. AppendRevisionWrite locks and refreshes the
-active Score, validates exact expected head and assigns head revision number plus one.
+without changing `Score.metadata_version`, which starts at 1. AppendRevisionWrite
+locks and refreshes the active Score, validates exact expected head and assigns
+head revision number plus one.
 Idempotency resolves under that lock before head conflict. Same-content admission
 returns the current head. No-op admission releases the unused reservation.
 RestoreLineage identifies a same-Score revision with matching content and adds a
 RESTORE ScoreRevisionEvent with the new revision. Notes remain separate commands.
 
 A created revision transaction includes source adoption, initial PENDING metadata,
-render/playback/metadata outboxes, head/version, SOURCE reservation accounting,
+render/playback/metadata outboxes, head advancement and recency, SOURCE reservation accounting,
 restore audit when applicable and notification/realtime consequences for non-initial
 revisions. Outer rollback discards all semantic writes; callers release the rolled-back
 reservation. ScoreRevisionEvent retains revision product/audit history.
@@ -75,3 +76,14 @@ head demand, not request-path cleanup. There is no universal revision/background
 
 See [durable delivery](durable-asynchronous-delivery.md) and
 [revision derivatives](revision-derivatives.md).
+
+## Metadata and head concurrency
+
+Score metadata PATCH uses `expected_metadata_version` against
+`Score.metadata_version`, independently of notation writes. Revision create and
+restore use the client's `expected_head_revision_id`; restore does not substitute
+a server-current head for that observation. RevisionWriter owns this head CAS and
+returns `revision_conflict` with expected/current head identities for a stale write.
+It changes `head_revision_id` and recency, never `metadata_version`, `display_title`
+or `genres`. `ScoreRead.head_revision_number` is derived from the head revision.
+`updated_at` is resource recency, not CAS authority.

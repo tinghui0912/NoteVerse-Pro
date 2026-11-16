@@ -26,6 +26,9 @@ class RevisionActorRead(BaseModel):
 
 
 class RevisionRestoreRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expected_head_revision_id: str
     note: str | None = Field(default=None, max_length=500)
 
 

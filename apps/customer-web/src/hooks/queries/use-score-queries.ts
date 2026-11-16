@@ -65,7 +65,7 @@ export function useUpdateScore() {
       scoreId: string;
       display_title?: string;
       genres?: ScoreGenre[];
-      expected_version: number;
+      expected_metadata_version: number;
     }) => scoresApi.update(scoreId, input),
     onSuccess: (response) => scoreUpdated(queryClient, response),
   });
@@ -93,12 +93,14 @@ export function useRestoreRevision() {
     mutationFn: ({
       scoreId,
       revisionId,
+      expected_head_revision_id,
       note,
     }: {
       scoreId: string;
       revisionId: string;
+      expected_head_revision_id: string;
       note?: string | null;
-    }) => scoresApi.restoreRevision(scoreId, revisionId, { note }),
+    }) => scoresApi.restoreRevision(scoreId, revisionId, { expected_head_revision_id, note }),
     onSuccess: (_response, variables) => scoreRevisionWritten(queryClient, variables.scoreId),
   });
 }

@@ -29,6 +29,7 @@ from app.db.models.import_job import ImportJobState
 from app.db.models.score import RevisionOrigin, RevisionSourceFormat
 from app.modules.revisions import dispatch
 from app.modules.revisions.derivatives import revision_derivative_service, RevisionDerivativeService
+from app.modules.revisions.schemas import RevisionRestoreRequest
 from app.modules.revisions.service import RevisionService
 from app.modules.revisions.schemas import RevisionCreateRequest
 from app.modules.import_jobs.review.service import ImportReviewService
@@ -266,7 +267,13 @@ def test_business_commit_precedes_immediate_dispatch_and_broker_failure_is_recov
             ),
         )
     elif operation == "restore":
-        RevisionService(storage=storage).restore(db, score.score_uuid, rows[0].revision_uuid, 1)
+        RevisionService(storage=storage).restore(
+            db,
+            score.score_uuid,
+            rows[0].revision_uuid,
+            1,
+            RevisionRestoreRequest(expected_head_revision_id=rows[-1].revision_uuid),
+        )
     elif operation == "confirm":
         db.add(
             ImportJob(

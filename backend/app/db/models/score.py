@@ -60,7 +60,7 @@ bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 class Score(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "scores"
     __table_args__ = (
-        CheckConstraint("version >= 1", name="ck_scores_version_positive"),
+        CheckConstraint("metadata_version >= 1", name="ck_scores_metadata_version_positive"),
         ForeignKeyConstraint(
             ["id", "head_revision_id"],
             ["score_revisions.score_id", "score_revisions.id"],
@@ -103,7 +103,7 @@ class Score(SQLModel, table=True):  # type: ignore[call-arg]
             unique=True,
         ),
     )
-    version: int = Field(default=1, sa_column=Column(Integer, default=1, nullable=False))
+    metadata_version: int = Field(default=1, sa_column=Column(Integer, default=1, nullable=False))
     deleted_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     created_at: datetime = Field(
         default_factory=utc_now,

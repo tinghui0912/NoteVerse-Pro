@@ -218,7 +218,7 @@ def test_concurrent_head_writes_serialize_and_idempotency_resolves_in_writer(dat
         assert db.scalar(sa.select(sa.func.count()).select_from(RealtimeChange)) == 1
         score = db.scalar(sa.select(Score))
         assert (
-            score.version == 2
+            score.metadata_version == 1
             and db.get(ScoreRevision, score.head_revision_id).revision_number == 2
         )
         if not same_key:

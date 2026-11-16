@@ -17,7 +17,7 @@ class ScoreUpdateRequest(BaseModel):
 
     display_title: str | None = Field(default=None, min_length=1, max_length=255)
     genres: Genres | None = None
-    expected_version: int = Field(ge=1)
+    expected_metadata_version: int = Field(ge=1)
 
 
 class ScoreBatchDeleteRequest(BaseModel):
@@ -36,8 +36,9 @@ class ScoreRead(ApiModel):
     score_id: str
     display_title: str
     genres: Genres
-    version: int
+    metadata_version: int
     head_revision_id: str | None
+    head_revision_number: int | None
     derived_assets: ScoreDerivedAssetsRead
     input_assets: list[ScoreInputAssetRead]
     metadata: MetadataRead | None

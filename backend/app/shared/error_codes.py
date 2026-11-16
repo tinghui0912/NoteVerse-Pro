@@ -44,6 +44,7 @@ class ImportErrorCode:
 
 
 class ScoreErrorCode:
+    SCORE_METADATA_CONFLICT = "score_metadata_conflict"
     SCORE_NOT_FOUND = "score_not_found"
     REVISION_NOT_FOUND = "revision_not_found"
     REVISION_CONFLICT = "revision_conflict"

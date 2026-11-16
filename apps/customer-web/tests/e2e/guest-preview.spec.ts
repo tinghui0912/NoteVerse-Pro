@@ -65,7 +65,7 @@ test('owner toggles a stable preview link and an anonymous browser opens it', as
     score_id: 'preview-owner-score',
     display_title: 'Owner Score',
     genres: [],
-    version: 1,
+    metadata_version: 1, head_revision_number: 1,
     head_revision_id: 'revision-a',
     metadata: null,
     input_assets: [],

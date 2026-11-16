@@ -212,8 +212,6 @@ class RevisionWriter:
         )
         db.add(metadata)
         score.head_revision_id = revision_id
-        if not initial:
-            score.version += 1
         score.updated_at = now
         if isinstance(command, AppendRevisionWrite) and command.restore is not None:
             assert target is not None

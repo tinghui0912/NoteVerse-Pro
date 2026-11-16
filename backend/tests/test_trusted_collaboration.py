@@ -239,6 +239,7 @@ async def test_http_source_disclosure_and_editing_boundaries(collaboration, role
                 )
                 if path.endswith("/view") and allowed:
                     assert response.headers["content-disposition"].startswith("inline")
+            observed_head_revision_id = "trusted-revision"
             for path, payload in [
                 (
                     "/scores/trusted-score/revisions",
@@ -248,13 +249,20 @@ async def test_http_source_disclosure_and_editing_boundaries(collaboration, role
                         idempotency_key="editing-noop",
                     ),
                 ),
-                ("/scores/trusted-score/revisions/trusted-revision/restore", dict(note="Restore")),
+                (
+                    "/scores/trusted-score/revisions/trusted-revision/restore",
+                    dict(note="Restore", expected_head_revision_id="trusted-revision"),
+                ),
             ]:
+                if path.endswith("/restore"):
+                    payload = {**payload, "expected_head_revision_id": observed_head_revision_id}
                 response = await client.post("/api/v1" + path, json=payload)
                 assert response.status_code == (200 if can_edit else 403), (
                     path,
                     response.text[:200],
                 )
+                if can_edit:
+                    observed_head_revision_id = response.json()["revision_id"]
             response = await client.patch(
                 "/api/v1/scores/trusted-score/revisions/trusted-revision/note",
                 json={"note": "Collaboration note"},

@@ -36,7 +36,7 @@ const stale = (key: QueryKey) => client.getQueryState(key)?.isInvalidated;
 const scoreKeys = (id: string) => [keys.scores.detail(id), keys.scores.revisions(id), keys.scores.revision(id, 'r1'), keys.scores.revisionAssets(id), keys.scores.revisionAssets(id, 'r1'), keys.scores.revisionAssets(id, 'r2'), keys.scores.invites(id), keys.scores.members(id), keys.scores.guestPreviewSettings(id)];
 const library = () => seed(keys.library.scoreList({ page: 1, pageSize: 20 }));
 const storage = () => seed(keys.storageUsage.current());
-const score = { score_id: 'a', display_title: 'Renamed', genres: [], head_revision_id: 'r1', metadata: null, input_assets: [], version: 2,
+const score = { score_id: 'a', display_title: 'Renamed', genres: [], head_revision_id: 'r1', metadata: null, input_assets: [], metadata_version: 2, head_revision_number: 2,
   capabilities: { can_view: true, can_edit: true, can_delete: true, can_leave: false, can_manage_members: true, can_manage_guest_previews: true, can_download: true, can_practice: true },
   derived_assets: { preview: { status: 'pending', asset_id: null }, audio: { status: 'pending', asset_id: null } }, created_at: '2026-07-01T00:00:00Z', updated_at: '2026-07-01T00:00:00Z' } satisfies ScoreRead;
 

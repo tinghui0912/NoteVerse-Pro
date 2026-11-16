@@ -59,12 +59,15 @@ vi.mock('@/components/score-detail/score-detail-hero', () => ({
   ScoreDetailHero: ({
     title,
     actions,
+    meta,
   }: {
     title: string;
     actions: React.ReactNode;
+    meta: React.ReactNode;
   }) => (
     <div>
       <h1>{title}</h1>
+      {meta}
       {actions}
     </div>
   ),
@@ -78,7 +81,7 @@ beforeEach(() => {
     score_id: 'score',
     display_title: 'Owned score',
     genres: [],
-    version: 1,
+    metadata_version: 1, head_revision_number: 1,
     head_revision_id: 'revision',
     metadata: null,
     input_assets: [],
@@ -179,4 +182,18 @@ it('returns load errors to Library', async () => {
     screen.getByRole('link', { name: scoreText.backToLibrary }),
   ).toHaveAttribute('href', '/library');
   client.clear();
+});
+
+
+it('shows the immutable head revision number rather than the metadata token', async () => {
+  mocks.score = { ...mocks.score!, metadata_version: 42, head_revision_number: 7 };
+  await page();
+  expect(screen.getByText('Version v7')).toBeInTheDocument();
+  expect(screen.queryByText('Version v42')).not.toBeInTheDocument();
+});
+
+it('does not invent a revision number for a Score without a head', async () => {
+  mocks.score = { ...mocks.score!, metadata_version: 42, head_revision_id: null, head_revision_number: null };
+  await page();
+  expect(screen.queryByText(/^Version v/)).not.toBeInTheDocument();
 });

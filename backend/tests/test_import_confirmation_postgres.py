@@ -283,7 +283,7 @@ def test_display_title_and_revision_notation_title_have_independent_lifecycles(c
             1,
             ScoreUpdateRequest(
                 display_title="My practice copy",
-                expected_version=score.version,
+                expected_metadata_version=score.metadata_version,
             ),
         )
         db.expire_all()

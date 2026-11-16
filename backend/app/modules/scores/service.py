@@ -91,17 +91,30 @@ class ScoreService:
         )
         score = self.repository.get(db, access.score.score_uuid, lock=True)
         assert score is not None
-        if score.version != request.expected_version:
+        if score.metadata_version != request.expected_metadata_version:
             raise ConflictException(
-                ErrorCode.REVISION_CONFLICT,
-                {"expected_version": request.expected_version, "actual_version": score.version},
+                ErrorCode.SCORE_METADATA_CONFLICT,
+                {
+                    "score_id": score.score_uuid,
+                    "expected_metadata_version": request.expected_metadata_version,
+                    "current_metadata_version": score.metadata_version,
+                },
             )
-        if request.display_title is not None:
-            score.display_title = request.display_title.strip()
-        if request.genres is not None:
-            score.genres = [genre.value for genre in request.genres]
-        score.version += 1
-        score.updated_at = utc_now()
+        display_title = (
+            request.display_title.strip()
+            if request.display_title is not None
+            else score.display_title
+        )
+        genres = (
+            [genre.value for genre in request.genres]
+            if request.genres is not None
+            else score.genres
+        )
+        if display_title != score.display_title or genres != score.genres:
+            score.display_title = display_title
+            score.genres = genres
+            score.metadata_version += 1
+            score.updated_at = utc_now()
         db.commit()
         db.refresh(score)
         return self._read(db, score, access.capabilities)
@@ -177,8 +190,9 @@ class ScoreService:
             score_id=score.score_uuid,
             display_title=score.display_title,
             genres=score.genres,
-            version=score.version,
+            metadata_version=score.metadata_version,
             head_revision_id=head.revision_uuid if head else None,
+            head_revision_number=head.revision_number if head else None,
             derived_assets=derived_assets,
             input_assets=[
                 ScoreInputAssetRead(

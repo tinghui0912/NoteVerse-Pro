@@ -1499,11 +1499,11 @@ def upgrade() -> None:
         ),
         sa.Column("head_revision_id", sa.BigInteger(), nullable=True),
         sa.Column("originating_job_id", sa.BigInteger(), nullable=True),
-        sa.Column("version", sa.Integer(), nullable=False),
+        sa.Column("metadata_version", sa.Integer(), nullable=False),
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
-        sa.CheckConstraint("version >= 1", name="ck_scores_version_positive"),
+        sa.CheckConstraint("metadata_version >= 1", name="ck_scores_metadata_version_positive"),
         sa.ForeignKeyConstraint(
             ["originating_job_id"],
             ["import_jobs.id"],

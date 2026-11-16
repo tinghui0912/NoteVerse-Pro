@@ -177,15 +177,12 @@ class RevisionService:
         score_uuid: str,
         revision_uuid: str,
         user_id: int,
-        request: RevisionRestoreRequest | None = None,
+        request: RevisionRestoreRequest,
     ) -> RevisionRead:
         access = self.access_policy.authorize_revision(
             db, score_uuid, ScoreAction.EDIT, user_id=user_id, revision_uuid=revision_uuid
         )
         target = access.revision
-        head = db.get(ScoreRevision, access.score.head_revision_id)
-        if head is None:
-            raise ResourceNotFoundException("revision", score_uuid, ErrorCode.REVISION_NOT_FOUND)
         source = self.asset_repository.canonical_source(
             db, require_persisted_id(target.id, entity="revision")
         )
@@ -203,10 +200,10 @@ class RevisionService:
             score_uuid,
             user_id,
             content,
-            expected_head_uuid=head.revision_uuid,
+            expected_head_uuid=request.expected_head_revision_id,
             origin=RevisionOrigin.EDIT,
             owner_user_id=access.score.owner_user_id,
-            restore=RestoreLineage(revision_uuid, request.note if request else None),
+            restore=RestoreLineage(revision_uuid, request.note),
         )
 
     def update_note(

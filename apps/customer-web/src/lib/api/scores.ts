@@ -25,8 +25,8 @@ export const scoresApi = {
     scoreId: string,
     input: RevisionCreateRequest
   ) => responseBody(scoreRevisionsCreate({ ...customerTransport.authenticated, path: { score_id: scoreId }, body: input })),
-  restoreRevision: (scoreId: string, revisionId: string, input?: RevisionRestoreRequest) =>
-    responseBody(scoreRevisionRestore({ ...customerTransport.authenticated, path: { score_id: scoreId, revision_id: revisionId }, body: input ?? {} })),
+  restoreRevision: (scoreId: string, revisionId: string, input: RevisionRestoreRequest) =>
+    responseBody(scoreRevisionRestore({ ...customerTransport.authenticated, path: { score_id: scoreId, revision_id: revisionId }, body: input })),
   updateRevisionNote: (scoreId: string, revisionId: string, input: RevisionNoteUpdateRequest) =>
     responseBody(scoreRevisionNoteUpdate({ ...customerTransport.authenticated, path: { score_id: scoreId, revision_id: revisionId }, body: input })),
   generateFingering: (

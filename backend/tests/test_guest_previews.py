@@ -138,7 +138,9 @@ def test_owner_settings_token_stability_and_generic_disclosure(preview_context):
         score.score_uuid,
         1,
         ScoreUpdateRequest(
-            expected_version=score.version, display_title="Updated", genres=["jazz"]
+            expected_metadata_version=score.metadata_version,
+            display_title="Updated",
+            genres=["jazz"],
         ),
     )
     add_head_b(session, score)

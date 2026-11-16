@@ -39,7 +39,7 @@ interface ScoreInfoPanelProps {
   genres: ScoreGenre[];
   displayTitle: string;
   updatedAt?: string | null;
-  version?: number;
+  metadataVersion: number;
 }
 
 export function ScoreInfoPanel({
@@ -52,7 +52,7 @@ export function ScoreInfoPanel({
   genres,
   displayTitle: currentDisplayTitle,
   updatedAt,
-  version = 1,
+  metadataVersion,
 }: ScoreInfoPanelProps) {
   const t = useTranslations('score');
   const common = useTranslations('common');
@@ -113,7 +113,7 @@ export function ScoreInfoPanel({
       return;
     }
     mutation.mutate(
-      { scoreId, display_title: nextDisplayTitle, expected_version: version },
+      { scoreId, display_title: nextDisplayTitle, expected_metadata_version: metadataVersion },
       {
         onSuccess: () => {
           toast({ title: t('saveSuccess'), description: t('scoreInfoUpdated') });
@@ -137,7 +137,7 @@ export function ScoreInfoPanel({
       {
         scoreId,
         genres: knownGenres(nextGenres),
-        expected_version: version,
+        expected_metadata_version: metadataVersion,
       },
       {
         onSuccess: () => toast({ title: t('saveSuccess'), description: t('styleTagsUpdated') }),

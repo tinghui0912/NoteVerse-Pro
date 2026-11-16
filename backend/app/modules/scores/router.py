@@ -137,7 +137,7 @@ def list_revisions(
 def restore_revision(
     score_id: str,
     revision_id: str,
-    request: RevisionRestoreRequest | None = None,
+    request: RevisionRestoreRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db, scope="function"),
     service: RevisionService = Depends(get_revision_service),

@@ -36,6 +36,7 @@
   "no_upload_ids": "Please upload at least one file.",
   "score_not_found": "The score does not exist or has been deleted.",
   "revision_not_found": "The score revision does not exist or has been deleted.",
+  "score_metadata_conflict": "Score information has changed. Refresh and try again.",
   "revision_conflict": "This score was updated elsewhere. Please refresh and try again.",
   "revision_content_invalid": "The score content is invalid. Please check it and try again.",
   "storage_quota_exceeded": "Storage space is full. Delete unused content or upgrade your plan.",

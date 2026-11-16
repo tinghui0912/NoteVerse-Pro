@@ -16,6 +16,20 @@ MusicXML score-partwise
             -> backend performance MIDI / exact HTTP transport
 ```
 
+## Resource metadata and notation identity
+
+`Score.display_title` and `Score.genres` use `Score.metadata_version` as their
+optimistic-concurrency authority. Metadata PATCH requires
+`expected_metadata_version`. Immutable MusicXML snapshots belong to ScoreRevision;
+notation create/restore requires `expected_head_revision_id` against
+`Score.head_revision_id`. These concurrency domains are independent.
+
+Revision history and the Score detail version label use the current head's
+`ScoreRevision.revision_number`, exposed as `head_revision_number` in ScoreRead.
+`Score.updated_at` is a shared resource-recency projection for actual metadata
+changes and head appends; it is not a concurrency token. Written music semantics
+below derive from revision MusicXML, independently of resource metadata.
+
 ## Exact written facts
 
 Every position and duration uses `fractions.Fraction`: one quarter is `Fraction(1)`.

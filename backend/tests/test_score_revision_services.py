@@ -1169,7 +1169,7 @@ def test_revision_restore_creates_new_head_from_target_revision(
         score_uuid="score-restore",
         owner_user_id=1,
         display_title="Restore Score",
-        version=2,
+        metadata_version=2,
     )
     revision_1 = ScoreRevision(
         id=41,
@@ -1254,7 +1254,9 @@ def test_revision_restore_creates_new_head_from_target_revision(
         "score-restore",
         "revision-2",
         1,
-        RevisionRestoreRequest(note="Return to revision 2"),
+        RevisionRestoreRequest(
+            expected_head_revision_id=fourth.revision_id, note="Return to revision 2"
+        ),
     )
 
     session.refresh(score)
@@ -1273,7 +1275,7 @@ def test_revision_restore_creates_new_head_from_target_revision(
     assert restored.restore.restored_from_revision_number == 2
     assert restored.restore.note == "Return to revision 2"
     assert score.head_revision_id == new_revision.id
-    assert score.version == 5
+    assert score.metadata_version == 2
     assert storage.read_bytes(new_artifact.stored_object.object_key) == MUSICXML_2.encode()
     assert metadata is not None
     assert metadata.status == MetadataStatus.READY
@@ -1346,7 +1348,7 @@ def test_derived_asset_retention_protects_current_head_only(
         score_uuid="retention-score",
         owner_user_id=1,
         display_title="Retention Score",
-        version=5,
+        metadata_version=5,
     )
     revisions = [
         ScoreRevision(
@@ -1470,7 +1472,7 @@ def test_revision_list_uses_cursor_pagination(
         score_uuid="score-revision-list",
         owner_user_id=1,
         display_title="Revision List Score",
-        version=5,
+        metadata_version=5,
     )
     revisions = [
         ScoreRevision(
