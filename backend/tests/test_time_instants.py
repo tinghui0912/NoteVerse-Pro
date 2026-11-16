@@ -1,5 +1,7 @@
 """Aware UTC instants across clock, API, PostgreSQL storage and nested output."""
 
+from app.modules.import_jobs.requested_options import encode_requested_options
+
 from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
@@ -78,6 +80,7 @@ def test_fresh_postgresql_instants_use_timestamptz_and_round_trip(monkeypatch):
             db.add(User(id=1, email="instant@example.test", password_hash="hash"))
             db.flush()
             job = ImportJob(
+                requested_options=encode_requested_options(None),
                 job_uuid="instant-job",
                 user_id=1,
                 state=ImportJobState.PROCESSING,

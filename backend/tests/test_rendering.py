@@ -1,5 +1,7 @@
 """Rendering target identities, caller-owned admission and bytes-to-pages execution."""
 
+from app.modules.import_jobs.requested_options import encode_requested_options
+
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -168,6 +170,7 @@ def test_review_admission_dedupes_each_fingerprint_inside_the_callers_transactio
 ):
     db, _ = score_service_session
     job = ImportJob(
+        requested_options=encode_requested_options(None),
         job_uuid="job",
         user_id=1,
         state=ImportJobState.READY_FOR_REVIEW,

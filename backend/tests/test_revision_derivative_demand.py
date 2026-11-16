@@ -1,5 +1,7 @@
 """Durable presentation demand, post-commit relaying, and generation admission."""
 
+from app.modules.import_jobs.requested_options import encode_requested_options
+
 from app.shared.time import utc_now
 
 from app.db.models import StoredObject
@@ -283,7 +285,7 @@ def test_business_commit_precedes_immediate_dispatch_and_broker_failure_is_recov
                 job_uuid="confirm-demand",
                 user_id=1,
                 state=ImportJobState.READY_FOR_REVIEW,
-                requested_options={"display_title": "Confirmed"},
+                requested_options=encode_requested_options({"display_title": "Confirmed"}),
             )
         )
         db.commit()

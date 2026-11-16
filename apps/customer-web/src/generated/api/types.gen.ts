@@ -362,20 +362,6 @@ export type ImportJobBatchStatusRead = {
 };
 
 /**
- * ImportJobProcessingOptions
- */
-export type ImportJobProcessingOptions = {
-    /**
-     * Display Title
-     */
-    display_title?: string;
-    /**
-     * Genres
-     */
-    genres?: Array<ScoreGenre>;
-};
-
-/**
  * ImportJobRead
  */
 export type ImportJobRead = {
@@ -433,6 +419,20 @@ export type ImportJobRead = {
      * Updated At
      */
     updated_at: string;
+};
+
+/**
+ * ImportJobRequestedOptions
+ */
+export type ImportJobRequestedOptions = {
+    /**
+     * Display Title
+     */
+    display_title?: string;
+    /**
+     * Genres
+     */
+    genres?: Array<ScoreGenre>;
 };
 
 /**
@@ -518,7 +518,7 @@ export type ImportJobSubmitRequest = {
      * Idempotency Key
      */
     idempotency_key?: string | null;
-    options?: ImportJobProcessingOptions | null;
+    options?: ImportJobRequestedOptions | null;
     /**
      * Upload Ids
      */

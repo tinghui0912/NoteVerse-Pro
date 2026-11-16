@@ -50,10 +50,13 @@ from app.modules.import_jobs.review.schemas import (
 from app.modules.scores.repository import ScoreRepository
 from app.modules.scores.genres import ScoreGenre
 from app.processing.musicxml.admission import admit_musicxml_document
-from app.modules.import_jobs.schemas import processing_options_adapter
+from app.modules.import_jobs.requested_options import (
+    ImportJobRequestedOptionsV1,
+    decode_requested_options,
+)
 from app.modules.storage_usage.service import storage_usage_service
 from app.shared.error_codes import CustomerErrorCode
-from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
+from app.db.models.import_job import ImportArtifactKind
 from app.storage import object_storage
 from app.shared.time import utc_now
 from app.processing.musicxml.notation_title import extract_notation_title
@@ -125,8 +128,9 @@ class ImportReviewService:
         score_uuid = str(uuid.uuid4())
         revision_uuid = str(uuid.uuid4())
         now = utc_now()
-        display_title = self._confirmed_display_title(job, request, content)
-        genres = self._confirmed_genres(job, request)
+        options = decode_requested_options(job.requested_options)
+        display_title = self._confirmed_display_title(options, request, content)
+        genres = self._confirmed_genres(options, request)
         key = f"scores/{score_uuid}/revisions/{revision_uuid}/score.musicxml"
         reservation = storage_usage_service.reserve(
             db,
@@ -291,7 +295,7 @@ class ImportReviewService:
                 select(ImportArtifact)
                 .where(
                     ImportArtifact.job_id == job_id,
-                    ImportArtifact.kind == ImportArtifactKind.REVIEW_MUSICXML.value,
+                    ImportArtifact.kind == ImportArtifactKind.REVIEW_MUSICXML,
                 )
                 .with_for_update()
             )
@@ -323,7 +327,7 @@ class ImportReviewService:
                 select(ImportArtifact)
                 .where(
                     ImportArtifact.job_id == job_id,
-                    ImportArtifact.kind == ImportArtifactKind.REVIEW_MUSICXML.value,
+                    ImportArtifact.kind == ImportArtifactKind.REVIEW_MUSICXML,
                 )
                 .with_for_update()
                 .execution_options(populate_existing=True)
@@ -373,28 +377,26 @@ class ImportReviewService:
 
     @staticmethod
     def _confirmed_display_title(
-        job: ImportJob,
+        options: ImportJobRequestedOptionsV1,
         request: ReviewConfirmRequest,
         content: bytes,
     ) -> str:
         if request.display_title is not None:
             return request.display_title.strip()
-        options = job.requested_options if isinstance(job.requested_options, dict) else {}
-        requested_display_title = options.get("display_title")
+        requested_display_title = options.display_title
         return (
             requested_display_title.strip()
-            if isinstance(requested_display_title, str) and requested_display_title.strip()
+            if requested_display_title is not None and requested_display_title.strip()
             else extract_notation_title(content) or "Untitled score"
         )
 
     @staticmethod
-    def _confirmed_genres(job: ImportJob, request: ReviewConfirmRequest) -> list[ScoreGenre]:
+    def _confirmed_genres(
+        options: ImportJobRequestedOptionsV1, request: ReviewConfirmRequest
+    ) -> list[ScoreGenre]:
         if request.genres is not None:
             return request.genres
-        options = processing_options_adapter.validate_python(
-            job.requested_options if job.requested_options is not None else {}
-        )
-        return options.get("genres", [])
+        return options.genres
 
 
 import_review_service = ImportReviewService()

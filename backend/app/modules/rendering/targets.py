@@ -16,7 +16,7 @@ from app.db.models import (
     ScoreRevision,
 )
 from app.db.models.import_job import ImportJobState
-from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
+from app.db.models.import_job import ImportArtifactKind
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -110,7 +110,7 @@ class RenderPayloadBuilder:
         review_source = db.execute(
             select(ImportArtifact).where(
                 ImportArtifact.job_id == outbox.import_job_id,
-                ImportArtifact.kind == ImportArtifactKind.REVIEW_MUSICXML.value,
+                ImportArtifact.kind == ImportArtifactKind.REVIEW_MUSICXML,
             )
         ).scalar_one_or_none()
         if review_source is None:

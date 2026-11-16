@@ -140,3 +140,31 @@ confirmation succeeds without recreating notification history. No confirmed brow
 realtime type is introduced. Repeated confirmation returns the existing Score without
 repeating writes, accounting, cleanup or notification/realtime consequences. External
 work remains in the specific durable outboxes; post-commit relays are latency hints.
+
+
+## Requested metadata and temporary artifacts
+
+`ImportJob.requested_options` is a non-null versioned durable payload. Its current
+schema is `ImportJobRequestedOptionsV1`: `schema_version: 1`, nullable
+`display_title`, and ordered, deduplicated `genres`. The full empty representation
+is `{"schema_version": 1, "display_title": null, "genres": []}`. HTTP submit options
+contain only title/genres and do not carry `schema_version`; the Import submission
+owner uses `encode_requested_options` to admit the durable representation.
+
+Every persisted-option consumer uses `decode_requested_options` before reading
+its typed V1 facts. Missing versions, unsupported versions, extra fields and invalid
+fields fail closed. A change to durable shape or meaning requires a new version
+and an explicit decoder branch. Customer retry decodes the prior intent and
+submits it through the encoder for a new ImportJob.
+
+Requested title/genres are review and confirmation defaults, not pipeline execution
+configuration. Dispatch, worker commands, pipeline context and builder do not carry
+them. They do not affect the OMR execution manifest identity.
+
+`ImportArtifact.kind` is the persisted `ImportArtifactKind` enum with PostgreSQL
+labels `review_musicxml` and `review_preview_image`. Both share the Import temporary
+artifact lifecycle, TEMP_IMPORT accounting and confirmation/deletion cleanup.
+Pipeline, user review edit and thumbnail rendering retain their producer ownership.
+Artifact physical-write and execution-adoption boundaries require the enum's
+identity before side effects. Raw strings and foreign enum members grant no artifact
+mutation authority; storage-key serialization uses the admitted kind's value.

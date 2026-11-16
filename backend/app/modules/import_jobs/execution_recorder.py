@@ -29,7 +29,7 @@ from app.modules.import_jobs.repository import ImportJobRepository
 from app.modules.import_jobs.artifact_records import ImportJobStoredArtifactItem
 from app.modules.import_jobs.notifications import admit_import_processing_outcome
 from app.modules.storage_usage.service import storage_usage_service
-from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
+from app.db.models.import_job import ImportArtifactKind
 from app.modules.rendering.admission import admit_review_thumbnail_render
 from app.shared.time import utc_now
 from app.modules.import_jobs.lifecycle import (
@@ -84,7 +84,7 @@ class ImportExecutionRecorder:
         review_xml = db.execute(
             select(ImportArtifact).where(
                 ImportArtifact.job_id == job.id,
-                ImportArtifact.kind == ImportArtifactKind.REVIEW_MUSICXML.value,
+                ImportArtifact.kind == ImportArtifactKind.REVIEW_MUSICXML,
             )
         ).scalar_one_or_none()
         if review_xml is None:
@@ -156,9 +156,11 @@ class ImportExecutionRecorder:
         self,
         db: Session,
         lease: ImportExecutionLease,
-        kind: str,
+        kind: ImportArtifactKind,
         items: list[ImportJobStoredArtifactItem],
     ) -> None:
+        if not isinstance(kind, ImportArtifactKind):
+            raise TypeError("Import artifact mutation requires ImportArtifactKind")
         job = require_current_attempt(db, lease)
         job_id = require_persisted_id(job.id, entity="import job")
         previous = [

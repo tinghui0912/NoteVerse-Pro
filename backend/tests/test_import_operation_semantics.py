@@ -1,5 +1,7 @@
 """Import async operation projection and SQL summary share delivery/resource truth."""
 
+from app.modules.import_jobs.requested_options import encode_requested_options
+
 from datetime import timedelta
 from app.modules.durable_work.failure import DurableFailureClass
 
@@ -54,6 +56,7 @@ def test_import_projection_and_summary_agree(
         db.add(Score(id=701, score_uuid="confirmed", owner_user_id=1, display_title="Confirmed"))
         db.flush()
     job = ImportJob(
+        requested_options=encode_requested_options(None),
         job_uuid="resource",
         user_id=1,
         state=ImportJobState(job_state),
@@ -119,6 +122,7 @@ def test_delivery_updates_drive_operation_order_and_timestamp_filters(score_serv
     db, _ = score_service_session
     now = utc_now()
     first = ImportJob(
+        requested_options=encode_requested_options(None),
         job_uuid="recent-delivery",
         user_id=1,
         state=ImportJobState.QUEUED,
@@ -126,6 +130,7 @@ def test_delivery_updates_drive_operation_order_and_timestamp_filters(score_serv
         updated_at=now - timedelta(days=2),
     )
     second = ImportJob(
+        requested_options=encode_requested_options(None),
         job_uuid="recent-job",
         user_id=1,
         state=ImportJobState.QUEUED,
@@ -193,6 +198,7 @@ def test_delivery_updates_drive_operation_order_and_timestamp_filters(score_serv
 def test_ops_retry_uses_dispatch_identity_only(score_service_session):
     db, _ = score_service_session
     job = ImportJob(
+        requested_options=encode_requested_options(None),
         processing_finished_at=utc_now(),
         job_uuid="domain-resource",
         user_id=1,

@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.db.models import ImportJob, Notification, NotificationKind, RealtimeChangeKind
 from app.db.models.import_job import ImportJobState
+from app.modules.import_jobs.requested_options import decode_requested_options
 from app.modules.notifications.service import notification_service
 from app.modules.realtime.publisher import publish_change
 
@@ -13,9 +14,7 @@ def admit_import_processing_outcome(db: Session, job: ImportJob, *, created_at: 
     if job.state not in {ImportJobState.READY_FOR_REVIEW, ImportJobState.FAILED}:
         raise ValueError("Import consequences require an accepted processing outcome")
     ready_for_review = job.state == ImportJobState.READY_FOR_REVIEW
-    options = job.requested_options if isinstance(job.requested_options, dict) else {}
-    display_title = options.get("display_title")
-    display_title = display_title if isinstance(display_title, str) else None
+    display_title = decode_requested_options(job.requested_options).display_title
     if ready_for_review:
         notification_service.admit_import_ready_for_review(
             db,

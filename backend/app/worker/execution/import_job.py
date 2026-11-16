@@ -70,7 +70,6 @@ def execute_import_dispatch_task(
                 task,
                 payload.lease,
                 payload.inputs,
-                payload.options,
             )
         except StaleImportDispatchAttempt:
             raise

@@ -1,5 +1,8 @@
 """Import confirmation commits provenance, revision admission, notification enrichment and release together."""
 
+from app.modules.import_jobs.requested_options import encode_requested_options
+from app.db.models.import_job import ImportArtifactKind
+
 from tests.support.storage_state import provision_storage_users
 
 from concurrent.futures import ThreadPoolExecutor
@@ -69,14 +72,14 @@ def confirmation(monkeypatch):
                 job_uuid="job",
                 user_id=1,
                 state=ImportJobState.READY_FOR_REVIEW,
-                requested_options={"display_title": "Etudes"},
+                requested_options=encode_requested_options({"display_title": "Etudes"}),
             )
             db.add(job)
             db.flush()
             db.add(ImportDispatch(job_id=job.id, status=ImportDispatchStatus.COMPLETED))
             for kind, content in (
-                ("review_musicxml", MUSICXML_1),
-                ("review_preview_image", b"<svg/>"),
+                (ImportArtifactKind.REVIEW_MUSICXML, MUSICXML_1),
+                (ImportArtifactKind.REVIEW_PREVIEW_IMAGE, b"<svg/>"),
             ):
                 obj = object_from_bytes(
                     object_key=f"jobs/{kind}",
@@ -169,7 +172,9 @@ def test_confirmation_initializes_display_title_from_explicit_precedence(
         )
     with Session(engine) as db:
         job = db.scalar(sa.select(ImportJob))
-        job.requested_options = {"display_title": submitted} if submitted is not None else {}
+        job.requested_options = encode_requested_options(
+            {"display_title": submitted} if submitted is not None else {}
+        )
         db.commit()
         processing_finished_at = job.processing_finished_at
         processing_started_at = job.processing_started_at
@@ -207,7 +212,7 @@ def test_display_title_and_revision_notation_title_have_independent_lifecycles(c
     )
     with Session(engine) as db:
         job = db.scalar(sa.select(ImportJob))
-        job.requested_options = {}
+        job.requested_options = encode_requested_options({})
         db.commit()
         score_id = (
             review.ImportReviewService(storage=storage)

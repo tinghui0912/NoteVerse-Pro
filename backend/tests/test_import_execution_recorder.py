@@ -1,3 +1,4 @@
+from app.modules.import_jobs.requested_options import encode_requested_options
 from app.modules.durable_work.failure import DurableFailure, DurableFailureClass
 from datetime import datetime, timezone
 from types import SimpleNamespace
@@ -42,7 +43,7 @@ def _job(*, state: ImportJobState = ImportJobState.PROCESSING) -> SimpleNamespac
         confirmed_at=None,
         score_id=None,
         updated_at=None,
-        requested_options={"display_title": "Imported score"},
+        requested_options=encode_requested_options({"display_title": "Imported score"}),
         failure_code="import_pipeline_failed" if state == ImportJobState.FAILED else None,
         failure_stage="pipeline" if state == ImportJobState.FAILED else None,
         failure_classification="system_error" if state == ImportJobState.FAILED else None,

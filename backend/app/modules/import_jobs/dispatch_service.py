@@ -8,7 +8,6 @@ from app.modules.storage_objects.reads import StoredObjectReadTarget
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import cast
 from uuid import uuid4
 from sqlalchemy import select, delete
 from sqlalchemy.orm import Session
@@ -37,7 +36,6 @@ from app.modules.durable_work.failure import (
     set_failure_facts,
     clear_failure_facts,
 )
-from app.modules.import_jobs.schemas import ImportJobProcessingOptions
 from app.modules.import_jobs.notifications import admit_import_processing_outcome
 from app.modules.import_jobs.lifecycle import (
     IMPORT_EXECUTION_CLOSED_STATES,
@@ -102,7 +100,6 @@ class ImportDispatchPayload:
     lease: ImportExecutionLease
     job_uuid: str
     inputs: list[StoredObjectReadTarget]
-    options: ImportJobProcessingOptions | None
     attempt: int
     max_attempts: int
     originating_request_id: str | None = None
@@ -200,9 +197,6 @@ class ImportDispatchService:
             lease,
             job.job_uuid,
             [StoredObjectReadTarget.from_object(row) for row in keys],
-            cast(ImportJobProcessingOptions, job.requested_options)
-            if isinstance(job.requested_options, dict)
-            else None,
             row.attempt_count,
             lifecycle.policy.max_attempts,
             row.originating_request_id,

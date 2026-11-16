@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from sqlalchemy.engine import RowMapping
 
-from .artifact_kinds import ImportArtifactKind
+from app.db.models.import_job import ImportArtifactKind
 
 from app.db.models import (
     ExecutionManifest,
@@ -133,7 +133,7 @@ class ImportJobRepository:
                     .join(StoredObject, ImportArtifact.stored_object_id == StoredObject.id)
                     .where(
                         ImportArtifact.__table__.c.job_id.in_(job_ids),
-                        ImportArtifact.kind == ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
+                        ImportArtifact.kind == ImportArtifactKind.REVIEW_PREVIEW_IMAGE,
                     )
                     .order_by(ImportArtifact.__table__.c.id.asc())
                 )
@@ -184,7 +184,7 @@ class ImportJobRepository:
         )
 
     @staticmethod
-    def delete_artifacts_by_kind(db: Session, job_id: int, kind: str) -> None:
+    def delete_artifacts_by_kind(db: Session, job_id: int, kind: ImportArtifactKind) -> None:
         rows = list(
             db.scalars(
                 select(ImportArtifact).where(

@@ -26,10 +26,11 @@ from tests.test_score_revision_services import score_service_session as score_se
 from app.modules.account.profile_service import ProfileService
 from app.modules.import_jobs.pipeline_runner import ImportPipelineRunner
 from app.modules.import_jobs.maintenance_service import ImportJobMaintenanceService
+from app.modules.import_jobs.requested_options import encode_requested_options
 from app.modules.import_jobs.submission_service import ImportJobSubmissionService
 from app.modules.import_jobs.pipeline.artifact_recorder import _build_file_item
 from app.shared.error_codes import CustomerErrorCode
-from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
+from app.db.models.import_job import ImportArtifactKind
 from tests.support.object_storage import InMemoryObjectStorage
 from app.storage.s3_compatible import S3CompatibleObjectStorage
 from app.shared.time import utc_now
@@ -102,7 +103,7 @@ def test_object_storage_rejects_path_traversal_keys() -> None:
 @pytest.mark.parametrize(
     "kind,extension,content,mime",
     [
-        ("preview_image", "svg", b"<svg />", "image/svg+xml"),
+        (ImportArtifactKind.REVIEW_PREVIEW_IMAGE, "svg", b"<svg />", "image/svg+xml"),
         (ImportArtifactKind.REVIEW_MUSICXML, "jpg", b"jpg", "image/jpeg"),
     ],
 )
@@ -340,8 +341,6 @@ def test_import_job_submission_reuses_existing_idempotency_key() -> None:
 
 
 def test_import_job_submission_serializes_genres_for_json_storage() -> None:
-    service = ImportJobSubmissionService()
-
     options = {
         "display_title": "Once Again",
         "genres": [
@@ -349,7 +348,8 @@ def test_import_job_submission_serializes_genres_for_json_storage() -> None:
         ],
     }
 
-    assert service._storage_options(options) == {
+    assert encode_requested_options(options) == {
+        "schema_version": 1,
         "display_title": "Once Again",
         "genres": ["soundtrack"],
     }

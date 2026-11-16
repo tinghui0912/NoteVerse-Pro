@@ -12,7 +12,6 @@ from app.modules.import_jobs.dispatch_service import (
 )
 from app.db.session import SessionLocal
 from app.modules.import_jobs.schemas import (
-    ImportJobProcessingOptions,
     PipelineExecutionSuccessResult,
 )
 from app.modules.import_jobs.execution_recorder import import_execution_recorder
@@ -61,7 +60,6 @@ class ImportPipelineRunner:
         celery_task: CeleryTaskLike,
         lease: ImportExecutionLease,
         inputs: list[StoredObjectReadTarget],
-        options: ImportJobProcessingOptions | None = None,
     ) -> PipelineExecutionSuccessResult:
         job_id = lease.job_uuid
         try:
@@ -75,7 +73,6 @@ class ImportPipelineRunner:
                     db=db,
                     celery_task=celery_task,
                     image_paths=image_paths,
-                    options=options or {},
                 )
                 context.progress(
                     "initialization",
@@ -83,7 +80,7 @@ class ImportPipelineRunner:
                     current_step="initialization",
                 )
                 context.update_celery_state("initialization", 0, "initialization")
-                pipeline = PipelineBuilder.build(image_paths, options)
+                pipeline = PipelineBuilder.build(image_paths)
                 logger.bind(
                     event="import_job.pipeline_started",
                     job_id=job_id,

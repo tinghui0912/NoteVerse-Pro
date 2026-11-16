@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { importJobsApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
 import type {
-  ImportJobProcessingOptions,
+  ImportJobRequestedOptions,
   ImportJobRead,
 } from '@/generated/api';
 
@@ -54,7 +54,7 @@ export function useSubmitImportJob() {
       idempotencyKey,
     }: {
       uploadIds: string[];
-      options?: ImportJobProcessingOptions;
+      options?: ImportJobRequestedOptions;
       idempotencyKey?: string;
     }) => importJobsApi.submitImportJob(uploadIds, options, idempotencyKey),
     onSuccess: () =>

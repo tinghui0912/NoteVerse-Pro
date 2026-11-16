@@ -84,12 +84,16 @@ def test_successful_pipeline_records_progress_and_accepts_its_review_outcome():
             side_effect=lambda *_: order.append("manifest"),
         ),
         patch.object(service, "_resolve_input_paths", side_effect=resolve_inputs),
-        patch("app.modules.import_jobs.pipeline_runner.JobContext", return_value=context),
+        patch(
+            "app.modules.import_jobs.pipeline_runner.JobContext", return_value=context
+        ) as context_factory,
         patch(
             "app.modules.import_jobs.pipeline_runner.PipelineBuilder.build", return_value=pipeline
-        ),
+        ) as builder,
     ):
         assert service.run_pipeline(task, lease, []) == {"success": True, "job_id": "job"}
+    assert "options" not in context_factory.call_args.kwargs
+    builder.assert_called_once_with(["input.png"])
     assert order == ["start", "materialize", "manifest"]
     start.assert_called_once()
     pipeline.run.assert_called_once_with(context)

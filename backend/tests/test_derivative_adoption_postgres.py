@@ -1,5 +1,7 @@
 """Physical prewrite may race; semantic adoption and completion have one fenced commit."""
 
+from app.modules.import_jobs.requested_options import encode_requested_options
+
 from tests.support.storage_state import provision_storage_users
 
 from concurrent.futures import ThreadPoolExecutor
@@ -37,7 +39,7 @@ from app.db.models import (
 )
 from app.db.models.import_job import ImportJobState
 from app.db.models.score import RevisionOrigin, RevisionSourceFormat
-from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
+from app.db.models.import_job import ImportArtifactKind
 from app.modules.score_assets import score_revision_rendering as render_service
 from app.modules.playback import service as playback_service
 from app.modules.import_jobs.review import thumbnail_service
@@ -82,6 +84,7 @@ def generation(request, monkeypatch, tmp_path):
             db.flush()
             if kind == "thumbnail":
                 job = ImportJob(
+                    requested_options=encode_requested_options(None),
                     processing_started_at=utc_now(),
                     processing_finished_at=utc_now(),
                     job_uuid="job",
@@ -96,7 +99,7 @@ def generation(request, monkeypatch, tmp_path):
                         ImportArtifact(
                             job_id=job.id,
                             artifact_uuid="source",
-                            kind=ImportArtifactKind.REVIEW_MUSICXML.value,
+                            kind=ImportArtifactKind.REVIEW_MUSICXML,
                             stored_object_id=physical.id,
                             filename="score.musicxml",
                         ),

@@ -1,5 +1,7 @@
 """Persisted failure consistency and the operator SQL projection on PostgreSQL."""
 
+from app.modules.import_jobs.requested_options import encode_requested_options
+
 import pytest
 import sqlalchemy as sa
 from alembic import command
@@ -44,6 +46,7 @@ def test_import_state_requires_complete_failure_facts(monkeypatch):
             for state in ImportJobState:
                 for failed in (False, True):
                     job = ImportJob(
+                        requested_options=encode_requested_options(None),
                         job_uuid=f"{state.value}-{failed}",
                         user_id=1,
                         state=state,
@@ -94,7 +97,12 @@ def test_persisted_failure_facts_are_complete_and_shared_by_ops_queries(monkeypa
         with Session(engine) as db:
             db.add(User(id=1, email="failure@example.test", password_hash="hash"))
             db.flush()
-            job = ImportJob(job_uuid="job", user_id=1, state=ImportJobState.QUEUED)
+            job = ImportJob(
+                requested_options=encode_requested_options(None),
+                job_uuid="job",
+                user_id=1,
+                state=ImportJobState.QUEUED,
+            )
             score = Score(score_uuid="score", owner_user_id=1, display_title="Score")
             db.add_all([job, score])
             db.flush()

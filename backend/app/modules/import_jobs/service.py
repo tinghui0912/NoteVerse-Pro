@@ -17,12 +17,12 @@ from app.db.models import ImportJob, ImportJobUpload, StoredObject, Upload, User
 from app.db.models.import_job import ImportJobState
 from app.db.model_utils import require_persisted_id
 from app.modules.import_jobs.deletion_service import ImportJobDeletionService
+from app.modules.import_jobs.requested_options import decode_requested_options
 from app.modules.import_jobs.public_errors import public_import_job_error_code
 from app.modules.import_jobs.repository import ImportJobRepository
 from app.modules.import_jobs.schemas import (
     ImportJobRead,
-    ImportJobProcessingOptions,
-    processing_options_adapter,
+    ImportJobRequestedOptions,
     ImportJobStatusEntry,
     ImportJobSubmitRequestLike,
     ImportJobSubmitResult,
@@ -36,7 +36,7 @@ from app.shared.error_codes import CustomerErrorCode
 @dataclass(frozen=True)
 class RetryJobRequest:
     upload_ids: list[str]
-    options: ImportJobProcessingOptions | None
+    options: ImportJobRequestedOptions | None
     idempotency_key: str | None = None
 
 
@@ -82,11 +82,10 @@ class ImportJobService:
             raise ResourceNotFoundException(
                 "job_upload", job_uuid, CustomerErrorCode.FILE_NOT_FOUND
             )
-        options = (
-            processing_options_adapter.validate_python(job.requested_options)
-            if job.requested_options is not None
-            else None
-        )
+        decoded = decode_requested_options(job.requested_options)
+        options: ImportJobRequestedOptions = {"genres": decoded.genres}
+        if decoded.display_title is not None:
+            options["display_title"] = decoded.display_title
         return self.submission_service.submit(
             db,
             current_user,

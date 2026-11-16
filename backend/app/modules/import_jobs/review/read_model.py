@@ -13,8 +13,8 @@ from app.core.exceptions import (
 from app.db.model_utils import require_persisted_id
 from app.db.models import ImportArtifact, ImportJob, ImportJobUpload, Score, StoredObject, Upload
 from app.db.models.import_job import ImportJobState
-from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
-from app.modules.import_jobs.schemas import processing_options_adapter
+from app.db.models.import_job import ImportArtifactKind
+from app.modules.import_jobs.requested_options import decode_requested_options
 from app.modules.import_jobs.review.schemas import (
     ImportJobReviewRead,
     ReviewArtifactRead,
@@ -72,7 +72,7 @@ class ImportReviewReadModel:
             (
                 artifact
                 for artifact in artifacts
-                if artifact.kind == ImportArtifactKind.REVIEW_MUSICXML.value
+                if artifact.kind == ImportArtifactKind.REVIEW_MUSICXML
             ),
             None,
         )
@@ -85,16 +85,14 @@ class ImportReviewReadModel:
                 self.storage, StoredObjectReadTarget.from_object(musicxml_artifact.stored_object)
             )
         ).decode("utf-8")
-        options = processing_options_adapter.validate_python(
-            job.requested_options if job.requested_options is not None else {}
-        )
-        display_title = options.get("display_title")
+        options = decode_requested_options(job.requested_options)
+        display_title = options.display_title
         original_images = self.upload_reads(db, job_id)
         return ImportJobReviewRead(
             job_id=job.job_uuid,
             state=job.state,
-            display_title=display_title if isinstance(display_title, str) else None,
-            genres=options.get("genres", []),
+            display_title=display_title,
+            genres=options.genres,
             musicxml=ReviewMusicXmlRead(
                 artifact_id=musicxml_artifact.artifact_uuid,
                 content=content,

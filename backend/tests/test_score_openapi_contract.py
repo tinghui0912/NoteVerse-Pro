@@ -18,7 +18,7 @@ def test_score_genre_fields_reference_the_named_domain_enum(client: TestClient) 
         "ScoreRead",
         "ScoreUpdateRequest",
         "ImportJobRead",
-        "ImportJobProcessingOptions",
+        "ImportJobRequestedOptions",
         "ImportJobReviewRead",
         "ReviewConfirmRequest",
         "LibraryScoreRead",

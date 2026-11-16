@@ -1,5 +1,7 @@
 """Committed object facts govern semantic reads independently of physical observations."""
 
+from app.modules.import_jobs.requested_options import encode_requested_options
+
 from app.shared.time import utc_now
 
 from unittest.mock import Mock
@@ -16,7 +18,7 @@ from app.core.exceptions import ExternalServiceException
 from app.db.models import ImportArtifact, ImportJob, ScoreRevisionSource, StoredObject
 from app.db.models.import_job import ImportJobState
 from app.db.models.score import RevisionSourceFormat
-from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
+from app.db.models.import_job import ImportArtifactKind
 from app.modules.import_jobs.review.read_model import ImportReviewReadModel
 from app.modules.playback.delivery import PlaybackDeliveryReadModel
 from app.modules.score_access.policy import ScoreAccessPolicy
@@ -71,6 +73,7 @@ def admitted(preview_context, monkeypatch):
     add_audio(db, storage, 901)
     db.add(
         ImportJob(
+            requested_options=encode_requested_options(None),
             processing_started_at=utc_now(),
             processing_finished_at=utc_now(),
             id=80,
@@ -87,7 +90,7 @@ def admitted(preview_context, monkeypatch):
         ImportArtifact(
             job_id=80,
             artifact_uuid="review-xml",
-            kind=ImportArtifactKind.REVIEW_MUSICXML.value,
+            kind=ImportArtifactKind.REVIEW_MUSICXML,
             filename="review.xml",
             stored_object=xml,
         )

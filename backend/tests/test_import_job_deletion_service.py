@@ -1,5 +1,8 @@
 """Import semantic release succeeds independently of another physical owner."""
 
+from app.modules.import_jobs.requested_options import encode_requested_options
+from app.db.models.import_job import ImportArtifactKind
+
 from app.shared.time import utc_now
 
 import pytest
@@ -43,6 +46,7 @@ def test_import_release_accounts_atomically_and_protects_other_owners(
 ):
     db, storage = score_service_session
     job = ImportJob(
+        requested_options=encode_requested_options(None),
         job_uuid="release-job",
         user_id=1,
         state=ImportJobState.READY_FOR_REVIEW if keep_job else state,
@@ -66,7 +70,12 @@ def test_import_release_accounts_atomically_and_protects_other_owners(
     identity = obj.id
     storage.put_bytes(key=obj.object_key, content=content, content_type=obj.content_type)
     db.add(
-        ImportArtifact(job_id=job.id, kind="image", filename="page.jpg", stored_object_id=identity)
+        ImportArtifact(
+            job_id=job.id,
+            kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE,
+            filename="page.jpg",
+            stored_object_id=identity,
+        )
     )
     if shared:
         db.get(User, 1).avatar_object_id = identity
@@ -146,6 +155,7 @@ def test_import_release_rechecks_locked_job_state(score_service_session, state):
 
     db, _ = score_service_session
     job = ImportJob(
+        requested_options=encode_requested_options(None),
         processing_started_at=utc_now(),
         processing_finished_at=utc_now(),
         job_uuid="state-changed-job",
@@ -202,6 +212,7 @@ def test_internal_binary_cleanup_rechecks_locked_running_state(score_service_ses
 
     db, _ = score_service_session
     job = ImportJob(
+        requested_options=encode_requested_options(None),
         processing_started_at=utc_now(),
         job_uuid="running-cleanup",
         user_id=1,
@@ -230,6 +241,7 @@ def test_internal_binary_cleanup_rechecks_locked_running_state(score_service_ses
 def test_import_release_requires_delivery_ownership(score_service_session, keep_job):
     db, _ = score_service_session
     job = ImportJob(
+        requested_options=encode_requested_options(None),
         processing_finished_at=utc_now(),
         job_uuid="missing-delivery",
         user_id=1,
@@ -259,6 +271,7 @@ async def test_customer_delete_http_state_matrix_preserves_owned_data(score_serv
 
     db, storage = score_service_session
     job = ImportJob(
+        requested_options=encode_requested_options(None),
         job_uuid="http-delete",
         user_id=1,
         state=ImportJobState.READY_FOR_REVIEW if state == ImportJobState.CONFIRMED else state,
@@ -295,7 +308,7 @@ async def test_customer_delete_http_state_matrix_preserves_owned_data(score_serv
     db.add(
         ImportArtifact(
             job_id=job.id,
-            kind="image",
+            kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE,
             filename="artifact.jpg",
             stored_object_id=artifact_object.id,
         )

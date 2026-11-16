@@ -1,5 +1,7 @@
 """Typed lifecycle instants in Customer ImportJob representations."""
 
+from app.modules.import_jobs.requested_options import encode_requested_options
+
 from datetime import UTC, datetime, timedelta, timezone
 from unittest.mock import Mock
 
@@ -25,6 +27,7 @@ TIME_FIELDS = (
 def test_read_model_preserves_lifecycle_instants_and_emits_utc():
     source = datetime(2026, 11, 15, 18, tzinfo=timezone(timedelta(hours=8)))
     job = ImportJob(
+        requested_options=encode_requested_options(None),
         id=1,
         job_uuid="job",
         user_id=1,

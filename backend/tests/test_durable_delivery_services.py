@@ -1,5 +1,7 @@
 """Persisted service witnesses; resource admission has its own domain suites."""
 
+from app.modules.import_jobs.requested_options import encode_requested_options
+
 from app.shared.time import utc_now
 
 from datetime import UTC
@@ -112,6 +114,7 @@ def delivery(postgres_engine, request, monkeypatch):
         db.add_all(
             [
                 ImportJob(
+                    requested_options=encode_requested_options(None),
                     processing_started_at=utc_now(),
                     processing_finished_at=utc_now(),
                     id=1,

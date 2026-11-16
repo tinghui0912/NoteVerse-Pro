@@ -1,10 +1,10 @@
-import type { ImportJobProcessingOptions, ImportJobSubmitRequest } from '@/generated/api';
+import type { ImportJobRequestedOptions, ImportJobSubmitRequest } from '@/generated/api';
 import { importJobArtifactDownload, importJobDelete, importJobGet, importJobRetry, importJobsList, importJobsSubmit } from '@/generated/api';
 import { customerTransport, responseBody, responseComplete } from '@/lib/http/customer-browser-transport';
 
 async function submitImportJob(
   uploadIds: string[],
-  options?: ImportJobProcessingOptions,
+  options?: ImportJobRequestedOptions,
   idempotencyKey?: string,
 ) {
   const request: ImportJobSubmitRequest = {

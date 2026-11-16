@@ -25,6 +25,7 @@ from .library import (
 )
 from .import_job import (
     ImportArtifact,
+    ImportArtifactKind,
     ImportJob,
     ImportJobState,
     ImportJobStep,
@@ -113,6 +114,7 @@ __all__ = [
     "ScoreLibraryOrganization",
     "ScoreLibraryFolder",
     "ImportArtifact",
+    "ImportArtifactKind",
     "ImportDispatch",
     "ImportDispatchStatus",
     "ImportJob",

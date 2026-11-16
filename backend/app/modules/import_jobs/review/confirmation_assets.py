@@ -23,7 +23,7 @@ from app.db.models import (
     Upload,
 )
 from app.db.models.score import RenderAssetKind, ScoreInputAssetPurpose
-from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
+from app.db.models.import_job import ImportArtifactKind
 from app.storage import ObjectStorage
 
 
@@ -54,7 +54,7 @@ def prewrite_review_thumbnail(
             select(ImportArtifact)
             .where(
                 ImportArtifact.job_id == job_id,
-                ImportArtifact.kind == ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
+                ImportArtifact.kind == ImportArtifactKind.REVIEW_PREVIEW_IMAGE,
             )
             .order_by(col(ImportArtifact.created_at).desc())
             .limit(1)

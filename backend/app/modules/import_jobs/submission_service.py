@@ -12,9 +12,8 @@ from app.db.model_utils import require_persisted_id
 from app.db.models import ImportDispatch, ImportJob, ImportJobUpload, User
 from app.db.models.import_job import ImportJobState
 from app.modules.import_jobs.repository import ImportJobRepository
+from app.modules.import_jobs.requested_options import encode_requested_options
 from app.modules.import_jobs.schemas import (
-    ImportJobProcessingOptions,
-    processing_options_adapter,
     ImportJobSubmitRequestLike,
     ImportJobSubmitResult,
 )
@@ -55,7 +54,7 @@ class ImportJobSubmissionService:
                 job_uuid=job_uuid,
                 user_id=user_id,
                 idempotency_key=key,
-                requested_options=self._storage_options(request.options),
+                requested_options=encode_requested_options(request.options),
             )
             queue_import(job, now=now)
             db.add(job)
@@ -102,10 +101,3 @@ class ImportJobSubmissionService:
     @staticmethod
     def _normalize_key(value: object) -> str | None:
         return value.strip() or None if isinstance(value, str) else None
-
-    @staticmethod
-    def _storage_options(options: ImportJobProcessingOptions | None) -> dict[str, object] | None:
-        if options is None:
-            return None
-        validated = processing_options_adapter.validate_python(options)
-        return dict(processing_options_adapter.dump_python(validated, mode="json"))

@@ -10,7 +10,8 @@ from app.db.models import ImportJob
 from app.db.models.import_job import ImportJobState
 from .public_errors import public_import_job_error_code
 from .repository import ImportJobRepository
-from .schemas import ImportArtifactRead, ImportJobRead, processing_options_adapter
+from .requested_options import decode_requested_options
+from .schemas import ImportArtifactRead, ImportJobRead
 
 
 class ImportJobReadModel:
@@ -58,17 +59,15 @@ class ImportJobReadModel:
         result = []
         for job in jobs:
             job_id = require_persisted_id(job.id, entity="import job")
-            options = processing_options_adapter.validate_python(
-                job.requested_options if job.requested_options is not None else {}
-            )
+            options = decode_requested_options(job.requested_options)
             result.append(
                 ImportJobRead(
                     job_id=job.job_uuid,
                     score_id=score_uuids.get(job.score_id) if job.score_id is not None else None,
                     state=job.state,
                     progress=job.progress,
-                    display_title=options.get("display_title"),
-                    genres=options.get("genres", []),
+                    display_title=options.display_title,
+                    genres=options.genres,
                     thumbnail=thumbnails.get(job_id),
                     created_at=job.created_at,
                     updated_at=job.updated_at,

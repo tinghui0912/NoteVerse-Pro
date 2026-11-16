@@ -11,7 +11,6 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.logger import logger
 from app.core.settings.task_reliability import get_task_reliability_settings
-from app.modules.import_jobs.schemas import ImportJobProcessingOptions
 from app.modules.import_jobs.dispatch_service import (
     ImportExecutionLease,
     StaleImportDispatchAttempt,
@@ -20,15 +19,10 @@ from app.processing.engines.omr import OmrSuccessResult
 from app.modules.import_jobs.execution_recorder import import_execution_recorder
 from app.modules.import_jobs.pipeline.artifact_recorder import replace_files
 from app.modules.import_jobs.pipeline.step_tracker import StepTracker
-from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
+from app.db.models.import_job import ImportArtifactKind
 
 if TYPE_CHECKING:
     from app.modules.import_jobs.pipeline.base import Pipeline
-
-
-def _default_job_options() -> ImportJobProcessingOptions:
-    """Return an empty typed options payload for new job contexts."""
-    return {}
 
 
 @dataclass
@@ -39,7 +33,6 @@ class JobContext:
     db: Session
     celery_task: CeleryTaskLike
     image_paths: List[str]
-    options: ImportJobProcessingOptions = field(default_factory=_default_job_options)
 
     raw_paths: List[str] = field(default_factory=list)
     omr_result: Optional[OmrSuccessResult] = None

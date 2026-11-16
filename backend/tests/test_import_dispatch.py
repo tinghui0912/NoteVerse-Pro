@@ -1,5 +1,9 @@
 """Import delivery, domain outcomes and current-attempt mutation authority."""
 
+from app.db.models.import_job import ImportArtifactKind
+
+from app.modules.import_jobs.requested_options import encode_requested_options
+
 from app.modules.durable_work.failure import DurableFailure, DurableFailureClass
 
 
@@ -54,7 +58,7 @@ def setup_delivery(score_service_session):
         job_uuid="import-domain",
         user_id=1,
         state=ImportJobState.QUEUED,
-        requested_options={"display_title": "Current import"},
+        requested_options=encode_requested_options({"display_title": "Current import"}),
     )
     physical = StoredObject(
         object_key="upload/original.png", byte_size=3, sha256="a" * 64, content_type="image/png"
@@ -118,7 +122,7 @@ def test_delivery_lifecycle_preserves_command_and_domain_identities(setup_delive
     assert payload.originating_request_id == row.originating_request_id
     assert payload.traceparent == row.traceparent
     assert service.claim(db, row.dispatch_uuid) is None
-    assert payload.options == job.requested_options
+    assert not hasattr(payload, "options")
     assert [item.storage_key for item in payload.inputs] == ["upload/original.png"]
     assert row.attempt_token == payload.lease.token
     from app.modules.import_jobs.lifecycle import begin_processing, mark_ready_for_review
@@ -204,7 +208,7 @@ def test_expired_processing_resets_execution_and_preserves_inputs_and_binding(se
         is None
     )
     assert job.execution_manifest_id == manifest.id
-    assert job.requested_options == {"display_title": "Current import"}
+    assert job.requested_options == encode_requested_options({"display_title": "Current import"})
     assert db.scalar(select(ImportJobUpload)).job_id == job.id
     assert db.scalar(select(ImportJobStep)) is None
 
@@ -303,7 +307,9 @@ def test_only_current_execution_lease_can_mutate_job(setup_delivery, mutation):
         "binding": lambda: execution_manifest.bind_import_job_execution_manifest(db, first),
         "progress": lambda: worker.record_progress(db, first, 99),
         "step": lambda: worker.upsert_step(db, first, "ocr", "RUNNING"),
-        "artifacts": lambda: worker.replace_artifacts(db, first, "review_musicxml", []),
+        "artifacts": lambda: worker.replace_artifacts(
+            db, first, ImportArtifactKind.REVIEW_MUSICXML, []
+        ),
         "success": lambda: worker.finalize_success(db, first),
         "failure": lambda: worker.finalize_failure(
             db,
@@ -389,7 +395,7 @@ def test_written_artifact_requires_current_lease_at_transactional_adoption(
     worker.replace_artifacts(
         db,
         first,
-        "review_musicxml",
+        ImportArtifactKind.REVIEW_MUSICXML,
         [
             {
                 "write_intent_uuid": original.intent_uuid,
@@ -410,7 +416,7 @@ def test_written_artifact_requires_current_lease_at_transactional_adoption(
         worker.replace_artifacts(
             db,
             first,
-            "review_musicxml",
+            ImportArtifactKind.REVIEW_MUSICXML,
             [
                 {
                     "write_intent_uuid": receipt.intent_uuid,
@@ -558,7 +564,7 @@ def test_worker_completes_delivery_after_durable_domain_outcome(
 
     worker = ImportExecutionRecorder()
 
-    def run(task, lease, keys, options):
+    def run(task, lease, keys):
         assert lease.dispatch_uuid == row.dispatch_uuid and lease.job_uuid == job.job_uuid
         worker.start_execution(db, lease)
         if outcome == "failure":
@@ -576,7 +582,10 @@ def test_worker_completes_delivery_after_durable_domain_outcome(
         )
         db.add(
             ImportArtifact(
-                job_id=job.id, kind="review_musicxml", filename="review.xml", stored_object=physical
+                job_id=job.id,
+                kind=ImportArtifactKind.REVIEW_MUSICXML,
+                filename="review.xml",
+                stored_object=physical,
             )
         )
         db.commit()
@@ -695,7 +704,7 @@ def test_materialization_failure_preserves_committed_start_without_a_progress_he
     monkeypatch.setattr(pipeline_runner, "object_work_path", lambda _: str(tmp_path / "input.png"))
     monkeypatch.setattr(runner, "_resolve_input_paths", materialize)
     with pytest.raises(StoredObjectIntegrityError):
-        runner.run_pipeline(Mock(), payload.lease, payload.inputs, payload.options)
+        runner.run_pipeline(Mock(), payload.lease, payload.inputs)
     db.refresh(job)
     assert len(observed_start) == 1
     assert job.state == ImportJobState.FAILED

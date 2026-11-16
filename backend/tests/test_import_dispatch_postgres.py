@@ -1,5 +1,7 @@
 """Real PostgreSQL ownership constraints and concurrent Import lease authority."""
 
+from app.modules.import_jobs.requested_options import encode_requested_options
+
 from datetime import timedelta
 
 import pytest
@@ -87,7 +89,12 @@ def test_fresh_import_schema_ownership_token_constraints_and_cascade(monkeypatch
         with Session(engine) as db:
             db.add(User(id=1, email="import@example.com", password_hash="test"))
             db.flush()
-            job = ImportJob(job_uuid="import-pg", user_id=1, state=ImportJobState.QUEUED)
+            job = ImportJob(
+                requested_options=encode_requested_options(None),
+                job_uuid="import-pg",
+                user_id=1,
+                state=ImportJobState.QUEUED,
+            )
             db.add(job)
             db.flush()
             row = ImportDispatch(job_id=job.id)
@@ -116,7 +123,12 @@ def test_fresh_import_schema_ownership_token_constraints_and_cascade(monkeypatch
                         db.add(duplicate)
                         db.flush()
             # Exercise dispatch UUID uniqueness independently of unique job ownership.
-            other = ImportJob(job_uuid="other-pg", user_id=1, state=ImportJobState.QUEUED)
+            other = ImportJob(
+                requested_options=encode_requested_options(None),
+                job_uuid="other-pg",
+                user_id=1,
+                state=ImportJobState.QUEUED,
+            )
             db.add(other)
             db.flush()
             with pytest.raises(sa.exc.IntegrityError):
@@ -139,7 +151,12 @@ def test_mutation_lock_excludes_recovery_and_reclaimed_attempt_fences_cached_wor
         with Session(engine) as setup:
             setup.add(User(id=1, email="lease@example.com", password_hash="test"))
             setup.flush()
-            job = ImportJob(job_uuid="lease-pg", user_id=1, state=ImportJobState.QUEUED)
+            job = ImportJob(
+                requested_options=encode_requested_options(None),
+                job_uuid="lease-pg",
+                user_id=1,
+                state=ImportJobState.QUEUED,
+            )
             physical = StoredObject(
                 object_key="input.png", sha256="a" * 64, byte_size=3, content_type="image/png"
             )
@@ -211,6 +228,7 @@ def test_deletion_contends_on_dispatch_before_job_and_rechecks_state(monkeypatch
             setup.add(User(id=1, email="delete@example.com", password_hash="test"))
             setup.flush()
             job = ImportJob(
+                requested_options=encode_requested_options(None),
                 processing_started_at=utc_now(),
                 processing_finished_at=utc_now(),
                 job_uuid="delete-job",

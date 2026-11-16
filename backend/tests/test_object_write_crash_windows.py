@@ -1,5 +1,9 @@
 """Feature failures leave committed intent evidence, not best-effort orphan cleanup."""
 
+from app.db.models.import_job import ImportArtifactKind
+
+from app.modules.import_jobs.requested_options import encode_requested_options
+
 from app.shared.time import utc_now
 
 import hashlib
@@ -41,6 +45,7 @@ def test_review_confirm_source_and_thumbnail_survive_failed_semantic_adoption_as
 ):
     db, storage = score_service_session
     job = ImportJob(
+        requested_options=encode_requested_options(None),
         processing_started_at=utc_now(),
         processing_finished_at=utc_now(),
         job_uuid="dual-write",
@@ -55,7 +60,7 @@ def test_review_confirm_source_and_thumbnail_survive_failed_semantic_adoption_as
     db.add(
         ImportArtifact(
             job_id=job.id,
-            kind="review_preview_image",
+            kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE,
             filename="thumbnail.svg",
             stored_object=object_from_bytes(
                 object_key=key, content=b"<svg />", content_type="image/svg+xml"
@@ -166,7 +171,12 @@ def test_import_artifact_handoff_failure_leaves_intent_until_cleanup(
     from app.db.models import ImportJob
     from tests.support.import_execution import processing_lease
 
-    job = ImportJob(job_uuid="artifact-handoff", user_id=1, state="QUEUED")
+    job = ImportJob(
+        requested_options=encode_requested_options(None),
+        job_uuid="artifact-handoff",
+        user_id=1,
+        state="QUEUED",
+    )
     db.add(job)
     db.commit()
     lease = processing_lease(db, job)
@@ -191,7 +201,7 @@ def test_import_artifact_handoff_failure_leaves_intent_until_cleanup(
     path = tmp_path / "review.musicxml"
     path.write_bytes(MUSICXML_1)
     with pytest.raises(RuntimeError, match="artifact adoption failed"):
-        artifact_recorder.replace_files(lease, "review_musicxml", [str(path)])
+        artifact_recorder.replace_files(lease, ImportArtifactKind.REVIEW_MUSICXML, [str(path)])
     row = db.scalar(select(ObjectWriteIntent))
     assert row.status == "WRITTEN" and row.sha256 == hashlib.sha256(MUSICXML_1).hexdigest()
     assert db.scalar(select(ImportArtifact)) is None and db.scalar(select(StoredObject)) is None

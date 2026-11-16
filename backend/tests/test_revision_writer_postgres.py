@@ -1,5 +1,7 @@
 """Canonical admission, transactional consequences and metadata fencing on real PostgreSQL."""
 
+from app.modules.import_jobs.requested_options import encode_requested_options
+
 from tests.support.storage_state import provision_storage_users
 
 from concurrent.futures import ThreadPoolExecutor
@@ -85,6 +87,7 @@ def database(monkeypatch):
             db.flush()
             db.add(
                 ImportJob(
+                    requested_options=encode_requested_options(None),
                     processing_started_at=utc_now(),
                     processing_finished_at=utc_now(),
                     id=1,

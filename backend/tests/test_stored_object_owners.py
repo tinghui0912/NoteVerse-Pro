@@ -1,3 +1,5 @@
+from app.db.models.import_job import ImportArtifactKind
+from app.modules.import_jobs.requested_options import encode_requested_options
 from app.shared.time import utc_now
 from tests.support.images import image_bytes
 from tests.support.import_execution import processing_lease
@@ -168,6 +170,7 @@ def test_import_artifact_replacement_uses_complete_immutable_object_facts(
 
     db, storage = score_service_session
     job = ImportJob(
+        requested_options=encode_requested_options(None),
         processing_started_at=utc_now(),
         processing_finished_at=utc_now(),
         job_uuid="physical-import",
@@ -190,7 +193,10 @@ def test_import_artifact_replacement_uses_complete_immutable_object_facts(
         )
 
     worker.replace_artifacts(
-        db, processing_lease(db, job), "review_musicxml", [item("jobs/first", b"first")]
+        db,
+        processing_lease(db, job),
+        ImportArtifactKind.REVIEW_MUSICXML,
+        [item("jobs/first", b"first")],
     )
     first = db.scalar(select(ImportArtifact))
     first_object, first_key = first.stored_object, first.stored_object.object_key
@@ -202,7 +208,10 @@ def test_import_artifact_replacement_uses_complete_immutable_object_facts(
             storage, "delete", Mock(side_effect=OSError("object store unavailable"))
         )
     worker.replace_artifacts(
-        db, processing_lease(db, job), "review_musicxml", [item("jobs/second", b"second")]
+        db,
+        processing_lease(db, job),
+        ImportArtifactKind.REVIEW_MUSICXML,
+        [item("jobs/second", b"second")],
     )
     current = db.scalar(select(ImportArtifact))
     assert current.stored_object is not first_object

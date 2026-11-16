@@ -1,3 +1,4 @@
+from app.modules.import_jobs.requested_options import encode_requested_options
 from sqlalchemy.orm import Session
 from sqlmodel import SQLModel, select
 
@@ -10,7 +11,12 @@ from app.modules.import_jobs.service import ImportJobService
 
 
 def _job(job_uuid: str) -> ImportJob:
-    return ImportJob(job_uuid=job_uuid, user_id=1, state=ImportJobState.QUEUED)
+    return ImportJob(
+        requested_options=encode_requested_options(None),
+        job_uuid=job_uuid,
+        user_id=1,
+        state=ImportJobState.QUEUED,
+    )
 
 
 def _manifest(commit: str = "abc123") -> dict[str, object]:
@@ -42,6 +48,9 @@ def test_import_jobs_reuse_one_execution_manifest_and_preserve_first_binding(
         session.commit()
         first_job = _job("job-first")
         second_job = _job("job-second")
+        second_job.requested_options = encode_requested_options(
+            {"display_title": "Different title", "genres": ["jazz"]}
+        )
         session.add_all((first_job, second_job))
         session.commit()
 

@@ -1,3 +1,4 @@
+from app.modules.import_jobs.requested_options import encode_requested_options
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -20,7 +21,7 @@ def test_retry_rejects_invalid_persisted_genres_before_submission():
         job_uuid="job",
         user_id=7,
         state=ImportJobState.FAILED,
-        requested_options={"genres": ["unknown"]},
+        requested_options={"schema_version": 1, "display_title": None, "genres": ["unknown"]},
     )
     service, _ = _service_with_job(job)
     rows = Mock()
@@ -71,7 +72,7 @@ def test_retry_rejects_jobs_that_are_not_failed() -> None:
         job_uuid="job-1",
         state=ImportJobState.PROCESSING,
         user_id=7,
-        requested_options=None,
+        requested_options=encode_requested_options(None),
     )
     service, _repository = _service_with_job(job)
 
@@ -82,16 +83,18 @@ def test_retry_rejects_jobs_that_are_not_failed() -> None:
     assert error.value.details == {"field": "state"}
 
 
-def test_retry_requires_original_uploads_and_preserves_processing_options() -> None:
+def test_retry_requires_original_uploads_and_preserves_requested_intent() -> None:
     job = SimpleNamespace(
         id=17,
         job_uuid="job-1",
         state=ImportJobState.FAILED,
         user_id=7,
-        requested_options={
-            "display_title": "Recovered score",
-            "genres": ["jazz", "classical", "jazz"],
-        },
+        requested_options=encode_requested_options(
+            {
+                "display_title": "Recovered score",
+                "genres": ["jazz", "classical", "jazz"],
+            }
+        ),
     )
     service, _repository = _service_with_job(job)
     database = Mock()

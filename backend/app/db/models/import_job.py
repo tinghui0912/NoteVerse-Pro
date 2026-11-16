@@ -31,6 +31,11 @@ bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 metadata_json_type = JSON().with_variant(JSONB, "postgresql")
 
 
+class ImportArtifactKind(enum.StrEnum):
+    REVIEW_MUSICXML = "review_musicxml"
+    REVIEW_PREVIEW_IMAGE = "review_preview_image"
+
+
 class ImportJobState(str, enum.Enum):
     QUEUED = "QUEUED"
     PROCESSING = "PROCESSING"
@@ -90,9 +95,8 @@ class ImportJob(SQLModel, table=True):  # type: ignore[call-arg]
     progress: int = Field(default=0, sa_column=Column(Integer, default=0, nullable=False))
     current_step: Optional[str] = Field(default=None, sa_column=Column(String(64)))
     idempotency_key: Optional[str] = Field(default=None, sa_column=Column(String(128)))
-    requested_options: Optional[dict[str, object]] = Field(
-        default=None,
-        sa_column=Column(metadata_json_type),
+    requested_options: dict[str, object] = Field(
+        sa_column=Column(metadata_json_type, nullable=False)
     )
     execution_manifest_id: Optional[int] = Field(
         default=None,
@@ -217,7 +221,17 @@ class ImportArtifact(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=False,
         )
     )
-    kind: str = Field(sa_column=Column(String(64), nullable=False))
+    kind: ImportArtifactKind = Field(
+        sa_column=Column(
+            SAEnum(
+                ImportArtifactKind,
+                name="importartifactkind",
+                values_callable=lambda kind: [value.value for value in kind],
+                validate_strings=True,
+            ),
+            nullable=False,
+        )
+    )
 
     stored_object_id: int = Field(
         sa_column=Column(

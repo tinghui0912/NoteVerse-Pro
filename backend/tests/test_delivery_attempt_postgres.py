@@ -1,5 +1,7 @@
 """Real row locks, lease takeover and durable outcomes for domain deliveries."""
 
+from app.modules.import_jobs.requested_options import encode_requested_options
+
 from tests.support.storage_state import provision_storage_users
 
 from concurrent.futures import ThreadPoolExecutor
@@ -67,7 +69,12 @@ def database(monkeypatch):
                 content_hash="f" * 64,
                 origin=RevisionOrigin.EDIT,
             )
-            job = ImportJob(job_uuid="job", user_id=user.id, state=ImportJobState.QUEUED)
+            job = ImportJob(
+                requested_options=encode_requested_options(None),
+                job_uuid="job",
+                user_id=user.id,
+                state=ImportJobState.QUEUED,
+            )
             db.add_all([revision, job])
             db.flush()
             score.head_revision_id = revision.id

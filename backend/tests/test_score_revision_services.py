@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.modules.import_jobs.requested_options import encode_requested_options
+
 from app.modules.durable_work.failure import DurableFailure, DurableFailureClass
 
 from collections.abc import Iterator
@@ -92,7 +94,7 @@ from app.modules.notifications.service import NotificationService
 from app.db.models import NotificationKind
 from app.modules.realtime.maintenance_service import RealtimeMaintenanceService
 from app.shared.error_codes import CustomerErrorCode
-from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
+from app.db.models.import_job import ImportArtifactKind
 from tests.support.object_storage import InMemoryObjectStorage
 from app.shared.time import utc_now
 from tests.support.storage_state import provision_storage_users
@@ -347,7 +349,7 @@ def test_processing_success_notifies_owner_when_ready_for_review(
             job_uuid="job-complete-notification",
             user_id=1,
             state=ImportJobState.PROCESSING,
-            requested_options={"display_title": "Ready Score"},
+            requested_options=encode_requested_options({"display_title": "Ready Score"}),
         )
     )
     session.commit()
@@ -360,7 +362,7 @@ def test_processing_success_notifies_owner_when_ready_for_review(
         ImportArtifact(
             job_id=11,
             artifact_uuid="completed-review-xml",
-            kind=ImportArtifactKind.REVIEW_MUSICXML.value,
+            kind=ImportArtifactKind.REVIEW_MUSICXML,
             stored_object=StoredObject(
                 object_key=stored_xml.object_key,
                 content_type="application/vnd.recordare.musicxml+xml",
@@ -399,6 +401,7 @@ def test_failed_job_notifies_owner_once(
     session, _storage = score_service_session
     session.add(
         ImportJob(
+            requested_options=encode_requested_options(None),
             processing_started_at=utc_now(),
             id=12,
             job_uuid="job-failure-notification",
@@ -458,10 +461,12 @@ def test_review_detail_reads_review_ready_artifacts(
             job_uuid="job-review",
             user_id=1,
             state=ImportJobState.READY_FOR_REVIEW,
-            requested_options={
-                "display_title": "Review Score",
-                "genres": ["jazz"],
-            },
+            requested_options=encode_requested_options(
+                {
+                    "display_title": "Review Score",
+                    "genres": ["jazz"],
+                }
+            ),
         )
     )
     session.commit()
@@ -470,7 +475,7 @@ def test_review_detail_reads_review_ready_artifacts(
             ImportArtifact(
                 job_id=13,
                 artifact_uuid="review-musicxml-artifact",
-                kind=ImportArtifactKind.REVIEW_MUSICXML.value,
+                kind=ImportArtifactKind.REVIEW_MUSICXML,
                 stored_object=StoredObject(
                     object_key=stored_xml.object_key,
                     content_type="application/vnd.recordare.musicxml+xml",
@@ -524,6 +529,7 @@ def test_job_detail_uses_review_preview_image_only(
     session, _ = score_service_session
     session.add(
         ImportJob(
+            requested_options=encode_requested_options(None),
             processing_started_at=utc_now(),
             processing_finished_at=utc_now(),
             id=16,
@@ -538,7 +544,7 @@ def test_job_detail_uses_review_preview_image_only(
             ImportArtifact(
                 job_id=16,
                 artifact_uuid="result-thumbnail-artifact",
-                kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
+                kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE,
                 stored_object=StoredObject(
                     object_key="jobs/job-thumbnail/review_preview_image/001-result.svg",
                     content_type="image/svg+xml",
@@ -564,6 +570,7 @@ def test_import_job_detail_hides_artifact_storage_details(
     session, _ = score_service_session
     session.add(
         ImportJob(
+            requested_options=encode_requested_options(None),
             processing_started_at=utc_now(),
             processing_finished_at=utc_now(),
             id=181,
@@ -578,7 +585,7 @@ def test_import_job_detail_hides_artifact_storage_details(
         ImportArtifact(
             job_id=181,
             artifact_uuid="public-artifact-id",
-            kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
+            kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE,
             stored_object=StoredObject(
                 object_key="jobs/job-public-artifact/review_preview_image/001-result.svg",
                 content_type="image/svg+xml",
@@ -617,6 +624,7 @@ def test_import_job_detail_exposes_public_failure_fields_only(
     session, _ = score_service_session
     session.add(
         ImportJob(
+            requested_options=encode_requested_options(None),
             processing_finished_at=utc_now(),
             id=18,
             job_uuid="job-public-failure",
@@ -631,6 +639,7 @@ def test_import_job_detail_exposes_public_failure_fields_only(
     )
     session.add(
         ImportJob(
+            requested_options=encode_requested_options(None),
             processing_finished_at=utc_now(),
             id=19,
             job_uuid="job-raw-failure",
@@ -645,6 +654,7 @@ def test_import_job_detail_exposes_public_failure_fields_only(
     )
     session.add(
         ImportJob(
+            requested_options=encode_requested_options(None),
             processing_finished_at=utc_now(),
             id=20,
             job_uuid="job-unsafe-code-failure",
@@ -689,6 +699,7 @@ def test_review_thumbnail_records_temp_import_usage(
     )
     session.add(
         ImportJob(
+            requested_options=encode_requested_options(None),
             processing_started_at=utc_now(),
             processing_finished_at=utc_now(),
             id=17,
@@ -702,7 +713,7 @@ def test_review_thumbnail_records_temp_import_usage(
         ImportArtifact(
             job_id=17,
             artifact_uuid="thumbnail-usage-review-xml",
-            kind=ImportArtifactKind.REVIEW_MUSICXML.value,
+            kind=ImportArtifactKind.REVIEW_MUSICXML,
             stored_object=StoredObject(
                 object_key=stored_xml.object_key,
                 content_type="application/vnd.recordare.musicxml+xml",
@@ -766,7 +777,7 @@ def test_review_thumbnail_records_temp_import_usage(
     )
     assert counter.used_bytes == len(b"<svg />")
 
-    thumbnail = one_row(session, ImportArtifact, kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value)
+    thumbnail = one_row(session, ImportArtifact, kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE)
     assert storage.read_bytes(thumbnail.stored_object.object_key) == b"<svg />"
 
 
@@ -781,6 +792,7 @@ def test_review_update_replaces_review_musicxml(
     )
     session.add(
         ImportJob(
+            requested_options=encode_requested_options(None),
             processing_started_at=utc_now(),
             processing_finished_at=utc_now(),
             id=15,
@@ -794,7 +806,7 @@ def test_review_update_replaces_review_musicxml(
         ImportArtifact(
             job_id=15,
             artifact_uuid="review-update-artifact",
-            kind=ImportArtifactKind.REVIEW_MUSICXML.value,
+            kind=ImportArtifactKind.REVIEW_MUSICXML,
             stored_object=StoredObject(
                 object_key=stored_xml.object_key,
                 content_type="application/vnd.recordare.musicxml+xml",
@@ -844,7 +856,7 @@ def test_review_confirm_creates_active_score_once(
             job_uuid="job-confirm-review",
             user_id=1,
             state=ImportJobState.READY_FOR_REVIEW,
-            requested_options={"display_title": "Confirmed Score"},
+            requested_options=encode_requested_options({"display_title": "Confirmed Score"}),
         )
     )
 
@@ -858,7 +870,7 @@ def test_review_confirm_creates_active_score_once(
         ImportArtifact(
             job_id=14,
             artifact_uuid="confirm-review-thumbnail",
-            kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
+            kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE,
             stored_object=StoredObject(
                 object_key=stored_thumbnail.object_key,
                 content_type="image/svg+xml",
@@ -1636,6 +1648,7 @@ def test_review_thumbnail_outbox_claims_only_the_current_musicxml(
 ) -> None:
     session, _storage = score_service_session
     job = ImportJob(
+        requested_options=encode_requested_options(None),
         processing_started_at=utc_now(),
         processing_finished_at=utc_now(),
         id=413,
@@ -1649,7 +1662,7 @@ def test_review_thumbnail_outbox_claims_only_the_current_musicxml(
         ImportArtifact(
             job_id=413,
             artifact_uuid="review-thumbnail-source",
-            kind=ImportArtifactKind.REVIEW_MUSICXML.value,
+            kind=ImportArtifactKind.REVIEW_MUSICXML,
             stored_object=StoredObject(
                 object_key="jobs/review-thumbnail-job/review_musicxml/score.musicxml",
                 byte_size=len(MUSICXML_1),
@@ -1757,7 +1770,7 @@ def test_expired_verification_mail_is_never_dispatched(
     assert outbox.html_body is None
 
 
-def test_import_dispatch_claim_reconstructs_persisted_request(
+def test_import_dispatch_claim_resolves_persisted_execution_inputs(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
@@ -1766,7 +1779,7 @@ def test_import_dispatch_claim_reconstructs_persisted_request(
         job_uuid="import-dispatch-job",
         user_id=1,
         state=ImportJobState.QUEUED,
-        requested_options={"display_title": "Queued score"},
+        requested_options=encode_requested_options({"display_title": "Queued score"}),
     )
     upload = Upload(
         id=502,
@@ -1796,7 +1809,7 @@ def test_import_dispatch_claim_reconstructs_persisted_request(
     assert payload is not None
     assert payload.job_uuid == job.job_uuid
     assert [item.storage_key for item in payload.inputs] == ["blobs/qu/queued-upload-sha.png"]
-    assert payload.options == {"display_title": "Queued score"}
+    assert not hasattr(payload, "options")
     assert dispatch.status == ImportDispatchStatus.PROCESSING
     assert dispatch.attempt_count == 1
 
@@ -1807,6 +1820,7 @@ def test_import_dispatch_recovers_stale_worker_without_failing_business_job(
     session, _storage = score_service_session
     now = utc_now()
     job = ImportJob(
+        requested_options=encode_requested_options(None),
         processing_started_at=utc_now(),
         id=503,
         job_uuid="stale-import-dispatch",
@@ -1842,6 +1856,7 @@ def test_import_dispatch_publish_release_preserves_domain_and_attempt(
     session, _storage = score_service_session
     now = utc_now()
     job = ImportJob(
+        requested_options=encode_requested_options(None),
         id=504,
         job_uuid="broker-backoff-job",
         user_id=1,
@@ -2508,6 +2523,7 @@ def test_review_semantic_admission_precedes_storage(score_service_session, opera
     )
     session.add(
         ImportJob(
+            requested_options=encode_requested_options(None),
             processing_started_at=utc_now(),
             processing_finished_at=utc_now(),
             id=14,
@@ -2522,7 +2538,7 @@ def test_review_semantic_admission_precedes_storage(score_service_session, opera
     artifact = ImportArtifact(
         job_id=14,
         artifact_uuid="admission-artifact",
-        kind=ImportArtifactKind.REVIEW_MUSICXML.value,
+        kind=ImportArtifactKind.REVIEW_MUSICXML,
         stored_object=StoredObject(
             object_key=original.object_key,
             content_type="application/vnd.recordare.musicxml+xml",
@@ -2585,6 +2601,7 @@ def test_service_hash_and_storage_use_exact_admitted_bytes(score_service_session
     else:
         session.add(
             ImportJob(
+                requested_options=encode_requested_options(None),
                 processing_started_at=utc_now(),
                 processing_finished_at=utc_now(),
                 id=14,
@@ -2631,6 +2648,7 @@ def test_admitted_revision_survives_unsupported_metadata_projection(score_servic
     session, storage = score_service_session
     session.add(
         ImportJob(
+            requested_options=encode_requested_options(None),
             processing_started_at=utc_now(),
             processing_finished_at=utc_now(),
             id=14,

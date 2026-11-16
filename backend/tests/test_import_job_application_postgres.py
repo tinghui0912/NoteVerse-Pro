@@ -1,5 +1,7 @@
 """Real Session Import HTTP admission, bulk projection and idempotency."""
 
+from app.modules.import_jobs.requested_options import encode_requested_options
+
 from tests.support.storage_state import provision_storage_users
 
 from app.shared.time import utc_now
@@ -38,7 +40,7 @@ from app.db.models import (
     User,
 )
 from app.main import app
-from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
+from app.db.models.import_job import ImportArtifactKind
 from app.modules.import_jobs.repository import ImportJobRepository
 from app.modules.import_jobs.schemas import ImportJobSubmitRequest
 from app.modules.import_jobs.service import ImportJobService
@@ -132,10 +134,12 @@ def complete_jobs(db, count=1):
             progress=70,
             score_id=None,
             execution_manifest_id=1,
-            requested_options={
-                "display_title": "Submitted title",
-                "genres": ["jazz", "classical", "jazz"],
-            },
+            requested_options=encode_requested_options(
+                {
+                    "display_title": "Submitted title",
+                    "genres": ["jazz", "classical", "jazz"],
+                }
+            ),
             created_at=NOW,
             updated_at=NOW,
             processing_started_at=NOW,
@@ -182,14 +186,14 @@ def complete_jobs(db, count=1):
                 ImportArtifact(
                     job_id=job.id,
                     artifact_uuid=f"preview-{job.job_uuid}",
-                    kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
+                    kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE,
                     stored_object_id=100 + job.id * 2,
                     filename="preview.svg",
                     page_number=1,
                 ),
                 ImportArtifact(
                     job_id=job.id,
-                    kind=ImportArtifactKind.REVIEW_MUSICXML.value,
+                    kind=ImportArtifactKind.REVIEW_MUSICXML,
                     stored_object_id=101 + job.id * 2,
                     filename="score.xml",
                 ),
@@ -267,10 +271,10 @@ def test_list_projection_query_count_is_bounded_for_one_and_fifty_jobs(applicati
         event.remove(db.bind.engine, "before_cursor_execute", count_query)
 
 
-def test_read_model_validates_persisted_processing_options(application_db):
+def test_read_model_requires_valid_durable_requested_options(application_db):
     db = application_db
     job = (complete_jobs(db))[0]
-    job.requested_options = {"genres": ["unsupported"]}
+    job.requested_options = {"schema_version": 1, "display_title": None, "genres": ["unsupported"]}
     db.commit()
     with pytest.raises(ValidationError):
         ImportJobService().detail(db, job.job_uuid, 1)
@@ -389,6 +393,7 @@ async def test_http_list_detail_submit_retry_use_only_injected_session(applicati
 async def test_http_owned_job_authorization_precedes_projection_and_mutation(application_db):
     db = application_db
     other = ImportJob(
+        requested_options=encode_requested_options(None),
         processing_finished_at=utc_now(),
         job_uuid="other-job",
         user_id=2,
@@ -451,6 +456,7 @@ async def test_review_confirmation_wins_over_stale_customer_delete_and_retains_p
         )
     )
     job = ImportJob(
+        requested_options=encode_requested_options(None),
         processing_started_at=utc_now(),
         processing_finished_at=utc_now(),
         job_uuid="review-delete-race",
@@ -465,7 +471,7 @@ async def test_review_confirmation_wins_over_stale_customer_delete_and_retains_p
     db.add(
         ImportArtifact(
             job_id=job.id,
-            kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
+            kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE,
             filename="preview.svg",
             stored_object_id=2,
             page_number=1,
@@ -558,3 +564,44 @@ async def test_review_confirmation_wins_over_stale_customer_delete_and_retains_p
             )
             == 1
         )
+
+
+@pytest.mark.parametrize(
+    "options,expected",
+    [
+        (None, {"schema_version": 1, "display_title": None, "genres": []}),
+        (
+            {"display_title": "Etudes", "genres": ["jazz", "classical", "jazz"]},
+            {"schema_version": 1, "display_title": "Etudes", "genres": ["classical", "jazz"]},
+        ),
+    ],
+)
+def test_submission_persists_canonical_v1_requested_intent(application_db, options, expected):
+    db = application_db
+    request = ImportJobSubmitRequest(upload_ids=["upload-a"], options=options)
+    result = ImportJobSubmissionService().submit(db, db.get(User, 1), request)
+    db.expire_all()
+    job = db.scalar(select(ImportJob).where(ImportJob.job_uuid == result["job_id"]))
+    assert job.requested_options == expected
+    assert "schema_version" not in (request.model_dump()["options"] or {})
+
+
+def test_retry_decodes_intent_and_encodes_a_new_durable_payload(application_db, monkeypatch):
+    from unittest.mock import Mock
+    from app.modules.import_jobs import submission_service
+
+    db = application_db
+    complete_jobs(db)
+    original = db.scalar(select(ImportJob).where(ImportJob.job_uuid == "complete-0"))
+    original_payload = original.requested_options
+    encoder = Mock(wraps=encode_requested_options)
+    monkeypatch.setattr(submission_service, "encode_requested_options", encoder)
+    result = ImportJobService().retry(db, original.job_uuid, db.get(User, 1), 1)
+    encoder.assert_called_once()
+    intent = encoder.call_args.args[0]
+    assert set(intent) == {"display_title", "genres"}
+    assert "schema_version" not in intent
+    retried = db.scalar(select(ImportJob).where(ImportJob.job_uuid == result["job_id"]))
+    assert retried.job_uuid != original.job_uuid
+    assert retried.requested_options == original_payload
+    assert retried.requested_options is not original_payload

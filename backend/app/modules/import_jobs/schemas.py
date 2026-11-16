@@ -12,7 +12,7 @@ from app.shared.api_model import ApiModel
 
 
 @with_config(ConfigDict(extra="forbid"))
-class ImportJobProcessingOptions(TypedDict, total=False):
+class ImportJobRequestedOptions(TypedDict, total=False):
     display_title: str
     genres: Genres
 
@@ -22,7 +22,7 @@ class ImportJobSubmitRequestLike(Protocol):
     def upload_ids(self) -> List[str]: ...
 
     @property
-    def options(self) -> Optional[ImportJobProcessingOptions]: ...
+    def options(self) -> Optional[ImportJobRequestedOptions]: ...
 
     @property
     def idempotency_key(self) -> Optional[str]: ...
@@ -96,7 +96,7 @@ class ImportJobSubmitRequest(BaseModel):
 
     upload_ids: List[str] = Field(..., min_length=1)
     idempotency_key: Optional[str] = Field(default=None, min_length=8, max_length=128)
-    options: Optional[ImportJobProcessingOptions] = None
+    options: Optional[ImportJobRequestedOptions] = None
 
     @field_validator("idempotency_key")
     @classmethod
@@ -110,4 +110,4 @@ class BatchImportJobStatusRequest(BaseModel):
     job_ids: List[str] = Field(..., min_length=1)
 
 
-processing_options_adapter = TypeAdapter(ImportJobProcessingOptions)
+requested_options_adapter = TypeAdapter(ImportJobRequestedOptions)

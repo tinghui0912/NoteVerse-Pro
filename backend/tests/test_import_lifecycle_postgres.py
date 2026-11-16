@@ -1,5 +1,9 @@
 """Import processing outcomes, confirmation and persisted lifecycle facts agree."""
 
+from app.db.models.import_job import ImportArtifactKind
+
+from app.modules.import_jobs.requested_options import encode_requested_options
+
 from datetime import timedelta
 
 import pytest
@@ -38,7 +42,7 @@ FAILURE = DurableFailure(
 
 
 def queued(db, identity="lifecycle"):
-    job = ImportJob(job_uuid=identity, user_id=1)
+    job = ImportJob(requested_options=encode_requested_options(None), job_uuid=identity, user_id=1)
     now = utc_now()
     queue_import(job, now=now)
     db.add(job)
@@ -65,7 +69,10 @@ def test_processing_outcome_and_confirmation_have_distinct_durable_instants(scor
     )
     db.add(
         ImportArtifact(
-            job_id=job.id, kind="review_musicxml", filename="review.xml", stored_object=blob
+            job_id=job.id,
+            kind=ImportArtifactKind.REVIEW_MUSICXML,
+            filename="review.xml",
+            stored_object=blob,
         )
     )
     db.commit()

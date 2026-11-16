@@ -13,7 +13,7 @@ from app.db.models import ImportArtifact, StorageUsageCategory, StoredObject
 from app.modules.import_jobs.repository import ImportJobRepository
 from app.modules.storage_usage.service import storage_usage_service
 from app.modules.rendering.renderer import render_musicxml
-from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
+from app.db.models.import_job import ImportArtifactKind
 from app.db.models.import_job import ImportJobState
 from app.modules.durable_work.delivery import DeliveryAttemptLease, StaleDeliveryAttempt
 from app.modules.rendering.delivery import render_outbox_service
@@ -49,7 +49,7 @@ class ImportReviewThumbnailService:
         review_xml = db.execute(
             select(ImportArtifact).where(
                 ImportArtifact.job_id == job_id,
-                ImportArtifact.kind == ImportArtifactKind.REVIEW_MUSICXML.value,
+                ImportArtifact.kind == ImportArtifactKind.REVIEW_MUSICXML,
             )
         ).scalar_one_or_none()
         if review_xml is None:
@@ -95,7 +95,7 @@ class ImportReviewThumbnailService:
             .join(StoredObject, ImportArtifact.stored_object_id == StoredObject.id)
             .where(
                 ImportArtifact.job_id == job_id,
-                ImportArtifact.kind == ImportArtifactKind.REVIEW_MUSICXML.value,
+                ImportArtifact.kind == ImportArtifactKind.REVIEW_MUSICXML,
                 StoredObject.sha256 == expected_source_fingerprint,
             )
         ).scalar_one_or_none()
@@ -104,7 +104,7 @@ class ImportReviewThumbnailService:
         thumbnail = ImportArtifact(
             artifact_uuid=artifact_uuid,
             job_id=job_id,
-            kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
+            kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE,
             stored_object=adopt_written_object(db, stored),
             filename=stored.object_key.rsplit("/", 1)[-1],
             page_number=1,
@@ -114,7 +114,7 @@ class ImportReviewThumbnailService:
             db.execute(
                 select(ImportArtifact).where(
                     ImportArtifact.job_id == job_id,
-                    ImportArtifact.kind == ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
+                    ImportArtifact.kind == ImportArtifactKind.REVIEW_PREVIEW_IMAGE,
                 )
             ).scalars()
         )

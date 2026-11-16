@@ -1,5 +1,9 @@
 """Import terminal state, notification history and wake-ups share one commit."""
 
+from app.db.models.import_job import ImportArtifactKind
+
+from app.modules.import_jobs.requested_options import encode_requested_options
+
 from app.modules.durable_work.failure import DurableFailure, DurableFailureClass
 
 
@@ -39,7 +43,7 @@ def outcome(monkeypatch):
                 job_uuid="job",
                 user_id=1,
                 state=ImportJobState.PROCESSING,
-                requested_options={"display_title": "Etudes"},
+                requested_options=encode_requested_options({"display_title": "Etudes"}),
             )
             db.add(job)
             db.flush()
@@ -55,7 +59,7 @@ def outcome(monkeypatch):
                 ImportArtifact(
                     job_id=job.id,
                     artifact_uuid="source",
-                    kind="review_musicxml",
+                    kind=ImportArtifactKind.REVIEW_MUSICXML,
                     stored_object_id=source.id,
                     filename="source.xml",
                 )

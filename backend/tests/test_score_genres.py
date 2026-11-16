@@ -7,7 +7,7 @@ from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.db.models import ImportArtifact, ImportJob, Score, Upload, User
-from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
+from app.db.models.import_job import ImportArtifactKind
 from app.modules.import_jobs.schemas import ImportJobSubmitRequest
 from app.modules.import_jobs.submission_service import ImportJobSubmissionService
 from app.modules.import_jobs.service import ImportJobService
@@ -164,6 +164,7 @@ def test_import_review_score_and_library_share_score_genres(
     job = session.scalar(sa.select(ImportJob).where(ImportJob.job_uuid == result["job_id"]))
     assert all(type(code) is str for code in job.requested_options["genres"])
     assert job.requested_options == {
+        "schema_version": 1,
         "display_title": "Genres",
         "genres": ordered_unique_genres(requested),
     }
@@ -180,7 +181,7 @@ def test_import_review_score_and_library_share_score_genres(
     session.add(
         ImportArtifact(
             job_id=job.id,
-            kind=ImportArtifactKind.REVIEW_MUSICXML.value,
+            kind=ImportArtifactKind.REVIEW_MUSICXML,
             stored_object=xml,
             filename="score.musicxml",
         )

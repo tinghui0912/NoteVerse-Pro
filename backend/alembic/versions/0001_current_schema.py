@@ -11,6 +11,9 @@ depends_on = None
 
 
 def upgrade() -> None:
+    postgresql.ENUM("review_musicxml", "review_preview_image", name="importartifactkind").create(
+        op.get_bind(), checkfirst=False
+    )
     postgresql.ENUM(
         "PENDING", "DISPATCHED", "PROCESSING", "COMPLETED", "FAILED", name="importdispatchstatus"
     ).create(op.get_bind(), checkfirst=False)
@@ -684,7 +687,7 @@ def upgrade() -> None:
         sa.Column(
             "requested_options",
             sa.JSON().with_variant(postgresql.JSONB(astext_type=sa.Text()), "postgresql"),
-            nullable=True,
+            nullable=False,
         ),
         sa.Column("execution_manifest_id", sa.BigInteger(), nullable=True),
         sa.Column("failure_code", sa.String(length=128), nullable=True),
@@ -1318,7 +1321,16 @@ def upgrade() -> None:
         ),
         sa.Column("artifact_uuid", sa.String(length=36), nullable=False),
         sa.Column("job_id", sa.BigInteger(), nullable=False),
-        sa.Column("kind", sa.String(length=64), nullable=False),
+        sa.Column(
+            "kind",
+            postgresql.ENUM(
+                "review_musicxml",
+                "review_preview_image",
+                name="importartifactkind",
+                create_type=False,
+            ),
+            nullable=False,
+        ),
         sa.Column(
             "stored_object_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=False
         ),
@@ -2765,6 +2777,7 @@ def downgrade() -> None:
     op.drop_table("mail_outbox")
     op.drop_table("execution_manifests")
     postgresql.ENUM(name="importdispatchstatus").drop(op.get_bind(), checkfirst=False)
+    postgresql.ENUM(name="importartifactkind").drop(op.get_bind(), checkfirst=False)
     postgresql.ENUM(name="importjobstate").drop(op.get_bind(), checkfirst=False)
     postgresql.ENUM(name="importjobstepstatus").drop(op.get_bind(), checkfirst=False)
     postgresql.ENUM(name="inviteterminaloutcome").drop(op.get_bind(), checkfirst=False)

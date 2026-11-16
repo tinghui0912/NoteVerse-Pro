@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.modules.import_jobs.requested_options import encode_requested_options
+
 from app.core.generated.customer_browser_protocol import AUTH_COOKIE_NAME
 
 import os
@@ -783,6 +785,7 @@ def test_ops_api_retry_rejects_confirmed_import_job_and_records_audit(
     ops_session.add(score)
     ops_session.flush()
     job = ImportJob(
+        requested_options=encode_requested_options(None),
         score_id=score.id,
         processing_started_at=utc_now(),
         processing_finished_at=utc_now(),
@@ -823,6 +826,7 @@ def test_ops_api_retry_rejects_completed_render_outbox_and_records_audit(
     ops_session: Session,
 ) -> None:
     job = ImportJob(
+        requested_options=encode_requested_options(None),
         processing_started_at=utc_now(),
         processing_finished_at=utc_now(),
         job_uuid="00000000-0000-0000-0000-000000000102",
@@ -904,6 +908,7 @@ def test_ops_api_admin_can_retry_failed_import_job(
 ) -> None:
     next_attempt_at = utc_now() + timedelta(hours=1)
     job = ImportJob(
+        requested_options=encode_requested_options(None),
         job_uuid="00000000-0000-0000-0000-000000000111",
         user_id=1,
         state=ImportJobState.FAILED,
@@ -971,6 +976,7 @@ def test_ops_api_admin_can_retry_failed_render_outbox(
     ops_session: Session,
 ) -> None:
     job = ImportJob(
+        requested_options=encode_requested_options(None),
         processing_started_at=utc_now(),
         processing_finished_at=utc_now(),
         job_uuid="00000000-0000-0000-0000-000000000112",

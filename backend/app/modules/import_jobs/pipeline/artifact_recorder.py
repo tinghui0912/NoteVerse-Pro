@@ -8,22 +8,15 @@ pipeline steps complete.
 import hashlib
 import mimetypes
 import os
-from enum import Enum
 from typing import List
+
+from app.db.models.import_job import ImportArtifactKind
 
 from app.modules.import_jobs.artifact_records import ImportJobStoredArtifactItem
 from app.modules.import_jobs.dispatch_service import ImportExecutionLease, require_current_attempt
 from app.storage import object_storage
 from app.modules.storage_objects.writes import write_object
 from app.db.session import SessionLocal
-
-
-def _kind_value(kind: object) -> str:
-    """Normalize ImportArtifactKind enum values before using them in keys or DB writes."""
-
-    if isinstance(kind, Enum):
-        return str(kind.value)
-    return str(kind)
 
 
 def _guess_mime_type(path: str) -> str:
@@ -49,7 +42,7 @@ def _guess_mime_type(path: str) -> str:
 
 def replace_files(
     lease: ImportExecutionLease,
-    kind: object,
+    kind: ImportArtifactKind,
     abs_paths: List[str],
 ) -> None:
     """
@@ -57,7 +50,7 @@ def replace_files(
 
     Args:
         lease: Current authorized Import execution attempt.
-        kind: Import artifact kind, for example `original_image`.
+        kind: Typed Import temporary-artifact identity.
         abs_paths: Absolute file paths to record.
 
     Storage format:
@@ -67,32 +60,34 @@ def replace_files(
     from app.db.session import SessionLocal
     from app.modules.import_jobs.execution_recorder import import_execution_recorder
 
+    if not isinstance(kind, ImportArtifactKind):
+        raise TypeError("Import artifact mutation requires ImportArtifactKind")
     with SessionLocal() as db:
         require_current_attempt(db, lease)
         db.commit()
-    normalized_kind = _kind_value(kind)
     items: List[ImportJobStoredArtifactItem] = [
-        _build_file_item(lease.job_uuid, normalized_kind, p, i + 1) for i, p in enumerate(abs_paths)
+        _build_file_item(lease.job_uuid, kind, p, i + 1) for i, p in enumerate(abs_paths)
     ]
 
     with SessionLocal() as db:
-        import_execution_recorder.replace_artifacts(db, lease, normalized_kind, items)
+        import_execution_recorder.replace_artifacts(db, lease, kind, items)
         db.commit()
 
 
 def _build_file_item(
     job_id: str,
-    kind: object,
+    kind: ImportArtifactKind,
     abs_path: str,
     page: int,
 ) -> ImportJobStoredArtifactItem:
-    normalized_kind = _kind_value(kind)
+    if not isinstance(kind, ImportArtifactKind):
+        raise TypeError("Import artifact mutation requires ImportArtifactKind")
     mime_type = _guess_mime_type(abs_path)
     with open(abs_path, "rb") as file_handle:
         content = file_handle.read()
     sha256 = hashlib.sha256(content).hexdigest()
     filename = f"{page:03d}-{os.path.basename(abs_path)}"
-    storage_key = f"jobs/{job_id}/{normalized_kind}/{sha256}/{filename}"
+    storage_key = f"jobs/{job_id}/{kind.value}/{sha256}/{filename}"
     with SessionLocal() as db:
         written = write_object(
             db, object_storage, key=storage_key, content=content, content_type=mime_type

@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+from app.modules.import_jobs.requested_options import encode_requested_options
 from tests.support.images import image_bytes
 
 import hashlib
@@ -44,7 +46,7 @@ from app.modules.scores.service import ScoreService
 from app.modules.storage_usage.service import storage_usage_service
 from tests.support.storage_state import provision_storage_users
 from app.shared.error_codes import CustomerErrorCode
-from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
+from app.db.models.import_job import ImportArtifactKind
 from tests.support.object_storage import InMemoryObjectStorage
 from app.shared.time import utc_now
 
@@ -591,6 +593,7 @@ def test_score_delete_cleans_single_origin_import_job_storage(
         content_type="application/vnd.recordare.musicxml+xml",
     )
     job = ImportJob(
+        requested_options=encode_requested_options(None),
         processing_started_at=utc_now(),
         processing_finished_at=utc_now(),
         confirmed_at=utc_now(),
@@ -628,7 +631,7 @@ def test_score_delete_cleans_single_origin_import_job_storage(
         ImportArtifact(
             artifact_uuid="origin-review-source",
             job_id=1201,
-            kind=ImportArtifactKind.REVIEW_MUSICXML.value,
+            kind=ImportArtifactKind.REVIEW_MUSICXML,
             stored_object=StoredObject(
                 object_key=review_source.object_key,
                 content_type="application/vnd.recordare.musicxml+xml",
@@ -720,6 +723,7 @@ def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
         content_type="image/png",
     )
     job = ImportJob(
+        requested_options=encode_requested_options(None),
         processing_started_at=utc_now(),
         processing_finished_at=utc_now(),
         id=1001,
@@ -753,7 +757,7 @@ def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
         ImportArtifact(
             artifact_uuid="delete-owned-review-source",
             job_id=1001,
-            kind=ImportArtifactKind.REVIEW_MUSICXML.value,
+            kind=ImportArtifactKind.REVIEW_MUSICXML,
             stored_object=StoredObject(
                 object_key=review_source.object_key,
                 content_type="application/vnd.recordare.musicxml+xml",
@@ -767,7 +771,7 @@ def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
         ImportArtifact(
             artifact_uuid="delete-owned-thumbnail",
             job_id=1001,
-            kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
+            kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE,
             stored_object=StoredObject(
                 object_key=thumbnail.object_key,
                 content_type="image/png",
@@ -836,6 +840,7 @@ def test_import_job_delete_keeps_shared_upload_usage_and_storage(
     session.add_all(
         [
             ImportJob(
+                requested_options=encode_requested_options(None),
                 processing_started_at=utc_now(),
                 processing_finished_at=utc_now(),
                 id=1101,
@@ -845,6 +850,7 @@ def test_import_job_delete_keeps_shared_upload_usage_and_storage(
                 progress=100,
             ),
             ImportJob(
+                requested_options=encode_requested_options(None),
                 processing_started_at=utc_now(),
                 processing_finished_at=utc_now(),
                 id=1102,

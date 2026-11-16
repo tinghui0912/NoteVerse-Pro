@@ -645,24 +645,6 @@
         "title": "ImportJobBatchStatusRead",
         "type": "object"
       },
-      "ImportJobProcessingOptions": {
-        "additionalProperties": false,
-        "properties": {
-          "display_title": {
-            "title": "Display Title",
-            "type": "string"
-          },
-          "genres": {
-            "items": {
-              "$ref": "#/components/schemas/ScoreGenre"
-            },
-            "title": "Genres",
-            "type": "array"
-          }
-        },
-        "title": "ImportJobProcessingOptions",
-        "type": "object"
-      },
       "ImportJobRead": {
         "properties": {
           "confirmed_at": {
@@ -801,6 +783,24 @@
           "updated_at"
         ],
         "title": "ImportJobRead",
+        "type": "object"
+      },
+      "ImportJobRequestedOptions": {
+        "additionalProperties": false,
+        "properties": {
+          "display_title": {
+            "title": "Display Title",
+            "type": "string"
+          },
+          "genres": {
+            "items": {
+              "$ref": "#/components/schemas/ScoreGenre"
+            },
+            "title": "Genres",
+            "type": "array"
+          }
+        },
+        "title": "ImportJobRequestedOptions",
         "type": "object"
       },
       "ImportJobReviewRead": {
@@ -971,7 +971,7 @@
           "options": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/ImportJobProcessingOptions"
+                "$ref": "#/components/schemas/ImportJobRequestedOptions"
               },
               {
                 "type": "null"

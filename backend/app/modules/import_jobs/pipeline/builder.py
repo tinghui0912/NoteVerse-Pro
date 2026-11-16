@@ -1,8 +1,7 @@
 """Pipeline builder utilities."""
 
-from typing import List, Optional
+from typing import List
 
-from app.modules.import_jobs.schemas import ImportJobProcessingOptions
 from .base import Pipeline
 
 
@@ -12,17 +11,14 @@ class PipelineBuilder:
     @staticmethod
     def build(
         image_paths: List[str],
-        options: Optional[ImportJobProcessingOptions] = None,
     ) -> Pipeline:
         """Build a single-image or multi-image pipeline."""
         if len(image_paths) == 1:
-            return PipelineBuilder.build_single_image(options)
-        return PipelineBuilder.build_multi_image(options)
+            return PipelineBuilder.build_single_image()
+        return PipelineBuilder.build_multi_image()
 
     @staticmethod
-    def build_single_image(
-        options: Optional[ImportJobProcessingOptions] = None,
-    ) -> Pipeline:
+    def build_single_image() -> Pipeline:
         """Build the single-image processing pipeline."""
         from .steps import (
             CopyImageStep,
@@ -43,9 +39,7 @@ class PipelineBuilder:
         )
 
     @staticmethod
-    def build_multi_image(
-        options: Optional[ImportJobProcessingOptions] = None,
-    ) -> Pipeline:
+    def build_multi_image() -> Pipeline:
         """Build the multi-image processing pipeline."""
         from .steps import (
             CopyImagesStep,
