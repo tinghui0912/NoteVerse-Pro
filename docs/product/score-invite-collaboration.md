@@ -10,6 +10,9 @@ explicit source/render download actions or manage members and Guest Previews.
 Invites default to VIEWER. Role rank is VIEWER < PRACTITIONER < EDITOR; acceptance
 upgrades weaker membership without downgrading stronger membership. Owner management
 supports explicit upgrade/downgrade. Revocation denies subsequent access immediately.
+The member collection contains active members only. Remove returns 204 without a
+representation; repeated remove and leave preserve the original revocation time.
+Every invitation targets an email address, and owner self-invitations are rejected.
 
 Every member role may leave a Score; owners cannot leave their ownership. Self
 leave revokes the current user's membership through
@@ -72,8 +75,8 @@ every request. An editor member does not become the quota/storage owner.
 
 ## Delivery and notification
 
-Creating an invitation commits its record and requests a localized transactional
-email through `dispatch_email()`. The public link origin is `FRONTEND_BASE_URL`.
+Creating an invitation commits its record and localized MailOutbox request together.
+The public link origin is `FRONTEND_BASE_URL`.
 Mail delivery failure does not undo the invitation. Provider credentials and
 sender configuration are environment-owned. A Resend-backed delivery adapter
 classifies permanent provider responses separately from retryable failures.

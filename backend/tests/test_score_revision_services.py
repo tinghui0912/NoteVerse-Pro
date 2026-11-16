@@ -9,7 +9,7 @@ from typing import Any, TypeVar
 from unittest.mock import Mock, patch
 
 import pytest
-from app.modules.score_invites.lifecycle import InviteStatus
+from app.modules.collaboration.invite_lifecycle import InviteStatus
 from app.db.models.score_access import InviteTerminalOutcome
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -84,9 +84,9 @@ from app.modules.import_jobs.execution_recorder import ImportExecutionRecorder
 from app.modules.import_jobs.service import ImportJobService
 from app.modules.import_jobs.dispatch_service import ImportDispatchService
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
-from app.modules.score_invites.schemas import InviteCreateRequest
-from app.modules.score_invites.rules import hash_invite_token
-from app.modules.score_invites.service import ScoreInviteService
+from app.modules.collaboration.schemas import InviteCreateRequest
+from app.modules.collaboration.invite_lifecycle import hash_invite_token
+from app.modules.collaboration.invitation_service import InvitationService
 from app.modules.notifications.maintenance_service import NotificationMaintenanceService
 from app.modules.notifications.service import NotificationService
 from app.db.models import NotificationKind
@@ -1966,17 +1966,17 @@ def test_score_access_policy_is_deny_by_default_and_context_aware(
     db = session
     policy = ScoreAccessPolicy()
 
-    owner = policy.resolve(db, "policy-score", user_id=1)  # type: ignore[arg-type]
+    owner = policy.resolve_score(db, "policy-score", user_id=1)  # type: ignore[arg-type]
     assert owner.capabilities.can_edit is True
 
-    member = policy.resolve(db, "policy-score", user_id=2)  # type: ignore[arg-type]
+    member = policy.resolve_score(db, "policy-score", user_id=2)  # type: ignore[arg-type]
     assert member.capabilities.can_view is True
     assert member.capabilities.can_edit is False
     assert member.capabilities.can_practice is False
     assert member.capabilities.can_download is False
     assert member.capabilities.can_manage_guest_previews is False
     with pytest.raises(UnauthorizedException):
-        policy.authorize(
+        policy.authorize_score(
             db,
             "policy-score",
             ScoreAction.EDIT,
@@ -1984,7 +1984,7 @@ def test_score_access_policy_is_deny_by_default_and_context_aware(
         )
 
     with pytest.raises(UnauthorizedException):
-        policy.resolve(db, "policy-score")  # type: ignore[arg-type]
+        policy.resolve_score(db, "policy-score")  # type: ignore[arg-type]
 
 
 def test_invite_acceptance_creates_editable_membership(
@@ -2011,7 +2011,7 @@ def test_invite_acceptance_creates_editable_membership(
     session.commit()
 
     db = session
-    service = ScoreInviteService()
+    service = InvitationService()
     created = service.create_invite(
         db,  # type: ignore[arg-type]
         "invite-score",
@@ -2063,7 +2063,7 @@ def test_invite_acceptance_creates_editable_membership(
     assert notification.read_at is None
 
     policy = ScoreAccessPolicy()
-    member_access = policy.resolve(db, "invite-score", user_id=2)  # type: ignore[arg-type]
+    member_access = policy.resolve_score(db, "invite-score", user_id=2)  # type: ignore[arg-type]
     assert member_access.capabilities.can_edit is True
     with pytest.raises(ValidationException) as accepted_again:
         service.accept_invite(db, created.token, 2)  # type: ignore[arg-type]
@@ -2084,7 +2084,7 @@ def test_invite_email_target_is_enforced(
     )
     assert score.score_uuid == "targeted-invite-score"
     db = session
-    service = ScoreInviteService()
+    service = InvitationService()
 
     created = service.create_invite(
         db,  # type: ignore[arg-type]
@@ -2116,7 +2116,7 @@ def test_user_pending_invites_can_be_accepted_without_token(
         title="Pending Invite",
     )
     db = session
-    service = ScoreInviteService()
+    service = InvitationService()
 
     created = service.create_invite(
         db,  # type: ignore[arg-type]
@@ -2155,7 +2155,7 @@ def test_user_pending_invites_can_be_declined(
         title="Decline Invite",
     )
     db = session
-    service = ScoreInviteService()
+    service = InvitationService()
 
     created = service.create_invite(
         db,  # type: ignore[arg-type]

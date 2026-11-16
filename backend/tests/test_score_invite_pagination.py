@@ -18,8 +18,8 @@ from app.core.exceptions import ValidationException
 from app.db.models import Score, ScoreInvite, ScoreMembership, User
 from app.db.models.score_access import MembershipRole, InviteTerminalOutcome
 from app.main import app
-from app.modules.score_invites.pagination import encode_cursor, decode_cursor
-from app.modules.score_invites.repository import ScoreInviteRepository
+from app.modules.collaboration.pagination import encode_cursor, decode_cursor
+from app.modules.collaboration.repository import CollaborationRepository
 from tests.support.postgres_schema import postgres_schema_database
 from tests.test_trusted_collaboration import collaboration as collaboration
 from tests.test_score_revision_services import score_service_session as score_service_session
@@ -67,7 +67,7 @@ def test_postgres_collection_continuation_reaches_every_row_with_equal_timestamp
                 session.add_all(
                     [
                         User(id=i + 10, email=f"member-{i}@example.com", password_hash="hash")
-                        for i in range(205)
+                        for i in range(410)
                     ]
                 )
                 session.flush()
@@ -78,16 +78,20 @@ def test_postgres_collection_continuation_reaches_every_row_with_equal_timestamp
                         created_by_user_id=1,
                         role=MembershipRole.VIEWER,
                         created_at=NOW,
+                        revoked_at=NOW if i % 2 else None,
                     )
-                    for i in range(205)
+                    for i in range(410)
                 ]
             else:
                 rows = [invite(10, i) for i in range(205)]
             session.add_all(rows)
             session.commit()
-            expected = sorted([row.id for row in rows], reverse=kind != "members")
+            expected = sorted(
+                [row.id for row in rows if kind != "members" or row.revoked_at is None],
+                reverse=kind != "members",
+            )
             db = session
-            repo = ScoreInviteRepository()
+            repo = CollaborationRepository()
 
             def page(cursor=None):
                 if kind == "members":
@@ -122,7 +126,7 @@ def test_invite_continuation_uses_immutable_position_across_mutation_and_insert(
     rows = [invite(4000, i, created_at=NOW + timedelta(seconds=i // 2)) for i in range(7)]
     session.add_all(rows)
     session.commit()
-    repo = ScoreInviteRepository()
+    repo = CollaborationRepository()
     first, cursor = repo.invites(db, 4000, limit=3)
     assert [row.id for row in first] == [row.id for row in reversed(rows[-3:])]
     expected = [row.id for row in reversed(rows[:-3])]
@@ -163,7 +167,7 @@ def test_pending_page_filters_expiry_before_limiting_without_writes(collaboratio
     session.add_all(rows)
     session.commit()
     original = [(row.terminal_outcome, row.terminal_at, row.terminal_actor_user_id) for row in rows]
-    page, cursor = ScoreInviteRepository().pending_invites_for_email(
+    page, cursor = CollaborationRepository().pending_invites_for_email(
         db,
         "other@example.com",
         user_id=2,
@@ -319,7 +323,7 @@ def test_customer_openapi_collaboration_pages():
 @pytest.mark.parametrize("kind", ["invites", "members", "pending_invites"])
 def test_collection_chronology_precedes_row_id(collaboration, kind):
     session, _, _, db = collaboration
-    repo = ScoreInviteRepository()
+    repo = CollaborationRepository()
     if kind == "members":
         rows = [
             ScoreMembership(

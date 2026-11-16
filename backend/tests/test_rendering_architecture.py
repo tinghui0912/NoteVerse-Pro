@@ -88,6 +88,7 @@ def test_asset_repository_reads_score_records_and_playback_readiness():
     assert imports("modules/score_assets/repository.py")["app.db.models"] <= {
         "PlaybackAssetKind",
         "PlaybackOutbox",
+        "Score",
         "ScorePlaybackAsset",
         "ScoreRenderAsset",
         "ScoreRevision",

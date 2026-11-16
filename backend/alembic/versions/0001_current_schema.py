@@ -1703,7 +1703,7 @@ def upgrade() -> None:
         sa.Column("invite_uuid", sa.String(length=36), nullable=False),
         sa.Column("score_id", sa.BigInteger(), nullable=False),
         sa.Column("token_hash", sa.String(length=64), nullable=False),
-        sa.Column("email", sa.String(length=255), nullable=True),
+        sa.Column("email", sa.String(length=255), nullable=False),
         sa.Column(
             "role",
             postgresql.ENUM(
@@ -1844,10 +1844,12 @@ def upgrade() -> None:
         sa.UniqueConstraint("score_id", "user_id", name="uq_score_memberships_score_user"),
     )
     op.create_index(
-        "idx_score_memberships_score_created",
+        "idx_score_memberships_score_active_created",
         "score_memberships",
         ["score_id", "created_at", "id"],
         unique=False,
+        postgresql_where=sa.text("revoked_at IS NULL"),
+        sqlite_where=sa.text("revoked_at IS NULL"),
     )
     op.create_index(
         "idx_score_memberships_user_active",
@@ -2600,7 +2602,7 @@ def downgrade() -> None:
     op.drop_table("playback_outbox")
     op.drop_index("idx_score_revisions_score_created", table_name="score_revisions")
     op.drop_table("score_revisions")
-    op.drop_index("idx_score_memberships_score_created", table_name="score_memberships")
+    op.drop_index("idx_score_memberships_score_active_created", table_name="score_memberships")
     op.drop_index("idx_score_memberships_user_active", table_name="score_memberships")
     op.drop_table("score_memberships")
     op.drop_index(

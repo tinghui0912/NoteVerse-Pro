@@ -85,7 +85,7 @@ def test_bound_revision_reads_without_compiler_canonical_lookup_or_materializati
         compiler=compiler,
         storage=storage,
         asset_repository=assets,
-        access_policy=Mock(authorize=Mock(return_value=access)),
+        access_policy=Mock(authorize_revision=Mock(return_value=access)),
     )
     db = Mock()
     with patch(
@@ -98,7 +98,7 @@ def test_bound_revision_reads_without_compiler_canonical_lookup_or_materializati
         "revision_id": "rev-A",
         "bundle_id": bundle.bundle_id,
     }
-    service.access_policy.authorize.assert_called_once_with(
+    service.access_policy.authorize_revision.assert_called_once_with(
         db, "score-A", ScoreAction.PRACTICE, user_id=1, revision_uuid="rev-A"
     )
     repository.read_bound.assert_called_once_with(db, 20)
@@ -141,7 +141,7 @@ async def test_unbound_revision_compiles_once_then_reads_existing_binding():
         compiler=compiler,
         storage=storage,
         asset_repository=assets,
-        access_policy=Mock(authorize=Mock(return_value=access)),
+        access_policy=Mock(authorize_revision=Mock(return_value=access)),
     )
     with patch(
         "app.modules.practice.bundle.service.lock_live_practice_mutation_access",
@@ -160,7 +160,7 @@ async def test_unbound_revision_compiles_once_then_reads_existing_binding():
         service.read_bundle(Mock(), "score-A", 1, "rev-A")
         service.read_bundle(Mock(), "score-A", 1, "rev-A")
     assert mutation.call_count == 2
-    assert service.access_policy.authorize.call_count == 2
+    assert service.access_policy.authorize_revision.call_count == 2
     compiler.compile.assert_called_once_with(canonical_musicxml=FIXTURE.read_bytes())
     assets.canonical_source.assert_called_once()
     storage.read_bytes.assert_called_once_with("canonical.xml")
@@ -177,7 +177,7 @@ def test_unbound_revision_reauthorization_failure_prevents_binding_mutation():
     )
     repository = Mock(read_bound=Mock(return_value=None), get_or_create=Mock())
     compiler = Mock(compile=Mock(return_value=bundle))
-    policy = Mock(authorize=Mock(return_value=access))
+    policy = Mock(authorize_revision=Mock(return_value=access))
     service = PracticeBundleService(
         repository=repository,
         compiler=compiler,

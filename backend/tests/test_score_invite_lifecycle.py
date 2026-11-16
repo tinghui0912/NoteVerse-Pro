@@ -8,14 +8,15 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select, func, event
 from app.api.deps import get_current_user, get_db
 from app.core.exceptions import ValidationException
-from app.db.models import ScoreInvite, ScoreMembership
+from app.db.models import ScoreInvite, ScoreMembership, MailOutbox, Notification, User
 from app.db.models.score_access import InviteTerminalOutcome, MembershipRole
 from app.main import app
-from app.modules.score_invites.lifecycle import InviteStatus, effective_invite_status
-from app.modules.score_invites.rules import hash_invite_token
-from app.modules.score_invites.schemas import InviteCreateRequest
-from app.modules.score_invites.service import ScoreInviteService
-from app.modules.score_invites.repository import ScoreInviteRepository
+from app.modules.collaboration.invite_lifecycle import InviteStatus, effective_invite_status
+from app.modules.collaboration.invite_lifecycle import hash_invite_token
+from app.modules.collaboration.schemas import InviteCreateRequest
+from app.modules.collaboration.invitation_service import InvitationService
+from app.modules.collaboration.membership_service import MembershipService
+from app.modules.collaboration.repository import CollaborationRepository
 from app.shared.constants import ErrorCode
 from app.shared.time import utc_now
 from tests.test_score_revision_services import score_service_session as score_service_session
@@ -194,7 +195,7 @@ def test_accept_rechecks_expiry_after_membership_contention(collaboration, monke
     session, _, score, db = collaboration
     now = utc_now()
     clock = [now]
-    monkeypatch.setattr("app.modules.score_invites.service.utc_now", lambda: clock[0])
+    monkeypatch.setattr("app.modules.collaboration.invitation_service.utc_now", lambda: clock[0])
     invite = ScoreInvite(
         invite_uuid="expiring",
         score_id=score.id,
@@ -217,7 +218,7 @@ def test_accept_rechecks_expiry_after_membership_contention(collaboration, monke
         )
     session.commit()
 
-    class MembershipWait(ScoreInviteRepository):
+    class MembershipWait(CollaborationRepository):
         def membership_for_update(self, db, score_id, user_id):
             membership = super().membership_for_update(db, score_id, user_id)
             clock[0] = now + timedelta(seconds=2)
@@ -225,7 +226,7 @@ def test_accept_rechecks_expiry_after_membership_contention(collaboration, monke
 
     with observe_writes(session) as (writes, commits):
         with pytest.raises(ValidationException) as error:
-            ScoreInviteService(repository=MembershipWait()).accept_invite(db, "expiring", 2)
+            InvitationService(repository=MembershipWait()).accept_invite(db, "expiring", 2)
         assert error.value.code == ErrorCode.INVITE_EXPIRED
         assert writes == commits == []
     session.refresh(invite)
@@ -240,7 +241,7 @@ def test_accept_rechecks_expiry_after_membership_contention(collaboration, monke
 @pytest.mark.parametrize("command", ["leave", "remove"])
 def test_accepted_actor_facts_survive_membership_revocation(collaboration, command):
     session, _, score, db = collaboration
-    service = ScoreInviteService()
+    service = InvitationService()
     created = service.create_invite(
         db, score.score_uuid, 1, InviteCreateRequest(email="other@example.com")
     )
@@ -253,9 +254,43 @@ def test_accepted_actor_facts_survive_membership_revocation(collaboration, comma
         and terminal[2] == 2
     )
     if command == "leave":
-        service.leave_score(db, score.score_uuid, 2)
+        MembershipService().leave_score(db, score.score_uuid, 2)
     else:
-        service.remove_member(db, score.score_uuid, accepted.membership_id, 1)
+        MembershipService().remove_member(db, score.score_uuid, accepted.membership_id, 1)
     session.refresh(invite)
     assert facts(invite) == terminal
     assert session.get(ScoreMembership, accepted.membership_id).revoked_at is not None
+
+
+def test_owner_email_cannot_enter_the_invitation_lifecycle(collaboration):
+    db, _, score, _ = collaboration
+    owner = db.get(User, 1)
+    with observe_writes(db) as (writes, commits):
+        with pytest.raises(ValidationException):
+            InvitationService().create_invite(
+                db, score.score_uuid, 1, InviteCreateRequest(email=owner.email)
+            )
+    assert writes == [] and commits == []
+    assert db.scalar(select(ScoreInvite)) is None and db.scalar(select(MailOutbox)) is None
+
+
+def test_invitation_targeting_owner_fails_closed_without_terminal_or_membership_facts(
+    collaboration,
+):
+    db, _, score, _ = collaboration
+    owner = db.get(User, 1)
+    invite = ScoreInvite(
+        score_id=score.id,
+        email=owner.email,
+        token_hash=hash_invite_token("self"),
+        role=MembershipRole.EDITOR,
+        created_by_user_id=1,
+    )
+    db.add(invite)
+    db.commit()
+    with observe_writes(db) as (writes, commits):
+        with pytest.raises(ValidationException):
+            InvitationService().accept_invite(db, "self", 1)
+    assert writes == [] and commits == []
+    assert invite.terminal_outcome is None and invite.terminal_at is None
+    assert db.scalar(select(ScoreMembership)) is None and db.scalar(select(Notification)) is None

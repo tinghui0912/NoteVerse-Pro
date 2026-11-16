@@ -20,8 +20,9 @@ from app.modules.library.schemas import (
 )
 from app.modules.library.service import LibraryService
 from app.modules.score_access.policy import ScoreAction, ScoreAccessPolicy
-from app.modules.score_invites.schemas import InviteCreateRequest
-from app.modules.score_invites.service import ScoreInviteService
+from app.modules.collaboration.schemas import InviteCreateRequest
+from app.modules.collaboration.invitation_service import InvitationService
+from app.modules.collaboration.membership_service import MembershipService
 from tests.test_score_revision_services import score_service_session as score_service_session
 from tests.test_trusted_collaboration import collaboration as collaboration, member_for
 
@@ -52,7 +53,7 @@ async def test_self_leave_http_revokes_each_member_role_idempotently(collaborati
                 ScoreAction.LEAVE,
             ):
                 with pytest.raises(UnauthorizedException):
-                    ScoreAccessPolicy().authorize(db, score.score_uuid, action, user_id=2)
+                    ScoreAccessPolicy().authorize_score(db, score.score_uuid, action, user_id=2)
             again = await client.delete(f"/api/v1/me/scores/{score.score_uuid}/membership")
             assert again.status_code == 204 and again.content == b""
             session.refresh(membership)
@@ -91,7 +92,7 @@ async def test_leave_hides_organization_until_explicit_reinvite_acceptance(colla
     member_for(session, "EDITOR")
     membership = session.scalar(select(ScoreMembership))
     membership_id = membership.id
-    library, collaboration_service = LibraryService(), ScoreInviteService()
+    library, collaboration_service = LibraryService(), InvitationService()
     folder = library.create_folder(db, 2, LibraryFolderCreateRequest(name="Studies"))
     library.batch_move(
         db,
@@ -133,7 +134,7 @@ async def test_leave_hides_organization_until_explicit_reinvite_acceptance(colla
         assert overview.folders[0].score_count == expected
 
     assert_workspace(1)
-    collaboration_service.leave_score(db, score.score_uuid, 2)
+    MembershipService().leave_score(db, score.score_uuid, 2)
     assert_workspace(0)
     assert session.get(ScoreLibraryOrganization, organization_id).is_favorite
     assert session.get(Score, score.id) is not None

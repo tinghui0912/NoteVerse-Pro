@@ -36,7 +36,7 @@ class GuestPreviewService:
         self.playback = PlaybackDeliveryReadModel(access_policy=self.access_policy)
 
     def settings(self, db: Session, score_uuid: str, user_id: int) -> GuestPreviewSettingsRead:
-        access = self.access_policy.authorize(
+        access = self.access_policy.authorize_score(
             db, score_uuid, ScoreAction.MANAGE_GUEST_PREVIEWS, user_id=user_id
         )
         return self._settings(access.score)
@@ -44,7 +44,7 @@ class GuestPreviewService:
     def update_settings(
         self, db: Session, score_uuid: str, user_id: int, request: GuestPreviewUpdateRequest
     ) -> GuestPreviewSettingsRead:
-        self.access_policy.authorize(
+        self.access_policy.authorize_score(
             db, score_uuid, ScoreAction.MANAGE_GUEST_PREVIEWS, user_id=user_id
         )
         score = (

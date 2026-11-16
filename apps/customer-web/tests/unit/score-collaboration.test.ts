@@ -48,8 +48,8 @@ describe('score collaboration invite architecture', () => {
     expect(previewPanel).not.toContain('EDITOR');
     expect(previewPanel).not.toContain('VIEWER');
     expect(collaborationPanel).toContain('MembershipRole');
-    expect(collaborationPanel).toContain('EDITOR');
-    expect(collaborationPanel).toContain('VIEWER');
+    expect(collaborationPanel).toContain('selectableMembershipRoles');
+    expect(collaborationPanel).toContain('membershipRoleTranslationKey');
     expect(invitePage).toContain("searchParams.get('accept') === '1'");
     expect(invitePage).toContain('acceptInvite.mutate');
     expect(invitePage).toContain('router.push(`/score/${scoreId}`)');

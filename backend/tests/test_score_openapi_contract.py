@@ -142,7 +142,7 @@ def test_guest_preview_contract_is_presentation_only(client: TestClient) -> None
 
 
 def test_collaboration_role_contract_is_least_privilege(client: TestClient) -> None:
-    from app.modules.score_invites.lifecycle import InviteStatus
+    from app.modules.collaboration.invite_lifecycle import InviteStatus
 
     components = client.get("/api/v1/openapi.json").json()["components"]["schemas"]
     assert components["MembershipRole"]["enum"] == ["VIEWER", "PRACTITIONER", "EDITOR"]

@@ -26,13 +26,27 @@ def test_fresh_membership_role_enum_and_both_consumers(monkeypatch):
             == ["VIEWER", "PRACTITIONER", "EDITOR"]
         )
         inspector = sa.inspect(engine)
+        assert (
+            next(
+                column
+                for column in inspector.get_columns("score_invites")
+                if column["name"] == "email"
+            )["nullable"]
+            is False
+        )
+        membership_index = next(
+            index
+            for index in inspector.get_indexes("score_memberships")
+            if index["name"] == "idx_score_memberships_score_active_created"
+        )
+        assert membership_index["dialect_options"]["postgresql_where"] == "(revoked_at IS NULL)"
         for table, expected in {
             "score_invites": {
                 "idx_score_invites_score_created": ["score_id", "created_at", "id"],
                 "idx_score_invites_email_unresolved_created": ["email", "created_at", "id"],
             },
             "score_memberships": {
-                "idx_score_memberships_score_created": ["score_id", "created_at", "id"],
+                "idx_score_memberships_score_active_created": ["score_id", "created_at", "id"],
             },
         }.items():
             indexes = {
@@ -72,6 +86,17 @@ def test_fresh_membership_role_enum_and_both_consumers(monkeypatch):
             db.commit()
             assert set(db.scalars(sa.select(ScoreMembership.role))) == set(MembershipRole)
             assert set(db.scalars(sa.select(ScoreInvite.role))) == set(MembershipRole)
+            with pytest.raises(IntegrityError), db.begin_nested():
+                db.add(
+                    ScoreInvite(
+                        score_id=score.id,
+                        token_hash="null-target",
+                        email=None,
+                        role=MembershipRole.VIEWER,
+                        created_by_user_id=owner.id,
+                    )
+                )
+                db.flush()
 
 
 def test_postgres_invitation_terminal_facts_and_unresolved_index(monkeypatch):
@@ -126,6 +151,7 @@ def test_postgres_invitation_terminal_facts_and_unresolved_index(monkeypatch):
                     with db.begin_nested():
                         db.add(
                             ScoreInvite(
+                                email="member@example.com",
                                 score_id=10,
                                 invite_uuid=f"invite-{number}",
                                 token_hash=f"{number:064x}",

@@ -30,6 +30,6 @@ def authorize_test_revision(monkeypatch):
         Mock(return_value=access),
     )
     monkeypatch.setattr(
-        "app.modules.practice.bundle.service.ScoreAccessPolicy.authorize",
+        "app.modules.practice.bundle.service.ScoreAccessPolicy.authorize_revision",
         Mock(return_value=access),
     )

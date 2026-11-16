@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from html import escape
+from app.db.models.score_access import MembershipRole
 
 from app.modules.mail.templates.base import MailContent, build_html_shell
 
@@ -99,3 +100,19 @@ def _build_meta_html(*, label: str, value: str) -> str:
                   <span style="color:#6b7280;">{escape(label)}：</span>
                   <strong style="color:#111827;">{escape(value)}</strong>
                 </div>"""
+
+
+def invite_role_label(role: MembershipRole, locale: str) -> str:
+    labels = {
+        "en": {
+            MembershipRole.VIEWER: "Can view",
+            MembershipRole.PRACTITIONER: "Can practice",
+            MembershipRole.EDITOR: "Can edit",
+        },
+        "zh": {
+            MembershipRole.VIEWER: "可查看",
+            MembershipRole.PRACTITIONER: "可练习",
+            MembershipRole.EDITOR: "可编辑",
+        },
+    }
+    return labels["en" if locale == "en" else "zh"][role]

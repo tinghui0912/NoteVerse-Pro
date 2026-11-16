@@ -68,7 +68,7 @@ class PerformanceTakeService:
         if score is None or score.deleted_at is not None:
             return False
         try:
-            self.score_access_policy.authorize(
+            self.score_access_policy.authorize_score(
                 db,
                 score.score_uuid,
                 ScoreAction.VIEW,

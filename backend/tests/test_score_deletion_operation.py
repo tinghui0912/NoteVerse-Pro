@@ -437,9 +437,9 @@ async def test_postgres_concurrent_admission_creates_one_operation(postgres_scor
     barrier, arrivals = __import__("threading").Barrier(2), 0
 
     class ConcurrentPolicy(ScoreAccessPolicy):
-        def authorize(self, *args, **kwargs):
+        def authorize_score(self, *args, **kwargs):
             nonlocal arrivals
-            result = super().authorize(*args, **kwargs)
+            result = super().authorize_score(*args, **kwargs)
             arrivals += 1
             barrier.wait(10)
             return result

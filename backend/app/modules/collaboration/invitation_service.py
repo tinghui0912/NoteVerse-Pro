@@ -1,5 +1,4 @@
 from __future__ import annotations
-from app.modules.account.avatar_presentation import avatar_url_for_user
 
 import uuid
 
@@ -13,32 +12,31 @@ from app.core.exceptions import (
 )
 from app.db.model_utils import require_persisted_id
 from app.db.models import Score, ScoreInvite, ScoreMembership, User
-from app.db.models.score_access import InviteTerminalOutcome, MembershipRole
-from app.modules.score_invites.lifecycle import effective_invite_status, require_pending_invite
+from app.db.models.score_access import InviteTerminalOutcome
+from app.modules.collaboration.invite_lifecycle import (
+    effective_invite_status,
+    require_pending_invite,
+)
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.mail.outbox_service import queue_mail
-from app.modules.mail.templates.score_invites import build_invite_email
-from app.modules.score_invites.pagination import DEFAULT_PAGE_SIZE
-from app.modules.score_invites.repository import ScoreInviteRepository
-from app.modules.score_invites.rules import (
-    ROLE_RANK,
+from app.modules.mail.templates.score_invites import build_invite_email, invite_role_label
+from app.modules.collaboration.pagination import DEFAULT_PAGE_SIZE
+from app.modules.collaboration.repository import CollaborationRepository
+from app.modules.collaboration.read_model import CollaborationReadModel
+from app.modules.score_access.roles import stronger_role
+from app.modules.collaboration.invite_lifecycle import (
     can_user_accept_invite,
     generate_invite_token,
     hash_invite_token,
-    invite_role_label,
 )
-from app.modules.score_invites.schemas import (
+from app.modules.collaboration.schemas import (
     InviteListRead,
-    MemberListRead,
     PendingInviteListRead,
     InviteAcceptRead,
     InviteAccessRead,
-    InviteActorRead,
     InviteCreateRequest,
     InviteCreatedRead,
     InviteRead,
-    MemberRead,
-    MemberUpdateRequest,
     PendingInviteRead,
 )
 from app.modules.notifications.service import NotificationService
@@ -46,16 +44,17 @@ from app.shared.constants import ErrorCode
 from app.shared.time import require_utc, utc_now
 
 
-class ScoreInviteService:
+class InvitationService:
     def __init__(
         self,
-        repository: ScoreInviteRepository | None = None,
+        repository: CollaborationRepository | None = None,
         access_policy: ScoreAccessPolicy | None = None,
         notification_service: NotificationService | None = None,
     ) -> None:
-        self.repository = repository or ScoreInviteRepository()
+        self.repository = repository or CollaborationRepository()
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.notification_service = notification_service or NotificationService()
+        self.read_model = CollaborationReadModel(self.repository)
 
     def create_invite(
         self,
@@ -64,9 +63,14 @@ class ScoreInviteService:
         user_id: int,
         request: InviteCreateRequest,
     ) -> InviteCreatedRead:
-        access = self.access_policy.authorize(
+        access = self.access_policy.authorize_score(
             db, score_uuid, ScoreAction.MANAGE_MEMBERS, user_id=user_id
         )
+        owner = db.get(User, access.score.owner_user_id)
+        if owner is None:
+            raise ResourceNotFoundException("user", code=ErrorCode.USER_NOT_FOUND)
+        if request.email == owner.email.lower():
+            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="email")
         invite_uuid = str(uuid.uuid4())
         token = generate_invite_token()
         invite = ScoreInvite(
@@ -84,7 +88,7 @@ class ScoreInviteService:
         self._queue_invite_email(db, invite, access.score.display_title, token, request.locale)
         db.commit()
         db.refresh(invite)
-        read = self._invite_read(db, invite)
+        read = self.read_model.invite(db, invite)
         return InviteCreatedRead(**read.model_dump(), token=token)
 
     def list_invites(
@@ -96,13 +100,13 @@ class ScoreInviteService:
         limit: int = DEFAULT_PAGE_SIZE,
         cursor: str | None = None,
     ) -> InviteListRead:
-        access = self.access_policy.authorize(
+        access = self.access_policy.authorize_score(
             db, score_uuid, ScoreAction.MANAGE_MEMBERS, user_id=user_id
         )
         score_id = require_persisted_id(access.score.id, entity="score")
         invites, next_cursor = self.repository.invites(db, score_id, limit=limit, cursor=cursor)
         return InviteListRead(
-            items=[self._invite_read(db, invite) for invite in invites],
+            items=self.read_model.invites(db, invites),
             next_cursor=next_cursor,
         )
 
@@ -118,7 +122,7 @@ class ScoreInviteService:
             invite.terminal_actor_user_id = user_id
         db.commit()
         db.refresh(invite)
-        return self._invite_read(db, invite)
+        return self.read_model.invite(db, invite)
 
     def inspect_invite(self, db: Session, token: str, user_id: int | None) -> InviteAccessRead:
         invite = self._invite_by_token(db, token, allow_inactive=True)
@@ -127,12 +131,14 @@ class ScoreInviteService:
             raise ResourceNotFoundException("score", code=ErrorCode.SCORE_NOT_FOUND)
         user = db.get(User, user_id) if user_id is not None else None
         now = utc_now()
-        can_accept = can_user_accept_invite(invite, user, now=now)
+        can_accept = can_user_accept_invite(invite, user, now=now) and (
+            user is None or score.owner_user_id != user.id
+        )
         return InviteAccessRead(
             invite_id=invite.invite_uuid,
             score_id=score.score_uuid,
             score_display_title=score.display_title,
-            inviter=self._actor(db, invite.created_by_user_id),
+            inviter=self.read_model.actor(db, invite.created_by_user_id),
             email=invite.email,
             role=invite.role,
             status=effective_invite_status(invite, now=now),
@@ -165,7 +171,7 @@ class ScoreInviteService:
             cursor=cursor,
         )
         return PendingInviteListRead(
-            items=[self._pending_invite_read(db, invite) for invite in invites],
+            items=self.read_model.pending_invites(db, invites),
             next_cursor=next_cursor,
         )
 
@@ -197,7 +203,7 @@ class ScoreInviteService:
             )
         db.commit()
         db.refresh(invite)
-        return self._pending_invite_read(db, invite)
+        return self.read_model.pending_invite(db, invite)
 
     def _accept_invite_record(
         self, db: Session, invite: ScoreInvite, user_id: int
@@ -207,25 +213,7 @@ class ScoreInviteService:
         if not score:
             raise ResourceNotFoundException("score", code=ErrorCode.SCORE_NOT_FOUND)
         if score.owner_user_id == user_id:
-            now = utc_now()
-            require_pending_invite(invite, field="invite_id", now=now)
-            invite.terminal_outcome = InviteTerminalOutcome.ACCEPTED
-            invite.terminal_actor_user_id = user_id
-            invite.terminal_at = now
-            self._notify_invite_response(
-                db,
-                invite=invite,
-                score=score,
-                actor=user,
-                accepted=True,
-            )
-            db.commit()
-            db.refresh(invite)
-            return InviteAcceptRead(
-                score_id=score.score_uuid,
-                role=MembershipRole.EDITOR,
-                membership_id=None,
-            )
+            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="email")
 
         membership = self.repository.membership_for_update(db, invite.score_id, user_id)
         # Waiting on membership may outlast expiry; do not restore access after it.
@@ -234,8 +222,7 @@ class ScoreInviteService:
         if membership:
             if membership.revoked_at is not None:
                 membership.revoked_at = None
-            if ROLE_RANK[invite.role] > ROLE_RANK[membership.role]:
-                membership.role = invite.role
+            membership.role = stronger_role(membership.role, invite.role)
         else:
             membership = ScoreMembership(
                 score_id=invite.score_id,
@@ -266,80 +253,10 @@ class ScoreInviteService:
             membership_id=require_persisted_id(membership.id, entity="score membership"),
         )
 
-    def list_members(
-        self,
-        db: Session,
-        score_uuid: str,
-        user_id: int,
-        *,
-        limit: int = DEFAULT_PAGE_SIZE,
-        cursor: str | None = None,
-    ) -> MemberListRead:
-        access = self.access_policy.authorize(
-            db, score_uuid, ScoreAction.MANAGE_MEMBERS, user_id=user_id
-        )
-        score_id = require_persisted_id(access.score.id, entity="score")
-        memberships, next_cursor = self.repository.memberships(
-            db,
-            score_id,
-            limit=limit,
-            cursor=cursor,
-        )
-        return MemberListRead(
-            items=[self._member_read(db, membership) for membership in memberships],
-            next_cursor=next_cursor,
-        )
-
-    def update_member(
-        self,
-        db: Session,
-        score_uuid: str,
-        membership_id: int,
-        user_id: int,
-        request: MemberUpdateRequest,
-    ) -> MemberRead:
-        access = self.access_policy.authorize(
-            db, score_uuid, ScoreAction.MANAGE_MEMBERS, user_id=user_id
-        )
-        membership = self._membership_for_score(db, access.score, membership_id)
-        if membership.revoked_at is not None:
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="membership_id")
-        membership.role = request.role
-        db.commit()
-        db.refresh(membership)
-        return self._member_read(db, membership)
-
-    def remove_member(
-        self, db: Session, score_uuid: str, membership_id: int, user_id: int
-    ) -> MemberRead:
-        access = self.access_policy.authorize(
-            db, score_uuid, ScoreAction.MANAGE_MEMBERS, user_id=user_id
-        )
-        membership = self._membership_for_score(db, access.score, membership_id)
-        if membership.user_id == access.score.owner_user_id:
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="membership_id")
-        if membership.revoked_at is None:
-            membership.revoked_at = utc_now()
-        db.commit()
-        db.refresh(membership)
-        return self._member_read(db, membership)
-
-    def leave_score(self, db: Session, score_uuid: str, user_id: int) -> None:
-        membership = self.repository.self_membership_for_update(db, score_uuid, user_id)
-        # A retry of a completed leave does not grant access or rewrite its timestamp.
-        if membership is not None and membership.revoked_at is not None:
-            db.commit()
-            return
-        self.access_policy.authorize(db, score_uuid, ScoreAction.LEAVE, user_id=user_id)
-        if membership is None:
-            raise UnauthorizedException(ErrorCode.NO_ACCESS)
-        membership.revoked_at = utc_now()
-        db.commit()
-
     def _managed_invite(
         self, db: Session, score_uuid: str, invite_uuid: str, user_id: int
     ) -> ScoreInvite:
-        access = self.access_policy.authorize(
+        access = self.access_policy.authorize_score(
             db, score_uuid, ScoreAction.MANAGE_MEMBERS, user_id=user_id
         )
         invite = self.repository.invite_by_uuid(db, invite_uuid, lock=True)
@@ -376,18 +293,6 @@ class ScoreInviteService:
             raise ValidationException(ErrorCode.INVITE_EMAIL_MISMATCH, field="email")
         return user
 
-    def _membership_for_score(
-        self, db: Session, score: Score, membership_id: int
-    ) -> ScoreMembership:
-        membership = self.repository.membership_by_id_for_update(db, membership_id)
-        if not membership or membership.score_id != score.id:
-            raise ResourceNotFoundException(
-                "score_membership",
-                str(membership_id),
-                ErrorCode.MEMBERSHIP_NOT_FOUND,
-            )
-        return membership
-
     def _notify_invite_response(
         self,
         db: Session,
@@ -410,63 +315,6 @@ class ScoreInviteService:
             created_at=invite.terminal_at,
         )
 
-    def _invite_read(self, db: Session, invite: ScoreInvite) -> InviteRead:
-        return InviteRead(
-            invite_id=invite.invite_uuid,
-            email=invite.email,
-            role=invite.role,
-            status=effective_invite_status(invite, now=utc_now()),
-            expires_at=invite.expires_at,
-            terminal_at=invite.terminal_at,
-            created_at=invite.created_at,
-            created_by=self._actor(db, invite.created_by_user_id),
-            terminal_actor=self._actor(db, invite.terminal_actor_user_id),
-        )
-
-    def _pending_invite_read(self, db: Session, invite: ScoreInvite) -> PendingInviteRead:
-        score = db.get(Score, invite.score_id)
-        if not score:
-            raise ResourceNotFoundException("score", code=ErrorCode.SCORE_NOT_FOUND)
-        return PendingInviteRead(
-            invite_id=invite.invite_uuid,
-            score_id=score.score_uuid,
-            score_display_title=score.display_title,
-            inviter=self._actor(db, invite.created_by_user_id),
-            email=invite.email,
-            role=invite.role,
-            status=effective_invite_status(invite, now=utc_now()),
-            expires_at=invite.expires_at,
-            created_at=invite.created_at,
-        )
-
-    def _member_read(self, db: Session, membership: ScoreMembership) -> MemberRead:
-        user = db.get(User, membership.user_id)
-        if not user:
-            raise ResourceNotFoundException(
-                "user", str(membership.user_id), ErrorCode.USER_NOT_FOUND
-            )
-        return MemberRead(
-            membership_id=require_persisted_id(membership.id, entity="score membership"),
-            display_name=user.display_name,
-            email=user.email,
-            avatar_url=avatar_url_for_user(user),
-            role=membership.role,
-            created_at=membership.created_at,
-            revoked_at=membership.revoked_at,
-        )
-
-    def _actor(self, db: Session, user_id: int | None) -> InviteActorRead | None:
-        if user_id is None:
-            return None
-        user = db.get(User, user_id)
-        if not user:
-            return None
-        return InviteActorRead(
-            display_name=user.display_name,
-            email=user.email,
-            avatar_url=avatar_url_for_user(user),
-        )
-
     def _queue_invite_email(
         self,
         db: Session,
@@ -475,10 +323,7 @@ class ScoreInviteService:
         token: str,
         locale: str,
     ) -> None:
-        if not invite.email:
-            return
-
-        inviter = self._actor(db, invite.created_by_user_id)
+        inviter = self.read_model.actor(db, invite.created_by_user_id)
         inviter_name = (
             inviter.display_name
             if inviter and inviter.display_name

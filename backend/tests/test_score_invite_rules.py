@@ -8,16 +8,16 @@ import pytest
 from app.core.exceptions import ValidationException
 from app.db.models import ScoreInvite, User
 from app.db.models.score_access import InviteTerminalOutcome, MembershipRole
-from app.modules.score_invites.lifecycle import (
+from app.modules.collaboration.invite_lifecycle import (
     InviteStatus,
     effective_invite_status,
     require_pending_invite,
 )
-from app.modules.score_invites.rules import (
+from app.modules.collaboration.invite_lifecycle import (
     can_user_accept_invite,
     hash_invite_token,
-    invite_role_label,
 )
+from app.modules.mail.templates.score_invites import invite_role_label
 from app.shared.constants import ErrorCode
 
 NOW = datetime(2026, 8, 11, 8, tzinfo=UTC)

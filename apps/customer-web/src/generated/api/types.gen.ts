@@ -587,7 +587,7 @@ export type InviteAccessRead = {
     /**
      * Email
      */
-    email: string | null;
+    email: string;
     /**
      * Expires At
      */
@@ -662,7 +662,7 @@ export type InviteCreatedRead = {
     /**
      * Email
      */
-    email: string | null;
+    email: string;
     /**
      * Expires At
      */
@@ -710,7 +710,7 @@ export type InviteRead = {
     /**
      * Email
      */
-    email: string | null;
+    email: string;
     /**
      * Expires At
      */
@@ -956,10 +956,6 @@ export type MemberRead = {
      * Membership Id
      */
     membership_id: number;
-    /**
-     * Revoked At
-     */
-    revoked_at: string | null;
     role: MembershipRole;
 };
 
@@ -1154,7 +1150,7 @@ export type PendingInviteRead = {
     /**
      * Email
      */
-    email: string | null;
+    email: string;
     /**
      * Expires At
      */
@@ -5587,7 +5583,7 @@ export type ScoreMemberRemoveResponses = {
     /**
      * Successful Response
      */
-    200: MemberRead;
+    204: void;
 };
 
 export type ScoreMemberRemoveResponse = ScoreMemberRemoveResponses[keyof ScoreMemberRemoveResponses];

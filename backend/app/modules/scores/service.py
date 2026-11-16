@@ -64,7 +64,9 @@ class ScoreService:
         )
 
     def get(self, db: Session, score_uuid: str, user_id: int) -> ScoreRead:
-        access = self.access_policy.authorize(db, score_uuid, ScoreAction.VIEW, user_id=user_id)
+        access = self.access_policy.authorize_score(
+            db, score_uuid, ScoreAction.VIEW, user_id=user_id
+        )
         return self._read(db, access.score, access.capabilities)
 
     def batch_delete(self, db: Session, score_uuids: list[str], user_id: int) -> int:
@@ -84,7 +86,9 @@ class ScoreService:
         user_id: int,
         request: ScoreUpdateRequest,
     ) -> ScoreRead:
-        access = self.access_policy.authorize(db, score_uuid, ScoreAction.EDIT, user_id=user_id)
+        access = self.access_policy.authorize_score(
+            db, score_uuid, ScoreAction.EDIT, user_id=user_id
+        )
         score = self.repository.get(db, access.score.score_uuid, lock=True)
         assert score is not None
         if score.version != request.expected_version:
@@ -112,7 +116,9 @@ class ScoreService:
         asset_uuid: str,
         user_id: int,
     ) -> StoredObjectDelivery:
-        access = self.access_policy.authorize(db, score_uuid, ScoreAction.EDIT, user_id=user_id)
+        access = self.access_policy.authorize_score(
+            db, score_uuid, ScoreAction.EDIT, user_id=user_id
+        )
         score_id = require_persisted_id(access.score.id, entity="score")
         row = (
             db.execute(

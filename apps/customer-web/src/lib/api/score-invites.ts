@@ -18,7 +18,7 @@ export const scoreInvitesApi = {
   updateMember: (scoreId: string, membershipId: number, input: MemberUpdateRequest) =>
     responseBody(scoreMemberUpdate({ ...customerTransport.authenticated, path: { score_id: scoreId, membership_id: membershipId }, body: input })),
   removeMember: (scoreId: string, membershipId: number) =>
-    responseBody(scoreMemberRemove({ ...customerTransport.authenticated, path: { score_id: scoreId, membership_id: membershipId } })),
+    responseComplete(scoreMemberRemove({ ...customerTransport.authenticated, path: { score_id: scoreId, membership_id: membershipId } })),
   inspectInvite: (token: string, signal?: AbortSignal) =>
     responseBody(scoreInviteInspect({ ...customerTransport.public, path: { token: token }, signal })),
   acceptInvite: (token: string) =>

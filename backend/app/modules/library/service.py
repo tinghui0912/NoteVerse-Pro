@@ -194,7 +194,7 @@ class LibraryService:
     ) -> list[ScoreLibraryOrganization]:
         rows = []
         for uuid in sorted(set(score_uuids)):
-            self.access_policy.authorize(db, uuid, ScoreAction.VIEW, user_id=user_id)
+            self.access_policy.authorize_score(db, uuid, ScoreAction.VIEW, user_id=user_id)
             score = self.score_repository.get(db, uuid, lock=True)
             if score is None:
                 raise ResourceNotFoundException("score", uuid)

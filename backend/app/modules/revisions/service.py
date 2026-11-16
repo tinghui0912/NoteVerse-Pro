@@ -63,7 +63,9 @@ class RevisionService:
     def create(
         self, db: Session, score_uuid: str, user_id: int, request: RevisionCreateRequest
     ) -> RevisionRead:
-        access = self.access_policy.authorize(db, score_uuid, ScoreAction.EDIT, user_id=user_id)
+        access = self.access_policy.authorize_score(
+            db, score_uuid, ScoreAction.EDIT, user_id=user_id
+        )
         content = admit_musicxml_document(request.content.encode("utf-8"))
         return self._append(
             db,
@@ -118,7 +120,7 @@ class RevisionService:
                 content=content,
                 content_type="application/vnd.recordare.musicxml+xml",
             )
-            self.access_policy.authorize(db, score_uuid, ScoreAction.EDIT, user_id=user_id)
+            self.access_policy.authorize_score(db, score_uuid, ScoreAction.EDIT, user_id=user_id)
             prepared = PreparedRevisionSource(
                 revision_uuid,
                 receipt,
@@ -159,7 +161,9 @@ class RevisionService:
         limit: int,
         cursor: int | None = None,
     ) -> RevisionListRead:
-        access = self.access_policy.authorize(db, score_uuid, ScoreAction.EDIT, user_id=user_id)
+        access = self.access_policy.authorize_score(
+            db, score_uuid, ScoreAction.EDIT, user_id=user_id
+        )
         score_id = require_persisted_id(access.score.id, entity="score")
         revisions, next_cursor = self.repository.revisions(db, score_id, limit=limit, cursor=cursor)
         return RevisionListRead(
@@ -175,7 +179,7 @@ class RevisionService:
         user_id: int,
         request: RevisionRestoreRequest | None = None,
     ) -> RevisionRead:
-        access = self.access_policy.authorize(
+        access = self.access_policy.authorize_revision(
             db, score_uuid, ScoreAction.EDIT, user_id=user_id, revision_uuid=revision_uuid
         )
         target = access.revision
@@ -213,7 +217,7 @@ class RevisionService:
         user_id: int,
         request: RevisionNoteUpdateRequest,
     ) -> RevisionRead:
-        access = self.access_policy.authorize(
+        access = self.access_policy.authorize_revision(
             db,
             score_uuid,
             ScoreAction.EDIT,
@@ -221,9 +225,7 @@ class RevisionService:
             revision_uuid=revision_uuid,
         )
         score_id = require_persisted_id(access.score.id, entity="score")
-        revision = self.repository.revision(db, revision_uuid)
-        if not revision or revision.score_id != score_id:
-            raise ResourceNotFoundException("revision", revision_uuid, ErrorCode.REVISION_NOT_FOUND)
+        revision = access.revision
         revision_id = require_persisted_id(revision.id, entity="score revision")
         note_text = request.note.strip() if request.note else ""
         existing = (
@@ -256,17 +258,14 @@ class RevisionService:
     def content(
         self, db: Session, score_uuid: str, revision_uuid: str, user_id: int
     ) -> RevisionContentRead:
-        access = self.access_policy.authorize(
+        access = self.access_policy.authorize_revision(
             db,
             score_uuid,
             ScoreAction.EDIT,
             user_id=user_id,
             revision_uuid=revision_uuid,
         )
-        score = access.score
-        revision = self.repository.revision(db, revision_uuid)
-        if not revision or revision.score_id != score.id:
-            raise ResourceNotFoundException("revision", revision_uuid, ErrorCode.REVISION_NOT_FOUND)
+        revision = access.revision
         source = self.asset_repository.canonical_source(
             db, require_persisted_id(revision.id, entity="score revision")
         )

@@ -11,7 +11,23 @@ from app.db.model_utils import require_persisted_id
 from .pagination import decode_cursor, encode_cursor
 
 
-class ScoreInviteRepository:
+class CollaborationRepository:
+    def users(self, db: Session, user_ids: set[int]) -> dict[int, User]:
+        if not user_ids:
+            return {}
+        return {
+            require_persisted_id(user.id, entity="user"): user
+            for user in db.scalars(select(User).where(User.id.in_(user_ids)))
+        }
+
+    def scores(self, db: Session, score_ids: set[int]) -> dict[int, Score]:
+        if not score_ids:
+            return {}
+        return {
+            require_persisted_id(score.id, entity="score"): score
+            for score in db.scalars(select(Score).where(Score.id.in_(score_ids)))
+        }
+
     def invite_by_token_hash(
         self, db: Session, token_hash: str, *, lock: bool = False
     ) -> ScoreInvite | None:
@@ -173,7 +189,9 @@ class ScoreInviteRepository:
     ) -> tuple[list[ScoreMembership], str | None]:
         position = decode_cursor(cursor, kind="members", scope=str(score_id))
         columns = ScoreMembership.__table__.c
-        query = select(ScoreMembership).where(columns.score_id == score_id)
+        query = select(ScoreMembership).where(
+            columns.score_id == score_id, columns.revoked_at.is_(None)
+        )
         if position:
             created_at, row_id = position
             query = query.where(

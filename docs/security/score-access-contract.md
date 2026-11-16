@@ -4,6 +4,12 @@ ScoreAccessPolicy evaluates authenticated actions against owner and active membe
 facts. Library organization grants no access. Owner/member endpoints enforce their
 actions server-side; UI capability flags do not replace authorization.
 
+`resolve_score` / `authorize_score` return Score access without resolving a Revision.
+`resolve_revision` / `authorize_revision` explicitly select the current head or requested
+same-Score revision. `score_access.roles` owns role strength and capabilities.
+Collaboration's InvitationService owns invitations; MembershipService owns current members.
+Collection projections bulk-hydrate user, avatar and Score facts with bounded queries.
+
 Membership roles are VIEWER, PRACTITIONER and EDITOR. VIEWER receives presentation
 only; PRACTITIONER can practice; EDITOR can practice and edit. Only the owner can use
 explicit source/render download, archive and access-URL operations. Raw input delivery,
@@ -27,6 +33,9 @@ admission atomically. Revoke retries preserve the recorded terminal time and act
 Owner member removal and Self Leave change current membership access without
 rewriting invitation history. Only explicit acceptance of a new valid Invite can
 reactivate revoked membership; owner role PATCH cannot restore it.
+Member collections contain active memberships only. Remove and leave return bodyless
+204 responses and preserve the first revocation instant on retry. Invitations require
+a target email; owners cannot invite themselves.
 
 Guest Preview is a separate anonymous, presentation-only bearer channel. Each Score
 owns one stable high-entropy token and an enabled flag. Only its owner can retrieve

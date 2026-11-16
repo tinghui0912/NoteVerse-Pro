@@ -9,7 +9,11 @@ from app.db.models import (
     ScoreRevision,
     ScoreMembership,
 )
-from app.modules.score_access.policy import ScoreAccessContext, ScoreAccessPolicy, ScoreAction
+from app.modules.score_access.policy import (
+    ScoreRevisionAccessContext,
+    ScoreAccessPolicy,
+    ScoreAction,
+)
 from app.shared.constants import ErrorCode
 
 
@@ -20,7 +24,7 @@ def lock_live_practice_mutation_access(
     user_id: int,
     score_uuid: str,
     revision_uuid: str,
-) -> ScoreAccessContext:
+) -> ScoreRevisionAccessContext:
     """Keep Score, Revision and the selected access facts locked until caller commit.
 
     Score precedes Revision and Bundle, matching Score deletion and Bundle creation.
@@ -52,7 +56,7 @@ def lock_live_practice_mutation_access(
     ).scalar_one_or_none()
     if revision is None:
         raise ResourceNotFoundException("revision", revision_uuid, ErrorCode.REVISION_NOT_FOUND)
-    access = policy.authorize(
+    access = policy.authorize_revision(
         db, score_uuid, ScoreAction.PRACTICE, user_id=user_id, revision_uuid=revision_uuid
     )
     authority = (
@@ -70,7 +74,7 @@ def lock_live_practice_mutation_access(
         ).scalar_one_or_none()
         if membership is None:
             raise UnauthorizedException(ErrorCode.NO_PRACTICE_ACCESS)
-    current = policy.authorize(
+    current = policy.authorize_revision(
         db, score_uuid, ScoreAction.PRACTICE, user_id=user_id, revision_uuid=revision_uuid
     )
     if authority != (

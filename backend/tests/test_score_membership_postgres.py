@@ -12,10 +12,11 @@ from sqlalchemy.orm import Session
 
 from app.db.models import User, ScoreMembership, ScoreInvite
 from app.db.models.score_access import MembershipRole
-from app.modules.score_invites.service import ScoreInviteService
-from app.modules.score_invites.schemas import MemberUpdateRequest
+from app.modules.collaboration.invitation_service import InvitationService
+from app.modules.collaboration.membership_service import MembershipService
+from app.modules.collaboration.schemas import MemberUpdateRequest
 from app.core.exceptions import ValidationException
-from app.modules.score_invites.rules import hash_invite_token
+from app.modules.collaboration.invite_lifecycle import hash_invite_token
 from tests.support.postgres_schema import postgres_schema_database
 from tests.test_score_revision_services import add_active_score_with_head_revision
 
@@ -64,7 +65,8 @@ def test_membership_lifecycle_serializes_after_locked_reread(monkeypatch, first,
             )
             setup.commit()
             member_id = member.id
-        service = ScoreInviteService()
+        invitations = InvitationService()
+        service = MembershipService()
 
         def command_for(db, action):
             if action == "leave":
@@ -76,7 +78,7 @@ def test_membership_lifecycle_serializes_after_locked_reread(monkeypatch, first,
                     db, "shared", member_id, 1, MemberUpdateRequest(role=MembershipRole.EDITOR)
                 )
             else:
-                service.accept_invite(db, "new-invite", 2)
+                invitations.accept_invite(db, "new-invite", 2)
 
         # Keep the first command's actual mutation/row lock open until contention is observed.
 

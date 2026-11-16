@@ -61,7 +61,6 @@ const member = (id: number): MemberRead => ({
   avatar_url: null,
   role: 'VIEWER',
   created_at: timestamp,
-  revoked_at: null,
 });
 const pending = (id: string): PendingInviteRead => ({
   invite_id: id,
@@ -244,12 +243,12 @@ it.each(['ACCEPTED', 'DECLINED', 'REVOKED', 'EXPIRED'] as const)(
 it('refreshes the members collection after removal', async () => {
   api.listMembers
     .mockResolvedValueOnce(page([member(1)]))
-    .mockResolvedValue(page([{ ...member(1), revoked_at: timestamp }]));
-  api.removeMember.mockResolvedValue({ ...member(1), revoked_at: timestamp });
+    .mockResolvedValue(page([]));
+  api.removeMember.mockResolvedValue(undefined);
   render(<ScoreCollaborationPanel scoreId="score" scoreDisplayTitle="Score" />, { wrapper: wrapper() });
   await screen.findByText('member-1@example.com');
   await userEvent.click(screen.getByRole('button', { name: 'remove' }));
   await waitFor(() => expect(api.listMembers).toHaveBeenCalledTimes(2));
-  expect(screen.getByText('member-1@example.com')).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'remove' })).toBeDisabled();
+  await waitFor(() => expect(screen.queryByText('member-1@example.com')).not.toBeInTheDocument());
+  expect(screen.queryByRole('button', { name: 'remove' })).not.toBeInTheDocument();
 });

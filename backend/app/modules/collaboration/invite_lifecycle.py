@@ -1,6 +1,9 @@
 """Effective invitation lifecycle derives from optional actor outcome and expiry."""
 
+import hashlib
+import secrets
 from datetime import datetime
+from app.db.models import User
 from enum import Enum
 
 from app.core.exceptions import ValidationException
@@ -35,3 +38,22 @@ def require_pending_invite(invite: ScoreInvite, *, field: str, now: datetime) ->
         InviteStatus.DECLINED: ErrorCode.INVITE_DECLINED,
     }[status]
     raise ValidationException(code, field=field)
+
+
+INVITE_TOKEN_BYTES = 32
+
+
+def hash_invite_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def generate_invite_token() -> str:
+    return secrets.token_urlsafe(INVITE_TOKEN_BYTES)
+
+
+def can_user_accept_invite(invite: ScoreInvite, user: User | None, *, now: datetime) -> bool:
+    if user is None:
+        return False
+    if effective_invite_status(invite, now=now) != InviteStatus.PENDING:
+        return False
+    return invite.email == user.email.lower()

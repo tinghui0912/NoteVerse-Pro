@@ -45,7 +45,7 @@ class PracticeBundleService:
         self.repository = repository or PracticeBundleRepository(self.storage)
 
     def resolve_bundle(self, db: Session, score_uuid: str, user_id: int, revision_uuid: str):
-        access = self.access_policy.authorize(
+        access = self.access_policy.authorize_revision(
             db, score_uuid, ScoreAction.PRACTICE, user_id=user_id, revision_uuid=revision_uuid
         )
         score_id = require_persisted_id(access.score.id, entity="score")

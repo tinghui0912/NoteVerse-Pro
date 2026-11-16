@@ -256,14 +256,14 @@ def test_display_title_and_revision_notation_title_have_independent_lifecycles(c
             n.score_display_title_snapshot == "Moonlight Sonata" for n in snapshots
         )
         from app.db.models import MailOutbox
-        from app.modules.score_invites.service import ScoreInviteService
-        from app.modules.score_invites.schemas import InviteCreateRequest
+        from app.modules.collaboration.invitation_service import InvitationService
+        from app.modules.collaboration.schemas import InviteCreateRequest
 
-        invite = ScoreInviteService().create_invite(
+        invite = InvitationService().create_invite(
             db, score_id, 1, InviteCreateRequest(email="invite@example.com", locale="en")
         )
         assert (
-            ScoreInviteService().inspect_invite(db, invite.token, None).score_display_title
+            InvitationService().inspect_invite(db, invite.token, None).score_display_title
             == "Moonlight Sonata"
         )
         mail = db.scalar(sa.select(MailOutbox).where(MailOutbox.recipient == "invite@example.com"))

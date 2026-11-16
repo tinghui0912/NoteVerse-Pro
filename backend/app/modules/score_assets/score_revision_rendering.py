@@ -82,7 +82,7 @@ class ScoreRevisionRenderService:
         *,
         profile: str = "default",
     ) -> list[RenderAssetRead]:
-        access = self.access_policy.authorize(
+        access = self.access_policy.authorize_revision(
             db,
             score_uuid,
             ScoreAction.EDIT,
@@ -111,7 +111,7 @@ class ScoreRevisionRenderService:
                 )
                 uploaded_keys.append(written.object_key)
                 pages.append(dict(written=written, **item))
-            access = self.access_policy.authorize(
+            access = self.access_policy.authorize_revision(
                 db, score_uuid, ScoreAction.EDIT, user_id=user_id, revision_uuid=revision_uuid
             )
             manifest = get_or_create_execution_manifest(db, build_render_execution_manifest())

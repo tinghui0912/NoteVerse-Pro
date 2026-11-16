@@ -48,7 +48,7 @@ app/modules/
 |-- review
 |-- score_access
 |-- score_assets
-|-- score_invites
+|-- collaboration
 |-- guest_previews
 |-- scores
 `-- storage_usage

@@ -32,7 +32,7 @@ class MetadataProjectionService:
         self.access_policy = access_policy or ScoreAccessPolicy()
 
     def get(self, db: Session, score_uuid: str, revision_uuid: str, user_id: int) -> MetadataRead:
-        access = self.access_policy.authorize(
+        access = self.access_policy.authorize_revision(
             db,
             score_uuid,
             ScoreAction.VIEW,

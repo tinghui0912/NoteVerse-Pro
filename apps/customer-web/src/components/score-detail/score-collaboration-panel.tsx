@@ -25,6 +25,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ApiError } from '@/lib/http/customer-browser-transport';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { formatApiDateTime } from '@/lib/date-time';
+import { selectableMembershipRoles, membershipRoleTranslationKey } from '@/lib/membership-role';
 import type { MembershipRole } from '@/generated/api';
 
 function absoluteInviteUrl(token: string, locale: string) {
@@ -155,9 +156,9 @@ export function ScoreCollaborationPanel({
                 <Select value={role} onValueChange={(value) => setRole(value as MembershipRole)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="VIEWER">{t('viewer')}</SelectItem>
-                    <SelectItem value="PRACTITIONER">{t('practitioner')}</SelectItem>
-                    <SelectItem value="EDITOR">{t('editor')}</SelectItem>
+                    {selectableMembershipRoles.map((role) => (
+                      <SelectItem key={role} value={role}>{t(membershipRoleTranslationKey[role])}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -187,7 +188,7 @@ export function ScoreCollaborationPanel({
                     </div>
                     <Select
                       value={member.role}
-                      disabled={busy || Boolean(member.revoked_at)}
+                      disabled={busy}
                       onValueChange={(nextRole) => updateMember.mutate({
                         membershipId: member.membership_id,
                         role: nextRole as MembershipRole,
@@ -195,15 +196,15 @@ export function ScoreCollaborationPanel({
                     >
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="VIEWER">{t('viewer')}</SelectItem>
-                        <SelectItem value="PRACTITIONER">{t('practitioner')}</SelectItem>
-                        <SelectItem value="EDITOR">{t('editor')}</SelectItem>
+                        {selectableMembershipRoles.map((role) => (
+                      <SelectItem key={role} value={role}>{t(membershipRoleTranslationKey[role])}</SelectItem>
+                    ))}
                       </SelectContent>
                     </Select>
                     <Button
                       variant="outline"
                       size="sm"
-                      disabled={busy || Boolean(member.revoked_at)}
+                      disabled={busy}
                       onClick={() => removeMember.mutate(member.membership_id)}
                     >
                       <Trash2 className="mr-1 h-3.5 w-3.5" />
@@ -241,7 +242,7 @@ export function ScoreCollaborationPanel({
                         <div className="min-w-0">
                           <p className="truncate font-medium">{invite.email}</p>
                           <p className="truncate text-sm text-muted-foreground">
-                            {t(`status.${invite.status.toLowerCase()}`)} · {t(invite.role.toLowerCase())}
+                            {t(`status.${invite.status.toLowerCase()}`)} · {t(membershipRoleTranslationKey[invite.role])}
                             {invite.expires_at ? ` · ${formatApiDateTime(invite.expires_at, locale)}` : ''}
                           </p>
                         </div>

@@ -1,5 +1,6 @@
 'use client';
 
+import { membershipRoleTranslationKey } from '@/lib/membership-role';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { Bell, Check, MailPlus, X } from 'lucide-react';
@@ -171,7 +172,7 @@ export function NotificationCenterDialog({ open, onOpenChange }: NotificationCen
                             </div>
                             <div className="mt-3 flex flex-wrap items-center gap-2">
                               <Badge variant="secondary">
-                                {collaborationT(invite.role.toLowerCase())}
+                                {collaborationT(membershipRoleTranslationKey[invite.role])}
                               </Badge>
                               {invite.expires_at ? (
                                 <span className="text-xs text-muted-foreground">

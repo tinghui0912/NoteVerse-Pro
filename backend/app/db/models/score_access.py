@@ -46,7 +46,14 @@ class ScoreMembership(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "score_memberships"
     __table_args__ = (
         UniqueConstraint("score_id", "user_id", name="uq_score_memberships_score_user"),
-        Index("idx_score_memberships_score_created", "score_id", "created_at", "id"),
+        Index(
+            "idx_score_memberships_score_active_created",
+            "score_id",
+            "created_at",
+            "id",
+            postgresql_where=text("revoked_at IS NULL"),
+            sqlite_where=text("revoked_at IS NULL"),
+        ),
         Index("idx_score_memberships_user_active", "user_id", "revoked_at"),
     )
 
@@ -111,7 +118,7 @@ class ScoreInvite(SQLModel, table=True):  # type: ignore[call-arg]
         )
     )
     token_hash: str = Field(sa_column=Column(String(64), nullable=False))
-    email: Optional[str] = Field(default=None, sa_column=Column(String(255)))
+    email: str = Field(sa_column=Column(String(255), nullable=False))
     role: MembershipRole = Field(
         sa_column=Column(SAEnum(MembershipRole, name="membershiprole"), nullable=False)
     )

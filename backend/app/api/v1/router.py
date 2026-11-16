@@ -24,9 +24,9 @@ from app.modules.score_assets.router import score_router as score_assets
 from app.modules.score_assets.router import source_router as revision_sources
 from app.modules.guest_previews.router import preview_router as guest_preview_entries
 from app.modules.guest_previews.router import score_router as guest_previews
-from app.modules.score_invites.router import invite_router as score_invite_entries
-from app.modules.score_invites.router import me_router as score_invite_me
-from app.modules.score_invites.router import score_router as score_invites
+from app.modules.collaboration.router import invite_router as score_invite_entries
+from app.modules.collaboration.router import me_router as score_invite_me
+from app.modules.collaboration.router import score_router as score_invites
 
 from app.shared.responses import ApiErrorResponse
 

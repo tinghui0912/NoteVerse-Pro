@@ -144,7 +144,7 @@ def test_representation_serialization_rejects_timezone_free_programming_values()
     ],
 )
 def test_invitation_expiry_is_an_explicit_instant(value, accepted):
-    from app.modules.score_invites.schemas import InviteCreateRequest
+    from app.modules.collaboration.schemas import InviteCreateRequest
 
     if accepted:
         request = InviteCreateRequest(email="invite@example.com", expires_at=value)

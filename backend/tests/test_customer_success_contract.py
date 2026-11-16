@@ -19,8 +19,8 @@ from app.modules.import_jobs.dependencies import get_import_job_service
 from app.modules.import_jobs.schemas import ImportJobSubmitRead
 from app.modules.library.dependencies import get_library_service
 from app.modules.library.schemas import LibraryFolderRead
-from app.modules.score_invites.dependencies import get_score_invite_service
-from app.modules.score_invites.schemas import InviteListRead
+from app.modules.collaboration.dependencies import get_invitation_service
+from app.modules.collaboration.schemas import InviteListRead
 from app.shared.api_model import ApiModel
 
 
@@ -41,6 +41,7 @@ BODYLESS_COMMANDS = {
     "importJobDelete",
     "libraryFolderDelete",
     "scoreMembershipLeave",
+    "scoreMemberRemove",
     "performanceTakeUploadCancel",
     "performanceTakeDelete",
 }
@@ -146,7 +147,7 @@ def test_real_customer_routes_return_direct_nested_representations_pages_and_emp
     app.dependency_overrides[get_library_service] = lambda: library
     app.dependency_overrides[get_import_job_service] = lambda: imports
     app.dependency_overrides[get_upload_service] = lambda: uploads
-    app.dependency_overrides[get_score_invite_service] = lambda: SimpleNamespace(
+    app.dependency_overrides[get_invitation_service] = lambda: SimpleNamespace(
         list_invites=Mock(return_value=InviteListRead(items=[], next_cursor="opaque"))
     )
     with TestClient(app) as client:

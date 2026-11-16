@@ -1029,15 +1029,8 @@
             "type": "boolean"
           },
           "email": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Email"
+            "title": "Email",
+            "type": "string"
           },
           "expires_at": {
             "anyOf": [
@@ -1195,15 +1188,8 @@
             ]
           },
           "email": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Email"
+            "title": "Email",
+            "type": "string"
           },
           "expires_at": {
             "anyOf": [
@@ -1315,15 +1301,8 @@
             ]
           },
           "email": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Email"
+            "title": "Email",
+            "type": "string"
           },
           "expires_at": {
             "anyOf": [
@@ -1770,18 +1749,6 @@
             "title": "Membership Id",
             "type": "integer"
           },
-          "revoked_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Revoked At"
-          },
           "role": {
             "$ref": "#/components/schemas/MembershipRole"
           }
@@ -1792,8 +1759,7 @@
           "email",
           "avatar_url",
           "role",
-          "created_at",
-          "revoked_at"
+          "created_at"
         ],
         "title": "MemberRead",
         "type": "object"
@@ -2147,15 +2113,8 @@
             "type": "string"
           },
           "email": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Email"
+            "title": "Email",
+            "type": "string"
           },
           "expires_at": {
             "anyOf": [
@@ -10688,14 +10647,7 @@
           }
         ],
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MemberRead"
-                }
-              }
-            },
+          "204": {
             "description": "Successful Response"
           },
           "422": {

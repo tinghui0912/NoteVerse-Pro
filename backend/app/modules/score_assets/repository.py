@@ -9,6 +9,7 @@ from sqlmodel import col
 from app.db.models import (
     PlaybackAssetKind,
     PlaybackOutbox,
+    Score,
     ScorePlaybackAsset,
     ScoreRenderAsset,
     ScoreRevision,
@@ -123,5 +124,12 @@ class ScoreAssetRepository:
             )
         ).scalar_one_or_none()
 
-    def revision_for_asset(self, db: Session, asset: ScoreAssetRecord) -> ScoreRevision | None:
-        return db.get(ScoreRevision, asset.revision_id)
+    def revision_identity_for_asset(
+        self, db: Session, asset: ScoreAssetRecord
+    ) -> tuple[str, str] | None:
+        row = db.execute(
+            select(Score.score_uuid, ScoreRevision.revision_uuid)
+            .join(ScoreRevision, ScoreRevision.score_id == Score.id)
+            .where(ScoreRevision.id == asset.revision_id)
+        ).one_or_none()
+        return (row[0], row[1]) if row is not None else None

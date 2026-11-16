@@ -14,8 +14,8 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import ValidationException
 from app.db.models import User, ScoreInvite, ScoreMembership
 from app.db.models.score_access import MembershipRole, InviteTerminalOutcome
-from app.modules.score_invites.rules import hash_invite_token
-from app.modules.score_invites.service import ScoreInviteService
+from app.modules.collaboration.invite_lifecycle import hash_invite_token
+from app.modules.collaboration.invitation_service import InvitationService
 from app.shared.constants import ErrorCode
 from app.shared.time import utc_now
 from tests.support.postgres_schema import postgres_schema_database
@@ -87,7 +87,7 @@ def test_invite_terminal_commands_serialize_on_postgres_row(
                 )
             setup.commit()
             invite_id = invite.id
-        service = ScoreInviteService()
+        service = InvitationService()
 
         def actor_command(db, action):
             if action == "accept":
@@ -213,7 +213,7 @@ def test_invite_outcome_and_notification_share_one_transaction(monkeypatch, acti
             )
             db.commit()
         with Session(engine) as db:
-            service = ScoreInviteService()
+            service = InvitationService()
             if boundary != "success":
                 if boundary == "commit":
                     target, name, original = db, "commit", db.flush

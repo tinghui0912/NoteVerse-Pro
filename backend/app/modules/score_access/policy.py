@@ -14,9 +14,9 @@ from app.db.models import (
 )
 from app.db.models.score_access import (
     AccessOrigin,
-    MembershipRole,
 )
 from app.modules.score_access.schemas import ScoreCapabilities
+from app.modules.score_access.roles import membership_capabilities, owner_capabilities
 from app.modules.score_access.queries import active_score_predicate, active_membership_predicate
 from app.shared.constants import ErrorCode
 
@@ -35,6 +35,14 @@ class ScoreAction(str, enum.Enum):
 @dataclass(frozen=True)
 class ScoreAccessContext:
     score: Score
+    origin: AccessOrigin
+    capabilities: ScoreCapabilities
+    membership: ScoreMembership | None = None
+
+
+@dataclass(frozen=True)
+class ScoreRevisionAccessContext:
+    score: Score
     revision: ScoreRevision
     origin: AccessOrigin
     capabilities: ScoreCapabilities
@@ -42,87 +50,71 @@ class ScoreAccessContext:
 
 
 class ScoreAccessPolicy:
-    def resolve(
+    def resolve_score(
+        self, db: Session, score_uuid: str, *, user_id: int | None = None
+    ) -> ScoreAccessContext:
+        score = db.scalar(
+            select(Score).where(Score.score_uuid == score_uuid, active_score_predicate())
+        )
+        if score is None:
+            raise ResourceNotFoundException("score", score_uuid, ErrorCode.SCORE_NOT_FOUND)
+        if user_id == score.owner_user_id:
+            return ScoreAccessContext(score, AccessOrigin.OWNER, owner_capabilities())
+        if user_id is not None:
+            membership = db.scalar(
+                select(ScoreMembership).where(
+                    ScoreMembership.score_id == score.id, active_membership_predicate(user_id)
+                )
+            )
+            if membership is not None:
+                return ScoreAccessContext(
+                    score,
+                    AccessOrigin.MEMBERSHIP,
+                    membership_capabilities(membership.role),
+                    membership,
+                )
+        raise UnauthorizedException(ErrorCode.NO_ACCESS, {"score_id": score_uuid})
+
+    def authorize_score(
+        self, db: Session, score_uuid: str, action: ScoreAction, *, user_id: int | None = None
+    ) -> ScoreAccessContext:
+        access = self.resolve_score(db, score_uuid, user_id=user_id)
+        self._require_action(access, score_uuid, action)
+        return access
+
+    def resolve_revision(
         self,
         db: Session,
         score_uuid: str,
         *,
         user_id: int | None = None,
         revision_uuid: str | None = None,
-    ) -> ScoreAccessContext:
-        score = (
-            db.execute(
-                select(Score).where(
-                    Score.score_uuid == score_uuid,
-                    active_score_predicate(),
-                )
-            )
-        ).scalar_one_or_none()
-        if not score:
-            raise ResourceNotFoundException("score", score_uuid, ErrorCode.SCORE_NOT_FOUND)
+    ) -> ScoreRevisionAccessContext:
+        access = self.resolve_score(db, score_uuid, user_id=user_id)
+        revision = self._revision(db, access.score, revision_uuid)
+        return ScoreRevisionAccessContext(
+            access.score, revision, access.origin, access.capabilities, access.membership
+        )
 
-        requested_revision = self._revision(db, score, revision_uuid)
-        if user_id == score.owner_user_id:
-            return ScoreAccessContext(
-                score=score,
-                revision=requested_revision,
-                origin=AccessOrigin.OWNER,
-                capabilities=ScoreCapabilities(
-                    can_view=True,
-                    can_edit=True,
-                    can_delete=True,
-                    can_leave=False,
-                    can_manage_guest_previews=True,
-                    can_manage_members=True,
-                    can_download=True,
-                    can_practice=True,
-                ),
-            )
-
-        if user_id is not None:
-            membership = (
-                db.execute(
-                    select(ScoreMembership).where(
-                        ScoreMembership.score_id == score.id,
-                        active_membership_predicate(user_id),
-                    )
-                )
-            ).scalar_one_or_none()
-            if membership:
-                editor = membership.role == MembershipRole.EDITOR
-                return ScoreAccessContext(
-                    score=score,
-                    revision=requested_revision,
-                    origin=AccessOrigin.MEMBERSHIP,
-                    membership=membership,
-                    capabilities=ScoreCapabilities(
-                        can_view=True,
-                        can_edit=editor,
-                        can_delete=False,
-                        can_leave=True,
-                        can_manage_guest_previews=False,
-                        can_manage_members=False,
-                        can_download=False,
-                        can_practice=membership.role
-                        in {MembershipRole.PRACTITIONER, MembershipRole.EDITOR},
-                    ),
-                )
-
-        raise UnauthorizedException(ErrorCode.NO_ACCESS, {"score_id": score_uuid})
-
-    def authorize(
+    def authorize_revision(
         self,
         db: Session,
         score_uuid: str,
         action: ScoreAction,
-        **context: object,
-    ) -> ScoreAccessContext:
-        access = self.resolve(
-            db,
-            score_uuid,
-            user_id=_optional_int(context.get("user_id")),
-            revision_uuid=_optional_str(context.get("revision_uuid")),
-        )
+        *,
+        user_id: int | None = None,
+        revision_uuid: str | None = None,
+    ) -> ScoreRevisionAccessContext:
+        access = self.resolve_revision(db, score_uuid, user_id=user_id, revision_uuid=revision_uuid)
+        self._require_action(access, score_uuid, action)
+        return access
+
+    @staticmethod
+    def _require_action(
+        access: ScoreAccessContext | ScoreRevisionAccessContext,
+        score_uuid: str,
+        action: ScoreAction,
+    ) -> None:
         allowed = {
             ScoreAction.VIEW: access.capabilities.can_view,
             ScoreAction.EDIT: access.capabilities.can_edit,
@@ -135,10 +127,8 @@ class ScoreAccessPolicy:
         }[action]
         if not allowed:
             raise UnauthorizedException(
-                _denial_code(action),
-                {"score_id": score_uuid, "action": action.value},
+                _denial_code(action), {"score_id": score_uuid, "action": action.value}
             )
-        return access
 
     def _revision(self, db: Session, score: Score, revision_uuid: str | None) -> ScoreRevision:
         if revision_uuid:
@@ -152,7 +142,7 @@ class ScoreAccessPolicy:
             ).scalar_one_or_none()
         else:
             revision = db.get(ScoreRevision, score.head_revision_id)
-        if not revision:
+        if not revision or revision.score_id != score.id:
             raise ResourceNotFoundException(
                 "revision", revision_uuid or "head", ErrorCode.REVISION_NOT_FOUND
             )
@@ -171,11 +161,3 @@ def _denial_code(action: ScoreAction) -> str:
     if action == ScoreAction.PRACTICE:
         return ErrorCode.NO_PRACTICE_ACCESS
     return ErrorCode.NO_ACCESS
-
-
-def _optional_str(value: object) -> str | None:
-    return value if isinstance(value, str) else None
-
-
-def _optional_int(value: object) -> int | None:
-    return value if isinstance(value, int) else None

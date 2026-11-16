@@ -32,10 +32,12 @@ from app.modules.practice.bundle.service import PracticeBundleService
 from app.modules.practice.bundle.router import get_practice_bundle_service
 from app.modules.score_assets.dependencies import get_score_asset_service
 from app.modules.scores.dependencies import get_score_service, get_revision_service
-from app.modules.score_invites.dependencies import get_score_invite_service
-from app.modules.score_invites.service import ScoreInviteService
-from app.modules.score_invites.schemas import InviteCreateRequest, MemberUpdateRequest
-from app.modules.score_invites.rules import ROLE_RANK
+from app.modules.collaboration.dependencies import get_invitation_service
+from app.modules.collaboration.invitation_service import InvitationService
+from app.modules.collaboration.schemas import InviteCreateRequest, MemberUpdateRequest
+from app.modules.score_access.roles import stronger_role
+from app.modules.collaboration.membership_service import MembershipService
+from app.modules.collaboration.dependencies import get_membership_service
 from app.shared.time import utc_now
 from tests.test_score_revision_services import score_service_session as score_service_session
 from tests.test_score_revision_services import (
@@ -145,14 +147,14 @@ def test_every_action_is_authorized_by_the_canonical_matrix(collaboration, role)
     session, _, score, db = collaboration
     user_id = member_for(session, role)
     policy = ScoreAccessPolicy()
-    access = policy.resolve(db, score.score_uuid, user_id=user_id)
+    access = policy.resolve_score(db, score.score_uuid, user_id=user_id)
     assert access.origin == (AccessOrigin.OWNER if role == "OWNER" else AccessOrigin.MEMBERSHIP)
     for action in ScoreAction:
         if action in ALLOWED[role]:
-            policy.authorize(db, score.score_uuid, action, user_id=user_id)
+            policy.authorize_score(db, score.score_uuid, action, user_id=user_id)
         else:
             with pytest.raises(UnauthorizedException):
-                policy.authorize(db, score.score_uuid, action, user_id=user_id)
+                policy.authorize_score(db, score.score_uuid, action, user_id=user_id)
 
 
 @pytest.mark.asyncio
@@ -178,7 +180,8 @@ async def test_http_source_disclosure_and_editing_boundaries(collaboration, role
         get_score_asset_service: ScoreAssetService(storage=storage),
         get_practice_bundle_service: source,
         get_playback_delivery_service: PlaybackDeliveryService(storage=storage),
-        get_score_invite_service: ScoreInviteService(),
+        get_invitation_service: InvitationService(),
+        get_membership_service: MembershipService(),
     }
 
     services[get_performance_take_finalization_service] = services[
@@ -315,7 +318,7 @@ def test_invite_acceptance_preserves_role_rank(collaboration, existing, invited,
             member.revoked_at = utc_now() - timedelta(days=1)
             session.add(member)
             session.commit()
-    service = ScoreInviteService()
+    service = InvitationService()
     created = service.create_invite(
         db,
         score.score_uuid,
@@ -336,25 +339,27 @@ def test_explicit_member_changes_and_revocation_apply_immediately(collaboration)
     session, _, score, db = collaboration
     member_for(session, "VIEWER")
     member = session.execute(select(ScoreMembership)).scalar_one()
-    service = ScoreInviteService()
+    service = MembershipService()
     policy = ScoreAccessPolicy()
     for role in ["PRACTITIONER", "EDITOR", "VIEWER"]:
         service.update_member(
             db, score.score_uuid, member.id, 1, MemberUpdateRequest(role=MembershipRole(role))
         )
-        access = policy.resolve(db, score.score_uuid, user_id=2)
+        access = policy.resolve_score(db, score.score_uuid, user_id=2)
         assert access.capabilities.can_practice == (role != "VIEWER")
         assert access.capabilities.can_edit == (role == "EDITOR")
     service.remove_member(db, score.score_uuid, member.id, 1)
     for action in [ScoreAction.VIEW, ScoreAction.PRACTICE, ScoreAction.EDIT]:
         with pytest.raises(UnauthorizedException):
-            policy.authorize(db, score.score_uuid, action, user_id=2)
+            policy.authorize_score(db, score.score_uuid, action, user_id=2)
 
 
 def test_least_privilege_default_and_exact_role_hierarchy():
     assert InviteCreateRequest(email="member@example.com").role == MembershipRole.VIEWER
-    assert ROLE_RANK == {
-        MembershipRole.VIEWER: 1,
-        MembershipRole.PRACTITIONER: 2,
-        MembershipRole.EDITOR: 3,
-    }
+    for existing in MembershipRole:
+        for invited in MembershipRole:
+            roles = list(MembershipRole)
+            assert (
+                stronger_role(existing, invited)
+                == roles[max(roles.index(existing), roles.index(invited))]
+            )

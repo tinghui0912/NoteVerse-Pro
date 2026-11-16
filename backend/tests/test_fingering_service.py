@@ -26,7 +26,9 @@ class AllowEditAccessPolicy:
     def __init__(self) -> None:
         self.calls: list[tuple[str, object, int]] = []
 
-    def authorize(self, _db: object, score_id: str, action: object, **context: object) -> object:
+    def authorize_score(
+        self, _db: object, score_id: str, action: object, **context: object
+    ) -> object:
         self.calls.append((score_id, action, int(context["user_id"])))
         return object()
 

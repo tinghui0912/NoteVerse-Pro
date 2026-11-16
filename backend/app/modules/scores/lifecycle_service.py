@@ -20,7 +20,9 @@ class ScoreLifecycleService:
         self.access_policy = access_policy or ScoreAccessPolicy()
 
     def delete_score(self, db: Session, score_uuid: str, user_id: int) -> None:
-        access = self.access_policy.authorize(db, score_uuid, ScoreAction.DELETE, user_id=user_id)
+        access = self.access_policy.authorize_score(
+            db, score_uuid, ScoreAction.DELETE, user_id=user_id
+        )
         try:
             score = self.repository.get(
                 db, access.score.score_uuid, lock=True, include_deleted=True

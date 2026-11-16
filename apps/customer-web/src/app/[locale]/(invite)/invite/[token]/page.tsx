@@ -1,5 +1,6 @@
 'use client';
 
+import { membershipRoleTranslationKey } from '@/lib/membership-role';
 import React from 'react';
 import { Ban, CheckCircle2, CircleAlert, Clock3, SearchX, UserPlus } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
@@ -78,7 +79,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
   returnUrl.searchParams.set('accept', '1');
   const loginHref = `/auth/login?returnUrl=${encodeURIComponent(`${returnUrl.pathname}${returnUrl.search}`)}`;
   const userEmail = user?.email.toLowerCase() ?? null;
-  const targetEmail = invite?.email?.toLowerCase() ?? null;
+  const targetEmail = invite?.email.toLowerCase() ?? null;
   const emailMatches = !targetEmail || !userEmail || targetEmail === userEmail;
   const refreshedAfterLoginRef = React.useRef(false);
   const autoAcceptRef = React.useRef(false);
@@ -158,14 +159,12 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
         <div className="space-y-3 rounded-lg border bg-muted/30 p-4 text-sm">
           <div className="flex justify-between gap-4">
             <span className="text-muted-foreground">{t('role')}</span>
-            <span className="font-medium">{t(invite.role.toLowerCase())}</span>
+            <span className="font-medium">{t(membershipRoleTranslationKey[invite.role])}</span>
           </div>
-          {invite.email ? (
-            <div className="flex justify-between gap-4">
-              <span className="text-muted-foreground">{t('email')}</span>
-              <span className="font-medium">{invite.email}</span>
-            </div>
-          ) : null}
+          <div className="flex justify-between gap-4">
+            <span className="text-muted-foreground">{t('email')}</span>
+            <span className="font-medium">{invite.email}</span>
+          </div>
           {invite.expires_at ? (
             <div className="flex justify-between gap-4">
               <span className="text-muted-foreground">{t('expiresAt')}</span>

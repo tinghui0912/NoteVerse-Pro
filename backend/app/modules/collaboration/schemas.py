@@ -8,7 +8,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from app.db.models.score_access import MembershipRole
-from app.modules.score_invites.lifecycle import InviteStatus
+from app.modules.collaboration.invite_lifecycle import InviteStatus
 from app.shared.pagination import CursorPage
 from app.shared.api_model import ApiModel
 
@@ -35,7 +35,7 @@ class InviteCreateRequest(BaseModel):
 
 class InviteRead(ApiModel):
     invite_id: str
-    email: str | None
+    email: str
     role: MembershipRole
     status: InviteStatus
     expires_at: Instant | None
@@ -54,7 +54,7 @@ class PendingInviteRead(ApiModel):
     score_id: str
     score_display_title: str
     inviter: InviteActorRead | None
-    email: str | None
+    email: str
     role: MembershipRole
     status: InviteStatus
     expires_at: Instant | None
@@ -66,7 +66,7 @@ class InviteAccessRead(ApiModel):
     score_id: str
     score_display_title: str
     inviter: InviteActorRead | None
-    email: str | None
+    email: str
     role: MembershipRole
     status: InviteStatus
     expires_at: Instant | None
@@ -87,7 +87,6 @@ class MemberRead(ApiModel):
     avatar_url: str | None
     role: MembershipRole
     created_at: Instant
-    revoked_at: Instant | None
 
 
 class MemberUpdateRequest(BaseModel):

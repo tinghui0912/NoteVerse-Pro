@@ -32,7 +32,7 @@ class PlaybackDeliveryReadModel:
         revision_uuid: str,
         user_id: int,
     ) -> StoredObjectDelivery:
-        access = self.access_policy.authorize(
+        access = self.access_policy.authorize_revision(
             db,
             score_uuid,
             ScoreAction.PRACTICE,

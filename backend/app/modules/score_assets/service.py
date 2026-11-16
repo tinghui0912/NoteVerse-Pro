@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from app.core.generated.customer_browser_protocol import CUSTOMER_API_PREFIX
 from app.core.exceptions import ResourceNotFoundException
 from app.db.model_utils import require_persisted_id
-from app.db.models import Score, ScoreRenderAsset, ScoreRevision, ScoreRevisionSource
+from app.db.models import ScoreRenderAsset, ScoreRevision, ScoreRevisionSource
 from app.db.models.score import RenderAssetKind
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.score_assets.repository import ScoreAssetRecord, ScoreAssetRepository
@@ -51,7 +51,7 @@ class ScoreAssetService:
         revision_uuid: str | None = None,
         include_sources: bool = True,
     ) -> ScoreRevisionAssetsRead:
-        access = self.access_policy.authorize(
+        access = self.access_policy.authorize_revision(
             db,
             score_uuid,
             ScoreAction.VIEW,
@@ -140,7 +140,7 @@ class ScoreAssetService:
         revision_uuid: str | None = None,
         kind: RenderAssetKind,
     ) -> tuple[io.BytesIO, str]:
-        access = self.access_policy.authorize(
+        access = self.access_policy.authorize_revision(
             db,
             score_uuid,
             ScoreAction.DOWNLOAD,
@@ -178,15 +178,7 @@ class ScoreAssetService:
             raise ResourceNotFoundException(
                 "revision_source", source_uuid, ErrorCode.FILE_NOT_FOUND
             )
-        revision = self.repository.revision_for_asset(db, source)
-        if not revision:
-            raise ResourceNotFoundException("revision", source_uuid, ErrorCode.REVISION_NOT_FOUND)
-        self._authorize_asset_revision(
-            db,
-            revision,
-            user_id,
-            action,
-        )
+        revision = self._authorize_asset_revision(db, source, source_uuid, user_id, action)
         return source, revision
 
     def _authorized_render_asset(
@@ -197,42 +189,35 @@ class ScoreAssetService:
         action: ScoreAction,
     ) -> tuple[ScoreRenderAsset, ScoreRevision]:
         render_asset = self.repository.get_render_asset(db, render_asset_uuid)
-        if not render_asset:
+        if render_asset is None:
             raise ResourceNotFoundException(
                 "render_asset", render_asset_uuid, ErrorCode.FILE_NOT_FOUND
             )
-        revision = self.repository.revision_for_asset(db, render_asset)
-        if not revision:
-            raise ResourceNotFoundException(
-                "revision", render_asset_uuid, ErrorCode.REVISION_NOT_FOUND
-            )
-        self._authorize_asset_revision(
-            db,
-            revision,
-            user_id,
-            action,
+        revision = self._authorize_asset_revision(
+            db, render_asset, render_asset_uuid, user_id, action
         )
         return render_asset, revision
 
     def _authorize_asset_revision(
         self,
         db: Session,
-        revision: ScoreRevision,
+        asset: ScoreAssetRecord,
+        asset_uuid: str,
         user_id: int | None,
         action: ScoreAction,
-    ) -> None:
-        score = db.get(Score, revision.score_id)
-        if not score:
-            raise ResourceNotFoundException(
-                "score", revision.revision_uuid, ErrorCode.SCORE_NOT_FOUND
-            )
-        self.access_policy.authorize(
+    ) -> ScoreRevision:
+        identity = self.repository.revision_identity_for_asset(db, asset)
+        if identity is None:
+            raise ResourceNotFoundException("revision", asset_uuid, ErrorCode.REVISION_NOT_FOUND)
+        score_uuid, revision_uuid = identity
+        access = self.access_policy.authorize_revision(
             db,
-            score.score_uuid,
+            score_uuid,
             action,
             user_id=user_id,
-            revision_uuid=revision.revision_uuid,
+            revision_uuid=revision_uuid,
         )
+        return access.revision
 
     def _delivery(self, asset: ScoreAssetRecord) -> StoredObjectDelivery:
         return StoredObjectDelivery.for_object(asset.stored_object, asset.filename)

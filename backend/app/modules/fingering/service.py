@@ -47,7 +47,7 @@ class FingeringService:
         self._execution = execution or fingering_execution_service
 
     def authorize_generation(self, db: Session, score_uuid: str, user_id: int) -> None:
-        self._access_policy.authorize(db, score_uuid, ScoreAction.EDIT, user_id=user_id)
+        self._access_policy.authorize_score(db, score_uuid, ScoreAction.EDIT, user_id=user_id)
 
     async def generate(self, score_uuid: str, request: FingeringRequest) -> FingeringResultRead:
         content = request.content.encode("utf-8")
