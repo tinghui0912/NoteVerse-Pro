@@ -5,10 +5,10 @@ import { NextIntlClientProvider } from 'next-intl';
 import type { ReactNode } from 'react';
 import { describe, expect, it } from 'vitest';
 
+import { importEditorMusicXml } from '@/lib/editor-musicxml';
 import { HistoryProvider, useHistory } from '@/contexts/editor-history-context';
 import { ScoreDataProvider, useScoreData } from '@/contexts/score-data-context';
 import type { EventId, RhythmicValue } from '@/lib/editor-domain';
-import { importMusicXmlToEditorDomain } from '@/lib/editor-domain';
 import {
   applyEditorDomainEditToXml,
   type EditorDomainEditResult,
@@ -64,7 +64,7 @@ describe('applyEditorDomainEditToXml', () => {
       </note>
     `);
 
-    const imported = importMusicXmlToEditorDomain(xml);
+    const imported = importEditorMusicXml(xml);
     const event = imported.document.events[0];
     expect(event?.kind).toBe('pitched');
     if (!event || event.kind !== 'pitched') return;
@@ -85,7 +85,7 @@ describe('applyEditorDomainEditToXml', () => {
     expect(result.xml).toContain('<stem>up</stem>');
     expect(result.refreshedSelection).toBeNull();
 
-    const reimported = importMusicXmlToEditorDomain(result.xml);
+    const reimported = importEditorMusicXml(result.xml);
     expect(reimported.document.events[0]).toMatchObject({
       id: event.id,
       kind: 'pitched',
@@ -110,7 +110,7 @@ describe('applyEditorDomainEditToXml', () => {
       </note>
     `);
 
-    const imported = importMusicXmlToEditorDomain(xml);
+    const imported = importEditorMusicXml(xml);
     const event = imported.document.events[0];
     expect(event?.kind).toBe('explicitRest');
     if (!event || event.kind !== 'explicitRest') return;
@@ -131,7 +131,7 @@ describe('applyEditorDomainEditToXml', () => {
     expect(result.xml).toContain('<duration>8</duration>');
     expect(result.refreshedSelection).toBeNull();
 
-    const reimported = importMusicXmlToEditorDomain(result.xml);
+    const reimported = importEditorMusicXml(result.xml);
     expect(reimported.document.events[0]).toMatchObject({
       id: event.id,
       kind: 'explicitRest',
@@ -167,7 +167,7 @@ describe('applyEditorDomainEditToXml', () => {
 
     expect(result).toEqual({
       success: false,
-      error: 'Failed to parse MusicXML.',
+      error: 'A valid score-partwise MusicXML document is required.',
     });
   });
 
@@ -187,7 +187,7 @@ describe('applyEditorDomainEditToXml', () => {
         <type>quarter</type>
       </note>
     `);
-    const imported = importMusicXmlToEditorDomain(xml);
+    const imported = importEditorMusicXml(xml);
     const event = imported.document.events[0];
     expect(event?.kind).toBe('pitched');
     if (!event || event.kind !== 'pitched') return;
@@ -206,7 +206,7 @@ describe('applyEditorDomainEditToXml', () => {
     expect(result.success).toBe(true);
     if (!result.success) return;
 
-    const reimported = importMusicXmlToEditorDomain(result.xml);
+    const reimported = importEditorMusicXml(result.xml);
     const reimportedEvent = reimported.document.events[0];
     expect(reimportedEvent?.kind).toBe('pitched');
     if (reimportedEvent?.kind !== 'pitched') return;
@@ -265,7 +265,7 @@ describe('applyEditorDomainEditToXml', () => {
 
     expect(clear.success).toBe(true);
     if (!clear.success) return;
-    const reimported = importMusicXmlToEditorDomain(clear.xml);
+    const reimported = importEditorMusicXml(clear.xml);
     const event = reimported.document.events[0];
     expect(event?.kind).toBe('pitched');
     if (event?.kind !== 'pitched') return;
@@ -320,7 +320,7 @@ describe('applyEditorDomainEditToXml', () => {
     expect(clear.xml).not.toContain('<alter>');
     expect(clear.xml).not.toContain('<accidental>');
 
-    const reimported = importMusicXmlToEditorDomain(clear.xml);
+    const reimported = importEditorMusicXml(clear.xml);
     const event = reimported.document.events[0];
     expect(event?.kind).toBe('pitched');
     if (event?.kind !== 'pitched') return;
@@ -342,7 +342,7 @@ describe('useEditorDomainEdit', () => {
         <type>quarter</type>
       </note>
     `);
-    const event = importMusicXmlToEditorDomain(xml).document.events[0];
+    const event = importEditorMusicXml(xml).document.events[0];
     expect(event?.kind).toBe('pitched');
     if (!event || event.kind !== 'pitched') return;
 

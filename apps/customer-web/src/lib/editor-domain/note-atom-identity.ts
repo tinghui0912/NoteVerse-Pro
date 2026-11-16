@@ -1,5 +1,3 @@
-import { createUniqueMusicXmlId } from '@/lib/musicxml';
-
 import type { NoteAtomId, PitchedEvent, ScoreDocument } from './model';
 
 export type AppendedNoteAtomIdentity = {
@@ -20,7 +18,12 @@ export function createAppendedNoteAtomIdentity(
 ): AppendedNoteAtomIdentity {
   const chordMemberNumber = event.notes.length + 1;
   const baseId = `${getIdentityBase(event)}-chord-${chordMemberNumber}`;
-  const musicXmlElementId = createUniqueMusicXmlId(baseId, collectUsedIdentityValues(document));
+  const usedIds = collectUsedIdentityValues(document);
+  let musicXmlElementId = baseId;
+  let suffix = 2;
+  while (usedIds.has(musicXmlElementId)) {
+    musicXmlElementId = `${baseId}-${suffix++}`;
+  }
 
   return {
     noteAtomId: musicXmlElementId as NoteAtomId,

@@ -8,12 +8,12 @@ import { beforeAll, describe, expect, it } from 'vitest';
 
 import commonMessages from '../../../messages/en/common.json';
 import editorMessages from '../../../messages/en/editor.json';
+import { importEditorMusicXml } from '@/lib/editor-musicxml';
 import { HistoryProvider, useHistory } from '@/contexts/editor-history-context';
 import { EditorStateProvider, useEditorState } from '@/contexts/editor-state-context';
 import { ScoreDataProvider, useScoreData } from '@/contexts/score-data-context';
 import {
   findVoiceEventByMusicXmlElementIds,
-  importMusicXmlToEditorDomain,
   type DomainAnchor,
 } from '@/lib/editor-domain';
 import { MusicXMLParser } from '@/lib/musicxml/parser';
@@ -70,7 +70,7 @@ function wrapper({ children }: { children: ReactNode }) {
 }
 
 function getDomainEventAnchor(xml: string, sourceIds: string[]): DomainAnchor {
-  const imported = importMusicXmlToEditorDomain(xml);
+  const imported = importEditorMusicXml(xml);
   const event = findVoiceEventByMusicXmlElementIds(imported.document, sourceIds);
   if (!event) {
     throw new Error(`Test fixture source ids do not resolve to a domain event: ${sourceIds.join(', ')}`);

@@ -21,15 +21,25 @@ Stem direction and relationship placement are notation intent. Renderer-computed
 beam slopes, notehead offsets and curves are engraving output and are not written
 back as canonical musical facts.
 
-MusicXML importer/exporter owns document-order cursor movement, divisions,
-forward/backup instructions and chord serialization. Voice identity is not the
-XML serialization cursor. Verovio IDs map through render/source anchors to
-domain anchors; rendered spaces are excluded from ordinary editable event hits.
+`apps/customer-web/src/lib/editor-musicxml` owns MusicXML import, opaque source
+preservation and source-aware serialization. Import returns a semantic document,
+timeline gaps and a `MusicXmlSourceSnapshot`. The snapshot holds source XML and
+stable DOM addresses; it does not define a second note, voice or score model.
+Only the editor document decides editing semantics. Serialization applies that
+intent to a fresh source clone, preserving unmodeled metadata, directions,
+lyrics, attributes and layout. It owns document-order cursor movement, inherited
+divisions and meter, forward/backup instructions and chord serialization.
+Supported edits are deterministic. Missing required musical facts, unsupported
+notation and edits that cannot be expressed safely fail explicitly rather than
+inventing musical defaults. Voice identity is not the XML serialization cursor.
+Verovio IDs map through render/source anchors to domain anchors; rendered spaces
+are excluded from ordinary editable event hits.
 
 ## Current write and read boundaries
 
 Domain commands and Inspector drafts operate on the domain document. Editor
-hooks export MusicXML, update history and refresh projections. A behavior has
+hooks import the source snapshot, apply domain commands, serialize with that same
+snapshot, update history and refresh projections. A behavior has
 one authoritative write path; adapters must not perform competing writes and
 merge them afterward.
 

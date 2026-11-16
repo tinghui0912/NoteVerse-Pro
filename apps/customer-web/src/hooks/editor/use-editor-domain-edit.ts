@@ -2,6 +2,7 @@
 
 import { useCallback } from 'react';
 import { useTranslations } from 'next-intl';
+import { importEditorMusicXml, serializeEditorMusicXml } from '@/lib/editor-musicxml';
 import { useHistory } from '@/contexts/editor-history-context';
 import { useScoreData } from '@/contexts/score-data-context';
 import { findEntityBySourceIds, type FindEntityResult } from '@/lib/editor/score-lookup';
@@ -12,8 +13,6 @@ import {
   applyInspectorEdit,
   deleteSlurRelationship,
   deleteTieRelationship,
-  exportEditorDomainToMusicXml,
-  importMusicXmlToEditorDomain,
   findNoteAtomByMusicXmlElementId,
   findVoiceEventByMusicXmlElementIds,
   setEventStemDirectionOverride,
@@ -47,7 +46,7 @@ export function applyEditorDomainEditToXml(params: {
   retargetNoteAtomSourceId?: string;
 }): EditorDomainEditResult {
   try {
-    const imported = importMusicXmlToEditorDomain(params.xml);
+    const imported = importEditorMusicXml(params.xml);
     const draft = params.retargetNoteAtomSourceId
       ? retargetNoteAtomDraft(imported.document, params.draft, params.retargetNoteAtomSourceId)
       : params.draft;
@@ -64,7 +63,7 @@ export function applyEditorDomainEditToXml(params: {
 
     return {
       success: true,
-      xml: exportEditorDomainToMusicXml(edited.document),
+      xml: serializeEditorMusicXml({ document: edited.document, source: imported.source }),
       refreshedSelection: null,
     };
   } catch (error) {
@@ -131,7 +130,7 @@ export function useEditorDomainEdit() {
     }
 
     try {
-      const imported = importMusicXmlToEditorDomain(oldXml);
+      const imported = importEditorMusicXml(oldXml);
       let document = imported.document;
       const eventIds = new Set(params.sourceIds
         .map((sourceId) => findVoiceEventByMusicXmlElementIds(document, [sourceId])?.id)
@@ -153,7 +152,7 @@ export function useEditorDomainEdit() {
         document = result.document;
       }
 
-      const nextXml = exportEditorDomainToMusicXml(document);
+      const nextXml = serializeEditorMusicXml({ document, source: imported.source });
       if (oldXml !== nextXml) {
         history.push(nextXml, params.actionName ?? t('editNote'));
       }
@@ -186,7 +185,7 @@ export function useEditorDomainEdit() {
     }
 
     try {
-      const imported = importMusicXmlToEditorDomain(oldXml);
+      const imported = importEditorMusicXml(oldXml);
       const event = findVoiceEventByMusicXmlElementIds(imported.document, [params.sourceId]);
       if (!event) {
         return { success: false, error: 'No domain event matches the requested MusicXML source id.' };
@@ -201,7 +200,7 @@ export function useEditorDomainEdit() {
         return { success: false, error: result.error };
       }
 
-      const nextXml = exportEditorDomainToMusicXml(result.document);
+      const nextXml = serializeEditorMusicXml({ document: result.document, source: imported.source });
       if (oldXml !== nextXml) {
         history.push(nextXml, params.actionName ?? t('editNote'));
       }
@@ -233,7 +232,7 @@ export function useEditorDomainEdit() {
     }
 
     try {
-      const imported = importMusicXmlToEditorDomain(oldXml);
+      const imported = importEditorMusicXml(oldXml);
       let document = imported.document;
       const pairs = resolveNoteAtomPairsBySourceIds(document, params.startSourceIds, params.endSourceIds);
       if (!pairs.success) {
@@ -253,7 +252,7 @@ export function useEditorDomainEdit() {
         document = result.document;
       }
 
-      const nextXml = exportEditorDomainToMusicXml(document);
+      const nextXml = serializeEditorMusicXml({ document, source: imported.source });
       if (oldXml !== nextXml) {
         history.push(nextXml, params.actionName ?? t('editNote'));
       }
@@ -285,7 +284,7 @@ export function useEditorDomainEdit() {
     }
 
     try {
-      const imported = importMusicXmlToEditorDomain(oldXml);
+      const imported = importEditorMusicXml(oldXml);
       let document = imported.document;
       const pairs = resolveNoteAtomPairsBySourceIds(document, params.startSourceIds, params.endSourceIds);
       if (!pairs.success) {
@@ -305,7 +304,7 @@ export function useEditorDomainEdit() {
         document = result.document;
       }
 
-      const nextXml = exportEditorDomainToMusicXml(document);
+      const nextXml = serializeEditorMusicXml({ document, source: imported.source });
       if (oldXml !== nextXml) {
         history.push(nextXml, params.actionName ?? t('editNote'));
       }
@@ -338,7 +337,7 @@ export function useEditorDomainEdit() {
     }
 
     try {
-      const imported = importMusicXmlToEditorDomain(oldXml);
+      const imported = importEditorMusicXml(oldXml);
       const first = findNoteAtomByMusicXmlElementId(imported.document, params.sourceId);
       const second = findNoteAtomByMusicXmlElementId(imported.document, params.partnerSourceId);
       if (!first || !second) {
@@ -361,7 +360,7 @@ export function useEditorDomainEdit() {
         return { success: false, error: result.error };
       }
 
-      const nextXml = exportEditorDomainToMusicXml(result.document);
+      const nextXml = serializeEditorMusicXml({ document: result.document, source: imported.source });
       if (oldXml !== nextXml) {
         history.push(nextXml, params.actionName ?? t('editNote'));
       }
@@ -392,7 +391,7 @@ export function useEditorDomainEdit() {
     }
 
     try {
-      const imported = importMusicXmlToEditorDomain(oldXml);
+      const imported = importEditorMusicXml(oldXml);
       let document = imported.document;
       const selectedAtomIds = new Set(resolveNoteAtomsBySourceIds(document, params.sourceIds)
         .map((match) => match.note.id));
@@ -418,7 +417,7 @@ export function useEditorDomainEdit() {
         document = result.document;
       }
 
-      const nextXml = exportEditorDomainToMusicXml(document);
+      const nextXml = serializeEditorMusicXml({ document, source: imported.source });
       if (oldXml !== nextXml) {
         history.push(nextXml, params.actionName ?? t('editNote'));
       }
@@ -452,7 +451,7 @@ export function useEditorDomainEdit() {
     }
 
     try {
-      const imported = importMusicXmlToEditorDomain(oldXml);
+      const imported = importEditorMusicXml(oldXml);
       const first = findNoteAtomByMusicXmlElementId(imported.document, params.sourceId);
       const second = findNoteAtomByMusicXmlElementId(imported.document, params.partnerSourceId);
       if (!first || !second) {
@@ -476,7 +475,7 @@ export function useEditorDomainEdit() {
         return { success: false, error: result.error };
       }
 
-      const nextXml = exportEditorDomainToMusicXml(result.document);
+      const nextXml = serializeEditorMusicXml({ document: result.document, source: imported.source });
       if (oldXml !== nextXml) {
         history.push(nextXml, params.actionName ?? t('editNote'));
       }
@@ -509,7 +508,7 @@ export function useEditorDomainEdit() {
     }
 
     try {
-      const imported = importMusicXmlToEditorDomain(oldXml);
+      const imported = importEditorMusicXml(oldXml);
       const first = findNoteAtomByMusicXmlElementId(imported.document, params.sourceId);
       const second = findNoteAtomByMusicXmlElementId(imported.document, params.partnerSourceId);
       if (!first || !second) {
@@ -532,7 +531,7 @@ export function useEditorDomainEdit() {
         return { success: false, error: result.error };
       }
 
-      const nextXml = exportEditorDomainToMusicXml(result.document);
+      const nextXml = serializeEditorMusicXml({ document: result.document, source: imported.source });
       if (oldXml !== nextXml) {
         history.push(nextXml, params.actionName ?? t('editNote'));
       }
@@ -563,7 +562,7 @@ export function useEditorDomainEdit() {
     }
 
     try {
-      const imported = importMusicXmlToEditorDomain(oldXml);
+      const imported = importEditorMusicXml(oldXml);
       let document = imported.document;
       const selectedAtomIds = new Set(resolveNoteAtomsBySourceIds(document, params.sourceIds)
         .map((match) => match.note.id));
@@ -589,7 +588,7 @@ export function useEditorDomainEdit() {
         document = result.document;
       }
 
-      const nextXml = exportEditorDomainToMusicXml(document);
+      const nextXml = serializeEditorMusicXml({ document, source: imported.source });
       if (oldXml !== nextXml) {
         history.push(nextXml, params.actionName ?? t('editNote'));
       }
@@ -623,7 +622,7 @@ export function useEditorDomainEdit() {
     }
 
     try {
-      const imported = importMusicXmlToEditorDomain(oldXml);
+      const imported = importEditorMusicXml(oldXml);
       const first = findNoteAtomByMusicXmlElementId(imported.document, params.sourceId);
       const second = findNoteAtomByMusicXmlElementId(imported.document, params.partnerSourceId);
       if (!first || !second) {
@@ -647,7 +646,7 @@ export function useEditorDomainEdit() {
         return { success: false, error: result.error };
       }
 
-      const nextXml = exportEditorDomainToMusicXml(result.document);
+      const nextXml = serializeEditorMusicXml({ document: result.document, source: imported.source });
       if (oldXml !== nextXml) {
         history.push(nextXml, params.actionName ?? t('editNote'));
       }
@@ -684,7 +683,7 @@ export function useEditorDomainEdit() {
 }
 
 function retargetNoteAtomDraft(
-  document: ReturnType<typeof importMusicXmlToEditorDomain>['document'],
+  document: ReturnType<typeof importEditorMusicXml>['document'],
   draft: InspectorDraft,
   sourceId: string,
 ): InspectorDraft {

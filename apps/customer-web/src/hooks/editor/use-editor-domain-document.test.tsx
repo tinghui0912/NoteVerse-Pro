@@ -60,12 +60,12 @@ describe('useEditorDomainDocument', () => {
     expect(state.gaps).toHaveLength(1);
   });
 
-  it('exposes parser errors instead of falling back to legacy score data', () => {
+  it('exposes invalid source as an explicit adapter error', () => {
     const state = deriveEditorDomainDocument('<score-partwise>');
 
     expect(state.document).toBeNull();
     expect(state.gaps).toEqual([]);
-    expect(state.error?.message).toBe('Failed to parse MusicXML.');
+    expect(state.error?.message).toBe('A valid score-partwise MusicXML document is required.');
   });
 
   it('updates the derived document when current XML changes', () => {

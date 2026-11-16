@@ -2,13 +2,13 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { applyInspectorEdit } from './inspector-drafts';
-import { addNoteAtom } from './commands';
-import type { EventId, RhythmicValue } from './model';
-import { getPitchedEventDisplayKind } from './model';
-import { exportEditorDomainToMusicXml } from './musicxml-exporter';
-import { importMusicXmlToEditorDomain } from './musicxml-importer';
-import { createAppendedNoteAtomIdentity } from './note-atom-identity';
+import { applyInspectorEdit } from '../editor-domain/inspector-drafts';
+import { addNoteAtom } from '../editor-domain/commands';
+import type { EventId, RhythmicValue } from '../editor-domain/model';
+import { getPitchedEventDisplayKind } from '../editor-domain/model';
+import { serializeEditorMusicXml } from './serialize';
+import { importEditorMusicXml } from './import';
+import { createAppendedNoteAtomIdentity } from '../editor-domain/note-atom-identity';
 
 function scoreXml(measureContent: string) {
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -34,7 +34,7 @@ function scoreXml(measureContent: string) {
 </score-partwise>`;
 }
 
-function eventSignature(result: ReturnType<typeof importMusicXmlToEditorDomain>) {
+function eventSignature(result: ReturnType<typeof importEditorMusicXml>) {
   return result.document.events.map((event) => {
     if (event.kind === 'explicitRest') {
       return {
@@ -66,7 +66,7 @@ function eventSignature(result: ReturnType<typeof importMusicXmlToEditorDomain>)
   });
 }
 
-function gapSignature(result: ReturnType<typeof importMusicXmlToEditorDomain>) {
+function gapSignature(result: ReturnType<typeof importEditorMusicXml>) {
   return result.gaps.map((gap) => ({
     kind: gap.kind,
     voiceId: String(gap.voiceId),
@@ -77,9 +77,12 @@ function gapSignature(result: ReturnType<typeof importMusicXmlToEditorDomain>) {
 }
 
 function roundTrip(xml: string) {
-  const imported = importMusicXmlToEditorDomain(xml);
-  const exportedXml = exportEditorDomainToMusicXml(imported.document);
-  const reimported = importMusicXmlToEditorDomain(exportedXml);
+  const imported = importEditorMusicXml(xml);
+  const exportedXml = serializeEditorMusicXml({
+    document: imported.document,
+    source: imported.source,
+  });
+  const reimported = importEditorMusicXml(exportedXml);
 
   return {
     imported,
@@ -95,7 +98,8 @@ const half: RhythmicValue = {
 
 describe('MusicXML editor-domain round trip invariants', () => {
   it('keeps note, chord, explicit rest, and gap semantics stable', () => {
-    const { imported, exportedXml, reimported } = roundTrip(scoreXml(`
+    const { imported, exportedXml, reimported } = roundTrip(
+      scoreXml(`
       <note id="n1">
         <pitch><step>C</step><octave>4</octave></pitch>
         <duration>4</duration>
@@ -130,11 +134,14 @@ describe('MusicXML editor-domain round trip invariants', () => {
         <type>quarter</type>
         <staff>1</staff>
       </note>
-    `));
+    `),
+    );
 
     expect(eventSignature(reimported)).toEqual(eventSignature(imported));
     expect(gapSignature(reimported)).toEqual(gapSignature(imported));
-    expect(exportedXml).toContain('<forward>');
+    expect(
+      new DOMParser().parseFromString(exportedXml, 'application/xml').querySelector('forward'),
+    ).not.toBeNull();
     expect(reimported.document.events.map((event) => event.kind)).toEqual([
       'pitched',
       'pitched',
@@ -143,7 +150,8 @@ describe('MusicXML editor-domain round trip invariants', () => {
   });
 
   it('keeps backup as a serialization detail for multiple voices', () => {
-    const { imported, exportedXml, reimported } = roundTrip(scoreXml(`
+    const { imported, exportedXml, reimported } = roundTrip(
+      scoreXml(`
       <note id="v1n1">
         <pitch><step>C</step><octave>4</octave></pitch>
         <duration>4</duration>
@@ -161,7 +169,8 @@ describe('MusicXML editor-domain round trip invariants', () => {
         <type>quarter</type>
         <staff>2</staff>
       </note>
-    `));
+    `),
+    );
 
     expect(eventSignature(reimported)).toEqual(eventSignature(imported));
     expect(exportedXml).toContain('<backup>');
@@ -173,7 +182,8 @@ describe('MusicXML editor-domain round trip invariants', () => {
   });
 
   it('preserves notation fields that are part of current domain scope', () => {
-    const { imported, reimported } = roundTrip(scoreXml(`
+    const { imported, reimported } = roundTrip(
+      scoreXml(`
       <note id="ornamented">
         <pitch><step>F</step><alter>1</alter><octave>4</octave></pitch>
         <duration>6</duration>
@@ -188,7 +198,8 @@ describe('MusicXML editor-domain round trip invariants', () => {
           </technical>
         </notations>
       </note>
-    `));
+    `),
+    );
 
     expect(eventSignature(reimported)).toEqual(eventSignature(imported));
     expect(eventSignature(reimported)[0]).toMatchObject({
@@ -209,7 +220,8 @@ describe('MusicXML editor-domain round trip invariants', () => {
   });
 
   it('keeps Inspector domain edits stable through export and re-import', () => {
-    const imported = importMusicXmlToEditorDomain(scoreXml(`
+    const imported = importEditorMusicXml(
+      scoreXml(`
       <note id="editable-note">
         <pitch><step>C</step><octave>4</octave></pitch>
         <duration>4</duration>
@@ -217,7 +229,8 @@ describe('MusicXML editor-domain round trip invariants', () => {
         <type>quarter</type>
         <staff>1</staff>
       </note>
-    `));
+    `),
+    );
     const event = imported.document.events[0];
     expect(event?.kind).toBe('pitched');
     if (!event || event.kind !== 'pitched') return;
@@ -235,8 +248,11 @@ describe('MusicXML editor-domain round trip invariants', () => {
     expect(edited.success).toBe(true);
     if (!edited.success) return;
 
-    const exportedXml = exportEditorDomainToMusicXml(edited.document);
-    const reimported = importMusicXmlToEditorDomain(exportedXml);
+    const exportedXml = serializeEditorMusicXml({
+      document: edited.document,
+      source: imported.source,
+    });
+    const reimported = importEditorMusicXml(exportedXml);
 
     expect(exportedXml).toContain('<type>half</type>');
     expect(exportedXml).toContain('<stem>down</stem>');
@@ -256,7 +272,8 @@ describe('MusicXML editor-domain round trip invariants', () => {
   });
 
   it('keeps an appended chord member identity through export and re-import', () => {
-    const imported = importMusicXmlToEditorDomain(scoreXml(`
+    const imported = importEditorMusicXml(
+      scoreXml(`
       <note id="editable-note">
         <pitch><step>C</step><octave>4</octave></pitch>
         <duration>4</duration>
@@ -264,7 +281,8 @@ describe('MusicXML editor-domain round trip invariants', () => {
         <type>quarter</type>
         <staff>1</staff>
       </note>
-    `));
+    `),
+    );
     const event = imported.document.events[0];
     expect(event?.kind).toBe('pitched');
     if (!event || event.kind !== 'pitched') return;
@@ -283,8 +301,11 @@ describe('MusicXML editor-domain round trip invariants', () => {
     expect(appended.success).toBe(true);
     if (!appended.success) return;
 
-    const exportedXml = exportEditorDomainToMusicXml(appended.document);
-    const reimported = importMusicXmlToEditorDomain(exportedXml);
+    const exportedXml = serializeEditorMusicXml({
+      document: appended.document,
+      source: imported.source,
+    });
+    const reimported = importEditorMusicXml(exportedXml);
     const reimportedEvent = reimported.document.events[0];
 
     expect(exportedXml).toContain('<note id="editable-note-chord-2">');

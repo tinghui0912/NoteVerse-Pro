@@ -73,6 +73,6 @@ describe('useEditorDomainRenderAnchors', () => {
     });
 
     expect(result.current.anchors.anchors).toEqual([]);
-    expect(result.current.anchors.error?.message).toBe('Failed to parse MusicXML.');
+    expect(result.current.anchors.error?.message).toBe('A valid score-partwise MusicXML document is required.');
   });
 });

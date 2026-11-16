@@ -5,6 +5,7 @@
  */
 
 import { useCallback } from 'react';
+import { importEditorMusicXml } from '@/lib/editor-musicxml';
 import { useScoreData } from '@/contexts/score-data-context';
 import { useEditorState } from '@/contexts/editor-state-context';
 import { useHistory } from '@/contexts/editor-history-context';
@@ -12,7 +13,6 @@ import { useTranslations } from 'next-intl';
 import type { DomainSelectionCompanion } from '@/lib/editor/domain-selection-companion';
 import {
     findVoiceEventByMusicXmlElementIds,
-    importMusicXmlToEditorDomain,
     type DomainAnchor,
     type EventId,
     type InsertionAnchor,
@@ -171,7 +171,7 @@ function getDeleteEventId(domainAnchor: DomainAnchor | null): EventId | null {
 }
 
 function findInsertedDomainAnchor(xml: string, sourceIds: string[]): DomainAnchor | null {
-    const imported = importMusicXmlToEditorDomain(xml);
+    const imported = importEditorMusicXml(xml);
     const event = findVoiceEventByMusicXmlElementIds(imported.document, sourceIds);
     return event ? { kind: 'event', eventId: event.id } : null;
 }

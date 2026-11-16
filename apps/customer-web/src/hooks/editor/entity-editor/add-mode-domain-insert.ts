@@ -1,13 +1,13 @@
 'use client';
 
+import { importEditorMusicXml, serializeEditorMusicXml } from '@/lib/editor-musicxml';
+
 import {
   applyAddModeInsertCommandToDomain,
   createAddModeNoteAtomId,
   type AddModeInsertCommand,
 } from './add-mode-command';
 import {
-  exportEditorDomainToMusicXml,
-  importMusicXmlToEditorDomain,
   type EventId,
   type InsertionAnchor,
   type MusicalPosition,
@@ -38,7 +38,7 @@ export function applyAddModeDomainInsert(params: {
   getExpectedVoices: (data: ScoreData | null) => Map<number, Map<number, number[]>> | undefined;
   scoreData: ScoreData;
 }): ApplyAddModeDomainInsertResult {
-  const imported = importMusicXmlToEditorDomain(params.currentXml);
+  const imported = importEditorMusicXml(params.currentXml);
   const target = getInsertionAnchorTarget(params.insertionAnchor);
   const targetDocument = ensureAddModeTarget(imported.document, target);
   const staff = targetDocument.staves.find((candidate) => candidate.id === target.staffId);
@@ -63,7 +63,7 @@ export function applyAddModeDomainInsert(params: {
     return applied;
   }
 
-  const newXml = exportEditorDomainToMusicXml(applied.document, getExportOptions(params.currentXml));
+  const newXml = serializeEditorMusicXml({ document: applied.document, source: imported.source });
   const expectedVoices = params.getExpectedVoices(params.scoreData);
   const newScoreData = new MusicXMLParser(newXml, { expectedVoices }).parse();
 
@@ -144,26 +144,6 @@ function createAddModeEventId(target: AddModeInsertTarget, command: AddModeInser
     slugId(String(target.voiceId)),
     `o${rationalSlug(target.position.offset)}`,
   ].join('-');
-}
-
-function getExportOptions(xml: string) {
-  const xmlDoc = parseMusicXml(xml);
-  return {
-    divisions: getPositiveInt(xmlDoc.querySelector('attributes > divisions')?.textContent, 4),
-    timeSignature: {
-      beats: getPositiveInt(xmlDoc.querySelector('attributes > time > beats')?.textContent, 4),
-      beatType: getPositiveInt(xmlDoc.querySelector('attributes > time > beat-type')?.textContent, 4),
-    },
-  };
-}
-
-function parseMusicXml(xml: string): XMLDocument {
-  return new DOMParser().parseFromString(xml, 'application/xml');
-}
-
-function getPositiveInt(value: string | null | undefined, fallback: number): number {
-  const parsed = Number.parseInt(value ?? '', 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
 function getTrailingNumber(value: string, fallback: number): number {

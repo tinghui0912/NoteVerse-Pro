@@ -2,8 +2,8 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { getPitchedEventDisplayKind } from './model';
-import { importMusicXmlToEditorDomain } from './musicxml-importer';
+import { getPitchedEventDisplayKind } from '../editor-domain/model';
+import { importEditorMusicXml } from './import';
 
 function scoreXml(measureContent: string) {
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -31,7 +31,8 @@ function scoreXml(measureContent: string) {
 
 describe('MusicXML to editor domain importer', () => {
   it('imports pitched notes and explicit rests as voice events', () => {
-    const result = importMusicXmlToEditorDomain(scoreXml(`
+    const result = importEditorMusicXml(
+      scoreXml(`
       <note id="n1">
         <pitch><step>C</step><octave>4</octave></pitch>
         <duration>4</duration>
@@ -46,7 +47,8 @@ describe('MusicXML to editor domain importer', () => {
         <type>quarter</type>
         <staff>1</staff>
       </note>
-    `));
+    `),
+    );
 
     expect(result.document.parts).toMatchObject([{ name: 'Piano' }]);
     expect(result.document.events).toHaveLength(2);
@@ -56,7 +58,8 @@ describe('MusicXML to editor domain importer', () => {
   });
 
   it('treats forward as cursor movement and derives a timeline gap instead of an event', () => {
-    const result = importMusicXmlToEditorDomain(scoreXml(`
+    const result = importEditorMusicXml(
+      scoreXml(`
       <note id="n1">
         <pitch><step>C</step><octave>4</octave></pitch>
         <duration>4</duration>
@@ -76,7 +79,8 @@ describe('MusicXML to editor domain importer', () => {
         <type>quarter</type>
         <staff>1</staff>
       </note>
-    `));
+    `),
+    );
 
     expect(result.document.events).toHaveLength(2);
     expect(result.document.events.map((event) => event.kind)).toEqual(['pitched', 'pitched']);
@@ -113,7 +117,8 @@ describe('MusicXML to editor domain importer', () => {
   });
 
   it('uses backup to place a second voice without creating an event', () => {
-    const result = importMusicXmlToEditorDomain(scoreXml(`
+    const result = importEditorMusicXml(
+      scoreXml(`
       <note id="v1n1">
         <pitch><step>C</step><octave>4</octave></pitch>
         <duration>4</duration>
@@ -131,7 +136,8 @@ describe('MusicXML to editor domain importer', () => {
         <type>quarter</type>
         <staff>1</staff>
       </note>
-    `));
+    `),
+    );
 
     expect(result.document.events).toHaveLength(2);
     expect(result.document.voices).toHaveLength(2);
@@ -143,7 +149,8 @@ describe('MusicXML to editor domain importer', () => {
   });
 
   it('imports MusicXML chord encoding as one pitched event with multiple note atoms', () => {
-    const result = importMusicXmlToEditorDomain(scoreXml(`
+    const result = importEditorMusicXml(
+      scoreXml(`
       <note id="c">
         <pitch><step>C</step><octave>4</octave></pitch>
         <duration>4</duration>
@@ -167,7 +174,8 @@ describe('MusicXML to editor domain importer', () => {
         <type>quarter</type>
         <staff>1</staff>
       </note>
-    `));
+    `),
+    );
 
     const event = result.document.events[0];
 
@@ -180,7 +188,8 @@ describe('MusicXML to editor domain importer', () => {
   });
 
   it('preserves voice identity across staff changes while keeping event staff placement', () => {
-    const result = importMusicXmlToEditorDomain(scoreXml(`
+    const result = importEditorMusicXml(
+      scoreXml(`
       <note id="upper">
         <pitch><step>C</step><octave>5</octave></pitch>
         <duration>4</duration>
@@ -195,7 +204,8 @@ describe('MusicXML to editor domain importer', () => {
         <type>quarter</type>
         <staff>2</staff>
       </note>
-    `));
+    `),
+    );
 
     expect(result.document.voices).toHaveLength(1);
     expect(result.document.staves).toHaveLength(2);
@@ -205,7 +215,8 @@ describe('MusicXML to editor domain importer', () => {
   });
 
   it('imports dotted rhythm, accidentals, fingering, and source ids into the domain model', () => {
-    const result = importMusicXmlToEditorDomain(scoreXml(`
+    const result = importEditorMusicXml(
+      scoreXml(`
       <note id="ornamented">
         <pitch><step>F</step><alter>1</alter><octave>4</octave></pitch>
         <duration>6</duration>
@@ -220,7 +231,8 @@ describe('MusicXML to editor domain importer', () => {
           </technical>
         </notations>
       </note>
-    `));
+    `),
+    );
 
     const event = result.document.events[0];
 
@@ -252,7 +264,8 @@ describe('MusicXML to editor domain importer', () => {
   });
 
   it('imports explicit MusicXML stem values as event notation controls', () => {
-    const result = importMusicXmlToEditorDomain(scoreXml(`
+    const result = importEditorMusicXml(
+      scoreXml(`
       <note id="stem-up">
         <pitch><step>C</step><octave>4</octave></pitch>
         <duration>4</duration>
@@ -285,7 +298,8 @@ describe('MusicXML to editor domain importer', () => {
         <stem>double</stem>
         <staff>1</staff>
       </note>
-    `));
+    `),
+    );
 
     expect(result.document.notationControls).toEqual([
       { kind: 'eventNotation', eventId: result.document.events[0]?.id, stemDirection: 'up' },
@@ -296,7 +310,8 @@ describe('MusicXML to editor domain importer', () => {
   });
 
   it('does not create notation controls when MusicXML stem is absent', () => {
-    const result = importMusicXmlToEditorDomain(scoreXml(`
+    const result = importEditorMusicXml(
+      scoreXml(`
       <note id="automatic-stem">
         <pitch><step>C</step><octave>4</octave></pitch>
         <duration>4</duration>
@@ -304,13 +319,15 @@ describe('MusicXML to editor domain importer', () => {
         <type>quarter</type>
         <staff>1</staff>
       </note>
-    `));
+    `),
+    );
 
     expect(result.document.notationControls).toEqual([]);
   });
 
   it('imports level-one MusicXML beam groups as domain beam relationships', () => {
-    const result = importMusicXmlToEditorDomain(scoreXml(`
+    const result = importEditorMusicXml(
+      scoreXml(`
       <note id="beam-a">
         <pitch><step>C</step><octave>4</octave></pitch>
         <duration>2</duration>
@@ -327,21 +344,20 @@ describe('MusicXML to editor domain importer', () => {
         <staff>1</staff>
         <beam number="1">end</beam>
       </note>
-    `));
+    `),
+    );
 
     expect(result.document.beamRelationships).toEqual([
       {
         id: 'P1-m1-beam-1',
-        eventIds: [
-          result.document.events[0]?.id,
-          result.document.events[1]?.id,
-        ],
+        eventIds: [result.document.events[0]?.id, result.document.events[1]?.id],
       },
     ]);
   });
 
   it('imports MusicXML ties as domain tie relationships between note atoms', () => {
-    const result = importMusicXmlToEditorDomain(scoreXml(`
+    const result = importEditorMusicXml(
+      scoreXml(`
       <note id="tie-start">
         <pitch><step>C</step><octave>4</octave></pitch>
         <duration>4</duration>
@@ -364,7 +380,8 @@ describe('MusicXML to editor domain importer', () => {
           <tied type="stop"/>
         </notations>
       </note>
-    `));
+    `),
+    );
 
     expect(result.document.tieRelationships).toEqual([
       {
@@ -389,7 +406,8 @@ describe('MusicXML to editor domain importer', () => {
   });
 
   it('imports MusicXML slurs as domain slur relationships between note atoms', () => {
-    const result = importMusicXmlToEditorDomain(scoreXml(`
+    const result = importEditorMusicXml(
+      scoreXml(`
       <note id="slur-start">
         <pitch><step>C</step><octave>4</octave></pitch>
         <duration>4</duration>
@@ -410,7 +428,8 @@ describe('MusicXML to editor domain importer', () => {
           <slur type="stop" number="1"/>
         </notations>
       </note>
-    `));
+    `),
+    );
 
     expect(result.document.slurRelationships).toEqual([
       {

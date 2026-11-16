@@ -1,10 +1,9 @@
 'use client';
 
 import { useMemo } from 'react';
+import { importEditorMusicXml, type EditorMusicXmlImport } from '@/lib/editor-musicxml';
 import { useScoreData } from '@/contexts/score-data-context';
 import {
-  importMusicXmlToEditorDomain,
-  type MusicXmlImportResult,
   type ScoreDocument,
   type TimelineGap,
 } from '@/lib/editor-domain';
@@ -25,7 +24,7 @@ export function deriveEditorDomainDocument(xml: string | null): EditorDomainDocu
   }
 
   try {
-    return toEditorDomainDocumentState(importMusicXmlToEditorDomain(xml));
+    return toEditorDomainDocumentState(importEditorMusicXml(xml));
   } catch (error) {
     return {
       document: null,
@@ -40,7 +39,7 @@ export function useEditorDomainDocument(): EditorDomainDocumentState {
   return useMemo(() => deriveEditorDomainDocument(currentXml), [currentXml]);
 }
 
-function toEditorDomainDocumentState(result: MusicXmlImportResult): EditorDomainDocumentState {
+function toEditorDomainDocumentState(result: EditorMusicXmlImport): EditorDomainDocumentState {
   return {
     document: result.document,
     gaps: result.gaps,

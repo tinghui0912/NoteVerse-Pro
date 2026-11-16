@@ -5,11 +5,11 @@
  */
 
 import { useCallback } from 'react';
+import { importEditorMusicXml } from '@/lib/editor-musicxml';
 import { useScoreData } from '@/contexts/score-data-context';
 import { useHistory } from '@/contexts/editor-history-context';
 import { useEditorState } from '@/contexts/editor-state-context';
 import {
-    importMusicXmlToEditorDomain,
     type DomainAnchor,
     type ScoreDocument,
 } from '@/lib/editor-domain';
@@ -28,7 +28,7 @@ export function useHistoryEditor() {
         currentXmlRef.current = xml;
         setCurrentXml(xml);
         reparseXml(xml);
-        const imported = importMusicXmlToEditorDomain(xml);
+        const imported = importEditorMusicXml(xml);
         const domainAnchor = findExistingDomainAnchor(imported.document, editingSelection?.domainAnchor ?? null);
         if (domainAnchor) {
             openEditingSelection({

@@ -31,8 +31,9 @@ notation controls. A pitched event has one or more note atoms; removing its
 last pitch does not silently create an explicit rest. Deleting an event creates
 empty musical time. Explicit-rest creation is a separate operation.
 
-Commands export MusicXML and refresh read/render projections through the editor
-hooks. Save submits `expected_head_revision_id` for optimistic head conflict detection.
+Editor hooks import MusicXML with its source snapshot, apply domain commands,
+and serialize the edited document against that snapshot before refreshing
+read/render projections. Save submits `expected_head_revision_id` for optimistic head conflict detection.
 The loaded snapshot fixes the document baseline; a refreshed Score query cannot replace
 that concurrency expectation. Local drafts use `baselineRevisionId` to identify this
 baseline. History owns undo/redo snapshots, and original-document navigation is separate from unsaved
@@ -42,8 +43,15 @@ owning score writes.
 ## Adapter boundary
 
 `ParsedScoreEvent` and `ScoreData` provide parser/render lookup projections used
-by preview geometry and source-ID reselection. The domain importer/exporter
-owns MusicXML cursor and notation serialization. Verovio `space` elements are
+by preview geometry and source-ID reselection. `editor-domain` owns pure editing
+semantics and source-anchor abstractions, independent of XML, UI and React.
+`editor-musicxml` owns parsing, import, source preservation and serialization.
+Its opaque source snapshot preserves unmodeled MusicXML, including document
+metadata, key/clef attributes, directions, lyrics, repeats and print layout; it
+is not a second semantic model. Supported edits change modeled intent in a
+fresh source clone. Unsafe input or edits fail explicitly, without guessed
+meter, divisions, duration or pitch. Inherited MusicXML attributes are resolved
+from source context, and omitted optional meter stays absent. Verovio `space` elements are
 excluded from ordinary editable hits. See [Editor Domain Model](../../adr/0007-editor-domain-model.md)
 and [Automatic Beaming](automatic-beaming.md).
 

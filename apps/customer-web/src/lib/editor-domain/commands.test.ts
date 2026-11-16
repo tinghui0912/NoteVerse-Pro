@@ -453,6 +453,23 @@ describe('editor domain commands', () => {
     ]);
   });
 
+  it('splits a two-event beam into independent events', () => {
+    const document = createTestScoreDocument({
+      events: [eighthEvent('event-1', 0), eighthEvent('event-2', 1)],
+      beamRelationships: [{
+        id: 'beam-1' as BeamId,
+        eventIds: ['event-1' as EventId, 'event-2' as EventId],
+      }],
+    });
+    const result = updateBeamRelationshipAtEvent({
+      document, eventId: 'event-1' as EventId, action: 'break-right',
+    });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.document.beamRelationships).toEqual([]);
+    expect(result.document.events).toEqual(document.events);
+  });
+
   it('adds a note atom to a pitched event without converting event kind', () => {
     const document = createTestScoreDocument({ events: [pitchedEvent('event-1', 0, [noteAtom('note-c', 'C')])] });
 
