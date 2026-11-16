@@ -10,7 +10,6 @@ export interface EditorWorkspaceDocument {
   generateFingering?: (handSize: NonNullable<FingeringRequest['hand_size']>) => void;
   isAutoSaving: boolean;
   isLoading: boolean;
-  normalizeVoices: () => Promise<void>;
   originalImages: { src: string; alt: string }[];
   pendingDraft?: DraftEntry | null;
   recoverDraft?: () => Promise<void>;

@@ -7,9 +7,8 @@ import { useEditorDocument } from './use-editor-document';
 const state = vi.hoisted(() => ({
   score: { head_revision_id: 'revision-1', input_assets: [], capabilities: {} },
   xml: '<score-partwise version="4.0"><part-list/></score-partwise>',
-  applyXml: vi.fn(async () => {}),
-  clearXml: vi.fn(),
-  normalizeVoices: vi.fn(),
+  loadMusicXml: vi.fn(async () => {}),
+  clearDocument: vi.fn(),
   mutate: vi.fn(),
   revisionQuery: vi.fn(),
   autosave: vi.fn(),
@@ -23,8 +22,8 @@ vi.mock('@tanstack/react-query', async (importOriginal) => ({
   useQueryClient: () => ({ invalidateQueries: state.invalidateQueries }),
 }));
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: state.toast }) }));
-vi.mock('@/hooks/editor/use-editor-xml-actions', () => ({ useEditorXmlActions: () => ({
-  currentXml: state.xml, applyXml: state.applyXml, clearXml: state.clearXml, normalizeVoices: state.normalizeVoices,
+vi.mock('@/contexts/editor-session-context', () => ({ useEditorSession: () => ({
+  serializedXml: state.xml, loadMusicXml: state.loadMusicXml, clearDocument: state.clearDocument, replaceFromExternalMusicXml: vi.fn(),
 }) }));
 vi.mock('@/hooks/editor/use-auto-save', () => ({ useAutoSave: (...args: unknown[]) => {
   state.autosave(...args); return { clearDraft: vi.fn(), isSaving: false };
@@ -51,7 +50,7 @@ beforeEach(() => {
 
 it('keeps the loaded document baseline when the current Score head changes', async () => {
   const { result, rerender } = renderHook(() => useEditorDocument({ scoreId: 'score-1' }));
-  await waitFor(() => expect(state.applyXml).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(state.loadMusicXml).toHaveBeenCalledTimes(1));
   await waitFor(() => expect(result.current.isLoading).toBe(false));
   state.score = { ...state.score, head_revision_id: 'revision-2' };
   rerender();
@@ -61,5 +60,5 @@ it('keeps the loaded document baseline when the current Score head changes', asy
   expect(state.mutate).toHaveBeenCalledWith(expect.objectContaining({
     scoreId: 'score-1', expected_head_revision_id: 'revision-1', content: state.xml,
   }), expect.any(Object));
-  expect(state.applyXml).toHaveBeenCalledTimes(1);
+  expect(state.loadMusicXml).toHaveBeenCalledTimes(1);
 });

@@ -4,20 +4,27 @@ import ts from 'typescript';
 import { expect, it } from 'vitest';
 
 const root = path.resolve(__dirname);
-it('editor domain is independent from UI and serialization adapters', () => {
+function sources(directory: string): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) =>
+    entry.isDirectory()
+      ? sources(path.join(directory, entry.name))
+      : entry.name.endsWith('.ts') && !entry.name.endsWith('.test.ts')
+        ? [path.join(directory, entry.name)]
+        : [],
+  );
+}
+it('editor domain depends only on domain-local modules', () => {
   const violations: string[] = [];
-  for (const file of readdirSync(root).filter(
-    (name) => name.endsWith('.ts') && !name.endsWith('.test.ts'),
-  )) {
+  for (const file of sources(root)) {
     const source = ts.createSourceFile(
       file,
-      readFileSync(path.join(root, file), 'utf8'),
+      readFileSync(file, 'utf8'),
       ts.ScriptTarget.Latest,
       true,
     );
     function check(specifier: string) {
       const target = specifier.startsWith('.')
-        ? path.resolve(root, specifier)
+        ? path.resolve(path.dirname(file), specifier)
         : specifier.startsWith('@/lib/editor-domain/')
           ? path.resolve(root, specifier.slice('@/lib/editor-domain/'.length))
           : null;

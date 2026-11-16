@@ -5,10 +5,9 @@ import {
   getEventNotationControl,
 } from '../editor-domain/notation-model';
 import { integer, measureContexts, rhythmLength } from './context';
-import { importEditorMusicXml } from './import';
+import { writeDocumentMetadata, writeMeasureAttributes } from './metadata';
 import {
   EditorMusicXmlSerializationError,
-  UnsupportedEditorMusicXmlError,
   openSource,
   type MusicXmlSourceSnapshot,
 } from './source';
@@ -44,6 +43,11 @@ export function serializeEditorMusicXml({
   source: MusicXmlSourceSnapshot;
 }): string {
   const { xml, anchors } = openSource(source);
+  writeDocumentMetadata(xml, document.metadata);
+  for (const measure of document.measures) {
+    const element = anchors.get(`measure:${measure.id}`)?.[0];
+    if (element) writeMeasureAttributes(element, measure);
+  }
   const contexts = measureContexts(xml);
   const measureEntries = Array.from(anchors).filter(([key]) => key.startsWith('measure:'));
   if (
@@ -133,8 +137,9 @@ export function serializeEditorMusicXml({
         voice.stemPolicy !== 'automatic'
       )
         fail('The event needs a declared source part, staff and voice.');
-      const voiceNumber = /:voice-(\d+)$/.exec(voice.id)?.[1];
-      if (!voiceNumber) fail('The voice has no MusicXML serialization identity.');
+      const voiceNumber = voice.number;
+      if (!Number.isSafeInteger(voiceNumber) || voiceNumber < 1)
+        fail('A positive integral voice number is required.');
       const length = ticks(event.rhythm.timelineDuration);
       if (
         length <= 0 ||
@@ -256,19 +261,24 @@ export function serializeEditorMusicXml({
     addEvents(null);
   }
   if (processed.size !== document.events.length) fail('An event has no source measure.');
+  for (const tie of document.tieRelationships) {
+    const start = document.events
+      .flatMap((event) => (event.kind === 'pitched' ? event.notes : []))
+      .find((note) => note.id === tie.startNoteAtomId);
+    const stop = document.events
+      .flatMap((event) => (event.kind === 'pitched' ? event.notes : []))
+      .find((note) => note.id === tie.stopNoteAtomId);
+    if (
+      !start ||
+      !stop ||
+      start.pitch.step !== stop.pitch.step ||
+      start.pitch.octave !== stop.pitch.octave ||
+      (start.pitch.alter ?? 0) !== (stop.pitch.alter ?? 0)
+    )
+      fail('Tie endpoints require matching pitches.');
+  }
   patchRelationships(document, xml, anchors, atoms, roots);
   const result = new XMLSerializer().serializeToString(xml);
-  // Source order can constrain new relationship endpoints. Do not emit a file
-  // the adapter cannot interpret safely on the next edit.
-  try {
-    importEditorMusicXml(result);
-  } catch (error) {
-    if (!(error instanceof UnsupportedEditorMusicXmlError)) throw error;
-    throw new EditorMusicXmlSerializationError(
-      'The edited notation cannot be serialized safely in this source context.',
-      { cause: error },
-    );
-  }
   return result;
 }
 
@@ -418,6 +428,12 @@ function patchRelationships(
   function placement(node: Element, attribute: string, value?: string) {
     if (value) node.setAttribute(attribute, value);
     else node.removeAttribute(attribute);
+  }
+  for (const relationship of [...document.tieRelationships, ...document.slurRelationships]) {
+    const start = atoms.get(relationship.startNoteAtomId),
+      stop = atoms.get(relationship.stopNoteAtomId);
+    if (!start || !stop || start.compareDocumentPosition(stop) & 2)
+      fail('The relationship cannot be expressed safely in source order.');
   }
   for (const relationship of document.tieRelationships) {
     const old = anchors.get('tie:' + relationship.id) ?? [];

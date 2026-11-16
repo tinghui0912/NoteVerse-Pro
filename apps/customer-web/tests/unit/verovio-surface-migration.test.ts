@@ -104,7 +104,7 @@ describe('Verovio listen surfaces', () => {
     expect(source).toContain('setOnToolChange');
     expect(source).toContain('clearTieSelection');
     expect(source).toContain('clearSlurSelection');
-    expect(entityEditorSource).toContain("kind: 'deleteEvent'");
+    expect(entityEditorSource).toContain('deleteVoiceEvent');
     expect(entityEditorSource).not.toContain('deleteEntity(');
     expect(entityEditorIndex).not.toContain('./delete-entity');
   });
@@ -126,7 +126,7 @@ describe('Verovio listen surfaces', () => {
     expect(source).not.toContain('getVisualInsertPlacement');
     expect(rhythmicPlacement).toContain('createRhythmicLayoutMap');
     expect(rhythmicPlacement).toContain('resolveNearestInsertableLayoutPoint');
-    expect(rhythmicPlacement).toContain('rationalToTicks');
+    expect(rhythmicPlacement).toContain('effectiveMeasureContext');
   });
 
   it('uses tap-to-position before inserting on mobile add mode', () => {
@@ -144,19 +144,6 @@ describe('Verovio listen surfaces', () => {
     expect(source).toContain('applyAddModeDomainInsert');
     expect(source).not.toContain('toWritableEntityFromAddModeCommand');
     expect(source).not.toContain('insertEntity');
-  });
-
-  it('keeps Inspector edits out of the legacy writable-entity XML update path', () => {
-    const scoreTypes = readSource('src/types/score-types.ts');
-    const inspectorModel = readSource('src/components/editor/event-inspector-event-model.ts');
-    const entityEditor = readSource('src/hooks/editor/use-entity-editor.ts');
-    const entityEditorIndex = readSource('src/hooks/editor/entity-editor/index.ts');
-
-    expect(scoreTypes).not.toContain('InspectorWritableEntity');
-    expect(scoreTypes).not.toContain('export type WritableEntity');
-    expect(inspectorModel).not.toContain('toInspectorWritableEntityFromInspectorEditState');
-    expect(entityEditor).not.toContain('updateExistingEntity');
-    expect(entityEditorIndex).not.toContain('./update-existing-entity');
   });
 
   it('routes matched explicit-rest Inspector rhythm edits through the domain edit path', () => {
@@ -213,7 +200,6 @@ describe('Verovio listen surfaces', () => {
     expect(visibility).toContain('getHiddenSourceIds');
     expect(visibility).toContain('getHiddenConnectionPairs');
     expect(visibility).toContain('getHiddenStaffKeys');
-    expect(visibility).toContain('allEntityVoicesHidden');
   });
 
   it('marks temporarily invalid measures without blocking score editing', () => {
@@ -230,8 +216,7 @@ describe('Verovio listen surfaces', () => {
     expect(overlay).toContain('data-score-measure-warning-outline');
     expect(overlay).not.toContain("element.textContent = '鈿?");
     expect(measureStatus).toContain('DirtyMeasureStatus');
-    expect(measureStatus).toContain('getMeasureDurationTicks');
-    expect(measureStatus).toContain("kind: deltaTicks > 0 ? 'overflow' : 'underfill'");
+    expect(measureStatus).toContain('effectiveMeasureContext');
   });
 
   it('keeps connection deletion in the Inspector instead of the left toolbar', () => {

@@ -8,7 +8,8 @@ import {
   getMissingScoreMetadataPlaceholders,
   mountScoreMetadataPlaceholders,
 } from '@/components/editor/editor-preview-metadata-placeholders';
-import type { ScoreData } from '@/types/score-types';
+import type { DocumentMetadata } from '@/lib/editor-domain';
+import { editorDocument } from '../fixtures/editor';
 
 const labels = {
   notationTitle: 'Title',
@@ -17,10 +18,19 @@ const labels = {
   composer: 'Composer',
 };
 
-function createScoreData(overrides: Partial<ScoreData> = {}): ScoreData {
+function createDocument(overrides: Partial<DocumentMetadata> = {}) {
+  const document = editorDocument();
   return {
-    measures: [],
-    ...overrides,
+    ...document,
+    metadata: {
+      notationTitle: null,
+      subtitle: null,
+      composer: null,
+      lyricist: null,
+      copyright: null,
+      tempoNotation: null,
+      ...overrides,
+    },
   };
 }
 
@@ -36,7 +46,9 @@ function createContainer() {
 
 describe('editor preview metadata placeholders', () => {
   it('projects missing score metadata fields to placeholder descriptors', () => {
-    expect(getMissingScoreMetadataPlaceholders(createScoreData({ notationTitle: 'Sonata' }), labels)).toEqual([
+    expect(
+      getMissingScoreMetadataPlaceholders(createDocument({ notationTitle: 'Sonata' }), labels),
+    ).toEqual([
       { className: 'score-metadata-placeholder-subtitle', label: 'Subtitle' },
       { className: 'score-metadata-placeholder-lyricist', label: 'Lyricist' },
       { className: 'score-metadata-placeholder-composer', label: 'Composer' },
@@ -56,12 +68,17 @@ describe('editor preview metadata placeholders', () => {
 
     mountScoreMetadataPlaceholders({
       container,
-      scoreData: createScoreData({ notationTitle: 'Sonata', composer: 'Composer Name' }),
+      document: createDocument({ notationTitle: 'Sonata', composer: 'Composer Name' }),
       labels,
     });
 
-    const placeholders = Array.from(container.querySelectorAll<HTMLButtonElement>(SCORE_METADATA_PLACEHOLDER_SELECTOR));
-    expect(placeholders.map((placeholder) => placeholder.textContent)).toEqual(['Subtitle', 'Lyricist']);
+    const placeholders = Array.from(
+      container.querySelectorAll<HTMLButtonElement>(SCORE_METADATA_PLACEHOLDER_SELECTOR),
+    );
+    expect(placeholders.map((placeholder) => placeholder.textContent)).toEqual([
+      'Subtitle',
+      'Lyricist',
+    ]);
     expect(placeholders.map((placeholder) => placeholder.type)).toEqual(['button', 'button']);
     expect(placeholders.map((placeholder) => placeholder.className)).toEqual([
       'score-metadata-placeholder score-metadata-placeholder-subtitle',
@@ -74,7 +91,7 @@ describe('editor preview metadata placeholders', () => {
 
     mountScoreMetadataPlaceholders({
       container,
-      scoreData: createScoreData({
+      document: createDocument({
         notationTitle: 'Sonata',
         subtitle: 'Op. 1',
         lyricist: 'Poet',
@@ -90,7 +107,7 @@ describe('editor preview metadata placeholders', () => {
     const withoutScoreData = createContainer();
     mountScoreMetadataPlaceholders({
       container: withoutScoreData,
-      scoreData: null,
+      document: null,
       labels,
     });
     expect(withoutScoreData.querySelectorAll(SCORE_METADATA_PLACEHOLDER_SELECTOR)).toHaveLength(0);
@@ -99,7 +116,7 @@ describe('editor preview metadata placeholders', () => {
     withoutPage.innerHTML = `<button data-score-metadata-placeholder="true">Stale</button>`;
     mountScoreMetadataPlaceholders({
       container: withoutPage,
-      scoreData: createScoreData(),
+      document: createDocument(),
       labels,
     });
     expect(withoutPage.querySelectorAll(SCORE_METADATA_PLACEHOLDER_SELECTOR)).toHaveLength(0);

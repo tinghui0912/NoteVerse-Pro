@@ -10,3 +10,6 @@ export * from './rhythmic-input';
 export * from './selection-adapter';
 export * from './source-lookup';
 export * from './source-render-anchors';
+
+export * from './context';
+export * from './document-commands';

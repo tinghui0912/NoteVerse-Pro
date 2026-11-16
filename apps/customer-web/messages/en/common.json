@@ -62,7 +62,7 @@
   "done": "Done",
   "view": "View",
   "back": "Back",
-  "loadingScoreData": "Loading score data...",
+  "loadingScore": "Loading score data...",
   "loadingReviewData": "Loading review result...",
   "loadingInvite": "Verifying invite link...",
   "noteDetailDescription": "Note and articulation details",

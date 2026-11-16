@@ -1,56 +1,5 @@
-import type {
-  Duration,
-  EntityMeta,
-  ParsedScoreEvent,
-} from '@/types/score-types';
-import type {
-  EventId,
-  NoteAtom,
-  NoteAtomId,
-  RhythmicValue,
-  StaffId,
-  VoiceId,
-  MeasureId,
-  Pitch,
-} from '@/lib/editor-domain';
-import type { InspectorDraft } from '@/lib/editor-domain';
-import { isExplicitRestEditableEvent, type EditableEvent } from './event-inspector-editable-event';
-
-export function toInspectorDomainDraft(
-  original: ParsedScoreEvent,
-  event: EditableEvent,
-): InspectorDraft {
-  const metadata = toDomainMetadata(original.meta);
-  const rhythm = toDomainRhythm(event.duration, event.dotted);
-
-  if (isExplicitRestEditableEvent(event)) {
-    return {
-      kind: 'explicitRest',
-      eventId: metadata.eventId,
-      voiceId: metadata.voiceId,
-      staffId: metadata.staffId,
-      position: {
-        measureId: metadata.measureId,
-        offset: metadata.offset,
-      },
-      rhythm,
-    };
-  }
-
-  return {
-    kind: 'pitchedEvent',
-    eventId: metadata.eventId,
-    voiceId: metadata.voiceId,
-    staffId: metadata.staffId,
-    position: {
-      measureId: metadata.measureId,
-      offset: metadata.offset,
-    },
-    rhythm,
-    notes: event.pitches.map((pitch, index) => toDomainNoteAtom(original, event, pitch, index)),
-  };
-}
-
+import type {Duration} from './input-values';
+import type {RhythmicValue} from '@/lib/editor-domain';
 export function toDomainRhythm(duration: Duration, dotted: boolean): RhythmicValue {
   const base = toDomainDurationBase(duration);
   return {
@@ -60,60 +9,6 @@ export function toDomainRhythm(duration: Duration, dotted: boolean): RhythmicVal
       dots: dotted ? 1 : 0,
     },
   };
-}
-
-function toDomainNoteAtom(
-  original: ParsedScoreEvent,
-  event: EditableEvent,
-  pitch: string,
-  index: number,
-): NoteAtom {
-  return {
-    id: toNoteAtomId(original, index),
-    pitch: toDomainPitch(pitch),
-    accidental: event.accidentals[index] ?? undefined,
-    fingering: normalizeFingering(event.fingerings[index]),
-  };
-}
-
-function toDomainPitch(value: string): Pitch {
-  const match = value.match(/^([A-Ga-g])([#b]{0,2})(\d)$/);
-  const step = (match?.[1]?.toUpperCase() ?? 'C') as Pitch['step'];
-  const suffix = match?.[2] ?? '';
-  return {
-    step,
-    octave: Number.parseInt(match?.[3] ?? '4', 10),
-    ...(suffix ? { alter: toPitchAlter(suffix) } : {}),
-  };
-}
-
-function toPitchAlter(suffix: string): number {
-  if (suffix === 'bb') return -2;
-  if (suffix === 'b') return -1;
-  if (suffix === '#') return 1;
-  if (suffix === '##') return 2;
-  return 0;
-}
-
-function toDomainMetadata(meta: EntityMeta | undefined) {
-  return {
-    eventId: (meta?.id || 'legacy-inspector-event') as EventId,
-    voiceId: `legacy-voice:${meta?.xmlVoice ?? 1}` as VoiceId,
-    staffId: `legacy-staff:${meta?.staveIndex ?? 0}` as StaffId,
-    measureId: `legacy-measure:${meta?.measureIndex ?? 0}` as MeasureId,
-    offset: {
-      numerator: meta?.startTick ?? 0,
-      denominator: 1,
-    },
-  };
-}
-
-function toNoteAtomId(original: ParsedScoreEvent, index: number): NoteAtomId {
-  const sourceId = original.meta?.sourceIds?.[index];
-  if (sourceId) {
-    return sourceId as NoteAtomId;
-  }
-  return `${original.meta?.id ?? 'legacy-inspector-event'}:note:${index}` as NoteAtomId;
 }
 
 function toDomainDurationBase(duration: Duration): RhythmicValue['notation']['base'] {
@@ -158,10 +53,6 @@ function toDomainDurationRational(duration: Duration, dotted: boolean) {
   return normalizeRational(dotted
     ? { numerator: base.numerator * 3, denominator: base.denominator * 2 }
     : base);
-}
-
-function normalizeFingering(value: string | undefined): string | undefined {
-  return !value || value === 'none' ? undefined : value;
 }
 
 function exhaustive(value: never): never {

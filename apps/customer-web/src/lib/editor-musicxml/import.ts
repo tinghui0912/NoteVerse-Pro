@@ -1,3 +1,5 @@
+import {ensureGenericRenderMusicXmlIdsString} from '@/lib/musicxml/generic-render-ids';
+import { readDocumentMetadata, readMeasureAttributes } from './metadata';
 import {
   captureSource,
   parseSource,
@@ -83,6 +85,8 @@ export type EditorMusicXmlImport = {
 };
 
 export function importEditorMusicXml(xml: string): EditorMusicXmlImport {
+  parseSource(xml);
+  xml=ensureGenericRenderMusicXmlIdsString(xml);
   const xmlDoc = parseSource(xml);
   const state: ImportState = {
     documentId: toScoreDocumentId('score-document-1'),
@@ -125,6 +129,9 @@ export function importEditorMusicXml(xml: string): EditorMusicXmlImport {
       );
     const partId = toPartId(id);
     anchor(state, 'part:' + partId, [partElement]);
+    ensureStaff(state,partId,1);
+    for(const staves of Array.from(partElement.querySelectorAll('attributes > staves')))for(let number=1;number<=integer(staves.textContent,'staves',1);number++)ensureStaff(state,partId,number);
+    for(const clef of Array.from(partElement.querySelectorAll('attributes > clef')))ensureStaff(state,partId,integer(clef.getAttribute('number')??'1','clef staff',1));
     state.parts.push({
       id: partId,
       name: partNames.get(partId)!,
@@ -154,6 +161,7 @@ export function importEditorMusicXml(xml: string): EditorMusicXmlImport {
     document: {
       schemaVersion: 1,
       id: state.documentId,
+      metadata: readDocumentMetadata(xmlDoc),
       parts: state.parts,
       staves: Array.from(state.staves.values()),
       voices: Array.from(state.voices.values()),
@@ -203,6 +211,8 @@ function importPartMeasures(state: ImportState, partElement: Element, partId: Pa
     state.measures.set(measureId, {
       id: measureId,
       number: measureNumber,
+      partId,
+      attributes: readMeasureAttributes(measureElement,partId),
     });
 
     const context = state.contexts.get(measureElement)!;
@@ -612,6 +622,7 @@ function ensureVoice(
       id: voiceId,
       partId,
       homeStaffId: staffId,
+      number: voiceNumber,
       stemPolicy: 'automatic',
     });
   }

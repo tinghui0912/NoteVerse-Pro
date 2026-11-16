@@ -338,6 +338,7 @@ export function deleteVoiceEvent(params: {
     document: {
       ...params.document,
       events,
+      voices: params.document.voices.filter(voice=>voice.id!==event.voiceId||events.some(candidate=>candidate.voiceId===voice.id)),
       beamRelationships: params.document.beamRelationships.filter((relationship) => (
         !relationship.eventIds.includes(params.eventId)
       )),
@@ -351,6 +352,7 @@ export function deleteVoiceEvent(params: {
         (control.kind !== 'eventNotation' || control.eventId !== params.eventId)
         && (control.kind !== 'tieNotation' || !removedTieIds.has(control.tieId))
         && (control.kind !== 'slurNotation' || !removedSlurIds.has(control.notationId))
+        && (control.kind !== 'beamNotation' || !control.eventIds.includes(params.eventId))
       )),
     },
     ...(gaps ? { gaps } : {}),

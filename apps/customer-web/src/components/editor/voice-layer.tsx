@@ -112,7 +112,7 @@ export function VoiceLayer() {
                         if (track.entityCount === 0) {
                           removeEmptyTrack(track.id);
                         } else {
-                          handleDeleteVoiceTrack(track.xmlVoice);
+                          handleDeleteVoiceTrack(track.voiceId);
                         }
                       }}
                       aria-label={t('deleteVoice')}

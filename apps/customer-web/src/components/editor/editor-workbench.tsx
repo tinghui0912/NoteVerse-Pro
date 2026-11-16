@@ -14,14 +14,12 @@ interface EditorWorkbenchProps {
   currentXml: string | null;
   fingeringPending?: boolean;
   onGenerateFingering?: (handSize: NonNullable<FingeringRequest['hand_size']>) => void;
-  onNormalizeVoices: () => void;
 }
 
 export function EditorWorkbench({
   currentXml,
   fingeringPending,
   onGenerateFingering,
-  onNormalizeVoices,
 }: EditorWorkbenchProps) {
   const { editorMode, selectTool } = useEditorState();
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -57,7 +55,6 @@ export function EditorWorkbench({
                   fingeringPending={fingeringPending}
                   onGenerateFingering={onGenerateFingering}
                   onToolSelect={selectTool}
-                  onNormalizeVoices={onNormalizeVoices}
                 />
               </div>
               ) : null}

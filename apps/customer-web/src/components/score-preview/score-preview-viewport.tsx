@@ -144,7 +144,7 @@ export function ScorePreviewViewport({
       >
         {isLoading ? (
           <PreviewLoading
-            label={t('loadingScoreData')}
+            label={t('loadingScore')}
             className="absolute inset-0 z-10 bg-white/80 backdrop-blur-sm"
           />
         ) : null}

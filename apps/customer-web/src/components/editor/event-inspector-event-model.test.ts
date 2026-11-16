@@ -1,65 +1,26 @@
-import { describe, expect, it } from 'vitest';
-
-import type { ParsedScoreEvent, Rest } from '@/types/score-types';
-import { createDefaultEditableEvent } from './event-inspector-editable-event';
+import { it, expect } from 'vitest';
+import { createDefaultEditableEvent, addPitch } from './event-inspector-editable-event';
 import {
-  createInspectorEditState,
-  toInspectorEditStateFromEditableEvent,
+  getFingeringOnlyPitchedEdit,
+  getPitchOnlyPitchedEdit,
+  getAccidentalOnlyPitchedEdit,
+  isRhythmOrStemOnlyPitchedEdit,
+  updatePitchPart,
 } from './event-inspector-event-model';
-
-describe('event inspector save projection', () => {
-  it('projects explicit rest edits as domain drafts', () => {
-    const original: Rest = {
-      type: 'rest',
-      duration: 'durationQuarter',
-      meta: {
-        id: 'rest-1',
-        measureIndex: 0,
-        staveIndex: 0,
-        xmlVoice: 1,
-        entityIndex: 0,
-        startTick: 0,
-      },
-    };
-
-    const state = toInspectorEditStateFromEditableEvent(original, {
-      ...createDefaultEditableEvent(),
-      duration: 'durationHalf',
-    });
-
-    expect(state.draft).toMatchObject({
-      kind: 'explicitRest',
-      eventId: 'rest-1',
-      rhythm: {
-        timelineDuration: { numerator: 2, denominator: 1 },
-        notation: { base: 'half', dots: 0 },
-      },
-    });
+it('distinguishes individual draft intent without reconstructing a score model', () => {
+  const current = addPitch(createDefaultEditableEvent(), 'C4');
+  expect(getFingeringOnlyPitchedEdit(current, { ...current, fingerings: ['2'] })).toEqual({
+    index: 0,
+    value: '2',
   });
-
-  it('keeps imported stem direction as a notation override', () => {
-    const original: ParsedScoreEvent = {
-      type: 'note',
-      pitch: 'C4',
-      duration: 'durationQuarter',
-      stemDirection: 'up',
-    };
-
-    const state = createInspectorEditState(original);
-
-    expect(state.notationOverrides.stemDirection).toBe('up');
+  expect(getPitchOnlyPitchedEdit(current, { ...current, pitches: ['D5'] })).toMatchObject({
+    pitch: { step: 'D', octave: 5 },
   });
-
-  it('treats automatic stem choice as a missing notation override', () => {
-    const original: ParsedScoreEvent = {
-      type: 'note',
-      pitch: 'C4',
-      duration: 'durationQuarter',
-      stemDirection: 'none',
-    };
-
-    const state = createInspectorEditState(original);
-
-    expect(state.notationOverrides.stemDirection).toBeUndefined();
-  });
+  expect(
+    getAccidentalOnlyPitchedEdit(current, { ...current, pitches: ['C#4'], accidentals: ['sharp'] }),
+  ).toMatchObject({ accidental: 'sharp', pitch: { step: 'C', octave: 4, alter: 1 } });
+  expect(isRhythmOrStemOnlyPitchedEdit(current, { ...current, duration: 'durationHalf' })).toBe(
+    true,
+  );
+  expect(updatePitchPart('F#4', 'octave', '5')).toBe('F#5');
 });

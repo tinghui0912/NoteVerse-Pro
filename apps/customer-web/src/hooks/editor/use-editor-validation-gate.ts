@@ -2,14 +2,14 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useScoreData } from '@/contexts/editor-provider';
+import { useEditorSession } from '@/contexts/editor-provider';
 import { validateDataIntegrity, type ValidationResult } from '@/lib/musicxml/validator';
 
 export function useEditorValidationGate(performSave: () => void) {
   const t = useTranslations('editor');
   const common = useTranslations('common');
   const auth = useTranslations('auth');
-  const { scoreData, currentXml } = useScoreData();
+  const { document, serializedXml } = useEditorSession();
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
   const [validationDialogOpen, setValidationDialogOpen] = useState(false);
 
@@ -24,7 +24,7 @@ export function useEditorValidationGate(performSave: () => void) {
   };
 
   const save = () => {
-    const result = validateDataIntegrity(scoreData, currentXml, translateValidationKey);
+    const result = validateDataIntegrity(document, serializedXml, translateValidationKey);
     if (!result.success || result.warnings.length > 0) {
       setValidationResult(result);
       setValidationDialogOpen(true);

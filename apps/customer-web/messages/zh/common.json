@@ -62,7 +62,7 @@
   "done": "完成",
   "view": "查看",
   "back": "返回",
-  "loadingScoreData": "正在加载乐谱数据...",
+  "loadingScore": "正在加载乐谱数据...",
   "loadingReviewData": "正在加载审核结果...",
   "loadingInvite": "正在验证邀请链接...",
   "noteDetailDescription": "音符与演奏细节",

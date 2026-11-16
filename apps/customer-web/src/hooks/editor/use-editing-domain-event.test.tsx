@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 import { describe, expect, it } from 'vitest';
 
 import { EditorStateProvider, useEditorState } from '@/contexts/editor-state-context';
-import { ScoreDataProvider, useScoreData } from '@/contexts/score-data-context';
+import { EditorSessionProvider, useEditorSession } from '@/contexts/editor-session-context';
 import {
   useEditingDomainEvent,
   useEditingDomainInspectorViewModel,
@@ -36,22 +36,22 @@ function scoreXml(measureContent: string) {
 
 function wrapper({ children }: { children: ReactNode }) {
   return (
-    <ScoreDataProvider>
+    <EditorSessionProvider>
       <EditorStateProvider>{children}</EditorStateProvider>
-    </ScoreDataProvider>
+    </EditorSessionProvider>
   );
 }
 
 describe('useEditingDomainEvent', () => {
-  it('does not resolve a legacy-only edited entity to a domain event', () => {
+  it('does not resolve a unknown selection to a domain event', () => {
     const { result } = renderHook(() => ({
-      scoreData: useScoreData(),
+      session: useEditorSession(),
       editorState: useEditorState(),
       editingDomain: useEditingDomainEvent(),
     }), { wrapper });
 
     act(() => {
-      result.current.scoreData.setCurrentXml(scoreXml(`
+      result.current.session.loadMusicXml(scoreXml(`
         <note id="note-root">
           <pitch><step>C</step><octave>4</octave></pitch>
           <duration>4</duration>
@@ -77,13 +77,13 @@ describe('useEditingDomainEvent', () => {
 
   it('derives a domain Inspector view model for the current domain event anchor', () => {
     const { result } = renderHook(() => ({
-      scoreData: useScoreData(),
+      session: useEditorSession(),
       editorState: useEditorState(),
       domainInspector: useEditingDomainInspectorViewModel(),
     }), { wrapper });
 
     act(() => {
-      result.current.scoreData.setCurrentXml(scoreXml(`
+      result.current.session.loadMusicXml(scoreXml(`
         <note id="rest-1">
           <rest/>
           <duration>4</duration>
@@ -106,13 +106,13 @@ describe('useEditingDomainEvent', () => {
 
   it('uses the owning event view model when a note atom is selected', () => {
     const { result } = renderHook(() => ({
-      scoreData: useScoreData(),
+      session: useEditorSession(),
       editorState: useEditorState(),
       domainInspector: useEditingDomainInspectorViewModel(),
     }), { wrapper });
 
     act(() => {
-      result.current.scoreData.setCurrentXml(scoreXml(`
+      result.current.session.loadMusicXml(scoreXml(`
         <note id="note-root">
           <pitch><step>C</step><octave>4</octave></pitch>
           <duration>4</duration>

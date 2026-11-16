@@ -1,45 +1,42 @@
-import { findEntityById, findEntityBySourceIds } from '@/lib/editor/score-lookup';
-import type { NoteAtom, PitchedEvent, ScoreDocument } from '@/lib/editor-domain';
-import type { EntityInfo, ScoreData } from '@/types/score-types';
-
+import {
+  findVoiceEventByMusicXmlElementIds,
+  findNoteAtomByMusicXmlElementId,
+  type NoteAtom,
+  type PitchedEvent,
+  type ScoreDocument,
+} from '@/lib/editor-domain';
+import { formatPitch } from '@/lib/editor/staff-pitch-resolver';
 export type ConnectionDirection = 'auto' | 'above' | 'below';
-
+type ConnectionEndpoint = {
+  pitch: NoteAtom['pitch'];
+  measureNumber: number;
+  voiceNumber: number;
+  staffIndex: number;
+};
 export type ConnectionDetail = {
   id: string;
   type: 'tie' | 'slur';
   currentId: string;
-  current: EntityInfo | null;
-  partner: EntityInfo | null;
+  current: ConnectionEndpoint | null;
+  partner: ConnectionEndpoint | null;
   partnerId: string;
   sourceId?: string;
   partnerSourceId?: string;
   direction: ConnectionDirection;
 };
-
 export function getEntitySourcePitch(
-  scoreData: ScoreData | null,
-  entityId: string,
+  document: ScoreDocument | null,
+  _id: string,
   sourceId: string | undefined,
-  info: EntityInfo | null,
-  fallback: string
+  _info: ConnectionEndpoint | null,
+  fallback: string,
 ) {
-  const found = findEntityById(scoreData, entityId);
-  const entity = found?.entity;
-  if (entity?.type === 'chord' && sourceId) {
-    const index = entity.meta?.sourceIds?.indexOf(sourceId) ?? -1;
-    if (index >= 0 && entity.pitches[index]) return entity.pitches[index];
-  }
-  if (entity?.type === 'note') return entity.pitch;
-  if (entity?.type === 'rest') return fallback;
-  if (entity?.type === 'chord') return entity.pitches.length > 0 ? entity.pitches.join('+') : fallback;
-  if (!info) return fallback;
-  return info.pitch;
+  const match = document && sourceId ? findNoteAtomByMusicXmlElementId(document, sourceId) : null;
+  return match ? formatPitch(match.note.pitch) : fallback;
 }
-
 export function buildDomainTieDetails(params: {
   document: ScoreDocument | null;
   event: PitchedEvent | null;
-  scoreData: ScoreData | null;
 }): ConnectionDetail[] {
   const { document, event } = params;
   if (!document || !event) return [];
@@ -48,30 +45,39 @@ export function buildDomainTieDetails(params: {
   const currentNoteIds = new Set(event.notes.map((note) => note.id));
 
   return document.tieRelationships
-    .filter((relationship) => (
-      currentNoteIds.has(relationship.startNoteAtomId) || currentNoteIds.has(relationship.stopNoteAtomId)
-    ))
+    .filter(
+      (relationship) =>
+        currentNoteIds.has(relationship.startNoteAtomId) ||
+        currentNoteIds.has(relationship.stopNoteAtomId),
+    )
     .map((relationship, index) => {
       const currentNoteId = currentNoteIds.has(relationship.startNoteAtomId)
         ? relationship.startNoteAtomId
         : relationship.stopNoteAtomId;
-      const partnerNoteId = currentNoteId === relationship.startNoteAtomId
-        ? relationship.stopNoteAtomId
-        : relationship.startNoteAtomId;
+      const partnerNoteId =
+        currentNoteId === relationship.startNoteAtomId
+          ? relationship.stopNoteAtomId
+          : relationship.startNoteAtomId;
       const currentNote = notesById.get(currentNoteId);
       const partnerNote = notesById.get(partnerNoteId);
       const currentSourceId = currentNote?.source?.musicXmlElementId;
       const partnerSourceId = partnerNote?.source?.musicXmlElementId;
-      const currentEntity = findEntityForSource(params.scoreData, currentSourceId);
-      const partnerEntity = findEntityForSource(params.scoreData, partnerSourceId);
+      const currentEntity = findVoiceEventByMusicXmlElementIds(
+        document,
+        currentSourceId ? [currentSourceId] : [],
+      );
+      const partnerEntity = findVoiceEventByMusicXmlElementIds(
+        document,
+        partnerSourceId ? [partnerSourceId] : [],
+      );
 
       return {
         id: `domain-tie-${relationship.id}-${index}`,
         type: 'tie' as const,
-        currentId: currentEntity?.meta.id ?? currentSourceId ?? String(currentNoteId),
-        current: null,
-        partner: null,
-        partnerId: partnerEntity?.meta.id ?? partnerSourceId ?? String(partnerNoteId),
+        currentId: currentEntity?.id ?? currentSourceId ?? String(currentNoteId),
+        current: describeEndpoint(document, currentNoteId),
+        partner: describeEndpoint(document, partnerNoteId),
+        partnerId: partnerEntity?.id ?? partnerSourceId ?? String(partnerNoteId),
         sourceId: currentSourceId,
         partnerSourceId,
         direction: getTieDirection(document, relationship.id),
@@ -82,7 +88,6 @@ export function buildDomainTieDetails(params: {
 export function buildDomainSlurDetails(params: {
   document: ScoreDocument | null;
   event: PitchedEvent | null;
-  scoreData: ScoreData | null;
 }): ConnectionDetail[] {
   const { document, event } = params;
   if (!document || !event) return [];
@@ -91,39 +96,44 @@ export function buildDomainSlurDetails(params: {
   const currentNoteIds = new Set(event.notes.map((note) => note.id));
 
   return document.slurRelationships
-    .filter((relationship) => (
-      currentNoteIds.has(relationship.startNoteAtomId) || currentNoteIds.has(relationship.stopNoteAtomId)
-    ))
+    .filter(
+      (relationship) =>
+        currentNoteIds.has(relationship.startNoteAtomId) ||
+        currentNoteIds.has(relationship.stopNoteAtomId),
+    )
     .map((relationship, index) => {
       const currentNoteId = currentNoteIds.has(relationship.startNoteAtomId)
         ? relationship.startNoteAtomId
         : relationship.stopNoteAtomId;
-      const partnerNoteId = currentNoteId === relationship.startNoteAtomId
-        ? relationship.stopNoteAtomId
-        : relationship.startNoteAtomId;
+      const partnerNoteId =
+        currentNoteId === relationship.startNoteAtomId
+          ? relationship.stopNoteAtomId
+          : relationship.startNoteAtomId;
       const currentNote = notesById.get(currentNoteId);
       const partnerNote = notesById.get(partnerNoteId);
       const currentSourceId = currentNote?.source?.musicXmlElementId;
       const partnerSourceId = partnerNote?.source?.musicXmlElementId;
-      const currentEntity = findEntityForSource(params.scoreData, currentSourceId);
-      const partnerEntity = findEntityForSource(params.scoreData, partnerSourceId);
+      const currentEntity = findVoiceEventByMusicXmlElementIds(
+        document,
+        currentSourceId ? [currentSourceId] : [],
+      );
+      const partnerEntity = findVoiceEventByMusicXmlElementIds(
+        document,
+        partnerSourceId ? [partnerSourceId] : [],
+      );
 
       return {
         id: `domain-slur-${relationship.id}-${index}`,
         type: 'slur' as const,
-        currentId: currentEntity?.meta.id ?? currentSourceId ?? String(currentNoteId),
-        current: null,
-        partner: null,
-        partnerId: partnerEntity?.meta.id ?? partnerSourceId ?? String(partnerNoteId),
+        currentId: currentEntity?.id ?? currentSourceId ?? String(currentNoteId),
+        current: describeEndpoint(document, currentNoteId),
+        partner: describeEndpoint(document, partnerNoteId),
+        partnerId: partnerEntity?.id ?? partnerSourceId ?? String(partnerNoteId),
         sourceId: currentSourceId,
         partnerSourceId,
         direction: getSlurDirection(document, relationship.id),
       };
     });
-}
-
-function findEntityForSource(scoreData: ScoreData | null, sourceId: string | undefined) {
-  return sourceId ? findEntityBySourceIds(scoreData, [sourceId]) : null;
 }
 
 function getDocumentNoteAtomMap(document: ScoreDocument): Map<NoteAtom['id'], NoteAtom> {
@@ -135,14 +145,51 @@ function getDocumentNoteAtomMap(document: ScoreDocument): Map<NoteAtom['id'], No
   return notes;
 }
 
-function getTieDirection(document: ScoreDocument, tieId: ScoreDocument['tieRelationships'][number]['id']): ConnectionDirection {
-  return document.notationControls.find((control): control is Extract<ScoreDocument['notationControls'][number], { kind: 'tieNotation' }> => (
-    control.kind === 'tieNotation' && control.tieId === tieId
-  ))?.placement ?? 'auto';
+function getTieDirection(
+  document: ScoreDocument,
+  tieId: ScoreDocument['tieRelationships'][number]['id'],
+): ConnectionDirection {
+  return (
+    document.notationControls.find(
+      (
+        control,
+      ): control is Extract<ScoreDocument['notationControls'][number], { kind: 'tieNotation' }> =>
+        control.kind === 'tieNotation' && control.tieId === tieId,
+    )?.placement ?? 'auto'
+  );
 }
 
-function getSlurDirection(document: ScoreDocument, notationId: ScoreDocument['slurRelationships'][number]['id']): ConnectionDirection {
-  return document.notationControls.find((control): control is Extract<ScoreDocument['notationControls'][number], { kind: 'slurNotation' }> => (
-    control.kind === 'slurNotation' && control.notationId === notationId
-  ))?.placement ?? 'auto';
+function getSlurDirection(
+  document: ScoreDocument,
+  notationId: ScoreDocument['slurRelationships'][number]['id'],
+): ConnectionDirection {
+  return (
+    document.notationControls.find(
+      (
+        control,
+      ): control is Extract<ScoreDocument['notationControls'][number], { kind: 'slurNotation' }> =>
+        control.kind === 'slurNotation' && control.notationId === notationId,
+    )?.placement ?? 'auto'
+  );
+}
+
+function describeEndpoint(
+  document: ScoreDocument,
+  noteId: NoteAtom['id'],
+): ConnectionEndpoint | null {
+  const event = document.events.find(
+    (event) => event.kind === 'pitched' && event.notes.some((note) => note.id === noteId),
+  );
+  if (event?.kind !== 'pitched') return null;
+  const note = event.notes.find((note) => note.id === noteId)!;
+  const measure = document.measures.find((measure) => measure.id === event.position.measureId);
+  const voice = document.voices.find((voice) => voice.id === event.voiceId);
+  const staff = document.staves.find((staff) => staff.id === event.staffId);
+  if (!measure || !voice || !staff) return null;
+  return {
+    pitch: note.pitch,
+    measureNumber: measure.number,
+    voiceNumber: voice.number,
+    staffIndex: staff.index,
+  };
 }

@@ -27,10 +27,11 @@ export function createTestScoreDocument(params: {
   return {
     schemaVersion: 1,
     id: 'score-document-1' as ScoreDocumentId,
+    metadata: {notationTitle:null,subtitle:null,composer:null,lyricist:null,copyright:null,tempoNotation:null},
     parts: [{ id: testPartId, name: 'Piano' }],
     staves: [{ id: testStaffId, partId: testPartId, index: 0 }],
-    voices: [{ id: testVoiceId, partId: testPartId, homeStaffId: testStaffId, stemPolicy: 'automatic' }],
-    measures: [{ id: testMeasureId, number: 1 }],
+    voices: [{ id: testVoiceId, partId: testPartId, homeStaffId: testStaffId, number:1, stemPolicy: 'automatic' }],
+    measures: [{ id: testMeasureId, partId:testPartId, attributes:{meter:{beats:4,beatType:4}}, number: 1 }],
     events: params.events ?? [],
     beamRelationships: params.beamRelationships ?? [],
     tieRelationships: params.tieRelationships ?? [],

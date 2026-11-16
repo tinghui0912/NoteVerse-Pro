@@ -1,82 +1,61 @@
-import type { ScoreData, ParsedScoreEvent } from '@/types/score-types';
-import { getEntityDurationTicks, getMeasureDurationTicks } from './measure-timeline';
-import { parseVoiceNumber } from './tracks';
-
-type DirtyMeasureKind = 'underfill' | 'overflow';
-
-type DirtyMeasureVoiceStatus = {
-  measureIndex: number;
-  measureNumber: number;
-  staveIndex: number;
-  xmlVoice: number;
-  expectedTicks: number;
-  actualTicks: number;
-  deltaTicks: number;
-  kind: DirtyMeasureKind;
-};
-
+import {
+  effectiveMeasureContext,
+  addRational,
+  compareRational,
+  type ScoreDocument,
+} from '@/lib/editor-domain';
 export type DirtyMeasureStatus = {
   measureIndex: number;
   measureNumber: number;
-  kind: DirtyMeasureKind;
-  expectedTicks: number;
-  actualTicks: number;
-  deltaTicks: number;
-  voices: DirtyMeasureVoiceStatus[];
+  kind: 'underfill' | 'overflow';
+  expectedDuration: number;
+  actualDuration: number;
+  deltaDuration: number;
+  voices: {
+    staveIndex: number;
+    xmlVoice: number;
+    kind: 'underfill' | 'overflow';
+    expectedDuration: number;
+    actualDuration: number;
+    deltaDuration: number;
+  }[];
 };
-
-function getVoiceDurationTicks(events: ParsedScoreEvent[], divisions: number): number {
-  return events.reduce((totalTicks, entity) => totalTicks + getEntityDurationTicks(entity, divisions), 0);
-}
-
-export function buildDirtyMeasureStatuses(scoreData: ScoreData | null, divisions: number): DirtyMeasureStatus[] {
-  if (!scoreData) return [];
-
-  const expectedTicks = getMeasureDurationTicks(scoreData.timeSignature, divisions);
-  const statuses: DirtyMeasureStatus[] = [];
-
-  scoreData.measures.forEach((measure, measureIndex) => {
-    const voiceStatuses: DirtyMeasureVoiceStatus[] = [];
-
-    measure.staves.forEach((stave, staveIndex) => {
-      stave.voices.forEach((voice) => {
-        if (voice.events.length === 0) return;
-
-        const actualTicks = getVoiceDurationTicks(voice.events, divisions);
-        if (actualTicks === expectedTicks) return;
-
-        const deltaTicks = actualTicks - expectedTicks;
-        voiceStatuses.push({
-          measureIndex,
-          measureNumber: measure.number || measureIndex + 1,
-          staveIndex,
-          xmlVoice: parseVoiceNumber(voice.name),
-          expectedTicks,
-          actualTicks,
-          deltaTicks,
-          kind: deltaTicks > 0 ? 'overflow' : 'underfill',
-        });
+export function buildDirtyMeasureStatuses(document: ScoreDocument | null): DirtyMeasureStatus[] {
+  if (!document) return [];
+  return document.measures.flatMap((measure, measureIndex) => {
+    const duration = effectiveMeasureContext(document, measure.id).duration;
+    if (!duration) return [];
+    const expectedDuration = duration.numerator / duration.denominator;
+    const voices = document.voices
+      .filter((voice) => voice.partId === measure.partId)
+      .flatMap((voice) => {
+        const events = document.events.filter(
+          (event) => event.voiceId === voice.id && event.position.measureId === measure.id,
+        );
+        if (!events.length) return [];
+        const end = events.reduce(
+          (end, event) => {
+            const next = addRational(event.position.offset, event.rhythm.timelineDuration);
+            return compareRational(next, end) > 0 ? next : end;
+          },
+          { numerator: 0, denominator: 1 },
+        );
+        const actualDuration = end.numerator / end.denominator;
+        const deltaDuration = actualDuration - expectedDuration;
+        if (!deltaDuration) return [];
+        return [
+          {
+            staveIndex: document.staves.find((staff) => staff.id === voice.homeStaffId)!.index,
+            xmlVoice: voice.number,
+            kind: deltaDuration > 0 ? ('overflow' as const) : ('underfill' as const),
+            expectedDuration,
+            actualDuration,
+            deltaDuration,
+          },
+        ];
       });
-    });
-
-    if (voiceStatuses.length === 0) return;
-
-    const overflow = voiceStatuses.filter((status) => status.kind === 'overflow');
-    const candidates = overflow.length > 0 ? overflow : voiceStatuses;
-    const dominantStatus = candidates.reduce((dominant, status) => (
-      Math.abs(status.deltaTicks) > Math.abs(dominant.deltaTicks) ? status : dominant
-    ), candidates[0]);
-
-    statuses.push({
-      measureIndex,
-      measureNumber: measure.number || measureIndex + 1,
-      kind: dominantStatus.kind,
-      expectedTicks,
-      actualTicks: dominantStatus.actualTicks,
-      deltaTicks: dominantStatus.deltaTicks,
-      voices: voiceStatuses,
-    });
+    if (!voices.length) return [];
+    const dominant = [...voices].sort((a, b) => b.deltaDuration - a.deltaDuration)[0];
+    return [{ measureIndex, measureNumber: measure.number, ...dominant, voices }];
   });
-
-  return statuses;
 }

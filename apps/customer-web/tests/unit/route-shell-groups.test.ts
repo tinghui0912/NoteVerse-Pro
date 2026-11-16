@@ -224,9 +224,9 @@ describe('route shell groups', () => {
     expect(globalLoading).toContain('<PageLoading');
     expect(loadingIndex).toContain("export { ResourceLoading }");
     expect(loadingIndex).toContain("export { SectionLoading }");
-    expect(scorePage).toContain("common('loadingScoreData')");
+    expect(scorePage).toContain("common('loadingScore')");
     expect(reviewPage).toContain("common('loadingReviewData')");
-    expect(editorWorkspace).toContain("common('loadingScoreData')");
+    expect(editorWorkspace).toContain("common('loadingScore')");
     expect(previewPage).toContain("t('loading')");
     expect(invitePage).toContain("common('loadingInvite')");
     expect(practicePage).toContain('PracticeScoreViewer');

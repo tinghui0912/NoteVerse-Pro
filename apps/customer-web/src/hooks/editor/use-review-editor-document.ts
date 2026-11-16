@@ -8,7 +8,7 @@ import { useEditorOriginalImages } from '@/hooks/editor/use-editor-original-imag
 import { useEditorSaveErrorToast } from '@/hooks/editor/use-editor-save-error-toast';
 import { useEditorSaveCompletion } from '@/hooks/editor/use-editor-save-completion';
 import { useEditorValidationGate } from '@/hooks/editor/use-editor-validation-gate';
-import { useEditorXmlActions } from '@/hooks/editor/use-editor-xml-actions';
+import {useEditorSession} from '@/contexts/editor-session-context';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { importJobsApi } from '@/lib/api';
 import { ensureGenericRenderMusicXmlIdsString, stripAppOwnedGenericRenderMusicXmlIdsString } from '@/lib/musicxml/generic-render-ids';
@@ -27,8 +27,8 @@ export function useReviewEditorDocument({
   const router = useRouter();
   const common = useTranslations('common');
   const errors = useTranslations('errors');
-  const { applyXml, clearXml, currentXml, normalizeVoices } = useEditorXmlActions();
-  const completeSave = useEditorSaveCompletion({ applyXml });
+  const {loadMusicXml,clearDocument,serializedXml:currentXml}=useEditorSession();
+  const completeSave = useEditorSaveCompletion();
   const showSaveError = useEditorSaveErrorToast({ titleNamespace: 'review' });
   const reviewQuery = useImportJobReview(jobId);
   const review = reviewQuery.data;
@@ -80,7 +80,7 @@ export function useReviewEditorDocument({
           await deleteDraft(draftResourceId, draftBaselineRevisionId);
         }
         if (cancelled) return;
-        await applyXml(xmlContent, { resetHistory: true, updateRawXml: true });
+        loadMusicXml(xmlContent);
       } catch (error) {
         if (!cancelled) {
           reportUnexpectedClientError(error, {
@@ -89,7 +89,7 @@ export function useReviewEditorDocument({
             job_id: jobId,
           });
           setLoadError(common('loadFailedDescription'));
-          clearXml();
+          clearDocument();
         }
       } finally {
         if (!cancelled) setInitialized(true);
@@ -98,17 +98,16 @@ export function useReviewEditorDocument({
     return () => {
       cancelled = true;
     };
-  }, [applyXml, clearXml, common, draftBaselineRevisionId, draftResourceId, initialized, jobId, xmlContent]);
+  }, [loadMusicXml, clearDocument, common, draftBaselineRevisionId, draftResourceId, initialized, jobId, xmlContent]);
 
   const performSave = () => {
     if (!currentXml) return;
     updateReview.mutate(
       { jobId, content: stripAppOwnedGenericRenderMusicXmlIdsString(currentXml) },
       {
-        onSuccess: async (response) => {
-          const updatedXml = response?.musicxml?.content ?? currentXml;
+        onSuccess: async () => {
           await completeSave({
-            xml: updatedXml,
+
             returnUrl: returnUrl || `/review/${jobId}`,
             beforeNavigate: clearDraft,
           });
@@ -120,7 +119,7 @@ export function useReviewEditorDocument({
 
   const validationGate = useEditorValidationGate(performSave);
   const recoverDraft = async () => {
-    if (pendingDraft) await applyXml(pendingDraft.xml, { resetHistory: true });
+    if (pendingDraft) loadMusicXml(pendingDraft.xml);
     setPendingDraft(null);
   };
   const discardDraft = async () => {
@@ -137,7 +136,6 @@ export function useReviewEditorDocument({
       : loadError,
     isAutoSaving,
     isLoading: reviewQuery.isLoading || (Boolean(xmlContent) && !initialized),
-    normalizeVoices,
     originalImages,
     pendingDraft,
     recoverDraft,

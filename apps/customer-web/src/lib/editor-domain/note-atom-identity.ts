@@ -5,13 +5,7 @@ export type AppendedNoteAtomIdentity = {
   musicXmlElementId: string;
 };
 
-/**
- * Creates the stable identity for a note appended to an existing chord.
- *
- * A note atom id is also the MusicXML <note id> emitted by the exporter. Using
- * the same newly allocated value for both fields lets a later import recover
- * the exact domain identity and render anchor without a compatibility map.
- */
+/** Allocate a stable note identity and source anchor for an appended chord member. */
 export function createAppendedNoteAtomIdentity(
   document: ScoreDocument,
   event: PitchedEvent,

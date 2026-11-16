@@ -14,7 +14,6 @@
   "addSlur": "Add Slur",
   "deleteSlur": "Delete Slur",
   "assistantTools": "Assistant Tools",
-  "normalizeVoices": "Simplify Voices",
   "generateFingering": "Generate Fingering",
   "fingeringHandSizeLabel": "Hand Size",
   "fingeringHandSizeDescription": "Choose the player's hand size. Fingering will be generated from the score currently open in the editor.",

@@ -22,11 +22,11 @@ import {
   useEditorDomainEdit,
   useEditorState,
   useEntityEditor,
-  useScoreData,
+  useEditorSession,
 } from '@/contexts/editor-provider';
 import type { EditingSelectionState } from '@/contexts/editor-state-context';
 import { useToast } from '@/hooks/use-toast';
-import type { AccidentalValue, Duration } from '@/types/score-types';
+import type { AccidentalValue, Duration } from './input-values';
 import {
   findNoteAtomByMusicXmlElementId,
   getVoiceEventMusicXmlElementIds,
@@ -48,8 +48,7 @@ import {
   removePitch,
   type EditableEvent,
 } from './event-inspector-editable-event';
-import { parseXml } from '@/lib/musicxml/core';
-import { getManualBeamDirectionAtEntity, getManualBeamRunSourceIdsAtEntity, type BeamDirection } from '@/lib/musicxml/automatic-beams';
+type BeamDirection='up'|'down'|'auto';
 import { cn } from '@/lib/utils';
 import {
   buildDomainSlurDetails,
@@ -112,7 +111,7 @@ function EventInspectorPanel({
 }) {
   const t = useTranslations('editor');
   const common = useTranslations('common');
-  const { scoreData, currentXml } = useScoreData();
+  const { document } = useEditorSession();
   const { toast } = useToast();
   const { handleCloseModal } = useEntityEditor();
   const { openEditingSelection } = useEditorState();
@@ -127,8 +126,8 @@ function EventInspectorPanel({
   } = useEditorDomainEdit();
   const domainInspector = useEditingDomainInspectorViewModel();
   const domainSelectionSummary = useMemo(() => (
-    domainInspector.viewModel ? getDomainSelectionSummary(domainInspector.viewModel) : null
-  ), [domainInspector.viewModel]);
+    domainInspector.viewModel && document ? getDomainSelectionSummary(domainInspector.viewModel,document) : null
+  ), [domainInspector.viewModel,document]);
 
   const event = editableEvent;
   const summaryEvent = event;
@@ -137,25 +136,19 @@ function EventInspectorPanel({
     : domainInspector.viewModel ? 'ready' : 'unavailable';
   const controlEvent = event;
   const controlEventSource = domainInspectorStatus === 'ready' ? 'domainViewModel' : 'unavailable';
-  const currentXmlDoc = useMemo(() => currentXml ? parseXml(currentXml) : null, [currentXml]);
   const [notePropertiesOpen, setNotePropertiesOpen] = useState(true);
   const [beamPropertiesOpen, setBeamPropertiesOpen] = useState(false);
-  const selectedMusicXmlSourceId = getPrimarySelectedMusicXmlSourceId(domainInspector.event);
-  const beamDirection = useMemo(() => {
-    return currentXmlDoc && selectedMusicXmlSourceId
-      ? getManualBeamDirectionAtEntity(currentXmlDoc, selectedMusicXmlSourceId)
-      : null;
-  }, [currentXmlDoc, selectedMusicXmlSourceId]);
+  const selectedBeam=document?.beamRelationships.find(beam=>beam.eventIds.includes(domainInspector.event?.id as EventId));
+  const beamDirection=selectedBeam?document?.notationControls.find(control=>control.kind==='eventNotation'&&control.eventId===selectedBeam.eventIds[0]):undefined;
+  const effectiveBeamDirection=beamDirection?.kind==='eventNotation'?beamDirection.stemDirection:undefined;
   const tieDetails = useMemo(() => buildDomainTieDetails({
     document: domainInspector.document,
     event: domainInspector.event?.kind === 'pitched' ? domainInspector.event : null,
-    scoreData,
-  }), [domainInspector.document, domainInspector.event, scoreData]);
+  }), [domainInspector.document, domainInspector.event]);
   const slurDetails = useMemo(() => buildDomainSlurDetails({
     document: domainInspector.document,
     event: domainInspector.event?.kind === 'pitched' ? domainInspector.event : null,
-    scoreData,
-  }), [domainInspector.document, domainInspector.event, scoreData]);
+  }), [domainInspector.document, domainInspector.event]);
 
   const eventTypeLabel = useMemo(() => {
     const displayKind = getEditableEventDisplayKind(summaryEvent);
@@ -511,8 +504,8 @@ function EventInspectorPanel({
 
   const updateBeamDirection = (direction: BeamDirection) => {
     const entityId = getPrimarySelectedMusicXmlSourceId(domainInspector.event);
-    if (!currentXmlDoc || !entityId) return;
-    const sourceIds = getManualBeamRunSourceIdsAtEntity(currentXmlDoc, entityId);
+    if (!document || !entityId || !selectedBeam) return;
+    const sourceIds=selectedBeam.eventIds.flatMap(id=>{const event=document.events.find(event=>event.id===id);return event?getVoiceEventMusicXmlElementIds(event):[];});
     if (sourceIds.length === 0) {
       toast({
         title: common('operationFailed'),
@@ -777,11 +770,11 @@ function EventInspectorPanel({
                       <Button type="button" variant="outline" size="icon" onClick={() => updateBeam('break-right')} aria-label={t('beamBreakRight')} title={t('beamBreakRight')}>
                         <span className="flex items-center"><Scissors className="h-4 w-4" /><ArrowRight className="h-3 w-3" /></span>
                       </Button>
-                      {beamDirection && (
+                      {selectedBeam && (
                         <div className="col-span-4 space-y-2 pt-2">
                           <Label>{t('beamDirectionLabel')}</Label>
                           <DirectionRadioGroup
-                            value={beamDirection}
+                            value={effectiveBeamDirection ?? 'auto'}
                             options={[
                               { value: 'auto', ariaLabel: t('directionAuto'), label: t('directionAuto') },
                               { value: 'up', ariaLabel: t('directionUp'), icon: ArrowUp },
@@ -806,7 +799,7 @@ function EventInspectorPanel({
                     onDeleteConnection={deleteTieConnection}
                     onUpdateDirection={updateTieConnectionDirection}
                     onOpenEndpoint={openConnectionEndpoint}
-                    scoreData={scoreData}
+                    document={document}
                   />
 
                   <ConnectionDetailGroup
@@ -817,7 +810,7 @@ function EventInspectorPanel({
                     onDeleteConnection={deleteSlurConnection}
                     onUpdateDirection={updateSlurConnectionDirection}
                     onOpenEndpoint={openConnectionEndpoint}
-                    scoreData={scoreData}
+                    document={document}
                   />
                 </>
               )}
@@ -838,7 +831,7 @@ function ConnectionDetailGroup({
   onDeleteConnection,
   onUpdateDirection,
   onOpenEndpoint,
-  scoreData,
+  document,
 }: {
   title: string;
   details: ConnectionDetail[];
@@ -847,7 +840,7 @@ function ConnectionDetailGroup({
   onDeleteConnection: (detail: ConnectionDetail) => void;
   onUpdateDirection: (detail: ConnectionDetail, direction: ConnectionDirection) => void;
   onOpenEndpoint: (detail: ConnectionDetail, endpoint: 'current' | 'partner') => void;
-  scoreData: ReturnType<typeof useScoreData>['scoreData'];
+  document: ReturnType<typeof useEditorSession>['document'];
 }) {
   const t = useTranslations('editor');
   const [open, setOpen] = useState(details.length > 0);
@@ -879,7 +872,7 @@ function ConnectionDetailGroup({
                         className="rounded-sm text-left hover:text-primary hover:underline"
                         onClick={() => onOpenEndpoint(detail, 'current')}
                       >
-                        {getEntitySourcePitch(scoreData, detail.currentId, detail.sourceId, detail.current, fallbackText)}
+                        {getEntitySourcePitch(document, detail.currentId, detail.sourceId, detail.current, fallbackText)}
                       </button>
                       <span className="mx-1.5 text-muted-foreground">-&gt;</span>
                       <button
@@ -887,7 +880,7 @@ function ConnectionDetailGroup({
                         className="rounded-sm text-left hover:text-primary hover:underline"
                         onClick={() => onOpenEndpoint(detail, 'partner')}
                       >
-                        {getEntitySourcePitch(scoreData, detail.partnerId, detail.partnerSourceId, detail.partner, fallbackText)}
+                        {getEntitySourcePitch(document, detail.partnerId, detail.partnerSourceId, detail.partner, fallbackText)}
                       </button>
                     </p>
                     <div className="space-y-1">
@@ -1048,9 +1041,8 @@ function toRetargetableFingeringOnlyNoteAtomDraft(
   sourceId: string,
   fingering: string,
 ): Extract<InspectorDraft, { kind: 'noteAtom' }> {
-  // These ids are placeholders for the retargeting bridge. The actual domain
-  // eventId and noteAtomId are resolved from `retargetNoteAtomSourceId` after
-  // importing the current MusicXML into the editor-domain document.
+  // Resolve this concrete source anchor against the accepted session document
+  // before applying the note command.
   return {
     kind: 'noteAtom',
     eventId: sourceId as EventId,
@@ -1063,9 +1055,8 @@ function toRetargetablePitchOnlyNoteAtomDraft(
   sourceId: string,
   edit: PitchOnlyPitchedEdit,
 ): Extract<InspectorDraft, { kind: 'noteAtom' }> {
-  // These ids are placeholders for the retargeting bridge. The actual domain
-  // eventId and noteAtomId are resolved from `retargetNoteAtomSourceId` after
-  // importing the current MusicXML into the editor-domain document.
+  // Resolve this concrete source anchor against the accepted session document
+  // before applying the note command.
   return {
     kind: 'noteAtom',
     eventId: sourceId as EventId,
@@ -1078,9 +1069,8 @@ function toRetargetableAccidentalOnlyNoteAtomDraft(
   sourceId: string,
   edit: AccidentalOnlyPitchedEdit,
 ): Extract<InspectorDraft, { kind: 'noteAtom' }> {
-  // These ids are placeholders for the retargeting bridge. The actual domain
-  // eventId and noteAtomId are resolved from `retargetNoteAtomSourceId` after
-  // importing the current MusicXML into the editor-domain document.
+  // Resolve this concrete source anchor against the accepted session document
+  // before applying the note command.
   return {
     kind: 'noteAtom',
     eventId: sourceId as EventId,

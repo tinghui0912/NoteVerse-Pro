@@ -183,12 +183,36 @@ export type Voice = {
   id: VoiceId;
   partId: PartId;
   homeStaffId: StaffId;
+  number: number;
   stemPolicy: 'automatic' | 'up' | 'down';
 };
 
+export type Meter = { beats: number; beatType: number };
+export type KeySignature = { fifths: number; mode?: string };
+export type Clef = { sign: string; line?: number; octaveChange?: number };
 export type Measure = {
   id: MeasureId;
+  partId: PartId;
   number: number;
+  attributes: {
+    meter?: Meter | null;
+    key?: KeySignature;
+    clefs?: { staffId: StaffId; clef: Clef }[];
+  };
+};
+export type TempoNotation = {
+  perMinute: number;
+  beatUnit: RhythmicValue['notation']['base'];
+  dots: number;
+  visible: boolean;
+};
+export type DocumentMetadata = {
+  notationTitle: string | null;
+  subtitle: string | null;
+  composer: string | null;
+  lyricist: string | null;
+  copyright: string | null;
+  tempoNotation: TempoNotation | null;
 };
 
 export type Staff = {
@@ -205,6 +229,7 @@ export type Part = {
 export type ScoreDocument = {
   schemaVersion: 1;
   id: ScoreDocumentId;
+  metadata: DocumentMetadata;
   parts: Part[];
   staves: Staff[];
   voices: Voice[];
@@ -408,30 +433,6 @@ export function deriveTimelineGaps(params: {
   }
 
   return gaps;
-}
-
-export type MusicXmlCursorInstruction =
-  | {
-      kind: 'forward';
-      duration: Rational;
-    }
-  | {
-      kind: 'backup';
-      duration: Rational;
-    };
-
-export function applyMusicXmlCursorInstruction(
-  cursor: Rational,
-  instruction: MusicXmlCursorInstruction
-): Rational {
-  if (instruction.kind === 'forward') {
-    return addRational(cursor, instruction.duration);
-  }
-
-  const next = subtractRational(cursor, instruction.duration);
-  return compareRational(next, { numerator: 0, denominator: 1 }) < 0
-    ? { numerator: 0, denominator: 1 }
-    : next;
 }
 
 function assertValidRational(value: Rational): void {

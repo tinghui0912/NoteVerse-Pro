@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl';
 import { useConfirmImportJobReview, useImportJobReview } from '@/hooks/queries/use-review-queries';
 import { importJobsApi } from '@/lib/api';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
-import { MusicXMLParser } from '@/lib/musicxml/parser';
+import {importEditorMusicXml} from '@/lib/editor-musicxml';
 import { validateDataIntegrity } from '@/lib/musicxml/validator';
 import type { ReviewArtifactRead } from '@/generated/api';
 
@@ -88,8 +88,8 @@ export function useReviewPageData(jobId: string) {
   const validationWarnings = useMemo(() => {
     if (!xmlContent) return [];
     try {
-      const scoreData = new MusicXMLParser(xmlContent).parse();
-      return validateDataIntegrity(scoreData, xmlContent, translateValidationKey).warnings;
+      const {document} = importEditorMusicXml(xmlContent);
+      return validateDataIntegrity(document, xmlContent, translateValidationKey).warnings;
     } catch {
       return [];
     }

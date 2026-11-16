@@ -1,11 +1,9 @@
 import {
   isPitchedEditableEvent,
-  toEditableEvent,
   type EditableEvent,
 } from './event-inspector-editable-event';
-import type { AccidentalValue, ParsedScoreEvent } from '@/types/score-types';
-import type { Accidental, InspectorDraft, Pitch, StemDirectionOverride } from '@/lib/editor-domain';
-import { toInspectorDomainDraft } from './event-inspector-domain-adapter';
+import type { AccidentalValue } from './input-values';
+import type { Accidental, Pitch } from '@/lib/editor-domain';
 
 export function splitPitch(pitch: string) {
   const match = pitch.match(/^([A-Ga-g])([#b]{0,2})(\d)$/);
@@ -34,19 +32,6 @@ export function accidentalPitchSuffix(accidental: AccidentalValue) {
   return '';
 }
 
-type InspectorStemDirectionOverride = Extract<StemDirectionOverride, 'up' | 'down'>;
-
-export type InspectorEditState = {
-  draft: InspectorDraft;
-  notationOverrides: {
-    /**
-     * Missing means automatic engraving. The current UI only creates up/down
-     * overrides; MusicXML `none`/`double` remain import/export notation work.
-     */
-    stemDirection?: InspectorStemDirectionOverride;
-  };
-};
-
 export type FingeringOnlyPitchedEdit = {
   index: number;
   value: string;
@@ -62,22 +47,6 @@ export type PitchOnlyPitchedEdit = {
   index: number;
   pitch: Pitch;
 };
-
-export function createInspectorEditState(original: ParsedScoreEvent): InspectorEditState {
-  return toInspectorEditStateFromEditableEvent(original, toEditableEvent(original));
-}
-
-export function toInspectorEditStateFromEditableEvent(
-  original: ParsedScoreEvent,
-  event: EditableEvent,
-): InspectorEditState {
-  return {
-    draft: toInspectorDomainDraft(original, event),
-    notationOverrides: {
-      stemDirection: toStemDirectionOverride(event.stemDirection),
-    },
-  };
-}
 
 export function isRhythmOrStemOnlyPitchedEdit(current: EditableEvent, next: EditableEvent): boolean {
   if (!isPitchedEditableEvent(current) || !isPitchedEditableEvent(next)) return false;
@@ -167,10 +136,6 @@ export function getAccidentalOnlyPitchedEdit(
     pitch: toDomainPitchFromInspectorPitch(next.pitches[index] ?? 'C4'),
     accidental: nextAccidental,
   };
-}
-
-function toStemDirectionOverride(value: EditableEvent['stemDirection']): InspectorStemDirectionOverride | undefined {
-  return value === 'up' || value === 'down' ? value : undefined;
 }
 
 export function toDomainPitchFromInspectorPitch(value: string): Pitch {

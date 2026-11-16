@@ -1,6 +1,7 @@
-import type { AccidentalValue, Duration } from '@/types/score-types';
+import type { AccidentalValue, Duration } from '@/components/editor/input-values';
 import type {
   InspectorViewModel,
+  ScoreDocument,
   NoteAtom,
   Pitch,
   RhythmicValue,
@@ -19,7 +20,7 @@ export function toEditableEventFromDomainInspectorViewModel(
 ): EditableEvent | null {
   if (viewModel.kind === 'explicitRest') {
     return {
-      duration: toLegacyDuration(viewModel.rhythm),
+      duration: toFormDuration(viewModel.rhythm),
       dotted: viewModel.rhythm.notation.dots > 0,
       pitches: [],
       stemDirection: 'none',
@@ -30,31 +31,30 @@ export function toEditableEventFromDomainInspectorViewModel(
 
   if (viewModel.kind === 'pitchedEvent') {
     return {
-      duration: toLegacyDuration(viewModel.rhythm),
+      duration: toFormDuration(viewModel.rhythm),
       dotted: viewModel.rhythm.notation.dots > 0,
-      pitches: viewModel.notes.map((note) => toLegacyPitch(note.pitch)),
+      pitches: viewModel.notes.map((note) => toFormPitch(note.pitch)),
       stemDirection: toEditableStemDirection(viewModel.stemDirection),
       fingerings: viewModel.notes.map((note) => note.fingering ?? 'none'),
-      accidentals: viewModel.notes.map((note) => toLegacyAccidental(note.accidental)),
+      accidentals: viewModel.notes.map((note) => toFormAccidental(note.accidental)),
     };
   }
 
   return null;
 }
 
-export function getDomainSelectionSummary(viewModel: InspectorViewModel): DomainSelectionSummary {
-  return {
-    measure: getTrailingNumber(String(getViewModelMeasureId(viewModel)), 1),
-    voice: getTrailingNumber(String(viewModel.voiceId), 1),
-    staffIndex: Math.max(0, getTrailingNumber(String(viewModel.staffId), 1) - 1),
-  };
-}
-
-function getTrailingNumber(value: string, fallback: number): number {
-  const match = value.match(/(\d+)$/);
-  if (!match) return fallback;
-  const parsed = Number.parseInt(match[1] ?? '', 10);
-  return Number.isFinite(parsed) ? parsed : fallback;
+export function getDomainSelectionSummary(
+  viewModel: InspectorViewModel,
+  document: ScoreDocument,
+): DomainSelectionSummary {
+  const measure = document.measures.find(
+    (measure) => measure.id === getViewModelMeasureId(viewModel),
+  );
+  const voice = document.voices.find((voice) => voice.id === viewModel.voiceId);
+  const staff = document.staves.find((staff) => staff.id === viewModel.staffId);
+  if (!measure || !voice || !staff)
+    throw new Error('Inspector identity is not in the current document.');
+  return { measure: measure.number, voice: voice.number, staffIndex: staff.index };
 }
 
 function getViewModelMeasureId(viewModel: InspectorViewModel): unknown {
@@ -63,7 +63,7 @@ function getViewModelMeasureId(viewModel: InspectorViewModel): unknown {
     : viewModel.position.measureId;
 }
 
-function toLegacyDuration(rhythm: RhythmicValue): Duration {
+function toFormDuration(rhythm: RhythmicValue): Duration {
   switch (rhythm.notation.base) {
     case 'whole':
       return 'durationWhole';
@@ -83,11 +83,11 @@ function toLegacyDuration(rhythm: RhythmicValue): Duration {
   }
 }
 
-function toLegacyPitch(pitch: Pitch): string {
-  return `${pitch.step}${toLegacyPitchSuffix(pitch.alter)}${pitch.octave}`;
+function toFormPitch(pitch: Pitch): string {
+  return `${pitch.step}${toFormPitchSuffix(pitch.alter)}${pitch.octave}`;
 }
 
-function toLegacyPitchSuffix(alter: number | undefined): string {
+function toFormPitchSuffix(alter: number | undefined): string {
   if (alter === -2) return 'bb';
   if (alter === -1) return 'b';
   if (alter === 1) return '#';
@@ -95,12 +95,14 @@ function toLegacyPitchSuffix(alter: number | undefined): string {
   return '';
 }
 
-function toLegacyAccidental(value: NoteAtom['accidental']): AccidentalValue | null | undefined {
+function toFormAccidental(value: NoteAtom['accidental']): AccidentalValue | null | undefined {
   if (value === 'double-sharp') return undefined;
   return value;
 }
 
-function toEditableStemDirection(value: StemDirectionOverride | undefined): EditableEvent['stemDirection'] {
+function toEditableStemDirection(
+  value: StemDirectionOverride | undefined,
+): EditableEvent['stemDirection'] {
   return value === 'up' || value === 'down' ? value : 'none';
 }
 

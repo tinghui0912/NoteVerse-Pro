@@ -1,208 +1,44 @@
-import { describe, expect, it } from 'vitest';
-import type { ScoreData } from '@/types/score-types';
-import {
-  deriveEditorTracks,
-  getEditorTrackId,
-  getNextVoiceNumber,
-  getNextVoiceNumberFromScore,
-  parseVoiceNumber,
-} from './tracks';
+// @vitest-environment jsdom
+import { it, expect } from 'vitest';
+import { editorDocument, note } from '../../../tests/fixtures/editor';
+import { deriveEditorTracks } from './tracks';
+it('projects typed voice numbers independently of their identity spelling', () => {
+  const document = editorDocument(note('a', 'C', 1) + note('b', 'D', 2));
+  document.voices[0] = { ...document.voices[0], number: 7 };
+  const tracks = deriveEditorTracks(document);
+  expect(tracks.map((track) => track.xmlVoice)).toEqual([2, 7]);
+  expect(tracks.find((track) => track.xmlVoice === 7)?.voiceId).toBe(document.voices[0].id);
+  expect(tracks.every((track) => track.entityCount === 1)).toBe(true);
+});
+it('projects an input target without persisting an empty voice', () => {
+  const document = editorDocument();
+  const input = { ...document.voices[0], id: 'input-id' as never, number: 8 };
+  expect(deriveEditorTracks(document, [input]).find((track) => track.xmlVoice === 8)).toMatchObject(
+    { entityCount: 0, measureCount: 0 },
+  );
+});
 
-describe('editor tracks view model', () => {
-  it('uses stable ids and parses MusicXML voice labels', () => {
-    expect(getEditorTrackId(0, 2)).toBe('voice-2');
-    expect(parseVoiceNumber('voiceLabel 3')).toBe(3);
-  });
-
-  it('derives one global track per MusicXML voice across the score', () => {
-    const scoreData: ScoreData = {
-      measures: [
-        {
-          number: 1,
-          staves: [
-            {
-              clef: 'treble',
-              name: 'trebleClef',
-              voices: [
-                {
-                  name: 'voiceLabel 1',
-                  events: [{ type: 'rest', duration: 'durationQuarter' }],
-                },
-                {
-                  name: 'voiceLabel 2',
-                  events: [],
-                },
-              ],
-            },
-          ],
-        },
-        {
-          number: 2,
-          staves: [
-            {
-              clef: 'treble',
-              name: 'trebleClef',
-              voices: [
-                {
-                  name: 'voiceLabel 1',
-                  events: [{ type: 'note', pitch: 'C4', duration: 'durationQuarter' }],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    };
-
-    const tracks = deriveEditorTracks(scoreData);
-
-    expect(tracks.map((track) => track.id)).toEqual(['voice-1', 'voice-2']);
-    expect(tracks[0].entityCount).toBe(2);
-    expect(tracks[1].entityCount).toBe(0);
-  });
-
-  it('merges the same voice number across staves into one layer', () => {
-    const scoreData: ScoreData = {
-      measures: [
-        {
-          number: 1,
-          staves: [
-            {
-              clef: 'treble',
-              name: 'trebleClef',
-              voices: [{ name: 'voiceLabel 1', events: [{ type: 'note', pitch: 'C4', duration: 'durationQuarter' }] }],
-            },
-            {
-              clef: 'bass',
-              name: 'bassClef',
-              voices: [{ name: 'voiceLabel 1', events: [{ type: 'note', pitch: 'C3', duration: 'durationQuarter' }] }],
-            },
-          ],
-        },
-      ],
-    };
-
-    const tracks = deriveEditorTracks(scoreData);
-
-    expect(tracks.map((track) => track.id)).toEqual(['voice-1']);
-    expect(tracks[0].entityCount).toBe(2);
-  });
-
-  it('orders tracks by global voice number', () => {
-    const scoreData: ScoreData = {
-      measures: [
-        {
-          number: 1,
-          staves: [
-            {
-              clef: 'treble',
-              name: 'trebleClef',
-              voices: [
-                { name: 'voiceLabel 1', events: [] },
-                { name: 'voiceLabel 3', events: [] },
-              ],
-            },
-            {
-              clef: 'bass',
-              name: 'bassClef',
-              voices: [{ name: 'voiceLabel 2', events: [] }],
-            },
-          ],
-        },
-      ],
-    };
-
-    expect(deriveEditorTracks(scoreData).map((track) => track.id)).toEqual([
-      'voice-1',
-      'voice-2',
-      'voice-3',
-    ]);
-  });
-
-  it('picks the smallest missing global voice number from current tracks', () => {
-    const tracks = [
-      { id: 'voice-1', staffIndex: 0, xmlVoice: 1, label: 'Voice 1', color: '#000', entityCount: 1, measureCount: 1 },
-      { id: 'voice-3', staffIndex: 0, xmlVoice: 3, label: 'Voice 3', color: '#000', entityCount: 0, measureCount: 0 },
-    ];
-
-    expect(getNextVoiceNumber(tracks, 0)).toBe(2);
-  });
-
-  it('picks the smallest missing voice number from every measure in the target staff', () => {
-    const scoreData: ScoreData = {
-      measures: [
-        {
-          number: 1,
-          staves: [
-            {
-              clef: 'treble',
-              name: 'trebleClef',
-              voices: [
-                { name: 'voiceLabel 1', events: [] },
-                { name: 'voiceLabel 2', events: [] },
-              ],
-            },
-          ],
-        },
-        {
-          number: 2,
-          staves: [
-            {
-              clef: 'treble',
-              name: 'trebleClef',
-              voices: [
-                { name: 'voiceLabel 1', events: [] },
-                { name: 'voiceLabel 3', events: [] },
-              ],
-            },
-          ],
-        },
-      ],
-    };
-
-    expect(getNextVoiceNumberFromScore(scoreData, 0)).toBe(4);
-  });
-
-  it('picks the smallest missing global voice number when no staff is specified', () => {
-    const scoreData: ScoreData = {
-      measures: [
-        {
-          number: 1,
-          staves: [
-            {
-              clef: 'treble',
-              name: 'trebleClef',
-              voices: [{ name: 'voiceLabel 1', events: [] }],
-            },
-            {
-              clef: 'bass',
-              name: 'bassClef',
-              voices: [{ name: 'voiceLabel 2', events: [] }],
-            },
-          ],
-        },
-      ],
-    };
-
-    expect(getNextVoiceNumberFromScore(scoreData)).toBe(3);
-  });
-
-  it('reuses voice one after it has been removed', () => {
-    const scoreData: ScoreData = {
-      measures: [
-        {
-          number: 1,
-          staves: [
-            {
-              clef: 'treble',
-              name: 'trebleClef',
-              voices: [{ name: 'voiceLabel 2', events: [] }],
-            },
-          ],
-        },
-      ],
-    };
-
-    expect(getNextVoiceNumberFromScore(scoreData)).toBe(1);
-  });
+it('keeps separate part voices and maps their staff positions onto the rendered score', () => {
+  const first = editorDocument(note());
+  const part = { id: 'P2' as never, name: 'Other part' };
+  const staff = { id: 'P2:staff-1' as never, partId: part.id, index: 0 };
+  const voice = {
+    id: 'independent-voice' as never,
+    partId: part.id,
+    homeStaffId: staff.id,
+    number: 1,
+    stemPolicy: 'automatic' as const,
+  };
+  const document = {
+    ...first,
+    parts: [...first.parts, part],
+    staves: [...first.staves, staff],
+    voices: [...first.voices, voice],
+  };
+  expect(
+    deriveEditorTracks(document).map((track) => [track.partId, track.xmlVoice, track.staffIndex]),
+  ).toEqual([
+    ['P1', 1, 0],
+    ['P2', 1, 1],
+  ]);
 });

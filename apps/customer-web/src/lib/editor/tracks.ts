@@ -1,7 +1,8 @@
-import type { ScoreData } from '@/types/score-types';
-
+import type { ScoreDocument, Voice, VoiceId, PartId } from '@/lib/editor-domain';
 export type EditorTrack = {
   id: string;
+  voiceId: VoiceId;
+  partId: PartId;
   staffIndex: number;
   xmlVoice: number;
   label: string;
@@ -9,8 +10,7 @@ export type EditorTrack = {
   entityCount: number;
   measureCount: number;
 };
-
-const TRACK_COLORS = [
+const colors = [
   '#2563eb',
   '#16a34a',
   '#9333ea',
@@ -20,79 +20,30 @@ const TRACK_COLORS = [
   '#db2777',
   '#4f46e5',
 ];
-
-export function getEditorTrackId(_staffIndex: number, xmlVoice: number): string {
-  return `voice-${xmlVoice}`;
+export function getTrackColor(_staffIndex: number, number: number) {
+  return colors[(number - 1) % colors.length];
 }
-
-export function parseVoiceNumber(voiceName: string): number {
-  const match = voiceName.match(/voiceLabel\s*(\d+)/);
-  return match ? Number.parseInt(match[1], 10) : 1;
-}
-
-export function getTrackColor(_staffIndex: number, xmlVoice: number): string {
-  const colorIndex = Math.abs(xmlVoice - 1) % TRACK_COLORS.length;
-  return TRACK_COLORS[colorIndex];
-}
-
-export function getNextVoiceNumber(tracks: EditorTrack[], _staffIndex: number): number {
-  const voiceNumbers = new Set(tracks.map((track) => track.xmlVoice));
-
-  let candidate = 1;
-  while (voiceNumbers.has(candidate)) candidate += 1;
-  return candidate;
-}
-
-export function getNextVoiceNumberFromScore(scoreData: ScoreData | null, staffIndex?: number): number {
-  if (!scoreData) return 1;
-
-  const voiceNumbers = new Set<number>();
-  scoreData.measures.forEach((measure) => {
-    const staves = staffIndex === undefined ? measure.staves : [measure.staves[staffIndex]].filter(Boolean);
-    staves.forEach((stave) => {
-      stave.voices.forEach((voice) => {
-        voiceNumbers.add(parseVoiceNumber(voice.name));
-      });
-    });
-  });
-
-  let candidate = 1;
-  while (voiceNumbers.has(candidate)) candidate += 1;
-  return candidate;
-}
-
-export function deriveEditorTracks(scoreData: ScoreData | null): EditorTrack[] {
-  if (!scoreData) return [];
-
-  const tracks = new Map<string, EditorTrack>();
-
-  scoreData.measures.forEach((measure) => {
-    measure.staves.forEach((stave, staffIndex) => {
-      stave.voices.forEach((voice) => {
-        const xmlVoice = parseVoiceNumber(voice.name);
-        const id = getEditorTrackId(staffIndex, xmlVoice);
-        const existing = tracks.get(id);
-
-        if (existing) {
-          existing.entityCount += voice.events.length;
-          existing.measureCount += voice.events.length > 0 ? 1 : 0;
-          return;
-        }
-
-        tracks.set(id, {
-          id,
-          staffIndex,
-          xmlVoice,
-          label: `Voice ${xmlVoice}`,
-          color: getTrackColor(staffIndex, xmlVoice),
-          entityCount: voice.events.length,
-          measureCount: voice.events.length > 0 ? 1 : 0,
-        });
-      });
-    });
-  });
-
-  return Array.from(tracks.values()).sort((left, right) => {
-    return left.xmlVoice - right.xmlVoice;
-  });
+export function deriveEditorTracks(
+  document: ScoreDocument | null,
+  inputVoices: Voice[] = [],
+): EditorTrack[] {
+  if (!document) return [];
+  return [...document.voices, ...inputVoices]
+    .map((voice) => {
+      const events = document.events.filter((event) => event.voiceId === voice.id);
+      const staffIndex = document.staves.findIndex((staff) => staff.id === voice.homeStaffId);
+      if (staffIndex < 0) throw new Error('The voice requires a declared staff.');
+      return {
+        id: voice.id,
+        voiceId: voice.id,
+        partId: voice.partId,
+        staffIndex,
+        xmlVoice: voice.number,
+        label: `Voice ${voice.number}`,
+        color: getTrackColor(staffIndex, voice.number),
+        entityCount: events.length,
+        measureCount: new Set(events.map((event) => event.position.measureId)).size,
+      };
+    })
+    .sort((a, b) => a.partId.localeCompare(b.partId) || a.xmlVoice - b.xmlVoice);
 }

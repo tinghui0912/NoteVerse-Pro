@@ -55,7 +55,7 @@ export function EditorWorkspacePage({ document, scoreShell }: EditorWorkspacePag
 
   if (document.isLoading) {
     return renderFrame(
-      <ResourceLoading label={common('loadingScoreData')} />
+      <ResourceLoading label={common('loadingScore')} />
     );
   }
 
@@ -91,13 +91,11 @@ export function EditorWorkspacePage({ document, scoreShell }: EditorWorkspacePag
           savePending={document.savePending}
           onGenerateFingering={document.generateFingering}
           onSave={document.save}
-          onNormalizeVoices={() => void document.normalizeVoices()}
         />
         <EditorWorkbench
           currentXml={document.currentXml}
           fingeringPending={document.fingeringPending}
           onGenerateFingering={document.generateFingering}
-          onNormalizeVoices={() => void document.normalizeVoices()}
         />
       </div>
 

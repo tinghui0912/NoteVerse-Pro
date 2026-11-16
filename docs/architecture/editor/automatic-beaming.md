@@ -1,43 +1,34 @@
 # Automatic Beaming
 
-Automatic beaming is notation policy applied to rhythmic edits. Ordinary score
-entry does not require a beam-management mode. The implementation is
-`apps/customer-web/src/lib/musicxml/automatic-beams.ts`; domain beam relationships
-and explicit join/break commands live in `lib/editor-domain`.
+Automatic beaming is domain notation policy. `editor-domain/document-commands.ts`
+recomputes beam relationships when a meter command changes the effective context.
+`editor-musicxml` serializes those relationships; it does not run a separate XML
+beaming algorithm.
 
-## Duration and grouping
+## Grouping
 
-Notated type, dots and tuplet ratio determine beam levels and sounding duration.
-MusicXML duration supplies a fallback when notation type is absent. Eighth notes
-support one beam, sixteenth notes two, and shorter supported values additional
-levels. Partial secondary groups use forward/backward hooks.
+The policy reads event positions, exact rhythmic lengths, effective meter and
+explicit voice identity. Ordinary meters group by denominator beats. Compound
+meters with an eighth-note denominator and a numerator divisible by three group
+three eighths per beat. Events must be contiguous, pitched, beamable and wholly
+inside the same group. Rests, gaps, longer notes and group boundaries terminate a
+run. A chord advances musical time once.
 
-Meter supplies beat groups, including additive beats, multiple beats/beat-type
-pairs and compound meters. Ambiguous meters use the implementation's explicit
-default grouping policy. Processing is partitioned by part, measure, voice and
-staff. A chord advances musical time once. Rests, forward cursor movement,
-non-beamable events and group boundaries terminate an ordinary group; an event
-crossing a beat-group boundary is not joined across that boundary.
+The supported relationship model records primary beam groups. Explicit join and
+break commands modify that same domain intent. Import rejects unsupported beam
+levels and hooks instead of reducing their meaning to primary groups. Composite
+and staff-specific meters require explicit adapter support and are rejected.
 
-## Rebuild ownership
+## Scope and preservation
 
-| Operation | Beam behavior |
-| --- | --- |
-| Load, save, undo, redo | Preserve stored notation |
-| Pitch, fingering, lyric, articulation or stem-only edit | Preserve rhythmic grouping |
-| Insert/delete, rest conversion, duration/dot/tuplet/position change | Rebuild affected rhythmic scope |
-| Voice, staff or meter change | Rebuild affected measure/voice scope |
-| Explicit beam join/break | Apply the domain relationship command |
-
-Imported beam notation remains unchanged outside the edited scope. Cross-staff,
-grace/cue, irregular or nested tuplets, cross-bar and specialized manual/fanned
-notation are protected where the automatic policy cannot safely represent them.
-Unsupported cases must not be flattened into ordinary groups.
+A meter command affects the selected measure and following measures of the same
+part until the next explicit meter change. Beam intent outside that scope remains
+unchanged. Load, undo, redo and unrelated pitch/fingering/stem edits preserve
+existing grouping. Voice deletion removes its events and touching relationships.
+Unsafe source contexts fail explicitly.
 
 ## Validation
 
-Beam diagnostics distinguish unpaired begin/end, invalid levels, level gaps and
-cross-voice relationships. `automatic-beams.test.ts`, editor-domain command and
-round-trip tests define meter, chord, hook and protected-case expectations.
-Tests must verify unchanged notation outside the edited scope as well as the
-validity of newly produced groups.
+Domain grouping, command, session and source-preserving round-trip tests define the
+current policy. Read-only MusicXML validation reports malformed beam levels and
+closure at interchange boundaries. Rendered beam geometry belongs to Verovio.

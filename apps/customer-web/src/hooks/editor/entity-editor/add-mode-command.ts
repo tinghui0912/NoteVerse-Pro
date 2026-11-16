@@ -1,4 +1,4 @@
-import type { Duration } from '@/types/score-types';
+import type { Duration } from '@/components/editor/input-values';
 import {
   createInputDuration,
   insertExplicitRest,
@@ -125,7 +125,7 @@ export function applyAddModeInsertCommandToDomain(params: ApplyAddModeDomainInse
   });
 }
 
-export function createAddModeNoteAtomId(eventId: EventId): NoteAtomId {
+function createAddModeNoteAtomId(eventId: EventId): NoteAtomId {
   return `${eventId}-note-1` as NoteAtomId;
 }
 

@@ -7,7 +7,7 @@ import { useEditorOriginalImages } from '@/hooks/editor/use-editor-original-imag
 import { useEditorSaveErrorToast } from '@/hooks/editor/use-editor-save-error-toast';
 import { useEditorSaveCompletion } from '@/hooks/editor/use-editor-save-completion';
 import { useEditorValidationGate } from '@/hooks/editor/use-editor-validation-gate';
-import { useEditorXmlActions } from '@/hooks/editor/use-editor-xml-actions';
+import {useEditorSession} from '@/contexts/editor-session-context';
 import { ensureGenericRenderMusicXmlIdsString, stripAppOwnedGenericRenderMusicXmlIdsString } from '@/lib/musicxml/generic-render-ids';
 import {
   useCreateRevision,
@@ -28,8 +28,8 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
   const common = useTranslations('common');
   const errors = useTranslations('errors');
   const { toast } = useToast();
-  const { applyXml, clearXml, currentXml, normalizeVoices } = useEditorXmlActions();
-  const completeSave = useEditorSaveCompletion({ applyXml });
+  const {loadMusicXml,clearDocument,serializedXml:currentXml,replaceFromExternalMusicXml}=useEditorSession();
+  const completeSave = useEditorSaveCompletion();
   const showSaveError = useEditorSaveErrorToast();
   const scoreQuery = useScoreDetail(scoreId);
   const score = scoreQuery.data;
@@ -80,7 +80,7 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
           await deleteDraft(scoreId, revisionId);
         }
         if (cancelled) return;
-        await applyXml(xmlContent, { resetHistory: true, updateRawXml: true });
+        loadMusicXml(xmlContent);
       } catch (error) {
         if (!cancelled) {
           reportUnexpectedClientError(error, {
@@ -90,7 +90,7 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
             revision_id: revisionId,
           });
           setLoadError(common('loadFailedDescription'));
-          clearXml();
+          clearDocument();
         }
       } finally {
         if (!cancelled) setInitialized(true);
@@ -99,7 +99,7 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
     return () => {
       cancelled = true;
     };
-  }, [applyXml, clearXml, common, initialized, revisionId, scoreId, xmlContent]);
+  }, [loadMusicXml, clearDocument, common, initialized, revisionId, scoreId, xmlContent]);
 
   const performSave = () => {
     if (!currentXml || !revisionId) return;
@@ -135,7 +135,7 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
   const validationGate = useEditorValidationGate(performSave);
   const recoverDraft = async () => {
     if (pendingDraft) {
-      await applyXml(pendingDraft.xml, { resetHistory: true });
+      loadMusicXml(pendingDraft.xml);
       toast({ title: t('draftRecovered'), description: t('draftRecoveredDesc') });
     }
     setPendingDraft(null);
@@ -167,10 +167,7 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
           }
 
           try {
-            await applyXml(generatedXml, {
-              historyLabel: t('actions.generateFingering'),
-              resetHistory: false,
-            });
+            replaceFromExternalMusicXml(generatedXml,t('actions.generateFingering'));
             toast({ title: t('fingeringGenerated'), description: t('fingeringGeneratedDesc') });
           } catch (error) {
             reportUnexpectedClientError(error, {
@@ -211,7 +208,6 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
     generateFingering,
     isAutoSaving,
     isLoading: scoreQuery.isLoading || revisionQuery.isLoading || (Boolean(xmlContent) && !initialized),
-    normalizeVoices,
     originalImages,
     pendingDraft,
     recoverDraft,

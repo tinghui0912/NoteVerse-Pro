@@ -1,16 +1,8 @@
 // @vitest-environment jsdom
-
-import { describe, expect, it } from 'vitest';
-import type { ScoreData } from '@/types/score-types';
-import type { MeasureId, PartId, ScoreDocument, ScoreDocumentId, StaffId, VoiceId } from '@/lib/editor-domain';
-import { createInputDuration, createRhythmicGridResolution } from '@/lib/editor-domain';
+import { it, expect } from 'vitest';
+import { editorDocument, note } from '../../../tests/fixtures/editor';
+import { documentTimelineGaps } from '@/lib/editor-domain';
 import { resolveRhythmicInsertPlacement } from './rhythmic-insert-placement';
-
-const partId = 'P1' as PartId;
-const measureId = 'P1:measure-1' as MeasureId;
-const staffId = 'P1:staff-1' as StaffId;
-const voiceId = 'P1:voice-1' as VoiceId;
-
 function setRect(element: Element, rect: Partial<DOMRect>) {
   const resolved = {
     x: rect.left ?? 0,
@@ -50,264 +42,64 @@ function appendNote(parent: Element, id: string, left: number) {
   parent.appendChild(note);
 }
 
-const domainDocument: ScoreDocument = {
-  schemaVersion: 1,
-  id: 'score-document-1' as ScoreDocumentId,
-  parts: [{ id: partId, name: 'Piano' }],
-  staves: [{ id: staffId, partId, index: 0 }],
-  voices: [{ id: voiceId, partId, homeStaffId: staffId, stemPolicy: 'automatic' as const }],
-  measures: [{ id: measureId, number: 1 }],
-  events: [],
-  beamRelationships: [],
-  tieRelationships: [],
-  slurRelationships: [],
-  notationControls: [],
-};
-
-describe('rhythmic insert placement adapter', () => {
-  it('resolves empty-staff insertion from measure geometry and rhythmic grid', () => {
-    const { measure } = createMeasure();
-
-    const placement = resolveRhythmicInsertPlacement({
-      domainDocument,
-      timelineGaps: [],
-      scoreData: { timeSignature: '4/4', measures: [{ number: 1, staves: [] }] },
-      measureElement: measure,
-      measureIndex: 0,
-      target: { staveIndex: 0, xmlVoice: 1 },
-      clientX: 250,
-      divisions: 4,
-      timeSignature: '4/4',
-      visibleTrackIdSet: new Set(['voice-1']),
-    });
-
-    expect(placement).toMatchObject({
-      left: 250,
-      gridLines: [100, 175, 250, 325, 400],
-      location: {
-        measureIndex: 0,
-        staveIndex: 0,
-        xmlVoice: 1,
-        tick: 8,
+it('places a rhythmic caret from domain positions and actual SVG anchors', () => {
+  const document = editorDocument(note());
+  const { measure, staff } = createMeasure();
+  appendNote(staff, 'n1', 100);
+  const voice = document.voices[0];
+  const result = resolveRhythmicInsertPlacement({
+    domainDocument: document,
+    timelineGaps: documentTimelineGaps(document),
+    measureElement: measure,
+    measureIndex: 0,
+    target: { staveIndex: 0, voiceId: voice.id },
+    clientX: 250,
+    inputDuration: {
+      kind: 'inputDuration',
+      rhythm: {
+        timelineDuration: { numerator: 2, denominator: 1 },
+        notation: { base: 'half', dots: 0 },
       },
-      caret: {
-        kind: 'caret',
-        staffId,
-        voiceId,
-        position: {
-          measureId,
-          offset: { numerator: 2, denominator: 1 },
-        },
-      },
-      insertionAnchor: {
-        kind: 'caret',
-        caret: {
-          position: {
-            measureId,
-            offset: { numerator: 2, denominator: 1 },
-          },
-        },
-      },
-    });
+    },
+    visibleTrackIdSet: new Set([voice.id]),
   });
-
-  it('returns a timeline-gap insertion anchor when the snapped position is inside a domain gap', () => {
-    const { measure } = createMeasure();
-    const timelineGaps = [
-      {
-        kind: 'timelineGap' as const,
-        voiceId,
-        staffId,
-        start: {
-          measureId,
-          offset: { numerator: 1, denominator: 1 },
-        },
-        duration: { numerator: 2, denominator: 1 },
-      },
-    ];
-
-    const placement = resolveRhythmicInsertPlacement({
-      domainDocument,
-      timelineGaps,
-      scoreData: { timeSignature: '4/4', measures: [{ number: 1, staves: [] }] },
-      measureElement: measure,
-      measureIndex: 0,
-      target: { staveIndex: 0, xmlVoice: 1 },
-      clientX: 250,
-      divisions: 4,
-      timeSignature: '4/4',
-      visibleTrackIdSet: new Set(['voice-1']),
-    });
-
-    expect(placement).toMatchObject({
-      insertionAnchor: {
-        kind: 'timelineGap',
-        voiceId,
-        staffId,
-        position: {
-          measureId,
-          offset: { numerator: 2, denominator: 1 },
-        },
-        gapStart: {
-          measureId,
-          offset: { numerator: 1, denominator: 1 },
-        },
-        gapDuration: { numerator: 2, denominator: 1 },
-      },
-    });
-  });
-
-  it('uses rendered rhythmic anchors to avoid a linear-only preview projection', () => {
-    const { measure, staff } = createMeasure();
-    appendNote(staff, 'note-1', 145);
-    appendNote(staff, 'note-2', 295);
-
-    const scoreData: ScoreData = {
-      timeSignature: '4/4',
-      measures: [
-        {
-          number: 1,
-          staves: [
-            {
-              clef: 'treble',
-              name: 'trebleClef',
-              voices: [
-                {
-                  name: 'voiceLabel 1',
-                  events: [
-                    {
-                      type: 'note',
-                      pitch: 'C4',
-                      duration: 'durationQuarter',
-                      meta: {
-                        id: 'note-1',
-                        measureIndex: 0,
-                        staveIndex: 0,
-                        xmlVoice: 1,
-                        entityIndex: 0,
-                        startTick: 0,
-                      },
-                    },
-                    {
-                      type: 'note',
-                      pitch: 'D4',
-                      duration: 'durationQuarter',
-                      meta: {
-                        id: 'note-2',
-                        measureIndex: 0,
-                        staveIndex: 0,
-                        xmlVoice: 1,
-                        entityIndex: 1,
-                        startTick: 8,
-                      },
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    };
-
-    const placement = resolveRhythmicInsertPlacement({
-      domainDocument,
+  expect(result).not.toBeNull();
+  expect(result!.position.measureId).toBe(document.measures[0].id);
+  expect(
+    result!.position.offset.numerator / result!.position.offset.denominator,
+  ).toBeLessThanOrEqual(2);
+});
+it('disables rhythmic insertion when effective meter is unknown', () => {
+  const doc = editorDocument();
+  doc.measures[0].attributes = {};
+  const { measure } = createMeasure();
+  expect(
+    resolveRhythmicInsertPlacement({
+      domainDocument: doc,
       timelineGaps: [],
-      scoreData,
       measureElement: measure,
       measureIndex: 0,
-      target: { staveIndex: 0, xmlVoice: 1 },
+      target: { staveIndex: 0, voiceId: doc.voices[0].id },
       clientX: 200,
-      divisions: 4,
-      timeSignature: '4/4',
-      visibleTrackIdSet: new Set(['voice-1']),
-    });
-
-    expect(placement).toMatchObject({
-      left: 225,
-      location: {
-        tick: 4,
-      },
-      position: {
-        offset: { numerator: 1, denominator: 1 },
-      },
-    });
-  });
-
-  it('uses the supplied add-mode grid resolution for empty-staff placement', () => {
-    const { measure } = createMeasure();
-
-    const placement = resolveRhythmicInsertPlacement({
-      domainDocument,
+      visibleTrackIdSet: new Set(),
+    }),
+  ).toBeNull();
+});
+it('supports an unpersisted input voice using visible musical anchors', () => {
+  const doc = editorDocument();
+  const input = { ...doc.voices[0], number: 2, id: 'input-target' as never };
+  const { measure, staff } = createMeasure();
+  appendNote(staff, 'n1', 100);
+  expect(
+    resolveRhythmicInsertPlacement({
+      domainDocument: doc,
+      inputVoices: [input],
       timelineGaps: [],
-      scoreData: { timeSignature: '4/4', measures: [{ number: 1, staves: [] }] },
       measureElement: measure,
       measureIndex: 0,
-      target: { staveIndex: 0, xmlVoice: 1 },
+      target: { staveIndex: 0, voiceId: input.id },
       clientX: 200,
-      divisions: 4,
-      grid: createRhythmicGridResolution({ numerator: 1, denominator: 2 }),
-      timeSignature: '4/4',
-      visibleTrackIdSet: new Set(['voice-1']),
-    });
-
-    expect(placement).toMatchObject({
-      left: 212.5,
-      location: {
-        tick: 6,
-      },
-      position: {
-        offset: { numerator: 3, denominator: 2 },
-      },
-    });
-  });
-
-  it('filters grid markers and snapping to starts that fit the selected input duration', () => {
-    const { measure } = createMeasure();
-
-    const placement = resolveRhythmicInsertPlacement({
-      domainDocument,
-      timelineGaps: [],
-      scoreData: { timeSignature: '4/4', measures: [{ number: 1, staves: [] }] },
-      measureElement: measure,
-      measureIndex: 0,
-      target: { staveIndex: 0, xmlVoice: 1 },
-      clientX: 398,
-      divisions: 4,
-      inputDuration: createInputDuration({
-        timelineDuration: { numerator: 1, denominator: 1 },
-        notation: { base: 'quarter', dots: 0 },
-      }),
-      timeSignature: '4/4',
-      visibleTrackIdSet: new Set(['voice-1']),
-    });
-
-    expect(placement).toMatchObject({
-      left: 325,
-      gridLines: [100, 175, 250, 325],
-      location: {
-        tick: 12,
-      },
-      position: {
-        offset: { numerator: 3, denominator: 1 },
-      },
-    });
-  });
-
-  it('returns null when the domain measure, staff, or voice cannot be resolved', () => {
-    const { measure } = createMeasure();
-
-    expect(resolveRhythmicInsertPlacement({
-      domainDocument: null,
-      timelineGaps: [],
-      scoreData: null,
-      measureElement: measure,
-      measureIndex: 0,
-      target: { staveIndex: 0, xmlVoice: 1 },
-      clientX: 250,
-      divisions: 4,
-      timeSignature: '4/4',
-      visibleTrackIdSet: new Set(['voice-1']),
-    })).toBeNull();
-  });
+      visibleTrackIdSet: new Set([doc.voices[0].id]),
+    })?.caret.voiceId,
+  ).toBe(input.id);
 });

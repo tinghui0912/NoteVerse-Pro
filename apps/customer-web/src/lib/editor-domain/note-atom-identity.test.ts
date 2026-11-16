@@ -25,7 +25,7 @@ function createDocument(): ScoreDocument {
     source: { musicXmlElementIds: ['root-note'] },
   };
 
-  return {
+  return {metadata:{notationTitle:null,subtitle:null,composer:null,lyricist:null,copyright:null,tempoNotation:null},
     schemaVersion: 1,
     id: 'score-1' as ScoreDocument['id'],
     parts: [],

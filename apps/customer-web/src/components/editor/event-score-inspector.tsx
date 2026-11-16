@@ -19,8 +19,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useMetadataEditor, useScoreData } from '@/contexts/editor-provider';
+import { useMetadataEditor, useEditorSession } from '@/contexts/editor-provider';
 import { DEFAULT_SCORE_TEMPO_BPM } from '@/lib/score/tempo-policy';
+import {effectiveMeasureContext} from '@/lib/editor-domain';
 import { cn } from '@/lib/utils';
 
 const TIME_SIGNATURES = ['2/4', '3/4', '4/4', '5/4', '6/4', '3/8', '4/8', '5/8', '6/8', '7/8', '9/8', '12/8', '2/2', '3/2'];
@@ -122,7 +123,7 @@ function TimeSignaturePicker({
     <Popover>
       <PopoverTrigger asChild>
         <Button type="button" variant="outline" className="w-full justify-between font-mono text-base">
-          {value}
+          {value || '—'}
           <ChevronRight className="h-4 w-4 text-muted-foreground" />
         </Button>
       </PopoverTrigger>
@@ -212,8 +213,8 @@ function KeySignaturePicker({
       <PopoverTrigger asChild>
         <Button type="button" variant="outline" className="h-auto w-full justify-between py-2">
           <span className="flex min-w-0 items-center gap-2">
-            <span className="font-medium">{selected.major}</span>
-            <span className="truncate text-xs text-muted-foreground">{selected.accidentals || 'C'}</span>
+            <span className="font-medium">{value ? selected.major : '—'}</span>
+            <span className="truncate text-xs text-muted-foreground">{value ? selected.accidentals || 'C' : ''}</span>
           </span>
           <ChevronRight className="h-4 w-4 text-muted-foreground" />
         </Button>
@@ -316,7 +317,8 @@ function TempoPicker({
 export function ScoreInspectorPanel({ onClose }: { onClose: () => void }) {
   const t = useTranslations('editor');
   const scoreText = useTranslations('score');
-  const { scoreData } = useScoreData();
+  const { document } = useEditorSession();
+  const context=document?.measures[0]?effectiveMeasureContext(document,document.measures[0].id):null;
   const {
     updateKeySignature,
     updateTimeSignature,
@@ -348,9 +350,9 @@ export function ScoreInspectorPanel({ onClose }: { onClose: () => void }) {
               <div className="space-y-2">
                 <Label htmlFor="notation-title">{t('notationTitleLabel')}</Label>
                 <Input
-                  key={`notation-title-${scoreData?.notationTitle || ''}`}
+                  key={`notation-title-${document?.metadata.notationTitle || ''}`}
                   id="notation-title"
-                  defaultValue={scoreData?.notationTitle || ''}
+                  defaultValue={document?.metadata.notationTitle || ''}
                   onBlur={(event) => updateNotationTitle(event.currentTarget.value)}
                 />
               </div>
@@ -358,9 +360,9 @@ export function ScoreInspectorPanel({ onClose }: { onClose: () => void }) {
               <div className="space-y-2">
                 <Label htmlFor="score-subtitle">{t('subtitleLabel')}</Label>
                 <Input
-                  key={`score-subtitle-${scoreData?.subtitle || ''}`}
+                  key={`score-subtitle-${document?.metadata.subtitle || ''}`}
                   id="score-subtitle"
-                  defaultValue={scoreData?.subtitle || ''}
+                  defaultValue={document?.metadata.subtitle || ''}
                   onBlur={(event) => updateScoreSubtitle(event.currentTarget.value)}
                 />
               </div>
@@ -368,9 +370,9 @@ export function ScoreInspectorPanel({ onClose }: { onClose: () => void }) {
               <div className="space-y-2">
                 <Label htmlFor="score-composer">{t('composerLabel')}</Label>
                 <Input
-                  key={`score-composer-${scoreData?.composer || ''}`}
+                  key={`score-composer-${document?.metadata.composer || ''}`}
                   id="score-composer"
-                  defaultValue={scoreData?.composer || ''}
+                  defaultValue={document?.metadata.composer || ''}
                   onBlur={(event) => updateScoreComposer(event.currentTarget.value)}
                 />
               </div>
@@ -378,9 +380,9 @@ export function ScoreInspectorPanel({ onClose }: { onClose: () => void }) {
               <div className="space-y-2">
                 <Label htmlFor="score-lyricist">{t('lyricistLabel')}</Label>
                 <Input
-                  key={`score-lyricist-${scoreData?.lyricist || ''}`}
+                  key={`score-lyricist-${document?.metadata.lyricist || ''}`}
                   id="score-lyricist"
-                  defaultValue={scoreData?.lyricist || ''}
+                  defaultValue={document?.metadata.lyricist || ''}
                   onBlur={(event) => updateScoreLyricist(event.currentTarget.value)}
                 />
               </div>
@@ -388,9 +390,9 @@ export function ScoreInspectorPanel({ onClose }: { onClose: () => void }) {
               <div className="space-y-2">
                 <Label htmlFor="score-copyright">{t('copyrightLabel')}</Label>
                 <Textarea
-                  key={`score-copyright-${scoreData?.copyright || ''}`}
+                  key={`score-copyright-${document?.metadata.copyright || ''}`}
                   id="score-copyright"
-                  defaultValue={scoreData?.copyright || ''}
+                  defaultValue={document?.metadata.copyright || ''}
                   rows={4}
                   onBlur={(event) => updateScoreCopyright(event.currentTarget.value)}
                 />
@@ -403,7 +405,7 @@ export function ScoreInspectorPanel({ onClose }: { onClose: () => void }) {
               <div className="space-y-2">
                 <Label>{t('keySignatureLabel')}</Label>
                 <KeySignaturePicker
-                  value={scoreData?.keySignature || '0'}
+                  value={context?.key ? String(context.key.fifths) : ''}
                   onChange={updateKeySignature}
                   majorLabel={t('majorKey')}
                   minorLabel={t('minorKey')}
@@ -412,18 +414,18 @@ export function ScoreInspectorPanel({ onClose }: { onClose: () => void }) {
 
               <div className="space-y-2">
                 <Label>{t('timeSignatureLabel')}</Label>
-                <TimeSignaturePicker value={scoreData?.timeSignature || '4/4'} onChange={updateTimeSignature} />
+                <TimeSignaturePicker value={context?.meter ? `${context.meter.beats}/${context.meter.beatType}` : ''} onChange={updateTimeSignature} />
               </div>
 
               <div className="space-y-2">
                 <Label>{t('tempoLabel')}</Label>
                 <TempoPicker
-                  value={scoreData?.tempoNotation?.perMinute ?? String(DEFAULT_SCORE_TEMPO_BPM)}
-                  beatUnit={scoreData?.tempoNotation?.beatUnit ?? 'quarter'}
-                  dots={scoreData?.tempoNotation?.dots ?? 0}
+                  value={String(document?.metadata.tempoNotation?.perMinute ?? DEFAULT_SCORE_TEMPO_BPM)}
+                  beatUnit={document?.metadata.tempoNotation?.beatUnit ?? 'quarter'}
+                  dots={document?.metadata.tempoNotation?.dots ?? 0}
                   onChange={updateTempo}
                   showTempoMarkLabel={t('showTempoMark')}
-                  initialShowMark={scoreData?.tempoNotation?.visible ?? false}
+                  initialShowMark={document?.metadata.tempoNotation?.visible ?? false}
                 />
               </div>
             </section>
