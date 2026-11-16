@@ -1,5 +1,9 @@
 from dataclasses import dataclass
+
 from sqlalchemy.orm import Session
+
+from app.core.control_plane_errors import ControlPlaneErrorCode
+from app.core.exceptions import ResourceNotFoundException, ValidationException
 from app.modules.import_jobs.dispatch_service import import_dispatch_service
 from app.modules.rendering.delivery import render_outbox_service
 from app.modules.playback.outbox_service import playback_outbox_service
@@ -28,7 +32,16 @@ class OpsAsyncOperationCommandService:
             AsyncOperationKind.MAIL: mail_outbox_service.rearm_for_operator,
             AsyncOperationKind.SCORE_DELETION: score_deletion_delivery.rearm_for_operator,
         }
-        previous = owners[kind](db, operation_id)
+        try:
+            previous = owners[kind](db, operation_id)
+        except ResourceNotFoundException as exc:
+            raise ResourceNotFoundException(
+                "async_operation", operation_id, code=ControlPlaneErrorCode.RESOURCE_NOT_FOUND
+            ) from exc
+        except ValidationException as exc:
+            raise ValidationException(
+                code=ControlPlaneErrorCode.VALIDATION_ERROR, details=exc.details
+            ) from exc
         db.commit()
         return RetryOperationResult(
             operation=ops_async_operation_query_service.get_operation(

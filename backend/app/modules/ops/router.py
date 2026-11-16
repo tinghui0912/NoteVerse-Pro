@@ -9,6 +9,7 @@ from app.api.deps import get_db
 from app.modules.durable_work.failure import DurableFailureClass
 from app.core.client_address import client_address, peer_address
 from app.core.exceptions import AppException
+from app.core.control_plane_errors import ControlPlaneErrorCode
 from app.modules.platform_operators.dependencies import OperatorPrincipal
 from app.modules.ops.schemas import (
     AsyncOperationKind,
@@ -174,7 +175,11 @@ def retry_async_operation(
             operation_kind=kind,
             operation_id=operation_id,
             outcome="failed",
-            error_code=exc.code,
+            error_code=(
+                exc.code.value
+                if isinstance(exc.code, ControlPlaneErrorCode)
+                else ControlPlaneErrorCode.INTERNAL_ERROR.value
+            ),
             reason=command.reason,
             request_id=getattr(request.state, "request_id", None),
             peer_address=peer_address(request),

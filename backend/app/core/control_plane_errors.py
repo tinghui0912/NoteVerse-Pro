@@ -28,13 +28,7 @@ class ControlPlaneErrorResponse(BaseModel):
 
 
 def control_plane_error_response(code: StrEnum, request_id: str) -> dict[str, object]:
-    # Shared domain failures enter this HTTP vocabulary only through this admission.
-    try:
-        admitted = (
-            ControlPlaneErrorCode(code)
-            if isinstance(code, StrEnum)
-            else ControlPlaneErrorCode.INTERNAL_ERROR
-        )
-    except ValueError:
-        admitted = ControlPlaneErrorCode.INTERNAL_ERROR
+    admitted = (
+        code if isinstance(code, ControlPlaneErrorCode) else ControlPlaneErrorCode.INTERNAL_ERROR
+    )
     return ControlPlaneErrorResponse(code=admitted, request_id=request_id).model_dump(mode="json")

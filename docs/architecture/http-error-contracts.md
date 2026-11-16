@@ -9,8 +9,14 @@ contract authorities.
 `request_id`. Request correlation retains its ingress validation and response
 header. Exception details and internal diagnostics remain server-owned. Response
 factories admit codes into their own vocabulary and present `internal_error` for
-unadmitted values. Shared domain failures reaching the Control Plane are explicitly
-admitted by its response factory. HTTP statuses retain their exception semantics.
+unadmitted values. Equal wire values do not grant admission across contracts.
+Shared/domain failures are translated at the owning Control Plane application
+boundary when their semantics are explicitly admitted. The ops retry command
+boundary translates resource-not-found and invalid-retry validation failures;
+domain owners retain their eligibility rules. The Control Plane response factory
+accepts only `ControlPlaneErrorCode` members and fails closed for every foreign
+enum/value. Retry failure audit events record the admitted operator-facing string
+code. HTTP statuses retain their exception semantics.
 
 Composition roots supply `HttpRuntimeErrorCodes` and their response factory to
 shared exception handlers and CSRF/origin middleware. Shared HTTP mechanics do not
