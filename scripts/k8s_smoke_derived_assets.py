@@ -119,7 +119,8 @@ from app.db.models import Score, StorageUsageCategory
 from app.db.models.score import RevisionOrigin
 from app.db.session import SessionLocal
 from app.modules.revisions.writer import revision_writer, InitialRevisionWrite, PreparedRevisionSource
-from app.modules.revisions.dispatch import dispatch_render_outbox, dispatch_playback_outbox
+from app.modules.rendering.dispatch import dispatch_render_outbox
+from app.modules.revisions.dispatch import dispatch_playback_outbox
 from app.modules.revisions.metadata_dispatch import dispatch_revision_metadata
 from app.modules.storage_objects.writes import write_object
 from app.modules.storage_usage.service import storage_usage_service

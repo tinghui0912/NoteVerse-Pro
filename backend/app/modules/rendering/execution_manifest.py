@@ -1,4 +1,4 @@
-"""Resolved provenance identity for rendered score assets."""
+"""Immutable identity of the rendering algorithm and profile."""
 
 from app.processing.engines.render.verovio_render_profile import DEFAULT_VEROVIO_RENDER_PROFILE
 

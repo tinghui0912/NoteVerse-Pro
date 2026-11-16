@@ -13,7 +13,7 @@ from app.modules.mail.outbox_service import mail_outbox_service
 from app.modules.storage_objects.retirement import retirement_delivery
 from app.modules.practice.bundle.retention import practice_bundle_retention
 from app.modules.playback.outbox_service import playback_outbox_service
-from app.modules.score_assets.render_outbox_service import render_outbox_service
+from app.modules.rendering.delivery import render_outbox_service
 from app.modules.storage_usage.service import storage_usage_service
 from app.storage import object_storage
 from app.worker.task_runtime import run_scheduler_scan
@@ -43,7 +43,7 @@ def execute_render_outbox_maintenance() -> dict[str, int]:
             due = render_outbox_service.recover_and_list_due(db)
             db.commit()
 
-        from app.modules.revisions.dispatch import dispatch_render_outbox
+        from app.modules.rendering.dispatch import dispatch_render_outbox
 
         dispatched = sum(1 for outbox_uuid in due if dispatch_render_outbox(outbox_uuid))
         return {"due": len(due), "dispatched": dispatched}

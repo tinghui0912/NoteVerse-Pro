@@ -30,7 +30,7 @@ from app.modules.revisions.presentation_demand import RevisionPresentationDemand
 NOW = datetime(2026, 11, 6, 12, tzinfo=UTC)
 CASES = [
     (
-        "score_assets.render_outbox_service",
+        "rendering.delivery",
         "RenderOutboxService",
         "RENDER_OUTBOX",
         RenderOutbox,
@@ -79,14 +79,14 @@ def delivery(postgres_engine, request, monkeypatch):
     service = getattr(module, service_name)()
     if model in (RenderOutbox, PlaybackOutbox):
         # Exercise lifecycle persistence after a successful domain payload admission.
-        from app.modules.score_assets.render_payloads import RenderTarget
+        from app.modules.rendering.targets import ReviewThumbnailRenderTarget
         from app.modules.playback.outbox_service import PlaybackTarget
 
         def admitted(db, row):
             if model is RenderOutbox:
-                return RenderTarget(
+                return ReviewThumbnailRenderTarget(
                     outbox_uuid=row.outbox_uuid,
-                    target_type=row.target_type,
+                    job_uuid="job",
                     render_profile=row.render_profile,
                     source_fingerprint=row.source_fingerprint,
                 )

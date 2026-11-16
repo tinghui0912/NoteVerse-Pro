@@ -27,7 +27,7 @@ from app.db.models.score import RevisionSourceFormat
 from app.modules.storage_objects.persistence import object_from_bytes
 from app.modules.import_jobs.review.service import ImportReviewService
 from app.modules.import_jobs.review.schemas import ReviewConfirmRequest
-from app.modules.score_assets.render_service import RevisionRenderService
+from app.modules.score_assets.score_revision_rendering import ScoreRevisionRenderService
 from tests.support.write_cleanup import drain_write_cleanup
 from tests.test_score_revision_services import (
     score_service_session as score_service_session,
@@ -120,7 +120,7 @@ def test_render_partial_pages_remain_cleanup_owned(score_service_session, monkey
     engine = Mock()
     engine.render_score.return_value = dict(success=True, files=files, engine="test")
     monkeypatch.setattr(
-        "app.modules.score_assets.render_service.create_score_render_engine", lambda **_: engine
+        "app.modules.rendering.renderer.create_score_render_engine", lambda **_: engine
     )
     put = storage.put_bytes
 
@@ -135,13 +135,13 @@ def test_render_partial_pages_remain_cleanup_owned(score_service_session, monkey
     db.commit()
     payload = revision_attempt(db, "render", score, revision)
     with pytest.raises(OSError, match="third page"):
-        RevisionRenderService(storage=storage).render_for_worker(
+        ScoreRevisionRenderService(storage=storage).render_for_worker(
             db,
             score.score_uuid,
             "partial-revision",
             source_fingerprint=db.get(ScoreRevision, 702).content_hash,
             profile="default",
-            outbox_uuid=payload.outbox_uuid,
+            outbox_uuid=payload.target.outbox_uuid,
             lease=payload.lease,
         )
     intents = list(db.scalars(select(ObjectWriteIntent)))

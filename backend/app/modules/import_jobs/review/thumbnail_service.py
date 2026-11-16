@@ -3,23 +3,20 @@ from app.modules.storage_objects.reads import StoredObjectReadTarget, read_admit
 from app.modules.storage_objects.retirement import retire_after_release
 from app.modules.storage_objects.writes import write_object, adopt_written_object
 
-import os
-import tempfile
 import uuid
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
 from app.db.model_utils import require_persisted_id
 from app.db.models import ImportArtifact, StorageUsageCategory, StoredObject
 from app.modules.import_jobs.repository import ImportJobRepository
 from app.modules.storage_usage.service import storage_usage_service
-from app.processing.engines.render import create_score_render_engine
+from app.modules.rendering.renderer import render_musicxml
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from app.db.models.import_job import ImportJobState
 from app.modules.durable_work.delivery import DeliveryAttemptLease, StaleDeliveryAttempt
-from app.modules.score_assets.render_outbox_service import render_outbox_service
+from app.modules.rendering.delivery import render_outbox_service
 from app.modules.revisions.presentation_demand import RevisionPresentationSuperseded
 from app.storage import ObjectStorage, object_storage
 
@@ -46,6 +43,8 @@ class ImportReviewThumbnailService:
         job = self.repository.get_by_uuid(db, job_uuid)
         if not job:
             raise RuntimeError(f"Import job {job_uuid} no longer exists")
+        if job.state != ImportJobState.READY_FOR_REVIEW:
+            raise RevisionPresentationSuperseded()
         job_id = require_persisted_id(job.id, entity="import job")
         review_xml = db.execute(
             select(ImportArtifact).where(
@@ -58,37 +57,25 @@ class ImportReviewThumbnailService:
         if review_xml.stored_object.sha256 != expected_source_fingerprint:
             raise RevisionPresentationSuperseded()
 
-        os.makedirs(settings.WORK_ROOT, exist_ok=True)
-        with tempfile.TemporaryDirectory(dir=settings.WORK_ROOT) as work_dir:
-            xml_path = os.path.join(work_dir, "score.musicxml")
-            with open(xml_path, "wb") as target:
-                target.write(
-                    read_admitted_bytes(
-                        self.storage, StoredObjectReadTarget.from_object(review_xml.stored_object)
-                    )
-                )
-            engine = create_score_render_engine(output_folder=work_dir)
-            result = engine.render_score(xml_path=xml_path, output_name="thumbnail")
-            if not result["success"] or not result.get("files"):
-                raise RuntimeError(f"Review thumbnail renderer produced no output for {job_uuid}")
-
-            output = result["files"][0]
-            path = output["path"]
-            with open(path, "rb") as source:
-                content = source.read()
-            extension = os.path.splitext(path)[1] or ".svg"
-            artifact_uuid = str(uuid.uuid4())
-            key = (
-                f"jobs/{job_uuid}/{ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value}/"
-                f"001-{artifact_uuid}{extension}"
-            )
-            stored = write_object(
-                db,
-                self.storage,
-                key=key,
-                content=content,
-                content_type=output["mime_type"],
-            )
+        pages = render_musicxml(
+            read_admitted_bytes(
+                self.storage, StoredObjectReadTarget.from_object(review_xml.stored_object)
+            ),
+            output_name="thumbnail",
+        )
+        output = pages[0]
+        artifact_uuid = str(uuid.uuid4())
+        key = (
+            f"jobs/{job_uuid}/{ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value}/"
+            f"001-{artifact_uuid}{output.extension}"
+        )
+        stored = write_object(
+            db,
+            self.storage,
+            key=key,
+            content=output.content,
+            content_type=output.mime_type,
+        )
         job = db.execute(
             select(type(job))
             .where(type(job).id == job_id)

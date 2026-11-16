@@ -9,7 +9,6 @@ from sqlmodel import col
 from app.db.models import (
     PlaybackAssetKind,
     PlaybackOutbox,
-    RenderOutbox,
     ScorePlaybackAsset,
     ScoreRenderAsset,
     ScoreRevision,
@@ -83,21 +82,6 @@ class ScoreAssetRepository:
                     col(ScoreRenderAsset.page_number).asc(),
                     col(ScoreRenderAsset.created_at).asc(),
                 )
-                .limit(1)
-            )
-        ).scalar_one_or_none()
-
-    def latest_render_outbox(
-        self, db: Session, revision_id: int, *, render_profile: str = "default"
-    ) -> RenderOutbox | None:
-        return (
-            db.execute(
-                select(RenderOutbox)
-                .where(
-                    RenderOutbox.revision_id == revision_id,
-                    RenderOutbox.render_profile == render_profile,
-                )
-                .order_by(col(RenderOutbox.created_at).desc())
                 .limit(1)
             )
         ).scalar_one_or_none()

@@ -341,7 +341,7 @@ def test_derived_replacement_commits_new_asset_and_old_retirement_atomically(
         StorageUsageCategory,
         StorageUsageEvent,
     )
-    from app.modules.score_assets.render_service import RevisionRenderService
+    from app.modules.score_assets.score_revision_rendering import ScoreRevisionRenderService
     from app.modules.playback.service import PlaybackGenerationService
     from app.processing.engines.playback import RenderedAudio
 
@@ -376,7 +376,7 @@ def test_derived_replacement_commits_new_asset_and_old_retirement_atomically(
     )
     db.commit()
     if kind == "render":
-        service = RevisionRenderService(storage=storage)
+        service = ScoreRevisionRenderService(storage=storage)
         model, category = ScoreRenderAsset, StorageUsageCategory.DERIVED_RENDER
 
         def records(session, **kwargs):
@@ -406,7 +406,7 @@ def test_derived_replacement_commits_new_asset_and_old_retirement_atomically(
                 revision.revision_uuid,
                 source_fingerprint=revision.content_hash,
                 profile="default",
-                outbox_uuid=payload.outbox_uuid,
+                outbox_uuid=payload.target.outbox_uuid,
                 lease=payload.lease,
             )[0]
             db.commit()

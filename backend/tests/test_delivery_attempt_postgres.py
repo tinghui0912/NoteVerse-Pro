@@ -35,7 +35,7 @@ from app.db.models.import_job import ImportJobState
 from app.modules.mail.outbox_service import mail_outbox_service
 from app.modules.playback.outbox_service import playback_outbox_service
 from app.modules.revisions.presentation_demand import RevisionPresentationSuperseded
-from app.modules.score_assets.render_outbox_service import render_outbox_service
+from app.modules.rendering.delivery import render_outbox_service
 from app.shared.time import utc_now
 from tests.support.postgres_schema import postgres_schema_database
 

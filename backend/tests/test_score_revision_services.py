@@ -74,7 +74,7 @@ from app.modules.revisions.derived_asset_retention_service import (
 from app.modules.revisions.read_model import RevisionReadModel
 from app.modules.revisions.service import RevisionService
 from app.modules.score_assets.derived_assets import derived_asset_status
-from app.modules.score_assets.render_outbox_service import RenderOutboxService
+from app.modules.rendering.delivery import RenderOutboxService
 from app.modules.mail.outbox_service import MailOutboxService
 from app.modules.import_jobs.review.schemas import ReviewConfirmRequest, ReviewUpdateRequest
 from app.modules.import_jobs.review.service import ImportReviewService
@@ -718,6 +718,8 @@ def test_review_thumbnail_records_temp_import_usage(
         def render_score(self, *, xml_path: str, output_name: str):
             output = tmp_path / "thumbnail.svg"
             output.write_bytes(b"<svg />")
+            second = tmp_path / "second.svg"
+            second.write_bytes(b"<svg>second page</svg>")
             return {
                 "success": True,
                 "engine": "fake-renderer",
@@ -726,12 +728,13 @@ def test_review_thumbnail_records_temp_import_usage(
                         "path": str(output),
                         "page": 1,
                         "mime_type": "image/svg+xml",
-                    }
+                    },
+                    {"path": str(second), "page": 2, "mime_type": "image/svg+xml"},
                 ],
             }
 
     with patch(
-        "app.modules.import_jobs.review.thumbnail_service.create_score_render_engine",
+        "app.modules.rendering.renderer.create_score_render_engine",
         side_effect=lambda output_folder: FakeEngine(output_folder),
     ):
         outbox = RenderOutbox(
@@ -748,9 +751,9 @@ def test_review_thumbnail_records_temp_import_usage(
             session,
             "job-thumbnail-usage",
             expected_source_fingerprint="5d17f78acc41e8e8ad4fe9dfc2c0e998b718a0acb7283f077b797581fb9f715d",
-            outbox_uuid=payload.outbox_uuid,
+            outbox_uuid=payload.target.outbox_uuid,
             lease=payload.lease,
-            profile=payload.render_profile,
+            profile=payload.target.render_profile,
         )
         session.commit()
 
@@ -759,6 +762,9 @@ def test_review_thumbnail_records_temp_import_usage(
         session, StorageUsageCounter, user_id=1, category=StorageUsageCategory.TEMP_IMPORT
     )
     assert counter.used_bytes == len(b"<svg />")
+
+    thumbnail = one_row(session, ImportArtifact, kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value)
+    assert storage.read_bytes(thumbnail.stored_object.object_key) == b"<svg />"
 
 
 def test_review_update_replaces_review_musicxml(
@@ -1598,8 +1604,8 @@ def test_render_outbox_claim_failure_and_completion_are_persistent(
     payload = service.claim(session, outbox.outbox_uuid)
     session.commit()
     assert payload is not None
-    assert payload.score_uuid == score.score_uuid
-    assert payload.revision_uuid == "render-claim-revision"
+    assert payload.target.score_uuid == score.score_uuid
+    assert payload.target.revision_uuid == "render-claim-revision"
     assert outbox.status == RenderOutboxStatus.PROCESSING
     assert outbox.attempt_count == 1
 
@@ -1671,8 +1677,8 @@ def test_review_thumbnail_outbox_claims_only_the_current_musicxml(
     session.commit()
 
     assert payload is not None
-    assert payload.target_type == RenderTargetType.REVIEW_THUMBNAIL
-    assert payload.job_uuid == job.job_uuid
+    assert payload.target.target_type == RenderTargetType.REVIEW_THUMBNAIL
+    assert payload.target.job_uuid == job.job_uuid
     assert stale_payload is None
     assert stale.status == RenderOutboxStatus.COMPLETED
 

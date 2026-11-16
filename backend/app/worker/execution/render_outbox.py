@@ -6,19 +6,21 @@ import sys
 from sqlalchemy.orm import Session
 from app.modules.durable_work.delivery import StaleDeliveryAttempt
 from app.modules.revisions.presentation_demand import RevisionPresentationSuperseded
-from typing import Any
 
 from app.core.background_tracing import record_current_attempt_failure
-from app.db.models import RenderTargetType
 from app.db.session import SessionLocal
 from app.modules.realtime.publisher import (
     RealtimeChangeKind,
     publish_score_change,
 )
 from app.modules.import_jobs.review.thumbnail_service import import_review_thumbnail_service
-from app.modules.score_assets.render_outbox_service import render_outbox_service
-from app.modules.score_assets.render_payloads import RenderOutboxPayload
-from app.modules.score_assets.render_service import RevisionRenderService
+from app.modules.rendering.delivery import render_outbox_service
+from app.modules.rendering.targets import (
+    RenderAttempt,
+    ScoreRevisionRenderTarget,
+    ReviewThumbnailRenderTarget,
+)
+from app.modules.score_assets.score_revision_rendering import ScoreRevisionRenderService
 from app.task_queue.protocols import CeleryTaskLike
 from app.worker.task_runtime import (
     bind_task_context,
@@ -54,8 +56,8 @@ def execute_render_outbox_task(
             operation_kind="render",
             operation_id=outbox_uuid,
             attempt=payload.lease.attempt,
-            traceparent=payload.traceparent,
-            tracestate=payload.tracestate,
+            traceparent=payload.target.traceparent,
+            tracestate=payload.target.tracestate,
         )
         trace_scope.__enter__()
 
@@ -65,8 +67,8 @@ def execute_render_outbox_task(
         try:
             with SessionLocal() as db:
                 artifact_id = _render_target(db, payload)
-                if _is_score_revision_render(payload):
-                    _publish_revision_render_change(db, payload)
+                if isinstance(payload.target, ScoreRevisionRenderTarget):
+                    _publish_revision_render_change(db, payload.target)
                 db.commit()
         except StaleDeliveryAttempt:
             return {"status": "stale", "outbox_uuid": outbox_uuid}
@@ -86,8 +88,8 @@ def execute_render_outbox_task(
                 accepted = render_outbox_service.fail(
                     db, outbox_uuid, str(exc), lease=payload.lease
                 )
-                if accepted and _is_score_revision_render(payload):
-                    _publish_revision_render_change(db, payload)
+                if accepted and isinstance(payload.target, ScoreRevisionRenderTarget):
+                    _publish_revision_render_change(db, payload.target)
                 db.commit()
             if not accepted:
                 return {"status": "stale", "outbox_uuid": outbox_uuid}
@@ -112,75 +114,56 @@ def execute_render_outbox_task(
         clear_task_context()
 
 
-def _render_target(db: Session, payload: RenderOutboxPayload) -> str | None:
-    if payload.target_type == RenderTargetType.SCORE_REVISION:
-        _render_score_revision(db, payload)
+def _render_target(db: Session, payload: RenderAttempt) -> str | None:
+    target = payload.target
+    if isinstance(target, ScoreRevisionRenderTarget):
+        ScoreRevisionRenderService().render_for_worker(
+            db,
+            target.score_uuid,
+            target.revision_uuid,
+            source_fingerprint=target.source_fingerprint,
+            profile=target.render_profile,
+            outbox_uuid=target.outbox_uuid,
+            lease=payload.lease,
+        )
         return None
-    if payload.target_type == RenderTargetType.REVIEW_THUMBNAIL:
-        return _render_review_thumbnail(db, payload)
-    raise ValueError(f"Unsupported render target: {payload.target_type}")
+    if isinstance(target, ReviewThumbnailRenderTarget):
+        return import_review_thumbnail_service.render(
+            db,
+            target.job_uuid,
+            expected_source_fingerprint=target.source_fingerprint,
+            outbox_uuid=target.outbox_uuid,
+            lease=payload.lease,
+            profile=target.render_profile,
+        )
+    raise TypeError("Unsupported render target")
 
 
-def _render_score_revision(db: Session, payload: RenderOutboxPayload) -> None:
-    if payload.score_uuid is None or payload.revision_uuid is None or payload.user_id is None:
-        raise ValueError("Revision render payload is incomplete")
-
-    RevisionRenderService().render_for_worker(
-        db,
-        payload.score_uuid,
-        payload.revision_uuid,
-        source_fingerprint=payload.source_fingerprint,
-        profile=payload.render_profile,
-        outbox_uuid=payload.outbox_uuid,
-        lease=payload.lease,
-    )
-
-
-def _render_review_thumbnail(db: Session, payload: RenderOutboxPayload) -> str | None:
-    if payload.job_uuid is None:
-        raise ValueError("Review thumbnail render payload is incomplete")
-
-    return import_review_thumbnail_service.render(
-        db,
-        payload.job_uuid,
-        expected_source_fingerprint=payload.source_fingerprint,
-        outbox_uuid=payload.outbox_uuid,
-        lease=payload.lease,
-        profile=payload.render_profile,
-    )
-
-
-def _publish_revision_render_change(
-    db: Any,
-    payload: RenderOutboxPayload,
-) -> None:
-    if payload.score_uuid is None or payload.revision_uuid is None:
-        return
+def _publish_revision_render_change(db: Session, target: ScoreRevisionRenderTarget) -> None:
     publish_score_change(
         db,
-        score_id=payload.score_uuid,
-        revision_id=payload.revision_uuid,
+        score_id=target.score_uuid,
+        revision_id=target.revision_uuid,
         kind=RealtimeChangeKind.SCORE_DERIVED_ASSETS_CHANGED,
     )
 
 
-def _is_score_revision_render(payload: RenderOutboxPayload) -> bool:
-    return payload.target_type == RenderTargetType.SCORE_REVISION
-
-
-def _render_log_context(
-    outbox_uuid: str,
-    payload: RenderOutboxPayload,
-) -> dict[str, str | int | None]:
-    return {
+def _render_log_context(outbox_uuid: str, payload: RenderAttempt) -> dict[str, str | int | None]:
+    target = payload.target
+    context: dict[str, str | int | None] = {
         "operation_kind": "render",
         "outbox_id": outbox_uuid,
-        "target_type": payload.target_type.value,
-        "score_id": payload.score_uuid,
-        "revision_id": payload.revision_uuid,
-        "job_id": payload.job_uuid,
-        "render_profile": payload.render_profile,
+        "target_type": target.target_type.value,
+        "render_profile": target.render_profile,
         "attempt": payload.lease.attempt,
         "max_attempts": payload.max_attempts,
-        "originating_request_id": payload.originating_request_id,
+        "originating_request_id": target.originating_request_id,
+        "score_id": None,
+        "revision_id": None,
+        "job_id": None,
     }
+    if isinstance(target, ScoreRevisionRenderTarget):
+        context.update(score_id=target.score_uuid, revision_id=target.revision_uuid)
+    else:
+        context.update(job_id=target.job_uuid)
+    return context

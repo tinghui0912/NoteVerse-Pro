@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import ClassVar
 from app.modules.durable_work.delivery import DeliveryAttemptLease
 
 from sqlalchemy import select
@@ -18,23 +19,38 @@ from app.db.models.import_job import ImportJobState
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 
 
-@dataclass(frozen=True)
-class RenderTarget:
+@dataclass(frozen=True, kw_only=True)
+class ScoreRevisionRenderTarget:
     outbox_uuid: str
-    target_type: RenderTargetType
+    score_uuid: str
+    revision_uuid: str
+    requested_by_user_id: int
     render_profile: str
     source_fingerprint: str
     originating_request_id: str | None = None
     traceparent: str | None = None
     tracestate: str | None = None
-    score_uuid: str | None = None
-    revision_uuid: str | None = None
-    user_id: int | None = None
-    job_uuid: str | None = None
+    target_type: ClassVar[RenderTargetType] = RenderTargetType.SCORE_REVISION
 
 
 @dataclass(frozen=True, kw_only=True)
-class RenderOutboxPayload(RenderTarget):
+class ReviewThumbnailRenderTarget:
+    outbox_uuid: str
+    job_uuid: str
+    render_profile: str
+    source_fingerprint: str
+    originating_request_id: str | None = None
+    traceparent: str | None = None
+    tracestate: str | None = None
+    target_type: ClassVar[RenderTargetType] = RenderTargetType.REVIEW_THUMBNAIL
+
+
+RenderTarget = ScoreRevisionRenderTarget | ReviewThumbnailRenderTarget
+
+
+@dataclass(frozen=True)
+class RenderAttempt:
+    target: RenderTarget
     lease: DeliveryAttemptLease
     max_attempts: int
 
@@ -57,23 +73,23 @@ class RenderPayloadBuilder:
     def _build_revision_payload(
         db: Session,
         outbox: RenderOutbox,
-    ) -> RenderTarget | None:
+    ) -> ScoreRevisionRenderTarget | None:
         score = db.get(Score, outbox.score_id)
         revision = db.get(ScoreRevision, outbox.revision_id)
         if (
             score is None
             or score.deleted_at is not None
             or revision is None
+            or revision.score_id != score.id
             or outbox.requested_by_user_id is None
         ):
             return None
 
-        return RenderTarget(
+        return ScoreRevisionRenderTarget(
             outbox_uuid=outbox.outbox_uuid,
-            target_type=outbox.target_type,
             score_uuid=score.score_uuid,
             revision_uuid=revision.revision_uuid,
-            user_id=outbox.requested_by_user_id,
+            requested_by_user_id=outbox.requested_by_user_id,
             render_profile=outbox.render_profile,
             source_fingerprint=outbox.source_fingerprint,
             originating_request_id=outbox.originating_request_id,
@@ -87,23 +103,24 @@ class RenderPayloadBuilder:
         outbox: RenderOutbox,
     ) -> RenderPayloadBuildResult:
         job = db.get(ImportJob, outbox.import_job_id)
+        if job is None:
+            return RenderPayloadBuildResult(None)
+        if job.state != ImportJobState.READY_FOR_REVIEW:
+            return RenderPayloadBuildResult(None, terminal_completed=True)
         review_source = db.execute(
             select(ImportArtifact).where(
                 ImportArtifact.job_id == outbox.import_job_id,
                 ImportArtifact.kind == ImportArtifactKind.REVIEW_MUSICXML.value,
             )
         ).scalar_one_or_none()
-        if job is None or review_source is None:
+        if review_source is None:
             return RenderPayloadBuildResult(None)
-        if job.state != ImportJobState.READY_FOR_REVIEW:
-            return RenderPayloadBuildResult(None, terminal_completed=True)
         if review_source.stored_object.sha256 != outbox.source_fingerprint:
             return RenderPayloadBuildResult(None, terminal_completed=True)
 
         return RenderPayloadBuildResult(
-            RenderTarget(
+            ReviewThumbnailRenderTarget(
                 outbox_uuid=outbox.outbox_uuid,
-                target_type=outbox.target_type,
                 job_uuid=job.job_uuid,
                 render_profile=outbox.render_profile,
                 source_fingerprint=outbox.source_fingerprint,

@@ -35,7 +35,7 @@ from app.modules.import_jobs.review.service import ImportReviewService
 from app.modules.import_jobs.review.schemas import ReviewConfirmRequest
 from app.modules.guest_previews.service import GuestPreviewService
 from app.modules.guest_previews.schemas import GuestPreviewUpdateRequest
-from app.modules.score_assets.render_outbox_service import render_outbox_service
+from app.modules.rendering.delivery import render_outbox_service
 from app.modules.playback.outbox_service import playback_outbox_service
 from app.modules.score_assets.derived_assets import derived_asset_status
 from app.task_queue import producer
@@ -212,6 +212,7 @@ def test_business_commit_precedes_immediate_dispatch_and_broker_failure_is_recov
         db.commit()
 
     monkeypatch.setattr(dispatch, "SessionLocal", database)
+    monkeypatch.setattr(dispatch.rendering_dispatch, "SessionLocal", database)
 
     def broker(task_name, *, kwargs, task_id):
         model = RenderOutbox if "render" in task_name else PlaybackOutbox

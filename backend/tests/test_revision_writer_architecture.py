@@ -18,7 +18,7 @@ def test_revision_model_creation_and_head_advancement_have_one_semantic_owner():
                 if node.func.id in constructors:
                     owners[node.func.id].add(relative)
                 if node.func.id in {
-                    "create_revision_render_outbox",
+                    "admit_revision_render",
                     "create_playback_outbox",
                 }:
                     derivative_admission.add(relative)
@@ -47,7 +47,7 @@ def test_revision_writer_is_a_transaction_participant_admitting_all_durable_work
         "RevisionMetadataOutbox",
         "publish_change",
         "score_recipients",
-        "create_revision_render_outbox",
+        "admit_revision_render",
         "create_playback_outbox",
     }
     assert any(

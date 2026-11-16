@@ -28,9 +28,7 @@ from app.modules.import_jobs.deletion_service import ImportJobDeletionService
 from app.modules.import_jobs.notifications import (
     admit_import_confirmation_consequences,
 )
-from app.modules.score_assets.render_outbox_service import (
-    create_review_thumbnail_render_outbox,
-)
+from app.modules.rendering.admission import admit_review_thumbnail_render
 from app.modules.revisions.writer import (
     revision_writer,
     PreparedRevisionSource,
@@ -339,7 +337,7 @@ class ImportReviewService:
             db.flush()
             retire_after_release(db, previous_object.id)
             job.updated_at = utc_now()
-            create_review_thumbnail_render_outbox(
+            admit_review_thumbnail_render(
                 db,
                 import_job_id=job_id,
                 source_fingerprint=content_hash,

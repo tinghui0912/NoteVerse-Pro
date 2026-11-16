@@ -34,13 +34,22 @@ MusicXML download does not wait for derived presentation.
 
 ## Durable production
 
+`app.modules.rendering` owns RenderOutbox admission, delivery, typed target resolution,
+render dispatch and execution-manifest identity. Its common renderer accepts MusicXML
+bytes and returns normalized pages without database or object-storage access.
+`score_assets` owns ScoreRenderAsset adoption, replacement, retirement and accounting;
+`import_jobs.review` owns review thumbnail ImportArtifacts and TEMP_IMPORT accounting.
+Both persistence owners recheck their domain state and the Rendering lease before adoption.
+Score readiness reads Rendering's delivery-status query alongside Score-owned asset facts.
+
 RevisionWriter admits render/playback and metadata outboxes with source/head/accounting
 and non-initial notification/realtime consequences in the canonical business transaction. Its result carries
 durable work identities. After COMMIT, the API attempts best-effort relay and projection
 catch-up. Metadata extraction is independently fenced durable execution. Guest Preview
 settings only change bearer access and do not enqueue or reactivate derivative work.
 
-The neutral revision dispatcher and Beat maintenance use the same producer: mark and
+The revision dispatcher delegates render relay to Rendering; Beat render maintenance uses
+that Rendering dispatcher directly. Both use the same producer: mark and
 commit DISPATCHED, publish the stable Celery task, and release dispatch on broker failure.
 The shared `app.task_queue` package owns Celery assembly, runtime options, producer tracing
 and schedule wiring; it imports no worker execution implementation. API relays execute

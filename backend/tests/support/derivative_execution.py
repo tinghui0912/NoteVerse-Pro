@@ -3,7 +3,7 @@
 from sqlalchemy import select
 from uuid import uuid4
 from app.db.models import RenderOutbox, RenderTargetType, PlaybackOutbox
-from app.modules.score_assets.render_outbox_service import (
+from app.modules.rendering.delivery import (
     render_outbox_service,
     _delivery_lifecycle as render_lifecycle,
 )

@@ -30,7 +30,7 @@ from app.modules.durable_work.failure import (
     set_failure_facts,
     clear_failure_facts,
 )
-from app.modules.score_assets.render_outbox_service import RenderOutboxService
+from app.modules.rendering.delivery import RenderOutboxService
 from app.modules.playback.outbox_service import PlaybackOutboxService
 from app.modules.mail.outbox_service import MailOutboxService
 from app.modules.scores.deletion_delivery import ScoreDeletionDeliveryService, ScoreDeletionLease

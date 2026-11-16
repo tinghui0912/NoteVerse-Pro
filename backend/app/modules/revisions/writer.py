@@ -24,7 +24,7 @@ from app.db.models.score import RevisionOrigin, RevisionSourceFormat, MetadataSt
 from app.db.models.revision_metadata_outbox import RevisionMetadataOutbox
 from app.modules.storage_objects.writes import ObjectWriteReceipt, adopt_written_object
 from app.modules.storage_usage.service import storage_usage_service
-from app.modules.score_assets.render_outbox_service import create_revision_render_outbox
+from app.modules.rendering.admission import admit_revision_render
 from app.modules.playback.outbox_service import create_playback_outbox
 from app.modules.revisions.derivatives import RevisionDerivativeOutboxes
 from app.modules.realtime.publisher import score_recipients, publish_change
@@ -188,7 +188,7 @@ class RevisionWriter:
                 revision_id=revision_id, status=MetadataStatus.PENDING, extractor_version="pending"
             )
         )
-        render = create_revision_render_outbox(
+        render = admit_revision_render(
             db,
             score_id=score_id,
             revision_id=revision_id,

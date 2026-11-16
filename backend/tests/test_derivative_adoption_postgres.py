@@ -36,10 +36,10 @@ from app.db.models import (
 from app.db.models.import_job import ImportJobState
 from app.db.models.score import RevisionOrigin, RevisionSourceFormat
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
-from app.modules.score_assets import render_service
+from app.modules.score_assets import score_revision_rendering as render_service
 from app.modules.playback import service as playback_service
 from app.modules.import_jobs.review import thumbnail_service
-from app.modules.score_assets.render_outbox_service import (
+from app.modules.rendering.delivery import (
     render_outbox_service,
     _delivery_lifecycle as render_lifecycle,
 )
@@ -164,8 +164,12 @@ def generation(request, monkeypatch, tmp_path):
                 dict(path=str(svg), page=1, mime_type="image/svg+xml"),
             ],
         )
-        monkeypatch.setattr(render_service, "create_score_render_engine", lambda **_: renderer)
-        monkeypatch.setattr(thumbnail_service, "create_score_render_engine", lambda **_: renderer)
+        monkeypatch.setattr(
+            "app.modules.rendering.renderer.create_score_render_engine", lambda **_: renderer
+        )
+        monkeypatch.setattr(
+            "app.modules.rendering.renderer.create_score_render_engine", lambda **_: renderer
+        )
         audio = Mock()
         audio.render.return_value = RenderedAudio(
             content=b"RIFFgenerated",
@@ -176,10 +180,10 @@ def generation(request, monkeypatch, tmp_path):
             generator_version="1",
             soundfont_sha256="a" * 64,
         )
-        render = render_service.RevisionRenderService(storage=storage)
+        render = render_service.ScoreRevisionRenderService(storage=storage)
         playback = playback_service.PlaybackGenerationService(storage=storage, renderer=audio)
         thumbnail = thumbnail_service.ImportReviewThumbnailService(storage=storage)
-        monkeypatch.setattr(render_outbox, "RevisionRenderService", lambda: render)
+        monkeypatch.setattr(render_outbox, "ScoreRevisionRenderService", lambda: render)
         monkeypatch.setattr(playback_outbox, "PlaybackGenerationService", lambda: playback)
         monkeypatch.setattr(render_outbox, "import_review_thumbnail_service", thumbnail)
         worker = playback_outbox if kind == "playback" else render_outbox
@@ -199,30 +203,31 @@ def generation(request, monkeypatch, tmp_path):
         )
 
         def generate(db, payload):
-            common = dict(outbox_uuid=payload.outbox_uuid, lease=payload.lease)
+            target = payload if kind == "playback" else payload.target
+            common = dict(outbox_uuid=target.outbox_uuid, lease=payload.lease)
             if kind == "render":
                 return render.render_for_worker(
                     db,
-                    payload.score_uuid,
-                    payload.revision_uuid,
-                    source_fingerprint=payload.source_fingerprint,
-                    profile=payload.render_profile,
+                    target.score_uuid,
+                    target.revision_uuid,
+                    source_fingerprint=target.source_fingerprint,
+                    profile=target.render_profile,
                     **common,
                 )
             if kind == "playback":
                 return playback.render_for_worker(
                     db,
-                    payload.score_uuid,
-                    payload.revision_uuid,
-                    source_fingerprint=payload.source_fingerprint,
-                    asset_kind=payload.asset_kind,
+                    target.score_uuid,
+                    target.revision_uuid,
+                    source_fingerprint=target.source_fingerprint,
+                    asset_kind=target.asset_kind,
                     **common,
                 )
             return thumbnail.render(
                 db,
-                payload.job_uuid,
-                expected_source_fingerprint=payload.source_fingerprint,
-                profile=payload.render_profile,
+                target.job_uuid,
+                expected_source_fingerprint=target.source_fingerprint,
+                profile=target.render_profile,
                 **common,
             )
 

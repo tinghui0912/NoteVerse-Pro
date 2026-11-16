@@ -4,6 +4,7 @@ from app.db.models import PlaybackOutboxStatus, RenderOutboxStatus
 from app.db.model_utils import require_persisted_id
 from app.db.models import ScoreRevision
 from app.modules.score_assets.repository import ScoreAssetRepository
+from app.modules.rendering.queries import latest_revision_render_status
 from app.modules.score_assets.schemas import (
     DerivedAssetStatus,
     ScoreDerivedAssetRead,
@@ -40,10 +41,10 @@ def score_derived_assets(
 ) -> ScoreDerivedAssetsRead:
     revision_id = require_persisted_id(revision.id, entity="score revision")
     thumbnail = repository.first_rendered_page_asset(db, revision_id)
-    render_outbox = repository.latest_render_outbox(db, revision_id)
+    render_status = latest_revision_render_status(db, revision_id)
     preview_status = derived_asset_status(
         has_current_asset=thumbnail is not None,
-        outbox_status=render_outbox.status if render_outbox else None,
+        outbox_status=render_status,
     )
 
     audio_asset = repository.playback_asset(db, revision_id)

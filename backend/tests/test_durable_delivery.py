@@ -351,7 +351,7 @@ def test_worker_outcome_services_require_an_explicit_attempt_lease():
     import inspect
     from app.modules.mail.outbox_service import MailOutboxService
     from app.modules.playback.outbox_service import PlaybackOutboxService
-    from app.modules.score_assets.render_outbox_service import RenderOutboxService
+    from app.modules.rendering.delivery import RenderOutboxService
 
     for service, commands in (
         (RenderOutboxService, ("complete", "fail", "supersede")),

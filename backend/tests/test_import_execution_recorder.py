@@ -22,7 +22,7 @@ def fence(monkeypatch):
     guard = Mock(side_effect=StaleImportDispatchAttempt("stale"))
     monkeypatch.setattr(execution_recorder, "require_current_attempt", guard)
     monkeypatch.setattr(execution_recorder, "admit_import_processing_outcome", Mock())
-    monkeypatch.setattr(execution_recorder, "create_review_thumbnail_render_outbox", Mock())
+    monkeypatch.setattr(execution_recorder, "admit_review_thumbnail_render", Mock())
     return guard
 
 

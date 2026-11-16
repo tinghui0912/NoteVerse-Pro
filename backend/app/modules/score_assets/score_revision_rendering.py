@@ -8,14 +8,11 @@ from app.modules.storage_objects.writes import (
     adopt_written_object,
 )
 
-import os
-import tempfile
 import uuid
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
 from app.db.execution_manifests import (
     get_or_create_execution_manifest,
 )
@@ -38,8 +35,8 @@ from app.modules.score_assets.render_asset_records import (
     render_storage_key,
 )
 from app.modules.score_assets.repository import ScoreAssetRepository
-from app.modules.score_assets.render_execution_manifest import build_render_execution_manifest
-from app.modules.score_assets.render_outbox_service import render_outbox_service
+from app.modules.rendering.execution_manifest import build_render_execution_manifest
+from app.modules.rendering.delivery import render_outbox_service
 from app.modules.durable_work.delivery import DeliveryAttemptLease, StaleDeliveryAttempt
 from app.modules.score_assets.schemas import RenderAssetRead
 from app.modules.score_assets.service import ScoreAssetService
@@ -50,12 +47,12 @@ from app.modules.revisions.presentation_demand import (
 )
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.storage_usage.service import storage_usage_service
-from app.processing.engines.render import create_score_render_engine
+from app.modules.rendering.renderer import RenderedPage, RenderExecutionError, render_musicxml
 from app.shared.constants import ErrorCode
 from app.storage import object_storage
 
 
-class RevisionRenderService:
+class ScoreRevisionRenderService:
     """Generate replaceable derived pages without mutating canonical revisions."""
 
     def __init__(
@@ -103,7 +100,7 @@ class RevisionRenderService:
             content = read_admitted_bytes(
                 self.storage, StoredObjectReadTarget.from_object(source.stored_object)
             )
-            outputs = self._render_outputs(content, revision_uuid)
+            outputs = self._render_pages(content, revision_uuid)
             pages = []
             for output in outputs:
                 item, key, media_type, content = self._render_descriptor(
@@ -306,7 +303,7 @@ class RevisionRenderService:
         profile: str,
         uploaded_keys: list[str],
     ) -> list[dict]:
-        outputs = self._render_outputs(
+        outputs = self._render_pages(
             read_admitted_bytes(self.storage, canonical_source), revision_uuid
         )
         records = []
@@ -323,51 +320,32 @@ class RevisionRenderService:
 
     @staticmethod
     def _render_descriptor(
-        output: dict, score_uuid: str, revision_uuid: str, revision_id: int, profile: str
+        output: RenderedPage, score_uuid: str, revision_uuid: str, revision_id: int, profile: str
     ) -> tuple[dict, str, str, bytes]:
         artifact_uuid = str(uuid.uuid4())
         key = render_storage_key(
             score_uuid=score_uuid,
             revision_uuid=revision_uuid,
             profile=profile,
-            page=output["page"],
+            page=output.page_number,
             asset_uuid=artifact_uuid,
-            extension=output["extension"],
+            extension=output.extension,
         )
         item = dict(
             asset_uuid=artifact_uuid,
             revision_id=revision_id,
-            page_number=output["page"],
+            page_number=output.page_number,
             profile=profile,
-            generator=output["generator"],
+            generator=output.generator,
         )
-        return item, key, output["mime_type"], output["content"]
+        return item, key, output.mime_type, output.content
 
     @staticmethod
-    def _render_outputs(content: bytes, revision_uuid: str) -> list[dict]:
-        outputs = []
-        os.makedirs(settings.WORK_ROOT, exist_ok=True)
-        with tempfile.TemporaryDirectory(dir=settings.WORK_ROOT) as work_dir:
-            xml_path = os.path.join(work_dir, "score.musicxml")
-            with open(xml_path, "wb") as target:
-                target.write(content)
-            engine = create_score_render_engine(output_folder=work_dir)
-            result = engine.render_score(xml_path=xml_path, output_name="page")
-            if not result["success"] or not result.get("files"):
-                raise ScoreRenderFailedException(
-                    code=str(result.get("code") or ErrorCode.SCORE_PREVIEW_FAILED),
-                    details={"revision_id": revision_uuid},
-                )
-            for output in result["files"]:
-                with open(output["path"], "rb") as source:
-                    data = source.read()
-                outputs.append(
-                    dict(
-                        content=data,
-                        page=int(output["page"]),
-                        mime_type=output["mime_type"],
-                        extension=os.path.splitext(output["path"])[1] or ".svg",
-                        generator=str(result.get("engine") or "score-renderer"),
-                    )
-                )
-        return outputs
+    def _render_pages(content: bytes, revision_uuid: str) -> list[RenderedPage]:
+        try:
+            return render_musicxml(content, output_name="page")
+        except RenderExecutionError as error:
+            raise ScoreRenderFailedException(
+                code=error.engine_code or ErrorCode.SCORE_PREVIEW_FAILED,
+                details={"revision_id": revision_uuid},
+            ) from error

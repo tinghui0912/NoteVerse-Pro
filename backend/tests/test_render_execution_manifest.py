@@ -3,7 +3,7 @@ from sqlmodel import SQLModel, select
 
 from app.db.execution_manifests import get_or_create_execution_manifest, manifest_sha256
 from app.db.models import ExecutionManifest
-from app.modules.score_assets.render_execution_manifest import build_render_execution_manifest
+from app.modules.rendering.execution_manifest import build_render_execution_manifest
 
 
 def test_render_execution_manifest_is_stable_and_content_addressed() -> None:

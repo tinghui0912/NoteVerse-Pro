@@ -187,10 +187,11 @@ def test_failed_outcome_publication_failure_leaves_processing_for_lease_recovery
         assert second.lease.token != token and second.lease.attempt == 2
         monkeypatch.setattr(publisher, "_notify_change", original)
         assert service.fail(db, "delivery", "current failure", lease=second.lease)
+        target = second.target if kind == "render" else second
         publisher.publish_score_change(
             db,
-            score_id=second.score_uuid,
-            revision_id=second.revision_uuid,
+            score_id=target.score_uuid,
+            revision_id=target.revision_uuid,
             kind=publisher.RealtimeChangeKind.SCORE_DERIVED_ASSETS_CHANGED,
         )
         db.commit()

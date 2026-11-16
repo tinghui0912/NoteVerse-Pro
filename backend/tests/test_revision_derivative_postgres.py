@@ -28,7 +28,7 @@ from app.db.models import (
     StorageUsageCounter,
 )
 from app.db.models.score import RevisionOrigin, RevisionSourceFormat
-from app.modules.score_assets import render_service
+from app.modules.score_assets import score_revision_rendering as render_service
 from app.modules.durable_work.delivery import DeliveryAttemptLease
 from app.modules.playback import service as playback_service
 from app.processing.engines.playback.renderer import RenderedAudio
@@ -151,11 +151,13 @@ def test_final_admission_serializes_with_current_score(monkeypatch, tmp_path, ki
                 "engine": "test",
                 "files": [{"path": str(svg), "page": 1, "mime_type": "image/svg+xml"}],
             }
-            monkeypatch.setattr(render_service, "create_score_render_engine", lambda **_: renderer)
+            monkeypatch.setattr(
+                "app.modules.rendering.renderer.create_score_render_engine", lambda **_: renderer
+            )
             monkeypatch.setattr(
                 worker,
-                "RevisionRenderService",
-                lambda: render_service.RevisionRenderService(storage=storage),
+                "ScoreRevisionRenderService",
+                lambda: render_service.ScoreRevisionRenderService(storage=storage),
             )
             monkeypatch.setattr(worker, "_publish_revision_render_change", publish)
             execute = worker.execute_render_outbox_task
