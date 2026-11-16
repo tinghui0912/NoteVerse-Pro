@@ -24,6 +24,7 @@
   "copyrightLabel": "Copyright",
   "timeSignatureLabel": "Time Signature",
   "keySignatureLabel": "Key Signature",
+  "tempoSuggestion": "No tempo mark · {bpm} suggested",
   "tempoLabel": "Tempo",
   "majorKey": "Major",
   "minorKey": "Minor",

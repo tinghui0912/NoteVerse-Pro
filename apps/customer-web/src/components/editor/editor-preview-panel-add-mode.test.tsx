@@ -81,7 +81,6 @@ vi.mock('@/contexts/editor-provider', () => ({
     document: domainDocument,
     gaps: [],
     anchors: [],
-    error: null,
     resolveAnchor: () => null,
   }),
   useEditorState: () => ({

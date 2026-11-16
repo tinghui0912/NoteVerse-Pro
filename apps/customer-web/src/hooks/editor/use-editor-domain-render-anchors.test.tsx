@@ -55,7 +55,6 @@ describe('useEditorDomainRenderAnchors', () => {
       `));
     });
 
-    expect(result.current.anchors.error).toBeNull();
     expect(result.current.anchors.anchors).not.toEqual([]);
     expect(result.current.anchors.resolveAnchor('note-1')).toMatchObject({
       kind: 'noteAtom',

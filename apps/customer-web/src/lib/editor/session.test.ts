@@ -9,6 +9,9 @@ import {
   deleteVoice,
   effectiveMeasureContext,
   initialMeasure,
+  insertExplicitRest,
+  type EventId,
+  type VoiceId,
   type NoteAtomId,
 } from '@/lib/editor-domain';
 import { editorXml, note } from '../../../tests/fixtures/editor';
@@ -20,6 +23,24 @@ function loaded() {
   const session = new EditorSession();
   session.loadMusicXml(xml);
   return session;
+}
+function materializeSecondVoice(session: EditorSession) {
+  return session.applyCommand((document) => {
+    const voice = { ...document.voices[0], id: 'P1:voice-2' as VoiceId, number: 2 };
+    return insertExplicitRest(
+      { ...document, voices: [...document.voices, voice] },
+      {
+        id: 'second-voice-rest' as EventId,
+        voiceId: voice.id,
+        staffId: voice.homeStaffId,
+        position: { measureId: document.measures[0].id, offset: { numerator: 0, denominator: 1 } },
+        rhythm: {
+          timelineDuration: { numerator: 1, denominator: 1 },
+          notation: { base: 'quarter', dots: 0 },
+        },
+      },
+    );
+  }, 'insert rest in second voice');
 }
 describe('EditorSession semantic authority', () => {
   it('loads a coherent typed document, opaque source and XML projection', () => {
@@ -137,6 +158,80 @@ describe('EditorSession semantic authority', () => {
     session.discardInputVoice(voice.id);
     expect(session.getSnapshot().inputVoices).toEqual([]);
   });
+  it('preserves independent input voices through metadata edits, undo and redo', () => {
+    const session = loaded();
+    const input = session.prepareVoice()!;
+    const original = session.getSnapshot().document;
+    expect(
+      session.applyCommand(
+        (document) => updateScoreMetadata(document, { notationTitle: 'Edited' }),
+        'title',
+      ).success,
+    ).toBe(true);
+    expect(session.getSnapshot().inputVoices).toEqual([input]);
+    session.undo();
+    expect(session.getSnapshot().document).toBe(original);
+    expect(session.getSnapshot().inputVoices).toEqual([input]);
+    session.redo();
+    expect(session.getSnapshot().document?.metadata.notationTitle).toBe('Edited');
+    expect(session.getSnapshot().inputVoices).toEqual([input]);
+  });
+  it('reconciles input voices by part and number when a command materializes a musical voice', () => {
+    const session = loaded();
+    const input = session.prepareVoice()!;
+    const unrelated = session.prepareVoice()!;
+    expect(materializeSecondVoice(session).success).toBe(true);
+    const persistent = session.getSnapshot().document!.voices.find((voice) => voice.number === 2)!;
+    expect(persistent.id).not.toBe(input.id);
+    expect(persistent.partId).toBe(input.partId);
+    expect(session.getSnapshot().inputVoices).toEqual([unrelated]);
+  });
+  it('reconciles independent input voices against a document restored by undo', () => {
+    const session = loaded();
+    expect(materializeSecondVoice(session).success).toBe(true);
+    const persistent = session.getSnapshot().document!.voices.find((voice) => voice.number === 2)!;
+    expect(
+      session.applyCommand((document) => deleteVoice(document, persistent.id), 'delete voice')
+        .success,
+    ).toBe(true);
+    const input = session.prepareVoice()!;
+    const unrelated = session.prepareVoice()!;
+    expect(input.number).toBe(persistent.number);
+    expect(input.id).not.toBe(persistent.id);
+    session.undo();
+    expect(session.getSnapshot().document!.voices).toContainEqual(persistent);
+    expect(session.getSnapshot().inputVoices).toEqual([unrelated]);
+  });
+  it('reconciles independent input voices against a document restored by redo', () => {
+    const session = loaded();
+    expect(materializeSecondVoice(session).success).toBe(true);
+    session.undo();
+    const input = session.prepareVoice()!;
+    const unrelated = session.prepareVoice()!;
+    session.redo();
+    expect(
+      session
+        .getSnapshot()
+        .document!.voices.some(
+          (voice) =>
+            voice.partId === input.partId && voice.number === input.number && voice.id !== input.id,
+        ),
+    ).toBe(true);
+    expect(session.getSnapshot().inputVoices).toEqual([unrelated]);
+  });
+  it.each(['load', 'external replacement', 'clear'] as const)(
+    '%s clears input targets from the preceding document',
+    (operation) => {
+      const session = loaded();
+      session.prepareVoice();
+      expect(session.getSnapshot().inputVoices).toHaveLength(1);
+      if (operation === 'load') session.loadMusicXml(xml);
+      else if (operation === 'external replacement')
+        session.replaceFromExternalMusicXml(xml, 'external');
+      else session.clearDocument();
+      expect(session.getSnapshot().inputVoices).toEqual([]);
+    },
+  );
   it('rebuilds domain beams using the effective meter', () => {
     const session = new EditorSession();
     session.loadMusicXml(

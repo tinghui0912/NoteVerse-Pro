@@ -17,7 +17,6 @@ export type EditingDomainEventState = {
   document: ScoreDocument | null;
   gaps: TimelineGap[];
   event: VoiceEvent | null;
-  error: Error | null;
 };
 
 export type EditingDomainInspectorViewModelState = EditingDomainEventState & {
@@ -47,7 +46,6 @@ export function useEditingDomainEvent(): EditingDomainEventState {
     document: domainDocument.document,
     gaps: domainDocument.gaps,
     event,
-    error: domainDocument.error,
   };
 }
 

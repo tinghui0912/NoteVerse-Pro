@@ -24,6 +24,7 @@
   "copyrightLabel": "版权信息",
   "timeSignatureLabel": "拍号",
   "keySignatureLabel": "调号",
+  "tempoSuggestion": "未设置速度标记 · 建议 {bpm}",
   "tempoLabel": "速度",
   "majorKey": "大调",
   "minorKey": "小调",

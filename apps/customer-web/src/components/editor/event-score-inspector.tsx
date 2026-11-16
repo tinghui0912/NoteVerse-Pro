@@ -21,10 +21,25 @@ import {
 } from '@/components/ui/select';
 import { useMetadataEditor, useEditorSession } from '@/contexts/editor-provider';
 import { DEFAULT_SCORE_TEMPO_BPM } from '@/lib/score/tempo-policy';
-import {effectiveMeasureContext} from '@/lib/editor-domain';
+import { effectiveMeasureContext } from '@/lib/editor-domain';
 import { cn } from '@/lib/utils';
 
-const TIME_SIGNATURES = ['2/4', '3/4', '4/4', '5/4', '6/4', '3/8', '4/8', '5/8', '6/8', '7/8', '9/8', '12/8', '2/2', '3/2'];
+const TIME_SIGNATURES = [
+  '2/4',
+  '3/4',
+  '4/4',
+  '5/4',
+  '6/4',
+  '3/8',
+  '4/8',
+  '5/8',
+  '6/8',
+  '7/8',
+  '9/8',
+  '12/8',
+  '2/2',
+  '3/2',
+];
 const BEAT_TYPES = ['1', '2', '4', '8', '16', '32'];
 const TEMPO_UNITS = [
   { value: '16th', symbol: '1/16' },
@@ -78,7 +93,16 @@ function StaffPreview({ fifths }: { fifths: string }) {
   return (
     <svg className="h-12 w-full overflow-visible" viewBox="0 0 124 52" aria-hidden="true">
       {STAFF_LINE_Y.map((y) => (
-        <line key={y} x1="4" x2="120" y1={y} y2={y} stroke="currentColor" strokeOpacity="0.55" strokeWidth="0.75" />
+        <line
+          key={y}
+          x1="4"
+          x2="120"
+          y1={y}
+          y2={y}
+          stroke="currentColor"
+          strokeOpacity="0.55"
+          strokeWidth="0.75"
+        />
       ))}
       <text
         x="8"
@@ -114,6 +138,7 @@ function TimeSignaturePicker({
   value: string;
   onChange: (value: string) => void;
 }) {
+  // These are input suggestions; an absent current meter remains visibly unset.
   const { beats, beatType } = parseTimeSignatureParts(value);
   const commit = (nextBeats: number, nextBeatType: number) => {
     onChange(`${Math.max(1, nextBeats)}/${nextBeatType}`);
@@ -122,7 +147,12 @@ function TimeSignaturePicker({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button type="button" variant="outline" className="w-full justify-between font-mono text-base">
+        <Button
+          id="time-signature"
+          type="button"
+          variant="outline"
+          className="w-full justify-between font-mono text-base"
+        >
           {value || '—'}
           <ChevronRight className="h-4 w-4 text-muted-foreground" />
         </Button>
@@ -135,7 +165,7 @@ function TimeSignaturePicker({
               type="button"
               className={cn(
                 'rounded-md border p-3 text-center font-mono text-lg hover:bg-accent',
-                value === signature && 'border-primary bg-primary/10 text-primary'
+                value === signature && 'border-primary bg-primary/10 text-primary',
               )}
               onClick={() => onChange(signature)}
             >
@@ -150,16 +180,23 @@ function TimeSignaturePicker({
             min={1}
             type="number"
             value={beats}
-            onChange={(event) => commit(Number.parseInt(event.currentTarget.value || '1', 10), beatType)}
+            onChange={(event) =>
+              commit(Number.parseInt(event.currentTarget.value || '1', 10), beatType)
+            }
           />
           <span className="text-lg text-muted-foreground">/</span>
-          <Select value={String(beatType)} onValueChange={(next) => commit(beats, Number.parseInt(next, 10))}>
+          <Select
+            value={String(beatType)}
+            onValueChange={(next) => commit(beats, Number.parseInt(next, 10))}
+          >
             <SelectTrigger className="h-10 w-24 font-mono">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {BEAT_TYPES.map((type) => (
-                <SelectItem key={type} value={type}>{type}</SelectItem>
+                <SelectItem key={type} value={type}>
+                  {type}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -180,7 +217,7 @@ function KeySignaturePicker({
   majorLabel: string;
   minorLabel: string;
 }) {
-  const selected = KEY_SIGNATURES.find((key) => key.fifths === value) ?? KEY_SIGNATURES[0];
+  const selected = KEY_SIGNATURES.find((key) => key.fifths === value);
 
   const renderGrid = (mode: 'major' | 'minor') => (
     <div className="grid grid-cols-4 gap-2">
@@ -193,7 +230,7 @@ function KeySignaturePicker({
             type="button"
             className={cn(
               'rounded-md border p-1.5 text-left hover:bg-accent',
-              isSelected && 'border-primary bg-primary/10 text-primary'
+              isSelected && 'border-primary bg-primary/10 text-primary',
             )}
             onClick={() => onChange(key.fifths)}
           >
@@ -211,15 +248,25 @@ function KeySignaturePicker({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button type="button" variant="outline" className="h-auto w-full justify-between py-2">
+        <Button
+          id="key-signature"
+          type="button"
+          variant="outline"
+          className="h-auto w-full justify-between py-2"
+        >
           <span className="flex min-w-0 items-center gap-2">
-            <span className="font-medium">{value ? selected.major : '—'}</span>
-            <span className="truncate text-xs text-muted-foreground">{value ? selected.accidentals || 'C' : ''}</span>
+            <span className="font-medium">{selected?.major ?? '—'}</span>
+            <span className="truncate text-xs text-muted-foreground">
+              {selected?.accidentals ?? ''}
+            </span>
           </span>
           <ChevronRight className="h-4 w-4 text-muted-foreground" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="max-h-[26rem] w-[38rem] max-w-[calc(100vw-2rem)] overflow-y-auto p-3">
+      <PopoverContent
+        align="end"
+        className="max-h-[26rem] w-[38rem] max-w-[calc(100vw-2rem)] overflow-y-auto p-3"
+      >
         <Tabs defaultValue="major">
           <TabsList className="mx-auto mb-3 grid w-44 grid-cols-2">
             <TabsTrigger value="major">{majorLabel}</TabsTrigger>
@@ -237,13 +284,18 @@ function TempoPicker({
   value,
   onChange,
   showTempoMarkLabel,
+  suggestionLabel,
   initialShowMark,
   beatUnit,
   dots,
 }: {
   value: string;
-  onChange: (tempo: string, options?: { beatUnit?: string; dots?: number; showMark?: boolean }) => void;
+  onChange: (
+    tempo: string,
+    options?: { beatUnit?: string; dots?: number; showMark?: boolean },
+  ) => void;
   showTempoMarkLabel: string;
+  suggestionLabel: string | null;
   initialShowMark: boolean;
   beatUnit: string;
   dots: number;
@@ -266,8 +318,15 @@ function TempoPicker({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button type="button" variant="outline" className="w-full justify-between">
-          <span className="font-mono">{TEMPO_UNITS.find(unit => unit.value === beatUnit)?.symbol ?? beatUnit}{".".repeat(dots)} = {value}</span>
+        <Button id="tempo" type="button" variant="outline" className="w-full justify-between">
+          {suggestionLabel ? (
+            <span className="text-muted-foreground">{suggestionLabel}</span>
+          ) : (
+            <span className="font-mono">
+              {TEMPO_UNITS.find((unit) => unit.value === beatUnit)?.symbol ?? beatUnit}
+              {'.'.repeat(dots)} = {value}
+            </span>
+          )}
           <ChevronRight className="h-4 w-4 text-muted-foreground" />
         </Button>
       </PopoverTrigger>
@@ -289,7 +348,7 @@ function TempoPicker({
               type="button"
               className={cn(
                 'rounded-md border p-3 text-2xl leading-none hover:bg-accent',
-                beatUnit === unit.value && 'border-primary bg-primary/10 text-primary'
+                beatUnit === unit.value && 'border-primary bg-primary/10 text-primary',
               )}
               onClick={() => {
                 commit(value, unit.value, showMark);
@@ -318,7 +377,9 @@ export function ScoreInspectorPanel({ onClose }: { onClose: () => void }) {
   const t = useTranslations('editor');
   const scoreText = useTranslations('score');
   const { document } = useEditorSession();
-  const context=document?.measures[0]?effectiveMeasureContext(document,document.measures[0].id):null;
+  const context = document?.measures[0]
+    ? effectiveMeasureContext(document, document.measures[0].id)
+    : null;
   const {
     updateKeySignature,
     updateTimeSignature,
@@ -329,7 +390,6 @@ export function ScoreInspectorPanel({ onClose }: { onClose: () => void }) {
     updateScoreComposer,
     updateScoreLyricist,
   } = useMetadataEditor();
-
 
   return (
     <aside className="sticky top-24 hidden h-[calc(100vh-8.5rem)] w-80 shrink-0 xl:block">
@@ -403,7 +463,7 @@ export function ScoreInspectorPanel({ onClose }: { onClose: () => void }) {
 
             <section className="space-y-3">
               <div className="space-y-2">
-                <Label>{t('keySignatureLabel')}</Label>
+                <Label htmlFor="key-signature">{t('keySignatureLabel')}</Label>
                 <KeySignaturePicker
                   value={context?.key ? String(context.key.fifths) : ''}
                   onChange={updateKeySignature}
@@ -413,18 +473,28 @@ export function ScoreInspectorPanel({ onClose }: { onClose: () => void }) {
               </div>
 
               <div className="space-y-2">
-                <Label>{t('timeSignatureLabel')}</Label>
-                <TimeSignaturePicker value={context?.meter ? `${context.meter.beats}/${context.meter.beatType}` : ''} onChange={updateTimeSignature} />
+                <Label htmlFor="time-signature">{t('timeSignatureLabel')}</Label>
+                <TimeSignaturePicker
+                  value={context?.meter ? `${context.meter.beats}/${context.meter.beatType}` : ''}
+                  onChange={updateTimeSignature}
+                />
               </div>
 
               <div className="space-y-2">
-                <Label>{t('tempoLabel')}</Label>
+                <Label htmlFor="tempo">{t('tempoLabel')}</Label>
                 <TempoPicker
-                  value={String(document?.metadata.tempoNotation?.perMinute ?? DEFAULT_SCORE_TEMPO_BPM)}
+                  value={String(
+                    document?.metadata.tempoNotation?.perMinute ?? DEFAULT_SCORE_TEMPO_BPM,
+                  )}
                   beatUnit={document?.metadata.tempoNotation?.beatUnit ?? 'quarter'}
                   dots={document?.metadata.tempoNotation?.dots ?? 0}
                   onChange={updateTempo}
                   showTempoMarkLabel={t('showTempoMark')}
+                  suggestionLabel={
+                    document?.metadata.tempoNotation
+                      ? null
+                      : t('tempoSuggestion', { bpm: DEFAULT_SCORE_TEMPO_BPM })
+                  }
                   initialShowMark={document?.metadata.tempoNotation?.visible ?? false}
                 />
               </div>

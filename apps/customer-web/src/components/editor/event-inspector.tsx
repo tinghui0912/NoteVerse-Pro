@@ -131,9 +131,7 @@ function EventInspectorPanel({
 
   const event = editableEvent;
   const summaryEvent = event;
-  const domainInspectorStatus: 'ready' | 'unavailable' | 'error' = domainInspector.error
-    ? 'error'
-    : domainInspector.viewModel ? 'ready' : 'unavailable';
+  const domainInspectorStatus = domainInspector.viewModel ? 'ready' : 'unavailable';
   const controlEvent = event;
   const controlEventSource = domainInspectorStatus === 'ready' ? 'domainViewModel' : 'unavailable';
   const [notePropertiesOpen, setNotePropertiesOpen] = useState(true);

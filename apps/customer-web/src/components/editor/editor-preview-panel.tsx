@@ -437,7 +437,6 @@ export function EditorPreviewPanel({
     document: domainDocument,
     gaps: domainGaps,
     anchors: domainAnchors,
-    error: domainAnchorError,
     resolveAnchor: resolveDomainAnchor,
   } = domainRenderAnchors;
   const {
@@ -1061,7 +1060,6 @@ export function EditorPreviewPanel({
     <div
       className="relative flex min-h-[70vh] min-w-0 flex-col gap-4"
       data-domain-anchor-count={domainAnchors.length}
-      data-domain-anchor-error={domainAnchorError ? 'true' : undefined}
       data-domain-anchor-kind={lastDomainAnchorKind ?? undefined}
       data-domain-companion-kind={lastDomainCompanionKind ?? undefined}
       data-insertion-preview-kind={insertionPreview?.anchor.kind}

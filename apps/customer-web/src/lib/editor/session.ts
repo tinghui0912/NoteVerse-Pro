@@ -22,7 +22,6 @@ export type EditorSessionState = {
   inputVoices: Voice[];
   canUndo: boolean;
   canRedo: boolean;
-  error: Error | null;
 };
 function immutable<T>(value: T): T {
   if (value && typeof value === 'object' && !Object.isFrozen(value)) {
@@ -30,6 +29,14 @@ function immutable<T>(value: T): T {
     Object.freeze(value);
   }
   return value;
+}
+function reconcileInputVoices(document: ScoreDocument, inputVoices: readonly Voice[]): Voice[] {
+  return inputVoices.filter(
+    (voice) =>
+      !document.voices.some(
+        (persistent) => persistent.partId === voice.partId && persistent.number === voice.number,
+      ),
+  );
 }
 /** One atomic editor session; history stores semantic snapshots, never XML. */
 export class EditorSession {
@@ -44,7 +51,6 @@ export class EditorSession {
     inputVoices: [],
     canUndo: false,
     canRedo: false,
-    error: null,
   };
   getSnapshot = () => this.state;
   subscribe = (listener: () => void) => {
@@ -53,16 +59,19 @@ export class EditorSession {
       this.listeners.delete(listener);
     };
   };
-  private publish(snapshot: SemanticSnapshot, serializedXml: string, inputVoices: Voice[] = []) {
+  private publish(
+    snapshot: SemanticSnapshot,
+    serializedXml: string,
+    inputVoices: readonly Voice[],
+  ) {
     this.state = {
       document: immutable(snapshot.document),
       source: snapshot.source,
       serializedXml,
       gaps: documentTimelineGaps(snapshot.document),
-      inputVoices,
+      inputVoices: reconcileInputVoices(snapshot.document, inputVoices),
       canUndo: this.index > 0,
       canRedo: this.index < this.entries.length - 1,
-      error: null,
     };
     this.listeners.forEach((listener) => listener());
   }
@@ -79,7 +88,7 @@ export class EditorSession {
       { document: immutable(imported.document), source: imported.source, action: 'load' },
     ];
     this.index = 0;
-    this.publish(this.entries[0], serializedXml);
+    this.publish(this.entries[0], serializedXml, []);
     return serializedXml;
   };
   applyCommand = (command: EditorCommand, action: string): CommandResult => {
@@ -91,13 +100,7 @@ export class EditorSession {
       const serializedXml = serializeEditorMusicXml({ document: result.document, source });
       const snapshot = { document: immutable(result.document), source, action };
       this.append(snapshot);
-      this.publish(
-        snapshot,
-        serializedXml,
-        this.state.inputVoices.filter(
-          (voice) => !result.document.voices.some((item) => item.id === voice.id),
-        ),
-      );
+      this.publish(snapshot, serializedXml, this.state.inputVoices);
       return result;
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : String(error) };
@@ -108,7 +111,7 @@ export class EditorSession {
     const serializedXml = serializeEditorMusicXml(imported);
     const snapshot = { document: immutable(imported.document), source: imported.source, action };
     this.append(snapshot);
-    this.publish(snapshot, serializedXml);
+    this.publish(snapshot, serializedXml, []);
     return serializedXml;
   };
   private restore(index: number) {
@@ -116,7 +119,7 @@ export class EditorSession {
     if (!snapshot) return null;
     const serializedXml = serializeEditorMusicXml(snapshot);
     this.index = index;
-    this.publish(snapshot, serializedXml);
+    this.publish(snapshot, serializedXml, this.state.inputVoices);
     return snapshot.document;
   }
   undo = () => (this.state.canUndo ? this.restore(this.index - 1) : null);
@@ -161,7 +164,6 @@ export class EditorSession {
       inputVoices: [],
       canUndo: false,
       canRedo: false,
-      error: null,
     };
     this.listeners.forEach((listener) => listener());
   };

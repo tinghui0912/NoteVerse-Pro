@@ -71,7 +71,6 @@ describe('useEditingDomainEvent', () => {
       });
     });
 
-    expect(result.current.editingDomain.error).toBeNull();
     expect(result.current.editingDomain.event).toBeNull();
   });
 
