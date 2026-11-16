@@ -71,3 +71,12 @@ def test_collaboration_http_representations_describe_email_targets_and_current_m
     remove = schema["paths"]["/api/v1/scores/{score_id}/members/{membership_id}"]["delete"]
     assert remove["operationId"] == "scoreMemberRemove"
     assert remove["responses"]["204"] == {"description": "Successful Response"}
+
+
+def test_successful_invite_acceptance_requires_a_persisted_membership_identity():
+    acceptance = app.openapi()["components"]["schemas"]["InviteAcceptRead"]
+    assert "membership_id" in acceptance["required"]
+    assert acceptance["properties"]["membership_id"] == {
+        "title": "Membership Id",
+        "type": "integer",
+    }

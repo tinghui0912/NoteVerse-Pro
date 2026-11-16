@@ -568,7 +568,7 @@ export type InviteAcceptRead = {
     /**
      * Membership Id
      */
-    membership_id: number | null;
+    membership_id: number;
     role: MembershipRole;
     /**
      * Score Id

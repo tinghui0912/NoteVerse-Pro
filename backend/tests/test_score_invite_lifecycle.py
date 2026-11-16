@@ -294,3 +294,54 @@ def test_invitation_targeting_owner_fails_closed_without_terminal_or_membership_
     assert writes == [] and commits == []
     assert invite.terminal_outcome is None and invite.terminal_at is None
     assert db.scalar(select(ScoreMembership)) is None and db.scalar(select(Notification)) is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("endpoint", ["token", "pending"])
+@pytest.mark.parametrize("membership_state", ["new", "active", "revoked"])
+async def test_acceptance_returns_the_persisted_collaborator_identity(
+    collaboration, endpoint, membership_state
+):
+    db, _, score, _ = collaboration
+    original_id = None
+    if membership_state != "new":
+        membership = ScoreMembership(
+            score_id=score.id,
+            user_id=2,
+            role=MembershipRole.VIEWER,
+            created_by_user_id=1,
+            revoked_at=utc_now() if membership_state == "revoked" else None,
+        )
+        db.add(membership)
+        db.commit()
+        original_id = membership.id
+    invite = InvitationService().create_invite(
+        db, score.score_uuid, 1, InviteCreateRequest(email="other@example.com")
+    )
+    path = (
+        f"/api/v1/invites/{invite.token}/accept"
+        if endpoint == "token"
+        else f"/api/v1/me/invites/{invite.invite_id}/accept"
+    )
+    overrides = app.dependency_overrides.copy()
+    app.dependency_overrides[get_db] = lambda: db
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=2)
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.post(path)
+        assert response.status_code == 200, response.text
+        returned_id = response.json()["membership_id"]
+        assert type(returned_id) is int
+        memberships = db.scalars(
+            select(ScoreMembership).where(
+                ScoreMembership.score_id == score.id, ScoreMembership.user_id == 2
+            )
+        ).all()
+        assert len(memberships) == 1
+        assert returned_id == memberships[0].id
+        assert memberships[0].revoked_at is None
+        if original_id is not None:
+            assert returned_id == original_id
+    finally:
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(overrides)

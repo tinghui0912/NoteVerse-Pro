@@ -996,15 +996,8 @@
       "InviteAcceptRead": {
         "properties": {
           "membership_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Membership Id"
+            "title": "Membership Id",
+            "type": "integer"
           },
           "role": {
             "$ref": "#/components/schemas/MembershipRole"

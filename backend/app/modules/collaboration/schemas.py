@@ -77,7 +77,7 @@ class InviteAccessRead(ApiModel):
 class InviteAcceptRead(ApiModel):
     score_id: str
     role: MembershipRole
-    membership_id: int | None
+    membership_id: int
 
 
 class MemberRead(ApiModel):
