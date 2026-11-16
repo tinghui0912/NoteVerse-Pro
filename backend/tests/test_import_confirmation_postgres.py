@@ -34,6 +34,7 @@ from app.db.models import (
     ObjectWriteIntent,
     Notification,
     RealtimeChange,
+    RealtimeStreamState,
 )
 from app.db.models.import_job import ImportJobState
 from app.modules.import_jobs.review import service as review
@@ -321,6 +322,7 @@ def snapshot(db):
         ScoreInputAsset,
         Notification,
         RealtimeChange,
+        RealtimeStreamState,
     )
     return {
         model.__tablename__: list(
@@ -332,6 +334,34 @@ def snapshot(db):
     }
 
 
+def realtime_rows(db):
+    return list(
+        db.execute(
+            sa.select(RealtimeChange.__table__).order_by(
+                RealtimeChange.recipient_user_id, RealtimeChange.sequence
+            )
+        ).mappings()
+    )
+
+
+def assert_confirmation_delta(db, before, notification_id):
+    after = realtime_rows(db)
+    assert after[: len(before)] == before
+    delta = after[len(before) :]
+    expected = []
+    if notification_id is not None:
+        expected.append((1, "notifications.changed", notification_id, None))
+    expected.append((1, "import_jobs.changed", None, "job"))
+    assert [
+        (row["recipient_user_id"], row["kind"], row["notification_id"], row["import_job_id"])
+        for row in delta
+    ] == expected
+    high = before[-1]["sequence"]
+    assert [row["sequence"] for row in delta] == list(range(high + 1, high + len(delta) + 1))
+    assert db.get(RealtimeStreamState, 1).high_watermark_sequence == high + len(delta)
+    return after
+
+
 @pytest.mark.parametrize("stage", ["writer", "confirmed", "release", "enrichment", "commit"])
 def test_confirmation_semantic_transaction_rolls_back_at_every_boundary(
     confirmation, monkeypatch, stage
@@ -339,6 +369,7 @@ def test_confirmation_semantic_transaction_rolls_back_at_every_boundary(
     engine, storage = confirmation
     with Session(engine) as db:
         before = snapshot(db)
+        notification_id = db.scalar(sa.select(Notification.notification_uuid))
         counters = {r.category: r.used_bytes for r in db.scalars(sa.select(StorageUsageCounter))}
 
     def interrupted():
@@ -363,15 +394,14 @@ def test_confirmation_semantic_transaction_rolls_back_at_every_boundary(
 
         monkeypatch.setattr(review.ImportJobDeletionService, "cleanup_binary_artifacts", release)
     if stage == "enrichment":
-        original = review.attach_confirmed_score_to_ready_for_review_notification
+        original = review.admit_import_confirmation_consequences
 
         def append(*args, **kwargs):
             original(*args, **kwargs)
+            assert_confirmation_delta(args[0], before["realtime_changes"], notification_id)
             interrupted()
 
-        monkeypatch.setattr(
-            review, "attach_confirmed_score_to_ready_for_review_notification", append
-        )
+        monkeypatch.setattr(review, "admit_import_confirmation_consequences", append)
 
     with Session(engine, expire_on_commit=False) as db:
         adapter = db
@@ -381,6 +411,7 @@ def test_confirmation_semantic_transaction_rolls_back_at_every_boundary(
             def commit():
                 if db.scalar(sa.select(ImportJob)).state == ImportJobState.CONFIRMED:
                     assert db.scalar(sa.select(Notification)).score_id is not None
+                    assert_confirmation_delta(db, before["realtime_changes"], notification_id)
                     interrupted()
                 original()
 
@@ -393,6 +424,9 @@ def test_confirmation_semantic_transaction_rolls_back_at_every_boundary(
         assert snapshot(db) == before
         job = db.scalar(sa.select(ImportJob))
         assert job.state == ImportJobState.READY_FOR_REVIEW and job.score_id is None
+        assert job.confirmed_at is None
+        assert db.scalar(sa.select(Notification)).score_id is None
+        assert db.scalar(sa.select(Notification)).score_display_title_snapshot is None
         for counter in db.scalars(sa.select(StorageUsageCounter)):
             assert counter.used_bytes == counters.get(counter.category, 0)
             assert counter.reserved_bytes == 0
@@ -404,8 +438,11 @@ def test_confirmation_semantic_transaction_rolls_back_at_every_boundary(
 
 def test_confirmation_enriches_retained_notification_in_its_transaction(confirmation):
     engine, storage = confirmation
+    with Session(engine) as db:
+        before = realtime_rows(db)
+        notification_id = db.scalar(sa.select(Notification.notification_uuid))
+        assert len(before) == 2
     score_id = confirm(engine, storage)
-    assert confirm(engine, storage) == score_id
     with Session(engine) as db:
         notifications = list(db.scalars(sa.select(Notification)))
         assert len(notifications) == 1
@@ -413,10 +450,11 @@ def test_confirmation_enriches_retained_notification_in_its_transaction(confirma
         assert notifications[0].import_job_id == "job"
         assert notifications[0].import_display_title_snapshot == "Etudes"
         assert notifications[0].score_display_title_snapshot == "Etudes"
-        assert sorted(row.kind for row in db.scalars(sa.select(RealtimeChange))) == [
-            "import_jobs.changed",
-            "notifications.changed",
-        ]
+        after = assert_confirmation_delta(db, before, notification_id)
+    assert confirm(engine, storage) == score_id
+    with Session(engine) as db:
+        assert realtime_rows(db) == after
+        assert db.get(RealtimeStreamState, 1).high_watermark_sequence == after[-1]["sequence"]
 
 
 def test_confirmation_succeeds_without_expired_notification_history(confirmation):
@@ -424,16 +462,32 @@ def test_confirmation_succeeds_without_expired_notification_history(confirmation
     with Session(engine) as db:
         db.execute(sa.delete(Notification))
         db.commit()
+        before = realtime_rows(db)
+        assert len(before) == 2
     score_id = confirm(engine, storage)
     with Session(engine) as db:
         assert db.scalar(sa.select(ImportJob)).state == ImportJobState.CONFIRMED
         assert db.scalar(sa.select(Score)).score_uuid == score_id
         assert db.scalar(sa.select(Notification)) is None
-        assert db.scalar(sa.select(sa.func.count()).select_from(RealtimeChange)) == 2
+        after = assert_confirmation_delta(db, before, None)
+    assert confirm(engine, storage) == score_id
+    with Session(engine) as db:
+        assert realtime_rows(db) == after
 
 
-def test_concurrent_confirmation_admits_one_complete_import_transaction(confirmation, monkeypatch):
+@pytest.mark.parametrize("notification_retained", [True, False])
+def test_concurrent_confirmation_admits_one_complete_import_transaction(
+    confirmation, monkeypatch, notification_retained
+):
     engine, storage = confirmation
+    with Session(engine) as db:
+        notification_id = db.scalar(sa.select(Notification.notification_uuid))
+        if not notification_retained:
+            db.execute(sa.delete(Notification))
+            db.commit()
+            notification_id = None
+        before = realtime_rows(db)
+        assert len(before) == 2
     barrier = Barrier(2)
     original = review.write_object
 
@@ -457,9 +511,12 @@ def test_concurrent_confirmation_admits_one_complete_import_transaction(confirma
             RevisionMetadataOutbox,
         ):
             assert db.scalar(sa.select(sa.func.count()).select_from(model)) == 1
-        assert db.scalar(sa.select(sa.func.count()).select_from(Notification)) == 1
-        assert db.scalar(sa.select(Notification)).score_id == results[0]
-        assert db.scalar(sa.select(sa.func.count()).select_from(RealtimeChange)) == 2
+        assert db.scalar(sa.select(sa.func.count()).select_from(Notification)) == int(
+            notification_retained
+        )
+        if notification_retained:
+            assert db.scalar(sa.select(Notification)).score_id == results[0]
+        assert_confirmation_delta(db, before, notification_id)
         assert db.scalar(sa.select(ImportArtifact)) is None
         assert db.scalar(sa.select(ImportJobUpload)) is None
         assert {r.category: r.used_bytes for r in db.scalars(sa.select(StorageUsageCounter))} == {

@@ -40,21 +40,38 @@ def admit_import_processing_outcome(db: Session, job: ImportJob, *, created_at: 
     )
 
 
-def attach_confirmed_score_to_ready_for_review_notification(
-    db: Session, *, job_id: str, user_id: int, score_id: str, score_display_title: str
+def admit_import_confirmation_consequences(
+    db: Session, job: ImportJob, *, score_id: str, score_display_title: str
 ) -> None:
+    if job.state != ImportJobState.CONFIRMED:
+        raise ValueError("Import confirmation consequences require a confirmed Score")
     notification = db.scalar(
         select(Notification)
         .where(
             Notification.dedupe_key
-            == f"{NotificationKind.IMPORT_READY_FOR_REVIEW}:{job_id}:{user_id}",
-            Notification.recipient_user_id == user_id,
+            == f"{NotificationKind.IMPORT_READY_FOR_REVIEW}:{job.job_uuid}:{job.user_id}",
+            Notification.recipient_user_id == job.user_id,
             Notification.kind == NotificationKind.IMPORT_READY_FOR_REVIEW,
-            Notification.import_job_id == job_id,
+            Notification.import_job_id == job.job_uuid,
         )
         .with_for_update()
         .execution_options(populate_existing=True)
     )
-    if notification is not None:
+    if notification is not None and (
+        notification.score_id != score_id
+        or notification.score_display_title_snapshot != score_display_title
+    ):
         notification.score_id = score_id
         notification.score_display_title_snapshot = score_display_title
+        publish_change(
+            db,
+            recipient_user_id=job.user_id,
+            kind=RealtimeChangeKind.NOTIFICATIONS_CHANGED,
+            notification_id=notification.notification_uuid,
+        )
+    publish_change(
+        db,
+        recipient_user_id=job.user_id,
+        kind=RealtimeChangeKind.IMPORT_JOBS_CHANGED,
+        import_job_id=job.job_uuid,
+    )

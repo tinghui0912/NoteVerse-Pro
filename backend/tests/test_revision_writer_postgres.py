@@ -467,6 +467,8 @@ def test_metadata_mid_compute_takeover_and_atomic_completion(database, monkeypat
 
 def test_review_confirm_concurrency_uses_one_initial_revision(database, monkeypatch):
     engine, storage = database
+    with Session(engine) as db:
+        before = set(db.scalars(sa.select(RealtimeChange.change_uuid)))
     from app.modules.import_jobs.review import service as review_module
     from app.modules.import_jobs.review.schemas import ReviewConfirmRequest
 
@@ -498,7 +500,18 @@ def test_review_confirm_concurrency_uses_one_initial_revision(database, monkeypa
     with Session(engine) as db:
         assert db.scalar(sa.select(sa.func.count()).select_from(ScoreRevision)) == 1
         assert db.scalar(sa.select(Notification)) is None
-        assert db.scalar(sa.select(RealtimeChange)) is None
+        changes = list(db.scalars(sa.select(RealtimeChange)))
+        assert len(changes) == len(before) + 1
+        delta = [change for change in changes if change.change_uuid not in before]
+        assert len(delta) == 1
+        change = delta[0]
+        assert (
+            change.recipient_user_id,
+            change.kind,
+            change.import_job_id,
+            change.notification_id,
+            change.sequence,
+        ) == (1, "import_jobs.changed", "job", None, 1)
         for model in (RenderOutbox, PlaybackOutbox, RevisionMetadataOutbox):
             assert db.scalar(sa.select(sa.func.count()).select_from(model)) == 1
 

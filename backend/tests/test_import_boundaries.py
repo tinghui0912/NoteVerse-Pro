@@ -91,7 +91,7 @@ def test_review_http_subresources_delegate_to_import_owned_use_cases(client):
         app.dependency_overrides.update(overrides)
 
 
-def test_confirmation_owns_notification_enrichment_and_temporary_release():
+def test_confirmation_owns_realtime_consequences_and_temporary_release():
     tree = ast.parse((ROOT / "modules/import_jobs/review/service.py").read_text())
     imports = {
         alias.name
@@ -99,10 +99,7 @@ def test_confirmation_owns_notification_enrichment_and_temporary_release():
         if isinstance(node, ast.ImportFrom)
         for alias in node.names
     }
-    assert (
-        "attach_confirmed_score_to_ready_for_review_notification" in imports
-        and "Notification" not in imports
-    )
+    assert "admit_import_confirmation_consequences" in imports and "Notification" not in imports
     confirm = next(
         node
         for node in ast.walk(tree)
@@ -118,7 +115,7 @@ def test_confirmation_owns_notification_enrichment_and_temporary_release():
         node
         for node in calls
         if isinstance(node.func, ast.Name)
-        and node.func.id == "attach_confirmed_score_to_ready_for_review_notification"
+        and node.func.id == "admit_import_confirmation_consequences"
     )
     semantic_transaction = next(
         node

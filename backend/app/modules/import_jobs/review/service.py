@@ -26,7 +26,7 @@ from app.db.models.import_job import ImportJobState
 from app.modules.import_jobs.lifecycle import mark_confirmed
 from app.modules.import_jobs.deletion_service import ImportJobDeletionService
 from app.modules.import_jobs.notifications import (
-    attach_confirmed_score_to_ready_for_review_notification,
+    admit_import_confirmation_consequences,
 )
 from app.modules.score_assets.render_outbox_service import (
     create_review_thumbnail_render_outbox,
@@ -246,10 +246,9 @@ class ImportReviewService:
                     storage_key=promoted.storage_key,
                 )
             ImportJobDeletionService().cleanup_binary_artifacts(db, job, user_id)
-            attach_confirmed_score_to_ready_for_review_notification(
+            admit_import_confirmation_consequences(
                 db,
-                job_id=job_uuid,
-                user_id=user_id,
+                job,
                 score_id=score_uuid,
                 score_display_title=display_title,
             )
