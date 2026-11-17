@@ -64,8 +64,10 @@ def test_import_release_accounts_atomically_and_protects_other_owners(
     db.add(job)
     db.flush()
     db.add(ImportDispatch(job_id=job.id))
-    content = b"verified import"
-    obj = object_from_bytes(object_key="jobs/committed", content=content, content_type="image/jpeg")
+    content = b"<score-partwise/>"
+    obj = object_from_bytes(
+        object_key="jobs/review.musicxml", content=content, content_type="application/xml"
+    )
     db.add(obj)
     db.flush()
     identity = obj.id
@@ -73,8 +75,8 @@ def test_import_release_accounts_atomically_and_protects_other_owners(
     db.add(
         ImportArtifact(
             job_id=job.id,
-            kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE,
-            filename="page.jpg",
+            kind=ImportArtifactKind.REVIEW_MUSICXML,
+            filename="review.musicxml",
             stored_object_id=identity,
         )
     )
@@ -293,7 +295,9 @@ async def test_customer_delete_http_state_matrix_preserves_owned_data(score_serv
     db.flush()
     db.add(ImportDispatch(job_id=job.id))
     artifact_object = object_from_bytes(
-        object_key="jobs/matrix-artifact", content=b"artifact", content_type="image/jpeg"
+        object_key="jobs/matrix-review.musicxml",
+        content=b"<score-partwise/>",
+        content_type="application/xml",
     )
     upload_object = object_from_bytes(
         object_key="uploads/matrix-original", content=b"original", content_type="image/jpeg"
@@ -309,8 +313,8 @@ async def test_customer_delete_http_state_matrix_preserves_owned_data(score_serv
     db.add(
         ImportArtifact(
             job_id=job.id,
-            kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE,
-            filename="artifact.jpg",
+            kind=ImportArtifactKind.REVIEW_MUSICXML,
+            filename="review.musicxml",
             stored_object_id=artifact_object.id,
         )
     )
@@ -377,7 +381,9 @@ async def test_customer_delete_http_state_matrix_preserves_owned_data(score_serv
     assert (db.get(Upload, upload_id) is None) == allowed
     assert (db.scalar(select(ImportJobUpload)) is None) == allowed
     counters = list(db.scalars(select(StorageUsageCounter)))
-    assert sum(c.used_bytes for c in counters) == (0 if allowed else len(b"artifactoriginal"))
+    assert sum(c.used_bytes for c in counters) == (
+        0 if allowed else artifact_object.byte_size + upload_object.byte_size
+    )
     retirements = list(db.scalars(select(StoredObjectRetirement)))
     assert len(retirements) == (2 if allowed else 0)
     if state == ImportJobState.CONFIRMED:

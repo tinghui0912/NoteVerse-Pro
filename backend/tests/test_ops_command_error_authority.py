@@ -24,7 +24,7 @@ from tests.support.control_plane import (
 
 OWNERS = [
     (AsyncOperationKind.IMPORT, command_service.import_dispatch_service),
-    (AsyncOperationKind.RENDER, command_service.render_outbox_service),
+    (AsyncOperationKind.REVISION_RENDER, command_service.revision_render_delivery),
     (AsyncOperationKind.PLAYBACK, command_service.playback_outbox_service),
     (AsyncOperationKind.MAIL, command_service.mail_outbox_service),
     (AsyncOperationKind.SCORE_DELETION, command_service.score_deletion_delivery),

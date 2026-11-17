@@ -6,7 +6,6 @@ from typing import Optional
 
 from sqlalchemy import (
     BigInteger,
-    CheckConstraint,
     Column,
     DateTime,
     ForeignKey,
@@ -35,11 +34,12 @@ from app.db.durable_delivery import (
     failure_stage_field,
 )
 from app.shared.time import utc_now
+from app.score_semantics.render_profile import SCORE_PRESENTATION_RENDER_PROFILE
 
 bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 
 
-class RenderOutboxStatus(str, enum.Enum):
+class ScoreRevisionRenderStatus(str, enum.Enum):
     PENDING = "PENDING"
     DISPATCHED = "DISPATCHED"
     PROCESSING = "PROCESSING"
@@ -48,37 +48,22 @@ class RenderOutboxStatus(str, enum.Enum):
     SUPERSEDED = "SUPERSEDED"
 
 
-class RenderTargetType(str, enum.Enum):
-    SCORE_REVISION = "SCORE_REVISION"
-    REVIEW_THUMBNAIL = "REVIEW_THUMBNAIL"
-
-
-class RenderOutbox(SQLModel, table=True):  # type: ignore[call-arg]
-    __tablename__ = "render_outbox"
+class ScoreRevisionRenderOutbox(SQLModel, table=True):  # type: ignore[call-arg]
+    __tablename__ = "score_revision_render_outbox"
     __table_args__ = (
-        durable_failure_facts_constraint(name="ck_render_outbox_failure_facts"),
+        durable_failure_facts_constraint(name="ck_score_revision_render_outbox_failure_facts"),
         delivery_attempt_token_constraint(
-            name="ck_render_outbox_attempt_token", processing_status=RenderOutboxStatus.PROCESSING
+            name="ck_score_revision_render_outbox_attempt_token",
+            processing_status=ScoreRevisionRenderStatus.PROCESSING,
         ),
-        delivery_attempt_count_constraint(name="ck_render_outbox_attempt_count"),
-        CheckConstraint(
-            "(target_type = 'SCORE_REVISION' AND score_id IS NOT NULL AND revision_id IS NOT NULL AND import_job_id IS NULL) OR "
-            "(target_type = 'REVIEW_THUMBNAIL' AND score_id IS NULL AND revision_id IS NULL AND import_job_id IS NOT NULL)",
-            name="ck_render_outbox_target",
-        ),
+        delivery_attempt_count_constraint(name="ck_score_revision_render_outbox_attempt_count"),
         UniqueConstraint(
             "revision_id",
             "render_profile",
-            name="uq_render_outbox_revision_profile",
+            name="uq_score_revision_render_outbox_revision_profile",
         ),
-        UniqueConstraint(
-            "import_job_id",
-            "render_profile",
-            "source_fingerprint",
-            name="uq_render_outbox_review_source",
-        ),
-        Index("idx_render_outbox_status_available", "status", "next_attempt_at"),
-        Index("idx_render_outbox_dispatched", "status", "dispatched_at"),
+        Index("idx_score_revision_render_outbox_status_available", "status", "next_attempt_at"),
+        Index("idx_score_revision_render_outbox_dispatched", "status", "dispatched_at"),
     )
 
     id: Optional[int] = Field(
@@ -86,34 +71,18 @@ class RenderOutbox(SQLModel, table=True):  # type: ignore[call-arg]
         sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
     )
     outbox_uuid: str = Field(sa_column=Column(String(36), unique=True, nullable=False))
-    target_type: RenderTargetType = Field(
-        sa_column=Column(
-            SAEnum(RenderTargetType, name="rendertargettype"),
-            nullable=False,
-        )
-    )
-    score_id: Optional[int] = Field(
-        default=None,
+    score_id: int = Field(
         sa_column=Column(
             BigInteger,
             ForeignKey("scores.id", ondelete="CASCADE"),
-            nullable=True,
+            nullable=False,
         ),
     )
-    revision_id: Optional[int] = Field(
-        default=None,
+    revision_id: int = Field(
         sa_column=Column(
             BigInteger,
             ForeignKey("score_revisions.id", ondelete="CASCADE"),
-            nullable=True,
-        ),
-    )
-    import_job_id: Optional[int] = Field(
-        default=None,
-        sa_column=Column(
-            BigInteger,
-            ForeignKey("import_jobs.id", ondelete="CASCADE"),
-            nullable=True,
+            nullable=False,
         ),
     )
     source_fingerprint: str = Field(sa_column=Column(String(64), nullable=False))
@@ -128,14 +97,22 @@ class RenderOutbox(SQLModel, table=True):  # type: ignore[call-arg]
     traceparent: Optional[str] = Field(default=None, sa_column=Column(String(55)))
     tracestate: Optional[str] = Field(default=None, sa_column=Column(String(512)))
     render_profile: str = Field(
-        default="default",
-        sa_column=Column(String(128), default="default", nullable=False),
+        default=SCORE_PRESENTATION_RENDER_PROFILE,
+        sa_column=Column(String(128), default=SCORE_PRESENTATION_RENDER_PROFILE, nullable=False),
     )
-    status: RenderOutboxStatus = Field(
-        default=RenderOutboxStatus.PENDING,
+    status: ScoreRevisionRenderStatus = Field(
+        default=ScoreRevisionRenderStatus.PENDING,
         sa_column=Column(
-            SAEnum(RenderOutboxStatus, name="renderoutboxstatus"),
-            default=RenderOutboxStatus.PENDING,
+            SAEnum(
+                ScoreRevisionRenderStatus,
+                name="ck_score_revision_render_outbox_status",
+                native_enum=False,
+                create_constraint=True,
+                validate_strings=True,
+                values_callable=lambda cls: [value.value for value in cls],
+                length=16,
+            ),
+            default=ScoreRevisionRenderStatus.PENDING,
             nullable=False,
         ),
     )

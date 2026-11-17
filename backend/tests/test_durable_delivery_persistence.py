@@ -15,7 +15,7 @@ from app.db.models import (
     MailOutbox,
     ObjectWriteIntent,
     PlaybackOutbox,
-    RenderOutbox,
+    ScoreRevisionRenderOutbox,
     RevisionMetadataOutbox,
     ScoreDeletionOperation,
     StoredObjectRetirement,
@@ -27,7 +27,7 @@ from app.shared.time import utc_now
 
 DELIVERIES = (
     ImportDispatch,
-    RenderOutbox,
+    ScoreRevisionRenderOutbox,
     PlaybackOutbox,
     MailOutbox,
     ScoreDeletionOperation,
@@ -38,7 +38,7 @@ DELIVERIES = (
 STRUCTURED_FAILURES = (
     ImportJob,
     ImportDispatch,
-    RenderOutbox,
+    ScoreRevisionRenderOutbox,
     PlaybackOutbox,
     MailOutbox,
     ScoreDeletionOperation,
@@ -92,7 +92,7 @@ def test_factories_create_independent_columns_without_registering_a_table():
     assert set(SQLModel.metadata.tables) == tables
     assert {model.__tablename__ for model in DELIVERIES} == {
         "import_dispatches",
-        "render_outbox",
+        "score_revision_render_outbox",
         "playback_outbox",
         "mail_outbox",
         "score_deletion_operations",

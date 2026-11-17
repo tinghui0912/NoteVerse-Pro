@@ -103,8 +103,12 @@ def test_object_storage_rejects_path_traversal_keys() -> None:
 @pytest.mark.parametrize(
     "kind,extension,content,mime",
     [
-        (ImportArtifactKind.REVIEW_PREVIEW_IMAGE, "svg", b"<svg />", "image/svg+xml"),
-        (ImportArtifactKind.REVIEW_MUSICXML, "jpg", b"jpg", "image/jpeg"),
+        (
+            ImportArtifactKind.REVIEW_MUSICXML,
+            "musicxml",
+            b"<score-partwise/>",
+            "application/vnd.recordare.musicxml+xml",
+        ),
     ],
 )
 def test_artifact_recorder_persists_intent_before_upload(

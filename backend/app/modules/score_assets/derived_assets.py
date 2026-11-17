@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from app.db.models import PlaybackOutboxStatus, RenderOutboxStatus
+from app.db.models import PlaybackOutboxStatus, ScoreRevisionRenderStatus
+from app.score_semantics.render_profile import SCORE_PRESENTATION_RENDER_PROFILE
 from app.db.model_utils import require_persisted_id
 from app.db.models import ScoreRevision
 from app.modules.score_assets.repository import ScoreAssetRepository
-from app.modules.rendering.queries import latest_revision_render_status
+from app.modules.revisions.render_queries import revision_render_status
 from app.modules.score_assets.schemas import (
     DerivedAssetStatus,
     ScoreDerivedAssetRead,
@@ -15,20 +16,20 @@ from app.modules.score_assets.schemas import (
 def derived_asset_status(
     *,
     has_current_asset: bool,
-    outbox_status: RenderOutboxStatus | PlaybackOutboxStatus | None,
+    outbox_status: ScoreRevisionRenderStatus | PlaybackOutboxStatus | None,
 ) -> DerivedAssetStatus:
     if has_current_asset:
         return "ready"
     if outbox_status in {
-        RenderOutboxStatus.PENDING,
-        RenderOutboxStatus.DISPATCHED,
-        RenderOutboxStatus.PROCESSING,
+        ScoreRevisionRenderStatus.PENDING,
+        ScoreRevisionRenderStatus.DISPATCHED,
+        ScoreRevisionRenderStatus.PROCESSING,
         PlaybackOutboxStatus.PENDING,
         PlaybackOutboxStatus.DISPATCHED,
         PlaybackOutboxStatus.PROCESSING,
     }:
         return "processing"
-    if outbox_status in {RenderOutboxStatus.FAILED, PlaybackOutboxStatus.FAILED}:
+    if outbox_status in {ScoreRevisionRenderStatus.FAILED, PlaybackOutboxStatus.FAILED}:
         return "unavailable"
     return "pending"
 
@@ -40,8 +41,12 @@ def score_derived_assets(
     revision: ScoreRevision,
 ) -> ScoreDerivedAssetsRead:
     revision_id = require_persisted_id(revision.id, entity="score revision")
-    thumbnail = repository.first_rendered_page_asset(db, revision_id)
-    render_status = latest_revision_render_status(db, revision_id)
+    thumbnail = repository.first_rendered_page_asset(
+        db, revision_id, render_profile=SCORE_PRESENTATION_RENDER_PROFILE
+    )
+    render_status = revision_render_status(
+        db, revision_id, render_profile=SCORE_PRESENTATION_RENDER_PROFILE
+    )
     preview_status = derived_asset_status(
         has_current_asset=thumbnail is not None,
         outbox_status=render_status,

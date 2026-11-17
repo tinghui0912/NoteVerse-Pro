@@ -21,6 +21,7 @@ class RevisionSourceRead(BaseModel):
 
 
 class RenderAssetRead(BaseModel):
+    render_profile: str
     render_asset_id: str
     revision_id: str
     kind: RenderAssetKind

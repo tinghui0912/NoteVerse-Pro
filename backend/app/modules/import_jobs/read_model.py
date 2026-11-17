@@ -31,18 +31,7 @@ class ImportJobReadModel:
         digests = self.repository.execution_manifest_digests(
             db, {job.execution_manifest_id for job in jobs if job.execution_manifest_id is not None}
         )
-        previews = self.repository.preview_artifacts_for_jobs(db, job_ids)
         uploads = self.repository.uploads_for_jobs(db, job_ids)
-        thumbnails: dict[int, ImportArtifactRead] = {}
-        for preview in previews:
-            if preview["job_id"] not in thumbnails:
-                thumbnails[preview["job_id"]] = ImportArtifactRead(
-                    artifact_id=preview["artifact_uuid"],
-                    filename=preview["filename"],
-                    page_number=preview["page_number"],
-                    size=preview["byte_size"],
-                    mime_type=preview["content_type"],
-                )
         images: dict[int, list[ImportArtifactRead]] = defaultdict(list)
         for upload in uploads:
             images[upload["job_id"]].append(
@@ -68,7 +57,6 @@ class ImportJobReadModel:
                     progress=job.progress,
                     display_title=options.display_title,
                     genres=options.genres,
-                    thumbnail=thumbnails.get(job_id),
                     created_at=job.created_at,
                     updated_at=job.updated_at,
                     processing_started_at=job.processing_started_at,

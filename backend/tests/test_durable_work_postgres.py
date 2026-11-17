@@ -11,8 +11,7 @@ from app.db.models import (
     ImportJobState,
     MailOutbox,
     PlaybackOutbox,
-    RenderOutbox,
-    RenderTargetType,
+    ScoreRevisionRenderOutbox,
     RevisionOrigin,
     Score,
     ScoreDeletionOperation,
@@ -115,9 +114,8 @@ def test_persisted_failure_facts_are_complete_and_shared_by_ops_queries(monkeypa
             db.add(revision)
             db.flush()
             dispatch = ImportDispatch(job_id=job.id)
-            render = RenderOutbox(
+            render = ScoreRevisionRenderOutbox(
                 outbox_uuid="render",
-                target_type=RenderTargetType.SCORE_REVISION,
                 score_id=score.id,
                 revision_id=revision.id,
                 source_fingerprint="a" * 64,

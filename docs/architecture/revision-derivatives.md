@@ -34,13 +34,17 @@ MusicXML download does not wait for derived presentation.
 
 ## Durable production
 
-`app.modules.rendering` owns RenderOutbox admission, delivery, typed target resolution,
-render dispatch and execution-manifest identity. Its common renderer accepts MusicXML
-bytes and returns normalized pages without database or object-storage access.
-`score_assets` owns ScoreRenderAsset adoption, replacement, retirement and accounting;
-`import_jobs.review` owns review thumbnail ImportArtifacts and TEMP_IMPORT accounting.
-Both persistence owners recheck their domain state and the Rendering lease before adoption.
-Score readiness reads Rendering's delivery-status query alongside Score-owned asset facts.
+`app.modules.revisions` owns `ScoreRevisionRenderOutbox` admission, delivery,
+revision target resolution, dispatch and exact revision/profile status queries.
+Its table `score_revision_render_outbox` has one durable record per revision/profile.
+`ScoreRevisionRenderStatus` owns its typed delivery states, including SUPERSEDED.
+`app.modules.rendering` provides only the renderer and execution-manifest mechanics:
+MusicXML bytes become normalized pages without database or object-storage access.
+`score_assets` owns ScoreRenderAsset adoption, replacement, retirement and accounting.
+The worker executes only a Score revision target and fences final adoption against
+that exact revision, source fingerprint, render profile and attempt lease.
+Import Review owns temporary MusicXML and original uploads; confirmation creates
+canonical revision demand, and accepted revision execution creates the first pages.
 
 RevisionWriter admits render/playback and metadata outboxes with source/head/accounting
 and non-initial notification/realtime consequences in the canonical business transaction. Its result carries
@@ -48,9 +52,9 @@ durable work identities. After COMMIT, the API attempts best-effort relay and pr
 catch-up. Metadata extraction is independently fenced durable execution. Guest Preview
 settings only change bearer access and do not enqueue or reactivate derivative work.
 
-The revision dispatcher delegates render relay to Rendering; Beat render maintenance uses
-that Rendering dispatcher directly. Both use the same producer: mark and
-commit DISPATCHED, publish the stable Celery task, and release dispatch on broker failure.
+The revision dispatcher and Beat maintenance use the same revision-owned render relay
+and producer: mark and commit DISPATCHED, publish the stable Celery task, and release
+dispatch on broker failure.
 The shared `app.task_queue` package owns Celery assembly, runtime options, producer tracing
 and schedule wiring; it imports no worker execution implementation. API relays execute
 after the semantic transaction using a short-lived synchronous Session.
@@ -103,17 +107,8 @@ becomes SUPERSEDED after final admission; completion cannot overwrite this outco
 Neither path publishes a ready event. Duplicate superseded tasks are ignored. Operational
 outbox history remains distinct from replaceable derived assets.
 
-REVIEW_THUMBNAIL is outside revision demand. It continues to follow READY_FOR_REVIEW and
-its current source fingerprint. Current-head public status remains presentation-oriented;
-an internal SUPERSEDED record maps safely to pending when no ready asset exists.
-
-Thumbnail claim and final adoption lock ImportJob before RenderOutbox, followed by
-subordinate adoption/accounting locks. Review confirmation and Import deletion acquire
-ImportDispatch before ImportJob; they never acquire ImportDispatch after holding a
-thumbnail outbox. Confirmation/temporary-artifact release serializes on ImportJob,
-so thumbnail final admission observes current state/source before any mutation.
-Thumbnail artifact replacement, TEMP_IMPORT accounting, retirement and outbox
-completion share one transaction.
+Current-head public status remains presentation-oriented; an internal SUPERSEDED
+record maps to pending when no ready asset exists.
 
 Lease loss raises StaleDeliveryAttempt and returns `stale` without completing,
 failing or superseding the current attempt. Domain head/source invalidation remains
@@ -124,3 +119,17 @@ its provider side effect is outside these database adoption transactions.
 
 Structured superseded/fast-dispatch failure logs carry Score, revision, outbox and
 asset-kind correlation without MusicXML or bearer tokens.
+
+## Render variant identity
+
+`SCORE_PRESENTATION_RENDER_PROFILE` is the product presentation identity, projected
+from `contracts/score/render-profile.json`. It is independent of the renderer's
+execution-profile fingerprint. Both preview asset selection and delivery status
+query the exact revision/profile pair; neither borrows another variant's facts.
+`RenderAssetRead.render_profile` identifies every listed variant. Image downloads
+use the presentation profile, and archives require an explicit profile and filter
+revision, rendered-page kind and profile together.
+
+The Control Plane exposes this work as `revision_render`, with the revision UUID as
+resource identity and the outbox UUID as operation identity. Worker tasks, Beat
+maintenance, tracing and `REVISION_RENDER_*` settings use revision-render naming.

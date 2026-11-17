@@ -1,6 +1,7 @@
 """Application settings and configuration validation."""
 
 from pathlib import Path
+from app.core.settings.derived_asset_retention import DerivedAssetRetentionSettings
 from app.core.settings.revision_metadata_delivery import RevisionMetadataDeliverySettings
 from app.core.settings.object_writes import ObjectWriteSettings
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -20,7 +21,7 @@ from app.core.settings.stored_object_retirement import StoredObjectRetirementSet
 from app.core.settings.playback_delivery import PlaybackDeliverySettings
 from app.core.settings.public_frontend_url import PublicFrontendUrlSettings
 from app.core.settings.queue import QueueSettings
-from app.core.settings.render_asset_delivery import RenderAssetDeliverySettings
+from app.core.settings.revision_render_delivery import RevisionRenderDeliverySettings
 from app.core.settings.realtime_retention import RealtimeRetentionSettings
 from app.core.settings.realtime_stream import RealtimeStreamSettings
 from app.core.settings.score_deletion_delivery import ScoreDeletionDeliverySettings
@@ -35,6 +36,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
 class Settings(
+    DerivedAssetRetentionSettings,
     RevisionMetadataDeliverySettings,
     ObjectWriteSettings,
     AccountEmailLinkSettings,
@@ -54,7 +56,7 @@ class Settings(
     QueueSettings,
     RealtimeRetentionSettings,
     RealtimeStreamSettings,
-    RenderAssetDeliverySettings,
+    RevisionRenderDeliverySettings,
     ScoreDeletionDeliverySettings,
     ServiceIdentitySettings,
     StorageSettings,

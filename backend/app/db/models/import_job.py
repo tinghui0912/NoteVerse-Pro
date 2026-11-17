@@ -42,7 +42,6 @@ metadata_json_type = JSON().with_variant(JSONB, "postgresql")
 
 class ImportArtifactKind(enum.StrEnum):
     REVIEW_MUSICXML = "review_musicxml"
-    REVIEW_PREVIEW_IMAGE = "review_preview_image"
 
 
 class ImportJobState(str, enum.Enum):

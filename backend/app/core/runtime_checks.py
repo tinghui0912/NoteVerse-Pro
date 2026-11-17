@@ -271,8 +271,8 @@ def check_celery_tasks(_: bool = False) -> CheckResult:
         required = {
             "app.worker.tasks.import_dispatch_task",
             "app.worker.tasks.run_import_dispatch_maintenance",
-            "app.worker.tasks.render_outbox_task",
-            "app.worker.tasks.run_render_outbox_maintenance",
+            "app.worker.tasks.score_revision_render_task",
+            "app.worker.tasks.run_score_revision_render_maintenance",
             "app.worker.tasks.playback_outbox_task",
             "app.worker.tasks.run_playback_outbox_maintenance",
             "app.worker.tasks.object_write_cleanup_task",

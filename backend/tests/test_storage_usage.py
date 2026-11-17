@@ -717,11 +717,6 @@ def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
         content=b"<score-partwise />",
         content_type="application/vnd.recordare.musicxml+xml",
     )
-    thumbnail = storage.put_bytes(
-        key=f"jobs/{job_uuid}/review_preview_image/page-1.png",
-        content=b"thumbnail",
-        content_type="image/png",
-    )
     job = ImportJob(
         requested_options=encode_requested_options(None),
         processing_started_at=utc_now(),
@@ -767,20 +762,6 @@ def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
             filename=review_source.object_key.rsplit("/", 1)[-1],
         )
     )
-    session.add(
-        ImportArtifact(
-            artifact_uuid="delete-owned-thumbnail",
-            job_id=1001,
-            kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE,
-            stored_object=StoredObject(
-                object_key=thumbnail.object_key,
-                content_type="image/png",
-                byte_size=thumbnail.size_bytes,
-                sha256=hashlib.sha256(storage.read_bytes(thumbnail.object_key)).hexdigest(),
-            ),
-            filename=thumbnail.object_key.rsplit("/", 1)[-1],
-        )
-    )
     session.commit()
     storage_usage_service.record_allocation(
         session,
@@ -796,7 +777,7 @@ def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
         session,
         user_id=1,
         category=StorageUsageCategory.TEMP_IMPORT,
-        bytes_count=review_source.size_bytes + thumbnail.size_bytes,
+        bytes_count=review_source.size_bytes,
         reason="seed_import_artifact",
         object_type="import_artifact",
         object_id=job_uuid,
@@ -813,7 +794,6 @@ def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
     assert all(item["status"] == "completed" for item in drain_retirements(session, storage))
     assert not storage.exists(upload.object_key)
     assert not storage.exists(review_source.object_key)
-    assert not storage.exists(thumbnail.object_key)
     assert not any(key.startswith(f"jobs/{job_uuid}/") for key in storage.objects)
     account = session.get(StorageUsageAccount, 1)
     assert account is not None

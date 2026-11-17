@@ -78,7 +78,7 @@ def test_authoritative_durable_outcomes_select_strict_realtime_persistence():
     root = Path(__file__).parents[1] / "app"
     for file in (
         "modules/revisions/metadata_delivery.py",
-        "worker/execution/render_outbox.py",
+        "worker/execution/score_revision_render_outbox.py",
         "worker/execution/playback_outbox.py",
     ):
         tree = ast.parse((root / file).read_text())

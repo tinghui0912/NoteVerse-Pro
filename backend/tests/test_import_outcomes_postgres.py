@@ -19,7 +19,7 @@ from app.db.models import (
     ImportDispatch,
     ImportArtifact,
     StoredObject,
-    RenderOutbox,
+    ScoreRevisionRenderOutbox,
     Notification,
     RealtimeChange,
 )
@@ -116,9 +116,7 @@ def test_import_processing_consequences_commit_once(outcome, result):
             "import_jobs.changed" if result == "success" else "import_jobs.changed",
             "notifications.changed",
         ]
-        assert db.scalar(sa.select(sa.func.count()).select_from(RenderOutbox)) == (
-            1 if result == "success" else 0
-        )
+        assert db.scalar(sa.select(sa.func.count()).select_from(ScoreRevisionRenderOutbox)) == 0
         finish(db, lease, result)
         assert db.scalar(sa.select(sa.func.count()).select_from(Notification)) == 1
         assert db.scalar(sa.select(sa.func.count()).select_from(RealtimeChange)) == 2
@@ -163,5 +161,5 @@ def test_import_processing_consequences_roll_back_together(outcome, monkeypatch,
             dict(db.execute(sa.select(ImportDispatch.__table__)).mappings().one())
             == delivery_before
         )
-        for model in (Notification, RealtimeChange, RenderOutbox):
+        for model in (Notification, RealtimeChange, ScoreRevisionRenderOutbox):
             assert db.scalar(sa.select(model)) is None

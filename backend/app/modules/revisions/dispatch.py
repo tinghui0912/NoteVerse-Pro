@@ -9,7 +9,7 @@ from app.core.logger import logger
 from app.db.models import PlaybackOutbox
 from app.db.session import SessionLocal
 from app.modules.playback.outbox_service import playback_outbox_service
-from app.modules.rendering import dispatch as rendering_dispatch
+from app.modules.revisions import render_dispatch as revision_render_dispatch
 from app.task_queue.producer import send_durable_task
 from app.task_queue.tracing import playback_trace_context
 
@@ -58,7 +58,11 @@ def _release_playback_dispatch(outbox_uuid: str, error: str) -> None:
 
 def dispatch_revision_derivatives_best_effort(work: RevisionDerivativeOutboxes) -> None:
     for asset_kind, outbox_id, dispatch in (
-        ("render", work.render_outbox_uuid, rendering_dispatch.dispatch_render_outbox),
+        (
+            "revision_render",
+            work.revision_render_outbox_uuid,
+            revision_render_dispatch.dispatch_score_revision_render,
+        ),
         ("audio", work.playback_outbox_uuid, dispatch_playback_outbox),
     ):
         try:

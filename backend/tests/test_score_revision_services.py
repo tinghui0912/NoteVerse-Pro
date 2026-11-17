@@ -54,9 +54,8 @@ from app.db.models import (
     ScoreLibraryOrganization,
     ScoreInvite,
     ScoreMembership,
-    RenderOutbox,
-    RenderOutboxStatus,
-    RenderTargetType,
+    ScoreRevisionRenderOutbox,
+    ScoreRevisionRenderStatus,
     User,
     Upload,
 )
@@ -77,11 +76,10 @@ from app.modules.revisions.derived_asset_retention_service import (
 from app.modules.revisions.read_model import RevisionReadModel
 from app.modules.revisions.service import RevisionService
 from app.modules.score_assets.derived_assets import derived_asset_status
-from app.modules.rendering.delivery import RenderOutboxService
+from app.modules.revisions.render_delivery import ScoreRevisionRenderDelivery
 from app.modules.mail.outbox_service import MailOutboxService
 from app.modules.import_jobs.review.schemas import ReviewConfirmRequest, ReviewUpdateRequest
 from app.modules.import_jobs.review.service import ImportReviewService
-from app.modules.import_jobs.review.thumbnail_service import ImportReviewThumbnailService
 from app.modules.scores.service import ScoreService
 from app.modules.import_jobs.execution_recorder import ImportExecutionRecorder
 from app.modules.import_jobs.service import ImportJobService
@@ -115,7 +113,7 @@ def test_derived_asset_status_uses_public_product_states() -> None:
     assert (
         derived_asset_status(
             has_current_asset=False,
-            outbox_status=RenderOutboxStatus.FAILED,
+            outbox_status=ScoreRevisionRenderStatus.FAILED,
         )
         == "unavailable"
     )
@@ -129,7 +127,7 @@ def test_derived_asset_status_uses_public_product_states() -> None:
     assert (
         derived_asset_status(
             has_current_asset=True,
-            outbox_status=RenderOutboxStatus.FAILED,
+            outbox_status=ScoreRevisionRenderStatus.FAILED,
         )
         == "ready"
     )
@@ -390,10 +388,8 @@ def test_processing_success_notifies_owner_when_ready_for_review(
     assert notification.import_job_id == "job-complete-notification"
     assert notification.import_display_title_snapshot == "Ready Score"
     assert maybe_one_row(session, Score, display_title="Ready Score") is None
-    render_outbox = one_row(session, RenderOutbox)
-    assert render_outbox.target_type == RenderTargetType.REVIEW_THUMBNAIL
-    assert render_outbox.import_job_id == 11
-    assert render_outbox.status == RenderOutboxStatus.PENDING
+    assert count_rows(session, ScoreRevisionRenderOutbox) == 0
+    assert count_rows(session, ScoreRenderAsset) == 0
 
 
 def test_failed_job_notifies_owner_once(
@@ -524,99 +520,36 @@ def test_review_detail_reads_review_ready_artifacts(
     assert "sha256" not in dumped["original_images"][0]
 
 
-def test_job_detail_uses_review_preview_image_only(
-    score_service_session: tuple[Session, InMemoryObjectStorage],
-) -> None:
-    session, _ = score_service_session
+def test_import_job_detail_hides_original_upload_storage_details(score_service_session):
+    session, storage = score_service_session
     session.add(
         ImportJob(
-            requested_options=encode_requested_options(None),
-            processing_started_at=utc_now(),
-            processing_finished_at=utc_now(),
-            id=16,
-            job_uuid="job-thumbnail",
+            id=60,
+            job_uuid="private-job",
             user_id=1,
-            state=ImportJobState.READY_FOR_REVIEW,
-        )
-    )
-    session.commit()
-    session.add_all(
-        [
-            ImportArtifact(
-                job_id=16,
-                artifact_uuid="result-thumbnail-artifact",
-                kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE,
-                stored_object=StoredObject(
-                    object_key="jobs/job-thumbnail/review_preview_image/001-result.svg",
-                    content_type="image/svg+xml",
-                    byte_size=7,
-                    sha256="f68e724d27d8f77658c3fefb57fba1f236c3f0592e66bfbaac3547ffdcdadc8b",
-                ),
-                filename="001-result.svg",
-                page_number=1,
-            ),
-        ]
-    )
-    session.commit()
-
-    detail = (ImportJobService().detail(session, "job-thumbnail", 1)).model_dump(exclude_unset=True)
-
-    assert detail["thumbnail"] is not None
-    assert detail["thumbnail"]["artifact_id"] == "result-thumbnail-artifact"
-
-
-def test_import_job_detail_hides_artifact_storage_details(
-    score_service_session: tuple[Session, InMemoryObjectStorage],
-) -> None:
-    session, _ = score_service_session
-    session.add(
-        ImportJob(
             requested_options=encode_requested_options(None),
-            processing_started_at=utc_now(),
-            processing_finished_at=utc_now(),
-            id=181,
-            job_uuid="job-public-artifact",
-            user_id=1,
-            state=ImportJobState.READY_FOR_REVIEW,
-            current_step="ocr_internal_step",
+            state=ImportJobState.QUEUED,
         )
     )
-    session.commit()
-    session.add(
-        ImportArtifact(
-            job_id=181,
-            artifact_uuid="public-artifact-id",
-            kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE,
-            stored_object=StoredObject(
-                object_key="jobs/job-public-artifact/review_preview_image/001-result.svg",
-                content_type="image/svg+xml",
-                byte_size=123,
-                sha256="6ca13d52ca70c883e0f0bb101e425a89e8624de51db2d2392593af6a84118090",
-            ),
-            filename="001-result.svg",
-            page_number=1,
-        )
+    upload = Upload(
+        upload_uuid="private-upload",
+        uploader_user_id=1,
+        original_filename="page.png",
+        stored_object=StoredObject(
+            object_key="private/image", byte_size=4, sha256="a" * 64, content_type="image/png"
+        ),
     )
+    session.add(upload)
+    session.flush()
+    session.add(ImportJobUpload(job_id=60, upload_id=upload.id, sort_order=1, page_number=1))
     session.commit()
-
-    detail = (ImportJobService().detail(session, "job-public-artifact", 1)).model_dump(
-        exclude_unset=True
+    detail = (
+        ImportJobService(storage=storage).detail(session, "private-job", 1).model_dump(mode="json")
     )
-    artifact = detail["thumbnail"]
-
-    assert artifact == {
-        "artifact_id": "public-artifact-id",
-        "filename": "001-result.svg",
-        "page_number": 1,
-        "size": 123,
-        "mime_type": "image/svg+xml",
-    }
-    assert "sha256" not in artifact
-    assert "current_step" not in detail
-    assert "steps" not in detail
-    assert "upload_ids" not in detail
-    assert "artifacts" not in detail
-    assert detail["original_images"] == []
+    image = detail["original_images"][0]
+    assert image["upload_id"] == "private-upload"
+    assert image["filename"] == "page.png"
+    assert "storage_key" not in image and "object_key" not in image
 
 
 def test_import_job_detail_exposes_public_failure_fields_only(
@@ -689,99 +622,6 @@ def test_import_job_detail_exposes_public_failure_fields_only(
     assert "redis" not in str(unsafe_code_detail)
 
 
-def test_review_thumbnail_records_temp_import_usage(
-    score_service_session: tuple[Session, InMemoryObjectStorage], tmp_path
-) -> None:
-    session, storage = score_service_session
-    stored_xml = storage.put_bytes(
-        key="jobs/job-thumbnail-usage/review_musicxml/001-score.musicxml",
-        content=MUSICXML_1,
-        content_type="application/vnd.recordare.musicxml+xml",
-    )
-    session.add(
-        ImportJob(
-            requested_options=encode_requested_options(None),
-            processing_started_at=utc_now(),
-            processing_finished_at=utc_now(),
-            id=17,
-            job_uuid="job-thumbnail-usage",
-            user_id=1,
-            state=ImportJobState.READY_FOR_REVIEW,
-        )
-    )
-    session.commit()
-    session.add(
-        ImportArtifact(
-            job_id=17,
-            artifact_uuid="thumbnail-usage-review-xml",
-            kind=ImportArtifactKind.REVIEW_MUSICXML,
-            stored_object=StoredObject(
-                object_key=stored_xml.object_key,
-                content_type="application/vnd.recordare.musicxml+xml",
-                byte_size=stored_xml.size_bytes,
-                sha256="5d17f78acc41e8e8ad4fe9dfc2c0e998b718a0acb7283f077b797581fb9f715d",
-            ),
-            filename=stored_xml.object_key.rsplit("/", 1)[-1],
-        )
-    )
-    session.commit()
-
-    class FakeEngine:
-        def __init__(self, output_folder: str) -> None:
-            self.output_folder = output_folder
-
-        def render_score(self, *, xml_path: str, output_name: str):
-            output = tmp_path / "thumbnail.svg"
-            output.write_bytes(b"<svg />")
-            second = tmp_path / "second.svg"
-            second.write_bytes(b"<svg>second page</svg>")
-            return {
-                "success": True,
-                "engine": "fake-renderer",
-                "files": [
-                    {
-                        "path": str(output),
-                        "page": 1,
-                        "mime_type": "image/svg+xml",
-                    },
-                    {"path": str(second), "page": 2, "mime_type": "image/svg+xml"},
-                ],
-            }
-
-    with patch(
-        "app.modules.rendering.renderer.create_score_render_engine",
-        side_effect=lambda output_folder: FakeEngine(output_folder),
-    ):
-        outbox = RenderOutbox(
-            outbox_uuid="thumbnail-usage",
-            target_type=RenderTargetType.REVIEW_THUMBNAIL,
-            import_job_id=17,
-            source_fingerprint="5d17f78acc41e8e8ad4fe9dfc2c0e998b718a0acb7283f077b797581fb9f715d",
-        )
-        session.add(outbox)
-        session.commit()
-        payload = RenderOutboxService().claim(session, outbox.outbox_uuid)
-        session.commit()
-        artifact_id = ImportReviewThumbnailService(storage=storage).render(
-            session,
-            "job-thumbnail-usage",
-            expected_source_fingerprint="5d17f78acc41e8e8ad4fe9dfc2c0e998b718a0acb7283f077b797581fb9f715d",
-            outbox_uuid=payload.target.outbox_uuid,
-            lease=payload.lease,
-            profile=payload.target.render_profile,
-        )
-        session.commit()
-
-    assert artifact_id is not None
-    counter = one_row(
-        session, StorageUsageCounter, user_id=1, category=StorageUsageCategory.TEMP_IMPORT
-    )
-    assert counter.used_bytes == len(b"<svg />")
-
-    thumbnail = one_row(session, ImportArtifact, kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE)
-    assert storage.read_bytes(thumbnail.stored_object.object_key) == b"<svg />"
-
-
 def test_review_update_replaces_review_musicxml(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
@@ -833,22 +673,14 @@ def test_review_update_replaces_review_musicxml(
     assert artifact.stored_object.object_key != stored_xml.object_key
     assert storage.read_bytes(artifact.stored_object.object_key).decode("utf-8") == MUSICXML_2
     assert count_rows(session, Score) == 0
-    render_outbox = one_row(session, RenderOutbox)
-    assert render_outbox.target_type == RenderTargetType.REVIEW_THUMBNAIL
-    assert render_outbox.import_job_id == 15
-    assert render_outbox.source_fingerprint == artifact.stored_object.sha256
-    assert render_outbox.status == RenderOutboxStatus.PENDING
+    assert count_rows(session, ScoreRevisionRenderOutbox) == 0
+    assert count_rows(session, ScoreRenderAsset) == 0
 
 
 def test_review_confirm_creates_active_score_once(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
-    stored_thumbnail = storage.put_bytes(
-        key="jobs/job-confirm-review/review_preview_image/001-result.svg",
-        content=b"<svg />",
-        content_type="image/svg+xml",
-    )
     session.add(
         ImportJob(
             processing_started_at=utc_now(),
@@ -867,21 +699,6 @@ def test_review_confirm_creates_active_score_once(
     session.flush()
     session.add(ImportDispatch(job_id=14, status=ImportDispatchStatus.COMPLETED))
     session.commit()
-    session.add(
-        ImportArtifact(
-            job_id=14,
-            artifact_uuid="confirm-review-thumbnail",
-            kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE,
-            stored_object=StoredObject(
-                object_key=stored_thumbnail.object_key,
-                content_type="image/svg+xml",
-                byte_size=stored_thumbnail.size_bytes,
-                sha256="80f61f96184524ba54db767ed49487392430ad26bf5cf2ef689905f3400325d7",
-            ),
-            filename=stored_thumbnail.object_key.rsplit("/", 1)[-1],
-            page_number=1,
-        )
-    )
     session.commit()
     service = ImportReviewService(storage=storage)
     db = session
@@ -928,19 +745,10 @@ def test_review_confirm_creates_active_score_once(
         revision_id=revision.id,
         format=RevisionSourceFormat.MUSICXML,
     )
-    copied_thumbnail = one_row(
-        session,
-        ScoreRenderAsset,
-        revision_id=revision.id,
-        kind=RenderAssetKind.RENDERED_PAGE,
-        render_profile="default",
-        page_number=1,
-    )
-    assert copied_thumbnail.generator == "review-thumbnail"
-    assert storage.read_bytes(copied_thumbnail.stored_object.object_key) == b"<svg />"
-    render_outbox = one_row(session, RenderOutbox)
-    assert render_outbox.revision_id == revision.id
-    assert render_outbox.status == RenderOutboxStatus.PENDING
+    assert count_rows(session, ScoreRenderAsset) == 0
+    score_revision_render_outbox = one_row(session, ScoreRevisionRenderOutbox)
+    assert score_revision_render_outbox.revision_id == revision.id
+    assert score_revision_render_outbox.status == ScoreRevisionRenderStatus.PENDING
 
 
 def test_score_detail_describes_only_head_presentation(
@@ -995,15 +803,14 @@ def test_score_detail_describes_only_head_presentation(
                 generator="test",
                 generator_version="1",
             ),
-            RenderOutbox(
+            ScoreRevisionRenderOutbox(
                 outbox_uuid="render-new",
-                target_type=RenderTargetType.SCORE_REVISION,
                 score_id=20,
                 revision_id=22,
                 requested_by_user_id=1,
                 source_fingerprint="2" * 64,
                 render_profile="default",
-                status=RenderOutboxStatus.PENDING,
+                status=ScoreRevisionRenderStatus.PENDING,
             ),
         ]
     )
@@ -1087,7 +894,7 @@ def test_revision_snapshots_preserve_noop_replay_and_expected_head_conflict(
     )
     counts = tuple(
         count_rows(session, model)
-        for model in (ScoreRevision, ScoreRevisionSource, RenderOutbox, PlaybackOutbox)
+        for model in (ScoreRevision, ScoreRevisionSource, ScoreRevisionRenderOutbox, PlaybackOutbox)
     )
     duplicate = service.create(
         session,  # type: ignore[arg-type]
@@ -1104,7 +911,12 @@ def test_revision_snapshots_preserve_noop_replay_and_expected_head_conflict(
     assert (
         tuple(
             count_rows(session, model)
-            for model in (ScoreRevision, ScoreRevisionSource, RenderOutbox, PlaybackOutbox)
+            for model in (
+                ScoreRevision,
+                ScoreRevisionSource,
+                ScoreRevisionRenderOutbox,
+                PlaybackOutbox,
+            )
         )
         == counts
     )
@@ -1121,7 +933,7 @@ def test_revision_snapshots_preserve_noop_replay_and_expected_head_conflict(
     assert duplicate.revision_id == created.revision_id
     assert reverted.revision_id not in {"revision-1", created.revision_id}
     assert count_rows(session, ScoreRevision) == 3
-    assert count_rows(session, RenderOutbox) == 2
+    assert count_rows(session, ScoreRevisionRenderOutbox) == 2
 
     with pytest.raises(ConflictException) as conflict:
         service.create(
@@ -1163,7 +975,9 @@ def test_revision_snapshots_preserve_noop_replay_and_expected_head_conflict(
     ):
         source = one_row(session, ScoreRevisionSource, revision_id=revision.id)
         assert storage.read_bytes(source.stored_object.object_key) == content
-    assert count_rows(session, RenderOutbox) == count_rows(session, PlaybackOutbox) == 2
+    assert (
+        count_rows(session, ScoreRevisionRenderOutbox) == count_rows(session, PlaybackOutbox) == 2
+    )
 
 
 def test_revision_restore_creates_new_head_from_target_revision(
@@ -1295,7 +1109,7 @@ def test_revision_restore_creates_new_head_from_target_revision(
     assert storage.read_bytes(new_artifact.stored_object.object_key) == MUSICXML_2.encode()
     assert metadata is not None
     assert metadata.status == MetadataStatus.READY
-    assert count_rows(session, RenderOutbox) == 3
+    assert count_rows(session, ScoreRevisionRenderOutbox) == 3
     assert count_rows(session, PlaybackOutbox) == 3
     event = one_row(session, ScoreRevisionEvent)
     assert event.revision_id == new_revision.id
@@ -1543,38 +1357,36 @@ def test_render_outbox_recovers_stale_delivery_and_lists_due_work(
         title="Render Outbox",
     )
     now = utc_now()
-    stale = RenderOutbox(
+    stale = ScoreRevisionRenderOutbox(
         outbox_uuid="render-outbox-stale",
-        target_type=RenderTargetType.SCORE_REVISION,
         score_id=score.id,
         revision_id=score.head_revision_id,
         source_fingerprint="16a3fe9f344807aa7b7a8dd1da722daa56043317e557bd535cc98ffbaf519867",
         requested_by_user_id=1,
         render_profile="default",
-        status=RenderOutboxStatus.DISPATCHED,
+        status=ScoreRevisionRenderStatus.DISPATCHED,
         dispatched_at=now - timedelta(hours=1),
         next_attempt_at=now - timedelta(minutes=1),
     )
-    due_failure = RenderOutbox(
+    due_failure = ScoreRevisionRenderOutbox(
         outbox_uuid="render-outbox-failed",
-        target_type=RenderTargetType.SCORE_REVISION,
         score_id=score.id,
         revision_id=score.head_revision_id,
         source_fingerprint="0ef0b734ebb94ff1fa6af550527abcbca2c07f799b9dfa7820519348943ce070",
         requested_by_user_id=1,
         render_profile="compact",
-        status=RenderOutboxStatus.FAILED,
+        status=ScoreRevisionRenderStatus.FAILED,
         attempt_count=1,
         next_attempt_at=now - timedelta(minutes=1),
     )
     session.add_all([stale, due_failure])
     session.commit()
 
-    due = RenderOutboxService().recover_and_list_due(session)
+    due = ScoreRevisionRenderDelivery().recover_and_list_due(session)
 
     assert due == ["render-outbox-stale", "render-outbox-failed"]
     session.refresh(stale)
-    assert stale.status == RenderOutboxStatus.FAILED
+    assert stale.status == ScoreRevisionRenderStatus.FAILED
     assert stale.failure_detail == "Render delivery lease expired"
 
 
@@ -1607,9 +1419,8 @@ def test_render_outbox_claim_failure_and_completion_are_persistent(
             generator_version="1",
         )
     )
-    outbox = RenderOutbox(
+    outbox = ScoreRevisionRenderOutbox(
         outbox_uuid="render-outbox-claim",
-        target_type=RenderTargetType.SCORE_REVISION,
         score_id=score.id,
         revision_id=score.head_revision_id,
         source_fingerprint=revision.content_hash,
@@ -1617,19 +1428,19 @@ def test_render_outbox_claim_failure_and_completion_are_persistent(
     )
     session.add(outbox)
     session.commit()
-    service = RenderOutboxService()
+    service = ScoreRevisionRenderDelivery()
 
     payload = service.claim(session, outbox.outbox_uuid)
     session.commit()
     assert payload is not None
     assert payload.target.score_uuid == score.score_uuid
     assert payload.target.revision_uuid == "render-claim-revision"
-    assert outbox.status == RenderOutboxStatus.PROCESSING
+    assert outbox.status == ScoreRevisionRenderStatus.PROCESSING
     assert outbox.attempt_count == 1
 
     service.fail(session, outbox.outbox_uuid, "temporary failure", lease=payload.lease)
     session.commit()
-    assert outbox.status == RenderOutboxStatus.FAILED
+    assert outbox.status == ScoreRevisionRenderStatus.FAILED
     assert outbox.failure_detail == "temporary failure"
 
     outbox.next_attempt_at = utc_now() - timedelta(seconds=1)
@@ -1639,67 +1450,9 @@ def test_render_outbox_claim_failure_and_completion_are_persistent(
     assert payload is not None
     service.complete(session, outbox.outbox_uuid, lease=payload.lease)
     session.commit()
-    assert outbox.status == RenderOutboxStatus.COMPLETED
+    assert outbox.status == ScoreRevisionRenderStatus.COMPLETED
     assert outbox.completed_at is not None
     assert outbox.failure_detail is None
-
-
-def test_review_thumbnail_outbox_claims_only_the_current_musicxml(
-    score_service_session: tuple[Session, InMemoryObjectStorage],
-) -> None:
-    session, _storage = score_service_session
-    job = ImportJob(
-        requested_options=encode_requested_options(None),
-        processing_started_at=utc_now(),
-        processing_finished_at=utc_now(),
-        id=413,
-        job_uuid="review-thumbnail-job",
-        user_id=1,
-        state=ImportJobState.READY_FOR_REVIEW,
-    )
-    session.add(job)
-    session.commit()
-    session.add(
-        ImportArtifact(
-            job_id=413,
-            artifact_uuid="review-thumbnail-source",
-            kind=ImportArtifactKind.REVIEW_MUSICXML,
-            stored_object=StoredObject(
-                object_key="jobs/review-thumbnail-job/review_musicxml/score.musicxml",
-                byte_size=len(MUSICXML_1),
-                content_type="application/vnd.recordare.musicxml+xml",
-                sha256="e10d56ef7710f0bd00dfbade1c0476e577b3a0d296e9dfca9853169b1a3771e7",
-            ),
-            filename="score.musicxml",
-        )
-    )
-    current = RenderOutbox(
-        outbox_uuid="review-thumbnail-current",
-        target_type=RenderTargetType.REVIEW_THUMBNAIL,
-        import_job_id=413,
-        source_fingerprint="e10d56ef7710f0bd00dfbade1c0476e577b3a0d296e9dfca9853169b1a3771e7",
-        render_profile="review-thumbnail",
-    )
-    stale = RenderOutbox(
-        outbox_uuid="review-thumbnail-stale",
-        target_type=RenderTargetType.REVIEW_THUMBNAIL,
-        import_job_id=413,
-        source_fingerprint="16a3fe9f344807aa7b7a8dd1da722daa56043317e557bd535cc98ffbaf519867",
-        render_profile="review-thumbnail",
-    )
-    session.add_all([current, stale])
-    session.commit()
-    service = RenderOutboxService()
-
-    payload = service.claim(session, current.outbox_uuid)
-    stale_payload = service.claim(session, stale.outbox_uuid)
-    session.commit()
-
-    assert payload is not None
-    assert payload.target.target_type == RenderTargetType.REVIEW_THUMBNAIL
-    assert payload.target.job_uuid == job.job_uuid
-    assert stale_payload is None
-    assert stale.status == RenderOutboxStatus.COMPLETED
 
 
 def test_mail_outbox_retries_and_scrubs_sensitive_content_after_delivery(
@@ -2409,7 +2162,9 @@ def test_expected_head_must_resolve_within_the_score(score_service_session, expe
     assert rejected.value.code == CustomerErrorCode.REVISION_NOT_FOUND
     assert count_rows(session, ScoreRevision, score_id=600) == 1
     assert count_rows(session, ScoreRevisionSource) == 0
-    assert count_rows(session, RenderOutbox) == count_rows(session, PlaybackOutbox) == 0
+    assert (
+        count_rows(session, ScoreRevisionRenderOutbox) == count_rows(session, PlaybackOutbox) == 0
+    )
 
 
 def test_two_editors_cannot_branch_the_same_expected_head(score_service_session):

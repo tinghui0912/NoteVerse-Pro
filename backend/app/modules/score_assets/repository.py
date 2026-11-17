@@ -61,27 +61,35 @@ class ScoreAssetRepository:
         db: Session,
         revision_id: int,
         kind: RenderAssetKind | None = None,
+        *,
+        render_profile: str | None = None,
     ) -> list[ScoreRenderAsset]:
         statement = (
             select(ScoreRenderAsset)
             .where(ScoreRenderAsset.revision_id == revision_id)
             .order_by(ScoreRenderAsset.kind, ScoreRenderAsset.page_number)
         )
+        if render_profile is not None:
+            statement = statement.where(ScoreRenderAsset.render_profile == render_profile)
         if kind is not None:
             statement = statement.where(ScoreRenderAsset.kind == kind)
         return list((db.execute(statement)).scalars().all())
 
-    def first_rendered_page_asset(self, db: Session, revision_id: int) -> ScoreRenderAsset | None:
+    def first_rendered_page_asset(
+        self, db: Session, revision_id: int, *, render_profile: str
+    ) -> ScoreRenderAsset | None:
         return (
             db.execute(
                 select(ScoreRenderAsset)
                 .where(
                     ScoreRenderAsset.revision_id == revision_id,
                     ScoreRenderAsset.kind == RenderAssetKind.RENDERED_PAGE,
+                    ScoreRenderAsset.render_profile == render_profile,
                 )
                 .order_by(
                     col(ScoreRenderAsset.page_number).asc(),
                     col(ScoreRenderAsset.created_at).asc(),
+                    ScoreRenderAsset.id.asc(),
                 )
                 .limit(1)
             )

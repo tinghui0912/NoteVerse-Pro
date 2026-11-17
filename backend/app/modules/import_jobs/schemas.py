@@ -51,7 +51,6 @@ class ImportJobRead(ApiModel):
     score_id: str | None = None
     display_title: str | None = None
     genres: Genres = []
-    thumbnail: ImportArtifactRead | None = None
     created_at: Instant
     updated_at: Instant
     processing_started_at: Instant | None = None

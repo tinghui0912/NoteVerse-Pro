@@ -118,30 +118,6 @@ class ImportJobRepository:
             ).all()
         )
 
-    def preview_artifacts_for_jobs(self, db: Session, job_ids: list[int]) -> list[RowMapping]:
-        return list(
-            (
-                db.execute(
-                    select(
-                        ImportArtifact.job_id,
-                        ImportArtifact.artifact_uuid,
-                        ImportArtifact.filename,
-                        ImportArtifact.page_number,
-                        StoredObject.byte_size,
-                        StoredObject.content_type,
-                    )
-                    .join(StoredObject, ImportArtifact.stored_object_id == StoredObject.id)
-                    .where(
-                        ImportArtifact.__table__.c.job_id.in_(job_ids),
-                        ImportArtifact.kind == ImportArtifactKind.REVIEW_PREVIEW_IMAGE,
-                    )
-                    .order_by(ImportArtifact.__table__.c.id.asc())
-                )
-            )
-            .mappings()
-            .all()
-        )
-
     def uploads_for_jobs(self, db: Session, job_ids: list[int]) -> list[RowMapping]:
         return list(
             (

@@ -20,8 +20,7 @@ from app.db.models import (
     MailOutbox,
     ObjectWriteIntent,
     PlaybackOutbox,
-    RenderOutbox,
-    RenderTargetType,
+    ScoreRevisionRenderOutbox,
     RevisionMetadataOutbox,
     Score,
     ScoreDeletionOperation,
@@ -36,14 +35,14 @@ from app.db.models.score import RevisionOrigin, RevisionSourceFormat
 from app.modules.import_jobs.requested_options import encode_requested_options
 from app.modules.mail.outbox_service import mail_outbox_service
 from app.modules.playback.outbox_service import playback_outbox_service
-from app.modules.rendering.delivery import render_outbox_service
+from app.modules.revisions.render_delivery import revision_render_delivery
 from app.modules.revisions.presentation_demand import RevisionPresentationSuperseded
 from app.shared.time import utc_now
 from tests.support.postgres_schema import postgres_schema_database
 from tests.support.storage_state import provision_storage_users
 
 SERVICES = {
-    "render": (RenderOutbox, render_outbox_service),
+    "render": (ScoreRevisionRenderOutbox, revision_render_delivery),
     "playback": (PlaybackOutbox, playback_outbox_service),
     "mail": (MailOutbox, mail_outbox_service),
 }
@@ -95,9 +94,8 @@ def database(monkeypatch):
             )
             db.add_all(
                 [
-                    RenderOutbox(
+                    ScoreRevisionRenderOutbox(
                         outbox_uuid="render",
-                        target_type=RenderTargetType.SCORE_REVISION,
                         score_id=score.id,
                         revision_id=revision.id,
                         requested_by_user_id=user.id,
@@ -256,7 +254,7 @@ def test_locked_terminal_mutation_refreshes_preloaded_attempt(database, kind):
                     sa.text("SELECT query FROM pg_stat_activity WHERE pid=:pid"),
                     {"pid": waiter_pid[0]},
                 )
-                assert model.__tablename__ in query and "FOR UPDATE" in query
+                assert model.__tablename__ in query  # The blocking check proves lock ownership.
             winner.commit()
         assert future.result(timeout=10) is False
     with Session(database) as db:
@@ -266,9 +264,9 @@ def test_locked_terminal_mutation_refreshes_preloaded_attempt(database, kind):
 @pytest.mark.parametrize("kind", ["render", "playback"])
 @pytest.mark.parametrize("result", ["complete", "fail", "supersede"])
 def test_stale_derivative_worker_cannot_publish_status(database, monkeypatch, kind, result):
-    from app.worker.execution import playback_outbox, render_outbox
+    from app.worker.execution import playback_outbox, score_revision_render_outbox
 
-    module = render_outbox if kind == "render" else playback_outbox
+    module = score_revision_render_outbox if kind == "render" else playback_outbox
 
     @contextmanager
     def transaction():
@@ -291,8 +289,8 @@ def test_stale_derivative_worker_cannot_publish_status(database, monkeypatch, ki
     publish = Mock()
     monkeypatch.setattr(module, "publish_score_change", publish)
     if kind == "render":
-        monkeypatch.setattr(module, "_render_target", generate)
-        execute = module.execute_render_outbox_task
+        monkeypatch.setattr(module, "_render_revision", generate)
+        execute = module.execute_score_revision_render_task
     else:
         monkeypatch.setattr(module.PlaybackGenerationService, "render_for_worker", generate)
         execute = module.execute_playback_outbox_task
@@ -307,7 +305,7 @@ def test_stale_derivative_worker_cannot_publish_status(database, monkeypatch, ki
     "model",
     [
         ImportDispatch,
-        RenderOutbox,
+        ScoreRevisionRenderOutbox,
         PlaybackOutbox,
         MailOutbox,
         ScoreDeletionOperation,

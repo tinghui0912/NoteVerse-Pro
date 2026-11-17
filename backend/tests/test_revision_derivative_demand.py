@@ -18,9 +18,8 @@ from app.db.models import (
     Score,
     ScoreRevision,
     ScoreRevisionSource,
-    RenderOutbox,
-    RenderOutboxStatus,
-    RenderTargetType,
+    ScoreRevisionRenderOutbox,
+    ScoreRevisionRenderStatus,
     PlaybackOutbox,
     PlaybackOutboxStatus,
     ImportJob,
@@ -38,7 +37,7 @@ from app.modules.import_jobs.review.service import ImportReviewService
 from app.modules.import_jobs.review.schemas import ReviewConfirmRequest
 from app.modules.guest_previews.service import GuestPreviewService
 from app.modules.guest_previews.schemas import GuestPreviewUpdateRequest
-from app.modules.rendering.delivery import render_outbox_service
+from app.modules.revisions.render_delivery import revision_render_delivery
 from app.modules.playback.outbox_service import playback_outbox_service
 from app.modules.score_assets.derived_assets import derived_asset_status
 from app.task_queue import producer
@@ -88,9 +87,8 @@ def revisions(score_service_session):
             )
         )
         db.add(
-            RenderOutbox(
+            ScoreRevisionRenderOutbox(
                 outbox_uuid=f"render-{number}",
-                target_type=RenderTargetType.SCORE_REVISION,
                 score_id=800,
                 revision_id=revision.id,
                 source_fingerprint=fingerprint,
@@ -113,7 +111,11 @@ def revisions(score_service_session):
 
 def work_rows(db, number):
     return (
-        db.scalar(select(RenderOutbox).where(RenderOutbox.outbox_uuid == f"render-{number}")),
+        db.scalar(
+            select(ScoreRevisionRenderOutbox).where(
+                ScoreRevisionRenderOutbox.outbox_uuid == f"render-{number}"
+            )
+        ),
         db.scalar(select(PlaybackOutbox).where(PlaybackOutbox.outbox_uuid == f"audio-{number}")),
     )
 
@@ -125,18 +127,18 @@ def test_historical_revisions_are_not_generation_demand_and_never_runs_generator
     db, storage, score, rows = revisions
     score.guest_preview_enabled = enabled
     db.commit()
-    from app.worker.execution import render_outbox, playback_outbox
+    from app.worker.execution import score_revision_render_outbox, playback_outbox
 
     @contextmanager
     def database():
         yield db
         db.commit()
 
-    monkeypatch.setattr(render_outbox, "SessionLocal", database)
+    monkeypatch.setattr(score_revision_render_outbox, "SessionLocal", database)
     monkeypatch.setattr(playback_outbox, "SessionLocal", database)
     render = Mock(side_effect=AssertionError("Unexpected historical render"))
     audio = Mock(side_effect=AssertionError("Unexpected historical audio"))
-    monkeypatch.setattr(render_outbox, "_render_target", render)
+    monkeypatch.setattr(score_revision_render_outbox, "_render_revision", render)
     monkeypatch.setattr(playback_outbox.PlaybackGenerationService, "render_for_worker", audio)
     for number in (1, 2):
         for work in work_rows(db, number):
@@ -148,7 +150,9 @@ def test_historical_revisions_are_not_generation_demand_and_never_runs_generator
             work.failure_retryable = True
         db.commit()
         assert (
-            render_outbox.execute_render_outbox_task(None, f"render-{number}")["status"]
+            score_revision_render_outbox.execute_score_revision_render_task(
+                None, f"render-{number}"
+            )["status"]
             == "ignored"
         )
         assert (
@@ -166,7 +170,7 @@ def test_historical_revisions_are_not_generation_demand_and_never_runs_generator
             )
     render.assert_not_called()
     audio.assert_not_called()
-    assert render_outbox_service.claim(db, "render-3") is not None
+    assert revision_render_delivery.claim(db, "render-3") is not None
     assert playback_outbox_service.claim(db, "audio-3") is not None
     assert len(db.scalars(select(ScoreRevisionSource)).all()) == 3
     assert all(
@@ -178,11 +182,11 @@ def test_historical_revisions_are_not_generation_demand_and_never_runs_generator
 def test_processing_is_not_cancelled_and_missing_source_is_not_superseded(revisions):
     db, _, score, rows = revisions
     render, audio = work_rows(db, 1)
-    render.status = RenderOutboxStatus.PROCESSING
+    render.status = ScoreRevisionRenderStatus.PROCESSING
     audio.status = PlaybackOutboxStatus.PROCESSING
     render.attempt_token = audio.attempt_token = "fixture-token"
     db.commit()
-    assert render_outbox_service.claim(db, "render-1") is None
+    assert revision_render_delivery.claim(db, "render-1") is None
     assert playback_outbox_service.claim(db, "audio-1") is None
     assert render.status.value == audio.status.value == "PROCESSING"
     source = db.scalar(
@@ -190,12 +194,12 @@ def test_processing_is_not_cancelled_and_missing_source_is_not_superseded(revisi
     )
     db.delete(source)
     db.commit()
-    assert render_outbox_service.claim(db, "render-2") is None
+    assert revision_render_delivery.claim(db, "render-2") is None
     assert playback_outbox_service.claim(db, "audio-2") is None
     assert all(work.status.value == "FAILED" and work.failure_detail for work in work_rows(db, 2))
     score.deleted_at = utc_now()
     db.commit()
-    assert render_outbox_service.claim(db, "render-3") is None
+    assert revision_render_delivery.claim(db, "render-3") is None
     assert playback_outbox_service.claim(db, "audio-3") is None
     assert all(work.status.value == "FAILED" for work in work_rows(db, 3))
 
@@ -215,10 +219,10 @@ def test_business_commit_precedes_immediate_dispatch_and_broker_failure_is_recov
         db.commit()
 
     monkeypatch.setattr(dispatch, "SessionLocal", database)
-    monkeypatch.setattr(dispatch.rendering_dispatch, "SessionLocal", database)
+    monkeypatch.setattr(dispatch.revision_render_dispatch, "SessionLocal", database)
 
     def broker(task_name, *, kwargs, task_id):
-        model = RenderOutbox if "render" in task_name else PlaybackOutbox
+        model = ScoreRevisionRenderOutbox if "render" in task_name else PlaybackOutbox
         with Session(db.get_bind()) as check:
             row = check.scalar(select(model).where(model.outbox_uuid == kwargs["outbox_uuid"]))
             assert row.status.value == "DISPATCHED"
@@ -239,7 +243,9 @@ def test_business_commit_precedes_immediate_dispatch_and_broker_failure_is_recov
             assert source is not None and storage.exists(source.stored_object.object_key)
             assert (
                 check.scalar(
-                    select(RenderOutbox).where(RenderOutbox.outbox_uuid == work.render_outbox_uuid)
+                    select(ScoreRevisionRenderOutbox).where(
+                        ScoreRevisionRenderOutbox.outbox_uuid == work.revision_render_outbox_uuid
+                    )
                 )
                 is not None
             )
@@ -297,7 +303,9 @@ def test_business_commit_precedes_immediate_dispatch_and_broker_failure_is_recov
     assert len(observed) == 1 and len(calls) == 2
     work = observed[0]
     render = db.scalar(
-        select(RenderOutbox).where(RenderOutbox.outbox_uuid == work.render_outbox_uuid)
+        select(ScoreRevisionRenderOutbox).where(
+            ScoreRevisionRenderOutbox.outbox_uuid == work.revision_render_outbox_uuid
+        )
     )
     audio = db.scalar(
         select(PlaybackOutbox).where(PlaybackOutbox.outbox_uuid == work.playback_outbox_uuid)
@@ -311,7 +319,7 @@ def test_business_commit_precedes_immediate_dispatch_and_broker_failure_is_recov
         monkeypatch.setattr(maintenance_dispatch, "SessionLocal", database)
         monkeypatch.setattr(maintenance_dispatch, "run_scheduler_scan", lambda _name, scan: scan())
         monkeypatch.setattr(producer.celery_app, "send_task", lambda *_a, **_k: None)
-        assert maintenance_dispatch.execute_render_outbox_maintenance()["dispatched"] >= 1
+        assert maintenance_dispatch.execute_score_revision_render_maintenance()["dispatched"] >= 1
         assert maintenance_dispatch.execute_playback_outbox_maintenance()["dispatched"] >= 1
         db.refresh(render)
         db.refresh(audio)
@@ -331,7 +339,9 @@ def test_dispatcher_crash_does_not_escape_post_commit_boundary(monkeypatch):
     )
 
 
-@pytest.mark.parametrize("status", [RenderOutboxStatus.SUPERSEDED, PlaybackOutboxStatus.SUPERSEDED])
+@pytest.mark.parametrize(
+    "status", [ScoreRevisionRenderStatus.SUPERSEDED, PlaybackOutboxStatus.SUPERSEDED]
+)
 def test_internal_superseded_state_has_safe_presentation_status(status):
     assert derived_asset_status(has_current_asset=False, outbox_status=status) == "pending"
     assert derived_asset_status(has_current_asset=True, outbox_status=status) == "ready"
@@ -341,7 +351,7 @@ def test_preview_toggle_only_changes_access_state(revisions, monkeypatch):
     from unittest.mock import Mock
 
     db, storage, score, rows = revisions
-    assert render_outbox_service.claim(db, "render-1") is None
+    assert revision_render_delivery.claim(db, "render-1") is None
     assert playback_outbox_service.claim(db, "audio-1") is None
     db.commit()
     snapshot = [
@@ -354,7 +364,7 @@ def test_preview_toggle_only_changes_access_state(revisions, monkeypatch):
     service = GuestPreviewService(storage=storage)
     for enabled in [True, False]:
         service.update_settings(db, score.score_uuid, 1, GuestPreviewUpdateRequest(enabled=enabled))
-        assert db.scalar(select(func.count()).select_from(RenderOutbox)) == 3
+        assert db.scalar(select(func.count()).select_from(ScoreRevisionRenderOutbox)) == 3
         assert db.scalar(select(func.count()).select_from(PlaybackOutbox)) == 3
         for model, identity, status, attempt in snapshot:
             work = db.scalar(select(model).where(model.outbox_uuid == identity))

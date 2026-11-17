@@ -29,7 +29,7 @@ from app.db.models import (
     ScoreRevision,
     ScoreRevisionSource,
     ScoreRevisionMetadata,
-    RenderOutbox,
+    ScoreRevisionRenderOutbox,
     PlaybackOutbox,
     RevisionMetadataOutbox,
     ScoreInputAsset,
@@ -77,10 +77,7 @@ def confirmation(monkeypatch):
             db.add(job)
             db.flush()
             db.add(ImportDispatch(job_id=job.id, status=ImportDispatchStatus.COMPLETED))
-            for kind, content in (
-                (ImportArtifactKind.REVIEW_MUSICXML, MUSICXML_1),
-                (ImportArtifactKind.REVIEW_PREVIEW_IMAGE, b"<svg/>"),
-            ):
+            for kind, content in ((ImportArtifactKind.REVIEW_MUSICXML, MUSICXML_1),):
                 obj = object_from_bytes(
                     object_key=f"jobs/{kind}",
                     content=content,
@@ -325,7 +322,7 @@ def snapshot(db):
         ScoreRevision,
         ScoreRevisionSource,
         ScoreRevisionMetadata,
-        RenderOutbox,
+        ScoreRevisionRenderOutbox,
         PlaybackOutbox,
         RevisionMetadataOutbox,
         ScoreInputAsset,
@@ -440,8 +437,8 @@ def test_confirmation_semantic_transaction_rolls_back_at_every_boundary(
             assert counter.used_bytes == counters.get(counter.category, 0)
             assert counter.reserved_bytes == 0
         intents = list(db.scalars(sa.select(ObjectWriteIntent)))
-        assert len(intents) == 2 and all(row.status == "WRITTEN" for row in intents)
-        assert len(drain_write_cleanup(db, storage)) == 2
+        assert len(intents) == 1 and all(row.status == "WRITTEN" for row in intents)
+        assert len(drain_write_cleanup(db, storage)) == 1
         assert all(not storage.exists(row.object_key) for row in intents)
 
 
@@ -515,7 +512,7 @@ def test_concurrent_confirmation_admits_one_complete_import_transaction(
             ScoreRevision,
             ScoreRevisionSource,
             ScoreInputAsset,
-            RenderOutbox,
+            ScoreRevisionRenderOutbox,
             PlaybackOutbox,
             RevisionMetadataOutbox,
         ):
@@ -642,3 +639,43 @@ def test_import_commands_wait_on_dispatch_without_holding_job(confirmation, comm
         finally:
             holder.rollback()
         future.result(timeout=20)
+
+
+def test_confirmed_revision_render_adopts_its_first_pages(confirmation, monkeypatch):
+    from sqlalchemy.orm import sessionmaker
+    from app.db.models import ScoreRenderAsset, ScoreRevisionRenderStatus
+    from app.modules.rendering.renderer import RenderedPage
+    from app.modules.score_assets.score_revision_rendering import ScoreRevisionRenderService
+    from app.worker.execution import score_revision_render_outbox as worker
+    from app.score_semantics.render_profile import SCORE_PRESENTATION_RENDER_PROFILE
+
+    engine, storage = confirmation
+    with Session(engine) as db:
+        assert db.scalar(sa.select(Score)) is None
+        assert db.scalar(sa.select(ScoreRevisionRenderOutbox)) is None
+        review.ImportReviewService(storage=storage).confirm(
+            db, "job", 1, ReviewConfirmRequest(content=MUSICXML_1.decode())
+        )
+        outbox = db.scalar(sa.select(ScoreRevisionRenderOutbox))
+        uuid = outbox.outbox_uuid
+        assert outbox.render_profile == SCORE_PRESENTATION_RENDER_PROFILE
+        assert db.scalar(sa.select(ScoreRenderAsset)) is None
+        assert db.scalar(sa.select(RevisionMetadataOutbox)) is not None
+        assert db.scalar(sa.select(PlaybackOutbox)) is not None
+    renderer = ScoreRevisionRenderService(storage=storage)
+    monkeypatch.setattr(
+        renderer,
+        "_render_pages",
+        lambda *_: [RenderedPage(1, b"<svg>page</svg>", "image/svg+xml", ".svg", "test-renderer")],
+    )
+    monkeypatch.setattr(worker, "ScoreRevisionRenderService", lambda: renderer)
+    monkeypatch.setattr(worker, "SessionLocal", sessionmaker(engine))
+    assert worker.execute_score_revision_render_task(None, uuid)["status"] == "rendered"
+    with Session(engine) as db:
+        asset = db.scalar(sa.select(ScoreRenderAsset))
+        assert asset.render_profile == SCORE_PRESENTATION_RENDER_PROFILE
+        assert storage.read_bytes(asset.stored_object.object_key) == b"<svg>page</svg>"
+        assert (
+            db.scalar(sa.select(ScoreRevisionRenderOutbox)).status
+            is ScoreRevisionRenderStatus.COMPLETED
+        )

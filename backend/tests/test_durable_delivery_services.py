@@ -18,8 +18,7 @@ from app.core.config import settings
 from app.db.models import (
     MailOutbox,
     PlaybackOutbox,
-    RenderOutbox,
-    RenderTargetType,
+    ScoreRevisionRenderOutbox,
     User,
     ImportJob,
     ImportJobState,
@@ -32,13 +31,14 @@ from app.modules.revisions.presentation_demand import RevisionPresentationDemand
 NOW = datetime(2026, 11, 6, 12, tzinfo=UTC)
 CASES = [
     (
-        "rendering.delivery",
-        "RenderOutboxService",
-        "RENDER_OUTBOX",
-        RenderOutbox,
+        "revisions.render_delivery",
+        "ScoreRevisionRenderDelivery",
+        "REVISION_RENDER",
+        ScoreRevisionRenderOutbox,
         dict(
-            target_type=RenderTargetType.REVIEW_THUMBNAIL,
-            import_job_id=1,
+            score_id=1,
+            revision_id=1,
+            requested_by_user_id=1,
             source_fingerprint="f" * 64,
         ),
     ),
@@ -79,16 +79,18 @@ def delivery(postgres_engine, request, monkeypatch):
     ]:
         monkeypatch.setattr(settings, f"{prefix}_{suffix}", value)
     service = getattr(module, service_name)()
-    if model in (RenderOutbox, PlaybackOutbox):
+    if model in (ScoreRevisionRenderOutbox, PlaybackOutbox):
         # Exercise lifecycle persistence after a successful domain payload admission.
-        from app.modules.rendering.targets import ReviewThumbnailRenderTarget
+        from app.modules.revisions.render_target import ScoreRevisionRenderTarget
         from app.modules.playback.outbox_service import PlaybackTarget
 
         def admitted(db, row):
-            if model is RenderOutbox:
-                return ReviewThumbnailRenderTarget(
+            if model is ScoreRevisionRenderOutbox:
+                return ScoreRevisionRenderTarget(
                     outbox_uuid=row.outbox_uuid,
-                    job_uuid="job",
+                    score_uuid="score",
+                    revision_uuid="revision",
+                    requested_by_user_id=1,
                     render_profile=row.render_profile,
                     source_fingerprint=row.source_fingerprint,
                 )
@@ -101,7 +103,7 @@ def delivery(postgres_engine, request, monkeypatch):
             )
 
         monkeypatch.setattr(service, "_build_payload", admitted)
-    if model is PlaybackOutbox:
+    if model in (PlaybackOutbox, ScoreRevisionRenderOutbox):
         monkeypatch.setattr(module, "lock_presentation_score", lambda *_: None)
         monkeypatch.setattr(
             module, "revision_presentation_demand", lambda *_: RevisionPresentationDemand.DEMANDED

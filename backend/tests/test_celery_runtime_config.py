@@ -54,13 +54,13 @@ def test_realtime_maintenance_is_scheduled() -> None:
 
 def test_render_asset_delivery_maintenance_is_scheduled() -> None:
     derived_asset_schedule = celery_app.conf.beat_schedule["derived-asset-cleanup"]
-    render_outbox_schedule = celery_app.conf.beat_schedule["render-outbox-maintenance"]
+    revision_render_schedule = celery_app.conf.beat_schedule["score-revision-render-maintenance"]
 
     assert derived_asset_schedule["schedule"] == float(
         settings.DERIVED_ASSET_CLEANUP_INTERVAL_SECONDS
     )
-    assert render_outbox_schedule["schedule"] == float(
-        settings.RENDER_OUTBOX_DISPATCH_INTERVAL_SECONDS
+    assert revision_render_schedule["schedule"] == float(
+        settings.REVISION_RENDER_DISPATCH_INTERVAL_SECONDS
     )
 
 

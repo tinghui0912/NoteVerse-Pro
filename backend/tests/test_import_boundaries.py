@@ -12,7 +12,6 @@ from app.shared.time import utc_now
 from app.main import app
 from app.modules.import_jobs.review.service import ImportReviewService
 from app.modules.import_jobs.review.read_model import ImportReviewReadModel
-from app.modules.import_jobs.review.thumbnail_service import ImportReviewThumbnailService
 from app.modules.import_jobs.pipeline.context import JobContext
 from app.task_queue.protocols import CeleryTaskLike
 
@@ -23,7 +22,6 @@ def test_import_implementations_and_worker_protocol_have_explicit_context_owners
     for implementation in (
         ImportReviewService,
         ImportReviewReadModel,
-        ImportReviewThumbnailService,
     ):
         assert implementation.__module__.startswith("app.modules.import_jobs.review.")
     assert JobContext.__module__ == "app.modules.import_jobs.pipeline.context"

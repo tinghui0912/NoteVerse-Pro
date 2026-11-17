@@ -50,7 +50,7 @@ Reset/rearm centralizes common lifecycle field clearing without deciding whether
 domain work should be reactivated. Admission short circuits remain domain decisions
 and do not invent worker leases.
 
-ImportDispatch, RenderOutbox, PlaybackOutbox, MailOutbox, ScoreDeletionOperation and
+ImportDispatch, ScoreRevisionRenderOutbox, PlaybackOutbox, MailOutbox, ScoreDeletionOperation and
 StoredObjectRetirement enforce PROCESSING if and only if `attempt_token` is non-null
 with database CHECK constraints. ObjectWriteIntent enforces the same equivalence for
 CLEANUP_PROCESSING; its separate `write_token` identifies a physical-write generation.
@@ -59,7 +59,7 @@ the processing token. A fresh claim is the only processing entry.
 
 Attempt fencing also guards final semantic adoption. Render and Playback generate and
 prewrite outside aggregate/delivery locks, then lock and refresh Score followed by
-the exact outbox. Review thumbnails use ImportJob followed by RenderOutbox. Admission
+the exact revision-owned outbox. Admission
 checks the common lease and the domain target/source identity before StoredObject
 adoption, asset replacement, accounting or retirement enqueue. Successful semantic
 adoption and exact delivery completion share one caller-owned transaction. Worker
@@ -125,13 +125,13 @@ target, payload, admission, queries, policies, worker and terminal meaning.
 The shared fields exclude resource `created_at` / `updated_at` behavior. Domain
 models retain their SQL client defaults as well as per-instance aware UTC defaults.
 
-ImportDispatch, RenderOutbox, PlaybackOutbox, MailOutbox, ScoreDeletionOperation,
+ImportDispatch, ScoreRevisionRenderOutbox, PlaybackOutbox, MailOutbox, ScoreDeletionOperation,
 RevisionMetadataOutbox and StoredObjectRetirement map PROCESSING to attempt-token
 ownership. ObjectWriteIntent maps CLEANUP_PROCESSING instead; its `write_token`
 continues to own the separate physical-write generation.
 
 Structured failure field factories and the all-null/all-present predicate serve
-ImportJob, ImportDispatch, RenderOutbox, PlaybackOutbox, MailOutbox and
+ImportJob, ImportDispatch, ScoreRevisionRenderOutbox, PlaybackOutbox, MailOutbox and
 ScoreDeletionOperation. The predicate derives accepted classifications directly
 from the same `app/shared/durable_failure.py` vocabulary, without a DB dependency
 on application modules. RevisionMetadataOutbox, StoredObjectRetirement and

@@ -1,5 +1,5 @@
 from app.core.async_trace_context import get_async_trace_context, set_async_trace_context
-from app.db.models import ImportDispatch, MailOutbox, PlaybackOutbox, RenderOutbox
+from app.db.models import ImportDispatch, MailOutbox, PlaybackOutbox, ScoreRevisionRenderOutbox
 
 
 def test_async_trace_context_is_explicit_and_resettable() -> None:
@@ -34,7 +34,7 @@ def test_async_trace_context_discards_invalid_or_unsafe_values() -> None:
 
 
 def test_durable_async_models_expose_w3c_creation_context() -> None:
-    for model in (ImportDispatch, RenderOutbox, PlaybackOutbox, MailOutbox):
+    for model in (ImportDispatch, ScoreRevisionRenderOutbox, PlaybackOutbox, MailOutbox):
         columns = model.__table__.columns
         assert columns["traceparent"].type.length == 55
         assert columns["tracestate"].type.length == 512

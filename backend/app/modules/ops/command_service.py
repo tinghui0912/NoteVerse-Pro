@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.core.control_plane_errors import ControlPlaneErrorCode
 from app.core.exceptions import ResourceNotFoundException, ValidationException
 from app.modules.import_jobs.dispatch_service import import_dispatch_service
-from app.modules.rendering.delivery import render_outbox_service
+from app.modules.revisions.render_delivery import revision_render_delivery
 from app.modules.playback.outbox_service import playback_outbox_service
 from app.modules.mail.outbox_service import mail_outbox_service
 from app.modules.scores.deletion_delivery import score_deletion_delivery
@@ -27,7 +27,7 @@ class OpsAsyncOperationCommandService:
     ) -> RetryOperationResult:
         owners = {
             AsyncOperationKind.IMPORT: import_dispatch_service.rearm_for_operator,
-            AsyncOperationKind.RENDER: render_outbox_service.rearm_for_operator,
+            AsyncOperationKind.REVISION_RENDER: revision_render_delivery.rearm_for_operator,
             AsyncOperationKind.PLAYBACK: playback_outbox_service.rearm_for_operator,
             AsyncOperationKind.MAIL: mail_outbox_service.rearm_for_operator,
             AsyncOperationKind.SCORE_DELETION: score_deletion_delivery.rearm_for_operator,

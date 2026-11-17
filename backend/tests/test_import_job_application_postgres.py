@@ -78,9 +78,9 @@ def application_db(postgres_url, monkeypatch):
                     ),
                     StoredObject(
                         id=2,
-                        object_key="jobs/preview",
+                        object_key="jobs/review.musicxml",
                         byte_size=23,
-                        content_type="image/svg+xml",
+                        content_type="application/xml",
                         sha256="b" * 64,
                     ),
                 ]
@@ -158,13 +158,6 @@ def complete_jobs(db, count=1):
         db.add_all(
             [
                 StoredObject(
-                    id=100 + job.id * 2,
-                    object_key=f"{job.job_uuid}/preview",
-                    byte_size=23,
-                    content_type="image/svg+xml",
-                    sha256="b" * 64,
-                ),
-                StoredObject(
                     id=101 + job.id * 2,
                     object_key=f"{job.job_uuid}/xml",
                     byte_size=29,
@@ -182,14 +175,6 @@ def complete_jobs(db, count=1):
                     status=ImportDispatchStatus.COMPLETED,
                     attempt_count=1,
                     completed_at=NOW,
-                ),
-                ImportArtifact(
-                    job_id=job.id,
-                    artifact_uuid=f"preview-{job.job_uuid}",
-                    kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE,
-                    stored_object_id=100 + job.id * 2,
-                    filename="preview.svg",
-                    page_number=1,
                 ),
                 ImportArtifact(
                     job_id=job.id,
@@ -223,15 +208,6 @@ def test_list_and_detail_share_the_complete_current_projection(application_db):
     for name in ["created_at", "updated_at", "processing_started_at", "processing_finished_at"]:
         instant = datetime.fromisoformat(value[name])
         assert instant == NOW and instant.utcoffset().total_seconds() == 0
-    assert value["thumbnail"] == dict(
-        artifact_id="preview-complete-0",
-        filename="preview.svg",
-        page_number=1,
-        size=23,
-        mime_type="image/svg+xml",
-        upload_id=None,
-        original_filename=None,
-    )
     assert value["original_images"] == [
         dict(
             artifact_id=f"upload:{number}",
@@ -266,7 +242,7 @@ def test_list_projection_query_count_is_bounded_for_one_and_fifty_jobs(applicati
         assert len(one) == 1 and len(fifty) == total == 50
         assert len(calls) == first_count
         assert len(calls) <= 6
-        assert all(row.thumbnail and len(row.original_images) == 2 for row in fifty)
+        assert all(len(row.original_images) == 2 for row in fifty)
     finally:
         event.remove(db.bind.engine, "before_cursor_execute", count_query)
 
@@ -471,8 +447,8 @@ async def test_review_confirmation_wins_over_stale_customer_delete_and_retains_p
     db.add(
         ImportArtifact(
             job_id=job.id,
-            kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE,
-            filename="preview.svg",
+            kind=ImportArtifactKind.REVIEW_MUSICXML,
+            filename="review.musicxml",
             stored_object_id=2,
             page_number=1,
         )
@@ -489,7 +465,9 @@ async def test_review_confirmation_wins_over_stale_customer_delete_and_retains_p
             return super().delete_job(session, caller, user_id)
 
     storage = InMemoryObjectStorage()
-    storage.put_bytes(key="jobs/preview", content=b"<svg />", content_type="image/svg+xml")
+    storage.put_bytes(
+        key="jobs/review.musicxml", content=b"<score-partwise/>", content_type="application/xml"
+    )
     with (
         Session(db.bind, expire_on_commit=False) as deleting,
         Session(db.bind, expire_on_commit=False) as confirming,

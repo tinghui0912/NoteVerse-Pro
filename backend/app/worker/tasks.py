@@ -24,11 +24,11 @@ from app.worker.execution.maintenance_dispatch import (
     execute_mail_outbox_maintenance,
     execute_stored_object_retirement_maintenance,
     execute_playback_outbox_maintenance,
-    execute_render_outbox_maintenance,
+    execute_score_revision_render_maintenance,
 )
 from app.worker.execution.stored_object_retirement import execute_stored_object_retirement_task
 from app.worker.execution.playback_outbox import execute_playback_outbox_task
-from app.worker.execution.render_outbox import execute_render_outbox_task
+from app.worker.execution.score_revision_render_outbox import execute_score_revision_render_task
 
 
 @celery_app.task(
@@ -66,10 +66,10 @@ def send_mail_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, s
     return execute_mail_outbox_task(self, outbox_uuid)
 
 
-@celery_app.task(name="app.worker.tasks.render_outbox_task", bind=True, ignore_result=True)
-def render_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, str | None]:
-    """Render one durable score-revision or review-thumbnail target."""
-    return execute_render_outbox_task(self, outbox_uuid)
+@celery_app.task(name="app.worker.tasks.score_revision_render_task", bind=True, ignore_result=True)
+def score_revision_render_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, str | None]:
+    """Render one durable Score Revision render demand."""
+    return execute_score_revision_render_task(self, outbox_uuid)
 
 
 @celery_app.task(name="app.worker.tasks.playback_outbox_task", bind=True, ignore_result=True)
@@ -130,10 +130,10 @@ def run_score_deletion_maintenance() -> dict[str, int]:
     return execute_score_deletion_maintenance()
 
 
-@celery_app.task(name="app.worker.tasks.run_render_outbox_maintenance")
-def run_render_outbox_maintenance() -> dict[str, int]:
+@celery_app.task(name="app.worker.tasks.run_score_revision_render_maintenance")
+def run_score_revision_render_maintenance() -> dict[str, int]:
     """Recover stale render deliveries and dispatch all due outbox records."""
-    return execute_render_outbox_maintenance()
+    return execute_score_revision_render_maintenance()
 
 
 @celery_app.task(name="app.worker.tasks.run_playback_outbox_maintenance")

@@ -6,7 +6,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import ImportDispatch, MailOutbox, PlaybackOutbox, RenderOutbox
+from app.db.models import ImportDispatch, MailOutbox, PlaybackOutbox, ScoreRevisionRenderOutbox
 
 
 @dataclass(frozen=True)
@@ -24,12 +24,12 @@ def import_dispatch_trace_context(db: Session, dispatch_uuid: str) -> DurableTra
     )
 
 
-def render_trace_context(db: Session, outbox_uuid: str) -> DurableTraceContext:
+def revision_render_trace_context(db: Session, outbox_uuid: str) -> DurableTraceContext:
     return _trace_context_for(
         db,
-        traceparent_column=RenderOutbox.traceparent,
-        tracestate_column=RenderOutbox.tracestate,
-        identity_filter=RenderOutbox.outbox_uuid == outbox_uuid,
+        traceparent_column=ScoreRevisionRenderOutbox.traceparent,
+        tracestate_column=ScoreRevisionRenderOutbox.tracestate,
+        identity_filter=ScoreRevisionRenderOutbox.outbox_uuid == outbox_uuid,
     )
 
 

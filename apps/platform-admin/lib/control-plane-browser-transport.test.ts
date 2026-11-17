@@ -42,7 +42,7 @@ it("logout and retry inject the generated CSRF identity through authenticated tr
   vi.stubGlobal("fetch", fetch);
   const api = await import("./control-plane-api");
   await api.logout();
-  await expect(api.retryAsyncOperation({ kind: "render", operation_id: "operation" }, { reason: "Provider recovered" })).resolves.toEqual(take);
+  await expect(api.retryAsyncOperation({ kind: "revision_render", operation_id: "operation" }, { reason: "Provider recovered" })).resolves.toEqual(take);
   for (const [request] of fetch.mock.calls as [Request][]) {
     expect(request.credentials).toBe("same-origin");
     expect(request.headers.get(OPERATOR_CSRF_HEADER_NAME)).toBe("exact token");

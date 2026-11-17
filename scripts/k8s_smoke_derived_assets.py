@@ -119,7 +119,7 @@ from app.db.models import Score, StorageUsageCategory
 from app.db.models.score import RevisionOrigin
 from app.db.session import SessionLocal
 from app.modules.revisions.writer import revision_writer, InitialRevisionWrite, PreparedRevisionSource
-from app.modules.rendering.dispatch import dispatch_render_outbox
+from app.modules.revisions.render_dispatch import dispatch_score_revision_render
 from app.modules.revisions.dispatch import dispatch_playback_outbox
 from app.modules.revisions.metadata_dispatch import dispatch_revision_metadata
 from app.modules.storage_objects.writes import write_object
@@ -179,13 +179,13 @@ with SessionLocal() as db:
         raise
     work = result.derivatives
     assert work is not None
-    dispatch_render_outbox(work.render_outbox_uuid)
+    dispatch_score_revision_render(work.revision_render_outbox_uuid)
     dispatch_playback_outbox(work.playback_outbox_uuid)
     dispatch_revision_metadata(result.metadata_outbox_uuid)
     print(json.dumps({{
         "score_id": score_uuid,
         "revision_id": revision_uuid,
-        "render_outbox_id": work.render_outbox_uuid,
+        "revision_render_outbox_id": work.revision_render_outbox_uuid,
         "playback_outbox_id": work.playback_outbox_uuid,
     }}))
 """

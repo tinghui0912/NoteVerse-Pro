@@ -7,7 +7,7 @@ vi.mock("../../lib/control-plane-api", () => api);
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
 import OperationsPage from "./page";
 import type { AsyncOperationRead } from "../../generated/api/types.gen";
-const operation: AsyncOperationRead = { operation_id: "operation", kind: "render", resource_type: "score_revision", resource_id: "operation", status: "retrying", attempts: 1, max_attempts: 3, next_attempt_at: null, created_at: null, updated_at: null, failure: { code: "render_execution_failed", stage: "render", classification: "system_error", retryable: true, detail: null } };
+const operation: AsyncOperationRead = { operation_id: "operation", kind: "revision_render", resource_type: "score_revision", resource_id: "operation", status: "retrying", attempts: 1, max_attempts: 3, next_attempt_at: null, created_at: null, updated_at: null, failure: { code: "render_execution_failed", stage: "render", classification: "system_error", retryable: true, detail: null } };
 beforeEach(() => {
   vi.clearAllMocks();
   api.currentOperator.mockResolvedValue({ operator_id: "id", display_name: "Operator", role: "platform_operator" });

@@ -30,7 +30,6 @@ from app.modules.import_jobs.artifact_records import ImportJobStoredArtifactItem
 from app.modules.import_jobs.notifications import admit_import_processing_outcome
 from app.modules.storage_usage.service import storage_usage_service
 from app.db.models.import_job import ImportArtifactKind
-from app.modules.rendering.admission import admit_review_thumbnail_render
 from app.shared.time import utc_now
 from app.modules.import_jobs.lifecycle import (
     IMPORT_EXECUTION_CLOSED_STATES,
@@ -90,12 +89,6 @@ class ImportExecutionRecorder:
         if review_xml is None:
             raise ValueError("Review admission requires canonical review MusicXML")
         mark_ready_for_review(job, now=now)
-        if review_xml.stored_object.sha256:
-            admit_review_thumbnail_render(
-                db,
-                import_job_id=require_persisted_id(job.id, entity="import job"),
-                source_fingerprint=review_xml.stored_object.sha256,
-            )
         admit_import_processing_outcome(db, job, created_at=now)
         db.commit()
 

@@ -27,9 +27,8 @@ from app.db.models import (
     OpsAuditEvent,
     PlaybackAssetKind,
     PlaybackOutbox,
-    RenderOutbox,
-    RenderOutboxStatus,
-    RenderTargetType,
+    ScoreRevisionRenderOutbox,
+    ScoreRevisionRenderStatus,
     RevisionOrigin,
     Score,
     ScoreDeletionOperation,
@@ -838,12 +837,11 @@ def test_ops_api_retry_rejects_completed_render_outbox_and_records_audit(
     dispatch = ImportDispatch(job_id=job.id, status=ImportDispatchStatus.COMPLETED)
     ops_session.add(dispatch)
     ops_session.commit()
-    outbox = RenderOutbox(
+    outbox = ScoreRevisionRenderOutbox(
         outbox_uuid="00000000-0000-0000-0000-000000000202",
-        target_type=RenderTargetType.REVIEW_THUMBNAIL,
-        import_job_id=job.id,
+        **revision_render_ids(ops_session, job.user_id),
         source_fingerprint="6d01e2a02f5936672bba6dd48f3c0decf9eedf3ffca9047b258748dd0aac92ef",
-        status=RenderOutboxStatus.COMPLETED,
+        status=ScoreRevisionRenderStatus.COMPLETED,
     )
     ops_session.add(outbox)
     ops_session.commit()
@@ -851,7 +849,7 @@ def test_ops_api_retry_rejects_completed_render_outbox_and_records_audit(
     _override_ops_dependencies(ops_session, authorized=True)
     try:
         response = client.post(
-            f"/api/v1/ops/async-operations/render/{outbox.outbox_uuid}/retry",
+            f"/api/v1/ops/async-operations/revision_render/{outbox.outbox_uuid}/retry",
             json={"reason": "Validate the completed render state."},
         )
     finally:
@@ -861,9 +859,9 @@ def test_ops_api_retry_rejects_completed_render_outbox_and_records_audit(
     payload = response.json()
     assert "internal_details" not in payload
     ops_session.refresh(outbox)
-    assert outbox.status == RenderOutboxStatus.COMPLETED
+    assert outbox.status == ScoreRevisionRenderStatus.COMPLETED
     audit_event = ops_session.scalars(select(OpsAuditEvent)).one()
-    assert audit_event.operation_kind == "render"
+    assert audit_event.operation_kind == "revision_render"
     assert audit_event.operation_id == outbox.outbox_uuid
     assert audit_event.outcome == "failed"
     assert audit_event.error_code == "validation_error"
@@ -988,12 +986,11 @@ def test_ops_api_admin_can_retry_failed_render_outbox(
     dispatch = ImportDispatch(job_id=job.id, status=ImportDispatchStatus.COMPLETED)
     ops_session.add(dispatch)
     ops_session.commit()
-    outbox = RenderOutbox(
+    outbox = ScoreRevisionRenderOutbox(
         outbox_uuid="00000000-0000-0000-0000-000000000212",
-        target_type=RenderTargetType.REVIEW_THUMBNAIL,
-        import_job_id=job.id,
+        **revision_render_ids(ops_session, job.user_id),
         source_fingerprint="8bd70392968d39fd8c94730768c9b2e2def65c4dfe9e0a675a8493143407cf2a",
-        status=RenderOutboxStatus.FAILED,
+        status=ScoreRevisionRenderStatus.FAILED,
         attempt_count=3,
         next_attempt_at=utc_now() + timedelta(hours=1),
         dispatched_at=utc_now() - timedelta(minutes=4),
@@ -1011,7 +1008,7 @@ def test_ops_api_admin_can_retry_failed_render_outbox(
     _override_ops_dependencies(ops_session, authorized=True)
     try:
         response = client.post(
-            f"/api/v1/ops/async-operations/render/{outbox.outbox_uuid}/retry",
+            f"/api/v1/ops/async-operations/revision_render/{outbox.outbox_uuid}/retry",
             json={"reason": "Retry after rendering infrastructure recovery."},
         )
     finally:
@@ -1019,11 +1016,15 @@ def test_ops_api_admin_can_retry_failed_render_outbox(
 
     assert response.status_code == 200
     data = response.json()
-    assert data["kind"] == "render"
+    assert data["kind"] == "revision_render"
     assert data["operation_id"] == outbox.outbox_uuid
+    revision = ops_session.get(ScoreRevision, outbox.revision_id)
+    assert data["resource_type"] == "score_revision"
+    assert data["resource_id"] == revision.revision_uuid
+    assert data["resource_id"] != outbox.outbox_uuid
     assert data["status"] == "queued"
     ops_session.refresh(outbox)
-    assert outbox.status == RenderOutboxStatus.PENDING
+    assert outbox.status == ScoreRevisionRenderStatus.PENDING
     assert outbox.attempt_count == 0
     assert outbox.dispatched_at is None
     assert outbox.started_at is None
@@ -1034,7 +1035,7 @@ def test_ops_api_admin_can_retry_failed_render_outbox(
     assert outbox.failure_classification is None
     assert outbox.failure_retryable is None
     audit_event = ops_session.scalars(select(OpsAuditEvent)).one()
-    assert audit_event.operation_kind == "render"
+    assert audit_event.operation_kind == "revision_render"
     assert audit_event.operation_id == outbox.outbox_uuid
     assert audit_event.outcome == "succeeded"
 
@@ -1209,7 +1210,7 @@ def test_filtered_pagination_reaches_matching_work_beyond_recent_batches(ops_ses
 @pytest.mark.parametrize(
     "model,status,kind",
     [
-        (RenderOutbox, RenderOutboxStatus, AsyncOperationKind.RENDER),
+        (ScoreRevisionRenderOutbox, ScoreRevisionRenderStatus, AsyncOperationKind.REVISION_RENDER),
         (PlaybackOutbox, PlaybackOutboxStatus, AsyncOperationKind.PLAYBACK),
     ],
 )
@@ -1230,7 +1231,6 @@ def test_superseded_work_is_terminal_for_queries_metrics_and_operator_rearm(
         outbox_uuid="superseded",
         score_id=1,
         revision_id=1,
-        target_type=RenderTargetType.SCORE_REVISION,
         render_profile="default",
         source_fingerprint="hash",
         status=status.SUPERSEDED,
@@ -1258,3 +1258,24 @@ def test_superseded_work_is_terminal_for_queries_metrics_and_operator_rearm(
             ops_session, kind=kind, operation_id=row.outbox_uuid
         )
     assert row.status == status.SUPERSEDED
+
+
+def revision_render_ids(db, user_id):
+    from uuid import uuid4
+    from app.db.models import Score, ScoreRevision
+    from app.db.models.score import RevisionOrigin
+
+    score = Score(score_uuid=str(uuid4()), owner_user_id=user_id, display_title="Ops render")
+    db.add(score)
+    db.flush()
+    revision = ScoreRevision(
+        revision_uuid=str(uuid4()),
+        score_id=score.id,
+        revision_number=1,
+        content_hash="a" * 64,
+        origin=RevisionOrigin.EDIT,
+    )
+    db.add(revision)
+    db.flush()
+    score.head_revision_id = revision.id
+    return dict(score_id=score.id, revision_id=revision.id, requested_by_user_id=user_id)

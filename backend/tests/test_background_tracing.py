@@ -69,7 +69,7 @@ def test_invalid_durable_context_creates_an_independent_attempt_root(
     exporter = _install_in_memory_tracer(monkeypatch)
 
     with background_tracing.background_attempt_span(
-        name="noteverse.render.generate",
+        name="noteverse.revision_render.generate",
         traceparent="invalid",
         tracestate=None,
         attributes={"noteverse.operation.kind": "render", "noteverse.operation.id": "outbox-1"},

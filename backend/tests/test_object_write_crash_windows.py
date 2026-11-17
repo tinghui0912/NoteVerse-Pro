@@ -40,7 +40,7 @@ from tests.test_score_revision_services import (
 )
 
 
-def test_review_confirm_source_and_thumbnail_survive_failed_semantic_adoption_as_intents(
+def test_review_confirm_source_survives_failed_semantic_adoption_as_intent(
     score_service_session, monkeypatch
 ):
     db, storage = score_service_session
@@ -55,18 +55,6 @@ def test_review_confirm_source_and_thumbnail_survive_failed_semantic_adoption_as
     db.add(job)
     db.flush()
     db.add(ImportDispatch(job_id=job.id, status=ImportDispatchStatus.COMPLETED))
-    key = "jobs/dual-write/thumbnail.svg"
-    storage.put_bytes(key=key, content=b"<svg />", content_type="image/svg+xml")
-    db.add(
-        ImportArtifact(
-            job_id=job.id,
-            kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE,
-            filename="thumbnail.svg",
-            stored_object=object_from_bytes(
-                object_key=key, content=b"<svg />", content_type="image/svg+xml"
-            ),
-        )
-    )
     db.commit()
     service = ImportReviewService(storage=storage)
     monkeypatch.setattr(
@@ -81,14 +69,13 @@ def test_review_confirm_source_and_thumbnail_survive_failed_semantic_adoption_as
             ReviewConfirmRequest(content=MUSICXML_1.decode()),
         )
     intents = list(db.scalars(select(ObjectWriteIntent)))
-    assert len(intents) == 2 and all(row.status == "WRITTEN" for row in intents)
+    assert len(intents) == 1 and all(row.status == "WRITTEN" for row in intents)
     keys = [row.object_key for row in intents]
     assert all(storage.exists(key) for key in keys)
     assert db.scalar(select(Score)) is None and db.scalar(select(ScoreRevisionSource)) is None
-    assert len(list(db.scalars(select(StoredObject)))) == 1
+    assert len(list(db.scalars(select(StoredObject)))) == 0
     assert all(item["status"] == "cleaned" for item in drain_write_cleanup(db, storage))
     assert all(not storage.exists(key) for key in keys)
-    assert storage.exists("jobs/dual-write/thumbnail.svg")
 
 
 def test_render_partial_pages_remain_cleanup_owned(score_service_session, monkeypatch, tmp_path):

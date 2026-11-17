@@ -60,8 +60,8 @@ publish ready/failed realtime state only after an accepted current-attempt outco
 Workers log attempt numbers and tracing context, never fencing tokens.
 
 Derivative generation releases claim locks before expensive computation and physical
-prewrite. Final Render/Playback admission locks Score then the refreshed outbox;
-review thumbnails lock ImportJob then RenderOutbox. The exact lease and domain
+prewrite. Final revision-render/Playback admission locks Score then the refreshed outbox.
+The exact lease and domain
 target/source identity are checked before adopting bytes or changing assets,
 accounting and retirements. Successful adoption and outbox completion commit once in
 the worker transaction; ready realtime is added after accepted completion. Generation
@@ -86,7 +86,7 @@ than sharing a universal job table or runner.
 
 Import finalization commits Job state, diagnostics, ready-for-review/failed notifications,
 notifications.changed and import_jobs.changed realtime in one
-transaction. Review-thumbnail work shares the success transaction. Publication failure
+transaction. Publication failure
 rolls back the accepted domain outcome. Current-attempt locks and terminal-state checks
 prevent repeated terminal calls from duplicating realtime rows. Delivery exhaustion
 admits failure consequences only when unfinished work actually transitions to FAILED.
@@ -147,7 +147,7 @@ missed publication, due retries and expired leases through DurableDeliveryLifecy
 Import pipeline composition, artifacts, deadlines and progress live under
 `app.modules.import_jobs.pipeline`; OMR/MusicXML/text engines remain shared processing
 capabilities. Workers use the neutral `app.task_queue.protocols.CeleryTaskLike`.
-Render REVIEW_THUMBNAIL calls `import_jobs.review` and retains exact lease fencing.
+Import Review retains temporary MusicXML and original uploads until confirmation.
 Import Review APIs are ImportJob sub-resources. Confirmation commits Score/RevisionWriter
 admission, input promotion, temporary release and retained completed-notification navigation
 enrichment in one transaction. A notification removed by retention does not block

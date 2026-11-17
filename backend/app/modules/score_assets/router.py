@@ -131,6 +131,7 @@ def list_score_revision_assets(
 def archive_score_render_assets(
     score_id: str,
     kind: RenderAssetKind = Query(...),
+    render_profile: str = Query(..., min_length=1),
     revision_id: str | None = Query(default=None),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db, scope="function"),
@@ -143,6 +144,7 @@ def archive_score_render_assets(
         user_id,
         revision_uuid=revision_id,
         kind=kind,
+        render_profile=render_profile,
     )
     return StreamingResponse(
         archive,

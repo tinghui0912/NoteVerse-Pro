@@ -13,7 +13,7 @@ from app.modules.mail.outbox_service import mail_outbox_service
 from app.modules.storage_objects.retirement import retirement_delivery
 from app.modules.practice.bundle.retention import practice_bundle_retention
 from app.modules.playback.outbox_service import playback_outbox_service
-from app.modules.rendering.delivery import render_outbox_service
+from app.modules.revisions.render_delivery import revision_render_delivery
 from app.modules.storage_usage.service import storage_usage_service
 from app.storage import object_storage
 from app.worker.task_runtime import run_scheduler_scan
@@ -35,20 +35,20 @@ def execute_import_dispatch_maintenance() -> dict[str, int]:
     return run_scheduler_scan("import_dispatch", scan)
 
 
-def execute_render_outbox_maintenance() -> dict[str, int]:
+def execute_score_revision_render_maintenance() -> dict[str, int]:
     """Recover stale render deliveries and dispatch all due outbox records."""
 
     def scan() -> dict[str, int]:
         with SessionLocal() as db:
-            due = render_outbox_service.recover_and_list_due(db)
+            due = revision_render_delivery.recover_and_list_due(db)
             db.commit()
 
-        from app.modules.rendering.dispatch import dispatch_render_outbox
+        from app.modules.revisions.render_dispatch import dispatch_score_revision_render
 
-        dispatched = sum(1 for outbox_uuid in due if dispatch_render_outbox(outbox_uuid))
+        dispatched = sum(1 for outbox_uuid in due if dispatch_score_revision_render(outbox_uuid))
         return {"due": len(due), "dispatched": dispatched}
 
-    return run_scheduler_scan("render_outbox", scan)
+    return run_scheduler_scan("score_revision_render_outbox", scan)
 
 
 def execute_playback_outbox_maintenance() -> dict[str, int]:

@@ -139,6 +139,7 @@ class ScoreAssetService:
         *,
         revision_uuid: str | None = None,
         kind: RenderAssetKind,
+        render_profile: str,
     ) -> tuple[io.BytesIO, str]:
         access = self.access_policy.authorize_revision(
             db,
@@ -151,6 +152,7 @@ class ScoreAssetService:
             db,
             require_persisted_id(access.revision.id, entity="score revision"),
             kind,
+            render_profile=render_profile,
         )
         if not render_assets:
             raise ResourceNotFoundException(
@@ -264,6 +266,7 @@ class ScoreAssetService:
         self, render_asset: ScoreRenderAsset, revision: ScoreRevision
     ) -> RenderAssetRead:
         return RenderAssetRead(
+            render_profile=render_asset.render_profile,
             render_asset_id=render_asset.asset_uuid,
             revision_id=revision.revision_uuid,
             kind=render_asset.kind,

@@ -5,10 +5,11 @@ from app.core.config import settings
 from app.db.models import (
     ImportJob,
     ImportDispatch,
-    RenderOutbox,
+    ScoreRevisionRenderOutbox,
     PlaybackOutbox,
     MailOutbox,
     ScoreDeletionOperation,
+    ScoreRevision,
 )
 from app.modules.ops.operation_filters import AsyncOperationFilters
 from app.modules.ops.schemas import AsyncOperationKind
@@ -91,18 +92,20 @@ def operation_projection():
     """One aligned SQL definition per kind, shared by list, summary and metrics."""
     r, p, m, s = (
         model.__table__.c
-        for model in (RenderOutbox, PlaybackOutbox, MailOutbox, ScoreDeletionOperation)
+        for model in (ScoreRevisionRenderOutbox, PlaybackOutbox, MailOutbox, ScoreDeletionOperation)
     )
     return union_all(
         _import_projection(),
         _delivery_projection(
-            RenderOutbox,
-            kind=AsyncOperationKind.RENDER,
+            ScoreRevisionRenderOutbox,
+            kind=AsyncOperationKind.REVISION_RENDER,
             identity=r.outbox_uuid,
-            resource_type=func.lower(cast(r.target_type, String)),
-            resource_id=r.outbox_uuid,
-            max_attempts=settings.RENDER_OUTBOX_MAX_ATTEMPTS,
-        ),
+            resource_type=literal("score_revision"),
+            resource_id=ScoreRevision.revision_uuid,
+            max_attempts=settings.REVISION_RENDER_MAX_ATTEMPTS,
+        )
+        .select_from(ScoreRevisionRenderOutbox)
+        .join(ScoreRevision, ScoreRevision.id == r.revision_id),
         _delivery_projection(
             PlaybackOutbox,
             kind=AsyncOperationKind.PLAYBACK,

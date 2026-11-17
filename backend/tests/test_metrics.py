@@ -12,7 +12,7 @@ from app.modules.scheduler_lock.constants import BEAT_LEADER_SCHEDULER_NAME
 
 
 def test_scheduler_heartbeat_metrics_read_orm_entities() -> None:
-    heartbeat = SchedulerHeartbeat(job_key="render_outbox")
+    heartbeat = SchedulerHeartbeat(job_key="score_revision_render_outbox")
 
     class ScalarResult:
         def all(self) -> list[SchedulerHeartbeat]:
@@ -28,7 +28,10 @@ def test_scheduler_heartbeat_metrics_read_orm_entities() -> None:
 
     lines = _scheduler_heartbeat_lines(Session())
 
-    assert 'noteverse_scheduler_lock_acquired_total{scheduler_job="render_outbox"} 0' in lines
+    assert (
+        'noteverse_scheduler_lock_acquired_total{scheduler_job="score_revision_render_outbox"} 0'
+        in lines
+    )
 
 
 def test_scheduler_leader_metrics_read_dedicated_orm_entity() -> None:
@@ -56,7 +59,7 @@ def test_exporter_metrics_endpoint_exposes_durable_projection(
     monkeypatch,
 ) -> None:
     def durable_metrics(_db: object) -> str:
-        return 'noteverse_scheduler_lag_seconds{operation_kind="render"} 0\n'
+        return 'noteverse_scheduler_lag_seconds{operation_kind="revision_render"} 0\n'
 
     monkeypatch.setattr("app.api.metrics.async_operation_metrics_text", durable_metrics)
 

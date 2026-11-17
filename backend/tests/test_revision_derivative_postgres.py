@@ -19,9 +19,8 @@ from app.db.models import (
     Score,
     ScoreRevision,
     ScoreRevisionSource,
-    RenderOutbox,
-    RenderOutboxStatus,
-    RenderTargetType,
+    ScoreRevisionRenderOutbox,
+    ScoreRevisionRenderStatus,
     PlaybackOutbox,
     PlaybackOutboxStatus,
     ScoreRenderAsset,
@@ -34,7 +33,7 @@ from app.modules.score_assets import score_revision_rendering as render_service
 from app.modules.durable_work.delivery import DeliveryAttemptLease
 from app.modules.playback import service as playback_service
 from app.processing.engines.playback.renderer import RenderedAudio
-from app.worker.execution import render_outbox, playback_outbox
+from app.worker.execution import score_revision_render_outbox, playback_outbox
 from tests.support.object_storage import InMemoryObjectStorage
 from tests.support.postgres_schema import postgres_schema_database
 from tests.support.write_cleanup import drain_write_cleanup
@@ -47,9 +46,11 @@ def test_final_admission_serializes_with_current_score(monkeypatch, tmp_path, ki
     with postgres_schema_database(monkeypatch) as (engine, config):
         command.upgrade(config, "head")
         enums = {item["name"]: item["labels"] for item in sa.inspect(engine).get_enums()}
-        assert enums["renderoutboxstatus"] == [status.value for status in RenderOutboxStatus]
+        assert ScoreRevisionRenderOutbox.__table__.c.status.type.enums == [
+            status.value for status in ScoreRevisionRenderStatus
+        ]
         assert enums["playbackoutboxstatus"] == [status.value for status in PlaybackOutboxStatus]
-        for model in (RenderOutbox, PlaybackOutbox):
+        for model in (ScoreRevisionRenderOutbox, PlaybackOutbox):
             assert {
                 column["name"] for column in sa.inspect(engine).get_columns(model.__tablename__)
             } == set(model.__table__.columns.keys())
@@ -105,9 +106,8 @@ def test_final_admission_serializes_with_current_score(monkeypatch, tmp_path, ki
                     generator_version="1",
                 )
             )
-            render_work = RenderOutbox(
+            render_work = ScoreRevisionRenderOutbox(
                 outbox_uuid="race-render",
-                target_type=RenderTargetType.SCORE_REVISION,
                 score_id=score_id,
                 revision_id=r1,
                 requested_by_user_id=user_id,
@@ -122,7 +122,7 @@ def test_final_admission_serializes_with_current_score(monkeypatch, tmp_path, ki
             seed.add(render_work if kind == "render" else audio_work)
             seed.commit()
         physical_written, admit = Event(), Event()
-        worker = render_outbox if kind == "render" else playback_outbox
+        worker = score_revision_render_outbox if kind == "render" else playback_outbox
         service_module = render_service if kind == "render" else playback_service
         original_write = service_module.write_object
 
@@ -163,8 +163,8 @@ def test_final_admission_serializes_with_current_score(monkeypatch, tmp_path, ki
                 lambda: render_service.ScoreRevisionRenderService(storage=storage),
             )
             monkeypatch.setattr(worker, "_publish_revision_render_change", publish)
-            execute = worker.execute_render_outbox_task
-            model = RenderOutbox
+            execute = worker.execute_score_revision_render_task
+            model = ScoreRevisionRenderOutbox
             asset_model = ScoreRenderAsset
         else:
             renderer = Mock()
@@ -241,7 +241,7 @@ def test_final_admission_serializes_with_current_score(monkeypatch, tmp_path, ki
             if change == "head":
                 assert execute(None, f"race-{kind}")["status"] == "ignored"
                 delivery = (
-                    worker.render_outbox_service
+                    worker.revision_render_delivery
                     if kind == "render"
                     else worker.playback_outbox_service
                 )

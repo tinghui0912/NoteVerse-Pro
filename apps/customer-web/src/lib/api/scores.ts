@@ -44,7 +44,7 @@ export const scoresApi = {
     responseBody(scoreRevisionSourceDownload({ ...customerTransport.authenticated, path: { source_id: sourceId }, parseAs: 'blob' })),
   downloadRenderAsset: (renderAssetId: string) =>
     responseBody(scoreRenderAssetDownload({ ...customerTransport.authenticated, path: { render_asset_id: renderAssetId }, parseAs: 'blob' })),
-  downloadRenderAssetArchive: (scoreId: string, revisionId: string, kind: NonNullable<ScoreRenderAssetsArchiveData['query']>['kind']) =>
-    responseBody(scoreRenderAssetsArchive({ ...customerTransport.authenticated, path: { score_id: scoreId }, query: { revision_id: revisionId, kind }, parseAs: 'blob' })),
+  downloadRenderAssetArchive: (scoreId: string, revisionId: string, kind: NonNullable<ScoreRenderAssetsArchiveData['query']>['kind'], renderProfile: string) =>
+    responseBody(scoreRenderAssetsArchive({ ...customerTransport.authenticated, path: { score_id: scoreId }, query: { revision_id: revisionId, kind, render_profile: renderProfile }, parseAs: 'blob' })),
   playbackUrl: scorePlaybackUrl,
 };

@@ -27,7 +27,7 @@ revisions. Outer rollback discards all semantic writes; callers release the roll
 reservation. ScoreRevisionEvent retains revision product/audit history.
 
 Review confirmation retains ImportDispatch → ImportJob → new Score lock order.
-Writer participates with Score creation, thumbnail/input promotion, input accounting,
+Writer participates with Score creation, input promotion, input accounting,
 notification attachment and Job CONFIRMED. Import authorization/state validation and
 temporary binary cleanup stay in the Review/Import use case.
 

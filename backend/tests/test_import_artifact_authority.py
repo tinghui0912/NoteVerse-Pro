@@ -51,7 +51,7 @@ def test_import_artifact_persistence_uses_exact_lowercase_enum(postgres_engine):
             .scalars()
             .all()
         )
-        assert labels == ["review_musicxml", "review_preview_image"]
+        assert labels == ["review_musicxml"]
         assert not ImportJob.__table__.c.requested_options.nullable
         db.add(User(id=1, email="artifact@example.test", password_hash="hash"))
         db.flush()

@@ -53,7 +53,7 @@ from .score_access import (
     ScoreInvite,
     ScoreMembership,
 )
-from .render_outbox import RenderOutbox, RenderOutboxStatus, RenderTargetType
+from .score_revision_render_outbox import ScoreRevisionRenderOutbox, ScoreRevisionRenderStatus
 from .mail_outbox import MailOutbox, MailOutboxStatus
 from .playback import (
     PlaybackAssetKind,
@@ -140,10 +140,9 @@ __all__ = [
     "MembershipRole",
     "ScoreInvite",
     "ScoreMembership",
-    "RenderOutboxStatus",
-    "RenderTargetType",
+    "ScoreRevisionRenderStatus",
     "RevisionMetadataOutbox",
-    "RenderOutbox",
+    "ScoreRevisionRenderOutbox",
     "MailOutbox",
     "MailOutboxStatus",
     "PlaybackAssetKind",

@@ -38,7 +38,6 @@ def test_read_model_preserves_lifecycle_instants_and_emits_utc():
     repository = Mock(spec=ImportJobRepository)
     repository.score_uuids.return_value = {1: "score"}
     repository.execution_manifest_digests.return_value = {}
-    repository.preview_artifacts_for_jobs.return_value = []
     repository.uploads_for_jobs.return_value = []
 
     representation = ImportJobReadModel(repository).detail(Mock(), job)

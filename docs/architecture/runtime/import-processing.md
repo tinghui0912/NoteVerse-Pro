@@ -40,7 +40,7 @@ consistency, complete-or-absent failure taxonomy and progress between zero and 1
 
 Finalization commits Job state, diagnostics, its ready-for-review/failed notification,
 notifications.changed realtime and import_jobs.changed realtime in
-one transaction. Review-thumbnail admission shares the success transaction. Admission
+one transaction. Admission
 failures roll back all these database consequences. Exact-attempt locks and current
 execution-closed state ensure redelivery does not repeat notification or realtime rows.
 Delivery exhaustion admits failure consequences only when it transitions unfinished work.
@@ -118,7 +118,7 @@ failure-facts helpers, and callers continue to own their transactions.
 ## Import-owned review and confirmation
 
 `app.modules.import_jobs.review` owns ImportReviewService, its read model, temporary
-candidate updates and fenced thumbnail implementation. Its API is the ImportJob
+candidate MusicXML updates and original-upload projections. Its API is the ImportJob
 sub-resource `/api/v1/import-jobs/{job_id}/review` (GET/PATCH) with POST `/confirm`.
 The browser workspace remains `/review/:jobId` and `/review/:jobId/edit`.
 
@@ -126,9 +126,9 @@ The browser workspace remains `/review/:jobId` and `/review/:jobId/edit`.
 and ImportArtifact recording. Shared processing engines stay in `app.processing`;
 Celery structural task protocols belong to `app.task_queue.protocols`.
 
-Confirmation locks ImportDispatch before ImportJob, prepares physical source/thumbnail
-writes, then reacquires those locks and revalidates admission. Its single business
-transaction creates Score, calls RevisionWriter, promotes required thumbnail/inputs,
+Confirmation locks ImportDispatch before ImportJob, prepares the canonical physical source
+write, then reacquires those locks and revalidates admission. Its single business
+transaction creates Score, calls RevisionWriter, promotes retained inputs,
 updates Job CONFIRMED/score link/confirmed_at, transfers accounting and releases temporary Import
 artifacts/upload links through ImportJobDeletionService. That release primitive never
 commits and is shared with the customer deletion use case, which owns its commit.
@@ -162,9 +162,10 @@ configuration. Dispatch, worker commands, pipeline context and builder do not ca
 them. They do not affect the OMR execution manifest identity.
 
 `ImportArtifact.kind` is the persisted `ImportArtifactKind` enum with PostgreSQL
-labels `review_musicxml` and `review_preview_image`. Both share the Import temporary
-artifact lifecycle, TEMP_IMPORT accounting and confirmation/deletion cleanup.
-Pipeline, user review edit and thumbnail rendering retain their producer ownership.
+label `review_musicxml`. The artifact follows the Import temporary lifecycle,
+TEMP_IMPORT accounting and confirmation/deletion cleanup. Pipeline and user review
+edit own its production. Import Review has no server-generated preview demand;
+confirmation admits canonical revision rendering instead of creating render assets.
 Artifact physical-write and execution-adoption boundaries require the enum's
 identity before side effects. Raw strings and foreign enum members grant no artifact
 mutation authority; storage-key serialization uses the admitted kind's value.

@@ -219,7 +219,10 @@ async def test_http_source_disclosure_and_editing_boundaries(collaboration, role
                 ("/revision-sources/trusted-source/access-url", can_download),
                 ("/render-assets/trusted-page/download", can_download),
                 ("/render-assets/trusted-page/access-url", can_download),
-                ("/scores/trusted-score/render-asset-archive?kind=RENDERED_PAGE", can_download),
+                (
+                    "/scores/trusted-score/render-asset-archive?kind=RENDERED_PAGE&render_profile=default",
+                    can_download,
+                ),
                 ("/render-assets/trusted-page/view", True),
                 (
                     "/practice/scores/trusted-score/revisions/trusted-revision/bundle?include_notation=true",

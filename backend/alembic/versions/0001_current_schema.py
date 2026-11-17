@@ -11,7 +11,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    postgresql.ENUM("review_musicxml", "review_preview_image", name="importartifactkind").create(
+    postgresql.ENUM("review_musicxml", name="importartifactkind").create(
         op.get_bind(), checkfirst=False
     )
     postgresql.ENUM(
@@ -62,18 +62,6 @@ def upgrade() -> None:
         name="playbackoutboxstatus",
     ).create(op.get_bind(), checkfirst=False)
     postgresql.ENUM("RENDERED_PAGE", name="renderassetkind").create(op.get_bind(), checkfirst=False)
-    postgresql.ENUM(
-        "PENDING",
-        "DISPATCHED",
-        "PROCESSING",
-        "COMPLETED",
-        "FAILED",
-        "SUPERSEDED",
-        name="renderoutboxstatus",
-    ).create(op.get_bind(), checkfirst=False)
-    postgresql.ENUM("SCORE_REVISION", "REVIEW_THUMBNAIL", name="rendertargettype").create(
-        op.get_bind(), checkfirst=False
-    )
     postgresql.ENUM("OMR", "EDIT", "IMPORT", name="revisionorigin").create(
         op.get_bind(), checkfirst=False
     )
@@ -1359,7 +1347,6 @@ def upgrade() -> None:
             "kind",
             postgresql.ENUM(
                 "review_musicxml",
-                "review_preview_image",
                 name="importartifactkind",
                 create_type=False,
             ),
@@ -2080,7 +2067,7 @@ def upgrade() -> None:
         unique=False,
     )
     op.create_table(
-        "render_outbox",
+        "score_revision_render_outbox",
         sa.Column(
             "id",
             sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
@@ -2088,16 +2075,8 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("outbox_uuid", sa.String(length=36), nullable=False),
-        sa.Column(
-            "target_type",
-            postgresql.ENUM(
-                "SCORE_REVISION", "REVIEW_THUMBNAIL", name="rendertargettype", create_type=False
-            ),
-            nullable=False,
-        ),
-        sa.Column("score_id", sa.BigInteger(), nullable=True),
-        sa.Column("revision_id", sa.BigInteger(), nullable=True),
-        sa.Column("import_job_id", sa.BigInteger(), nullable=True),
+        sa.Column("score_id", sa.BigInteger(), nullable=False),
+        sa.Column("revision_id", sa.BigInteger(), nullable=False),
         sa.Column("source_fingerprint", sa.String(length=64), nullable=False),
         sa.Column("requested_by_user_id", sa.BigInteger(), nullable=True),
         sa.Column("originating_request_id", sa.String(length=64), nullable=True),
@@ -2106,15 +2085,17 @@ def upgrade() -> None:
         sa.Column("render_profile", sa.String(length=128), nullable=False),
         sa.Column(
             "status",
-            postgresql.ENUM(
+            sa.Enum(
                 "PENDING",
                 "DISPATCHED",
                 "PROCESSING",
                 "COMPLETED",
                 "FAILED",
                 "SUPERSEDED",
-                name="renderoutboxstatus",
-                create_type=False,
+                name="ck_score_revision_render_outbox_status",
+                native_enum=False,
+                create_constraint=True,
+                length=16,
             ),
             nullable=False,
         ),
@@ -2132,63 +2113,55 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.CheckConstraint(
-            "(target_type = 'SCORE_REVISION' AND score_id IS NOT NULL AND revision_id IS NOT NULL AND import_job_id IS NULL) OR (target_type = 'REVIEW_THUMBNAIL' AND score_id IS NULL AND revision_id IS NULL AND import_job_id IS NOT NULL)",
-            name="ck_render_outbox_target",
-        ),
-        sa.CheckConstraint("attempt_count >= 0", name="ck_render_outbox_attempt_count"),
-        sa.ForeignKeyConstraint(
-            ["import_job_id"],
-            ["import_jobs.id"],
-            name="fk_render_outbox_import_job_id_import_jobs",
-            ondelete="CASCADE",
+            "attempt_count >= 0", name="ck_score_revision_render_outbox_attempt_count"
         ),
         sa.ForeignKeyConstraint(
             ["requested_by_user_id"],
             ["users.id"],
-            name="fk_render_outbox_requested_by_user_id_users",
+            name="fk_score_revision_render_outbox_requested_by_user_id_users",
             ondelete="SET NULL",
         ),
         sa.ForeignKeyConstraint(
             ["revision_id"],
             ["score_revisions.id"],
-            name="fk_render_outbox_revision_id_score_revisions",
+            name="fk_score_revision_render_outbox_revision_id_score_revisions",
             ondelete="CASCADE",
         ),
         sa.ForeignKeyConstraint(
-            ["score_id"], ["scores.id"], name="fk_render_outbox_score_id_scores", ondelete="CASCADE"
+            ["score_id"],
+            ["scores.id"],
+            name="fk_score_revision_render_outbox_score_id_scores",
+            ondelete="CASCADE",
         ),
         sa.CheckConstraint(
             "((failure_code IS NULL AND failure_stage IS NULL AND failure_classification IS NULL AND failure_retryable IS NULL) OR (failure_code IS NOT NULL AND failure_stage IS NOT NULL AND failure_classification IS NOT NULL AND failure_retryable IS NOT NULL AND failure_classification IN ('transient', 'permanent', 'user_error', 'system_error')))",
-            name="ck_render_outbox_failure_facts",
+            name="ck_score_revision_render_outbox_failure_facts",
         ),
-        sa.PrimaryKeyConstraint("id", name="pk_render_outbox"),
+        sa.PrimaryKeyConstraint("id", name="pk_score_revision_render_outbox"),
+        sa.UniqueConstraint("outbox_uuid", name="uq_score_revision_render_outbox_outbox_uuid"),
         sa.UniqueConstraint(
-            "import_job_id",
-            "render_profile",
-            "source_fingerprint",
-            name="uq_render_outbox_review_source",
-        ),
-        sa.UniqueConstraint("outbox_uuid", name="uq_render_outbox_outbox_uuid"),
-        sa.UniqueConstraint(
-            "revision_id", "render_profile", name="uq_render_outbox_revision_profile"
+            "revision_id", "render_profile", name="uq_score_revision_render_outbox_revision_profile"
         ),
         sa.CheckConstraint(
             "(status = 'PROCESSING' AND attempt_token IS NOT NULL) OR (status <> 'PROCESSING' AND attempt_token IS NULL)",
-            name="ck_render_outbox_attempt_token",
+            name="ck_score_revision_render_outbox_attempt_token",
         ),
     )
     op.create_index(
-        "idx_render_outbox_dispatched", "render_outbox", ["status", "dispatched_at"], unique=False
+        "idx_score_revision_render_outbox_dispatched",
+        "score_revision_render_outbox",
+        ["status", "dispatched_at"],
+        unique=False,
     )
     op.create_index(
-        "idx_render_outbox_status_available",
-        "render_outbox",
+        "idx_score_revision_render_outbox_status_available",
+        "score_revision_render_outbox",
         ["status", "next_attempt_at"],
         unique=False,
     )
     op.create_index(
-        op.f("ix_render_outbox_originating_request_id"),
-        "render_outbox",
+        op.f("ix_score_revision_render_outbox_originating_request_id"),
+        "score_revision_render_outbox",
         ["originating_request_id"],
         unique=False,
     )
@@ -2673,10 +2646,18 @@ def downgrade() -> None:
     )
     op.drop_index("idx_score_playback_assets_revision_kind", table_name="score_playback_assets")
     op.drop_table("score_playback_assets")
-    op.drop_index(op.f("ix_render_outbox_originating_request_id"), table_name="render_outbox")
-    op.drop_index("idx_render_outbox_status_available", table_name="render_outbox")
-    op.drop_index("idx_render_outbox_dispatched", table_name="render_outbox")
-    op.drop_table("render_outbox")
+    op.drop_index(
+        op.f("ix_score_revision_render_outbox_originating_request_id"),
+        table_name="score_revision_render_outbox",
+    )
+    op.drop_index(
+        "idx_score_revision_render_outbox_status_available",
+        table_name="score_revision_render_outbox",
+    )
+    op.drop_index(
+        "idx_score_revision_render_outbox_dispatched", table_name="score_revision_render_outbox"
+    )
+    op.drop_table("score_revision_render_outbox")
     op.drop_index(op.f("ix_playback_outbox_originating_request_id"), table_name="playback_outbox")
     op.drop_index("idx_playback_outbox_status_available", table_name="playback_outbox")
     op.drop_index("idx_playback_outbox_dispatched", table_name="playback_outbox")
@@ -2844,8 +2825,6 @@ def downgrade() -> None:
     postgresql.ENUM(name="playbackassetkind").drop(op.get_bind(), checkfirst=False)
     postgresql.ENUM(name="playbackoutboxstatus").drop(op.get_bind(), checkfirst=False)
     postgresql.ENUM(name="renderassetkind").drop(op.get_bind(), checkfirst=False)
-    postgresql.ENUM(name="renderoutboxstatus").drop(op.get_bind(), checkfirst=False)
-    postgresql.ENUM(name="rendertargettype").drop(op.get_bind(), checkfirst=False)
     postgresql.ENUM(name="revisionorigin").drop(op.get_bind(), checkfirst=False)
     postgresql.ENUM(name="revisionsourceformat").drop(op.get_bind(), checkfirst=False)
     postgresql.ENUM(name="scoredeletionoperationstatus").drop(op.get_bind(), checkfirst=False)

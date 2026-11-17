@@ -10,7 +10,7 @@ from app.core.logger import logger
 class RevisionDerivativeOutboxes:
     score_id: int
     revision_id: int
-    render_outbox_uuid: str
+    revision_render_outbox_uuid: str
     playback_outbox_uuid: str
 
 
@@ -26,7 +26,7 @@ class RevisionDerivativeService:
 
 def _log_fast_dispatch_failure(work: RevisionDerivativeOutboxes, exc: Exception) -> None:
     for kind, outbox_id in (
-        ("render", work.render_outbox_uuid),
+        ("revision_render", work.revision_render_outbox_uuid),
         ("playback", work.playback_outbox_uuid),
     ):
         logger.bind(

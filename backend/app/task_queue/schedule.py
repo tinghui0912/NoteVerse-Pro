@@ -48,9 +48,9 @@ def build_beat_schedule(settings: Settings) -> BeatSchedule:
             "task": "app.worker.tasks.run_score_deletion_maintenance",
             "schedule": float(settings.SCORE_DELETION_INTERVAL_SECONDS),
         },
-        "render-outbox-maintenance": {
-            "task": "app.worker.tasks.run_render_outbox_maintenance",
-            "schedule": float(settings.RENDER_OUTBOX_DISPATCH_INTERVAL_SECONDS),
+        "score-revision-render-maintenance": {
+            "task": "app.worker.tasks.run_score_revision_render_maintenance",
+            "schedule": float(settings.REVISION_RENDER_DISPATCH_INTERVAL_SECONDS),
         },
         "playback-outbox-maintenance": {
             "task": "app.worker.tasks.run_playback_outbox_maintenance",

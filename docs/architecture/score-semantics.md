@@ -273,8 +273,7 @@ store malformed written chronology and defer its discovery to metadata.
 Raw OMR output, pipeline intermediates and job-scoped `REVIEW_MUSICXML` candidates
 recorded by the import pipeline remain temporary upstream artifacts. Their storage
 is not a claim of canonical semantic admission. Explicit Review update/confirm and
-confirmed-score creation enforce the trusted boundary. Pipeline recording and review
-thumbnail generation do not turn raw intermediates into canonical revision sources.
+confirmed-score creation enforce the trusted boundary. Pipeline recording does not turn raw intermediates into canonical revision sources.
 
 The cross-projection fixture `backend/tests/fixtures/musicxml/written-semantics.musicxml`
 combines multiple parts, divisions changes, voices/backup, forward, an empty measure,

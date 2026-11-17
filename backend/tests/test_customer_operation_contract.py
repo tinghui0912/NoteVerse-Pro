@@ -258,7 +258,9 @@ def test_render_archive_success_is_zip_not_json(client):
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
     app.dependency_overrides[get_score_asset_service] = lambda: service
     try:
-        response = client.get("/api/v1/scores/score/render-asset-archive?kind=RENDERED_PAGE")
+        response = client.get(
+            "/api/v1/scores/score/render-asset-archive?kind=RENDERED_PAGE&render_profile=default"
+        )
         assert response.status_code == 200 and response.content == content
         assert response.headers["content-type"] == "application/zip"
         contract = operations(client.get("/api/v1/openapi.json").json())["scoreRenderAssetsArchive"]
@@ -336,4 +338,19 @@ def test_avatar_resolution_is_a_bodyless_redirect_with_location(client):
         assert not contract["responses"]["307"].get("content")
     finally:
         for dep in (get_db, get_avatar_service):
+            app.dependency_overrides.pop(dep, None)
+
+
+def test_render_archive_requires_an_explicit_profile(client):
+    def database():
+        yield object()
+
+    app.dependency_overrides[get_db] = database
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
+    try:
+        response = client.get("/api/v1/scores/score/render-asset-archive?kind=RENDERED_PAGE")
+        assert response.status_code == 422
+        assert response.json()["code"] == "validation_error"
+    finally:
+        for dep in (get_db, get_current_user):
             app.dependency_overrides.pop(dep, None)

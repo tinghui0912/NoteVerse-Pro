@@ -106,6 +106,7 @@ def test_admitted_asset_lists_deliveries_and_review_use_database_facts(admitted)
     listed = assets.list_revision_assets(db, score.score_uuid, 1)
     assert listed.revision_sources[0].source_id == source.source_uuid
     assert listed.render_assets[0].render_asset_id == page.asset_uuid
+    assert listed.render_assets[0].render_profile == page.render_profile
     assert set(listed.revision_sources[0].model_dump()) == {
         "source_id",
         "revision_id",
@@ -117,6 +118,7 @@ def test_admitted_asset_lists_deliveries_and_review_use_database_facts(admitted)
     }
     assert set(listed.render_assets[0].model_dump()) == {
         "render_asset_id",
+        "render_profile",
         "revision_id",
         "kind",
         "filename",

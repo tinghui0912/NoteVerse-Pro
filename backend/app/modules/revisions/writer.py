@@ -24,12 +24,13 @@ from app.db.models.score import RevisionOrigin, RevisionSourceFormat, MetadataSt
 from app.db.models.revision_metadata_outbox import RevisionMetadataOutbox
 from app.modules.storage_objects.writes import ObjectWriteReceipt, adopt_written_object
 from app.modules.storage_usage.service import storage_usage_service
-from app.modules.rendering.admission import admit_revision_render
+from app.modules.revisions.render_admission import admit_revision_render
 from app.modules.playback.outbox_service import create_playback_outbox
 from app.modules.revisions.derivatives import RevisionDerivativeOutboxes
 from app.modules.realtime.publisher import score_recipients, publish_change
 from app.modules.notifications.service import notification_service
 from app.shared.error_codes import CustomerErrorCode
+from app.score_semantics.render_profile import SCORE_PRESENTATION_RENDER_PROFILE
 from app.shared.time import utc_now
 
 
@@ -196,6 +197,7 @@ class RevisionWriter:
             revision_id=revision_id,
             requested_by_user_id=command.actor_user_id,
             source_fingerprint=prepared.content_hash,
+            render_profile=SCORE_PRESENTATION_RENDER_PROFILE,
         )
         playback = create_playback_outbox(
             db,

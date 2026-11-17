@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback } from 'react';
+import { SCORE_PRESENTATION_RENDER_PROFILE } from '@/lib/score/render-profile';
 import { scoresApi } from '@/lib/api';
 import type { ScoreRevisionAssetsRead } from '@/generated/api';
 import { useToast } from '@/hooks/use-toast';
@@ -43,11 +44,15 @@ export function useDownload({ id, assets = emptyAssets }: UseDownloadOptions): U
                 triggerDownload(blob, `score_${id}.musicxml`);
                 return;
             } else {
-                const pages = assets.render_assets.filter((item) => item.kind === 'RENDERED_PAGE');
+                const pages = assets.render_assets.filter((item) =>
+                    item.kind === 'RENDERED_PAGE' && item.render_profile === SCORE_PRESENTATION_RENDER_PROFILE
+                );
                 if (!pages.length) throw new Error('FILE_NOT_FOUND');
                 const blob = pages.length === 1
                     ? await scoresApi.downloadRenderAsset(pages[0].render_asset_id)
-                    : await scoresApi.downloadRenderAssetArchive(id, pages[0].revision_id, 'RENDERED_PAGE');
+                    : await scoresApi.downloadRenderAssetArchive(
+                        id, pages[0].revision_id, 'RENDERED_PAGE', SCORE_PRESENTATION_RENDER_PROFILE
+                    );
                 triggerDownload(
                     blob,
                     pages.length === 1 ? `score_${id}.${extensionFromBlob(blob)}` : `score_${id}.zip`

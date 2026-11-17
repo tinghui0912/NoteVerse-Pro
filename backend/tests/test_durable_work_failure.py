@@ -14,8 +14,8 @@ from app.core.exceptions import (
     TimeoutException,
 )
 from app.db.models import (
-    RenderOutbox,
-    RenderOutboxStatus,
+    ScoreRevisionRenderOutbox,
+    ScoreRevisionRenderStatus,
     PlaybackOutbox,
     PlaybackOutboxStatus,
     MailOutbox,
@@ -30,7 +30,7 @@ from app.modules.durable_work.failure import (
     clear_failure_facts,
 )
 from app.shared.durable_failure import DurableFailureClass
-from app.modules.rendering.delivery import RenderOutboxService
+from app.modules.revisions.render_delivery import ScoreRevisionRenderDelivery
 from app.modules.playback.outbox_service import PlaybackOutboxService
 from app.modules.mail.outbox_service import MailOutboxService
 from app.modules.scores.deletion_delivery import ScoreDeletionDeliveryService, ScoreDeletionLease
@@ -73,10 +73,10 @@ def test_import_execution_failure_uses_typed_evidence(error, code, classificatio
     [
         (
             "render",
-            RenderOutbox,
-            RenderOutboxStatus,
-            RenderOutboxService,
-            settings.RENDER_OUTBOX_MAX_ATTEMPTS,
+            ScoreRevisionRenderOutbox,
+            ScoreRevisionRenderStatus,
+            ScoreRevisionRenderDelivery,
+            settings.REVISION_RENDER_MAX_ATTEMPTS,
         ),
         (
             "playback",
@@ -205,10 +205,10 @@ def test_failure_facts_copies_and_clears_exact_facts():
     [
         (
             "render",
-            RenderOutbox,
-            RenderOutboxStatus,
-            RenderOutboxService,
-            settings.RENDER_OUTBOX_MAX_ATTEMPTS,
+            ScoreRevisionRenderOutbox,
+            ScoreRevisionRenderStatus,
+            ScoreRevisionRenderDelivery,
+            settings.REVISION_RENDER_MAX_ATTEMPTS,
         ),
         (
             "playback",
@@ -247,10 +247,10 @@ def test_derivative_lease_recovery_records_exact_cause_and_retry_capacity(
     [
         (
             "render",
-            RenderOutbox,
-            RenderOutboxStatus,
-            RenderOutboxService,
-            settings.RENDER_OUTBOX_MAX_ATTEMPTS,
+            ScoreRevisionRenderOutbox,
+            ScoreRevisionRenderStatus,
+            ScoreRevisionRenderDelivery,
+            settings.REVISION_RENDER_MAX_ATTEMPTS,
         ),
         (
             "playback",
@@ -284,7 +284,7 @@ def test_broker_rejection_records_dispatch_failure_without_consuming_attempt(
 @pytest.mark.parametrize(
     "kind,model,service",
     [
-        ("render", RenderOutbox, RenderOutboxService),
+        ("render", ScoreRevisionRenderOutbox, ScoreRevisionRenderDelivery),
         ("playback", PlaybackOutbox, PlaybackOutboxService),
     ],
 )
@@ -367,7 +367,7 @@ def test_score_deletion_lease_recovery_owns_retry_capacity(exhausted):
 @pytest.mark.parametrize(
     "model,service",
     [
-        (RenderOutbox, RenderOutboxService),
+        (ScoreRevisionRenderOutbox, ScoreRevisionRenderDelivery),
         (PlaybackOutbox, PlaybackOutboxService),
         (MailOutbox, MailOutboxService),
     ],
@@ -383,14 +383,16 @@ def test_healthy_queued_delivery_rejects_operator_rearm(model, service):
     assert row.attempt_count == 0 and row.failure_code is None
 
 
-@pytest.mark.parametrize("kind", ["import", "render", "playback", "mail", "score_deletion"])
+@pytest.mark.parametrize(
+    "kind", ["import", "revision_render", "playback", "mail", "score_deletion"]
+)
 def test_ops_commits_the_domain_owned_rearm_and_reads_the_sql_projection(kind, monkeypatch):
     from app.modules.ops import command_service
     from app.modules.ops.schemas import AsyncOperationKind
 
     owners = {
         "import": command_service.import_dispatch_service,
-        "render": command_service.render_outbox_service,
+        "revision_render": command_service.revision_render_delivery,
         "playback": command_service.playback_outbox_service,
         "mail": command_service.mail_outbox_service,
         "score_deletion": command_service.score_deletion_delivery,

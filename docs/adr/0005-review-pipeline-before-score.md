@@ -23,8 +23,9 @@ OCR output requires human confirmation before it becomes a stable score. Job-sco
 8. Saving in `/review/:jobId/edit` updates the review artifact through `PATCH /import-jobs/{job_id}/review`.
    It does not create a Score revision.
 9. Confirming review creates the first Score, its first revision, the canonical MusicXML
-   revision source, pending metadata projection and its durable work. Render assets and playback
-   assets are generated asynchronously as rebuildable derived outputs.
+   revision source, pending metadata projection and revision-owned durable render/playback work.
+   Accepted Score Revision Render execution generates the first render assets asynchronously;
+   Review MusicXML and original uploads remain job-scoped before confirmation.
 10. Score routes and capabilities start after confirm:
     `/score/:scoreId`, `/score/:scoreId/edit`, `/score/:scoreId/practice`, Guest Preview, invites,
     and collaboration all require a confirmed Score.

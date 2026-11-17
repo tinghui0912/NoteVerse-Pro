@@ -172,13 +172,13 @@ def test_failed_outcome_publication_failure_leaves_processing_for_lease_recovery
 ):
     kind, engine, storage, service, model, module, lifecycle, execute, generate = generation
     add_member(engine)
-    from app.worker.execution import render_outbox, playback_outbox
+    from app.worker.execution import score_revision_render_outbox, playback_outbox
 
     def fail(*args, **kwargs):
         raise OSError("generation failed")
 
     if kind == "render":
-        monkeypatch.setattr(render_outbox, "_render_target", fail)
+        monkeypatch.setattr(score_revision_render_outbox, "_render_revision", fail)
     else:
         monkeypatch.setattr(playback_outbox.PlaybackGenerationService(), "render_for_worker", fail)
     original, recipients = interrupt_second_notify(monkeypatch, first_outcome_only=True)

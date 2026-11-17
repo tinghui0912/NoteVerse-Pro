@@ -2,9 +2,9 @@
 
 from sqlalchemy import select
 from uuid import uuid4
-from app.db.models import RenderOutbox, RenderTargetType, PlaybackOutbox
-from app.modules.rendering.delivery import (
-    render_outbox_service,
+from app.db.models import ScoreRevisionRenderOutbox, PlaybackOutbox
+from app.modules.revisions.render_delivery import (
+    revision_render_delivery,
     _delivery_lifecycle as render_lifecycle,
 )
 from app.modules.playback.outbox_service import (
@@ -16,7 +16,7 @@ from app.shared.time import utc_now
 
 def revision_attempt(db, kind, score, revision):
     model, service, lifecycle = (
-        (RenderOutbox, render_outbox_service, render_lifecycle)
+        (ScoreRevisionRenderOutbox, revision_render_delivery, render_lifecycle)
         if kind == "render"
         else (PlaybackOutbox, playback_outbox_service, playback_lifecycle)
     )
@@ -29,8 +29,6 @@ def revision_attempt(db, kind, score, revision):
             source_fingerprint=revision.content_hash,
             requested_by_user_id=score.owner_user_id,
         )
-        if kind == "render":
-            fields["target_type"] = RenderTargetType.SCORE_REVISION
         row = model(**fields)
         db.add(row)
     else:

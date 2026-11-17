@@ -10,7 +10,7 @@ from app.shared.durable_failure import DurableFailureClass
 
 class AsyncOperationKind(str, enum.Enum):
     IMPORT = "import"
-    RENDER = "render"
+    REVISION_RENDER = "revision_render"
     PLAYBACK = "playback"
     MAIL = "mail"
     SCORE_DELETION = "score_deletion"

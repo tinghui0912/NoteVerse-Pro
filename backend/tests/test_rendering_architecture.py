@@ -1,100 +1,81 @@
-"""Rendering orchestration composes domain-owned persistence and pure engine execution."""
+"""Revision presentation owns durable rendering; renderer capabilities are stateless."""
 
 import ast
 from pathlib import Path
 
-from app.modules.rendering.delivery import RenderOutboxService
-from app.modules.rendering.targets import RenderPayloadBuilder
-from app.modules.rendering.renderer import render_musicxml
-from app.modules.score_assets.score_revision_rendering import ScoreRevisionRenderService
-from app.modules.import_jobs.review.thumbnail_service import ImportReviewThumbnailService
+from sqlalchemy import UniqueConstraint
+from app.db.models import ScoreRevisionRenderOutbox, ScoreRevisionRenderStatus
+from app.modules.revisions.render_delivery import _delivery_lifecycle, revision_render_delivery
+from app.modules.revisions.render_target import ScoreRevisionRenderTarget
+from app.modules.durable_work.delivery import DurableDeliveryLifecycle
 
 ROOT = Path(__file__).parents[1] / "app"
 
 
 def imports(relative):
     return {
-        node.module: {alias.name for alias in node.names}
-        for node in ast.walk(ast.parse((ROOT / relative).read_text(encoding="utf-8")))
-        if isinstance(node, ast.ImportFrom)
+        n.module
+        for n in ast.walk(ast.parse((ROOT / relative).read_text(encoding="utf-8")))
+        if isinstance(n, ast.ImportFrom) and n.module
     }
 
 
-def test_rendering_owns_delivery_resolution_and_engine_execution():
-    assert RenderOutboxService.__module__ == "app.modules.rendering.delivery"
-    assert RenderPayloadBuilder.__module__ == "app.modules.rendering.targets"
-    assert render_musicxml.__module__ == "app.modules.rendering.renderer"
-    assert set(imports("modules/rendering/renderer.py")) <= {
-        "dataclasses",
-        "pathlib",
-        "tempfile",
-        "app.core.config",
-        "app.processing.engines.render",
+def test_revision_render_record_has_one_revision_profile_identity():
+    table = ScoreRevisionRenderOutbox.__table__
+    assert table.name == "score_revision_render_outbox"
+    assert table.c.status.type.enum_class is ScoreRevisionRenderStatus
+    assert all(
+        not table.c[name].nullable
+        for name in ("score_id", "revision_id", "source_fingerprint", "render_profile")
+    )
+    identities = {
+        tuple(c.name for c in item.columns)
+        for item in table.constraints
+        if isinstance(item, UniqueConstraint)
+    }
+    assert ("revision_id", "render_profile") in identities
+    assert {fk.target_fullname for fk in table.foreign_keys} == {
+        "scores.id",
+        "score_revisions.id",
+        "users.id",
     }
 
 
-def test_domains_use_rendering_admission_and_keep_their_persistence():
-    writer = imports("modules/revisions/writer.py")
-    assert "admit_revision_render" in writer["app.modules.rendering.admission"]
-    assert all(not module.startswith("app.modules.score_assets") for module in writer)
-    for path in (
-        "modules/import_jobs/execution_recorder.py",
-        "modules/import_jobs/review/service.py",
-    ):
-        domain = imports(path)
-        assert "admit_review_thumbnail_render" in domain["app.modules.rendering.admission"]
-        assert all(not module.startswith("app.modules.score_assets") for module in domain)
-    score = imports("modules/score_assets/score_revision_rendering.py")
-    review = imports("modules/import_jobs/review/thumbnail_service.py")
-    assert "ScoreRenderAsset" in score["app.db.models"]
-    assert "ImportArtifact" in review["app.db.models"]
-    assert "render_musicxml" in score["app.modules.rendering.renderer"]
-    assert "render_musicxml" in review["app.modules.rendering.renderer"]
-    assert "render_outbox_service" in score["app.modules.rendering.delivery"]
-    assert "render_outbox_service" in review["app.modules.rendering.delivery"]
-    assert (
-        ScoreRevisionRenderService.__module__ == "app.modules.score_assets.score_revision_rendering"
+def test_revision_domain_owns_durable_admission_and_dispatch():
+    assert revision_render_delivery.__class__.__module__ == "app.modules.revisions.render_delivery"
+    assert isinstance(_delivery_lifecycle(), DurableDeliveryLifecycle)
+    assert "app.modules.revisions.render_admission" in imports("modules/revisions/writer.py")
+    assert "app.modules.revisions.render_delivery" in imports(
+        "modules/revisions/render_dispatch.py"
     )
-    assert (
-        ImportReviewThumbnailService.__module__
-        == "app.modules.import_jobs.review.thumbnail_service"
+    assert "app.modules.revisions.render_dispatch" in imports(
+        "worker/execution/maintenance_dispatch.py"
     )
+    for file in (ROOT / "modules/import_jobs/review").glob("*.py"):
+        dependencies = imports(str(file.relative_to(ROOT)))
+        assert all(not name.startswith("app.modules.revisions.render_") for name in dependencies)
 
 
-def test_rendering_dispatch_is_shared_by_composition_roots():
-    worker = imports("worker/execution/render_outbox.py")
-    assert worker["app.modules.rendering.targets"] >= {
-        "RenderAttempt",
-        "ScoreRevisionRenderTarget",
-        "ReviewThumbnailRenderTarget",
+def test_renderer_capability_and_revision_execution_have_distinct_owners():
+    assert {p.stem for p in (ROOT / "modules/rendering").glob("*.py")} == {
+        "__init__",
+        "renderer",
+        "execution_manifest",
     }
-    for path in (
-        "worker/execution/render_outbox.py",
-        "worker/execution/maintenance_dispatch.py",
-        "modules/ops/command_service.py",
-    ):
-        assert "render_outbox_service" in imports(path)["app.modules.rendering.delivery"]
-    assert (
-        "dispatch_render_outbox"
-        in imports("worker/execution/maintenance_dispatch.py")["app.modules.rendering.dispatch"]
-    )
-    assert (
-        "send_durable_task" in imports("modules/rendering/dispatch.py")["app.task_queue.producer"]
-    )
-    assert "dispatch" in imports("modules/revisions/dispatch.py")["app.modules.rendering"]
-
-
-def test_asset_repository_reads_score_records_and_playback_readiness():
-    assert imports("modules/score_assets/repository.py")["app.db.models"] <= {
-        "PlaybackAssetKind",
-        "PlaybackOutbox",
-        "Score",
-        "ScorePlaybackAsset",
-        "ScoreRenderAsset",
-        "ScoreRevision",
-        "ScoreRevisionSource",
+    assert set(ScoreRevisionRenderTarget.__dataclass_fields__) == {
+        "outbox_uuid",
+        "score_uuid",
+        "revision_uuid",
+        "requested_by_user_id",
+        "render_profile",
+        "source_fingerprint",
+        "originating_request_id",
+        "traceparent",
+        "tracestate",
     }
-    assert (
-        "latest_revision_render_status"
-        in imports("modules/score_assets/derived_assets.py")["app.modules.rendering.queries"]
+    assert "app.modules.score_assets.score_revision_rendering" in imports(
+        "worker/execution/score_revision_render_outbox.py"
+    )
+    assert "app.modules.revisions.render_delivery" in imports(
+        "modules/score_assets/score_revision_rendering.py"
     )

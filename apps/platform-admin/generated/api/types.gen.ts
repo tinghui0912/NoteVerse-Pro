@@ -30,7 +30,7 @@ export type AsyncOperationFailure = {
 /**
  * AsyncOperationKind
  */
-export type AsyncOperationKind = 'import' | 'render' | 'playback' | 'mail' | 'score_deletion';
+export type AsyncOperationKind = 'import' | 'revision_render' | 'playback' | 'mail' | 'score_deletion';
 
 /**
  * AsyncOperationKindSummary

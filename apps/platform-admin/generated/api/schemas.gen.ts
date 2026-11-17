@@ -43,7 +43,7 @@ export const AsyncOperationFailureSchema = {
 export const AsyncOperationKindSchema = {
     enum: [
         'import',
-        'render',
+        'revision_render',
         'playback',
         'mail',
         'score_deletion'

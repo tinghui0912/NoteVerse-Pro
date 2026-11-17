@@ -35,7 +35,7 @@ from app.db.models import (
     StorageUsageCounter,
     StoredObject,
     ObjectWriteIntent,
-    RenderOutbox,
+    ScoreRevisionRenderOutbox,
     PlaybackOutbox,
     ScoreMembership,
     MembershipRole,
@@ -152,7 +152,7 @@ def snapshot(db):
         ScoreRevisionSource,
         ScoreRevisionMetadata,
         ScoreRevisionEvent,
-        RenderOutbox,
+        ScoreRevisionRenderOutbox,
         PlaybackOutbox,
         RevisionMetadataOutbox,
         Notification,
@@ -218,7 +218,7 @@ def test_concurrent_head_writes_serialize_and_idempotency_resolves_in_writer(dat
         for model in (
             ScoreRevisionSource,
             ScoreRevisionMetadata,
-            RenderOutbox,
+            ScoreRevisionRenderOutbox,
             PlaybackOutbox,
             RevisionMetadataOutbox,
         ):
@@ -374,7 +374,7 @@ def test_revision_consequences_keep_the_transaction_audience(database):
             ScoreRevision,
             ScoreRevisionSource,
             ScoreRevisionMetadata,
-            RenderOutbox,
+            ScoreRevisionRenderOutbox,
             PlaybackOutbox,
             RevisionMetadataOutbox,
         ):
@@ -524,7 +524,7 @@ def test_review_confirm_concurrency_uses_one_initial_revision(database, monkeypa
             change.notification_id,
             change.sequence,
         ) == (1, "import_jobs.changed", "job", None, 1)
-        for model in (RenderOutbox, PlaybackOutbox, RevisionMetadataOutbox):
+        for model in (ScoreRevisionRenderOutbox, PlaybackOutbox, RevisionMetadataOutbox):
             assert db.scalar(sa.select(sa.func.count()).select_from(model)) == 1
 
 

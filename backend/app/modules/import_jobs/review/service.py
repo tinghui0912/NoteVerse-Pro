@@ -28,16 +28,13 @@ from app.modules.import_jobs.deletion_service import ImportJobDeletionService
 from app.modules.import_jobs.notifications import (
     admit_import_confirmation_consequences,
 )
-from app.modules.rendering.admission import admit_review_thumbnail_render
 from app.modules.revisions.writer import (
     revision_writer,
     PreparedRevisionSource,
     InitialRevisionWrite,
 )
 from app.modules.revisions.fast_path import revision_fast_path
-from app.modules.import_jobs.review.confirmation_assets import (
-    prewrite_review_thumbnail,
-    adopt_review_thumbnail,
+from app.modules.import_jobs.review.input_promotion import (
     promote_uploads_to_score_inputs,
 )
 from app.modules.import_jobs.review.read_model import ImportReviewReadModel
@@ -150,13 +147,6 @@ class ImportReviewService:
                 content=content,
                 content_type="application/vnd.recordare.musicxml+xml",
             )
-            thumbnail_write = prewrite_review_thumbnail(
-                db,
-                storage=self.storage,
-                job_id=require_persisted_id(job.id, entity="import job"),
-                score_uuid=score_uuid,
-                revision_uuid=revision_uuid,
-            )
         except Exception:
             db.rollback()
             storage_usage_service.release_reservation(db, reservation.reservation_id)
@@ -218,8 +208,6 @@ class ImportReviewService:
                     f"job-confirm:{job_uuid}",
                 ),
             )
-            revision_id = require_persisted_id(write_result.revision.id, entity="revision")
-            adopt_review_thumbnail(db, thumbnail_write, revision_id=revision_id)
             promoted_inputs = promote_uploads_to_score_inputs(
                 db,
                 job_id=require_persisted_id(job.id, entity="import job"),
@@ -288,7 +276,6 @@ class ImportReviewService:
 
         content = request.content.encode("utf-8")
         content = admit_musicxml_document(content)
-        content_hash = hashlib.sha256(content).hexdigest()
         job_id = require_persisted_id(job.id, entity="import job")
         artifact = (
             db.execute(
@@ -343,11 +330,6 @@ class ImportReviewService:
             db.flush()
             retire_after_release(db, previous_object.id)
             job.updated_at = utc_now()
-            admit_review_thumbnail_render(
-                db,
-                import_job_id=job_id,
-                source_fingerprint=content_hash,
-            )
             storage_usage_service.record_release(
                 db,
                 user_id=user_id,

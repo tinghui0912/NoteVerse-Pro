@@ -414,7 +414,6 @@ export type ImportJobRead = {
      */
     score_id?: string | null;
     state: ImportJobState;
-    thumbnail?: ImportArtifactRead | null;
     /**
      * Updated At
      */
@@ -1993,6 +1992,10 @@ export type RenderAssetRead = {
      * Render Asset Id
      */
     render_asset_id: string;
+    /**
+     * Render Profile
+     */
+    render_profile: string;
     /**
      * Revision Id
      */
@@ -5646,6 +5649,10 @@ export type ScoreRenderAssetsArchiveData = {
     };
     query: {
         kind: RenderAssetKind;
+        /**
+         * Render Profile
+         */
+        render_profile: string;
         /**
          * Revision Id
          */

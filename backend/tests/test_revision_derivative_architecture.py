@@ -3,7 +3,7 @@
 import ast
 from pathlib import Path
 from app.modules.revisions.presentation_demand import revision_presentation_demand
-from app.modules.rendering import delivery as render_outbox_service
+from app.modules.revisions import render_delivery as revision_render_delivery
 from app.modules.playback import outbox_service
 
 ROOT = Path(__file__).resolve().parents[1] / "app"
@@ -18,7 +18,7 @@ def imports(path):
 
 
 def test_render_and_playback_claim_use_one_demand_policy():
-    assert render_outbox_service.revision_presentation_demand is revision_presentation_demand
+    assert revision_render_delivery.revision_presentation_demand is revision_presentation_demand
     assert outbox_service.revision_presentation_demand is revision_presentation_demand
 
 
@@ -59,7 +59,6 @@ def test_worker_generation_admission_and_completion_share_the_callers_transactio
             "require_revision_attempt",
         ),
         ("modules/playback/service.py", "_render_worker_asset", "require_attempt"),
-        ("modules/import_jobs/review/thumbnail_service.py", "render", "require_thumbnail_attempt"),
     ]
     for relative, method, admission in cases:
         tree = ast.parse((ROOT / relative).read_text(encoding="utf-8"))

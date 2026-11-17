@@ -759,16 +759,6 @@
           "state": {
             "$ref": "#/components/schemas/ImportJobState"
           },
-          "thumbnail": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ImportArtifactRead"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "updated_at": {
             "format": "date-time",
             "title": "Updated At",
@@ -3639,6 +3629,10 @@
             "title": "Render Asset Id",
             "type": "string"
           },
+          "render_profile": {
+            "title": "Render Profile",
+            "type": "string"
+          },
           "revision_id": {
             "title": "Revision Id",
             "type": "string"
@@ -3656,6 +3650,7 @@
           }
         },
         "required": [
+          "render_profile",
           "render_asset_id",
           "revision_id",
           "kind",
@@ -10873,6 +10868,16 @@
             "required": true,
             "schema": {
               "$ref": "#/components/schemas/RenderAssetKind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "render_profile",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Render Profile",
+              "type": "string"
             }
           },
           {

@@ -1,7 +1,5 @@
 """Physical prewrite may race; semantic adoption and completion have one fenced commit."""
 
-from app.modules.import_jobs.requested_options import encode_requested_options
-
 from tests.support.storage_state import provision_storage_users
 
 from concurrent.futures import ThreadPoolExecutor
@@ -18,9 +16,6 @@ from sqlalchemy.orm import Session
 
 from app.db.models import (
     ImportArtifact,
-    ImportJob,
-    ImportDispatch,
-    ImportDispatchStatus,
     ObjectWriteIntent,
     Score,
     ScoreRevision,
@@ -31,20 +26,16 @@ from app.db.models import (
     StoredObjectRetirement,
     StorageUsageCounter,
     StorageUsageEvent,
-    RenderOutbox,
-    RenderTargetType,
+    ScoreRevisionRenderOutbox,
     PlaybackOutbox,
     User,
     RealtimeChange,
 )
-from app.db.models.import_job import ImportJobState
 from app.db.models.score import RevisionOrigin, RevisionSourceFormat
-from app.db.models.import_job import ImportArtifactKind
 from app.modules.score_assets import score_revision_rendering as render_service
 from app.modules.playback import service as playback_service
-from app.modules.import_jobs.review import thumbnail_service
-from app.modules.rendering.delivery import (
-    render_outbox_service,
+from app.modules.revisions.render_delivery import (
+    revision_render_delivery,
     _delivery_lifecycle as render_lifecycle,
 )
 from app.modules.playback.outbox_service import (
@@ -53,14 +44,14 @@ from app.modules.playback.outbox_service import (
 )
 from app.processing.engines.playback.renderer import RenderedAudio
 from app.shared.time import utc_now
-from app.worker.execution import render_outbox, playback_outbox
+from app.worker.execution import score_revision_render_outbox, playback_outbox
 from tests.support.object_storage import InMemoryObjectStorage
 from tests.support.postgres_schema import postgres_schema_database
 from tests.support.write_cleanup import drain_write_cleanup
 from tests.test_score_revision_services import MUSICXML_2
 
 
-@pytest.fixture(params=["render", "playback", "thumbnail"])
+@pytest.fixture(params=["render", "playback"])
 def generation(request, monkeypatch, tmp_path):
     kind = request.param
     with postgres_schema_database(monkeypatch) as (engine, config):
@@ -82,72 +73,42 @@ def generation(request, monkeypatch, tmp_path):
             )
             db.add(physical)
             db.flush()
-            if kind == "thumbnail":
-                job = ImportJob(
-                    requested_options=encode_requested_options(None),
-                    processing_started_at=utc_now(),
-                    processing_finished_at=utc_now(),
-                    job_uuid="job",
-                    user_id=user.id,
-                    state=ImportJobState.READY_FOR_REVIEW,
-                )
-                db.add(job)
-                db.flush()
-                db.add_all(
-                    [
-                        ImportDispatch(job_id=job.id, status=ImportDispatchStatus.COMPLETED),
-                        ImportArtifact(
-                            job_id=job.id,
-                            artifact_uuid="source",
-                            kind=ImportArtifactKind.REVIEW_MUSICXML,
-                            stored_object_id=physical.id,
-                            filename="score.musicxml",
-                        ),
-                        RenderOutbox(
-                            outbox_uuid="delivery",
-                            target_type=RenderTargetType.REVIEW_THUMBNAIL,
-                            import_job_id=job.id,
-                            source_fingerprint=fingerprint,
-                        ),
-                    ]
-                )
-            else:
-                score = Score(score_uuid="score", display_title="Score", owner_user_id=user.id)
-                db.add(score)
-                db.flush()
-                revision = ScoreRevision(
-                    revision_uuid="revision",
-                    score_id=score.id,
-                    revision_number=1,
-                    origin=RevisionOrigin.EDIT,
-                    content_hash=fingerprint,
-                )
-                db.add(revision)
-                db.flush()
-                score.head_revision_id = revision.id
-                db.add(
-                    ScoreRevisionSource(
-                        source_uuid="source",
-                        revision_id=revision.id,
-                        format=RevisionSourceFormat.MUSICXML,
-                        stored_object_id=physical.id,
-                        filename="score.musicxml",
-                        generator="test",
-                        generator_version="1",
-                    )
-                )
-                fields = dict(
-                    outbox_uuid="delivery",
-                    score_id=score.id,
+            score = Score(score_uuid="score", display_title="Score", owner_user_id=user.id)
+            db.add(score)
+            db.flush()
+            revision = ScoreRevision(
+                revision_uuid="revision",
+                score_id=score.id,
+                revision_number=1,
+                origin=RevisionOrigin.EDIT,
+                content_hash=fingerprint,
+            )
+            db.add(revision)
+            db.flush()
+            score.head_revision_id = revision.id
+            db.add(
+                ScoreRevisionSource(
+                    source_uuid="source",
                     revision_id=revision.id,
-                    source_fingerprint=fingerprint,
-                    requested_by_user_id=user.id,
+                    format=RevisionSourceFormat.MUSICXML,
+                    stored_object_id=physical.id,
+                    filename="score.musicxml",
+                    generator="test",
+                    generator_version="1",
                 )
-                db.add(
-                    RenderOutbox(target_type=RenderTargetType.SCORE_REVISION, **fields)
-                    if kind == "render"
-                    else PlaybackOutbox(**fields)
-                )
+            )
+            fields = dict(
+                outbox_uuid="delivery",
+                score_id=score.id,
+                revision_id=revision.id,
+                source_fingerprint=fingerprint,
+                requested_by_user_id=user.id,
+            )
+            db.add(
+                ScoreRevisionRenderOutbox(**fields)
+                if kind == "render"
+                else PlaybackOutbox(**fields)
+            )
             db.commit()
 
         @contextmanager
@@ -188,24 +149,23 @@ def generation(request, monkeypatch, tmp_path):
         )
         render = render_service.ScoreRevisionRenderService(storage=storage)
         playback = playback_service.PlaybackGenerationService(storage=storage, renderer=audio)
-        thumbnail = thumbnail_service.ImportReviewThumbnailService(storage=storage)
-        monkeypatch.setattr(render_outbox, "ScoreRevisionRenderService", lambda: render)
+        monkeypatch.setattr(
+            score_revision_render_outbox, "ScoreRevisionRenderService", lambda: render
+        )
         monkeypatch.setattr(playback_outbox, "PlaybackGenerationService", lambda: playback)
-        monkeypatch.setattr(render_outbox, "import_review_thumbnail_service", thumbnail)
-        worker = playback_outbox if kind == "playback" else render_outbox
+        worker = playback_outbox if kind == "playback" else score_revision_render_outbox
         monkeypatch.setattr(worker, "SessionLocal", transaction)
-        service = playback_outbox_service if kind == "playback" else render_outbox_service
-        model = PlaybackOutbox if kind == "playback" else RenderOutbox
+        service = playback_outbox_service if kind == "playback" else revision_render_delivery
+        model = PlaybackOutbox if kind == "playback" else ScoreRevisionRenderOutbox
         module = {
             "render": render_service,
             "playback": playback_service,
-            "thumbnail": thumbnail_service,
         }[kind]
         lifecycle = playback_lifecycle if kind == "playback" else render_lifecycle
         execute = (
             worker.execute_playback_outbox_task
             if kind == "playback"
-            else worker.execute_render_outbox_task
+            else worker.execute_score_revision_render_task
         )
 
         def generate(db, payload):
@@ -229,13 +189,6 @@ def generation(request, monkeypatch, tmp_path):
                     asset_kind=target.asset_kind,
                     **common,
                 )
-            return thumbnail.render(
-                db,
-                target.job_uuid,
-                expected_source_fingerprint=target.source_fingerprint,
-                profile=target.render_profile,
-                **common,
-            )
 
         yield kind, engine, storage, service, model, module, lifecycle, execute, generate
 
@@ -334,16 +287,15 @@ def test_semantic_adoption_and_completion_roll_back_together(generation, monkeyp
 
     def fail_after_completion(db, uuid, *, lease):
         assert complete(db, uuid, lease=lease)
-        if kind != "thumbnail":
-            from app.modules.realtime.publisher import publish_score_change
+        from app.modules.realtime.publisher import publish_score_change
 
-            publish_score_change(
-                db,
-                score_id="score",
-                revision_id="revision",
-                kind="score.derived_assets.changed",
-            )
-            assert rows(db, RealtimeChange)
+        publish_score_change(
+            db,
+            score_id="score",
+            revision_id="revision",
+            kind="score.derived_assets.changed",
+        )
+        assert rows(db, RealtimeChange)
         db.flush()
         assert db.scalars(sa.select(model)).one().status.value == "COMPLETED"
         assert semantic_snapshot(db) != before
@@ -381,7 +333,7 @@ def test_final_admission_locks_aggregate_before_delivery_and_subordinates(genera
         assert execute(None, "delivery")["status"] in ("rendered", "generated")
     finally:
         sa.event.remove(engine, "before_cursor_execute", observe)
-    aggregate = "import_jobs" if kind == "thumbnail" else "scores"
+    aggregate = "scores"
     assert f"from {aggregate}" in locks[0]
     assert f"from {model.__tablename__}" in locks[1]
     assert any("object_write_intents" in statement for statement in locks[2:])
@@ -422,8 +374,7 @@ def test_source_change_after_prewrite_is_domain_invalidation(generation, monkeyp
         return receipt
 
     monkeypatch.setattr(module, "write_object", change_source)
-    expected = "superseded" if kind == "thumbnail" else "failed"
-    assert execute(None, "delivery")["status"] == expected
+    assert execute(None, "delivery")["status"] == "failed"
     with Session(engine) as db:
         after = semantic_snapshot(db)
         for model_name in (
@@ -435,12 +386,9 @@ def test_source_change_after_prewrite_is_domain_invalidation(generation, monkeyp
             "import_artifacts",
         ):
             assert after[model_name] == before[model_name]
-        if kind == "thumbnail":
-            assert after["realtime_changes"] == before["realtime_changes"]
-        else:
-            changes = after["realtime_changes"]
-            assert len(changes) == len(before["realtime_changes"]) + 1
-            assert changes[-1]["kind"] == "score.derived_assets.changed"
-            assert changes[-1]["score_id"] == "score" and changes[-1]["revision_id"] == "revision"
-        assert db.scalars(sa.select(model)).one().status.value == expected.upper()
+        changes = after["realtime_changes"]
+        assert len(changes) == len(before["realtime_changes"]) + 1
+        assert changes[-1]["kind"] == "score.derived_assets.changed"
+        assert changes[-1]["score_id"] == "score" and changes[-1]["revision_id"] == "revision"
+        assert db.scalars(sa.select(model)).one().status.value == "FAILED"
         assert drain_write_cleanup(db, storage)[0]["status"] == "cleaned"

@@ -19,8 +19,8 @@ from app.db.models import (
     MailOutboxStatus,
     PlaybackOutbox,
     PlaybackOutboxStatus,
-    RenderOutbox,
-    RenderOutboxStatus,
+    ScoreRevisionRenderOutbox,
+    ScoreRevisionRenderStatus,
     SchedulerHeartbeat,
     SchedulerLeaderStatus,
     ScoreDeletionOperation,
@@ -48,10 +48,12 @@ def async_operation_metrics_text(db: Session) -> str:
         "# TYPE noteverse_outbox_records_by_status gauge",
         *_enum_count_lines(
             db,
-            statement=select(RenderOutbox.status, func.count()).group_by(RenderOutbox.status),
+            statement=select(ScoreRevisionRenderOutbox.status, func.count()).group_by(
+                ScoreRevisionRenderOutbox.status
+            ),
             metric_name="noteverse_outbox_records_by_status",
             label_names=("kind", "status"),
-            fixed_labels=("render",),
+            fixed_labels=("revision_render",),
         ),
         *_enum_count_lines(
             db,
@@ -427,15 +429,15 @@ def _scheduler_lag_lines(db: Session) -> list[str]:
             ),
         ),
         (
-            "render",
+            "revision_render",
             _oldest_age_seconds(
                 db,
-                select(func.min(RenderOutbox.next_attempt_at)).where(
-                    RenderOutbox.status.in_(
-                        (RenderOutboxStatus.PENDING, RenderOutboxStatus.FAILED)
+                select(func.min(ScoreRevisionRenderOutbox.next_attempt_at)).where(
+                    ScoreRevisionRenderOutbox.status.in_(
+                        (ScoreRevisionRenderStatus.PENDING, ScoreRevisionRenderStatus.FAILED)
                     ),
-                    RenderOutbox.next_attempt_at <= now,
-                    RenderOutbox.attempt_count < settings.RENDER_OUTBOX_MAX_ATTEMPTS,
+                    ScoreRevisionRenderOutbox.next_attempt_at <= now,
+                    ScoreRevisionRenderOutbox.attempt_count < settings.REVISION_RENDER_MAX_ATTEMPTS,
                 ),
                 now=now,
             ),

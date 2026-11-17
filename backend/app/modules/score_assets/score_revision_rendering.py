@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.score_semantics.render_profile import SCORE_PRESENTATION_RENDER_PROFILE
 from app.modules.storage_objects.reads import StoredObjectReadTarget, read_admitted_bytes
 from app.storage import ObjectStorage
 from app.modules.storage_objects.retirement import retire_after_release
@@ -36,7 +37,7 @@ from app.modules.score_assets.render_asset_records import (
 )
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.rendering.execution_manifest import build_render_execution_manifest
-from app.modules.rendering.delivery import render_outbox_service
+from app.modules.revisions.render_delivery import revision_render_delivery
 from app.modules.durable_work.delivery import DeliveryAttemptLease, StaleDeliveryAttempt
 from app.modules.score_assets.schemas import RenderAssetRead
 from app.modules.score_assets.service import ScoreAssetService
@@ -80,7 +81,7 @@ class ScoreRevisionRenderService:
         revision_uuid: str,
         user_id: int,
         *,
-        profile: str = "default",
+        profile: str = SCORE_PRESENTATION_RENDER_PROFILE,
     ) -> list[RenderAssetRead]:
         access = self.access_policy.authorize_revision(
             db,
@@ -230,7 +231,7 @@ class ScoreRevisionRenderService:
                 uploaded_keys=uploaded_keys,
             )
             score = lock_presentation_score(db, score.id)
-            render_outbox_service.require_revision_attempt(
+            revision_render_delivery.require_revision_attempt(
                 db,
                 outbox_uuid=outbox_uuid,
                 lease=lease,
@@ -289,7 +290,7 @@ class ScoreRevisionRenderService:
                     object_id=usage.asset_uuid,
                     storage_key=usage.storage_key,
                 )
-            if not render_outbox_service.complete(db, outbox_uuid, lease=lease):
+            if not revision_render_delivery.complete(db, outbox_uuid, lease=lease):
                 raise StaleDeliveryAttempt("Render completion lost execution ownership")
             db.flush()
         except Exception:

@@ -120,7 +120,7 @@ def test_settings_compose_import_dispatch_policy() -> None:
 def test_settings_compose_render_asset_delivery_policy() -> None:
     settings = Settings()
 
-    assert settings.RENDER_OUTBOX_MAX_ATTEMPTS > 0
+    assert settings.REVISION_RENDER_MAX_ATTEMPTS > 0
 
 
 def test_settings_compose_playback_delivery_policy() -> None:
