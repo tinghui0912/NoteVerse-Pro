@@ -1,9 +1,5 @@
 """Real row locks, lease takeover and durable outcomes for domain deliveries."""
 
-from app.modules.import_jobs.requested_options import encode_requested_options
-
-from tests.support.storage_state import provision_storage_users
-
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from dataclasses import replace
@@ -14,10 +10,10 @@ from unittest.mock import Mock
 
 import pytest
 import sqlalchemy as sa
-from alembic import command
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from alembic import command
 from app.db.models import (
     ImportDispatch,
     ImportJob,
@@ -26,6 +22,7 @@ from app.db.models import (
     PlaybackOutbox,
     RenderOutbox,
     RenderTargetType,
+    RevisionMetadataOutbox,
     Score,
     ScoreDeletionOperation,
     ScoreRevision,
@@ -34,14 +31,16 @@ from app.db.models import (
     StoredObjectRetirement,
     User,
 )
-from app.db.models.score import RevisionOrigin, RevisionSourceFormat
 from app.db.models.import_job import ImportJobState
+from app.db.models.score import RevisionOrigin, RevisionSourceFormat
+from app.modules.import_jobs.requested_options import encode_requested_options
 from app.modules.mail.outbox_service import mail_outbox_service
 from app.modules.playback.outbox_service import playback_outbox_service
-from app.modules.revisions.presentation_demand import RevisionPresentationSuperseded
 from app.modules.rendering.delivery import render_outbox_service
+from app.modules.revisions.presentation_demand import RevisionPresentationSuperseded
 from app.shared.time import utc_now
 from tests.support.postgres_schema import postgres_schema_database
+from tests.support.storage_state import provision_storage_users
 
 SERVICES = {
     "render": (RenderOutbox, render_outbox_service),
@@ -121,6 +120,7 @@ def database(monkeypatch):
                         expires_at=utc_now() + timedelta(days=1),
                     ),
                     ImportDispatch(job_id=job.id),
+                    RevisionMetadataOutbox(revision_id=revision.id, source_fingerprint="f" * 64),
                     ScoreDeletionOperation(
                         score_id=score.id, score_uuid=score.score_uuid, owner_user_id=user.id
                     ),
@@ -266,7 +266,7 @@ def test_locked_terminal_mutation_refreshes_preloaded_attempt(database, kind):
 @pytest.mark.parametrize("kind", ["render", "playback"])
 @pytest.mark.parametrize("result", ["complete", "fail", "supersede"])
 def test_stale_derivative_worker_cannot_publish_status(database, monkeypatch, kind, result):
-    from app.worker.execution import render_outbox, playback_outbox
+    from app.worker.execution import playback_outbox, render_outbox
 
     module = render_outbox if kind == "render" else playback_outbox
 
@@ -311,6 +311,7 @@ def test_stale_derivative_worker_cannot_publish_status(database, monkeypatch, ki
         PlaybackOutbox,
         MailOutbox,
         ScoreDeletionOperation,
+        RevisionMetadataOutbox,
         StoredObjectRetirement,
         ObjectWriteIntent,
     ],
@@ -325,6 +326,14 @@ def test_processing_token_coherence_is_enforced_by_postgresql(database, model):
                 db.commit()
             assert failure.value.orig.sqlstate == "23514"
             db.rollback()
+        with pytest.raises(IntegrityError) as failure:
+            db.execute(sa.update(model).values(attempt_count=-1))
+            db.commit()
+        assert failure.value.orig.sqlstate == "23514"
+        db.rollback()
+        db.execute(sa.update(model).values(status=processing, attempt_token="current-owner"))
+        db.commit()
+        assert db.scalars(sa.select(model)).one().attempt_token == "current-owner"
         # The write generation's token is independent from cleanup execution ownership.
         if model is ObjectWriteIntent:
             assert db.scalars(sa.select(model)).one().write_token == "generation"

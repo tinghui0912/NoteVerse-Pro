@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from uuid import uuid4
+
 from sqlalchemy import (
     BigInteger,
     CheckConstraint,
@@ -11,9 +12,18 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
-    Text,
 )
 from sqlmodel import Field, SQLModel
+
+from app.db.durable_delivery import (
+    delivery_attempt_count_constraint,
+    delivery_attempt_count_field,
+    delivery_attempt_token_constraint,
+    delivery_attempt_token_field,
+    delivery_next_attempt_at_field,
+    delivery_optional_timestamp_field,
+    failure_detail_field,
+)
 from app.shared.time import utc_now
 
 
@@ -24,10 +34,9 @@ class RevisionMetadataOutbox(SQLModel, table=True):  # type: ignore[call-arg]
             "status IN ('PENDING','DISPATCHED','PROCESSING','FAILED','COMPLETED')",
             name="ck_revision_metadata_status",
         ),
-        CheckConstraint("attempt_count >= 0", name="ck_revision_metadata_attempts"),
-        CheckConstraint(
-            "(status = 'PROCESSING' AND attempt_token IS NOT NULL) OR (status <> 'PROCESSING' AND attempt_token IS NULL)",
-            name="ck_revision_metadata_token",
+        delivery_attempt_count_constraint(name="ck_revision_metadata_attempts"),
+        delivery_attempt_token_constraint(
+            name="ck_revision_metadata_token", processing_status="PROCESSING"
         ),
         Index("ix_revision_metadata_due", "status", "next_attempt_at"),
     )
@@ -54,15 +63,13 @@ class RevisionMetadataOutbox(SQLModel, table=True):  # type: ignore[call-arg]
     traceparent: str | None = Field(default=None, sa_column=Column(String(55)))
     tracestate: str | None = Field(default=None, sa_column=Column(String(512)))
     status: str = Field(default="PENDING", sa_column=Column(String(16), nullable=False))
-    attempt_count: int = Field(default=0, sa_column=Column(Integer, nullable=False))
-    attempt_token: str | None = Field(default=None, sa_column=Column(String(36)))
-    next_attempt_at: datetime = Field(
-        default_factory=utc_now, sa_column=Column(DateTime(timezone=True), nullable=False)
-    )
-    dispatched_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
-    started_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
-    completed_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
-    failure_detail: str | None = Field(default=None, sa_column=Column(Text))
+    attempt_count: int = delivery_attempt_count_field(sql_default=False)
+    attempt_token: str | None = delivery_attempt_token_field()
+    next_attempt_at: datetime = delivery_next_attempt_at_field(sql_default=False)
+    dispatched_at: datetime | None = delivery_optional_timestamp_field()
+    started_at: datetime | None = delivery_optional_timestamp_field()
+    completed_at: datetime | None = delivery_optional_timestamp_field()
+    failure_detail: str | None = failure_detail_field()
     created_at: datetime = Field(
         default_factory=utc_now, sa_column=Column(DateTime(timezone=True), nullable=False)
     )

@@ -104,7 +104,7 @@ null or all populated, with one of transient, permanent, user_error or system_er
 domain eligibility decision. Exhaustion records a domain attempts-exhausted code and
 retryable=false. Generic execution exceptions are system_error. Successful completion,
 claim, rearm and supersession clear failure facts. Render and Playback retain their exhaustion behavior; Mail selects
-permanent failure at its attempt limit. StoredObject retirement combines shared attempt fencing with a fresh claim token, so cancellation/rearm cannot revive an earlier worker. Semantic Take deletion and Bundle GC release references and logical accounting in their own transactions; retirement owns physical IO independently. Tables, columns and terminal meaning remain domain-owned.
+permanent failure at its attempt limit. StoredObject retirement combines shared attempt fencing with a fresh claim token, so cancellation/rearm cannot revive an earlier worker. Semantic Take deletion and Bundle GC release references and logical accounting in their own transactions; retirement owns physical IO independently. Tables, domain fields and terminal meaning remain domain-owned.
 
 ObjectWriteIntent owns PREPARED, WRITTEN and ADOPTED physical-write admission meaning. Its cleanup phase maps CLEANUP_PENDING, CLEANUP_DISPATCHED, CLEANUP_PROCESSING, CLEANUP_FAILED and CLEANED to the shared delivery lifecycle. Write generation and per-claim attempt tokens fence stale cleanup and adoption. The cleanup worker holds the intent lock across storage deletion and checks exact StoredObject authority before IO. Write/semantic policy remains outside the delivery core.
 
@@ -115,7 +115,29 @@ provider response cannot change the current delivery status or provider message 
 the external delivery guarantee remains at-least-once.
 
 Domain-specific workers and recovery scans retain their workflows and SQL admission.
-There is no universal delivery ORM or job runner. Broker publication uses the single
+There is no universal delivery table, domain record or job runner.
+`app/db/durable_delivery.py` owns only fresh ORM field factories for mechanical
+attempt/lease columns and their DB predicates. Each domain supplies its own
+constraint names and processing status; it retains its table, status vocabulary,
+target, payload, admission, queries, policies, worker and terminal meaning.
+The shared fields exclude resource `created_at` / `updated_at` behavior. Domain
+models retain their SQL client defaults as well as per-instance aware UTC defaults.
+
+ImportDispatch, RenderOutbox, PlaybackOutbox, MailOutbox, ScoreDeletionOperation,
+RevisionMetadataOutbox and StoredObjectRetirement map PROCESSING to attempt-token
+ownership. ObjectWriteIntent maps CLEANUP_PROCESSING instead; its `write_token`
+continues to own the separate physical-write generation.
+
+Structured failure field factories and the all-null/all-present predicate serve
+ImportJob, ImportDispatch, RenderOutbox, PlaybackOutbox, MailOutbox and
+ScoreDeletionOperation. The predicate derives accepted classifications directly
+from `DurableFailureClass`. RevisionMetadataOutbox, StoredObjectRetirement and
+ObjectWriteIntent persist diagnostic detail without structured failure facts.
+ImportJob retains its domain state/failure coupling and lifecycle checks.
+`DurableDeliveryLifecycle` remains table-free, IO-free and ORM-free;
+`durable_work/failure.py` owns behavioral failure facts, not persistence.
+
+Broker publication uses the single
 `app.task_queue.producer.send_durable_task` mechanical authority.
 
 Ops reads five kinds: import, render, playback, mail and score_deletion. Its canonical

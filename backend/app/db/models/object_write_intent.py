@@ -11,27 +11,34 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
-    Text,
     UniqueConstraint,
 )
 from sqlmodel import Field, SQLModel
 
+from app.db.durable_delivery import (
+    delivery_attempt_count_constraint,
+    delivery_attempt_count_field,
+    delivery_attempt_token_constraint,
+    delivery_attempt_token_field,
+    delivery_next_attempt_at_field,
+    delivery_optional_timestamp_field,
+    failure_detail_field,
+)
 from app.shared.time import utc_now
 
 
 class ObjectWriteIntent(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "object_write_intents"
     __table_args__ = (
-        CheckConstraint(
-            "(status = 'CLEANUP_PROCESSING' AND attempt_token IS NOT NULL) OR (status <> 'CLEANUP_PROCESSING' AND attempt_token IS NULL)",
-            name="ck_object_write_intents_attempt_token",
+        delivery_attempt_token_constraint(
+            name="ck_object_write_intents_attempt_token", processing_status="CLEANUP_PROCESSING"
         ),
         UniqueConstraint("object_key", name="uq_object_write_intent_key"),
         CheckConstraint(
             "status IN ('PREPARED','WRITTEN','ADOPTED','CLEANUP_PENDING','CLEANUP_DISPATCHED','CLEANUP_PROCESSING','CLEANUP_FAILED','CLEANED')",
             name="ck_object_write_intent_status",
         ),
-        CheckConstraint("attempt_count >= 0", name="ck_object_write_intent_attempts"),
+        delivery_attempt_count_constraint(name="ck_object_write_intent_attempts"),
         Index("ix_object_write_intent_due", "status", "next_attempt_at"),
     )
     id: int | None = Field(
@@ -54,16 +61,13 @@ class ObjectWriteIntent(SQLModel, table=True):  # type: ignore[call-arg]
     write_token: str = Field(sa_column=Column(String(36), nullable=False))
     write_expires_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     written_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
-    attempt_count: int = Field(default=0, sa_column=Column(Integer, nullable=False, default=0))
-    attempt_token: str | None = Field(default=None, sa_column=Column(String(36)))
-    next_attempt_at: datetime = Field(
-        default_factory=utc_now,
-        sa_column=Column(DateTime(timezone=True), nullable=False, default=utc_now),
-    )
-    dispatched_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
-    started_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
-    completed_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
-    failure_detail: str | None = Field(default=None, sa_column=Column(Text))
+    attempt_count: int = delivery_attempt_count_field()
+    attempt_token: str | None = delivery_attempt_token_field()
+    next_attempt_at: datetime = delivery_next_attempt_at_field()
+    dispatched_at: datetime | None = delivery_optional_timestamp_field()
+    started_at: datetime | None = delivery_optional_timestamp_field()
+    completed_at: datetime | None = delivery_optional_timestamp_field()
+    failure_detail: str | None = failure_detail_field()
     created_at: datetime = Field(
         default_factory=utc_now,
         sa_column=Column(DateTime(timezone=True), nullable=False, default=utc_now),

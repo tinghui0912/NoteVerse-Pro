@@ -6,26 +6,35 @@ from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import (
+    JSON,
     BigInteger,
-    Boolean,
-    Column,
     CheckConstraint,
+    Column,
     DateTime,
-    Enum as SAEnum,
     ForeignKey,
     Index,
     Integer,
-    JSON,
     String,
-    Text,
     UniqueConstraint,
 )
+from sqlalchemy import (
+    Enum as SAEnum,
+)
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlmodel import Field, Relationship, SQLModel
 from sqlalchemy.orm import relationship
-from .stored_object import StoredObject
+from sqlmodel import Field, Relationship, SQLModel
 
+from app.db.durable_delivery import (
+    durable_failure_facts_constraint,
+    failure_classification_field,
+    failure_code_field,
+    failure_detail_field,
+    failure_retryable_field,
+    failure_stage_field,
+)
 from app.shared.time import utc_now
+
+from .stored_object import StoredObject
 
 bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 metadata_json_type = JSON().with_variant(JSONB, "postgresql")
@@ -54,10 +63,7 @@ class ImportJobStepStatus(str, enum.Enum):
 class ImportJob(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "import_jobs"
     __table_args__ = (
-        CheckConstraint(
-            "((failure_code IS NULL AND failure_stage IS NULL AND failure_classification IS NULL AND failure_retryable IS NULL) OR (failure_code IS NOT NULL AND failure_stage IS NOT NULL AND failure_classification IS NOT NULL AND failure_retryable IS NOT NULL AND failure_classification IN ('transient', 'permanent', 'user_error', 'system_error')))",
-            name="ck_import_jobs_failure_facts",
-        ),
+        durable_failure_facts_constraint(name="ck_import_jobs_failure_facts"),
         CheckConstraint(
             "(state = 'FAILED' AND failure_code IS NOT NULL AND failure_stage IS NOT NULL AND failure_classification IS NOT NULL AND failure_retryable IS NOT NULL) OR (state <> 'FAILED' AND failure_code IS NULL AND failure_stage IS NULL AND failure_classification IS NULL AND failure_retryable IS NULL)",
             name="ck_import_jobs_state_failure",
@@ -102,11 +108,11 @@ class ImportJob(SQLModel, table=True):  # type: ignore[call-arg]
         default=None,
         sa_column=Column(BigInteger, ForeignKey("execution_manifests.id"), index=True),
     )
-    failure_code: Optional[str] = Field(default=None, sa_column=Column(String(128)))
-    failure_stage: Optional[str] = Field(default=None, sa_column=Column(String(64)))
-    failure_classification: Optional[str] = Field(default=None, sa_column=Column(String(32)))
-    failure_retryable: Optional[bool] = Field(default=None, sa_column=Column(Boolean))
-    failure_detail: Optional[str] = Field(default=None, sa_column=Column(Text))
+    failure_code: Optional[str] = failure_code_field()
+    failure_stage: Optional[str] = failure_stage_field()
+    failure_classification: Optional[str] = failure_classification_field()
+    failure_retryable: Optional[bool] = failure_retryable_field()
+    failure_detail: Optional[str] = failure_detail_field()
     processing_started_at: Optional[datetime] = Field(
         default=None, sa_column=Column(DateTime(timezone=True))
     )

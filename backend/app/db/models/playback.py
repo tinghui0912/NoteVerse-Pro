@@ -6,24 +6,37 @@ from typing import Optional
 
 from sqlalchemy import (
     BigInteger,
-    Boolean,
-    CheckConstraint,
     Column,
     DateTime,
-    Enum as SAEnum,
     ForeignKey,
     Index,
     Integer,
     String,
-    Text,
     UniqueConstraint,
 )
-from sqlmodel import Field, Relationship, SQLModel
+from sqlalchemy import (
+    Enum as SAEnum,
+)
 from sqlalchemy.orm import relationship
-from .stored_object import StoredObject
+from sqlmodel import Field, Relationship, SQLModel
 
+from app.db.durable_delivery import (
+    delivery_attempt_count_constraint,
+    delivery_attempt_count_field,
+    delivery_attempt_token_constraint,
+    delivery_attempt_token_field,
+    delivery_next_attempt_at_field,
+    delivery_optional_timestamp_field,
+    durable_failure_facts_constraint,
+    failure_classification_field,
+    failure_code_field,
+    failure_detail_field,
+    failure_retryable_field,
+    failure_stage_field,
+)
 from app.shared.time import utc_now
 
+from .stored_object import StoredObject
 
 bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 
@@ -100,15 +113,11 @@ class ScorePlaybackAsset(SQLModel, table=True):  # type: ignore[call-arg]
 class PlaybackOutbox(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "playback_outbox"
     __table_args__ = (
-        CheckConstraint(
-            "((failure_code IS NULL AND failure_stage IS NULL AND failure_classification IS NULL AND failure_retryable IS NULL) OR (failure_code IS NOT NULL AND failure_stage IS NOT NULL AND failure_classification IS NOT NULL AND failure_retryable IS NOT NULL AND failure_classification IN ('transient', 'permanent', 'user_error', 'system_error')))",
-            name="ck_playback_outbox_failure_facts",
+        durable_failure_facts_constraint(name="ck_playback_outbox_failure_facts"),
+        delivery_attempt_token_constraint(
+            name="ck_playback_outbox_attempt_token", processing_status="PROCESSING"
         ),
-        CheckConstraint(
-            "(status = 'PROCESSING' AND attempt_token IS NOT NULL) OR (status <> 'PROCESSING' AND attempt_token IS NULL)",
-            name="ck_playback_outbox_attempt_token",
-        ),
-        CheckConstraint("attempt_count >= 0", name="ck_playback_outbox_attempt_count"),
+        delivery_attempt_count_constraint(name="ck_playback_outbox_attempt_count"),
         UniqueConstraint(
             "revision_id",
             "asset_kind",
@@ -164,27 +173,17 @@ class PlaybackOutbox(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=False,
         ),
     )
-    attempt_token: str | None = Field(default=None, sa_column=Column(String(36)))
-    attempt_count: int = Field(
-        default=0,
-        sa_column=Column(Integer, default=0, nullable=False),
-    )
-    next_attempt_at: datetime = Field(
-        default_factory=utc_now,
-        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
-    )
-    dispatched_at: Optional[datetime] = Field(
-        default=None, sa_column=Column(DateTime(timezone=True))
-    )
-    started_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
-    completed_at: Optional[datetime] = Field(
-        default=None, sa_column=Column(DateTime(timezone=True))
-    )
-    failure_detail: Optional[str] = Field(default=None, sa_column=Column(Text))
-    failure_code: Optional[str] = Field(default=None, sa_column=Column(String(128)))
-    failure_stage: Optional[str] = Field(default=None, sa_column=Column(String(64)))
-    failure_classification: Optional[str] = Field(default=None, sa_column=Column(String(32)))
-    failure_retryable: Optional[bool] = Field(default=None, sa_column=Column(Boolean))
+    attempt_token: str | None = delivery_attempt_token_field()
+    attempt_count: int = delivery_attempt_count_field()
+    next_attempt_at: datetime = delivery_next_attempt_at_field()
+    dispatched_at: Optional[datetime] = delivery_optional_timestamp_field()
+    started_at: Optional[datetime] = delivery_optional_timestamp_field()
+    completed_at: Optional[datetime] = delivery_optional_timestamp_field()
+    failure_detail: Optional[str] = failure_detail_field()
+    failure_code: Optional[str] = failure_code_field()
+    failure_stage: Optional[str] = failure_stage_field()
+    failure_classification: Optional[str] = failure_classification_field()
+    failure_retryable: Optional[bool] = failure_retryable_field()
     created_at: datetime = Field(
         default_factory=utc_now,
         sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),

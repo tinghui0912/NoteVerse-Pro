@@ -6,20 +6,35 @@ import enum
 import uuid
 from datetime import datetime
 from typing import Optional
+
 from sqlalchemy import (
     BigInteger,
-    Boolean,
-    CheckConstraint,
     Column,
     DateTime,
-    Enum as SAEnum,
     ForeignKey,
     Index,
     Integer,
     String,
-    Text,
+)
+from sqlalchemy import (
+    Enum as SAEnum,
 )
 from sqlmodel import Field, SQLModel
+
+from app.db.durable_delivery import (
+    delivery_attempt_count_constraint,
+    delivery_attempt_count_field,
+    delivery_attempt_token_constraint,
+    delivery_attempt_token_field,
+    delivery_next_attempt_at_field,
+    delivery_optional_timestamp_field,
+    durable_failure_facts_constraint,
+    failure_classification_field,
+    failure_code_field,
+    failure_detail_field,
+    failure_retryable_field,
+    failure_stage_field,
+)
 from app.shared.time import utc_now
 
 
@@ -34,14 +49,10 @@ class ImportDispatchStatus(str, enum.Enum):
 class ImportDispatch(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "import_dispatches"
     __table_args__ = (
-        CheckConstraint(
-            "((failure_code IS NULL AND failure_stage IS NULL AND failure_classification IS NULL AND failure_retryable IS NULL) OR (failure_code IS NOT NULL AND failure_stage IS NOT NULL AND failure_classification IS NOT NULL AND failure_retryable IS NOT NULL AND failure_classification IN ('transient', 'permanent', 'user_error', 'system_error')))",
-            name="ck_import_dispatches_failure_facts",
-        ),
-        CheckConstraint("attempt_count >= 0", name="ck_import_dispatch_attempt_count"),
-        CheckConstraint(
-            "(status = 'PROCESSING' AND attempt_token IS NOT NULL) OR (status <> 'PROCESSING' AND attempt_token IS NULL)",
-            name="ck_import_dispatch_attempt_token",
+        durable_failure_facts_constraint(name="ck_import_dispatches_failure_facts"),
+        delivery_attempt_count_constraint(name="ck_import_dispatch_attempt_count"),
+        delivery_attempt_token_constraint(
+            name="ck_import_dispatch_attempt_token", processing_status="PROCESSING"
         ),
         Index("idx_import_dispatch_due", "status", "next_attempt_at"),
     )
@@ -76,24 +87,17 @@ class ImportDispatch(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=False,
         ),
     )
-    attempt_count: int = Field(default=0, sa_column=Column(Integer, default=0, nullable=False))
-    next_attempt_at: datetime = Field(
-        default_factory=utc_now,
-        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
-    )
-    dispatched_at: Optional[datetime] = Field(
-        default=None, sa_column=Column(DateTime(timezone=True))
-    )
-    started_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
-    completed_at: Optional[datetime] = Field(
-        default=None, sa_column=Column(DateTime(timezone=True))
-    )
-    failure_detail: Optional[str] = Field(default=None, sa_column=Column(Text))
-    attempt_token: Optional[str] = Field(default=None, sa_column=Column(String(36)))
-    failure_code: Optional[str] = Field(default=None, sa_column=Column(String(128)))
-    failure_stage: Optional[str] = Field(default=None, sa_column=Column(String(64)))
-    failure_classification: Optional[str] = Field(default=None, sa_column=Column(String(32)))
-    failure_retryable: Optional[bool] = Field(default=None, sa_column=Column(Boolean))
+    attempt_count: int = delivery_attempt_count_field()
+    next_attempt_at: datetime = delivery_next_attempt_at_field()
+    dispatched_at: Optional[datetime] = delivery_optional_timestamp_field()
+    started_at: Optional[datetime] = delivery_optional_timestamp_field()
+    completed_at: Optional[datetime] = delivery_optional_timestamp_field()
+    failure_detail: Optional[str] = failure_detail_field()
+    attempt_token: Optional[str] = delivery_attempt_token_field()
+    failure_code: Optional[str] = failure_code_field()
+    failure_stage: Optional[str] = failure_stage_field()
+    failure_classification: Optional[str] = failure_classification_field()
+    failure_retryable: Optional[bool] = failure_retryable_field()
     created_at: datetime = Field(
         default_factory=utc_now,
         sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),

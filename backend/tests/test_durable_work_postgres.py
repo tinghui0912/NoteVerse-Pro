@@ -1,35 +1,34 @@
 """Persisted failure consistency and the operator SQL projection on PostgreSQL."""
 
-from app.modules.import_jobs.requested_options import encode_requested_options
-
 import pytest
 import sqlalchemy as sa
-from alembic import command
 from sqlalchemy.orm import Session
 
+from alembic import command
 from app.db.models import (
-    User,
-    Score,
-    ScoreRevision,
-    RevisionOrigin,
+    ImportDispatch,
     ImportJob,
     ImportJobState,
-    ImportDispatch,
+    MailOutbox,
+    PlaybackOutbox,
     RenderOutbox,
     RenderTargetType,
-    PlaybackOutbox,
-    MailOutbox,
+    RevisionOrigin,
+    Score,
     ScoreDeletionOperation,
+    ScoreRevision,
+    User,
 )
 from app.modules.durable_work.failure import (
     DurableFailure,
     DurableFailureClass,
-    set_failure_facts,
     clear_failure_facts,
+    set_failure_facts,
 )
-from app.shared.time import utc_now
+from app.modules.import_jobs.requested_options import encode_requested_options
 from app.modules.ops.query_service import OpsAsyncOperationQueryService
 from app.modules.ops.schemas import AsyncOperationKind
+from app.shared.time import utc_now
 from tests.support.postgres_schema import postgres_schema_database
 
 
@@ -159,6 +158,26 @@ def test_persisted_failure_facts_are_complete_and_shared_by_ops_queries(monkeypa
                             db.execute(
                                 sa.update(type(row)).where(type(row).id == row.id).values(**values)
                             )
+                for classification in DurableFailureClass:
+                    values = {
+                        "failure_code": "domain_failure",
+                        "failure_stage": "execution",
+                        "failure_classification": classification.value,
+                        "failure_retryable": False,
+                    }
+                    if row is job:
+                        values.update(state=ImportJobState.FAILED, processing_finished_at=utc_now())
+                    savepoint = db.begin_nested()
+                    db.execute(sa.update(type(row)).where(type(row).id == row.id).values(**values))
+                    assert (
+                        db.scalar(
+                            sa.select(type(row).failure_classification).where(
+                                type(row).id == row.id
+                            )
+                        )
+                        == classification.value
+                    )
+                    savepoint.rollback()
                 if row is job:
                     continue
                 set_failure_facts(
