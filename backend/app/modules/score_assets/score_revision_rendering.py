@@ -1,5 +1,4 @@
 from __future__ import annotations
-from app.score_semantics.render_profile import SCORE_PRESENTATION_RENDER_PROFILE
 from app.modules.storage_objects.reads import StoredObjectReadTarget, read_admitted_bytes
 from app.storage import ObjectStorage
 from app.modules.storage_objects.retirement import retire_after_release
@@ -35,18 +34,13 @@ from app.modules.score_assets.render_asset_records import (
     render_asset_usage,
     render_storage_key,
 )
-from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.rendering.execution_manifest import build_render_execution_manifest
 from app.modules.revisions.render_delivery import revision_render_delivery
 from app.modules.durable_work.delivery import DeliveryAttemptLease, StaleDeliveryAttempt
-from app.modules.score_assets.schemas import RenderAssetRead
-from app.modules.score_assets.service import ScoreAssetService
-from app.modules.scores.repository import ScoreRepository
 from app.modules.revisions.presentation_demand import (
     lock_presentation_score,
     admit_generated_revision,
 )
-from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.storage_usage.service import storage_usage_service
 from app.modules.rendering.renderer import RenderedPage, RenderExecutionError, render_musicxml
 from app.shared.error_codes import CustomerErrorCode
@@ -56,121 +50,8 @@ from app.storage import object_storage
 class ScoreRevisionRenderService:
     """Generate replaceable derived pages without mutating canonical revisions."""
 
-    def __init__(
-        self,
-        repository: ScoreAssetRepository | None = None,
-        score_repository: ScoreRepository | None = None,
-        storage: ObjectStorage | None = None,
-        access_policy: ScoreAccessPolicy | None = None,
-    ) -> None:
-        self.repository = repository or ScoreAssetRepository()
-        self.score_repository = score_repository or ScoreRepository()
+    def __init__(self, storage: ObjectStorage | None = None) -> None:
         self.storage = storage or object_storage
-        self.access_policy = access_policy or ScoreAccessPolicy()
-        self.asset_service = ScoreAssetService(
-            self.repository,
-            self.score_repository,
-            self.storage,
-            self.access_policy,
-        )
-
-    def render(
-        self,
-        db: Session,
-        score_uuid: str,
-        revision_uuid: str,
-        user_id: int,
-        *,
-        profile: str = SCORE_PRESENTATION_RENDER_PROFILE,
-    ) -> list[RenderAssetRead]:
-        access = self.access_policy.authorize_revision(
-            db,
-            score_uuid,
-            ScoreAction.EDIT,
-            user_id=user_id,
-            revision_uuid=revision_uuid,
-        )
-        revision = access.revision
-        revision_id = require_persisted_id(revision.id, entity="score revision")
-        source = self.repository.canonical_source(db, revision_id)
-        if not source:
-            raise ResourceNotFoundException(
-                "source", revision_uuid, CustomerErrorCode.FILE_NOT_FOUND
-            )
-
-        uploaded_keys: list[str] = []
-        try:
-            content = read_admitted_bytes(
-                self.storage, StoredObjectReadTarget.from_object(source.stored_object)
-            )
-            outputs = self._render_pages(content, revision_uuid)
-            pages = []
-            for output in outputs:
-                item, key, media_type, content = self._render_descriptor(
-                    output, score_uuid, revision_uuid, revision_id, profile
-                )
-                written = write_object(
-                    db, self.storage, key=key, content=content, content_type=media_type
-                )
-                uploaded_keys.append(written.object_key)
-                pages.append(dict(written=written, **item))
-            access = self.access_policy.authorize_revision(
-                db, score_uuid, ScoreAction.EDIT, user_id=user_id, revision_uuid=revision_uuid
-            )
-            manifest = get_or_create_execution_manifest(db, build_render_execution_manifest())
-            execution_manifest_id = require_persisted_id(manifest.id, entity="execution manifest")
-            new_records = []
-            for item in pages:
-                physical = adopt_written_object(db, item.pop("written"))
-                new_records.append(
-                    build_render_asset_record(
-                        stored_object=physical, execution_manifest_id=execution_manifest_id, **item
-                    )
-                )
-        except Exception:
-            db.rollback()
-            raise
-
-        previous = [
-            item
-            for item in self.repository.list_render_assets(db, revision_id)
-            if isinstance(item, ScoreRenderAsset) and item.render_profile == profile
-        ]
-        previous_usage = render_asset_usage(previous)
-        try:
-            for item in previous:
-                db.delete(item)
-                retire_after_release(db, item.stored_object_id)
-            db.flush()
-            for item in new_records:
-                db.add(item)
-            for item in new_records:
-                storage_usage_service.record_allocation(
-                    db,
-                    user_id=access.score.owner_user_id,
-                    category=StorageUsageCategory.DERIVED_RENDER,
-                    bytes_count=item.stored_object.byte_size or 0,
-                    reason="render_asset_created",
-                    object_type="score_render_asset",
-                    object_id=item.asset_uuid,
-                    storage_key=item.stored_object.object_key,
-                )
-            for usage in previous_usage:
-                storage_usage_service.record_release(
-                    db,
-                    user_id=access.score.owner_user_id,
-                    category=StorageUsageCategory.DERIVED_RENDER,
-                    bytes_count=usage.size_bytes or 0,
-                    reason="render_asset_replaced",
-                    object_type="score_render_asset",
-                    object_id=usage.asset_uuid,
-                    storage_key=usage.storage_key,
-                )
-            db.commit()
-        except Exception:
-            db.rollback()
-            raise
-        return [self.asset_service.render_asset_read(item, revision) for item in new_records]
 
     def render_for_worker(
         self,

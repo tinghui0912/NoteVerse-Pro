@@ -34,7 +34,6 @@ from app.modules.scores.schemas import (
 from app.modules.metadata.service import MetadataProjectionService
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.score_access.schemas import ScoreCapabilities
-from app.modules.score_assets.score_revision_rendering import ScoreRevisionRenderService
 from app.shared.error_codes import CustomerErrorCode
 from app.storage import object_storage
 from app.shared.time import utc_now
@@ -46,7 +45,6 @@ class ScoreService:
         repository: ScoreRepository | None = None,
         storage: ObjectStorage | None = None,
         access_policy: ScoreAccessPolicy | None = None,
-        render_service: ScoreRevisionRenderService | None = None,
         asset_repository: ScoreAssetRepository | None = None,
         lifecycle_service: ScoreLifecycleService | None = None,
     ) -> None:
@@ -54,10 +52,6 @@ class ScoreService:
         self.asset_repository = asset_repository or ScoreAssetRepository()
         self.storage = storage or object_storage
         self.access_policy = access_policy or ScoreAccessPolicy()
-        self.render_service = render_service or ScoreRevisionRenderService(
-            access_policy=self.access_policy,
-            storage=self.storage,
-        )
         self.lifecycle_service = lifecycle_service or ScoreLifecycleService(
             repository=self.repository,
             access_policy=self.access_policy,

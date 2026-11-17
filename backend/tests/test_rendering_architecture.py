@@ -1,6 +1,8 @@
 """Revision presentation owns durable rendering; renderer capabilities are stateless."""
 
 import ast
+import inspect
+from typing import get_type_hints
 from pathlib import Path
 
 from sqlalchemy import UniqueConstraint
@@ -79,3 +81,50 @@ def test_renderer_capability_and_revision_execution_have_distinct_owners():
     assert "app.modules.revisions.render_delivery" in imports(
         "modules/score_assets/score_revision_rendering.py"
     )
+
+
+def test_revision_render_asset_mutation_requires_durable_execution_ownership():
+    from app.modules.score_assets.score_revision_rendering import ScoreRevisionRenderService
+    from app.modules.durable_work.delivery import DeliveryAttemptLease
+
+    public_operations = {
+        name
+        for name, method in inspect.getmembers(ScoreRevisionRenderService, inspect.isfunction)
+        if not name.startswith("_")
+    }
+    assert public_operations == {"render_for_worker"}
+    execution = ScoreRevisionRenderService.render_for_worker
+    signature = inspect.signature(execution)
+    for name in ("outbox_uuid", "lease", "source_fingerprint", "profile"):
+        parameter = signature.parameters[name]
+        assert parameter.kind is inspect.Parameter.KEYWORD_ONLY
+        assert parameter.default is inspect.Parameter.empty
+    assert get_type_hints(execution)["lease"] is DeliveryAttemptLease
+    assert set(inspect.signature(ScoreRevisionRenderService).parameters) == {"storage"}
+
+
+def test_rendered_page_variant_identity_is_required_in_persistence_and_public_contract():
+    from app.db.models import ScoreRenderAsset
+    from app.modules.score_assets.schemas import RenderAssetRead
+    from app.modules.score_assets.render_asset_records import build_render_asset_record
+
+    fields = {"render_profile": str, "page_number": int}
+    table = ScoreRenderAsset.__table__
+    schema = RenderAssetRead.model_json_schema()
+    for name, value_type in fields.items():
+        assert ScoreRenderAsset.model_fields[name].annotation is value_type
+        assert ScoreRenderAsset.model_fields[name].is_required()
+        column = table.c[name]
+        assert not column.nullable
+        assert column.default is None and column.server_default is None
+        assert name in schema["required"]
+        assert schema["properties"][name]["type"] == ("string" if value_type is str else "integer")
+    identities = {
+        tuple(c.name for c in item.columns)
+        for item in table.constraints
+        if isinstance(item, UniqueConstraint)
+    }
+    assert ("revision_id", "kind", "render_profile", "page_number") in identities
+    parameters = inspect.signature(build_render_asset_record).parameters
+    for name in ("profile", "page_number"):
+        assert parameters[name].default is inspect.Parameter.empty

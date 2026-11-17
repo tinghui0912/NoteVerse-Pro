@@ -1987,7 +1987,7 @@ export type RenderAssetRead = {
     /**
      * Page Number
      */
-    page_number: number | null;
+    page_number: number;
     /**
      * Render Asset Id
      */

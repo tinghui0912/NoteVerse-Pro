@@ -3615,15 +3615,8 @@
             "type": "string"
           },
           "page_number": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Page Number"
+            "title": "Page Number",
+            "type": "integer"
           },
           "render_asset_id": {
             "title": "Render Asset Id",

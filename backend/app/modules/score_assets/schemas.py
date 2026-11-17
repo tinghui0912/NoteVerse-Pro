@@ -28,7 +28,7 @@ class RenderAssetRead(BaseModel):
     filename: str
     mime_type: str
     size_bytes: int | None
-    page_number: int | None
+    page_number: int
     created_at: Instant
 
 

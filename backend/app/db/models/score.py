@@ -263,10 +263,6 @@ class ScoreRevisionSource(SQLModel, table=True):  # type: ignore[call-arg]
 class ScoreRenderAsset(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "score_render_assets"
     __table_args__ = (
-        CheckConstraint(
-            "kind != 'RENDERED_PAGE' OR (render_profile IS NOT NULL AND page_number IS NOT NULL)",
-            name="ck_score_render_assets_rendered_page_fields",
-        ),
         UniqueConstraint("stored_object_id", name="uq_score_render_assets_stored_object"),
         UniqueConstraint(
             "revision_id",
@@ -312,8 +308,8 @@ class ScoreRenderAsset(SQLModel, table=True):  # type: ignore[call-arg]
             index=True,
         ),
     )
-    page_number: Optional[int] = Field(default=None, sa_column=Column(Integer))
-    render_profile: Optional[str] = Field(default=None, sa_column=Column(String(128)))
+    page_number: int = Field(sa_column=Column(Integer, nullable=False))
+    render_profile: str = Field(sa_column=Column(String(128), nullable=False))
     generator: str = Field(sa_column=Column(String(64), nullable=False))
     generator_version: str = Field(sa_column=Column(String(64), nullable=False))
     created_at: datetime = Field(

@@ -3,7 +3,7 @@
 import zipfile
 
 import pytest
-from sqlalchemy import select, text
+from sqlalchemy import insert, select, text
 from sqlalchemy.exc import IntegrityError
 
 from app.db.models import (
@@ -159,3 +159,35 @@ def test_revision_profile_admission_and_database_uniqueness(score_service_sessio
             text("UPDATE score_revision_render_outbox SET status='INVALID' WHERE id=:id"),
             {"id": first.id},
         )
+
+
+@pytest.mark.parametrize("missing_field", ["render_profile", "page_number"])
+def test_rendered_page_persistence_requires_explicit_variant_coordinates(
+    score_service_session, missing_field
+):
+    db, _ = score_service_session
+    seed_score(db)
+    physical = object_from_bytes(
+        object_key=f"variants/{missing_field}.svg",
+        content=b"<svg/>",
+        content_type="image/svg+xml",
+    )
+    db.add(physical)
+    db.commit()
+    values = dict(
+        asset_uuid=f"missing-{missing_field}",
+        revision_id=702,
+        kind=RenderAssetKind.RENDERED_PAGE,
+        stored_object_id=physical.id,
+        filename="page.svg",
+        generator="test",
+        generator_version="1",
+        render_profile="profile-a",
+        page_number=1,
+    )
+    del values[missing_field]
+    with pytest.raises(IntegrityError) as failure, db.begin_nested():
+        db.execute(insert(ScoreRenderAsset.__table__).values(**values))
+    assert failure.value.orig.sqlstate == "23502"
+    assert failure.value.orig.diag.column_name == missing_field
+    assert db.scalar(select(ScoreRenderAsset)) is None

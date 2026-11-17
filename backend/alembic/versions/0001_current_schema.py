@@ -2245,15 +2245,11 @@ def upgrade() -> None:
         ),
         sa.Column("filename", sa.String(length=255), nullable=False),
         sa.Column("execution_manifest_id", sa.BigInteger(), nullable=True),
-        sa.Column("page_number", sa.Integer(), nullable=True),
-        sa.Column("render_profile", sa.String(length=128), nullable=True),
+        sa.Column("page_number", sa.Integer(), nullable=False),
+        sa.Column("render_profile", sa.String(length=128), nullable=False),
         sa.Column("generator", sa.String(length=64), nullable=False),
         sa.Column("generator_version", sa.String(length=64), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
-        sa.CheckConstraint(
-            "kind != 'RENDERED_PAGE' OR (render_profile IS NOT NULL AND page_number IS NOT NULL)",
-            name="ck_score_render_assets_rendered_page_fields",
-        ),
         sa.ForeignKeyConstraint(
             ["execution_manifest_id"],
             ["execution_manifests.id"],
