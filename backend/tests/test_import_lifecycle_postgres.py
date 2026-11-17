@@ -31,7 +31,8 @@ from app.modules.import_jobs.lifecycle import (
 from app.modules.import_jobs.dispatch_service import ImportDispatchService, ImportExecutionLease
 from app.modules.import_jobs.execution_recorder import ImportExecutionRecorder
 from app.modules.import_jobs.service import ImportJobService
-from app.modules.durable_work.failure import DurableFailure, DurableFailureClass
+from app.modules.durable_work.failure import DurableFailure
+from app.shared.durable_failure import DurableFailureClass
 from app.modules.storage_objects.persistence import object_from_bytes
 from app.shared.time import utc_now
 from tests.test_score_revision_services import score_service_session as score_service_session

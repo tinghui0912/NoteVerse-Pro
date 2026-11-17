@@ -13,7 +13,8 @@ from app.modules.import_jobs.dispatch_service import (
     StaleImportDispatchAttempt,
 )
 from app.modules.import_jobs.pipeline_runner import ImportPipelineRunner
-from app.modules.durable_work.failure import DurableFailure, DurableFailureClass
+from app.modules.durable_work.failure import DurableFailure
+from app.shared.durable_failure import DurableFailureClass
 from app.modules.storage_objects.reads import StoredObjectIntegrityError
 
 

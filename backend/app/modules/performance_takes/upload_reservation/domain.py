@@ -2,16 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
-from enum import Enum
 from typing import Literal
 
-
-class UploadReservationStatus(str, Enum):
-    RESERVED = "RESERVED"
-    FINALIZING = "FINALIZING"
-    COMPLETED = "COMPLETED"
-    CANCELLED = "CANCELLED"
-    EXPIRED = "EXPIRED"
+from app.shared.performance_take_upload import UploadReservationStatus
 
 
 class ReservationInvariantError(ValueError):

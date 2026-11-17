@@ -1,7 +1,7 @@
 from __future__ import annotations
 from app.storage import ObjectStorage
 
-from app.modules.performance_takes.upload_reservation.domain import UploadReservationStatus
+from app.shared.performance_take_upload import UploadReservationStatus
 
 from dataclasses import asdict
 from datetime import datetime, timedelta

@@ -1,5 +1,6 @@
 from app.modules.import_jobs.requested_options import encode_requested_options
-from app.modules.durable_work.failure import DurableFailure, DurableFailureClass
+from app.modules.durable_work.failure import DurableFailure
+from app.shared.durable_failure import DurableFailureClass
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import Mock

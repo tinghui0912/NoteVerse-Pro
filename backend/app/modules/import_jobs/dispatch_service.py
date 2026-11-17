@@ -32,10 +32,10 @@ from app.modules.durable_work.delivery import (
 )
 from app.modules.durable_work.failure import (
     DurableFailure,
-    DurableFailureClass,
     set_failure_facts,
     clear_failure_facts,
 )
+from app.shared.durable_failure import DurableFailureClass
 from app.modules.import_jobs.notifications import admit_import_processing_outcome
 from app.modules.import_jobs.lifecycle import (
     IMPORT_EXECUTION_CLOSED_STATES,

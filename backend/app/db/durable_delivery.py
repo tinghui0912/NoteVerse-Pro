@@ -9,7 +9,7 @@ from typing import Any
 from sqlalchemy import Boolean, CheckConstraint, Column, DateTime, Integer, String, Text
 from sqlmodel import Field
 
-from app.modules.durable_work.failure import DurableFailureClass
+from app.shared.durable_failure import DurableFailureClass
 from app.shared.time import utc_now
 
 

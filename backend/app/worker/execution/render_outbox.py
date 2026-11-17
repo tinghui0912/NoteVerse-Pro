@@ -10,9 +10,9 @@ from app.modules.revisions.presentation_demand import RevisionPresentationSupers
 from app.core.background_tracing import record_current_attempt_failure
 from app.db.session import SessionLocal
 from app.modules.realtime.publisher import (
-    RealtimeChangeKind,
     publish_score_change,
 )
+from app.shared.realtime import RealtimeChangeKind
 from app.modules.import_jobs.review.thumbnail_service import import_review_thumbnail_service
 from app.modules.rendering.delivery import render_outbox_service
 from app.modules.rendering.targets import (

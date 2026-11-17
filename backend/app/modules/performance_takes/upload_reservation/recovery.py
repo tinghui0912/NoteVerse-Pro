@@ -6,7 +6,8 @@ from app.db.session import SessionLocal
 from app.modules.performance_takes.repository import PerformanceTakeRepository
 from app.modules.storage_usage.service import StorageUsageService
 from app.shared.time import utc_now
-from .domain import FinalizeLease, UploadReservationStatus
+from .domain import FinalizeLease
+from app.shared.performance_take_upload import UploadReservationStatus
 from .persistence import lifecycle_from_row
 from .effects import apply_reservation_transition
 

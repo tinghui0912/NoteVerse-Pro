@@ -12,11 +12,11 @@ from app.modules.performance_takes.upload_reservation.cleanup import (
 )
 
 from app.modules.performance_takes.upload_reservation.domain import (
-    UploadReservationStatus,
     UploadReservationLifecycle,
     OrphanFinalCandidate,
     FinalizeLease,
 )
+from app.shared.performance_take_upload import UploadReservationStatus
 from app.modules.performance_takes.upload_reservation.persistence import (
     initialize_lifecycle,
     lifecycle_from_row,

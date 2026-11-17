@@ -23,7 +23,8 @@ from app.modules.durable_work.delivery import (
     StaleDeliveryAttempt,
 )
 from app.modules.metadata.service import MetadataProjectionService
-from app.modules.realtime.publisher import publish_score_change, RealtimeChangeKind
+from app.modules.realtime.publisher import publish_score_change
+from app.shared.realtime import RealtimeChangeKind
 from app.processing.musicxml import (
     extract_musicxml_metadata,
     MetadataExtractionError,

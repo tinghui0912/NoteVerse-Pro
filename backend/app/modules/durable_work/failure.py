@@ -1,22 +1,16 @@
 """Explicit failure facts supplied by the owning durable-work domain."""
 
 from dataclasses import dataclass
-from enum import StrEnum
 from typing import Protocol
 
-
-class DurableFailureClass(StrEnum):
-    TRANSIENT = "transient"
-    PERMANENT = "permanent"
-    USER_ERROR = "user_error"
-    SYSTEM_ERROR = "system_error"
+import app.shared.durable_failure as failure_taxonomy
 
 
 @dataclass(frozen=True)
 class DurableFailure:
     code: str
     stage: str
-    classification: DurableFailureClass
+    classification: failure_taxonomy.DurableFailureClass
     retryable: bool
 
 

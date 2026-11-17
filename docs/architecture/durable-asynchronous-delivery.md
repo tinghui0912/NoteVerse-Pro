@@ -97,7 +97,9 @@ Domain responsibilities remain explicit:
 Services own SQL predicates, row locks, maintenance ordering/batches and transactions.
 They supply immutable `DurableFailure(code, stage, classification, retryable)` facts
 and use `set_failure_facts()` / `clear_failure_facts()` after shared transitions.
-`durable_work/failure.py` sets or clears these facts and bounds diagnostic detail; classification comes from
+`app/shared/durable_failure.py` owns the shared `DurableFailureClass` vocabulary.
+`durable_work/failure.py` owns behavioral failure facts, sets or clears them and
+bounds diagnostic detail; classification comes from
 typed domain outcomes, never from exception text. The four taxonomy fields are all
 null or all populated, with one of transient, permanent, user_error or system_error.
 `retryable` means automatic durable retry remains; manual operator rearm is a separate
@@ -131,7 +133,8 @@ continues to own the separate physical-write generation.
 Structured failure field factories and the all-null/all-present predicate serve
 ImportJob, ImportDispatch, RenderOutbox, PlaybackOutbox, MailOutbox and
 ScoreDeletionOperation. The predicate derives accepted classifications directly
-from `DurableFailureClass`. RevisionMetadataOutbox, StoredObjectRetirement and
+from the same `app/shared/durable_failure.py` vocabulary, without a DB dependency
+on application modules. RevisionMetadataOutbox, StoredObjectRetirement and
 ObjectWriteIntent persist diagnostic detail without structured failure facts.
 ImportJob retains its domain state/failure coupling and lifecycle checks.
 `DurableDeliveryLifecycle` remains table-free, IO-free and ORM-free;

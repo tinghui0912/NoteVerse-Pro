@@ -4,7 +4,8 @@ from app.db.models.import_job import ImportArtifactKind
 
 from app.modules.import_jobs.requested_options import encode_requested_options
 
-from app.modules.durable_work.failure import DurableFailure, DurableFailureClass
+from app.modules.durable_work.failure import DurableFailure
+from app.shared.durable_failure import DurableFailureClass
 
 
 from contextlib import contextmanager

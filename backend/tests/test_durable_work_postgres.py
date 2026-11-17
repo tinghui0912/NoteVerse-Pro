@@ -21,10 +21,10 @@ from app.db.models import (
 )
 from app.modules.durable_work.failure import (
     DurableFailure,
-    DurableFailureClass,
     clear_failure_facts,
     set_failure_facts,
 )
+from app.shared.durable_failure import DurableFailureClass
 from app.modules.import_jobs.requested_options import encode_requested_options
 from app.modules.ops.query_service import OpsAsyncOperationQueryService
 from app.modules.ops.schemas import AsyncOperationKind

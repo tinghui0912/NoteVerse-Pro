@@ -21,7 +21,8 @@ from app.db.models import (
     StoredObjectRetirement,
 )
 from app.modules.durable_work import delivery, failure
-from app.modules.durable_work.failure import DurableFailureClass
+from app.shared import durable_failure, performance_take_upload, realtime
+from app.shared.durable_failure import DurableFailureClass
 from app.shared.time import utc_now
 
 DELIVERIES = (
@@ -150,7 +151,9 @@ def test_detail_only_records_do_not_own_structured_failure_facts(model):
     assert not (set(FAILURE_LENGTHS) | {"failure_retryable"}) & set(model.__table__.c.keys())
 
 
-@pytest.mark.parametrize("module", (delivery, failure))
+@pytest.mark.parametrize(
+    "module", (delivery, failure, durable_failure, performance_take_upload, realtime)
+)
 def test_transition_and_failure_mechanics_depend_only_on_pure_behavior(module):
     import sys
 
@@ -165,6 +168,38 @@ def test_transition_and_failure_mechanics_depend_only_on_pure_behavior(module):
             continue
         assert all(
             name.split(".")[0] in sys.stdlib_module_names
-            or name == "app.modules.durable_work.failure"
+            or (module is delivery and name == "app.modules.durable_work.failure")
+            or (module is failure and name == "app.shared.durable_failure")
             for name in names
         )
+
+
+def test_database_layer_does_not_depend_on_application_modules():
+    from importlib.util import resolve_name
+
+    db_root = Path(durable_delivery.__file__).parent
+    for path in db_root.rglob("*.py"):
+        package = ".".join(path.parent.relative_to(db_root.parent.parent).parts)
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                module = resolve_name("." * node.level + (node.module or ""), package)
+                names = [module, *(module + "." + alias.name for alias in node.names)]
+            else:
+                continue
+            assert not any(
+                name == "app.modules" or name.startswith("app.modules.") for name in names
+            ), path
+
+
+def test_shared_taxonomy_is_the_failure_classification_authority():
+    assert DurableFailureClass.__module__ == "app.shared.durable_failure"
+    assert failure.DurableFailure.__annotations__["classification"] is DurableFailureClass
+    assert {value.value for value in DurableFailureClass} == {
+        "transient",
+        "permanent",
+        "user_error",
+        "system_error",
+    }

@@ -16,7 +16,7 @@ from sqlalchemy import (
 )
 from sqlmodel import Field, SQLModel
 from app.shared.time import utc_now
-from app.modules.realtime.generated.transport import RealtimeChangeKind
+from app.shared.realtime import RealtimeChangeKind
 
 
 class RealtimeChange(SQLModel, table=True):  # type: ignore[call-arg]

@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.core.control_plane_errors import ControlPlaneErrorCode
 from app.core.exceptions import ResourceNotFoundException
-from app.modules.durable_work.failure import DurableFailureClass
+from app.shared.durable_failure import DurableFailureClass
 from app.modules.ops.operation_filters import AsyncOperationFilters
 from app.modules.ops.operation_projection import operation_projection, projection_predicates
 from app.modules.ops.operation_summary import AsyncOperationSummaryQuery

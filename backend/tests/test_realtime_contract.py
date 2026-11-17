@@ -14,6 +14,7 @@ from sqlalchemy import CheckConstraint
 
 from app.db.models import RealtimeChange
 from app.modules.realtime.generated import transport
+from app.shared.realtime import RealtimeChangeKind
 
 ROOT = Path(os.environ.get("NOTEVERSE_REPO_ROOT", Path(__file__).resolve().parents[2]))
 spec = importlib.util.spec_from_file_location(
@@ -30,8 +31,9 @@ def test_current_language_projections_match_the_machine_schema():
     for relative, content in outputs.items():
         assert (ROOT / relative).read_text(encoding="utf-8") == content
     kinds = {d["properties"]["kind"]["const"] for _, d in events if d["x-sse-event"] == "change"}
-    assert {kind.value for kind in transport.RealtimeChangeKind} == kinds
+    assert {kind.value for kind in RealtimeChangeKind} == kinds
     assert set(RealtimeChange.__table__.c.kind.type.enums) == kinds
+    assert RealtimeChange.__table__.c.kind.type.enum_class is RealtimeChangeKind
     identity_check = next(
         c
         for c in RealtimeChange.__table__.constraints

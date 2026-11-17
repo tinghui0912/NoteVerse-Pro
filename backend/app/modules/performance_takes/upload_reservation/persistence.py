@@ -13,8 +13,8 @@ from app.modules.performance_takes.upload_reservation.domain import (
     ReservationInvariantError,
     ReservationTransition,
     UploadReservationLifecycle,
-    UploadReservationStatus,
 )
+from app.shared.performance_take_upload import UploadReservationStatus
 
 
 def decode_orphan_candidates(value: str) -> tuple[OrphanFinalCandidate, ...]:

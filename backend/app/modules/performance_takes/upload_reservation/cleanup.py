@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.logger import logger
 from app.db.models.stored_object import StoredObject
 from app.db.models import PerformanceTake, PerformanceTakeUploadReservation
-from app.modules.performance_takes.upload_reservation.domain import UploadReservationStatus
+from app.shared.performance_take_upload import UploadReservationStatus
 from app.modules.performance_takes.upload_reservation.persistence import (
     apply_transition,
     lifecycle_from_row,

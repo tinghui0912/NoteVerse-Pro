@@ -42,8 +42,9 @@ Content-Type, container signature and full SHA-256 against the admitted recordin
 
 ## Lifecycle and persistence
 
-The domain owns `UploadReservationStatus`, `FinalizeLease`, orphan candidates,
-invariants and transitions. Time, tokens, object keys and lease expiry are explicit
+`app/shared/performance_take_upload.py` owns `UploadReservationStatus`, consumed by
+both the lifecycle domain and persistence. The domain owns `FinalizeLease`, orphan
+candidates, invariants and transitions. Time, tokens, object keys and lease expiry are explicit
 command inputs. No domain transition accesses a database, storage, HTTP or clock.
 
 RESERVED has no finalize lease. FINALIZING has one complete token/key/expiry lease.

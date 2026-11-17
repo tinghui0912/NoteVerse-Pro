@@ -17,10 +17,10 @@ from app.modules.durable_work.delivery import (
 )
 from app.modules.durable_work.failure import (
     DurableFailure,
-    DurableFailureClass,
     set_failure_facts,
     clear_failure_facts,
 )
+from app.shared.durable_failure import DurableFailureClass
 from app.shared.time import utc_now
 
 

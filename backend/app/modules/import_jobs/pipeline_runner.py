@@ -5,7 +5,8 @@ from celery.exceptions import SoftTimeLimitExceeded
 
 from app.core.exceptions import PipelineException
 from app.core.logger import logger
-from app.modules.durable_work.failure import DurableFailure, DurableFailureClass
+from app.modules.durable_work.failure import DurableFailure
+from app.shared.durable_failure import DurableFailureClass
 from app.modules.import_jobs.dispatch_service import (
     ImportExecutionLease,
     StaleImportDispatchAttempt,

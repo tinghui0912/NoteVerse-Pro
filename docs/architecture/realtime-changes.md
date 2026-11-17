@@ -114,10 +114,10 @@ Score, revision/assets and library queries.
 
 `contracts/realtime/events.schema.json` owns the Draft 2020-12 exact JSON payloads
 for checkpoints, resync controls and the five change kinds. The offline generator
-`scripts/generate_realtime_contract.py` projects typed Python payloads and the database
-change-kind enum into `backend/app/modules/realtime/generated/transport.py`, and
-TypeScript types and strict decoders into
-`apps/customer-web/src/lib/realtime/generated/events.ts`. Both projections are checked
+`scripts/generate_realtime_contract.py` projects typed Python payloads into
+`backend/app/modules/realtime/generated/transport.py`, the shared change-kind
+vocabulary into `backend/app/shared/realtime.py`, and TypeScript types and strict decoders into
+`apps/customer-web/src/lib/realtime/generated/events.ts`. These projections are checked
 for freshness by backend and Customer Web quality gates. SSE formatters accept these
 typed payloads and use the payload sequence as the event ID. RealtimeProvider owns only
 transport and lifecycle. Customer cache-effects own semantic convergence; local mutation

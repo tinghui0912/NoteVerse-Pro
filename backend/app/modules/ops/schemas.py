@@ -5,7 +5,7 @@ from app.shared.time import Instant
 
 from pydantic import BaseModel, Field
 from app.shared.api_model import ApiModel
-from app.modules.durable_work.failure import DurableFailureClass
+from app.shared.durable_failure import DurableFailureClass
 
 
 class AsyncOperationKind(str, enum.Enum):

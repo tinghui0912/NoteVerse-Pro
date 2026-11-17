@@ -25,8 +25,8 @@ from .service import PerformanceTakeService
 from .upload_reservation.domain import (
     FinalizeLease,
     ReservationTransitionError,
-    UploadReservationStatus,
 )
+from app.shared.performance_take_upload import UploadReservationStatus
 from .upload_reservation.persistence import lifecycle_from_row
 from .upload_reservation.effects import apply_reservation_transition
 from .upload_reservation.recovery import (

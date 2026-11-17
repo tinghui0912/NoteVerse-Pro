@@ -26,10 +26,10 @@ from app.db.models import (
 from app.modules.durable_work.delivery import DeliveryAttemptLease
 from app.modules.durable_work.failure import (
     DurableFailure,
-    DurableFailureClass,
     set_failure_facts,
     clear_failure_facts,
 )
+from app.shared.durable_failure import DurableFailureClass
 from app.modules.rendering.delivery import RenderOutboxService
 from app.modules.playback.outbox_service import PlaybackOutboxService
 from app.modules.mail.outbox_service import MailOutboxService

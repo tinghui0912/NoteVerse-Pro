@@ -1,20 +1,11 @@
 """Generated from contracts/realtime/events.schema.json. Do not edit."""
 
-from enum import StrEnum
 from datetime import datetime
 import re
 from typing import Annotated, Any, Literal
 from pydantic import BeforeValidator, ConfigDict, Field, TypeAdapter, field_validator
 from app.shared.api_model import ApiModel
 from app.shared.time import Instant
-
-
-class RealtimeChangeKind(StrEnum):
-    NOTIFICATIONS_CHANGED = "notifications.changed"
-    SCORE_REVISIONS_CHANGED = "score.revisions.changed"
-    SCORE_DERIVED_ASSETS_CHANGED = "score.derived_assets.changed"
-    SCORE_METADATA_CHANGED = "score.metadata.changed"
-    IMPORT_JOBS_CHANGED = "import_jobs.changed"
 
 
 _DATETIME_PATTERN = "^[0-9]{4}-[0-9]{2}-[0-9]{2}[Tt][0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]+)?(?:[Zz]|[+-](?:[01][0-9]|2[0-3]):[0-5][0-9])$"

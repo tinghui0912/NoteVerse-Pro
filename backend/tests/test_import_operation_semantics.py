@@ -3,7 +3,7 @@
 from app.modules.import_jobs.requested_options import encode_requested_options
 
 from datetime import timedelta
-from app.modules.durable_work.failure import DurableFailureClass
+from app.shared.durable_failure import DurableFailureClass
 
 import pytest
 

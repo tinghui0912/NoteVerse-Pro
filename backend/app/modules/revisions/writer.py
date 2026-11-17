@@ -15,11 +15,11 @@ from app.db.models import (
     ScoreRevisionMetadata,
     ScoreRevisionEvent,
     User,
-    RealtimeChangeKind,
     StorageUsageCategory,
     StorageUsageReservation,
     StorageUsageReservationStatus,
 )
+from app.shared.realtime import RealtimeChangeKind
 from app.db.models.score import RevisionOrigin, RevisionSourceFormat, MetadataStatus
 from app.db.models.revision_metadata_outbox import RevisionMetadataOutbox
 from app.modules.storage_objects.writes import ObjectWriteReceipt, adopt_written_object

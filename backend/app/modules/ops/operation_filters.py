@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from app.modules.ops.schemas import AsyncOperationStatus
-from app.modules.durable_work.failure import DurableFailureClass
+from app.shared.durable_failure import DurableFailureClass
 
 
 @dataclass(frozen=True)

@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 from app.modules.account.avatar_presentation import avatar_url_for_user
 from app.core.config import settings
 from app.core.exceptions import ResourceNotFoundException, UnauthorizedException
-from app.db.models import Notification, NotificationKind, RealtimeChangeKind, User
+from app.db.models import Notification, NotificationKind, User
+from app.shared.realtime import RealtimeChangeKind
 from app.modules.notifications.repository import NotificationRepository
 from app.modules.notifications.schemas import (
     NotificationActorRead,

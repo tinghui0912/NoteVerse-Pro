@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from app.modules.import_jobs.requested_options import encode_requested_options
 
-from app.modules.durable_work.failure import DurableFailure, DurableFailureClass
+from app.modules.durable_work.failure import DurableFailure
+from app.shared.durable_failure import DurableFailureClass
 
 from collections.abc import Iterator
 from datetime import timedelta
@@ -2349,7 +2350,7 @@ def test_realtime_maintenance_removes_events_older_than_retention(
     now = utc_now()
 
     from app.modules.realtime.publisher import publish_change
-    from app.db.models import RealtimeChangeKind
+    from app.shared.realtime import RealtimeChangeKind
 
     for score_id, age in (("old-score", 8), ("fresh-score", 2)):
         change = publish_change(

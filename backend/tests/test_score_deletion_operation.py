@@ -38,9 +38,9 @@ from app.modules.storage_usage.service import storage_usage_service
 from app.modules.ops.query_service import OpsAsyncOperationQueryService
 from app.modules.durable_work.failure import (
     DurableFailure,
-    DurableFailureClass,
     set_failure_facts,
 )
+from app.shared.durable_failure import DurableFailureClass
 from app.modules.ops.operation_summary import AsyncOperationSummaryQuery
 from app.modules.ops.schemas import AsyncOperationKind
 from app.modules.ops.operation_filters import AsyncOperationFilters

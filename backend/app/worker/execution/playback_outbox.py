@@ -12,9 +12,9 @@ from app.db.session import SessionLocal
 from app.modules.playback.outbox_service import playback_outbox_service
 from app.modules.playback.service import PlaybackGenerationService
 from app.modules.realtime.publisher import (
-    RealtimeChangeKind,
     publish_score_change,
 )
+from app.shared.realtime import RealtimeChangeKind
 from app.task_queue.protocols import CeleryTaskLike
 from app.worker.task_runtime import (
     bind_task_context,

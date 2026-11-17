@@ -7,6 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = "contracts/realtime/events.schema.json"
 PYTHON = "backend/app/modules/realtime/generated/transport.py"
+PYTHON_VOCABULARY = "backend/app/shared/realtime.py"
 TYPESCRIPT = "apps/customer-web/src/lib/realtime/generated/events.ts"
 
 
@@ -117,13 +118,17 @@ def projections(events):
     py = [
         '"""Generated from contracts/realtime/events.schema.json. Do not edit."""',
         "",
-        "from enum import StrEnum",
         "from datetime import datetime",
         "import re",
         "from typing import Annotated, Any, Literal",
         "from pydantic import BeforeValidator, ConfigDict, Field, TypeAdapter, field_validator",
         "from app.shared.api_model import ApiModel",
         "from app.shared.time import Instant",
+    ]
+    vocabulary = [
+        '"""Generated from contracts/realtime/events.schema.json. Do not edit."""',
+        "",
+        "from enum import StrEnum",
         "",
         "",
         "class RealtimeChangeKind(StrEnum):",
@@ -132,7 +137,7 @@ def projections(events):
     for name, d in events:
         if d["x-sse-event"] == "change":
             kind = d["properties"]["kind"]["const"]
-            py.append(f"    {kind.upper().replace('.', '_')} = {json.dumps(kind)}")
+            vocabulary.append(f"    {kind.upper().replace('.', '_')} = {json.dumps(kind)}")
             changes.append(name)
     py += [
         "",
@@ -244,7 +249,11 @@ def projections(events):
         "}",
         "",
     ]
-    return {PYTHON: "\n".join(py), TYPESCRIPT: "\n".join(ts)}
+    return {
+        PYTHON: "\n".join(py),
+        PYTHON_VOCABULARY: "\n".join(vocabulary) + "\n",
+        TYPESCRIPT: "\n".join(ts),
+    }
 
 
 TS_DECODER = r"""

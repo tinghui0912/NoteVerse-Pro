@@ -53,7 +53,7 @@ from app.modules.ops.query_service import (
     OpsAsyncOperationQueryService,
     selected_query_operation_kinds,
 )
-from app.modules.durable_work.failure import DurableFailureClass
+from app.shared.durable_failure import DurableFailureClass
 from app.shared.time import utc_now
 
 

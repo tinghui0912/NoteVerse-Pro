@@ -4,7 +4,7 @@ import ast
 from pathlib import Path
 
 from app.db.models.performance_take_upload_reservation import PerformanceTakeUploadReservation
-from app.modules.performance_takes.upload_reservation.domain import UploadReservationStatus
+from app.shared.performance_take_upload import UploadReservationStatus
 
 ROOT = Path(__file__).resolve().parents[1] / "app"
 MODULE = ROOT / "modules/performance_takes"
@@ -18,18 +18,16 @@ def imports(path):
     }
 
 
-def test_lifecycle_domain_is_pure_and_owns_status():
+def test_lifecycle_domain_and_persistence_consume_shared_status_vocabulary():
     assert imports(MODULE / "upload_reservation/domain.py") <= {
         "__future__",
         "dataclasses",
         "datetime",
-        "enum",
+        "app.shared.performance_take_upload",
         "typing",
     }
-    assert (
-        UploadReservationStatus.__module__
-        == "app.modules.performance_takes.upload_reservation.domain"
-    )
+    assert UploadReservationStatus.__module__ == "app.shared.performance_take_upload"
+    assert imports(ROOT / "shared/performance_take_upload.py") == {"enum"}
     model_imports = imports(ROOT / "db/models/performance_take_upload_reservation.py")
     assert UploadReservationStatus.__module__ in model_imports
 
@@ -61,7 +59,7 @@ def test_lifecycle_writes_belong_to_persistence_adapter():
     for name in ["reservation_service.py", "cleanup.py"]:
         dependencies = imports(MODULE / "upload_reservation" / name)
         assert "app.modules.performance_takes.upload_reservation.persistence" in dependencies
-        assert "app.modules.performance_takes.upload_reservation.domain" in dependencies
+        assert "app.shared.performance_take_upload" in dependencies
 
 
 def test_archive_admission_and_physical_retirement_have_distinct_owners():
@@ -132,6 +130,6 @@ def test_manifest_semantics_and_persistence_have_explicit_dependency_owners():
         "__future__",
         "dataclasses",
         "datetime",
-        "enum",
+        "app.shared.performance_take_upload",
         "typing",
     }

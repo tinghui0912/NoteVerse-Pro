@@ -15,7 +15,7 @@ from .operator import (
     OperatorSession,
     OperatorStatus,
 )
-from .realtime import RealtimeChange, RealtimeChangeKind, RealtimeStreamState
+from .realtime import RealtimeChange, RealtimeStreamState
 from .revision_event import ScoreRevisionEvent
 from .revision_note import ScoreRevisionNote
 from .scheduler import SchedulerHeartbeat, SchedulerLeaderStatus
@@ -105,7 +105,6 @@ __all__ = [
     "OperatorSession",
     "OperatorStatus",
     "RealtimeChange",
-    "RealtimeChangeKind",
     "RealtimeStreamState",
     "ScoreRevisionEvent",
     "ScoreRevisionNote",

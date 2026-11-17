@@ -7,7 +7,8 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 from sqlmodel import col
 
-from app.db.models import RealtimeChange, RealtimeChangeKind, Score, ScoreMembership
+from app.db.models import RealtimeChange, Score, ScoreMembership
+from app.shared.realtime import RealtimeChangeKind
 from app.modules.realtime.stream_state import admit_stream_state
 from app.shared.time import utc_now
 

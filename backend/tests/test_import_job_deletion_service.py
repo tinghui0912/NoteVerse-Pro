@@ -24,7 +24,8 @@ from app.db.models import (
 from app.db.models.import_job import ImportJobState
 from app.modules.storage_objects.persistence import object_from_bytes
 from app.modules.import_jobs.deletion_service import ImportJobDeletionService
-from app.modules.durable_work.failure import DurableFailure, DurableFailureClass, set_failure_facts
+from app.modules.durable_work.failure import DurableFailure, set_failure_facts
+from app.shared.durable_failure import DurableFailureClass
 from app.modules.storage_usage.service import storage_usage_service
 from tests.test_score_revision_services import (
     score_service_session as score_service_session,

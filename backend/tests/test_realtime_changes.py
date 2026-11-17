@@ -46,7 +46,7 @@ def realtime_session(
 
 def change(db, recipient=7):
     from app.modules.realtime.publisher import publish_change
-    from app.db.models import RealtimeChangeKind
+    from app.shared.realtime import RealtimeChangeKind
 
     return publish_change(
         db,

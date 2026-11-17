@@ -8,7 +8,8 @@ import pytest
 import sqlalchemy as sa
 from sqlalchemy.orm import Session
 from alembic import command
-from app.db.models import User, RealtimeChange, RealtimeChangeKind, RealtimeStreamState
+from app.db.models import User, RealtimeChange, RealtimeStreamState
+from app.shared.realtime import RealtimeChangeKind
 from app.modules.realtime.publisher import publish_change
 from app.modules.realtime.replay import read_page
 from app.modules.realtime.maintenance_service import RealtimeMaintenanceService

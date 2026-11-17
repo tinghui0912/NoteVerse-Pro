@@ -288,7 +288,9 @@ def test_delivery_and_failure_primitives_have_only_pure_dependencies() -> None:
                 )
             elif isinstance(node, ast.Import):
                 assert all(
-                    alias.name.split(".")[0] in sys.stdlib_module_names for alias in node.names
+                    alias.name.split(".")[0] in sys.stdlib_module_names
+                    or (name == "failure.py" and alias.name == "app.shared.durable_failure")
+                    for alias in node.names
                 )
 
 
