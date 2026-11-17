@@ -5,6 +5,7 @@ from app.shared.time import Instant
 from pydantic import BaseModel
 
 from app.db.models.score import MetadataStatus
+from app.processing.musicxml.metadata import KeySignatureEvent, TimeSignatureEvent, TempoEvent
 
 
 class MetadataRead(BaseModel):
@@ -16,7 +17,7 @@ class MetadataRead(BaseModel):
     part_count: int | None
     primary_key_fifths: int | None
     primary_mode: str | None
-    key_signature_events: list[dict[str, object]]
-    time_signature_events: list[dict[str, object]]
-    tempo_events: list[dict[str, object]]
+    key_signature_events: list[KeySignatureEvent]
+    time_signature_events: list[TimeSignatureEvent]
+    tempo_events: list[TempoEvent]
     computed_at: Instant | None

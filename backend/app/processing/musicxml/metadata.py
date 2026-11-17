@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from fractions import Fraction
-from typing import cast
+from pydantic import BaseModel, ConfigDict
 
 from app.score_semantics.musicxml_score import (
     CanonicalScoreSemanticModel,
@@ -24,6 +24,33 @@ class MetadataExtractionError(ValueError):
     pass
 
 
+class KeySignatureEvent(BaseModel):
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
+
+    part: int
+    measure: str
+    fifths: int
+    mode: str
+
+
+class TimeSignatureEvent(BaseModel):
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
+
+    part: int
+    measure: str
+    beats: int
+    beat_type: int
+
+
+class TempoEvent(BaseModel):
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
+
+    part: int
+    measure: str
+    offset_quarters: float
+    bpm: float
+
+
 @dataclass(frozen=True)
 class MusicXMLMetadata:
     measure_count: int
@@ -31,9 +58,9 @@ class MusicXMLMetadata:
     part_count: int
     primary_key_fifths: int | None
     primary_mode: str | None
-    key_signature_events: list[dict[str, object]]
-    time_signature_events: list[dict[str, object]]
-    tempo_events: list[dict[str, object]]
+    key_signature_events: list[KeySignatureEvent]
+    time_signature_events: list[TimeSignatureEvent]
+    tempo_events: list[TempoEvent]
     extractor_version: str = EXTRACTOR_VERSION
     notation_title: str | None = None
 
@@ -50,21 +77,21 @@ def project_score_metadata(
     model: CanonicalScoreSemanticModel, *, notation_title: str | None = None
 ) -> MusicXMLMetadata:
     # Public event lists retain part/written-source order and their existing DTO.
-    key_events: list[dict[str, object]] = []
+    key_events: list[KeySignatureEvent] = []
     for key in sorted(model.keys, key=lambda k: (k.part_index, k.measure_index)):
         if key.staff_number is not None:
             raise MetadataExtractionError("unsupported_staff_key")
         if key.fifths is None:
             raise MetadataExtractionError("unsupported_nontraditional_key")
         key_events.append(
-            {
-                "part": key.part_index + 1,
-                "measure": key.measure_number or str(key.measure_index + 1),
-                "fifths": key.fifths,
-                "mode": key.mode if key.mode is not None else "major",
-            }
+            KeySignatureEvent(
+                part=key.part_index + 1,
+                measure=key.measure_number or str(key.measure_index + 1),
+                fifths=key.fifths,
+                mode=key.mode if key.mode is not None else "major",
+            )
         )
-    time_events: list[dict[str, object]] = []
+    time_events: list[TimeSignatureEvent] = []
     for meter in sorted(model.meters, key=lambda m: (m.part_index, m.measure_index)):
         if meter.staff_number is not None:
             raise MetadataExtractionError("unsupported_staff_meter")
@@ -72,22 +99,22 @@ def project_score_metadata(
             raise MetadataExtractionError("invalid_time_beats")
         beats, denominator = meter.groups[0]
         time_events.append(
-            {
-                "part": meter.part_index + 1,
-                "measure": meter.measure_number or str(meter.measure_index + 1),
-                "beats": beats[0],
-                "beat_type": denominator,
-            }
+            TimeSignatureEvent(
+                part=meter.part_index + 1,
+                measure=meter.measure_number or str(meter.measure_index + 1),
+                beats=beats[0],
+                beat_type=denominator,
+            )
         )
-    tempo_events: list[dict[str, object]] = [
-        {
-            "part": tempo.part_index + 1,
-            "measure": tempo.measure_number or str(tempo.measure_index + 1),
-            "offset_quarters": round(
+    tempo_events: list[TempoEvent] = [
+        TempoEvent(
+            part=tempo.part_index + 1,
+            measure=tempo.measure_number or str(tempo.measure_index + 1),
+            offset_quarters=round(
                 float(tempo.position - model.measures[tempo.measure_index].start), 6
             ),
-            "bpm": float(tempo.quarter_bpm),
-        }
+            bpm=float(tempo.quarter_bpm),
+        )
         for tempo in sorted(model.tempos, key=lambda t: (t.part_index, t.measure_index))
     ]
     try:
@@ -95,13 +122,13 @@ def project_score_metadata(
     except PerformanceNavigationError as error:
         raise MetadataExtractionError(str(error)) from error
     duration_ms = _playback_duration_ms(plan)
-    primary_key = next((event for event in key_events if event["part"] == 1), None)
+    primary_key = next((event for event in key_events if event.part == 1), None)
     return MusicXMLMetadata(
         len(model.measures),
         duration_ms,
         len(model.parts),
-        cast(int, primary_key["fifths"]) if primary_key else None,
-        str(primary_key["mode"]) if primary_key else None,
+        primary_key.fifths if primary_key else None,
+        primary_key.mode if primary_key else None,
         key_events,
         time_events,
         tempo_events,

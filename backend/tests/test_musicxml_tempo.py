@@ -3,6 +3,7 @@ import xml.etree.ElementTree as ET
 
 import pytest
 
+from app.processing.musicxml.metadata import TempoEvent
 from app.score_semantics.musicxml_tempo import (
     MusicXMLTempoError,
     parse_tempo_directive,
@@ -158,7 +159,7 @@ def test_canonical_practice_and_metadata_share_sound_playback_position(notation,
     ]
     metadata = extract_musicxml_metadata(xml)
     assert metadata.tempo_events == [
-        {"part": 1, "measure": "1", "offset_quarters": position, "bpm": 60}
+        TempoEvent(part=1, measure="1", offset_quarters=position, bpm=60)
     ]
     assert metadata.playback_duration_ms == position * 750 + (4 - position) * 1000
 
@@ -197,7 +198,7 @@ def test_admission_rejects_invalid_sound_positions_before_returning_trusted_byte
 def test_visual_metronome_offset_without_divisions_remains_admissible(flag):
     xml = f"<score-partwise><part><measure><attributes><time><beats>4</beats><beat-type>4</beat-type></time></attributes><direction><offset{flag}>4</offset>{metronome()}</direction></measure></part></score-partwise>"
     admitted = admit_musicxml_document(xml.encode())
-    assert extract_musicxml_metadata(admitted).tempo_events[0]["offset_quarters"] == 0
+    assert extract_musicxml_metadata(admitted).tempo_events[0].offset_quarters == 0
 
 
 @pytest.mark.parametrize("before, offset, after", [(0, 4, 8), (6, -2, 2)])
@@ -210,7 +211,7 @@ def test_offset_position_agrees_in_practice_metadata_and_duration(before, offset
     compiled = compile_practice_score(xml)
     assert [(t.start_tick, t.bpm) for t in compiled.tempo_segments] == [(2, 60)]
     metadata = extract_musicxml_metadata(xml)
-    assert metadata.tempo_events == [{"part": 1, "measure": "1", "offset_quarters": 2, "bpm": 60}]
+    assert metadata.tempo_events == [TempoEvent(part=1, measure="1", offset_quarters=2, bpm=60)]
     assert metadata.playback_duration_ms == 3500  # 2 quarters at 80, then 2 at 60.
 
 

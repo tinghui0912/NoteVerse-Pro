@@ -18,7 +18,12 @@ Canonical source content, visual render output, playable output and queryable me
    `RENDERED_PAGE`.
 3. `ScorePlaybackAsset` stores playable derived assets for a revision. The current playback
    kind is `AUDIO`.
-4. `ScoreRevisionMetadata` remains a typed relational projection keyed by revision.
+4. `ScoreRevisionMetadata` is a rebuildable projection of canonical MusicXML, keyed by
+   revision. `KeySignatureEvent`, `TimeSignatureEvent`, and `TempoEvent` in
+   `app.processing.musicxml.metadata` own the typed extraction and public read shapes.
+   JSONB is only persistence serialization: the metadata codec explicitly encodes typed
+   events and strictly decodes required fields, types, and exact shapes on read.
+   Event JSON is not a second musical authority and is not editable revision content.
 5. Revision creation stores the canonical source transactionally with the revision.
 6. Render assets, playback assets, and metadata are rebuildable from the canonical source and
    are produced asynchronously after revision creation.

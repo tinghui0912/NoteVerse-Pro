@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from app.processing.musicxml.metadata import TempoEvent, TimeSignatureEvent
 from app.score_semantics.musicxml_score import MusicXMLSemanticError, parse_score_semantics
 
 FIXTURE = Path(__file__).parent / "fixtures/musicxml/written-semantics.musicxml"
@@ -140,7 +141,7 @@ def test_cross_projection_written_witness(monkeypatch):
     assert result == metadata.extract_musicxml_metadata(content)
     assert result.part_count == 2 and result.measure_count == 4
     assert result.playback_duration_ms == 14833
-    assert result.tempo_events == [{"part": 1, "measure": "1", "offset_quarters": 2, "bpm": 90}]
+    assert result.tempo_events == [TempoEvent(part=1, measure="1", offset_quarters=2, bpm=90)]
 
 
 def test_namespace_and_late_tempo_offset():
@@ -246,7 +247,7 @@ def test_negative_direction_offset_can_place_a_fact_in_the_previous_measure():
     assert model.tempos[0].position == Fraction(1)
     assert project_practice_score(model).tempo_segments[0].start_tick == 1
     result = project_score_metadata(model)
-    assert result.tempo_events == [{"part": 1, "measure": "2", "offset_quarters": -1, "bpm": 60}]
+    assert result.tempo_events == [TempoEvent(part=1, measure="2", offset_quarters=-1, bpm=60)]
     assert result.playback_duration_ms == 3750  # 1 quarter at 80, then 3 at 60.
 
 
@@ -297,8 +298,8 @@ def test_cross_part_polymeter_is_canonical_but_not_one_practice_meter():
         project_practice_score(model)
     result = project_score_metadata(model)
     assert result.time_signature_events == [
-        {"part": 1, "measure": "1", "beats": 4, "beat_type": 4},
-        {"part": 2, "measure": "1", "beats": 3, "beat_type": 4},
+        TimeSignatureEvent(part=1, measure="1", beats=4, beat_type=4),
+        TimeSignatureEvent(part=2, measure="1", beats=3, beat_type=4),
     ]
     assert result.playback_duration_ms == 3000
 
@@ -471,7 +472,7 @@ def test_optional_key_mode_is_only_defaulted_by_metadata():
     assert model.keys[0].fifths == 1 and model.keys[0].alterations == ()
     result = project_score_metadata(model)
     assert result.primary_mode == "major"
-    assert result.key_signature_events[0]["mode"] == "major"
+    assert result.key_signature_events[0].mode == "major"
 
 
 @pytest.mark.parametrize(

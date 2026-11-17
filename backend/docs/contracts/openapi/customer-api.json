@@ -1452,6 +1452,35 @@
         "title": "InviteStatus",
         "type": "string"
       },
+      "KeySignatureEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "fifths": {
+            "title": "Fifths",
+            "type": "integer"
+          },
+          "measure": {
+            "title": "Measure",
+            "type": "string"
+          },
+          "mode": {
+            "title": "Mode",
+            "type": "string"
+          },
+          "part": {
+            "title": "Part",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "part",
+          "measure",
+          "fifths",
+          "mode"
+        ],
+        "title": "KeySignatureEvent",
+        "type": "object"
+      },
       "LibraryBatchMoveRead": {
         "properties": {
           "moved": {
@@ -1880,8 +1909,7 @@
           },
           "key_signature_events": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/KeySignatureEvent"
             },
             "title": "Key Signature Events",
             "type": "array"
@@ -1961,16 +1989,14 @@
           },
           "tempo_events": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/TempoEvent"
             },
             "title": "Tempo Events",
             "type": "array"
           },
           "time_signature_events": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/TimeSignatureEvent"
             },
             "title": "Time Signature Events",
             "type": "array"
@@ -5274,6 +5300,64 @@
           "breakdown"
         ],
         "title": "StorageUsageRead",
+        "type": "object"
+      },
+      "TempoEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "bpm": {
+            "title": "Bpm",
+            "type": "number"
+          },
+          "measure": {
+            "title": "Measure",
+            "type": "string"
+          },
+          "offset_quarters": {
+            "title": "Offset Quarters",
+            "type": "number"
+          },
+          "part": {
+            "title": "Part",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "part",
+          "measure",
+          "offset_quarters",
+          "bpm"
+        ],
+        "title": "TempoEvent",
+        "type": "object"
+      },
+      "TimeSignatureEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "beat_type": {
+            "title": "Beat Type",
+            "type": "integer"
+          },
+          "beats": {
+            "title": "Beats",
+            "type": "integer"
+          },
+          "measure": {
+            "title": "Measure",
+            "type": "string"
+          },
+          "part": {
+            "title": "Part",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "part",
+          "measure",
+          "beats",
+          "beat_type"
+        ],
+        "title": "TimeSignatureEvent",
         "type": "object"
       },
       "UpdateProfileRequest": {

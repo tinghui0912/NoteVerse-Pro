@@ -739,6 +739,28 @@ export type InviteRead = {
 export type InviteStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'REVOKED' | 'EXPIRED';
 
 /**
+ * KeySignatureEvent
+ */
+export type KeySignatureEvent = {
+    /**
+     * Fifths
+     */
+    fifths: number;
+    /**
+     * Measure
+     */
+    measure: string;
+    /**
+     * Mode
+     */
+    mode: string;
+    /**
+     * Part
+     */
+    part: number;
+};
+
+/**
  * LibraryBatchMoveRead
  */
 export type LibraryBatchMoveRead = {
@@ -987,9 +1009,7 @@ export type MetadataRead = {
     /**
      * Key Signature Events
      */
-    key_signature_events: Array<{
-        [key: string]: unknown;
-    }>;
+    key_signature_events: Array<KeySignatureEvent>;
     /**
      * Measure Count
      */
@@ -1022,15 +1042,11 @@ export type MetadataRead = {
     /**
      * Tempo Events
      */
-    tempo_events: Array<{
-        [key: string]: unknown;
-    }>;
+    tempo_events: Array<TempoEvent>;
     /**
      * Time Signature Events
      */
-    time_signature_events: Array<{
-        [key: string]: unknown;
-    }>;
+    time_signature_events: Array<TimeSignatureEvent>;
 };
 
 /**
@@ -2897,6 +2913,50 @@ export type StorageUsageRead = {
      */
     breakdown: Array<StorageUsageBreakdownRead>;
     quota: StorageUsageQuotaRead;
+};
+
+/**
+ * TempoEvent
+ */
+export type TempoEvent = {
+    /**
+     * Bpm
+     */
+    bpm: number;
+    /**
+     * Measure
+     */
+    measure: string;
+    /**
+     * Offset Quarters
+     */
+    offset_quarters: number;
+    /**
+     * Part
+     */
+    part: number;
+};
+
+/**
+ * TimeSignatureEvent
+ */
+export type TimeSignatureEvent = {
+    /**
+     * Beat Type
+     */
+    beat_type: number;
+    /**
+     * Beats
+     */
+    beats: number;
+    /**
+     * Measure
+     */
+    measure: string;
+    /**
+     * Part
+     */
+    part: number;
 };
 
 /**

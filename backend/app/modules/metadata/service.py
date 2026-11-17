@@ -7,6 +7,14 @@ from app.db.model_utils import require_persisted_id
 from app.db.models import ScoreRevision, ScoreRevisionMetadata
 from app.db.models.score import MetadataStatus
 from app.modules.metadata.schemas import MetadataRead
+from app.modules.metadata.event_codec import (
+    encode_key_signature_events,
+    encode_time_signature_events,
+    encode_tempo_events,
+    decode_key_signature_events,
+    decode_time_signature_events,
+    decode_tempo_events,
+)
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.scores.repository import ScoreRepository
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
@@ -60,9 +68,11 @@ class MetadataProjectionService:
         projection.part_count = result.part_count
         projection.primary_key_fifths = result.primary_key_fifths
         projection.primary_mode = result.primary_mode
-        projection.key_signature_events = result.key_signature_events
-        projection.time_signature_events = result.time_signature_events
-        projection.tempo_events = result.tempo_events
+        projection.key_signature_events = encode_key_signature_events(result.key_signature_events)
+        projection.time_signature_events = encode_time_signature_events(
+            result.time_signature_events
+        )
+        projection.tempo_events = encode_tempo_events(result.tempo_events)
         projection.extractor_version = result.extractor_version
 
     @staticmethod
@@ -91,8 +101,8 @@ class MetadataProjectionService:
             part_count=projection.part_count,
             primary_key_fifths=projection.primary_key_fifths,
             primary_mode=projection.primary_mode,
-            key_signature_events=projection.key_signature_events,
-            time_signature_events=projection.time_signature_events,
-            tempo_events=projection.tempo_events,
+            key_signature_events=decode_key_signature_events(projection.key_signature_events),
+            time_signature_events=decode_time_signature_events(projection.time_signature_events),
+            tempo_events=decode_tempo_events(projection.tempo_events),
             computed_at=projection.computed_at,
         )
