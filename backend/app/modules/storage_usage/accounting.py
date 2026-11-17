@@ -15,6 +15,10 @@ from app.shared.error_codes import CustomerErrorCode
 from app.shared.time import utc_now
 
 
+class StorageUsageInvariantError(RuntimeError):
+    """A caller attempted an accounting transition unsupported by the projection."""
+
+
 QUOTA_CATEGORIES = {
     StorageUsageCategory.SOURCE,
     StorageUsageCategory.UPLOAD,
@@ -60,7 +64,7 @@ def new_reservation(
         user_id=user_id,
         category=category,
         bytes_reserved=bytes_count,
-        counts_toward_quota=counts_toward_quota,
+        counts_toward_quota_snapshot=counts_toward_quota,
         status=StorageUsageReservationStatus.RESERVED,
         reason=reason,
         object_type=object_type,
@@ -86,7 +90,7 @@ def new_usage_event(
         user_id=user_id,
         category=category,
         delta_bytes=delta_bytes,
-        counts_toward_quota=counts_toward_quota,
+        counts_toward_quota_snapshot=counts_toward_quota,
         reason=reason,
         object_type=object_type,
         object_id=object_id,
@@ -120,7 +124,7 @@ def commit_reserved_usage(
     object_id: str | None = None,
     storage_key: str | None = None,
 ) -> None:
-    if reservation.counts_toward_quota:
+    if reservation.counts_toward_quota_snapshot:
         account.reserved_bytes -= reservation.bytes_reserved
         account.used_bytes += reservation.bytes_reserved
         account.updated_at = utc_now()
@@ -140,7 +144,7 @@ def release_reserved_usage(
     counter: StorageUsageCounter,
     reservation: StorageUsageReservation,
 ) -> None:
-    if reservation.counts_toward_quota:
+    if reservation.counts_toward_quota_snapshot:
         account.reserved_bytes -= reservation.bytes_reserved
         account.updated_at = utc_now()
     counter.reserved_bytes -= reservation.bytes_reserved
@@ -156,10 +160,13 @@ def release_used_usage(
     bytes_count: int,
     counts_toward_quota: bool,
 ) -> int:
-    released = min(bytes_count, counter.used_bytes)
+    if counter.used_bytes < bytes_count or (
+        counts_toward_quota and account.used_bytes < bytes_count
+    ):
+        raise StorageUsageInvariantError("Storage usage release exceeds accounted allocation")
     if counts_toward_quota:
-        account.used_bytes = max(account.used_bytes - released, 0)
+        account.used_bytes -= bytes_count
         account.updated_at = utc_now()
-    counter.used_bytes = max(counter.used_bytes - released, 0)
+    counter.used_bytes -= bytes_count
     counter.updated_at = utc_now()
-    return released
+    return bytes_count

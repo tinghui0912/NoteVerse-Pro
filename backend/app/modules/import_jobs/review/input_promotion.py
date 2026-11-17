@@ -23,6 +23,8 @@ class PromotedScoreInputUsage:
     upload_uuid: str
     storage_key: str
     size_bytes: int
+    releases_upload_allocation: bool
+    uploader_user_id: int
 
 
 def promote_uploads_to_score_inputs(
@@ -42,6 +44,12 @@ def promote_uploads_to_score_inputs(
     ).all()
     promoted: list[PromotedScoreInputUsage] = []
     for job_upload, upload, blob in rows:
+        upload_id = require_persisted_id(upload.id, entity="upload")
+        # Serialize reclassification of this semantic Upload across Scores.
+        db.execute(select(Upload.id).where(Upload.id == upload_id).with_for_update()).scalar_one()
+        existing_input = db.scalar(
+            select(ScoreInputAsset.id).where(ScoreInputAsset.upload_id == upload_id).limit(1)
+        )
         asset_uuid = str(uuid.uuid4())
         db.add(
             ScoreInputAsset(
@@ -59,6 +67,9 @@ def promote_uploads_to_score_inputs(
                 upload_uuid=upload.upload_uuid,
                 storage_key=blob.object_key,
                 size_bytes=blob.byte_size,
+                releases_upload_allocation=existing_input is None,
+                uploader_user_id=upload.uploader_user_id,
             )
         )
+    db.flush()
     return promoted

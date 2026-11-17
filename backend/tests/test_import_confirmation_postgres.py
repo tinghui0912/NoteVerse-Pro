@@ -679,3 +679,112 @@ def test_confirmed_revision_render_adopts_its_first_pages(confirmation, monkeypa
             db.scalar(sa.select(ScoreRevisionRenderOutbox)).status
             is ScoreRevisionRenderStatus.COMPLETED
         )
+
+
+@pytest.mark.parametrize("keep_import_reference", [True, False])
+def test_shared_upload_promotions_and_last_input_release_match_semantic_inventory(
+    confirmation, keep_import_reference
+):
+    from app.db.models import ScoreDeletionOperation
+    from app.modules.scores.deletion_delivery import ScoreDeletionDeliveryService
+    from app.modules.scores.deletion_executor import ScoreDeletionExecutor
+    from app.modules.storage_usage.reconciliation import StorageUsageReconciliation
+    from app.modules.import_jobs.deletion_service import ImportJobDeletionService
+
+    engine, storage = confirmation
+    reconciliation = StorageUsageReconciliation()
+
+    def assert_usage(db, uploads, inputs):
+        report = reconciliation.inspect_user(db, 1)
+        assert not report.drift, report
+        by_category = {item.category: item.expected.used_bytes for item in report.categories}
+        assert by_category[StorageUsageCategory.UPLOAD] == uploads
+        assert by_category[StorageUsageCategory.INPUT_ASSET] == inputs
+
+    with Session(engine) as db:
+        upload = db.scalar(sa.select(Upload))
+        upload_id = upload.id
+        # Two independent confirmations consume the same admitted Upload semantic row.
+        job = ImportJob(
+            job_uuid="second",
+            user_id=1,
+            state=ImportJobState.READY_FOR_REVIEW,
+            processing_started_at=utc_now(),
+            processing_finished_at=utc_now(),
+            requested_options=encode_requested_options(None),
+        )
+        db.add(job)
+        db.flush()
+        db.add(ImportDispatch(job_id=job.id, status=ImportDispatchStatus.COMPLETED))
+        db.add(ImportJobUpload(job_id=job.id, upload_id=upload_id, page_number=1, sort_order=1))
+        original = db.scalar(sa.select(ImportArtifact))
+        blob = object_from_bytes(
+            object_key="opaque/second", content=MUSICXML_1, content_type="application/xml"
+        )
+        db.add(blob)
+        db.flush()
+        storage.put_bytes(key=blob.object_key, content=MUSICXML_1, content_type=blob.content_type)
+        db.add(
+            ImportArtifact(
+                job_id=job.id,
+                artifact_uuid="second-xml",
+                kind=ImportArtifactKind.REVIEW_MUSICXML,
+                stored_object_id=blob.id,
+                filename=original.filename,
+            )
+        )
+        storage_usage_service.record_allocation(
+            db,
+            user_id=1,
+            category=StorageUsageCategory.TEMP_IMPORT,
+            bytes_count=len(MUSICXML_1),
+            reason="fixture",
+        )
+        if keep_import_reference:
+            keeper = ImportJob(
+                job_uuid="keeper",
+                user_id=1,
+                state=ImportJobState.READY_FOR_REVIEW,
+                processing_started_at=utc_now(),
+                processing_finished_at=utc_now(),
+                requested_options=encode_requested_options(None),
+            )
+            db.add(keeper)
+            db.flush()
+            db.add(ImportDispatch(job_id=keeper.id, status=ImportDispatchStatus.COMPLETED))
+            db.add(
+                ImportJobUpload(job_id=keeper.id, upload_id=upload_id, page_number=1, sort_order=1)
+            )
+        db.commit()
+        assert_usage(db, 8, 0)
+        service = review.ImportReviewService(storage=storage)
+        first = service.confirm(
+            db, "job", 1, ReviewConfirmRequest(content=MUSICXML_1.decode())
+        ).score_id
+        assert_usage(db, 0, 8)
+        second = service.confirm(
+            db, "second", 1, ReviewConfirmRequest(content=MUSICXML_1.decode())
+        ).score_id
+        assert_usage(db, 0, 16)
+        for score_uuid, expected in [(first, 8), (second, 0)]:
+            score = db.scalar(sa.select(Score).where(Score.score_uuid == score_uuid))
+            score.deleted_at = utc_now()
+            operation = ScoreDeletionOperation(
+                score_id=score.id, score_uuid=score_uuid, owner_user_id=1
+            )
+            db.add(operation)
+            db.commit()
+            delivery = ScoreDeletionDeliveryService()
+            lease = delivery.claim(db, operation.operation_uuid)
+            db.commit()
+            assert lease is not None
+            ScoreDeletionExecutor(delivery).execute(db, lease)
+            db.commit()
+            assert_usage(db, 8 if expected == 0 and keep_import_reference else 0, expected)
+        if keep_import_reference:
+            assert db.get(Upload, upload_id) is not None
+            keeper = db.scalar(sa.select(ImportJob).where(ImportJob.job_uuid == "keeper"))
+            ImportJobDeletionService().delete_job(db, keeper, 1)
+            db.commit()
+        assert db.get(Upload, upload_id) is None
+        assert_usage(db, 0, 0)

@@ -174,7 +174,7 @@ class StorageUsageReservation(SQLModel, table=True):  # type: ignore[call-arg]
         sa_column=Column(SAEnum(StorageUsageCategory, name="storageusagecategory"), nullable=False)
     )
     bytes_reserved: int = Field(sa_column=Column(BigInteger, nullable=False))
-    counts_toward_quota: bool = Field(sa_column=Column(Boolean, nullable=False))
+    counts_toward_quota_snapshot: bool = Field(sa_column=Column(Boolean, nullable=False))
     status: StorageUsageReservationStatus = Field(
         sa_column=Column(
             SAEnum(StorageUsageReservationStatus, name="storageusagereservationstatus"),
@@ -215,7 +215,7 @@ class StorageUsageEvent(SQLModel, table=True):  # type: ignore[call-arg]
         sa_column=Column(SAEnum(StorageUsageCategory, name="storageusagecategory"), nullable=False)
     )
     delta_bytes: int = Field(sa_column=Column(BigInteger, nullable=False))
-    counts_toward_quota: bool = Field(sa_column=Column(Boolean, nullable=False))
+    counts_toward_quota_snapshot: bool = Field(sa_column=Column(Boolean, nullable=False))
     reason: str = Field(sa_column=Column(String(64), nullable=False))
     object_type: Optional[str] = Field(default=None, sa_column=Column(String(64)))
     object_id: Optional[str] = Field(default=None, sa_column=Column(String(128)))

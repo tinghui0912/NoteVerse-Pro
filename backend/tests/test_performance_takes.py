@@ -4061,6 +4061,14 @@ def test_take_deletion_retires_media_but_preserves_manifest_and_reservation(test
         take = session.scalar(select(PerformanceTake))
         assert take.manifest_id == manifest_id
         assert finalized.json()["manifest"] == accepted["manifest"]
+        from app.modules.storage_usage.reconciliation import StorageUsageReconciliation
+
+        reconciler = StorageUsageReconciliation()
+        assert not reconciler.inspect_user(session, user.id).drift
+        assert (
+            reconciler.inspect_user(session, user.id).expected_account.used_bytes
+            == take.recording_object.byte_size
+        )
         final_key = take.recording_object.object_key
         deleted = client.delete(f"/api/v1/performance-takes/{accepted['take_id']}")
         assert deleted.status_code == 204, deleted.text
@@ -4079,6 +4087,7 @@ def test_take_deletion_retires_media_but_preserves_manifest_and_reservation(test
         assert operation.byte_size == before.snapshot.capture.byte_size
         assert session.scalar(select(PerformanceTake)) is None
         assert session.get(StorageUsageAccount, user.id).used_bytes == 0
+        assert reconciler.inspect_user(session, user.id).expected_account.used_bytes == 0
         outcome = _run_retirement(monkeypatch, session, storage, operation.retirement_uuid)
         assert outcome["status"] == "completed"
         session.expire_all()

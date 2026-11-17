@@ -1214,7 +1214,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("delta_bytes", sa.BigInteger(), nullable=False),
-        sa.Column("counts_toward_quota", sa.Boolean(), nullable=False),
+        sa.Column("counts_toward_quota_snapshot", sa.Boolean(), nullable=False),
         sa.Column("reason", sa.String(length=64), nullable=False),
         sa.Column("object_type", sa.String(length=64), nullable=True),
         sa.Column("object_id", sa.String(length=128), nullable=True),
@@ -1265,7 +1265,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("bytes_reserved", sa.BigInteger(), nullable=False),
-        sa.Column("counts_toward_quota", sa.Boolean(), nullable=False),
+        sa.Column("counts_toward_quota_snapshot", sa.Boolean(), nullable=False),
         sa.Column(
             "status",
             postgresql.ENUM(

@@ -157,6 +157,9 @@ class ScoreDeletionExecutor:
                 .where(ScoreInputAsset.score_id == score_id)
             ).all()
         )
+        if input_rows:
+            # Reclassification can allocate again after release; hold the admission lock first.
+            storage_usage_service.lock_user_projection(db, owner_user_id)
         usage_releases.extend(
             StorageUsageReleaseRecord(
                 category=StorageUsageCategory.INPUT_ASSET,
@@ -167,7 +170,9 @@ class ScoreDeletionExecutor:
             )
             for asset_uuid, _upload_id, _object_id, storage_key, size_bytes in input_rows
         )
-        upload_ids_to_maybe_delete = [upload_id for _asset_uuid, upload_id, *_rest in input_rows]
+        upload_ids_to_maybe_delete = sorted(
+            {upload_id for _asset_uuid, upload_id, *_rest in input_rows}
+        )
         objects_by_upload = {
             upload_id: (stored_object_id, storage_key)
             for _asset_uuid, upload_id, stored_object_id, storage_key, _size_bytes in input_rows
@@ -182,6 +187,17 @@ class ScoreDeletionExecutor:
         score.head_revision_id = None
         db.delete(score)
         db.flush()
+        for release in usage_releases:
+            storage_usage_service.record_release(
+                db,
+                user_id=owner_user_id,
+                category=release.category,
+                bytes_count=release.bytes_count,
+                reason="delete_score",
+                object_type=release.object_type,
+                object_id=release.object_id,
+                storage_key=release.storage_key,
+            )
         released_ids = [representation.id for representation in representations]
         for upload_id in upload_ids_to_maybe_delete:
             import_refs = (
@@ -198,26 +214,28 @@ class ScoreDeletionExecutor:
                     )
                 )
             ).scalar_one()
-            if import_refs or input_refs:
+            if input_refs:
                 continue
             upload = db.get(Upload, upload_id)
             if upload is None:
+                continue
+            if import_refs:
+                # The final InputAsset is gone, but the Upload remains a semantic allocation.
+                storage_usage_service.record_allocation(
+                    db,
+                    user_id=upload.uploader_user_id,
+                    category=StorageUsageCategory.UPLOAD,
+                    bytes_count=upload.stored_object.byte_size,
+                    reason="score_input_returned_to_upload",
+                    object_type="upload",
+                    object_id=upload.upload_uuid,
+                    storage_key=upload.stored_object.object_key,
+                )
                 continue
             stored_object_id, object_key = objects_by_upload[upload_id]
             db.delete(upload)
             db.flush()
             released_ids.append(stored_object_id)
-        for release in usage_releases:
-            storage_usage_service.record_release(
-                db,
-                user_id=owner_user_id,
-                category=release.category,
-                bytes_count=release.bytes_count,
-                reason="delete_score",
-                object_type=release.object_type,
-                object_id=release.object_id,
-                storage_key=release.storage_key,
-            )
         for release in import_cleanup:
             storage_usage_service.record_release(
                 db,

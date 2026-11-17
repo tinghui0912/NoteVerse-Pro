@@ -6,7 +6,8 @@ from alembic import command
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
-from app.db.models import ImportArtifact, ImportJob, Score, Upload, User
+from app.db.models import ImportArtifact, ImportJob, Score, Upload, User, StorageUsageCategory
+from app.modules.storage_usage.service import storage_usage_service
 from app.db.models.import_job import ImportArtifactKind
 from app.modules.import_jobs.schemas import ImportJobSubmitRequest
 from app.modules.import_jobs.submission_service import ImportJobSubmissionService
@@ -152,6 +153,13 @@ def test_import_review_score_and_library_share_score_genres(
     session.flush()
     upload = Upload(stored_object_id=original.id, uploader_user_id=1, original_filename="page.png")
     session.add(upload)
+    storage_usage_service.record_allocation(
+        session,
+        user_id=1,
+        category=StorageUsageCategory.UPLOAD,
+        bytes_count=original.byte_size,
+        reason="fixture",
+    )
     session.commit()
     result = ImportJobSubmissionService().submit(
         session,
@@ -185,6 +193,13 @@ def test_import_review_score_and_library_share_score_genres(
             stored_object=xml,
             filename="score.musicxml",
         )
+    )
+    storage_usage_service.record_allocation(
+        session,
+        user_id=1,
+        category=StorageUsageCategory.TEMP_IMPORT,
+        bytes_count=xml.byte_size,
+        reason="fixture",
     )
     session.commit()
     db = session

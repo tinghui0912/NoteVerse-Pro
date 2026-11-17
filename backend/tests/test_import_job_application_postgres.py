@@ -27,6 +27,7 @@ from app.api.deps import get_current_user, get_db
 from app.core.exceptions import ResourceNotFoundException
 from app.db.execution_manifests import manifest_sha256
 from app.db.models import (
+    StorageUsageCategory,
     ExecutionManifest,
     ImportArtifact,
     ImportDispatch,
@@ -39,6 +40,7 @@ from app.db.models import (
     Upload,
     User,
 )
+from app.modules.storage_usage.service import storage_usage_service
 from app.main import app
 from app.db.models.import_job import ImportArtifactKind
 from app.modules.import_jobs.repository import ImportJobRepository
@@ -119,6 +121,15 @@ def application_db(postgres_url, monkeypatch):
                     ExecutionManifest(id=1, sha256=manifest_sha256(MANIFEST), manifest=MANIFEST),
                 ]
             )
+            db.flush()
+            for upload in db.scalars(select(Upload)).all():
+                storage_usage_service.record_allocation(
+                    db,
+                    user_id=upload.uploader_user_id,
+                    category=StorageUsageCategory.UPLOAD,
+                    bytes_count=upload.stored_object.byte_size,
+                    reason="fixture",
+                )
             db.commit()
             yield db
     finally:
@@ -452,6 +463,13 @@ async def test_review_confirmation_wins_over_stale_customer_delete_and_retains_p
             stored_object_id=2,
             page_number=1,
         )
+    )
+    storage_usage_service.record_allocation(
+        db,
+        user_id=1,
+        category=StorageUsageCategory.TEMP_IMPORT,
+        bytes_count=db.get(StoredObject, 2).byte_size,
+        reason="fixture",
     )
     db.commit()
     job_id = job.id

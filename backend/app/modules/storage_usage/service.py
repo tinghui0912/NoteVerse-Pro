@@ -12,6 +12,7 @@ from app.db.models import (
     StorageUsageReservationStatus,
 )
 from app.modules.storage_usage.accounting import (
+    StorageUsageInvariantError,
     apply_reservation_hold,
     commit_reserved_usage,
     counts_toward_quota,
@@ -69,6 +70,11 @@ class StorageUsageService:
             ),
             breakdown=breakdown,
         )
+
+    def lock_user_projection(self, db: Session, user_id: int) -> None:
+        """Fence compound reclassifications in entitlement → account lock order."""
+        self._effective_entitlement(db, user_id, lock=True)
+        self._require_account(db, user_id, lock=True)
 
     def reserve(
         self,
@@ -142,7 +148,7 @@ class StorageUsageService:
                 user_id=reservation.user_id,
                 category=reservation.category,
                 delta_bytes=reservation.bytes_reserved,
-                counts_toward_quota=reservation.counts_toward_quota,
+                counts_toward_quota=reservation.counts_toward_quota_snapshot,
                 reason=reservation.reason,
                 object_type=reservation.object_type,
                 object_id=reservation.object_id,
@@ -211,7 +217,9 @@ class StorageUsageService:
         if bytes_count <= 0:
             return
         account = self._require_account(db, user_id, lock=True)
-        counter = self._ensure_counter(db, user_id, category, lock=True)
+        counter = self.repository.counter(db, user_id, category, lock=True)
+        if counter is None:
+            raise StorageUsageInvariantError("Storage usage release requires an accounted category")
         counts_toward_quota_value = counts_toward_quota(category)
         released = release_used_usage(
             account=account,

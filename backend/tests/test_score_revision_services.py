@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+from app.modules.storage_usage.service import storage_usage_service
 from app.modules.revisions.object_keys import canonical_revision_source_object_key
 
 from app.modules.import_jobs.requested_options import encode_requested_options
@@ -659,6 +661,14 @@ def test_review_update_replaces_review_musicxml(
         )
     )
     session.commit()
+    storage_usage_service.record_allocation(
+        session,
+        user_id=1,
+        category=StorageUsageCategory.TEMP_IMPORT,
+        bytes_count=stored_xml.size_bytes,
+        reason="fixture",
+    )
+    session.commit()
     service = ImportReviewService(storage=storage)
 
     detail = service.update(
@@ -1269,6 +1279,14 @@ def test_derived_asset_retention_protects_current_head_only(
                 ),
             ]
         )
+        for category, size in [
+            (StorageUsageCategory.DERIVED_RENDER, rendered.size_bytes),
+            (StorageUsageCategory.DERIVED_AUDIO, audio.size_bytes),
+            (StorageUsageCategory.SOURCE, musicxml.size_bytes),
+        ]:
+            storage_usage_service.record_allocation(
+                session, user_id=1, category=category, bytes_count=size, reason="fixture"
+            )
     session.commit()
     service = DerivedAssetRetentionService()
 

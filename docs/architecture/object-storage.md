@@ -183,3 +183,9 @@ fields are enums; non-native SQLAlchemy Enum projects each VARCHAR(24) admission
 CHECK. Write/adoption, cleanup and retirement predicates and transitions consume
 their domain enum members. ObjectWriteIntent keeps physical-write states alongside
 its cleanup delivery states; retirement retains its distinct CANCELLED meaning.
+
+
+Physical retirement references answer whether an admitted object remains referenced.
+They do not determine accounting user, category or multiplicity. The separate
+[Storage Usage semantic inventory](storage-usage.md#reconciliation-source) owns
+those facts and reads StoredObject.byte_size without consulting the provider.

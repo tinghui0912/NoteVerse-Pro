@@ -220,16 +220,17 @@ class ImportReviewService:
             )
             mark_confirmed(job, score_id=score_id, now=utc_now())
             for promoted in promoted_inputs:
-                storage_usage_service.record_release(
-                    db,
-                    user_id=user_id,
-                    category=StorageUsageCategory.UPLOAD,
-                    bytes_count=promoted.size_bytes,
-                    reason="upload_promoted_to_score_input",
-                    object_type="upload",
-                    object_id=promoted.upload_uuid,
-                    storage_key=promoted.storage_key,
-                )
+                if promoted.releases_upload_allocation:
+                    storage_usage_service.record_release(
+                        db,
+                        user_id=promoted.uploader_user_id,
+                        category=StorageUsageCategory.UPLOAD,
+                        bytes_count=promoted.size_bytes,
+                        reason="upload_promoted_to_score_input",
+                        object_type="upload",
+                        object_id=promoted.upload_uuid,
+                        storage_key=promoted.storage_key,
+                    )
                 storage_usage_service.record_allocation(
                     db,
                     user_id=user_id,
